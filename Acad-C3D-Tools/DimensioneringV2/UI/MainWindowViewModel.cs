@@ -24,6 +24,13 @@ using Mapsui.Widgets;
 
 using utils = IntersectUtilities.UtilsCommon.Utils;
 using DimensioneringV2.MapStyles;
+using ProjNet.CoordinateSystems.Transformations;
+using ProjNet.CoordinateSystems;
+using Autodesk.AutoCAD.Geometry;
+using IntersectUtilities.UtilsCommon;
+using Mapsui.Nts.Extensions;
+using Mapsui.Extensions.Projections;
+using NetTopologySuite.Geometries;
 
 namespace DimensioneringV2.UI
 {
@@ -68,11 +75,58 @@ namespace DimensioneringV2.UI
             {
                 utils.prdDbg($"An error occurred during calculations: {ex.Message}");
             }
-        } 
+        }
+        #endregion
+
+        #region ZoomToExtents
+        public RelayCommand PerformZoomToExtents =>
+            new RelayCommand((_) => ZoomToExtents(), (_) => true);
+
+        private void ZoomToExtents()
+        {
+            var map = Mymap;
+            if (map == null) return;
+
+            var layer = map.Layers.FirstOrDefault(x => x.Name == "Features");
+            if (layer == null) return;
+
+            var extent = layer.Extent!.Grow(100);
+
+            map.Navigator.ZoomToBox(extent);
+        }
+        #endregion
+
+        #region SyncACWindow
+        public RelayCommand SyncACWindowCommand =>
+            new RelayCommand((_) => SyncACWindow(), (_) => true);
+        private void SyncACWindow()
+        {
+            var vp = Mymap.Navigator.Viewport;
+            var mapExtent = vp.ToExtent();
+            var minX = mapExtent.MinX;
+            var minY = mapExtent.MinY;
+            var maxX = mapExtent.MaxX;
+            var maxY = mapExtent.MaxY;
+
+            var trans = new CoordinateTransformationFactory().CreateFromCoordinateSystems(
+                ProjectedCoordinateSystem.WebMercator,
+                ProjectedCoordinateSystem.WGS84_UTM(32, true)); 
+            
+            var minPT = trans.MathTransform.Transform(new double[] { minX, minY });
+            var maxPT = trans.MathTransform.Transform(new double[] { maxX, maxY });
+
+            var minPt = new Point3d(minPT[0], minPT[1], 0);
+            var maxPt = new Point3d(maxPT[0], maxPT[1], 0);
+
+            var docs = AcAp.DocumentManager;
+            var ed = docs.MdiActiveDocument.Editor;
+
+            ed.Zoom(new Autodesk.AutoCAD.DatabaseServices.Extents3d(minPt, maxPt));
+        }
         #endregion
 
         [ObservableProperty]
-        private Map _map = new() { CRS = "EPSG:3857" };
+        private Map _mymap = new() { CRS = "EPSG:3857" };
 
         [ObservableProperty]
         private IStyleManager currentStyle;
@@ -80,14 +134,14 @@ namespace DimensioneringV2.UI
         public ObservableCollection<IFeature> Features { get; private set; }
 
         private readonly DataService _dataService;
-        
+
         private void OnDataLoadedFirstTime(object sender, EventArgs e)
         {
             // Update observable collections
             Features = new(_dataService!.Features.SelectMany(x => x));
 
             CurrentStyle = new StyleBasic(Features);
-            UpdateMap();
+            CreateMapFirstTime();
         }
 
         private void OnCalculationsCompleted(object sender, EventArgs e)
@@ -97,13 +151,13 @@ namespace DimensioneringV2.UI
             UpdateMap();
         }
 
-        private void UpdateMap()
+        private void CreateMapFirstTime()
         {
-            if (Map == null) return;
+            if (Mymap == null) return;
 
             var provider = new MemoryProvider(CurrentStyle.ApplyStyle())
             {
-                CRS  = "EPSG:3857"
+                CRS = "EPSG:3857"
             };
 
             Layer layer = new Layer
@@ -114,11 +168,35 @@ namespace DimensioneringV2.UI
 
             var extent = layer.Extent!.Grow(100);
 
-            Map.Layers.Clear();
-            Map.Layers.Add(Mapsui.Tiling.OpenStreetMap.CreateTileLayer());
-            Map.Layers.Add(layer);
+            Mymap.Layers.Clear();
+            Mymap.Layers.Add(Mapsui.Tiling.OpenStreetMap.CreateTileLayer());
+            Mymap.Layers.Add(layer);
 
-            Map.Navigator.ZoomToBox(extent);
+            Mymap.Navigator.ZoomToBox(extent);
+        }
+
+        private void UpdateMap()
+        {
+            if (Mymap == null) return;
+
+            var provider = new MemoryProvider(CurrentStyle.ApplyStyle())
+            {
+                CRS = "EPSG:3857"
+            };
+
+            Layer layer = new Layer
+            {
+                DataSource = provider,
+                Name = "Features",
+            };
+
+            var exLayer = Mymap.Layers.FirstOrDefault(x => x.Name == "Features");
+            if (exLayer != null)
+            {
+                Mymap.Layers.Remove(exLayer);
+            }
+
+            Mymap.Layers.Add(layer);
         }
     }
 }

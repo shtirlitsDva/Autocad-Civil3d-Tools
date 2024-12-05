@@ -11,23 +11,23 @@
         <ResourceDictionary Source="Theme.xaml"></ResourceDictionary>
     </UserControl.Resources>
     <Grid>
-        <DockPanel Background="{DynamicResource Background}" Margin="0,4,0,-4">
-            <StackPanel Orientation="Horizontal" DockPanel.Dock="Top">
-                <!-- Load Data Button -->
+        <DockPanel Background="{DynamicResource Background}" Margin="2">
+            <!-- StackPanel for Buttons on the Left -->
+            <StackPanel Orientation="Vertical" DockPanel.Dock="Left" Margin="2">
                 <Button 
-                    x:Name="LoadButton" Content="Load Data" Width="100" Height="30" 
-                    DockPanel.Dock="Top" Margin="10" Command="{Binding CollectFeaturesCommand}"/>
+                    x:Name="btnLoad" Content="Load Data" FontSize="10" Width="70" Height="20" 
+                    Margin="2" Command="{Binding CollectFeaturesCommand}"/>
                 <Button 
-                    x:Name="CalcButton" Content="Calculate" Width="100" Height="30" 
-                    Margin="10" Command="{Binding PerformCalculationsCommand}"/>
-                <Button x:Name="btnSave" Content="Save" Width="100" Height="30" Margin="10"/>
-                <Button x:Name="btnSaveAs" Content="Save As" Width="100" Height="30" Margin="10"/>
-                <Button x:Name="btnClose" Content="Close" Width="100" Height="30" Margin="10"/>
+                    x:Name="btnCalc" Content="Calculate" FontSize="10" Width="70" Height="20" 
+                    Margin="2" Command="{Binding PerformCalculationsCommand}"/>
+                <Button x:Name="btnZoomExt" Content="Zoom Ext" FontSize="10" Width="70" Height="20"
+                        Margin="2" Command="{Binding PerformZoomToExtents}"/>
+                <Button x:Name="btnSyncAC" Content="Sync AC" FontSize="10" Width="70" Height="20"
+                        Margin="2" Command="{Binding SyncACWindowCommand}"/>
+                <Button x:Name="btnClose" Content="Temp" FontSize="10" Width="70" Height="20" Margin="2"/>
             </StackPanel>
             <!-- Map Control -->
-            <mapsui:MapControl x:Name="mapControl" Margin="10" DockPanel.Dock="Top"/>
-
+            <mapsui:MapControl x:Name="mapControl" Margin="2"/>
         </DockPanel>
     </Grid>
-
 </UserControl>

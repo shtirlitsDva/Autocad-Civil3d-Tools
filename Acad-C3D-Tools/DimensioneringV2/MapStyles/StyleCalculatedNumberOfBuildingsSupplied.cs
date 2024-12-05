@@ -30,9 +30,15 @@ namespace DimensioneringV2.MapStyles
         {
             var f = feature as AnalysisFeature;
 
+            int nr = f.NumberOfBuildingsSupplied;
+
+            if (nr == 0)
+            {
+                return new StyleDefault(_features).GetStyles(f);
+            }
             var s1 = new VectorStyle
             {
-                Line = new Pen(_gradientHelper.LookupColor(f.NumberOfBuildingsSupplied))
+                Line = new Pen(_gradientHelper.LookupColor(nr))
                 {
                     Width = 3
                 }
