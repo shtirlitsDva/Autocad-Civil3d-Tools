@@ -16,6 +16,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)AsciiTableFormatter.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Enums.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)HydraulicCalc.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)LookupData.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Pipes\Dim.cs" />

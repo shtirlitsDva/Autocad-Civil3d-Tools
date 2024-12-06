@@ -4,6 +4,8 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 using Dreambuild.AutoCAD;
 
+using NorsynHydraulicCalc;
+
 using IntersectUtilities.UtilsCommon;
 using utils = IntersectUtilities.UtilsCommon.Utils;
 
@@ -23,7 +25,7 @@ public partial class HydraulicSettings : ObservableObject
     private double minDifferentialPressureOverHovedHaner = 0.5;
 
     [ObservableProperty]
-    private string calculationType = "CW"; // "CW" or "TM"
+    private CalcType calculationType = CalcType.CW; // "CW" or "TM"
 
     [ObservableProperty]
     private bool reportToConsole = true;
@@ -82,7 +84,7 @@ public partial class HydraulicSettings : ObservableObject
     private int nyttetimerOneUserSL = 2000;
 
     [ObservableProperty]
-    private string pipeTypeSL = "AluPEX"; // Dropdown: AluPEX, Kobber, Stål, PertFlextra
+    private PipeType pipeTypeSL = PipeType.AluPEX; // Dropdown: AluPEX, Kobber, Stål, PertFlextra
 
     [ObservableProperty]
     private double acceptVelocityFlexibleSL = 1.0;

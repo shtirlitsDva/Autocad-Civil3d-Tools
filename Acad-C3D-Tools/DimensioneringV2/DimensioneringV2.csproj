@@ -182,4 +182,5 @@
 	</ItemGroup>
 	<Import Project="..\UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems" Label="Shared" />
 	<Import Project="..\AutoCADCommandsSHARED\AutoCADCommandsSHARED.projitems" Label="Shared" />
+	<Import Project="..\NorsynHydraulicShared\NorsynHydraulicShared.projitems" Label="Shared" />
 </Project>
