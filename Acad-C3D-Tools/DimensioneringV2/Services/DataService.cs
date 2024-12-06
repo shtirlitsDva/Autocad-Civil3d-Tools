@@ -1,7 +1,5 @@
 ﻿using DimensioneringV2.GraphFeatures;
 
-using Mapsui.Extensions;
-
 using QuikGraph;
 
 using System;
