@@ -31,17 +31,17 @@ namespace DimensioneringV2.UI
 
         private void DocumentManager_DocumentActivated(object sender, DocumentCollectionEventArgs e)
         {
-            Settings = HydraulicSettings.Load(((Document)sender).Database);
+            Settings = HydraulicSettings.Load(e.Document.Database);
         }
 
         private void DocumentManager_DocumentToBeDeactivated(object sender, DocumentCollectionEventArgs e)
         {
-            // Handle event
+            Settings.Save(e.Document.Database);
         }
 
         private void DocumentManager_DocumentToBeDestroyed(object sender, DocumentCollectionEventArgs e)
         {
-            throw new NotImplementedException();
+            Settings.Save(e.Document.Database);
         }
     }
 }

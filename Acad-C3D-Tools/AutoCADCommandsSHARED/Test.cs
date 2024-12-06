@@ -8,23 +8,15 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Dreambuild.AutoCAD
+using Dreambuild.AutoCAD;
+
+namespace IntersectUtilities
 {
     /// <summary>
     /// Tests and samples
     /// </summary>
-    public class CodePackTest : IExtensionApplication
+    public partial class Intersect
     {
-        public void Initialize()
-        {
-
-        }
-
-        public void Terminate()
-        {
-
-        }
-
         #region Commands that you can provide out of the box in your application
 
         /// <summary>
@@ -231,7 +223,9 @@ namespace Dreambuild.AutoCAD
                     {
                         if (poly1 != poly)
                         {
-                            poly.IntersectWith3264(poly1, Intersect.OnBothOperands, intersectPoints);
+                            poly.IntersectWith3264(poly1,
+                                Autodesk.AutoCAD.DatabaseServices.Intersect.OnBothOperands, 
+                                intersectPoints);
                         }
                     }
                     var ipParams = intersectPoints

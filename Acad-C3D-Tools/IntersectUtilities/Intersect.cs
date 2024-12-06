@@ -3746,12 +3746,12 @@ namespace IntersectUtilities
                 try
                 {
                     #region Test XRecord Has data entry
-                    var store = localDb.FlexDataStore();
-                    var hasData = store.Has("MyData");
-                    prdDbg($"Has data: {hasData}");
-                    store.RemoveEntry("MyData");
-                    hasData = store.Has("MyData");
-                    prdDbg($"Has data: {hasData}");
+                    //var store = localDb.FlexDataStore();
+                    //var hasData = store.Has("MyData");
+                    //prdDbg($"Has data: {hasData}");
+                    //store.RemoveEntry("MyData");
+                    //hasData = store.Has("MyData");
+                    //prdDbg($"Has data: {hasData}");
                     #endregion
 
                     #region Test XRecord remove data entry

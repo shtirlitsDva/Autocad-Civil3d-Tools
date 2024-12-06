@@ -108,6 +108,11 @@ public partial class HydraulicSettings : ObservableObject
         var json = JsonSerializer.Serialize(this, options);
         File.WriteAllText(path, json);
     }
+    public void Save(Database db)
+    {
+        var store = db.FlexDataStore();
+        store.SetObject("HydraulicSettings", this);
+    }
 
     //public static HydraulicSettings Load(string data)
     //{
@@ -137,6 +142,7 @@ public partial class HydraulicSettings : ObservableObject
                 throw;
             }
         }
+        utils.prdDbg($"Store does not have requested key: \"HydraulicSettings\"");
         return new HydraulicSettings();
     }
 }

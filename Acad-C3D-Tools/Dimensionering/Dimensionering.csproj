@@ -38,6 +38,10 @@
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AcCui.dll</HintPath>
 			<Private>False</Private>
 		</Reference>
+		<Reference Include="acdbmgd">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\acdbmgd.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
 		<Reference Include="acdbmgdbrep">
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\acdbmgdbrep.dll</HintPath>
 			<Private>False</Private>
@@ -70,10 +74,6 @@
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AcWindows.dll</HintPath>
 			<Private>False</Private>
 		</Reference>
-		<Reference Include="AdUIMgd">
-			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AdUIMgd.dll</HintPath>
-			<Private>False</Private>
-		</Reference>
 		<Reference Include="AdUiPalettes">
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AdUiPalettes.dll</HintPath>
 			<Private>False</Private>
@@ -83,8 +83,12 @@
 			<Private>False</Private>
 		</Reference>
 		<Reference Include="AecBaseMgd">
-		  <HintPath>C:\Program Files\Autodesk\AutoCAD 2025\ACA\AecBaseMgd.dll</HintPath>
-		  <Private>False</Private>
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\ACA\AecBaseMgd.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AeccDataShortcutMgd">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\C3D\AeccDataShortcutMgd.dll</HintPath>
+			<Private>False</Private>
 		</Reference>
 		<Reference Include="AeccDbMgd">
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\C3D\AeccDbMgd.dll</HintPath>

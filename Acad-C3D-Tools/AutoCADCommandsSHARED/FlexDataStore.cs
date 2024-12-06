@@ -65,7 +65,7 @@ namespace Dreambuild.AutoCAD
                 var dictionary = trans.GetObject(this.DictionaryId, OpenMode.ForWrite) as DBDictionary;
                 if (dictionary.Contains(key))
                 {
-                    //trans.GetObject(dictionary.GetAt(key), OpenMode.ForWrite).Erase();
+                    trans.GetObject(dictionary.GetAt(key), OpenMode.ForWrite).Erase();
                     dictionary.Remove(key);
                 }
                 else

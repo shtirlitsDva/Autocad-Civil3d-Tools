@@ -50,7 +50,7 @@ namespace DimensioneringV2
         public void Terminate()
         {
             //Add your termination code here
-        } 
+        }
         #endregion
 
         private static double tol = DimensioneringV2.Tolerance.Default;
@@ -79,7 +79,7 @@ namespace DimensioneringV2
                             var pl2 = pls[j];
 
                             using Point3dCollection pts = new Point3dCollection();
-                            pl1.IntersectWith(pl2, Intersect.OnBothOperands, new Plane(),
+                            pl1.IntersectWith(pl2, Autodesk.AutoCAD.DatabaseServices.Intersect.OnBothOperands, new Plane(),
                                 pts, IntPtr.Zero, IntPtr.Zero);
 
                             foreach (Point3d pt in pts)
@@ -143,7 +143,7 @@ namespace DimensioneringV2
                             var pl2 = pls[j];
 
                             using Point3dCollection pts = new Point3dCollection();
-                            pl1.IntersectWith(pl2, Intersect.OnBothOperands, new Plane(),
+                            pl1.IntersectWith(pl2, Autodesk.AutoCAD.DatabaseServices.Intersect.OnBothOperands, new Plane(),
                                 pts, IntPtr.Zero, IntPtr.Zero);
 
                             foreach (Point3d pt in pts)
@@ -498,7 +498,7 @@ namespace DimensioneringV2
                     graph.BuildGraph(pls, basePoints, brs, noCrossLines);
 
                     var features = GraphTranslator.TranslateGraph(graph);
-                    
+
                     if (features != null)
                     {
                         Services.DataService.Instance.LoadData(features);
@@ -524,6 +524,29 @@ namespace DimensioneringV2
                 }
                 tx.Commit();
             }
+
+            prdDbg("Finished!");
+        }
+
+        [CommandMethod("DIM2TESTHSETSERIALIZATION")]
+        public void dim2testhsetserialization()
+        {
+            DocumentCollection docCol = AcApp.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+
+            HydraulicSettings hs = new HydraulicSettings();
+
+            hs.TempFremFL = 300000;
+
+            hs.Save(localDb);
+
+            hs = null;
+
+            hs = HydraulicSettings.Load(localDb);
+
+            hs.Save(@"C:\Temp\HS.json");
 
             prdDbg("Finished!");
         }
