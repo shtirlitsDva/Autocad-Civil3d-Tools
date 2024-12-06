@@ -20,9 +20,11 @@ namespace DimensioneringV2.UI
     /// </summary>
     public partial class SettingsTab : UserControl
     {
+        SettingsTabViewModel vm = new();
         public SettingsTab()
         {
             InitializeComponent();
+            DataContext = vm;
         }
     }
 }

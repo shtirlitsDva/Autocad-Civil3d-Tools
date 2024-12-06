@@ -161,9 +161,6 @@
 		<PackageReference Include="QuikGraph.Graphviz" Version="2.5.0" />
 	</ItemGroup>
 	<ItemGroup>
-		<ProjectReference Include="..\AutoCADCommands\AutoCADCommands.csproj" />
-	</ItemGroup>
-	<ItemGroup>
 		<Folder Include="Links\" />
 	</ItemGroup>
 	<ItemGroup>
@@ -180,4 +177,5 @@
 		</None>
 	</ItemGroup>
 	<Import Project="..\UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems" Label="Shared" />
+	<Import Project="..\AutoCADCommandsSHARED\AutoCADCommandsSHARED.projitems" Label="Shared" />
 </Project>

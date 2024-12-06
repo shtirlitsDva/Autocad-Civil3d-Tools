@@ -17,7 +17,6 @@ using Mapsui.Layers;
 using Mapsui;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Mapsui.Nts;
-using System.Diagnostics.CodeAnalysis;
 using Mapsui.Extensions;
 using Mapsui.Providers;
 using Mapsui.Widgets;
@@ -28,10 +27,6 @@ using ProjNet.CoordinateSystems.Transformations;
 using ProjNet.CoordinateSystems;
 using Autodesk.AutoCAD.Geometry;
 using IntersectUtilities.UtilsCommon;
-using Mapsui.Nts.Extensions;
-using Mapsui.Extensions.Projections;
-using NetTopologySuite.Geometries;
-using Mapsui.Styles;
 
 namespace DimensioneringV2.UI
 {

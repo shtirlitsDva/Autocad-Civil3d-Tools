@@ -47,4 +47,5 @@
 	<ItemGroup>
 		<Compile Remove="Tuples.cs" />
 	</ItemGroup>
+	<Import Project="..\AutoCADCommandsSHARED\AutoCADCommandsSHARED.projitems" Label="Shared" />
 </Project>

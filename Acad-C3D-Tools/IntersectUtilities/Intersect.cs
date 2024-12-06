@@ -3726,6 +3726,12 @@ namespace IntersectUtilities
         }
 
 #if DEBUG
+        private class MyData
+        {
+            public int Number { get; set; }
+            public string? Text { get; set; }
+        }
+
         [CommandMethod("testing", CommandFlags.UsePickSet)]
         public void testing()
         {
@@ -3739,6 +3745,39 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Test XRecord Has data entry
+                    var store = localDb.FlexDataStore();
+                    var hasData = store.Has("MyData");
+                    prdDbg($"Has data: {hasData}");
+                    store.RemoveEntry("MyData");
+                    hasData = store.Has("MyData");
+                    prdDbg($"Has data: {hasData}");
+                    #endregion
+
+                    #region Test XRecord remove data entry
+                    //var store = localDb.FlexDataStore();
+                    //store.RemoveEntry("MyData");
+                    #endregion
+
+                    #region Test XRecord binary data load
+                    //var store = localDb.FlexDataStore();
+                    //var obj = store.GetObject<MyData>("MyData");
+                    //if (obj == null) prdDbg("Object is null!");
+                    //prdDbg($"Number: {obj.Number}, Text: {obj.Text}");
+                    #endregion
+
+                    #region Test XRecord binary data save
+                    //var store = localDb.FlexDataStore();
+                    //var data = new MyData() { Number = 5, Text = "Hello" };
+                    //store.SetObject("MyData", data);
+                    #endregion
+
+                    #region Test database filename
+                    //var file = localDb.Filename;
+                    //var oFile = localDb.OriginalFileName;
+                    //prdDbg($"File: {file}\nOriginal: {oFile}");
+                    #endregion
+
                     #region Test layer names list and xrefs
                     //LayerTable lt = tx.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
                     //foreach (var id in lt)
@@ -4024,7 +4063,7 @@ namespace IntersectUtilities
                     //alDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Alignments"),
                     //    System.IO.FileShare.Read, false, string.Empty);
                     //Transaction alTx = alDb.TransactionManager.StartTransaction();
-                    
+
                     //try
                     //{
                     //    var ents = localDb.GetFjvEntities(tx, false, false);
