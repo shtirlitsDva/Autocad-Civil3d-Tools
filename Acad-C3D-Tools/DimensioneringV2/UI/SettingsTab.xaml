@@ -163,12 +163,9 @@
                     <TextBox Grid.Row="3" Grid.Column="1" Width="50" Text="{Binding Settings.NyttetimerOneUserSL, UpdateSourceTrigger=PropertyChanged}"/>
 
                     <Label Grid.Row="4" Grid.Column="0" Content="Pipe Type SL:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                    <ComboBox Grid.Row="4" Grid.Column="1" Width="100" SelectedItem="{Binding Settings.PipeTypeSL, UpdateSourceTrigger=PropertyChanged}">
-                        <ComboBoxItem Content="AluPEX"/>
-                        <ComboBoxItem Content="Kobber"/>
-                        <ComboBoxItem Content="Stål"/>
-                        <ComboBoxItem Content="PertFlextra"/>
-                    </ComboBox>
+                    <ComboBox Grid.Row="4" Grid.Column="1" Width="100"
+                              ItemsSource="{Binding PipeTypes}"
+                              SelectedItem="{Binding Settings.PipeTypeSL, UpdateSourceTrigger=PropertyChanged}"/>
 
                     <Label Grid.Row="5" Grid.Column="0" Content="Accept Velocity Flexible SL:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
                     <TextBox Grid.Row="5" Grid.Column="1" Width="50" Text="{Binding Settings.AcceptVelocityFlexibleSL, UpdateSourceTrigger=PropertyChanged}"/>
