@@ -24,6 +24,14 @@ namespace DimensioneringV2.UI
         public SettingsTabViewModel()
         {
             settings = Services.HydraulicSettingsService.Instance.Settings;
+            Services.HydraulicSettingsService.Instance.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName == nameof(Services.HydraulicSettingsService.Settings))
+                {
+                    Settings = Services.HydraulicSettingsService.Instance.Settings;
+                    OnPropertyChanged(nameof(Settings));
+                }
+            };
         }
     }
 }

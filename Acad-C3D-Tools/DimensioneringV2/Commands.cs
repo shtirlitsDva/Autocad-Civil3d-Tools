@@ -29,6 +29,7 @@ using NetTopologySuite.IO.Esri;
 using System.IO;
 using DimensioneringV2.UI;
 using Dreambuild.AutoCAD;
+using DimensioneringV2.Services;
 
 [assembly: CommandClass(typeof(DimensioneringV2.Commands))]
 
@@ -455,13 +456,11 @@ namespace DimensioneringV2
             prdDbg("Finished!");
         }
 
-        static CustomPaletteSet paletteSet;
-
         [CommandMethod("DIM2MAP")]
         public static void dim2map()
         {
-            if (paletteSet == null) paletteSet = new CustomPaletteSet();
-            paletteSet.Visible = true;
+            if (Services.PaletteSetCache.paletteSet == null) Services.PaletteSetCache.paletteSet = new CustomPaletteSet();
+            Services.PaletteSetCache.paletteSet.Visible = true;
         }
 
         [CommandMethod("DIM2MAPCOLLECTFEATURES")]
@@ -472,7 +471,7 @@ namespace DimensioneringV2
             Editor editor = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
 
-            if (paletteSet == null) { prdDbg("This command is run from DIM2MAP"); return; }
+            if (PaletteSetCache.paletteSet == null) { prdDbg("This command is run from DIM2MAP"); return; }
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
@@ -540,11 +539,11 @@ namespace DimensioneringV2
 
             hs.TempFremFL = 300000;
 
-            hs.Save(localDb);
+            hs.Save(docCol.MdiActiveDocument);
 
             hs = null;
 
-            hs = HydraulicSettings.Load(localDb);
+            hs = HydraulicSettings.Load(docCol.MdiActiveDocument);
 
             hs.Save(@"C:\Temp\HS.json");
 

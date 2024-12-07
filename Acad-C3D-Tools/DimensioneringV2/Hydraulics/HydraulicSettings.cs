@@ -1,4 +1,4 @@
-﻿using Autodesk.AutoCAD.DatabaseServices;
+﻿using Autodesk.AutoCAD.ApplicationServices;
 
 using CommunityToolkit.Mvvm.ComponentModel;
 
@@ -11,6 +11,8 @@ using utils = IntersectUtilities.UtilsCommon.Utils;
 
 using System.IO;
 using System.Text.Json;
+using System.Reflection.Metadata;
+using Document = Autodesk.AutoCAD.ApplicationServices.Document;
 
 public partial class HydraulicSettings : ObservableObject
 {
@@ -110,41 +112,50 @@ public partial class HydraulicSettings : ObservableObject
         var json = JsonSerializer.Serialize(this, options);
         File.WriteAllText(path, json);
     }
-    public void Save(Database db)
+    public void Save(Document doc)
     {
-        var store = db.FlexDataStore();
-        store.SetObject("HydraulicSettings", this);
-    }
-
-    //public static HydraulicSettings Load(string data)
-    //{
-
-    //    //return JsonSerializer.Deserialize<HydraulicSettings>(json);
-    //}
-
-    public static void Save(Database db, HydraulicSettings settings)
-    {
-        var store = db.FlexDataStore();
-        store.SetObject("HydraulicSettings", settings);
-    }
-
-    public static HydraulicSettings Load(Database db)
-    {
-        var store = db.FlexDataStore();
-        if (store.Has("HydraulicSettings"))
+        if (doc == null) return;
+        using (var docLock = doc.LockDocument())
         {
-            try
-            {
-                return store.GetObject<HydraulicSettings>("HydraulicSettings");
-            }
-            catch (System.Exception ex)
-            {
-                utils.prdDbg("Error loading HydraulicSettings from FlexDataStore.");
-                utils.prdDbg(ex);
-                throw;
-            }
+            var db = doc.Database;
+            var store = db.FlexDataStore();
+            store.SetObject("HydraulicSettings", this);
         }
-        utils.prdDbg($"Store does not have requested key: \"HydraulicSettings\"");
-        return new HydraulicSettings();
+    }
+
+    public static void Save(Document doc, HydraulicSettings settings)
+    {
+        if (doc == null) return;
+        using (var docLock = doc.LockDocument())
+        {
+            var db = doc.Database;
+            var store = db.FlexDataStore();
+            store.SetObject("HydraulicSettings", settings);
+        }
+    }
+
+    public static HydraulicSettings Load(Document doc)
+    {
+        if (doc == null) return new HydraulicSettings();
+        using (var docLock = doc.LockDocument())
+        {
+            var db = doc.Database;
+            var store = db.FlexDataStore();
+            if (store.Has("HydraulicSettings"))
+            {
+                try
+                {
+                    return store.GetObject<HydraulicSettings>("HydraulicSettings");
+                }
+                catch (System.Exception ex)
+                {
+                    utils.prdDbg("Error loading HydraulicSettings from FlexDataStore.");
+                    utils.prdDbg(ex);
+                    throw;
+                }
+            }
+            utils.prdDbg($"Store does not have requested key: \"HydraulicSettings\"");
+            return new HydraulicSettings();
+        }
     }
 }
