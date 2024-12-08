@@ -8,29 +8,29 @@ using System.Threading.Tasks;
 
 namespace DimensioneringV2.MapStyles
 {
-    internal class GradientHelper
+    internal class GradientHelper<T> where T : struct, IComparable
     {
-        private int _minValue;
-        private int _maxValue;
+        private T _minValue;
+        private T _maxValue;
 
-        public GradientHelper(int minValue, int maxValue)
+        public GradientHelper(T minValue, T maxValue)
         {
             _minValue = minValue;
             _maxValue = maxValue;
         }
-        public Color GetGradientColor(int value)
+        public Color GetGradientColor(T value)
         {
-            // Ensure value is within bounds
-            value = Math.Max(_minValue, Math.Min(value, _maxValue));
+            // Normalize value
+            dynamic min = _minValue;
+            dynamic max = _maxValue;
+            dynamic val = value;
 
-            // Calculate the ratio between min and max values
-            double ratio = (double)(value - _minValue) / (_maxValue - _minValue);
+            double ratio = (double)(val - min) / (max - min);
 
-            // Use HSL to RGB conversion to generate a brighter gradient color
-            // Hue ranges from 240 (blue) to 0 (red), keeping saturation and lightness high for bright colors
+            // Generate gradient color
             double hue = 240 - (240 * ratio);
-            double saturation = 0.9; // High saturation for vivid colors
-            double lightness = 0.6; // Higher lightness for brighter colors
+            double saturation = 0.9;
+            double lightness = 0.6;
 
             return HslToRgb(hue, saturation, lightness);
         }

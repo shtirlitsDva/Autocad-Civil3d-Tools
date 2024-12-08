@@ -9,12 +9,12 @@ using System.Threading.Tasks;
 
 namespace DimensioneringV2.MapStyles
 {
-    internal class PenWidthCalculator
+    internal class PenWidthCalculator<T> where T : struct, IComparable
     {
         private double _minPenWidth;
         private double _maxPenWidth;
-        private double _min;
-        private double _max;
+        private T _min;
+        private T _max;
         private double _scaleFactor;
         private double _offset;
         public PenWidthCalculator(double minPenWidth = 2, double maxPenWidth = 10)
@@ -22,16 +22,20 @@ namespace DimensioneringV2.MapStyles
             _maxPenWidth = maxPenWidth;
             _minPenWidth = minPenWidth;
         }
-        public void SetMinMaxValues(int min, int max)
+        public void SetMinMaxValues(T min, T max)
         {
+            dynamic minValue = min;
+            dynamic maxValue = max;
+
             _min = min;
             _max = max;
-            _scaleFactor = (_maxPenWidth - _minPenWidth) / (_max - _min);
-            _offset = _minPenWidth - min * _scaleFactor;
+            _scaleFactor = (_maxPenWidth - _minPenWidth) / (maxValue - minValue);
+            _offset = _minPenWidth - minValue * _scaleFactor;
         }
-        public double CalculatePenWidth(int value)
+        public double CalculatePenWidth(T value)
         {
-            return _scaleFactor * value + _offset;
+            dynamic val = value;
+            return _scaleFactor * val + _offset;
         }
     }
 }

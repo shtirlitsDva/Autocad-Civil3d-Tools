@@ -32,11 +32,31 @@ namespace DimensioneringV2.UI
 {
     internal partial class MainWindowViewModel : ObservableObject
     {
+        public IEnumerable<MapPropertyWrapper> MapProperties => GetMapProperties(typeof(AnalysisFeature));
+        [ObservableProperty]
+        private MapPropertyEnum selectedMapProperty;
+        [ObservableProperty]
+        private bool isMapDropdownEnabled = false;
+
         public MainWindowViewModel()
         {
             _dataService = DataService.Instance;
             _dataService.DataLoaded += OnDataLoadedFirstTime;
             _dataService.CalculationDataReturned += OnCalculationsCompleted;
+
+            //SelectedMapProperty = MapProperties.GetValue(0).ToString();
+        }
+
+        private IEnumerable<MapPropertyWrapper> GetMapProperties(Type type)
+        {
+            return type.GetProperties()
+                   .Where(prop => Attribute.IsDefined(prop, typeof(MapPropertyAttribute)))
+                   .Select(prop =>
+                   {
+                       var attr = (MapPropertyAttribute)Attribute.GetCustomAttribute(prop, typeof(MapPropertyAttribute));
+                       var description = attr.Property.GetDescription();
+                       return new MapPropertyWrapper(attr.Property, description);
+                   });
         }
 
         #region CollectFeaturesFromACCommand
@@ -65,11 +85,19 @@ namespace DimensioneringV2.UI
         {
             try
             {
-                await Task.Run(HydraulicCalculationsService.PerformCalculations);
+                await Task.Run(() =>  HydraulicCalculationsService.SumProperties(
+                    new List<(Func<AnalysisFeature, dynamic> Getter, Action<AnalysisFeature, dynamic> Setter)>
+                    {
+                        (f => f.NumberOfBuildingsConnected, (f, v) => f.NumberOfBuildingsSupplied = v),
+                        (f => f.NumberOfUnitsConnected, (f, v) => f.NumberOfUnitsSupplied = v),
+                        (f => f.HeatingDemandConnected, (f, v) => f.HeatingDemandSupplied = v)
+                    }
+                    ));
             }
             catch (Exception ex)
             {
                 utils.prdDbg($"An error occurred during calculations: {ex.Message}");
+                utils.prdDbg(ex);
             }
         }
         #endregion
@@ -145,16 +173,24 @@ namespace DimensioneringV2.UI
             // Update observable collections
             Features = new(_dataService!.Features.SelectMany(x => x));
 
-            _styleManager = new StyleManager(new StyleBasic(), new StyleBasic());
+            _styleManager = new StyleManager(MapPropertyEnum.Basic);
             CreateMapFirstTime();
         }
 
         private void OnCalculationsCompleted(object sender, EventArgs e)
         {
             Features = new(_dataService!.CalculatedFeatures.SelectMany(x => x));
-            _styleManager = new StyleManager(
-                new StyleNumberOfBuildingsSupplied_WithLabels(),
-                new StyleNumberOfBuildingsSupplied_NoLabels());
+            
+            if (!IsMapDropdownEnabled)
+            {
+                IsMapDropdownEnabled = true;
+                SelectedMapProperty = MapProperties.First();
+            }
+
+            
+
+            _styleManager = new StyleManager(SelectedMapProperty);
+
             UpdateMap();
         }
 
@@ -209,5 +245,15 @@ namespace DimensioneringV2.UI
 
             Mymap.Layers.Add(layer);
         }
-    }
+
+        internal class MapPropertyWrapper
+        {
+            public MapPropertyEnum EnumValue { get; }
+            public string Description { get; }
+            public MapPropertyWrapper(MapPropertyEnum enumValue, string description)
+            {
+                EnumValue = enumValue;
+                Description = description;
+            }
+        }
 }

@@ -1,5 +1,7 @@
 ﻿using DimensioneringV2.GraphFeatures;
 
+using DotSpatial.Projections.Transforms;
+
 using Mapsui;
 using Mapsui.Styles;
 
@@ -11,9 +13,9 @@ using System.Threading.Tasks;
 
 namespace DimensioneringV2.MapStyles
 {
-    class StyleNumberOfBuildingsSupplied_WithLabels : StyleNumberOfBuildingsSupplied_NoLabels
+    class StyleMapProperty_WithLabels<T> : StyleMapProperty_NoLabels<T> where  T : struct, IComparable 
     {
-        public StyleNumberOfBuildingsSupplied_WithLabels()
+        public StyleMapProperty_WithLabels(Func<AnalysisFeature, T> prop) : base(prop)
         {
             
         }
@@ -21,19 +23,20 @@ namespace DimensioneringV2.MapStyles
         public override IStyle[] GetStyles(IFeature feature)
         {
             var f = feature as AnalysisFeature;
+            if (f == null) return [new VectorStyle()];
 
-            int nr = f.NumberOfBuildingsSupplied;
+            T value = _prop(f);
 
-            if (nr == 0)
+            if (EqualityComparer<T>.Default.Equals(value, default))
             {
-                return new StyleDefault().GetStyles(f);
+                return new StyleDefault().GetStyles(feature);
             }
 
             var s1 = base.GetStyles(feature).First();
 
             var s2 = new LabelStyle
             {
-                Text = f.NumberOfBuildingsSupplied.ToString(),
+                Text = value.ToString(),
                 //BackColor = new Brush(_gradientHelper.LookupColor(f.NumberOfBuildingsSupplied)),
                 ForeColor = Color.Black,
                 //Offset = new Offset(0, 0),

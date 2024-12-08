@@ -10,6 +10,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 using NorsynHydraulicCalc;
+using DimensioneringV2.GraphFeatures;
 
 namespace DimensioneringV2.UI
 {
@@ -20,7 +21,7 @@ namespace DimensioneringV2.UI
 
         public Array CalculationTypes => Enum.GetValues(typeof(CalcType));
         public Array PipeTypes => Enum.GetValues(typeof(PipeType));
-
+        
         public SettingsTabViewModel()
         {
             settings = Services.HydraulicSettingsService.Instance.Settings;

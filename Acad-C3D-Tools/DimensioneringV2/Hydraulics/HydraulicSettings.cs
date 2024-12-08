@@ -27,6 +27,18 @@ public partial class HydraulicSettings : ObservableObject
     private double minDifferentialPressureOverHovedHaner = 0.5;
 
     [ObservableProperty]
+    private double ruhedSteel = 0.1;
+
+    [ObservableProperty]
+    private double ruhedPertFlextra = 0.01;
+
+    [ObservableProperty]
+    private double ruhedAluPEX = 0.01;
+
+    [ObservableProperty]
+    private double ruhedCu = 0.01;
+
+    [ObservableProperty]
     private CalcType calculationType = CalcType.CW; // "CW" or "TM"
 
     [ObservableProperty]

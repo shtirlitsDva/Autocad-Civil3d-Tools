@@ -1,4 +1,6 @@
-﻿using Mapsui.Nts;
+﻿using DimensioneringV2.UI;
+
+using Mapsui.Nts;
 
 using NetTopologySuite.Features;
 using NetTopologySuite.Geometries;
@@ -44,7 +46,7 @@ namespace DimensioneringV2.GraphFeatures
             NumberOfBuildingsConnected =
                 (this["IsBuildingConnection"] as bool? ?? false) == true ? 1 : 0;
             NumberOfUnitsConnected = this["AntalEnheder"] as int? ?? 0;
-            BuildingHeatingDemand = this["EstimeretVarmeForbrug"] as double? ?? 0;
+            HeatingDemandConnected = this["EstimeretVarmeForbrug"] as double? ?? 0;
         }
         #endregion
 
@@ -69,25 +71,29 @@ namespace DimensioneringV2.GraphFeatures
         /// <summary>
         /// Lists the heating demand of the building connected to the segment
         /// </summary>
-        public double BuildingHeatingDemand { get; private set; }
+        public double HeatingDemandConnected { get; private set; }
 
         //Summation from analyses
         /// <summary>
         /// Helping flag for graph traversal.
         /// </summary>
         public bool Visited { get; set; } = false;
+
         /// <summary>
         /// Is used to sum all the buildins supplied by the segment
         /// </summary>
+        [MapPropertyAttribute(MapPropertyEnum.Bygninger)]
         public int NumberOfBuildingsSupplied { get; set; }
         /// <summary>
         /// Is used to sum all the units (enheder for HWS (hot water supply)) supplied by the segment
         /// </summary>
+        [MapPropertyAttribute(MapPropertyEnum.Units)]
         public int NumberOfUnitsSupplied { get; set; }
         /// <summary>
         /// Is used to sum all the heating demand of the buildings supplied by the segment
         /// </summary>
-        public double HeatingDemandSummarized { get; set; }
+        [MapPropertyAttribute(MapPropertyEnum.HeatingDemand)]
+        public double HeatingDemandSupplied { get; set; }
 
         #region ICloneable Implementation
         public object Clone()

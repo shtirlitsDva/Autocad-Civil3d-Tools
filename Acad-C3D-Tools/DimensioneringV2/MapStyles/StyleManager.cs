@@ -1,4 +1,8 @@
-﻿using System;
+﻿using DimensioneringV2.UI;
+
+using Mapsui.Styles;
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -13,8 +17,26 @@ namespace DimensioneringV2.MapStyles
         private IMapStyle _currentStyle;
         public IMapStyle CurrentStyle => _currentStyle;
 
-        public StyleManager(IMapStyle styleLabelsOn, IMapStyle styleLabelsOff)
+        public StyleManager(MapPropertyEnum propName)
         {
+            IMapStyle sOn;
+            IMapStyle sOff;
+            switch (propName)
+            {
+                case MapPropertyEnum.Default:
+                    break;
+                case MapPropertyEnum.Basic:
+                    break;
+                case MapPropertyEnum.Bygninger:
+                    break;
+                case MapPropertyEnum.Units:
+                    break;
+                case MapPropertyEnum.HeatingDemand:
+                    break;
+                default:
+                    break;
+            }
+
             _styleLabelsOn = styleLabelsOn;
             _styleLabelsOff = styleLabelsOff;
             _currentStyle = _styleLabelsOn;
