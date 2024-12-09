@@ -17,5 +17,19 @@ namespace DimensioneringV2.UI
         Units,
         [Description("Estimeret varmebehov")]
         HeatingDemand,
+        [Description("Vandflow for frem")]
+        FlowSupply,
+        [Description("Vandflow for retur")]
+        FlowReturn,
+        [Description("Trykgradient for frem")]
+        PressureGradientSupply,
+        [Description("Trykgradient for retur")]
+        PressureGradientReturn,
+        [Description("Hastighed for frem")]
+        VelocitySupply,
+        [Description("Hastighed for retur")]
+        VelocityReturn,
+        [Description("Udnyttelsesfaktor")]
+        UtilizationRate
     }
 }

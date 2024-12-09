@@ -43,6 +43,34 @@ namespace DimensioneringV2.MapStyles
                     sOn = new StyleMapProperty_WithLabels<double>(f => f.HeatingDemandSupplied);
                     sOff = new StyleMapProperty_NoLabels<double>(f => f.HeatingDemandSupplied);
                     break;
+                case MapPropertyEnum.FlowSupply:
+                    sOn = new StyleMapProperty_WithLabels<double>(f => f.FlowSupply);
+                    sOff = new StyleMapProperty_NoLabels<double>(f => f.FlowSupply);
+                    break;
+                case MapPropertyEnum.FlowReturn:
+                    sOn = new StyleMapProperty_WithLabels<double>(f => f.FlowReturn);
+                    sOff = new StyleMapProperty_NoLabels<double>(f => f.FlowReturn);
+                    break;
+                case MapPropertyEnum.PressureGradientSupply:
+                    sOn = new StyleMapProperty_WithLabels<double>(f => f.PressureGradientSupply);
+                    sOff = new StyleMapProperty_NoLabels<double>(f => f.PressureGradientSupply);
+                    break;
+                case MapPropertyEnum.PressureGradientReturn:
+                    sOn = new StyleMapProperty_WithLabels<double>(f => f.PressureGradientReturn);
+                    sOff = new StyleMapProperty_NoLabels<double>(f => f.PressureGradientReturn);
+                    break;
+                case MapPropertyEnum.VelocitySupply:
+                    sOn = new StyleMapProperty_WithLabels<double>(f => f.VelocitySupply);
+                    sOff = new StyleMapProperty_NoLabels<double>(f => f.VelocitySupply);
+                    break;
+                case MapPropertyEnum.VelocityReturn:
+                    sOn = new StyleMapProperty_WithLabels<double>(f => f.VelocityReturn);
+                    sOff = new StyleMapProperty_NoLabels<double>(f => f.VelocityReturn);
+                    break;
+                case MapPropertyEnum.UtilizationRate:
+                    sOn = new StyleMapProperty_WithLabels<double>(f => f.UtilizationRate);
+                    sOff = new StyleMapProperty_NoLabels<double>(f => f.UtilizationRate);
+                    break;
                 default:
                     throw new Exception("Unknown property name!");
             }

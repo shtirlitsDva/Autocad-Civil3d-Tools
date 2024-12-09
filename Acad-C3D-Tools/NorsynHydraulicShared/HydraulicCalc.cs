@@ -1,4 +1,6 @@
-﻿using NorsynHydraulicCalc.Pipes;
+﻿using DimensioneringV2.GraphFeatures;
+
+using NorsynHydraulicCalc.Pipes;
 
 using System;
 using System.Collections.Generic;
@@ -549,13 +551,14 @@ namespace NorsynHydraulicCalc
         #endregion
         #endregion
 
-        public CalculationResult CalculateHydraulicSegment(
-            string segmentType, double totalHeatingDemand,
-            int numberOfBuildings, int numberOfUnits)
+        internal CalculationResult CalculateHydraulicSegment(AnalysisFeature feature)
         {
             #region Set calculation variables
             //Convert segmentType to enum
-            SegmentType st = (SegmentType)Enum.Parse(typeof(SegmentType), segmentType);
+            SegmentType st = feature.SegmentType;
+            double totalHeatingDemand = feature.HeatingDemandSupplied;
+            int numberOfBuildings = feature.NumberOfBuildingsSupplied;
+            int numberOfUnits = feature.NumberOfUnitsSupplied;
             #endregion
 
             sw.Restart();
@@ -637,29 +640,27 @@ namespace NorsynHydraulicCalc
             var resSupply = CalculateGradientAndVelocity(flowSupply, dim, TempSetType.Supply, st);
             var resReturn = CalculateGradientAndVelocity(flowReturn, dim, TempSetType.Return, st);
 
-            var r = new CalculationResult
-            {
-                SegmentType = segmentType.ToString(),
-                PipeType = dim.PipeType.ToString(),
-                DimName = dim.DimName,
-                ReynoldsSupply = resSupply.reynolds,
-                ReynoldsReturn = resReturn.reynolds,
-                FlowSupply = flowSupply,
-                FlowReturn = flowReturn,
-                PressureGradientSupply = resSupply.gradient,
-                PressureGradientReturn = resReturn.gradient,
-                VelocitySupply = resSupply.velocity,
-                VelocityReturn = resReturn.velocity,
-                UtilizationRate = utilRate
-            };
+            var r = new CalculationResult(
+                st.ToString(),
+                dim,
+                resSupply.reynolds,
+                resReturn.reynolds,
+                flowSupply,
+                flowReturn,
+                resSupply.gradient,
+                resReturn.gradient,
+                resSupply.velocity,
+                resReturn.velocity,
+                utilRate
+            );
 
             if (reportToConsole)
             {
                 //Now report these five values to console
                 utils.prdDbg(
                     $"Segment type: {r.SegmentType}\n" +
-                    $"Pipe type: {r.PipeType}\n" +
-                    $"Dim name: {r.DimName}\n" +
+                    $"Pipe type: {r.Dim.PipeType}\n" +
+                    $"Dim name: {r.Dim.DimName}\n" +
                     $"Pressure gradient, supply: {r.PressureGradientSupply} Pa/m\n" +
                     $"Pressure gradient, return: {r.PressureGradientReturn} Pa/m\n" +
                     $"Velocity, supply: {r.VelocitySupply} m/s\n" +

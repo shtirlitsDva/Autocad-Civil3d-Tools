@@ -41,7 +41,14 @@ namespace NorsynHydraulicCalc.Pipes
 
             // Load the dictionary from an embedded resource
             var assembly = System.Reflection.Assembly.GetExecutingAssembly();
-            var resourceName = "NorsynHydraulicCalc.Pipes.Sizes." + Name + "Sizes.csv";
+            
+            var resourceName = 
+                assembly.GetManifestResourceNames()
+                .Where(x => x.EndsWith(".Pipes.Sizes."+Name+"Sizes.csv"))
+                .FirstOrDefault();
+
+            if (resourceName == null)
+                throw new Exception("Resource not found: " + resourceName);
 
             using (var stream = assembly.GetManifestResourceStream(resourceName))
             using (var reader = new System.IO.StreamReader(stream))

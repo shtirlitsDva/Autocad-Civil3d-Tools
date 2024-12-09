@@ -13,6 +13,7 @@ using System.Diagnostics;
 
 using utils = IntersectUtilities.UtilsCommon.Utils;
 using System.IO;
+using NorsynHydraulicCalc;
 
 namespace DimensioneringV2.Services
 {
@@ -64,7 +65,7 @@ namespace DimensioneringV2.Services
                 var visited = new HashSet<JunctionNode>();
                 CalculateBaseSums(shortestPathTree, rootNode, visited, props);
 
-
+                CalculateHydraulics(shortestPathTree);
 
             }
 
@@ -74,7 +75,22 @@ namespace DimensioneringV2.Services
         private static void CalculateHydraulics(
             UndirectedGraph<JunctionNode, PipeSegmentEdge> graph)
         {
+            HydraulicCalc hc = new(HydraulicSettingsService.Instance.Settings);
 
+            Parallel.ForEach(graph.Edges, edge =>
+            {
+                var result = hc.CalculateHydraulicSegment(edge.PipeSegment);
+                edge.PipeSegment.Dim = result.Dim;
+                edge.PipeSegment.ReynoldsSupply = result.ReynoldsSupply;
+                edge.PipeSegment.ReynoldsReturn = result.ReynoldsReturn;
+                edge.PipeSegment.FlowSupply = result.FlowSupply;
+                edge.PipeSegment.FlowReturn = result.FlowReturn;
+                edge.PipeSegment.PressureGradientSupply = result.PressureGradientSupply;
+                edge.PipeSegment.PressureGradientReturn = result.PressureGradientReturn;
+                edge.PipeSegment.VelocitySupply = result.VelocitySupply;
+                edge.PipeSegment.VelocityReturn = result.VelocityReturn;
+                edge.PipeSegment.UtilizationRate = result.UtilizationRate;
+            });
         }
 
         private static List<dynamic> CalculateBaseSums(

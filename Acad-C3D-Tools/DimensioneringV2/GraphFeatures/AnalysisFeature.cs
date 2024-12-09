@@ -5,6 +5,9 @@ using Mapsui.Nts;
 using NetTopologySuite.Features;
 using NetTopologySuite.Geometries;
 
+using NorsynHydraulicCalc;
+using NorsynHydraulicCalc.Pipes;
+
 using System;
 using System.Collections.Generic;
 using System.Reflection;
@@ -65,6 +68,13 @@ namespace DimensioneringV2.GraphFeatures
         /// </summary>
         public int NumberOfBuildingsConnected { get; private set; }
         /// <summary>
+        /// Signifies what type of segment the feature represents.
+        /// </summary>
+        public SegmentType SegmentType => 
+            NumberOfBuildingsConnected == 1 ?
+            SegmentType.Stikledning :
+            SegmentType.Fordelingsledning;
+        /// <summary>
         /// Lists the number of units connected to the segment
         /// </summary>
         public int NumberOfUnitsConnected { get; private set; }
@@ -73,7 +83,7 @@ namespace DimensioneringV2.GraphFeatures
         /// </summary>
         public double HeatingDemandConnected { get; private set; }
 
-        //Summation from analyses
+        //Summation of data for analyses
         /// <summary>
         /// Helping flag for graph traversal.
         /// </summary>
@@ -95,6 +105,63 @@ namespace DimensioneringV2.GraphFeatures
         [MapPropertyAttribute(MapPropertyEnum.HeatingDemand)]
         public double HeatingDemandSupplied { get; set; }
 
+        //Storing of hydraulic results
+        /// <summary>
+        /// Dimension
+        /// </summary>
+        public Dim Dim { get; internal set; }
+
+        /// <summary>
+        /// Reynolds number for supply
+        /// </summary>
+        public double ReynoldsSupply { get; set; }
+
+        /// <summary>
+        /// Reynolds number for return
+        /// </summary>
+        public double ReynoldsReturn { get; set; }
+
+        /// <summary>
+        /// Flow rate for supply
+        /// </summary>
+        [MapPropertyAttribute(MapPropertyEnum.FlowSupply)]
+        public double FlowSupply { get; set; }
+
+        /// <summary>
+        /// Flow rate for return
+        /// </summary>
+        [MapPropertyAttribute(MapPropertyEnum.FlowReturn)]
+        public double FlowReturn { get; set; }
+
+        /// <summary>
+        /// Pressure gradient for supply
+        /// </summary>
+        [MapPropertyAttribute(MapPropertyEnum.PressureGradientSupply)]
+        public double PressureGradientSupply { get; set; }
+
+        /// <summary>
+        /// Pressure gradient for return
+        /// </summary>
+        [MapPropertyAttribute(MapPropertyEnum.PressureGradientReturn)]
+        public double PressureGradientReturn { get; set; }
+
+        /// <summary>
+        /// Velocity for supply
+        /// </summary>
+        [MapPropertyAttribute(MapPropertyEnum.VelocitySupply)]
+        public double VelocitySupply { get; set; }
+
+        /// <summary>
+        /// Velocity for return
+        /// </summary>
+        [MapPropertyAttribute(MapPropertyEnum.VelocityReturn)]
+        public double VelocityReturn { get; set; }
+
+        /// <summary>
+        /// Utilization rate
+        /// </summary>
+        [MapPropertyAttribute(MapPropertyEnum.UtilizationRate)]
+        public double UtilizationRate { get; set; }
         #region ICloneable Implementation
         public object Clone()
         {
@@ -130,7 +197,7 @@ namespace DimensioneringV2.GraphFeatures
                 }
                 return table;
             }
-        } 
+        }
         #endregion
     }
 }
