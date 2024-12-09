@@ -1,17 +1,13 @@
-﻿using Autodesk.AutoCAD.ApplicationServices;
-
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 
 using Dreambuild.AutoCAD;
 
 using NorsynHydraulicCalc;
 
-using IntersectUtilities.UtilsCommon;
 using utils = IntersectUtilities.UtilsCommon.Utils;
 
 using System.IO;
 using System.Text.Json;
-using System.Reflection.Metadata;
 using Document = Autodesk.AutoCAD.ApplicationServices.Document;
 
 public partial class HydraulicSettings : ObservableObject
@@ -67,7 +63,7 @@ public partial class HydraulicSettings : ObservableObject
     private double acceptVelocity200_300FL = 2.5;
 
     [ObservableProperty]
-    private double acceptVelocity300PlusFL = 3.0;
+    private double acceptVelocity350PlusFL = 3.0;
 
     [ObservableProperty]
     private int acceptPressureGradient20_150FL = 100;
@@ -76,7 +72,7 @@ public partial class HydraulicSettings : ObservableObject
     private int acceptPressureGradient200_300FL = 100;
 
     [ObservableProperty]
-    private int acceptPressureGradient300PlusFL = 120;
+    private int acceptPressureGradient350PlusFL = 120;
 
     [ObservableProperty]
     private bool usePertFlextraFL = true;

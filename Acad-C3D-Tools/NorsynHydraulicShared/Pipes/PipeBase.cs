@@ -10,11 +10,14 @@ namespace NorsynHydraulicCalc.Pipes
     {
         abstract protected string Name { get; }
         abstract protected PipeType PipeType { get; }
-        abstract protected double Roughness_m { get; }
+        protected double Roughness_m { get => _roughness_m; }
+        private double _roughness_m;
         abstract protected string DimName { get; }
-        private protected Dictionary<int, Dim> Sizes { get; private set; }
-        public PipeBase()
+        private protected Dictionary<int, Dim>? Sizes { get; private set; }
+        private PipeBase() { }
+        public PipeBase(double roughness_mm)
         {
+            _roughness_m = roughness_mm / 1000;
             LoadDimsFromEmbeddedResource();
         }
         internal IEnumerable<Dim> GetDimsRange(int minNS, int maxNS)

@@ -4,18 +4,28 @@ using System.Text;
 
 namespace NorsynHydraulicCalc.Pipes
 {
-    public static class PipeTypes
+    public class PipeTypes
     {
-        private static Lazy<PipeSteel> _stål = new Lazy<PipeSteel>(() => new PipeSteel());
-        public static PipeSteel Stål => _stål.Value;
+        private HydraulicSettings? s;
+        public PipeTypes(HydraulicSettings settings)
+        {
+            s = settings;
+            _stål = new PipeSteel(s.RuhedSteel);
+            _aluPex = new PipeAluPex(s.RuhedAluPEX);
+            _pertFlextra = new PipePertFlextra(s.RuhedPertFlextra);
+            _cu = new PipeCu(s.RuhedCu);
+        }
 
-        private static Lazy<PipeAluPex> _aluPex = new Lazy<PipeAluPex>(() => new PipeAluPex());
-        public static PipeAluPex AluPex => _aluPex.Value;
+        private PipeSteel _stål;
+        public PipeSteel Stål => _stål;
 
-        private static Lazy<PipePertFlextra> _pertFlextra = new Lazy<PipePertFlextra>(() => new PipePertFlextra());
-        public static PipePertFlextra PertFlextra => _pertFlextra.Value;
+        private PipeAluPex _aluPex;
+        public PipeAluPex AluPex => _aluPex;
 
-        private static Lazy<PipeCu> _cu = new Lazy<PipeCu>(() => new PipeCu());
-        public static PipeCu Cu => _cu.Value;
+        private PipePertFlextra _pertFlextra;
+        public PipePertFlextra PertFlextra => _pertFlextra;
+
+        private PipeCu _cu;
+        public PipeCu Cu => _cu;
     }
 }

@@ -63,9 +63,18 @@ namespace DimensioneringV2.Services
                 // These sums lays the foundation for the hydraulic calculations
                 var visited = new HashSet<JunctionNode>();
                 CalculateBaseSums(shortestPathTree, rootNode, visited, props);
+
+
+
             }
 
             _dataService.StoreCalculatedData(graphs.Select(g => g.Edges.Select(y => y.PipeSegment)));
+        }
+
+        private static void CalculateHydraulics(
+            UndirectedGraph<JunctionNode, PipeSegmentEdge> graph)
+        {
+
         }
 
         private static List<dynamic> CalculateBaseSums(

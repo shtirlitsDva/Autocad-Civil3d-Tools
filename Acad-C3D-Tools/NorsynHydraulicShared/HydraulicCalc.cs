@@ -7,89 +7,70 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
+using utils = IntersectUtilities.UtilsCommon.Utils;
+
 namespace NorsynHydraulicCalc
 {
     public class HydraulicCalc
     {
-        public static Version version = new Version(20241004, 1);
+        public static Version version = new Version(20241209, 0);
 
         #region Static properties for max flow pipe table
-        private static HydraulicCalc currentInstance;
-        private static List<(Dim Dim, double MaxFlowFrem, double MaxFlowReturn)> maxFlowTableFL;
-        private static List<(Dim Dim, double MaxFlowFrem, double MaxFlowReturn)> maxFlowTableSL;
-        private static List<string> reportingColumnNames;
-        private static List<string> reportingUnits;
-        private static List<(string, List<double>)> reportingRowsFL;
-        private static List<(string, List<double>)> reportingRowsSL;
+        private List<(Dim Dim, double MaxFlowFrem, double MaxFlowReturn)> maxFlowTableFL;
+        private List<(Dim Dim, double MaxFlowFrem, double MaxFlowReturn)> maxFlowTableSL;
+        private List<string> reportingColumnNames;
+        private List<string> reportingUnits;
+        private List<(string, List<double>)> reportingRowsFL;
+        private List<(string, List<double>)> reportingRowsSL;
         #endregion
 
         #region Private properties
-        // From client blocks
-        [ExcludeFromComparison]
-        private SegmentType segmentType; // Type of segment
-        [ExcludeFromComparison]
-        private double totalHeatingDemand; // MWh/year
-        [ExcludeFromComparison]
-        private int numberOfBuildings; // Number of buildings
-        [ExcludeFromComparison]
-        private int numberOfUnits; // Number of units
+        //Settings
+        private HydraulicSettings s;
+        //Pipe types
+        private PipeTypes pipeTypes;
 
         // Shared
-        private int hotWaterReturnTemp; // degree
-        private double factorTillægForOpvarmningUdenBrugsvandsprioritering;
-        private double minDifferentialPressureOverHovedHaner; // bar
+        private int hotWaterReturnTemp => s.HotWaterReturnTemp; // degree
+        private double factorTillægForOpvarmningUdenBrugsvandsprioritering =>
+            s.FactorTillægForOpvarmningUdenBrugsvandsprioritering;
+        private double minDifferentialPressureOverHovedHaner =>
+            s.MinDifferentialPressureOverHovedHaner; // bar
+        private double ruhedSteel => s.RuhedSteel; // mm
+        private double ruhedPertFlextra => s.RuhedPertFlextra; // mm
+        private double ruhedAluPEX => s.RuhedAluPEX; // mm
+        private double ruhedCu => s.RuhedCu; // mm
 
         // Fordelingsledninger (Distribution pipes)
-        private int tempFremFL; // degree
-        private int tempReturFL; // degree
-        private double factorVarmtVandsTillægFL;
-        private int nyttetimerOneUserFL;
-        private int nyttetimer50PlusUsersFL;
-        private double acceptVelocity20_150FL; // m/s
-        private double acceptVelocity200_300FL; // m/s
-        private double acceptVelocity350PlusFL;
-        private int acceptPressureGradient20_150FL; // Pa/m
-        private int acceptPressureGradient200_300FL; // Pa/m
-        private int acceptPressureGradient350PlusFL; // Pa/m
-        private bool usePertFlextraFL; // boolean
-        private int pertFlextraMaxDnFL; // mm
+        private int tempFremFL => s.TempFremFL; // degree
+        private int tempReturFL => s.TempReturFL; // degree
+        private double factorVarmtVandsTillægFL => s.FactorVarmtVandsTillægFL;
+        private int nyttetimerOneUserFL => s.NyttetimerOneUserFL;
+        private int nyttetimer50PlusUsersFL => s.Nyttetimer50PlusUsersFL;
+        private double acceptVelocity20_150FL => s.AcceptVelocity20_150FL; // m/s
+        private double acceptVelocity200_300FL => s.AcceptVelocity200_300FL; // m/s
+        private double acceptVelocity350PlusFL => s.AcceptVelocity350PlusFL;
+        private int acceptPressureGradient20_150FL => s.AcceptPressureGradient20_150FL; // Pa/m
+        private int acceptPressureGradient200_300FL => s.AcceptPressureGradient200_300FL; // Pa/m
+        private int acceptPressureGradient350PlusFL => s.AcceptPressureGradient350PlusFL; // Pa/m
+        private bool usePertFlextraFL => s.UsePertFlextraFL; // boolean
+        private int pertFlextraMaxDnFL => s.PertFlextraMaxDnFL; // mm
 
         // Stikledninger (Service pipes)
-        private int tempFremSL; // degree
-        private int tempReturSL; // degree
-        private double factorVarmtVandsTillægSL;
-        private int nyttetimerOneUserSL;
-        private PipeType pipeTypeSL;
-        private double acceptVelocityFlexibleSL; // m/s
-        private double acceptVelocity20_150SL; // m/s
-        private int acceptPressureGradientFlexibleSL; // Pa/m
-        private int acceptPressureGradient20_150SL; // Pa/m
-        private double maxPressureLossStikSL; // bar
+        private int tempFremSL => s.TempFremSL; // degree
+        private int tempReturSL => s.TempReturSL; // degree
+        private double factorVarmtVandsTillægSL => s.FactorVarmtVandsTillægSL;
+        private int nyttetimerOneUserSL => s.NyttetimerOneUserSL;
+        private PipeType pipeTypeSL => s.PipeTypeSL;
+        private double acceptVelocityFlexibleSL => s.AcceptVelocityFlexibleSL; // m/s
+        private double acceptVelocity20_150SL => s.AcceptVelocity20_150SL; // m/s
+        private int acceptPressureGradientFlexibleSL => s.AcceptPressureGradientFlexibleSL; // Pa/m
+        private int acceptPressureGradient20_150SL => s.AcceptPressureGradient20_150SL; // Pa/m
+        private double maxPressureLossStikSL => s.MaxPressureLossStikSL; // bar
 
         //Calculation settings
-        [ExcludeFromComparison]
-        private CalcType calcType;
-        private bool reportToConsole;
-        #endregion
-
-        #region Public properties
-        public CalcType CalculationType { get => calcType; set => calcType = value; }
-        #endregion
-
-        #region Output
-        // Output
-        public string SegmentTypeResult { get; private set; }
-        public string PipeTypeResult { get; private set; }
-        public string DimNameResult { get; private set; }
-        public double ReynoldsSupplyResult { get; private set; }
-        public double ReynoldsReturnResult { get; private set; }
-        public double FlowSupplyResult { get; private set; }
-        public double FlowReturnResult { get; private set; }
-        public double PressureGradientSupplyResult { get; private set; }
-        public double PressureGradientReturnResult { get; private set; }
-        public double VelocitySupplyResult { get; private set; }
-        public double VelocityReturnResult { get; private set; }
-        public double UtilizationRateResult { get; private set; }
+        private CalcType calcType => s.CalculationType;
+        private bool reportToConsole => s.ReportToConsole;
         #endregion
 
         #region Timing
@@ -97,123 +78,30 @@ namespace NorsynHydraulicCalc
         #endregion
 
         #region Constructor
-        public HydraulicCalc(
-            // Type of segment
-            string segmentType,
-
-            // From client blocks
-            double totalHeatingDemand, // MWh/year
-            int numberOfBuildings, // Number of clients
-            int numberOfUnits, // Number of units
-
-            // Shared
-            int hotWaterReturnTemp, // degree
-            double factorTillægForOpvarmningUdenBrugsvandsprioritering,
-            double minDifferentialPressureOverHovedHaner, // bar
-
-            // Fordelingsledninger
-            int tempFremFL, int tempReturFL, // degree
-            double factorVarmtVandsTillægFL,
-            int nyttetimerOneUserFL,
-            int nyttetimer50PlusUsersFL,
-            double acceptVelocity20_150FL, // m/s
-            double acceptVelocity200_300FL, // m/s
-            double acceptVelocity350PlusFL,
-            int acceptPressureGradient20_150FL, // Pa/m
-            int acceptPressureGradient200_300FL, // Pa/m
-            int acceptPressureGradient350PlusFL, // Pa/m
-            bool usePertFlextraFL,
-            int pertFlextraMaxDnFL,
-
-            // Stikledninger
-            int tempFremSL, int tempReturSL, // degree
-            double factorVarmtVandsTillægSL,
-            int nyttetimerOneUserSL,
-            string pipeTypeSL,
-            double acceptVelocityFlexibleSL, // m/s
-            double acceptVelocity20_150SL, // m/s
-            int acceptPressureGradientFlexibleSL, // Pa/m
-            int acceptPressureGradient20_150SL, // Pa/m
-            double maxPressureLossStikSL, // bar
-            string calcType, //CW, TM
-            bool reportToConsole
-        )
+        public HydraulicCalc(HydraulicSettings settings)
         {
-            //Convert segmentType to enum
-            this.segmentType = (SegmentType)Enum.Parse(typeof(SegmentType), segmentType);
+            s = settings;
+            pipeTypes = new PipeTypes(s);
 
-            // From client blocks
-            this.totalHeatingDemand = totalHeatingDemand;
-            this.numberOfBuildings = numberOfBuildings;
-            this.numberOfUnits = numberOfUnits;
+            utils.prdDbg($"HydraulicCalc {version}.");
 
-            // Shared
-            this.hotWaterReturnTemp = hotWaterReturnTemp;
-            this.factorTillægForOpvarmningUdenBrugsvandsprioritering = factorTillægForOpvarmningUdenBrugsvandsprioritering;
-            this.minDifferentialPressureOverHovedHaner = minDifferentialPressureOverHovedHaner;
-
-            // Fordelingsledninger
-            this.tempFremFL = tempFremFL;
-            this.tempReturFL = tempReturFL;
-            this.factorVarmtVandsTillægFL = factorVarmtVandsTillægFL;
-            this.nyttetimerOneUserFL = nyttetimerOneUserFL;
-            this.nyttetimer50PlusUsersFL = nyttetimer50PlusUsersFL;
-            this.acceptVelocity20_150FL = acceptVelocity20_150FL;
-            this.acceptVelocity200_300FL = acceptVelocity200_300FL;
-            this.acceptVelocity350PlusFL = acceptVelocity350PlusFL;
-            this.acceptPressureGradient20_150FL = acceptPressureGradient20_150FL;
-            this.acceptPressureGradient200_300FL = acceptPressureGradient200_300FL;
-            this.acceptPressureGradient350PlusFL = acceptPressureGradient350PlusFL;
-            this.usePertFlextraFL = usePertFlextraFL;
-            this.pertFlextraMaxDnFL = pertFlextraMaxDnFL;
-
-            // Stikledninger
-            this.tempFremSL = tempFremSL;
-            this.tempReturSL = tempReturSL;
-            this.factorVarmtVandsTillægSL = factorVarmtVandsTillægSL;
-            this.nyttetimerOneUserSL = nyttetimerOneUserSL;
-            this.pipeTypeSL = (PipeType)Enum.Parse(typeof(PipeType), pipeTypeSL);
-            this.acceptVelocityFlexibleSL = acceptVelocityFlexibleSL;
-            this.acceptVelocity20_150SL = acceptVelocity20_150SL;
-            this.acceptPressureGradientFlexibleSL = acceptPressureGradientFlexibleSL;
-            this.acceptPressureGradient20_150SL = acceptPressureGradient20_150SL;
-            this.maxPressureLossStikSL = maxPressureLossStikSL;
-
-            //Calculation settings
-            this.calcType = (CalcType)Enum.Parse(typeof(CalcType), calcType);
-            this.reportToConsole = reportToConsole;
-
-            Initialize();
+            sw.Start();
+            CalculateMaxFlowValues();
+            sw.Stop();
+            if (reportToConsole)
+                utils.prdDbg($"Initialization time {sw.ElapsedMilliseconds} ms.");
         }
         #endregion
 
         #region Initialize the max flow table
-        public void Initialize()
-        {
-            sw.Start();
-
-            bool one = currentInstance == null;
-            bool two = !AreInstancesEqual(this, currentInstance);
-
-            if (one || two)
-            {
-                currentInstance = this;
-                Console.WriteLine($"HydraulicCalc {version}.");
-                CalculateMaxFlowValues();
-            }
-
-            sw.Stop();
-            if (reportToConsole)
-                Console.WriteLine($"Initialization time {sw.ElapsedMilliseconds} ms.");
-        }
-        private static void CalculateMaxFlowValues()
+        private void CalculateMaxFlowValues()
         {
             maxFlowTableFL = new List<(Dim Dim, double MaxFlowFrem, double MaxFlowReturn)>();
             maxFlowTableSL = new List<(Dim Dim, double MaxFlowFrem, double MaxFlowReturn)>();
 
             #region Setup reporting
             //Setup reporting
-            if (currentInstance.reportToConsole)
+            if (reportToConsole)
             {
                 reportingColumnNames = new List<string>()
                 {
@@ -251,19 +139,20 @@ namespace NorsynHydraulicCalc
             {
                 int steelMinDn = 32;
 
-                if (currentInstance.usePertFlextraFL)
+                if (usePertFlextraFL)
                 {
-                    foreach (var dim in PipeTypes.PertFlextra.GetDimsRange(50, currentInstance.pertFlextraMaxDnFL))
+                    foreach (var dim in pipeTypes.PertFlextra.GetDimsRange(
+                        50, pertFlextraMaxDnFL))
                     {
                         maxFlowTableFL.Add((dim,
                             CalculateMaxFlow(dim, TempSetType.Supply, SegmentType.Fordelingsledning),
                             CalculateMaxFlow(dim, TempSetType.Return, SegmentType.Fordelingsledning)));
                     }
 
-                    steelMinDn = translationBetweenMaxPertAndMinStål[currentInstance.pertFlextraMaxDnFL];
+                    steelMinDn = translationBetweenMaxPertAndMinStål[pertFlextraMaxDnFL];
                 }
 
-                foreach (var dim in PipeTypes.Stål.GetDimsRange(steelMinDn, 1000))
+                foreach (var dim in pipeTypes.Stål.GetDimsRange(steelMinDn, 1000))
                 {
                     maxFlowTableFL.Add((dim,
                             CalculateMaxFlow(dim, TempSetType.Supply, SegmentType.Fordelingsledning),
@@ -275,12 +164,12 @@ namespace NorsynHydraulicCalc
             #region Populate maxFlowTableSL
             //Populate maxFlowTableSL
             {
-                switch (currentInstance.pipeTypeSL)
+                switch (pipeTypeSL)
                 {
                     case PipeType.Stål:
                         throw new Exception("Stål-stikledninger er ikke tilladt!");
                     case PipeType.PertFlextra:
-                        foreach (var dim in PipeTypes.PertFlextra.GetDimsRange(32, 75))
+                        foreach (var dim in pipeTypes.PertFlextra.GetDimsRange(32, 75))
                         {
                             maxFlowTableSL.Add((dim,
                                 CalculateMaxFlow(dim, TempSetType.Supply, SegmentType.Stikledning),
@@ -288,7 +177,7 @@ namespace NorsynHydraulicCalc
                         }
                         break;
                     case PipeType.AluPEX:
-                        foreach (var dim in PipeTypes.AluPex.GetDimsRange(26, 32))
+                        foreach (var dim in pipeTypes.AluPex.GetDimsRange(26, 32))
                         {
                             maxFlowTableSL.Add((dim,
                                 CalculateMaxFlow(dim, TempSetType.Supply, SegmentType.Stikledning),
@@ -296,7 +185,7 @@ namespace NorsynHydraulicCalc
                         }
                         break;
                     case PipeType.Kobber:
-                        foreach (var dim in PipeTypes.Cu.GetDimsRange(22, 28))
+                        foreach (var dim in pipeTypes.Cu.GetDimsRange(22, 28))
                         {
                             maxFlowTableSL.Add((dim,
                                 CalculateMaxFlow(dim, TempSetType.Supply, SegmentType.Stikledning),
@@ -307,7 +196,7 @@ namespace NorsynHydraulicCalc
                         throw new NotImplementedException();
                 }
 
-                foreach (var dim in PipeTypes.Stål.GetDimsRange(32, 1000))
+                foreach (var dim in pipeTypes.Stål.GetDimsRange(32, 1000))
                 {
                     maxFlowTableSL.Add((dim,
                             CalculateMaxFlow(dim, TempSetType.Supply, SegmentType.Stikledning),
@@ -317,23 +206,23 @@ namespace NorsynHydraulicCalc
             #endregion
 
             #region Reporting
-            if (currentInstance.reportToConsole)
+            if (reportToConsole)
             {
                 //Print report
-                Console.WriteLine(
+                utils.prdDbg(
                     AsciiTableFormatter.CreateAsciiTableRows(
                         "Fordelingsledninger", reportingRowsFL, reportingColumnNames, reportingUnits, "F6"));
-                Console.WriteLine();
-                Console.WriteLine(
+                utils.prdDbg();
+                utils.prdDbg(
                     AsciiTableFormatter.CreateAsciiTableRows(
                         "Stikledninger", reportingRowsSL, reportingColumnNames, reportingUnits, "F6"));
-                Console.WriteLine();
+                utils.prdDbg();
             }
             #endregion
         }
-        private static double CalculateMaxFlow(Dim dim, TempSetType tempSetType, SegmentType st)
+        private double CalculateMaxFlow(Dim dim, TempSetType tempSetType, SegmentType st)
         {
-            double vmax = currentInstance.Vmax(dim, st);
+            double vmax = Vmax(dim, st);
 
             double A = dim.CrossSectionArea;
 
@@ -342,19 +231,19 @@ namespace NorsynHydraulicCalc
             double Qmax_velocity_m3hr = Qmax_velocity_m3s * 3600; // m^3/hr
 
             //Max flow rate based on pressure gradient limit
-            var res = FindQmaxPressure(dim, tempSetType, st, currentInstance.calcType);
+            var res = FindQmaxPressure(dim, tempSetType, st, calcType);
 
             #region Reporting
-            if (currentInstance.reportToConsole)
+            if (reportToConsole)
             {
                 string rowName = $"{dim.DimName} {tempSetType}";
                 List<double> data = new List<double>()
                 {
                     vmax, dim.InnerDiameter_m, dim.CrossSectionArea, Qmax_velocity_m3hr,
-                    currentInstance.dPdx_max(dim, st), dim.Roughness_m / dim.InnerDiameter_m,
-                    rho(currentInstance.Temp(tempSetType, st)), mu(currentInstance.Temp(tempSetType, st)),
+                    dPdx_max(dim, st), dim.Roughness_m / dim.InnerDiameter_m,
+                    rho(Temp(tempSetType, st)), mu(Temp(tempSetType, st)),
                     res.iterations, res.Re, res.Qmax,
-                    Math.Min(Qmax_velocity_m3hr, res.Qmax)/3600*rho(currentInstance.Temp(tempSetType, st))
+                    Math.Min(Qmax_velocity_m3hr, res.Qmax)/3600*rho(Temp(tempSetType, st))
                 };
                 switch (st)
                 {
@@ -372,13 +261,13 @@ namespace NorsynHydraulicCalc
 
             return Math.Min(Qmax_velocity_m3hr, res.Qmax);
         }
-        private static (double Qmax, int iterations, double Re) FindQmaxPressure(
+        private (double Qmax, int iterations, double Re) FindQmaxPressure(
             Dim dim, TempSetType tempSetType, SegmentType st, CalcType calc)
         {
-            double dp_dx = currentInstance.dPdx_max(dim, st);
+            double dp_dx = dPdx_max(dim, st);
             double reynolds = 0, velocity1 = 1, velocity2 = 1.1, newVelocity = 0, error1, error2;
-            double density = rho(currentInstance.Temp(tempSetType, st));
-            double viscosity = mu(currentInstance.Temp(tempSetType, st));
+            double density = rho(Temp(tempSetType, st));
+            double viscosity = mu(Temp(tempSetType, st));
             double tolerance = 1e-6;
             int maxIterations = 100;
             int iteration = 0;
@@ -413,13 +302,13 @@ namespace NorsynHydraulicCalc
             reynolds = Reynolds(density, newVelocity, dim.InnerDiameter_m, viscosity);
             return (newVelocity * dim.CrossSectionArea * 3600, iteration, reynolds);
         }
-        private static double Reynolds(double density, double velocity, double diameter, double viscosity)
+        private double Reynolds(double density, double velocity, double diameter, double viscosity)
         {
             return density * velocity * diameter / viscosity;
             //return velocity * diameter / 0.000000365;
         }
         // Helper method to calculate the velocity error
-        private static double CalculateVelocityError(
+        private double CalculateVelocityError(
             double velocity, double dp_dx, double diameter, double relativeRoughness,
             double density, double viscosity, CalcType calc)
         {
@@ -446,7 +335,7 @@ namespace NorsynHydraulicCalc
             // Return the error as the difference between new and current velocity
             return newVelocity - velocity;
         }
-        private static double CalculateFrictionFactorColebrookWhite(double Re, double relativeRoughness, double tolerance)
+        private double CalculateFrictionFactorColebrookWhite(double Re, double relativeRoughness, double tolerance)
         {
             ////double f = 0.02; // initial guess for friction factor
             //double f = CalculateFrictionFactorTkachenkoMielkovskyi(Re, relativeRoughness);
@@ -492,13 +381,13 @@ namespace NorsynHydraulicCalc
                 f2 = f_new;
             }
 
-            Console.WriteLine("Warning: Secant method did not converge.");
+            utils.prdDbg("Warning: Secant method did not converge.");
             return f2;
 
 
             //return f; // Return friction factor
         }
-        private static double CalculateFrictionFactorTkachenkoMileikovskyi(double Re, double relativeRoughness)
+        private double CalculateFrictionFactorTkachenkoMileikovskyi(double Re, double relativeRoughness)
         {
             //double f0inverseHalf = -0.79638 * Math.Log(relativeRoughness / 8.208 + 7.3357 / Re);
             //double f0 = Math.Pow(f0inverseHalf, -2);
@@ -514,7 +403,7 @@ namespace NorsynHydraulicCalc
 
             return f;
         }
-        private static double CalculateFrictionFactorLaminar(double Re) => 64.0 / Re;
+        private double CalculateFrictionFactorLaminar(double Re) => 64.0 / Re;
         #endregion
 
         #region Properties aliases to handle different types
@@ -567,28 +456,28 @@ namespace NorsynHydraulicCalc
 
         #region Properties for instance segment calculations
         // Properties depenedent on segmentType
-        private int N1 =>
-            segmentType == SegmentType.Fordelingsledning ? nyttetimerOneUserFL : nyttetimerOneUserSL;
+        private int N1(SegmentType st) =>
+            st == SegmentType.Fordelingsledning ? nyttetimerOneUserFL : nyttetimerOneUserSL;
         private int N50 => nyttetimer50PlusUsersFL;
         /// <summary>
         /// Heating delta temperature
         /// </summary>
-        private int dT1 =>
-            segmentType == SegmentType.Fordelingsledning ? tempFremFL - tempReturFL : tempFremSL - tempReturSL;
+        private int dT1(SegmentType st) =>
+            st == SegmentType.Fordelingsledning ? tempFremFL - tempReturFL : tempFremSL - tempReturSL;
         /// <summary>
         /// Hot water delta temperature
         /// </summary>
-        private int dT2 =>
-            segmentType == SegmentType.Fordelingsledning
+        private int dT2(SegmentType st) =>
+            st == SegmentType.Fordelingsledning
             ? tempFremFL - hotWaterReturnTemp
             : tempFremSL - hotWaterReturnTemp;
-        private int Tf =>
-            segmentType == SegmentType.Fordelingsledning ? tempFremFL : tempFremSL;
-        private int Tr =>
-            segmentType == SegmentType.Fordelingsledning ? tempReturFL : tempReturSL;
+        private int Tf(SegmentType st) =>
+            st == SegmentType.Fordelingsledning ? tempFremFL : tempFremSL;
+        private int Tr(SegmentType st) =>
+            st == SegmentType.Fordelingsledning ? tempReturFL : tempReturSL;
         private int Tr_hw => hotWaterReturnTemp;
-        private double f_b =>
-            segmentType == SegmentType.Fordelingsledning ? factorVarmtVandsTillægFL : factorVarmtVandsTillægSL;
+        private double f_b(SegmentType st) =>
+            st == SegmentType.Fordelingsledning ? factorVarmtVandsTillægFL : factorVarmtVandsTillægSL;
         private double KX => factorTillægForOpvarmningUdenBrugsvandsprioritering;
         #endregion
 
@@ -660,23 +549,30 @@ namespace NorsynHydraulicCalc
         #endregion
         #endregion
 
-        public void Calculate()
+        public CalculationResult CalculateHydraulicSegment(
+            string segmentType, double totalHeatingDemand,
+            int numberOfBuildings, int numberOfUnits)
         {
+            #region Set calculation variables
+            //Convert segmentType to enum
+            SegmentType st = (SegmentType)Enum.Parse(typeof(SegmentType), segmentType);
+            #endregion
+
             sw.Restart();
 
-            double s_heat = (double)N1 / (double)N50 + (1.0 - (double)N1 / (double)N50) / (double)numberOfBuildings;
+            double s_heat = (double)N1(st) / (double)N50 + (1.0 - (double)N1(st) / (double)N50) / (double)numberOfBuildings;
             double s_hw = (51.0 - (double)numberOfUnits) / (50.0 * Math.Sqrt((double)numberOfUnits));
             s_hw = s_hw < 0 ? 0 : s_hw;
 
-            double dimFlow1Frem = (totalHeatingDemand * 1000.0 / N1) * s_heat * volume(Tf, dT1);
-            double dimFlow2Frem = (totalHeatingDemand * 1000.0 / N1) * s_heat * KX * volume(Tf, dT1)
-                + numberOfUnits * 33 * f_b * s_hw * volume(Tf, dT2);
+            double dimFlow1Frem = (totalHeatingDemand * 1000.0 / N1(st)) * s_heat * volume(Tf(st), dT1(st));
+            double dimFlow2Frem = (totalHeatingDemand * 1000.0 / N1(st)) * s_heat * KX * volume(Tf(st), dT1(st))
+                + numberOfUnits * 33 * f_b(st) * s_hw * volume(Tf(st), dT2(st));
 
-            double dimFlow1Retur = (totalHeatingDemand * 1000.0 / N1) * s_heat * volume(Tr, dT1);
-            double dimFlow2Retur = (totalHeatingDemand * 1000.0 / N1) * s_heat * KX * volume(Tr, dT1)
-                + numberOfUnits * 33 * f_b * s_hw * volume(Tr_hw, dT2);
+            double dimFlow1Retur = (totalHeatingDemand * 1000.0 / N1(st)) * s_heat * volume(Tr(st), dT1(st));
+            double dimFlow2Retur = (totalHeatingDemand * 1000.0 / N1(st)) * s_heat * KX * volume(Tr(st), dT1(st))
+                + numberOfUnits * 33 * f_b(st) * s_hw * volume(Tr_hw, dT2(st));
 
-            if (currentInstance.reportToConsole)
+            if (reportToConsole)
             {
                 List<(string, List<double>)> columns = new List<(string, List<double>)>
                 {
@@ -689,33 +585,34 @@ namespace NorsynHydraulicCalc
                     }),
                     ("Flow", new List<double>()
                     {
-                        totalHeatingDemand / N1 * 1000.0/(dT1 * 4.231),
-                        totalHeatingDemand / N1 * 1000.0/(dT1 * 4.231),
-                        totalHeatingDemand / N1 * 1000.0/(dT1 * 4.231),
-                        totalHeatingDemand / N1 * 1000.0/(dT1 * 4.231)
+                        totalHeatingDemand / N1(st) * 1000.0/(dT1(st) * 4.231),
+                        totalHeatingDemand / N1(st) * 1000.0 /(dT1(st) * 4.231),
+                        totalHeatingDemand / N1(st) * 1000.0 /(dT1(st) * 4.231),
+                        totalHeatingDemand / N1(st) * 1000.0 /(dT1(st) * 4.231)
                     }),
                     ("Demand ajusted", new List<double>()
                     {
-                        (totalHeatingDemand * 1000 / N1),
-                        (totalHeatingDemand * 1000 / N1),
-                        (totalHeatingDemand * 1000 / N1),
-                        (totalHeatingDemand * 1000 / N1),
+                        (totalHeatingDemand * 1000 / N1(st)),
+                        (totalHeatingDemand * 1000 / N1(st)),
+                        (totalHeatingDemand * 1000 / N1(st)),
+                        (totalHeatingDemand * 1000 / N1(st)),
                     }),
                     ("s_heat", new List<double>() { s_heat, s_heat, s_heat, s_heat }),
                     ("s_hw", new List<double>() { 0, s_hw, 0, s_hw }),
-                    ("rho heat", new List<double>() { rho(Tf), rho(Tf), rho(Tr), rho(Tr)}),
-                    ("rho hw", new List<double>() { rho(Tf), rho(Tf), rho(Tr_hw), rho(Tr_hw)}),
-                    ("Cp heat", new List<double>() { cp(Tf), cp(Tf), cp(Tr), cp(Tr)}),
-                    ("Cp hw", new List<double>() { cp(Tf), cp(Tf), cp(Tr_hw), cp(Tr_hw)}),
-                    ("m^3/kW heat", new List<double>() { volume(Tf, dT1), volume(Tf, dT1), volume(Tr, dT1), volume(Tr, dT1) }),
-                    ("m^3/kW hw", new List<double>() { 0, volume(Tf, dT2), 0, volume(Tr_hw, dT2) }),
+                    ("rho heat", new List<double>() { rho(Tf(st)), rho(Tf(st)), rho(Tr(st)), rho(Tr(st))}),
+                    ("rho hw", new List<double>() { rho(Tf(st)), rho(Tf(st)), rho(Tr_hw), rho(Tr_hw)}),
+                    ("Cp heat", new List<double>() { cp(Tf(st)), cp(Tf(st)), cp(Tr(st)), cp(Tr(st)) }),
+                    ("Cp hw", new List<double>() { cp(Tf(st)), cp(Tf(st)), cp(Tr_hw), cp(Tr_hw)}),
+                    ("m^3/kW heat", new List<double>() { 
+                        volume(Tf(st), dT1(st)), volume(Tf(st), dT1(st)), volume(Tr(st), dT1(st)), volume(Tr(st), dT1(st)) }),
+                    ("m^3/kW hw", new List<double>() { 0, volume(Tf(st), dT2(st)), 0, volume(Tr_hw, dT2(st)) }),
                     ("Flow m³/hr", new List<double>() { dimFlow1Frem, dimFlow2Frem, dimFlow1Retur, dimFlow2Retur }),
                     ("Flow kg/s", new List<double>()
                     {
-                        dimFlow1Frem * rho(Tf) / 3600,
-                        dimFlow2Frem * rho(Tf) / 3600,
-                        dimFlow1Retur * rho(Tr) / 3600,
-                        dimFlow2Retur * rho(Tr) / 3600
+                        dimFlow1Frem * rho(Tf(st)) / 3600,
+                        dimFlow2Frem * rho(Tf(st)) / 3600,
+                        dimFlow1Retur * rho(Tr(st)) / 3600,
+                        dimFlow2Retur * rho(Tr(st)) / 3600
                         //dimFlow1Frem * 951 / 3600,
                         //dimFlow2Frem * 951 / 3600,
                         //dimFlow1Retur * 951 / 3600,
@@ -725,64 +622,69 @@ namespace NorsynHydraulicCalc
 
                 List<string> rowNames = new List<string> { "Frem 1", "Frem 2", "Retur 1", "Retur 2" };
 
-                Console.WriteLine(AsciiTableFormatter.CreateAsciiTableColumns(columns, rowNames, "F6"));
-                Console.WriteLine();
+                utils.prdDbg(AsciiTableFormatter.CreateAsciiTableColumns(columns, rowNames, "F6"));
+                utils.prdDbg();
             }
 
             double flowSupply = Math.Max(dimFlow1Frem, dimFlow2Frem);
             double flowReturn = Math.Max(dimFlow1Retur, dimFlow2Retur);
 
-            var dimSupply = determineDim(flowSupply, TempSetType.Supply);
-            var dimReturn = determineDim(flowReturn, TempSetType.Return);
+            var dimSupply = determineDim(flowSupply, TempSetType.Supply, st);
+            var dimReturn = determineDim(flowReturn, TempSetType.Return, st);
             var dim = new[] { dimSupply, dimReturn }.MaxBy(x => x.OuterDiameter);
-            var utilRate = determineUtilizationRate(dim, flowSupply, flowReturn);
+            var utilRate = determineUtilizationRate(dim, flowSupply, flowReturn, st);
 
-            var resSupply = CalculateGradientAndVelocity(flowSupply, dim, TempSetType.Supply);
-            var resReturn = CalculateGradientAndVelocity(flowReturn, dim, TempSetType.Return);
+            var resSupply = CalculateGradientAndVelocity(flowSupply, dim, TempSetType.Supply, st);
+            var resReturn = CalculateGradientAndVelocity(flowReturn, dim, TempSetType.Return, st);
 
-            SegmentTypeResult = segmentType.ToString();
-            PipeTypeResult = dim.PipeType.ToString();
-            DimNameResult = dim.DimName;
-            ReynoldsSupplyResult = resSupply.reynolds;
-            ReynoldsReturnResult = resReturn.reynolds;
-            FlowSupplyResult = flowSupply;
-            FlowReturnResult = flowReturn;
-            PressureGradientSupplyResult = resSupply.gradient;
-            PressureGradientReturnResult = resReturn.gradient;
-            VelocitySupplyResult = resSupply.velocity;
-            VelocityReturnResult = resReturn.velocity;
-            UtilizationRateResult = utilRate;
+            var r = new CalculationResult
+            {
+                SegmentType = segmentType.ToString(),
+                PipeType = dim.PipeType.ToString(),
+                DimName = dim.DimName,
+                ReynoldsSupply = resSupply.reynolds,
+                ReynoldsReturn = resReturn.reynolds,
+                FlowSupply = flowSupply,
+                FlowReturn = flowReturn,
+                PressureGradientSupply = resSupply.gradient,
+                PressureGradientReturn = resReturn.gradient,
+                VelocitySupply = resSupply.velocity,
+                VelocityReturn = resReturn.velocity,
+                UtilizationRate = utilRate
+            };
 
-            if (currentInstance.reportToConsole)
+            if (reportToConsole)
             {
                 //Now report these five values to console
-                Console.WriteLine(
-                    $"Segment type: {SegmentTypeResult}\n" +
-                    $"Pipe type: {PipeTypeResult}\n" +
-                    $"Dim name: {DimNameResult}\n" +
-                    $"Pressure gradient, supply: {PressureGradientSupplyResult} Pa/m\n" +
-                    $"Pressure gradient, return: {PressureGradientReturnResult} Pa/m\n" +
-                    $"Velocity, supply: {VelocitySupplyResult} m/s\n" +
-                    $"Velocity, return: {VelocityReturnResult} m/s\n" +
+                utils.prdDbg(
+                    $"Segment type: {r.SegmentType}\n" +
+                    $"Pipe type: {r.PipeType}\n" +
+                    $"Dim name: {r.DimName}\n" +
+                    $"Pressure gradient, supply: {r.PressureGradientSupply} Pa/m\n" +
+                    $"Pressure gradient, return: {r.PressureGradientReturn} Pa/m\n" +
+                    $"Velocity, supply: {r.VelocitySupply} m/s\n" +
+                    $"Velocity, return: {r.VelocityReturn} m/s\n" +
                     $"Utilization rate: {utilRate}"
                     );
             }
 
             sw.Stop();
-            if (currentInstance.reportToConsole)
+            if (reportToConsole)
             {
-                Console.WriteLine($"Calculation time {sw.ElapsedMilliseconds} ms.");
+                utils.prdDbg($"Calculation time {sw.ElapsedMilliseconds} ms.");
             }
+
+            return r;
         }
         private (double reynolds, double gradient, double velocity) CalculateGradientAndVelocity(
-            double flow, Dim dim, TempSetType tst)
+            double flow, Dim dim, TempSetType tst, SegmentType st)
         {
             double velocity = flow / 3600 / dim.CrossSectionArea;
             double reynolds = Reynolds(
-                rho(this.Temp(tst, this.segmentType)),
+                rho(this.Temp(tst, st)),
                 velocity,
                 dim.InnerDiameter_m,
-                mu(this.Temp(tst, this.segmentType)));
+                mu(this.Temp(tst, st)));
 
             double f;
             switch (this.calcType)
@@ -797,13 +699,13 @@ namespace NorsynHydraulicCalc
                     throw new NotImplementedException();
             }
 
-            double gradient = f * rho(this.Temp(tst, this.segmentType)) * velocity * velocity / (2 * dim.InnerDiameter_m);
+            double gradient = f * rho(this.Temp(tst, st)) * velocity * velocity / (2 * dim.InnerDiameter_m);
             //double gradient = f * 951 * velocity * velocity / (2 * dim.InnerDiameter_m);
             return (reynolds, gradient, velocity);
         }
-        private Dim determineDim(double flow, TempSetType tst)
+        private Dim determineDim(double flow, TempSetType tst, SegmentType st)
         {
-            switch (this.segmentType)
+            switch (st)
             {
                 case SegmentType.Fordelingsledning:
                     for (int i = 0; i < maxFlowTableFL.Count; i++)
@@ -845,11 +747,12 @@ namespace NorsynHydraulicCalc
 
             throw new Exception("No suitable dimension found!");
         }
-        private double determineUtilizationRate(Dim dim, double flowSupply, double flowReturn)
+        private double determineUtilizationRate(
+            Dim dim, double flowSupply, double flowReturn, SegmentType st)
         {
             List<(Dim Dim, double MaxFlowFrem, double MaxFlowReturn)> table;
 
-            switch (this.segmentType)
+            switch (st)
             {
                 case SegmentType.Fordelingsledning:
                     table = maxFlowTableFL;
@@ -877,36 +780,12 @@ namespace NorsynHydraulicCalc
                 (flowSupply - minFlowFrem) / (entry.MaxFlowFrem - minFlowFrem),
                 (flowReturn - minFlowReturn) / (entry.MaxFlowReturn - minFlowReturn));
         }
-        private bool AreInstancesEqual(HydraulicCalc instance1, HydraulicCalc instance2)
-        {
-            if (instance1 == null || instance2 == null) return false;
-
-            Type type = typeof(HydraulicCalc);
-
-            foreach (FieldInfo field in type.GetFields(BindingFlags.Instance | BindingFlags.NonPublic))
-            {
-                if (field.IsDefined(typeof(ExcludeFromComparisonAttribute), false)) continue;
-
-                if (field.Name.Contains("BackingField")) continue;
-
-                object value1 = field.GetValue(instance1);
-                object value2 = field.GetValue(instance2);
-
-                if (value1 == null && value2 == null) continue;
-
-                if (value1 == null || value2 == null) return false;
-
-                if (!value1.Equals(value2)) return false;
-            }
-
-            return true;
-        }
-
+        
         //Debug and testing
         public double f(double reynolds, double relativeRoughness, double tol)
         {
             double f = CalculateFrictionFactorColebrookWhite(reynolds, relativeRoughness, tol);
-            Console.WriteLine("f: " + f);
+            utils.prdDbg("f: " + f);
 
             return f;
         }
@@ -916,9 +795,4 @@ namespace NorsynHydraulicCalc
             return dpdx;
         }
     }
-
-    
-
-    [AttributeUsage(AttributeTargets.Field)]
-    public class ExcludeFromComparisonAttribute : Attribute { }
 }

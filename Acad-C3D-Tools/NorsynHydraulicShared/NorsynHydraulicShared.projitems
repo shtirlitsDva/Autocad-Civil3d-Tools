@@ -16,8 +16,10 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)AsciiTableFormatter.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)CalculationResult.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Enums.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)HydraulicCalc.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)HydraulicSettings.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)LookupData.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Pipes\Dim.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Pipes\IPipe.cs" />
