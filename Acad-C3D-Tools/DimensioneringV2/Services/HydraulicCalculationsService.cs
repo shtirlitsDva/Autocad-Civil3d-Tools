@@ -19,7 +19,7 @@ namespace DimensioneringV2.Services
     internal class HydraulicCalculationsService
     {
         private static DataService _dataService = DataService.Instance;
-        internal static void SumProperties(
+        internal static void Calculate(
             List<(
                 Func<AnalysisFeature, dynamic> Getter, 
                 Action<AnalysisFeature, dynamic> Setter)> props)
@@ -58,15 +58,17 @@ namespace DimensioneringV2.Services
                     }
                 }
 
-                // Traverse from downstream nodes and calculate NumberOfBuildingsSupplied
+                // Traverse the network and calculate
+                // the sums of all properties as given in the props list
+                // These sums lays the foundation for the hydraulic calculations
                 var visited = new HashSet<JunctionNode>();
-                CalculateBuildingsSupplied(shortestPathTree, rootNode, visited, props);
+                CalculateBaseSums(shortestPathTree, rootNode, visited, props);
             }
 
             _dataService.StoreCalculatedData(graphs.Select(g => g.Edges.Select(y => y.PipeSegment)));
         }
 
-        private static List<dynamic> CalculateBuildingsSupplied(
+        private static List<dynamic> CalculateBaseSums(
         UndirectedGraph<JunctionNode, PipeSegmentEdge> graph,
         JunctionNode node, HashSet<JunctionNode> visited,
         List<(Func<AnalysisFeature, dynamic> Getter, Action<AnalysisFeature, dynamic> Setter)> props)
@@ -81,7 +83,7 @@ namespace DimensioneringV2.Services
             foreach (var edge in graph.AdjacentEdges(node))
             {
                 var neighbor = edge.GetOtherVertex(node);
-                var downstreamSums = CalculateBuildingsSupplied(graph, neighbor, visited, props);
+                var downstreamSums = CalculateBaseSums(graph, neighbor, visited, props);
                 for (int i = 0; i < props.Count; i++)
                 {
                     totalSums[i] += downstreamSums[i];

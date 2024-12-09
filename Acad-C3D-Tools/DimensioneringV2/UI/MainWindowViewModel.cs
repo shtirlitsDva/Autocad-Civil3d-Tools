@@ -91,7 +91,7 @@ namespace DimensioneringV2.UI
         {
             try
             {
-                await Task.Run(() => HydraulicCalculationsService.SumProperties(
+                await Task.Run(() => HydraulicCalculationsService.Calculate(
                     new List<(Func<AnalysisFeature, dynamic> Getter, Action<AnalysisFeature, dynamic> Setter)>
                     {
                         (f => f.NumberOfBuildingsConnected, (f, v) => f.NumberOfBuildingsSupplied = v),
