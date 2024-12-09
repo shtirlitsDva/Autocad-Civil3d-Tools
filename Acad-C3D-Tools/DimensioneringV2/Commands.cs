@@ -461,6 +461,19 @@ namespace DimensioneringV2
         {
             if (Services.PaletteSetCache.paletteSet == null) Services.PaletteSetCache.paletteSet = new CustomPaletteSet();
             Services.PaletteSetCache.paletteSet.Visible = true;
+            Services.PaletteSetCache.paletteSet.WasVisible = true;
+
+            //var events = PaletteSetCache.paletteSet.GetType().GetEvents(BindingFlags.Public | BindingFlags.Instance);
+            //foreach (var ev in events)
+            //{
+            //    var eh = new EventHandler((s, e) => 
+            //    {
+            //        prdDbg($"Event {ev.Name} fired!");
+            //    });
+
+            //    ev.AddEventHandler(PaletteSetCache.paletteSet, Delegate.CreateDelegate(
+            //        ev.EventHandlerType, eh.Target, eh.Method));
+            //}
         }
 
         [CommandMethod("DIM2MAPCOLLECTFEATURES")]

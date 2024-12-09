@@ -36,7 +36,7 @@ namespace DimensioneringV2.MapStyles
 
             var s2 = new LabelStyle
             {
-                Text = value.ToString(),
+                Text = value is double d ? d.ToString("F2") : value.ToString(),
                 //BackColor = new Brush(_gradientHelper.LookupColor(f.NumberOfBuildingsSupplied)),
                 ForeColor = Color.Black,
                 //Offset = new Offset(0, 0),

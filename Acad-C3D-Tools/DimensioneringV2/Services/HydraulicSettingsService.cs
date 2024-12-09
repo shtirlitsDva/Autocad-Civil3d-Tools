@@ -1,4 +1,5 @@
 ﻿using Autodesk.AutoCAD.ApplicationServices;
+using Autodesk.AutoCAD.Windows;
 
 using CommunityToolkit.Mvvm.ComponentModel;
 
@@ -30,24 +31,26 @@ namespace DimensioneringV2.Services
             // Subscribe to DocumentManager events
             AcAp.DocumentManager.DocumentActivated += DocumentManager_DocumentActivated;
             AcAp.DocumentManager.DocumentToBeDeactivated += DocumentManager_DocumentToBeDeactivated;
-            //This is handled in the palette set constructor
-            //AcAp.DocumentManager.DocumentToBeDestroyed += DocumentManager_DocumentToBeDestroyed;
+            AcAp.DocumentManager.DocumentToBeDestroyed += DocumentManager_DocumentToBeDestroyed;
+            //Saving of settings when the palette is made invisible
+            //must be handled by the PaletteSet as this service does not know
+            //when the palette is instatiated
+            
         }
-
         private void DocumentManager_DocumentActivated(object sender, DocumentCollectionEventArgs e)
         {
             Settings = HydraulicSettings.Load(e.Document);
         }
-
         private void DocumentManager_DocumentToBeDeactivated(object sender, DocumentCollectionEventArgs e)
         {
             Settings.Save(e.Document);
         }
-
-        //This is handled in the palette set constructor
-        //private void DocumentManager_DocumentToBeDestroyed(object sender, DocumentCollectionEventArgs e)
-        //{
-        //    Settings.Save(e.Document);
-        //}
+        private void DocumentManager_DocumentToBeDestroyed(object sender, DocumentCollectionEventArgs e)
+        {
+            if (e.Document != null)
+            {
+                Services.HydraulicSettingsService.Instance.Settings.Save(e.Document);
+            }
+        }
     }
 }

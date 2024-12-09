@@ -23,6 +23,7 @@ using Mapsui.Widgets;
 
 using utils = IntersectUtilities.UtilsCommon.Utils;
 using DimensioneringV2.MapStyles;
+using DimensioneringV2;
 using ProjNet.CoordinateSystems.Transformations;
 using ProjNet.CoordinateSystems;
 using Autodesk.AutoCAD.Geometry;
@@ -34,7 +35,7 @@ namespace DimensioneringV2.UI
     {
         public IEnumerable<MapPropertyWrapper> MapProperties => GetMapProperties(typeof(AnalysisFeature));
         [ObservableProperty]
-        private MapPropertyEnum selectedMapProperty;
+        private MapPropertyWrapper selectedMapPropertyWrapper;
         [ObservableProperty]
         private bool isMapDropdownEnabled = false;
 
@@ -43,20 +44,25 @@ namespace DimensioneringV2.UI
             _dataService = DataService.Instance;
             _dataService.DataLoaded += OnDataLoadedFirstTime;
             _dataService.CalculationDataReturned += OnCalculationsCompleted;
-
-            //SelectedMapProperty = MapProperties.GetValue(0).ToString();
         }
 
         private IEnumerable<MapPropertyWrapper> GetMapProperties(Type type)
         {
             return type.GetProperties()
-                   .Where(prop => Attribute.IsDefined(prop, typeof(MapPropertyAttribute)))
-                   .Select(prop =>
-                   {
-                       var attr = (MapPropertyAttribute)Attribute.GetCustomAttribute(prop, typeof(MapPropertyAttribute));
-                       var description = attr.Property.GetDescription();
-                       return new MapPropertyWrapper(attr.Property, description);
-                   });
+                .Where(prop => Attribute.IsDefined(prop, typeof(MapPropertyAttribute)))
+                .Select(prop =>
+                {
+                    var attr = (MapPropertyAttribute)Attribute.GetCustomAttribute(prop, typeof(MapPropertyAttribute));
+                    var description = attr.Property.GetDescription();
+                    return new MapPropertyWrapper(attr.Property, description);
+                });
+        }
+
+        partial void OnSelectedMapPropertyWrapperChanged(MapPropertyWrapper value)
+        {
+            if (value == null) return;
+            _styleManager = new StyleManager(value.EnumValue);
+            UpdateMap();
         }
 
         #region CollectFeaturesFromACCommand
@@ -85,7 +91,7 @@ namespace DimensioneringV2.UI
         {
             try
             {
-                await Task.Run(() =>  HydraulicCalculationsService.SumProperties(
+                await Task.Run(() => HydraulicCalculationsService.SumProperties(
                     new List<(Func<AnalysisFeature, dynamic> Getter, Action<AnalysisFeature, dynamic> Setter)>
                     {
                         (f => f.NumberOfBuildingsConnected, (f, v) => f.NumberOfBuildingsSupplied = v),
@@ -180,18 +186,13 @@ namespace DimensioneringV2.UI
         private void OnCalculationsCompleted(object sender, EventArgs e)
         {
             Features = new(_dataService!.CalculatedFeatures.SelectMany(x => x));
-            
+
             if (!IsMapDropdownEnabled)
             {
                 IsMapDropdownEnabled = true;
-                SelectedMapProperty = MapProperties.First();
+                SelectedMapPropertyWrapper = null;
+                SelectedMapPropertyWrapper = MapProperties.First();
             }
-
-            
-
-            _styleManager = new StyleManager(SelectedMapProperty);
-
-            UpdateMap();
         }
 
         private void CreateMapFirstTime()
@@ -256,4 +257,5 @@ namespace DimensioneringV2.UI
                 Description = description;
             }
         }
+    }
 }

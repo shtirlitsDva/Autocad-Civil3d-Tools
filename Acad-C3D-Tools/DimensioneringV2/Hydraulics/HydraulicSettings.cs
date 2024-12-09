@@ -42,7 +42,7 @@ public partial class HydraulicSettings : ObservableObject
     private CalcType calculationType = CalcType.CW; // "CW" or "TM"
 
     [ObservableProperty]
-    private bool reportToConsole = true;
+    private bool reportToConsole = false;
 
     // Supply Lines (FL)
     [ObservableProperty]

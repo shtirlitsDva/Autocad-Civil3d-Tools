@@ -12,33 +12,43 @@ namespace DimensioneringV2.MapStyles
 {
     internal class StyleManager
     {
-        private IMapStyle _styleLabelsOn;
-        private IMapStyle _styleLabelsOff;
-        private IMapStyle _currentStyle;
-        public IMapStyle CurrentStyle => _currentStyle;
+        private IMapStyle? _styleLabelsOn;
+        private IMapStyle? _styleLabelsOff;
+        private IMapStyle? _currentStyle;
+        public IMapStyle CurrentStyle => _currentStyle!;
 
         public StyleManager(MapPropertyEnum propName)
         {
-            IMapStyle sOn;
-            IMapStyle sOff;
+            IMapStyle? sOn = null;
+            IMapStyle? sOff = null;
             switch (propName)
             {
                 case MapPropertyEnum.Default:
+                    sOn = new StyleDefault();
+                    sOff = new StyleDefault();
                     break;
                 case MapPropertyEnum.Basic:
+                    sOn = new StyleBasic();
+                    sOff = new StyleBasic();
                     break;
                 case MapPropertyEnum.Bygninger:
+                    sOn = new StyleMapProperty_WithLabels<int>(f => f.NumberOfBuildingsSupplied);
+                    sOff = new StyleMapProperty_NoLabels<int>(f => f.NumberOfBuildingsSupplied);
                     break;
                 case MapPropertyEnum.Units:
+                    sOn = new StyleMapProperty_WithLabels<int>(f => f.NumberOfUnitsSupplied);
+                    sOff = new StyleMapProperty_NoLabels<int>(f => f.NumberOfUnitsSupplied);
                     break;
                 case MapPropertyEnum.HeatingDemand:
+                    sOn = new StyleMapProperty_WithLabels<double>(f => f.HeatingDemandSupplied);
+                    sOff = new StyleMapProperty_NoLabels<double>(f => f.HeatingDemandSupplied);
                     break;
                 default:
-                    break;
+                    throw new Exception("Unknown property name!");
             }
 
-            _styleLabelsOn = styleLabelsOn;
-            _styleLabelsOff = styleLabelsOff;
+            _styleLabelsOn = sOn;
+            _styleLabelsOff = sOff;
             _currentStyle = _styleLabelsOn;
         }
 

@@ -13,8 +13,6 @@ namespace DimensioneringV2.MapStyles
     {
         private double _minPenWidth;
         private double _maxPenWidth;
-        private T _min;
-        private T _max;
         private double _scaleFactor;
         private double _offset;
         public PenWidthCalculator(double minPenWidth = 2, double maxPenWidth = 10)
@@ -27,8 +25,6 @@ namespace DimensioneringV2.MapStyles
             dynamic minValue = min;
             dynamic maxValue = max;
 
-            _min = min;
-            _max = max;
             _scaleFactor = (_maxPenWidth - _minPenWidth) / (maxValue - minValue);
             _offset = _minPenWidth - minValue * _scaleFactor;
         }
