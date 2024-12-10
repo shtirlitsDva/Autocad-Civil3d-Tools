@@ -1,5 +1,5 @@
-﻿NominalDiameter;OuterDiameter;WallThickness;InnerDiameter;CrossSectionArea
-15;15;1;13;0.000132732
-18;18;1;16;0.000201062
-22;22;1;20;0.000314159
-28;28;1.2;25.6;0.000514719
+﻿NominalDiameter;OuterDiameter;WallThickness;InnerDiameter;CrossSectionArea;R;G;B
+15;15;1;13;0.000132732;0;0;0
+18;18;1;16;0.000201062;0;0;0
+22;22;1;20;0.000314159;146;46;231
+28;28;1.2;25.6;0.000514719;131;104;211
