@@ -30,6 +30,8 @@ namespace DimensioneringV2.UI
         [Description("Hastighed for retur")]
         VelocityReturn,
         [Description("Udnyttelsesfaktor")]
-        UtilizationRate
+        UtilizationRate,
+        [Description("Rørdimension")]
+        Pipe,
     }
 }

@@ -109,6 +109,7 @@ namespace DimensioneringV2.GraphFeatures
         /// <summary>
         /// Dimension
         /// </summary>
+        [MapPropertyAttribute(MapPropertyEnum.Pipe)]
         public Dim Dim { get; internal set; }
 
         /// <summary>

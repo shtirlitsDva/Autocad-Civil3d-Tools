@@ -16,6 +16,7 @@ namespace NorsynHydraulicCalc.Pipes
         public string DimName;
         public PipeType PipeType;
         public int OrderingPriority;
+        public int[] RGB;
         public double RelativeRoughness { get => Roughness_m / InnerDiameter_m; }
 
         public Dim(
@@ -27,7 +28,8 @@ namespace NorsynHydraulicCalc.Pipes
             double roughness_m,
             string dimName,
             PipeType pipeType,
-            int orderingPriority)
+            int orderingPriority,
+            int[] RGB)
         {
             NominalDiameter = nominalDiameter;
             OuterDiameter = outerDiameter;
@@ -39,6 +41,7 @@ namespace NorsynHydraulicCalc.Pipes
             DimName = dimName + nominalDiameter;
             PipeType = pipeType;
             OrderingPriority = orderingPriority;
+            this.RGB = RGB;
         }
         public override string ToString()
         {

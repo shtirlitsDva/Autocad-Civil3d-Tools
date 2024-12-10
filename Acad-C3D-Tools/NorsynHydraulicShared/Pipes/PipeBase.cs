@@ -42,10 +42,10 @@ namespace NorsynHydraulicCalc.Pipes
 
             // Load the dictionary from an embedded resource
             var assembly = System.Reflection.Assembly.GetExecutingAssembly();
-            
-            var resourceName = 
+
+            var resourceName =
                 assembly.GetManifestResourceNames()
-                .Where(x => x.EndsWith(".Pipes.Sizes."+Name+"Sizes.csv"))
+                .Where(x => x.EndsWith(".Pipes.Sizes." + Name + "Sizes.csv"))
                 .FirstOrDefault();
 
             if (resourceName == null)
@@ -66,15 +66,24 @@ namespace NorsynHydraulicCalc.Pipes
 
                     var parts = line.Split(';');
 
+                    var rgb = new int[3]
+                    {
+                        int.Parse(parts[5]), // R
+                        int.Parse(parts[6]), // G
+                        int.Parse(parts[7])  // B
+                    };
+
                     var dim = new Dim(
-                        int.Parse(parts[0]),
-                        double.Parse(parts[1], CultureInfo.InvariantCulture),
-                        double.Parse(parts[3], CultureInfo.InvariantCulture),
-                        double.Parse(parts[2], CultureInfo.InvariantCulture),
-                        double.Parse(parts[4], CultureInfo.InvariantCulture),
+                        int.Parse(parts[0]), // Nominal Diameter
+                        double.Parse(parts[1], CultureInfo.InvariantCulture), // Outer Diameter
+                        double.Parse(parts[3], CultureInfo.InvariantCulture), // Inner Diameter
+                        double.Parse(parts[2], CultureInfo.InvariantCulture), // Wall Thickness
+                        double.Parse(parts[4], CultureInfo.InvariantCulture), // Cross Section Area
                         Roughness_m,
                         DimName,
-                        PipeType
+                        PipeType,
+                        OrderingPriority,
+                        rgb
                     );
 
                     Sizes.Add(dim.NominalDiameter, dim);

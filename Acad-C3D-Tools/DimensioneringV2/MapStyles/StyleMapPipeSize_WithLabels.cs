@@ -1,9 +1,9 @@
 ﻿using DimensioneringV2.GraphFeatures;
 
-using DotSpatial.Projections.Transforms;
-
 using Mapsui;
 using Mapsui.Styles;
+
+using NorsynHydraulicCalc.Pipes;
 
 using System;
 using System.Collections.Generic;
@@ -13,11 +13,11 @@ using System.Threading.Tasks;
 
 namespace DimensioneringV2.MapStyles
 {
-    class StyleMapProperty_WithLabels<T> : StyleMapProperty_NoLabels<T> where T : struct, IComparable
+    class StyleMapPipeSize_WithLabels : StyleMapPipeSize_NoLabels
     {
-        public StyleMapProperty_WithLabels(Func<AnalysisFeature, T> prop) : base(prop)
+        public StyleMapPipeSize_WithLabels(Func<AnalysisFeature, Dim> prop) : base(prop)
         {
-
+            
         }
 
         public override IStyle[] GetStyles(IFeature feature)
@@ -25,9 +25,9 @@ namespace DimensioneringV2.MapStyles
             var f = feature as AnalysisFeature;
             if (f == null) return [new VectorStyle()];
 
-            T value = _prop(f);
+            int value = _prop(f).NominalDiameter;
 
-            if (EqualityComparer<T>.Default.Equals(value, default))
+            if (value == 0)
             {
                 return new StyleDefault().GetStyles(feature);
             }
@@ -36,13 +36,14 @@ namespace DimensioneringV2.MapStyles
 
             var s2 = new LabelStyle
             {
-                Text = value is double d ? d.ToString("F2") : value.ToString(),
+                Text = _prop(f).DimName,
                 //BackColor = new Brush(_gradientHelper.LookupColor(f.NumberOfBuildingsSupplied)),
                 ForeColor = Color.Black,
                 //Offset = new Offset(0, 0),
                 HorizontalAlignment = LabelStyle.HorizontalAlignmentEnum.Center,
                 VerticalAlignment = LabelStyle.VerticalAlignmentEnum.Center
             };
+
             return [s1, s2];
         }
     }
