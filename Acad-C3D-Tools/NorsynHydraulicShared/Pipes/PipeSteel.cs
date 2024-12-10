@@ -9,6 +9,7 @@ namespace NorsynHydraulicCalc.Pipes
         public PipeSteel(double roughness_mm) : base(roughness_mm) {}
         protected override string Name => "PipeSteel";
         protected override PipeType PipeType => PipeType.Stål;
-        protected override string DimName => "DN";
+        protected override string DimName => "DN ";
+        protected override int OrderingPriority => 2;
     }
 }

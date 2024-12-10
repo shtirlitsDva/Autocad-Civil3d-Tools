@@ -10,5 +10,6 @@ namespace NorsynHydraulicCalc.Pipes
         protected override string Name => "PipePertFlextra";
         protected override PipeType PipeType => PipeType.PertFlextra;
         protected override string DimName => "PertFlextra ";
+        protected override int OrderingPriority => 1;
     }
 }

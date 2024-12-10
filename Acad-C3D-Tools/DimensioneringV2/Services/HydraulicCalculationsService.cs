@@ -69,6 +69,16 @@ namespace DimensioneringV2.Services
 
             }
 
+            //debug dims
+            var segs = graphs.Select(g => g.Edges.Select(y => y.PipeSegment));
+            HashSet<string> strings = new();
+            foreach (var edge in segs.SelectMany(x => x))
+            {
+                strings.Add(edge.Dim.DimName);
+            }
+
+            File.WriteAllText("C:\\Temp\\dims.txt", string.Join("\n", strings.OrderBy(x => x)));
+
             _dataService.StoreCalculatedData(graphs.Select(g => g.Edges.Select(y => y.PipeSegment)));
         }
 

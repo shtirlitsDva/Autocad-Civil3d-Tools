@@ -9,6 +9,7 @@ namespace NorsynHydraulicCalc.Pipes
         public PipeCu(double roughness_mm) : base(roughness_mm) { }
         protected override string Name => "PipeCu";
         protected override PipeType PipeType => PipeType.Kobber;
-        protected override string DimName => "Cu";
+        protected override string DimName => "Cu ";
+        protected override int OrderingPriority => 0;
     }
 }

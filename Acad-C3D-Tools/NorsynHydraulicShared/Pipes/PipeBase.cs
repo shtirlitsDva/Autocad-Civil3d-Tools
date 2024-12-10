@@ -13,6 +13,7 @@ namespace NorsynHydraulicCalc.Pipes
         protected double Roughness_m { get => _roughness_m; }
         private double _roughness_m;
         abstract protected string DimName { get; }
+        abstract protected int OrderingPriority { get; }
         private protected Dictionary<int, Dim>? Sizes { get; private set; }
         private PipeBase() { }
         public PipeBase(double roughness_mm)

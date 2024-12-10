@@ -10,5 +10,6 @@ namespace NorsynHydraulicCalc.Pipes
         protected override string Name => "PipeAluPex";
         protected override PipeType PipeType => PipeType.AluPEX;
         protected override string DimName => "AluPEX ";
+        protected override int OrderingPriority => 0;
     }
 }

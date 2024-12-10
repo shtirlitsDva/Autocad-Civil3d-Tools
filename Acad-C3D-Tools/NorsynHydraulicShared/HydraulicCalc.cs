@@ -171,7 +171,7 @@ namespace NorsynHydraulicCalc
                     case PipeType.Stål:
                         throw new Exception("Stål-stikledninger er ikke tilladt!");
                     case PipeType.PertFlextra:
-                        foreach (var dim in pipeTypes.PertFlextra.GetDimsRange(32, 75))
+                        foreach (var dim in pipeTypes.PertFlextra.GetDimsRange(25, 75))
                         {
                             maxFlowTableSL.Add((dim,
                                 CalculateMaxFlow(dim, TempSetType.Supply, SegmentType.Stikledning),
