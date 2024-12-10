@@ -72,8 +72,8 @@ namespace DimensioneringV2.MapStyles
                     sOff = new StyleMapProperty_NoLabels<double>(f => f.UtilizationRate);
                     break;
                 case MapPropertyEnum.Pipe:
-                    sOn = new StyleMapPipeSize_WithLabels(f => f.Dim);
-                    sOff = new StyleMapPipeSize_NoLabels(f => f.Dim);
+                    sOn = new StyleMapPipeSize_WithLabels(f => f.PipeDim);
+                    sOff = new StyleMapPipeSize_NoLabels(f => f.PipeDim);
                     break;
                 default:
                     throw new Exception("Unknown property name!");

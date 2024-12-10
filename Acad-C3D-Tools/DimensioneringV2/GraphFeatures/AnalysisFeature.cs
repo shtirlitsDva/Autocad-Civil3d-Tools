@@ -110,7 +110,7 @@ namespace DimensioneringV2.GraphFeatures
         /// Dimension
         /// </summary>
         [MapPropertyAttribute(MapPropertyEnum.Pipe)]
-        public Dim Dim { get; internal set; }
+        public Dim PipeDim { get; internal set; }
 
         /// <summary>
         /// Reynolds number for supply

@@ -14,6 +14,7 @@ namespace NorsynHydraulicCalc.Pipes
         private double _roughness_m;
         abstract protected string DimName { get; }
         abstract protected int OrderingPriority { get; }
+        abstract protected double PricePerStk { get; }
         private protected Dictionary<int, Dim>? Sizes { get; private set; }
         private PipeBase() { }
         public PipeBase(double roughness_mm)
@@ -83,7 +84,9 @@ namespace NorsynHydraulicCalc.Pipes
                         DimName,
                         PipeType,
                         OrderingPriority,
-                        rgb
+                        rgb,
+                        double.Parse(parts[8], CultureInfo.InvariantCulture), // Price per meter
+                        PricePerStk // Price per piece
                     );
 
                     Sizes.Add(dim.NominalDiameter, dim);

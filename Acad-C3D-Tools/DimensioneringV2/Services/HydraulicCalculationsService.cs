@@ -20,7 +20,7 @@ namespace DimensioneringV2.Services
     internal class HydraulicCalculationsService
     {
         private static DataService _dataService = DataService.Instance;
-        internal static void Calculate(
+        internal static void CalculateDependentSums(
             List<(
                 Func<AnalysisFeature, dynamic> Getter, 
                 Action<AnalysisFeature, dynamic> Setter)> props)
@@ -74,7 +74,7 @@ namespace DimensioneringV2.Services
             HashSet<string> strings = new();
             foreach (var edge in segs.SelectMany(x => x))
             {
-                strings.Add(edge.Dim.DimName);
+                strings.Add(edge.PipeDim.DimName);
             }
 
             File.WriteAllText("C:\\Temp\\dims.txt", string.Join("\n", strings.OrderBy(x => x)));
@@ -90,7 +90,7 @@ namespace DimensioneringV2.Services
             Parallel.ForEach(graph.Edges, edge =>
             {
                 var result = hc.CalculateHydraulicSegment(edge.PipeSegment);
-                edge.PipeSegment.Dim = result.Dim;
+                edge.PipeSegment.PipeDim = result.Dim;
                 edge.PipeSegment.ReynoldsSupply = result.ReynoldsSupply;
                 edge.PipeSegment.ReynoldsReturn = result.ReynoldsReturn;
                 edge.PipeSegment.FlowSupply = result.FlowSupply;

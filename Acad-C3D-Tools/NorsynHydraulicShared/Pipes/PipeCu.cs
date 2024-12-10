@@ -11,5 +11,6 @@ namespace NorsynHydraulicCalc.Pipes
         protected override PipeType PipeType => PipeType.Kobber;
         protected override string DimName => "Cu ";
         protected override int OrderingPriority => 0;
+        protected override double PricePerStk => 27990;
     }
 }

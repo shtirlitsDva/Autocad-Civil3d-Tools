@@ -17,7 +17,10 @@ namespace NorsynHydraulicCalc.Pipes
         public PipeType PipeType;
         public int OrderingPriority;
         public int[] RGB;
+        public double Price_m;
+        private double price_stk;
         public double RelativeRoughness { get => Roughness_m / InnerDiameter_m; }
+        public double Price_stk(SegmentType st) => st == SegmentType.Stikledning ? price_stk : 0;
 
         public Dim(
             int nominalDiameter,
@@ -29,7 +32,9 @@ namespace NorsynHydraulicCalc.Pipes
             string dimName,
             PipeType pipeType,
             int orderingPriority,
-            int[] RGB)
+            int[] RGB,
+            double price_m,
+            double price_stk)
         {
             NominalDiameter = nominalDiameter;
             OuterDiameter = outerDiameter;
@@ -38,10 +43,12 @@ namespace NorsynHydraulicCalc.Pipes
             WallThickness = wallThickness;
             CrossSectionArea = crossSectionArea;
             Roughness_m = roughness_m;
-            DimName = dimName + nominalDiameter;
+            DimName = dimName + nominalDiameter.ToString("D3");
             PipeType = pipeType;
             OrderingPriority = orderingPriority;
             this.RGB = RGB;
+            Price_m = price_m;
+            this.price_stk = price_stk;
         }
         public override string ToString()
         {

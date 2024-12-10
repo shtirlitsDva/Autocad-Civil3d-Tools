@@ -26,6 +26,8 @@
                         Margin="2" Command="{Binding SyncACWindowCommand}"/>
                 <Button x:Name="btnClose" Content="Toggle Labels" FontSize="10" Width="70" Height="20"
                         Margin="2" Command="{Binding PerformLabelToggle}"/>
+                <Button x:Name="btnPrice" Content="Calculate price" FontSize="10" Width="70" Height="20" 
+                        Margin="2" Command="{Binding PerformPriceCalc}" IsEnabled="{Binding IsPriceCalcEnabled}"/>
             </StackPanel>
 
             <!-- Main Content Area -->

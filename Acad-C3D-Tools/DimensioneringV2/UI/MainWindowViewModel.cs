@@ -28,6 +28,7 @@ using ProjNet.CoordinateSystems.Transformations;
 using ProjNet.CoordinateSystems;
 using Autodesk.AutoCAD.Geometry;
 using IntersectUtilities.UtilsCommon;
+using NorsynHydraulicCalc.Pipes;
 
 namespace DimensioneringV2.UI
 {
@@ -38,6 +39,8 @@ namespace DimensioneringV2.UI
         private MapPropertyWrapper selectedMapPropertyWrapper;
         [ObservableProperty]
         private bool isMapDropdownEnabled = false;
+        [ObservableProperty]
+        private bool isPriceCalcEnabled = false;
 
         public MainWindowViewModel()
         {
@@ -91,7 +94,7 @@ namespace DimensioneringV2.UI
         {
             try
             {
-                await Task.Run(() => HydraulicCalculationsService.Calculate(
+                await Task.Run(() => HydraulicCalculationsService.CalculateDependentSums(
                     new List<(Func<AnalysisFeature, dynamic> Getter, Action<AnalysisFeature, dynamic> Setter)>
                     {
                         (f => f.NumberOfBuildingsConnected, (f, v) => f.NumberOfBuildingsSupplied = v),
@@ -165,6 +168,65 @@ namespace DimensioneringV2.UI
         }
         #endregion
 
+        public RelayCommand PerformPriceCalc =>
+            new RelayCommand((_) => PriceCalc(), (_) => true);
+
+        private void PriceCalc()
+        {
+            var afs = Features.Cast<AnalysisFeature>();
+            //var stik = afs.Where(x => !x.PipeDim.Equals(default(Dim)) && x.NumberOfBuildingsConnected == 1);
+            //var fls = afs.Where(x => !x.PipeDim.Equals(default(Dim)) && x.NumberOfBuildingsConnected == 0);
+            // Calculate data for service lines (stik)
+            var stikTable = afs
+                .Where(x => !x.PipeDim.Equals(default(Dim)) && x.NumberOfBuildingsConnected == 1)
+                .GroupBy(x => x.PipeDim.DimName)
+                .Select(g => new
+                {
+                    DimName = g.Key,
+                    TotalLength = g.Sum(x => x.Length),
+                    Price = g.Sum(x => x.Length * x.PipeDim.Price_m),
+                    ServiceCount = g.Count(),
+                    ServicePrice = g.Count() * g.First().PipeDim.Price_stk(NorsynHydraulicCalc.SegmentType.Stikledning)
+                })
+                .ToList();
+
+            var stikTotal = new
+            {
+                TotalPrice = stikTable.Sum(row => row.Price),
+                TotalServicePrice = stikTable.Sum(row => row.ServicePrice)
+            };
+
+            // Calculate data for supply lines (fls)
+            var flsTable = afs
+                .Where(x => !x.PipeDim.Equals(default(Dim)) && x.NumberOfBuildingsConnected == 0)
+                .GroupBy(x => x.PipeDim.DimName)
+                .Select(g => new
+                {
+                    DimName = g.Key,
+                    TotalLength = g.Sum(x => x.Length),
+                    Price = g.Sum(x => x.Length * x.PipeDim.Price_m)
+                })
+                .ToList();
+
+            var flsTotal = new
+            {
+                TotalPrice = flsTable.Sum(row => row.Price)
+            };
+
+            var grandTotal = stikTotal.TotalPrice + stikTotal.TotalServicePrice + flsTotal.TotalPrice;
+
+            PriceSummaryWindow window;
+            try
+            {
+                window = new PriceSummaryWindow(stikTable, flsTable, grandTotal);
+                window.Show();
+            }
+            catch (Exception ex)
+            {
+                utils.prdDbg(ex);
+            }
+        }
+
         [ObservableProperty]
         private Map _mymap = new() { CRS = "EPSG:3857" };
 
@@ -192,6 +254,11 @@ namespace DimensioneringV2.UI
                 IsMapDropdownEnabled = true;
                 SelectedMapPropertyWrapper = null;
                 SelectedMapPropertyWrapper = MapProperties.First();
+            }
+
+            if (!IsPriceCalcEnabled)
+            {
+                IsPriceCalcEnabled = true;
             }
         }
 
