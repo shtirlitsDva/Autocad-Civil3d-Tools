@@ -20,12 +20,15 @@ namespace DimensioneringV2.Services
     internal class HydraulicCalculationsService
     {
         private static DataService _dataService = DataService.Instance;
-        internal static void CalculateDependentSums(
+        internal static void CalculateDijkstra(
             List<(
                 Func<AnalysisFeature, dynamic> Getter, 
                 Action<AnalysisFeature, dynamic> Setter)> props)
         {
             var graphs = _dataService.Graphs;
+
+            //Reset the results
+            foreach (var f in graphs.SelectMany(g => g.Edges.Select(e => e.PipeSegment))) f.ResetHydraulicResults();
 
             foreach (var graph in graphs)
             {
@@ -39,7 +42,7 @@ namespace DimensioneringV2.Services
 
                 // Dijkstra's algorithm for shortest paths from the root node
                 var tryGetPaths = graph.ShortestPathsDijkstra(edge => edge.PipeSegment.Length, rootNode);
-
+                
                 // Add edges to the shortest path tree based on the shortest paths from the root node
                 var query = graph.Vertices.Where(
                     x => graph.AdjacentEdges(x).Count() == 1 &&
@@ -66,18 +69,42 @@ namespace DimensioneringV2.Services
                 CalculateBaseSums(shortestPathTree, rootNode, visited, props);
 
                 CalculateHydraulics(shortestPathTree);
-
             }
 
-            //debug dims
-            var segs = graphs.Select(g => g.Edges.Select(y => y.PipeSegment));
-            HashSet<string> strings = new();
-            foreach (var edge in segs.SelectMany(x => x))
+            _dataService.StoreCalculatedData(graphs.Select(g => g.Edges.Select(y => y.PipeSegment)));
+        }
+
+        internal static void CalculateMST(
+            List<(
+                Func<AnalysisFeature, dynamic> Getter,
+                Action<AnalysisFeature, dynamic> Setter)> props)
+        {
+            var graphs = _dataService.Graphs;
+
+            //Reset the results
+            foreach (var f in graphs.SelectMany(g => g.Edges.Select(e => e.PipeSegment))) f.ResetHydraulicResults();
+
+            foreach (var graph in graphs)
             {
-                strings.Add(edge.PipeDim.DimName);
-            }
+                // Find the root node
+                var rootNode = graph.Vertices.FirstOrDefault(v => v.IsRootNode);
+                if (rootNode == null)
+                    throw new System.Exception("Root node not found.");
 
-            File.WriteAllText("C:\\Temp\\dims.txt", string.Join("\n", strings.OrderBy(x => x)));
+                var MSTedges = graph.MinimumSpanningTreePrim(e => e.PipeSegment.Length);
+
+                var MSTTree = new UndirectedGraph<JunctionNode, PipeSegmentEdge>();
+                MSTTree.AddVertexRange(graph.Vertices);
+                MSTTree.AddEdgeRange(MSTedges);
+
+                // Traverse the network and calculate
+                // the sums of all properties as given in the props list
+                // These sums lays the foundation for the hydraulic calculations
+                var visited = new HashSet<JunctionNode>();
+                CalculateBaseSums(MSTTree, rootNode, visited, props);
+
+                CalculateHydraulics(MSTTree);
+            }
 
             _dataService.StoreCalculatedData(graphs.Select(g => g.Edges.Select(y => y.PipeSegment)));
         }

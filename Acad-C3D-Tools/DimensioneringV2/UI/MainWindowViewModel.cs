@@ -94,7 +94,7 @@ namespace DimensioneringV2.UI
         {
             try
             {
-                await Task.Run(() => HydraulicCalculationsService.CalculateDependentSums(
+                await Task.Run(() => HydraulicCalculationsService.CalculateDijkstra(
                     new List<(Func<AnalysisFeature, dynamic> Getter, Action<AnalysisFeature, dynamic> Setter)>
                     {
                         (f => f.NumberOfBuildingsConnected, (f, v) => f.NumberOfBuildingsSupplied = v),

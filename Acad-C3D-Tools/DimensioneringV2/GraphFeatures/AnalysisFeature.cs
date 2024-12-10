@@ -83,12 +83,7 @@ namespace DimensioneringV2.GraphFeatures
         /// </summary>
         public double HeatingDemandConnected { get; private set; }
 
-        //Summation of data for analyses
-        /// <summary>
-        /// Helping flag for graph traversal.
-        /// </summary>
-        public bool Visited { get; set; } = false;
-
+        //Calculated properties
         /// <summary>
         /// Is used to sum all the buildins supplied by the segment
         /// </summary>
@@ -163,6 +158,19 @@ namespace DimensioneringV2.GraphFeatures
         /// </summary>
         [MapPropertyAttribute(MapPropertyEnum.UtilizationRate)]
         public double UtilizationRate { get; set; }
+        public void ResetHydraulicResults()
+        {
+            PipeDim = default(Dim);
+            ReynoldsSupply = 0;
+            ReynoldsReturn = 0;
+            FlowSupply = 0;
+            FlowReturn = 0;
+            PressureGradientSupply = 0;
+            PressureGradientReturn = 0;
+            VelocitySupply = 0;
+            VelocityReturn = 0;
+            UtilizationRate = 0;
+        }
         #region ICloneable Implementation
         public object Clone()
         {

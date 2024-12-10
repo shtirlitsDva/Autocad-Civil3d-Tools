@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -25,9 +26,11 @@ namespace DimensioneringV2.UI
         {
             InitializeComponent();
 
+            double gtotal = (double)grandTotal;
+
             ServiceLinesTable.ItemsSource = stikTable;
             SupplyLinesTable.ItemsSource = flsTable;
-            GrandTotalTextBlock.Text = $"Grand Total: {grandTotal:C}";
+            GrandTotalTextBlock.Text = $"Samlet pris: {gtotal.ToString("N0", new CultureInfo("da-DK"))}"; ;
         }
     }
 }
