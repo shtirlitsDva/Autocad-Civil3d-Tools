@@ -8,12 +8,13 @@ using System.Threading.Tasks;
 
 namespace DimensioneringV2.GraphFeatures
 {
-    internal class JunctionNode
+    internal class NodeJunction
     {
         public Point2D Location { get; }
         public bool IsRootNode { get; set; } = false;
         public int Degree { get; set; } = 0;
-        public JunctionNode(Point2D location)
+        public int STP_Node { get; set; } = -1;
+        public NodeJunction(Point2D location)
         {
             Location = location;
         }

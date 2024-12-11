@@ -6,8 +6,7 @@
         xmlns:local="clr-namespace:DimensioneringV2.UI"
         mc:Ignorable="d"
         Title="Pris" Height="450" Width="800"
-        Background="{DynamicResource Background}">
-    <!--WindowStyle="None" AllowsTransparency="True" Background="Transparent">-->
+        d:Background="{DynamicResource Background}" Foreground="{DynamicResource Text}">
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -18,31 +17,27 @@
             </Style>
         </ResourceDictionary>
     </Window.Resources>
-    
-    <StackPanel Margin="10" Background="{DynamicResource Background}">
-        <TextBlock Text="Stikledninger" FontWeight="Bold" FontSize="18" Margin="0,10,0,5"
-                   Background="{DynamicResource Background}" Foreground="{DynamicResource Text}"/>
-        <DataGrid x:Name="ServiceLinesTable" AutoGenerateColumns="False" IsReadOnly="True" Margin="0,0,0,10"
-                  
-                  Style="{DynamicResource DarkDataGridStyle}">
+    <StackPanel Margin="10">
+        <TextBlock Text="Service Lines" FontWeight="Bold" FontSize="16" Margin="0,10,0,5"/>
+        <DataGrid x:Name="ServiceLinesTable" AutoGenerateColumns="False" IsReadOnly="True" Margin="0,0,0,10">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Rør" Binding="{Binding DimName}" />
-                <DataGridTextColumn Header="Samlet længde" Binding="{Binding TotalLength, StringFormat=N2}">
+                <DataGridTextColumn Header="Pipe Dimension" Binding="{Binding DimName}" />
+                <DataGridTextColumn Header="Total Length" Binding="{Binding TotalLength, StringFormat=N2}">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock" BasedOn="{StaticResource RightAlignedTextBlockStyle}" />
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <DataGridTextColumn Header="Længdepris" Binding="{Binding Price, StringFormat=N0}">
+                <DataGridTextColumn Header="Price" Binding="{Binding Price, StringFormat=N0}">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock" BasedOn="{StaticResource RightAlignedTextBlockStyle}" />
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <DataGridTextColumn Header="Antal stik" Binding="{Binding ServiceCount}">
+                <DataGridTextColumn Header="Service Count" Binding="{Binding ServiceCount}">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock" BasedOn="{StaticResource RightAlignedTextBlockStyle}" />
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <DataGridTextColumn Header="Stykpris" Binding="{Binding ServicePrice, StringFormat=N0}">
+                <DataGridTextColumn Header="Service Price" Binding="{Binding ServicePrice, StringFormat=N0}">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock" BasedOn="{StaticResource RightAlignedTextBlockStyle}" />
                     </DataGridTextColumn.ElementStyle>
@@ -50,18 +45,16 @@
             </DataGrid.Columns>
         </DataGrid>
 
-        <TextBlock Text="Fordelingsledninger" FontWeight="Bold" FontSize="18" Margin="0,10,0,5"
-                   Background="{DynamicResource Background}" Foreground="{DynamicResource Text}"/>
-        <DataGrid x:Name="SupplyLinesTable" AutoGenerateColumns="False" IsReadOnly="True" Margin="0,0,0,10"
-                  Style="{DynamicResource DarkDataGridStyle}">
+        <TextBlock Text="Supply Lines" FontWeight="Bold" FontSize="16" Margin="0,10,0,5"/>
+        <DataGrid x:Name="SupplyLinesTable" AutoGenerateColumns="False" IsReadOnly="True" Margin="0,0,0,10">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Rør" Binding="{Binding DimName}" />
-                <DataGridTextColumn Header="Samlet længde" Binding="{Binding TotalLength, StringFormat=N2}">
+                <DataGridTextColumn Header="Pipe Dimension" Binding="{Binding DimName}" />
+                <DataGridTextColumn Header="Total Length" Binding="{Binding TotalLength, StringFormat=N2}">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock" BasedOn="{StaticResource RightAlignedTextBlockStyle}" />
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <DataGridTextColumn Header="Længdepris" Binding="{Binding Price, StringFormat=N0}">
+                <DataGridTextColumn Header="Price" Binding="{Binding Price, StringFormat=N0}">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock" BasedOn="{StaticResource RightAlignedTextBlockStyle}" />
                     </DataGridTextColumn.ElementStyle>
@@ -69,7 +62,6 @@
             </DataGrid.Columns>
         </DataGrid>
 
-        <TextBlock x:Name="GrandTotalTextBlock" FontWeight="Bold" FontSize="20" HorizontalAlignment="Center" Margin="0,10,0,0"
-                   Background="{DynamicResource Background}" Foreground="{DynamicResource Text}"/>
+        <TextBlock x:Name="GrandTotalTextBlock" FontWeight="Bold" FontSize="18" HorizontalAlignment="Center" Margin="0,10,0,0"/>
     </StackPanel>
 </Window>

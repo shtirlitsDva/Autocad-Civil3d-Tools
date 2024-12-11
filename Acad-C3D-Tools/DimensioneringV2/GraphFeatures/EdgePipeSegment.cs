@@ -8,14 +8,14 @@ using System.Threading.Tasks;
 
 namespace DimensioneringV2.GraphFeatures
 {
-    internal class PipeSegmentEdge : Edge<JunctionNode>
+    internal class EdgePipeSegment : Edge<NodeJunction>
     {
         public AnalysisFeature PipeSegment { get; }
         public int Level { get; set; } // Level in the network hierarchy
 
-        public PipeSegmentEdge(
-            JunctionNode source, 
-            JunctionNode target, 
+        public EdgePipeSegment(
+            NodeJunction source, 
+            NodeJunction target, 
             AnalysisFeature pipeSegment) : base(source, target)
         {
             PipeSegment = pipeSegment;

@@ -23,7 +23,7 @@ namespace DimensioneringV2.Services
         /// </summary>
         public event EventHandler DataLoaded;
         public IEnumerable<IEnumerable<AnalysisFeature>> Features { get; private set; }
-        public IEnumerable<UndirectedGraph<JunctionNode, PipeSegmentEdge>> Graphs { get; private set; }
+        public IEnumerable<UndirectedGraph<NodeJunction, EdgePipeSegment>> Graphs { get; private set; }
         public void LoadData(IEnumerable<IEnumerable<AnalysisFeature>> features)
         {
             List<HashSet<AnalysisFeature>> samlet = new();

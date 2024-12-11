@@ -13,11 +13,11 @@ namespace DimensioneringV2.Services
 {
     internal class GraphCreationService
     {
-        public static List<UndirectedGraph<JunctionNode, PipeSegmentEdge>> CreateGraphsFromFeatures(
+        public static List<UndirectedGraph<NodeJunction, EdgePipeSegment>> CreateGraphsFromFeatures(
         IEnumerable<IEnumerable<AnalysisFeature>> allFeatures)
         {
-            List<UndirectedGraph<JunctionNode, PipeSegmentEdge>> graphs = new();
-            Dictionary<Point2D, JunctionNode> pointToJunctionNodes = new(new Point2DEqualityComparer());
+            List<UndirectedGraph<NodeJunction, EdgePipeSegment>> graphs = new();
+            Dictionary<Point2D, NodeJunction> pointToJunctionNodes = new(new Point2DEqualityComparer());
 
             // Step 1: Identify all junction points and create junction nodes
             foreach (var featureList in allFeatures)
@@ -32,13 +32,13 @@ namespace DimensioneringV2.Services
                     // Create or retrieve the junction nodes for both start and end points
                     if (!pointToJunctionNodes.ContainsKey(startPoint))
                     {
-                        pointToJunctionNodes[startPoint] = new JunctionNode(startPoint);
+                        pointToJunctionNodes[startPoint] = new NodeJunction(startPoint);
                     }
                     pointToJunctionNodes[startPoint].Degree++;
 
                     if (!pointToJunctionNodes.ContainsKey(endPoint))
                     {
-                        pointToJunctionNodes[endPoint] = new JunctionNode(endPoint);
+                        pointToJunctionNodes[endPoint] = new NodeJunction(endPoint);
                     }
                     pointToJunctionNodes[endPoint].Degree++;
                 }
@@ -66,7 +66,7 @@ namespace DimensioneringV2.Services
             // Step 2: Create edges (pipe segments) and build graphs for each disjoint network
             foreach (var featureList in allFeatures)
             {
-                var graph = new UndirectedGraph<JunctionNode, PipeSegmentEdge>(false);
+                var graph = new UndirectedGraph<NodeJunction, EdgePipeSegment>(false);
                 HashSet<AnalysisFeature> visited = new();
 
                 foreach (var featureNode in featureList)
@@ -99,7 +99,7 @@ namespace DimensioneringV2.Services
                         graph.AddVertex(endJunction);
 
                         // Create and add the edge representing the pipe segment
-                        var pipeSegmentEdge = new PipeSegmentEdge(startJunction, endJunction, currentNode);
+                        var pipeSegmentEdge = new EdgePipeSegment(startJunction, endJunction, currentNode);
                         if (!graph.ContainsEdge(pipeSegmentEdge))
                         {
                             graph.AddEdge(pipeSegmentEdge);

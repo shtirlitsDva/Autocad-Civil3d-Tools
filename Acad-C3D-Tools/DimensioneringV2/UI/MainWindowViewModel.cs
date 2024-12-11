@@ -86,15 +86,40 @@ namespace DimensioneringV2.UI
         }
         #endregion
 
-        #region PerformCalculationsCommand
-        public RelayCommand PerformCalculationsCommand =>
-            new(async (_) => await PerformCalculationsExecuteAsync(), (_) => true);
+        #region PerformCalculationsSPDCommand
+        public RelayCommand PerformCalculationsSPDCommand =>
+            new(async (_) => await PerformCalculationsSPDExecuteAsync(), (_) => true);
 
-        private async Task PerformCalculationsExecuteAsync()
+        private async Task PerformCalculationsSPDExecuteAsync()
         {
             try
             {
-                await Task.Run(() => HydraulicCalculationsService.CalculateDijkstra(
+                await Task.Run(() => HydraulicCalculationsService.CalculateSPDijkstra(
+                    new List<(Func<AnalysisFeature, dynamic> Getter, Action<AnalysisFeature, dynamic> Setter)>
+                    {
+                        (f => f.NumberOfBuildingsConnected, (f, v) => f.NumberOfBuildingsSupplied = v),
+                        (f => f.NumberOfUnitsConnected, (f, v) => f.NumberOfUnitsSupplied = v),
+                        (f => f.HeatingDemandConnected, (f, v) => f.HeatingDemandSupplied = v)
+                    }
+                    ));
+            }
+            catch (Exception ex)
+            {
+                utils.prdDbg($"An error occurred during calculations: {ex.Message}");
+                utils.prdDbg(ex);
+            }
+        }
+        #endregion
+
+        #region PerformCalculationsSTPCommand
+        public RelayCommand PerformCalculationsSTPCommand =>
+            new(async (_) => await PerformCalculationsSTPExecuteAsync(), (_) => true);
+
+        private async Task PerformCalculationsSTPExecuteAsync()
+        {
+            try
+            {
+                await Task.Run(() => HydraulicCalculationsService.CalculateSTP(
                     new List<(Func<AnalysisFeature, dynamic> Getter, Action<AnalysisFeature, dynamic> Setter)>
                     {
                         (f => f.NumberOfBuildingsConnected, (f, v) => f.NumberOfBuildingsSupplied = v),
