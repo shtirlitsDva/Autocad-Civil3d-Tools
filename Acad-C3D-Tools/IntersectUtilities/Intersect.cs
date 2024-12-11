@@ -64,6 +64,7 @@ using Microsoft.Win32;
 using IntersectUtilities.LongitudinalProfiles;
 using IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol;
 using IntersectUtilities.PipelineNetworkSystem;
+using NetTopologySuite.Geometries;
 
 [assembly: CommandClass(typeof(IntersectUtilities.Intersect))]
 
@@ -8816,7 +8817,7 @@ namespace IntersectUtilities
                     foreach (Alignment a in als)
                     {
                         string name = a.Name;
-                        
+
                         a.CheckOrOpenForWrite();
                         a.Description = name;
                     }
@@ -9227,5 +9228,163 @@ namespace IntersectUtilities
             TestFourth = 8,
             TestFith = 16,
         }
+        public class STPEdge
+        {
+            public int Start { get; set; }
+            public int End { get; set; }
+        }
+        public class STPCoordinate
+        {
+            public int Id { get; set; }
+            public double X { get; set; }
+            public double Y { get; set; }
+        }
+
+        [CommandMethod("PARSEANDCREATELINES")]
+        public static void ParseAndCreateLines()
+        {
+            string edgesFilePath = @"X:\110 - 1529 - Greve Landsby - Dokumenter\01 Intern\04 Projektering\01 Dimensionering\01 Udvikling\stp_output_coords.txt";
+            string coordinatesFilePath = @"X:\110 - 1529 - Greve Landsby - Dokumenter\01 Intern\04 Projektering\01 Dimensionering\01 Udvikling\stp_input.stp";
+
+            var edges = ParseEdges(edgesFilePath);
+            var coordinates = ParseCoordinates(coordinatesFilePath);
+
+            if (edges.Count > 0 && coordinates.Count > 0)
+            {
+                CreateLinesWithCoordinates(edges, coordinates);
+            }
+            else
+            {
+                Console.WriteLine("Edges or coordinates are missing.");
+            }
+        }
+
+        [CommandMethod("PARSEEDGES")]
+        public static void ParseEdgesAndCreateLines()
+        {
+            string filePath = @"X:\110 - 1529 - Greve Landsby - Dokumenter\01 Intern\04 Projektering\01 Dimensionering\01 Udvikling\stp_input.stp";
+
+            var edges = new List<STPEdge>();
+            var coordinates = new Dictionary<int, STPCoordinate>();
+
+            using (var reader = new StreamReader(filePath))
+            {
+                string line;
+                while ((line = reader.ReadLine()) != null)
+                {
+                    line = line.Trim();
+                    if (line.StartsWith("E "))
+                    {
+                        var parts = line.Split(' ');
+                        edges.Add(new STPEdge
+                        {
+                            Start = int.Parse(parts[1]),
+                            End = int.Parse(parts[2])
+                        });
+                    }
+                    else if (line.StartsWith("DD "))
+                    {
+                        var parts = line.Split(' ');
+                        coordinates[int.Parse(parts[1])] = new STPCoordinate
+                        {
+                            Id = int.Parse(parts[1]),
+                            X = double.Parse(parts[2]),
+                            Y = double.Parse(parts[3])
+                        };
+                    }
+                }
+            }
+
+            if (edges.Count > 0 && coordinates.Count > 0)
+            {
+                CreateLinesWithCoordinates(edges, coordinates);
+            }
+            else
+            {
+                Console.WriteLine("Edges or coordinates are missing in the file.");
+            }
+        }
+
+        private static List<STPEdge> ParseEdges(string filePath)
+        {
+            var edges = new List<STPEdge>();
+
+            using (var reader = new StreamReader(filePath))
+            {
+                string line;
+                while ((line = reader.ReadLine()) != null)
+                {
+                    line = line.Trim();
+                    if (line.StartsWith("E "))
+                    {
+                        var parts = line.Split(' ');
+                        edges.Add(new STPEdge
+                        {
+                            Start = int.Parse(parts[1]),
+                            End = int.Parse(parts[2])
+                        });
+                    }
+                }
+            }
+
+            return edges;
+        }
+
+        private static Dictionary<int, STPCoordinate> ParseCoordinates(string filePath)
+        {
+            var coordinates = new Dictionary<int, STPCoordinate>();
+
+            using (var reader = new StreamReader(filePath))
+            {
+                string line;
+                while ((line = reader.ReadLine()) != null)
+                {
+                    line = line.Trim();
+                    if (line.StartsWith("DD "))
+                    {
+                        var parts = line.Split(' ');
+                        coordinates[int.Parse(parts[1])] = new STPCoordinate
+                        {
+                            Id = int.Parse(parts[1]),
+                            X = double.Parse(parts[2]),
+                            Y = double.Parse(parts[3])
+                        };
+                    }
+                }
+            }
+
+            return coordinates;
+        }
+
+        private static void CreateLinesWithCoordinates(List<STPEdge> edges, Dictionary<int, STPCoordinate> coordinates)
+        {
+            var doc = Application.DocumentManager.MdiActiveDocument;
+            var db = doc.Database;
+
+            using (var transaction = db.TransactionManager.StartTransaction())
+            {
+                var blockTable = (BlockTable)transaction.GetObject(db.BlockTableId, OpenMode.ForRead);
+                var blockTableRecord = (BlockTableRecord)transaction.GetObject(db.CurrentSpaceId, OpenMode.ForWrite);
+
+                foreach (var edge in edges)
+                {
+                    if (coordinates.TryGetValue(edge.Start, out var startCoord) && coordinates.TryGetValue(edge.End, out var endCoord))
+                    {
+                        var line = new Line(
+                            new Point3d(startCoord.X, startCoord.Y, 0),
+                            new Point3d(endCoord.X, endCoord.Y, 0)
+                        );
+
+                        blockTableRecord.AppendEntity(line);
+                        transaction.AddNewlyCreatedDBObject(line, true);
+                    }
+                }
+
+                transaction.Commit();
+            }
+
+            Console.WriteLine("Lines created successfully.");
+        }
     }
+
 }

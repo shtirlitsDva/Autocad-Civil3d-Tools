@@ -94,7 +94,7 @@ namespace DimensioneringV2.SteinerTreeProblem
                 wl("SECTION Graph");
                 wl("Nodes " + _nodes.Count);
                 wl("Edges " + _edges.Count);
-                foreach (var edge in _edges)
+                foreach (var edge in _edges.OrderBy(x => x.Source.Name).ThenBy(x => x.Target.Name))
                 {
                     wl($"E {edge.Source.Name} {edge.Target.Name} {edge.Weight}");
                 }
@@ -118,7 +118,7 @@ namespace DimensioneringV2.SteinerTreeProblem
                 wl("EOF");
             }
 
-            string args = $"\"{solverInput}\" -timelimit 1100 -logfilename \"{solverOutput}\"";
+            string args = $"\"{solverInput}\" -timelimit 1500 -logfilename \"{solverOutput}\"";
             //var process = System.Diagnostics.Process.Start(_solverPath, args);
             //process.WaitForExit();
 
