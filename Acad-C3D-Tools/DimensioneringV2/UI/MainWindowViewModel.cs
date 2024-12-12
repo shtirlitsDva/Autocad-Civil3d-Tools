@@ -120,6 +120,11 @@ namespace DimensioneringV2.UI
         {
             try
             {
+                var progressWindow = new BruteForceProgressWindow();
+                progressWindow.Show();
+                BruteForceProgressContext.VM = (BruteForceProgressViewModel)progressWindow.DataContext;
+                BruteForceProgressContext.VM.Dispatcher = progressWindow.Dispatcher;
+
                 await Task.Run(() => HydraulicCalculationsService.CalculateBFAnalysis(
                     new List<(Func<BFEdge, dynamic> Getter, Action<BFEdge, dynamic> Setter)>
                     {

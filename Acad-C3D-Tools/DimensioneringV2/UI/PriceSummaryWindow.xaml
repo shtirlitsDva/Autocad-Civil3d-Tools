@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:DimensioneringV2.UI"
         mc:Ignorable="d"
         Title="Pris" Height="450" Width="800"
-        d:Background="{DynamicResource Background}" Foreground="{DynamicResource Text}">
+        Background="{DynamicResource Background}" Foreground="{DynamicResource Text}">
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>

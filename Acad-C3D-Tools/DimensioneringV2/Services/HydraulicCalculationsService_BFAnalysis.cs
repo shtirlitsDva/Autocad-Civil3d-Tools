@@ -22,6 +22,8 @@ using Autodesk.AutoCAD.DatabaseServices;
 using IntersectUtilities.UtilsCommon;
 using System.Collections.Concurrent;
 
+using static DimensioneringV2.UI.BruteForceProgressContext;
+
 namespace DimensioneringV2.Services
 {
     internal partial class HydraulicCalculationsService
@@ -41,9 +43,16 @@ namespace DimensioneringV2.Services
                 UndirectedGraph<BFNode, BFEdge> bfGraph = graph.CopyToBF();
 
                 bool optimizationContinues = true;
+                int optimizationCounter = 0;
                 while (optimizationContinues)
                 {
+                    if (VM.StopRequested) break;
+
+                    optimizationCounter++;
+                    VM.UpdateRound(optimizationCounter);
+
                     var bridges = FindBridges.DoFindThem(bfGraph);
+                    VM.UpdateBridges(bridges.Count);
 
                     if (bridges.Count == bfGraph.Edges.Count())
                     {
@@ -53,13 +62,20 @@ namespace DimensioneringV2.Services
 
                     var list = bfGraph.Edges.Where(x => !bridges.Contains(x)).ToList();
                     list.Shuffle();
+                    VM.UpdateRemovalCandidates(list.Count);
 
                     var results = new ConcurrentBag<(UndirectedGraph<BFNode, BFEdge> graph, double cost)>();
 
+                    int counter = 0;
                     Parallel.ForEach(list, candidate =>
                     {
+                        counter++;
+                        VM.UpdateCurrentCandidate(counter);
                         var cGraph = bfGraph.Copy();
-                        cGraph.RemoveEdge(candidate);
+                        var cCandidate = cGraph.Edges.First(
+                            x => x.Source.OriginalNodeJunction == candidate.Source.OriginalNodeJunction &&
+                            x.Target.OriginalNodeJunction == candidate.Target.OriginalNodeJunction);
+                        cGraph.RemoveEdge(cCandidate);
 
                         double cost = CalculateBFCost(cGraph, props);
                         results.Add((cGraph, cost));
