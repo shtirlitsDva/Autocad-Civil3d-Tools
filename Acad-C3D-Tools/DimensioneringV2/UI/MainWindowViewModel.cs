@@ -29,6 +29,7 @@ using ProjNet.CoordinateSystems;
 using Autodesk.AutoCAD.Geometry;
 using IntersectUtilities.UtilsCommon;
 using NorsynHydraulicCalc.Pipes;
+using DimensioneringV2.BruteForceOptimization;
 
 namespace DimensioneringV2.UI
 {
@@ -111,16 +112,16 @@ namespace DimensioneringV2.UI
         }
         #endregion
 
-        #region PerformCalculationsSTPCommand
-        public RelayCommand PerformCalculationsSTPCommand =>
-            new(async (_) => await PerformCalculationsSTPExecuteAsync(), (_) => true);
+        #region PerformCalculationsBFCommand
+        public RelayCommand PerformCalculationsBFCommand =>
+            new(async (_) => await PerformCalculationsBFExecuteAsync(), (_) => true);
 
-        private async Task PerformCalculationsSTPExecuteAsync()
+        private async Task PerformCalculationsBFExecuteAsync()
         {
             try
             {
-                await Task.Run(() => HydraulicCalculationsService.CalculateSTP(
-                    new List<(Func<AnalysisFeature, dynamic> Getter, Action<AnalysisFeature, dynamic> Setter)>
+                await Task.Run(() => HydraulicCalculationsService.CalculateBFAnalysis(
+                    new List<(Func<BFEdge, dynamic> Getter, Action<BFEdge, dynamic> Setter)>
                     {
                         (f => f.NumberOfBuildingsConnected, (f, v) => f.NumberOfBuildingsSupplied = v),
                         (f => f.NumberOfUnitsConnected, (f, v) => f.NumberOfUnitsSupplied = v),

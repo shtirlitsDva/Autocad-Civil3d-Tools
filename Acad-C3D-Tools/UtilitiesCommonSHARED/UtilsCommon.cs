@@ -3348,6 +3348,7 @@ namespace IntersectUtilities.UtilsCommon
             ed.Zoom(ext);
         }
         public static DoubleCollection ToDoubleCollection(this IEnumerable<double> list) => new DoubleCollection(list.ToArray());
+
     }
     public class PointDBHorizontalComparer : IEqualityComparer<DBPoint>
     {

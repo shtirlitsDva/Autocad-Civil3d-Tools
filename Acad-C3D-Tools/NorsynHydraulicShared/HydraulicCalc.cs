@@ -2,6 +2,8 @@
 
 using NorsynHydraulicCalc.Pipes;
 
+using NorsynHydraulicShared;
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -551,14 +553,14 @@ namespace NorsynHydraulicCalc
         #endregion
         #endregion
 
-        internal CalculationResult CalculateHydraulicSegment(AnalysisFeature feature)
+        internal CalculationResult CalculateHydraulicSegment(IHydraulicSegment segment)
         {
             #region Set calculation variables
             //Convert segmentType to enum
-            SegmentType st = feature.SegmentType;
-            double totalHeatingDemand = feature.HeatingDemandSupplied;
-            int numberOfBuildings = feature.NumberOfBuildingsSupplied;
-            int numberOfUnits = feature.NumberOfUnitsSupplied;
+            SegmentType st = segment.SegmentType;
+            double totalHeatingDemand = segment.HeatingDemandSupplied;
+            int numberOfBuildings = segment.NumberOfBuildingsSupplied;
+            int numberOfUnits = segment.NumberOfUnitsSupplied;
             #endregion
 
             sw.Restart();

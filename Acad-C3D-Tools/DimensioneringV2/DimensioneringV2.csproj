@@ -168,6 +168,9 @@
 		<Folder Include="Links\" />
 	</ItemGroup>
 	<ItemGroup>
+	  <None Include="Services\HydraulicCalculationsService_BFAnalysis.cs" />
+	</ItemGroup>
+	<ItemGroup>
 		<Compile Update="Properties\Settings.Designer.cs">
 			<DesignTimeSharedInput>True</DesignTimeSharedInput>
 			<AutoGen>True</AutoGen>

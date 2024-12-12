@@ -18,8 +18,8 @@
                     Margin="2" Command="{Binding CollectFeaturesCommand}"/>
                 <Button x:Name="btnCalcSPD" Content="Calc SPD" FontSize="10" Width="70" Height="20" 
                     Margin="2" Command="{Binding PerformCalculationsSPDCommand}"/>
-                <Button x:Name="btnCalcSTP" Content="Calc STP" FontSize="10" Width="70" Height="20" 
-                        Margin="2" Command="{Binding PerformCalculationsSTPCommand}"/>
+                <Button x:Name="btnCalcSTP" Content="BRUTE FORCE" FontSize="10" Width="70" Height="20" 
+                        Margin="2" Command="{Binding PerformCalculationsBFCommand}"/>
                 <Button x:Name="btnPrice" Content="Calculate price" FontSize="10" Width="70" Height="20" 
                         Margin="2" Command="{Binding PerformPriceCalc}" IsEnabled="{Binding IsPriceCalcEnabled}"/>
                 <Button x:Name="btnClose" Content="Toggle Labels" FontSize="10" Width="70" Height="20"

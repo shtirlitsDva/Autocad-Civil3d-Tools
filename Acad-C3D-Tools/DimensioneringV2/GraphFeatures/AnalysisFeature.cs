@@ -8,6 +8,8 @@ using NetTopologySuite.Geometries;
 using NorsynHydraulicCalc;
 using NorsynHydraulicCalc.Pipes;
 
+using NorsynHydraulicShared;
+
 using System;
 using System.Collections.Generic;
 using System.Reflection;
@@ -16,7 +18,7 @@ using static IntersectUtilities.UtilsCommon.Utils;
 
 namespace DimensioneringV2.GraphFeatures
 {
-    internal class AnalysisFeature : GeometryFeature, IFeature, ICloneable
+    internal class AnalysisFeature : GeometryFeature, IFeature, ICloneable, IHydraulicSegment
     {
         #region Constructors
         public AnalysisFeature() : base() { }

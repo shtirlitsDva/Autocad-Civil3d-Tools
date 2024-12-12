@@ -1,11 +1,9 @@
 ﻿using Autodesk.AutoCAD.Geometry;
-using Autodesk.Civil.DatabaseServices;
 
+using DimensioneringV2.BruteForceOptimization;
 using DimensioneringV2.Geometry;
 using DimensioneringV2.GraphFeatures;
 using DimensioneringV2.SteinerTreeProblem;
-
-using Mapsui.Providers.Wfs.Utilities;
 
 using QuikGraph;
 
@@ -14,6 +12,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace DimensioneringV2
@@ -81,6 +80,73 @@ namespace DimensioneringV2
             }
 
             return stp;
+        }
+
+        public static UndirectedGraph<BFNode, BFEdge> CopyToBF(this UndirectedGraph<NodeJunction, EdgePipeSegment> graph)
+        {
+            var bfGraph = new UndirectedGraph<BFNode, BFEdge>();
+
+            var nodeMap = new Dictionary<NodeJunction, BFNode>();
+
+            // Copy nodes
+            foreach (var node in graph.Vertices)
+            {
+                var bfNode = new BFNode(node);
+                nodeMap[node] = bfNode;
+                bfGraph.AddVertex(bfNode);
+            }
+
+            // Copy edges
+            foreach (var edge in graph.Edges)
+            {
+                var bfEdge = new BFEdge(nodeMap[edge.Source], nodeMap[edge.Target], edge);
+                bfGraph.AddEdge(bfEdge);
+            }
+
+            return bfGraph;
+        }
+
+        public static UndirectedGraph<BFNode, BFEdge> Copy(this UndirectedGraph<BFNode, BFEdge> graph)
+        {
+            var bfGraph = new UndirectedGraph<BFNode, BFEdge>();
+            var nodeMap = new Dictionary<BFNode, BFNode>();
+            // Copy nodes
+            foreach (var node in graph.Vertices)
+            {
+                var bfNode = new BFNode(node.OriginalNodeJunction);
+                nodeMap[node] = bfNode;
+                bfGraph.AddVertex(bfNode);
+            }
+            // Copy edges
+            foreach (var edge in graph.Edges)
+            {
+                var bfEdge = new BFEdge(nodeMap[edge.Source], nodeMap[edge.Target], edge.OriginalEdge);
+                bfGraph.AddEdge(bfEdge);
+            }
+            return bfGraph;
+        }
+
+        public static class ThreadSafeRandom
+        {
+            [ThreadStatic] private static Random Local;
+
+            public static Random ThisThreadsRandom
+            {
+                get { return Local ?? (Local = new Random(unchecked(Environment.TickCount * 31 + Thread.CurrentThread.ManagedThreadId))); }
+            }
+        }
+
+        public static void Shuffle<T>(this IList<T> list)
+        {
+            int n = list.Count;
+            while (n > 1)
+            {
+                n--;
+                int k = ThreadSafeRandom.ThisThreadsRandom.Next(n + 1);
+                T value = list[k];
+                list[k] = list[n];
+                list[n] = value;
+            }
         }
     }
 }
