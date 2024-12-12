@@ -41,6 +41,10 @@ namespace DimensioneringV2.Services
             foreach (UndirectedGraph<NodeJunction, EdgePipeSegment> graph in graphs)
             {
                 UndirectedGraph<BFNode, BFEdge> bfGraph = graph.CopyToBF();
+                //Try to use MST to achieve a better guidance for edge removal
+                //MST does not influence the result, no effect whatsoever
+                //var mst = bfGraph.MinimumSpanningTreePrim(e => e.Length).ToHashSet();
+                //var notMst = bfGraph.Edges.Except(mst).ToHashSet();
 
                 bool optimizationContinues = true;
                 int optimizationCounter = 0;
@@ -52,6 +56,7 @@ namespace DimensioneringV2.Services
                     VM.UpdateRound(optimizationCounter);
 
                     var bridges = FindBridges.DoFindThem(bfGraph);
+                    //if (bridges.Any(notMst.Contains)) bridges.IntersectWith(notMst);
                     VM.UpdateBridges(bridges.Count);
 
                     if (bridges.Count == bfGraph.Edges.Count())
@@ -78,12 +83,16 @@ namespace DimensioneringV2.Services
                         cGraph.RemoveEdge(cCandidate);
 
                         double cost = CalculateBFCost(cGraph, props);
+                        //double cost = cGraph.Edges.Sum(x => x.Length);
                         results.Add((cGraph, cost));
                     });
 
                     var bestResult = results.MinBy(x => x.cost);
                     bfGraph = bestResult.graph;
                 }
+
+                //If running length, calculate hydraulic results
+                //CalculateBFCost(bfGraph, props);
 
                 //Update the original graph with the results from the best result
                 foreach (var edge in bfGraph.Edges)
