@@ -143,7 +143,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 pipeline.CreateSizeArray();
             }
         }
-        public List<(string, IPipelineSizeArrayV2)> GetAllSizeArrays() 
+        public List<(string, IPipelineSizeArrayV2)> GetAllSizeArrays()
         {
             List<(string, IPipelineSizeArrayV2)> data = new();
             foreach (var pipeline in pipelines)
@@ -513,6 +513,9 @@ namespace IntersectUtilities.PipelineNetworkSystem
 
             DataTable dt = CsvData.FK;
 
+            //List to gather ALL weld points
+            var wps = new List<WeldPointData2>();
+
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
@@ -600,9 +603,6 @@ namespace IntersectUtilities.PipelineNetworkSystem
                                 $"WARNING! This can break existing blocks! Caution is advised!");
                     }
                     #endregion
-
-                    //List to gather ALL weld points
-                    var wps = new List<WeldPointData2>();
 
                     //Gathers all weld points
                     foreach (Entity ent in allEnts)
@@ -714,7 +714,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                                         }
                                         #endregion
 
-                                            #region Determine correct alignment name
+                                        #region Determine correct alignment name
                                         string alignment = allPipelines.MinBy(x => x.GetDistanceToPoint(wPt)).Name;
                                         #endregion
 
@@ -733,6 +733,87 @@ namespace IntersectUtilities.PipelineNetworkSystem
                                 break;
                         }
                     }
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex);
+                    tx.Abort();
+                    throw;
+                }
+                tx.Commit();
+            }
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Import weld block if missing
+                    //All of this should be moved to a helper class
+                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                    if (!bt.Has(blockName))
+                    {
+                        prdDbg("Block for weld annotation is missing!\n" +
+                            "IMPORT MANUALLY!!!");
+                        //prdDbg("Block for weld annotation is missing! Importing...");
+                        //Database blockDb = new Database(false, true);
+                        //blockDb.ReadDwgFile("X:\\AutoCAD DRI - 01 Civil 3D\\DynBlokke\\Symboler.dwg",
+                        //    FileOpenMode.OpenForReadAndAllShare, false, null);
+                        //Transaction blockTx = blockDb.TransactionManager.StartTransaction();
+
+                        //Oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(blockDb);
+                        //Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
+
+                        //BlockTable sourceBt = blockTx.GetObject(blockDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                        //ObjectIdCollection idsToClone = new ObjectIdCollection();
+                        //idsToClone.Add(sourceBt[blockName]);
+
+                        //IdMapping mapping = new IdMapping();
+                        //blockDb.WblockCloneObjects(idsToClone, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
+                        //blockTx.Commit();
+                        //blockTx.Dispose();
+                        //blockDb.Dispose();
+                    }
+                    else
+                    {
+                        //Check if existing block is latest version
+                        var btr = localDb.GetBlockTableRecordByName(blockName);
+
+                        #region Read present block version
+                        string version = "";
+                        foreach (Oid oid in btr)
+                        {
+                            if (oid.IsDerivedFrom<AttributeDefinition>())
+                            {
+                                var atdef = oid.Go<AttributeDefinition>(tx);
+                                if (atdef.Tag == "VERSION") { version = atdef.TextString; break; }
+                            }
+                        }
+                        if (version.IsNoE()) version = "1";
+                        else if (version.Contains("v")) version = version.Replace("v", "");
+                        int blockVersion = Convert.ToInt32(version);
+                        #endregion
+
+                        #region Determine latest version
+                        var query = dt.AsEnumerable()
+                                .Where(x => x["Navn"].ToString() == blockName)
+                                .Select(x => x["Version"].ToString())
+                                .Select(x => { if (x == "") return "1"; else return x; })
+                                .Select(x => Convert.ToInt32(x.Replace("v", "")))
+                                .OrderBy(x => x);
+
+                        if (query.Count() == 0)
+                            throw new System.Exception($"Block {blockName} is not present in FJV Dynamiske Komponenter.csv!");
+                        int maxVersion = query.Max();
+                        #endregion
+
+                        if (maxVersion != blockVersion)
+                            throw new System.Exception(
+                                $"Block {blockName} v{blockVersion} is not latest version v{maxVersion}! " +
+                                $"Update with latest version from:\n" +
+                                $"X:\\AutoCAD DRI - 01 Civil 3D\\DynBlokke\\Symboler.dwg\n" +
+                                $"WARNING! This can break existing blocks! Caution is advised!");
+                    }
+                    #endregion
 
                     #region Place weldblocks
                     var ordered = wps.OrderBy(x => x.WeldPoint.X).ThenBy(x => x.WeldPoint.Y);

@@ -137,8 +137,9 @@ namespace IntersectUtilities
                             #endregion
 
                             //Tilføj almindelige ender til POIs
-                            POIs.Add(new POI(pline, pline.StartPoint.To2d(), EndType.StikStart, PSM, DriGraph));
-                            POIs.Add(new POI(pline, pline.EndPoint.To2d(), EndType.StikEnd, PSM, DriGraph));
+                            //Bruger ikke længere det gamle stiksystem, så derfor er stikstart ændret til start og end til end
+                            POIs.Add(new POI(pline, pline.StartPoint.To2d(), EndType.Start, PSM, DriGraph));
+                            POIs.Add(new POI(pline, pline.EndPoint.To2d(), EndType.End, PSM, DriGraph));
                             break;
                         default:
                             POIs.Add(new POI(pline, pline.StartPoint.To2d(), EndType.Start, PSM, DriGraph));
