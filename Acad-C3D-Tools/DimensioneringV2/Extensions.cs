@@ -138,6 +138,30 @@ namespace DimensioneringV2
                 graph.RemoveEdge(edgeToRemove);
             }
         }
+        public static bool IsConnected<TVertex, TEdge>(this UndirectedGraph<TVertex, TEdge> graph) where TEdge : IEdge<TVertex>
+        {
+            var visited = new HashSet<TVertex>();
+            var startNode = graph.Vertices.FirstOrDefault();
+            if (startNode == null) return false;
+
+            TraverseGraph(graph, startNode, visited);
+            return visited.Count == graph.VertexCount;
+        }
+        private static void TraverseGraph<TVertex, TEdge>(this 
+            UndirectedGraph<TVertex, TEdge> graph, TVertex node, HashSet<TVertex> visited) where TEdge : IEdge<TVertex>
+        {
+            if (visited.Contains(node)) return;
+            visited.Add(node);
+
+            foreach (var neighbor in graph.AdjacentVertices(node))
+            {
+                if (!visited.Contains(neighbor))
+                {
+                    TraverseGraph(graph, neighbor, visited);
+                }
+            }
+        }
+
 
         public static class ThreadSafeRandom
         {

@@ -34,6 +34,9 @@
 		<DebugType>full</DebugType>
 	</PropertyGroup>
 	<ItemGroup>
+	  <Compile Remove="Services\HydraulicCalculationsService_GAAnalysis.cs" />
+	</ItemGroup>
+	<ItemGroup>
 		<Reference Include="accoremgd">
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\accoremgd.dll</HintPath>
 			<Private>False</Private>
@@ -169,6 +172,7 @@
 		<Folder Include="Links\" />
 	</ItemGroup>
 	<ItemGroup>
+	  <None Include="Services\HydraulicCalculationsService_GAAnalysis.cs" />
 	  <None Include="Services\HydraulicCalculationsService_BFAnalysis.cs" />
 	</ItemGroup>
 	<ItemGroup>

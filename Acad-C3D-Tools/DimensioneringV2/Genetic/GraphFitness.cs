@@ -1,4 +1,5 @@
 ﻿using DimensioneringV2.BruteForceOptimization;
+using DimensioneringV2.Services;
 
 using GeneticSharp;
 
@@ -38,13 +39,12 @@ namespace DimensioneringV2.Genetic
             var candidateGraph = _originalGraph.Copy();
             candidateGraph.RemoveEdges(nonSelectedEdges);
 
-            // Ensure graph connectivity
             if (!candidateGraph.IsConnected())
             {
-                return double.MaxValue; // Penalize disconnected graphs
+                return double.MaxValue;
             }
 
-            return CalculateBFCost(candidateGraph, _props);
+            return -HydraulicCalculationsService.CalculateBFCost(candidateGraph, _props);
         }
     }
 }
