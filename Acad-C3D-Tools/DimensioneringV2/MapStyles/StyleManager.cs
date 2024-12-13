@@ -75,6 +75,10 @@ namespace DimensioneringV2.MapStyles
                     sOn = new StyleMapPipeSize_WithLabels(f => f.PipeDim);
                     sOff = new StyleMapPipeSize_NoLabels(f => f.PipeDim);
                     break;
+                case MapPropertyEnum.Bridge:
+                    sOn = new StyleMapBridge_NoLabels(f => f.IsBridge);
+                    sOff = new StyleMapBridge_NoLabels(f => f.IsBridge);
+                    break;
                 default:
                     throw new Exception("Unknown property name!");
             }

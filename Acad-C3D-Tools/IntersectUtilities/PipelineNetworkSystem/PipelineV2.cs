@@ -409,6 +409,8 @@ namespace IntersectUtilities.PipelineNetworkSystem
             if (pipelineEntities == null || pipelineEntities.Count == 0)
                 throw new Exception("PipelineV2Na cannot be created without entities!");
 
+            prdDbg($"Creating NA pipeline {Name}...");
+
             Database db = pipelineEntities.FirstOrDefault()?.Database;
             Transaction tx = db.TransactionManager.TopTransaction;
             var query =

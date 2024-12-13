@@ -33,5 +33,7 @@ namespace DimensioneringV2.UI
         UtilizationRate,
         [Description("Rørdimension")]
         Pipe,
+        [Description("Vis non-bridges")]
+        Bridge,
     }
 }

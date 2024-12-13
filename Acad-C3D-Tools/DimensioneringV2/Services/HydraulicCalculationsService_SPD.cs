@@ -32,6 +32,9 @@ namespace DimensioneringV2.Services
 
             foreach (var graph in graphs)
             {
+                //Mark bridges
+                FindBridges.DoMarkThem(graph);
+
                 // Find the root node
                 var rootNode = graph.Vertices.FirstOrDefault(v => v.IsRootNode);
                 if (rootNode == null)

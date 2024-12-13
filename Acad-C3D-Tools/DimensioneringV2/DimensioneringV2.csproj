@@ -147,6 +147,7 @@
 	</ItemGroup>
 	<ItemGroup>
 		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
+		<PackageReference Include="GeneticSharp" Version="3.1.4" />
 		<PackageReference Include="Mapsui.Extensions" Version="4.1.8" />
 		<PackageReference Include="Mapsui.Nts" Version="4.1.8" />
 		<PackageReference Include="Mapsui.Wpf" Version="4.1.8" />

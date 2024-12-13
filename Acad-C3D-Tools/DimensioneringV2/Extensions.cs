@@ -125,6 +125,19 @@ namespace DimensioneringV2
             }
             return bfGraph;
         }
+        public static void RemoveEdges(this UndirectedGraph<BFNode, BFEdge> graph, IEnumerable<BFEdge> edges)
+        {
+            foreach (var edge in edges)
+            {
+                var edgeToRemove = graph.Edges.FirstOrDefault(
+                    x => x.Source.OriginalNodeJunction == edge.Source.OriginalNodeJunction &&
+                    x.Target.OriginalNodeJunction == edge.Target.OriginalNodeJunction);
+
+                if (edgeToRemove == null) throw new Exception("Edge not found in graph!");
+
+                graph.RemoveEdge(edgeToRemove);
+            }
+        }
 
         public static class ThreadSafeRandom
         {

@@ -72,7 +72,7 @@ namespace DimensioneringV2.GraphFeatures
         /// <summary>
         /// Signifies what type of segment the feature represents.
         /// </summary>
-        public SegmentType SegmentType => 
+        public SegmentType SegmentType =>
             NumberOfBuildingsConnected == 1 ?
             SegmentType.Stikledning :
             SegmentType.Fordelingsledning;
@@ -160,6 +160,9 @@ namespace DimensioneringV2.GraphFeatures
         /// </summary>
         [MapPropertyAttribute(MapPropertyEnum.UtilizationRate)]
         public double UtilizationRate { get; set; }
+
+        [MapProperty(MapPropertyEnum.Bridge)]
+        public bool IsBridge { get; set; } = false;
         public void ResetHydraulicResults()
         {
             PipeDim = default(Dim);
