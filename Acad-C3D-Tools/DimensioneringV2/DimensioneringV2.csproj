@@ -34,9 +34,6 @@
 		<DebugType>full</DebugType>
 	</PropertyGroup>
 	<ItemGroup>
-	  <Compile Remove="Services\HydraulicCalculationsService_GAAnalysis.cs" />
-	</ItemGroup>
-	<ItemGroup>
 		<Reference Include="accoremgd">
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\accoremgd.dll</HintPath>
 			<Private>False</Private>
@@ -151,6 +148,8 @@
 	<ItemGroup>
 		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
 		<PackageReference Include="GeneticSharp" Version="3.1.4" />
+		<PackageReference Include="LiveChartsCore.SkiaSharpView.Eto" Version="2.0.0-rc4.5" />
+		<PackageReference Include="LiveChartsCore.SkiaSharpView.WPF" Version="2.0.0-rc4.5" />
 		<PackageReference Include="Mapsui.Extensions" Version="4.1.8" />
 		<PackageReference Include="Mapsui.Nts" Version="4.1.8" />
 		<PackageReference Include="Mapsui.Wpf" Version="4.1.8" />
@@ -172,7 +171,6 @@
 		<Folder Include="Links\" />
 	</ItemGroup>
 	<ItemGroup>
-	  <None Include="Services\HydraulicCalculationsService_GAAnalysis.cs" />
 	  <None Include="Services\HydraulicCalculationsService_BFAnalysis.cs" />
 	</ItemGroup>
 	<ItemGroup>

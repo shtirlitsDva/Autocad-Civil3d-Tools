@@ -16,6 +16,7 @@ using DimensioneringV2.Services;
 using Mapsui.Layers;
 using Mapsui;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using Mapsui.Nts;
 using Mapsui.Extensions;
 using Mapsui.Providers;
@@ -30,6 +31,7 @@ using Autodesk.AutoCAD.Geometry;
 using IntersectUtilities.UtilsCommon;
 using NorsynHydraulicCalc.Pipes;
 using DimensioneringV2.BruteForceOptimization;
+using System.Windows;
 
 namespace DimensioneringV2.UI
 {
@@ -71,7 +73,7 @@ namespace DimensioneringV2.UI
 
         #region CollectFeaturesFromACCommand
         public RelayCommand CollectFeaturesCommand =>
-            new RelayCommand((_) => CollectFeaturesExecute(), (_) => true);
+            new RelayCommand(CollectFeaturesExecute);
 
         private async void CollectFeaturesExecute()
         {
@@ -89,7 +91,7 @@ namespace DimensioneringV2.UI
 
         #region PerformCalculationsSPDCommand
         public RelayCommand PerformCalculationsSPDCommand =>
-            new(async (_) => await PerformCalculationsSPDExecuteAsync(), (_) => true);
+            new(async () => await PerformCalculationsSPDExecuteAsync());
 
         private async Task PerformCalculationsSPDExecuteAsync()
         {
@@ -114,7 +116,7 @@ namespace DimensioneringV2.UI
 
         #region PerformCalculationsBFCommand
         public RelayCommand PerformCalculationsBFCommand =>
-            new(async (_) => await PerformCalculationsBFExecuteAsync(), (_) => true);
+            new(async () => await PerformCalculationsBFExecuteAsync());
 
         private async Task PerformCalculationsBFExecuteAsync()
         {
@@ -142,9 +144,83 @@ namespace DimensioneringV2.UI
         }
         #endregion
 
+        #region PerformCalculationsGACommand
+        public AsyncRelayCommand PerformCalculationsGACommand => new(PerformCalculationsGAExecuteAsync);
+
+        private async Task PerformCalculationsGAExecuteAsync()
+        {
+            var props = new List<(Func<BFEdge, dynamic> Getter, Action<BFEdge, dynamic> Setter)>
+            {
+                (f => f.NumberOfBuildingsConnected, (f, v) => f.NumberOfBuildingsSupplied = v),
+                (f => f.NumberOfUnitsConnected, (f, v) => f.NumberOfUnitsSupplied = v),
+                (f => f.HeatingDemandConnected, (f, v) => f.HeatingDemandSupplied = v)
+            };
+
+            try
+            {
+                var progressWindow = new GeneticReporting();
+                var reportingVM = (GeneticReportingViewModel)progressWindow.DataContext;
+
+                reportingVM.AnalysisCompleted += (bestChromosome, graph) =>
+                {
+                    if (bestChromosome == null)
+                    {
+                        MessageBox.Show("No valid solution found by the genetic algorithm!");
+                        return;
+                    }
+
+                    // Handle result processing for this graph
+                    var nonSelected = bestChromosome.GetNonSelectedEdges();
+                    var optimizedGraph = graph.Copy();
+                    optimizedGraph.RemoveEdges(nonSelected);
+                    HydraulicCalculationsService.CalculateBFCost(optimizedGraph, props);
+
+                    //Update the original graph with the results from the best result
+                    foreach (var edge in optimizedGraph.Edges)
+                    {
+                        edge.OriginalEdge.PipeSegment.PipeDim = edge.PipeDim;
+                        edge.OriginalEdge.PipeSegment.ReynoldsSupply = edge.ReynoldsSupply;
+                        edge.OriginalEdge.PipeSegment.ReynoldsReturn = edge.ReynoldsReturn;
+                        edge.OriginalEdge.PipeSegment.FlowSupply = edge.FlowSupply;
+                        edge.OriginalEdge.PipeSegment.FlowReturn = edge.FlowReturn;
+                        edge.OriginalEdge.PipeSegment.PressureGradientSupply = edge.PressureGradientSupply;
+                        edge.OriginalEdge.PipeSegment.PressureGradientReturn = edge.PressureGradientReturn;
+                        edge.OriginalEdge.PipeSegment.VelocitySupply = edge.VelocitySupply;
+                        edge.OriginalEdge.PipeSegment.VelocityReturn = edge.VelocityReturn;
+                        edge.OriginalEdge.PipeSegment.UtilizationRate = edge.UtilizationRate;
+                    }
+                };
+
+                progressWindow.Show();
+
+                await Task.Run(() =>
+                {
+                    var graphs = _dataService.Graphs;
+
+                    //Reset the results
+                    foreach (var f in graphs.SelectMany(g => g.Edges.Select(e => e.PipeSegment))) f.ResetHydraulicResults();
+
+                    foreach (UndirectedGraph<NodeJunction, EdgePipeSegment> graph in graphs)
+                    {
+                        var ga = HydraulicCalculationsService.SetupGAAnalysis(graph, props);
+                        Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            reportingVM.StartAlgorithm(ga, graph.CopyToBF());
+                        });
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                utils.prdDbg($"An error occurred during calculations: {ex.Message}");
+                utils.prdDbg(ex);
+            }
+        }
+        #endregion
+
         #region ZoomToExtents
         public RelayCommand PerformZoomToExtents =>
-            new RelayCommand((_) => ZoomToExtents(), (_) => true);
+            new RelayCommand(ZoomToExtents, () => true);
 
         private void ZoomToExtents()
         {
@@ -162,7 +238,7 @@ namespace DimensioneringV2.UI
 
         #region SyncACWindow
         public RelayCommand SyncACWindowCommand =>
-            new RelayCommand((_) => SyncACWindow(), (_) => true);
+            new RelayCommand(SyncACWindow, () => true);
         private void SyncACWindow()
         {
             var vp = Mymap.Navigator.Viewport;
@@ -191,7 +267,7 @@ namespace DimensioneringV2.UI
 
         #region Toggle Labels
         public RelayCommand PerformLabelToggle =>
-            new RelayCommand((_) => ToggleLabelStyles(), (_) => true);
+            new RelayCommand(ToggleLabelStyles, () => true);
         private void ToggleLabelStyles()
         {
             _styleManager.Switch();
@@ -199,8 +275,9 @@ namespace DimensioneringV2.UI
         }
         #endregion
 
+        #region Perform Pricecalc
         public RelayCommand PerformPriceCalc =>
-            new RelayCommand((_) => PriceCalc(), (_) => true);
+            new RelayCommand(PriceCalc);
 
         private void PriceCalc()
         {
@@ -257,6 +334,7 @@ namespace DimensioneringV2.UI
                 utils.prdDbg(ex);
             }
         }
+        #endregion
 
         [ObservableProperty]
         private Map _mymap = new() { CRS = "EPSG:3857" };

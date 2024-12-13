@@ -16,12 +16,12 @@ namespace DimensioneringV2.Genetic
     internal class GraphFitness : IFitness
     {
         private readonly UndirectedGraph<BFNode, BFEdge> _originalGraph;
-        private readonly List<BFEdge> _nonBridges;
+        private readonly IEnumerable<BFEdge> _nonBridges;
         private readonly List<(Func<BFEdge, dynamic> Getter, Action<BFEdge, dynamic> Setter)> _props;
 
         public GraphFitness(
             UndirectedGraph<BFNode, BFEdge> originalGraph,
-            List<BFEdge> nonBridges,
+            IEnumerable<BFEdge> nonBridges,
             List<(Func<BFEdge, dynamic> Getter, Action<BFEdge, dynamic> Setter)> props
             )
         {
