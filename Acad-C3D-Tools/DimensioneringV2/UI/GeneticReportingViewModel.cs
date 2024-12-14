@@ -35,19 +35,19 @@ namespace DimensioneringV2.UI
             StopCommand = new RelayCommand(StopAlgorithm);
             _fitnessValues = new ObservableCollection<int>();
             
-            seriesCollection = new ObservableCollection<ISeries>
-            {
-                new LineSeries<int>()
-                {
-                    Values = _fitnessValues,
-                    Fill = null
-                }
-            };
+            //seriesCollection = new ObservableCollection<ISeries>
+            //{
+            //    new LineSeries<int>()
+            //    {
+            //        Values = _fitnessValues,
+            //        Fill = null
+            //    }
+            //};
 
             _worker = new BackgroundWorker { WorkerSupportsCancellation = true };
             _worker.DoWork += RunAlgorithm;
         }
-        public ObservableCollection<ISeries> seriesCollection { get; }
+        public ObservableCollection<ISeries> seriesCollection { get; private set; }
         public IRelayCommand StopCommand { get; }
         public event Action<GraphChromosome?, UndirectedGraph<BFNode, BFEdge>>? AnalysisCompleted;
 
@@ -66,6 +66,18 @@ namespace DimensioneringV2.UI
         private void RunAlgorithm(object? sender, DoWorkEventArgs e)
         {
             if (e.Argument is not (GeneticAlgorithm ga, UndirectedGraph<BFNode, BFEdge> graph)) return;
+
+            if (seriesCollection == null)
+            {
+                seriesCollection = new ObservableCollection<ISeries>
+                {
+                    new LineSeries<int>()
+                    {
+                        Values = _fitnessValues,
+                        Fill = null
+                    }
+                };
+            }
 
             ga.GenerationRan += (s, args) =>
             {
