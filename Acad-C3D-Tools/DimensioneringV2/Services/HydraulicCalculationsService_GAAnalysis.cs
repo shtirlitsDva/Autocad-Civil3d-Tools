@@ -11,39 +11,73 @@ using DimensioneringV2.BruteForceOptimization;
 
 using utils = IntersectUtilities.UtilsCommon.Utils;
 
-using IntersectUtilities.UtilsCommon;
-
 using DimensioneringV2.Genetic;
 using GeneticSharp;
+using System.Threading;
+using DotSpatial.Projections;
+using System.Windows;
 
 namespace DimensioneringV2.Services
 {
     internal partial class HydraulicCalculationsService
     {
-        internal static GeneticAlgorithm SetupGAAnalysis(
+        internal static void CalculateGAAnalysis(
             UndirectedGraph<NodeJunction, EdgePipeSegment> graph,
-            List<(Func<BFEdge, dynamic> Getter, Action<BFEdge, dynamic> Setter)> props)
+            List<(Func<BFEdge, dynamic> Getter, Action<BFEdge, dynamic> Setter)> props,
+            Action<int, double> reportProgress,
+            CancellationToken token)
         {
-            UndirectedGraph<BFNode, BFEdge> bfGraph = graph.CopyToBF();
+            UndirectedGraph<BFNode, BFEdge> gaGraph = graph.CopyToBF();
+            var ga = SetupGAAnalysis(gaGraph, props);
 
-            var bridges = FindBridges.DoFindThem(bfGraph);
-            var nonBridges = bfGraph.Edges.Where(x => !bridges.Contains(x));
-
-            var chromosomeLength = nonBridges.Count();
-            var fitness = new GraphFitness(bfGraph, nonBridges, props);
-            var chromosome = new GraphChromosome(chromosomeLength, nonBridges.ToList());
-
-            var population = new Population(50, 100, chromosome);
-            var selection = new TournamentSelection();
-            var crossover = new UniformCrossover();
-            var mutation = new FlipBitMutation();
-
-            var ga = new GeneticAlgorithm(population, fitness, selection, crossover, mutation)
+            ga.GenerationRan += (s, e) =>
             {
-                Termination = new FitnessStagnationTermination(50)
+                if (token.IsCancellationRequested)
+                {
+                    ga.Stop();
+                    return;
+                }
+
+                var bestChromosome = ga.BestChromosome;
+                var fitness = -bestChromosome?.Fitness ?? 0.0;
+                var generation = ga.GenerationsNumber;
+
+                // Report progress to the UI
+                reportProgress(generation, fitness);
             };
 
-            return ga;
+            ga.Start();
+
+            if (token.IsCancellationRequested)
+            {
+                ga.Stop();
+            }
+
+            var bestChromosome = ga.BestChromosome as GraphChromosome;
+
+            if (bestChromosome == null)
+            {
+                MessageBox.Show("No valid solution found by the genetic algorithm!");
+                return;
+            }
+
+            // Handle result processing for this graph
+            CalculateBFCost(bestChromosome.LocalGraph, props);
+
+            //Update the original graph with the results from the best result
+            foreach (var edge in bestChromosome.LocalGraph.Edges)
+            {
+                edge.OriginalEdge.PipeSegment.PipeDim = edge.PipeDim;
+                edge.OriginalEdge.PipeSegment.ReynoldsSupply = edge.ReynoldsSupply;
+                edge.OriginalEdge.PipeSegment.ReynoldsReturn = edge.ReynoldsReturn;
+                edge.OriginalEdge.PipeSegment.FlowSupply = edge.FlowSupply;
+                edge.OriginalEdge.PipeSegment.FlowReturn = edge.FlowReturn;
+                edge.OriginalEdge.PipeSegment.PressureGradientSupply = edge.PressureGradientSupply;
+                edge.OriginalEdge.PipeSegment.PressureGradientReturn = edge.PressureGradientReturn;
+                edge.OriginalEdge.PipeSegment.VelocitySupply = edge.VelocitySupply;
+                edge.OriginalEdge.PipeSegment.VelocityReturn = edge.VelocityReturn;
+                edge.OriginalEdge.PipeSegment.UtilizationRate = edge.UtilizationRate;
+            }
         }
     }
 }

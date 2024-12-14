@@ -145,7 +145,7 @@ namespace DimensioneringV2.UI
         #endregion
 
         #region PerformCalculationsGACommand
-        public AsyncRelayCommand PerformCalculationsGACommand => new(PerformCalculationsGAExecuteAsync);
+        public AsyncRelayCommand PerformCalculationsGACommand => new(async () => await PerformCalculationsGAExecuteAsync());
 
         private async Task PerformCalculationsGAExecuteAsync()
         {
@@ -156,42 +156,15 @@ namespace DimensioneringV2.UI
                 (f => f.HeatingDemandConnected, (f, v) => f.HeatingDemandSupplied = v)
             };
 
+            //Init the hydraulic calculation service using current settings
+            HydraulicCalculationService.Initialize();
+
             try
             {
                 var progressWindow = new GeneticReporting();
-                var reportingVM = (GeneticReportingViewModel)progressWindow.DataContext;
-
-                reportingVM.AnalysisCompleted += (bestChromosome, graph) =>
-                {
-                    if (bestChromosome == null)
-                    {
-                        MessageBox.Show("No valid solution found by the genetic algorithm!");
-                        return;
-                    }
-
-                    // Handle result processing for this graph
-                    var nonSelected = bestChromosome.GetNonSelectedEdges();
-                    var optimizedGraph = graph.Copy();
-                    optimizedGraph.RemoveEdges(nonSelected);
-                    HydraulicCalculationsService.CalculateBFCost(optimizedGraph, props);
-
-                    //Update the original graph with the results from the best result
-                    foreach (var edge in optimizedGraph.Edges)
-                    {
-                        edge.OriginalEdge.PipeSegment.PipeDim = edge.PipeDim;
-                        edge.OriginalEdge.PipeSegment.ReynoldsSupply = edge.ReynoldsSupply;
-                        edge.OriginalEdge.PipeSegment.ReynoldsReturn = edge.ReynoldsReturn;
-                        edge.OriginalEdge.PipeSegment.FlowSupply = edge.FlowSupply;
-                        edge.OriginalEdge.PipeSegment.FlowReturn = edge.FlowReturn;
-                        edge.OriginalEdge.PipeSegment.PressureGradientSupply = edge.PressureGradientSupply;
-                        edge.OriginalEdge.PipeSegment.PressureGradientReturn = edge.PressureGradientReturn;
-                        edge.OriginalEdge.PipeSegment.VelocitySupply = edge.VelocitySupply;
-                        edge.OriginalEdge.PipeSegment.VelocityReturn = edge.VelocityReturn;
-                        edge.OriginalEdge.PipeSegment.UtilizationRate = edge.UtilizationRate;
-                    }
-                };
-
                 progressWindow.Show();
+                GeneticReportingContext.VM = (GeneticReportingViewModel)progressWindow.DataContext;
+                GeneticReportingContext.VM.Dispatcher = progressWindow.Dispatcher;
 
                 await Task.Run(() =>
                 {
@@ -202,11 +175,18 @@ namespace DimensioneringV2.UI
 
                     foreach (UndirectedGraph<NodeJunction, EdgePipeSegment> graph in graphs)
                     {
-                        var ga = HydraulicCalculationsService.SetupGAAnalysis(graph, props);
-                        Application.Current.Dispatcher.Invoke(() =>
-                        {
-                            reportingVM.StartAlgorithm(ga, graph.CopyToBF());
-                        });
+                        HydraulicCalculationsService.CalculateGAAnalysis(
+                            graph,
+                            props,
+                            (generation, fitness) =>
+                            {
+                                progressWindow.Dispatcher.Invoke(() =>
+                                {
+                                    GeneticReportingContext.VM.UpdatePlot(generation, fitness);
+                                });
+                            },
+                            GeneticReportingContext.VM.CancellationToken
+                            );
                     }
                 });
             }

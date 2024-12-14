@@ -15,18 +15,12 @@ namespace DimensioneringV2.Genetic
 {
     internal class GraphFitness : IFitness
     {
-        private readonly UndirectedGraph<BFNode, BFEdge> _originalGraph;
-        private readonly IEnumerable<BFEdge> _nonBridges;
         private readonly List<(Func<BFEdge, dynamic> Getter, Action<BFEdge, dynamic> Setter)> _props;
 
         public GraphFitness(
-            UndirectedGraph<BFNode, BFEdge> originalGraph,
-            IEnumerable<BFEdge> nonBridges,
             List<(Func<BFEdge, dynamic> Getter, Action<BFEdge, dynamic> Setter)> props
             )
         {
-            _originalGraph = originalGraph;
-            _nonBridges = nonBridges;
             _props = props;
         }
 
@@ -35,16 +29,12 @@ namespace DimensioneringV2.Genetic
             if (chromosome is not GraphChromosome graphChromosome)
                 throw new ArgumentException("Chromosome is not of type GraphChromosome");
             
-            var nonSelectedEdges = graphChromosome.GetNonSelectedEdges();
-            var candidateGraph = _originalGraph.Copy();
-            candidateGraph.RemoveEdges(nonSelectedEdges);
-
-            if (!candidateGraph.IsConnected())
+            if (!graphChromosome.LocalGraph.IsConnected())
             {
                 return double.MaxValue;
             }
 
-            return -HydraulicCalculationsService.CalculateBFCost(candidateGraph, _props);
+            return -HydraulicCalculationsService.CalculateBFCost(graphChromosome.LocalGraph, _props);
         }
     }
 }

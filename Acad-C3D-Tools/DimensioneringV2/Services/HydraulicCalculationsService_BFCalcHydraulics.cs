@@ -24,11 +24,9 @@ namespace DimensioneringV2.Services
         private static void BFCalcHydraulics(
             UndirectedGraph<BFNode, BFEdge> graph)
         {
-            HydraulicCalc hc = new(HydraulicSettingsService.Instance.Settings);
-
             Parallel.ForEach(graph.Edges, edge =>
             {
-                var result = hc.CalculateHydraulicSegment(edge);
+                var result = HydraulicCalculationService.Calc.CalculateHydraulicSegment(edge);
                 edge.PipeDim = result.Dim;
                 edge.ReynoldsSupply = result.ReynoldsSupply;
                 edge.ReynoldsReturn = result.ReynoldsReturn;

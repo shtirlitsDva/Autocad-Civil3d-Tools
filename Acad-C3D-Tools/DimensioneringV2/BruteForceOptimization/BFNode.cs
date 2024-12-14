@@ -17,6 +17,7 @@ namespace DimensioneringV2.BruteForceOptimization
         public int Level { get; set; } // Level in the network hierarchy
         public int STP_Node { get; }
         public NodeJunction OriginalNodeJunction { get; }
+        public int ChromosomeIndex { get; internal set; }
 
         public BFNode(NodeJunction nodeJunction)
         {

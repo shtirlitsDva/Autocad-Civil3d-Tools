@@ -19,21 +19,22 @@ using QuikGraph;
 
 using OxyPlot;
 using OxyPlot.Series;
+using System.Windows.Threading;
+using System.Threading;
 
 namespace DimensioneringV2.UI
 {
     internal class GeneticReportingViewModel : ObservableObject
     {
-        private readonly BackgroundWorker _worker;
-        private bool _isRunning;
-        private double _latestFitness;
-        private ObservableCollection<int> _fitnessValues;
-
+        internal Dispatcher? Dispatcher { get; set; }
+        private CancellationTokenSource _cancellationTokenSource;
+        private int _generationCounter;
+        private double _currentCost;
+        
         public GeneticReportingViewModel()
         {
             StopCommand = new RelayCommand(StopAlgorithm);
-            _fitnessValues = new ObservableCollection<int>();
-
+            _cancellationTokenSource = new CancellationTokenSource();
             PlotModel = new PlotModel { Title = "GA Optimization Progress" };
 
             // Initialize LineSeries
@@ -43,77 +44,37 @@ namespace DimensioneringV2.UI
                 MarkerType = MarkerType.Circle
             };
             PlotModel.Series.Add(lineSeries);
-
-            _worker = new BackgroundWorker { WorkerSupportsCancellation = true };
-            _worker.DoWork += RunAlgorithm;
         }
         public PlotModel PlotModel { get; }
-        public ObservableCollection<ISeries> seriesCollection { get; private set; }
         public IRelayCommand StopCommand { get; }
-        public event Action<GraphChromosome?, UndirectedGraph<BFNode, BFEdge>>? AnalysisCompleted;
-
         private void StopAlgorithm()
         {
-            _isRunning = false;
-            _worker.CancelAsync();
+            _cancellationTokenSource.Cancel();
         }
-
-        public void StartAlgorithm(GeneticAlgorithm ga, UndirectedGraph<BFNode, BFEdge> graph)
+        public CancellationToken CancellationToken => _cancellationTokenSource.Token;
+        public int GenerationCounter
         {
-            _isRunning = true;
-            _worker.RunWorkerAsync((ga, graph));
+            get => _generationCounter;
+            set => SetProperty(ref _generationCounter, value);
         }
-
-        private void RunAlgorithm(object? sender, DoWorkEventArgs e)
+        public double CurrentCost
         {
-            if (e.Argument is not (GeneticAlgorithm ga, UndirectedGraph<BFNode, BFEdge> graph)) return;
+            get => _currentCost;
+            set => SetProperty(ref _currentCost, value);
+        }
+        public void UpdatePlot(int generation, double fitness)
+        {
+            var lineSeries = PlotModel.Series.FirstOrDefault() as LineSeries;
+            if (lineSeries is null) throw new Exception("No lineseries found!");
 
-            if (seriesCollection == null)
+            if (fitness != double.MaxValue) // Only add meaningful values
             {
-                seriesCollection = new ObservableCollection<ISeries>
-                {
-                    new LineSeries<int>()
-                    {
-                        Values = _fitnessValues,
-                        Fill = null
-                    }
-                };
+                lineSeries.Points.Add(new DataPoint(lineSeries.Points.Count, fitness));
+                CurrentCost = fitness;
+                PlotModel.InvalidatePlot(true); // Refresh the plot
             }
 
-            ga.GenerationRan += (s, args) =>
-            {
-                if (!_isRunning)
-                {
-                    e.Cancel = true;
-                    ga.Stop();
-                    return;
-                }
-
-                var bestChromosome = ga.BestChromosome;
-                var bestFitness = -(int)(bestChromosome.Fitness ?? 0);
-                if (Math.Abs(bestFitness - _latestFitness) > double.Epsilon)
-                {
-                    _latestFitness = bestFitness;
-
-                    Application.Current.Dispatcher.Invoke(() =>
-                    {
-                        _fitnessValues.Add(bestFitness);
-
-                        // Clear and update the series to reflect new values
-                        seriesCollection.Clear();
-                        seriesCollection.Add(new LineSeries<int>
-                        {
-                            Values = _fitnessValues,
-                            Fill = null
-                        });
-                    });
-                }
-            };
-
-            ga.Start();
-
-            var bestChromosomeResult = ga.BestChromosome as GraphChromosome;
-            Application.Current.Dispatcher.Invoke(() => AnalysisCompleted?.Invoke(bestChromosomeResult, graph));
+            GenerationCounter = generation; // Update generation counter
         }
     }
 }

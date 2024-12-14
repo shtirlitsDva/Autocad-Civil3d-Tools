@@ -3,6 +3,7 @@
 using DimensioneringV2.BruteForceOptimization;
 using DimensioneringV2.Geometry;
 using DimensioneringV2.GraphFeatures;
+using DimensioneringV2.Services;
 using DimensioneringV2.SteinerTreeProblem;
 
 using QuikGraph;
@@ -121,11 +122,22 @@ namespace DimensioneringV2
             foreach (var edge in graph.Edges)
             {
                 var bfEdge = new BFEdge(nodeMap[edge.Source], nodeMap[edge.Target], edge.OriginalEdge);
+                bfEdge.ChromosomeIndex = edge.ChromosomeIndex;
                 bfGraph.AddEdge(bfEdge);
             }
+
             return bfGraph;
         }
-        public static void RemoveEdges(this UndirectedGraph<BFNode, BFEdge> graph, IEnumerable<BFEdge> edges)
+        public static void InitChromosomeIndex(this UndirectedGraph<BFNode, BFEdge> graph)
+        {
+            int index = 0;
+            foreach (var edge in graph.Edges)
+            {
+                edge.ChromosomeIndex = index;
+                index++;
+            }
+        }
+        public static void RemoveSelectedEdges(this UndirectedGraph<BFNode, BFEdge> graph, IEnumerable<BFEdge> edges)
         {
             foreach (var edge in edges)
             {
@@ -140,12 +152,7 @@ namespace DimensioneringV2
         }
         public static bool IsConnected<TVertex, TEdge>(this UndirectedGraph<TVertex, TEdge> graph) where TEdge : IEdge<TVertex>
         {
-            var visited = new HashSet<TVertex>();
-            var startNode = graph.Vertices.FirstOrDefault();
-            if (startNode == null) return false;
-
-            TraverseGraph(graph, startNode, visited);
-            return visited.Count == graph.VertexCount;
+            return graph.Vertices.Count() > 0 && !graph.Vertices.Any(x => graph.AdjacentDegree(x) == 0);
         }
         private static void TraverseGraph<TVertex, TEdge>(this 
             UndirectedGraph<TVertex, TEdge> graph, TVertex node, HashSet<TVertex> visited) where TEdge : IEdge<TVertex>
@@ -161,7 +168,28 @@ namespace DimensioneringV2
                 }
             }
         }
+        public static bool IsBridgeEdge(this UndirectedGraph<BFNode, BFEdge> graph, BFEdge edge)
+        {
+            var bridges = new HashSet<BFEdge>();
+            var low = new Dictionary<BFNode, int>();
+            var pre = new Dictionary<BFNode, int>();
+            foreach (var node in graph.Vertices)
+            {
+                low[node] = -1;
+                pre[node] = -1;
+            }
 
+            int cnt = 0;
+            foreach (var node in graph.Vertices)
+            {
+                if (pre[node] == -1)
+                {
+                    FindBridges.BridgeDfs(graph, node, node, ref cnt, low, pre, bridges);
+                }
+            }
+
+            return bridges.Contains(edge);
+        }
 
         public static class ThreadSafeRandom
         {

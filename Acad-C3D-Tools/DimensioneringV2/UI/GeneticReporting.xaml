@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:DimensioneringV2.UI"
+        xmlns:oxy="http://oxyplot.org/wpf"
         mc:Ignorable="d"
         Title="GA Optimization Progress"
         Height="600" Width="800"
@@ -22,7 +23,23 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
-        <Button Grid.Row="1" Content="Stop" Command="{Binding StopCommand}" Width="100" Height="30" HorizontalAlignment="Center" Margin="10" />
+
+        <!-- OxyPlot Graph -->
+        <oxy:PlotView Grid.Row="0" Model="{Binding PlotModel}" />
+
+        <!-- Info Panel -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Margin="10">
+            <TextBlock Text="Generation:" Margin="5" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding GenerationCounter}" Margin="5" VerticalAlignment="Center" />
+
+            <TextBlock Text="Current Cost:" Margin="15,5,5,5" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding CurrentCost}" Margin="5" VerticalAlignment="Center" />
+        </StackPanel>
+
+        <!-- Stop Button -->
+        <Button Grid.Row="2" Content="Stop" Command="{Binding StopCommand}" Width="100" Height="30" HorizontalAlignment="Center" Margin="10" />
+
     </Grid>
 </Window>

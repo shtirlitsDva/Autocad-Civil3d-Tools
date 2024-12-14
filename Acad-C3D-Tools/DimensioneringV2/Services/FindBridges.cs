@@ -15,6 +15,9 @@ namespace DimensioneringV2.Services
 {
     internal static class FindBridges
     {
+        /// <summary>
+        /// Finds all bridge edges.
+        /// </summary>
         internal static HashSet<BFEdge> DoFindThem(UndirectedGraph<BFNode, BFEdge> graph)
         {
             var bridges = new HashSet<BFEdge>();
@@ -37,7 +40,17 @@ namespace DimensioneringV2.Services
 
             return bridges;
         }
-        private static void BridgeDfs(
+
+        /// <summary>
+        /// Finds all non-bridge edges.
+        /// </summary>
+        internal static List<BFEdge> DoNotFindThem(UndirectedGraph<BFNode, BFEdge> graph)
+        {
+            var bridges = DoFindThem(graph);
+            return graph.Edges.Where(x => !bridges.Contains(x)).ToList();
+        }
+
+        internal static void BridgeDfs(
             UndirectedGraph<BFNode, BFEdge> graph,
             BFNode u,
             BFNode v,
@@ -95,7 +108,7 @@ namespace DimensioneringV2.Services
                 bridge.PipeSegment.IsBridge = true;
             }
         }
-        private static void BridgeDfs(
+        internal static void BridgeDfs(
             UndirectedGraph<NodeJunction, EdgePipeSegment> graph,
             NodeJunction u,
             NodeJunction v,
