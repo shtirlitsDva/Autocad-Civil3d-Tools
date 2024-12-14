@@ -53,7 +53,9 @@ Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "NorsynHydraulicShared", "No
 EndProject
 Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "AutoCADCommandsSHARED", "AutoCADCommandsSHARED\AutoCADCommandsSHARED.shproj", "{8BEE2986-B102-498F-A115-3D8B80E3A93C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GeneticSharpV2", "GeneticSharpV2\GeneticSharpV2.csproj", "{D772688B-5C54-4A78-9741-6C88AEF2D2B2}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GeneticSharpV2", "GeneticSharpV2\GeneticSharpV2.csproj", "{D772688B-5C54-4A78-9741-6C88AEF2D2B2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LiveCharts2TestProject", "LiveCharts2TestProject\LiveCharts2TestProject.csproj", "{A1BB70B5-E98C-4BF5-A01C-491143098719}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -215,6 +217,14 @@ Global
 		{D772688B-5C54-4A78-9741-6C88AEF2D2B2}.Release|Any CPU.Build.0 = Release|Any CPU
 		{D772688B-5C54-4A78-9741-6C88AEF2D2B2}.Release|x64.ActiveCfg = Release|Any CPU
 		{D772688B-5C54-4A78-9741-6C88AEF2D2B2}.Release|x64.Build.0 = Release|Any CPU
+		{A1BB70B5-E98C-4BF5-A01C-491143098719}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1BB70B5-E98C-4BF5-A01C-491143098719}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A1BB70B5-E98C-4BF5-A01C-491143098719}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{A1BB70B5-E98C-4BF5-A01C-491143098719}.Debug|x64.Build.0 = Debug|Any CPU
+		{A1BB70B5-E98C-4BF5-A01C-491143098719}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1BB70B5-E98C-4BF5-A01C-491143098719}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A1BB70B5-E98C-4BF5-A01C-491143098719}.Release|x64.ActiveCfg = Release|Any CPU
+		{A1BB70B5-E98C-4BF5-A01C-491143098719}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

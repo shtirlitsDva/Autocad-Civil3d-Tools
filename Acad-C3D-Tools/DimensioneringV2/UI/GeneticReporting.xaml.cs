@@ -15,9 +15,6 @@ using System.Windows.Shapes;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
-using LiveChartsCore;
-using LiveChartsCore.SkiaSharpView.Eto;
-
 namespace DimensioneringV2.UI
 {
     /// <summary>

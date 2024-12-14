@@ -15,11 +15,10 @@ using DimensioneringV2.Genetic;
 
 using GeneticSharp;
 
-using LiveChartsCore;
-using LiveChartsCore.SkiaSharpView;
-using LiveChartsCore.SkiaSharpView.Eto;
-
 using QuikGraph;
+
+using OxyPlot;
+using OxyPlot.Series;
 
 namespace DimensioneringV2.UI
 {
@@ -34,19 +33,21 @@ namespace DimensioneringV2.UI
         {
             StopCommand = new RelayCommand(StopAlgorithm);
             _fitnessValues = new ObservableCollection<int>();
-            
-            //seriesCollection = new ObservableCollection<ISeries>
-            //{
-            //    new LineSeries<int>()
-            //    {
-            //        Values = _fitnessValues,
-            //        Fill = null
-            //    }
-            //};
+
+            PlotModel = new PlotModel { Title = "GA Optimization Progress" };
+
+            // Initialize LineSeries
+            var lineSeries = new LineSeries
+            {
+                Title = "Fitness Progress",
+                MarkerType = MarkerType.Circle
+            };
+            PlotModel.Series.Add(lineSeries);
 
             _worker = new BackgroundWorker { WorkerSupportsCancellation = true };
             _worker.DoWork += RunAlgorithm;
         }
+        public PlotModel PlotModel { get; }
         public ObservableCollection<ISeries> seriesCollection { get; private set; }
         public IRelayCommand StopCommand { get; }
         public event Action<GraphChromosome?, UndirectedGraph<BFNode, BFEdge>>? AnalysisCompleted;
@@ -89,7 +90,7 @@ namespace DimensioneringV2.UI
                 }
 
                 var bestChromosome = ga.BestChromosome;
-                var bestFitness = (int)(bestChromosome.Fitness ?? 0);
+                var bestFitness = -(int)(bestChromosome.Fitness ?? 0);
                 if (Math.Abs(bestFitness - _latestFitness) > double.Epsilon)
                 {
                     _latestFitness = bestFitness;
