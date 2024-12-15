@@ -48,8 +48,8 @@ namespace DimensioneringV2.Services
 
             ga.TaskExecutor = new ParallelTaskExecutor()
             {
-                MinThreads = 1,
-                MaxThreads = 8
+                MinThreads = 4,
+                MaxThreads = 500
             };
 
             ga.Start();

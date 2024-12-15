@@ -35,13 +35,13 @@ namespace DimensioneringV2.Services
                 new GraphChromosome(nonBridges.Count(), graph.Copy()));
 
             var fitness = new GraphFitness(props);
-            var selection = new TournamentSelection();
-            var crossover = new UniformCrossover();
-            var mutation = new GraphMutation();
+            var selection = new EliteSelection();
+            var crossover = new CycleCrossover();
+            var mutation = new FlipBitMutation();
 
             var ga = new GeneticAlgorithm(population, fitness, selection, crossover, mutation)
             {
-                Termination = new FitnessStagnationTermination(50)
+                Termination = new FitnessStagnationTermination(1000)
             };
 
             return ga;
