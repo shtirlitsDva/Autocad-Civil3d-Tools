@@ -39,10 +39,10 @@ namespace DimensioneringV2.Services
             var crossover = new UniformCrossover();
             var mutation = new FlipBitMutation();
 
-            var ga = new GeneticAlgorithm(population, fitness, selection, crossover, mutation);
-            //{
-            //    Termination = new FitnessStagnationTermination(50)
-            //};
+            var ga = new GeneticAlgorithm(population, fitness, selection, crossover, mutation)
+            {
+                Termination = new FitnessStagnationTermination(50)
+            };
 
             return ga;
         }

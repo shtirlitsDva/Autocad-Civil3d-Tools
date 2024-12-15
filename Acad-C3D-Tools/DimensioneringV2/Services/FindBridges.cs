@@ -44,7 +44,7 @@ namespace DimensioneringV2.Services
         /// <summary>
         /// Finds all non-bridge edges.
         /// </summary>
-        internal static List<BFEdge> DoNotFindThem(UndirectedGraph<BFNode, BFEdge> graph)
+        internal static List<BFEdge> FindNonBridges(UndirectedGraph<BFNode, BFEdge> graph)
         {
             var bridges = DoFindThem(graph);
             return graph.Edges.Where(x => !bridges.Contains(x)).ToList();

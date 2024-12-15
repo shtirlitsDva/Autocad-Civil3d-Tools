@@ -28,7 +28,7 @@ namespace DimensioneringV2.Genetic
         {
             _originalGraph = graph.Copy();
             _localGraph = graph.Copy();
-            _orderedNonBridges = FindBridges.DoNotFindThem(_localGraph).OrderBy(x => x.ChromosomeIndex).ToArray();
+            _orderedNonBridges = FindBridges.FindNonBridges(_localGraph).OrderBy(x => x.ChromosomeIndex).ToArray();
 
             var random = RandomizationProvider.Current;
             var randomizedIndici = 
