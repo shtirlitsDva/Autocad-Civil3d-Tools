@@ -37,7 +37,7 @@ namespace DimensioneringV2.Services
             var fitness = new GraphFitness(props);
             var selection = new TournamentSelection();
             var crossover = new UniformCrossover();
-            var mutation = new FlipBitMutation();
+            var mutation = new GraphMutation();
 
             var ga = new GeneticAlgorithm(population, fitness, selection, crossover, mutation)
             {

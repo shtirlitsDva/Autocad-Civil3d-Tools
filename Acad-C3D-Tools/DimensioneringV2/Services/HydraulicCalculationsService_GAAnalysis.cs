@@ -46,6 +46,12 @@ namespace DimensioneringV2.Services
                 reportProgress(generation, fitness);
             };
 
+            ga.TaskExecutor = new ParallelTaskExecutor()
+            {
+                MinThreads = 1,
+                MaxThreads = 8
+            };
+
             ga.Start();
 
             if (token.IsCancellationRequested)

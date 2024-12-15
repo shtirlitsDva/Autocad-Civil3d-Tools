@@ -35,7 +35,7 @@
             <TextBlock Text="{Binding GenerationCounter}" Margin="5" VerticalAlignment="Center" />
 
             <TextBlock Text="Current Cost:" Margin="15,5,5,5" VerticalAlignment="Center" />
-            <TextBlock Text="{Binding CurrentCost}" Margin="5" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding CurrentCost, StringFormat={}{0:N0}}" Margin="5" VerticalAlignment="Center" />
         </StackPanel>
 
         <!-- Stop Button -->
