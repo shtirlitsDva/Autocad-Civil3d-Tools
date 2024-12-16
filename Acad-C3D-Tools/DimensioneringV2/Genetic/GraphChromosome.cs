@@ -4,9 +4,12 @@ using DimensioneringV2.Services;
 
 using GeneticSharp;
 
+using Mapsui.Utilities;
+
 using QuikGraph;
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -20,46 +23,71 @@ namespace DimensioneringV2.Genetic
         private readonly UndirectedGraph<BFNode, BFEdge> _localGraph;
         private readonly List<BFEdge> _removedEdges = new List<BFEdge>();
         private readonly BFEdge[] _orderedNonBridges;
+        private ConcurrentHashSet<BitArray> _solutions;
 
         public UndirectedGraph<BFNode, BFEdge> LocalGraph => _localGraph;
         public List<BFEdge> RemovedEdges => _removedEdges;
 
-        public GraphChromosome(int chromosomeLength, UndirectedGraph<BFNode, BFEdge> graph) : base(chromosomeLength)
+        public GraphChromosome(int chromosomeLength, 
+            UndirectedGraph<BFNode, BFEdge> graph,
+            ConcurrentHashSet<BitArray> solutions) : base(chromosomeLength)
         {
+            _solutions = solutions;
             _originalGraph = graph.Copy();
             _localGraph = graph.Copy();
             _orderedNonBridges = FindBridges.FindNonBridges(_localGraph).OrderBy(x => x.ChromosomeIndex).ToArray();
 
             var random = RandomizationProvider.Current;
+
+            BitArray bitArray;
+            bool isUnique;
             var randomizedIndici = 
                 Enumerable.Range(0, _orderedNonBridges.Length)
                 .OrderBy(x => random.GetDouble()).ToArray();
 
-            var test = GetGenes();
-            var range = Enumerable.Range(0, chromosomeLength).ToArray();
-
-            for (int i = 0; i < randomizedIndici.Length; i++)
+            do
             {
-                // Determine if the edge should be removed
-                bool removeEdge = random.GetDouble() >= 0.5;
-                var edge = _orderedNonBridges[randomizedIndici[i]];
+                for (int i = 0; i < randomizedIndici.Length; i++)
+                {
+                    // Determine if the edge should be removed
+                    bool removeEdge = random.GetDouble() >= 0.5;
+                    var edge = _orderedNonBridges[randomizedIndici[i]];
 
-                if (removeEdge && !_localGraph.IsBridgeEdge(edge))
-                {
-                    _localGraph.RemoveEdge(edge);
-                    _removedEdges.Add(edge);
-                    ReplaceGene(i, new Gene(1));
+                    if (removeEdge && !_localGraph.IsBridgeEdge(edge))
+                    {
+                        _localGraph.RemoveEdge(edge);
+                        _removedEdges.Add(edge);
+                        ReplaceGene(i, new Gene(1));
+                    }
+                    else
+                    {
+                        ReplaceGene(i, new Gene(0));
+                    }
                 }
-                else
-                {
-                    ReplaceGene(i, new Gene(0));
-                }
+
+                bitArray = GetBitArray();
             }
+            while (!IsSolutionUnique(bitArray));
         }
 
         public override IChromosome CreateNew()
         {
-            return new GraphChromosome(Length, _originalGraph);
+            return new GraphChromosome(Length, _originalGraph, _solutions);
+        }
+
+        public BitArray GetBitArray()
+        {
+            var bitArray = new BitArray(Length);
+            for (int i = 0; i < Length; i++)
+            {
+                bitArray[i] = (int)GetGene(i).Value == 1;
+            }
+            return bitArray;
+        }
+
+        private bool IsSolutionUnique(BitArray bitArray)
+        {
+            return _solutions.Add(bitArray);
         }
     }
 }

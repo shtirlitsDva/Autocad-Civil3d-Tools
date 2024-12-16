@@ -15,6 +15,9 @@ using IntersectUtilities.UtilsCommon;
 
 using DimensioneringV2.Genetic;
 using GeneticSharp;
+using System.Collections;
+using System.Collections.Concurrent;
+using Mapsui.Utilities;
 
 namespace DimensioneringV2.Services
 {
@@ -29,10 +32,12 @@ namespace DimensioneringV2.Services
 
             graph.InitChromosomeIndex();
 
+            ConcurrentHashSet<BitArray> solutions = new ConcurrentHashSet<BitArray>(new BitArrayComparer());
+
             var population = new Population(
                 50,
                 200,
-                new GraphChromosome(nonBridges.Count(), graph.Copy()));
+                new GraphChromosome(nonBridges.Count(), graph.Copy(), solutions));
 
             var fitness = new GraphFitness(props);
             var selection = new EliteSelection();
@@ -43,6 +48,15 @@ namespace DimensioneringV2.Services
             {
                 Termination = new FitnessStagnationTermination(1000)
             };
+
+            ga.TaskExecutor = new ParallelTaskExecutor()
+            {
+                MinThreads = 4,
+                MaxThreads = 32
+            };
+
+            ga.MutationProbability = 0.05f;
+            ga.CrossoverProbability = 0.85f;
 
             return ga;
         }
