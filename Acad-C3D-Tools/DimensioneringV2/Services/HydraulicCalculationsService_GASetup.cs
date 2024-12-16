@@ -30,13 +30,13 @@ namespace DimensioneringV2.Services
             graph.InitChromosomeIndex();
 
             var population = new Population(
-                nonBridges.Count(),
-                nonBridges.Count() * 2,
+                50,
+                200,
                 new GraphChromosome(nonBridges.Count(), graph.Copy()));
 
             var fitness = new GraphFitness(props);
             var selection = new EliteSelection();
-            var crossover = new CycleCrossover();
+            var crossover = new UniformCrossover(0.75f);
             var mutation = new FlipBitMutation();
 
             var ga = new GeneticAlgorithm(population, fitness, selection, crossover, mutation)
