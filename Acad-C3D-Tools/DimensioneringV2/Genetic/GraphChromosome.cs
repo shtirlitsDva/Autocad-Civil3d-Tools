@@ -20,29 +20,24 @@ namespace DimensioneringV2.Genetic
 {
     internal class GraphChromosome : BinaryChromosomeBase
     {
-        private readonly UndirectedGraph<BFNode, BFEdge> _originalGraph;
-        private readonly UndirectedGraph<BFNode, BFEdge> _localGraph;
-        private readonly List<BFEdge> _removedEdges = new List<BFEdge>();
-        private readonly BFEdge[] _orderedNonBridges;
+        private UndirectedGraph<BFNode, BFEdge> _localGraph;
+        private readonly HashSet<int> _removedEdges = new HashSet<int>();
         private CoherencyManager _chm;
 
         public UndirectedGraph<BFNode, BFEdge> LocalGraph => _localGraph;
-        public List<BFEdge> RemovedEdges => _removedEdges;
+        public HashSet<int> RemovedEdges => _removedEdges;
 
         public GraphChromosome(CoherencyManager coherencyManager) 
             : base(coherencyManager.ChromosomeLength)
         {
             _chm = coherencyManager;
-            _originalGraph = _chm.OriginalGraph.Copy();
             _localGraph = _chm.OriginalGraph.Copy();
-
-            _orderedNonBridges = FindBridges.FindNonBridges(_localGraph).OrderBy(x => x.NonBridgeChromosomeIndex).ToArray();
 
             var random = RandomizationProvider.Current;
 
             BitArray bitArray;
             var randomizedIndici = 
-                Enumerable.Range(0, _orderedNonBridges.Length)
+                Enumerable.Range(0, _chm.ChromosomeLength)
                 .OrderBy(x => random.GetDouble()).ToArray();
 
             do
@@ -51,12 +46,12 @@ namespace DimensioneringV2.Genetic
                 {
                     // Determine if the edge should be removed
                     bool removeEdge = random.GetDouble() >= 0.5;
-                    var edge = _orderedNonBridges[randomizedIndici[i]];
+                    var edge = _localGraph.Edges.FirstOrDefault(x => x.NonBridgeChromosomeIndex == randomizedIndici[i]);
 
-                    if (removeEdge && !_localGraph.IsBridgeEdge(edge))
+                    if (edge != null && removeEdge && !_localGraph.IsBridgeEdge(edge))
                     {
                         _localGraph.RemoveEdge(edge);
-                        _removedEdges.Add(edge);
+                        _removedEdges.Add(randomizedIndici[i]);
                         ReplaceGene(i, new Gene(1));
                     }
                     else
@@ -72,7 +67,13 @@ namespace DimensioneringV2.Genetic
 
         public override IChromosome CreateNew()
         {
-            return new GraphChromosome(Length, _originalGraph, _chm);
+            return new GraphChromosome(_chm);
+        }
+
+        public void ResetChromosome()
+        {
+            _localGraph = _chm.OriginalGraph.Copy();
+            _removedEdges.Clear();
         }
 
         public BitArray GetBitArray()
@@ -85,11 +86,52 @@ namespace DimensioneringV2.Genetic
             return bitArray;
         }
 
-        public bool IsValidMutation(int index)
+        public bool TryMutate(int index)
         {
+            int curValue = (int)GetGene(index).Value;
 
+            //case 0 (means add edge, this can be done at any time):
+            if (curValue == 0) 
+            { 
+                _removedEdges.Remove(index);
+                _localGraph.AddEdgeCopy(_chm.OriginalNonBridgeEdgeFromIndex(index));
+                return true; 
+            }
 
-            var tempGraph = _localGraph.Copy();
+            //case 1 (means remove edge, needs to be valid non-edge at current configuration):
+            if (!_localGraph.IsBridgeEdge(index)) 
+            { 
+                _localGraph.RemoveEdgeByNonBridgeIndex(index);
+                _removedEdges.Add(index);
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// This must be done on a Reset Chromosome
+        /// </summary>
+        public void ReplaceGraphChromosomeGene(int index, Gene gene)
+        {
+            if (index < 0 || index >= this.Length)
+            {
+                throw new ArgumentOutOfRangeException(nameof(index), "There is no Gene on index {0} to be replaced.".With(index));
+            }
+
+            int geneValue = (int)gene.Value;
+
+            if (geneValue == 0)
+            {
+                _removedEdges.Add(index);
+                _localGraph.RemoveEdgeByNonBridgeIndex(index);
+            }
+            else if (geneValue == 1)
+            {
+            }
+            ReplaceGene(index, gene);
         }
     }
 }

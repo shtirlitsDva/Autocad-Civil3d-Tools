@@ -35,14 +35,18 @@ namespace DimensioneringV2.Genetic
 
             if (m_rnd.GetDouble() <= probability)
             {
-                BitArray bitArray;
-                do
-                {
-                    var index = m_rnd.GetInt(0, chromosome.Length);
-                    binaryChromosome.FlipGene(index);
-                    bitArray = binaryChromosome.GetBitArray();
+                //Unique bit checking requires a little more effort, maybe later
+                //BitArray bitArray;
+                //do
+                //{
+                var index = m_rnd.GetInt(0, chromosome.Length);
 
-                } while (!_chm.IsUnique(bitArray));
+                if (binaryChromosome.TryMutate(index))
+                {
+                    binaryChromosome.FlipGene(index);
+                    //    bitArray = binaryChromosome.GetBitArray();
+                    //} while (!_chm.IsUnique(bitArray));
+                }
             }
         }
     }

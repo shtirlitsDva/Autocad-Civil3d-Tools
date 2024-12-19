@@ -1,4 +1,5 @@
-﻿using Autodesk.AutoCAD.Geometry;
+﻿using Autodesk.AutoCAD.DatabaseServices.Filters;
+using Autodesk.AutoCAD.Geometry;
 
 using DimensioneringV2.BruteForceOptimization;
 using DimensioneringV2.Geometry;
@@ -128,6 +129,12 @@ namespace DimensioneringV2
 
             return bfGraph;
         }
+        public static void AddEdgeCopy(this UndirectedGraph<BFNode, BFEdge> graph, BFEdge edge)
+        {
+            var source = graph.Vertices.FirstOrDefault(x => x.OriginalNodeJunction == edge.Source.OriginalNodeJunction);
+            var target = graph.Vertices.FirstOrDefault(x => x.OriginalNodeJunction == edge.Target.OriginalNodeJunction);
+            graph.AddEdge(new BFEdge(source, target, edge.OriginalEdge));
+        }
         public static void InitNonBridgeChromosomeIndex(this UndirectedGraph<BFNode, BFEdge> graph)
         {
             var brdiges = FindBridges.DoFindThem(graph);
@@ -192,6 +199,34 @@ namespace DimensioneringV2
             }
 
             return bridges.Contains(edge);
+        }
+        public static bool IsBridgeEdge(this UndirectedGraph<BFNode, BFEdge> graph, int index)
+        {
+            var bridges = new HashSet<BFEdge>();
+            var low = new Dictionary<BFNode, int>();
+            var pre = new Dictionary<BFNode, int>();
+            foreach (var node in graph.Vertices)
+            {
+                low[node] = -1;
+                pre[node] = -1;
+            }
+
+            int cnt = 0;
+            foreach (var node in graph.Vertices)
+            {
+                if (pre[node] == -1)
+                {
+                    FindBridges.BridgeDfs(graph, node, node, ref cnt, low, pre, bridges);
+                }
+            }
+
+            return bridges.Any(x => x.NonBridgeChromosomeIndex == index);
+        }
+        public static void RemoveEdgeByNonBridgeIndex(this UndirectedGraph<BFNode, BFEdge> graph, int index)
+        {
+            var edge = graph.Edges.FirstOrDefault(x => x.NonBridgeChromosomeIndex == index);
+            if (edge == null) throw new Exception("Edge not found in graph!");
+            graph.RemoveEdge(edge);
         }
 
         public static class ThreadSafeRandom
