@@ -124,11 +124,6 @@
 		</Reference>
 	</ItemGroup>
 	<ItemGroup>
-		<None Include="..\.editorconfig">
-			<Link>.editorconfig</Link>
-		</None>
-	</ItemGroup>
-	<ItemGroup>
 		<Content Include="DebugCommandLineAttribute.txt" />
 	</ItemGroup>
 	<PropertyGroup>

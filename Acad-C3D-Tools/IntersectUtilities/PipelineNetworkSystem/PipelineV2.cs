@@ -628,7 +628,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
             GetStationAtPoint(pl.GetPointAtDist(pl.Length / 2));
         public override double GetPolylineEndStation(Polyline pl) =>
             GetStationAtPoint(GetClosestPointTo(pl.EndPoint, false));
-        public override double GetStationAtPoint(Point3d pt) => topology.GetDistAtPoint(pt);
+        public override double GetStationAtPoint(Point3d pt) => topology.GetDistAtPoint(topology.GetClosestPointTo(pt, false));
         public override Point3d GetClosestPointTo(Point3d pt, bool extend = false) => topology.GetClosestPointTo(pt, extend);
         public override bool IsConnectedTo(IPipelineV2 other, double tol) =>
             this.PipelineEntities.IsConnectedTo(other.PipelineEntities);
@@ -657,6 +657,9 @@ namespace IntersectUtilities.PipelineNetworkSystem
             //1. Parent is connected S/E to this && this S/E is coincident with parent S/E -> end to end, start or end
             //2. Parent is not connected S/E to this && this S/E is connected to P -> afgrening
             //3. Parent is connected S/E to this && this S/E is not coincident with parent S/E -> middle
+
+            //4. Case where the NA is connected to a tee like and does not reach the alignment geometry
+            //   In this case we need to find the connection point to the tee like using geometry of components
 
             //use a variable to cache the polyline reference
             //remember to erase it at the end
@@ -697,10 +700,41 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 if (testPE.DistanceHorizontalTo(thisEnd) < tol) return thisEnd;
 
                 //Test for Case 3.
-                testPS = thisPlRef.GetClosestPointTo(parentStart, false);                 
+                testPS = thisPlRef.GetClosestPointTo(parentStart, false);
                 if (testPS.DistanceHorizontalTo(parentStart) < tol) return testPS;
                 testPE = thisPlRef.GetClosestPointTo(parentEnd, false);
                 if (testPE.DistanceHorizontalTo(parentEnd) < tol) return testPE;
+
+                //Test for Case 4.
+                Point3d con = Point3d.Origin;
+                var ent1 = parent.PipelineEntities.GetEntityByPoint(thisStart);
+                var ent2 = parent.PipelineEntities.GetEntityByPoint(thisEnd);
+                var ent = ent1 ?? ent2;
+
+                if (ent1 != null) con = parentPlRef.GetClosestPointTo(thisStart, false);
+                else if (ent2 != null) con = parentPlRef.GetClosestPointTo(thisEnd, false);
+
+                if (ent1 == null && ent2 == null) throw new Exception(
+                    $"Could not find connection location between {this.Name} and {parent.Name}!");
+                else
+                {
+                    //Dirty fix for missing branch connection references
+                    HashSet<string> names = [
+                        "Afgrening med spring",
+                        "Lige afgrening",
+                        "Muffetee",
+                        "Parallelafgrening",
+                        "Preskobling tee",
+                    ];
+                    if (ent is BlockReference br && names.Contains(br.ReadDynamicCsvProperty(DynamicProperty.Type)))
+                    {
+                        psh.Pipeline.WritePropertyString(ent, psh.PipelineDef.BranchesOffToAlignment, this.Name);
+                    }
+
+                    return con;
+                }
+
+
 
                 //If we get here, we have failed to find a connection location
                 throw new Exception($"Could not find connection location between {this.Name} and {parent.Name}!");

@@ -61,6 +61,7 @@ namespace IntersectUtilities
     {
         [CommandMethod("ASSIGNBLOCKSANDPLINESTOALIGNMENTS")]
         ///REWRITE IN OOP, DAMMIT!!!
+        ///LIKE I KNOW HOW TO DO IT!!!
         public void assignblocksandplinestoalignments()
         {
             DocumentCollection docCol = Application.DocumentManager;

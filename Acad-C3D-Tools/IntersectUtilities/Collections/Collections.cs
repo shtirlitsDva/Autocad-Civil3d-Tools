@@ -13,6 +13,7 @@ using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 using Autodesk.AutoCAD.Geometry;
+using Newtonsoft.Json.Linq;
 
 namespace IntersectUtilities.Collections
 {
@@ -67,6 +68,21 @@ namespace IntersectUtilities.Collections
             if (psHere.Any(x => psThere.Any(y => x.HorizontalEqualz(y))))
                 return psHere.First(x => psThere.Any(y => x.HorizontalEqualz(y)));
             else return Point3d.Origin;
+        }
+        public Entity GetEntityByPoint(Point3d pt)
+        {
+            Dictionary<Point3d, Entity> dict = new Dictionary<Point3d, Entity>(new Point3dHorizontalComparer());
+            //It should be safe enought to use TryAdd here, as there can't be two elements with the same horizontal coordinates.
+            //at the same point connecting to the same entity.
+            foreach (var item in this)
+                foreach (var p in item.GetAllEndPoints()) dict.TryAdd(p, item);
+
+            if (dict.TryGetValue(pt, out Entity value))
+            {
+                return value;
+            }
+
+            return null;
         }
         private string ReadConnection(Entity ent) =>
             psh.Graph.ReadPropertyString(ent, psh.GraphDef.ConnectedEntities);
