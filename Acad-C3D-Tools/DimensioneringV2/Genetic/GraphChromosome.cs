@@ -11,6 +11,7 @@ using QuikGraph;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -23,24 +24,23 @@ namespace DimensioneringV2.Genetic
         private readonly UndirectedGraph<BFNode, BFEdge> _localGraph;
         private readonly List<BFEdge> _removedEdges = new List<BFEdge>();
         private readonly BFEdge[] _orderedNonBridges;
-        private ConcurrentHashSet<BitArray> _solutions;
+        private CoherencyManager _chm;
 
         public UndirectedGraph<BFNode, BFEdge> LocalGraph => _localGraph;
         public List<BFEdge> RemovedEdges => _removedEdges;
 
-        public GraphChromosome(int chromosomeLength, 
-            UndirectedGraph<BFNode, BFEdge> graph,
-            ConcurrentHashSet<BitArray> solutions) : base(chromosomeLength)
+        public GraphChromosome(CoherencyManager coherencyManager) 
+            : base(coherencyManager.ChromosomeLength)
         {
-            _solutions = solutions;
-            _originalGraph = graph.Copy();
-            _localGraph = graph.Copy();
-            _orderedNonBridges = FindBridges.FindNonBridges(_localGraph).OrderBy(x => x.ChromosomeIndex).ToArray();
+            _chm = coherencyManager;
+            _originalGraph = _chm.OriginalGraph.Copy();
+            _localGraph = _chm.OriginalGraph.Copy();
+
+            _orderedNonBridges = FindBridges.FindNonBridges(_localGraph).OrderBy(x => x.NonBridgeChromosomeIndex).ToArray();
 
             var random = RandomizationProvider.Current;
 
             BitArray bitArray;
-            bool isUnique;
             var randomizedIndici = 
                 Enumerable.Range(0, _orderedNonBridges.Length)
                 .OrderBy(x => random.GetDouble()).ToArray();
@@ -67,12 +67,12 @@ namespace DimensioneringV2.Genetic
 
                 bitArray = GetBitArray();
             }
-            while (!IsSolutionUnique(bitArray));
+            while (!_chm.IsUnique(bitArray));
         }
 
         public override IChromosome CreateNew()
         {
-            return new GraphChromosome(Length, _originalGraph, _solutions);
+            return new GraphChromosome(Length, _originalGraph, _chm);
         }
 
         public BitArray GetBitArray()
@@ -85,9 +85,11 @@ namespace DimensioneringV2.Genetic
             return bitArray;
         }
 
-        private bool IsSolutionUnique(BitArray bitArray)
+        public bool IsValidMutation(int index)
         {
-            return _solutions.Add(bitArray);
+
+
+            var tempGraph = _localGraph.Copy();
         }
     }
 }

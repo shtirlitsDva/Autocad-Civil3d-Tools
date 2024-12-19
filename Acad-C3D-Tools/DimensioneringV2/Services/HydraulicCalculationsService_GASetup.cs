@@ -27,17 +27,12 @@ namespace DimensioneringV2.Services
             UndirectedGraph<BFNode, BFEdge> graph,
             List<(Func<BFEdge, dynamic> Getter, Action<BFEdge, dynamic> Setter)> props)
         {
-            var bridges = FindBridges.DoFindThem(graph);
-            var nonBridges = graph.Edges.Where(x => !bridges.Contains(x));
-
-            graph.InitChromosomeIndex();
-
-            ConcurrentHashSet<BitArray> solutions = new ConcurrentHashSet<BitArray>(new BitArrayComparer());
+            CoherencyManager chm = new CoherencyManager(graph);
 
             var population = new Population(
                 50,
                 200,
-                new GraphChromosome(nonBridges.Count(), graph.Copy(), solutions));
+                new GraphChromosome(chm));
 
             var fitness = new GraphFitness(props);
             var selection = new EliteSelection();

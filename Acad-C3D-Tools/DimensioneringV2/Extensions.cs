@@ -122,18 +122,21 @@ namespace DimensioneringV2
             foreach (var edge in graph.Edges)
             {
                 var bfEdge = new BFEdge(nodeMap[edge.Source], nodeMap[edge.Target], edge.OriginalEdge);
-                bfEdge.ChromosomeIndex = edge.ChromosomeIndex;
+                bfEdge.NonBridgeChromosomeIndex = edge.NonBridgeChromosomeIndex;
                 bfGraph.AddEdge(bfEdge);
             }
 
             return bfGraph;
         }
-        public static void InitChromosomeIndex(this UndirectedGraph<BFNode, BFEdge> graph)
+        public static void InitNonBridgeChromosomeIndex(this UndirectedGraph<BFNode, BFEdge> graph)
         {
+            var brdiges = FindBridges.DoFindThem(graph);
+
             int index = 0;
             foreach (var edge in graph.Edges)
             {
-                edge.ChromosomeIndex = index;
+                if (brdiges.Contains(edge)) continue;
+                edge.NonBridgeChromosomeIndex = index;
                 index++;
             }
         }
