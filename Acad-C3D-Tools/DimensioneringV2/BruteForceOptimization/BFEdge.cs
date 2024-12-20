@@ -45,7 +45,7 @@ namespace DimensioneringV2.BruteForceOptimization
         public double UtilizationRate { get; set; }
         public int Level { get; set; } // Level in the network hierarchy
         public EdgePipeSegment OriginalEdge { get; }
-        public int NonBridgeChromosomeIndex { get; internal set; }
+        public int NonBridgeChromosomeIndex { get; internal set; } = -1;
 
         public BFEdge([NotNull] BFNode source, [NotNull] BFNode target, EdgePipeSegment edge) : base(source, target)
         {

@@ -67,7 +67,7 @@ namespace DimensioneringV2.UI
             var lineSeries = PlotModel.Series.FirstOrDefault() as LineSeries;
             if (lineSeries is null) throw new Exception("No lineseries found!");
 
-            if (fitness != double.MaxValue) // Only add meaningful values
+            if (fitness > double.MaxValue - 100000) // Only add meaningful values
             {
                 lineSeries.Points.Add(new DataPoint(lineSeries.Points.Count, fitness));
                 CurrentCost = fitness;

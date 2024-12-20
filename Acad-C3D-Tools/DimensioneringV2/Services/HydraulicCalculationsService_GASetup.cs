@@ -36,7 +36,7 @@ namespace DimensioneringV2.Services
 
             var fitness = new GraphFitness(props);
             var selection = new EliteSelection();
-            var crossover = new UniqueCrossover(chm, 0.05f);
+            var crossover = new UniqueCrossover(chm, 0.5f);
             var mutation = new GraphMutation(chm);
 
             var ga = new GeneticAlgorithm(population, fitness, selection, crossover, mutation)
@@ -50,8 +50,8 @@ namespace DimensioneringV2.Services
                 MaxThreads = 32
             };
 
-            ga.MutationProbability = 0.05f;
-            ga.CrossoverProbability = 0.85f;
+            ga.MutationProbability = 0.5f;
+            //ga.CrossoverProbability = 0.85f;
 
             return ga;
         }

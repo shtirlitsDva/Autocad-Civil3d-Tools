@@ -17,7 +17,7 @@ namespace DimensioneringV2.Genetic
     internal class CoherencyManager
     {
         private readonly Dictionary<int, BFEdge> _indexToNonBridge;
-        private readonly Dictionary<BFEdge, int> _nonBridgeToIndex;
+        //private readonly Dictionary<BFEdge, int> _nonBridgeToIndex;
         private readonly UndirectedGraph<BFNode, BFEdge> _originalGraph;
         private readonly ConcurrentHashSet<BitArray> _uniqueBitRepresentations;
         private readonly HashSet<BFEdge> _bridges;
@@ -28,12 +28,12 @@ namespace DimensioneringV2.Genetic
         {
             _originalGraph = graph;
             _indexToNonBridge = new Dictionary<int, BFEdge>();
-            _nonBridgeToIndex = new Dictionary<BFEdge, int>();
+            //_nonBridgeToIndex = new Dictionary<BFEdge, int>();
             graph.InitNonBridgeChromosomeIndex();
-            foreach (var item in graph.Edges)
+            foreach (var item in graph.Edges.Where(x => x.NonBridgeChromosomeIndex != -1))
             {
                 _indexToNonBridge.Add(item.NonBridgeChromosomeIndex, item);
-                _nonBridgeToIndex.Add(item, item.NonBridgeChromosomeIndex);
+                //_nonBridgeToIndex.Add(item, item.NonBridgeChromosomeIndex);
             }
 
             _uniqueBitRepresentations = new ConcurrentHashSet<BitArray>();
@@ -50,9 +50,9 @@ namespace DimensioneringV2.Genetic
         {
             return _indexToNonBridge[index];
         }
-        public int IndexFromOriginalNonBridgeEdge(BFEdge edge)
-        {
-            return _nonBridgeToIndex[edge];
-        }
+        //public int IndexFromOriginalNonBridgeEdge(BFEdge edge)
+        //{
+        //    return _nonBridgeToIndex[edge];
+        //}
     }
 }
