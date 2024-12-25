@@ -18,6 +18,9 @@ using System.Threading.Tasks;
 
 namespace DimensioneringV2.Genetic
 {
+    /// <summary>
+    /// 1 = edge is off, 0 = edge is on
+    /// </summary>
     internal class GraphChromosome : BinaryChromosomeBase
     {
         private UndirectedGraph<BFNode, BFEdge> _localGraph;
@@ -90,19 +93,20 @@ namespace DimensioneringV2.Genetic
         {
             int curValue = (int)GetGene(index).Value;
 
-            //case 0 (means add edge, this can be done at any time):
-            if (curValue == 0) 
-            { 
-                _removedEdges.Remove(index);
-                _localGraph.AddEdgeCopy(_chm.OriginalNonBridgeEdgeFromIndex(index));
-                return true; 
-            }
-
-            //case 1 (means remove edge, needs to be valid non-edge at current configuration):
-            if (!_localGraph.IsBridgeEdge(index)) 
-            { 
+            //current value 0 means edge is on
+            //case 0 (means mutates to 1 -> remove edge):
+            if (curValue == 0 && !_localGraph.IsBridgeEdge(index)) 
+            {
                 _localGraph.RemoveEdgeByNonBridgeIndex(index);
                 _removedEdges.Add(index);
+                return true; 
+            }
+            //Current value 1 means edge is off
+            //case 1 (means mutates to 0 -> add edge):
+            else if (curValue == 1) 
+            { 
+                _removedEdges.Remove(index);
+                _localGraph.AddEdgeCopy(_chm.OriginalNonBridgeEdgeFromIndex(index));                
                 return true;
             }
             else
@@ -114,24 +118,23 @@ namespace DimensioneringV2.Genetic
         /// <summary>
         /// This must be done on a Reset Chromosome
         /// </summary>
-        public void ReplaceGraphChromosomeGene(int index, Gene gene)
+        public void ReplaceGraphChromosomeGene(int index, Gene foreignGene)
         {
             if (index < 0 || index >= this.Length)
             {
-                throw new ArgumentOutOfRangeException(nameof(index), "There is no Gene on index {0} to be replaced.".With(index));
+                throw new ArgumentOutOfRangeException(nameof(index), 
+                    "There is no Gene on index {0} to be replaced.".With(index));
             }
 
-            int geneValue = (int)gene.Value;
+            int foreignGeneValue = (int)foreignGene.Value;
+            int localGeneValue = (int)GetGene(index).Value;
 
-            if (geneValue == 0)
+            if (foreignGeneValue == localGeneValue)
             {
-                _removedEdges.Add(index);
-                _localGraph.RemoveEdgeByNonBridgeIndex(index);
+                return;
             }
-            else if (geneValue == 1)
-            {
-            }
-            ReplaceGene(index, gene);
+
+            if (TryMutate(index)) ReplaceGene(index, foreignGene);
         }
     }
 }
