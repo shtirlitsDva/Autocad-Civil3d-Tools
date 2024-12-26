@@ -50,6 +50,8 @@ namespace DimensioneringV2.Services
                 MaxThreads = 32
             };
 
+            //ga.TaskExecutor = new 
+
             ga.MutationProbability = 0.5f;
             //ga.CrossoverProbability = 0.85f;
 

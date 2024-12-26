@@ -165,6 +165,9 @@ namespace DimensioneringV2.GraphFeatures
         public bool IsBridge { get; set; } = false;
         public void ResetHydraulicResults()
         {
+            NumberOfBuildingsSupplied = 0;
+            NumberOfUnitsSupplied = 0;
+            HeatingDemandSupplied = 0;
             PipeDim = default(Dim);
             ReynoldsSupply = 0;
             ReynoldsReturn = 0;

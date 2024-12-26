@@ -15,11 +15,20 @@ using utils = IntersectUtilities.UtilsCommon.Utils;
 using System.IO;
 using NorsynHydraulicCalc;
 using DimensioneringV2.BruteForceOptimization;
+using DimensioneringV2.Genetic;
 
 namespace DimensioneringV2.Services
 {
     internal partial class HydraulicCalculationsService
     {
+        internal static double CalculateBFCost(GraphChromosome chr,
+            List<(
+                Func<BFEdge, dynamic> Getter,
+                Action<BFEdge, dynamic> Setter)> props)
+        {
+            return CalculateBFCost(chr.LocalGraph, props);
+        }
+
         internal static double CalculateBFCost(UndirectedGraph<BFNode, BFEdge> graph,
             List<(
                 Func<BFEdge, dynamic> Getter,

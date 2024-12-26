@@ -29,6 +29,7 @@ namespace DimensioneringV2.Genetic
 
         public UndirectedGraph<BFNode, BFEdge> LocalGraph => _localGraph;
         public HashSet<int> RemovedEdges => _removedEdges;
+        public CoherencyManager CoherencyManager => _chm;
 
         public GraphChromosome(CoherencyManager coherencyManager) 
             : base(coherencyManager.ChromosomeLength)
@@ -65,7 +66,7 @@ namespace DimensioneringV2.Genetic
 
                 bitArray = GetBitArray();
             }
-            while (!_chm.IsUnique(bitArray));
+            while (!_chm.IsUnique(bitArray) && _localGraph.AreBuildingNodesConnected());
         }
 
         public override IChromosome CreateNew()

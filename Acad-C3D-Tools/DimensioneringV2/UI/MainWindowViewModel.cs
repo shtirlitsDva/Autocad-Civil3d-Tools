@@ -122,6 +122,9 @@ namespace DimensioneringV2.UI
         {
             try
             {
+                //Init the hydraulic calculation service using current settings
+                HydraulicCalculationService.Initialize();
+
                 var progressWindow = new BruteForceProgressWindow();
                 progressWindow.Show();
                 BruteForceProgressContext.VM = (BruteForceProgressViewModel)progressWindow.DataContext;

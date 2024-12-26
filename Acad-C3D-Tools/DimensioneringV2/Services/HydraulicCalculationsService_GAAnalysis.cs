@@ -32,26 +32,26 @@ namespace DimensioneringV2.Services
 
             ga.GenerationRan += (s, e) =>
             {
-                if (token.IsCancellationRequested)
-                {
-                    ga.Stop();
-                    return;
-                }
-
                 var bestChromosome = ga.BestChromosome;
                 var fitness = -bestChromosome?.Fitness ?? 0.0;
                 var generation = ga.GenerationsNumber;
 
                 // Report progress to the UI
                 reportProgress(generation, fitness);
+
+                if (token.IsCancellationRequested)
+                {
+                    ga.Stop();
+                    return;
+                }
             };
 
             ga.Start();
 
-            if (token.IsCancellationRequested)
-            {
-                ga.Stop();
-            }
+            //if (token.IsCancellationRequested)
+            //{
+            //    ga.Stop();
+            //}
 
             var bestChromosome = ga.BestChromosome as GraphChromosome;
 
@@ -62,11 +62,14 @@ namespace DimensioneringV2.Services
             }
 
             // Handle result processing for this graph
-            CalculateBFCost(bestChromosome.LocalGraph, props);
+            CalculateBFCost(bestChromosome, props);
 
             //Update the original graph with the results from the best result
             foreach (var edge in bestChromosome.LocalGraph.Edges)
             {
+                edge.OriginalEdge.PipeSegment.NumberOfBuildingsSupplied = edge.NumberOfBuildingsSupplied;
+                edge.OriginalEdge.PipeSegment.NumberOfUnitsSupplied = edge.NumberOfUnitsSupplied;
+                edge.OriginalEdge.PipeSegment.HeatingDemandSupplied = edge.HeatingDemandSupplied;
                 edge.OriginalEdge.PipeSegment.PipeDim = edge.PipeDim;
                 edge.OriginalEdge.PipeSegment.ReynoldsSupply = edge.ReynoldsSupply;
                 edge.OriginalEdge.PipeSegment.ReynoldsReturn = edge.ReynoldsReturn;

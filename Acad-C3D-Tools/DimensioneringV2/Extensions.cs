@@ -91,7 +91,7 @@ namespace DimensioneringV2
             var nodeMap = new Dictionary<NodeJunction, BFNode>();
 
             // Copy nodes
-            foreach (var node in graph.Vertices)
+            foreach (NodeJunction node in graph.Vertices)
             {
                 var bfNode = new BFNode(node);
                 nodeMap[node] = bfNode;
@@ -160,9 +160,32 @@ namespace DimensioneringV2
                 graph.RemoveEdge(edgeToRemove);
             }
         }
-        public static bool IsConnected<TVertex, TEdge>(this UndirectedGraph<TVertex, TEdge> graph) where TEdge : IEdge<TVertex>
+        public static bool AreBuildingNodesConnected(this UndirectedGraph<BFNode, BFEdge> graph)
         {
-            return graph.Vertices.Count() > 0 && !graph.Vertices.Any(x => graph.AdjacentDegree(x) == 0);
+            // Find the root node
+            var rootNode = graph.Vertices.FirstOrDefault(x => x.IsRootNode);
+            if (rootNode == null) return false;
+
+            var visited = new HashSet<BFNode>();
+            var stack = new Stack<BFNode>();
+            stack.Push(rootNode);
+
+            while (stack.Count > 0)
+            {
+                var node = stack.Pop();
+                if (!visited.Add(node)) continue;
+
+                foreach (var neighbor in graph.AdjacentVertices(node))
+                {
+                    if (!visited.Contains(neighbor))
+                        stack.Push(neighbor);
+                }
+            }
+
+            // Verify all leaf nodes with IsBuildingNode == true are visited
+            return graph.Vertices
+                .Where(v => graph.AdjacentEdges(v).Count() == 1 && v.IsBuildingNode) // Filter building leaves
+                .All(visited.Contains); // Ensure all are connected
         }
         private static void TraverseGraph<TVertex, TEdge>(this 
             UndirectedGraph<TVertex, TEdge> graph, TVertex node, HashSet<TVertex> visited) where TEdge : IEdge<TVertex>

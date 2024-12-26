@@ -13,6 +13,7 @@ namespace DimensioneringV2.BruteForceOptimization
     {
         public Point2D Location { get; }
         public bool IsRootNode { get; }
+        public bool IsBuildingNode { get; set; }
         public int Degree { get; }
         public int Level { get; set; } // Level in the network hierarchy
         public int STP_Node { get; }
@@ -23,6 +24,7 @@ namespace DimensioneringV2.BruteForceOptimization
         {
             Location = new Point2D(nodeJunction.Location.X, nodeJunction.Location.Y);
             IsRootNode = nodeJunction.IsRootNode;
+            IsBuildingNode = nodeJunction.IsBuildingNode;
             Degree = nodeJunction.Degree;
             STP_Node = nodeJunction.STP_Node;
             OriginalNodeJunction = nodeJunction;

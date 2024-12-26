@@ -116,6 +116,17 @@ namespace DimensioneringV2.Services
                 graphs.Add(graph);
             }
 
+            // Step 3: Mark all building nodes
+            foreach (var graph in graphs)
+            {
+                var leafs = graph.Vertices.Where(x => graph.AdjacentEdges(x).Count() == 1);
+                foreach (var leaf in leafs)
+                {
+                    var edge = graph.AdjacentEdges(leaf).First();
+                    leaf.IsBuildingNode = edge.PipeSegment.NumberOfBuildingsConnected == 1;
+                }
+            }
+
             return graphs;
         }
     }

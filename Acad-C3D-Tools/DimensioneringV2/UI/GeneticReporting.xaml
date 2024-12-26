@@ -20,6 +20,10 @@
         </ResourceDictionary>
     </Window.Resources>
     <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="0*"/>
+            <ColumnDefinition/>
+        </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
@@ -27,19 +31,22 @@
         </Grid.RowDefinitions>
 
         <!-- OxyPlot Graph -->
-        <oxy:PlotView Grid.Row="0" Model="{Binding PlotModel}" />
+        <oxy:PlotView Grid.Row="0" Model="{Binding PlotModel}" Grid.ColumnSpan="2" />
 
         <!-- Info Panel -->
-        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Margin="10">
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,10" Grid.Column="1">
             <TextBlock Text="Generation:" Margin="5" VerticalAlignment="Center" />
             <TextBlock Text="{Binding GenerationCounter}" Margin="5" VerticalAlignment="Center" />
+
+            <TextBlock Text="GSLU:" Margin="5" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding SinceLastUpdateCounter}" Margin="5" VerticalAlignment="Center" />
 
             <TextBlock Text="Current Cost:" Margin="15,5,5,5" VerticalAlignment="Center" />
             <TextBlock Text="{Binding CurrentCost, StringFormat={}{0:N0}}" Margin="5" VerticalAlignment="Center" />
         </StackPanel>
 
         <!-- Stop Button -->
-        <Button Grid.Row="2" Content="Stop" Command="{Binding StopCommand}" Width="100" Height="30" HorizontalAlignment="Center" Margin="10" />
+        <Button Grid.Row="2" Content="Stop" Command="{Binding StopCommand}" Width="100" Height="30" HorizontalAlignment="Center" Margin="0,10,0,10" Grid.Column="1" />
 
     </Grid>
 </Window>

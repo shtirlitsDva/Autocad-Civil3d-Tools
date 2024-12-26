@@ -19,17 +19,14 @@ namespace DimensioneringV2.Genetic
 
         public GraphFitness(
             List<(Func<BFEdge, dynamic> Getter, Action<BFEdge, dynamic> Setter)> props
-            )
-        {
-            _props = props;
-        }
+            ) => _props = props;
 
         public double Evaluate(IChromosome chromosome)
         {
             if (chromosome is not GraphChromosome graphChromosome)
                 throw new ArgumentException("Chromosome is not of type GraphChromosome");
             
-            if (!graphChromosome.LocalGraph.IsConnected())
+            if (!graphChromosome.LocalGraph.AreBuildingNodesConnected())
             {
                 return double.MaxValue;
             }
