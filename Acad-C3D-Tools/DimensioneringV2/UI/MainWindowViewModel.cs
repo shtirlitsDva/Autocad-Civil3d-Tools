@@ -384,25 +384,19 @@ namespace DimensioneringV2.UI
             //Mymap.Layers.Add(Mapsui.Tiling.OpenStreetMap.CreateTileLayer());
 
             //Stadia maps tiles
-            var tileSchema = new GlobalSphericalMercator
-            {
-                Extent = new BruTile.Extent(
-                    -20037508.3427892, -20037508.3427892,
-                    20037508.3427892, 20037508.3427892),
-                OriginX = -20037508.3427892,
-                OriginY = 20037508.3427892,
-            };
+            var tileSchema = new GlobalSphericalMercator();
             // Define the custom tile source URL template
             var urlFormatter = "https://tiles-eu.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png";
+            //var urlFormatter = "https://tiles-eu.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}@2x.png";
 
             // Create the HttpTileSource using the URL formatter and schema
-            var tileSource = new HttpTileSource(tileSchema, urlFormatter, name: "Stadia Maps");
+            var tileSource = new HttpTileSource(tileSchema, urlFormatter, name: "StadiaMaps");
 
             // Create a TileLayer using the custom tile source
             var stadiaLayer = new TileLayer(tileSource)
             {
                 Name = "StadiaMaps",
-                MaxVisible = 21, // Corresponds to maxZoom in Leaflet
+                MaxVisible = 20, // Corresponds to maxZoom in Leaflet
             };
 
             // Add the custom tile layer to the map
