@@ -20,9 +20,14 @@ using CommunityToolkit.Mvvm.Input;
 using Mapsui.Nts;
 using Mapsui.Extensions;
 using Mapsui.Providers;
+using Mapsui.Tiling.Layers;
 using Mapsui.Widgets;
 using Mapsui.Tiling;
 using Mapsui.Tiling.Fetcher;
+using BruTile.Web;
+using BruTile.Predefined;
+using BruTile.Cache;
+using System.IO;
 
 using utils = IntersectUtilities.UtilsCommon.Utils;
 using DimensioneringV2.MapStyles;
@@ -33,10 +38,6 @@ using Autodesk.AutoCAD.Geometry;
 using IntersectUtilities.UtilsCommon;
 using NorsynHydraulicCalc.Pipes;
 using DimensioneringV2.BruteForceOptimization;
-using System.Windows;
-using BruTile.Web;
-using BruTile.Predefined;
-using Mapsui.Tiling.Layers;
 
 namespace DimensioneringV2.UI
 {
@@ -359,6 +360,9 @@ namespace DimensioneringV2.UI
             }
         }
 
+        private static IPersistentCache<byte[]>? _defaultCache;
+        private static BruTile.Attribution _stadiaAttribution =
+            new("© Stadia Maps", "https://stadiamaps.com/");
         private void CreateMapFirstTime()
         {
             if (Mymap == null) return;
@@ -381,26 +385,33 @@ namespace DimensioneringV2.UI
             Mymap.Layers.Clear();
 
             //OSM map
-            //Mymap.Layers.Add(Mapsui.Tiling.OpenStreetMap.CreateTileLayer());
+            Mymap.Layers.Add(Mapsui.Tiling.OpenStreetMap.CreateTileLayer());
 
+            #region Attempt to add Stadia map tiles -> failed
             //Stadia maps tiles
-            var tileSchema = new GlobalSphericalMercator();
-            // Define the custom tile source URL template
-            var urlFormatter = "https://tiles-eu.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png";
-            //var urlFormatter = "https://tiles-eu.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}@2x.png";
+            //string userAgent = 
+            //    $"user-agent-of-{Path.GetFileNameWithoutExtension(
+            //        System.AppDomain.CurrentDomain.FriendlyName)}";
 
-            // Create the HttpTileSource using the URL formatter and schema
-            var tileSource = new HttpTileSource(tileSchema, urlFormatter, name: "StadiaMaps");
+            //var httpTileSource = new HttpTileSource(
+            //    new GlobalSphericalMercator(),
+            //    "https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}@2x.png",
+            //    name: "Stadia Maps",
+            //    attribution: _stadiaAttribution,
+            //    apiKey: "446a21ed-6773-46f3-b20d-d6ba0f91fcef",
+            //    //configureHttpRequestMessage: (r) => r.Headers.TryAddWithoutValidation("User-Agent", userAgent),
+            //    persistentCache: _defaultCache
+            //    );
 
-            // Create a TileLayer using the custom tile source
-            var stadiaLayer = new TileLayer(tileSource)
-            {
-                Name = "StadiaMaps",
-                MaxVisible = 20, // Corresponds to maxZoom in Leaflet
-            };
+            //httpTileSource.AddHeader("User-Agent", userAgent);
 
-            // Add the custom tile layer to the map
-            Mymap.Layers.Add(stadiaLayer);
+            ////string urlFormatter = "https://tiles-eu.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png";
+            ////string urlFormatter = "https://tiles-eu.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}@2x.png";
+            //var stadiaLayer = new TileLayer(httpTileSource) { Name = "Stadia" };
+
+            //// Add the custom tile layer to the map
+            //Mymap.Layers.Add(stadiaLayer); 
+            #endregion
 
             //Add the features layer
             Mymap.Layers.Add(layer);
