@@ -21,6 +21,8 @@ using Mapsui.Nts;
 using Mapsui.Extensions;
 using Mapsui.Providers;
 using Mapsui.Widgets;
+using Mapsui.Tiling;
+using Mapsui.Tiling.Fetcher;
 
 using utils = IntersectUtilities.UtilsCommon.Utils;
 using DimensioneringV2.MapStyles;
@@ -32,6 +34,9 @@ using IntersectUtilities.UtilsCommon;
 using NorsynHydraulicCalc.Pipes;
 using DimensioneringV2.BruteForceOptimization;
 using System.Windows;
+using BruTile.Web;
+using BruTile.Predefined;
+using Mapsui.Tiling.Layers;
 
 namespace DimensioneringV2.UI
 {
@@ -374,7 +379,36 @@ namespace DimensioneringV2.UI
             var extent = layer.Extent!.Grow(100);
 
             Mymap.Layers.Clear();
-            Mymap.Layers.Add(Mapsui.Tiling.OpenStreetMap.CreateTileLayer());
+
+            //OSM map
+            //Mymap.Layers.Add(Mapsui.Tiling.OpenStreetMap.CreateTileLayer());
+
+            //Stadia maps tiles
+            var tileSchema = new GlobalSphericalMercator
+            {
+                Extent = new BruTile.Extent(
+                    -20037508.3427892, -20037508.3427892,
+                    20037508.3427892, 20037508.3427892),
+                OriginX = -20037508.3427892,
+                OriginY = 20037508.3427892,
+            };
+            // Define the custom tile source URL template
+            var urlFormatter = "https://tiles-eu.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png";
+
+            // Create the HttpTileSource using the URL formatter and schema
+            var tileSource = new HttpTileSource(tileSchema, urlFormatter, name: "Stadia Maps");
+
+            // Create a TileLayer using the custom tile source
+            var stadiaLayer = new TileLayer(tileSource)
+            {
+                Name = "StadiaMaps",
+                MaxVisible = 21, // Corresponds to maxZoom in Leaflet
+            };
+
+            // Add the custom tile layer to the map
+            Mymap.Layers.Add(stadiaLayer);
+
+            //Add the features layer
             Mymap.Layers.Add(layer);
 
             Mymap.Navigator.ZoomToBox(extent);
