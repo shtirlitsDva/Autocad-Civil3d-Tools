@@ -137,12 +137,12 @@ namespace DimensioneringV2
         }
         public static void InitNonBridgeChromosomeIndex(this UndirectedGraph<BFNode, BFEdge> graph)
         {
-            var brdiges = FindBridges.DoFindThem(graph);
+            var bridges = FindBridges.DoFindThem(graph);
 
             int index = 0;
             foreach (var edge in graph.Edges)
             {
-                if (brdiges.Contains(edge)) continue;
+                if (bridges.Contains(edge)) continue;
                 edge.NonBridgeChromosomeIndex = index;
                 index++;
             }

@@ -29,7 +29,7 @@ namespace DimensioneringV2.Genetic
             _originalGraph = graph;
             _indexToNonBridge = new Dictionary<int, BFEdge>();
             //_nonBridgeToIndex = new Dictionary<BFEdge, int>();
-            graph.InitNonBridgeChromosomeIndex();
+            _originalGraph.InitNonBridgeChromosomeIndex();
             foreach (var item in graph.Edges.Where(x => x.NonBridgeChromosomeIndex != -1))
             {
                 _indexToNonBridge.Add(item.NonBridgeChromosomeIndex, item);

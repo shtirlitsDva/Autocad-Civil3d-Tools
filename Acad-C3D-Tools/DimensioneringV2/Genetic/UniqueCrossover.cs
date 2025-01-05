@@ -36,17 +36,23 @@ namespace DimensioneringV2.Genetic
             fc.ResetChromosome();
             sc.ResetChromosome();
 
-            for (int i = 0; i < firstParent.Length; i++)
+            var randomizedIndici =
+                Enumerable.Range(0, _chm.ChromosomeLength)
+                .OrderBy(x => RandomizationProvider.Current.GetDouble()).ToArray();
+
+            for (int i = 0; i < randomizedIndici.Length; i++)
             {
+                int rIdx = randomizedIndici[i];
+
                 if (RandomizationProvider.Current.GetDouble() < this.MixProbability)
                 {
-                    fc.ReplaceGraphChromosomeGene(i, firstParent.GetGene(i));
-                    sc.ReplaceGraphChromosomeGene(i, secondParent.GetGene(i));
+                    fc.ReplaceGraphChromosomeGene(rIdx, firstParent.GetGene(rIdx));
+                    sc.ReplaceGraphChromosomeGene(rIdx, secondParent.GetGene(rIdx));
                 }
                 else
                 {
-                    fc.ReplaceGraphChromosomeGene(i, secondParent.GetGene(i));
-                    sc.ReplaceGraphChromosomeGene(i, firstParent.GetGene(i));
+                    fc.ReplaceGraphChromosomeGene(rIdx, secondParent.GetGene(rIdx));
+                    sc.ReplaceGraphChromosomeGene(rIdx, firstParent.GetGene(rIdx));
                 }
             }
 

@@ -24,6 +24,7 @@ using Mapsui.Tiling.Layers;
 using Mapsui.Widgets;
 using Mapsui.Tiling;
 using Mapsui.Tiling.Fetcher;
+using BruTile;
 using BruTile.Web;
 using BruTile.Predefined;
 using BruTile.Cache;
@@ -38,7 +39,6 @@ using Autodesk.AutoCAD.Geometry;
 using IntersectUtilities.UtilsCommon;
 using NorsynHydraulicCalc.Pipes;
 using DimensioneringV2.BruteForceOptimization;
-using BruTile;
 
 namespace DimensioneringV2.UI
 {
@@ -155,7 +155,7 @@ namespace DimensioneringV2.UI
         #endregion
 
         #region PerformCalculationsGACommand
-        public AsyncRelayCommand PerformCalculationsGACommand => new(async () => await PerformCalculationsGAExecuteAsync());
+        public AsyncRelayCommand PerformCalculationsGACommand => new(PerformCalculationsGAExecuteAsync);
 
         private async Task PerformCalculationsGAExecuteAsync()
         {

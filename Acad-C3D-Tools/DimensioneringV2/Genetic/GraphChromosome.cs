@@ -48,25 +48,27 @@ namespace DimensioneringV2.Genetic
             {
                 for (int i = 0; i < randomizedIndici.Length; i++)
                 {
+                    int rIdx = randomizedIndici[i];
+
                     // Determine if the edge should be removed
                     bool removeEdge = random.GetDouble() >= 0.5;
-                    var edge = _localGraph.Edges.FirstOrDefault(x => x.NonBridgeChromosomeIndex == randomizedIndici[i]);
+                    var edge = _localGraph.Edges.FirstOrDefault(x => x.NonBridgeChromosomeIndex == rIdx);
 
                     if (edge != null && removeEdge && !_localGraph.IsBridgeEdge(edge))
                     {
                         _localGraph.RemoveEdge(edge);
                         _removedEdges.Add(randomizedIndici[i]);
-                        ReplaceGene(i, new Gene(1));
+                        ReplaceGene(rIdx, new Gene(1));
                     }
                     else
                     {
-                        ReplaceGene(i, new Gene(0));
+                        ReplaceGene(rIdx, new Gene(0));
                     }
                 }
 
                 bitArray = GetBitArray();
             }
-            while (!_chm.IsUnique(bitArray) && _localGraph.AreBuildingNodesConnected());
+            while (!_localGraph.AreBuildingNodesConnected()); //&& !_chm.IsUnique(bitArray));
         }
 
         public override IChromosome CreateNew()
