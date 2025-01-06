@@ -4986,6 +4986,170 @@ namespace IntersectUtilities
             prdDbg("Update finished! Run AUDIT (Y) to clean up drawing!");
         }
 
+        [CommandMethod("UPDATEPROFILEVIEWS")]
+        public void updateprofileviews()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+
+            DataReferencesOptions dro = new DataReferencesOptions();
+            if (dro.ProjectName.IsNoE() || dro.EtapeName.IsNoE()) return;
+
+            PropertySetManager.UpdatePropertySetDefinition(
+                localDb, PSetDefs.DefinedSets.DriSourceReference);
+
+            var pvIds = localDb.HashSetIdsOfType<ProfileView>();
+
+            foreach (Oid pvId in pvIds)
+            {
+                Point3d originalProfileViewLocation = default;
+                double originalStStart;
+                double originalStEnd;
+                Extents3d bufferedOriginalBbox = default;
+                Oid alId = Oid.Null;
+
+                using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                {
+                    try
+                    {
+                        #region Get Profile view and location
+                        ProfileView pv = pvId.Go<ProfileView>(tx);
+                        prdDbg($"Updating Profile View {pv.Name}...");
+                        System.Windows.Forms.Application.DoEvents();
+
+                        originalProfileViewLocation = pv.Location;
+                        originalStStart = pv.StationStart;
+                        originalStEnd = pv.StationEnd;
+                        bufferedOriginalBbox = pv.GetBufferedXYGeometricExtents(5.0);
+                        //Debug
+                        //bufferedOriginalBbox.DrawExtents(localDb);
+                        #endregion
+
+                        #region Erase detailing block
+                        var detailingBlock =
+                            localDb.GetBlockReferenceByName(pv.Name)
+                            .FirstOrDefault();
+
+                        if (detailingBlock == default)
+                            prdDbg($"Detailing block {pv.Name} was not found!");
+                        else
+                        {
+                            detailingBlock.CheckOrOpenForWrite();
+                            detailingBlock.Erase(true);
+                        }
+                        #endregion
+
+                        Alignment al = pv.AlignmentId.Go<Alignment>(tx);
+                        alId = al.Id;
+                        Polyline alPline = al.GetPolyline().Go<Polyline>(tx);
+
+                        #region Erase PV CogoPoints
+                        PropertySetManager psm = new PropertySetManager(
+                            localDb, PSetDefs.DefinedSets.DriCrossingData);
+                        PSetDefs.DriCrossingData psDef =
+                            new PSetDefs.DriCrossingData();
+
+                        //Delete all pv cogos
+                        var allCogos = localDb.HashSetOfType<CogoPoint>(tx);
+                        var alCogos = allCogos.Where(
+                            x => psm.FilterPropetyString(
+                                x, psDef.Alignment, al.Name));
+                        foreach (var item in alCogos)
+                        {
+                            double cogoStation =
+                                alPline.GetDistAtPoint(
+                                    alPline.GetClosestPointTo(
+                                        item.Location, false));
+
+                            if (cogoStation >= originalStStart && cogoStation <= originalStEnd)
+                            { item.CheckOrOpenForWrite(); item.Erase(); }
+                        }
+                        #endregion
+
+                        #region Erase PV
+                        pv.CheckOrOpenForWrite();
+                        pv.Erase(true);
+                        #endregion
+
+                        #region Erase polylines and points from prelim profile
+                        HashSet<DBPoint> points = localDb.HashSetOfType<DBPoint>(tx);
+                        foreach (var item in points)
+                        {
+                            if (!bufferedOriginalBbox.IsPointInsideXY(
+                                item.Position)) continue;
+
+                            item.CheckOrOpenForWrite();
+                            item.Erase(true);
+                        }
+                        #endregion
+
+                        #region Erase existing surface profile and create new one
+                        ObjectIdCollection profs = al.GetProfileIds();
+                        string surfaceProfName;
+                        foreach (Oid item in profs)
+                        {
+                            Profile prof = item.Go<Profile>(tx);
+                            if (!prof.Name.EndsWith("_surface_P")) continue;
+                            surfaceProfName = prof.Name;
+                            prof.CheckOrOpenForWrite();
+                            prof.Erase(true);
+                        }
+                        #endregion
+
+                        alPline.CheckOrOpenForWrite();
+                        alPline.Erase();
+                    }
+                    catch (System.Exception ex)
+                    {
+                        tx.Abort();
+                        prdDbg(ex);
+                    }
+                    tx.Commit();
+                }
+
+                using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                {
+                    try
+                    {
+                        Alignment al = alId.Go<Alignment>(tx);
+                        createsurfaceprofilesmethod(dro, new List<Alignment>() { al });
+                        createprofileviewsmethod(originalProfileViewLocation);
+                        createlerdatapssmethod2(dro, new List<Alignment>() { al });
+                        populateprofilesmethod(dro, al.GetProfileViewIds().ToHashSet());
+                        colorizealllerlayersmethod();
+                        createprofilesmethod(dro, new HashSet<Alignment> { al });
+                        createpointsatverticesmethod(bufferedOriginalBbox);
+                        createdetailingpreliminarymethod(dro, null, new HashSet<Alignment> { al });
+                        staggerlabelsallmethod(null, al.GetProfileViewIds().ToHashSet());
+                    }
+                    catch (System.Exception ex)
+                    {
+                        tx.Abort();
+                        prdDbg(ex);
+                    }
+                    tx.Commit();
+                }
+
+                using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                {
+                    try
+                    {
+                        Alignment al = alId.Go<Alignment>(tx);
+                        populatedistancesmethod(dro, al.GetProfileViewIds().ToHashSet());
+                    }
+                    catch (System.Exception ex)
+                    {
+                        tx.Abort();
+                        prdDbg(ex);
+                    }
+                    tx.Commit();
+                }
+            }
+
+            prdDbg("Update finished! Run AUDIT (Y) to clean up drawing!");
+        }
+
         [CommandMethod("CALCULATEEXCAVATIONVOLUMES")]
         public void calculateexcavationvolumes()
         {
