@@ -8496,6 +8496,27 @@ namespace IntersectUtilities
                 new ProcessStartInfo(url) { UseShellExecute = true });
         }
 
+        [CommandMethod("SKRAAFOTO")]
+        [CommandMethod("SF")]
+        public void skraafoto()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            Point3d p = Interaction.GetPoint($"Pick point for Google Street View: ");
+            if (p == Algorithms.NullPoint3d) { return; }
+
+            //var latlong = p.ToWGS84FromUtm32N();
+            int x = (int)p.X;
+            int y = (int)p.Y;
+            prdDbg($"Opening Skraafoto with coordinates: {x}, {y}.");
+
+            string url = $"https://skraafoto.dataforsyningen.dk/?center={x}%2C{y}";
+
+            System.Diagnostics.Process.Start(
+                new ProcessStartInfo(url) { UseShellExecute = true });
+        }
+
         [CommandMethod("MODIFYPOINTSELEVATIONFROMSURFACE")]
         public void modifypointselevationfromsurface()
         {
