@@ -1,5 +1,9 @@
 ﻿using Autodesk.AutoCAD.DatabaseServices;
 
+using Dreambuild.AutoCAD;
+
+using Microsoft.Office.Interop.Excel;
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -33,6 +37,21 @@ namespace IntersectUtilities.DataManager
                 cache.Add(name, db);
                 return db;
             }
+        }
+        public HashSet<Database> GetLængdepfofilerDatabases()
+        {
+            HashSet<Database> dbs = new HashSet<Database>();
+            
+            string path = UtilsCommon.Utils.GetPathToDataFiles(project, etape, "Længdeprofiler");
+
+            Directory.EnumerateFiles(path, "Længdeprofiler*.dwg").ForEach(f =>
+            {
+                var db = new Database(false, true);
+                db.ReadDwgFile(f, FileOpenMode.OpenForReadAndAllShare, true, "");
+                dbs.Add(db);
+            });
+
+            return dbs;
         }
     }
 }

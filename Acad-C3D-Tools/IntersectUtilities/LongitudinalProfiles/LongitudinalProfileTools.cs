@@ -5281,5 +5281,63 @@ namespace IntersectUtilities
                 fremDb.Dispose();
             }
         }
+#if DEBUG
+        [CommandMethod("CREATEKOTEREPORT")]
+        public void createkotereport()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            DataManager.DataManager dm = new DataManager.DataManager(new DataReferencesOptions());
+            Database fjvDb = dm.GetForRead("Fremtid");
+            Database alDb = dm.GetForRead("Alignments");
+            HashSet<Database> længdeprofilerdbs = dm.GetLængdepfofilerDatabases();
+
+            Transaction fjvTx = fjvDb.TransactionManager.StartTransaction();
+            Transaction alTx = alDb.TransactionManager.StartTransaction();
+
+            HashSet<Transaction> lTxs = new HashSet<Transaction>();
+            foreach (var db in længdeprofilerdbs)
+                lTxs.Add(db.TransactionManager.StartTransaction());
+
+            try
+            {
+                var ents = fjvDb.GetFjvEntities(fjvTx, false, false);
+                var als = alDb.HashSetOfType<Alignment>(alTx);
+
+                PipelineNetwork pn = new PipelineNetwork();
+                pn.CreatePipelineNetwork(ents, als);
+                pn.CreatePipelineGraph();
+                pn.PipelineGraphsToDot();
+                prdDbg("Finshed!");
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg(ex);
+                return;
+            }
+            finally
+            {
+                fjvTx.Abort();
+                fjvTx.Dispose();
+                fjvDb.Dispose();
+                
+                alTx.Abort();
+                alTx.Dispose();
+                alDb.Dispose();
+
+                foreach (var tx in lTxs)
+                {
+                    if (tx != null)
+                    {
+                        tx.Abort();
+                        tx.Dispose();
+                    }
+                }
+
+                foreach (var db in længdeprofilerdbs) db.Dispose();
+            }
+        }
+#endif
     }
 }

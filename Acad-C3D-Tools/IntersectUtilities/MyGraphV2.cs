@@ -137,25 +137,5 @@ namespace IntersectUtilities
             cmd.StartInfo.Arguments = @"/c ""dot -Tpdf MyGraph.dot > MyGraph.pdf""";
             cmd.Start();
         }
-        internal void TraverseGraphAndReversePolylines()
-        {
-            Stack<GraphNodeV2> stack = new Stack<GraphNodeV2>();
-            
-            stack.Push(this);
-
-            int count = 0;
-            while (stack.Count > 0)
-            {
-                count++;
-                GraphNodeV2 current = stack.Pop();
-                //This check must be done here, because we have access to parent and children
-                foreach (GraphNodeV2 child in current.Children) child.Node.CheckReverseDirection(current.Node);
-                
-                if (count != 1) current.Node.ReversePolylines(current.Parent.Node);
-
-                foreach (GraphNodeV2 child in current.Children) stack.Push(child);
-                if (count > 1000) { prdDbg("Circular graph detected!"); break; }
-            }
-        }
     }
 }
