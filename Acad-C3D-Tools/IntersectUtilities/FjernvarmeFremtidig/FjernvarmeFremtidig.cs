@@ -213,21 +213,43 @@ namespace IntersectUtilities
                                 double rotation = br.Rotation;
                                 Vector3d brDir = new Vector3d(Math.Cos(rotation), Math.Sin(rotation), 0);
 
-                                //First
-                                //prdDbg(first.al.Name);
-                                Point3d firstClosestPoint = first.al.GetClosestPointTo(br.Position, false);
-                                Vector3d firstDeriv = first.al.GetFirstDerivative(firstClosestPoint);
-                                double firstDotProduct = Math.Abs(brDir.DotProduct(firstDeriv));
-                                //prdDbg($"Rotation: {rotation} - First: {first.al.Name}: {Math.Atan2(firstDeriv.Y, firstDeriv.X)}");
-                                //prdDbg($"Dot product: {brDir.DotProduct(firstDeriv)}");
+                                Polyline falPline = first.al.GetPolyline().Go<Polyline>(alTx);
+                                Polyline salPline = second.al.GetPolyline().Go<Polyline>(alTx);
 
-                                //Second
-                                //prdDbg(second.al.Name);
-                                Point3d secondClosestPoint = second.al.GetClosestPointTo(br.Position, false);
-                                Vector3d secondDeriv = second.al.GetFirstDerivative(secondClosestPoint);
-                                double secondDotProduct = Math.Abs(brDir.DotProduct(secondDeriv));
-                                //prdDbg($"Rotation: {rotation} - Second: {second.al.Name}: {Math.Atan2(secondDeriv.Y, secondDeriv.X)}");
-                                //prdDbg($"Dot product: {brDir.DotProduct(secondDeriv)}");
+                                double firstDotProduct = 0;
+                                double secondDotProduct = 0;
+
+                                try
+                                {
+                                    //First
+                                    //prdDbg(first.al.Name);
+                                    Point3d firstClosestPoint = falPline.GetClosestPointTo(br.Position, false);
+                                    Vector3d firstDeriv = falPline.GetFirstDerivative(firstClosestPoint);
+                                    firstDotProduct = Math.Abs(brDir.DotProduct(firstDeriv));
+                                    //prdDbg($"Rotation: {rotation} - First: {first.al.Name}: {Math.Atan2(firstDeriv.Y, firstDeriv.X)}");
+                                    //prdDbg($"Dot product: {brDir.DotProduct(firstDeriv)}");
+
+                                    //Second
+                                    //prdDbg(second.al.Name);
+                                    Point3d secondClosestPoint = salPline.GetClosestPointTo(br.Position, false);
+                                    Vector3d secondDeriv = salPline.GetFirstDerivative(secondClosestPoint);
+                                    secondDotProduct = Math.Abs(brDir.DotProduct(secondDeriv));
+                                    //prdDbg($"Rotation: {rotation} - Second: {second.al.Name}: {Math.Atan2(secondDeriv.Y, secondDeriv.X)}");
+                                    //prdDbg($"Dot product: {brDir.DotProduct(secondDeriv)}");
+                                }
+                                catch (System.Exception)
+                                {
+                                    prdDbg("Error in GetClosestPointTo -> loop incomplete! (Using GetFirstDerivative)");
+                                    prdDbg($"F: {first.al.Name}, S: {second.al.Name}");
+                                    throw;
+                                }
+                                finally
+                                {
+                                    falPline.UpgradeOpen();
+                                    falPline.Erase(true);
+                                    salPline.UpgradeOpen();
+                                    salPline.Erase(true);
+                                }
 
                                 Alignment mainAl = null;
                                 Alignment branchAl = null;
