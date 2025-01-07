@@ -5308,7 +5308,10 @@ namespace IntersectUtilities
                 PipelineNetwork pn = new PipelineNetwork();
                 pn.CreatePipelineNetwork(ents, als);
                 pn.CreatePipelineGraph();
-                pn.PipelineGraphsToDot();
+
+
+
+                
                 prdDbg("Finshed!");
             }
             catch (System.Exception ex)

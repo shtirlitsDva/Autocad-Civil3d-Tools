@@ -33,6 +33,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
         private HashSet<IPipelineV2> pipelines;
         private GraphCollection pipelineGraphs;
         private PropertySetHelper psh;
+        public GraphCollection PipelineGraphs => pipelineGraphs;
 
         public void CreatePipelineNetwork(IEnumerable<Entity> ents, IEnumerable<Alignment> als)
         {
@@ -68,7 +69,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
         }
         public void CreatePipelineGraph()
         {
-            var builder = new GraphBuilder();
+            var builder = new PipelineGraphBuilder();
             pipelineGraphs = builder.BuildPipelineGraphs(pipelines);
         }
         public IPipelineV2 GetPipeline(string name)
@@ -117,14 +118,49 @@ namespace IntersectUtilities.PipelineNetworkSystem
             cmd.StartInfo.Arguments = @"/c ""dot -Tpdf MyTPN.dot > MyTPN.pdf""";
             cmd.Start();
         }
+        public void PipelineGraphsKoteReport()
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine("digraph G {");
+
+            int graphCount = 0;
+            foreach (Graph graph in pipelineGraphs)
+            {
+                graphCount++;
+                sb.AppendLine($"subgraph G_{graphCount} {{");
+                sb.AppendLine("node [shape=record];");
+                sb.AppendLine(graph.NodesToDot());
+                sb.AppendLine(graph.EdgesToDot());
+                sb.AppendLine("}");
+            }
+
+            sb.AppendLine("}");
+
+            //Check or create directory
+            if (!Directory.Exists(@"C:\Temp\"))
+                Directory.CreateDirectory(@"C:\Temp\");
+
+            //Write the collected graphs to one file
+            using (System.IO.StreamWriter file = new System.IO.StreamWriter($"C:\\Temp\\MyTPN.dot"))
+            {
+                file.WriteLine(sb.ToString()); // "sb" is the StringBuilder
+            }
+
+            //Start the dot engine to create the graph
+            System.Diagnostics.Process cmd = new System.Diagnostics.Process();
+            cmd.StartInfo.FileName = "cmd.exe";
+            cmd.StartInfo.WorkingDirectory = @"C:\Temp\";
+            cmd.StartInfo.Arguments = @"/c ""dot -Tpdf MyTPN.dot > MyTPN.pdf""";
+            cmd.Start();
+        }
         public void AutoReversePolylines()
         {
-            GraphWorker gw = new GraphWorker();
+            PipelineGraphWorker gw = new PipelineGraphWorker();
             gw.AutoReversePolylines(pipelineGraphs);
         }
         public void AutoCorrectLengths()
         {
-            GraphWorker gw = new GraphWorker();
+            PipelineGraphWorker gw = new PipelineGraphWorker();
             gw.CorrectPipesToCutLengths(pipelineGraphs);
         }
         private void PrintNode(INode node, int depth)
@@ -167,7 +203,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
         }
         internal void CreateWeldPoints()
         {
-            GraphWorker gw = new GraphWorker();
+            PipelineGraphWorker gw = new PipelineGraphWorker();
             gw.CreateWeldPoints(pipelineGraphs);
         }
     }
@@ -177,18 +213,20 @@ namespace IntersectUtilities.PipelineNetworkSystem
         List<INode> Children { get; }
         void AddChild(INode child);
         IEnumerable<T> GetChildrenOfType<T>() where T : INode;
+        IPipelineV2 Value { get; }
         string Name { get; }
         string Label { get; }
         string EdgesToDot();
         string NodesToDot();
     }
-    public abstract class NodeBase : INode
+    public abstract class PipelineNodeBase : INode
     {
         public INode Parent { get; set; }
         public List<INode> Children { get; private set; }
         public virtual string Name { get; protected set; }
         public virtual string Label { get; protected set; }
-        protected NodeBase()
+        public abstract IPipelineV2 Value { get; }
+        protected PipelineNodeBase()
         {
             Children = new List<INode>();
         }
@@ -229,9 +267,9 @@ namespace IntersectUtilities.PipelineNetworkSystem
             }
         }
     }
-    public class PipelineNode : NodeBase
+    public class PipelineNode : PipelineNodeBase
     {
-        public IPipelineV2 Value { get; private set; }
+        public override IPipelineV2 Value { get; }
         public PipelineNode(IPipelineV2 value) : base()
         {
             Value = value;
@@ -256,7 +294,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
 
         }
     }
-    public class GraphBuilder
+    public class PipelineGraphBuilder
     {
         public GraphCollection BuildPipelineGraphs(IEnumerable<IPipelineV2> pipelines)
         {
@@ -340,7 +378,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
             return graphs;
         }
     }
-    public class GraphWorker
+    public class PipelineGraphWorker
     {
         public void AutoReversePolylines(GraphCollection graphs)
         {

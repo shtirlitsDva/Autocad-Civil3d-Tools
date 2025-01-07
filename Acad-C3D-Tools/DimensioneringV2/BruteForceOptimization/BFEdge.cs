@@ -1,6 +1,4 @@
-﻿using Autodesk.Aec.Modeler;
-
-using DimensioneringV2.GraphFeatures;
+﻿using DimensioneringV2.GraphFeatures;
 
 using NorsynHydraulicCalc;
 using NorsynHydraulicCalc.Pipes;
