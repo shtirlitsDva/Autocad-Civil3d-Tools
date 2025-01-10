@@ -1,5 +1,6 @@
 ﻿using IntersectUtilities.PipelineNetworkSystem;
 using IntersectUtilities.PipelineNetworkSystem.QuikGraphClasses;
+using static IntersectUtilities.UtilsCommon.Utils;
 
 using QuikGraph;
 
@@ -22,7 +23,33 @@ namespace IntersectUtilities.LongitudinalProfiles.KoteReport
 
         public static void GenerateKoteReport()
         {
+            if (_graphs == null) { prdDbg("_graphs is null!"); return; }
 
+            foreach (var graph in _graphs)
+            {
+                var root = graph.Vertices.Where(x => x.Root).FirstOrDefault();
+                if (root == null) { prdDbg("No root found!"); continue; }
+
+                //Establish connections and ports
+                Queue<KRNode> queue = new Queue<KRNode>();
+                queue.Enqueue(root);
+
+                while (queue.Count > 0)
+                {
+                    var parentNode = queue.Dequeue();
+                    var children = graph.OutEdges(parentNode).Select(x => x.Target);
+
+                    foreach (var child in children)
+                    {
+                        var pppl = parentNode.Value;
+                        var cppl = child.Value;
+
+                        if (cppl is PipelineV2Na) continue;
+
+                        pppl.GetConnectionLocationToParent
+                    }
+                }
+            }
         }
     }
 }
