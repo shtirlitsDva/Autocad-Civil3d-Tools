@@ -118,41 +118,6 @@ namespace IntersectUtilities.PipelineNetworkSystem
             cmd.StartInfo.Arguments = @"/c ""dot -Tpdf MyTPN.dot > MyTPN.pdf""";
             cmd.Start();
         }
-        public void PipelineGraphsKoteReport()
-        {
-            StringBuilder sb = new StringBuilder();
-            sb.AppendLine("digraph G {");
-
-            int graphCount = 0;
-            foreach (Graph graph in pipelineGraphs)
-            {
-                graphCount++;
-                sb.AppendLine($"subgraph G_{graphCount} {{");
-                sb.AppendLine("node [shape=record];");
-                sb.AppendLine(graph.NodesToDot());
-                sb.AppendLine(graph.EdgesToDot());
-                sb.AppendLine("}");
-            }
-
-            sb.AppendLine("}");
-
-            //Check or create directory
-            if (!Directory.Exists(@"C:\Temp\"))
-                Directory.CreateDirectory(@"C:\Temp\");
-
-            //Write the collected graphs to one file
-            using (System.IO.StreamWriter file = new System.IO.StreamWriter($"C:\\Temp\\MyTPN.dot"))
-            {
-                file.WriteLine(sb.ToString()); // "sb" is the StringBuilder
-            }
-
-            //Start the dot engine to create the graph
-            System.Diagnostics.Process cmd = new System.Diagnostics.Process();
-            cmd.StartInfo.FileName = "cmd.exe";
-            cmd.StartInfo.WorkingDirectory = @"C:\Temp\";
-            cmd.StartInfo.Arguments = @"/c ""dot -Tpdf MyTPN.dot > MyTPN.pdf""";
-            cmd.Start();
-        }
         public void AutoReversePolylines()
         {
             PipelineGraphWorker gw = new PipelineGraphWorker();

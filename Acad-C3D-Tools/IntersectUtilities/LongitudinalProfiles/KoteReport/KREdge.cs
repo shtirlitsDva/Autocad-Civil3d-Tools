@@ -13,5 +13,8 @@ namespace IntersectUtilities.LongitudinalProfiles.KoteReport
         public KREdge(KRNode source, KRNode target) : base(source, target)
         {
         }
+
+        public IConnection SourceCon { get; set; }
+        public IConnection TargetCon { get; set; }
     }
 }

@@ -52,6 +52,7 @@ using Color = Autodesk.AutoCAD.Colors.Color;
 using IntersectUtilities.LongitudinalProfiles;
 using IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol;
 using Assembly = System.Reflection.Assembly;
+using IntersectUtilities.LongitudinalProfiles.KoteReport;
 
 namespace IntersectUtilities
 {
@@ -5296,10 +5297,6 @@ namespace IntersectUtilities
             Transaction fjvTx = fjvDb.TransactionManager.StartTransaction();
             Transaction alTx = alDb.TransactionManager.StartTransaction();
 
-            HashSet<Transaction> lTxs = new HashSet<Transaction>();
-            foreach (var db in længdeprofilerdbs)
-                lTxs.Add(db.TransactionManager.StartTransaction());
-
             try
             {
                 var ents = fjvDb.GetFjvEntities(fjvTx, false, false);
@@ -5309,8 +5306,8 @@ namespace IntersectUtilities
                 pn.CreatePipelineNetwork(ents, als);
                 pn.CreatePipelineGraph();
 
-
-
+                KoteReport.BuildGraphs(pn.PipelineGraphs);
+                KoteReport.GenerateKoteReport(længdeprofilerdbs);
                 
                 prdDbg("Finshed!");
             }
@@ -5328,15 +5325,6 @@ namespace IntersectUtilities
                 alTx.Abort();
                 alTx.Dispose();
                 alDb.Dispose();
-
-                foreach (var tx in lTxs)
-                {
-                    if (tx != null)
-                    {
-                        tx.Abort();
-                        tx.Dispose();
-                    }
-                }
 
                 foreach (var db in længdeprofilerdbs) db.Dispose();
             }

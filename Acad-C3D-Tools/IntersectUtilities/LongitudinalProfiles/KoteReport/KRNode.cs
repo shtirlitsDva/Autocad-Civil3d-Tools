@@ -11,9 +11,14 @@ namespace IntersectUtilities.LongitudinalProfiles.KoteReport
 {
     internal class KRNode : NodeBase
     {
+        public List<IConnection> Connections = new List<IConnection>();
         public KRNode(IPipelineV2 value) : base(value)
         {
 
+        }
+        public void AddConnection(IConnection connection)
+        {
+            Connections.Add(connection);
         }
     }
 }

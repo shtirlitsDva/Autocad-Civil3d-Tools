@@ -42,6 +42,7 @@ using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using DebugHelper = IntersectUtilities.UtilsCommon.Utils.DebugHelper;
+using Microsoft.Office.Interop.Excel;
 
 namespace IntersectUtilities.UtilsCommon
 {
@@ -3197,7 +3198,34 @@ namespace IntersectUtilities.UtilsCommon
         public static HashSet<T> HashSetOfType<T>(this Database db, Transaction tr, bool discardFrozen = false)
             where T : Autodesk.AutoCAD.DatabaseServices.Entity
         {
-            return new HashSet<T>(db.ListOfType<T>(tr, discardFrozen));
+            //Init the list of the objects
+            HashSet<T> objs = new HashSet<T>();
+
+            // Get the block table for the current database
+            var blockTable = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
+
+            // Get the model space block table record
+            var modelSpace = (BlockTableRecord)tr.GetObject(blockTable[BlockTableRecord.ModelSpace], OpenMode.ForRead);
+
+            RXClass theClass = RXObject.GetClass(typeof(T));
+
+            // Loop through the entities in model space
+            foreach (Oid oid in modelSpace)
+            {
+                // Look for entities of the correct type
+                if (oid.ObjectClass.IsDerivedFrom(theClass))
+                {
+                    var entity = (T)tr.GetObject(oid, OpenMode.ForRead);
+                    if (discardFrozen)
+                    {
+                        LayerTableRecord layer = (LayerTableRecord)tr.GetObject(entity.LayerId, OpenMode.ForRead);
+                        if (layer.IsFrozen) continue;
+                    }
+
+                    objs.Add(entity);
+                }
+            }
+            return objs;
         }
         public static HashSet<Entity> GetFjvEntities(this Database db, Transaction tr,
             bool discardWelds = true, bool discardStikBlocks = true, bool discardFrozen = false)
