@@ -8,6 +8,7 @@ namespace IntersectUtilities.LongitudinalProfiles.KoteReport
 {
     internal interface IConnection
     {
+        public double Station { get; }
         public string ToLabel(int v);
     }
     internal abstract class ConnectionBase : IConnection
@@ -22,31 +23,42 @@ namespace IntersectUtilities.LongitudinalProfiles.KoteReport
             _elevation = elevation;
         }
 
-        public abstract string ToLabel();
+        public double Station => _station;
+
+        public abstract string ToLabel(int index);
     }
     internal class ConnectionUnknown : ConnectionBase
     {
-        public ConnectionUnknown(ConnectionDirection direction, double station, double elevation) : 
-            base(direction, station, elevation)
-        {
-        }
+        public ConnectionUnknown(ConnectionDirection direction, double station, double elevation) :
+            base(direction, station, elevation) { }
 
-        public override string ToLabel()
+        public override string ToLabel(int index)
         {
             switch (_direction)
             {
                 case ConnectionDirection.Out:
-                    return $"|{{S: {_station.ToString("0.##")}|<p{}> NA";
+                    return $"|{{S: {_station.ToString("0.00")}|<p{index.ToString("D3")}> NA}}";
                 case ConnectionDirection.In:
-                    break;
+                    return $"|{{<p{index.ToString("D3")}> NA|S: {_station.ToString("0.00")}}}";
             }
+            return string.Empty;
         }
     }
     internal class ConnectionKnownElevation : ConnectionBase
     {
         public ConnectionKnownElevation(ConnectionDirection direction, double station, double elevation) :
-            base(direction, station, elevation)
+            base(direction, station, elevation) { }
+
+        public override string ToLabel(int index)
         {
+            switch (_direction)
+            {
+                case ConnectionDirection.Out:
+                    return $"|{{S: {_station.ToString("0.00")}|<p{index.ToString("D3")}> K: {_elevation.ToString("0.00")}}}";
+                case ConnectionDirection.In:
+                    return $"|{{<p{index.ToString("D3")}> K: {_elevation.ToString("0.00")}|S: {_station.ToString("0.00")}}}";
+            }
+            return string.Empty;
         }
     }
     internal enum ConnectionDirection

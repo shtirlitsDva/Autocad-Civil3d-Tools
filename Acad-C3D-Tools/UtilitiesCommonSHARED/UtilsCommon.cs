@@ -42,7 +42,6 @@ using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using DebugHelper = IntersectUtilities.UtilsCommon.Utils.DebugHelper;
-using Microsoft.Office.Interop.Excel;
 
 namespace IntersectUtilities.UtilsCommon
 {

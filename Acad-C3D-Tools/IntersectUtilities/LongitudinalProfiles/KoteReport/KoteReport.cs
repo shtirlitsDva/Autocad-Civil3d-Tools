@@ -118,6 +118,7 @@ namespace IntersectUtilities.LongitudinalProfiles.KoteReport
                 Queue<KRNode> queue = new Queue<KRNode>();
                 queue.Enqueue(root);
 
+                Profile p = null;
                 while (queue.Count > 0)
                 {
                     var parent = queue.Dequeue();
@@ -130,6 +131,9 @@ namespace IntersectUtilities.LongitudinalProfiles.KoteReport
                         //Determine the location of the connection
                         var pt = child.Value.GetConnectionLocationToParent(parent.Value, 0.01);
 
+                        //Also find the edge to store information about port connections
+                        graph.TryGetEdge(parent, child, out KREdge edge);
+
                         #region Parent node
                         //Process parent node
                         var pst = parent.Value.GetStationAtPoint(pt);
@@ -140,8 +144,9 @@ namespace IntersectUtilities.LongitudinalProfiles.KoteReport
                         if (midtProfiles[parent] == default)
                         {
                             // No profile was found for this pipeline
-                            ConnectionUnknown pcon = new ConnectionUnknown(ConnectionDirection.Out, pst, pelev);
-                            parent.AddConnection(pcon);
+                            ConnectionUnknown con = new ConnectionUnknown(ConnectionDirection.Out, pst, pelev);
+                            parent.AddConnection(con);
+                            edge.SourceCon = con;
                         }
                         else
                         {
@@ -150,13 +155,13 @@ namespace IntersectUtilities.LongitudinalProfiles.KoteReport
                             {
                                 try
                                 {
-                                    var p = pid.Go<Profile>(tx);
+                                    p = pid.Go<Profile>(tx);
                                     pelev = p.ElevationAt(pst);
                                 }
                                 catch (Exception ex)
                                 {
                                     tx.Abort();
-                                    prdDbg(ex);
+                                    prdDbg($"Error at: {parent.Value.Name}, ST: {pst}, P: {p?.Name} \n" + ex);
                                     throw;
                                 }
                                 tx.Abort();
@@ -164,6 +169,7 @@ namespace IntersectUtilities.LongitudinalProfiles.KoteReport
 
                             ConnectionKnownElevation con = new ConnectionKnownElevation(ConnectionDirection.Out, pst, pelev);
                             parent.AddConnection(con);
+                            edge.SourceCon = con;
                         }
                         #endregion
 
@@ -179,6 +185,7 @@ namespace IntersectUtilities.LongitudinalProfiles.KoteReport
                             // No profile was found for this pipeline
                             ConnectionUnknown con = new ConnectionUnknown(ConnectionDirection.In, cst, celev);
                             child.AddConnection(con);
+                            edge.TargetCon = con;
                         }
                         else
                         {
@@ -187,13 +194,13 @@ namespace IntersectUtilities.LongitudinalProfiles.KoteReport
                             {
                                 try
                                 {
-                                    var p = pid.Go<Profile>(tx);
+                                    p = pid.Go<Profile>(tx);
                                     celev = p.ElevationAt(cst);
                                 }
                                 catch (Exception ex)
                                 {
                                     tx.Abort();
-                                    prdDbg(ex);
+                                    prdDbg($"Error at: {child.Value.Name}, ST: {cst}, P: {p?.Name}\n" + ex);
                                     throw;
                                 }
                                 tx.Abort();
@@ -201,6 +208,7 @@ namespace IntersectUtilities.LongitudinalProfiles.KoteReport
 
                             ConnectionKnownElevation con = new ConnectionKnownElevation(ConnectionDirection.In, cst, celev);
                             child.AddConnection(con);
+                            edge.TargetCon = con;
                         }
                         #endregion
 
@@ -212,9 +220,19 @@ namespace IntersectUtilities.LongitudinalProfiles.KoteReport
             }
             #endregion
 
+            //Sort connections by station
+            //First sort all connections by station
+            foreach (var graph in _graphs)
+                foreach (var node in graph.Vertices)
+                    node.Connections = node.Connections.OrderBy(x => x.Station).ToList();
+
             #region Generate Kote Report
             StringBuilder sb = new StringBuilder();
             sb.AppendLine("digraph G {");
+            sb.AppendLine($"splines=polyline");
+            sb.AppendLine($"rankdir=LR");
+            sb.AppendLine($"ranksep=1.35");
+            sb.AppendLine("edge [dir=none style=bold]");
 
             int graphCount = 0;
             foreach (var graph in _graphs)
@@ -252,7 +270,8 @@ namespace IntersectUtilities.LongitudinalProfiles.KoteReport
         {
             StringBuilder sb = new StringBuilder();
 
-            foreach (var node in graph.Vertices)
+            //Then print nodes
+            foreach (var node in graph.Vertices.OrderBy(x => x.Value.Name))
             {
                 sb.AppendLine();
                 sb.Append($"\"node{node.Value.Name}\" " +
@@ -261,26 +280,29 @@ namespace IntersectUtilities.LongitudinalProfiles.KoteReport
                 {
                     sb.Append(con.ToLabel(node.Connections.IndexOf(con)));
                 }
+                sb.Append("\"];");
             }
+
+            return sb.ToString();
         }
-
-        /*
-         * digraph {
-  label="Test record label graph"
-
-  subgraph cluster_self_portraits 
-  {
-    node [shape=record, fontname="monospace bold"];
-    node001 [label="{001}|{S|<p00> K}|{S|K}|{K|Station}"];
-    node002 [label="{002}|{S|K}|{S|K}|{<p01> K|Station}"];
-    node001:p00 -> node002:p01 [color="red"];
-  }
-}
-         */
 
         private static string EdgesToDot(AdjacencyGraph<KRNode, KREdge> graph)
         {
-            throw new NotImplementedException();
+            StringBuilder sb = new StringBuilder();
+
+            foreach (var edge in graph.Edges.OrderBy(x => x.Source.Value.Name).ThenBy(x => x.Target.Value.Name))
+            {
+                int sidx = edge.Source.Connections.IndexOf(edge.SourceCon);
+                int tidx = edge.Target.Connections.IndexOf(edge.TargetCon);
+
+                sb.AppendLine();
+                sb.Append(
+                    $"\"node{edge.Source.Value.Name}\":p{sidx.ToString("D3")}:e " +
+                    $"-> " +
+                    $"\"node{edge.Target.Value.Name}\":p{tidx.ToString("D3")}:w;");
+            }
+
+            return sb.ToString();
         }
     }
 }

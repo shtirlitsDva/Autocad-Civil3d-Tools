@@ -135,7 +135,7 @@ namespace ExportShapeFiles
                     #region Exporting BRs
                     var dt = CsvData.FK;
 
-                    HashSet<BlockReference> brs = localDb.GetFjvBlocks(tx, dt);
+                    HashSet<BlockReference> brs = localDb.GetFjvBlocks(tx, dt, false);
 
                     Log.log($"{brs.Count} br(s) found for export.");
 

@@ -10,9 +10,7 @@ namespace IntersectUtilities.LongitudinalProfiles.KoteReport
 {
     internal class KREdge : EdgeBase<KRNode>
     {
-        public KREdge(KRNode source, KRNode target) : base(source, target)
-        {
-        }
+        public KREdge(KRNode source, KRNode target) : base(source, target) { }
 
         public IConnection SourceCon { get; set; }
         public IConnection TargetCon { get; set; }
