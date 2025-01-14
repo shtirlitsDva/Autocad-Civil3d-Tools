@@ -5307,7 +5307,7 @@ namespace IntersectUtilities
                 pn.CreatePipelineGraph();
 
                 KoteReport.BuildGraphs(pn.PipelineGraphs);
-                KoteReport.GenerateKoteReport(længdeprofilerdbs);
+                KoteReport.GenerateKoteReport(længdeprofilerdbs, 0.005);
                 
                 prdDbg("Finshed!");
             }

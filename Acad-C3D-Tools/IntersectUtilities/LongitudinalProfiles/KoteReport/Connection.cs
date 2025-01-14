@@ -9,13 +9,18 @@ namespace IntersectUtilities.LongitudinalProfiles.KoteReport
     internal interface IConnection
     {
         public double Station { get; }
-        public string ToLabel(int v);
+        public double Elevation { get; }
+        public string ColorStation { get; set; }
+        public string ColorElevation { get; set; }
+        public string ToLabelHtml(int v);
     }
     internal abstract class ConnectionBase : IConnection
     {
         protected ConnectionDirection _direction;
         protected double _station;
         protected double _elevation;
+        protected string _colorStation = "#FFFFFF";
+        protected string _colorElevation = "#FFFFFF";
         public ConnectionBase(ConnectionDirection direction, double station, double elevation)
         {
             _direction = direction;
@@ -24,15 +29,40 @@ namespace IntersectUtilities.LongitudinalProfiles.KoteReport
         }
 
         public double Station => _station;
+        public double Elevation => _elevation;
+        public string ColorStation { get => _colorStation; set => _colorStation = value; }
+        public string ColorElevation { get => _colorElevation; set => _colorElevation = value; }
 
-        public abstract string ToLabel(int index);
+        public abstract string ToLabelHtml(int index);
     }
     internal class ConnectionUnknown : ConnectionBase
     {
         public ConnectionUnknown(ConnectionDirection direction, double station, double elevation) :
             base(direction, station, elevation) { }
 
-        public override string ToLabel(int index)
+        public override string ToLabelHtml(int index)
+        {
+            switch (_direction)
+            {
+                case ConnectionDirection.Out:
+                    return $@"
+<TR>
+    <!-- Port on the STATION cell. -->
+    <TD BGCOLOR=""{_colorStation}"" ALIGN=""RIGHT"">S: {_station:0.00}</TD>
+    <!-- Separate cell for ELEVATION. -->
+    <TD PORT=""p{index:000}"" BGCOLOR=""{_colorElevation}"" ALIGN=""RIGHT"">K: NA</TD>
+</TR>";
+                case ConnectionDirection.In:
+                    return $@"
+<TR>
+    <TD PORT=""p{index:000}"" BGCOLOR=""{_colorElevation}"" ALIGN=""RIGHT"">K: NA</TD>
+    <TD BGCOLOR=""{_colorStation}"" ALIGN=""RIGHT"">S: {_station:0.00}</TD>
+</TR>";
+            }
+            return string.Empty;
+        }
+
+        public string ToLabelRecord(int index)
         {
             switch (_direction)
             {
@@ -49,7 +79,29 @@ namespace IntersectUtilities.LongitudinalProfiles.KoteReport
         public ConnectionKnownElevation(ConnectionDirection direction, double station, double elevation) :
             base(direction, station, elevation) { }
 
-        public override string ToLabel(int index)
+        public override string ToLabelHtml(int index)
+        {
+            switch (_direction)
+            {
+                case ConnectionDirection.Out:
+                    return $@"
+<TR>
+    <!-- Port on the STATION cell. -->
+    <TD BGCOLOR=""{_colorStation}"" ALIGN=""RIGHT"">S: {_station:0.00}</TD>
+    <!-- Separate cell for ELEVATION. -->
+    <TD PORT=""p{index:000}"" BGCOLOR=""{_colorElevation}"" ALIGN=""RIGHT"">K: {_elevation:0.00}</TD>
+</TR>";
+                case ConnectionDirection.In:
+                    return $@"
+<TR>
+    <TD PORT=""p{index:000}"" BGCOLOR=""{_colorElevation}"" ALIGN=""RIGHT"">K: {_elevation:0.00}</TD>
+    <TD BGCOLOR=""{_colorStation}"" ALIGN=""RIGHT"">S: {_station:0.00}</TD>
+</TR>";
+            }
+            return string.Empty;
+        }
+
+        public string ToLabelRecord(int index)
         {
             switch (_direction)
             {

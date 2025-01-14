@@ -28,7 +28,7 @@ namespace IntersectUtilities.LongitudinalProfiles.KoteReport
             _graphs = GraphBuilder.BuildGraphs<KRNode, KREdge>(ographs);
         }
 
-        public static void GenerateKoteReport(HashSet<Database> ldbs)
+        public static void GenerateKoteReport(HashSet<Database> ldbs, double epsilon)
         {
             if (_graphs == null) { prdDbg("_graphs is null!"); return; }
 
@@ -226,21 +226,64 @@ namespace IntersectUtilities.LongitudinalProfiles.KoteReport
                 foreach (var node in graph.Vertices)
                     node.Connections = node.Connections.OrderBy(x => x.Station).ToList();
 
+            //Evaluate the connections' elevations
+            foreach (var graph in _graphs)
+            {
+                foreach (var edge in graph.Edges)
+                {
+                    var sc = edge.SourceCon;
+                    var tc = edge.TargetCon;
+
+                    if (edge.SourceCon is ConnectionUnknown || edge.TargetCon is ConnectionUnknown)
+                    {
+                        sc.ColorElevation = "yellow";
+                        tc.ColorElevation = "yellow";
+                        edge.ColorEdge = "yellow";
+                        continue;
+                    }
+
+                    //Evaluate the elevations
+                    var se = sc.Elevation;
+                    var te = tc.Elevation;
+
+                    var result = Math.Abs(se - te);
+
+                    bool isOk = result < epsilon;
+
+                    if (isOk)
+                    {
+                        sc.ColorElevation = "green";
+                        tc.ColorElevation = "green";
+                        edge.ColorEdge = "green";
+                    }
+                    else
+                    {
+                        sc.ColorElevation = "red";
+                        tc.ColorElevation = "red";
+                        edge.ColorEdge = "red";
+                    }
+                }
+            }
+
             #region Generate Kote Report
             StringBuilder sb = new StringBuilder();
             sb.AppendLine("digraph G {");
-            sb.AppendLine($"splines=polyline");
-            sb.AppendLine($"rankdir=LR");
-            sb.AppendLine($"ranksep=1.35");
+            sb.AppendLine(
+                $"graph [labelloc=t " + 
+                $"label=\"Elevation Report (tolerance = {epsilon:0.###} m)\" " +
+                $"splines=polyline " +
+                $"rankdir=LR " +
+                $"ranksep=1.35" +
+                $"]");
             sb.AppendLine("edge [dir=none style=bold]");
+            sb.AppendLine("node [shape=plaintext, fontname=\"monospace bold\"]");
 
             int graphCount = 0;
             foreach (var graph in _graphs)
             {
                 graphCount++;
                 sb.AppendLine($"subgraph G_{graphCount} {{");
-                sb.AppendLine("node [shape=record, fontname=\"monospace bold\"];");
-                sb.AppendLine(NodesToDot(graph));
+                sb.AppendLine(NodesToDotHtmlLabel(graph));
                 sb.AppendLine(EdgesToDot(graph));
                 sb.AppendLine("}");
             }
@@ -266,7 +309,43 @@ namespace IntersectUtilities.LongitudinalProfiles.KoteReport
             #endregion
         }
 
-        private static string NodesToDot(AdjacencyGraph<KRNode, KREdge> graph)
+        private static string NodesToDotHtmlLabel(AdjacencyGraph<KRNode, KREdge> graph)
+        {
+            StringBuilder sb = new StringBuilder();
+
+            //Then print nodes
+            foreach (var node in graph.Vertices.OrderBy(x => x.Value.Name))
+            {
+                sb.AppendLine();
+                // Start a node
+                sb.AppendLine($"\"node{node.Value.Name}\" [label=<");
+                sb.AppendLine("<TABLE BORDER=\"2\" " +
+                    "CELLBORDER=\"1\" " +
+                    "CELLSPACING=\"0\" " +
+                    //"CELLPADDING=\"0\"" +
+                    ">");
+
+                // Row for the node name
+                sb.AppendLine($@"
+<TR>
+    <TD COLSPAN=""2"" BGCOLOR=""#DDDDDD"" border=""1"">{node.Value.Name}</TD>
+</TR>");
+
+                // Add each connection row
+                foreach (var con in node.Connections)
+                {
+                    // The override below will return the appropriate <TR><TD>…</TD></TR>
+                    sb.AppendLine(con.ToLabelHtml(node.Connections.IndexOf(con)));
+                }
+
+                sb.AppendLine("</TABLE>");
+                sb.AppendLine(">];");
+            }
+
+            return sb.ToString();
+        }
+
+        private static string NodesToDotRecord(AdjacencyGraph<KRNode, KREdge> graph)
         {
             StringBuilder sb = new StringBuilder();
 
@@ -278,7 +357,7 @@ namespace IntersectUtilities.LongitudinalProfiles.KoteReport
                     $"[label=\"{{{node.Value.Name}}}");
                 foreach (var con in node.Connections)
                 {
-                    sb.Append(con.ToLabel(node.Connections.IndexOf(con)));
+                    sb.Append(con.ToLabelHtml(node.Connections.IndexOf(con)));
                 }
                 sb.Append("\"];");
             }
@@ -299,7 +378,8 @@ namespace IntersectUtilities.LongitudinalProfiles.KoteReport
                 sb.Append(
                     $"\"node{edge.Source.Value.Name}\":p{sidx.ToString("D3")}:e " +
                     $"-> " +
-                    $"\"node{edge.Target.Value.Name}\":p{tidx.ToString("D3")}:w;");
+                    $"\"node{edge.Target.Value.Name}\":p{tidx.ToString("D3")}:w " +
+                    $"[color={edge.ColorEdge}];");
             }
 
             return sb.ToString();

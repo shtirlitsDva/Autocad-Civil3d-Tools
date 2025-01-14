@@ -14,5 +14,6 @@ namespace IntersectUtilities.LongitudinalProfiles.KoteReport
 
         public IConnection SourceCon { get; set; }
         public IConnection TargetCon { get; set; }
+        public string ColorEdge { get; set; } = "#000000";
     }
 }
