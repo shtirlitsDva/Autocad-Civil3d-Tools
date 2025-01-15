@@ -295,7 +295,7 @@ namespace IntersectUtilities.LongitudinalProfiles.KoteReport
                 Directory.CreateDirectory(@"C:\Temp\");
 
             //Write the collected graphs to one file
-            using (System.IO.StreamWriter file = new System.IO.StreamWriter($"C:\\Temp\\MyKoteReport.dot"))
+            using (System.IO.StreamWriter file = new System.IO.StreamWriter($"C:\\Temp\\MyElevationReport.dot"))
             {
                 file.WriteLine(sb.ToString()); // "sb" is the StringBuilder
             }
@@ -304,7 +304,7 @@ namespace IntersectUtilities.LongitudinalProfiles.KoteReport
             System.Diagnostics.Process cmd = new System.Diagnostics.Process();
             cmd.StartInfo.FileName = "cmd.exe";
             cmd.StartInfo.WorkingDirectory = @"C:\Temp\";
-            cmd.StartInfo.Arguments = @"/c ""dot -Tpdf MyKoteReport.dot > MyKoteReport.pdf""";
+            cmd.StartInfo.Arguments = @"/c ""dot -Tpdf MyElevationReport.dot > MyElevationReport.pdf""";
             cmd.Start();
             #endregion
         }
