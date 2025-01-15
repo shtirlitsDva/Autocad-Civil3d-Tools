@@ -1869,5 +1869,61 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+
+        /// <command>PROCESSALLSHEETSINEDITOR</command>
+        /// <summary>
+        /// Using a list of drawings, opens them all in editor and forces references to update.
+        /// Used to refresh sheets in batch mode to force title block to update.
+        /// </summary>
+        /// <category>Sheet Management</category>
+        [CommandMethod("PROCESSALLSHEETSINEDITOR", CommandFlags.Session)]
+        public void processallsheetsineditor()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            //Application.DocumentManager.DocumentActivationEnabled = true;
+            try
+            {
+                #region Dialog box for file list selection and path determination
+
+                string path = string.Empty;
+                OpenFileDialog dialog = new OpenFileDialog()
+                {
+                    Title = "Choose txt file:",
+                    DefaultExt = "txt",
+                    Filter = "txt files (*.txt)|*.txt|All files (*.*)|*.*",
+                    FilterIndex = 0
+                };
+                if (dialog.ShowDialog() == DialogResult.OK)
+                {
+                    path = dialog.FileName;
+                }
+                else return;
+                List<string> fileList;
+                fileList = File.ReadAllLines(path).ToList();
+                path = Path.GetDirectoryName(path) + "\\";
+                #endregion
+
+                foreach (string name in fileList)
+                {
+                    prdDbg(name);
+                    string fileName = path + name;
+                    #region Open drawings in editor
+
+                    Document doc = DocumentCollectionExtension.Open(docCol, fileName, false);
+                    docCol.MdiActiveDocument = doc;
+                    docCol.MdiActiveDocument.Editor.Command("_SYNCHRONIZEREFERENCES");
+                    docCol.MdiActiveDocument.Editor.Command("_qsave");
+                    docCol.MdiActiveDocument.Editor.Command("_close");
+                    #endregion
+
+                    System.Windows.Forms.Application.DoEvents();
+                }
+            }
+            catch (System.Exception ex)
+            {
+                Application.DocumentManager.MdiActiveDocument.Editor.WriteMessage("\n" + ex.ToString());
+                return;
+            }
+        }
     }
 }
