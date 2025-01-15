@@ -5282,12 +5282,17 @@ namespace IntersectUtilities
                 fremDb.Dispose();
             }
         }
-#if DEBUG
-        [CommandMethod("CREATEKOTEREPORT")]
-        public void createkotereport()
+
+        [CommandMethod("CREATEELEVATIONREPORT")]
+        public void createelevationreport()
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
+
+            #region Ask for tolerance
+            int tolerance = Interaction.GetInteger("Enter tolerance in MILLIMETER: ");
+            if (tolerance == -1) return;
+            #endregion
 
             DataManager.DataManager dm = new DataManager.DataManager(new DataReferencesOptions());
             Database fjvDb = dm.GetForRead("Fremtid");
@@ -5307,7 +5312,7 @@ namespace IntersectUtilities
                 pn.CreatePipelineGraph();
 
                 KoteReport.BuildGraphs(pn.PipelineGraphs);
-                KoteReport.GenerateKoteReport(længdeprofilerdbs, 0.005);
+                KoteReport.GenerateKoteReport(længdeprofilerdbs, tolerance / 1000.0);
                 
                 prdDbg("Finshed!");
             }
@@ -5329,6 +5334,5 @@ namespace IntersectUtilities
                 foreach (var db in længdeprofilerdbs) db.Dispose();
             }
         }
-#endif
     }
 }
