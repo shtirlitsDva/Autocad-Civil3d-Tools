@@ -4517,7 +4517,6 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
-        
         public void graphclear(Database db = null)
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -4543,6 +4542,11 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>SELECTBYPS</command>
+        /// <summary>
+        /// Selects entities by property set, property and a value.
+        /// </summary>
+        /// <category>Selection</category>
         [CommandMethod("SELECTBYPS")]
         public void selectbyps()
         {
@@ -4577,6 +4581,11 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+        /// <command>SELECTBYPSALL</command>
+        /// <summary>
+        /// Selects all entities by property set and property.
+        /// </summary>
+        /// <category>Selection</category>
         [CommandMethod("SELECTBYPSALL")]
         public void selectbypsall()
         {
@@ -4624,6 +4633,11 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+        /// <command>SELECTBYPSET</command>
+        /// <summary>
+        /// Selects all entities by property set.
+        /// </summary>
+        /// <category>Selection</category>
         [CommandMethod("SELECTBYPSET")]
         public void selectbypset()
         {
@@ -4656,6 +4670,11 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+        /// <command>LISTUNIQUEPSDATA</command>
+        /// <summary>
+        /// Lists all unique values of a property in a property set.
+        /// </summary>
+        /// <category>Property Sets</category>
         [CommandMethod("LISTUNIQUEPSDATA")]
         public void listuniquepsdata()
         {
@@ -4694,7 +4713,7 @@ namespace IntersectUtilities
         /// <summary>
         /// Divides a polyline into equal segments.
         /// </summary>
-        /// <category>Polyline Operations</category>
+        /// <category>Polylines</category>
         [CommandMethod("DIVIDEPLINE")]
         public void dividepline()
         {
@@ -4738,44 +4757,12 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("COUNTENTS")]
-        public void countents()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    var blockTable = (BlockTable)tx.GetObject(localDb.BlockTableId, OpenMode.ForRead);
-                    // Get the model space block table record
-                    var modelSpace = (BlockTableRecord)tx.GetObject(
-                        blockTable[BlockTableRecord.ModelSpace], OpenMode.ForRead);
-                    RXClass theClass = RXObject.GetClass(typeof(Entity));
-                    int count = 0;
-                    // Loop through the entities in model space
-                    foreach (Oid objectId in modelSpace)
-                    {
-                        // Look for entities of the correct type
-                        if (objectId.ObjectClass.IsDerivedFrom(theClass))
-                        {
-                            count++;
-                        }
-                    }
-                    prdDbg($"Total number of Entities in DWG: {count}");
-                }
-                catch (System.Exception ex)
-                {
-                    tx.Abort();
-                    editor.WriteMessage("\n" + ex.ToString());
-                    return;
-                }
-                tx.Commit();
-            }
-        }
+        /// <command>PIPELAYERSCOLOURSET</command>
+        /// <summary>
+        /// Sets the color of pipe layers.
+        /// Usually used in dimensioning drawings to mark sizes with assigned colors.
+        /// </summary>
+        /// <category>Dimensioning</category>
         [CommandMethod("PIPELAYERSCOLOURSET")]
         public void pipelayerscolourset()
         {
@@ -4886,6 +4873,12 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+        /// <command>PIPELAYERSCOLOURRESET</command>
+        /// <summary>
+        /// Resets the color of pipe layers.
+        /// Usually used in dimensioning drawings to reset colors.
+        /// </summary>
+        /// <category>Dimensioning</category>
         [CommandMethod("PIPELAYERSCOLOURRESET")]
         public void pipelayerscolourreset()
         {
@@ -4924,15 +4917,11 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
-        //[CommandMethod("CLEANLAGFILE")]
-        public void cleanlagfile()
-        {
-            System.Data.DataTable dupes = CsvReader.ReadCsvToDataTable(@"X:\AutoCAD DRI - 01 Civil 3D\Lag-duplicates.csv", "LagDupes");
-            var list = new HashSet<string>();
-            //hashset will not allow duplicate strings to be added thus effectively making the list distinct
-            foreach (DataRow row in dupes.Rows) list.Add($"{row[0]};{row[1]};{row[2]}");
-            OutputWriter(@"X:\AutoCAD DRI - 01 Civil 3D\Lag-clean.csv", string.Join("\n", list.ToArray()), true);
-        }
+        /// <command>FIXLERLAYERS</command>
+        /// <summary>
+        /// Assigns correct linetypes and colors to Ler polylines(3d).
+        /// </summary>
+        /// <category>Ler</category>
         [CommandMethod("FIXLERLAYERS")]
         public void fixlerlayers()
         {
@@ -5055,343 +5044,13 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
-        [CommandMethod("LISTDESCRIPTIONS")]
-        public void listdescriptions()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    HashSet<Polyline3d> p3ds = localDb.HashSetOfType<Polyline3d>(tx);
-                    string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
-                    System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
-                    HashSet<string> layerNames = new HashSet<string>();
-                    foreach (var p3d in p3ds)
-                    {
-                        layerNames.Add(p3d.Layer);
-                    }
-                    var sorted = layerNames.OrderBy(x => x);
-                    foreach (var layerName in sorted)
-                    {
-                        string description = ReadStringParameterFromDataTable(
-                            layerName, dtKrydsninger, "Description", 0);
-                        if (description.IsNoE()) prdDbg($"{layerName};{description}");
-                    }
-                }
-                catch (System.Exception ex)
-                {
-                    tx.Abort();
-                    prdDbg(ex);
-                    return;
-                }
-                tx.Commit();
-            }
-        }
-        [CommandMethod("OVERLAPCOMPARISON")]
-        public void overlapcomparison()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Document doc = docCol.CurrentDocument;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor ed = docCol.CurrentDocument.Editor;
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    #region Select xref and open database
-                    PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions("\n Select XREF to compare: ");
-                    promptEntityOptions1.SetRejectMessage("\n Not a XREF");
-                    promptEntityOptions1.AddAllowedClass(typeof(Autodesk.AutoCAD.DatabaseServices.BlockReference), true);
-                    PromptEntityResult entity1 = ed.GetEntity(promptEntityOptions1);
-                    if (((PromptResult)entity1).Status != PromptStatus.OK)
-                    { AbortGracefully("No input!", localDb); return; }
-                    Oid blkObjId = entity1.ObjectId;
-                    BlockReference blkRef = tx.GetObject(blkObjId, OpenMode.ForRead, false) as BlockReference;
-                    BlockTableRecord blockDef = tx.GetObject(blkRef.BlockTableRecord, OpenMode.ForRead) as BlockTableRecord;
-                    if (!blockDef.IsFromExternalReference)
-                    { AbortGracefully("Selected object is not an XREF!", localDb); return; }
-                    // open the xref database
-                    Database xrefDb = new Database(false, true);
-                    prdDbg($"\nPathName of the blockDef -> {blockDef.PathName}");
-                    //Relative path handling
-                    string curPathName = blockDef.PathName;
-                    bool isFullPath = IsFullPath(curPathName);
-                    if (isFullPath == false)
-                    {
-                        string sourcePath = Path.GetDirectoryName(doc.Name);
-                        prdDbg($"\nSourcePath -> {sourcePath}");
-                        curPathName = GetAbsolutePath(sourcePath, blockDef.PathName);
-                        prdDbg($"\nTargetPath -> {curPathName}");
-                    }
-                    xrefDb.ReadDwgFile(curPathName, FileOpenMode.OpenForReadAndWriteNoShare, false, string.Empty);
-                    #endregion
-                    //Transaction from Database of the Xref
-                    using (Transaction xrefTx = xrefDb.TransactionManager.StartTransaction())
-                    {
-                        try
-                        {
-                            var remotePlines = xrefDb.HashSetOfType<Polyline>(xrefTx);
-                            prdDbg($"Number of polylines in remote database: {remotePlines.Count}");
-                            var localPlines = localDb.HashSetOfType<Polyline>(tx);
-                            prdDbg($"Number of polylines in local database: {localPlines.Count}");
-                            var remotePoints = xrefDb.HashSetOfType<DBPoint>(xrefTx);
-                            prdDbg($"Number of points in remote database: {remotePoints.Count}");
-                            var localPoints = localDb.HashSetOfType<DBPoint>(tx);
-                            prdDbg($"Number of points in local database: {localPoints.Count}");
-                            int remotePartial = 0;
-                            int localPartial = 0;
-                            int remoteFull = 0;
-                            int localFull = 0;
-                            int duplicatePoints = 0;
-                            //foreach (var remotePline in remotePlines)
-                            //{
-                            //    foreach (var localPline in localPlines)
-                            //    {
-                            //        var overlap = GetOverlapStatus(remotePline, localPline);
-                            //        switch (overlap)
-                            //        {
-                            //            case OverlapStatusEnum.None:
-                            //                break;
-                            //            case OverlapStatusEnum.Partial:
-                            //                remotePline.CheckOrOpenForWrite();
-                            //                remotePline.Color = ColorByName("yellow");
-                            //                remotePartial++;
-                            //                break;
-                            //            case OverlapStatusEnum.Full:
-                            //                remotePline.CheckOrOpenForWrite();
-                            //                remotePline.Color = ColorByName("red");
-                            //                remoteFull++;
-                            //                break;
-                            //            default:
-                            //                break;
-                            //        }
-                            //    }
-                            //}
-                            foreach (var localPline in localPlines)
-                            {
-                                foreach (var remotePline in remotePlines)
-                                {
-                                    var overlap = GetOverlapStatus(localPline, remotePline);
-                                    switch (overlap)
-                                    {
-                                        case OverlapStatusEnum.None:
-                                            break;
-                                        case OverlapStatusEnum.Partial:
-                                            localPline.CheckOrOpenForWrite();
-                                            localPline.Color = ColorByName("yellow");
-                                            localPartial++;
-                                            break;
-                                        case OverlapStatusEnum.Full:
-                                            localPline.CheckOrOpenForWrite();
-                                            localPline.Color = ColorByName("red");
-                                            localFull++;
-                                            break;
-                                        default:
-                                            break;
-                                    }
-                                }
-                            }
-                            //foreach (var localPoint in localPoints)
-                            //{
-                            //    foreach (var remotePoint in remotePoints)
-                            //    {
-                            //        if (localPoint.Position.IsEqualTo(remotePoint.Position, Tolerance.Global))
-                            //        {
-                            //            localPoint.CheckOrOpenForWrite();
-                            //            localPoint.Color = ColorByName("magenta");
-                            //            remotePoint.CheckOrOpenForWrite();
-                            //            remotePoint.Color = ColorByName("magenta");
-                            //            duplicatePoints++;
-                            //        }
-                            //    }
-                            //}
-                            prdDbg(
-                                $"Remote -> Partial overlaps {remotePartial}, Full overlaps {remoteFull}\n" +
-                                $"Local -> Partial overlaps {localPartial}, Full overlaps {localFull}\n" +
-                                $"Points -> Duplicates {duplicatePoints}");
-                        }
-                        catch (System.Exception ex)
-                        {
-                            xrefTx.Abort();
-                            xrefDb.Dispose();
-                            throw;
-                        }
-                        xrefTx.Commit();
-                    }
-                    xrefDb.SaveAs(xrefDb.Filename, true, DwgVersion.Current, null);
-                    xrefDb.Dispose();
-                }
-                catch (System.Exception ex)
-                {
-                    tx.Abort();
-                    prdDbg(ex);
-                    return;
-                }
-                tx.Commit();
-            }
-        }
-        [CommandMethod("OVERLAPRESET")]
-        public void overlapreset()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Document doc = docCol.CurrentDocument;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor ed = docCol.CurrentDocument.Editor;
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    #region Select xref and open database
-                    PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions("\n Select XREF to reset: ");
-                    promptEntityOptions1.SetRejectMessage("\n Not a XREF");
-                    promptEntityOptions1.AddAllowedClass(typeof(Autodesk.AutoCAD.DatabaseServices.BlockReference), true);
-                    PromptEntityResult entity1 = ed.GetEntity(promptEntityOptions1);
-                    if (((PromptResult)entity1).Status != PromptStatus.OK)
-                    { AbortGracefully("No input!", localDb); return; }
-                    Oid blkObjId = entity1.ObjectId;
-                    BlockReference blkRef = tx.GetObject(blkObjId, OpenMode.ForRead, false) as BlockReference;
-                    BlockTableRecord blockDef = tx.GetObject(blkRef.BlockTableRecord, OpenMode.ForRead) as BlockTableRecord;
-                    if (!blockDef.IsFromExternalReference)
-                    { AbortGracefully("Selected object is not an XREF!", localDb); return; }
-                    // open the xref database
-                    Database xrefDb = new Database(false, true);
-                    prdDbg($"\nPathName of the blockDef -> {blockDef.PathName}");
-                    //Relative path handling
-                    string curPathName = blockDef.PathName;
-                    bool isFullPath = IsFullPath(curPathName);
-                    if (isFullPath == false)
-                    {
-                        string sourcePath = Path.GetDirectoryName(doc.Name);
-                        prdDbg($"\nSourcePath -> {sourcePath}");
-                        curPathName = GetAbsolutePath(sourcePath, blockDef.PathName);
-                        prdDbg($"\nTargetPath -> {curPathName}");
-                    }
-                    xrefDb.ReadDwgFile(curPathName, FileOpenMode.OpenForReadAndWriteNoShare, false, string.Empty);
-                    #endregion
-                    //Transaction from Database of the Xref
-                    using (Transaction xrefTx = xrefDb.TransactionManager.StartTransaction())
-                    {
-                        try
-                        {
-                            var remotePlines = xrefDb.HashSetOfType<Polyline>(xrefTx);
-                            prdDbg($"Number of polylines in remote database: {remotePlines.Count}");
-                            var localPlines = localDb.HashSetOfType<Polyline>(tx);
-                            prdDbg($"Number of polylines in local database: {localPlines.Count}");
-                            var remotePoints = xrefDb.HashSetOfType<DBPoint>(xrefTx);
-                            prdDbg($"Number of points in remote database: {remotePoints.Count}");
-                            var localPoints = localDb.HashSetOfType<DBPoint>(tx);
-                            prdDbg($"Number of points in local database: {localPoints.Count}");
-                            foreach (var remotePline in remotePlines)
-                            {
-                                remotePline.CheckOrOpenForWrite();
-                                remotePline.Color = ColorByName("bylayer");
-                            }
-                            foreach (var localPline in localPlines)
-                            {
-                                localPline.CheckOrOpenForWrite();
-                                localPline.Color = ColorByName("bylayer");
-                            }
-                            foreach (var localPoint in localPoints)
-                            {
-                                localPoint.CheckOrOpenForWrite();
-                                localPoint.Color = ColorByName("bylayer");
-                            }
-                            foreach (var remotePoint in remotePoints)
-                            {
-                                remotePoint.CheckOrOpenForWrite();
-                                remotePoint.Color = ColorByName("bylayer");
-                            }
-                        }
-                        catch (System.Exception ex)
-                        {
-                            xrefTx.Abort();
-                            xrefDb.Dispose();
-                            throw;
-                        }
-                        xrefTx.Commit();
-                    }
-                    xrefDb.SaveAs(xrefDb.Filename, true, DwgVersion.Current, null);
-                    xrefDb.Dispose();
-                }
-                catch (System.Exception ex)
-                {
-                    tx.Abort();
-                    prdDbg(ex);
-                    return;
-                }
-                tx.Commit();
-            }
-        }
+        /// <command>EXPORTBLOCKSPSDATATOCSV</command>
         /// <summary>
-        /// Command for GAS points in Køge, where elevations are very low and we cannot discern between zero elevation and none elevation.
-        /// So the solution is to move all points that are at precisely 0.000 to -99 and then they can be deleted.
+        /// Exports BBR block property set data to a CSV file. BBR.csv placed in the same folder as the drawing.
+        /// Det er meningen at denne kommando skal bruges til at eksportere BBR data til en CSV fil.
+        /// Herefter kan man importere dataen i et regneark og/eller QGIS og arbejde videre med det.
         /// </summary>
-        [CommandMethod("MOVEZEROPOINTSTO99")]
-        public void movezeropointsto99()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Document doc = docCol.CurrentDocument;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor ed = docCol.CurrentDocument.Editor;
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    //Transaction from Database of the Xref
-                    var localPoints = localDb.HashSetOfType<DBPoint>(tx);
-                    prdDbg($"Number of points in local database: {localPoints.Count}");
-                    //List<DBPoint> elevations = new List<DBPoint>();
-                    foreach (var localPoint in localPoints)
-                    {
-                        double elevation = localPoint.Position.Z;
-                        //if (elevation > -0.001 && elevation < 0.001) elevations.Add(localPoint);
-                        if (localPoint.Layer != "LABEL" && elevation > -0.001 && elevation < 0.001)
-                        {
-                            localPoint.CheckOrOpenForWrite();
-                            localPoint.Position =
-                                new Point3d(localPoint.Position.X, localPoint.Position.Y, -99.0);
-                        }
-                    }
-                    //var groups = elevations.GroupBy(x => x);
-                    //foreach (var item in groups.OrderBy(x => x.Key))
-                    //{
-                    //    prdDbg($"Key: {item.Key}, Count: {item.Count()}");
-                    //}
-                }
-                catch (System.Exception ex)
-                {
-                    tx.Abort();
-                    prdDbg(ex);
-                    return;
-                }
-                tx.Commit();
-            }
-        }
-        [CommandMethod("LISTGW")]
-        public void listallplineslayers()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Document doc = docCol.CurrentDocument;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    var id = Interaction.GetEntity("Select polyline to list GW: ", typeof(Polyline), true);
-                    Polyline pline = id.Go<Polyline>(tx);
-                    prdDbg(pline.ConstantWidth);
-                }
-                catch (System.Exception ex)
-                {
-                    tx.Abort();
-                    prdDbg(ex);
-                    return;
-                }
-                tx.Commit();
-            }
-        }
+        /// <category>Dimensioning</category>
         [CommandMethod("EXPORTBLOCKSPSDATATOCSV")]
         public void exportblockspsdatatocsv()
         {
@@ -5439,6 +5098,11 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+        /// <command>DISPLAYNROFHISTLINES</command>
+        /// <summary>
+        /// Displays the number of history lines in AutoCAD console.
+        /// </summary>
+        /// <category>Miscellaneous</category>
         [CommandMethod("DISPLAYNROFHISTLINES")]
         public void displaynrofhistlines()
         {
@@ -5460,6 +5124,12 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+        /// <command>SETNROFHISTLINES</command>
+        /// <summary>
+        /// Sets the number of history lines in AutoCAD console.
+        /// The number must be between 25 and 2048.
+        /// </summary>
+        /// <category>Miscellaneous</category>
         [CommandMethod("SETNROFHISTLINES")]
         public void setnrofhistlines()
         {
@@ -5485,9 +5155,13 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+        /// <command>SETTBLDATA, STD</command>
+        /// <summary>
+        /// A tool to set data used for TBL quantities.
+        /// </summary>
+        /// <category>TBL Quantities</category>
         [CommandMethod("SETTBLDATA")]
         [CommandMethod("STD")]
-
         public void settbldata()
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -5544,6 +5218,12 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+        /// <command>XREFSUNLOADSELECTBATCH</command>
+        /// <summary>
+        /// Unloads selected Xrefs from all dwgs in a folder.
+        /// The xrefs must be listed in a file xrefNames.txt in the same folder.
+        /// </summary>
+        /// <category>Miscellaneous</category>
         [CommandMethod("XREFSUNLOADSELECTBATCH")]
         public void unloadxrefsbatch()
         {
@@ -5597,6 +5277,11 @@ namespace IntersectUtilities
                 }
             }
         }
+        /// <command>XREFSUNLOADALLBATCH</command>
+        /// <summary>
+        /// Unloads all Xrefs in all dwgs in a folder.
+        /// </summary>
+        /// <category>Miscellaneous</category>
         [CommandMethod("XREFSUNLOADALLBATCH")]
         public void unloadallxrefsbatch()
         {
@@ -5646,6 +5331,11 @@ namespace IntersectUtilities
             }
             prdDbg("Finished!");
         }
+        /// <command>XREFSRELOADALLBATCH</command>
+        /// <summary>
+        /// Reloads all Xrefs in all dwgs in a folder.
+        /// </summary>
+        /// <category>Miscellaneous</category>
         [CommandMethod("XREFSRELOADALLBATCH")]
         public void reloadallxrefsbatch()
         {
@@ -5695,6 +5385,15 @@ namespace IntersectUtilities
             }
             prdDbg("Finished!");
         }
+        /// <command>OPENSAVECLOSEALLDWGS</command>
+        /// <summary>
+        /// Opens, saves, and closes all databases in memory.
+        /// In memory means that the dwg is not opened in editor.
+        /// As far as we can tell, this cannot be used to refresh titleblocks.
+        /// This is not final statement, as I don't know how the method
+        /// that is used in this command works 100%.
+        /// </summary>
+        /// <category>Miscellaneous</category>
         [CommandMethod("OPENSAVECLOSEALLDWGS", CommandFlags.Session)]
         public void opensaveclosealldwgs()
         {
@@ -5735,6 +5434,11 @@ namespace IntersectUtilities
             }
             prdDbg("Finished!");
         }
+        /// <command>LISTXREFSINFILE</command>
+        /// <summary>
+        /// Lists all Xrefs in all dwg files in the selected folder.
+        /// </summary>
+        /// <category>Miscellaneous</category>
         [CommandMethod("LISTXREFSINFILE")]
         public void listxrefsinfile()
         {
@@ -5779,31 +5483,13 @@ namespace IntersectUtilities
                 }
             }
         }
-        [CommandMethod("RESETBLOCKATTRIBUTES")]
-        public void resetblockattributes()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    localDb
-                        .GetBlockReferenceByName("Tegningshoved FORS")
-                        .First()
-                        .BlockTableRecord
-                        .Go<BlockTableRecord>(tx)
-                        .ResetAttributesValues();
-                }
-                catch (System.Exception ex)
-                {
-                    tx.Abort();
-                    prdDbg(ex);
-                    return;
-                }
-                tx.Commit();
-            }
-        }
+
+        /// <command>LISTALLALIGNMENTS</command>
+        /// <summary>
+        /// Lists all alignments in the drawing and writes this to a file
+        /// in the same folder as the drawing.
+        /// </summary>
+        /// <category>Alignments</category>
         [CommandMethod("LISTALLALIGNMENTS")]
         public void listallalignments()
         {
@@ -5815,7 +5501,7 @@ namespace IntersectUtilities
                 {
                     HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
                     StringBuilder sb = new StringBuilder();
-                    foreach (var al in als)
+                    foreach (var al in als.OrderBy(x => x.Name))
                     {
                         sb.AppendLine(al.Name);
                     }
@@ -5833,6 +5519,14 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+
+        /// <command>DELETESPECIFICALIGNMENTS</command>
+        /// <summary>
+        /// Deletes alignments in the current drawing according to items listed in the selected text file.
+        /// Direct -> deletes alignments listed in the file.
+        /// Inverse -> deletes all alignments except those listed in the file.
+        /// </summary>
+        /// <category>Alignments</category>
         [CommandMethod("DELETESPECIFICALIGNMENTS")]
         public void deletespecificalignments()
         {
@@ -5887,6 +5581,13 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+        /// <command>DELETEBADENTITIES</command>
+        /// <summary>
+        /// Deletes polylines and points in the drawing that have a specific property set attached.
+        /// Currently hardcoded name of the property set is Contains("(2)").
+        /// This was used for a specific task and is not a general purpose command.
+        /// </summary>
+        /// <category>Miscellaneous</category>
         [CommandMethod("DELETEBADENTITIES")]
         public void deletebadentities()
         {
@@ -5919,6 +5620,13 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+        /// <command>SELECTBADENTITIES</command>
+        /// <summary>
+        /// Selects polylines and points in the drawing that have a specific property set attached.
+        /// Currently hardcoded name of the property set is Contains("(2)").
+        /// This was used for a specific task and is not a general purpose command.
+        /// </summary>
+        /// <category>Miscellaneous</category>
         [CommandMethod("SELECTBADENTITIES")]
         public void selectbadentities()
         {
@@ -5953,6 +5661,12 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+
+        /// <command>DELETEEMPTYTEXT</command>
+        /// <summary>
+        /// Deletes empty text entities (DBText -> Text, not MText) in the drawing.
+        /// </summary>
+        /// <category>Miscellaneous</category>
         [CommandMethod("DELETEEMPTYTEXT")]
         public void selectemptytext()
         {
@@ -5984,6 +5698,12 @@ namespace IntersectUtilities
             }
             prdDbg($"Erased {count} emtpy text object(s)!");
         }
+
+        /// <command>DUMPPSPROPERTYNAMES</command>
+        /// <summary>
+        /// Dumps all property names from a selected property set to C:\Temp\names.txt.
+        /// </summary>
+        /// <category>Property Sets</category>
         [CommandMethod("DUMPPSPROPERTYNAMES")]
         public void dumppspropertynames()
         {
@@ -5995,7 +5715,8 @@ namespace IntersectUtilities
                 {
                     OutputWriter(
                         "C:\\Temp\\names.txt",
-                        string.Join("\n", PropertySetManager.AllPropertyNamesAndDataType(localDb).OrderBy(x => x.Item1)),
+                        string.Join("\n", 
+                        PropertySetManager.AllPropertyNamesAndDataType(localDb).OrderBy(x => x.Item1)),
                         true);
                 }
                 catch (System.Exception ex)
@@ -6007,51 +5728,16 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
-        [CommandMethod("RENAMEPROFILESTOMATCHALIGNMENT")]
-        public void renameprofilestomatchalignment()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Regex regex = new Regex(@"(?<number>^\d{2,3}\s)");
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    var als = localDb.HashSetOfType<Alignment>(tx);
-                    foreach (var al in als)
-                    {
-                        string alName = al.Name;
-                        if (regex.IsMatch(alName))
-                        {
-                            string alNumber = regex.Match(alName).Groups["number"].Value;
-                            foreach (Profile prof in al.GetProfileIds().Entities<Profile>(tx))
-                            {
-                                if (prof.Name.StartsWith(alNumber)) continue;
-                                string profName = prof.Name;
-                                string newProfName = regex.Replace(profName, alNumber);
-                                prof.CheckOrOpenForWrite();
-                                prof.Name = newProfName;
-                            }
-                        }
-                    }
-                }
-                catch (System.Exception ex)
-                {
-                    tx.Abort();
-                    prdDbg(ex);
-                    return;
-                }
-                tx.Commit();
-            }
-        }
+
         /// <command>SELECTCUSTOMBRS, SCB</command>
         /// <summary>
-        /// Selects custom reducers in the drawing.
+        /// Selects blocks in the current drawing that have value "Custom"
+        /// instead of the correct type "Type" property.
         /// </summary>
         /// <category>Selection</category>
         [CommandMethod("SELECTCUSTOMBRS")]
         [CommandMethod("SCB")]
-        public void selectcustomreducers()
+        public void selectcustombrs()
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
@@ -6084,9 +5770,13 @@ namespace IntersectUtilities
             }
         }
 
-
+        /// <command>CLIPPLINESOUTSIDEPLINE</command>
+        /// <summary>
+        /// Breaks all polylines that cross the selected polyline which must be a closed polyline.
+        /// </summary>
+        /// <category>Polylines</category>
         [CommandMethod("CLIPPLINESOUTSIDEPLINE")]
-        public void ClipPlineOutsidePline()
+        public void clipplineoutsidepline()
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
@@ -6264,6 +5954,13 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+
+        /// <command>CREATEMANUALVIEWFRAME, CMVF</command>
+        /// <summary>
+        /// Creates a manual view frame for GIS data.
+        /// Is not generally used and is not a part of the standard workflow.
+        /// </summary>
+        /// <category>GIS</category>
         [CommandMethod("CREATEMANUALVIEWFRAME")]
         [CommandMethod("CMVF")]
         public void createmanualviewframe()
@@ -6364,6 +6061,12 @@ namespace IntersectUtilities
                 File.WriteAllText(fileName, jsonString, Encoding.UTF8);
             }
         }
+
+        /// <command>GOOGLESTREETVIEW, GS</command>
+        /// <summary>
+        /// Opens Google Street View at the specified location.
+        /// </summary>
+        /// <category>Miscellaneous</category>
         [CommandMethod("GOOGLESTREETVIEW")]
         [CommandMethod("GS")]
         public void googlestreetview()
@@ -6378,6 +6081,12 @@ namespace IntersectUtilities
             System.Diagnostics.Process.Start(
                 new ProcessStartInfo(url) { UseShellExecute = true });
         }
+
+        /// <command>SKRAAFOTO, SF</command>
+        /// <summary>
+        /// Opens Skraafoto at the specified location.
+        /// </summary>
+        /// <category>Miscellaneous</category>
         [CommandMethod("SKRAAFOTO")]
         [CommandMethod("SF")]
         public void skraafoto()
@@ -6394,40 +6103,12 @@ namespace IntersectUtilities
             System.Diagnostics.Process.Start(
                 new ProcessStartInfo(url) { UseShellExecute = true });
         }
-        [CommandMethod("MODIFYPOINTSELEVATIONFROMSURFACE")]
-        public void modifypointselevationfromsurface()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    HashSet<DBPoint> points = localDb.HashSetOfType<DBPoint>(tx);
-                    CivSurface surface = localDb
-                        .HashSetOfType<TinSurface>(tx)
-                        .FirstOrDefault() as CivSurface;
-                    foreach (DBPoint point in points)
-                    {
-                        double depthToTop =
-                            PropertySetManager.ReadNonDefinedPropertySetDouble(
-                                point, "GSMeasurement", "Depth");
-                        double depthCl = depthToTop + 0.1143 / 2;
-                        double surfaceElev = surface.FindElevationAtXY(point.Position.X, point.Position.Y);
-                        double clElevation = surfaceElev - depthCl;
-                        point.UpgradeOpen();
-                        point.Position = new Point3d(point.Position.X, point.Position.Y, clElevation);
-                    }
-                }
-                catch (System.Exception ex)
-                {
-                    tx.Abort();
-                    prdDbg(ex);
-                    return;
-                }
-                tx.Commit();
-            }
-        }
+
+        /// <command>FINDALIGNMENT</command>
+        /// <summary>
+        /// Selects all entities that belong to a specific alignment.
+        /// </summary>
+        /// <category>Alignments</category>
         [CommandMethod("FINDALIGNMENT")]
         public void findalignment()
         {
@@ -6476,6 +6157,12 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+
+        /// <command>SETALLBLOCKSTOSERIE</command>
+        /// <summary>
+        /// Sets all blocks to a specific series.
+        /// </summary>
+        /// <category>Blocks</category>
         [CommandMethod("SETALLBLOCKSTOSERIE")]
         public void setallblockstoserie()
         {
@@ -6538,6 +6225,12 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+
+        /// <command>TLEN</command>
+        /// <summary>
+        /// Calculates the total length of DH pipes in the drawing.
+        /// </summary>
+        /// <category>Fjernvarme Fremtidig</category>
         [CommandMethod("TLEN")]
         public void totallengthofpipes()
         {
@@ -6574,6 +6267,13 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+
+        /// <command>GATHERELEMENTSBYPREDICATE</command>
+        /// <summary>
+        /// Gathers LER elements to a separate dwg filtered by a specified predicate.
+        /// Specifc command for a specific task. Not part of the standard workflow.
+        /// </summary>
+        /// <category>Miscellaneous</category>
         [CommandMethod("GATHERELEMENTSBYPREDICATE")]
         public void gatherelementsbypredicate()
         {
@@ -6648,12 +6348,25 @@ namespace IntersectUtilities
                 return false;
             }
         }
+
+        /// <command>DELETEALLPROPERTYSETS</command>
+        /// <summary>
+        /// Deletes ALL property sets in the drawing.
+        /// </summary>
+        /// <category>Property Sets</category>
         [CommandMethod("DELETEALLPROPERTYSETS")]
         public void deleteallpropertysets()
         {
             PropertySetManager.DeleteAllPropertySets(
                 Application.DocumentManager.MdiActiveDocument.Database);
         }
+
+        /// <command>SETALIGNMENTDESCRIPTIONS</command>
+        /// <summary>
+        /// Sets the descriptions for alignments in the drawing equal to alignments names.
+        /// NOTE!!! This doesn't work for some reason.
+        /// </summary>
+        /// <category>Alignments</category>
         [CommandMethod("SETALIGNMENTDESCRIPTIONS")]
         public void setalignmentdescriptions()
         {
@@ -7041,9 +6754,10 @@ namespace IntersectUtilities
         }
         /// <command>PARSEANDCREATELINES</command>
         /// <summary>
-        /// Parses data and creates line entities.
+        /// Used for a specific task during development.
+        /// Is not used in the standard workflow.
         /// </summary>
-        /// <category>Data Processing</category>
+        /// <category>Development</category>
         [CommandMethod("PARSEANDCREATELINES")]
         public static void ParseAndCreateLines()
         {
@@ -7064,9 +6778,10 @@ namespace IntersectUtilities
 
         /// <command>PARSEEDGES</command>
         /// <summary>
-        /// Parses edge data and creates line entities.
+        /// Used for a specific task during development.
+        /// Is not used in the standard workflow.
         /// </summary>
-        /// <category>Data Processing</category>
+        /// <category>Development</category>
         [CommandMethod("PARSEEDGES")]
         public static void ParseEdgesAndCreateLines()
         {
@@ -7109,8 +6824,6 @@ namespace IntersectUtilities
                 Console.WriteLine("Edges or coordinates are missing in the file.");
             }
         }
-
-
         private static List<STPEdge> ParseEdges(string filePath)
         {
             var edges = new List<STPEdge>();

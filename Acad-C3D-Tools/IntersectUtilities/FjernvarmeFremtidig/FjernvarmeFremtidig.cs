@@ -59,9 +59,12 @@ namespace IntersectUtilities
 {
     public partial class Intersect
     {
+        /// <command>ASSIGNBLOCKSANDPLINESTOALIGNMENTS</command>
+        /// <summary>
+        /// Assigns blocks and polylines to alignments.
+        /// </summary>
+        /// <category>Fjernvarme Fremtidig</category>
         [CommandMethod("ASSIGNBLOCKSANDPLINESTOALIGNMENTS")]
-        ///REWRITE IN OOP, DAMMIT!!!
-        ///LIKE I KNOW HOW TO DO IT!!!
         public void assignblocksandplinestoalignments()
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -652,61 +655,7 @@ namespace IntersectUtilities
             }
         }
 
-        //[CommandMethod("CHECKALIGNMENTSCONNECTIVITY")]
-        public void checkalignmentsconnectivity()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
-
-                    var spgroups = als.GroupConnected((x, y) => x.IsConnectedTo(y, 0.05));
-
-                    string layer = "0-Alignment-connectivity-check";
-                    localDb.CheckOrCreateLayer(layer, 2, false);
-
-                    int i = 0;
-                    foreach (var group in spgroups)
-                    {
-                        List<Point2d> pts = new List<Point2d>();
-
-                        i++;
-                        prdDbg($"Spatial group {i} - {group.Count} alignment(s):");
-                        foreach (var item in group)
-                        {
-                            prdDbg(item.Name);
-                            var pl = item.GetPolyline().Go<Polyline>(tx);
-                            pts.AddRange(pl.GetSamplePoints());
-                            pl.UpgradeOpen();
-                            pl.Erase();
-                        }
-                        prdDbg("");
-
-                        var hull = ConvexHull.Compute(pts);
-                        Polyline polyline = new Polyline();
-                        polyline.Layer = layer;
-                        foreach (var item in hull) polyline.AddVertexAt(polyline.NumberOfVertices, item, 0, 0, 0);
-                        polyline.Closed = true;
-                        polyline.ConstantWidth = 0.5;
-                        polyline.AddEntityToDbModelSpace(localDb);
-                    }
-
-                }
-                catch (System.Exception ex)
-                {
-                    tx.Abort();
-                    prdDbg(ex);
-                    return;
-                }
-                tx.Commit();
-            }
-        }
-
-        [CommandMethod("GRAPHWRITEV2")]
+        //[CommandMethod("GRAPHWRITEV2")]
         public void graphwritev2()
         {
             DocumentCollection docCol = Application.DocumentManager;

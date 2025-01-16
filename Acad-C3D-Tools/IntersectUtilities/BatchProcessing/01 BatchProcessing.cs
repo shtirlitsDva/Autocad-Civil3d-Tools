@@ -57,6 +57,12 @@ namespace IntersectUtilities
 {
     public partial class Intersect
     {
+        /// <command>BATCHPROCESSDRAWINGS, BPUI</command>
+        /// <summary>
+        /// A collection of methods, accessed via a simple UI, for batch processing of drawings.
+        /// This is mostly used for fixing sheet drawings.
+        /// </summary>
+        /// <category>Batch Processing</category>
         [CommandMethod("BPUI")]
         [CommandMethod("BATCHPROCESSDRAWINGS")]
         public void processallsheets()
