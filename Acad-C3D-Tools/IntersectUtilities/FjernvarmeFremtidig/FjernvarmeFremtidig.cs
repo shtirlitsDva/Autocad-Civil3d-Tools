@@ -1160,6 +1160,101 @@ namespace IntersectUtilities
             Application.DocumentManager.MdiActiveDocument.Editor.Regen();
         }
 
+        /// <command>LABELPIPE, LB</command>
+        /// <summary>
+        /// Labels pipes with specified annotations.
+        /// </summary>
+        /// <category>Piping</category>
+        [CommandMethod("LABELPIPE")]
+        [CommandMethod("LB")]
+        public void labelpipe()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor ed = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
+                        "\nSelect pipe (polyline) to label: ");
+                    promptEntityOptions1.SetRejectMessage("\nNot a polyline!");
+                    promptEntityOptions1.AddAllowedClass(typeof(Polyline), false);
+                    PromptEntityResult entity1 = ed.GetEntity(promptEntityOptions1);
+                    if (((PromptResult)entity1).Status != PromptStatus.OK) { tx.Abort(); return; }
+                    Oid plineId = entity1.ObjectId;
+                    Entity ent = plineId.Go<Entity>(tx);
+                    string labelText = GetLabel(ent);
+                    PromptPointOptions pPtOpts = new PromptPointOptions("\nChoose location of label: ");
+                    PromptPointResult pPtRes = ed.GetPoint(pPtOpts);
+                    Point3d selectedPoint = pPtRes.Value;
+                    if (pPtRes.Status != PromptStatus.OK) { tx.Abort(); return; }
+                    //Create new text
+                    string layerName = "FJV-DIM";
+                    LayerTable lt = tx.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
+                    if (!lt.Has(layerName))
+                    {
+                        LayerTableRecord ltr = new LayerTableRecord();
+                        ltr.Name = layerName;
+                        ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 6);
+                        lt.CheckOrOpenForWrite();
+                        lt.Add(ltr);
+                        tx.AddNewlyCreatedDBObject(ltr, true);
+                    }
+                    DBText label = new DBText();
+                    label.Layer = layerName;
+                    label.TextString = labelText;
+                    label.Height = 1.2;
+                    label.HorizontalMode = TextHorizontalMode.TextMid;
+                    label.VerticalMode = TextVerticalMode.TextVerticalMid;
+                    label.Position = new Point3d(selectedPoint.X, selectedPoint.Y, 0);
+                    label.AlignmentPoint = selectedPoint;
+                    //Find rotation
+                    Polyline pline = (Polyline)ent;
+                    Point3d closestPoint = pline.GetClosestPointTo(selectedPoint, true);
+                    Vector3d derivative = pline.GetFirstDerivative(closestPoint);
+                    double rotation = Math.Atan2(derivative.Y, derivative.X);
+                    label.Rotation = rotation;
+                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                    BlockTableRecord modelSpace =
+                        tx.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForWrite) as BlockTableRecord;
+                    Oid labelId = modelSpace.AppendEntity(label);
+                    tx.AddNewlyCreatedDBObject(label, true);
+                    label.Draw();
+                    System.Windows.Forms.Application.DoEvents();
+                    //Enable flipping of label
+                    const string kwd1 = "Yes";
+                    const string kwd2 = "No";
+                    PromptKeywordOptions pkos = new PromptKeywordOptions("\nFlip label? ");
+                    pkos.Keywords.Add(kwd1);
+                    pkos.Keywords.Add(kwd2);
+                    pkos.AllowNone = true;
+                    pkos.Keywords.Default = kwd2;
+                    PromptResult pkwdres = ed.GetKeywords(pkos);
+                    string result = pkwdres.StringResult;
+                    if (result == kwd1) label.Rotation += Math.PI;
+                    #region Attach id data
+
+                    PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriSourceReference);
+                    PSetDefs.DriSourceReference driSourceReference = new PSetDefs.DriSourceReference();
+                    psm.GetOrAttachPropertySet(label);
+                    string handle = ent.Handle.ToString();
+                    psm.WritePropertyString(driSourceReference.SourceEntityHandle, handle);
+                    #endregion
+
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    ed.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         [CommandMethod("LABELSUPDATE")]
         public void updatepipelabels()
         {

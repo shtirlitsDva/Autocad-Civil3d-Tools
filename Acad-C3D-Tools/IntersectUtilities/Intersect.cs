@@ -101,7 +101,8 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    #region Select XREF -- OBSOLETE
+                    #region Select XREF -- OBSOLETE
+
                     //PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions("\n Select a LER XREF : ");
                     //promptEntityOptions1.SetRejectMessage("\n Not a XREF");
                     //promptEntityOptions1.AddAllowedClass(typeof(Autodesk.AutoCAD.DatabaseServices.BlockReference), true);
@@ -111,8 +112,10 @@ namespace IntersectUtilities
                     //Autodesk.AutoCAD.DatabaseServices.BlockReference blkRef
                     //    = tx.GetObject(blkObjId, OpenMode.ForRead, false)
                     //    as Autodesk.AutoCAD.DatabaseServices.BlockReference;
-                    #endregion
-                    #region Open XREF and tx -- OBSOLETE
+                    #endregion
+
+                    #region Open XREF and tx -- OBSOLETE
+
                     //// open the block definition?
                     //BlockTableRecord blockDef = tx.GetObject(blkRef.BlockTableRecord, OpenMode.ForRead) as BlockTableRecord;
                     //// is not from external reference, exit
@@ -134,8 +137,10 @@ namespace IntersectUtilities
                     //xRefDB.ReadDwgFile(curPathName, System.IO.FileShare.Read, false, string.Empty);
                     ////Transaction from Database of the Xref
                     //Transaction xrefTx = xRefDB.TransactionManager.StartTransaction();
-                    #endregion
-                    #region Gather layer names
+                    #endregion
+
+                    #region Gather layer names
+
                     HashSet<Line> lines = db.HashSetOfType<Line>(tx);
                     HashSet<Spline> splines = db.HashSetOfType<Spline>(tx);
                     HashSet<Polyline> plines = db.HashSetOfType<Polyline>(tx);
@@ -161,14 +166,17 @@ namespace IntersectUtilities
                     layNames = LocalListNames(layNames, plines);
                     layNames = LocalListNames(layNames, plines3d);
                     layNames = LocalListNames(layNames, arcs);
-                    #endregion
-                    #region Read Csv Data for Layers and Depth
+                    #endregion
+
+                    #region Read Csv Data for Layers and Depth
+
                     //Establish the pathnames to files
                     string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
                     string pathDybde = "X:\\AutoCAD DRI - 01 Civil 3D\\Dybde.csv";
                     System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
                     System.Data.DataTable dtDybde = CsvReader.ReadCsvToDataTable(pathDybde, "Dybde");
-                    #endregion
+                    #endregion
+
                     foreach (string name in layNames)
                     {
                         string nameInFile = ReadStringParameterFromDataTable(name, dtKrydsninger, "Navn", 0);
@@ -204,7 +212,8 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
-        }                
+        }
+                
         /// <command>SELECTBYHANDLE, SBH</command>
         /// <summary>
         /// Selects objects by their handle.
@@ -243,7 +252,8 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
-        }        /// <command>SELECTBYHANDLEMULTIPLE, SBHM</command>
+        }
+        /// <command>SELECTBYHANDLEMULTIPLE, SBHM</command>
         /// <summary>
         /// Selects multiple objects by their handles. Separate by space.
         /// </summary>
@@ -289,7 +299,8 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
-        }        /// <command>EDITELEVATIONS</command>
+        }
+        /// <command>EDITELEVATIONS</command>
         /// <summary>
         /// Allows to edit vertice elevations of a polyline3d using manual input, text parsing, intersection with another polyline3d or calculating from slope.
         /// </summary>
@@ -760,13 +771,14 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
-        }
+        }
+
 
         /// <command>HIDEALIGNMENTS, HAL</command>
         /// <summary>
         /// Hides alignments from the drawing view by changing their style and removing labels.
         /// </summary>
-        /// <category>Alignment Operations</category>
+        /// <category>Alignment</category>
         [CommandMethod("HIDEALIGNMENTS")]
         [CommandMethod("HAL")]
         public void hidealignments()
@@ -797,7 +809,8 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
-        }
+        }
+
 
         /// <command>COPYPSFROMENTTOENT, CPYPS</command>
         /// <summary>
@@ -817,7 +830,8 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    #region Select entities
+                    #region Select entities
+
                     PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
                         "\nSelect entity FROM where to copy OD:");
                     promptEntityOptions1.SetRejectMessage("\n Not an entity!");
@@ -834,10 +848,13 @@ namespace IntersectUtilities
                     if (((PromptResult)entity2).Status != PromptStatus.OK) { tx.Abort(); return; }
                     Autodesk.AutoCAD.DatabaseServices.ObjectId targetId = entity2.ObjectId;
                     Entity targetEnt = targetId.Go<Entity>(tx, OpenMode.ForWrite);
-                    #endregion
-                    #region Copy all PSs
+                    #endregion
+
+                    #region Copy all PSs
+
                     PropertySetManager.CopyAllProperties(sourceEnt, targetEnt);
-                    #endregion
+                    #endregion
+
                 }
                 catch (System.Exception ex)
                 {
@@ -847,7 +864,8 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
-        }
+        }
+
 
         /// <command>DELETEALLALIGNMENTS</command>
         /// <summary>
@@ -882,7 +900,8 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
-        }
+        }
+
         /// <command>LABELALLALIGNMENTS</command>
         /// <summary>
         /// Adds standard labels (STD 20-5) to all alignments.
@@ -916,7 +935,8 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
-        }
+        }
+
         /// <command>LABELALLALIGNMENTSNAME</command>
         /// <summary>
         /// Labels all alignments with their names using a label style with the name of the alignment.
@@ -956,7 +976,7 @@ namespace IntersectUtilities
         /// <summary>
         /// Explodes nested blocks using the pick set adding the new elements to the owner space.
         /// </summary>
-        /// <category>Block Operations</category>
+        /// <category>Blocks</category>
         [CommandMethod("EXPLODENESTEDBLOCKS", CommandFlags.UsePickSet)]
         public static void explodenestedblocks2()
         {
@@ -1019,12 +1039,13 @@ namespace IntersectUtilities
             {
                 ed.WriteMessage(ex.Message);
             }
-        }
+        }
+
         /// <command>LISTALLNESTEDBLOCKS</command>
         /// <summary>
         /// Lists all nested blocks in the selection.
         /// </summary>
-        /// <category>Block Operations</category>
+        /// <category>Blocks</category>
         [CommandMethod("LISTALLNESTEDBLOCKS", CommandFlags.UsePickSet)]
         public static void listallnestedblocks()
         {
@@ -1106,7 +1127,8 @@ namespace IntersectUtilities
                     WriteNestedBlocksName(OidNested.Go<BlockReference>(txTop));
                 }
             }
-        }
+        }
+
         public void colorizealllerlayersmethod(Database extDb = null)
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -1188,7 +1210,8 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    #region Dialog box for file list selection and path determination
+                    #region Dialog box for file list selection and path determination
+
                     string path = string.Empty;
                     OpenFileDialog dialog = new OpenFileDialog()
                     {
@@ -1202,8 +1225,10 @@ namespace IntersectUtilities
                         path = dialog.FileName;
                     }
                     else return;
-                    #endregion
-                    #region Populate area data from string
+                    #endregion
+
+                    #region Populate area data from string
+
                     System.Data.DataTable areaDescriptions = CsvReader.ReadCsvToDataTable(path, "Areas");
                     //Datatable to list of strings
                     //List<string> areaNames = (from System.Data.DataRow dr in areaDescriptions.Rows select (string)dr[1]).ToList();
@@ -1220,7 +1245,8 @@ namespace IntersectUtilities
                         //prdDbg(name);
                         prdDbg($"Vejkl. {vejkl}, {belægning}, {vejnavn}");
                         System.Windows.Forms.Application.DoEvents();
-                        #region Select pline
+                        #region Select pline
+
                         PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
                             "\nSelect polyline to add data to:");
                         promptEntityOptions1.SetRejectMessage("\nNot a polyline!");
@@ -1228,10 +1254,12 @@ namespace IntersectUtilities
                         PromptEntityResult entity1 = ed.GetEntity(promptEntityOptions1);
                         if (((PromptResult)entity1).Status != PromptStatus.OK) return;
                         Oid plineId = entity1.ObjectId;
-                        #endregion
+                        #endregion
+
                         //string[] split1 = name.Split(new[] { ", " }, StringSplitOptions.None);
                         //split1[1] = split1[1].Replace("Vejkl. ", "");
-                        #region Old ownership logic
+                        #region Old ownership logic
+
                         //string ownership = "O";
                         ////Handle the ownership dilemma
                         //if (split1[0].Contains("(P)"))
@@ -1240,10 +1268,12 @@ namespace IntersectUtilities
                         //    ownership = "P";
                         //}
                         //string[] data = new string[4] { split1[0], ownership, split1[1], split1[2] }; 
-                        #endregion
+                        #endregion
+
                         //Test change
                         //if (ownership == "P") prdDbg(data[0] + " " + data[1] + " " + data[2] + " " + data[3]);
-                        #region Create layer for OK plines
+                        #region Create layer for OK plines
+
                         string områderLayer = "0-OMRÅDER-OK";
                         using (Transaction txLag = localDb.TransactionManager.StartTransaction())
                         {
@@ -1263,14 +1293,17 @@ namespace IntersectUtilities
                             }
                             txLag.Commit();
                         }
-                        #endregion
+                        #endregion
+
                         using (Transaction tx = localDb.TransactionManager.StartTransaction())
                         {
-                            #region Property Set Manager
+                            #region Property Set Manager
+
                             PropertySetManager psmOmråder =
                                 new PropertySetManager(localDb, PSetDefs.DefinedSets.DriOmråder);
                             PSetDefs.DriOmråder driOmråder = new PSetDefs.DriOmråder();
-                            #endregion
+                            #endregion
+
                             Polyline pline = plineId.Go<Polyline>(tx, OpenMode.ForWrite);
                             psmOmråder.WritePropertyString(pline, driOmråder.Vejnavn, vejnavn);
                             psmOmråder.WritePropertyString(pline, driOmråder.Vejklasse, vejkl);
@@ -1281,7 +1314,8 @@ namespace IntersectUtilities
                             tx.Commit();
                         }
                     }
-                    #endregion
+                    #endregion
+
                 }
                 catch (System.Exception ex)
                 {
@@ -1295,13 +1329,11 @@ namespace IntersectUtilities
             }
         }
 
-        <---- made it here!!!
-
         /// <command>SETMODELSPACESCALEFORALL</command>
         /// <summary>
-        /// Sets model space scale for all viewports.
+        /// Sets model space scale to 1:250 (but only if it is 1:1000) for all files in a file list.
         /// </summary>
-        /// <category>Viewport Management</category>
+        /// <category>Miscellaneous</category>
         [CommandMethod("SETMODELSPACESCALEFORALL")]
         public void setmodelspacescaleforall()
         {
@@ -1314,7 +1346,8 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    #region ChangeLayerOfXref
+                    #region ChangeLayerOfXref
+
                     string path = string.Empty;
                     OpenFileDialog dialog = new OpenFileDialog()
                     {
@@ -1372,7 +1405,8 @@ namespace IntersectUtilities
                         }
                         System.Windows.Forms.Application.DoEvents();
                     }
-                    #endregion
+                    #endregion
+
                 }
                 catch (System.Exception ex)
                 {
@@ -1382,12 +1416,13 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
-        }
+        }
+
         /// <command>TURNONREVISION</command>
         /// <summary>
-        /// Turns on revision tracking.
+        /// Turns on revision A and Revisionsoverskrifter for all drawings in filelist.
         /// </summary>
-        /// <category>Revision Control</category>
+        /// <category>Miscellaneous</category>
         [CommandMethod("TURNONREVISION")]
         public void turnonrevision()
         {
@@ -1400,7 +1435,8 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    #region Turn on revision layers
+                    #region Turn on revision layers
+
                     string path = string.Empty;
                     OpenFileDialog dialog = new OpenFileDialog()
                     {
@@ -1414,9 +1450,7 @@ namespace IntersectUtilities
                         path = dialog.FileName;
                     }
                     else return;
-                    //string path = @"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\02 Tegninger\01 Autocad\Autocad\02 Sheets\4.4\";
-                    //string path = @"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\02 Tegninger\01 Autocad\Autocad\01 Views\4.5\Alignment\";
-                    //var fileList = File.ReadAllLines(path + "fileList.txt").ToList();
+                    
                     prdDbg(path);
                     //string fileName = path + name;
                     using (Database extDb = new Database(false, true))
@@ -1424,7 +1458,8 @@ namespace IntersectUtilities
                         extDb.ReadDwgFile(path, System.IO.FileShare.ReadWrite, false, "");
                         using (Transaction extTx = extDb.TransactionManager.StartTransaction())
                         {
-                            #region Change xref layer
+                            #region Change xref layer
+
                             //BlockTable bt = extTx.GetObject(extDb.BlockTableId, OpenMode.ForRead) as BlockTable;
                             //foreach (oid oid in bt)
                             //{
@@ -1444,8 +1479,10 @@ namespace IntersectUtilities
                             //        }
                             //    }
                             //} 
-                            #endregion
-                            #region Change Alignment style
+                            #endregion
+
+                            #region Change Alignment style
+
                             //CivilDocument extCDoc = CivilDocument.GetCivilDocument(extDb);
                             //HashSet<Alignment> als = extDb.HashSetOfType<Alignment>(extTx);
                             //foreach (Alignment al in als)
@@ -1455,7 +1492,8 @@ namespace IntersectUtilities
                             //    oid labelSetOid = extCDoc.Styles.LabelSetStyles.AlignmentLabelSetStyles["STD 20-5"];
                             //    al.ImportLabelSet(labelSetOid);
                             //} 
-                            #endregion
+                            #endregion
+
                             try
                             {
                                 string revAlayerName = "REV.A";
@@ -1488,7 +1526,8 @@ namespace IntersectUtilities
                         extDb.SaveAs(extDb.Filename, DwgVersion.Current);
                     }
                     System.Windows.Forms.Application.DoEvents();
-                    #endregion
+                    #endregion
+
                 }
                 catch (System.Exception ex)
                 {
@@ -1498,12 +1537,13 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
-        }
+        }
+
         /// <command>BRINGALLBLOCKSTOFRONT, BF</command>
         /// <summary>
         /// Brings all blocks to the front of the draw order.
         /// </summary>
-        /// <category>Draw Order</category>
+        /// <category>Blocks</category>
         [CommandMethod("BRINGALLBLOCKSTOFRONT")]
         [CommandMethod("BF")]
         public static void bringallblockstofront()
@@ -1552,13 +1592,13 @@ namespace IntersectUtilities
             {
                 ed.WriteMessage(ex.Message);
             }
-        }
+        }
 
         /// <command>LISTPLINESLAYERS</command>
         /// <summary>
         /// Lists all polylines and their layers.
         /// </summary>
-        /// <category>Polyline Operations</category>
+        /// <category>Miscellaneous</category>
         [CommandMethod("LISTPLINESLAYERS")]
         public void listplineslayers()
         {
@@ -1590,13 +1630,13 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
-        }
+        }
 
         /// <command>REPLACEBLOCK, RB</command>
         /// <summary>
-        /// Replaces specified blocks with another block.
+        /// Replaces specified BBR block with another BBR block.
         /// </summary>
-        /// <category>Block Operations</category>
+        /// <category>Blocks</category>
         [CommandMethod("REPLACEBLOCK")]
         [CommandMethod("RB")]
         public void replaceblock()
@@ -1607,15 +1647,15 @@ namespace IntersectUtilities
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
             string[] kwds = new string[9]
-            {
-                        "Naturgas",
-                        "Andet",
-                        "UDGÅR",
-                        "Ingen",
-                        "El",
-                        "Olie",
-                        "Varmepumpe",
-                        "Fjernvarme",
+            {
+                        "Naturgas",
+                        "Andet",
+                        "UDGÅR",
+                        "Ingen",
+                        "El",
+                        "Olie",
+                        "Varmepumpe",
+                        "Fjernvarme",
                         "Fast brændsel"
             };
             string result = StringGridFormCaller.Call(kwds, "Vælg type block:");
@@ -1626,7 +1666,8 @@ namespace IntersectUtilities
                 {
                     try
                     {
-                        #region Select block
+                        #region Select block
+
                         PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
                             "\nSelect block to replace:");
                         promptEntityOptions1.SetRejectMessage("\n Not a block!");
@@ -1635,7 +1676,8 @@ namespace IntersectUtilities
                         if (((PromptResult)entity1).Status != PromptStatus.OK) { tx.Abort(); return; }
                         Autodesk.AutoCAD.DatabaseServices.ObjectId entId = entity1.ObjectId;
                         BlockReference brOld = entId.Go<BlockReference>(tx, OpenMode.ForWrite);
-                        #endregion
+                        #endregion
+
                         BlockReference brNew = localDb.CreateBlockWithAttributes(result, brOld.Position);
                         PropertySetManager.CopyAllProperties(brOld, brNew);
                         PropertySetManager.WriteNonDefinedPropertySetString(brNew, "BBR", "Type", result);
@@ -1650,106 +1692,14 @@ namespace IntersectUtilities
                     tx.Commit();
                 }
             }
-        }
-
-        /// <command>LABELPIPE, LB</command>
-        /// <summary>
-        /// Labels pipes with specified annotations.
-        /// </summary>
-        /// <category>Piping</category>
-        [CommandMethod("LABELPIPE")]
-        [CommandMethod("LB")]
-        public void labelpipe()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor ed = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
-                        "\nSelect pipe (polyline) to label: ");
-                    promptEntityOptions1.SetRejectMessage("\nNot a polyline!");
-                    promptEntityOptions1.AddAllowedClass(typeof(Polyline), false);
-                    PromptEntityResult entity1 = ed.GetEntity(promptEntityOptions1);
-                    if (((PromptResult)entity1).Status != PromptStatus.OK) { tx.Abort(); return; }
-                    Oid plineId = entity1.ObjectId;
-                    Entity ent = plineId.Go<Entity>(tx);
-                    string labelText = GetLabel(ent);
-                    PromptPointOptions pPtOpts = new PromptPointOptions("\nChoose location of label: ");
-                    PromptPointResult pPtRes = ed.GetPoint(pPtOpts);
-                    Point3d selectedPoint = pPtRes.Value;
-                    if (pPtRes.Status != PromptStatus.OK) { tx.Abort(); return; }
-                    //Create new text
-                    string layerName = "FJV-DIM";
-                    LayerTable lt = tx.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
-                    if (!lt.Has(layerName))
-                    {
-                        LayerTableRecord ltr = new LayerTableRecord();
-                        ltr.Name = layerName;
-                        ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 6);
-                        lt.CheckOrOpenForWrite();
-                        lt.Add(ltr);
-                        tx.AddNewlyCreatedDBObject(ltr, true);
-                    }
-                    DBText label = new DBText();
-                    label.Layer = layerName;
-                    label.TextString = labelText;
-                    label.Height = 1.2;
-                    label.HorizontalMode = TextHorizontalMode.TextMid;
-                    label.VerticalMode = TextVerticalMode.TextVerticalMid;
-                    label.Position = new Point3d(selectedPoint.X, selectedPoint.Y, 0);
-                    label.AlignmentPoint = selectedPoint;
-                    //Find rotation
-                    Polyline pline = (Polyline)ent;
-                    Point3d closestPoint = pline.GetClosestPointTo(selectedPoint, true);
-                    Vector3d derivative = pline.GetFirstDerivative(closestPoint);
-                    double rotation = Math.Atan2(derivative.Y, derivative.X);
-                    label.Rotation = rotation;
-                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
-                    BlockTableRecord modelSpace =
-                        tx.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForWrite) as BlockTableRecord;
-                    Oid labelId = modelSpace.AppendEntity(label);
-                    tx.AddNewlyCreatedDBObject(label, true);
-                    label.Draw();
-                    System.Windows.Forms.Application.DoEvents();
-                    //Enable flipping of label
-                    const string kwd1 = "Yes";
-                    const string kwd2 = "No";
-                    PromptKeywordOptions pkos = new PromptKeywordOptions("\nFlip label? ");
-                    pkos.Keywords.Add(kwd1);
-                    pkos.Keywords.Add(kwd2);
-                    pkos.AllowNone = true;
-                    pkos.Keywords.Default = kwd2;
-                    PromptResult pkwdres = ed.GetKeywords(pkos);
-                    string result = pkwdres.StringResult;
-                    if (result == kwd1) label.Rotation += Math.PI;
-                    #region Attach id data
-                    PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriSourceReference);
-                    PSetDefs.DriSourceReference driSourceReference = new PSetDefs.DriSourceReference();
-                    psm.GetOrAttachPropertySet(label);
-                    string handle = ent.Handle.ToString();
-                    psm.WritePropertyString(driSourceReference.SourceEntityHandle, handle);
-                    #endregion
-                }
-                catch (System.Exception ex)
-                {
-                    tx.Abort();
-                    ed.WriteMessage("\n" + ex.Message);
-                    return;
-                }
-                tx.Commit();
-            }
-        }
+        }
 
         /// <command>REDUCETEXT</command>
         /// <summary>
-        /// Reduces the amount of text or simplifies text objects.
+        /// Reduces the number of text objects.
+        /// For use with vejnavne which comes with high text density
         /// </summary>
-        /// <category>Text Operations</category>
+        /// <category>Miscellaneous</category>
         [CommandMethod("REDUCETEXT")]
         public void reducetext()
         {
@@ -1809,8 +1759,13 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
-        }
+        }
 
+        /// <command>CCL</command>
+        /// <summary>
+        /// Creates complex linetype with text. User must type the name of the linetype and the text to be displayed.
+        /// </summary>
+        /// <category>Miscellaneous</category>
         [CommandMethod("CCL")]
         public void createcomplexlinetype()
         {
@@ -1822,6 +1777,12 @@ namespace IntersectUtilities
             string textStyleName = "Standard";
             createcomplexlinetypemethod(lineTypeName, text, textStyleName);
         }
+
+        /// <command>UELT</command>
+        /// <summary>
+        /// Update existing linetype. User must select object with linetype to be updated and type the text to be displayed.
+        /// </summary>
+        /// <category>Miscellaneous</category>
         [CommandMethod("UELT")]
         public void updateexistinglinetype()
         {
@@ -1961,9 +1922,11 @@ namespace IntersectUtilities
         }
         /// <command>CREATEALLLINETYPESLAYERS</command>
         /// <summary>
-        /// Creates all linetypes and associated layers.
+        /// Creates a layer and a polyline for each linetype in drawing with the linetype assigned.
+        /// Arranges the polylines in a table-like fashion.
+        /// Useful for visualizing linetypes.
         /// </summary>
-        /// <category>Layer Management</category>
+        /// <category>Miscellaneous</category>
         [CommandMethod("CREATEALLLINETYPESLAYERS")]
         public void createcalllinetypeslayers()
         {
@@ -2017,13 +1980,13 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
-        }
+        }
 
         /// <command>PLACEOBJLAYCOLOR</command>
         /// <summary>
-        /// Places objects on layers based on color.
+        /// Creates a text object with the color and linetype of the selected object.
         /// </summary>
-        /// <category>Layer Management</category>
+        /// <category>Miscellaneous</category>
         [CommandMethod("PLACEOBJLAYCOLOR")]
         public void placeobjlaycolor()
         {
@@ -2054,59 +2017,13 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
-        }
-
-        /// <command>SETLINETYPESCALEDTOFIT</command>
-        /// <summary>
-        /// Sets linetype scales to fit within specified lengths.
-        /// </summary>
-        /// <category>Linetype Management</category>
-        [CommandMethod("SETLINETYPESCALEDTOFIT")]
-        public void setlinetypescaledtofit()
-        {
-            Document doc = Application.DocumentManager.MdiActiveDocument;
-            Database db = doc.Database;
-            Editor ed = doc.Editor;
-            Transaction tr = db.TransactionManager.StartTransaction();
-            using (tr)
-            {
-                try
-                {
-                    // We'll use the textstyle table to access
-                    // the "Standard" textstyle for our text segment
-                    TextStyleTable tt = (TextStyleTable)tr.GetObject(db.TextStyleTableId, OpenMode.ForRead);
-                    // Get the linetype table from the drawing
-                    LinetypeTable ltt = (LinetypeTable)tr.GetObject(db.LinetypeTableId, OpenMode.ForWrite);
-                    // Get layer table
-                    LayerTable lt = tr.GetObject(db.LayerTableId, OpenMode.ForRead) as LayerTable;
-                    //**************************************
-                    //Change name of line type to create new and text value
-                    //**************************************
-                    string[] ltName = new string[3] { "FJV_RETUR", "FJV_FREM", "FJV_TWIN" };
-                    for (int i = 0; i < ltName.Length; i++)
-                    {
-                        if (ltt.Has(ltName[i]))
-                        {
-                            Oid existingId = ltt[ltName[i]];
-                            LinetypeTableRecord exLtr = existingId.Go<LinetypeTableRecord>(tr, OpenMode.ForWrite);
-                            exLtr.IsScaledToFit = true;
-                        }
-                    }
-                }
-                catch (System.Exception ex)
-                {
-                    tr.Abort();
-                    prdDbg(ex);
-                }
-                tr.Commit();
-            }
-        }
+        }
 
         /// <command>DRAWVIEWPORTRECTANGLES</command>
         /// <summary>
-        /// Draws rectangles around viewports.
+        /// Draws viewports in model space.
         /// </summary>
-        /// <category>Viewport Management</category>
+        /// <category>Miscellaneous</category>
         [CommandMethod("DRAWVIEWPORTRECTANGLES")]
         public void drawviewportrectangles()
         {
@@ -2117,7 +2034,7 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    #region Paperspace to modelspace test
+                    #region Paperspace to modelspace test
                     DBDictionary layoutDict = localDb.LayoutDictionaryId.Go<DBDictionary>(tx);
                     var enumerator = layoutDict.GetEnumerator();
                     while (enumerator.MoveNext())
@@ -2137,7 +2054,6 @@ namespace IntersectUtilities
                             if (id.IsDerivedFrom<Viewport>())
                             {
                                 Viewport viewport = id.Go<Viewport>(tx);
-                                //Truncate doubles to whole numebers for easier comparison
                                 prdDbg("Found viewport!");
                                 Extents3d ext = viewport.GeometricExtents;
                                 Polyline pl = new Polyline(4);
@@ -2153,7 +2069,8 @@ namespace IntersectUtilities
                             }
                         }
                     }
-                    #endregion
+                    #endregion
+
                 }
                 catch (System.Exception ex)
                 {
@@ -2163,66 +2080,16 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
-        }
+        }
 
-        /// <command>MARKBUEPIPES</command>
+        /// <command>CREATE3DTRACEFROMBUNDPROFILE</command>
         /// <summary>
-        /// Marks curved pipes for identification.
+        /// Creates a 3D Polyline from the XXX BUND profile in a separate file.
+        /// Used for excavations. Must be run in Længdeprofiler file.
+        /// PLEASE NOTE!!! The polyline3d is created from BUND profile, so you have to add
+        /// depth to the elevations if you want the trench bottom.
         /// </summary>
-        /// <category>Piping</category>
-        [CommandMethod("MARKBUEPIPES")]
-        public void markbuepipes()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    //PromptEntityOptions peo = new PromptEntityOptions("Select pline");
-                    //PromptEntityResult per = editor.GetEntity(peo);
-                    //Polyline pline = per.ObjectId.Go<Polyline>(tx);
-                    HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx);
-                    foreach (Polyline pline in plines)
-                    {
-                        for (int j = 0; j < pline.NumberOfVertices - 1; j++)
-                        {
-                            //Guard against already cut out curves
-                            if (j == 0 && pline.NumberOfVertices == 2) { break; }
-                            double b = pline.GetBulgeAt(j);
-                            if (b == 0) continue;
-                            Point2d fP = pline.GetPoint2dAt(j);
-                            Point2d sP = pline.GetPoint2dAt(j + 1);
-                            double u = fP.GetDistanceTo(sP);
-                            double radius = u * ((1 + b.Pow(2)) / (4 * Math.Abs(b)));
-                            double minRadius = GetPipeMinElasticRadiusHorizontalCharacteristic(pline);
-                            //If radius is less than minRadius a buerør is detected
-                            //Split the pline in segments delimiting buerør and append
-                            if (radius < minRadius)
-                            {
-                                prdDbg($"Buerør detected {fP.ToString()} and {sP.ToString()}.");
-                                prdDbg($"R: {radius}, minR: {minRadius}");
-                                CircularArc2d arc = pline.GetArcSegment2dAt(j);
-                                Point2d[] samples = arc.GetSamplePoints(3);
-                                Line line = new Line(new Point3d(0, 0, 0), new Point3d(samples[1].X, samples[1].Y, 0));
-                                line.AddEntityToDbModelSpace(localDb);
-                            }
-                        }
-                    }
-                }
-                catch (System.Exception ex)
-                {
-                    tx.Abort();
-                    editor.WriteMessage("\n" + ex.Message);
-                    return;
-                }
-                tx.Commit();
-            }
-        }
-
+        /// <category>Miscellaneous</category>
         [CommandMethod("CREATE3DTRACEFROMBUNDPROFILE")]
         public void create3dtracefrombundprofile()
         {
@@ -2323,6 +2190,12 @@ namespace IntersectUtilities
                 poly3dDb.Dispose();
             }
         }
+        /// <command>CONSTRUCTIONLINESETMARK</command>
+        /// <summary>
+        /// Adds a string to a Line in FlexDataStore to mark it as a construction line.
+        /// This is used for internal purposes when creating dynamic blocks.
+        /// </summary>
+        /// <category>Development</category>
         [CommandMethod("CONSTRUCTIONLINESETMARK")]
         public void constructionlinesetmark()
         {
@@ -2353,6 +2226,12 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+        /// <command>CONSTRUCTIONLINEREMOVEMARK</command>
+        /// <summary>
+        /// Removes the string from a Line in FlexDataStore that marks it as a construction line.
+        /// This is used for internal purposes when creating dynamic blocks.
+        /// </summary>
+        /// <category>Development</category>
         [CommandMethod("CONSTRUCTIONLINEREMOVEMARK")]
         public void constructionlineremovemark()
         {
@@ -2409,6 +2288,7 @@ namespace IntersectUtilities
                 }
             }
         }
+
 #if DEBUG
         private class MyData
         {
@@ -2416,7 +2296,6 @@ namespace IntersectUtilities
             public string? Text { get; set; }
         }
         [CommandMethod("testing", CommandFlags.UsePickSet)]
-#endif
         public void testing()
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -4248,11 +4127,12 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+#endif
         /// <command>CLEANPLINE</command>
         /// <summary>
-        /// Cleans and simplifies a polyline.
+        /// Removes colinear and coincident vertices from a selected polyline.
         /// </summary>
-        /// <category>Polyline Operations</category>
+        /// <category>Miscellaneous</category>
         [CommandMethod("CLEANPLINE")]
         public void cleanpline()
         {
@@ -4265,7 +4145,8 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    #region Remove colinear vertices
+                    #region Remove colinear vertices
+
                     PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
                         "\nSelect polyline to clean:");
                     promptEntityOptions1.SetRejectMessage("\n Not a polyline!");
@@ -4275,7 +4156,8 @@ namespace IntersectUtilities
                     Autodesk.AutoCAD.DatabaseServices.ObjectId plineId = entity1.ObjectId;
                     Polyline pline = plineId.Go<Polyline>(tx);
                     RemoveColinearVerticesPolyline(pline);
-                    #endregion
+                    #endregion
+
                 }
                 catch (System.Exception ex)
                 {
@@ -4285,13 +4167,13 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
-        }
+        }
 
         /// <command>CLEANPLINES</command>
         /// <summary>
-        /// Cleans and simplifies multiple polylines.
+        /// Removes colinear and coincident vertices from all polylines.
         /// </summary>
-        /// <category>Polyline Operations</category>
+        /// <category>Miscellaneous</category>
         [CommandMethod("CLEANPLINES")]
         public void cleanplines()
         {
@@ -4322,8 +4204,13 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
-        }
-
+        }
+        /// <command>REMOVEVEJFROMALIGNMENTNAME</command>
+        /// <summary>
+        /// Used for removing street names from alignment names.
+        /// Was used when migrating projects to new standard (no street names in alignment names).
+        /// </summary>
+        /// <category>Miscellaneous</category>
         [CommandMethod("REMOVEVEJFROMALIGNMENTNAME")]
         public void removevejfromalignmentname()
         {
@@ -4356,21 +4243,24 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
-        //[CommandMethod("CREATEPROPERTYSETSFROMODTABLES")]
         public void createpropertysetsfromodtables()
         {
             IntersectUtilities.ODDataConverter.ODDataConverter.oddatacreatepropertysetsdefs();
         }
-        //[CommandMethod("ATTACHODTABLEPROPERTYSETS")]
         public void attachodtablepropertysets()
         {
             IntersectUtilities.ODDataConverter.ODDataConverter.attachpropertysetstoobjects();
         }
-        //[CommandMethod("POPULATEPROPERTYSETSWITHODDATA")]
         public void populatepropertysetswithoddata()
         {
             IntersectUtilities.ODDataConverter.ODDataConverter.populatepropertysetswithoddata();
         }
+
+        /// <command>CONVERTODTOPSS</command>
+        /// <summary>
+        /// Used to convert ObjectData tables to Property Sets.
+        /// </summary>
+        /// <category>Miscellaneous</category>
         [CommandMethod("CONVERTODTOPSS")]
         public void convertodtopss()
         {
@@ -4378,7 +4268,7 @@ namespace IntersectUtilities
             IntersectUtilities.ODDataConverter.ODDataConverter.attachpropertysetstoobjects();
             IntersectUtilities.ODDataConverter.ODDataConverter.populatepropertysetswithoddata();
         }
-        //[CommandMethod("GRAPHPOPULATE")]
+        
         public void graphpopulate(Database db = null)
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -4469,6 +4359,13 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+
+        /// <command>GRAPHWRITE</command>
+        /// <summary>
+        /// Draws a graph of the pipe system. Used to check for connectivity and other issues.
+        /// Must be run in fjernevarme fremtid drawing.
+        /// </summary>
+        /// <category>Fjernvarme Fremtid</category>
         [CommandMethod("GRAPHWRITE")]
         public void graphwrite()
         {
@@ -4620,7 +4517,7 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
-        //[CommandMethod("GRAPHCLEAR")]
+        
         public void graphclear(Database db = null)
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -4645,11 +4542,7 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
-        [CommandMethod("WRITEISOGENATTRIBUTESTODWG")]
-        public void writeisogenattributestodwg()
-        {
-            IntersectUtilities.IsogenPopulateAttributes.WriteIsogenAttrubutesToDwg();
-        }
+
         [CommandMethod("SELECTBYPS")]
         public void selectbyps()
         {
@@ -4843,7 +4736,7 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
-        }
+        }
 
         [CommandMethod("COUNTENTS")]
         public void countents()
@@ -5594,6 +5487,7 @@ namespace IntersectUtilities
         }
         [CommandMethod("SETTBLDATA")]
         [CommandMethod("STD")]
+
         public void settbldata()
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -6188,7 +6082,8 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
-        }
+        }
+
 
         [CommandMethod("CLIPPLINESOUTSIDEPLINE")]
         public void ClipPlineOutsidePline()
@@ -7164,7 +7059,8 @@ namespace IntersectUtilities
             {
                 Console.WriteLine("Edges or coordinates are missing.");
             }
-        }
+        }
+
 
         /// <command>PARSEEDGES</command>
         /// <summary>
@@ -7212,7 +7108,8 @@ namespace IntersectUtilities
             {
                 Console.WriteLine("Edges or coordinates are missing in the file.");
             }
-        }
+        }
+
 
         private static List<STPEdge> ParseEdges(string filePath)
         {

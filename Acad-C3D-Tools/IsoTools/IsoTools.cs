@@ -376,5 +376,11 @@ namespace IsoTools
                 tx.Commit();
             }
         }
+
+        [CommandMethod("WRITEISOGENATTRIBUTESTODWG")]
+        public void writeisogenattributestodwg()
+        {
+            IsoTools.IsogenPopulateAttributes.WriteIsogenAttrubutesToDwg();
+        }
     }
 }

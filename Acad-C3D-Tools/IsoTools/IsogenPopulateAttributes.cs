@@ -25,7 +25,7 @@ using static IntersectUtilities.UtilsCommon.Utils;
 using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 
-namespace IntersectUtilities
+namespace IsoTools
 {
     internal class IsogenPopulateAttributes
     {
@@ -212,6 +212,4 @@ namespace IntersectUtilities
         public string BlockAttribute { get => OutputAttribute.Split('»')[1]; }
         public string FinalData { get; set; }
     }
-
-
 }
