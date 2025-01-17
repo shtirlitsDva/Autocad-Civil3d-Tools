@@ -2678,11 +2678,47 @@ namespace IntersectUtilities.UtilsCommon
             }
             return atZero;
         }
+        public static Polyline ToPolyline(this Polyline3d p3d)
+        {
+            Polyline pline = new Polyline();
+            PolylineVertex3d[] vertices = p3d.GetVertices(p3d.GetTopTx());
+            foreach (var vert in vertices)
+            {
+                pline.AddVertexAt(pline.NumberOfVertices, vert.Position.To2d(), 0, 0, 0);
+            }
+            pline.Closed = p3d.Closed;
+            return pline;
+        }
         public static bool IsZero(this double d, double tol) => d > -tol && d < tol;
         public static bool IsZero(this double d) => d > -Tolerance.Global.EqualPoint && d < Tolerance.Global.EqualPoint;
         public static Vector3d To3D(this Vector2d vec) => new Vector3d(vec.X, vec.Y, 0.0);
+        public static List<Point3d> IntersectWithValidation(this Entity entity, Entity other)
+        {
+            List<Point3d> points = new List<Point3d>();
 
-        
+            if (entity is Curve curve1 && other is Curve curve2)
+                return curve1.IntersectWithValidation(curve2, points);
+
+            return points;
+        }
+        public static List<Point3d> IntersectWithValidation(this Curve curve, Curve other, List<Point3d> list)
+        {
+            using Curve c1 = curve.GetProjectedCurve(new Plane(), Vector3d.ZAxis);
+            using Curve c2 = other.GetProjectedCurve(new Plane(), Vector3d.ZAxis);
+
+            using Point3dCollection ints = new Point3dCollection();
+            c1.IntersectWith(c2, Autodesk.AutoCAD.DatabaseServices.Intersect.OnBothOperands,
+                new Plane(), ints, IntPtr.Zero, IntPtr.Zero);
+
+            foreach (Point3d p in ints)
+            {
+                var tp1 = c1.GetClosestPointTo(p, false);
+                var tp2 = c2.GetClosestPointTo(p, false);
+
+                if (tp1.DistanceTo(tp2) < Tolerance.Global.EqualPoint) list.Add(p);
+            }
+            return list;
+        }
         public static IEnumerable<T> Entities<T>(this ObjectIdCollection col, Transaction tx) where T : DBObject
         {
             foreach (Oid oid in col) yield return oid.Go<T>(tx);

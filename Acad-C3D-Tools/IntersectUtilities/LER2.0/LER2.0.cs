@@ -223,42 +223,41 @@ namespace IntersectUtilities
                         foreach (var ent in filteredLinework)
                         {
                             #region Create points
-                            using (Point3dCollection p3dcol = new Point3dCollection())
+                            List<Point3d> p3dcol = new List<Point3d>();
+                            al.IntersectWithValidation(ent, p3dcol);
+
+                            foreach (Point3d p3d in p3dcol)
                             {
-                                al.IntersectWith(ent, 0, plane, p3dcol, new IntPtr(0), new IntPtr(0));
+                                #region Assign elevation based on 3D conditions
+                                Point3d p3dInt = ent.GetClosestPointTo(p3d, Vector3d.ZAxis, false);
 
-                                foreach (Point3d p3d in p3dcol)
+                                count++;
+                                if (p3dInt.Z.IsZero(Tolerance.Global.EqualPoint))
                                 {
-                                    #region Assign elevation based on 3D conditions
-                                    Point3d p3dInt = ent.GetClosestPointTo(p3d, Vector3d.ZAxis, false);
-
-                                    count++;
-                                    if (p3dInt.Z.IsZero(Tolerance.Global.EqualPoint))
-                                    {
-                                        editor.WriteMessage($"\nEntity {ent.Handle} returned {p3dInt.Z}" +
-                                            $" elevation for a 3D layer.");
-                                    }
-
-                                    double surfaceElevation = surface.FindElevationAtXY(p3dInt.X, p3dInt.Y);
-                                    if (p3dInt.Z >= surfaceElevation)
-                                    {
-                                        prdDbg($"Entity {ent.Handle} return intersection point above surface!\n" +
-                                               $"Location: {p3dInt}, Surface E: {surfaceElevation}.");
-                                    }
-
-                                    if (p3dInt.Z < -98.0)
-                                    {
-                                        prdDbg($"Entity {ent.Handle} return returned {p3dInt.Z} " +
-                                               $"elevation for a 3D layer!");
-                                    }
-
-                                    //prdDbg(
-                                    //    $"Ler elev: {p3dInt.Z.ToString("0.##")}, " +
-                                    //    $"Surface elev: {surfaceElevation.ToString("0.##")}");
-                                    System.Windows.Forms.Application.DoEvents();
-                                    #endregion
+                                    editor.WriteMessage($"\nEntity {ent.Handle} returned {p3dInt.Z}" +
+                                        $" elevation for a 3D layer.");
                                 }
+
+                                double surfaceElevation = surface.FindElevationAtXY(p3dInt.X, p3dInt.Y);
+                                if (p3dInt.Z >= surfaceElevation)
+                                {
+                                    prdDbg($"Entity {ent.Handle} return intersection point above surface!\n" +
+                                           $"Location: {p3dInt}, Surface E: {surfaceElevation}.");
+                                }
+
+                                if (p3dInt.Z < -98.0)
+                                {
+                                    prdDbg($"Entity {ent.Handle} return returned {p3dInt.Z} " +
+                                           $"elevation for a 3D layer!");
+                                }
+
+                                //prdDbg(
+                                //    $"Ler elev: {p3dInt.Z.ToString("0.##")}, " +
+                                //    $"Surface elev: {surfaceElevation.ToString("0.##")}");
+                                System.Windows.Forms.Application.DoEvents();
+                                #endregion
                             }
+
                             #endregion
                         }
 

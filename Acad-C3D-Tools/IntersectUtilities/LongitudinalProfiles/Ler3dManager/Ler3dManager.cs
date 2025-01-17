@@ -15,6 +15,7 @@ using NetTopologySuite.Geometries;
 using IntersectUtilities.UtilsCommon;
 
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
+using Dreambuild.AutoCAD;
 
 namespace IntersectUtilities.LongitudinalProfiles
 {
@@ -84,6 +85,9 @@ namespace IntersectUtilities.LongitudinalProfiles
         }
         public override HashSet<Entity> GetIntersectingEntities(Alignment al)
         {
+            Polyline alPline = al.GetPolyline().Go<Polyline>(
+                al.Database.TransactionManager.TopTransaction);
+
             HashSet<Entity> result = new HashSet<Entity>();
 
             using (Transaction tx = _db.TransactionManager.StartTransaction())
@@ -97,19 +101,16 @@ namespace IntersectUtilities.LongitudinalProfiles
                         pl.Layer, CsvData.Kryds, "Type", 0);
                     if (type == "IGNORE") continue;
 
-                    using (Point3dCollection p3dcol = new Point3dCollection())
-                    {
-                        al.IntersectWith(
-                            pl,
-                            Autodesk.AutoCAD.DatabaseServices.Intersect.OnBothOperands,
-                            plane, p3dcol, new IntPtr(0), new IntPtr(0));
-
-                        if (p3dcol.Count > 0) result.Add(pl);
-                    }
+                    List<Point3d> p3dcol = new List<Point3d>();
+                    al.IntersectWithValidation(pl, p3dcol);
+                    if (p3dcol.Count > 0) result.Add(pl);
                 }
 
                 tx.Abort();
             }
+
+            alPline.UpgradeOpen();
+            alPline.Erase(true);
 
             return result;
         }
@@ -219,15 +220,9 @@ namespace IntersectUtilities.LongitudinalProfiles
                             pl.Layer, CsvData.Kryds, "Type", 0);
                         if (type == "IGNORE") continue;
 
-                        using (Point3dCollection p3dcol = new Point3dCollection())
-                        {
-                            al.IntersectWith(
-                                pl,
-                                Autodesk.AutoCAD.DatabaseServices.Intersect.OnBothOperands,
-                                plane, p3dcol, new IntPtr(0), new IntPtr(0));
-
-                            if (p3dcol.Count > 0) result.Add(pl);
-                        }
+                        List<Point3d> p3dcol = new List<Point3d>();
+                        al.IntersectWithValidation(pl, p3dcol);
+                        if (p3dcol.Count > 0) result.Add(pl);
                     }
                 }
             }

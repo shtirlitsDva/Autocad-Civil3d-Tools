@@ -927,18 +927,12 @@ namespace IntersectUtilities
 
                         foreach (Entity ent in remoteLerData)
                         {
-                            using (Point3dCollection p3dcol = new Point3dCollection())
-                            {
-                                alignment.IntersectWith(
-                                    ent,
-                                    Autodesk.AutoCAD.DatabaseServices.Intersect.OnBothOperands,
-                                    plane, p3dcol, new IntPtr(0), new IntPtr(0));
+                            var p3dcol = alignment.IntersectWithValidation(ent);
 
-                                if (p3dcol.Count > 0)
-                                    foreach (Point3d p3d in p3dcol)
-                                        stationsOfIntersection.Add(
-                                            alignment.StationAtPoint(p3d));
-                            }
+                            if (p3dcol.Count > 0)
+                                foreach (Point3d p3d in p3dcol)
+                                    stationsOfIntersection.Add(
+                                        alignment.StationAtPoint(p3d));
                         }
 
                         int pvsWithLer = 0;

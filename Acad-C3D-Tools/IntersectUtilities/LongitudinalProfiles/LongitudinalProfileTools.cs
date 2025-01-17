@@ -53,6 +53,7 @@ using IntersectUtilities.LongitudinalProfiles;
 using IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol;
 using Assembly = System.Reflection.Assembly;
 using IntersectUtilities.LongitudinalProfiles.KoteReport;
+using System.Windows.Xps;
 
 namespace IntersectUtilities
 {
@@ -621,6 +622,8 @@ namespace IntersectUtilities
                         #region Create Points, assign elevation, layer and PS data
                         foreach (Entity ent in sourceEnts)
                         {
+                            if (!(ent is Curve)) continue;
+
                             #region Read data parameters from csvs
                             //Read 'Type' value
                             string type = ReadStringParameterFromDataTable(ent.Layer, dtKrydsninger, "Type", 0);
@@ -675,126 +678,125 @@ namespace IntersectUtilities
                             string entHandle = $"{projectName}:{etapeName}:{h}";
 
                             #region Create points
-                            using (Point3dCollection p3dcol = new Point3dCollection())
+                            List<Point3d> p3dcol = new List<Point3d>();
+                            al.IntersectWithValidation((Curve)ent, p3dcol);
+
+                            int count = 1;
+                            foreach (Point3d p3d in p3dcol)
                             {
-                                al.IntersectWith(ent, 0, plane, p3dcol, new IntPtr(0), new IntPtr(0));
+                                //Determine if the intersection point is within the polygon area
+                                if (!lman.IsPointWithinPolygon(ent, p3d)) continue;
 
-                                int count = 1;
-                                foreach (Point3d p3d in p3dcol)
+                                Oid pointId = cogoPoints.Add(p3d, true);
+                                CogoPoint cogoPoint = pointId.Go<CogoPoint>(tx, OpenMode.ForWrite);
+
+                                #region Assign elevation based on 3D conditions
+                                double zElevation = 0;
+                                //Implementing v2 labels with no elevations in point label
+                                string kote = "";
+                                if (type != "3D")
                                 {
-                                    //Determine if the intersection point is within the polygon area
-                                    if (!lman.IsPointWithinPolygon(ent, p3d)) continue;
+                                    var intPoint = surface.GetIntersectionPoint(
+                                        new Point3d(p3d.X, p3d.Y, -99.0), new Vector3d(0, 0, 1));
+                                    zElevation = intPoint.Z;
 
-                                    Oid pointId = cogoPoints.Add(p3d, true);
-                                    CogoPoint cogoPoint = pointId.Go<CogoPoint>(tx, OpenMode.ForWrite);
+                                    //Subtract the depth (if invalid it is zero, so no modification will occur)
+                                    zElevation -= depth;
 
-                                    #region Assign elevation based on 3D conditions
-                                    double zElevation = 0;
-                                    //Implementing v2 labels with no elevations in point label
-                                    string kote = "";
-                                    if (type != "3D")
-                                    {
-                                        var intPoint = surface.GetIntersectionPoint(
-                                            new Point3d(p3d.X, p3d.Y, -99.0), new Vector3d(0, 0, 1));
-                                        zElevation = intPoint.Z;
+                                    cogoPoint.Elevation = zElevation;
 
-                                        //Subtract the depth (if invalid it is zero, so no modification will occur)
-                                        zElevation -= depth;
-
-                                        cogoPoint.Elevation = zElevation;
-
-                                        description = AppendKoteUkendt(description);
-                                    }
-                                    else if (type == "3D")
-                                    {
-                                        Polyline3d pline3d = (Polyline3d)ent;
-                                        Point3d p3dInt = pline3d.GetClosestPointTo(
-                                            p3d, new Vector3d(0.0, 0.0, 1.0), false);
-
-                                        //Assume only one intersection
-                                        cogoPoint.Elevation = p3dInt.Z;
-
-                                        if (cogoPoint.Elevation == 0)
-                                        {
-                                            editor.WriteMessage($"\nFor type 3D entity {ent.Handle.ToString()}" +
-                                                $" layer {ent.Layer}," +
-                                                $" elevation is 0!");
-                                        }
-                                        else
-                                        {
-                                            kote = $"K: {p3dInt.Z.ToString("#.00", danishCulture)}, ";
-                                            description = kote + description;
-                                        }
-                                    }
-
-                                    string AppendKoteUkendt(string originalString)
-                                    {
-                                        if (string.IsNullOrEmpty(originalString)) return originalString;
-                                        const string appendText = "Kote Ukendt.";
-
-                                        if (originalString.EndsWith(appendText)) return originalString;
-
-                                        return originalString[^1] switch
-                                        {
-                                            char c when char.IsLetter(c) => $"{originalString}, {appendText}",
-                                            char c when char.IsDigit(c) => $"{originalString}, {appendText}",
-                                            '.' or ',' => $"{originalString} {appendText}",
-                                            '!' or '?' => $"{originalString} {char.ToUpper(appendText[0])}{appendText[1..]}",
-                                            ':' or ';' => $"{originalString} {char.ToLower(appendText[0])}{appendText[1..]}",
-                                            char c when char.IsWhiteSpace(c) => $"{originalString.TrimEnd()} {appendText}",
-                                            _ => $"{originalString} {appendText}"
-                                        };
-                                    }
-                                    #endregion
-
-                                    //Set the layer
-                                    #region Layer handling
-                                    localDb.CheckOrCreateLayer(localPointLayerName);
-
-                                    cogoPoint.Layer = localPointLayerName;
-                                    #endregion
-
-                                    #region Point names, avoids duplicate names
-                                    string pointName = entHandle + "_" + count;
-
-                                    while (pNames.Contains(pointName))
-                                    {
-                                        count++;
-                                        pointName = entHandle + "_" + count;
-                                    }
-                                    pNames.Add(pointName);
-                                    cogoPoint.PointName = pointName;
-                                    cogoPoint.RawDescription = description;
-                                    cogoPoint.StyleId = cogoPointStyle;
-                                    #endregion
-
-                                    #region Populate DriCrossingData property set
-                                    //Fetch diameter definitions if any
-                                    string diaDef = ReadStringParameterFromDataTable(ent.Layer,
-                                        dtKrydsninger, "Diameter", 0);
-
-                                    if (diaDef.IsNotNoE())
-                                    {
-                                        var parts = FindPropertySetParts(diaDef);
-                                        if (parts.propertyName != default && parts.setName != default)
-                                        {
-                                            int diameter = PropertySetManager.ReadNonDefinedPropertySetInt(
-                                                ent, parts.setName, parts.propertyName);
-
-                                            psmDriCrossingData.WritePropertyObject(cogoPoint, dCDdef.Diameter, diameter);
-                                        }
-                                    }
-
-                                    psmDriCrossingData.WritePropertyString(
-                                        cogoPoint, dCDdef.Alignment, al.Name);
-                                    psmDriCrossingData.WritePropertyString(
-                                        cogoPoint, dCDdef.SourceEntityHandle, entHandle);
-                                    #endregion
-
-                                    //Reference newly created cogoPoint to gathering collection
-                                    allNewlyCreatedPoints.Add(cogoPoint);
+                                    description = AppendKoteUkendt(description);
                                 }
+                                else if (type == "3D")
+                                {
+                                    Polyline3d pline3d = (Polyline3d)ent;
+                                    Point3d p3dInt = pline3d.GetClosestPointTo(
+                                        p3d, new Vector3d(0.0, 0.0, 1.0), false);
+
+                                    //Assume only one intersection
+                                    cogoPoint.Elevation = p3dInt.Z;
+
+                                    if (cogoPoint.Elevation == 0)
+                                    {
+                                        editor.WriteMessage($"\nFor type 3D entity {ent.Handle.ToString()}" +
+                                            $" layer {ent.Layer}," +
+                                            $" elevation is 0!");
+                                    }
+                                    else
+                                    {
+                                        kote = $"K: {p3dInt.Z.ToString("#.00", danishCulture)}, ";
+                                        description = kote + description;
+                                    }
+                                }
+
+                                string AppendKoteUkendt(string originalString)
+                                {
+                                    if (string.IsNullOrEmpty(originalString)) return originalString;
+                                    const string appendText = "Kote Ukendt.";
+
+                                    if (originalString.EndsWith(appendText)) return originalString;
+
+                                    return originalString[^1] switch
+                                    {
+                                        char c when char.IsLetter(c) => $"{originalString}, {appendText}",
+                                        char c when char.IsDigit(c) => $"{originalString}, {appendText}",
+                                        '.' or ',' => $"{originalString} {appendText}",
+                                        '!' or '?' => $"{originalString} {char.ToUpper(appendText[0])}{appendText[1..]}",
+                                        ':' or ';' => $"{originalString} {char.ToLower(appendText[0])}{appendText[1..]}",
+                                        char c when char.IsWhiteSpace(c) => $"{originalString.TrimEnd()} {appendText}",
+                                        _ => $"{originalString} {appendText}"
+                                    };
+                                }
+                                #endregion
+
+                                //Set the layer
+                                #region Layer handling
+                                localDb.CheckOrCreateLayer(localPointLayerName);
+
+                                cogoPoint.Layer = localPointLayerName;
+                                #endregion
+
+                                #region Point names, avoids duplicate names
+                                string pointName = entHandle + "_" + count;
+
+                                while (pNames.Contains(pointName))
+                                {
+                                    count++;
+                                    pointName = entHandle + "_" + count;
+                                }
+                                pNames.Add(pointName);
+                                cogoPoint.PointName = pointName;
+                                cogoPoint.RawDescription = description;
+                                cogoPoint.StyleId = cogoPointStyle;
+                                #endregion
+
+                                #region Populate DriCrossingData property set
+                                //Fetch diameter definitions if any
+                                string diaDef = ReadStringParameterFromDataTable(ent.Layer,
+                                    dtKrydsninger, "Diameter", 0);
+
+                                if (diaDef.IsNotNoE())
+                                {
+                                    var parts = FindPropertySetParts(diaDef);
+                                    if (parts.propertyName != default && parts.setName != default)
+                                    {
+                                        int diameter = PropertySetManager.ReadNonDefinedPropertySetInt(
+                                            ent, parts.setName, parts.propertyName);
+
+                                        psmDriCrossingData.WritePropertyObject(cogoPoint, dCDdef.Diameter, diameter);
+                                    }
+                                }
+
+                                psmDriCrossingData.WritePropertyString(
+                                    cogoPoint, dCDdef.Alignment, al.Name);
+                                psmDriCrossingData.WritePropertyString(
+                                    cogoPoint, dCDdef.SourceEntityHandle, entHandle);
+                                #endregion
+
+                                //Reference newly created cogoPoint to gathering collection
+                                allNewlyCreatedPoints.Add(cogoPoint);
                             }
+
                             #endregion
                         }
                         #endregion
@@ -3412,10 +3414,8 @@ namespace IntersectUtilities
                                 List<double> splitPts = new List<double>();
                                 foreach (Line line in splitLines)
                                 {
-                                    Point3dCollection ipts = new Point3dCollection();
-                                    offsetPline.IntersectWith(line,
-                                        Autodesk.AutoCAD.DatabaseServices.Intersect.OnBothOperands,
-                                        ipts, new IntPtr(0), new IntPtr(0));
+                                    List<Point3d> ipts = new List<Point3d>();
+                                    offsetPline.IntersectWithValidation(line, ipts);
                                     foreach (Point3d pt in ipts)
                                         splitPts.Add(offsetPline.GetParameterAtPoint(offsetPline.GetClosestPointTo(pt, false)));
                                 }
@@ -3452,10 +3452,8 @@ namespace IntersectUtilities
                                 List<double> splitPts = new List<double>();
                                 foreach (Line line in splitLines)
                                 {
-                                    Point3dCollection ipts = new Point3dCollection();
-                                    offsetPline.IntersectWith(line,
-                                        Autodesk.AutoCAD.DatabaseServices.Intersect.OnBothOperands,
-                                        ipts, new IntPtr(0), new IntPtr(0));
+                                    List<Point3d> ipts = new List<Point3d>();
+                                    offsetPline.IntersectWithValidation(line, ipts);
                                     foreach (Point3d pt in ipts)
                                         splitPts.Add(offsetPline.GetParameterAtPoint(offsetPline.GetClosestPointTo(pt, false)));
                                 }
@@ -5714,7 +5712,7 @@ namespace IntersectUtilities
 
                 KoteReport.BuildGraphs(pn.PipelineGraphs);
                 KoteReport.GenerateKoteReport(længdeprofilerdbs, tolerance / 1000.0);
-                
+
                 prdDbg("Finshed!");
             }
             catch (System.Exception ex)
@@ -5727,7 +5725,7 @@ namespace IntersectUtilities
                 fjvTx.Abort();
                 fjvTx.Dispose();
                 fjvDb.Dispose();
-                
+
                 alTx.Abort();
                 alTx.Dispose();
                 alDb.Dispose();

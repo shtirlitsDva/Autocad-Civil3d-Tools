@@ -206,17 +206,10 @@ namespace IntersectUtilities
             List<Entity> returnList = new List<Entity>();
             foreach (Entity ent in entList)
             {
-                using (Point3dCollection p3dcol = new Point3dCollection())
-                {
-                    alignment.IntersectWith(ent, 0, plane, p3dcol, new IntPtr(0), new IntPtr(0));
-
-                    //Create feature line if there's an intersection and
-                    //if the type of the layer is not "IGNORE"
-                    if (p3dcol.Count > 0)
-                    {
-                        returnList.Add(ent);
-                    }
-                }
+                var p3dcol = alignment.IntersectWithValidation(ent);
+                //Create feature line if there's an intersection and
+                //if the type of the layer is not "IGNORE"
+                if (p3dcol.Count > 0) returnList.Add(ent);
             }
             return returnList.Cast<T>().ToList();
         }
@@ -230,15 +223,8 @@ namespace IntersectUtilities
             HashSet<Entity> returnList = new HashSet<Entity>();
             foreach (Entity ent in entList)
             {
-                using (Point3dCollection p3dcol = new Point3dCollection())
-                {
-                    alignment.IntersectWith(ent, 0, plane, p3dcol, new IntPtr(0), new IntPtr(0));
-
-                    if (p3dcol.Count > 0)
-                    {
-                        returnList.Add(ent);
-                    }
-                }
+                var p3dcol = alignment.IntersectWithValidation(ent);
+                if (p3dcol.Count > 0) returnList.Add(ent);
             }
             return returnList.Cast<T>().ToHashSet();
         }
