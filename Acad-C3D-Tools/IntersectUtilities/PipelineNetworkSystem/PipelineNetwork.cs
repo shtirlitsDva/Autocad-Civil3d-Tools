@@ -817,123 +817,144 @@ namespace IntersectUtilities.PipelineNetworkSystem
                                 $"WARNING! This can break existing blocks! Caution is advised!");
                     }
                     #endregion
-
-                    #region Place weldblocks
-                    var ordered = wps.OrderBy(x => x.WeldPoint.X).ThenBy(x => x.WeldPoint.Y);
-                    var clusters
-                            = ordered.GroupByCluster((x, y) => GetDistance(x, y), 0.005)
-                            .Where(x => x.Count() > 1 || (x.Count() == 1 && x.First().IsPolylineWeld)) //<-- KEEP AN EYE ON THIS!!! HAHA, GOTCHA!
-                            .ToHashSet();
-                    double GetDistance(WeldPointData2 first, WeldPointData2 second) =>
-                        first.WeldPoint.DistanceHorizontalTo(second.WeldPoint);
-
-                    //Prepare modelspace
-                    BlockTableRecord modelSpace = localDb.GetModelspaceForWrite();
-                    modelSpace.CheckOrOpenForWrite();
-                    //Prepare block table record
-                    if (!bt.Has(blockName)) throw new System.Exception("Block for weld points is missing!");
-                    Oid btrId = bt[blockName];
-                    BlockTableRecord btrWp = btrId.Go<BlockTableRecord>(tx);
-                    List<AttributeDefinition> attDefs = new List<AttributeDefinition>();
-                    foreach (Oid arOid in btrWp)
-                    {
-                        if (!arOid.IsDerivedFrom<AttributeDefinition>()) continue;
-                        AttributeDefinition at = arOid.Go<AttributeDefinition>(tx);
-                        if (!at.Constant) attDefs.Add(at);
-                    }
-
-                    prdDbg($"Detected {clusters.Count} welds!");
-                    prdDbg("Placing welds...");
-                    System.Windows.Forms.Application.DoEvents();
-
-                    var pm = new Autodesk.AutoCAD.Runtime.ProgressMeter();
-                    pm.Start("Placing welds...");
-                    pm.SetLimit(clusters.Count);
-                    int idx = 0;
-                    foreach (var cluster in clusters)
-                    {
-                        idx++;
-                        wr(idx.ToString());
-                        pm.MeterProgress();
-
-                        Point3d wpt = cluster.First().WeldPoint;
-                        string alignment = cluster.FirstOrDefault(
-                            x => x.AlignmentName.IsNotNoE()).AlignmentName;
-                        int DN = cluster.First().DN;
-
-                        var pipeline = allPipelines.Where(x => x.Name == alignment).FirstOrDefault();
-                        if (pipeline == null)
-                        {
-                            prdDbg($"ERROR: Pipeline name {alignment} not found for weld point at {wpt}!");
-                            continue;
-                        }
-                        var deriv = pipeline.GetFirstDerivative(wpt);
-                        double rotation = Math.Atan2(deriv.Y, deriv.X);
-
-                        var wpBr = new BlockReference(wpt, btrId);
-                        wpBr.Rotation = rotation;
-                        wpBr.Layer = blockLayerName;
-
-                        wpBr.AddEntityToDbModelSpace(localDb);
-
-                        foreach (var attDef in attDefs)
-                        {
-                            var attRef = new AttributeReference();
-                            attRef.SetAttributeFromBlock(attDef, wpBr.BlockTransform);
-                            attRef.Position = attDef.Position.TransformBy(wpBr.BlockTransform);
-                            attRef.TextString = attDef.getTextWithFieldCodes();
-                            attRef.Layer = textLayerName;
-                            wpBr.AttributeCollection.AppendAttribute(attRef);
-                            tx.AddNewlyCreatedDBObject(attRef, true);
-                        }
-
-                        psh.Pipeline.WritePropertyString(
-                            wpBr, psh.PipelineDef.BelongsToAlignment, alignment);
-
-                        var pipeSystem = cluster.FirstOrDefault(
-                            x => x.PipeSystem != PipeSystemEnum.Ukendt);
-                        if (pipeSystem == null)
-                        {
-                            prdDbg($"ERROR: Pipe system not found for weld point at {wpt}!");
-                            continue;
-                        }
-
-                        var pipeType = cluster.FirstOrDefault(
-                            x => x.PipeType != PipeTypeEnum.Ukendt);
-                        if (pipeType == null)
-                        {
-                            prdDbg($"ERROR: Pipe type not found for weld point at {wpt}!");
-                            continue;
-                        }
-
-                        Utils.SetDynBlockPropertyObject(wpBr, "System", (object)pipeType.PipeType.ToString());
-                        Utils.SetDynBlockPropertyObject(wpBr, "PIPESIZE", (double)DN);
-                        Utils.SetDynBlockPropertyObject(wpBr, "SYSNAVN", pipeSystem.PipeSystem.ToString());
-
-                        try
-                        {
-                            wpBr.AttSync();
-                        }
-                        catch (System.Exception)
-                        {
-                            prdDbg("ERROR: " + wpBr.Position);
-                            idx++;
-                            continue;
-                        }
-
-                    }
-                    pm.Stop();
-                    prdDbg("Finished placing welds!");
-                    #endregion
                 }
-                catch (System.Exception ex)
+                catch (Exception ex)
                 {
-                    prdDbg(ex);
                     tx.Abort();
                     throw;
                 }
                 tx.Commit();
             }
+
+
+            #region Cluster welds
+            var ordered = wps.OrderBy(x => x.WeldPoint.X).ThenBy(x => x.WeldPoint.Y);
+            var clusters
+                    = ordered.GroupByCluster((x, y) => GetDistance(x, y), 0.005)
+                    .Where(x => x.Count() > 1 || (x.Count() == 1 && x.First().IsPolylineWeld)) //<-- KEEP AN EYE ON THIS!!! HAHA, GOTCHA!
+                    .ToList();
+            double GetDistance(WeldPointData2 first, WeldPointData2 second) =>
+                first.WeldPoint.DistanceHorizontalTo(second.WeldPoint);
+            #endregion
+
+            prdDbg($"Detected {clusters.Count} welds!");
+            prdDbg("Placing welds...");
+            System.Windows.Forms.Application.DoEvents();
+
+            var pm = new Autodesk.AutoCAD.Runtime.ProgressMeter();
+            pm.Start("Placing welds...");
+            pm.SetLimit(clusters.Count);
+            int idx = 0;
+            foreach (var chunk in clusters.Chunk(25))
+            {
+                using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                {
+                    try
+                    {
+                        #region Prepare block table record and attributes
+                        BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                        
+                        //Prepare modelspace
+                        BlockTableRecord modelSpace = localDb.GetModelspaceForWrite();
+                        modelSpace.CheckOrOpenForWrite();
+                        //Prepare block table record
+                        if (!bt.Has(blockName)) throw new System.Exception("Block for weld points is missing!");
+                        Oid btrId = bt[blockName];
+                        BlockTableRecord btrWp = btrId.Go<BlockTableRecord>(tx);
+                        List<AttributeDefinition> attDefs = new List<AttributeDefinition>();
+                        foreach (Oid arOid in btrWp)
+                        {
+                            if (!arOid.IsDerivedFrom<AttributeDefinition>()) continue;
+                            AttributeDefinition at = arOid.Go<AttributeDefinition>(tx);
+                            if (!at.Constant) attDefs.Add(at);
+                        }
+                        #endregion
+
+                        foreach (var cluster in chunk)
+                        {
+                            idx++;
+                            wr(idx.ToString());
+                            pm.MeterProgress();
+
+                            Point3d wpt = cluster.First().WeldPoint;
+                            string? alignment = cluster.FirstOrDefault(
+                                x => x.AlignmentName.IsNotNoE())?.AlignmentName;
+                            int DN = cluster.First().DN;
+
+                            var pipeline = allPipelines.Where(x => x.Name == alignment).FirstOrDefault();
+                            if (pipeline == null)
+                            {
+                                prdDbg($"ERROR: Pipeline name {alignment} not found for weld point at {wpt}!");
+                                continue;
+                            }
+                            var deriv = pipeline.GetFirstDerivative(wpt);
+                            double rotation = Math.Atan2(deriv.Y, deriv.X);
+
+                            var wpBr = new BlockReference(wpt, btrId);
+                            wpBr.Rotation = rotation;
+                            wpBr.Layer = blockLayerName;
+
+                            wpBr.AddEntityToDbModelSpace(localDb);
+
+                            foreach (var attDef in attDefs)
+                            {
+                                var attRef = new AttributeReference();
+                                attRef.SetAttributeFromBlock(attDef, wpBr.BlockTransform);
+                                attRef.Position = attDef.Position.TransformBy(wpBr.BlockTransform);
+                                attRef.TextString = attDef.getTextWithFieldCodes();
+                                attRef.Layer = textLayerName;
+                                wpBr.AttributeCollection.AppendAttribute(attRef);
+                                tx.AddNewlyCreatedDBObject(attRef, true);
+                            }
+
+                            psh.Pipeline.WritePropertyString(
+                                wpBr, psh.PipelineDef.BelongsToAlignment, alignment);
+
+                            var pipeSystem = cluster.FirstOrDefault(
+                                x => x.PipeSystem != PipeSystemEnum.Ukendt);
+                            if (pipeSystem == null)
+                            {
+                                prdDbg($"ERROR: Pipe system not found for weld point at {wpt}!");
+                                continue;
+                            }
+
+                            var pipeType = cluster.FirstOrDefault(
+                                x => x.PipeType != PipeTypeEnum.Ukendt);
+                            if (pipeType == null)
+                            {
+                                prdDbg($"ERROR: Pipe type not found for weld point at {wpt}!");
+                                continue;
+                            }
+
+                            Utils.SetDynBlockPropertyObject(wpBr, "System", (object)pipeType.PipeType.ToString());
+                            Utils.SetDynBlockPropertyObject(wpBr, "PIPESIZE", (double)DN);
+                            Utils.SetDynBlockPropertyObject(wpBr, "SYSNAVN", pipeSystem.PipeSystem.ToString());
+
+                            try
+                            {
+                                wpBr.AttSync();
+                            }
+                            catch (System.Exception)
+                            {
+                                prdDbg("ERROR: " + wpBr.Position);
+                                idx++;
+                                continue;
+                            }
+                        }
+
+                    }
+                    catch (System.Exception ex)
+                    {
+                        prdDbg(ex);
+                        tx.Abort();
+                        throw;
+                    }
+                    tx.Commit();
+                }
+            }
+
+            pm.Stop();
+            prdDbg("Finished placing welds!");
         }
     }
 }

@@ -59,7 +59,12 @@ namespace IntersectUtilities
 {
     public partial class Intersect
     {
-        [CommandMethod("chel")]
+        /// <command>CHEL</command>
+        /// <summary>
+        /// CHanges the ELevation of a selected projected COGO point by the input value.
+        /// </summary>
+        /// <category>Longitudinal Profiles</category>
+        [CommandMethod("CHEL")]
         public void changeelevationofprojectedcogopoint()
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -88,7 +93,7 @@ namespace IntersectUtilities
 
                     CogoPoint p = tx.GetObject(fId, OpenMode.ForWrite) as CogoPoint;
                     PromptDoubleResult result = editor.GetDouble("\nValue to modify elevation:");
-                    if (((PromptResult)result).Status != PromptStatus.OK) return;
+                    if (((PromptResult)result).Status != PromptStatus.OK) { tx.Abort(); return; }
 
                     double distToMove = result.Value;
 
@@ -108,6 +113,13 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>CHD</command>
+        /// <summary>
+        /// Changes the depth for a projected point.
+        /// The deph is calculated as the difference between the surface elevation and the point elevation.
+        /// The user inputs the new depth and the point elevation is calculated accordingly.
+        /// </summary>
+        /// <category>Longitudinal Profiles</category>
         [CommandMethod("CHD")]
         public void changedephforprojectedpoint()
         {
@@ -127,12 +139,10 @@ namespace IntersectUtilities
                     promptEntityOptions1.SetRejectMessage("\n Not a label");
                     promptEntityOptions1.AddAllowedClass(typeof(ProfileProjectionLabel), true);
                     PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
-                    if (((PromptResult)entity1).Status != PromptStatus.OK) return;
+                    if (((PromptResult)entity1).Status != PromptStatus.OK) { tx.Abort(); return; }
                     Autodesk.AutoCAD.DatabaseServices.ObjectId alObjId = entity1.ObjectId;
                     LabelBase label = tx.GetObject(alObjId, OpenMode.ForRead, false) as LabelBase;
                     #endregion
-
-
 
                     Oid fId = label.FeatureId;
 
@@ -154,7 +164,7 @@ namespace IntersectUtilities
                     editor.WriteMessage($"\nCurrent point depth: {(surfaceElevation - pt.Elevation).ToString("0.000")}");
 
                     PromptDoubleResult result = editor.GetDouble("\nIndtast ny dybde:");
-                    if (((PromptResult)result).Status != PromptStatus.OK) return;
+                    if (((PromptResult)result).Status != PromptStatus.OK) { tx.Abort(); return; }
                     double newDepth = result.Value;
 
                     editor.WriteMessage($"\nTarget point depth: {newDepth.ToString("0.000")}");
@@ -172,7 +182,14 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("selbylabel")]
+        /// <command>SELBYLABEL</command>
+        /// <summary>
+        /// Selects COGO points by their projection labels.
+        /// The user must select a label of a COGO point on a profile view,
+        /// and then the command selects the corresponding COGO point.
+        /// </summary>
+        /// <category>Selection</category>
+        [CommandMethod("SELBYLABEL")]
         public void selectcogopointbyprojectionlabel()
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -192,7 +209,7 @@ namespace IntersectUtilities
                     promptEntityOptions1.SetRejectMessage("\n Not a label");
                     promptEntityOptions1.AddAllowedClass(typeof(ProfileProjectionLabel), true);
                     PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
-                    if (((PromptResult)entity1).Status != PromptStatus.OK) return;
+                    if (((PromptResult)entity1).Status != PromptStatus.OK) { tx.Abort(); return; }
                     Autodesk.AutoCAD.DatabaseServices.ObjectId alObjId = entity1.ObjectId;
                     LabelBase label = tx.GetObject(alObjId, OpenMode.ForRead, false) as LabelBase;
                     #endregion
@@ -210,6 +227,11 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>CREATESURFACEPROFILES</command>
+        /// <summary>
+        /// Creates surface profiles for all alignments in current drawing.
+        /// </summary>
+        /// <category>Longitudinal Profiles</category>
         [CommandMethod("CREATESURFACEPROFILES")]
         public void createsurfaceprofiles()
         {
@@ -348,6 +370,11 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>CREATEPROFILEVIEWS</command>
+        /// <summary>
+        /// Creates profile views for all alignments in current drawing.
+        /// </summary>
+        /// <category>Profiles</category>
         [CommandMethod("CREATEPROFILEVIEWS")]
         public void createprofileviews()
         {
@@ -440,14 +467,12 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>CREATELERDATAPSS</command>
         /// <summary>
-        /// New method to create Ler intersection data using PropertySets
-        /// Because ODTables are unstable and sometimes do not work
-        /// as expected when cloning the objects from drawing.
-        /// It is also possible to access data across databases
-        /// while ODTables require cloning of objects to host drawing
-        /// which is slow and not always works
+        /// Creates COGO points with LER data using property sets.
+        /// The COGO points are projected onto longitudinal profiles to display utility data.
         /// </summary>
+        /// <category>Longitudinal Profiles</category>
         [CommandMethod("CREATELERDATAPSS")]
         public void createlerdatapss()
         {
@@ -1016,6 +1041,11 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>DELETEALLCOGOPOINTS</command>
+        /// <summary>
+        /// Deletes all COGO points in the drawing.
+        /// </summary>
+        /// <category>Longitudinal Profiles</category>
         [CommandMethod("DELETEALLCOGOPOINTS")]
         public void deleteallcogopoints()
         {
@@ -1054,6 +1084,12 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>POPULATEPROFILES</command>
+        /// <summary>
+        /// Populates longitudinal profiles with LER data.
+        /// Creates detailing blocks and symbols for LER data.
+        /// </summary>
+        /// <category>Longitudinal Profiles</category>
         [CommandMethod("POPULATEPROFILES")]
         public void populateprofiles()
         {
@@ -1265,12 +1301,24 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>COLORIZEALLLERLAYERS</command>
+        /// <summary>
+        /// Colorizes all LER layers in the drawing.
+        /// These are layers that are created for COGO points,
+        /// not layers from Krydsninger.csv.
+        /// </summary>
+        /// <category>Longitudinal Profiles</category>
         [CommandMethod("COLORIZEALLLERLAYERS")]
         public void colorizealllerlayers()
         {
             colorizealllerlayersmethod();
         }
 
+        /// <command>CREATEPROFILES</command>
+        /// <summary>
+        /// Creates draft pipe profiles for longitudinal profile views.
+        /// </summary>
+        /// <category>Longitudinal Profiles</category>
         [CommandMethod("CREATEPROFILES")]
         public void createprofiles()
         {
@@ -1654,9 +1702,11 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>CREATEDETAILINGPRELIMINARY</command>
         /// <summary>
         /// Creates detailing based on SURFACE profile.
         /// </summary>
+        /// <category>Longitudinal Profiles</category>
         [CommandMethod("CREATEDETAILINGPRELIMINARY")]
         public void createdetailingpreliminary()
         {
@@ -2221,9 +2271,11 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>CREATEDETAILING</command>
         /// <summary>
         /// Creates detailing based on an existing MIDT profile
         /// </summary>
+        /// <category>Longitudinal Profiles</category>
         [CommandMethod("CREATEDETAILING")]
         public void createdetailing()
         {
