@@ -3329,12 +3329,14 @@ namespace IntersectUtilities
             Database localDb = docCol.MdiActiveDocument.Database;
             //Jesper simpel metode
             //Nummer og Vejnavn udelades
+
+            Oid oid = Interaction.GetEntity("Select polyline til TBL områder: ");
+            if (oid == Oid.Null) { return; }
+
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
                 {
-                    Oid oid = Interaction.GetEntity("Select polyline til TBL områder: ");
-                    if (oid == Oid.Null) { AbortGracefully("Selection of entity aborted!", localDb); return; }
                     Entity ent = oid.Go<Entity>(tx, OpenMode.ForWrite);
                     PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriOmråder);
                     PSetDefs.DriOmråder psDef = new PSetDefs.DriOmråder();
@@ -3355,7 +3357,7 @@ namespace IntersectUtilities
                     //    "Ubefæstet"
                     //};
                     string kwd = Interaction.GetKeywords("Angiv belægning: ", kwds);
-                    if (kwd == null) { AbortGracefully("Input annulleret!", localDb); return; }
+                    if (kwd == null) { tx.Abort(); return; }
                     if (kwd == "FOrtov") kwd = "Fortov";
                     psm.WritePropertyString(ent, psDef.Belægning, kwd);
                     kwds = new string[]
@@ -3367,7 +3369,7 @@ namespace IntersectUtilities
                     };
                     kwd = null;
                     kwd = Interaction.GetKeywords("Angiv vejklasse: ", kwds);
-                    if (kwd == null) { AbortGracefully("Input annulleret!", localDb); return; }
+                    if (kwd == null) { tx.Abort(); return; }
                     psm.WritePropertyString(ent, psDef.Vejklasse, kwd);
                 }
                 catch (System.Exception ex)
