@@ -1704,7 +1704,7 @@ namespace IntersectUtilities
 
         /// <command>CREATEDETAILINGPRELIMINARY</command>
         /// <summary>
-        /// Creates detailing based on SURFACE profile.
+        /// Creates detailing in profile views based on SURFACE profile.
         /// </summary>
         /// <category>Longitudinal Profiles</category>
         [CommandMethod("CREATEDETAILINGPRELIMINARY")]
@@ -2273,7 +2273,7 @@ namespace IntersectUtilities
 
         /// <command>CREATEDETAILING</command>
         /// <summary>
-        /// Creates detailing based on an existing MIDT profile
+        /// Creates detailing in profile views based on MIDT profile.
         /// </summary>
         /// <category>Longitudinal Profiles</category>
         [CommandMethod("CREATEDETAILING")]
@@ -3120,6 +3120,11 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>DELETEDETAILING</command>
+        /// <summary>
+        /// Deletes detailing from profile views.
+        /// </summary>
+        /// <category>Longitudinal Profiles</category>
         [CommandMethod("DELETEDETAILING")]
         public void deletedetailing()
         {
