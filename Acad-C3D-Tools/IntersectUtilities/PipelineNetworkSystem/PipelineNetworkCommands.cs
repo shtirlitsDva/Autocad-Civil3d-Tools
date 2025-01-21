@@ -52,6 +52,13 @@ namespace IntersectUtilities
 {
     public partial class Intersect
     {
+        /// <command>GRAPHPIPELINES</command>
+        /// <summary>
+        /// Creates a pipeline network and writes it to a graph.
+        /// Used for validating pipeline network.
+        /// All alignments are expected to be connected following the pipeline network.
+        /// </summary>
+        /// <category>Quality Assurance</category>
         [CommandMethod("GRAPHPIPELINES")]
         public void graphpipelines()
         {
@@ -101,6 +108,13 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>AUTOREVERSPLINESV2</command>
+        /// <summary>
+        /// Automatically reverses the direction of polylines in the pipeline network.
+        /// The polyline direction follows the flow direction in the supply pipe.
+        /// GRAPHPIPELINES must be run before this command and produce meaningful result.
+        /// </summary>
+        /// <category>Fjernvarme Fremtidig</category>
         [CommandMethod("AUTOREVERSPLINESV2")]
         public void autoreverseplinesv2()
         {
@@ -143,6 +157,13 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>CORRECTCUTLENGTHSV2</command>
+        /// <summary>
+        /// Automatically moves reducers so that polyline lengths are divisible by standard pipe lengths without rest.
+        /// The direction of the correction follows the supply pipe flow direction.
+        /// GRAPHPIPELINES and AUTOREVERSPLINESV2 must be run before this command and produce meaningful results.
+        /// </summary>
+        /// <category>Fjernvarme Fremtidig</category>
         [CommandMethod("CORRECTCUTLENGTHSV2")]
         public void correctcutlengthsv2()
         {
@@ -190,6 +211,12 @@ namespace IntersectUtilities
             cleanplines();
         }
 
+        /// <command>CWDV2, CREATEWELDPOINTSV2</command>
+        /// <summary>
+        /// Creates weld points in fjernvarme fremtidig.
+        /// GRAPHPIPELINES, AUTOREVERSPLINESV2 and CORRECTCUTLENGTHSV2 must be run before this command and produce meaningful results.
+        /// </summary>
+        /// <category>Fjernvarme Fremtidig</category>
         [CommandMethod("CWDV2")]
         [CommandMethod("CREATEWELDPOINTSV2")]
         public void createweldpointsv2()

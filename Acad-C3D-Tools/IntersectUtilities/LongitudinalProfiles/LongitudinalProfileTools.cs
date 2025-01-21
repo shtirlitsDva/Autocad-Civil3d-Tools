@@ -3171,6 +3171,11 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>CREATEPOINTSATVERTICES</command>
+        /// <summary>
+        /// Creates points at the vertices of polylines.
+        /// </summary>
+        /// <category>Longitudinal Profiles</category>
         [CommandMethod("CREATEPOINTSATVERTICES")]
         public void createpointsatvertices() => createpointsatverticesmethod();
         public void createpointsatverticesmethod(Extents3d bbox = default)
@@ -3230,6 +3235,11 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>CREATEOFFSETPROFILES</command>
+        /// <summary>
+        /// Creates offset profiles symbolizing top and bottom of pipe jacket for selected MIDT profile.
+        /// </summary>
+        /// <category>Longitudinal Profiles</category>
         [CommandMethod("CREATEOFFSETPROFILES")]
         public void createoffsetprofiles()
         {
@@ -3658,10 +3668,12 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>CREATEOFFSETPROFILESALL</command>
         /// <summary>
-        /// Creates offset profiles for all middle profiles
+        /// Creates offset profiles symbolizing top and bottom of pipe jacket for all MIDT profiles.
         /// FOR USE ONLY WITH CONTINUOUS PVs!!!
         /// </summary>
+        /// <category>Longitudinal Profiles</category>
         [CommandMethod("CREATEOFFSETPROFILESALL")]
         public void createoffsetprofilesall()
         {
@@ -3692,6 +3704,11 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>DELETEOFFSETPROFILES</command>
+        /// <summary>
+        /// Deletes offset profiles from profile views.
+        /// </summary>
+        /// <category>Longitudinal Profiles</category>
         [CommandMethod("DELETEOFFSETPROFILES")]
         public void deleteoffsetprofiles()
         {
@@ -3717,6 +3734,12 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>LISTMIDTPROFILESSTARTENDSTATIONS</command>
+        /// <summary>
+        /// Lists alignments for which the sampling of elevation for the start and end stations of MIDT profiles FAILED.
+        /// These profiles must be fixed so that elevation sampling is possible.
+        /// </summary>
+        /// <category>Longitudinal Profiles</category>
         [CommandMethod("LISTMIDTPROFILESSTARTENDSTATIONS")]
         public void listmidtprofilesstartendstations()
         {
@@ -3737,7 +3760,6 @@ namespace IntersectUtilities
                     if (profile.Name.Contains("MIDT"))
                     {
                         Alignment al = profile.AlignmentId.Go<Alignment>(tx);
-
 
                         bool success = true;
                         double startElevation = SampleProfile(profile, 0, ref success);
@@ -3768,7 +3790,6 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("createmultipleprofileviews")]
         public void createmultipleprofileviews()
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -3998,8 +4019,13 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("staggerlabels")]
-        [CommandMethod("sg")]
+        /// <command>STAGGERLABELS, SG</command>
+        /// <summary>
+        /// Staggers labels (sort labels by height) in selected profile view.
+        /// </summary>
+        /// <category>Longitudinal Profiles</category>
+        [CommandMethod("STAGGERLABELS")]
+        [CommandMethod("SG")]
         public void staggerlabels()
         {
 
@@ -4128,8 +4154,13 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("staggerlabelsall")]
-        [CommandMethod("sgall")]
+        /// <command>STAGGERLABELSALL, SGALL</command>
+        /// <summary>
+        /// Staggers labels (sort labels by height) in all profile views.
+        /// </summary>
+        /// <category>Longitudinal Profiles</category>
+        [CommandMethod("STAGGERLABELSALL")]
+        [CommandMethod("SGALL")]
         public void staggerlabelsall()
         {
             staggerlabelsallmethod();
@@ -4333,7 +4364,12 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("setlabelslength")]
+        /// <command>SETLABELSLENGTH</command>
+        /// <summary>
+        /// Asks for input and sets the length of all labels in all profile views to the input value.
+        /// </summary>
+        /// <category>Longitudinal Profiles</category>
+        [CommandMethod("SETLABELSLENGTH")]
         public void setlabelslength()
         {
 
@@ -4350,7 +4386,7 @@ namespace IntersectUtilities
 
                 #region Get length
                 PromptDoubleResult result = editor.GetDouble("\nEnter length: ");
-                if (((PromptResult)result).Status != PromptStatus.OK) return;
+                if (((PromptResult)result).Status != PromptStatus.OK) { tx.Abort(); return; }
                 double length = result.Value;
                 #endregion
 
@@ -4369,7 +4405,7 @@ namespace IntersectUtilities
         /// <summary>
         /// Sets the bottom band of all profile views to display elevations from Surface and TOP profiles.
         /// </summary>
-        /// <category>Profiles</category>
+        /// <category>Longitudinal Profiles</category>
         [CommandMethod("SETPROFILESVIEW")]
         public void setprofilesview()
         {
@@ -4450,7 +4486,7 @@ namespace IntersectUtilities
         /// <summary>
         /// Move a fjv component in a profile view and it will be moved in the plan view as well.
         /// </summary>
-        /// <category>Profiles</category>
+        /// <category>Longitudinal Profiles</category>
         [CommandMethod("MOVECOMPONENTINPROFILEVIEW")]
         public void movecomponentinprofileview()
         {
@@ -4615,6 +4651,11 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>FIXMIDTPROFILESTYLE</command>
+        /// <summary>
+        /// Fixes the style of midt profiles.
+        /// </summary>
+        /// <category>Longitudinal Profiles</category>
         [CommandMethod("FIXMIDTPROFILESTYLE")]
         public void fixmidtprofilestyle()
         {
@@ -4664,6 +4705,11 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>DELETESURFACEPROFILES</command>
+        /// <summary>
+        /// Deletes surface profiles from alignments.
+        /// </summary>
+        /// <category>Longitudinal Profiles</category>
         [CommandMethod("DELETESURFACEPROFILES")]
         public void deletesurfaceprofiles()
         {
@@ -4679,8 +4725,7 @@ namespace IntersectUtilities
                     .Where(x => x.Name.Contains("_surface_P")).ToList();
                 //////////////////////////////////////
 
-                #region Delete previous blocks
-                //Delete previous blocks
+                #region Delete profiles
                 foreach (Profile p in profiles)
                 {
                     p.CheckOrOpenForWrite();
@@ -4691,7 +4736,12 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("mypfp")]
+        /// <command>MYPFP</command>
+        /// <summary>
+        /// Creates a profile from a polyline in the selected profile view.
+        /// </summary>
+        /// <category>Longitudinal Profiles</category>
+        [CommandMethod("MYPFP")]
         public void profilefrompolyline()
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -4822,6 +4872,11 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>POLYLINEFROMPROFILE</command>
+        /// <summary>
+        /// Creates a polyline from a selected profile.
+        /// </summary>
+        /// <category>Longitudinal Profiles</category>
         [CommandMethod("POLYLINEFROMPROFILE")]
         public void polylinefromprofile()
         {
@@ -4884,6 +4939,12 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>POPULATEDISTANCES</command>
+        /// <summary>
+        /// Creates markings for safe distances for all LER symbols in all profile views.
+        /// The distances are read from a csv file.
+        /// </summary>
+        /// <category>Longitudinal Profiles</category>
         [CommandMethod("POPULATEDISTANCES")]
         public void populatedistances()
         {
@@ -5276,6 +5337,12 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>UPDATESINGLEPROFILEVIEW</command>
+        /// <summary>
+        /// Regenerates a single profile view with all detailing.
+        /// NOTE: MIDT profile must either be drawn fully or not at all. Half drawn or empty profiles will cause errors.
+        /// </summary>
+        /// <category>Longitudinal Profiles</category>
         [CommandMethod("UPDATESINGLEPROFILEVIEW")]
         public void updatesingleprofileview()
         {
@@ -5458,6 +5525,12 @@ namespace IntersectUtilities
             prdDbg("Update finished! Run AUDIT (Y) to clean up drawing!");
         }
 
+        /// <command>UPDATEPROFILEVIEWs</command>
+        /// <summary>
+        /// Regenerates all longitudinal profile views in drawing with all detailing.
+        /// NOTE: MIDT profiles must either be drawn fully or not at all. Half drawn or empty profiles will cause errors.
+        /// </summary>
+        /// <category>Longitudinal Profiles</category>
         [CommandMethod("UPDATEPROFILEVIEWS")]
         public void updateprofileviews()
         {
@@ -5479,6 +5552,12 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>CALCULATEEXCAVATIONVOLUMES</command>
+        /// <summary>
+        /// Calculates excavation volumes for profiles. The volumes are based on standard
+        /// trench widths from company standard cross section detail drawings.
+        /// </summary>
+        /// <category>Longitudinal Profiles</category>
         [CommandMethod("CALCULATEEXCAVATIONVOLUMES")]
         public void calculateexcavationvolumes()
         {
@@ -5739,6 +5818,14 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>CREATEELEVATIONREPORT</command>
+        /// <summary>
+        /// Creates an elevation report for all alignments in the project/phase.
+        /// Elevation report is based on connections between alignments and MIDT profiles elevations at these connections.
+        /// For this tool to work, GRAPHWRITE and GRAPHPIPELINES must produce meaningful results.
+        /// User must input a tolerance in millimeters for acceptable deviation between profiles.
+        /// </summary>
+        /// <category>Longitudinal Profiles</category>
         [CommandMethod("CREATEELEVATIONREPORT")]
         public void createelevationreport()
         {

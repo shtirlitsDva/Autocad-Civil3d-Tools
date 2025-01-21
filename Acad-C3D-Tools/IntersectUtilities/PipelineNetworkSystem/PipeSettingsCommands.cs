@@ -52,6 +52,13 @@ namespace IntersectUtilities
 {
     public partial class Intersect
     {
+        /// <command>PIPESETTINGS, PSTS</command>
+        /// <summary>
+        /// Creates and manages pipe settings.
+        /// The settings are used for setting default values for standard pipe lengths.
+        /// Currently, only default settings are supported.
+        /// </summary>
+        /// <category>Fjernvarme Fremtidig</category>
         [CommandMethod("PSTS")]
         [CommandMethod("PIPESETTINGS")]
         public void pipesettings()

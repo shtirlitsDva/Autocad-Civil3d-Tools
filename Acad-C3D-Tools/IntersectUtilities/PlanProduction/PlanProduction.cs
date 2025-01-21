@@ -62,7 +62,7 @@ namespace IntersectUtilities
 {
     public partial class Intersect
     {
-        [CommandMethod("finalizesheets")]
+        [CommandMethod("FINALIZESHEETS")]
         public void finalizesheets()
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -316,7 +316,7 @@ namespace IntersectUtilities
             colorizealllerlayersmethod();
         }
 
-        [CommandMethod("finalizesheetsauto")]
+        [CommandMethod("FINALIZESHEETSAUTO")]
         public void finalizesheetsauto()
         {
             DocumentCollection docCol = Application.DocumentManager;

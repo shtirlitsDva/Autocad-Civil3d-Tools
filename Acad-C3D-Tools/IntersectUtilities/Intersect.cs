@@ -84,12 +84,12 @@ namespace IntersectUtilities
         }
         #endregion
         private static CultureInfo danishCulture = new CultureInfo("da-DK");
-        /// <command>listintlaycheckall</command>
+        /// <command>LISTINTLAYCHECKALL</command>
         /// <summary>
         /// Checks if all layers of Polyline3d exist in the Krydsninger.csv file.
         /// </summary>
         /// <category>LER</category>
-        [CommandMethod("listintlaycheckall")]
+        [CommandMethod("LISTINTLAYCHECKALL")]
         public void listintlaycheck()
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -213,7 +213,54 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
-                
+
+        /// <command>CONVERTLINESTOPOLIES</command>
+        /// <summary>
+        /// Converts all lines in the drawing to polylines.
+        /// </summary>
+        /// <category>Miscellaneous</category>
+        [CommandMethod("CONVERTLINESTOPOLIES")]
+        public void convertlinestopoliespss()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Document doc = docCol.MdiActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    HashSet<Line> lines = localDb.HashSetOfType<Line>(tx);
+                    prdDbg($"Nr. of lines: {lines.Count}");
+
+                    foreach (Line line in lines)
+                    {
+                        Polyline pline = new Polyline(2);
+
+                        pline.AddVertexAt(pline.NumberOfVertices, line.StartPoint.To2d(), 0, 0, 0);
+                        pline.AddVertexAt(pline.NumberOfVertices, line.EndPoint.To2d(), 0, 0, 0);
+                        pline.AddEntityToDbModelSpace(localDb);
+
+                        pline.Layer = line.Layer;
+                        pline.Color = line.Color;
+                    }
+
+                    foreach (Line line in lines)
+                    {
+                        line.CheckOrOpenForWrite();
+                        line.Erase(true);
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex);
+                    tx.Abort();
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         /// <command>SELECTBYHANDLE, SBH</command>
         /// <summary>
         /// Selects objects by their handle.
@@ -773,7 +820,6 @@ namespace IntersectUtilities
             }
         }
 
-
         /// <command>HIDEALIGNMENTS, HAL</command>
         /// <summary>
         /// Hides alignments from the drawing view by changing their style and removing labels.
@@ -810,7 +856,6 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
-
 
         /// <command>COPYPSFROMENTTOENT, CPYPS</command>
         /// <summary>
@@ -865,7 +910,6 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
-
 
         /// <command>DELETEALLALIGNMENTS</command>
         /// <summary>
@@ -2526,7 +2570,7 @@ namespace IntersectUtilities
         /// Draws a graph of the pipe system. Used to check for connectivity and other issues.
         /// Must be run in fjernevarme fremtid drawing.
         /// </summary>
-        /// <category>Fjernvarme Fremtid</category>
+        /// <category>Quality Assurance</category>
         [CommandMethod("GRAPHWRITE")]
         public void graphwrite()
         {
