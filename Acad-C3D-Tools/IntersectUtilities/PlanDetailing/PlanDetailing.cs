@@ -323,21 +323,21 @@ namespace IntersectUtilities
 
         /// <command>PLACETRANSITIONX1, PT1</command>
         /// <summary>
-        /// Places a reducer reducing one size fitting at a specified location.
+        /// Places a reducer fitting reducing one size at the specified location.
         /// </summary>
         /// <category>Blocks</category>
         [CommandMethod("PLACETRANSITIONX1")]
         [CommandMethod("PT1")]
-
-        /// <command>PLACETRANSITIONX2, PT2</command>
-        /// <summary>
-        /// Places a reducer reducing one size fitting at a specified location.
-        /// </summary>
-        /// <category>Blocks</category>
         public void placetransitionx1()
         {
             placetransition(Transition.TransitionType.X1);
         }
+
+        /// <command>PLACETRANSITIONX2, PT2</command>
+        /// <summary>
+        /// Places a reducer fitting reducing two sizes at the specified location.
+        /// </summary>
+        /// <category>Blocks</category>
         [CommandMethod("PLACETRANSITIONX2")]
         [CommandMethod("PT2")]
         public void placetransitionx2()

@@ -478,7 +478,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
             string blockLayerName = "0-SVEJSEPKT";
             string blockName = "SVEJSEPUNKT-NOTXT";
             string textLayerName = "Nonplot";
-            double tolerance = 0.003;
+            double tolerance = 0.005;
             //////////////////////////////////////
 
             PropertySetHelper psh = new PropertySetHelper(localDb);
@@ -620,8 +620,19 @@ namespace IntersectUtilities.PipelineNetworkSystem
                                     int nrOfSections = (int)division;
                                     double remainder = division - nrOfSections;
 
+                                    //The logic is as follows:
+                                    //First create using for loop
+                                    //It will create weld points at start and intermediate points
+                                    //EXCEPT for the last point of intermediate points
+                                    //Thus we have j < nrOfSections (note no +1 here now)
+                                    //Then add the end point of pipe
+
+                                    //at last determine if the remainder is within tolerance
+                                    //if it is, no last intermedate point
+                                    //if not, the last intermediate point is added
+
                                     //Get start point and intermediate points
-                                    for (int j = 0; j < nrOfSections + 1; j++)
+                                    for (int j = 0; j < nrOfSections; j++)
                                     {
                                         Point3d wPt = pline.GetPointAtDist(j * pipeStdLength);
 
@@ -635,17 +646,29 @@ namespace IntersectUtilities.PipelineNetworkSystem
 
                                         wps.Add(wp);
                                     }
-                                    double modulo = pipeLength % pipeStdLength;
 
-                                    if (modulo > tolerance && (pipeStdLength - modulo) > tolerance)
-                                        //Add end point
-                                        wps.Add(
-                                            new WeldPointData2(
-                                                pline.EndPoint,
+                                    //add end pointS
+                                    wps.Add(
+                                        new WeldPointData2(
+                                            pline.EndPoint,
+                                            psh.Pipeline.ReadPropertyString(ent, psh.PipelineDef.BelongsToAlignment),
+                                            ent,
+                                            GetPipeDN(ent), GetPipeType(ent), GetPipeSystem(ent))
+                                        );
+
+                                    //NOW determine if we need the last intermediate point
+                                    if (Math.Abs(remainder * pipeStdLength) < tolerance)
+                                    {
+                                        Point3d wPt = pline.GetPointAtDist(nrOfSections);
+
+                                        var wp = new WeldPointData2(
+                                                wPt,
                                                 psh.Pipeline.ReadPropertyString(ent, psh.PipelineDef.BelongsToAlignment),
                                                 ent,
-                                                GetPipeDN(ent), GetPipeType(ent), GetPipeSystem(ent))
-                                            );
+                                                GetPipeDN(ent), GetPipeType(ent), GetPipeSystem(ent));
+
+                                        wp.IsPolylineWeld = true;
+                                    }
                                 }
                                 break;
                             case BlockReference br:
@@ -830,7 +853,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
             #region Cluster welds
             var ordered = wps.OrderBy(x => x.WeldPoint.X).ThenBy(x => x.WeldPoint.Y);
             var clusters
-                    = ordered.GroupByCluster((x, y) => GetDistance(x, y), 0.005)
+                    = ordered.GroupByCluster(GetDistance, tolerance)
                     .Where(x => x.Count() > 1 || (x.Count() == 1 && x.First().IsPolylineWeld)) //<-- KEEP AN EYE ON THIS!!! HAHA, GOTCHA!
                     .ToList();
             double GetDistance(WeldPointData2 first, WeldPointData2 second) =>
@@ -853,7 +876,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                     {
                         #region Prepare block table record and attributes
                         BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
-                        
+
                         //Prepare modelspace
                         BlockTableRecord modelSpace = localDb.GetModelspaceForWrite();
                         modelSpace.CheckOrOpenForWrite();

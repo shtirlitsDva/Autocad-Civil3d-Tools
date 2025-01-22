@@ -678,7 +678,7 @@ namespace IntersectUtilities
 
                 var dnList = ListAllDnsForPipeSystemTypeSerie(
                     PipeSystemEnum.Stål, GetPipeType(run), PipeSeriesEnum.S3)
-                    .OrderByDescending(x => x).ToList();
+                    .OrderByDescending(x => x).Reverse().ToList();
 
                 int runDn = GetPipeDN(run);
                 var runIdx = dnList.IndexOf(runDn);
@@ -693,17 +693,18 @@ namespace IntersectUtilities
                     $"{reducedDn}";
 
                 SetDynBlockPropertyObject(br, "Type", type);
-
                 SetDynBlockPropertyObject(br, "System", PipeType.ToString());
                 SetDynBlockPropertyObject(br, "Serie", PipeSerie.ToString());
                 br.AttSync();
-                if (br.IsDynamicBlock)
-                {
-                    BlockTableRecord abtr = br.AnonymousBlockTableRecord.Go<BlockTableRecord>(tx);
-                    abtr.UpdateAnonymousBlocks();
-                }
+                //if (br.IsDynamicBlock)
+                //{
+                //    BlockTableRecord abtr = br.AnonymousBlockTableRecord.Go<BlockTableRecord>(tx);
+                //    abtr.UpdateAnonymousBlocks();
+                //}
 
                 tx.Commit();
+
+                Application.DocumentManager.MdiActiveDocument.Editor.Command("_REGEN");
             }
             if (result.Status == ResultStatus.OK) result = Cut(result);
 

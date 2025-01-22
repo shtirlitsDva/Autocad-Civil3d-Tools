@@ -832,8 +832,16 @@ namespace IntersectUtilities
                 {
                     if (prop.PropertyName == propertyName)
                     {
-                        prop.Value = propertyValue;
-                        break;
+                        try
+                        {
+                            prop.Value = propertyValue;
+                            break;
+                        }
+                        catch (System.Exception)
+                        {
+                            prdDbg($"Error setting property {propertyName} to value {propertyValue}");
+                            throw;
+                        }
                     }
                 }
             }

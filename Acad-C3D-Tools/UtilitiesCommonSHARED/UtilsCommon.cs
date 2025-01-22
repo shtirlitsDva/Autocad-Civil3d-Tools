@@ -559,9 +559,19 @@ namespace IntersectUtilities.UtilsCommon
         #endregion
         public static class DebugHelper
         {
+            /// <param name="color">byblock, red, yellow, green, cyan, blue, magenta, white, grey, bylayer</param>
+            public static void CreateDebugLine(Point3d end, string color = "red")
+            {
+                CreateDebugLine(Point3d.Origin, end, ColorByName(color));
+            }
             public static void CreateDebugLine(Point3d end, Color color)
             {
                 CreateDebugLine(Point3d.Origin, end, color);
+            }
+            /// <param name="color">byblock, red, yellow, green, cyan, blue, magenta, white, grey, bylayer</param>
+            public static void CreateDebugLine(Point3d start, Point3d end, string color = "red")
+            {
+                CreateDebugLine(start, end, ColorByName(color));
             }
             public static void CreateDebugLine(Point3d start, Point3d end, Color color)
             {
