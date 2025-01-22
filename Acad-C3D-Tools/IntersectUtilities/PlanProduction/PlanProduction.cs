@@ -62,6 +62,12 @@ namespace IntersectUtilities
 {
     public partial class Intersect
     {
+        /// <command>FINALIZESHEETS</command>
+        /// <summary>
+        /// Finalizes the sheets by creating LER points, populating profile views, applying styles etc.
+        /// DO NOT USE THIS COMMAND. I AM NOT SURE IF IT WORKS.
+        /// </summary>
+        /// <category>Sheet Management</category>
         [CommandMethod("FINALIZESHEETS")]
         public void finalizesheets()
         {
@@ -316,6 +322,12 @@ namespace IntersectUtilities
             colorizealllerlayersmethod();
         }
 
+        /// <command>FINALIZESHEETSAUTO</command>
+        /// <summary>
+        /// Automatically finalizes the sheets by resetting profile views, importing styles, and applying styles.
+        /// USE THIS COMMAND TO MANUALLY FINALIZE SHEETS.
+        /// </summary>
+        /// <category>Sheet Management</category>
         [CommandMethod("FINALIZESHEETSAUTO")]
         public void finalizesheetsauto()
         {
@@ -618,6 +630,13 @@ namespace IntersectUtilities
             prdDbg("FINISHED!");
         }
 
+        /// <command>FINALIZESHEETSUIPATH</command>
+        /// <summary>
+        /// Finalizes the sheets using a specified path for DataReferencesOptions.
+        /// THIS IS USED FOR SHEET CREATION AUTOMATION WITH AUTOHOTKEY.
+        /// DO NOT USE THIS COMMAND WITH MANUAL SHEET FINALIZATION.
+        /// </summary>
+        /// <category>Sheet Management</category>
         [CommandMethod("FINALIZESHEETSUIPATH")]
         public void finalizesheetsuipath()
         {
@@ -881,6 +900,13 @@ namespace IntersectUtilities
             Interaction.TaskDialog("Finilization finished!", "OK", "Not OK");
         }
 
+        /// <command>LISTNUMBEROFPROFILEVIEWS</command>
+        /// <summary>
+        /// Lists the number of profile views in drawing.
+        /// This is used for automatic sheet creation process.
+        /// Has no effect for manual processes.
+        /// </summary>
+        /// <category>Sheet Management</category>
         [CommandMethod("LISTNUMBEROFPROFILEVIEWS")]
         public void listnumberofprofileviews()
         {
@@ -976,7 +1002,14 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("resetprofileviews")]
+        /// <command>RESETPROFILEVIEWS</command>
+        /// <summary>
+        /// Resets the profile views by deleting detailing and cogo points, 
+        /// and setting styles with no scale in preparation for finalization.
+        /// Use this command to reset profile views that already have beed finalized.
+        /// </summary>
+        /// <category>Longitudinal Profiles</category>
+        [CommandMethod("RESETPROFILEVIEWS")]
         public void resetprofileviews()
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -1040,10 +1073,15 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("colorviewframes")]
+        /// <command>COLORVIEWFRAMES</command>
+        /// <summary>
+        /// Colors all view frames in all xrefs.
+        /// This is used for quality assurance process regarding view frames.
+        /// </summary>
+        /// <category>Quality Assurance</category>
+        [CommandMethod("COLORVIEWFRAMES")]
         public void colorviewframes()
         {
-
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
             Editor editor = docCol.MdiActiveDocument.Editor;
@@ -1191,6 +1229,11 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>HALXREFS</command>
+        /// <summary>
+        /// Hides alignments in all xrefs.
+        /// </summary>
+        /// <category>Miscellaneous</category>
         [CommandMethod("HALXREFS")]
         public void halxrefs()
         {
@@ -1291,6 +1334,11 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>RALXREFS</command>
+        /// <summary>
+        /// Reveals alignments in all xrefs.
+        /// </summary>
+        /// <category>Miscellaneous</category>
         [CommandMethod("RALXREFS")]
         public void ralxrefs()
         {
@@ -1391,6 +1439,11 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>EXPORTVIEWFRAMESTOGEOJSON</command>
+        /// <summary>
+        /// Exports view frames from all xrefs to a GeoJSON file.
+        /// </summary>
+        /// <category>GIS</category>
         [CommandMethod("EXPORTVIEWFRAMESTOGEOJSON")]
         public void exportviewframestogeojson()
         {
@@ -1507,6 +1560,11 @@ namespace IntersectUtilities
             File.WriteAllText(geoJsonFileName, json, new UTF8Encoding(false));
         }
 
+        /// <command>EXPORTVIEWFRAMESTODWG</command>
+        /// <summary>
+        /// Exports view frames from all xrefs to a DWG file.
+        /// </summary>
+        /// <category>GIS</category>
         [CommandMethod("EXPORTVIEWFRAMESTODWG")]
         public void exportviewframestodwg()
         {
@@ -1673,6 +1731,12 @@ namespace IntersectUtilities
             blockDb.Dispose();
         }
 
+        /// <command>EXPORTFJVTOGEOJSONWGS84</command>
+        /// <summary>
+        /// Exports fjernvarme fremtidig to an all polygon GeoJSON file in WGS84 coordinate system.
+        /// All elements are converted to polygons for better presentation.
+        /// </summary>
+        /// <category>GIS</category>
         [CommandMethod("EXPORTFJVTOGEOJSONWGS84")]
         public void exportfjvtogeojson3wgs84()
         {
@@ -1736,6 +1800,12 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>EXPORTFJVTOGEOJSONUTM32N</command>
+        /// <summary>
+        /// Exports fjernvarme fremtdig to an all polygon GeoJSON file in UTM32N coordinate system.
+        /// All elements are converted to polygons for better presentation.
+        /// </summary>
+        /// <category>GIS</category>
         [CommandMethod("EXPORTFJVTOGEOJSONUTM32N")]
         public void exportfjvtogeojson3utm32N()
         {
@@ -1795,6 +1865,13 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>SETPROFILEVIEWSTYLE</command>
+        /// <summary>
+        /// Sets the style of bottom band to Norsyn standard.
+        /// Sets the band to show elevation of surface profile.
+        /// MIDT profile is not handled in any way.
+        /// </summary>
+        /// <category>Longitudinal Profiles</category>
         [CommandMethod("SETPROFILEVIEWSTYLE")]
         public void setprofileviewstyle()
         {
@@ -1852,7 +1929,6 @@ namespace IntersectUtilities
                         pvbs.SetBottomBandItems(pbic);
                     }
                     #endregion
-
                 }
                 catch (System.Exception ex)
                 {

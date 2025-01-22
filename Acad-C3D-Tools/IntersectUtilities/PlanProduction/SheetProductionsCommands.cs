@@ -65,6 +65,13 @@ namespace IntersectUtilities
 {
     public partial class Intersect
     {
+        /// <command>VIEWFRAMESCREATEALLDRAWINGS</command>
+        /// <summary>
+        /// Creates all drawings that is needed for the view frames for each alignment.
+        /// The command uses shortcuts to read the alignments and profiles,
+        /// and thus C3D must be set to correct shortcuts folder.
+        /// </summary>
+        /// <category>Profile Views</category>
         [CommandMethod("VIEWFRAMESCREATEALLDRAWINGS")]
         public void viewframescreatealldrawings()
         {
@@ -272,7 +279,8 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("VIEWFRAMESCREATEALLVIEWFRAMES")]
+#if DEBUG
+        //[CommandMethod("VIEWFRAMESCREATEALLVIEWFRAMES")]
         public void viewframescreateallviewframes()
         {
             #region Ask for VFC and dwt template
@@ -327,5 +335,6 @@ namespace IntersectUtilities
                 #endregion
             }
         }
+#endif
     }
 }
