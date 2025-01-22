@@ -947,6 +947,8 @@ namespace IntersectUtilities.PipelineNetworkSystem
                     {
                         prdDbg(ex);
                         tx.Abort();
+                        pm.Stop();
+                        pm.Dispose();
                         throw;
                     }
                     tx.Commit();

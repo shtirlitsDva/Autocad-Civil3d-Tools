@@ -382,15 +382,41 @@ namespace IntersectUtilities.PipelineNetworkSystem
         }
         public override Vector3d GetFirstDerivative(Point3d pt)
         {
+            Point3d p = default;
+
             try
             {
-                Point3d p = al.GetClosestPointTo(pt, false);
+                p = al.GetClosestPointTo(pt, false);
                 return al.GetFirstDerivative(p);
             }
             catch (Exception ex)
             {
-                prdDbg($"GetFirstDerivative(Point3d pt) failed for {al.Name} at point {pt}");
-                prdDbg(ex);
+                prdDbg(
+                    $"al.GetFirstDerivative(Point3d pt) failed for {al.Name} at point {pt}\n" +
+                    $"with closest point being {p}.");
+                prdDbg($"PipelineV2.cs line 389");
+
+                Polyline pl = null;
+                try
+                {
+                    prdDbg($"Trying with a polyline ->");
+
+                    pl = al.GetPolyline().Go<Polyline>(al.Database.TransactionManager.TopTransaction);
+                    p = pl.GetClosestPointTo(pt, false);
+                    var dir = pl.GetFirstDerivative(p);
+                    prdDbg("Success with polyline!");
+                    return dir;
+                }
+                catch (Exception)
+                {
+                    prdDbg("FAILURE! Polyline failed also!");
+                    throw;
+                }
+                finally
+                {
+                    if (pl != null) { pl.UpgradeOpen(); pl.Erase(true); }
+                }
+
                 throw;
             }
         }
