@@ -232,6 +232,9 @@ namespace IntersectUtilities
             Database alDb = dm.GetForRead("Alignments");
             Transaction alTx = alDb.TransactionManager.StartTransaction();
 
+            //List to gather ALL weld points
+            var wps = new List<WeldPointData2>();
+
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
@@ -243,7 +246,7 @@ namespace IntersectUtilities
                     pn.CreatePipelineNetwork(ents, als);
                     pn.CreatePipelineGraph();
 
-                    pn.CreateWeldPoints();
+                    pn.GatherWeldPoints(wps);
                 }
                 catch (System.Exception ex)
                 {
@@ -259,6 +262,9 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
+
+            var gw = new PipelineGraphWorker();
+            gw.CreateWeldBlocks(wps);
         }
 #if DEBUG
         [CommandMethod("TPSA")]

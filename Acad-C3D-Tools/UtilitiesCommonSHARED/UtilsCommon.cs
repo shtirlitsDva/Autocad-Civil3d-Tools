@@ -3031,7 +3031,6 @@ namespace IntersectUtilities.UtilsCommon
                 {
                     try
                     {
-
                         BlockTableRecord modelSpace = db.GetModelspaceForWrite();
                         Oid id = modelSpace.AppendEntity(entity);
                         tx.AddNewlyCreatedDBObject(entity, true);

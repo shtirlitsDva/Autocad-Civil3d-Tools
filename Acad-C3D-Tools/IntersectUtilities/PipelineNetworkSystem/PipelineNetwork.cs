@@ -25,6 +25,8 @@ using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 
 using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
+using System.Diagnostics;
+using IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol;
 
 namespace IntersectUtilities.PipelineNetworkSystem
 {
@@ -166,10 +168,16 @@ namespace IntersectUtilities.PipelineNetworkSystem
             }
             return sb;
         }
-        internal void CreateWeldPoints()
+        internal void GatherWeldPoints(List<WeldPointData2> wps)
         {
             PipelineGraphWorker gw = new PipelineGraphWorker();
-            gw.CreateWeldPoints(pipelineGraphs);
+            gw.CreateWeldPoints(pipelineGraphs, wps);
+        }
+        internal void CreateWeldBlocks(List<WeldPointData2> wps)
+        {
+            //Create weld blocks
+            PipelineGraphWorker gw = new PipelineGraphWorker();
+            gw.CreateWeldBlocks(wps);
         }
     }
     public interface INode
@@ -469,60 +477,70 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 charCount = 0;
             }
         }
-        internal void CreateWeldPoints(GraphCollection graphs)
+        private void wr(string msg, Stopwatch sw)
+        {
+            msg = " " + msg;
+            charCount += msg.Length;
+            Application.DocumentManager.CurrentDocument.Editor.WriteMessage(msg);
+            System.Windows.Forms.Application.DoEvents();
+            if (charCount > wrapLength)
+            {
+                Application.DocumentManager.CurrentDocument.Editor.WriteMessage(" " + sw.Elapsed.ToString());
+                prdDbg();
+                charCount = 0;
+            }
+        }
+
+        //////////////////////////////////////
+        private string blockLayerName = "0-SVEJSEPKT";
+        private string blockName = "SVEJSEPUNKT-NOTXT";
+        private string textLayerName = "Nonplot";
+        private double tolerance = 0.005;
+        //////////////////////////////////////
+
+        internal void CreateWeldPoints(GraphCollection graphs, List<WeldPointData2> wps)
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
 
-            //////////////////////////////////////
-            string blockLayerName = "0-SVEJSEPKT";
-            string blockName = "SVEJSEPUNKT-NOTXT";
-            string textLayerName = "Nonplot";
-            double tolerance = 0.005;
-            //////////////////////////////////////
-
-            PropertySetHelper psh = new PropertySetHelper(localDb);
-
-            HashSet<Entity> allEnts = new HashSet<Entity>();
-            HashSet<IPipelineV2> allPipelines = new HashSet<IPipelineV2>();
-
-            #region Get all participating entities
-            foreach (Graph graph in graphs)
-            {
-                var root = graph.Root;
-                prdDbg("Root node: " + ((PipelineNode)root).Value.Name);
-                if (!(root is PipelineNode)) throw new Exception("PipelineNodes expected!");
-                var stack = new Stack<PipelineNode>();
-                stack.Push(root as PipelineNode);
-
-                while (stack.Count > 0)
-                {
-                    PipelineNode currentNode = stack.Pop();
-                    foreach (var child in currentNode.Children)
-                    {
-                        if (!(child is PipelineNode)) throw new Exception("PipelineNodes expected!");
-                        stack.Push(child as PipelineNode);
-                    }
-                    IPipelineV2 currentPipeline = currentNode.Value;
-                    allPipelines.Add(currentPipeline);
-                    allEnts.UnionWith(currentPipeline.PipelineEntities);
-                }
-            }
-            #endregion
-
-            prdDbg($"Number of entities participating: {allEnts.Count}");
-
             PipeSettingsCollection psc = PipeSettingsCollection.Load();
-
             DataTable dt = CsvData.FK;
-
-            //List to gather ALL weld points
-            var wps = new List<WeldPointData2>();
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
                 {
+                    PropertySetHelper psh = new PropertySetHelper(localDb);
+
+                    HashSet<Entity> allEnts = new HashSet<Entity>();
+                    HashSet<IPipelineV2> allPipelines = new HashSet<IPipelineV2>();
+
+                    #region Get all participating entities
+                    foreach (Graph graph in graphs)
+                    {
+                        var root = graph.Root;
+                        prdDbg("Root node: " + ((PipelineNode)root).Value.Name);
+                        if (!(root is PipelineNode)) throw new Exception("PipelineNodes expected!");
+                        var stack = new Stack<PipelineNode>();
+                        stack.Push(root as PipelineNode);
+
+                        while (stack.Count > 0)
+                        {
+                            PipelineNode currentNode = stack.Pop();
+                            foreach (var child in currentNode.Children)
+                            {
+                                if (!(child is PipelineNode)) throw new Exception("PipelineNodes expected!");
+                                stack.Push(child as PipelineNode);
+                            }
+                            IPipelineV2 currentPipeline = currentNode.Value;
+                            allPipelines.Add(currentPipeline);
+                            allEnts.UnionWith(currentPipeline.PipelineEntities);
+                        }
+                    }
+                    #endregion
+
+                    prdDbg($"Number of entities participating: {allEnts.Count}");
+
                     #region Delete previous blocks
                     //Delete previous blocks
                     var existingBlocks = localDb.GetBlockReferenceByName(blockName);
@@ -610,6 +628,14 @@ namespace IntersectUtilities.PipelineNetworkSystem
                     //Gathers all weld points
                     foreach (Entity ent in allEnts)
                     {
+                        string alignment = psh.Pipeline.ReadPropertyString(ent, psh.PipelineDef.BelongsToAlignment);
+                        var pipeline = allPipelines.Where(x => x.Name == alignment).FirstOrDefault();
+                        if (pipeline == null)
+                        {
+                            prdDbg($"ERROR: Pipeline name {alignment} not found for entity {ent.Handle}!");
+                            continue;
+                        }
+
                         switch (ent)
                         {
                             case Polyline pline:
@@ -619,6 +645,9 @@ namespace IntersectUtilities.PipelineNetworkSystem
                                     double division = pipeLength / pipeStdLength;
                                     int nrOfSections = (int)division;
                                     double remainder = division - nrOfSections;
+
+                                    //If the length is just a little bit too short, we add one more section
+                                    if ((pipeStdLength - remainder * pipeStdLength) < tolerance) nrOfSections++;
 
                                     //The logic is as follows:
                                     //First create using for loop
@@ -635,11 +664,13 @@ namespace IntersectUtilities.PipelineNetworkSystem
                                     for (int j = 0; j < nrOfSections; j++)
                                     {
                                         Point3d wPt = pline.GetPointAtDist(j * pipeStdLength);
+                                        var deriv = pipeline.GetFirstDerivative(wPt);
 
                                         var wp = new WeldPointData2(
                                                 wPt,
                                                 psh.Pipeline.ReadPropertyString(ent, psh.PipelineDef.BelongsToAlignment),
-                                                ent,
+                                                ent.Id,
+                                                Math.Atan2(deriv.Y, deriv.X),
                                                 GetPipeDN(ent), GetPipeType(ent), GetPipeSystem(ent));
 
                                         if (j != 0) wp.IsPolylineWeld = true;
@@ -647,27 +678,37 @@ namespace IntersectUtilities.PipelineNetworkSystem
                                         wps.Add(wp);
                                     }
 
-                                    //add end pointS
-                                    wps.Add(
-                                        new WeldPointData2(
-                                            pline.EndPoint,
-                                            psh.Pipeline.ReadPropertyString(ent, psh.PipelineDef.BelongsToAlignment),
-                                            ent,
-                                            GetPipeDN(ent), GetPipeType(ent), GetPipeSystem(ent))
-                                        );
+                                    //Add end point
+                                    {
+                                        var deriv = pipeline.GetFirstDerivative(pline.EndPoint);
+
+                                        //add end pointS
+                                        wps.Add(
+                                            new WeldPointData2(
+                                                pline.EndPoint,
+                                                psh.Pipeline.ReadPropertyString(ent, psh.PipelineDef.BelongsToAlignment),
+                                                ent.Id,
+                                                Math.Atan2(deriv.Y, deriv.X),
+                                                GetPipeDN(ent), GetPipeType(ent), GetPipeSystem(ent))
+                                            );
+                                    }
 
                                     //NOW determine if we need the last intermediate point
-                                    if (Math.Abs(remainder * pipeStdLength) < tolerance)
+                                    if ((pipeLength - pipeStdLength * nrOfSections) > tolerance)
                                     {
-                                        Point3d wPt = pline.GetPointAtDist(nrOfSections);
+                                        Point3d wPt = pline.GetPointAtDist(pipeStdLength * nrOfSections);
+                                        var deriv = pipeline.GetFirstDerivative(wPt);
 
                                         var wp = new WeldPointData2(
                                                 wPt,
                                                 psh.Pipeline.ReadPropertyString(ent, psh.PipelineDef.BelongsToAlignment),
-                                                ent,
+                                                ent.Id,
+                                                Math.Atan2(deriv.Y, deriv.X),
                                                 GetPipeDN(ent), GetPipeType(ent), GetPipeSystem(ent));
 
                                         wp.IsPolylineWeld = true;
+
+                                        wps.Add(wp);
                                     }
                                 }
                                 break;
@@ -683,6 +724,9 @@ namespace IntersectUtilities.PipelineNetworkSystem
                                         if (!nestedBr.Name.Contains("MuffeIntern")) continue;
                                         Point3d wPt = nestedBr.Position;
                                         wPt = wPt.TransformBy(br.BlockTransform);
+
+                                        var deriv = pipeline.GetFirstDerivative(wPt);
+                                        var rotation = Math.Atan2(deriv.Y, deriv.X);
 
                                         #region Read DN
                                         int DN = 0;
@@ -720,7 +764,8 @@ namespace IntersectUtilities.PipelineNetworkSystem
                                                                 result.Location,
                                                                 psh.Pipeline.ReadPropertyString(
                                                                     result.Pipe, psh.PipelineDef.BelongsToAlignment),
-                                                                result.Pipe,
+                                                                result.Pipe.Id,
+                                                                rotation,
                                                                 DN,
                                                                 GetPipeType(result.Pipe),
                                                                 GetPipeSystem(result.Pipe)
@@ -741,13 +786,14 @@ namespace IntersectUtilities.PipelineNetworkSystem
                                         #endregion
 
                                         #region Determine correct alignment name
-                                        string alignment = allPipelines.MinBy(x => x.GetDistanceToPoint(wPt)).Name;
+                                        string al = allPipelines.MinBy(x => x.GetDistanceToPoint(wPt)).Name;
                                         #endregion
 
                                         wps.Add(new WeldPointData2(
                                             wPt,
-                                            alignment,
-                                            br,
+                                            al,
+                                            br.Id,
+                                            rotation,
                                             DN,
                                             ComponentSchedule.GetPipeTypeEnum(br),
                                             ComponentSchedule.GetPipeSystemEnum(br)
@@ -768,87 +814,14 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 }
                 tx.Commit();
             }
+        }
 
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    #region Import weld block if missing
-                    //All of this should be moved to a helper class
-                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
-                    if (!bt.Has(blockName))
-                    {
-                        prdDbg("Block for weld annotation is missing!\n" +
-                            "IMPORT MANUALLY!!!");
-                        //prdDbg("Block for weld annotation is missing! Importing...");
-                        //Database blockDb = new Database(false, true);
-                        //blockDb.ReadDwgFile("X:\\AutoCAD DRI - 01 Civil 3D\\DynBlokke\\Symboler.dwg",
-                        //    FileOpenMode.OpenForReadAndAllShare, false, null);
-                        //Transaction blockTx = blockDb.TransactionManager.StartTransaction();
+        internal void CreateWeldBlocks(List<WeldPointData2> wps)
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
 
-                        //Oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(blockDb);
-                        //Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
-
-                        //BlockTable sourceBt = blockTx.GetObject(blockDb.BlockTableId, OpenMode.ForRead) as BlockTable;
-                        //ObjectIdCollection idsToClone = new ObjectIdCollection();
-                        //idsToClone.Add(sourceBt[blockName]);
-
-                        //IdMapping mapping = new IdMapping();
-                        //blockDb.WblockCloneObjects(idsToClone, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
-                        //blockTx.Commit();
-                        //blockTx.Dispose();
-                        //blockDb.Dispose();
-                    }
-                    else
-                    {
-                        //Check if existing block is latest version
-                        var btr = localDb.GetBlockTableRecordByName(blockName);
-
-                        #region Read present block version
-                        string version = "";
-                        foreach (Oid oid in btr)
-                        {
-                            if (oid.IsDerivedFrom<AttributeDefinition>())
-                            {
-                                var atdef = oid.Go<AttributeDefinition>(tx);
-                                if (atdef.Tag == "VERSION") { version = atdef.TextString; break; }
-                            }
-                        }
-                        if (version.IsNoE()) version = "1";
-                        else if (version.Contains("v")) version = version.Replace("v", "");
-                        int blockVersion = Convert.ToInt32(version);
-                        #endregion
-
-                        #region Determine latest version
-                        var query = dt.AsEnumerable()
-                                .Where(x => x["Navn"].ToString() == blockName)
-                                .Select(x => x["Version"].ToString())
-                                .Select(x => { if (x == "") return "1"; else return x; })
-                                .Select(x => Convert.ToInt32(x.Replace("v", "")))
-                                .OrderBy(x => x);
-
-                        if (query.Count() == 0)
-                            throw new System.Exception($"Block {blockName} is not present in FJV Dynamiske Komponenter.csv!");
-                        int maxVersion = query.Max();
-                        #endregion
-
-                        if (maxVersion != blockVersion)
-                            throw new System.Exception(
-                                $"Block {blockName} v{blockVersion} is not latest version v{maxVersion}! " +
-                                $"Update with latest version from:\n" +
-                                $"X:\\AutoCAD DRI - 01 Civil 3D\\DynBlokke\\Symboler.dwg\n" +
-                                $"WARNING! This can break existing blocks! Caution is advised!");
-                    }
-                    #endregion
-                }
-                catch (Exception ex)
-                {
-                    tx.Abort();
-                    throw;
-                }
-                tx.Commit();
-            }
-
+            double tolerance = 0.005;
 
             #region Cluster welds
             var ordered = wps.OrderBy(x => x.WeldPoint.X).ThenBy(x => x.WeldPoint.Y);
@@ -860,6 +833,12 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 first.WeldPoint.DistanceHorizontalTo(second.WeldPoint);
             #endregion
 
+#if DEBUG
+            List<double> timings = new List<double>();
+            Stopwatch sw = new Stopwatch();
+#endif
+            Stopwatch linesw = new Stopwatch();
+
             prdDbg($"Detected {clusters.Count} welds!");
             prdDbg("Placing welds...");
             System.Windows.Forms.Application.DoEvents();
@@ -868,35 +847,42 @@ namespace IntersectUtilities.PipelineNetworkSystem
             pm.Start("Placing welds...");
             pm.SetLimit(clusters.Count);
             int idx = 0;
+
+            linesw.Start();
+
             foreach (var chunk in clusters.Chunk(25))
             {
-                using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                using (Transaction tTx = localDb.TransactionManager.StartTransaction())
                 {
                     try
                     {
-                        #region Prepare block table record and attributes
-                        BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                        PropertySetHelper pshT = new PropertySetHelper(localDb);
 
-                        //Prepare modelspace
-                        BlockTableRecord modelSpace = localDb.GetModelspaceForWrite();
-                        modelSpace.CheckOrOpenForWrite();
+                        #region Prepare block table record and attributes
+                        Oid modelspaceId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
+                        BlockTableRecord modelSpace = modelspaceId.Go<BlockTableRecord>(tTx, OpenMode.ForWrite);
+
                         //Prepare block table record
+                        BlockTable bt = localDb.BlockTableId.Go<BlockTable>(tTx);
                         if (!bt.Has(blockName)) throw new System.Exception("Block for weld points is missing!");
                         Oid btrId = bt[blockName];
-                        BlockTableRecord btrWp = btrId.Go<BlockTableRecord>(tx);
+                        BlockTableRecord btrWp = btrId.Go<BlockTableRecord>(tTx);
                         List<AttributeDefinition> attDefs = new List<AttributeDefinition>();
                         foreach (Oid arOid in btrWp)
                         {
                             if (!arOid.IsDerivedFrom<AttributeDefinition>()) continue;
-                            AttributeDefinition at = arOid.Go<AttributeDefinition>(tx);
+                            AttributeDefinition at = arOid.Go<AttributeDefinition>(tTx);
                             if (!at.Constant) attDefs.Add(at);
                         }
                         #endregion
 
                         foreach (var cluster in chunk)
                         {
+#if DEBUG
+                            sw.Restart();
+#endif
                             idx++;
-                            wr(idx.ToString());
+                            wr(idx.ToString(), linesw);
                             pm.MeterProgress();
 
                             Point3d wpt = cluster.First().WeldPoint;
@@ -904,82 +890,87 @@ namespace IntersectUtilities.PipelineNetworkSystem
                                 x => x.AlignmentName.IsNotNoE())?.AlignmentName;
                             int DN = cluster.First().DN;
 
-                            var pipeline = allPipelines.Where(x => x.Name == alignment).FirstOrDefault();
-                            if (pipeline == null)
+                            using (var wpBr = new BlockReference(wpt, btrId))
                             {
-                                prdDbg($"ERROR: Pipeline name {alignment} not found for weld point at {wpt}!");
-                                continue;
+                                wpBr.Rotation = cluster.First().Rotation;
+                                wpBr.Layer = blockLayerName;
+
+                                Oid id = modelSpace.AppendEntity(wpBr);
+                                tTx.AddNewlyCreatedDBObject(wpBr, true);
+
+                                foreach (var attDef in attDefs)
+                                {
+                                    using (var attRef = new AttributeReference())
+                                    {
+                                        attRef.SetAttributeFromBlock(attDef, wpBr.BlockTransform);
+                                        attRef.Position = attDef.Position.TransformBy(wpBr.BlockTransform);
+                                        attRef.TextString = attDef.getTextWithFieldCodes();
+                                        attRef.Layer = textLayerName;
+                                        wpBr.AttributeCollection.AppendAttribute(attRef);
+                                        tTx.AddNewlyCreatedDBObject(attRef, true);
+                                    }
+                                }
+
+                                pshT.Pipeline.WritePropertyString(
+                                    wpBr, pshT.PipelineDef.BelongsToAlignment, alignment);
+
+                                var pipeSystem = cluster.FirstOrDefault(
+                                    x => x.PipeSystem != PipeSystemEnum.Ukendt);
+                                if (pipeSystem == null)
+                                {
+                                    prdDbg($"ERROR: Pipe system not found for weld point at {wpt}!");
+                                    continue;
+                                }
+
+                                var pipeType = cluster.FirstOrDefault(
+                                    x => x.PipeType != PipeTypeEnum.Ukendt);
+                                if (pipeType == null)
+                                {
+                                    prdDbg($"ERROR: Pipe type not found for weld point at {wpt}!");
+                                    continue;
+                                }
+
+                                Utils.SetDynBlockPropertyObject(wpBr, "System", (object)pipeType.PipeType.ToString());
+                                Utils.SetDynBlockPropertyObject(wpBr, "PIPESIZE", (double)DN);
+                                Utils.SetDynBlockPropertyObject(wpBr, "SYSNAVN", pipeSystem.PipeSystem.ToString());
+
+                                try
+                                {
+                                    wpBr.AttSync();
+                                }
+                                catch (System.Exception)
+                                {
+                                    prdDbg("ERROR: " + wpBr.Position);
+                                    idx++;
+                                    continue;
+                                }
                             }
-                            var deriv = pipeline.GetFirstDerivative(wpt);
-                            double rotation = Math.Atan2(deriv.Y, deriv.X);
-
-                            var wpBr = new BlockReference(wpt, btrId);
-                            wpBr.Rotation = rotation;
-                            wpBr.Layer = blockLayerName;
-
-                            wpBr.AddEntityToDbModelSpace(localDb);
-
-                            foreach (var attDef in attDefs)
-                            {
-                                var attRef = new AttributeReference();
-                                attRef.SetAttributeFromBlock(attDef, wpBr.BlockTransform);
-                                attRef.Position = attDef.Position.TransformBy(wpBr.BlockTransform);
-                                attRef.TextString = attDef.getTextWithFieldCodes();
-                                attRef.Layer = textLayerName;
-                                wpBr.AttributeCollection.AppendAttribute(attRef);
-                                tx.AddNewlyCreatedDBObject(attRef, true);
-                            }
-
-                            psh.Pipeline.WritePropertyString(
-                                wpBr, psh.PipelineDef.BelongsToAlignment, alignment);
-
-                            var pipeSystem = cluster.FirstOrDefault(
-                                x => x.PipeSystem != PipeSystemEnum.Ukendt);
-                            if (pipeSystem == null)
-                            {
-                                prdDbg($"ERROR: Pipe system not found for weld point at {wpt}!");
-                                continue;
-                            }
-
-                            var pipeType = cluster.FirstOrDefault(
-                                x => x.PipeType != PipeTypeEnum.Ukendt);
-                            if (pipeType == null)
-                            {
-                                prdDbg($"ERROR: Pipe type not found for weld point at {wpt}!");
-                                continue;
-                            }
-
-                            Utils.SetDynBlockPropertyObject(wpBr, "System", (object)pipeType.PipeType.ToString());
-                            Utils.SetDynBlockPropertyObject(wpBr, "PIPESIZE", (double)DN);
-                            Utils.SetDynBlockPropertyObject(wpBr, "SYSNAVN", pipeSystem.PipeSystem.ToString());
-
-                            try
-                            {
-                                wpBr.AttSync();
-                            }
-                            catch (System.Exception)
-                            {
-                                prdDbg("ERROR: " + wpBr.Position);
-                                idx++;
-                                continue;
-                            }
+#if DEBUG
+                            sw.Stop();
+                            timings.Add(sw.Elapsed.TotalMicroseconds);
+#endif
                         }
-
                     }
                     catch (System.Exception ex)
                     {
                         prdDbg(ex);
-                        tx.Abort();
+                        tTx.Abort();
                         pm.Stop();
                         pm.Dispose();
                         throw;
                     }
-                    tx.Commit();
+                    tTx.Commit();
                 }
             }
 
             pm.Stop();
             prdDbg("Finished placing welds!");
+
+            linesw.Stop();
+            prdDbg($"Total time to place welds: {linesw.Elapsed}");
+#if DEBUG
+            File.WriteAllLines(@"C:\Temp\WeldPointTimings.txt", timings.Select(x => x.ToString()));
+#endif
         }
     }
 }
