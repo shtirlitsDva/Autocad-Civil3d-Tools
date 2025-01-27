@@ -124,7 +124,7 @@ namespace XmlToHtmlDoc
                 {
                     // <details> collapsible region for each assembly
                     writer.WriteLine("  <details>");
-                    writer.WriteLine($"    <summary>Assembly: {asmName}</summary>");
+                    writer.WriteLine($"    <summary>{asmName}</summary>");
                     writer.WriteLine("    <br/>");
 
                     // Insert a table
@@ -144,7 +144,7 @@ namespace XmlToHtmlDoc
                         writer.WriteLine("      </tr>");
 
                         var commandList = allAssembliesData[asmName][category];
-                        foreach (var cmdInfo in commandList)
+                        foreach (var cmdInfo in commandList.OrderBy(x => x.Command))
                         {
                             writer.WriteLine("      <tr>");
                             writer.WriteLine($"        <td>{EscapeHtml(cmdInfo.Command)}</td>");
