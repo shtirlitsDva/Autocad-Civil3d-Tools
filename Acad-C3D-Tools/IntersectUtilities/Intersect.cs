@@ -824,7 +824,7 @@ namespace IntersectUtilities
         /// <summary>
         /// Hides alignments from the drawing view by changing their style and removing labels.
         /// </summary>
-        /// <category>Alignment</category>
+        /// <category>Alignments</category>
         [CommandMethod("HIDEALIGNMENTS")]
         [CommandMethod("HAL")]
         public void hidealignments()
@@ -3126,7 +3126,7 @@ namespace IntersectUtilities
         /// <summary>
         /// Assigns correct linetypes and colors to Ler polylines(3d).
         /// </summary>
-        /// <category>Ler</category>
+        /// <category>LER</category>
         [CommandMethod("FIXLERLAYERS")]
         public void fixlerlayers()
         {
@@ -3364,7 +3364,7 @@ namespace IntersectUtilities
         /// <summary>
         /// A tool to set data used for TBL quantities.
         /// </summary>
-        /// <category>TBL Quantities</category>
+        /// <category>Mængdeudtræk</category>
         [CommandMethod("SETTBLDATA")]
         [CommandMethod("STD")]
         public void settbldata()

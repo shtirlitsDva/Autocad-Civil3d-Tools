@@ -374,7 +374,7 @@ namespace IntersectUtilities
         /// <summary>
         /// Creates profile views for all alignments in current drawing.
         /// </summary>
-        /// <category>Profiles</category>
+        /// <category>Profile Views</category>
         [CommandMethod("CREATEPROFILEVIEWS")]
         public void createprofileviews()
         {
