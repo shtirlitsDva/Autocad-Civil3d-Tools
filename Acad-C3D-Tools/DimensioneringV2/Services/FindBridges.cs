@@ -44,10 +44,10 @@ namespace DimensioneringV2.Services
         /// <summary>
         /// Finds all non-bridge edges.
         /// </summary>
-        internal static List<BFEdge> FindNonBridges(UndirectedGraph<BFNode, BFEdge> graph)
+        internal static HashSet<BFEdge> FindNonBridges(UndirectedGraph<BFNode, BFEdge> graph)
         {
             var bridges = DoFindThem(graph);
-            return graph.Edges.Where(x => !bridges.Contains(x)).ToList();
+            return graph.Edges.Where(x => !bridges.Contains(x)).ToHashSet();
         }
 
         internal static void BridgeDfs(

@@ -326,6 +326,48 @@ namespace DimensioneringV2.UI
         }
         #endregion
 
+        #region Test01 Command
+        public AsyncRelayCommand Test01Command => new AsyncRelayCommand(Test01);
+        private async Task Test01()
+        {
+            var props = new List<(Func<BFEdge, dynamic> Getter, Action<BFEdge, dynamic> Setter)>
+            {
+                (f => f.NumberOfBuildingsConnected, (f, v) => f.NumberOfBuildingsSupplied = v),
+                (f => f.NumberOfUnitsConnected, (f, v) => f.NumberOfUnitsSupplied = v),
+                (f => f.HeatingDemandConnected, (f, v) => f.HeatingDemandSupplied = v)
+            };
+
+            //Init the hydraulic calculation service using current settings
+            HydraulicCalculationService.Initialize();
+
+            try
+            {
+                //var progressWindow = new GeneticReporting();
+                //progressWindow.Show();
+                //GeneticReportingContext.VM = (GeneticReportingViewModel)progressWindow.DataContext;
+                //GeneticReportingContext.VM.Dispatcher = progressWindow.Dispatcher;
+
+                var graphs = _dataService.Graphs;
+
+                //Reset the results
+                foreach (var f in graphs.SelectMany(g => g.Edges.Select(e => e.PipeSegment))) f.ResetHydraulicResults();
+
+                await Task.Run(() =>
+                {
+                    foreach (UndirectedGraph<NodeJunction, EdgePipeSegment> graph in graphs)
+                    {
+                        
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                utils.prdDbg($"An error occurred during calculations: {ex.Message}");
+                utils.prdDbg(ex);
+            }
+        }
+        #endregion
+
         [ObservableProperty]
         private Map _mymap = new() { CRS = "EPSG:3857" };
 

@@ -14,7 +14,7 @@ namespace DimensioneringV2.MapStyles
 {
     internal abstract class StyleBase : IMapStyle
     {
-        private IStyle _style = new VectorStyle() { Line = new Pen(Color.Black, 0.5), Opacity = 50f  };
+        private IStyle _style = new VectorStyle() { Line = new Pen(Color.Black, 1), Opacity = 50f  };
         protected StyleBase() { }
         public virtual void ApplyStyle(IEnumerable<IFeature> features)
         {

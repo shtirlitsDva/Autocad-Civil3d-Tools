@@ -21,11 +21,11 @@ namespace DimensioneringV2
 {
     internal static class Extensions
     {
+        #region Misc
         public static Point2D To2D(this Point3d pt)
         {
             return new Point2D(pt.X, pt.Y);
         }
-
         public static string GetDescription(this Enum value)
         {
             var field = value.GetType().GetField(value.ToString());
@@ -34,7 +34,6 @@ namespace DimensioneringV2
                                 .FirstOrDefault();
             return attribute?.Description ?? value.ToString();
         }
-
         public static STP ToSTP(this UndirectedGraph<NodeJunction, EdgePipeSegment> graph)
         {
             var stp = new STP();
@@ -83,7 +82,9 @@ namespace DimensioneringV2
 
             return stp;
         }
+        #endregion
 
+        #region Graph extensions
         public static UndirectedGraph<BFNode, BFEdge> CopyToBF(this UndirectedGraph<NodeJunction, EdgePipeSegment> graph)
         {
             var bfGraph = new UndirectedGraph<BFNode, BFEdge>();
@@ -107,7 +108,6 @@ namespace DimensioneringV2
 
             return bfGraph;
         }
-
         public static UndirectedGraph<BFNode, BFEdge> Copy(this UndirectedGraph<BFNode, BFEdge> graph)
         {
             var bfGraph = new UndirectedGraph<BFNode, BFEdge>();
@@ -187,7 +187,7 @@ namespace DimensioneringV2
                 .Where(v => graph.AdjacentEdges(v).Count() == 1 && v.IsBuildingNode) // Filter building leaves
                 .All(visited.Contains); // Ensure all are connected
         }
-        private static void TraverseGraph<TVertex, TEdge>(this 
+        private static void TraverseGraph<TVertex, TEdge>(this
             UndirectedGraph<TVertex, TEdge> graph, TVertex node, HashSet<TVertex> visited) where TEdge : IEdge<TVertex>
         {
             if (visited.Contains(node)) return;
@@ -251,7 +251,16 @@ namespace DimensioneringV2
             if (edge == null) throw new Exception("Edge not found in graph!");
             graph.RemoveEdge(edge);
         }
+        public static BFNode? GetRoot(this UndirectedGraph<BFNode, BFEdge> graph)
+        {
+            // Find the root node
+            var rootNode = graph.Vertices.FirstOrDefault(x => x.IsRootNode);
+            if (rootNode != null) return rootNode;
+            else return null;
+        }
+        #endregion
 
+        #region Misc
         public static class ThreadSafeRandom
         {
             [ThreadStatic] private static Random Local;
@@ -273,6 +282,7 @@ namespace DimensioneringV2
                 list[k] = list[n];
                 list[n] = value;
             }
-        }
+        } 
+        #endregion
     }
 }

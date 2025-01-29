@@ -30,6 +30,8 @@
                         Margin="2" Command="{Binding PerformZoomToExtents}"/>
                 <Button x:Name="btnSyncAC" Content="Sync AC" FontSize="10" Width="70" Height="20"
                         Margin="2" Command="{Binding SyncACWindowCommand}"/>
+                <Button x:Name="btnTest1" Content="Test Btn 1" FontSize="10" Width="70" Height="20" 
+                        Margin="2" Command="{Binding Test01Command}"/>
             </StackPanel>
 
             <!-- Main Content Area -->

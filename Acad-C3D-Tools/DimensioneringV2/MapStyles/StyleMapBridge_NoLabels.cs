@@ -32,18 +32,30 @@ namespace DimensioneringV2.MapStyles
 
             bool value = _prop(f);
 
-            if (value == true)
-            {
-                return new StyleDefault().GetStyles(feature);
-            }
+            VectorStyle s1;
 
-            var s1 = new VectorStyle
+            if (value)
             {
-                Line = new Pen(Color.IndianRed)
+                s1 = new VectorStyle
                 {
-                    Width = 5
-                }
-            };
+                    Line = new Pen(Color.Black)
+                    {
+                        Width = 3
+                    }
+                };
+            }
+            else
+            {
+                s1 = new VectorStyle
+                {
+
+                    Line = new Pen(Color.IndianRed)
+                    {
+                        Width = 5
+                    }
+                };
+            }
+            
             return [s1];
         }
     }
