@@ -625,28 +625,26 @@ namespace IntersectUtilities
                     while (location == Algorithms.NullPoint3d);
                     #endregion
 
-                    #region Find nearest pline
-                    Oid nearestPlId;
-                    using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                    #region Select nearest pline
+                    Oid nearestPlId = Interaction.GetEntity("Select MAIN pipe: ", typeof(Polyline), true);
+                    if (nearestPlId == Oid.Null)
                     {
-                        Polyline pl = plOids.Select(x => x.Go<Polyline>(tx))
-                            .MinByEnumerable(x => location.DistanceHorizontalTo(
-                                x.GetClosestPointTo(location, false)))
-                            .FirstOrDefault();
-                        nearestPlId = pl.Id;
-                        tx.Commit();
-                    }
-
-                    if (nearestPlId == default)
-                    {
-                        prdDbg("Nearest pipe cannot be found!");
+                        prdDbg("MAIN pipe selection cancelled!");
                         return;
+                    }
+                    #endregion
+
+                    #region Select stik
+                    Oid stikPlId = Interaction.GetEntity("Select STIK pipe: ", typeof(Polyline), true);
+                    if (nearestPlId == Oid.Null)
+                    {
+                        prdDbg("STIK pipe selection cancelled!");
                     }
                     #endregion
 
                     #region Place perttee
                     PertTee pertTee = new PertTee(
-                        localDb, nearestPlId, location);
+                        localDb, nearestPlId, stikPlId, location);
                     Result result = pertTee.Validate();
                     if (result.Status != ResultStatus.OK)
                     {
@@ -668,6 +666,164 @@ namespace IntersectUtilities
                     return;
                 }
             }
+        }
+
+        /// <command>PLACEPERTTEEAUTO, PPTAUTO</command>
+        /// <summary>
+        /// Places a PERT tee at stik locations. Currently assumes all PERT25 is stik.
+        /// </summary>
+        /// <category>Blocks</category>
+        [CommandMethod("PLACEPERTTEEAUTO")]
+        [CommandMethod("PPTAUTO")]
+        public void placepertteeauto()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            var ed = Application.DocumentManager.MdiActiveDocument.Editor;
+
+            List<(Point3d pt, Oid stikpipe, Oid mainpipe)> list = new();
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var pipes = localDb.GetFjvPipes(tx, true);
+
+                    var stiks = pipes.Where(
+                        x =>
+                        GetPipeSystem(x) == PipeSystemEnum.PertFlextra &&
+                        GetPipeDN(x) == 25
+                        ).ToHashSet();
+
+                    pipes.ExceptWith(stiks);
+
+                    foreach (var stik in stiks)
+                    {
+                        Point3d sp = stik.StartPoint;
+                        Point3d ep = stik.EndPoint;
+
+                        var closestPipe = pipes.MinBy(
+                            x =>
+                            {
+                                return new double[]
+                                {
+                                x.GetClosestPointTo(sp, false).DistanceTo(sp),
+                                x.GetClosestPointTo(ep, false).DistanceTo(ep)
+                                }.Min();
+                            });
+
+                        if (closestPipe == default)
+                        {
+                            prdDbg($"No closest pipe found for stik {stik.Handle}!");
+                            continue;
+                        }
+
+                        double tol = 0.005;
+
+                        double d1 = closestPipe.GetClosestPointTo(sp, false).DistanceTo(sp);
+                        double d2 = closestPipe.GetClosestPointTo(ep, false).DistanceTo(ep);
+                        double d = d1 > d2 ? d2 : d1;
+
+                        if (d > tol)
+                        { 
+                            prdDbg($"Distance between stik {stik.Handle} and pipe {closestPipe.Handle} is {d}!\n" +
+                                $"Which is larger than {tol}!");
+                            continue;
+                        }
+
+                        list.Add((d1 > d2 ? ep : sp, stik.Id, closestPipe.Id));
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex);
+                    tx.Abort();
+                    return;
+                }
+            }
+
+            int count = 0;
+
+            try
+            {
+                Oid closestId = default;
+                foreach (var item in list)
+                {
+                    #region Find closest line
+
+                    using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                    {
+                        try
+                        {
+                            var pipes = localDb.GetFjvPipes(tx, true);
+
+                            var stiks = pipes.Where(
+                                x =>
+                                GetPipeSystem(x) == PipeSystemEnum.PertFlextra &&
+                                GetPipeDN(x) == 25
+                                ).ToHashSet();
+
+                            pipes.ExceptWith(stiks);
+
+                            Polyline stik = item.stikpipe.Go<Polyline>(tx);
+
+                            Point3d sp = stik.StartPoint;
+                            Point3d ep = stik.EndPoint;
+
+                            var closestPipe = pipes.MinBy(
+                                x =>
+                                {
+                                    return new double[]
+                                    {
+                                x.GetClosestPointTo(sp, false).DistanceTo(sp),
+                                x.GetClosestPointTo(ep, false).DistanceTo(ep)
+                                    }.Min();
+                                });
+
+                            if (closestPipe == default)
+                            {
+                                prdDbg($"No closest pipe found for stik {stik.Handle}!");
+                                continue;
+                            }
+
+                            closestId = closestPipe.Id;
+                        }
+                        catch (System.Exception ex)
+                        {
+                            prdDbg(ex);
+                            tx.Abort();
+                            continue;
+                        }
+                    }
+                    #endregion
+
+                    #region Place perttee
+                    PertTee pertTee = new PertTee(
+                        localDb, closestId, item.stikpipe, item.pt);
+                    Result result = pertTee.Validate();
+                    if (result.Status != ResultStatus.OK)
+                    {
+                        prdDbg(result.ErrorMsg);
+                        continue;
+                    }
+                    result = pertTee.Place();
+                    if (result.Status != ResultStatus.OK)
+                    {
+                        prdDbg(result.ErrorMsg);
+                        continue;
+                    }
+                    if (result.Status == ResultStatus.OK) count++;
+                    #endregion 
+                }
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg(ex);
+                AbortGracefully(localDb);
+                return;
+            }
+
+            prdDbg($"Placed {count} PertTees!");
         }
 
         /// <command>CORRECTCUSTOMTRANSITIONS</command>

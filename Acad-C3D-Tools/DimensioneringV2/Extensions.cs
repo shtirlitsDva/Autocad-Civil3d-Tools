@@ -99,7 +99,7 @@ namespace DimensioneringV2
             }
 
             // Copy edges
-            foreach (var edge in graph.Edges)
+            foreach (EdgePipeSegment edge in graph.Edges)
             {
                 var bfEdge = new BFEdge(nodeMap[edge.Source], nodeMap[edge.Target], edge);
                 bfGraph.AddEdge(bfEdge);

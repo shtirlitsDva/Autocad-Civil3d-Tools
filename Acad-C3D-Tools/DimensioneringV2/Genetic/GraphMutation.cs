@@ -30,22 +30,16 @@ namespace DimensioneringV2.Genetic
 
             if (binaryChromosome == null)
             {
-                throw new MutationException(this, "Must be a GarphChromosome!");
+                throw new MutationException(this, "Must be a GraphChromosome!");
             }
 
             if (m_rnd.GetDouble() <= probability)
             {
-                //Unique bit checking requires a little more effort, maybe later
-                //BitArray bitArray;
-                //do
-                //{
                 var index = m_rnd.GetInt(0, chromosome.Length);
 
                 if (binaryChromosome.TryMutate(index))
                 {
                     binaryChromosome.FlipGene(index);
-                    //    bitArray = binaryChromosome.GetBitArray();
-                    //} while (!_chm.IsUnique(bitArray));
                 }
             }
         }

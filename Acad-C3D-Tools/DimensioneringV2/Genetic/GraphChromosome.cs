@@ -31,21 +31,23 @@ namespace DimensioneringV2.Genetic
         public HashSet<int> RemovedEdges => _removedEdges;
         public CoherencyManager CoherencyManager => _chm;
 
-        public GraphChromosome(CoherencyManager coherencyManager) 
-            : base(coherencyManager.ChromosomeLength)
+        public GraphChromosome(CoherencyManager coherencyManager) : base(coherencyManager.ChromosomeLength)
         {
             _chm = coherencyManager;
             _localGraph = _chm.OriginalGraph.Copy();
 
             var random = RandomizationProvider.Current;
 
-            BitArray bitArray;
-            var randomizedIndici = 
-                Enumerable.Range(0, _chm.ChromosomeLength)
-                .OrderBy(x => random.GetDouble()).ToArray();
+            //BitArray bitArray;
 
             do
             {
+                var randomizedIndici =
+                Enumerable.Range(0, _chm.ChromosomeLength)
+                .OrderBy(x => random.GetDouble()).ToArray();
+
+                ResetChromosome();
+
                 for (int i = 0; i < randomizedIndici.Length; i++)
                 {
                     int rIdx = randomizedIndici[i];
@@ -57,7 +59,7 @@ namespace DimensioneringV2.Genetic
                     if (edge != null && removeEdge && !_localGraph.IsBridgeEdge(edge))
                     {
                         _localGraph.RemoveEdge(edge);
-                        _removedEdges.Add(randomizedIndici[i]);
+                        _removedEdges.Add(rIdx);
                         ReplaceGene(rIdx, new Gene(1));
                     }
                     else
@@ -66,7 +68,7 @@ namespace DimensioneringV2.Genetic
                     }
                 }
 
-                bitArray = GetBitArray();
+                //bitArray = GetBitArray();
             }
             while (!_localGraph.AreBuildingNodesConnected()); //&& !_chm.IsUnique(bitArray));
         }
@@ -80,6 +82,10 @@ namespace DimensioneringV2.Genetic
         {
             _localGraph = _chm.OriginalGraph.Copy();
             _removedEdges.Clear();
+            for (int i = 0; i < Length; i++)
+            {
+                ReplaceGene(i, new Gene(0));
+            }
         }
 
         public BitArray GetBitArray()

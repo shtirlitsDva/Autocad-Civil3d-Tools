@@ -1074,11 +1074,25 @@ namespace IntersectUtilities
     }
     internal class PertTee : ComponentData
     {
-        public PertTee(Database db, Oid runId, Point3d location)
+        private Oid stikPlId;
+        private Polyline stikPl = null;
+
+        public PertTee(Database db, Oid runId, Oid stikPlId, Point3d location)
             : base(db, runId, location)
         {
             blockName = "PRESKOBLING-TEE-PRT";
             cutBlockName = "MuffeIntern-MAIN";
+            this.stikPlId = stikPlId;
+
+            if (stikPlId != Oid.Null)
+            {
+                using (Transaction tx = db.TransactionManager.StartTransaction())
+                {
+                    stikPl = stikPlId.Go<Polyline>(tx);
+                    tx.Commit();
+                }
+            }
+            
         }
         internal override Result Validate()
         {
@@ -1088,7 +1102,7 @@ namespace IntersectUtilities
                 Polyline run = RunId.Go<Polyline>(tx);
 
                 #region Test if location is on polyline
-                if (run.GetDistToPoint(Location) > 0.000001)
+                if (run.GetDistToPoint(Location) > 0.0001)
                 {
                     result.Status = ResultStatus.SoftError;
                     result.ErrorMsg = "Location is not on a pipe. Select location on pipe.";
