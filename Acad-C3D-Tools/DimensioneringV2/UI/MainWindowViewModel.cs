@@ -39,6 +39,7 @@ using Autodesk.AutoCAD.Geometry;
 using IntersectUtilities.UtilsCommon;
 using NorsynHydraulicCalc.Pipes;
 using DimensioneringV2.BruteForceOptimization;
+using Autodesk.AutoCAD.Runtime;
 
 namespace DimensioneringV2.UI
 {
@@ -113,7 +114,7 @@ namespace DimensioneringV2.UI
                     }
                     ));
             }
-            catch (Exception ex)
+            catch (System.Exception ex)
             {
                 utils.prdDbg($"An error occurred during calculations: {ex.Message}");
                 utils.prdDbg(ex);
@@ -146,7 +147,7 @@ namespace DimensioneringV2.UI
                     }
                     ));
             }
-            catch (Exception ex)
+            catch (System.Exception ex)
             {
                 utils.prdDbg($"An error occurred during calculations: {ex.Message}");
                 utils.prdDbg(ex);
@@ -200,7 +201,7 @@ namespace DimensioneringV2.UI
                     }
                 });
             }
-            catch (Exception ex)
+            catch (System.Exception ex)
             {
                 utils.prdDbg($"An error occurred during calculations: {ex.Message}");
                 utils.prdDbg(ex);
@@ -319,7 +320,7 @@ namespace DimensioneringV2.UI
                 window = new PriceSummaryWindow(stikTable, flsTable, grandTotal);
                 window.Show();
             }
-            catch (Exception ex)
+            catch (System.Exception ex)
             {
                 utils.prdDbg(ex);
             }
@@ -356,11 +357,11 @@ namespace DimensioneringV2.UI
                 {
                     foreach (UndirectedGraph<NodeJunction, EdgePipeSegment> graph in graphs)
                     {
-                        
+                        HydraulicCalculationsService.Test01(graph, props);
                     }
                 });
             }
-            catch (Exception ex)
+            catch (System.Exception ex)
             {
                 utils.prdDbg($"An error occurred during calculations: {ex.Message}");
                 utils.prdDbg(ex);

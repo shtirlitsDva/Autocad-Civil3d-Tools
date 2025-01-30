@@ -459,6 +459,8 @@ namespace DimensioneringV2
         [CommandMethod("DIM2MAP")]
         public static void dim2map()
         {
+            AcContext.Current = SynchronizationContext.Current;
+
             if (Services.PaletteSetCache.paletteSet == null) Services.PaletteSetCache.paletteSet = new CustomPaletteSet();
             Services.PaletteSetCache.paletteSet.Visible = true;
             Services.PaletteSetCache.paletteSet.WasVisible = true;

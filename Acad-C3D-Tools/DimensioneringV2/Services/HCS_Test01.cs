@@ -9,7 +9,7 @@ using QuikGraph;
 using DimensioneringV2.GraphFeatures;
 using DimensioneringV2.BruteForceOptimization;
 
-using utils = IntersectUtilities.UtilsCommon.Utils;
+using static DimensioneringV2.Utils;
 
 using DimensioneringV2.Genetic;
 using GeneticSharp;
@@ -22,93 +22,159 @@ namespace DimensioneringV2.Services
     internal partial class HydraulicCalculationsService
     {
         internal static void Test01(
-            UndirectedGraph<NodeJunction, EdgePipeSegment> graph,
+            UndirectedGraph<NodeJunction, EdgePipeSegment> originalGraph,
             List<(Func<BFEdge, dynamic> Getter, Action<BFEdge, dynamic> Setter)> props
             )
         {
-            UndirectedGraph<BFNode, BFEdge> gaGraph = graph.CopyToBF();
-            var bridges = FindBridges.DoFindThem(gaGraph);
-            var nonBridges = FindBridges.FindNonBridges(gaGraph);
+            UndirectedGraph<BFNode, BFEdge> graph = originalGraph.CopyToBF();
+            var bridges = FindBridges.DoFindThem(graph);
+            var nonBridges = FindBridges.FindNonBridges(graph);
 
-            var root = gaGraph.GetRoot();
+            var root = graph.GetRoot();
             if (root == null)
             {
-                utils.prdDbg("No root node found in the graph!");
+                prtDbg("No root node found in the graph!");
                 return;
             }
-            var bfsRank = new Dictionary<BFNode, int>();
-            RankNodesBFS(gaGraph, root!, bfsRank);
+            var bfsRank = AssignBfsRank(graph, root);
 
-            //Separate nonbridge graph
-            var nonBridgeGraph = new UndirectedGraph<BFNode, BFEdge>();
-            foreach (var v in gaGraph.Vertices) nonBridgeGraph.AddVertex(v);
-            foreach (var e in nonBridges) nonBridgeGraph.AddEdge(e);
-
-            //Find connected elements in nonbridge graph and create partial graphs
-            var subId = new Dictionary<BFNode, int>();
-            var subDict = new Dictionary<int, UndirectedGraph<BFNode, BFEdge>>();
-            int currId = 0;
-
-            foreach (var node in nonBridgeGraph.Vertices)
+            // 3) Identify connected non-bridge components
+            var subGraphs = new List<UndirectedGraph<BFNode, BFEdge>>();
+            var visited = new HashSet<BFNode>();
+            foreach (var node in graph.Vertices)
             {
-                if (!subId.ContainsKey(node))
+                if (!visited.Contains(node))
                 {
-                    currId++;
-                    subDict[currId] = new UndirectedGraph<BFNode, BFEdge>();
-                    MarkComponent(node, currId, nonBridgeGraph, subDict[currId], subId);
+                    var subGraph = new UndirectedGraph<BFNode, BFEdge>();
+                    FloodNonBridge(graph, node, nonBridges, visited, subGraph);
+                    if (subGraph.VertexCount > 0) subGraphs.Add(subGraph);
                 }
             }
 
+            // 4) Process bridge edges and assign to downstream subgraph
+            AssignBridgeEdges(graph, subGraphs, bridges, bfsRank);
 
+
+            //Print number of subgraphs
+            //and number of edges in each subgraph sorted
+            prtDbg(
+                $"Number of subgraphs: {subGraphs.Count}"
+                );
         }
 
-        private static void RankNodesBFS(
-        UndirectedGraph<BFNode, BFEdge> graph, BFNode root,
-        Dictionary<BFNode, int> rank)
+        private static Dictionary<BFNode, int> AssignBfsRank(
+        UndirectedGraph<BFNode, BFEdge> graph, BFNode root)
         {
             var queue = new Queue<BFNode>();
+            var rank = new Dictionary<BFNode, int> { [root] = 0 };
             queue.Enqueue(root);
-            rank[root] = 0;
 
             while (queue.Count > 0)
             {
                 var current = queue.Dequeue();
-                int currRank = rank[current];
-
-                foreach (var neighbor in graph.AdjacentVertices(current)) // Simplified!
+                foreach (var e in graph.AdjacentEdges(current))
                 {
-                    if (!rank.ContainsKey(neighbor)) // Only visit unranked nodes
+                    var neighbor = e.Source == current ? e.Target : e.Source;
+                    if (!rank.ContainsKey(neighbor))
                     {
-                        rank[neighbor] = currRank + 1;
+                        rank[neighbor] = rank[current] + 1;
                         queue.Enqueue(neighbor);
+                    }
+                }
+            }
+            return rank;
+        }
+
+        private static void FloodNonBridge(
+            UndirectedGraph<BFNode, BFEdge> graph, BFNode start, HashSet<BFEdge> nonBridges,
+            HashSet<BFNode> visited, UndirectedGraph<BFNode, BFEdge> subGraph)
+        {
+            var stack = new Stack<BFNode>();
+            stack.Push(start);
+            visited.Add(start);
+            subGraph.AddVertex(start);
+
+            while (stack.Count > 0)
+            {
+                var node = stack.Pop();
+                foreach (var edge in graph.AdjacentEdges(node))
+                {
+                    if (nonBridges.Contains(edge))
+                    {
+                        var neighbor = edge.Source == node ? edge.Target : edge.Source;
+                        if (!visited.Contains(neighbor))
+                        {
+                            visited.Add(neighbor);
+                            subGraph.AddVertex(neighbor);
+                            subGraph.AddEdge(edge);
+                            stack.Push(neighbor);
+                        }
                     }
                 }
             }
         }
 
-        private static void MarkComponent(
-        BFNode startNode, int componentId,
-        UndirectedGraph<BFNode, BFEdge> gNonBridge,
-        UndirectedGraph<BFNode, BFEdge> componentGraph,
-        Dictionary<BFNode, int> subId)
+        private static void AssignBridgeEdges(
+            UndirectedGraph<BFNode, BFEdge> graph,
+            List<UndirectedGraph<BFNode, BFEdge>> subGraphs,
+            HashSet<BFEdge> bridges,
+            Dictionary<BFNode, int> bfsRank)
+        {
+            var bridgeGraph = new UndirectedGraph<BFNode, BFEdge>();
+            foreach (var edge in bridges)
+            { 
+                bridgeGraph.AddVertex(edge.Source);
+                bridgeGraph.AddVertex(edge.Target);
+                bridgeGraph.AddEdge(edge); 
+            }
+
+            var visited = new HashSet<BFNode>();
+            foreach (var node in bridgeGraph.Vertices)
+            {
+                if (!visited.Contains(node))
+                {
+                    var compNodes = new List<BFNode>();
+                    var compEdges = new List<BFEdge>();
+                    CollectBridgeComponent(bridgeGraph, node, visited, compNodes, compEdges);
+
+                    // Attach to the most downstream subgraph
+                    var bestSub = subGraphs.OrderByDescending(sg =>
+                            sg.Vertices.Where(v => compNodes.Contains(v))
+                            .Select(v => bfsRank[v])
+                            .DefaultIfEmpty(-1)
+                            .Max())
+                        .FirstOrDefault();
+
+                    if (bestSub != null)
+                    {
+                        foreach (var v in compNodes) bestSub.AddVertex(v);
+                        foreach (var e in compEdges) bestSub.AddEdge(e);
+                    }
+                }
+            }
+        }
+
+        private static void CollectBridgeComponent(
+            UndirectedGraph<BFNode, BFEdge> graph, BFNode start, HashSet<BFNode> visited,
+            List<BFNode> nodes, List<BFEdge> edges)
         {
             var stack = new Stack<BFNode>();
-            stack.Push(startNode);
-            subId[startNode] = componentId;
-            componentGraph.AddVertex(startNode);
+            stack.Push(start);
+            visited.Add(start);
+            nodes.Add(start);
 
             while (stack.Count > 0)
             {
-                var top = stack.Pop();
-                foreach (var e in gNonBridge.AdjacentEdges(top))
+                var node = stack.Pop();
+                foreach (var edge in graph.AdjacentEdges(node))
                 {
-                    var other = e.Source.Equals(top) ? e.Target : e.Source;
-                    if (!subId.ContainsKey(other))
+                    edges.Add(edge);
+                    var neighbor = edge.Source == node ? edge.Target : edge.Source;
+                    if (!visited.Contains(neighbor))
                     {
-                        subId[other] = componentId;
-                        componentGraph.AddVertex(other);
-                        componentGraph.AddEdge(e);
-                        stack.Push(other);
+                        visited.Add(neighbor);
+                        nodes.Add(neighbor);
+                        stack.Push(neighbor);
                     }
                 }
             }
