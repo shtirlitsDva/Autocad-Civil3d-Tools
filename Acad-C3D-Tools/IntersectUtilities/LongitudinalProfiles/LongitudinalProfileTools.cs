@@ -4903,30 +4903,7 @@ namespace IntersectUtilities
                     if (((PromptResult)entity2).Status != PromptStatus.OK) return;
                     ProfileView profileView = entity2.ObjectId.Go<ProfileView>(tx);
 
-                    ProfileEntityCollection entities = profile.Entities;
-                    prdDbg($"Count of entities: {entities.Count}");
-                    HashSet<string> types = new HashSet<string>();
-
-                    Polyline pline = new Polyline(entities.Count + 1);
-
-                    //Place first point
-                    ProfileEntity pe = entities.EntityAtId(entities.FirstEntity);
-                    double startX = 0.0, startY = 0.0;
-                    profileView.FindXYAtStationAndElevation(pe.StartStation, pe.StartElevation, ref startX, ref startY);
-                    Point2d startPoint = new Point2d(startX, startY);
-                    Point2d endPoint = new Point2d();
-                    pline.AddVertexAt(0, startPoint, pe.GetBulge(profileView), 0, 0);
-                    int vertIdx = 1;
-                    for (int i = 0; i < entities.Count + 1; i++)
-                    {
-                        endPoint = profileView.GetPoint2dAtStaAndEl(pe.EndStation, pe.EndElevation);
-                        double bulge = entities.LookAheadAndGetBulge(pe, profileView);
-                        pline.AddVertexAt(vertIdx, endPoint, bulge, 0, 0);
-                        vertIdx++;
-                        startPoint = endPoint;
-                        try { pe = entities.EntityAtId(pe.EntityAfter); }
-                        catch (System.Exception) { break; }
-                    }
+                    var pline = profile.ToPolyline(profileView);
 
                     pline.AddEntityToDbModelSpace(database);
                 }

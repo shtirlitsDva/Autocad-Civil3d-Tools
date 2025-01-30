@@ -158,13 +158,46 @@ namespace IntersectUtilities.LongitudinalProfiles.KoteReport
                                     p = pid.Go<Profile>(tx);
                                     pelev = p.ElevationAt(pst);
                                 }
+                                catch (ArgumentException ae)
+                                {
+                                    if (ae.Message == "Value does not fall within the expected range.")
+                                    {
+                                        prdDbg($"Error at: {parent.Value.Name}, ST: {pst}, P: {p?.Name} \n" + ae);
+                                        prdDbg("p.ElevationAt(pst) failed. Trying intersecting profile!");
+
+                                        var al = p.AlignmentId.Go<Alignment>(tx);
+                                        var pvIds = al.GetProfileViewIds();
+                                        if (pvIds.Count != 1) throw new Exception("Profile View count is not 1");
+                                        var pvId = pvIds[0];
+                                        var pv = pvId.Go<ProfileView>(tx);
+                                        var pvLoc = pv.Location;
+
+                                        using Polyline pl1 = new Polyline(2);
+                                        pl1.AddVertexAt(0, new Point2d(pvLoc.X + pst, pvLoc.Y), 0, 0, 0);
+                                        pl1.AddVertexAt(1, new Point2d(pvLoc.X + pst, pvLoc.Y + 1000), 0, 0, 0);
+
+                                        using Polyline pl2 = pid.Go<Profile>(tx).ToPolyline(pv);
+
+                                        using (Point3dCollection ptc = new Point3dCollection())
+                                        {
+                                            pl1.IntersectWith(pl2, Autodesk.AutoCAD.DatabaseServices.Intersect.OnBothOperands,
+                                                ptc, IntPtr.Zero, IntPtr.Zero);
+                                            if (ptc.Count == 0) throw new Exception("No intersection found!");
+                                            var intPt = ptc[0];
+
+                                            pelev = (intPt.Y - pvLoc.Y) + pv.ElevationMin;
+                                        }
+                                    }
+                                }
                                 catch (Exception ex)
                                 {
-                                    tx.Abort();
                                     prdDbg($"Error at: {parent.Value.Name}, ST: {pst}, P: {p?.Name} \n" + ex);
                                     throw;
                                 }
-                                tx.Abort();
+                                finally
+                                {
+                                    tx.Abort();
+                                }
                             }
 
                             ConnectionKnownElevation con = new ConnectionKnownElevation(ConnectionDirection.Out, pst, pelev);
