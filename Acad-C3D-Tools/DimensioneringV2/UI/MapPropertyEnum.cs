@@ -35,5 +35,7 @@ namespace DimensioneringV2.UI
         Pipe,
         [Description("Vis non-bridges")]
         Bridge,
+        [Description("Vis delgrafer")]
+        SubGraphId,
     }
 }

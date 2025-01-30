@@ -79,6 +79,10 @@ namespace DimensioneringV2.MapStyles
                     sOn = new StyleMapBridge_NoLabels(f => f.IsBridge);
                     sOff = new StyleMapBridge_NoLabels(f => f.IsBridge);
                     break;
+                case MapPropertyEnum.SubGraphId:
+                    sOn = new StyleMapProperty_WithLabels<int>(f => f.SubGraphId);
+                    sOff = new StyleMapProperty_NoLabels<int>(f => f.SubGraphId);
+                    break;
                 default:
                     throw new Exception("Unknown property name!");
             }

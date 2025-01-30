@@ -40,6 +40,7 @@ using IntersectUtilities.UtilsCommon;
 using NorsynHydraulicCalc.Pipes;
 using DimensioneringV2.BruteForceOptimization;
 using Autodesk.AutoCAD.Runtime;
+using DimensioneringV2.GraphUtilities;
 
 namespace DimensioneringV2.UI
 {
@@ -327,6 +328,77 @@ namespace DimensioneringV2.UI
         }
         #endregion
 
+        #region PerformCalculationsGAOptimizedCommand
+        public AsyncRelayCommand PerformCalculationsGAOptimizedCommand => new(PerformCalculationsGAOptimizedExecuteAsync);
+
+        private async Task PerformCalculationsGAOptimizedExecuteAsync()
+        {
+            var props = new List<(Func<BFEdge, dynamic> Getter, Action<BFEdge, dynamic> Setter)>
+            {
+                (f => f.NumberOfBuildingsConnected, (f, v) => f.NumberOfBuildingsSupplied = v),
+                (f => f.NumberOfUnitsConnected, (f, v) => f.NumberOfUnitsSupplied = v),
+                (f => f.HeatingDemandConnected, (f, v) => f.HeatingDemandSupplied = v)
+            };
+
+            try
+            {
+                //Init the hydraulic calculation service using current settings
+                HydraulicCalculationService.Initialize();
+
+                //var progressWindow = new GeneticOptimizedReporting();
+                //progressWindow.Show();
+                //GeneticOptimizedReportingContext.VM = (GeneticOptimizedReportingViewModel)progressWindow.DataContext;
+                //GeneticOptimizedReportingContext.VM.Dispatcher = progressWindow.Dispatcher;
+
+                await Task.Run(() =>
+                {
+                    var graphs = _dataService.Graphs;
+
+                    //Reset the results
+                    foreach (var f in graphs.SelectMany(g => g.Edges.Select(e => e.PipeSegment))) f.ResetHydraulicResults();
+
+                    foreach (UndirectedGraph<NodeJunction, EdgePipeSegment> graph in graphs)
+                    {
+                        var subGraphs = HydraulicCalculationsService.CreateSubGraphs(graph);
+
+                        Parallel.ForEach(subGraphs, subGraph =>
+                        {
+                            var result = SpanningTreeCount.CountSpanningTrees(subGraph, 1000000000);
+                            Utils.prtDbg($"N: {subGraph.VertexCount} E: {subGraph.EdgeCount} ST: {result}");
+                        });
+
+                        foreach (var subGraph in subGraphs)
+                        {
+
+
+
+
+                        }
+
+
+                        //HydraulicCalculationsService.CalculateGAAnalysis(
+                        //    graph,
+                        //    props,
+                        //    (generation, fitness) =>
+                        //    {
+                        //        progressWindow.Dispatcher.Invoke(() =>
+                        //        {
+                        //            GeneticReportingContext.VM.UpdatePlot(generation, fitness);
+                        //        });
+                        //    },
+                        //    GeneticReportingContext.VM.CancellationToken
+                        //    );
+                    }
+                });
+            }
+            catch (System.Exception ex)
+            {
+                utils.prdDbg($"An error occurred during calculations: {ex.Message}");
+                utils.prdDbg(ex);
+            }
+        }
+        #endregion
+
         #region Test01 Command
         public AsyncRelayCommand Test01Command => new AsyncRelayCommand(Test01);
         private async Task Test01()
@@ -357,7 +429,7 @@ namespace DimensioneringV2.UI
                 {
                     foreach (UndirectedGraph<NodeJunction, EdgePipeSegment> graph in graphs)
                     {
-                        HydraulicCalculationsService.Test01(graph, props);
+                        HydraulicCalculationsService.CreateSubGraphs(graph);
                     }
                 });
             }

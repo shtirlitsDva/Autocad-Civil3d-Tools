@@ -20,8 +20,10 @@
                     Margin="2" Command="{Binding PerformCalculationsSPDCommand}"/>
                 <Button x:Name="btnCalcSTP" Content="BRUTE FORCE" FontSize="10" Width="70" Height="20" 
                         Margin="2" Command="{Binding PerformCalculationsBFCommand}"/>
-                <Button x:Name="btnCalcGA" Content="Genetic Alg." FontSize="10" Width="70" Height="20" 
+                <Button x:Name="btnCalcGA" Content="Slow GA." FontSize="10" Width="70" Height="20" 
                         Margin="2" Command="{Binding PerformCalculationsGACommand}"/>
+                <Button x:Name="btnCalcGAOpt" Content="Optmized GA" FontSize="10" Width="70" Height="20" 
+                        Margin="2" Command="{Binding PerformCalculationsGAOptimizedCommand}"/>
                 <Button x:Name="btnPrice" Content="Calculate price" FontSize="10" Width="70" Height="20" 
                         Margin="2" Command="{Binding PerformPriceCalc}" IsEnabled="{Binding IsPriceCalcEnabled}"/>
                 <Button x:Name="btnClose" Content="Toggle Labels" FontSize="10" Width="70" Height="20"

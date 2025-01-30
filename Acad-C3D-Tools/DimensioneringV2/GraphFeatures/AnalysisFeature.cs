@@ -163,6 +163,8 @@ namespace DimensioneringV2.GraphFeatures
 
         [MapProperty(MapPropertyEnum.Bridge)]
         public bool IsBridge { get; set; } = false;
+        [MapProperty(MapPropertyEnum.SubGraphId)]
+        public int SubGraphId { get; set; } = -1;
         public void ResetHydraulicResults()
         {
             NumberOfBuildingsSupplied = 0;
