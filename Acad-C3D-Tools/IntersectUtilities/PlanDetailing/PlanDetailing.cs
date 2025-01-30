@@ -30,6 +30,7 @@ using GroupByCluster;
 using IntersectUtilities.UtilsCommon;
 using static IntersectUtilities.UtilsCommon.Utils;
 using Dreambuild.AutoCAD;
+using IntersectUtilities.PlanDetailing.Components;
 
 using static IntersectUtilities.Enums;
 using static IntersectUtilities.HelperMethods;
@@ -50,8 +51,6 @@ using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
-using static IntersectUtilities.Transition;
-using System.Windows.Documents;
 
 namespace IntersectUtilities
 {
