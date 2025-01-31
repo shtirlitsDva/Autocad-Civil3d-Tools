@@ -16,9 +16,8 @@ namespace DimensioneringV2.Services
     internal partial class HydraulicCalculationsService
     {
         internal static List<UndirectedGraph<BFNode, BFEdge>> CreateSubGraphs(
-            UndirectedGraph<NodeJunction, EdgePipeSegment> originalGraph)
+            UndirectedGraph<BFNode, BFEdge> graph)
         {
-            UndirectedGraph<BFNode, BFEdge> graph = originalGraph.CopyToBF();
             var bridges = FindBridges.DoFindThem(graph);
             var nonBridges = FindBridges.FindNonBridges(graph);
 

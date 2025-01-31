@@ -19,15 +19,15 @@ namespace DimensioneringV2.BruteForceOptimization
     internal class BFEdge : Edge<BFNode>, IHydraulicSegment
     {
         public double Price { get => PipeDim.Price_m * Length + PipeDim.Price_stk(SegmentType); }
-        public bool IsRootNode { get; private set; }
-        public double Length { get; private set; }
-        public int NumberOfBuildingsConnected { get; private set; }
+        public bool IsRootNode { get => OriginalEdge.PipeSegment.IsRootNode; }
+        public double Length { get => OriginalEdge.PipeSegment.Length; }
+        public int NumberOfBuildingsConnected { get => OriginalEdge.PipeSegment.NumberOfBuildingsConnected; }
         public SegmentType SegmentType =>
             NumberOfBuildingsConnected == 1 ?
             SegmentType.Stikledning :
             SegmentType.Fordelingsledning;
-        public int NumberOfUnitsConnected { get; private set; }
-        public double HeatingDemandConnected { get; private set; }
+        public int NumberOfUnitsConnected { get => OriginalEdge.PipeSegment.NumberOfUnitsConnected; }
+        public double HeatingDemandConnected { get => OriginalEdge.PipeSegment.HeatingDemandConnected; }
         public int NumberOfBuildingsSupplied { get; set; }
         public int NumberOfUnitsSupplied { get; set; }
         public double HeatingDemandSupplied { get; set; }
@@ -47,25 +47,7 @@ namespace DimensioneringV2.BruteForceOptimization
 
         public BFEdge([NotNull] BFNode source, [NotNull] BFNode target, EdgePipeSegment edge) : base(source, target)
         {
-            IsRootNode = edge.PipeSegment.IsRootNode;
-            Length = edge.PipeSegment.Length;
-            NumberOfBuildingsConnected = edge.PipeSegment.NumberOfBuildingsConnected;
-            NumberOfUnitsConnected = edge.PipeSegment.NumberOfUnitsConnected;
-            HeatingDemandConnected = edge.PipeSegment.HeatingDemandConnected;
-            //NumberOfBuildingsSupplied = edge.PipeSegment.NumberOfBuildingsSupplied;
-            //NumberOfUnitsSupplied = edge.PipeSegment.NumberOfUnitsSupplied;
-            //HeatingDemandSupplied = edge.PipeSegment.HeatingDemandSupplied;
-            //PipeDim = edge.PipeSegment.PipeDim;
-            //ReynoldsSupply = edge.PipeSegment.ReynoldsSupply;
-            //ReynoldsReturn = edge.PipeSegment.ReynoldsReturn;
-            //FlowSupply = edge.PipeSegment.FlowSupply;
-            //FlowReturn = edge.PipeSegment.FlowReturn;
-            //PressureGradientSupply = edge.PipeSegment.PressureGradientSupply;
-            //PressureGradientReturn = edge.PipeSegment.PressureGradientReturn;
-            //VelocitySupply = edge.PipeSegment.VelocitySupply;
-            //VelocityReturn = edge.PipeSegment.VelocityReturn;
-            //UtilizationRate = edge.PipeSegment.UtilizationRate;
-            //Level = edge.Level;
+            
             OriginalEdge = edge;
         }
     }

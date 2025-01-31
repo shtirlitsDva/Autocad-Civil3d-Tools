@@ -1,8 +1,10 @@
 ﻿using DimensioneringV2.BruteForceOptimization;
+
 using QuikGraph;
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
 using System.Text;
@@ -12,42 +14,30 @@ namespace DimensioneringV2.GraphUtilities
 {
     internal class SpanningTreeCount
     {
-        /// <summary>
-        /// Computes the number of spanning trees in the given undirected graph 
-        /// using Kirchhoff's Matrix-Tree Theorem, but stops if it exceeds 'threshold'.
-        /// 
-        /// Returns:
-        ///   - If the number of spanning trees <= threshold, returns that exact count.
-        ///   - If it exceeds the threshold, returns (threshold + 1) as a sentinel value.
-        /// </summary>
-        public static BigInteger CountSpanningTrees(
-            UndirectedGraph<BFNode, BFEdge> graph,
-            BigInteger threshold,
-            Action<BigInteger>? progressCallback = null)
+        public static BigInteger CountSpanningTrees<TVertex, TEdge>(
+        UndirectedGraph<TVertex, TEdge> graph,
+        TimeSpan timelimit
+            ) where TEdge : IEdge<TVertex>
         {
+            var sw = Stopwatch.StartNew();
+
             int n = graph.VertexCount;
-            if (n <= 1)
-            {
-                // A graph with 0 or 1 vertices trivially has 1 spanning tree 
-                // (the graph itself or empty).
-                return 1;
-            }
 
-            // 1) Get an ordering of vertices
+            // For 0 or 1 vertex, there's exactly 1 spanning tree
+            if (n <= 1) return 1;
+
+            // 1) Order vertices
             var vertices = graph.Vertices.ToList();
-            var indexOf = new Dictionary<BFNode, int>();
-            for (int i = 0; i < vertices.Count; i++)
-            {
+            var indexOf = new Dictionary<TVertex, int>(n);
+            for (int i = 0; i < n; i++)
                 indexOf[vertices[i]] = i;
-            }
 
-            // 2) Build adjacency matrix
-            BigInteger[,] adjacency = new BigInteger[n, n];
+            // 2) Build adjacency
+            var adjacency = new BigInteger[n, n];
             foreach (var edge in graph.Edges)
             {
                 int i = indexOf[edge.Source];
                 int j = indexOf[edge.Target];
-                // If parallel edges are allowed, you can accumulate them:
                 adjacency[i, j] += 1;
                 adjacency[j, i] += 1;
             }
@@ -58,10 +48,9 @@ namespace DimensioneringV2.GraphUtilities
             {
                 BigInteger degree = 0;
                 for (int j = 0; j < n; j++)
-                {
                     degree += adjacency[i, j];
-                }
-                laplacian[i, i] = degree;  // diagonal
+
+                laplacian[i, i] = degree;
                 for (int j = 0; j < n; j++)
                 {
                     if (i != j)
@@ -71,104 +60,123 @@ namespace DimensioneringV2.GraphUtilities
                 }
             }
 
-            // 4) Form submatrix by removing last row/column
+            // 4) Build submatrix (n-1 x n-1), removing last row & column
             int size = n - 1;
-            BigInteger[,] submatrix = new BigInteger[size, size];
+            var subMatrix = new BigRational[size, size];
             for (int i = 0; i < size; i++)
             {
                 for (int j = 0; j < size; j++)
                 {
-                    submatrix[i, j] = laplacian[i, j];
+                    // Convert the BigInteger to fraction
+                    subMatrix[i, j] = new BigRational(laplacian[i, j], BigInteger.One);
                 }
             }
 
-            // 5) Compute determinant with threshold check
-            BigInteger det = DeterminantWithThreshold(submatrix, threshold,
-                progressCallback);
+            // 5) Compute the determinant of that submatrix
+            BigRational detFrac = DeterminantExact(subMatrix, sw, timelimit);
 
-            // If determinant is returned as threshold+1, it means "exceeded".
-            return det;
+            if (detFrac.Equals(new BigRational(-1, 1))) { return -1; }
+            
+            // If it's zero, spanning-tree count is zero 
+            if (detFrac.Equals(BigRational.Zero)) return 0;
+
+            // Otherwise, it should be an integer
+            return detFrac.ToBigInteger();
         }
 
         /// <summary>
-        /// Computes the determinant of a square matrix of BigIntegers using a 
-        /// variant of LU decomposition with partial pivoting. 
-        /// 
-        /// If at any point intermediate values exceed 'threshold', 
-        /// it returns (threshold + 1) as a sentinel for "too large".
+        /// Computes the determinant of a square matrix of BigRational
+        /// via an LU decomposition approach with partial pivoting.
         /// </summary>
-        private static BigInteger DeterminantWithThreshold(BigInteger[,] matrix, BigInteger threshold,
-            Action<BigInteger>? progressCallback)
+        private static BigRational DeterminantExact(
+            BigRational[,] mat,
+            Stopwatch sw,
+            TimeSpan timelimit
+            )
         {
-            int n = matrix.GetLength(0);
-            // Clone so as not to modify the original
-            var mat = (BigInteger[,])matrix.Clone();
-            BigInteger det = BigInteger.One;
-            BigInteger sentinel = threshold + 1; // returned if we exceed threshold
+            int n = mat.GetLength(0);
+            var local = (BigRational[,])mat.Clone();
+
+            // We'll accumulate the determinant in a fraction
+            BigRational det = BigRational.One;
 
             for (int i = 0; i < n; i++)
             {
-                // Partial pivoting
-                BigInteger maxAbsVal = BigInteger.Zero;
+                // 1) Partial pivoting: find pivot row
                 int pivotRow = i;
+                BigRational pivotValAbs = BigRational.Zero;
                 for (int r = i; r < n; r++)
                 {
-                    BigInteger absVal = BigInteger.Abs(mat[r, i]);
-                    if (absVal > maxAbsVal)
+                    BigRational absCandidate = Abs(local[r, i]);
+                    if (Greater(absCandidate, pivotValAbs))
                     {
-                        maxAbsVal = absVal;
+                        pivotValAbs = absCandidate;
                         pivotRow = r;
                     }
                 }
 
-                // If pivot is zero => determinant is zero
-                if (maxAbsVal.IsZero)
-                    return BigInteger.Zero;
+                // If pivot is exactly 0 => determinant is 0
+                if (pivotValAbs.Equals(BigRational.Zero))
+                    return BigRational.Zero;
 
-                // Swap pivot row if needed
+                // 2) Swap if needed
                 if (pivotRow != i)
                 {
-                    for (int col = 0; col < n; col++)
+                    // Swap the rows
+                    for (int c = 0; c < n; c++)
                     {
-                        (mat[i, col], mat[pivotRow, col]) = (mat[pivotRow, col], mat[i, col]);
+                        (local[i, c], local[pivotRow, c]) = (local[pivotRow, c], local[i, c]);
                     }
-                    // Swapping rows flips the sign of the determinant
+                    // Flip sign of determinant
                     det = -det;
                 }
 
-                // Multiply pivot
-                BigInteger pivot = mat[i, i];
+                // 3) Multiply pivot into determinant
+                BigRational pivot = local[i, i];
                 det *= pivot;
 
-                // Progress callback
-                progressCallback?.Invoke(det);
-
-                // Check threshold
-                if (BigInteger.Abs(det) > threshold)
-                    return sentinel;  // Exceeds threshold => short-circuit
-
-                // Eliminate below pivot
-                for (int r = i + 1; r < n; r++)
+                // Check if we're running out of time
+                if (sw.Elapsed > timelimit)
                 {
-                    BigInteger factor = mat[r, i];
-                    if (!factor.IsZero)
+                    return new BigRational(-1, 1);
+                }
+
+                // 4) Eliminate below pivot
+                //    Row r = Row r - ( (Row r pivot-col)/(Row i pivot-col) ) * Row i
+                //    but in fraction form, carefully:
+                for (int r2 = i + 1; r2 < n; r2++)
+                {
+                    BigRational factor = local[r2, i] / pivot;
+                    // Subtract factor * row i from row r2
+                    for (int c = i; c < n; c++)
                     {
-                        // Row operation:
-                        //   mat[r, c] = (mat[r, c]*pivot - factor*mat[i, c]) / pivot
-                        // for each column c from i..n-1
-                        for (int c = i; c < n; c++)
-                        {
-                            mat[r, c] = (mat[r, c] * pivot - factor * mat[i, c]) / pivot;
-                        }
+                        local[r2, c] -= factor * local[i, c];
                     }
                 }
             }
 
-            // Final check
-            if (BigInteger.Abs(det) > threshold)
-                return sentinel;
-
             return det;
+        }
+
+        // Utility: compare absolute values of BigRational
+        private static bool Greater(BigRational a, BigRational b)
+        {
+            return CompareAbs(a, b) > 0;
+        }
+        private static BigRational Abs(BigRational x)
+        {
+            return x.Numerator.Sign < 0
+                ? new BigRational(BigInteger.Negate(x.Numerator), x.Denominator)
+                : x;
+        }
+        private static int CompareAbs(BigRational a, BigRational b)
+        {
+            // Compare |a| and |b| by cross multiplication
+            // => compare a.Numerator^2 / a.Denominator^2 to b.Numerator^2 / b.Denominator^2
+            // or we can do more direct approach:
+            var lhs = BigInteger.Abs(a.Numerator) * BigInteger.Abs(b.Denominator);
+            var rhs = BigInteger.Abs(b.Numerator) * BigInteger.Abs(a.Denominator);
+            return lhs.CompareTo(rhs);
         }
     }
 }

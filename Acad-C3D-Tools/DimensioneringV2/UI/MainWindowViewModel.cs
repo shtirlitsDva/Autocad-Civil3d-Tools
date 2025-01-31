@@ -41,6 +41,7 @@ using NorsynHydraulicCalc.Pipes;
 using DimensioneringV2.BruteForceOptimization;
 using Autodesk.AutoCAD.Runtime;
 using DimensioneringV2.GraphUtilities;
+using DimensioneringV2.GraphModel;
 
 namespace DimensioneringV2.UI
 {
@@ -357,24 +358,41 @@ namespace DimensioneringV2.UI
                     //Reset the results
                     foreach (var f in graphs.SelectMany(g => g.Edges.Select(e => e.PipeSegment))) f.ResetHydraulicResults();
 
-                    foreach (UndirectedGraph<NodeJunction, EdgePipeSegment> graph in graphs)
+                    foreach (UndirectedGraph<NodeJunction, EdgePipeSegment> originalGraph in graphs)
                     {
+                        //First prepare calculation graph
+                        UndirectedGraph<BFNode, BFEdge> graph = originalGraph.CopyToBF();
+
+                        //Split the network into subgraphs
                         var subGraphs = HydraulicCalculationsService.CreateSubGraphs(graph);
+
+                        //Build metagraph for the subgraphs
+                        var metaGraph = MetaGraphBuilder.BuildMetaGraph(subGraphs);
+
+                        //Calculate sums of calculation input properties
+                        //We can use SPDijkstra to calculate the sums here
+                        //As we are only interested in the sums for bridge nodes
+                        //because when the network is split into subgraphs
+                        //it will read the bridge nodes and variance will only
+                        //happen at non-bridge nodes
+
+
+
 
                         Parallel.ForEach(subGraphs, subGraph =>
                         {
-                            var result = SpanningTreeCount.CountSpanningTrees(subGraph, 1000000000);
+                            var result = SpanningTreeCount.CountSpanningTrees(subGraph, new TimeSpan(0, 0, 3));
                             Utils.prtDbg($"N: {subGraph.VertexCount} E: {subGraph.EdgeCount} ST: {result}");
+
+                            if (result != -1 && result < 10000)
+                            {//Use bruteforce
+
+                            }
+                            else
+                            {//Use GA
+
+                            }
                         });
-
-                        foreach (var subGraph in subGraphs)
-                        {
-
-
-
-
-                        }
-
 
                         //HydraulicCalculationsService.CalculateGAAnalysis(
                         //    graph,
