@@ -11,6 +11,7 @@ namespace DimensioneringV2.BruteForceOptimization
 {
     internal class BFNode
     {
+        public int Id { get; set; }
         public Point2D Location { get; }
         public bool IsRootNode { get => OriginalNodeJunction.IsRootNode; }
         public bool IsBuildingNode { get => OriginalNodeJunction.IsBuildingNode; }
@@ -18,6 +19,7 @@ namespace DimensioneringV2.BruteForceOptimization
         public int Level { get; set; } // Level in the network hierarchy
         public int STP_Node { get => OriginalNodeJunction.STP_Node; }
         public NodeJunction OriginalNodeJunction { get; }
+        public override string ToString() => $"Node({Id})";
         
         public BFNode(NodeJunction nodeJunction)
         {

@@ -44,11 +44,33 @@ namespace DimensioneringV2.BruteForceOptimization
         public int Level { get; set; } // Level in the network hierarchy
         public EdgePipeSegment OriginalEdge { get; }
         public int NonBridgeChromosomeIndex { get; internal set; } = -1;
+        public override string ToString() => $"Edge({Source.Id} - {Target.Id})";
 
         public BFEdge([NotNull] BFNode source, [NotNull] BFNode target, EdgePipeSegment edge) : base(source, target)
         {
-            
             OriginalEdge = edge;
+        }
+
+        public void PushBaseSums()
+        {
+            OriginalEdge.PipeSegment.NumberOfBuildingsSupplied = NumberOfBuildingsSupplied;
+            OriginalEdge.PipeSegment.NumberOfUnitsSupplied = NumberOfUnitsSupplied;
+            OriginalEdge.PipeSegment.HeatingDemandSupplied = HeatingDemandSupplied;
+        }
+
+        public void PushAllResults()
+        {
+            PushBaseSums();
+            OriginalEdge.PipeSegment.PipeDim = PipeDim;
+            OriginalEdge.PipeSegment.ReynoldsSupply = ReynoldsSupply;
+            OriginalEdge.PipeSegment.ReynoldsReturn = ReynoldsReturn;
+            OriginalEdge.PipeSegment.FlowSupply = FlowSupply;
+            OriginalEdge.PipeSegment.FlowReturn = FlowReturn;
+            OriginalEdge.PipeSegment.PressureGradientSupply = PressureGradientSupply;
+            OriginalEdge.PipeSegment.PressureGradientReturn = PressureGradientReturn;
+            OriginalEdge.PipeSegment.VelocitySupply = VelocitySupply;
+            OriginalEdge.PipeSegment.VelocityReturn = VelocityReturn;
+            OriginalEdge.PipeSegment.UtilizationRate = UtilizationRate;
         }
     }
 }

@@ -45,13 +45,9 @@ namespace DimensioneringV2.Services
                     var (getter, setter) = props[i];
                     setter(edge, downstreamSums[i]);
                 }
-
-                //totalBuildings += buildingsFromNeighbor;
-                //edge.PipeSegment.NumberOfBuildingsSupplied = buildingsFromNeighbor;
             }
 
             //If this is a leaf node, set the number of buildings supplied to the connected value
-
             if (totalSums.All(sum => sum == 0) && graph.AdjacentEdges(node).Count() == 1)
             {
                 for (int i = 0; i < props.Count; i++)

@@ -1,4 +1,6 @@
 ﻿using DimensioneringV2.BruteForceOptimization;
+using DimensioneringV2.GraphModel;
+
 using QuikGraph;
 using QuikGraph.Algorithms;
 
@@ -12,50 +14,60 @@ namespace DimensioneringV2.Services.SubGraphs
 {
     internal class CalculateSums
     {
-        internal static double CalculateBFCost(UndirectedGraph<BFNode, BFEdge> graph,
-            List<(
-                Func<BFEdge, dynamic> Getter,
-                Action<BFEdge, dynamic> Setter)> props)
+        internal static List<dynamic> BFCalcBaseSums(
+        UndirectedGraph<BFNode, BFEdge> graph,
+        BFNode node, HashSet<BFNode> visited, 
+        MetaGraph<UndirectedGraph<BFNode, BFEdge>> metaGraph,
+        List<(Func<BFEdge, dynamic> Getter, Action<BFEdge, dynamic> Setter)> props)
         {
-            // Find the root node
-            var rootNode = graph.Vertices.FirstOrDefault(v => v.IsRootNode);
-            if (rootNode == null)
-                throw new System.Exception("Root node not found.");
+            if (visited.Contains(node)) return props.Select(_ => (dynamic)0).ToList();
 
-            var shortestPathTree = new UndirectedGraph<BFNode, BFEdge>();
-            shortestPathTree.AddVertexRange(graph.Vertices);
+            visited.Add(node);
 
-            // Dijkstra's algorithm for shortest paths from the root node
-            var tryGetPaths = graph.ShortestPathsDijkstra(edge => edge.Length, rootNode);
+            List<dynamic> totalSums = props.Select(_ => (dynamic)0).ToList();
 
-            // Add edges to the shortest path tree based on the shortest paths from the root node
-            var query = graph.Vertices.Where(
-                x => graph.AdjacentEdges(x).Count() == 1 &&
-                    graph.AdjacentEdges(x).First().NumberOfBuildingsConnected == 1);
-
-            foreach (var vertex in query)
+            // Traverse downstream nodes recursively
+            foreach (var edge in graph.AdjacentEdges(node))
             {
-                if (tryGetPaths(vertex, out var path))
+                var neighbor = edge.GetOtherVertex(node);
+                var downstreamSums = BFCalcBaseSums(
+                    graph, neighbor, visited, metaGraph, props);
+
+                for (int i = 0; i < props.Count; i++)
                 {
-                    foreach (var edge in path)
-                    {
-                        if (!shortestPathTree.ContainsEdge(edge))
-                        {
-                            shortestPathTree.AddVerticesAndEdge(edge);
-                        }
-                    }
+                    totalSums[i] += downstreamSums[i];
+                }
+
+                for (int i = 0; i < props.Count; i++)
+                {
+                    var (getter, setter) = props[i];
+                    setter(edge, downstreamSums[i]);
                 }
             }
 
-            // Traverse the network and calculate
-            // the sums of all properties as given in the props list
-            // These sums lays the foundation for the hydraulic calculations
-            var visited = new HashSet<BFNode>();
-            BFCalcBaseSums(shortestPathTree, rootNode, visited, props);
+            //If this is a leaf node, set the number of buildings supplied to the connected value
+            if (totalSums.All(sum => sum == 0) && graph.AdjacentEdges(node).Count() == 1)
+            {
+                for (int i = 0; i < props.Count; i++)
+                {
+                    var (getter, setter) = props[i];
+                    var value = getter(graph.AdjacentEdges(node).First());
+                    totalSums[i] = value;
+                    setter(graph.AdjacentEdges(node).First(), value);
+                }
+            }
 
-            BFCalcHydraulics(shortestPathTree);
+            //Inject sums from a connected graph (if any)
+            if (metaGraph.Sums.ContainsKey(node))
+            {
+                var connectedSums = metaGraph.Sums[node];
+                for (int i = 0; i < props.Count; i++)
+                {
+                    totalSums[i] += connectedSums[i];
+                }
+            }
 
-            return shortestPathTree.Edges.Sum(e => e.Price);
+            return totalSums;
         }
     }
 }

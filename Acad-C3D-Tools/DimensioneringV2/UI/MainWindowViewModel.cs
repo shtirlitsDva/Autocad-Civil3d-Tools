@@ -42,6 +42,9 @@ using DimensioneringV2.BruteForceOptimization;
 using Autodesk.AutoCAD.Runtime;
 using DimensioneringV2.GraphUtilities;
 using DimensioneringV2.GraphModel;
+using DimensioneringV2.Services.SubGraphs;
+using System.Collections.Concurrent;
+using DimensioneringV2.SteinerTreeProblem;
 
 namespace DimensioneringV2.UI
 {
@@ -82,8 +85,7 @@ namespace DimensioneringV2.UI
         }
 
         #region CollectFeaturesFromACCommand
-        public RelayCommand CollectFeaturesCommand =>
-            new RelayCommand(CollectFeaturesExecute);
+        public RelayCommand CollectFeaturesCommand => new RelayCommand(CollectFeaturesExecute);
 
         private async void CollectFeaturesExecute()
         {
@@ -376,8 +378,19 @@ namespace DimensioneringV2.UI
                         //it will read the bridge nodes and variance will only
                         //happen at non-bridge nodes
 
+                        var c = new CalculateMetaGraphRecursively();
+                        c.CalculateBaseSumsForMetaGraph(metaGraph, props);
 
+                        ////Temporary code to test the calculation of subgraphs
+                        ////Test looks like passed
+                        //Parallel.ForEach(graph.Edges, edge =>
+                        //{
+                        //    edge.PushBaseSums();
+                        //});
 
+                        //Give BFNodes Id to facilitate Winters algorithm
+                        int id = 0;
+                        foreach (var node in graph.Vertices) node.Id = ++id;
 
                         Parallel.ForEach(subGraphs, subGraph =>
                         {
@@ -386,7 +399,46 @@ namespace DimensioneringV2.UI
 
                             if (result != -1 && result < 10000)
                             {//Use bruteforce
+                                ConcurrentBag<(double result, UndirectedGraph<BFNode, BFEdge> graph)> bag = new();
 
+                                var trees = HCS_SGC_WintersAlgorithm.EnumerateAllSpanningTrees(subGraph);
+
+                                Parallel.ForEach(trees, tree =>
+                                {
+                                    UndirectedGraph<BFNode, BFEdge> spt = 
+                                    new UndirectedGraph<BFNode, BFEdge>();
+
+                                    foreach (var edge in tree) spt.AddVerticesAndEdge(edge);
+
+                                    if (!metaGraph.NodeFlags.ContainsKey(graph)) 
+                                        metaGraph.NodeFlags[graph] = new();
+
+                                    var nodeFlags = metaGraph.NodeFlags[graph];
+
+                                    BFNode? rootNode = nodeFlags.FirstOrDefault(x => x.Value.IsRoot).Key;
+                                    if (rootNode == null)
+                                    {
+                                        Utils.prtDbg("Root node not found.");
+                                        throw new System.Exception("Root node not found.");
+                                    }
+
+                                    var visited = new HashSet<BFNode>();
+                                    CalculateSums.BFCalcBaseSums(spt, rootNode, visited, metaGraph, props);
+
+                                    // Handle result processing for this graph
+                                    var result = HydraulicCalculationsService.CalculateBFCost(spt, props);
+
+                                    bag.Add((result, spt));
+                                });
+
+                                var best = bag.MinBy(x => x.result);
+                                HydraulicCalculationsService.CalculateBFCost(best.graph, props);
+
+                                //Update the original graph with the results from the best result
+                                foreach (var edge in best.graph.Edges)
+                                {
+                                    edge.PushAllResults();
+                                }
                             }
                             else
                             {//Use GA
@@ -443,13 +495,13 @@ namespace DimensioneringV2.UI
                 //Reset the results
                 foreach (var f in graphs.SelectMany(g => g.Edges.Select(e => e.PipeSegment))) f.ResetHydraulicResults();
 
-                await Task.Run(() =>
-                {
-                    foreach (UndirectedGraph<NodeJunction, EdgePipeSegment> graph in graphs)
-                    {
-                        HydraulicCalculationsService.CreateSubGraphs(graph);
-                    }
-                });
+                //await Task.Run(() =>
+                //{
+                //    foreach (UndirectedGraph<NodeJunction, EdgePipeSegment> graph in graphs)
+                //    {
+                //        HydraulicCalculationsService.CreateSubGraphs(graph);
+                //    }
+                //});
             }
             catch (System.Exception ex)
             {

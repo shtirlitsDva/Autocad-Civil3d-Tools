@@ -1,4 +1,5 @@
 ﻿using DimensioneringV2.BruteForceOptimization;
+
 using QuikGraph;
 
 using System;
@@ -19,7 +20,10 @@ namespace DimensioneringV2.GraphModel
             Dictionary<BFNode, SubgraphNodeMetadata>> NodeFlags
         { get; } = new();
 
-        public MetaGraph() {}
+        //Maps nodes to transferable sums
+        internal Dictionary<BFNode, List<dynamic>> Sums { get; } = new();
+
+        public MetaGraph() { }
     }
 
     internal class SubgraphNodeMetadata
