@@ -44,8 +44,6 @@ namespace DimensioneringV2.BruteForceOptimization
         public int Level { get; set; } // Level in the network hierarchy
         public EdgePipeSegment OriginalEdge { get; }
         public int NonBridgeChromosomeIndex { get; internal set; } = -1;
-        public override string ToString() => $"Edge({Source.Id} - {Target.Id})";
-
         public BFEdge([NotNull] BFNode source, [NotNull] BFNode target, EdgePipeSegment edge) : base(source, target)
         {
             OriginalEdge = edge;
@@ -71,6 +69,13 @@ namespace DimensioneringV2.BruteForceOptimization
             OriginalEdge.PipeSegment.VelocitySupply = VelocitySupply;
             OriginalEdge.PipeSegment.VelocityReturn = VelocityReturn;
             OriginalEdge.PipeSegment.UtilizationRate = UtilizationRate;
+        }
+
+        internal void SyncBaseSums(BFEdge edge)
+        {
+            NumberOfBuildingsSupplied = edge.NumberOfBuildingsSupplied;
+            NumberOfUnitsSupplied = edge.NumberOfUnitsSupplied;
+            HeatingDemandSupplied = edge.HeatingDemandSupplied;
         }
     }
 }

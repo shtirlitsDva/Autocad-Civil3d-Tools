@@ -20,8 +20,7 @@ namespace DimensioneringV2.Services
 {
     internal partial class HydraulicCalculationsService
     {
-        
-        private static void BFCalcHydraulics(
+        internal static void BFCalcHydraulics(
             UndirectedGraph<BFNode, BFEdge> graph)
         {
             Parallel.ForEach(graph.Edges, edge =>

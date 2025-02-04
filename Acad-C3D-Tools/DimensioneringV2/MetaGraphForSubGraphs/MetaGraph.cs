@@ -24,6 +24,14 @@ namespace DimensioneringV2.GraphModel
         internal Dictionary<BFNode, List<dynamic>> Sums { get; } = new();
 
         public MetaGraph() { }
+
+        internal IEnumerable<BFNode> GetTerminalsForSubgraph(UndirectedGraph<BFNode, BFEdge> subGraph)
+        {
+            var nodeFlags = NodeFlags[subGraph];
+            var query1 = nodeFlags.Select(x => x.Key).ToList();
+            var query2 = subGraph.Vertices.Where(x => x.IsBuildingNode).ToList();
+            return query1.Concat(query2);
+        }
     }
 
     internal class SubgraphNodeMetadata

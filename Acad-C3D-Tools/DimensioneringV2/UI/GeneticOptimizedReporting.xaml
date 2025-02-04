@@ -17,81 +17,82 @@
             <Style x:Key="RightAlignedTextBlockStyle" TargetType="TextBlock">
                 <Setter Property="HorizontalAlignment" Value="Right" />
             </Style>
-        </ResourceDictionary>
-        <!-- Brute Force card template -->
-        <DataTemplate DataType="{x:Type local:BruteForceGraphCalculationViewModel}">
-            <Border CornerRadius="5" BorderBrush="Gray" BorderThickness="1" Padding="10" Margin="5">
-                <StackPanel>
-                    <TextBlock Text="Brute Force Graph" FontWeight="Bold" />
-                    <TextBlock Text="{Binding Title}" FontStyle="Italic"/>
-                    <Separator Margin="5"/>
+            
+            <!-- Brute Force card template -->
+            <DataTemplate DataType="{x:Type local:BruteForceGraphCalculationViewModel}">
+                <Border CornerRadius="5" BorderBrush="Gray" BorderThickness="1" Padding="10" Margin="5">
+                    <StackPanel>
+                        <TextBlock Text="Brute Force Graph" FontWeight="Bold" />
+                        <TextBlock Text="{Binding Title}" FontStyle="Italic"/>
+                        <Separator Margin="5"/>
 
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Nodes: " FontWeight="Bold"/>
-                        <TextBlock Text="{Binding NodeCount}"/>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Nodes: " FontWeight="Bold"/>
+                            <TextBlock Text="{Binding NodeCount}"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Edges: " FontWeight="Bold"/>
+                            <TextBlock Text="{Binding EdgeCount}"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Spanning Trees: " FontWeight="Bold"/>
+                            <TextBlock Text="{Binding SteinerTreesCount}"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Calculated Trees: " FontWeight="Bold"/>
+                            <TextBlock Text="{Binding CalculatedTrees}"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Cost: " FontWeight="Bold"/>
+                            <TextBlock Text="{Binding Cost, StringFormat={}{0:F3}}"/>
+                        </StackPanel>
                     </StackPanel>
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Edges: " FontWeight="Bold"/>
-                        <TextBlock Text="{Binding EdgeCount}"/>
-                    </StackPanel>
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Spanning Trees: " FontWeight="Bold"/>
-                        <TextBlock Text="{Binding SpanningTreesCount}"/>
-                    </StackPanel>
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Calculated Trees: " FontWeight="Bold"/>
-                        <TextBlock Text="{Binding CalculatedTrees}"/>
-                    </StackPanel>
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Cost: " FontWeight="Bold"/>
-                        <TextBlock Text="{Binding Cost, StringFormat={}{0:F3}}"/>
-                    </StackPanel>
-                </StackPanel>
-            </Border>
-        </DataTemplate>
+                </Border>
+            </DataTemplate>
 
-        <!-- Genetic Algorithm card template -->
-        <DataTemplate DataType="{x:Type local:GeneticAlgorithmCalculationViewModel}">
-            <Border CornerRadius="5" BorderBrush="Gray" BorderThickness="1" Padding="10" Margin="5">
-                <StackPanel>
-                    <TextBlock Text="Genetic Algorithm Graph" FontWeight="Bold"/>
-                    <TextBlock Text="{Binding Title}" FontStyle="Italic"/>
-                    <Separator Margin="5"/>
+            <!-- Genetic Algorithm card template -->
+            <DataTemplate DataType="{x:Type local:GeneticAlgorithmCalculationViewModel}">
+                <Border CornerRadius="5" BorderBrush="Gray" BorderThickness="1" Padding="10" Margin="5">
+                    <StackPanel>
+                        <TextBlock Text="Genetic Algorithm Graph" FontWeight="Bold"/>
+                        <TextBlock Text="{Binding Title}" FontStyle="Italic"/>
+                        <Separator Margin="5"/>
 
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Nodes: " FontWeight="Bold"/>
-                        <TextBlock Text="{Binding NodeCount}"/>
-                    </StackPanel>
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Edges: " FontWeight="Bold"/>
-                        <TextBlock Text="{Binding EdgeCount}"/>
-                    </StackPanel>
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Generation: " FontWeight="Bold"/>
-                        <TextBlock Text="{Binding CurrentGeneration}"/>
-                    </StackPanel>
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="GSLU: " FontWeight="Bold"/>
-                        <TextBlock Text="{Binding GenerationsSinceLastUpdate}"/>
-                    </StackPanel>
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Cost: " FontWeight="Bold"/>
-                        <TextBlock Text="{Binding Cost, StringFormat={}{0:F3}}"/>
-                    </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Nodes: " FontWeight="Bold"/>
+                            <TextBlock Text="{Binding NodeCount}"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Edges: " FontWeight="Bold"/>
+                            <TextBlock Text="{Binding EdgeCount}"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Generation: " FontWeight="Bold"/>
+                            <TextBlock Text="{Binding CurrentGeneration}"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="GSLU: " FontWeight="Bold"/>
+                            <TextBlock Text="{Binding GenerationsSinceLastUpdate}"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Cost: " FontWeight="Bold"/>
+                            <TextBlock Text="{Binding Cost, StringFormat={}{0:F3}}"/>
+                        </StackPanel>
 
-                    <!-- OxyPlot chart for cost -->
-                    <oxy:PlotView Height="150"
+                        <!-- OxyPlot chart for cost -->
+                        <oxy:PlotView Height="150"
                                   Margin="0,5,0,5"
                                   Model="{Binding PlotModel}"/>
 
-                    <!-- Stop button -->
-                    <Button Content="Stop"
+                        <!-- Stop button -->
+                        <Button Content="Stop"
                             HorizontalAlignment="Right"
                             Command="{Binding StopCommand}"
                             Margin="0,10,0,0"/>
-                </StackPanel>
-            </Border>
-        </DataTemplate>
+                    </StackPanel>
+                </Border>
+            </DataTemplate>
+        </ResourceDictionary>
     </Window.Resources>
     <!-- Scrollable list of “cards.” Each item chooses the correct template automatically. -->
     <ScrollViewer VerticalScrollBarVisibility="Auto">

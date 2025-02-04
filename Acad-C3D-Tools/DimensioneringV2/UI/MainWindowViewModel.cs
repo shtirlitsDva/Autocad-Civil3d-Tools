@@ -45,6 +45,7 @@ using DimensioneringV2.GraphModel;
 using DimensioneringV2.Services.SubGraphs;
 using System.Collections.Concurrent;
 using DimensioneringV2.SteinerTreeProblem;
+using System.Threading;
 
 namespace DimensioneringV2.UI
 {
@@ -348,10 +349,10 @@ namespace DimensioneringV2.UI
                 //Init the hydraulic calculation service using current settings
                 HydraulicCalculationService.Initialize();
 
-                //var progressWindow = new GeneticOptimizedReporting();
-                //progressWindow.Show();
-                //GeneticOptimizedReportingContext.VM = (GeneticOptimizedReportingViewModel)progressWindow.DataContext;
-                //GeneticOptimizedReportingContext.VM.Dispatcher = progressWindow.Dispatcher;
+                var reportingWindow = new GeneticOptimizedReporting();
+                reportingWindow.Show();
+                GeneticOptimizedReportingContext.VM = (GeneticOptimizedReportingViewModel)reportingWindow.DataContext;
+                GeneticOptimizedReportingContext.VM.Dispatcher = reportingWindow.Dispatcher;
 
                 await Task.Run(() =>
                 {
@@ -378,8 +379,8 @@ namespace DimensioneringV2.UI
                         //it will read the bridge nodes and variance will only
                         //happen at non-bridge nodes
 
-                        var c = new CalculateMetaGraphRecursively();
-                        c.CalculateBaseSumsForMetaGraph(metaGraph, props);
+                        var c = new CalculateMetaGraphRecursively(metaGraph);
+                        c.CalculateBaseSumsForMetaGraph(props);
 
                         ////Temporary code to test the calculation of subgraphs
                         ////Test looks like passed
@@ -388,51 +389,80 @@ namespace DimensioneringV2.UI
                         //    edge.PushBaseSums();
                         //});
 
-                        //Give BFNodes Id to facilitate Winters algorithm
-                        int id = 0;
-                        foreach (var node in graph.Vertices) node.Id = ++id;
-
-                        Parallel.ForEach(subGraphs, subGraph =>
+                        Parallel.ForEach(subGraphs, (subGraph, state, index) =>
                         {
-                            var result = SpanningTreeCount.CountSpanningTrees(subGraph, new TimeSpan(0, 0, 3));
-                            Utils.prtDbg($"N: {subGraph.VertexCount} E: {subGraph.EdgeCount} ST: {result}");
+                            var terminals = metaGraph.GetTerminalsForSubgraph(subGraph);
 
-                            if (result != -1 && result < 10000)
+                            var result = SteinerTreeEnumerator.EnumerateSteinerTrees(subGraph, terminals, TimeSpan.FromSeconds(30));
+                            Utils.prtDbg($"N: {subGraph.VertexCount} E: {subGraph.EdgeCount} STs: {result.Count}");
+
+                            if (result.Count > 0)
                             {//Use bruteforce
+                                var bfVM = new BruteForceGraphCalculationViewModel
+                                {
+                                    // Some descriptive title
+                                    Title = $"Brute Force Subgraph #{index + 1}",
+                                    NodeCount = subGraph.VertexCount,
+                                    EdgeCount = subGraph.EdgeCount,
+                                    SteinerTreesCount = result.Count.ToString(), // from CountSpanningTrees(subGraph)
+                                    CalculatedTrees = 0,         // will increment as we go
+                                    Cost = 0                     // will set once we know best
+                                };
+
+                                GeneticOptimizedReportingContext.VM.Dispatcher.Invoke(() =>
+                                {
+                                    GeneticOptimizedReportingContext.VM.GraphCalculations.Add(bfVM);
+                                });
+
+                                var nodeFlags = metaGraph.NodeFlags[subGraph];
+
+                                BFNode? rootNode = nodeFlags.FirstOrDefault(x => x.Value.IsRoot).Key;
+                                if (rootNode == null)
+                                {
+                                    Utils.prtDbg("Root node not found.");
+                                    throw new System.Exception("Root node not found.");
+                                }
+
                                 ConcurrentBag<(double result, UndirectedGraph<BFNode, BFEdge> graph)> bag = new();
 
-                                var trees = HCS_SGC_WintersAlgorithm.EnumerateAllSpanningTrees(subGraph);
+                                long enumeratedCount = 0;
 
-                                Parallel.ForEach(trees, tree =>
+                                Parallel.ForEach(result, tree =>
                                 {
-                                    UndirectedGraph<BFNode, BFEdge> spt = 
-                                    new UndirectedGraph<BFNode, BFEdge>();
-
-                                    foreach (var edge in tree) spt.AddVerticesAndEdge(edge);
-
-                                    if (!metaGraph.NodeFlags.ContainsKey(graph)) 
-                                        metaGraph.NodeFlags[graph] = new();
-
-                                    var nodeFlags = metaGraph.NodeFlags[graph];
-
-                                    BFNode? rootNode = nodeFlags.FirstOrDefault(x => x.Value.IsRoot).Key;
-                                    if (rootNode == null)
+                                    var spt = new UndirectedGraph<BFNode, BFEdge>();
+                                    foreach (var edge in tree)
                                     {
-                                        Utils.prtDbg("Root node not found.");
-                                        throw new System.Exception("Root node not found.");
+                                        spt.AddVertex(edge.Source);
+                                        spt.AddVertex(edge.Target);
                                     }
+                                    //Sync sums for the bridge edges
+                                    foreach (var edge in tree) spt.AddEdgeCopy(edge);
 
+                                    //Calculate sums again for the subgraph
                                     var visited = new HashSet<BFNode>();
                                     CalculateSums.BFCalcBaseSums(spt, rootNode, visited, metaGraph, props);
-
-                                    // Handle result processing for this graph
-                                    var result = HydraulicCalculationsService.CalculateBFCost(spt, props);
+                                    HydraulicCalculationsService.BFCalcHydraulics(spt);
+                                    var result = spt.Edges.Sum(x => x.Price);
 
                                     bag.Add((result, spt));
+
+                                    Interlocked.Increment(ref enumeratedCount);
+
+                                    long countCopy = enumeratedCount;
+
+                                    GeneticOptimizedReportingContext.VM.Dispatcher.Invoke(() =>
+                                    {
+                                        bfVM.CalculatedTrees = countCopy;
+                                    });
                                 });
 
                                 var best = bag.MinBy(x => x.result);
-                                HydraulicCalculationsService.CalculateBFCost(best.graph, props);
+
+                                GeneticOptimizedReportingContext.VM.Dispatcher.Invoke(() =>
+                                {
+                                    bfVM.CalculatedTrees = enumeratedCount;
+                                    bfVM.Cost = best.result;
+                                });
 
                                 //Update the original graph with the results from the best result
                                 foreach (var edge in best.graph.Edges)

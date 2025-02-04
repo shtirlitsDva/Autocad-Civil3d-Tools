@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace DimensioneringV2.UI
 {
-    public partial class GraphCalculationBaseViewModel : ObservableObject
+    public abstract partial class GraphCalculationBaseViewModel : ObservableObject
     {
         [ObservableProperty]
         private string title;

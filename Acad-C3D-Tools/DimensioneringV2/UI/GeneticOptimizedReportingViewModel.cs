@@ -11,7 +11,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
 using DimensioneringV2.BruteForceOptimization;
-using DimensioneringV2.Genetic;
+using DimensioneringV2.UI;
 
 using GeneticSharp;
 
@@ -24,9 +24,10 @@ using System.Threading;
 
 namespace DimensioneringV2.UI
 {
-    internal class GeneticOptimizedReportingViewModel : ObservableObject
+    internal partial class GeneticOptimizedReportingViewModel : ObservableObject
     {
+        internal Dispatcher? Dispatcher { get; set; }
         [ObservableProperty]
-        private ObservableCollection<GarphCalculationBaseViewModel> graphCalculations = new();
+        private ObservableCollection<GraphCalculationBaseViewModel> graphCalculations = new();
     }
 }

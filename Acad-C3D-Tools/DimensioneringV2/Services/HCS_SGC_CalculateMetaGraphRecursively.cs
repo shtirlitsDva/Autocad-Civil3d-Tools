@@ -15,13 +15,15 @@ namespace DimensioneringV2.Services.SubGraphs
     internal class CalculateMetaGraphRecursively
     {
         private MetaGraph<UndirectedGraph<BFNode, BFEdge>> _metaGraph;
-        internal void CalculateBaseSumsForMetaGraph(
-            MetaGraph<UndirectedGraph<BFNode, BFEdge>> metaGraph,
-            List<(Func<BFEdge, dynamic> Getter, Action<BFEdge, dynamic> Setter)> props
-            )
-        {
-            _metaGraph = metaGraph;
 
+        public CalculateMetaGraphRecursively(MetaGraph<UndirectedGraph<BFNode, BFEdge>> metaGraph)
+        {
+            this._metaGraph = metaGraph;
+        }
+
+        internal void CalculateBaseSumsForMetaGraph(
+            List<(Func<BFEdge, dynamic> Getter, Action<BFEdge, dynamic> Setter)> props)
+        {
             foreach (var root in _metaGraph.Roots)
             {
                 Calculate(root, props);

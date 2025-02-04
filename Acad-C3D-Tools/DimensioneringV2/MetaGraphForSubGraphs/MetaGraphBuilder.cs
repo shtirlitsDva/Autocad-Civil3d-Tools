@@ -109,8 +109,8 @@ namespace DimensioneringV2.GraphModel
             }
 
             // Update whichever flags are provided
-            if (isRoot.HasValue) nodeMeta.IsRoot = isRoot.Value;
-            if (isLeaf.HasValue) nodeMeta.IsLeaf = isLeaf.Value;
+            nodeMeta.IsRoot = isRoot ?? false;
+            nodeMeta.IsLeaf = isLeaf ?? false;
         }
     }
 }
