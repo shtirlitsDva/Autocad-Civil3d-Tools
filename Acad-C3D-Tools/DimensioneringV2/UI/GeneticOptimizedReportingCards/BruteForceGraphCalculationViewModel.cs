@@ -14,7 +14,10 @@ namespace DimensioneringV2.UI
         private string? nonBridgesCount;
 
         [ObservableProperty]
-        private long calculatedTrees;
+        private int steinerTreesFound; 
+
+        [ObservableProperty]
+        private int calculatedTrees;
 
         [ObservableProperty]
         private double cost;

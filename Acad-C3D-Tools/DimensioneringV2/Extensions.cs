@@ -131,9 +131,8 @@ namespace DimensioneringV2
         }
         public static void AddEdgeCopy(this UndirectedGraph<BFNode, BFEdge> graph, BFEdge edge)
         {
-            var source = graph.Vertices.FirstOrDefault(x => x.OriginalNodeJunction == edge.Source.OriginalNodeJunction);
-            var target = graph.Vertices.FirstOrDefault(x => x.OriginalNodeJunction == edge.Target.OriginalNodeJunction);
-            graph.AddEdge(new BFEdge(source, target, edge.OriginalEdge));
+            var newEdge = new BFEdge(edge.Source, edge.Target, edge.OriginalEdge);
+            graph.AddVerticesAndEdge(newEdge);
         }
         public static void AddEdgeCopyAndSyncSums(this UndirectedGraph<BFNode, BFEdge> graph, BFEdge edge)
         {

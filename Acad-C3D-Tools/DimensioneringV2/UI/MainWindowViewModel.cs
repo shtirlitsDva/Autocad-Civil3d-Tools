@@ -395,11 +395,14 @@ namespace DimensioneringV2.UI
 
                             var nonbridges = FindBridges.FindNonBridges(subGraph);
 
-                            ////var result = SteinerTreeEnumeratorV2.EnumerateSteinerTrees(subGraph, terminals, TimeSpan.FromSeconds(30));
-                            //Utils.prtDbg($"N: {subGraph.VertexCount} E: {subGraph.EdgeCount} STs: {solutions.Count}");
+                            Utils.prtDbg($"Idx: {index} N: {subGraph.VertexCount} E: {subGraph.EdgeCount}");
 
-                            if (nonbridges.Count <= 30)
+                            if (nonbridges.Count <= 50)
                             {//Use bruteforce
+                                var stev3 = new SteinerTreesEnumeratorV3(
+                                    subGraph, terminals.ToHashSet(), TimeSpan.FromSeconds(300));
+                                var solutions = stev3.Enumerate();
+
                                 var bfVM = new BruteForceGraphCalculationViewModel
                                 {
                                     // Some descriptive title
@@ -407,6 +410,7 @@ namespace DimensioneringV2.UI
                                     NodeCount = subGraph.VertexCount,
                                     EdgeCount = subGraph.EdgeCount,
                                     NonBridgesCount = nonbridges.Count.ToString(),
+                                    SteinerTreesFound = solutions.Count,       // will be set later
                                     CalculatedTrees = 0,         // will increment as we go
                                     Cost = 0                     // will set once we know best
                                 };
@@ -427,25 +431,25 @@ namespace DimensioneringV2.UI
 
                                 ConcurrentBag<(double result, UndirectedGraph<BFNode, BFEdge> graph)> bag = new();
 
-                                long enumeratedCount = 0;
-
-
+                                int enumeratedCount = 0;
 
                                 Parallel.ForEach(solutions, solution =>
                                 {
-                                    var spt = stpev2.SolutionToGraph(solution);
+                                    var st = new UndirectedGraph<BFNode, BFEdge>();
+                                    foreach (var edge in solution)
+                                        st.AddEdgeCopy(edge);
 
                                     //Calculate sums again for the subgraph
                                     var visited = new HashSet<BFNode>();
-                                    CalculateSums.BFCalcBaseSums(spt, rootNode, visited, metaGraph, props);
-                                    HydraulicCalculationsService.BFCalcHydraulics(spt);
-                                    var result = spt.Edges.Sum(x => x.Price);
+                                    CalculateSums.BFCalcBaseSums(st, rootNode, visited, metaGraph, props);
+                                    HydraulicCalculationsService.BFCalcHydraulics(st);
+                                    var result = st.Edges.Sum(x => x.Price);
 
-                                    bag.Add((result, spt));
+                                    bag.Add((result, st));
 
                                     Interlocked.Increment(ref enumeratedCount);
 
-                                    long countCopy = enumeratedCount;
+                                    int countCopy = enumeratedCount;
 
                                     GeneticOptimizedReportingContext.VM.Dispatcher.Invoke(() =>
                                     {
@@ -470,21 +474,38 @@ namespace DimensioneringV2.UI
                             else
                             {//Use GA
 
+                                var gaVM = new GeneticAlgorithmCalculationViewModel
+                                {
+                                    // Some descriptive title
+                                    Title = $"Genetic Algorithm Subgraph #{index + 1}",
+                                    NodeCount = subGraph.VertexCount,
+                                    EdgeCount = subGraph.EdgeCount,
+                                    CurrentGeneration = 0,         // will increment as we go
+                                    GenerationsSinceLastUpdate = 0, // will increment as we go
+                                    Cost = 0,                     // will set once we know best
+                                };
+
+                                GeneticOptimizedReportingContext.VM.Dispatcher.Invoke(() =>
+                                {
+                                    GeneticOptimizedReportingContext.VM.GraphCalculations.Add(gaVM);
+                                });
+
+
+
+                                HydraulicCalculationsService.CalculateGAAnalysis(
+                                    graph,
+                                    props,
+                                    (generation, fitness) =>
+                                    {
+                                        progressWindow.Dispatcher.Invoke(() =>
+                                        {
+                                            GeneticReportingContext.VM.UpdatePlot(generation, fitness);
+                                        });
+                                    },
+                                    GeneticReportingContext.VM.CancellationToken
+                                    );
                             }
                         });
-
-                        //HydraulicCalculationsService.CalculateGAAnalysis(
-                        //    graph,
-                        //    props,
-                        //    (generation, fitness) =>
-                        //    {
-                        //        progressWindow.Dispatcher.Invoke(() =>
-                        //        {
-                        //            GeneticReportingContext.VM.UpdatePlot(generation, fitness);
-                        //        });
-                        //    },
-                        //    GeneticReportingContext.VM.CancellationToken
-                        //    );
                     }
                 });
             }

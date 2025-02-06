@@ -36,7 +36,11 @@
                         </StackPanel>
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="Non bridges: " FontWeight="Bold"/>
-                            <TextBlock Text="{Binding SteinerTreesCount}"/>
+                            <TextBlock Text="{Binding NonBridgesCount}"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Steiner Trees found: " FontWeight="Bold"/>
+                            <TextBlock Text="{Binding SteinerTreesFound}"/>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="Calculated Trees: " FontWeight="Bold"/>
@@ -44,7 +48,7 @@
                         </StackPanel>
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="Cost: " FontWeight="Bold"/>
-                            <TextBlock Text="{Binding Cost, StringFormat={}{0:F3}}"/>
+                            <TextBlock Text="{Binding Cost, StringFormat={}{0:N0}, ConverterCulture=da-DK}"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>
@@ -76,7 +80,7 @@
                         </StackPanel>
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="Cost: " FontWeight="Bold"/>
-                            <TextBlock Text="{Binding Cost, StringFormat={}{0:F3}}"/>
+                            <TextBlock Text="{Binding Cost, StringFormat={}{0:N0}, ConverterCulture=da-DK}"/>
                         </StackPanel>
 
                         <!-- OxyPlot chart for cost -->
