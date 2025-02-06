@@ -11,7 +11,7 @@ namespace DimensioneringV2.UI
     public partial class BruteForceGraphCalculationViewModel : GraphCalculationBaseViewModel
     {
         [ObservableProperty]
-        private string? steinerTreesCount;
+        private string? nonBridgesCount;
 
         [ObservableProperty]
         private long calculatedTrees;

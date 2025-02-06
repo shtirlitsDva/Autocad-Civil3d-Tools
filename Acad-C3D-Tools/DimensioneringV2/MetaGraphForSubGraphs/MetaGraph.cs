@@ -32,6 +32,10 @@ namespace DimensioneringV2.GraphModel
             var query2 = subGraph.Vertices.Where(x => x.IsBuildingNode).ToList();
             return query1.Concat(query2);
         }
+        internal BFNode GetRootForSubgraph(UndirectedGraph<BFNode, BFEdge> subGraph)
+        {
+            return NodeFlags[subGraph].First(x => x.Value.IsRoot).Key;
+        }
     }
 
     internal class SubgraphNodeMetadata

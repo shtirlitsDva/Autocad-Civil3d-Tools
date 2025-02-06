@@ -393,13 +393,12 @@ namespace DimensioneringV2.UI
                         {
                             var terminals = metaGraph.GetTerminalsForSubgraph(subGraph);
 
-                            var stpev2 = new SteinerTreeEnumeratorV2(subGraph, terminals, TimeSpan.FromSeconds(10));
-                            var solutions = stpev2.EnumerateAll();
+                            var nonbridges = FindBridges.FindNonBridges(subGraph);
 
-                            //var result = SteinerTreeEnumeratorV2.EnumerateSteinerTrees(subGraph, terminals, TimeSpan.FromSeconds(30));
-                            Utils.prtDbg($"N: {subGraph.VertexCount} E: {subGraph.EdgeCount} STs: {solutions.Count}");
+                            ////var result = SteinerTreeEnumeratorV2.EnumerateSteinerTrees(subGraph, terminals, TimeSpan.FromSeconds(30));
+                            //Utils.prtDbg($"N: {subGraph.VertexCount} E: {subGraph.EdgeCount} STs: {solutions.Count}");
 
-                            if (solutions.Count > 0)
+                            if (nonbridges.Count <= 30)
                             {//Use bruteforce
                                 var bfVM = new BruteForceGraphCalculationViewModel
                                 {
@@ -407,7 +406,7 @@ namespace DimensioneringV2.UI
                                     Title = $"Brute Force Subgraph #{index + 1}",
                                     NodeCount = subGraph.VertexCount,
                                     EdgeCount = subGraph.EdgeCount,
-                                    SteinerTreesCount = solutions.Count.ToString(), // from CountSpanningTrees(subGraph)
+                                    NonBridgesCount = nonbridges.Count.ToString(),
                                     CalculatedTrees = 0,         // will increment as we go
                                     Cost = 0                     // will set once we know best
                                 };
@@ -419,7 +418,7 @@ namespace DimensioneringV2.UI
 
                                 var nodeFlags = metaGraph.NodeFlags[subGraph];
 
-                                BFNode? rootNode = nodeFlags.FirstOrDefault(x => x.Value.IsRoot).Key;
+                                BFNode? rootNode = metaGraph.GetRootForSubgraph(subGraph);
                                 if (rootNode == null)
                                 {
                                     Utils.prtDbg("Root node not found.");
@@ -429,6 +428,8 @@ namespace DimensioneringV2.UI
                                 ConcurrentBag<(double result, UndirectedGraph<BFNode, BFEdge> graph)> bag = new();
 
                                 long enumeratedCount = 0;
+
+
 
                                 Parallel.ForEach(solutions, solution =>
                                 {
