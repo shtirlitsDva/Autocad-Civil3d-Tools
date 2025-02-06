@@ -393,10 +393,13 @@ namespace DimensioneringV2.UI
                         {
                             var terminals = metaGraph.GetTerminalsForSubgraph(subGraph);
 
-                            var result = SteinerTreeEnumerator.EnumerateSteinerTrees(subGraph, terminals, TimeSpan.FromSeconds(30));
-                            Utils.prtDbg($"N: {subGraph.VertexCount} E: {subGraph.EdgeCount} STs: {result.Count}");
+                            var stpev2 = new SteinerTreeEnumeratorV2(subGraph, terminals, TimeSpan.FromSeconds(10));
+                            var solutions = stpev2.EnumerateAll();
 
-                            if (result.Count > 0)
+                            //var result = SteinerTreeEnumeratorV2.EnumerateSteinerTrees(subGraph, terminals, TimeSpan.FromSeconds(30));
+                            Utils.prtDbg($"N: {subGraph.VertexCount} E: {subGraph.EdgeCount} STs: {solutions.Count}");
+
+                            if (solutions.Count > 0)
                             {//Use bruteforce
                                 var bfVM = new BruteForceGraphCalculationViewModel
                                 {
@@ -404,7 +407,7 @@ namespace DimensioneringV2.UI
                                     Title = $"Brute Force Subgraph #{index + 1}",
                                     NodeCount = subGraph.VertexCount,
                                     EdgeCount = subGraph.EdgeCount,
-                                    SteinerTreesCount = result.Count.ToString(), // from CountSpanningTrees(subGraph)
+                                    SteinerTreesCount = solutions.Count.ToString(), // from CountSpanningTrees(subGraph)
                                     CalculatedTrees = 0,         // will increment as we go
                                     Cost = 0                     // will set once we know best
                                 };
@@ -427,16 +430,9 @@ namespace DimensioneringV2.UI
 
                                 long enumeratedCount = 0;
 
-                                Parallel.ForEach(result, tree =>
+                                Parallel.ForEach(solutions, solution =>
                                 {
-                                    var spt = new UndirectedGraph<BFNode, BFEdge>();
-                                    foreach (var edge in tree)
-                                    {
-                                        spt.AddVertex(edge.Source);
-                                        spt.AddVertex(edge.Target);
-                                    }
-                                    //Sync sums for the bridge edges
-                                    foreach (var edge in tree) spt.AddEdgeCopy(edge);
+                                    var spt = stpev2.SolutionToGraph(solution);
 
                                     //Calculate sums again for the subgraph
                                     var visited = new HashSet<BFNode>();

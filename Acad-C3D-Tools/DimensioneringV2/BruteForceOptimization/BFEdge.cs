@@ -18,6 +18,7 @@ namespace DimensioneringV2.BruteForceOptimization
 {
     internal class BFEdge : Edge<BFNode>, IHydraulicSegment
     {
+        public int Id { get; set; }
         public double Price { get => PipeDim.Price_m * Length + PipeDim.Price_stk(SegmentType); }
         public bool IsRootNode { get => OriginalEdge.PipeSegment.IsRootNode; }
         public double Length { get => OriginalEdge.PipeSegment.Length; }
@@ -77,5 +78,8 @@ namespace DimensioneringV2.BruteForceOptimization
             NumberOfUnitsSupplied = edge.NumberOfUnitsSupplied;
             HeatingDemandSupplied = edge.HeatingDemandSupplied;
         }
+
+        public override string ToString() =>
+            $"BFEdge(Id={Id}, {Source.Id}--{Target.Id})";
     }
 }

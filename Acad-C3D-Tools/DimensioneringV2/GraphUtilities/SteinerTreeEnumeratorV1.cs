@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace DimensioneringV2.GraphUtilities
 {
-    internal static class SteinerTreeEnumerator
+    internal static class SteinerTreeEnumeratorV1
     {
         /// <summary>
         /// Enumerates *all* subgraphs that contain the given terminals in a connected component,

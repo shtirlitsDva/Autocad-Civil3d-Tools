@@ -35,7 +35,7 @@
                             <TextBlock Text="{Binding EdgeCount}"/>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="Spanning Trees: " FontWeight="Bold"/>
+                            <TextBlock Text="Steiner Trees: " FontWeight="Bold"/>
                             <TextBlock Text="{Binding SteinerTreesCount}"/>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal">

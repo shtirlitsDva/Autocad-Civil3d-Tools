@@ -5100,5 +5100,323 @@ namespace IntersectUtilities
             }
             Console.WriteLine("Lines created successfully.");
         }
+
+        /// <command>CONVERT3DPOLIESTOPOLIESPSS</command>
+        /// <summary>
+        /// Converts 3D polylines to polylines and copies property sets.
+        /// </summary>
+        /// <category>Polylines</category>
+        [CommandMethod("CONVERT3DPOLIESTOPOLIESPSS")]
+        public void convert3dpoliestopoliespss()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            prdDbg("Remember that the PropertySets need be defined in advance!!!");
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var p3ds = localDb.HashSetOfType<Polyline3d>(tx);
+                    editor.WriteMessage($"\nNr. of polylines3d: {p3ds.Count}");
+
+                    foreach (var p3d in p3ds)
+                    {
+                        var verts = p3d.GetVertices(tx);
+
+                        Polyline pline = new Polyline(verts.Length);
+
+                        foreach (var vert in verts)
+                        {
+                            pline.AddVertexAt(pline.NumberOfVertices, vert.Position.To2d(), 0, 0, 0);
+                        }
+
+                        pline.AddEntityToDbModelSpace(localDb);
+
+                        pline.Layer = p3d.Layer;
+                        pline.Color = p3d.Color;
+
+                        PropertySetManager.CopyAllProperties(p3d, pline);
+                    }
+
+                    foreach (var line in p3ds)
+                    {
+                        line.CheckOrOpenForWrite();
+                        line.Erase(true);
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    editor.WriteMessage("\n" + ex.ToString());
+                    tx.Abort();
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        /// <command>SETGLOBALWIDTH</command>
+        /// <summary>
+        /// Reads diameter information from a CSV file and sets the GLOBAL width of polylines.
+        /// Intented for setting global widths in LER 2D drawings.
+        /// </summary>
+        /// <category>Polylines</category>
+        [CommandMethod("SETGLOBALWIDTH")]
+        public void setglobalwidth()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region BlockTables
+                    // Open the Block table for read
+                    BlockTable bt = tx.GetObject(localDb.BlockTableId,
+                                                       OpenMode.ForRead) as BlockTable;
+                    // Open the Block table record Model space for write
+                    BlockTableRecord modelSpace = tx.GetObject(bt[BlockTableRecord.ModelSpace],
+                                                          OpenMode.ForWrite) as BlockTableRecord;
+                    #endregion
+
+                    #region Read Csv Data for Layers
+                    //Establish the pathnames to files
+                    //Files should be placed in a specific folder on desktop
+                    string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
+
+                    System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
+                    #endregion
+
+                    #region Load linework for analysis
+                    prdDbg("\nLoading linework for analyzing...");
+
+                    HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx);
+                    editor.WriteMessage($"\nNr. of polylines: {plines.Count}");
+                    #endregion
+
+                    #region Read diameter and set width
+                    int layerNameNotDefined = 0;
+                    int layerNameIgnored = 0;
+                    int layerDiameterDefMissing = 0;
+                    int findDescriptionPartsFailed = 0;
+                    foreach (Polyline pline in plines)
+                    {
+                        //Set color to by layer
+                        pline.CheckOrOpenForWrite();
+                        pline.ColorIndex = 256;
+
+                        //Check if pline's layer exists in krydsninger
+                        string nameInFile = ReadStringParameterFromDataTable(pline.Layer, dtKrydsninger, "Navn", 0);
+                        if (nameInFile.IsNoE())
+                        {
+                            layerNameNotDefined++;
+                            continue;
+                        }
+
+                        //Check if pline's layer is IGNOREd
+                        string typeInFile = ReadStringParameterFromDataTable(pline.Layer, dtKrydsninger, "Type", 0);
+                        if (typeInFile == "IGNORE")
+                        {
+                            layerNameIgnored++;
+                            continue;
+                        }
+
+                        //Check if diameter information exists
+                        string diameterDef = ReadStringParameterFromDataTable(pline.Layer,
+                                dtKrydsninger, "Diameter", 0);
+                        if (diameterDef.IsNoE())
+                        {
+                            layerDiameterDefMissing++;
+                            continue;
+                        }
+
+                        //var list = FindDescriptionParts(diameterDef);
+                        var parts = FindPropertySetParts(diameterDef);
+                        if (parts.setName == default && parts.propertyName == default)
+                        {
+                            findDescriptionPartsFailed++;
+                            continue;
+                        }
+                        //int diaOriginal = ReadIntPropertyValue(tables, pline.Id, parts[0], parts[1]);
+                        object diaOriginal = PropertySetManager.ReadNonDefinedPropertySetObject(
+                            pline, parts.setName, parts.propertyName);
+
+                        double dia = default;
+
+                        switch (diaOriginal)
+                        {
+                            case null:
+                                dia = 90;
+                                break;
+                            case int integer:
+                                dia = Convert.ToDouble(integer);
+                                break;
+                            case double d:
+                                dia = d;
+                                break;
+                            case string s:
+                                if (s.IsNoE()) s = "90";
+                                try
+                                {
+                                    dia = Convert.ToDouble(s);
+                                }
+                                catch (System.Exception)
+                                {
+                                    prdDbg($"Fails: {s}");
+                                    throw;
+                                }
+                                break;
+                            default:
+                                dia = 90;
+                                break;
+                        }
+
+                        prdDbg(pline.Handle.ToString() + ": " + dia.ToString());
+
+                        //Quick hack to guard against 999 diameter for GAS
+                        if (dia == 999) dia = 100;
+
+                        dia = dia / 1000;
+
+                        if (dia == 0) dia = 0.09;
+
+                        pline.ConstantWidth = dia;
+                    }
+                    #endregion
+
+                    #region Reporting
+
+                    prdDbg($"Layer name not defined in Krydsninger.csv for {layerNameNotDefined} polyline(s).");
+                    prdDbg($"Layer name is set to IGNORE in Krydsninger.csv for {layerNameIgnored} polyline(s).");
+                    prdDbg($"Diameter definition is not defined in Krydsninger.csv for {layerDiameterDefMissing} polyline(s).");
+                    prdDbg($"Getting diameter definition parts failed for {findDescriptionPartsFailed} polyline(s).");
+                    #endregion
+
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        /// <command>CREATELABELSFOR2D</command>
+        /// <summary>
+        /// Creates text labels for polylines based on label definitions specified in Krydsninger.csv.
+        /// Intented for displaying text labels in LER 2D drawings.
+        /// </summary>
+        /// <category>Polylines</category>
+        [CommandMethod("CREATELABELSFOR2D")]
+        public void createlabelsfor2d()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            //Settings
+            const double labelOffset = 0.375;
+            const double labelHeight = 0.75;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Read krydsninger
+                    string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
+                    System.Data.DataTable dtK = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
+                    if (dtK == null) throw new System.Exception("Failed to read Krydsninger.csv!");
+                    #endregion
+
+                    #region Create layer for labels
+                    string labelLayer = "0-LABELS";
+                    localDb.CheckOrCreateLayer(labelLayer);
+                    #endregion
+
+                    LayerTable lt = localDb.LayerTableId.Go<LayerTable>(tx);
+
+                    HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx);
+                    var layerGroups = plines.GroupBy(x => x.Layer);
+
+                    foreach (var group in layerGroups)
+                    {
+                        string layerName = group.Key;
+
+                        string labelRecipe =
+                            ReadStringParameterFromDataTable(layerName, dtK, "Label", 0);
+
+                        if (labelRecipe.IsNoE())
+                        {
+                            prdDbg($"Layer {layerName} does not have a recipe for labels defined! Skipping...");
+                            continue;
+                        }
+
+                        LayerTableRecord ltr = lt[layerName].Go<LayerTableRecord>(tx);
+
+                        //Create labels
+                        foreach (var pline in group)
+                        {
+                            //Filter plines to avoid overpopulation
+                            if (pline.Length < 5.0) continue;
+
+                            //Compose label
+                            string label = ConstructStringFromPSByRecipe(pline, labelRecipe);
+
+                            //quick hack
+                            if (
+                                label == "ø0 - " ||
+                                label == "ø0" ||
+                                label == "ø - " ||
+                                label == "ø0 - Uoplyst") continue;
+
+                            //Create text object
+                            DBText textEnt = new DBText();
+                            textEnt.Layer = labelLayer;
+                            textEnt.Color = ltr.Color;
+                            textEnt.TextString = label;
+                            textEnt.Height = labelHeight;
+
+                            //Manage position
+                            Point3d cen = pline.GetPointAtDist(pline.Length / 2);
+                            var deriv = pline.GetFirstDerivative(cen);
+                            var perp = deriv.GetPerpendicularVector();
+                            Point3d loc = cen + perp * labelOffset;
+
+                            Vector3d normal = new Vector3d(0.0, 0.0, 1.0);
+                            double rotation = UtilsCommon.Utils.GetRotation(deriv, normal);
+
+                            textEnt.HorizontalMode = TextHorizontalMode.TextCenter;
+                            textEnt.VerticalMode = TextVerticalMode.TextBottom;
+
+                            textEnt.Rotation = rotation;
+                            textEnt.AlignmentPoint = loc;
+
+                            textEnt.AddEntityToDbModelSpace(localDb);
+                        }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
     }
 }

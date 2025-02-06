@@ -137,12 +137,10 @@ namespace DimensioneringV2
         }
         public static void AddEdgeCopyAndSyncSums(this UndirectedGraph<BFNode, BFEdge> graph, BFEdge edge)
         {
-            var source = graph.Vertices.FirstOrDefault(x => x.OriginalNodeJunction == edge.Source.OriginalNodeJunction);
-            var target = graph.Vertices.FirstOrDefault(x => x.OriginalNodeJunction == edge.Target.OriginalNodeJunction);
-            var newEdge = new BFEdge(source, target, edge.OriginalEdge);
+            var newEdge = new BFEdge(edge.Source, edge.Target, edge.OriginalEdge);
 
             newEdge.SyncBaseSums(edge);
-            graph.AddEdge(newEdge);
+            graph.AddVerticesAndEdge(newEdge);
         }
         public static void InitNonBridgeChromosomeIndex(this UndirectedGraph<BFNode, BFEdge> graph)
         {
