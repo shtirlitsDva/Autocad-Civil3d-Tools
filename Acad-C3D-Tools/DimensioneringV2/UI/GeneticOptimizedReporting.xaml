@@ -71,6 +71,10 @@
                             <TextBlock Text="{Binding EdgeCount}"/>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Finding seed: " FontWeight="Bold"/>
+                            <TextBlock Text="{Binding BruteForceCount}"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal">
                             <TextBlock Text="Generation: " FontWeight="Bold"/>
                             <TextBlock Text="{Binding CurrentGeneration}"/>
                         </StackPanel>

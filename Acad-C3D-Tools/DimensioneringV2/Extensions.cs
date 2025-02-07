@@ -108,7 +108,7 @@ namespace DimensioneringV2
 
             return bfGraph;
         }
-        public static UndirectedGraph<BFNode, BFEdge> Copy(this UndirectedGraph<BFNode, BFEdge> graph)
+        public static UndirectedGraph<BFNode, BFEdge> CopyWithNewVerticesAndEdges(this UndirectedGraph<BFNode, BFEdge> graph)
         {
             var bfGraph = new UndirectedGraph<BFNode, BFEdge>();
             var nodeMap = new Dictionary<BFNode, BFNode>();
@@ -128,6 +128,20 @@ namespace DimensioneringV2
             }
 
             return bfGraph;
+        }
+        public static UndirectedGraph<BFNode, BFEdge> CopyWithNewEdges(this UndirectedGraph<BFNode, BFEdge> graph)
+        {
+            var graphCopy = new UndirectedGraph<BFNode, BFEdge>();
+            
+            // Copy edges
+            foreach (var edge in graph.Edges)
+            {
+                var edgeCopy = new BFEdge(edge.Source, edge.Target, edge.OriginalEdge);
+                edgeCopy.NonBridgeChromosomeIndex = edge.NonBridgeChromosomeIndex;
+                graphCopy.AddVerticesAndEdge(edgeCopy);
+            }
+
+            return graphCopy;
         }
         public static void AddEdgeCopy(this UndirectedGraph<BFNode, BFEdge> graph, BFEdge edge)
         {
@@ -192,6 +206,25 @@ namespace DimensioneringV2
             return graph.Vertices
                 .Where(v => graph.AdjacentEdges(v).Count() == 1 && v.IsBuildingNode) // Filter building leaves
                 .All(visited.Contains); // Ensure all are connected
+        }
+        public static bool AreTerminalNodesConnected(
+            this UndirectedGraph<BFNode, BFEdge> graph,
+            BFNode root, HashSet<BFNode> terminals)
+        {
+            var visited = new HashSet<BFNode>();
+            var stack = new Stack<BFNode>();
+            stack.Push(root);
+
+            while (stack.Count > 0)
+            {
+                var node = stack.Pop();
+                if (!visited.Add(node)) continue;
+
+                foreach (var neighbor in graph.AdjacentVertices(node))
+                    if (!visited.Contains(neighbor)) stack.Push(neighbor);
+            }
+            
+            return visited.IsSupersetOf(terminals);
         }
         private static void TraverseGraph<TVertex, TEdge>(this
             UndirectedGraph<TVertex, TEdge> graph, TVertex node, HashSet<TVertex> visited) where TEdge : IEdge<TVertex>

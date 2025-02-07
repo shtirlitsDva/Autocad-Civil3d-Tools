@@ -46,6 +46,7 @@ using DimensioneringV2.Services.SubGraphs;
 using System.Collections.Concurrent;
 using DimensioneringV2.SteinerTreeProblem;
 using System.Threading;
+using System.Windows.Forms;
 
 namespace DimensioneringV2.UI
 {
@@ -354,6 +355,8 @@ namespace DimensioneringV2.UI
                 GeneticOptimizedReportingContext.VM = (GeneticOptimizedReportingViewModel)reportingWindow.DataContext;
                 GeneticOptimizedReportingContext.VM.Dispatcher = reportingWindow.Dispatcher;
 
+                var dispatcher = GeneticOptimizedReportingContext.VM.Dispatcher;
+
                 await Task.Run(() =>
                 {
                     var graphs = _dataService.Graphs;
@@ -415,7 +418,7 @@ namespace DimensioneringV2.UI
                                     Cost = 0                     // will set once we know best
                                 };
 
-                                GeneticOptimizedReportingContext.VM.Dispatcher.Invoke(() =>
+                                dispatcher.Invoke(() =>
                                 {
                                     GeneticOptimizedReportingContext.VM.GraphCalculations.Add(bfVM);
                                 });
@@ -451,7 +454,7 @@ namespace DimensioneringV2.UI
 
                                     int countCopy = enumeratedCount;
 
-                                    GeneticOptimizedReportingContext.VM.Dispatcher.Invoke(() =>
+                                    dispatcher.Invoke(() =>
                                     {
                                         bfVM.CalculatedTrees = countCopy;
                                     });
@@ -459,7 +462,7 @@ namespace DimensioneringV2.UI
 
                                 var best = bag.MinBy(x => x.result);
 
-                                GeneticOptimizedReportingContext.VM.Dispatcher.Invoke(() =>
+                                dispatcher.Invoke(() =>
                                 {
                                     bfVM.CalculatedTrees = enumeratedCount;
                                     bfVM.Cost = best.result;
@@ -485,25 +488,81 @@ namespace DimensioneringV2.UI
                                     Cost = 0,                     // will set once we know best
                                 };
 
-                                GeneticOptimizedReportingContext.VM.Dispatcher.Invoke(() =>
+                                dispatcher.Invoke(() =>
                                 {
                                     GeneticOptimizedReportingContext.VM.GraphCalculations.Add(gaVM);
                                 });
 
+                                BFNode? rootNode = metaGraph.GetRootForSubgraph(subGraph);
+                                if (rootNode == null)
+                                {
+                                    Utils.prtDbg($"Root node not found for subgraph {index + 1}.");
+                                    throw new System.Exception("Root node not found.");
+                                }
 
+                                UndirectedGraph<BFNode, BFEdge> seed = subGraph.CopyWithNewEdges();
 
-                                HydraulicCalculationsService.CalculateGAAnalysis(
-                                    graph,
-                                    props,
-                                    (generation, fitness) =>
+                                bool optimizationContinues = true;
+                                int optimizationCounter = 0;
+                                while (optimizationContinues)
+                                {
+                                    if (gaVM.StopRequested) break;
+
+                                    optimizationCounter++;
+                                    dispatcher.Invoke(() =>
                                     {
-                                        progressWindow.Dispatcher.Invoke(() =>
-                                        {
-                                            GeneticReportingContext.VM.UpdatePlot(generation, fitness);
-                                        });
-                                    },
+                                        gaVM.BruteForceCount = optimizationCounter;
+                                    });
+
+                                    var bridges = FindBridges.DoFindThem(seed);
+                                    if (bridges.Count == seed.Edges.Count())
+                                    {
+                                        optimizationContinues = false;
+                                        break;
+                                    }
+
+                                    var nonBridges = seed.Edges.Where(x => !bridges.Contains(x)).ToList();
+
+                                    var results = new ConcurrentBag<(UndirectedGraph<BFNode, BFEdge> graph, double cost)>();
+
+                                    int counter = 0;
+                                    Parallel.ForEach(nonBridges, candidate =>
+                                    {
+                                        counter++;
+                                        var cGraph = seed.CopyWithNewEdges();
+                                        var cCandidate = cGraph.Edges.First(
+                                            x => x.Source == candidate.Source &&
+                                            x.Target == candidate.Target);
+                                        cGraph.RemoveEdge(cCandidate);
+
+                                        //Calculate sums again for the subgraph
+                                        var visited = new HashSet<BFNode>();
+                                        CalculateSums.BFCalcBaseSums(cGraph, rootNode, visited, metaGraph, props);
+                                        HydraulicCalculationsService.BFCalcHydraulics(cGraph);
+                                        var result = cGraph.Edges.Sum(x => x.Price);
+
+                                        results.Add((cGraph, result));
+                                    });
+
+                                    var bestResult = results.MinBy(x => x.cost);
+                                    seed = bestResult.graph;
+
+                                    dispatcher.Invoke(() =>
+                                    {
+                                        gaVM.Cost = bestResult.cost;
+                                    });
+                                }
+
+                                HydraulicCalculationsService.CalculateOptimizedGAAnalysis(
+                                    metaGraph,
+                                    subGraph,
+                                    seed,
+                                    props,
+                                    gaVM,
                                     GeneticReportingContext.VM.CancellationToken
                                     );
+
+
                             }
                         });
                     }

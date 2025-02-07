@@ -15,6 +15,9 @@ namespace DimensioneringV2.UI
     public partial class GeneticAlgorithmCalculationViewModel : GraphCalculationBaseViewModel
     {
         [ObservableProperty]
+        private int bruteForceCount;
+
+        [ObservableProperty]
         private int currentGeneration;
 
         [ObservableProperty]
@@ -22,6 +25,9 @@ namespace DimensioneringV2.UI
 
         [ObservableProperty]
         private double cost;
+
+        [ObservableProperty]
+        private bool stopRequested;
 
         // When cost changes, we update the chart automatically. 
         partial void OnCostChanged(double oldValue, double newValue)
@@ -58,8 +64,7 @@ namespace DimensioneringV2.UI
         [RelayCommand]
         private void Stop()
         {
-            // Your logic to tell the GA engine to stop or cancel
-            System.Diagnostics.Debug.WriteLine($"Stopping GA calculation: {Title}");
+            StopRequested = true;
         }
     }
 }

@@ -76,7 +76,7 @@ namespace DimensioneringV2.Services
                     {
                         counter++;
                         VM.UpdateCurrentCandidate(counter);
-                        var cGraph = bfGraph.Copy();
+                        var cGraph = bfGraph.CopyWithNewVerticesAndEdges();
                         var cCandidate = cGraph.Edges.First(
                             x => x.Source.OriginalNodeJunction == candidate.Source.OriginalNodeJunction &&
                             x.Target.OriginalNodeJunction == candidate.Target.OriginalNodeJunction);
