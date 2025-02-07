@@ -50,12 +50,12 @@ namespace DimensioneringV2.Services
             ga.TaskExecutor = new ParallelTaskExecutor()
             {
                 MinThreads = 4,
-                MaxThreads = 64
+                MaxThreads = 16
             };
 
             //ga.TaskExecutor = new 
 
-            ga.MutationProbability = 0.5f;
+            ga.MutationProbability = 0.85f;
             //ga.CrossoverProbability = 0.85f;
 
             return ga;

@@ -9,6 +9,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Threading;
+using GeneticSharp;
+using OxyPlot.Axes;
 
 namespace DimensioneringV2.UI
 {
@@ -18,21 +21,25 @@ namespace DimensioneringV2.UI
         private int bruteForceCount;
 
         [ObservableProperty]
-        private int currentGeneration;
+        private int currentGeneration = 0;
 
         [ObservableProperty]
-        private int generationsSinceLastUpdate;
-
-        [ObservableProperty]
-        private double cost;
+        private int generationsSinceLastUpdate = 0;
 
         [ObservableProperty]
         private bool stopRequested;
 
-        // When cost changes, we update the chart automatically. 
-        partial void OnCostChanged(double oldValue, double newValue)
+        private CancellationTokenSource _cancellationTokenSource;
+
+        private const double threshold = -double.MaxValue + 100000;
+        internal void ReportProgress(int generation, double fitness)
         {
-            AddPointToPlot(newValue, CurrentGeneration);
+            CurrentGeneration = generation;
+            // Invalid fitness is double.MaxValue
+            // Threshold is set to double.MaxValue - 100000
+            if (fitness > threshold) Cost = fitness;
+            
+            AddPointToPlot(fitness, generation);
         }
 
         [ObservableProperty]
@@ -42,28 +49,57 @@ namespace DimensioneringV2.UI
 
         public GeneticAlgorithmCalculationViewModel()
         {
-            plotModel = new PlotModel { Title = "Cost Over Generations" };
-            _costSeries = new LineSeries { Title = "Cost", MarkerType = MarkerType.None };
+            plotModel = new PlotModel { Title = null };// Title = "Cost Over Generations" };
+            _costSeries = new LineSeries { Title = "Cost", MarkerType = MarkerType.Circle };
             plotModel.Series.Add(_costSeries);
 
-            // Optionally add an initial point
-            AddPointToPlot(Cost, CurrentGeneration);
+            var yAxis = new LinearAxis
+            {
+                Position = AxisPosition.Left,
+                Title = null,
+                IsAxisVisible = false
+            };
+            plotModel.Axes.Add(yAxis);
+
+            _cancellationTokenSource = new CancellationTokenSource();
         }
 
-        private void AddPointToPlot(double newCost, int generation)
+        private void AddPointToPlot(double fitness, int generation)
         {
-            if (_costSeries.Points.Count == 0
-                || Math.Abs(_costSeries.Points[^1].Y - newCost) > 1e-12)
+            if (_costSeries.Points.Count > 0)
             {
-                _costSeries.Points.Add(new DataPoint(generation, newCost));
-                plotModel.InvalidatePlot(true);
+                var lastPoint = _costSeries.Points.Last();
+
+                if (Math.Abs(lastPoint.Y - fitness) > 1e-9)
+                {
+                    _costSeries.Points.Add(new DataPoint(_costSeries.Points.Count, fitness));
+                    Cost = fitness;
+                    PlotModel.InvalidatePlot(true); // Refresh the plot
+                    GenerationsSinceLastUpdate = 0;
+                }
+                else
+                {
+                    GenerationsSinceLastUpdate++;
+                }
             }
+            else
+            {
+                _costSeries.Points.Add(new DataPoint(0, fitness));
+                Cost = fitness;
+                PlotModel.InvalidatePlot(true); // Refresh the plot
+                GenerationsSinceLastUpdate = 0;
+            }
+
+            CurrentGeneration = generation;
         }
+
+        public CancellationToken CancellationToken => _cancellationTokenSource.Token;
 
         // Stop button command
         [RelayCommand]
         private void Stop()
         {
+            _cancellationTokenSource.Cancel();
             StopRequested = true;
         }
     }

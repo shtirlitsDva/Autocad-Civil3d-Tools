@@ -8,16 +8,19 @@
         mc:Ignorable="d"
         Title="Genetic Optimized Reporting"
         Height="600" Width="1000"
-        Background="{DynamicResource Background}" Foreground="{DynamicResource Text}">
+        Background="{DynamicResource Background}" 
+        Foreground="{DynamicResource Text}">
+
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="Theme.xaml"/>
             </ResourceDictionary.MergedDictionaries>
+
             <Style x:Key="RightAlignedTextBlockStyle" TargetType="TextBlock">
                 <Setter Property="HorizontalAlignment" Value="Right" />
             </Style>
-            
+
             <!-- Brute Force card template -->
             <DataTemplate DataType="{x:Type local:BruteForceGraphCalculationViewModel}">
                 <Border CornerRadius="5" BorderBrush="Gray" BorderThickness="1" Padding="10" Margin="5">
@@ -87,29 +90,48 @@
                             <TextBlock Text="{Binding Cost, StringFormat={}{0:N0}, ConverterCulture=da-DK}"/>
                         </StackPanel>
 
-                        <!-- OxyPlot chart for cost -->
                         <oxy:PlotView Height="150"
-                                  Margin="0,5,0,5"
-                                  Model="{Binding PlotModel}"/>
+                                      Margin="0,5,0,5"
+                                      Model="{Binding PlotModel}"/>
 
-                        <!-- Stop button -->
                         <Button Content="Stop"
-                            HorizontalAlignment="Right"
-                            Command="{Binding StopCommand}"
-                            Margin="0,10,0,0"/>
+                                HorizontalAlignment="Right"
+                                Command="{Binding StopCommand}"
+                                Margin="0,10,0,0"/>
                     </StackPanel>
                 </Border>
             </DataTemplate>
         </ResourceDictionary>
     </Window.Resources>
-    <!-- Scrollable list of “cards.” Each item chooses the correct template automatically. -->
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <ItemsControl ItemsSource="{Binding GraphCalculations}">
-            <ItemsControl.ItemsPanel>
-                <ItemsPanelTemplate>
-                    <WrapPanel />
-                </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
-        </ItemsControl>
-    </ScrollViewer>
+
+    <!-- 
+        Use a Grid with two rows: 
+         - Row 0: "Total cost" summary
+         - Row 1: ScrollViewer with the ItemsControl
+    -->
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Row 0: Display total cost (or any summary text). 
+             Bind "TotalCost" in your GeneticOptimizedReportingViewModel. -->
+        <Border Background="{DynamicResource Background}" HorizontalAlignment="Center" Padding="10" Grid.Row="0">
+            <TextBlock FontWeight="Bold" Background="{DynamicResource Background}" Foreground="{DynamicResource Text}"
+                       FontSize="16"
+                       Text="{Binding TotalCost, StringFormat='Total cost: {0:N0}', ConverterCulture=da-DK}" />
+        </Border>
+
+        <!-- Row 1: The existing scrollable list of cards -->
+        <ScrollViewer VerticalScrollBarVisibility="Auto" Grid.Row="1">
+            <ItemsControl ItemsSource="{Binding GraphCalculations}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+            </ItemsControl>
+        </ScrollViewer>
+    </Grid>
 </Window>

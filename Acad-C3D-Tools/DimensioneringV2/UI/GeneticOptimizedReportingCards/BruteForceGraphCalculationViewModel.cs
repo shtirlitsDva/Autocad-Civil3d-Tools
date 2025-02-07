@@ -15,8 +15,5 @@ namespace DimensioneringV2.UI
 
         [ObservableProperty]
         private int calculatedTrees;
-
-        [ObservableProperty]
-        private double cost;
     }
 }

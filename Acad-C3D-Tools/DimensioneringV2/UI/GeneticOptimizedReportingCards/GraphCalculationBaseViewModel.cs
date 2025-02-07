@@ -21,5 +21,8 @@ namespace DimensioneringV2.UI
 
         [ObservableProperty]
         private string? nonBridgesCount;
+
+        [ObservableProperty]
+        private double cost;
     }
 }

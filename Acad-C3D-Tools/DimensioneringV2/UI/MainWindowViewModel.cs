@@ -559,7 +559,7 @@ namespace DimensioneringV2.UI
                                     seed,
                                     props,
                                     gaVM,
-                                    GeneticReportingContext.VM.CancellationToken
+                                    gaVM.CancellationToken
                                     );
 
 

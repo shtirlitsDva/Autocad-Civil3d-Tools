@@ -18,6 +18,7 @@ using DotSpatial.Projections;
 using System.Windows;
 using DimensioneringV2.UI;
 using DimensioneringV2.GraphModel;
+using DimensioneringV2.Services.SubGraphs;
 
 namespace DimensioneringV2.Services
 {
@@ -40,7 +41,10 @@ namespace DimensioneringV2.Services
                 var generation = ga.GenerationsNumber;
 
                 // Report progress to the UI
-                reportProgress(generation, fitness);
+                GeneticOptimizedReportingContext.VM.Dispatcher.Invoke(() =>
+                {
+                    gaVM.ReportProgress(generation, fitness);
+                });
 
                 if (token.IsCancellationRequested)
                 {
@@ -56,7 +60,7 @@ namespace DimensioneringV2.Services
             //    ga.Stop();
             //}
 
-            var bestChromosome = ga.BestChromosome as GraphChromosome;
+            var bestChromosome = ga.BestChromosome as GraphChromosomeOptimized;
 
             if (bestChromosome == null)
             {
@@ -65,8 +69,11 @@ namespace DimensioneringV2.Services
             }
 
             // Handle result processing for this graph
-            CalculateBFCost(bestChromosome, props);
-
+            var visited = new HashSet<BFNode>();
+            var rootNode = metaGraph.GetRootForSubgraph(subGraph);
+            CalculateSums.BFCalcBaseSums(bestChromosome.LocalGraph, rootNode, visited, metaGraph, props);
+            HydraulicCalculationsService.BFCalcHydraulics(bestChromosome.LocalGraph);
+            
             //Update the original graph with the results from the best result
             foreach (var edge in bestChromosome.LocalGraph.Edges)
             {

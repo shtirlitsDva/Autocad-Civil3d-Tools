@@ -102,7 +102,7 @@ namespace DimensioneringV2.Genetic
 
         public override IChromosome CreateNew()
         {
-            return new GraphChromosome(_chm);
+            return new GraphChromosomeOptimized(_chm);
         }
 
         public void ResetChromosome()
