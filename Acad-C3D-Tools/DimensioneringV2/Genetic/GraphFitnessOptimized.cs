@@ -40,10 +40,7 @@ namespace DimensioneringV2.Genetic
                 return double.MaxValue;
             }
 
-            var visited = new HashSet<BFNode>();
-            CalculateSums.BFCalcBaseSums(graphChromosome.LocalGraph, _chm.RootNode, visited, _chm.MetaGraph, _props);
-            HydraulicCalculationsService.BFCalcHydraulics(graphChromosome.LocalGraph);
-            var result = graphChromosome.LocalGraph.Edges.Sum(x => x.Price);
+            
 
             return -result;
         }
