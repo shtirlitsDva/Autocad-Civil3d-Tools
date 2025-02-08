@@ -1,6 +1,7 @@
 ﻿using DimensioneringV2.BruteForceOptimization;
 using DimensioneringV2.Genetic;
 using DimensioneringV2.GraphModel;
+using DimensioneringV2.Services.SubGraphs;
 
 using QuikGraph;
 using QuikGraph.Algorithms;
@@ -15,6 +16,9 @@ namespace DimensioneringV2.Services
 {
     internal class HCS_SGC_CalculateSumsAndCost
     {
+        /// <summary>
+        /// Calculates the cost of the chromosome's graph
+        /// </summary>
         internal static double CalculateSumsAndCost(GraphChromosomeOptimized chr,
             List<(
                 Func<BFEdge, dynamic> Getter,
@@ -23,6 +27,9 @@ namespace DimensioneringV2.Services
             return CalculateSumsAndCost(
                 chr.LocalGraph, chr.CoherencyManager.OriginalGraph, props, chr.CoherencyManager.MetaGraph);
         }
+        /// <summary>
+        /// Calculates the cost of the graph
+        /// </summary>
         internal static double CalculateSumsAndCost(UndirectedGraph<BFNode, BFEdge> graph,
             UndirectedGraph<BFNode, BFEdge> subGraph,
             List<(
@@ -32,36 +39,34 @@ namespace DimensioneringV2.Services
         {
             var rootNode = metaGraph.GetRootForSubgraph(subGraph);
 
-            var shortestPathTree = new UndirectedGraph<BFNode, BFEdge>();
-            shortestPathTree.AddVertexRange(graph.Vertices);
+            var spt = new UndirectedGraph<BFNode, BFEdge>();
+            spt.AddVertexRange(graph.Vertices);
             
             // Dijkstra's algorithm for shortest paths from the root node
             var tryGetPaths = graph.ShortestPathsDijkstra(edge => edge.Length, rootNode);
 
+            var terminals = metaGraph.GetTerminalsForSubgraph(subGraph);
 
-
-            // Add edges to the shortest path tree based on the shortest paths from the root node
-            var query = graph.Vertices.Where(
-                x => graph.AdjacentEdges(x).Count() == 1 &&
-                    graph.AdjacentEdges(x).First().NumberOfBuildingsConnected == 1);
-            foreach (var vertex in query)
+            foreach (var vertex in terminals)
             {
                 if (tryGetPaths(vertex, out var path))
                 {
                     foreach (var edge in path)
                     {
-                        if (!shortestPathTree.ContainsEdge(edge))
+                        if (!spt.ContainsEdge(edge))
                         {
-                            shortestPathTree.AddEdge(edge);
+                            spt.AddEdge(edge);
                         }
                     }
                 }
             }
             // Calculate the sums
-            var sums = CalculateSums(shortestPathTree, rootNode, new HashSet<BFNode>(), props);
+            CalculateSubgraphs.BFCalcBaseSums(
+                spt, rootNode, new HashSet<BFNode>(), metaGraph, props);
             // Calculate the cost
-            var cost = CalculateCost(shortestPathTree, rootNode, new HashSet<BFNode>(), props);
-            return cost;
+            CalculateSubgraphs.CalculateHydraulics(
+                HydraulicCalculationService.Calc, spt, props);
+            return spt.Edges.Sum(x => x.Price);
         }
     }
 }

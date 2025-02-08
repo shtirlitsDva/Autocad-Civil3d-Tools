@@ -71,7 +71,7 @@ namespace DimensioneringV2.Services
             // Handle result processing for this graph
             var visited = new HashSet<BFNode>();
             var rootNode = metaGraph.GetRootForSubgraph(subGraph);
-            CalculateSums.BFCalcBaseSums(bestChromosome.LocalGraph, rootNode, visited, metaGraph, props);
+            CalculateSubgraphs.BFCalcBaseSums(bestChromosome.LocalGraph, rootNode, visited, metaGraph, props);
             HydraulicCalculationsService.BFCalcHydraulics(bestChromosome.LocalGraph);
             
             //Update the original graph with the results from the best result

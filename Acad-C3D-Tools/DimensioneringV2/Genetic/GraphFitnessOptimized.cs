@@ -40,7 +40,8 @@ namespace DimensioneringV2.Genetic
                 return double.MaxValue;
             }
 
-            
+            double result = HCS_SGC_CalculateSumsAndCost.CalculateSumsAndCost(
+                graphChromosome, _props);
 
             return -result;
         }

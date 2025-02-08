@@ -77,7 +77,7 @@ namespace DimensioneringV2.Services.SubGraphs
             }
 
             var visited = new HashSet<BFNode>();
-            var sum = CalculateSums.BFCalcBaseSums(shortestPathTree, rootNode, visited, _metaGraph, props);
+            var sum = CalculateSubgraphs.BFCalcBaseSums(shortestPathTree, rootNode, visited, _metaGraph, props);
             _metaGraph.Sums[rootNode] = sum;
         }
     }

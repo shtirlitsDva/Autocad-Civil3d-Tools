@@ -444,7 +444,7 @@ namespace DimensioneringV2.UI
 
                                     //Calculate sums again for the subgraph
                                     var visited = new HashSet<BFNode>();
-                                    CalculateSums.BFCalcBaseSums(st, rootNode, visited, metaGraph, props);
+                                    CalculateSubgraphs.BFCalcBaseSums(st, rootNode, visited, metaGraph, props);
                                     HydraulicCalculationsService.BFCalcHydraulics(st);
                                     var result = st.Edges.Sum(x => x.Price);
 
@@ -537,7 +537,7 @@ namespace DimensioneringV2.UI
 
                                         //Calculate sums again for the subgraph
                                         var visited = new HashSet<BFNode>();
-                                        CalculateSums.BFCalcBaseSums(cGraph, rootNode, visited, metaGraph, props);
+                                        CalculateSubgraphs.BFCalcBaseSums(cGraph, rootNode, visited, metaGraph, props);
                                         HydraulicCalculationsService.BFCalcHydraulics(cGraph);
                                         var result = cGraph.Edges.Sum(x => x.Price);
 

@@ -1,6 +1,8 @@
 ﻿using DimensioneringV2.BruteForceOptimization;
 using DimensioneringV2.GraphModel;
 
+using NorsynHydraulicCalc;
+
 using QuikGraph;
 using QuikGraph.Algorithms;
 
@@ -12,11 +14,12 @@ using System.Threading.Tasks;
 
 namespace DimensioneringV2.Services.SubGraphs
 {
-    internal class CalculateSums
+    internal class CalculateSubgraphs
     {
         internal static List<dynamic> BFCalcBaseSums(
         UndirectedGraph<BFNode, BFEdge> graph,
-        BFNode node, HashSet<BFNode> visited, 
+        BFNode node,
+        HashSet<BFNode> visited, 
         MetaGraph<UndirectedGraph<BFNode, BFEdge>> metaGraph,
         List<(Func<BFEdge, dynamic> Getter, Action<BFEdge, dynamic> Setter)> props)
         {
@@ -68,6 +71,30 @@ namespace DimensioneringV2.Services.SubGraphs
             }
 
             return totalSums;
+        }
+
+        /// <summary>
+        /// Calculates the hydraulic properties of the edges in the graph
+        /// </summary>
+        internal static void CalculateHydraulics(
+            HydraulicCalc hc,
+            UndirectedGraph<BFNode, BFEdge> graph,
+            List<(Func<BFEdge, dynamic> Getter, Action<BFEdge, dynamic> Setter)> props)
+        {
+            Parallel.ForEach(graph.Edges, edge =>
+            {
+                var result = hc.CalculateHydraulicSegment(edge);
+                edge.PipeDim = result.Dim;
+                edge.ReynoldsSupply = result.ReynoldsSupply;
+                edge.ReynoldsReturn = result.ReynoldsReturn;
+                edge.FlowSupply = result.FlowSupply;
+                edge.FlowReturn = result.FlowReturn;
+                edge.PressureGradientSupply = result.PressureGradientSupply;
+                edge.PressureGradientReturn = result.PressureGradientReturn;
+                edge.VelocitySupply = result.VelocitySupply;
+                edge.VelocityReturn = result.VelocityReturn;
+                edge.UtilizationRate = result.UtilizationRate;
+            });
         }
     }
 }
