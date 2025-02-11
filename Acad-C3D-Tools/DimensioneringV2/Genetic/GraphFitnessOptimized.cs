@@ -37,7 +37,7 @@ namespace DimensioneringV2.Genetic
             if (!graphChromosome.LocalGraph.AreTerminalNodesConnected(
                 _chm.RootNode, _chm.Terminals))
             {
-                return double.MaxValue;
+                return -double.MaxValue;
             }
 
             double result = HCS_SGC_CalculateSumsAndCost.CalculateSumsAndCost(

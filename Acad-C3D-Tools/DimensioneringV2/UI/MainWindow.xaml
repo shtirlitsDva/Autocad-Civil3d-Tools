@@ -56,5 +56,84 @@
                 <mapsui:MapControl x:Name="mapControl" Margin="2"/>
             </DockPanel>
         </DockPanel>
+        <!-- Popup declared as sibling so it can overlay the Map -->
+        <Popup x:Name="FeaturePopup"
+       IsOpen="{Binding IsPopupOpen}"
+       HorizontalOffset="{Binding PopupX}"
+       VerticalOffset="{Binding PopupY}"
+       Placement="Absolute"
+       StaysOpen="False"
+       AllowsTransparency="True">
+
+            <Border CornerRadius="3"
+            BorderThickness="1"
+            BorderBrush="Black"
+            Background="{DynamicResource Background}">
+
+                <DataGrid ItemsSource="{Binding FeatureProperties}"
+                  AutoGenerateColumns="False"
+                  CanUserAddRows="False"
+                  CanUserDeleteRows="False"
+                  IsReadOnly="True"
+                  HeadersVisibility="Column"
+                  RowHeaderWidth="0"
+                  BorderThickness="0"
+                  GridLinesVisibility="None"
+                  Background="{DynamicResource Background}"
+                  Foreground="{DynamicResource Text}"
+                  FontSize="12"
+                  Margin="5"
+                    ColumnWidth="SizeToCells"
+                    HorizontalAlignment="Left"
+                  VerticalAlignment="Top"
+                    ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                  ScrollViewer.VerticalScrollBarVisibility="Disabled">
+
+                    <!-- Remove row borders -->
+                    <DataGrid.RowStyle>
+                        <Style TargetType="DataGridRow">
+                            <Setter Property="BorderBrush" Value="Transparent"/>
+                            <Setter Property="BorderThickness" Value="0"/>
+                        </Style>
+                    </DataGrid.RowStyle>
+
+                    <!-- Uniform dark cell background, no grid lines -->
+                    <DataGrid.CellStyle>
+                        <Style TargetType="DataGridCell">
+                            <Setter Property="Background" Value="{DynamicResource Background}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource Text}"/>
+                            <Setter Property="Padding" Value="5,2,5,2"/>
+                            <Setter Property="BorderBrush" Value="Transparent"/>
+                            <Setter Property="BorderThickness" Value="0"/>
+                            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                        </Style>
+                    </DataGrid.CellStyle>
+
+                    <!-- Dark theme column headers -->
+                    <DataGrid.ColumnHeaderStyle>
+                        <Style TargetType="DataGridColumnHeader">
+                            <Setter Property="Background" Value="{DynamicResource Background}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource Text}"/>
+                            <Setter Property="FontWeight" Value="Bold"/>
+                            <Setter Property="Padding" Value="5,2,5,2"/>
+                            <Setter Property="BorderBrush" Value="Transparent"/>
+                            <Setter Property="BorderThickness" Value="0"/>
+                        </Style>
+                    </DataGrid.ColumnHeaderStyle>
+
+                    <DataGrid.Columns>
+                        <!-- Left-aligned name column -->
+                        <DataGridTextColumn Header="Property"
+                                    Binding="{Binding Name}"
+                                    Width="SizeToCells" />
+                        <!-- Right-aligned value column -->
+                        <DataGridTextColumn Header="Value"
+                                    Binding="{Binding Value}"
+                                    Width="SizeToCells">
+                        </DataGridTextColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Border>
+        </Popup>
     </Grid>
 </UserControl>

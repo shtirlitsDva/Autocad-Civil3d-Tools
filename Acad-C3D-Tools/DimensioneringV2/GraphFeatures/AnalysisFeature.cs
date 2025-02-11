@@ -12,13 +12,14 @@ using NorsynHydraulicShared;
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 
 namespace DimensioneringV2.GraphFeatures
 {
-    internal class AnalysisFeature : GeometryFeature, IFeature, ICloneable, IHydraulicSegment
+    internal class AnalysisFeature : GeometryFeature, IFeature, ICloneable, IHydraulicSegment, IInfoForFeature
     {
         #region Constructors
         public AnalysisFeature() : base() { }
@@ -193,6 +194,19 @@ namespace DimensioneringV2.GraphFeatures
                 }
             }
             return clonedObject;
+        }
+
+        IEnumerable<PropertyItem> IInfoForFeature.PropertiesToDataGrid()
+        {
+            var props = GetType()
+            .GetProperties(System.Reflection.BindingFlags.Public |
+                           System.Reflection.BindingFlags.Instance |
+                           System.Reflection.BindingFlags.DeclaredOnly)
+            .OrderBy(p => p.MetadataToken)
+            .Where(p => p.Name != "BoundingBox")
+            .Select(pi => new PropertyItem(pi.Name, pi.GetValue(this)?.ToString() ?? "null"));
+
+            return props;
         }
         #endregion
 

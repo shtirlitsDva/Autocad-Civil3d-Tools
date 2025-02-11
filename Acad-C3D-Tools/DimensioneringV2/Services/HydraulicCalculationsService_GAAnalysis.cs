@@ -63,7 +63,7 @@ namespace DimensioneringV2.Services
 
             // Handle result processing for this graph
             CalculateBFCost(bestChromosome, props);
-
+            
             //Update the original graph with the results from the best result
             foreach (var edge in bestChromosome.LocalGraph.Edges)
             {

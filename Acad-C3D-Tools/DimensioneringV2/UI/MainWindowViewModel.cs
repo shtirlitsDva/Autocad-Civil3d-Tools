@@ -47,6 +47,8 @@ using System.Collections.Concurrent;
 using DimensioneringV2.SteinerTreeProblem;
 using System.Threading;
 using System.Windows.Forms;
+using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 
 namespace DimensioneringV2.UI
 {
@@ -670,6 +672,7 @@ namespace DimensioneringV2.UI
             {
                 DataSource = provider,
                 Name = "Features",
+                IsMapInfoLayer = true
             };
 
             var extent = layer.Extent!.Grow(100);
@@ -709,7 +712,6 @@ namespace DimensioneringV2.UI
 
             Mymap.Navigator.ZoomToBox(extent);
         }
-
         private void UpdateMap()
         {
             if (Mymap == null) return;
@@ -725,6 +727,7 @@ namespace DimensioneringV2.UI
             {
                 DataSource = provider,
                 Name = "Features",
+                IsMapInfoLayer = true
             };
 
             var exLayer = Mymap.Layers.FirstOrDefault(x => x.Name == "Features");
@@ -735,6 +738,49 @@ namespace DimensioneringV2.UI
 
             Mymap.Layers.Add(layer);
         }
+
+        #region Popup setup
+
+        [ObservableProperty]
+        private bool isPopupOpen;
+
+        [ObservableProperty]
+        private string popupText = "";
+
+        [ObservableProperty]
+        private double popupX;
+
+        [ObservableProperty]
+        private double popupY;
+
+        public ObservableCollection<PropertyItem> FeatureProperties { get; } = new();
+
+        public void OnMapInfo(object? sender, MapInfoEventArgs e)
+        {
+            if (e.MapInfo?.Feature == null)
+            {
+                IsPopupOpen = false;
+                return;
+            }
+
+            var infoFeature = e.MapInfo.Feature as IInfoForFeature;
+            if (infoFeature == null)
+            {
+                IsPopupOpen = false;
+                return;
+            }
+
+            var items = infoFeature.PropertiesToDataGrid();
+
+            FeatureProperties.Clear();
+            foreach (var item in items)
+                FeatureProperties.Add(item);
+
+            PopupX = e.MapInfo?.ScreenPosition?.X ?? 0.0;
+            PopupY = e.MapInfo?.ScreenPosition?.Y ?? 0.0;
+            IsPopupOpen = true;
+        }
+        #endregion
 
         internal class MapPropertyWrapper
         {

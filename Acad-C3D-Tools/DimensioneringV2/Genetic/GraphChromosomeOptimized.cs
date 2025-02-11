@@ -63,7 +63,7 @@ namespace DimensioneringV2.Genetic
 
                 if (!_localGraph.AreTerminalNodesConnected(_chm.RootNode, _chm.Terminals))
                 {
-                    throw new Exception("Seeds terminals are not connected!");
+                    throw new Exception("Seeds' terminals are not connected!");
                 }
             }
             else

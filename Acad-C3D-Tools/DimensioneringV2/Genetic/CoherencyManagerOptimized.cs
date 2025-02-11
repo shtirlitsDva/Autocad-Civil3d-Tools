@@ -22,7 +22,7 @@ namespace DimensioneringV2.Genetic
         private readonly HashSet<BFNode> _terminals;
         private readonly BFNode _rootNode;
         
-        internal bool hasNOTSeeded = false;
+        internal bool hasNOTSeeded = true;
         internal UndirectedGraph<BFNode, BFEdge> Seed => _seed;
         internal MetaGraph<UndirectedGraph<BFNode, BFEdge>> MetaGraph => _metaGraph;
         internal HashSet<BFNode> Terminals => _terminals;
