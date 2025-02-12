@@ -171,7 +171,7 @@ namespace DimensioneringV2.GraphFeatures
             NumberOfBuildingsSupplied = 0;
             NumberOfUnitsSupplied = 0;
             HeatingDemandSupplied = 0;
-            PipeDim = default(Dim);
+            PipeDim = Dim.NA;
             ReynoldsSupply = 0;
             ReynoldsReturn = 0;
             FlowSupply = 0;

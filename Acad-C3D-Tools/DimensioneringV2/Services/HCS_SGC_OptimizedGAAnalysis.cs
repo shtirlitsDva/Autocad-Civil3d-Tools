@@ -71,25 +71,13 @@ namespace DimensioneringV2.Services
             // Handle result processing for this graph
             var visited = new HashSet<BFNode>();
             var rootNode = metaGraph.GetRootForSubgraph(subGraph);
-            CalculateSubgraphs.BFCalcBaseSums(bestChromosome.LocalGraph, rootNode, visited, metaGraph, props);
-            HydraulicCalculationsService.BFCalcHydraulics(bestChromosome.LocalGraph);
+
+            HCS_SGC_CalculateSumsAndCost.CalculateSumsAndCost(bestChromosome, props);
             
             //Update the original graph with the results from the best result
             foreach (var edge in bestChromosome.LocalGraph.Edges)
             {
-                edge.OriginalEdge.PipeSegment.NumberOfBuildingsSupplied = edge.NumberOfBuildingsSupplied;
-                edge.OriginalEdge.PipeSegment.NumberOfUnitsSupplied = edge.NumberOfUnitsSupplied;
-                edge.OriginalEdge.PipeSegment.HeatingDemandSupplied = edge.HeatingDemandSupplied;
-                edge.OriginalEdge.PipeSegment.PipeDim = edge.PipeDim;
-                edge.OriginalEdge.PipeSegment.ReynoldsSupply = edge.ReynoldsSupply;
-                edge.OriginalEdge.PipeSegment.ReynoldsReturn = edge.ReynoldsReturn;
-                edge.OriginalEdge.PipeSegment.FlowSupply = edge.FlowSupply;
-                edge.OriginalEdge.PipeSegment.FlowReturn = edge.FlowReturn;
-                edge.OriginalEdge.PipeSegment.PressureGradientSupply = edge.PressureGradientSupply;
-                edge.OriginalEdge.PipeSegment.PressureGradientReturn = edge.PressureGradientReturn;
-                edge.OriginalEdge.PipeSegment.VelocitySupply = edge.VelocitySupply;
-                edge.OriginalEdge.PipeSegment.VelocityReturn = edge.VelocityReturn;
-                edge.OriginalEdge.PipeSegment.UtilizationRate = edge.UtilizationRate;
+                edge.PushAllResults();
             }
         }
     }

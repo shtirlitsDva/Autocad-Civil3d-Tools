@@ -24,13 +24,19 @@ namespace DimensioneringV2.Services
                 Func<BFEdge, dynamic> Getter,
                 Action<BFEdge, dynamic> Setter)> props)
         {
-            return CalculateSumsAndCost(
+
+            var r = CalculateSumsAndCost(
                 chr.LocalGraph, chr.CoherencyManager.OriginalGraph, props, chr.CoherencyManager.MetaGraph);
+
+            chr.LocalGraph = r.graph;
+
+            return r.price;
         }
         /// <summary>
         /// Calculates the cost of the graph
         /// </summary>
-        internal static double CalculateSumsAndCost(UndirectedGraph<BFNode, BFEdge> graph,
+        internal static (double price, UndirectedGraph<BFNode, BFEdge> graph) CalculateSumsAndCost(
+            UndirectedGraph<BFNode, BFEdge> graph,
             UndirectedGraph<BFNode, BFEdge> subGraph,
             List<(
                 Func<BFEdge, dynamic> Getter,
@@ -39,11 +45,16 @@ namespace DimensioneringV2.Services
         {
             var rootNode = metaGraph.GetRootForSubgraph(subGraph);
 
+            //We need to isolate calculations from the graph passed here
+            //We don't want to store the results in the original graph
+            //We just calculate the price
+            var tempGraph = graph.CopyWithNewEdges();
+
             var spt = new UndirectedGraph<BFNode, BFEdge>();
-            spt.AddVertexRange(graph.Vertices);
+            spt.AddVertexRange(tempGraph.Vertices);
             
             // Dijkstra's algorithm for shortest paths from the root node
-            var tryGetPaths = graph.ShortestPathsDijkstra(edge => edge.Length, rootNode);
+            var tryGetPaths = tempGraph.ShortestPathsDijkstra(edge => edge.Length, rootNode);
 
             var terminals = metaGraph.GetTerminalsForSubgraph(subGraph);
 
@@ -61,17 +72,14 @@ namespace DimensioneringV2.Services
                 }
             }
 
-            //Maybe this works?
-            graph = spt;
-
-
             // Calculate the sums
             CalculateSubgraphs.BFCalcBaseSums(
                 spt, rootNode, new HashSet<BFNode>(), metaGraph, props);
             // Calculate the cost
             CalculateSubgraphs.CalculateHydraulics(
                 HydraulicCalculationService.Calc, spt);
-            return spt.Edges.Sum(x => x.Price);
+
+            return (spt.Edges.Sum(x => x.Price), spt);
         }
     }
 }

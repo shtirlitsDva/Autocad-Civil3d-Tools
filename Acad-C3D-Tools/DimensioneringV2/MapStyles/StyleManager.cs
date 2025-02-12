@@ -12,6 +12,8 @@ namespace DimensioneringV2.MapStyles
 {
     internal class StyleManager
     {
+        private static bool _labelsOn = true;
+
         private IMapStyle? _styleLabelsOn;
         private IMapStyle? _styleLabelsOff;
         private IMapStyle? _currentStyle;
@@ -89,12 +91,13 @@ namespace DimensioneringV2.MapStyles
 
             _styleLabelsOn = sOn;
             _styleLabelsOff = sOff;
-            _currentStyle = _styleLabelsOn;
+            _currentStyle = _labelsOn ? _styleLabelsOn : _styleLabelsOff;
         }
 
         public void Switch()
         {
             _currentStyle = _currentStyle == _styleLabelsOn ? _styleLabelsOff : _styleLabelsOn;
+            _labelsOn = !_labelsOn;
         }
     }
 }

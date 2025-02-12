@@ -366,6 +366,15 @@ namespace DimensioneringV2.UI
                     //Reset the results
                     foreach (var f in graphs.SelectMany(g => g.Edges.Select(e => e.PipeSegment))) f.ResetHydraulicResults();
 
+                    HashSet<string> dims = new HashSet<string>();
+                    foreach (var graph in graphs)
+                    {
+                        foreach (var edge in graph.Edges)
+                        {
+                            dims.Add(edge.PipeSegment.PipeDim.ToString());
+                        }
+                    }
+
                     foreach (UndirectedGraph<NodeJunction, EdgePipeSegment> originalGraph in graphs)
                     {
                         //First prepare calculation graph

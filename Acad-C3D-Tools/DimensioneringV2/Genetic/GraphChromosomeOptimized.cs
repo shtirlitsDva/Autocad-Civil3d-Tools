@@ -27,7 +27,7 @@ namespace DimensioneringV2.Genetic
         private readonly HashSet<int> _removedEdges = new HashSet<int>();
         private CoherencyManagerOptimized _chm;
 
-        public UndirectedGraph<BFNode, BFEdge> LocalGraph => _localGraph;
+        public UndirectedGraph<BFNode, BFEdge> LocalGraph { get => _localGraph; set => _localGraph = value; }
         public HashSet<int> RemovedEdges => _removedEdges;
         public CoherencyManagerOptimized CoherencyManager => _chm;
 

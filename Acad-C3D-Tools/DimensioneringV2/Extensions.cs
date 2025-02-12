@@ -146,6 +146,7 @@ namespace DimensioneringV2
         public static void AddEdgeCopy(this UndirectedGraph<BFNode, BFEdge> graph, BFEdge edge)
         {
             var newEdge = new BFEdge(edge.Source, edge.Target, edge.OriginalEdge);
+            newEdge.NonBridgeChromosomeIndex = edge.NonBridgeChromosomeIndex;
             graph.AddVerticesAndEdge(newEdge);
         }
         public static void AddEdgeCopyAndSyncSums(this UndirectedGraph<BFNode, BFEdge> graph, BFEdge edge)
