@@ -78,8 +78,7 @@ namespace DimensioneringV2.Services.SubGraphs
         /// </summary>
         internal static void CalculateHydraulics(
             HydraulicCalc hc,
-            UndirectedGraph<BFNode, BFEdge> graph,
-            List<(Func<BFEdge, dynamic> Getter, Action<BFEdge, dynamic> Setter)> props)
+            UndirectedGraph<BFNode, BFEdge> graph)
         {
             Parallel.ForEach(graph.Edges, edge =>
             {

@@ -28,7 +28,7 @@ namespace DimensioneringV2.Genetic
             
             if (!graphChromosome.LocalGraph.AreBuildingNodesConnected())
             {
-                return double.MaxValue;
+                return -double.MaxValue;
             }
 
             return -HydraulicCalculationsService.CalculateBFCost(graphChromosome.LocalGraph, _props);

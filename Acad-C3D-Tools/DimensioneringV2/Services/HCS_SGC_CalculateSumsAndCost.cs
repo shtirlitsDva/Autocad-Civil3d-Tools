@@ -60,12 +60,17 @@ namespace DimensioneringV2.Services
                     }
                 }
             }
+
+            //Maybe this works?
+            graph = spt;
+
+
             // Calculate the sums
             CalculateSubgraphs.BFCalcBaseSums(
                 spt, rootNode, new HashSet<BFNode>(), metaGraph, props);
             // Calculate the cost
             CalculateSubgraphs.CalculateHydraulics(
-                HydraulicCalculationService.Calc, spt, props);
+                HydraulicCalculationService.Calc, spt);
             return spt.Edges.Sum(x => x.Price);
         }
     }
