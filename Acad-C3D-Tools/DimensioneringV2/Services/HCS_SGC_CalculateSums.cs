@@ -80,7 +80,9 @@ namespace DimensioneringV2.Services.SubGraphs
             HydraulicCalc hc,
             UndirectedGraph<BFNode, BFEdge> graph)
         {
-            Parallel.ForEach(graph.Edges, edge =>
+            //Avoid oversubscription of the cpu
+            //Parallel.ForEach(graph.Edges, edge =>
+            foreach (var edge in graph.Edges)
             {
                 var result = hc.CalculateHydraulicSegment(edge);
                 edge.PipeDim = result.Dim;
@@ -93,7 +95,8 @@ namespace DimensioneringV2.Services.SubGraphs
                 edge.VelocitySupply = result.VelocitySupply;
                 edge.VelocityReturn = result.VelocityReturn;
                 edge.UtilizationRate = result.UtilizationRate;
-            });
+            }
+            //);
         }
     }
 }
