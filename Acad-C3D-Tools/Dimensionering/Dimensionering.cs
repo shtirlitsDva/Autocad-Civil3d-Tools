@@ -4146,6 +4146,12 @@ namespace IntersectUtilities.Dimensionering
                                         system = PipeSystemEnum.PertFlextra;
                                         dim = Convert.ToInt32(item.dim.Remove(0, 2));
                                     }
+                                    else if (item.dim.StartsWith("AT"))
+                                    {
+                                        system = PipeSystemEnum.AquaTherm11;
+                                        if (item.dim == "AT32* SDR9") dim = 32;
+                                        else dim = Convert.ToInt32(item.dim.Remove(0, 2));
+                                    }
                                     else { system = PipeSystemEnum.Stål; dim = 25; }
                                 }
 
@@ -4263,6 +4269,11 @@ namespace IntersectUtilities.Dimensionering
                                 else type = PipeTypeEnum.Frem;
                             }
                             else if (system == PipeSystemEnum.PertFlextra) type = PipeTypeEnum.Twin;
+                            else if (system == PipeSystemEnum.AquaTherm11)
+                            { 
+                                if (dn < 160) type = PipeTypeEnum.Twin;
+                                else type = PipeTypeEnum.Frem;
+                            }
                             else type = PipeTypeEnum.Twin;
 
                             double kod = PipeScheduleV2.PipeScheduleV2.GetPipeKOd(system, dn, type, series);

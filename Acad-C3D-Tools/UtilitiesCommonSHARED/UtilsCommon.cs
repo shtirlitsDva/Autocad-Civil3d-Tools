@@ -474,6 +474,7 @@ namespace IntersectUtilities.UtilsCommon
             Kobberflex,
             AluPex,
             PertFlextra,
+            AquaTherm11
         }
         public enum DynamicProperty
         {
@@ -495,7 +496,8 @@ namespace IntersectUtilities.UtilsCommon
         public enum CompanyEnum
         {
             Logstor,
-            Isoplus
+            Isoplus,
+            AquaTherm
         }
         public static Dictionary<string, PipelineElementType> PipelineElementTypeDict =
             new Dictionary<string, PipelineElementType>()
@@ -2583,7 +2585,8 @@ namespace IntersectUtilities.UtilsCommon
         {
             //ADD NEW STRINGS HERE!!!
             {"DN", 1 },
-            {"PRTFLEXL", 0},
+            {"PRTFLEXL", 0 },
+            {"AQTHRM11", 0 },
         };
         public static IOrderedEnumerable<T> OrderBySpecial<T>(this IEnumerable<T> source, Func<T, string> selector)
         {

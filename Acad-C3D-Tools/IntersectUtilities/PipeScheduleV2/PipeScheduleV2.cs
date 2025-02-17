@@ -119,6 +119,7 @@ namespace IntersectUtilities.PipeScheduleV2
             { "CU", typeof(PipeTypeCU) },
             //{ "PEXU", typeof(PipeTypePEXU) },
             { "PRTFLEXL", typeof(PipeTypePRTFLEXL) },
+            { "AQTHRM11", typeof(PipeTypeAQTHRM11) },
         };
         public static Dictionary<string, PipeSystemEnum> systemDict = new Dictionary<string, PipeSystemEnum>()
         {
@@ -127,6 +128,7 @@ namespace IntersectUtilities.PipeScheduleV2
             {"CU", PipeSystemEnum.Kobberflex },
             //{"PEXU", PipeSystemEnum.PexU },
             {"PRTFLEXL", PipeSystemEnum.PertFlextra },
+            {"AQTHRM11", PipeSystemEnum.AquaTherm11 },
         };
         private static Dictionary<PipeSystemEnum, string> systemDictReversed = new Dictionary<PipeSystemEnum, string>()
         {
@@ -135,16 +137,18 @@ namespace IntersectUtilities.PipeScheduleV2
             {PipeSystemEnum.Kobberflex , "CU" },
             //{PipeSystemEnum.PexU , "PEXU" },
             {PipeSystemEnum.PertFlextra , "PRTFLEXL" },
+            {PipeSystemEnum.AquaTherm11 , "AQTHRM11" },
         };
-        private static Dictionary<PipeSystemEnum, int[]> availableStdLengths = new Dictionary<PipeSystemEnum, int[]>()
+        private static Dictionary<PipeSystemEnum, double[]> availableStdLengths = new()
         {
-            {PipeSystemEnum.Stål, new[] {12, 16}},
-            {PipeSystemEnum.AluPex, new[] {100}},
-            {PipeSystemEnum.Kobberflex, new[] {100}},
+            {PipeSystemEnum.Stål, new double[] {12, 16}},
+            {PipeSystemEnum.AluPex, new double[] {100}},
+            {PipeSystemEnum.Kobberflex, new double[] { 100 }},
             //{PipeSystemEnum.PexU, new[] {100}},
-            {PipeSystemEnum.PertFlextra, new[] {12, 16, 100} },
+            {PipeSystemEnum.PertFlextra, new double[] {12, 16, 100}},
+            {PipeSystemEnum.AquaTherm11, new double[] {11.6}},
         };
-        public static int[] GetStdLengthsForSystem(PipeSystemEnum pipeSystem) => availableStdLengths[pipeSystem];
+        public static double[] GetStdLengthsForSystem(PipeSystemEnum pipeSystem) => availableStdLengths[pipeSystem];
         private static string pipeTypes = string.Join(
             "|", Enum.GetNames(typeof(PipeTypeEnum)).Select(x => x.ToUpper()));
         private static string pipeDataTypes = string.Join(
@@ -163,7 +167,7 @@ namespace IntersectUtilities.PipeScheduleV2
             {"minElasticRadii", typeof(double)},
             {"VertFactor", typeof(double)},
             {"color", typeof(short)},
-            {"DefaultL", typeof(int)}
+            {"DefaultL", typeof(double)}
         };
         public static void LoadPipeTypeData(string pathToPipeTypesStore)
         {
@@ -331,7 +335,7 @@ namespace IntersectUtilities.PipeScheduleV2
             return series;
         }
         //public static double GetPipeStdLength(Entity ent) => GetPipeDN(ent) <= 80 ? 12 : 16;
-        public static int GetPipeStdLength(Entity ent)
+        public static double GetPipeStdLength(Entity ent)
         {
             PipeSystemEnum system = GetPipeSystem(ent);
 
@@ -590,7 +594,7 @@ namespace IntersectUtilities.PipeScheduleV2
         double GetMinElasticRadius(int dn, PipeTypeEnum type);
         double GetFactorForVerticalElasticBending(int dn, PipeTypeEnum type);
         double GetBuerorMinRadius(int dn, int std);
-        int GetPipeStdLength(int dn, PipeTypeEnum type);
+        double GetPipeStdLength(int dn, PipeTypeEnum type);
         IEnumerable<int> ListAllDnsForPipeTypeSerie(PipeTypeEnum type, PipeSeriesEnum serie);
         string GetLabel(int DN, PipeTypeEnum type, double od, double kOd);
         short GetLayerColor(PipeTypeEnum type);
@@ -697,14 +701,14 @@ namespace IntersectUtilities.PipeScheduleV2
             return 0;
         }
         public abstract double GetBuerorMinRadius(int dn, int std);
-        public int GetPipeStdLength(int dn, PipeTypeEnum type)
+        public double GetPipeStdLength(int dn, PipeTypeEnum type)
         {
             if (type == PipeTypeEnum.Retur ||
                 type == PipeTypeEnum.Frem)
                 type = PipeTypeEnum.Enkelt;
 
             DataRow[] results = _data.Select($"DN = {dn} AND PipeType = '{type}'");
-            if (results != null && results.Length > 0) return (int)results[0]["DefaultL"];
+            if (results != null && results.Length > 0) return (double)results[0]["DefaultL"];
             else return 999;
         }
         public virtual IEnumerable<int> ListAllDnsForPipeTypeSerie(PipeTypeEnum type, PipeSeriesEnum series)
@@ -978,6 +982,55 @@ namespace IntersectUtilities.PipeScheduleV2
             }
         }
     }
+    public class PipeTypeAQTHRM11 : PipeTypeBase
+    {
+        public override double GetBuerorMinRadius(int dn, int std) => 0;
+        public override string GetLabel(int DN, PipeTypeEnum type, double od, double kOd)
+        {
+            switch (type)
+            {
+                case PipeTypeEnum.Ukendt:
+                    return "";
+                case PipeTypeEnum.Twin:
+                    return $"AT{DN}-ø{od.ToString("N0")}+ø{od.ToString("N0")}/{kOd.ToString("N0")}";
+                case PipeTypeEnum.Frem:
+                case PipeTypeEnum.Retur:
+                case PipeTypeEnum.Enkelt:
+                    return $"AT{DN}-ø{od.ToString("N0")}/{kOd.ToString("N0")}";
+                default:
+                    return "";
+            }
+        }
+        public override double GetPipeKOd(int dn, PipeTypeEnum type, PipeSeriesEnum series)
+        {
+            if (type == PipeTypeEnum.Retur ||
+                type == PipeTypeEnum.Frem)
+                type = PipeTypeEnum.Enkelt;
+
+            //We IGNORE the series for this type as it only has ONE series!
+
+            var results = _data.Select($"DN = {dn} AND PipeType = '{type}'");
+            if (results != null && results.Length > 0) return (double)results[0]["kOd"];
+            return 0;
+        }
+        public override short GetLayerColor(PipeTypeEnum type)
+        {
+            switch (type)
+            {
+                case PipeTypeEnum.Ukendt:
+                    return 0;
+                case PipeTypeEnum.Twin:
+                    return 200;
+                case PipeTypeEnum.Frem:
+                    return 20;
+                case PipeTypeEnum.Retur:
+                    return 160;
+                case PipeTypeEnum.Enkelt:
+                    return 200;
+                default: return 0;
+            }
+        }
+    }
     public interface IPipeTypeRepository
     {
         void Initialize(Dictionary<string, IPipeType> pipeTypeDict);
@@ -1018,8 +1071,11 @@ namespace IntersectUtilities.PipeScheduleV2
             {
                 string type = System.IO.Path.GetFileNameWithoutExtension(path);
                 DataTable dataTable = CsvReader.ReadCsvToDataTable(path, type);
-                if (!PipeScheduleV2.typeDict.ContainsKey(type))
-                    throw new Exception($"PipeType {type} is not defined in PipeScheduleV2!");
+                if (!PipeScheduleV2.typeDict.ContainsKey(type)) 
+                { 
+                    prdDbg($"PipeType {type} is not defined in PipeScheduleV2!");
+                    continue;
+                }                    
                 IPipeType pipeType = Activator.CreateInstance(
                     PipeScheduleV2.typeDict[type]) as IPipeType;
                 pipeType.Initialize(dataTable, PipeScheduleV2.systemDict[type]);
@@ -1125,7 +1181,11 @@ namespace IntersectUtilities.PipeScheduleV2
                 string company = System.IO.Path.GetFileNameWithoutExtension(path);
                 DataTable dataTable = CsvReader.ReadCsvToDataTable(path, company);
                 if (!PipeScheduleV2.companyDict.ContainsKey(company))
-                    throw new Exception($"PipeRadii {company} is not defined in PipeScheduleV2!");
+                {
+                    prdDbg($"PipeRadii {company} is not defined in PipeScheduleV2!");
+                    continue;
+                }
+                    
                 IPipeRadiusData pipeRadiusData = Activator.CreateInstance(
                     PipeScheduleV2.companyDict[company]) as IPipeRadiusData;
                 pipeRadiusData.Initialize(dataTable, PipeScheduleV2.companyEnumDict[company]);
