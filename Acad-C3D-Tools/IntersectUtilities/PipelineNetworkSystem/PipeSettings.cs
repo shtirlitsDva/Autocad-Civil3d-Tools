@@ -65,7 +65,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 prdDbg("Settings file missing! Creating...");
                 var defaultSettingsCollection = new PipeSettingsCollection();
                 var defaultSettings = defaultSettingsCollection["Default"];
-                defaultSettings.UpdateSettings();
+                defaultSettings.EditSettings();
                 defaultSettingsCollection.Save(settingsFileName);
                 prdDbg($"Created default settings file:\n\"{settingsFileName}\".");
                 return defaultSettingsCollection;
@@ -130,7 +130,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 Settings.Add(pt.Name, new PipeSettingSystem(pt));
             }
         }
-        internal void UpdateSettings()
+        internal void EditSettings()
         {
             PipeSettingsForm form = new PipeSettingsForm();
             form.CreatePipeSettingsGrid(this);
@@ -162,7 +162,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
         [JsonInclude]
         public PipeTypeEnum Name { get; set; }
         [JsonInclude]
-        public Dictionary<int, int> Settings = new Dictionary<int, int>();
+        public Dictionary<int, double> Settings = new();
         public PipeSettingType() { }
         public PipeSettingType(PipeTypeEnum type, IPipeType pt)
         {

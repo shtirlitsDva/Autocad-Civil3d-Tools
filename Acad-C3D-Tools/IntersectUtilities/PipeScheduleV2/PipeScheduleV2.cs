@@ -603,7 +603,7 @@ namespace IntersectUtilities.PipeScheduleV2
         IEnumerable<int> ListAllDnsForPipeType(PipeTypeEnum type);
         IEnumerable<PipeTypeEnum> GetAvailableTypes();
         IEnumerable<PipeSeriesEnum> GetAvailableSeriesForType(PipeTypeEnum type);
-        int GetDefaultLengthForDnAndType(int DN, PipeTypeEnum type);
+        double GetDefaultLengthForDnAndType(int DN, PipeTypeEnum type);
     }
     public abstract class PipeTypeBase : IPipeType
     {
@@ -790,7 +790,7 @@ namespace IntersectUtilities.PipeScheduleV2
                     .Select(x => (PipeSeriesEnum)Enum.Parse(typeof(PipeSeriesEnum), x));
             return null;
         }
-        public int GetDefaultLengthForDnAndType(int dn, PipeTypeEnum type)
+        public double GetDefaultLengthForDnAndType(int dn, PipeTypeEnum type)
         {
             //It is assumed that series does not matter for default length
 
@@ -800,7 +800,7 @@ namespace IntersectUtilities.PipeScheduleV2
 
             DataRow[] results =
                 _data.Select($"DN = {dn} AND PipeType = '{type}'");
-            if (results != null && results.Length > 0) return (int)results[0]["DefaultL"];
+            if (results != null && results.Length > 0) return (double)results[0]["DefaultL"];
             return 999;
         }
     }

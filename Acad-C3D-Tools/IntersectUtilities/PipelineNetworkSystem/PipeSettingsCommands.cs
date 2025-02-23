@@ -52,16 +52,93 @@ namespace IntersectUtilities
 {
     public partial class Intersect
     {
-        /// <command>PIPESETTINGS, PSTS</command>
+        /// <command>PIPESETTINGSCREATE, PSCREATE</command>
         /// <summary>
-        /// Creates and manages pipe settings.
+        /// Creates and initializes default pipe settings.
         /// The settings are used for setting default values for standard pipe lengths.
-        /// Currently, only default settings are supported.
         /// </summary>
         /// <category>Fjernvarme Fremtidig</category>
-        [CommandMethod("PSTS")]
-        [CommandMethod("PIPESETTINGS")]
-        public void pipesettings()
+        [CommandMethod("PSCREATE")]
+        [CommandMethod("PIPESETTINGSCREATE")]
+        public void pipesettingscreate()
+        {
+            prdDbg("Dette skal køres i FJV Fremtid!");
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            string settingsLayerName = PipeSettingsCollection.SettingsLayerName;
+
+            #region Check or create layer
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    LayerTable lt = localDb.LayerTableId.Go<LayerTable>(tx);
+                    if (!lt.Has(settingsLayerName))
+                    {
+                        prdDbg("Settings layer missing! Creating...");
+                        localDb.CheckOrCreateLayer(settingsLayerName, 2, false);
+                        prdDbg($"Created layer \"0-PIPESETTINGS\".");
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+            #endregion
+
+            #region Manage pipe settings
+            //First check if settings exist
+            //If not, create them and edit immidiately
+
+            var settingsFileName =
+                PipeSettingsCollection.GetSettingsFileNameWithPath();
+
+            //Check if settings file exists
+            if (!File.Exists(settingsFileName))
+            {
+                prdDbg("Settings file missing! Creating...");
+                var defaultSettingsCollection = new PipeSettingsCollection();
+                var defaultSettings = defaultSettingsCollection["Default"];
+                defaultSettings.EditSettings();
+                defaultSettingsCollection.Save(settingsFileName);
+
+                prdDbg($"Created default settings file:\n\"{settingsFileName}\".");
+                prdDbg("Exiting...");
+                return;
+            }
+
+            //Load settings
+            var settingsCollection = PipeSettingsCollection.Load(settingsFileName);
+
+            prdDbg($"Following pipe settings detected: \n" +
+                $"{string.Join(", ", settingsCollection.ListSettings())}");
+
+            bool editDefault =
+                StringGridFormCaller.YesNo(
+                    "Edit default settings?: ");
+
+            if (editDefault)
+            {
+                var settings = settingsCollection["Default"];
+                settings.EditSettings();
+            }
+
+            settingsCollection.Save(settingsFileName);
+            #endregion
+        }
+        /// <command>PIPESETTINGSADD, PSTSADD</command>
+        /// <summary>
+        /// Adds a new pipe setting using a selected polyline.
+        /// </summary>
+        /// <category>Fjernvarme Fremtidig</category>
+        [CommandMethod("PSTSADD")]
+        [CommandMethod("PIPESETTINGSADD")]
+        public void pipesettingsadd()
         {
             prdDbg("Dette skal køres i FJV Fremtid!");
 
@@ -73,7 +150,7 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    #region Check or create layer
+                    #region Check for layer existence
                     LayerTable lt = localDb.LayerTableId.Go<LayerTable>(tx);
                     if (!lt.Has(settingsLayerName))
                     {
@@ -94,7 +171,7 @@ namespace IntersectUtilities
                     //First check if settings exist
                     //If not, create them and edit immidiately
 
-                    var settingsFileName = 
+                    var settingsFileName =
                         PipeSettingsCollection.GetSettingsFileNameWithPath();
 
                     //Check if settings file exists
@@ -103,7 +180,7 @@ namespace IntersectUtilities
                         prdDbg("Settings file missing! Creating...");
                         var defaultSettingsCollection = new PipeSettingsCollection();
                         var defaultSettings = defaultSettingsCollection["Default"];
-                        defaultSettings.UpdateSettings();
+                        defaultSettings.EditSettings();
                         defaultSettingsCollection.Save(settingsFileName);
 
                         prdDbg($"Created default settings file:\n\"{settingsFileName}\".");
@@ -118,14 +195,14 @@ namespace IntersectUtilities
                     prdDbg($"Following pipe settings detected: \n" +
                         $"{string.Join(", ", settingsCollection.ListSettings())}");
 
-                    string settingsToEdit = 
+                    string settingsToEdit =
                         StringGridFormCaller.Call(
                             settingsCollection.ListSettings(), "Choose settings to edit: ");
 
                     if (settingsToEdit.IsNoE()) { tx.Abort(); return; }
 
                     var settings = settingsCollection[settingsToEdit];
-                    settings.UpdateSettings();
+                    settings.EditSettings();
                     settingsCollection.Save(settingsFileName);
 
                     //HashSet<Polyline> settingsPlines = localDb
