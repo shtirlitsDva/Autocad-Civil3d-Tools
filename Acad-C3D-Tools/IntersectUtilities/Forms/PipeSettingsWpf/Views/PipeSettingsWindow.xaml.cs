@@ -1,4 +1,5 @@
 ﻿using IntersectUtilities.Forms.PipeSettingsWpf.ViewModels;
+using IntersectUtilities.PipelineNetworkSystem;
 
 using System;
 using System.Collections.Generic;
@@ -26,6 +27,11 @@ namespace IntersectUtilities.Forms.PipeSettingsWpf.Views
         {
             InitializeComponent();
             DataContext = vm;
+        }
+
+        public void LoadPipeSettinngs(PipeSettings model)
+        {
+            vm.LoadModel(model);
         }
     }
 }

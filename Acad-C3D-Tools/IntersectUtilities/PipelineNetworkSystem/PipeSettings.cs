@@ -14,6 +14,7 @@ using System.Threading.Tasks;
 using System.IO;
 
 using static IntersectUtilities.UtilsCommon.Utils;
+using IntersectUtilities.Forms.PipeSettingsWpf.Views;
 
 namespace IntersectUtilities.PipelineNetworkSystem
 {
@@ -132,10 +133,14 @@ namespace IntersectUtilities.PipelineNetworkSystem
         }
         internal void EditSettings()
         {
-            PipeSettingsForm form = new PipeSettingsForm();
-            form.CreatePipeSettingsGrid(this);
-            form.ShowDialog();
-            form.Close();
+            //PipeSettingsForm form = new PipeSettingsForm();
+            //form.CreatePipeSettingsGrid(this);
+            //form.ShowDialog();
+            //form.Close();
+
+            PipeSettingsWindow wnd = new PipeSettingsWindow();
+            wnd.LoadPipeSettinngs(this);
+            wnd.ShowDialog();
         }
     }
     public class PipeSettingSystem

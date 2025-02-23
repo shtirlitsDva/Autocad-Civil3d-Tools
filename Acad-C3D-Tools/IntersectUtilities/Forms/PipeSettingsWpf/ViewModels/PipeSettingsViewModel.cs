@@ -15,7 +15,7 @@ namespace IntersectUtilities.Forms.PipeSettingsWpf.ViewModels
 {
     internal partial class PipeSettingsViewModel : ObservableObject
     {
-        private readonly PipeSettings _model;
+        private PipeSettings _model;
 
         [ObservableProperty]
         private string title;
@@ -24,11 +24,18 @@ namespace IntersectUtilities.Forms.PipeSettingsWpf.ViewModels
         public ObservableCollection<PipeSettingSystemViewModel> Systems { get; }
             = new ObservableCollection<PipeSettingSystemViewModel>();
 
-        // Constructor that converts model → hierarchical ViewModel
-        public PipeSettingsViewModel(PipeSettings model)
+        public PipeSettingsViewModel()
+        {
+            Title = "No model loaded yet";
+        }
+
+        public void LoadModel(PipeSettings model)
         {
             _model = model;
-            Title = model.Name;
+            Title = model?.Name ?? "Unnamed PipeSettings";
+
+            Systems.Clear();
+            if (model == null) return;
 
             // Convert each system in the model
             foreach (var system in model.Settings.Values)
@@ -63,8 +70,7 @@ namespace IntersectUtilities.Forms.PipeSettingsWpf.ViewModels
 
                         // If only 1 option, you can skip or automatically assign, 
                         // just like your WinForms logic
-                        if (possibleOptions.Length <= 1)
-                            continue;
+                        if (possibleOptions.Length <= 1) continue;
 
                         var sizeVm = new PipeSettingSizeViewModel
                         {
@@ -74,7 +80,7 @@ namespace IntersectUtilities.Forms.PipeSettingsWpf.ViewModels
 
                         // Fill the Options collection
                         foreach (var lengthOpt in possibleOptions)
-                            sizeVm.Options.Add(lengthOpt);
+                            sizeVm.Options.Add(new OptionItemViewModel(lengthOpt, sizeVm));
 
                         typeVm.Sizes.Add(sizeVm);
                     }

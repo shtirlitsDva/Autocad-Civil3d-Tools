@@ -3,9 +3,9 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <!-- Adjust the following brushes to your taste (dark theme, light theme, etc.) -->
-    <SolidColorBrush x:Key="PrimaryBackgroundColor" Color="#FF333333" />
+    <SolidColorBrush x:Key="PrimaryBackgroundColor" Color="#3b4453" />
     <SolidColorBrush x:Key="PrimaryForegroundColor" Color="#FFFFFFFF" />
-    <SolidColorBrush x:Key="PanelBackgroundColor" Color="#FF2B2B2B" />
+    <SolidColorBrush x:Key="PanelBackgroundColor" Color="#3b4453" />
 
     <!-- Global style for Window -->
     <Style TargetType="Window">
@@ -14,9 +14,22 @@
         <Setter Property="FontFamily" Value="Segoe UI" />
     </Style>
 
+    <Style TargetType="StackPanel">
+        <Setter Property="Background" Value="{StaticResource PrimaryBackgroundColor}" />
+    </Style>
+
+    <Style TargetType="DockPanel">
+        <Setter Property="Background" Value="{StaticResource PrimaryBackgroundColor}" />
+    </Style>
+
+    <Style TargetType="ScrollViewer">
+        <Setter Property="Background" Value="{StaticResource PrimaryBackgroundColor}" />
+    </Style>
+
     <!-- Global style for TextBlock -->
     <Style TargetType="TextBlock">
         <Setter Property="Foreground" Value="{StaticResource PrimaryForegroundColor}" />
+        <Setter Property="Background" Value="{StaticResource PrimaryBackgroundColor}" />
         <Setter Property="Margin" Value="4" />
     </Style>
 

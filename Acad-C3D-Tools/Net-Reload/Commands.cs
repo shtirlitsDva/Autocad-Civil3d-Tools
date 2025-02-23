@@ -151,7 +151,7 @@ namespace NetReload
                     return;
                 }
 
-                var solName = IntersectUtilities.GridFormCaller.Call(
+                var solName = IntersectUtilities.StringGridFormCaller.Call(
                     solNames.Keys, "Select Visual Studio instance to increment:");
                 if (string.IsNullOrEmpty(solName))
                 {

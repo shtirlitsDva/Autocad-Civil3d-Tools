@@ -5,68 +5,92 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:IntersectUtilities.Forms.PipeSettingsWpf.Views"
         xmlns:vm="clr-namespace:IntersectUtilities.Forms.PipeSettingsWpf.ViewModels"
-        xmlns:conv="clr-namespace:IntersectUtilities.Forms.PipeSettingsWpf.Converters"
         mc:Ignorable="d"
         Title="Pipe Settings"
-        Height="450" Width="800">
-    <!-- If you prefer local resource usage only, define the converter here -->
-    <Window.Resources>
-        <!-- Make the converter accessible in XAML -->
-        <conv:DoubleEqualityConverter x:Key="DoubleEqualityConverter" />
+        Height="550" Width="300">
 
-        <!-- 
+    <!-- 1) Merge your dark theme styles here -->
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- 
+                    If 'Styles.xaml' is in a folder named 'Styles' 
+                    within the same assembly, you can often do: 
+                        Source="Styles/Styles.xaml"
+                    If it’s in another assembly or the path is different, 
+                    use a pack URI like:
+                        Source="pack://application:,,,/YourAssemblyName;component/Styles/Styles.xaml"
+                -->
+                <ResourceDictionary Source="Styles/Styles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+
+            <!-- 
             DataTemplate that shows a single Size row:
               - A text label for "Size"
               - A horizontal list of radio buttons for "Options".
         -->
-        <DataTemplate DataType="{x:Type vm:PipeSettingSizeViewModel}">
-            <StackPanel Orientation="Horizontal">
-                <TextBlock Text="{Binding Size}" 
-                           Width="50" 
-                           TextAlignment="Right" />
+            <DataTemplate DataType="{x:Type vm:PipeSettingSizeViewModel}">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
 
-                <!-- Show each possible option as a RadioButton -->
-                <ItemsControl ItemsSource="{Binding Options}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <RadioButton 
-                                Content="{Binding}" 
-                                IsChecked="{Binding 
-                                             RelativeSource={RelativeSource AncestorType=DataTemplate}, 
-                                             Path=DataContext.SelectedOption, 
-                                             Converter={StaticResource DoubleEqualityConverter}, 
-                                             ConverterParameter={Binding}}"
-                                />
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </StackPanel>
-        </DataTemplate>
+                    <!-- DN size label -->
+                    <TextBlock Text="{Binding Size}"
+                   Width="50"
+                   TextAlignment="Right"
+                   Margin="5,0"
+                               Foreground="White"/>
 
-        <!-- DataTemplate for PipeSettingTypeViewModel:
+                    <!-- Radio buttons for each OptionItem -->
+                    <ItemsControl ItemsSource="{Binding Options}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+
+                        <ItemsControl.ItemTemplate>
+                            <!-- Each OptionItemViewModel is displayed as one RadioButton -->
+                            <DataTemplate DataType="{x:Type vm:OptionItemViewModel}">
+                                <RadioButton Content="{Binding Value}"
+                                 Margin="5,0"
+                                             VerticalContentAlignment="Center"
+                                 IsChecked="{Binding IsSelected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 GroupName="{Binding GroupName}"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <!--<TextBlock Text="{Binding SelectedOption}" 
+                           Foreground="Red" Margin="10,0"/>-->
+                </StackPanel>
+            </DataTemplate>
+
+            <!-- DataTemplate for PipeSettingTypeViewModel:
              Shows the type name, then an ItemsControl of "Sizes".
         -->
-        <DataTemplate DataType="{x:Type vm:PipeSettingTypeViewModel}">
-            <StackPanel Margin="0,0,0,10">
-                <TextBlock Text="{Binding TypeName}" 
-                           FontWeight="Bold" />
+            <DataTemplate DataType="{x:Type vm:PipeSettingTypeViewModel}">
+                <StackPanel Margin="0,0,0,10">
+                    <TextBlock Text="{Binding TypeName}" 
+                           FontWeight="Bold"
+                               Foreground="White"/>
 
-                <ItemsControl ItemsSource="{Binding Sizes}"/>
-            </StackPanel>
-        </DataTemplate>
+                    <ItemsControl ItemsSource="{Binding Sizes}"/>
+                </StackPanel>
+            </DataTemplate>
 
-        <!-- DataTemplate for PipeSettingSystemViewModel:
+            <!-- DataTemplate for PipeSettingSystemViewModel:
              Shows the system name, then an ItemsControl of "Types".
         -->
-        <DataTemplate DataType="{x:Type vm:PipeSettingSystemViewModel}">
-            <StackPanel Margin="0,0,0,15">
-                <TextBlock Text="{Binding SystemName}" 
+            <DataTemplate DataType="{x:Type vm:PipeSettingSystemViewModel}">
+                <StackPanel Margin="0,0,0,15">
+                    <TextBlock Text="{Binding SystemName}" 
+                               Foreground="White"
                            FontSize="14" 
                            FontWeight="SemiBold" />
 
-                <ItemsControl ItemsSource="{Binding Types}"/>
-            </StackPanel>
-        </DataTemplate>
+                    <ItemsControl ItemsSource="{Binding Types}"/>
+                </StackPanel>
+            </DataTemplate>
+        </ResourceDictionary>
     </Window.Resources>
 
     <!-- 
