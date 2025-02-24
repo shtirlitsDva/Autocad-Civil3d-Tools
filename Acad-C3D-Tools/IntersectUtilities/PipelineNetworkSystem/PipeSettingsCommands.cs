@@ -131,12 +131,12 @@ namespace IntersectUtilities
             settingsCollection.Save(settingsFileName);
             #endregion
         }
-        /// <command>PIPESETTINGSADD, PSTSADD</command>
+        /// <command>PIPESETTINGSADD, PSADD</command>
         /// <summary>
         /// Adds a new pipe setting using a selected polyline.
         /// </summary>
         /// <category>Fjernvarme Fremtidig</category>
-        [CommandMethod("PSTSADD")]
+        [CommandMethod("PSADD")]
         [CommandMethod("PIPESETTINGSADD")]
         public void pipesettingsadd()
         {
@@ -150,23 +150,6 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    #region Check for layer existence
-                    LayerTable lt = localDb.LayerTableId.Go<LayerTable>(tx);
-                    if (!lt.Has(settingsLayerName))
-                    {
-                        prdDbg("Settings layer missing! Creating...");
-                        localDb.CheckOrCreateLayer(settingsLayerName);
-                        prdDbg($"Created layer \"0-PIPESETTINGS\".");
-                        prdDbg(
-                            $"Run PIPESETTINGS to create general settings " +
-                            $"and/or draw closed polylines in the settings layer " +
-                            $"to create areas for different length settings.");
-                        prdDbg("Exiting...");
-                        tx.Commit();
-                        return;
-                    }
-                    #endregion
-
                     #region Manage pipe settings
                     //First check if settings exist
                     //If not, create them and edit immidiately
@@ -179,14 +162,13 @@ namespace IntersectUtilities
                     {
                         prdDbg("Settings file missing! Creating...");
                         var defaultSettingsCollection = new PipeSettingsCollection();
+                        
                         var defaultSettings = defaultSettingsCollection["Default"];
                         defaultSettings.EditSettings();
+                        
                         defaultSettingsCollection.Save(settingsFileName);
 
                         prdDbg($"Created default settings file:\n\"{settingsFileName}\".");
-                        prdDbg("Exiting...");
-                        tx.Abort();
-                        return;
                     }
 
                     //Load settings
@@ -195,21 +177,304 @@ namespace IntersectUtilities
                     prdDbg($"Following pipe settings detected: \n" +
                         $"{string.Join(", ", settingsCollection.ListSettings())}");
 
-                    string settingsToEdit =
-                        StringGridFormCaller.Call(
-                            settingsCollection.ListSettings(), "Choose settings to edit: ");
+                    Oid oid = Interaction.GetEntity(
+                        "Select polyline marking area for special pipe settings to add: ",
+                        typeof(Polyline), true);
+                    if (oid == Oid.Null) { prdDbg("Abort..."); tx.Abort(); return; }
+                    var pline = oid.Go<Polyline>(tx);
+                    if (pline == null) { prdDbg("Abort..."); tx.Abort(); return; }
 
-                    if (settingsToEdit.IsNoE()) { tx.Abort(); return; }
+                    if (pline.Layer != settingsLayerName)
+                    {
+                        prdDbg("Selected polyline is not on the settings layer!");
+                        tx.Abort();
+                        return;
+                    }
 
-                    var settings = settingsCollection[settingsToEdit];
-                    settings.EditSettings();
-                    settingsCollection.Save(settingsFileName);
+                    //The handle of the polyline shall be the name of the settings
+                    string psName = pline.Handle.ToString();
 
-                    //HashSet<Polyline> settingsPlines = localDb
-                    //    .HashSetOfType<Polyline>(tx)
-                    //    .Where(p => p.Layer == settingsLayerName)
-                    //    .ToHashSet();
+                    #region If settings already exist
+                    //Check if collection already has the settings
+                    if (settingsCollection.ContainsKey(psName))
+                    {
+                        prdDbg($"Settings for \"{psName}\" already exists!");
+
+                        bool editExisting = StringGridFormCaller.YesNo(
+                            "Edit existing settings?: ");
+
+                        if (editExisting)
+                        {
+                            var es = settingsCollection[psName];
+                            es.EditSettings();
+                        }
+                        else
+                        {
+                            prdDbg("Exiting...");
+                            tx.Abort();
+                            return;
+                        }
+
+                        tx.Abort();
+                        return;
+                    } 
                     #endregion
+
+                    //Instantiate new pipe settings
+                    var newPipeSettings = new PipeSettings(pline.Handle.ToString());
+                    newPipeSettings.EditSettings();
+                    settingsCollection.Add(psName, newPipeSettings);
+                    settingsCollection.Save(settingsFileName);
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                finally
+                {
+
+                }
+                tx.Abort();
+            }
+        }
+        /// <command>PIPESETTINGSREMOVE, PSREMOVE</command>
+        /// <summary>
+        /// Removes a pipe setting using a selected polyline.
+        /// </summary>
+        /// <category>Fjernvarme Fremtidig</category>
+        [CommandMethod("PSREMOVE")]
+        [CommandMethod("PIPESETTINGSREMOVE")]
+        public void pipesettingsremove()
+        {
+            prdDbg("Dette skal køres i FJV Fremtid!");
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            string settingsLayerName = PipeSettingsCollection.SettingsLayerName;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var settingsFileName =
+                        PipeSettingsCollection.GetSettingsFileNameWithPath();
+
+                    //Check if settings file exists
+                    if (!File.Exists(settingsFileName))
+                    {
+                        prdDbg("Settings file does not exist!"); tx.Abort(); return;
+                    }
+
+                    //Load settings
+                    var settingsCollection = PipeSettingsCollection.Load(settingsFileName);
+
+                    prdDbg($"Following pipe settings detected: \n" +
+                        $"{string.Join(", ", settingsCollection.ListSettings())}");
+
+                    Oid oid = Interaction.GetEntity(
+                        "Select polyline marking area for special pipe settings to remove: ",
+                        typeof(Polyline), true);
+                    if (oid == Oid.Null) { prdDbg("Abort..."); tx.Abort(); return; }
+                    var pline = oid.Go<Polyline>(tx);
+                    if (pline == null) { prdDbg("Abort..."); tx.Abort(); return; }
+
+                    if (pline.Layer != settingsLayerName)
+                    {
+                        prdDbg("Selected polyline is not on the settings layer!");
+                        tx.Abort();
+                        return;
+                    }
+
+                    //The handle of the polyline shall be the name of the settings
+                    string psName = pline.Handle.ToString();
+
+                    #region If settings already exist
+                    //Check if collection already has the settings
+                    if (settingsCollection.ContainsKey(psName))
+                    {
+                        settingsCollection.Remove(psName);
+                        settingsCollection.Save(settingsFileName);
+
+                        prdDbg(
+                            $"Settings for \"{psName}\" removed!\n" +
+                            $"Remember to delete polyline or add new settings!");
+
+                        tx.Abort();
+                        return;
+                    }
+                    else
+                    {
+                        prdDbg($"Settings for \"{psName}\" does not exist!");
+                        //Fall through
+                    }
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                finally
+                {
+
+                }
+                tx.Abort();
+            }
+        }
+        /// <command>PIPESETTINGSEDIT, PSEDIT</command>
+        /// <summary>
+        /// Prompts user to select a for which to edit settings.
+        /// Adds new settings if missing.
+        /// </summary>
+        /// <category>Fjernvarme Fremtidig</category>
+        [CommandMethod("PSEDIT")]
+        [CommandMethod("PIPESETTINGSEDIT")]
+        public void pipesettingsedit()
+        {
+            prdDbg("Dette skal køres i FJV Fremtid!");
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            string settingsLayerName = PipeSettingsCollection.SettingsLayerName;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var settingsFileName =
+                        PipeSettingsCollection.GetSettingsFileNameWithPath();
+
+                    //Check if settings file exists
+                    if (!File.Exists(settingsFileName))
+                    {
+                        prdDbg("Settings file does not exist! Run PSCREATE."); tx.Abort(); return;
+                    }
+
+                    //Load settings
+                    var settingsCollection = PipeSettingsCollection.Load(settingsFileName);
+
+                    prdDbg($"Following pipe settings detected: \n" +
+                        $"{string.Join(", ", settingsCollection.ListSettings())}");
+
+                    var editDefault = StringGridFormCaller.YesNo(
+                        "Edit DEFAULT settings?: ");
+
+                    if (editDefault)
+                    {
+                        Oid oid = Interaction.GetEntity(
+                            "Select polyline marking area for special pipe settings to edit the settings: ",
+                        typeof(Polyline), true);
+                        if (oid == Oid.Null) { prdDbg("Abort..."); tx.Abort(); return; }
+                        var pline = oid.Go<Polyline>(tx);
+                        if (pline == null) { prdDbg("Abort..."); tx.Abort(); return; }
+
+                        if (pline.Layer != settingsLayerName)
+                        {
+                            prdDbg("Selected polyline is not on the settings layer!");
+                            tx.Abort();
+                            return;
+                        }
+                        //The handle of the polyline shall be the name of the settings
+                        string psName = pline.Handle.ToString();
+
+                        //Check if collection already has the settings
+                        if (settingsCollection.ContainsKey(psName))
+                        {
+                            var settings = settingsCollection[psName];
+                            settings.EditSettings();
+                            settingsCollection.Save(settingsFileName);
+
+                            prdDbg(
+                                $"Settings for \"{psName}\" edited and saved!"
+                                );
+
+                            tx.Abort();
+                            return;
+                        }
+                        else
+                        {
+                            prdDbg($"Settings for \"{psName}\" does not exist! Creating...");
+
+                            var newPipeSettings = new PipeSettings(pline.Handle.ToString());
+                            newPipeSettings.EditSettings();
+                            settingsCollection.Add(psName, newPipeSettings);
+                            settingsCollection.Save(settingsFileName);
+
+                            tx.Abort();
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        var settings = settingsCollection["Default"];
+                        settings.EditSettings();
+                        settingsCollection.Save(settingsFileName);
+
+                        prdDbg(
+                            $"Settings for \"Default\" edited and saved!"
+                            );
+
+                        tx.Abort();
+                        return;
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                finally
+                {
+
+                }
+                tx.Abort();
+            }
+        }
+        /// <command>PIPESETTINGSVALIDATE, PSVALIDATE</command>
+        /// <summary>
+        /// Validates pipe setting to make sure that the number of polylines
+        /// correspond to the number of pipe settings.
+        /// </summary>
+        /// <category>Fjernvarme Fremtidig</category>
+        [CommandMethod("PSVALIDATE")]
+        [CommandMethod("PIPESETTINGSVALIDATE")]
+        public void pipesettingsvalidate()
+        {
+            prdDbg("Dette skal køres i FJV Fremtid!");
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            string settingsLayerName = PipeSettingsCollection.SettingsLayerName;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var settingsFileName =
+                        PipeSettingsCollection.GetSettingsFileNameWithPath();
+
+                    //Check if settings file exists
+                    if (!File.Exists(settingsFileName))
+                    {
+                        prdDbg("Settings file does not exist!"); tx.Abort(); return;
+                    }
+
+                    //Load settings
+                    var settingsCollection = PipeSettingsCollection.Load(settingsFileName);
+
+                    prdDbg($"Following pipe settings detected: \n" +
+                        $"{string.Join(", ", settingsCollection.ListSettings())}");
+
+                    var result = settingsCollection.ValidateSettings(localDb);
+
+                    prdDbg(
+                        $"Settings are valid: {result.Item1}\n" +
+                        $"Message: \n{result.Item2}");
                 }
                 catch (System.Exception ex)
                 {

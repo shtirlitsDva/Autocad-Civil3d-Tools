@@ -15,6 +15,8 @@ using System.IO;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 using IntersectUtilities.Forms.PipeSettingsWpf.Views;
+using IntersectUtilities.UtilsCommon;
+using Autodesk.AutoCAD.Geometry;
 
 namespace IntersectUtilities.PipelineNetworkSystem
 {
@@ -59,6 +61,45 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 string jsonString = System.IO.File.ReadAllText(settingsFileName);
                 PipeSettingsCollection settings =
                     JsonSerializer.Deserialize<PipeSettingsCollection>(jsonString);
+
+                return settings;
+            }
+            else
+            {
+                prdDbg("Settings file missing! Creating...");
+                var defaultSettingsCollection = new PipeSettingsCollection();
+                var defaultSettings = defaultSettingsCollection["Default"];
+                defaultSettings.EditSettings();
+                defaultSettingsCollection.Save(settingsFileName);
+                prdDbg($"Created default settings file:\n\"{settingsFileName}\".");
+                return defaultSettingsCollection;
+            }
+        }
+        public static PipeSettingsCollection LoadWithValidation(Database db)
+        {
+            string f = GetSettingsFileNameWithPath();
+            return LoadWithValidation(f, db);
+        }
+        public static PipeSettingsCollection LoadWithValidation(string settingsFileName, Database db)
+        {
+            if (string.IsNullOrEmpty(settingsFileName)) throw new Exception("Settings file name is empty!");
+
+            if (File.Exists(settingsFileName))
+            {
+                string jsonString = System.IO.File.ReadAllText(settingsFileName);
+                PipeSettingsCollection settings =
+                    JsonSerializer.Deserialize<PipeSettingsCollection>(jsonString);
+
+                var result = settings.ValidateSettings(db);
+
+                if (result.valid == false)
+                {
+                    prdDbg("Settings are invalid!");
+                    prdDbg(result.message);
+                    settings.Save(settingsFileName);
+                    throw new Exception("Settings are invalid!");
+                }
+
                 return settings;
             }
             else
@@ -73,8 +114,53 @@ namespace IntersectUtilities.PipelineNetworkSystem
             }
         }
         public IEnumerable<string> ListSettings() => _dictionary.Keys;
+        private bool _settingsMPolygonsLoaded = false;
+        private Dictionary<Polyline, MPolygon> _settingsMPolygons = new();
         internal PipeSettings DetermineSettingsForPipe(Polyline pline)
         {
+            if (!_settingsMPolygonsLoaded)
+            {
+                _settingsMPolygonsLoaded = true;
+
+                if (pline.Database.TransactionManager.TopTransaction == null) throw new Exception("Transaction is null!");
+                Database db = pline.Database;
+                Transaction tx = pline.Database.TransactionManager.TopTransaction;
+
+                var splines = db.ListOfType<Polyline>(tx)
+                    .Where(x => x.Layer == SettingsLayerName).ToList();
+
+                if (splines.Count == 0) return _dictionary["Default"];
+
+                foreach (var spline in splines)
+                {
+                    
+                    MPolygon mpg = new MPolygon();
+                    mpg.AppendLoopFromBoundary(spline, true, Tolerance.Global.EqualPoint);
+                    _settingsMPolygons.Add(spline, mpg);
+                }
+            }
+
+            foreach (var kvp in _settingsMPolygons)
+            {
+                Point3d[] points =
+                    [pline.StartPoint, pline.GetPointAtDist(pline.Length / 2), pline.EndPoint];
+
+                bool[] bools =
+                    points.Select(x => kvp.Value.IsPointInsideMPolygon(
+                        x, Tolerance.Global.EqualPoint).Count == 1).ToArray();
+
+                if (bools.All(x => x == true)) return _dictionary[kvp.Key.Handle.ToString()];
+
+                //Detect mixed bools, which means a point is inside and outside the MPolygon
+                //This is not allowed, so throw an exception
+                if (bools.All(x => x == false) == false && bools.All(x => x == true) == false)
+                    throw new Exception(
+                        $"Pipe settings polyline {kvp.Key.Handle} crosses pipe polyline {pline.Handle}!\n" +
+                        $"This is not allowed! Pipe polylines may not cross pipe settings polylines!");
+
+                if (bools.All(x => x == false)) continue;
+            }
+
             return _dictionary["Default"];
         }
         internal double GetSettingsLength(Polyline pline)
@@ -89,6 +175,48 @@ namespace IntersectUtilities.PipelineNetworkSystem
             var dn = PipeScheduleV2.PipeScheduleV2.GetPipeDN(pline);
             var length = sizeSettings.Settings[dn];
             return length;
+        }
+
+        internal (bool valid, string message) ValidateSettings(Database localDb)
+        {
+            if (localDb == null) return (false, "Database is null!");
+            if (localDb.TransactionManager.TopTransaction == null) return (false, "Transaction is null!");
+            var tx = localDb.TransactionManager.TopTransaction;
+            var plines = localDb.HashSetOfType<Polyline>(tx);
+
+            var settingPlines = plines.Where(p => p.Layer == SettingsLayerName);
+
+            foreach (var pline in settingPlines)
+                if (pline.Closed == false)
+                    return (false, $"Polyline {pline.Handle} is not closed!");
+
+            if (ContainsKey("Default") == false) return (false, "Default settings missing!");
+
+            var plinesHandles = settingPlines.Select(p => p.Handle.ToString()).ToHashSet();
+            var settingNames = ListSettings().Where(x => x != "Default").ToHashSet();
+
+            if (plinesHandles.SetEquals(settingNames) == false)
+            {
+                var missingSettings = plinesHandles.Except(settingNames).ToList();
+                if (missingSettings.Count > 0)
+                    return (false, $"Settings missing for polylines: {string.Join(", ", missingSettings)}\n" +
+                        $"Either delete these polylines or use PSADD to create settings for them.");
+
+                var extraSettings = settingNames.Except(plinesHandles).ToList();
+                if (extraSettings.Count > 0)
+                {
+                    prdDbg($"Extra settings found for plines: \n{string.Join(", ", extraSettings)}\n" +
+                        $"But no polylines with these handles found.\n" +
+                        $"Settings deleted!");
+
+                    foreach (var setting in extraSettings) Remove(setting);
+                    Save(GetSettingsFileNameWithPath());
+                    //Validate settings again
+                    return ValidateSettings(localDb);
+                }
+            }
+
+            return (true, "Settings are valid.");
         }
 
         #region Interface Members

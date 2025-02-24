@@ -204,11 +204,10 @@ namespace IntersectUtilities.PipelineNetworkSystem
         /// </summary>
         public Result CorrectPipesToCutLengths(Point3d connectionLocation)
         {
-            if (psh == null) psh = new PropertySetHelper(pipelineEntities?.FirstOrDefault()?.Database);
-
-            Database localDb = pipelineEntities.FirstOrDefault()?.Database;
-
-            PipeSettingsCollection psc = PipeSettingsCollection.Load();
+            Database? localDb = pipelineEntities.FirstOrDefault()?.Database;
+            if (localDb == null) throw new Exception($"Could not determine database for pipeline {this.Name}!");
+            if (psh == null) psh = new PropertySetHelper(localDb);
+            PipeSettingsCollection psc = PipeSettingsCollection.LoadWithValidation(localDb);
 
             PipesLengthCorrectionHandler plch;
             double curStart;

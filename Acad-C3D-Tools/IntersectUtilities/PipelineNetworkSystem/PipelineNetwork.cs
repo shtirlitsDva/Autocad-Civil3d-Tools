@@ -493,7 +493,8 @@ namespace IntersectUtilities.PipelineNetworkSystem
 
         //////////////////////////////////////
         private string blockLayerName = "0-SVEJSEPKT";
-        private string blockName = "SVEJSEPUNKT-NOTXT";
+        //private string blockName = "SVEJSEPUNKT-NOTXT";
+        private string blockName = "SVEJSEPUNKT-V2";
         private string textLayerName = "Nonplot";
         private double tolerance = 0.005;
         //////////////////////////////////////
@@ -503,7 +504,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
 
-            PipeSettingsCollection psc = PipeSettingsCollection.Load();
+            PipeSettingsCollection psc = PipeSettingsCollection.LoadWithValidation(localDb);
             DataTable dt = CsvData.FK;
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
@@ -930,9 +931,13 @@ namespace IntersectUtilities.PipelineNetworkSystem
                                     continue;
                                 }
 
-                                Utils.SetDynBlockPropertyObject(wpBr, "System", (object)pipeType.PipeType.ToString());
-                                Utils.SetDynBlockPropertyObject(wpBr, "PIPESIZE", (double)DN);
-                                Utils.SetDynBlockPropertyObject(wpBr, "SYSNAVN", pipeSystem.PipeSystem.ToString());
+                                wpBr.SetAttributeStringValue("SYSTEM", pipeType.PipeType.ToString());
+                                wpBr.SetAttributeStringValue("PIPESIZE", DN.ToString());
+                                wpBr.SetAttributeStringValue("SYSNAVN", pipeSystem.PipeSystem.ToString());
+
+                                //Utils.SetDynBlockPropertyObject(wpBr, "SYSTEM", (object)pipeType.PipeType.ToString());
+                                //Utils.SetDynBlockPropertyObject(wpBr, "PIPESIZE", (double)DN);
+                                //Utils.SetDynBlockPropertyObject(wpBr, "SYSNAVN", pipeSystem.PipeSystem.ToString());
 
                                 try
                                 {

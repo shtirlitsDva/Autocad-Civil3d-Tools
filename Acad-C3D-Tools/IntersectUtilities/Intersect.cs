@@ -4475,6 +4475,43 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>ISBLOCKDYNAMIC</command>
+        /// <summary>
+        /// Prints true if block is a Dynamic Block or false if not.
+        /// </summary>
+        /// <category>Fjernvarme Fremtidig</category>
+        [CommandMethod("ISBLOCKDYNAMIC")]
+        public void isblockdynamic()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var oid = Interaction.GetEntity("Select block: ", typeof(BlockReference));
+                    if (oid == Oid.Null) { tx.Abort(); return; }
+
+                    BlockReference br = oid.Go<BlockReference>(tx);
+                    if (br.IsDynamicBlock)
+                    {
+                        prdDbg("True");
+                    }
+                    else
+                    {
+                        prdDbg("False");
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         /// <command>GATHERELEMENTSBYPREDICATE</command>
         /// <summary>
         /// Gathers LER elements to a separate dwg filtered by a specified predicate.
