@@ -49,6 +49,7 @@ using System.Threading;
 using System.Windows.Forms;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Text.Json;
 
 namespace DimensioneringV2.UI
 {
@@ -578,6 +579,46 @@ namespace DimensioneringV2.UI
                         });
                     }
                 });
+            }
+            catch (System.Exception ex)
+            {
+                utils.prdDbg($"An error occurred during calculations: {ex.Message}");
+                utils.prdDbg(ex);
+            }
+        }
+        #endregion
+
+        #region SaveResults Command
+        public AsyncRelayCommand SaveResultsCommand => new AsyncRelayCommand(SaveResults);
+        private async Task SaveResults()
+        {
+            try
+            {
+                var graphs = _dataService.Graphs;
+
+                TypeTreeSerializer.GenerateTypeTreeReport(graphs, @"C:\Temp\type_tree_report.html");
+
+                //var options = new JsonSerializerOptions
+                //{
+                //    WriteIndented = true
+                //};
+
+                //var json = JsonSerializer.Serialize(graphs, options);
+
+                //using (SaveFileDialog saveFileDialog = new SaveFileDialog())
+                //{
+                //    saveFileDialog.Filter = "Json Files (*.json)|*.json|All Files (*.*)|*.*";
+                //    saveFileDialog.Title = "Save Results to File";
+                //    saveFileDialog.DefaultExt = "json";
+                //    saveFileDialog.AddExtension = true;
+
+                //    if (saveFileDialog.ShowDialog() == DialogResult.OK)
+                //    {
+                //        string filePath = saveFileDialog.FileName;
+                //        File.WriteAllText(filePath, json);
+                //        Utils.prtDbg($"Results saved to {filePath}");
+                //    }
+                //}
             }
             catch (System.Exception ex)
             {

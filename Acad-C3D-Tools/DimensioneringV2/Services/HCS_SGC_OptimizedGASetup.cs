@@ -47,11 +47,15 @@ namespace DimensioneringV2.Services
                 Termination = new FitnessStagnationTermination(300)
             };
 
-            ga.TaskExecutor = new ParallelTaskExecutor()
-            {
-                MinThreads = 4,
-                MaxThreads = 16
-            };
+            //ga.TaskExecutor = new ParallelTaskExecutor()
+            //{
+            //    MinThreads = 1,
+            //    MaxThreads = Environment.ProcessorCount
+            //};
+
+            ga.TaskExecutor = new TplTaskExecutor();
+
+            //ga.TaskExecutor = new LinearTaskExecutor();
 
             ga.MutationProbability = 0.95f;
             //ga.CrossoverProbability = 0.85f;

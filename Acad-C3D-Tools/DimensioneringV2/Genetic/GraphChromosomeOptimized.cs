@@ -172,5 +172,29 @@ namespace DimensioneringV2.Genetic
 
             if (TryMutate(index)) ReplaceGene(index, foreignGene);
         }
+
+        internal void UpdateChromosome(UndirectedGraph<BFNode, BFEdge> graph)
+        {
+            _localGraph = graph;
+
+            HashSet<int> newTurnedOnEdges = 
+                graph.Edges.Select(x => x.NonBridgeChromosomeIndex)
+                .ToHashSet();
+
+            _removedEdges.Clear();
+
+            for (int i = 0; i < Length; i++)
+            {
+                if (newTurnedOnEdges.Contains(i))
+                {
+                    ReplaceGene(i, new Gene(0));
+                }
+                else
+                {
+                    ReplaceGene(i, new Gene(1));
+                    _removedEdges.Add(i);
+                }
+            }
+        }
     }
 }

@@ -14,7 +14,7 @@
         <DockPanel Background="{DynamicResource Background}" Margin="2">
             <!-- Vertical Panel for Buttons on the Left -->
             <StackPanel Orientation="Vertical" DockPanel.Dock="Left" Margin="2" Width="80">
-                <Button x:Name="btnLoad" Content="Load Data" FontSize="10" Width="70" Height="20" 
+                <Button x:Name="btnLoadData" Content="Load Civil 3D" FontSize="10" Width="70" Height="20" 
                     Margin="2" Command="{Binding CollectFeaturesCommand}"/>
                 <Button x:Name="btnCalcSPD" Content="Calc SPD" FontSize="10" Width="70" Height="20" 
                     Margin="2" Command="{Binding PerformCalculationsSPDCommand}"/>
@@ -32,6 +32,10 @@
                         Margin="2" Command="{Binding PerformZoomToExtents}"/>
                 <Button x:Name="btnSyncAC" Content="Sync AC" FontSize="10" Width="70" Height="20"
                         Margin="2" Command="{Binding SyncACWindowCommand}"/>
+                <Button x:Name="btnSave" Content="SAVE RESULT" FontSize="10" Width="70" Height="20"
+                        Margin="2" Command="{Binding SaveResultsCommand}"/>
+                <Button x:Name="btnLoad" Content="LOAD RESULT" FontSize="10" Width="70" Height="20"
+                        Margin="2" Command="{Binding LoadResultsCommand}"/>
                 <Button x:Name="btnTest1" Content="Test Btn 1" FontSize="10" Width="70" Height="20" 
                         Margin="2" Command="{Binding Test01Command}"/>
             </StackPanel>

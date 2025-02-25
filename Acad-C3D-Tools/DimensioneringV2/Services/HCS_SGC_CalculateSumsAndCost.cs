@@ -28,6 +28,11 @@ namespace DimensioneringV2.Services
             var r = CalculateSumsAndCost(
                 chr.LocalGraph, chr.CoherencyManager.OriginalGraph, props, chr.CoherencyManager.MetaGraph);
 
+            //Assume that NonBridgeChromosomeIndex has been preserved in the graph
+            //even if we have new copies of the edges
+            //But testing showed that this actually prevented convergence
+            //chr.UpdateChromosome(r.graph);
+
             chr.LocalGraph = r.graph;
 
             return r.price;
@@ -37,13 +42,13 @@ namespace DimensioneringV2.Services
         /// </summary>
         internal static (double price, UndirectedGraph<BFNode, BFEdge> graph) CalculateSumsAndCost(
             UndirectedGraph<BFNode, BFEdge> graph,
-            UndirectedGraph<BFNode, BFEdge> subGraph,
+            UndirectedGraph<BFNode, BFEdge> originalSubGraph,
             List<(
                 Func<BFEdge, dynamic> Getter,
                 Action<BFEdge, dynamic> Setter)> props,
             MetaGraph<UndirectedGraph<BFNode, BFEdge>> metaGraph)
         {
-            var rootNode = metaGraph.GetRootForSubgraph(subGraph);
+            var rootNode = metaGraph.GetRootForSubgraph(originalSubGraph);
 
             //We need to isolate calculations from the graph passed here
             //We don't want to store the results in the original graph
@@ -56,7 +61,7 @@ namespace DimensioneringV2.Services
             // Dijkstra's algorithm for shortest paths from the root node
             var tryGetPaths = tempGraph.ShortestPathsDijkstra(edge => edge.Length, rootNode);
 
-            var terminals = metaGraph.GetTerminalsForSubgraph(subGraph);
+            var terminals = metaGraph.GetTerminalsForSubgraph(originalSubGraph);
 
             foreach (var vertex in terminals)
             {
