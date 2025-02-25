@@ -363,7 +363,7 @@ namespace IntersectUtilities
                     var editDefault = StringGridFormCaller.YesNo(
                         "Edit DEFAULT settings?: ");
 
-                    if (editDefault)
+                    if (!editDefault)
                     {
                         Oid oid = Interaction.GetEntity(
                             "Select polyline marking area for special pipe settings to edit the settings: ",

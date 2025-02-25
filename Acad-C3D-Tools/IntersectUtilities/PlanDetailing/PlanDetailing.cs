@@ -93,6 +93,13 @@ namespace IntersectUtilities
                     br.CheckOrOpenForWrite();
                     br.Erase(true);
                 }
+                //Delete previous blocks
+                existingBlocks = localDb.GetBlockReferenceByName(blockName + "-V2");
+                foreach (BlockReference br in existingBlocks)
+                {
+                    br.CheckOrOpenForWrite();
+                    br.Erase(true);
+                }
                 #endregion
                 tx.Commit();
             }

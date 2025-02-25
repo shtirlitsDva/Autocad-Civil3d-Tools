@@ -939,16 +939,18 @@ namespace IntersectUtilities.PipelineNetworkSystem
                                 //Utils.SetDynBlockPropertyObject(wpBr, "PIPESIZE", (double)DN);
                                 //Utils.SetDynBlockPropertyObject(wpBr, "SYSNAVN", pipeSystem.PipeSystem.ToString());
 
-                                try
-                                {
-                                    wpBr.AttSync();
-                                }
-                                catch (System.Exception)
-                                {
-                                    prdDbg("ERROR: " + wpBr.Position);
-                                    idx++;
-                                    continue;
-                                }
+                                //This erases data in ordinary attributes
+                                //But is needed for dynamic block properties
+                                //try
+                                //{
+                                //    wpBr.AttSync();
+                                //}
+                                //catch (System.Exception)
+                                //{
+                                //    prdDbg("ERROR: " + wpBr.Position);
+                                //    idx++;
+                                //    continue;
+                                //}
                             }
 #if DEBUG
                             sw.Stop();
