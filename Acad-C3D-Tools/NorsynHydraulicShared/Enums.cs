@@ -14,6 +14,7 @@ namespace NorsynHydraulicCalc
     {
         Stål,
         PertFlextra,
+        AquaTherm11,
         AluPEX,
         Kobber
     }

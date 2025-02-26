@@ -589,14 +589,18 @@ namespace DimensioneringV2.UI
         #endregion
 
         #region SaveResults Command
-        public AsyncRelayCommand SaveResultsCommand => new AsyncRelayCommand(SaveResults);
-        private async Task SaveResults()
+        public AsyncRelayCommand Dim2ImportDimsCommand => new AsyncRelayCommand(Dim2ImportDims);
+        private async Task Dim2ImportDims()
         {
             try
             {
                 var graphs = _dataService.Graphs;
 
-                TypeTreeSerializer.GenerateTypeTreeReport(graphs, @"C:\Temp\type_tree_report.html");
+                AcContext.Current.Post(_ => 
+                { AutoCAD.Dim2WriteDims.Write(
+                    graphs.SelectMany(x => x.Edges.Select(e => e.PipeSegment))); }, null);
+
+                //TypeTreeSerializer.GenerateTypeTreeReport(graphs, @"C:\Temp\type_tree_report.html");
 
                 //var options = new JsonSerializerOptions
                 //{

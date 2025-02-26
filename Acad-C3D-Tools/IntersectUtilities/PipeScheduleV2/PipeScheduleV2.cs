@@ -575,6 +575,16 @@ namespace IntersectUtilities.PipeScheduleV2
             var pipeType = _repository.GetPipeType(systemDictReversed[system]);
             return pipeType.GetSizeColor(GetPipeDN(layer), type);
         }
+        /// <summary>
+        /// Returns twin if below limit, else single
+        /// </summary>
+        public static PipeTypeEnum GetPipeTypeByAvailability(PipeSystemEnum ps, int dn)
+        {
+            if (!systemDictReversed.ContainsKey(ps)) return 0;
+            var pipeType = _repository.GetPipeType(systemDictReversed[ps]);
+
+            return pipeType.GetPipeTypeByAvailability(dn);
+        }
         #endregion
     }
 
@@ -604,6 +614,7 @@ namespace IntersectUtilities.PipeScheduleV2
         IEnumerable<PipeTypeEnum> GetAvailableTypes();
         IEnumerable<PipeSeriesEnum> GetAvailableSeriesForType(PipeTypeEnum type);
         double GetDefaultLengthForDnAndType(int DN, PipeTypeEnum type);
+        PipeTypeEnum GetPipeTypeByAvailability(int dn);
     }
     public abstract class PipeTypeBase : IPipeType
     {
@@ -802,6 +813,22 @@ namespace IntersectUtilities.PipeScheduleV2
                 _data.Select($"DN = {dn} AND PipeType = '{type}'");
             if (results != null && results.Length > 0) return (double)results[0]["DefaultL"];
             return 999;
+        }
+        /// <summary>
+        /// Gets pipe type based on availability.
+        /// Biased towards Twin if available.
+        /// </summary>
+        public PipeTypeEnum GetPipeTypeByAvailability(int dn)
+        {
+            DataRow[] results = _data.Select($"DN = {dn}");
+
+            if (results != null && results.Length > 0)
+            {
+                var query = results.Select(x => (string)x["PipeType"]);
+                if (query.Contains("Twin")) return PipeTypeEnum.Twin;
+                else return PipeTypeEnum.Frem;
+            }
+            return PipeTypeEnum.Ukendt;
         }
     }
     public class PipeTypeDN : PipeTypeBase

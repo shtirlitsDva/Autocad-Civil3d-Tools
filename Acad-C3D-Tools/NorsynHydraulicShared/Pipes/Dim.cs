@@ -50,7 +50,7 @@ namespace NorsynHydraulicCalc.Pipes
             Price_m = price_m;
             this.price_stk = price_stk;
         }
-        public static Dim NA => new Dim(0, 0, 0, 0, 0, 0, "NA", PipeType.Stål, 0, new int[] { 0, 0, 0 }, 0, 0);
+        public static Dim NA => new Dim(0, 0, 0, 0, 0, 0, "NA ", PipeType.Stål, 0, new int[] { 0, 0, 0 }, 0, 0);
         public override string ToString()
         {
             return DimName;

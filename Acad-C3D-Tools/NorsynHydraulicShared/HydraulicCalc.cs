@@ -197,7 +197,7 @@ namespace NorsynHydraulicCalc
                         }
                         break;
                     default:
-                        throw new NotImplementedException();
+                        throw new NotImplementedException($"{pipeTypeSL} not Implemented!");
                 }
 
                 foreach (var dim in pipeTypes.Stål.GetDimsRange(32, 1000))

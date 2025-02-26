@@ -129,6 +129,9 @@
 		<Compile Include="..\IntersectUtilities\MoreLinq\MoreLinq.cs">
 			<Link>Links\MoreLinq.cs</Link>
 		</Compile>
+		<Compile Include="..\IntersectUtilities\NetTopologySuite\NTSConversion.cs">
+			<Link>Links\NTSConversion.cs</Link>
+		</Compile>
 		<Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeScheduleV2.cs">
 			<Link>Links\PipeScheduleV2\PipeScheduleV2.cs</Link>
 		</Compile>
@@ -170,7 +173,7 @@
 		<Folder Include="Links\" />
 	</ItemGroup>
 	<ItemGroup>
-	  <None Include="Services\HydraulicCalculationsService_BFAnalysis.cs" />
+		<None Include="Services\HydraulicCalculationsService_BFAnalysis.cs" />
 	</ItemGroup>
 	<ItemGroup>
 		<Compile Update="Properties\Settings.Designer.cs">

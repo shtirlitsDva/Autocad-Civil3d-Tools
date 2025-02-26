@@ -10,6 +10,7 @@
     <UserControl.Resources>
         <ResourceDictionary Source="Theme.xaml"></ResourceDictionary>
     </UserControl.Resources>
+
     <Grid>
         <DockPanel Background="{DynamicResource Background}" Margin="2">
             <!-- Vertical Panel for Buttons on the Left -->
@@ -32,10 +33,8 @@
                         Margin="2" Command="{Binding PerformZoomToExtents}"/>
                 <Button x:Name="btnSyncAC" Content="Sync AC" FontSize="10" Width="70" Height="20"
                         Margin="2" Command="{Binding SyncACWindowCommand}"/>
-                <Button x:Name="btnSave" Content="SAVE RESULT" FontSize="10" Width="70" Height="20"
-                        Margin="2" Command="{Binding SaveResultsCommand}"/>
-                <Button x:Name="btnLoad" Content="LOAD RESULT" FontSize="10" Width="70" Height="20"
-                        Margin="2" Command="{Binding LoadResultsCommand}"/>
+                <Button x:Name="btnWriteAC" Content="DIM2IMPORTDIMS" FontSize="10" Width="70" Height="20"
+                        Margin="2" Command="{Binding Dim2ImportDimsCommand}"/>
                 <Button x:Name="btnTest1" Content="Test Btn 1" FontSize="10" Width="70" Height="20" 
                         Margin="2" Command="{Binding Test01Command}"/>
             </StackPanel>
@@ -140,4 +139,5 @@
             </Border>
         </Popup>
     </Grid>
+
 </UserControl>
