@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace DimensioneringV2.GraphFeatures
 {
-    internal class NodeJunction
+    internal class  NodeJunction
     {
         public Point2D Location { get; }
         public bool IsRootNode { get; set; } = false;

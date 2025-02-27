@@ -37,5 +37,7 @@ namespace DimensioneringV2.UI
         Bridge,
         [Description("Vis delgrafer")]
         SubGraphId,
+        [Description("Vis kritisk kunde")]
+        CriticalPath,
     }
 }

@@ -122,6 +122,14 @@ namespace DimensioneringV2.UI
                         (f => f.HeatingDemandConnected, (f, v) => f.HeatingDemandSupplied = v)
                     }
                     ));
+
+                var graphs = _dataService.Graphs;
+
+                //Perform post processing
+                foreach (var graph in graphs)
+                {
+                    CriticalPathService.Calculate(graph);
+                }
             }
             catch (System.Exception ex)
             {
@@ -160,6 +168,14 @@ namespace DimensioneringV2.UI
             {
                 utils.prdDbg($"An error occurred during calculations: {ex.Message}");
                 utils.prdDbg(ex);
+            }
+
+            var graphs = _dataService.Graphs;
+
+            //Perform post processing
+            foreach (var graph in graphs)
+            {
+                CriticalPathService.Calculate(graph);
             }
         }
         #endregion
@@ -579,6 +595,14 @@ namespace DimensioneringV2.UI
                         });
                     }
                 });
+
+                var graphs = _dataService.Graphs;
+
+                //Perform post processing
+                foreach (var graph in graphs)
+                {
+                    CriticalPathService.Calculate(graph);
+                }
             }
             catch (System.Exception ex)
             {
@@ -588,7 +612,7 @@ namespace DimensioneringV2.UI
         }
         #endregion
 
-        #region SaveResults Command
+        #region Dim2ImportDims Command
         public AsyncRelayCommand Dim2ImportDimsCommand => new AsyncRelayCommand(Dim2ImportDims);
         private async Task Dim2ImportDims()
         {

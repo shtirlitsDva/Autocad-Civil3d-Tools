@@ -162,10 +162,32 @@ namespace DimensioneringV2.GraphFeatures
         [MapPropertyAttribute(MapPropertyEnum.UtilizationRate)]
         public double UtilizationRate { get; set; }
 
+        /// <summary>
+        /// Marks a segment as a bridge (ie. cannot be removed without disconnecting the network)
+        /// </summary>
         [MapProperty(MapPropertyEnum.Bridge)]
         public bool IsBridge { get; set; } = false;
+
+        /// <summary>
+        /// Stores the current subgraph id
+        /// </summary>
         [MapProperty(MapPropertyEnum.SubGraphId)]
         public int SubGraphId { get; set; } = -1;
+
+        /// <summary>
+        /// Total pressure loss for the client.
+        /// This is intented only for clients' connections
+        /// where the pressure loss is calculated for the whole path.
+        /// It should include the allowed client loss from HydraulicCalculationSettings
+        /// </summary>
+        public double PressureLossAtClient { get; set; } = 0;
+
+        /// <summary>
+        /// Marks the segment as a part of a critical path.
+        /// </summary>
+        [MapProperty(MapPropertyEnum.CriticalPath)]
+        public bool IsCriticalPath { get; set; } = false;
+
         public void ResetHydraulicResults()
         {
             NumberOfBuildingsSupplied = 0;
