@@ -85,6 +85,10 @@ namespace DimensioneringV2.MapStyles
                     sOn = new StyleMapProperty_WithLabels<int>(f => f.SubGraphId);
                     sOff = new StyleMapProperty_NoLabels<int>(f => f.SubGraphId);
                     break;
+                case MapPropertyEnum.CriticalPath:
+                    sOn = new StyleMapCriticalPath_WithLabels(f => f.IsCriticalPath);
+                    sOff = new StyleMapCriticalPath_NoLabels(f => f.IsCriticalPath);
+                    break;
                 default:
                     throw new Exception("Unknown property name!");
             }
