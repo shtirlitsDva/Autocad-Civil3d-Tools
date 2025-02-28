@@ -14,6 +14,7 @@ using System.Threading.Tasks;
 using IntersectUtilities.UtilsCommon;
 using static IntersectUtilities.UtilsCommon.Utils;
 using dbg = IntersectUtilities.UtilsCommon.Utils.DebugHelper;
+using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using System.Windows.Forms;
 
 using AcApp = Autodesk.AutoCAD.ApplicationServices.Application;
@@ -55,6 +56,85 @@ namespace DimensioneringV2
         #endregion
 
         private static double tol = DimensioneringV2.Tolerance.Default;
+
+        [CommandMethod("DIM2PREPAREDWG")]
+        public void dim2preparedwg()
+        {
+            DocumentCollection docCol = AcApp.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var lt = localDb.LayerTableId.Go<LayerTable>(tx);
+
+                    localDb.CheckOrCreateLayer(cv.LayerEndPoint);
+                    localDb.CheckOrCreateLayer(cv.LayerSupplyPoint);
+
+                    localDb.CheckOrCreateLayer(cv.LayerVejmidteTændt, 1);
+                    var ltr = lt[cv.LayerVejmidteTændt].Go<LayerTableRecord>(tx, OpenMode.ForWrite);
+                    ltr.LineWeight = LineWeight.LineWeight030;
+
+                    localDb.CheckOrCreateLayer(cv.LayerVejmidteSlukket, 4);
+                    ltr = lt[cv.LayerVejmidteSlukket].Go<LayerTableRecord>(tx, OpenMode.ForWrite);
+                    ltr.LineWeight = LineWeight.LineWeight030;
+
+                    byte transparencyValue = 50;
+                    Byte alpha = (Byte)(255 * (100 - transparencyValue) / 100);
+                    Transparency trans = new Transparency(alpha);
+                    ltr.Transparency = trans;
+
+                    localDb.CheckOrCreateLayer(cv.LayerConnectionLine, 2);
+                    localDb.CheckOrCreateLayer(cv.LayerNoCross, 1);
+
+                    localDb.CheckOrImportBlockRecord(
+                        @"X:\AutoCAD DRI - 01 Civil 3D\DynBlokke\Symboler.dwg", cv.BlockEndPointName);
+                    localDb.CheckOrImportBlockRecord(
+                        @"X:\AutoCAD DRI - 01 Civil 3D\DynBlokke\Symboler.dwg", cv.BlockSupplyPointName);
+
+                    #region Import building blocks if missing
+                    BlockTable bt = localDb.BlockTableId.Go<BlockTable>(tx, OpenMode.ForRead);
+                    var nonExistingBlocks = cv.AllBlockTypes.Where(x => !bt.Has(x));
+
+                    if (nonExistingBlocks.Count() > 0)
+                    {
+                        ObjectIdCollection idsToClone = new ObjectIdCollection();
+
+                        using Database blockDb = new Database(false, true);
+                        blockDb.ReadDwgFile("X:\\AutoCAD DRI - 01 Civil 3D\\DynBlokke\\Symboler.dwg",
+                            FileOpenMode.OpenForReadAndAllShare, false, null);
+                        using Transaction blockTx = blockDb.TransactionManager.StartTransaction();
+
+                        Oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(blockDb);
+                        Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
+
+                        BlockTable sourceBt = blockDb.BlockTableId.Go<BlockTable>(blockTx, OpenMode.ForRead);
+
+                        foreach (string blockName in nonExistingBlocks)
+                        {
+                            prdDbg($"Importing block {blockName}.");
+                            idsToClone.Add(sourceBt[blockName]);
+                        }
+
+                        IdMapping mapping = new IdMapping();
+                        blockDb.WblockCloneObjects(idsToClone, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
+                        blockTx.Commit();
+                    }
+                    #endregion
+
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex);
+                    tx.Abort();
+                    return;
+                }
+                tx.Commit();
+            }
+
+            prdDbg("Finished!");
+        }
 
         [CommandMethod("DIM2INTERSECTVEJMIDTE")]
         public void dim2intersectvejmidte()
@@ -226,97 +306,6 @@ namespace DimensioneringV2
             prdDbg("Finished!");
         }
 
-        [CommandMethod("DIM2TESTNAMING")]
-        public void dim2testnaming()
-        {
-            DocumentCollection docCol = AcApp.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    var pls = localDb.HashSetOfType<Polyline>(tx)
-                        .Where(x => x.Layer == cv.LayerVejmidteTændt)
-                        .ToList();
-
-                    var basePoints = localDb.HashSetOfType<BlockReference>(tx)
-                        .Where(x => x.RealName() == cv.BlockSupplyPointName)
-                        .Select(x => new Point2D(x.Position.X, x.Position.Y))
-                        .ToList();
-
-                    var graph = new DimensioneringV2.GraphModelRoads.Graph();
-                    graph.BuildGraph(pls, basePoints);
-
-                    localDb.CheckOrCreateLayer(cv.LayerNumbering);
-
-                    foreach (var data in graph.GetSegmentsNumbering())
-                    {
-                        DBText dBText = new DBText();
-                        //dBText.Justify = AttachmentPoint.MiddleCenter;
-                        //dBText.VerticalMode = TextVerticalMode.TextVerticalMid;
-                        //dBText.HorizontalMode = TextHorizontalMode.TextCenter;
-                        dBText.TextString = data.Text;
-                        dBText.Position = data.Point;
-                        dBText.Layer = cv.LayerNumbering;
-                        dBText.AddEntityToDbModelSpace(localDb);
-                    }
-                }
-                catch (System.Exception ex)
-                {
-                    prdDbg(ex);
-                    tx.Abort();
-                    return;
-                }
-                tx.Commit();
-            }
-
-            prdDbg("Finished!");
-        }
-
-        [CommandMethod("DIM2TESTROOTNODE")]
-        public void dim2testrootnode()
-        {
-            DocumentCollection docCol = AcApp.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    var pls = localDb.HashSetOfType<Polyline>(tx)
-                        .Where(x => x.Layer == cv.LayerVejmidteTændt)
-                        .ToList();
-
-                    var basePoints = localDb.HashSetOfType<BlockReference>(tx)
-                        .Where(x => x.RealName() == cv.BlockSupplyPointName)
-                        .Select(x => new Point2D(x.Position.X, x.Position.Y))
-                        .ToList();
-
-                    var graph = new DimensioneringV2.GraphModelRoads.Graph();
-                    graph.BuildGraph(pls, basePoints);
-
-                    foreach (var component in graph.ConnectedComponents)
-                    {
-                        //Utils.DebugHelper.CreateDebugLine(component.RootNode.GetMidpoint().To3d(), ColorByName("red"));
-                    }
-                }
-                catch (System.Exception ex)
-                {
-                    prdDbg(ex);
-                    tx.Abort();
-                    return;
-                }
-                tx.Commit();
-            }
-
-            prdDbg("Finished!");
-        }
-
         [CommandMethod("DIM2DRAWBUILDINGSEGMENTS")]
         public void dim2drawbuildingsegments()
         {
@@ -369,83 +358,6 @@ namespace DimensioneringV2
                 }
                 catch (System.Exception ex)
                 {
-                    prdDbg(ex);
-                    tx.Abort();
-                    return;
-                }
-                tx.Commit();
-            }
-
-            prdDbg("Finished!");
-        }
-
-        [CommandMethod("DIM2TESTFEATURECREATION")]
-        public void dim2testfeaturecreation()
-        {
-            DocumentCollection docCol = AcApp.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    var pls = localDb.HashSetOfType<Polyline>(tx)
-                        .Where(x => x.Layer == cv.LayerVejmidteTændt)
-                        .ToList();
-
-                    var basePoints = localDb.HashSetOfType<BlockReference>(tx)
-                        .Where(x => x.RealName() == cv.BlockSupplyPointName)
-                        .Select(x => new Point2D(x.Position.X, x.Position.Y))
-                        .ToList();
-
-                    var brs = localDb.HashSetOfType<BlockReference>(tx, true)
-                        .Where(x => cv.AcceptedBlockTypes.Contains(
-                            PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "Type")));
-
-                    var noCrossLines = localDb.HashSetOfType<Line>(tx)
-                        .Where(x => x.Layer == cv.LayerNoCross);
-
-                    var graph = new DimensioneringV2.GraphModelRoads.Graph();
-                    graph.BuildGraph(pls, basePoints, brs, noCrossLines);
-
-                    var features = GraphTranslator.TranslateGraph(graph);
-
-                    if (features != null)
-                    {
-                        FeatureCollection fc = new FeatureCollection(features.SelectMany(x => x));
-                        NetTopologySuite.IO.GeoJsonWriter writer = new NetTopologySuite.IO.GeoJsonWriter();
-                        string json = writer.Write(fc);
-                        using (var sw = new StreamWriter("C:\\Temp\\testfc.geojson"))
-                        {
-                            sw.Write(json);
-                        }
-
-
-                        //Shapefile.WriteAllFeatures(fc, "C:\\Temp\\testfc");
-
-                        ////Create the projection file
-                        //using (var sw = new StreamWriter("C:\\Temp\\testfc.prj"))
-                        //{
-                        //    //sw.Write(ProjNet.CoordinateSystems.ProjectedCoordinateSystem.WGS84_UTM(32, true));
-                        //    sw.Write(@"PROJCS[""ETRS_1989_UTM_Zone_32N"",GEOGCS[""GCS_ETRS_1989"",DATUM[""D_ETRS_1989"",SPHEROID[""GRS_1980"",6378137.0,298.257222101]],PRIMEM[""Greenwich"",0.0],UNIT[""Degree"",0.0174532925199433]],PROJECTION[""Transverse_Mercator""],PARAMETER[""False_Easting"",500000.0],PARAMETER[""False_Northing"",0.0],PARAMETER[""Central_Meridian"",9.0],PARAMETER[""Scale_Factor"",0.9996],PARAMETER[""Latitude_Of_Origin"",0.0],UNIT[""Meter"",1.0]]");
-                        //}
-                    }
-
-                }
-                catch (System.Exception ex)
-                {
-                    if (ex is ArgumentException argex)
-                    {
-                        if (argex.Message.Contains("DBG"))
-                        {
-                            prdDbg(argex.Message);
-                            tx.Commit();
-                            return;
-                        }
-                    }
-
                     prdDbg(ex);
                     tx.Abort();
                     return;
@@ -542,7 +454,7 @@ namespace DimensioneringV2
             prdDbg("Finished!");
         }
 
-        [CommandMethod("DIM2TESTHSETSERIALIZATION")]
+        //[CommandMethod("DIM2TESTHSETSERIALIZATION")]
         public void dim2testhsetserialization()
         {
             DocumentCollection docCol = AcApp.DocumentManager;
@@ -561,6 +473,174 @@ namespace DimensioneringV2
             hs = HydraulicSettings.Load(docCol.MdiActiveDocument);
 
             hs.Save(@"C:\Temp\HS.json");
+
+            prdDbg("Finished!");
+        }
+
+        //[CommandMethod("DIM2TESTNAMING")]
+        public void dim2testnaming()
+        {
+            DocumentCollection docCol = AcApp.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var pls = localDb.HashSetOfType<Polyline>(tx)
+                        .Where(x => x.Layer == cv.LayerVejmidteTændt)
+                        .ToList();
+
+                    var basePoints = localDb.HashSetOfType<BlockReference>(tx)
+                        .Where(x => x.RealName() == cv.BlockSupplyPointName)
+                        .Select(x => new Point2D(x.Position.X, x.Position.Y))
+                        .ToList();
+
+                    var graph = new DimensioneringV2.GraphModelRoads.Graph();
+                    graph.BuildGraph(pls, basePoints);
+
+                    localDb.CheckOrCreateLayer(cv.LayerNumbering);
+
+                    foreach (var data in graph.GetSegmentsNumbering())
+                    {
+                        DBText dBText = new DBText();
+                        //dBText.Justify = AttachmentPoint.MiddleCenter;
+                        //dBText.VerticalMode = TextVerticalMode.TextVerticalMid;
+                        //dBText.HorizontalMode = TextHorizontalMode.TextCenter;
+                        dBText.TextString = data.Text;
+                        dBText.Position = data.Point;
+                        dBText.Layer = cv.LayerNumbering;
+                        dBText.AddEntityToDbModelSpace(localDb);
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex);
+                    tx.Abort();
+                    return;
+                }
+                tx.Commit();
+            }
+
+            prdDbg("Finished!");
+        }
+
+        //[CommandMethod("DIM2TESTROOTNODE")]
+        public void dim2testrootnode()
+        {
+            DocumentCollection docCol = AcApp.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var pls = localDb.HashSetOfType<Polyline>(tx)
+                        .Where(x => x.Layer == cv.LayerVejmidteTændt)
+                        .ToList();
+
+                    var basePoints = localDb.HashSetOfType<BlockReference>(tx)
+                        .Where(x => x.RealName() == cv.BlockSupplyPointName)
+                        .Select(x => new Point2D(x.Position.X, x.Position.Y))
+                        .ToList();
+
+                    var graph = new DimensioneringV2.GraphModelRoads.Graph();
+                    graph.BuildGraph(pls, basePoints);
+
+                    foreach (var component in graph.ConnectedComponents)
+                    {
+                        //Utils.DebugHelper.CreateDebugLine(component.RootNode.GetMidpoint().To3d(), ColorByName("red"));
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex);
+                    tx.Abort();
+                    return;
+                }
+                tx.Commit();
+            }
+
+            prdDbg("Finished!");
+        }
+
+        //[CommandMethod("DIM2TESTFEATURECREATION")]
+        public void dim2testfeaturecreation()
+        {
+            DocumentCollection docCol = AcApp.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var pls = localDb.HashSetOfType<Polyline>(tx)
+                        .Where(x => x.Layer == cv.LayerVejmidteTændt)
+                        .ToList();
+
+                    var basePoints = localDb.HashSetOfType<BlockReference>(tx)
+                        .Where(x => x.RealName() == cv.BlockSupplyPointName)
+                        .Select(x => new Point2D(x.Position.X, x.Position.Y))
+                        .ToList();
+
+                    var brs = localDb.HashSetOfType<BlockReference>(tx, true)
+                        .Where(x => cv.AcceptedBlockTypes.Contains(
+                            PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "Type")));
+
+                    var noCrossLines = localDb.HashSetOfType<Line>(tx)
+                        .Where(x => x.Layer == cv.LayerNoCross);
+
+                    var graph = new DimensioneringV2.GraphModelRoads.Graph();
+                    graph.BuildGraph(pls, basePoints, brs, noCrossLines);
+
+                    var features = GraphTranslator.TranslateGraph(graph);
+
+                    if (features != null)
+                    {
+                        FeatureCollection fc = new FeatureCollection(features.SelectMany(x => x));
+                        NetTopologySuite.IO.GeoJsonWriter writer = new NetTopologySuite.IO.GeoJsonWriter();
+                        string json = writer.Write(fc);
+                        using (var sw = new StreamWriter("C:\\Temp\\testfc.geojson"))
+                        {
+                            sw.Write(json);
+                        }
+
+
+                        //Shapefile.WriteAllFeatures(fc, "C:\\Temp\\testfc");
+
+                        ////Create the projection file
+                        //using (var sw = new StreamWriter("C:\\Temp\\testfc.prj"))
+                        //{
+                        //    //sw.Write(ProjNet.CoordinateSystems.ProjectedCoordinateSystem.WGS84_UTM(32, true));
+                        //    sw.Write(@"PROJCS[""ETRS_1989_UTM_Zone_32N"",GEOGCS[""GCS_ETRS_1989"",DATUM[""D_ETRS_1989"",SPHEROID[""GRS_1980"",6378137.0,298.257222101]],PRIMEM[""Greenwich"",0.0],UNIT[""Degree"",0.0174532925199433]],PROJECTION[""Transverse_Mercator""],PARAMETER[""False_Easting"",500000.0],PARAMETER[""False_Northing"",0.0],PARAMETER[""Central_Meridian"",9.0],PARAMETER[""Scale_Factor"",0.9996],PARAMETER[""Latitude_Of_Origin"",0.0],UNIT[""Meter"",1.0]]");
+                        //}
+                    }
+
+                }
+                catch (System.Exception ex)
+                {
+                    if (ex is ArgumentException argex)
+                    {
+                        if (argex.Message.Contains("DBG"))
+                        {
+                            prdDbg(argex.Message);
+                            tx.Commit();
+                            return;
+                        }
+                    }
+
+                    prdDbg(ex);
+                    tx.Abort();
+                    return;
+                }
+                tx.Commit();
+            }
 
             prdDbg("Finished!");
         }

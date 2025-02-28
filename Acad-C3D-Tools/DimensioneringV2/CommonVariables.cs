@@ -13,8 +13,8 @@ namespace DimensioneringV2
         internal static readonly string LayerSupplyPoint = "0-Supply_Point";
         internal static readonly string BlockSupplyPointName = "NS_Supply_Point";
 
-        internal static readonly string LayerVejmidteTændt = "Vejmidte-tændt";
-        internal static readonly string LayerVejmidteSlukket = "Vejmidte-slukket";
+        internal static readonly string LayerVejmidteTændt = "0-Vejmidte-tændt";
+        internal static readonly string LayerVejmidteSlukket = "0-Vejmidte-slukket";
 
         internal static readonly string LayerNumbering = "0-Segments_Numbering";
 
