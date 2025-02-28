@@ -136,6 +136,25 @@ namespace DimensioneringV2
             prdDbg("Finished!");
         }
 
+        [CommandMethod("DIM2TÆND")]
+        public void dim2tænd()
+        {
+            DocumentCollection docCol = AcApp.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            while (true)
+            {
+                var oid = Interaction.GetEntity("\nVælg en vejmidte at tænde: ", typeof(Polyline));
+
+                if (oid.IsNull) break;
+
+                Autodesk.AutoCAD.Internal.Utils.SetUndoMark(true);
+                oid.QOpenForWrite<Polyline>(x => x.Layer = cv.LayerVejmidteTændt);
+                Autodesk.AutoCAD.Internal.Utils.SetUndoMark(false);
+            }
+            prdDbg("Finished!");
+        }
+
         [CommandMethod("DIM2INTERSECTVEJMIDTE")]
         public void dim2intersectvejmidte()
         {
