@@ -414,6 +414,201 @@ namespace IntersectUtilities.UtilsCommon
             }
             return station;
         }
+        public static void createcomplexlinetypemethod(
+            string lineTypeName, string text, string textStyleName, Database db = null)
+        {
+            if (text.Contains(" ")) throw new System.Exception("Text must not contain spaces!");
+
+            db ??= Application.DocumentManager.MdiActiveDocument.Database;
+            Transaction tx = db.TransactionManager.StartTransaction();
+            using (tx)
+            {
+                try
+                {
+                    // We'll use the textstyle table to access
+                    // the "Standard" textstyle for our text segment
+                    TextStyleTable tt = (TextStyleTable)tx.GetObject(db.TextStyleTableId, OpenMode.ForRead);
+                    // Get the linetype table from the drawing
+                    LinetypeTable ltt = (LinetypeTable)tx.GetObject(db.LinetypeTableId, OpenMode.ForWrite);
+                    // Get layer table
+                    LayerTable lt = tx.GetObject(db.LayerTableId, OpenMode.ForRead) as LayerTable;
+                    //**************************************
+                    //Change name of line type to create new and text value
+                    //**************************************
+                    prdDbg($"Remember to create text style: {textStyleName}!!!");
+                    if (tt.Has(textStyleName))
+                    {
+                        prdDbg("Text style exists!");
+                    }
+                    else
+                    {
+                        prdDbg($"Text style {textStyleName} DOES NOT exist!");
+                        tx.Abort();
+                        return;
+                    }
+                    List<string> layersToChange = new List<string>();
+                    if (ltt.Has(lineTypeName))
+                    {
+                        Oid existingId = ltt[lineTypeName];
+                        Oid placeHolderId = ltt["Continuous"];
+                        foreach (Oid oid in lt)
+                        {
+                            LayerTableRecord ltr = oid.Go<LayerTableRecord>(tx);
+                            if (ltr.LinetypeObjectId == existingId)
+                            {
+                                ltr.CheckOrOpenForWrite();
+                                ltr.LinetypeObjectId = placeHolderId;
+                                layersToChange.Add(ltr.Name);
+                            }
+                        }
+                        LinetypeTableRecord exLtr = existingId.Go<LinetypeTableRecord>(tx, OpenMode.ForWrite);
+                        exLtr.Erase(true);
+                    }
+                    // Create our new linetype table record...
+                    LinetypeTableRecord lttr = new LinetypeTableRecord();
+                    // ... and set its properties
+                    lttr.Name = lineTypeName;
+                    lttr.AsciiDescription =
+                      $"{text} ---- {text} ---- {text} ----";
+                    lttr.PatternLength = 0.9;
+                    //IsScaledToFit unsure what it does, can't see any difference
+                    lttr.IsScaledToFit = true;
+
+                    // A single line dash length
+                    double dL = 5;
+
+                    // A small horizontal buffer on each side of each character
+                    double textBuffer = 0.05;
+
+                    // Convert your text into individual characters
+                    char[] chars = text.ToCharArray();
+
+                    // We want:
+                    //   1) One line dash
+                    //   2) A dash per character (forward)
+                    //   3) Another line dash
+                    //   4) A dash per character (reversed)
+                    int dashCount = 2 + 2 * chars.Length;
+                    lttr.NumDashes = dashCount;
+
+                    // We need to measure each character to set dash lengths properly.
+                    Oid textStyleId = tt[textStyleName];
+                    var ts = new Autodesk.AutoCAD.GraphicsInterface.TextStyle();
+                    ts.FromTextStyleTableRecord(textStyleId);
+                    ts.TextSize = 0.9; // same size you used before
+
+                    // We'll track total pattern length to finalize lttr.PatternLength
+                    double totalPatternLen = 0;
+
+                    // -------------------------
+                    // DASH #0 : The first line
+                    // -------------------------
+                    lttr.SetDashLengthAt(0, dL);
+                    totalPatternLen += dL;
+
+                    // -----------------------------
+                    // FORWARD CHARACTERS (DASH #1+)
+                    // -----------------------------
+                    for (int i = 0; i < chars.Length; i++)
+                    {
+                        // This dash index is consecutive after dash 0
+                        int dashIndex = i + 1;
+
+                        // Measure the single character’s width
+                        string c = chars[i].ToString();
+                        var extBox = ts.ExtentsBox(c, true, false, null);
+                        double charWidth = (extBox.MaxPoint.X - extBox.MinPoint.X) + 0.1;
+                        // +0.1 just like your original code
+
+                        // Dash length is negative for text (shape) dash
+                        // We'll add 2*textBuffer horizontally so the dash has some padding
+                        double dashLen = -(charWidth + (2 * textBuffer));
+                        lttr.SetDashLengthAt(dashIndex, dashLen);
+
+                        // For shape-based text, you must set these:
+                        lttr.SetShapeStyleAt(dashIndex, textStyleId);
+                        lttr.SetShapeNumberAt(dashIndex, 0);
+                        lttr.SetShapeScaleAt(dashIndex, 0.9);
+                        lttr.SetShapeIsUcsOrientedAt(dashIndex, false);
+                        lttr.SetShapeRotationAt(dashIndex, 0);
+                        lttr.SetTextAt(dashIndex, c);
+
+                        // The shape offset must be local within the dash, 
+                        // not relative to the entire pattern.  
+                        // We place it near the left side: -(charWidth - textBuffer)
+                        lttr.SetShapeOffsetAt(
+                            dashIndex,
+                            new Vector2d(-(charWidth - textBuffer), -0.45)
+                        );
+
+                        // Accumulate pattern length (absolute value of dashLen)
+                        totalPatternLen += (charWidth + 2 * textBuffer);
+                    }
+
+                    // -----------------------
+                    // Next line dash
+                    // -----------------------
+                    int lineDashIndex2 = 1 + chars.Length;
+                    lttr.SetDashLengthAt(lineDashIndex2, dL);
+                    totalPatternLen += dL;
+
+                    // ------------------------------------
+                    // ROTATED CHARACTERS (DASH #...)
+                    // ------------------------------------
+                    int reverseStartIndex = lineDashIndex2 + 1;
+                    for (int i = 0; i < chars.Length; i++)
+                    {
+                        int dashIndex = reverseStartIndex + i;
+
+                        // Same character measurement
+                        string c = chars[chars.Length - 1 - i].ToString();
+                        var extBox = ts.ExtentsBox(c, true, false, null);
+                        double charWidth = (extBox.MaxPoint.X - extBox.MinPoint.X) + 0.1;
+
+                        double dashLen = -(charWidth + (2 * textBuffer));
+                        lttr.SetDashLengthAt(dashIndex, dashLen);
+
+                        lttr.SetShapeStyleAt(dashIndex, textStyleId);
+                        lttr.SetShapeNumberAt(dashIndex, 0);
+                        lttr.SetShapeScaleAt(dashIndex, 0.9);
+                        lttr.SetShapeIsUcsOrientedAt(dashIndex, false);
+
+                        // Rotation 180° for reversed text
+                        lttr.SetShapeRotationAt(dashIndex, Math.PI);
+                        lttr.SetTextAt(dashIndex, c);
+
+                        // Offset is local to the dash. We'll place it near the 
+                        // “other end” of the dash: -textBuffer in X, etc.
+                        lttr.SetShapeOffsetAt(
+                            dashIndex,
+                            new Vector2d(-textBuffer, 0.45)
+                        );
+
+                        totalPatternLen += (charWidth + 2 * textBuffer);
+                    }
+
+                    // Finalize overall pattern length
+                    lttr.PatternLength = totalPatternLen;
+
+                    // Add the new linetype to the linetype table
+                    Oid ltId = ltt.Add(lttr);
+                    tx.AddNewlyCreatedDBObject(lttr, true);
+                    foreach (string name in layersToChange)
+                    {
+                        Oid ltrId = lt[name];
+                        LayerTableRecord ltr = ltrId.Go<LayerTableRecord>(tx, OpenMode.ForWrite);
+                        ltr.LinetypeObjectId = ltId;
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                }
+                tx.Commit();
+            }
+        }
+        
         #region Enums
         public enum EndType
         {

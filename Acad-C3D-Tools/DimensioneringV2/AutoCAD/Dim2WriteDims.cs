@@ -41,6 +41,18 @@ namespace DimensioneringV2.AutoCAD
 
             try
             {
+                //Modify the standard text style to have Arial font
+                TextStyleTable tst = dimDb.TextStyleTableId.Go<TextStyleTable>(dimTx);
+                if (tst.Has("Standard"))
+                {
+                    TextStyleTableRecord tsr = tst["Standard"]
+                        .Go<TextStyleTableRecord>(dimTx, OpenMode.ForWrite);
+                    tsr.FileName = "arial.ttf";
+                }
+
+                //Preapare for linetype creation
+                LinetypeTable ltt = dimDb.LinetypeTableId.Go<LinetypeTable>(dimTx, (OpenMode)1);
+
                 foreach (AnalysisFeature feature in features)
                 {
                     if (feature.PipeDim.NominalDiameter == 0) continue;
@@ -57,6 +69,19 @@ namespace DimensioneringV2.AutoCAD
 
                     PipeSystemEnum ps = TranslatePipeTypeToSystem(feature.PipeDim.PipeType);
 
+                    #region Handle line type generation
+                    string lineTypeText =
+                        PipeScheduleV2.GetLineTypeLayerPrefix(ps) +
+                        feature.PipeDim.NominalDiameter.ToString();
+
+                    string lineTypeName = "LT-" + lineTypeText;
+
+                    if (!ltt.Has(lineTypeName))
+                    {
+                        createcomplexlinetypemethod(lineTypeName, lineTypeText, "Standard", dimDb);
+                    }
+                    #endregion
+
                     //Determine twin or single pipe
                     PipeTypeEnum pt = PipeScheduleV2.GetPipeTypeByAvailability(ps, feature.PipeDim.NominalDiameter);
 
@@ -70,6 +95,8 @@ namespace DimensioneringV2.AutoCAD
                     pline.Layer = layerName;
                     pline.ConstantWidth = PipeScheduleV2.GetPipeKOd(
                         ps, feature.PipeDim.NominalDiameter, pt, PipeSeriesEnum.S3) / 1000;
+                    pline.LinetypeId = ltt[lineTypeName];
+                    pline.Plinegen = true;
                 }
             }
             catch (Exception ex)

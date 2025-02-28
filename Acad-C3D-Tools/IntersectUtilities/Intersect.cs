@@ -1817,7 +1817,7 @@ namespace IntersectUtilities
             string lineTypeName = Interaction.GetString("Enter LineType name: (ex: BIPS_TEXT_N2) \n");
             if (lineTypeName.IsNoE()) return;
             //string text = "N2";
-            string text = Interaction.GetString("Enter text to be displayed by line: (ex: 10 kV) \n");
+            string text = Interaction.GetString("Enter text to be displayed by line: (ex: 10kV) NO SPACES!!! \n", true);
             string textStyleName = "Standard";
             createcomplexlinetypemethod(lineTypeName, text, textStyleName);
         }
@@ -1852,118 +1852,7 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
-        }
-        public void createcomplexlinetypemethod(string lineTypeName, string text, string textStyleName)
-        {
-            Document doc = Application.DocumentManager.MdiActiveDocument;
-            Database db = doc.Database;
-            Editor ed = doc.Editor;
-            Transaction tx = db.TransactionManager.StartTransaction();
-            using (tx)
-            {
-                try
-                {
-                    // We'll use the textstyle table to access
-                    // the "Standard" textstyle for our text segment
-                    TextStyleTable tt = (TextStyleTable)tx.GetObject(db.TextStyleTableId, OpenMode.ForRead);
-                    // Get the linetype table from the drawing
-                    LinetypeTable ltt = (LinetypeTable)tx.GetObject(db.LinetypeTableId, OpenMode.ForWrite);
-                    // Get layer table
-                    LayerTable lt = tx.GetObject(db.LayerTableId, OpenMode.ForRead) as LayerTable;
-                    //**************************************
-                    //Change name of line type to create new and text value
-                    //**************************************
-                    prdDbg($"Remember to create text style: {textStyleName}!!!");
-                    if (tt.Has(textStyleName))
-                    {
-                        prdDbg("Text style exists!");
-                    }
-                    else
-                    {
-                        prdDbg($"Text style {textStyleName} DOES NOT exist!");
-                        tx.Abort();
-                        return;
-                    }
-                    List<string> layersToChange = new List<string>();
-                    if (ltt.Has(lineTypeName))
-                    {
-                        Oid existingId = ltt[lineTypeName];
-                        Oid placeHolderId = ltt["Continuous"];
-                        foreach (Oid oid in lt)
-                        {
-                            LayerTableRecord ltr = oid.Go<LayerTableRecord>(tx);
-                            if (ltr.LinetypeObjectId == existingId)
-                            {
-                                ltr.CheckOrOpenForWrite();
-                                ltr.LinetypeObjectId = placeHolderId;
-                                layersToChange.Add(ltr.Name);
-                            }
-                        }
-                        LinetypeTableRecord exLtr = existingId.Go<LinetypeTableRecord>(tx, OpenMode.ForWrite);
-                        exLtr.Erase(true);
-                    }
-                    // Create our new linetype table record...
-                    LinetypeTableRecord lttr = new LinetypeTableRecord();
-                    // ... and set its properties
-                    lttr.Name = lineTypeName;
-                    lttr.AsciiDescription =
-                      $"{text} ---- {text} ---- {text} ----";
-                    lttr.PatternLength = 0.9;
-                    //IsScaledToFit makes so that there are no gaps at ends if text cannot fit
-                    lttr.IsScaledToFit = false;
-                    lttr.NumDashes = 4;
-                    //Dash definition
-                    double dL = 5;
-                    double textBuffer = 0.05; //On each side
-                    //Text length calculation
-                    Oid textStyleId = tt[textStyleName];
-                    var ts = new Autodesk.AutoCAD.GraphicsInterface.TextStyle();
-                    ts.FromTextStyleTableRecord(textStyleId);
-                    ts.TextSize = 0.9;
-                    var xs = ts.ExtentsBox(text, true, false, null);
-                    var tL = (xs.MaxPoint.X - xs.MinPoint.X) + 0.1;
-                    prdDbg($"Dash Length: {dL}, Text length: {tL}");
-                    // Dash #1
-                    lttr.SetDashLengthAt(0, dL);
-                    // Dash #2
-                    lttr.SetDashLengthAt(1, -tL);
-                    lttr.SetShapeStyleAt(1, tt[textStyleName]);
-                    lttr.SetShapeNumberAt(1, 0);
-                    lttr.SetShapeOffsetAt(1, new Vector2d(-(tL - textBuffer), -0.45));
-                    lttr.SetShapeScaleAt(1, 0.9);
-                    lttr.SetShapeIsUcsOrientedAt(1, false);
-                    lttr.SetShapeRotationAt(1, 0);
-                    lttr.SetTextAt(1, text);
-                    // Dash #3
-                    lttr.SetDashLengthAt(2, dL);
-                    // Dash #4
-                    lttr.SetDashLengthAt(3, -tL);
-                    lttr.SetShapeStyleAt(3, tt[textStyleName]);
-                    lttr.SetShapeNumberAt(3, 0);
-                    lttr.SetShapeOffsetAt(3, new Vector2d(-textBuffer, 0.45));
-                    lttr.SetShapeScaleAt(3, 0.9);
-                    lttr.SetShapeIsUcsOrientedAt(3, false);
-                    lttr.SetShapeRotationAt(3, Math.PI);
-                    lttr.SetTextAt(3, text);
-                    // Add the new linetype to the linetype table
-                    Oid ltId = ltt.Add(lttr);
-                    tx.AddNewlyCreatedDBObject(lttr, true);
-                    foreach (string name in layersToChange)
-                    {
-                        Oid ltrId = lt[name];
-                        LayerTableRecord ltr = ltrId.Go<LayerTableRecord>(tx, OpenMode.ForWrite);
-                        ltr.LinetypeObjectId = ltId;
-                    }
-                    db.ForEach<Polyline>(x => x.Draw(), tx);
-                }
-                catch (System.Exception ex)
-                {
-                    tx.Abort();
-                    prdDbg(ex);
-                }
-                tx.Commit();
-            }
-        }
+        }        
         /// <command>CREATEALLLINETYPESLAYERS</command>
         /// <summary>
         /// Creates a layer and a polyline for each linetype in drawing with the linetype assigned.

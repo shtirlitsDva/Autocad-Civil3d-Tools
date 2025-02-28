@@ -130,7 +130,8 @@ namespace IntersectUtilities.PipeScheduleV2
             {"PRTFLEXL", PipeSystemEnum.PertFlextra },
             {"AQTHRM11", PipeSystemEnum.AquaTherm11 },
         };
-        private static Dictionary<PipeSystemEnum, string> systemDictReversed = new Dictionary<PipeSystemEnum, string>()
+        private static Dictionary<PipeSystemEnum, string> systemDictReversed = 
+            new Dictionary<PipeSystemEnum, string>()
         {
             {PipeSystemEnum.Stål, "DN" },
             {PipeSystemEnum.AluPex , "ALUPEX" },
@@ -138,6 +139,16 @@ namespace IntersectUtilities.PipeScheduleV2
             //{PipeSystemEnum.PexU , "PEXU" },
             {PipeSystemEnum.PertFlextra , "PRTFLEXL" },
             {PipeSystemEnum.AquaTherm11 , "AQTHRM11" },
+        };
+        private static Dictionary<PipeSystemEnum, string> lineTypePrefixDict = 
+            new Dictionary<PipeSystemEnum, string>()
+        {
+            {PipeSystemEnum.Stål, "ST" },
+            {PipeSystemEnum.AluPex , "AP" },
+            {PipeSystemEnum.Kobberflex , "CU" },
+            //{PipeSystemEnum.PexU , "PEXU" },
+            {PipeSystemEnum.PertFlextra , "PRT" },
+            {PipeSystemEnum.AquaTherm11 , "AT" },
         };
         private static Dictionary<PipeSystemEnum, double[]> availableStdLengths = new()
         {
@@ -584,6 +595,12 @@ namespace IntersectUtilities.PipeScheduleV2
             var pipeType = _repository.GetPipeType(systemDictReversed[ps]);
 
             return pipeType.GetPipeTypeByAvailability(dn);
+        }
+        public static string GetLineTypeLayerPrefix(PipeSystemEnum system)
+        {
+            if (!lineTypePrefixDict.ContainsKey(system))
+                throw new Exception($"Undefined PipeType system {system}!");
+            return lineTypePrefixDict[system];
         }
         #endregion
     }

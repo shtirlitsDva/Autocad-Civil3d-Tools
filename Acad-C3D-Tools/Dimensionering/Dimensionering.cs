@@ -4078,6 +4078,20 @@ namespace IntersectUtilities.Dimensionering
             using (Transaction dimTx = dimDb.TransactionManager.StartTransaction())
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
+                #region Linetype Generation preparation
+                //Modify the standard text style to have Arial font
+                TextStyleTable tst = dimDb.TextStyleTableId.Go<TextStyleTable>(dimTx);
+                if (tst.Has("Standard"))
+                {
+                    TextStyleTableRecord tsr = tst["Standard"]
+                        .Go<TextStyleTableRecord>(dimTx, OpenMode.ForWrite);
+                    tsr.FileName = "arial.ttf";
+                }
+
+                //Preapare for linetype creation
+                LinetypeTable ltt = dimDb.LinetypeTableId.Go<LinetypeTable>(dimTx, (OpenMode)1); 
+                #endregion
+
                 #region PropertyData setup
                 //Settings
                 PropertySetManager fjvFremPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.FJV_fremtid);
@@ -4326,6 +4340,17 @@ namespace IntersectUtilities.Dimensionering
                             newPipe.Layer = layerName;
                             newPipe.ConstantWidth = sizeArray[0].Kod / 1000.0;
 
+                            string lineTypeText =
+                                PipeScheduleV2.PipeScheduleV2.GetLineTypeLayerPrefix(entry.System) +
+                                entry.DN.ToString();
+                            string lineTypeName = "LT-" + lineTypeText;
+
+                            if (!ltt.Has(lineTypeName))
+                                createcomplexlinetypemethod(lineTypeName, lineTypeText, "Standard", dimDb);
+
+                            newPipe.LinetypeId = ltt[lineTypeName];
+                            newPipe.Plinegen = true;
+
                             piplPsm.WritePropertyString(newPipe, piplDef.EtapeNavn, areaName);
                         }
                         else if (sizeArray.Length == 0) continue;
@@ -4362,6 +4387,17 @@ namespace IntersectUtilities.Dimensionering
 
                                     newPipe.Layer = layerName;
                                     newPipe.ConstantWidth = sizeArray[i].Kod / 1000.0;
+
+                                    string lineTypeText = 
+                                        PipeScheduleV2.PipeScheduleV2.GetLineTypeLayerPrefix(entry.System) +
+                                        entry.DN.ToString();
+                                    string lineTypeName = "LT-" + lineTypeText;
+
+                                    if (!ltt.Has(lineTypeName))
+                                        createcomplexlinetypemethod(lineTypeName, lineTypeText, "Standard", dimDb);
+
+                                    newPipe.LinetypeId = ltt[lineTypeName];
+                                    newPipe.Plinegen = true;
 
                                     piplPsm.WritePropertyString(newPipe, piplDef.EtapeNavn, areaName);
                                 }
