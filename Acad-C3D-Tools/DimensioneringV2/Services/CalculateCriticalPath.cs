@@ -9,6 +9,7 @@ using QuikGraph.Algorithms;
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -25,6 +26,18 @@ namespace DimensioneringV2.Services.SubGraphs
 
             var tryGetPaths = graph.ShortestPathsDijkstra(
                 edge => edge.PipeSegment.Length, rootNode);
+
+            //NetTopologySuite.Features.FeatureCollection fc = 
+            //    new NetTopologySuite.Features.FeatureCollection(
+            //        graph.Edges.Select(x => x.PipeSegment));
+            //NetTopologySuite.IO.GeoJsonWriter writer = new NetTopologySuite.IO.GeoJsonWriter();
+            //string json = writer.Write(fc);
+            //using (var sw = new StreamWriter("C:\\Temp\\testfc.geojson"))
+            //{
+            //    sw.Write(json);
+            //}
+
+            ExportGraphToDot.Export(graph);
 
             List<(
                 NodeJunction client,

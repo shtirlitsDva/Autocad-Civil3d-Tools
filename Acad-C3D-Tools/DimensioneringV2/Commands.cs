@@ -155,6 +155,25 @@ namespace DimensioneringV2
             prdDbg("Finished!");
         }
 
+        [CommandMethod("DIM2SLUK")]
+        public void dim2sluk()
+        {
+            DocumentCollection docCol = AcApp.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            while (true)
+            {
+                var oid = Interaction.GetEntity("\nVælg en vejmidte at slukke: ", typeof(Polyline));
+
+                if (oid.IsNull) break;
+
+                Autodesk.AutoCAD.Internal.Utils.SetUndoMark(true);
+                oid.QOpenForWrite<Polyline>(x => x.Layer = cv.LayerVejmidteSlukket);
+                Autodesk.AutoCAD.Internal.Utils.SetUndoMark(false);
+            }
+            prdDbg("Finished!");
+        }
+
         [CommandMethod("DIM2INTERSECTVEJMIDTE")]
         public void dim2intersectvejmidte()
         {
@@ -294,23 +313,25 @@ namespace DimensioneringV2
                         .Where(x => x.Layer == cv.LayerVejmidteTændt)
                         .ToList();
 
-                    var basePoints = localDb.HashSetOfType<BlockReference>(tx)
-                        .Where(x => x.RealName() == cv.BlockSupplyPointName)
-                        .Select(x => new Point2D(x.Position.X, x.Position.Y))
-                        .ToList();
-
-                    var graph = new DimensioneringV2.GraphModelRoads.Graph();
-                    bool isOk = graph.BuildGraph(pls, basePoints);
-
-                    if (!isOk) { tx.Commit(); return; }
-
                     localDb.CheckOrCreateLayer(cv.LayerEndPoint);
 
-                    foreach (var pt in graph.GetLeafNodePoints())
+                    foreach (var pl in pls)
                     {
-                        var br = localDb.CreateBlockWithAttributes(cv.BlockEndPointName, pt.To3d());
-                        br.CheckOrOpenForWrite();
-                        br.Layer = cv.LayerEndPoint;
+                        if (!pls.Any(x => pl.Id != x.Id && pl.StartPoint.IsOnCurve(x, tol)))
+                        {
+                            var br = localDb.CreateBlockWithAttributes(
+                                cv.BlockEndPointName, pl.StartPoint);
+                            br.CheckOrOpenForWrite();
+                            br.Layer = cv.LayerEndPoint;
+                        }
+
+                        if (!pls.Any(x => pl.Id != x.Id && pl.EndPoint.IsOnCurve(x, tol)))
+                        {
+                            var br = localDb.CreateBlockWithAttributes(
+                                cv.BlockEndPointName, pl.EndPoint);
+                            br.CheckOrOpenForWrite();
+                            br.Layer = cv.LayerEndPoint;
+                        }
                     }
                 }
                 catch (System.Exception ex)
