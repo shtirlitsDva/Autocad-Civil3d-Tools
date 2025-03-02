@@ -27,7 +27,7 @@ namespace DimensioneringV2
         internal static readonly string LayerDebugLines = "0-FJV_Debug";
 
         internal static HashSet<string> AcceptedBlockTypes =
-            new HashSet<string>() { "El", "Naturgas", "Varmepumpe", "Fast brændsel", "Olie", "Andet" };
+            new HashSet<string>() { "El", "Naturgas", "Varmepumpe", "Fast brændsel", "Olie", "Andet", "Fjernvarme" };
         internal static HashSet<string> AllBlockTypes =
             new HashSet<string>() { "El", "Naturgas", "Varmepumpe", "Fast brændsel", "Olie", "Andet", "Fjernvarme", "Ingen", "UDGÅR" };
     }

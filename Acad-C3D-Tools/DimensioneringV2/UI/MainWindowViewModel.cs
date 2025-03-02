@@ -142,7 +142,6 @@ namespace DimensioneringV2.UI
         #region PerformCalculationsBFCommand
         public RelayCommand PerformCalculationsBFCommand =>
             new(async () => await PerformCalculationsBFExecuteAsync());
-
         private async Task PerformCalculationsBFExecuteAsync()
         {
             try
