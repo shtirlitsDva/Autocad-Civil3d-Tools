@@ -122,7 +122,7 @@
                     <TextBox Grid.Row="6" Grid.Column="1" Width="50" Text="{Binding Settings.AcceptVelocity200_300FL, UpdateSourceTrigger=PropertyChanged}"/>
 
                     <Label Grid.Row="7" Grid.Column="0" Content="Acceptkriterie hastighed DN 350+ [m/s:Decimaltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                    <TextBox Grid.Row="7" Grid.Column="1" Width="50" Text="{Binding Settings.AcceptVelocity300PlusFL, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBox Grid.Row="7" Grid.Column="1" Width="50" Text="{Binding Settings.AcceptVelocity350PlusFL, UpdateSourceTrigger=PropertyChanged}"/>
 
                     <Label Grid.Row="8" Grid.Column="0" Content="Acceptkriterie trykgradient DN 20-150 [Pa/m:Heltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
                     <TextBox Grid.Row="8" Grid.Column="1" Width="50" Text="{Binding Settings.AcceptPressureGradient20_150FL, UpdateSourceTrigger=PropertyChanged}"/>
@@ -131,7 +131,7 @@
                     <TextBox Grid.Row="9" Grid.Column="1" Width="50" Text="{Binding Settings.AcceptPressureGradient200_300FL, UpdateSourceTrigger=PropertyChanged}"/>
 
                     <Label Grid.Row="10" Grid.Column="0" Content="Acceptkriterie trykgradient DN 350+ [Pa/m:Heltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                    <TextBox Grid.Row="10" Grid.Column="1" Width="50" Text="{Binding Settings.AcceptPressureGradient300PlusFL, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBox Grid.Row="10" Grid.Column="1" Width="50" Text="{Binding Settings.AcceptPressureGradient350PlusFL, UpdateSourceTrigger=PropertyChanged}"/>
 
                     <CheckBox Grid.Row="11" Grid.Column="0" Grid.ColumnSpan="2" Content="Brug PertFlextra" IsChecked="{Binding Settings.UsePertFlextraFL, UpdateSourceTrigger=PropertyChanged}"
                               Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
