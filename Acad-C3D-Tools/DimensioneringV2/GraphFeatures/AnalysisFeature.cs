@@ -61,15 +61,15 @@ namespace DimensioneringV2.GraphFeatures
         /// <summary>
         /// Is the segment a root node, then returns true, else false
         /// </summary>
-        public bool IsRootNode { get; private set; }
+        public bool IsRootNode { get; set; }
         /// <summary>
         /// Length of the segment
         /// </summary>
-        public double Length { get; private set; }
+        public double Length { get; set; }
         /// <summary>
         /// Is the segment a service line, then returns 1, else 0
         /// </summary>
-        public int NumberOfBuildingsConnected { get; private set; }
+        public int NumberOfBuildingsConnected { get; set; }
         /// <summary>
         /// Signifies what type of segment the feature represents.
         /// </summary>
@@ -80,11 +80,11 @@ namespace DimensioneringV2.GraphFeatures
         /// <summary>
         /// Lists the number of units connected to the segment
         /// </summary>
-        public int NumberOfUnitsConnected { get; private set; }
+        public int NumberOfUnitsConnected { get; set; }
         /// <summary>
         /// Lists the heating demand of the building connected to the segment
         /// </summary>
-        public double HeatingDemandConnected { get; private set; }
+        public double HeatingDemandConnected { get; set; }
 
         //Calculated properties
         /// <summary>

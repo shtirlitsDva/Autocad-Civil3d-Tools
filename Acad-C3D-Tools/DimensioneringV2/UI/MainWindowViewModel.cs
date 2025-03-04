@@ -678,8 +678,18 @@ namespace DimensioneringV2.UI
 
                 var graphs = _dataService.Graphs;
 
+                var options = new JsonSerializerOptions();
+                options.WriteIndented = true;
+                options.NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals;
+                options.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.Preserve;
+                options.Converters.Add(new AnalysisFeatureJsonConverter());
+                options.Converters.Add(new UndirectedGraphJsonConverter());
+
+                string json = JsonSerializer.Serialize(graphs, options);
+                File.WriteAllText(@"C:\Temp\graphs.json", json);
+
                 //Reset the results
-                foreach (var f in graphs.SelectMany(g => g.Edges.Select(e => e.PipeSegment))) f.ResetHydraulicResults();
+                //foreach (var f in graphs.SelectMany(g => g.Edges.Select(e => e.PipeSegment))) f.ResetHydraulicResults();
 
                 //await Task.Run(() =>
                 //{
