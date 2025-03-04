@@ -17,7 +17,7 @@ namespace NorsynHydraulicCalc
 {
     public class HydraulicCalc
     {
-        public static Version version = new Version(20241209, 0);
+        public static Version version = new Version(20250304, 0);
 
         #region Static properties for max flow pipe table
         private List<(Dim Dim, double MaxFlowFrem, double MaxFlowReturn)> maxFlowTableFL;
@@ -38,12 +38,17 @@ namespace NorsynHydraulicCalc
         private int hotWaterReturnTemp => s.HotWaterReturnTemp; // degree
         private double factorTillægForOpvarmningUdenBrugsvandsprioritering =>
             s.FactorTillægForOpvarmningUdenBrugsvandsprioritering;
-        private double minDifferentialPressureOverHovedHaner =>
-            s.MinDifferentialPressureOverHovedHaner; // bar
-        private double ruhedSteel => s.RuhedSteel; // mm
-        private double ruhedPertFlextra => s.RuhedPertFlextra; // mm
-        private double ruhedAluPEX => s.RuhedAluPEX; // mm
-        private double ruhedCu => s.RuhedCu; // mm
+        
+        //Not used for Hydraulic calculations, only used when calculating critical path
+        //private double minDifferentialPressureOverHovedHaner =>
+        //    s.MinDifferentialPressureOverHovedHaner; // bar
+
+        //Roughness settings are not used in Hydraulic calculations from here
+        //But they are supplied by the pipe types.
+        //private double ruhedSteel => s.RuhedSteel; // mm
+        //private double ruhedPertFlextra => s.RuhedPertFlextra; // mm
+        //private double ruhedAluPEX => s.RuhedAluPEX; // mm
+        //private double ruhedCu => s.RuhedCu; // mm
 
         // Fordelingsledninger (Distribution pipes)
         private int tempFremFL => s.TempFremFL; // degree
@@ -561,6 +566,8 @@ namespace NorsynHydraulicCalc
             double totalHeatingDemand = segment.HeatingDemandSupplied;
             int numberOfBuildings = segment.NumberOfBuildingsSupplied;
             int numberOfUnits = segment.NumberOfUnitsSupplied;
+            //Used for restricting total pressure loss in stikledninger
+            double length = segment.Length;
             #endregion
 
             sw.Restart();
@@ -637,10 +644,43 @@ namespace NorsynHydraulicCalc
             var dimSupply = determineDim(flowSupply, TempSetType.Supply, st);
             var dimReturn = determineDim(flowReturn, TempSetType.Return, st);
             var dim = new[] { dimSupply, dimReturn }.MaxBy(x => x.OuterDiameter);
-            var utilRate = determineUtilizationRate(dim, flowSupply, flowReturn, st);
 
-            var resSupply = CalculateGradientAndVelocity(flowSupply, dim, TempSetType.Supply, st);
-            var resReturn = CalculateGradientAndVelocity(flowReturn, dim, TempSetType.Return, st);
+            (double reynolds, double gradient, double velocity) resSupply;
+            (double reynolds, double gradient, double velocity) resReturn;
+
+            #region Prevent service pipes from exceeding max allowed pressure loss
+            if (st == SegmentType.Stikledning)
+            {
+                resSupply = CalculateGradientAndVelocity(flowSupply, dim, TempSetType.Supply, st);
+                resReturn = CalculateGradientAndVelocity(flowReturn, dim, TempSetType.Return, st);
+
+                double maxPressureLoss = maxPressureLossStikSL * 100000; // bar to Pa
+
+                double plossSupply = resSupply.gradient * length;
+                double plossReturn = resReturn.gradient * length;
+
+                while (plossSupply > maxPressureLoss || plossReturn > maxPressureLoss)
+                {
+                    var idx = maxFlowTableSL.FindIndex(x => x.Dim == dim);
+
+                    dim = maxFlowTableSL[idx + 1].Dim;
+                    resSupply = CalculateGradientAndVelocity(flowSupply, dim, TempSetType.Supply, st);
+                    resReturn = CalculateGradientAndVelocity(flowReturn, dim, TempSetType.Return, st);
+
+                    plossSupply = resSupply.gradient * length;
+                    plossReturn = resReturn.gradient * length;
+                }
+            }
+            else
+            {
+                resSupply =
+                CalculateGradientAndVelocity(flowSupply, dim, TempSetType.Supply, st);
+                resReturn =
+                    CalculateGradientAndVelocity(flowReturn, dim, TempSetType.Return, st);
+            }
+            #endregion
+
+            var utilRate = determineUtilizationRate(dim, flowSupply, flowReturn, st);
 
             var r = new CalculationResult(
                 st.ToString(),

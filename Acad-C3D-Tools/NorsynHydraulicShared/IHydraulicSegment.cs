@@ -12,5 +12,6 @@ namespace NorsynHydraulicShared
         double HeatingDemandSupplied { get; }
         int NumberOfBuildingsSupplied { get; }
         int NumberOfUnitsSupplied { get; }
+        double Length { get; }
     }
 }

@@ -4,7 +4,7 @@ using System.Text;
 
 namespace NorsynHydraulicCalc.Pipes
 {
-    public struct Dim
+    public struct Dim : IEquatable<Dim>
     {
         public int NominalDiameter;
         public double OuterDiameter;
@@ -50,10 +50,36 @@ namespace NorsynHydraulicCalc.Pipes
             Price_m = price_m;
             this.price_stk = price_stk;
         }
-        public static Dim NA => new Dim(0, 0, 0, 0, 0, 0, "NA ", PipeType.Stål, 0, new int[] { 0, 0, 0 }, 0, 0);
+        public static Dim NA => new Dim(0, 0, 0, 0, 0, 0, "NA ", PipeType.Stål, 0, [0, 0, 0], 0, 0);
         public override string ToString()
         {
             return DimName;
+        }
+
+        public static bool operator ==(Dim left, Dim right)
+        {
+            return left.PipeType == right.PipeType && left.NominalDiameter == right.NominalDiameter;
+        }
+
+        public static bool operator !=(Dim left, Dim right)
+        {
+            return !(left == right);
+        }
+
+        public bool Equals(Dim other)
+        {
+            return this == other;
+        }
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                int hash = 17;
+                hash = hash * 23 + NominalDiameter.GetHashCode();
+                hash = hash * 23 + PipeType.GetHashCode();
+                return hash;
+            }
         }
     }
 }
