@@ -22,6 +22,11 @@
                   VerticalScrollBarVisibility="Auto">
         <StackPanel Orientation="Vertical" Grid.IsSharedSizeScope="True">
 
+            <Button Content="Save Settings" 
+                    HorizontalAlignment="Left"
+                    Command="{Binding SaveSettingsCommand}" 
+                    Margin="5" />
+
             <!-- Miscellaneous Settings -->
             <GroupBox Header="Fælles input (stik- og fordelingsledninger)" Foreground="{DynamicResource Text}">
                 <Grid>

@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 
 using NorsynHydraulicCalc;
 using DimensioneringV2.GraphFeatures;
+using CommunityToolkit.Mvvm.Input;
 
 namespace DimensioneringV2.UI
 {
@@ -33,6 +34,14 @@ namespace DimensioneringV2.UI
                     OnPropertyChanged(nameof(Settings));
                 }
             };
+        }
+
+        public AsyncRelayCommand  SaveSettingsCommand => new AsyncRelayCommand(SaveSettings);
+
+        private async Task SaveSettings()
+        {
+            Services.HydraulicSettingsService.Instance.Settings = Settings;
+            Services.HydraulicSettingsService.Instance.Settings.Save(AcAp.DocumentManager.MdiActiveDocument);
         }
     }
 }
