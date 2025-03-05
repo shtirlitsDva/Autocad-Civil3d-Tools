@@ -13,7 +13,7 @@ namespace DimensioneringV2.GraphFeatures
 {
     internal class AnalysisFeatureDto
     {
-        public NetTopologySuite.Geometries.Geometry Geometry { get; set; }
+        public double [][] Coordinates { get; set; }
         public Dictionary<string, object> Attributes { get; set; }
 
         // Cached properties
@@ -49,7 +49,16 @@ namespace DimensioneringV2.GraphFeatures
 
         public AnalysisFeatureDto(AnalysisFeature analysisFeature)
         {
-            Geometry = analysisFeature.Geometry;
+            if (analysisFeature.Geometry is not LineString lineString)
+            {
+                throw new ArgumentException("Geometry must be a LineString!" +
+                    "\n"+string.Join(", ", 
+                    analysisFeature.Geometry.Coordinates.Select(x => x)));
+            }
+
+            Coordinates = lineString.Coordinates
+                .Select(c => new double[] { c.X, c.Y })
+                .ToArray();
             Attributes = new Dictionary<string, object>();
             foreach (var field in analysisFeature.Fields)
             {
@@ -88,7 +97,13 @@ namespace DimensioneringV2.GraphFeatures
 
         public AnalysisFeature ToAnalysisFeature()
         {
-            var analysisFeature = new AnalysisFeature(Geometry, Attributes)
+            var coordinates = Coordinates
+                .Select(c => new Coordinate(c[0], c[1]))
+                .ToArray();
+
+            var geometry = new LineString(coordinates);
+
+            var analysisFeature = new AnalysisFeature(geometry, Attributes)
             {
                 // Cached properties
                 IsRootNode = IsRootNode,
