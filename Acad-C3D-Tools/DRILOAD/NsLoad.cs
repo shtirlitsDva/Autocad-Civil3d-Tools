@@ -82,10 +82,18 @@ namespace DRILOAD
 
             foreach (var dllFile in dllDict)
             {
+                // Springer Dimensionering v2 over
+                if (dllFile.Key.Equals("NSDIMv2"))
+                {
+                    continue;
+                }
+
                 string pathToLoad = dllFile.Value;
 
                 if (!System.IO.File.Exists(pathToLoad))
                     throw new System.Exception($"DLL file {pathToLoad} does not exist!");
+
+
 
                 try
                 {
