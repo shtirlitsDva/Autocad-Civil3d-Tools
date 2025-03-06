@@ -34,6 +34,17 @@ namespace DimensioneringV2.Services
             Graphs = GraphCreationService.CreateGraphsFromFeatures(Features);
             DataLoaded?.Invoke(this, EventArgs.Empty);
         }
+        /// <summary>
+        /// Used to load data from saved results.
+        /// </summary>
+        /// <param name="graphs"></param>
+        public void LoadSavedResultsData(IEnumerable<UndirectedGraph<NodeJunction, EdgePipeSegment>> graphs)
+        {
+            Graphs = graphs;
+            Features = graphs.Select(x => x.Edges.Select(y => y.PipeSegment));
+            DataLoaded?.Invoke(this, EventArgs.Empty);
+            CalculationDataReturned?.Invoke(this, EventArgs.Empty);
+        }
         #endregion
 
         #region Calculation data returned event
@@ -41,10 +52,10 @@ namespace DimensioneringV2.Services
         /// Used when calculation service has returned data.
         /// </summary>
         public event EventHandler CalculationDataReturned;
-        public IEnumerable<IEnumerable<AnalysisFeature>> CalculatedFeatures { get; private set; }
+        //public IEnumerable<IEnumerable<AnalysisFeature>> CalculatedFeatures { get; private set; }
         public void StoreCalculatedData(IEnumerable<IEnumerable<AnalysisFeature>> calculatedFeatures)
         {
-            CalculatedFeatures = calculatedFeatures;
+            Features = calculatedFeatures;
             CalculationDataReturned?.Invoke(this, EventArgs.Empty);
         }
         #endregion

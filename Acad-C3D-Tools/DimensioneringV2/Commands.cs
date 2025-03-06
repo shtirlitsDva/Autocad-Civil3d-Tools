@@ -45,7 +45,7 @@ namespace DimensioneringV2
             doc.Editor.WriteMessage("\nVelkommen til Dimensionering v2.0!");
 
             AppDomain.CurrentDomain.AssemblyResolve +=
-                new ResolveEventHandler(MissingAssemblyLoader.Debug_AssemblyResolve);
+                new ResolveEventHandler(MissingAssemblyLoaderDimV2.Debug_AssemblyResolveV2);
 
         }
 

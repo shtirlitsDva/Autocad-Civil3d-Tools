@@ -26,7 +26,7 @@
                 <Button x:Name="btnCalcGAOpt" Content="Optmized GA" FontSize="10" Width="70" Height="20" 
                         Margin="2" Command="{Binding PerformCalculationsGAOptimizedCommand}"/>
                 <Button x:Name="btnPrice" Content="Calculate price" FontSize="10" Width="70" Height="20" 
-                        Margin="2" Command="{Binding PerformPriceCalc}" IsEnabled="{Binding IsPriceCalcEnabled}"/>
+                        Margin="2" Command="{Binding PerformPriceCalc}" IsEnabled="true"/>
                 <Button x:Name="btnClose" Content="Toggle Labels" FontSize="10" Width="70" Height="20"
                         Margin="2" Command="{Binding PerformLabelToggle}"/>
                 <Button x:Name="btnZoomExt" Content="Zoom Ext" FontSize="10" Width="70" Height="20"
@@ -35,8 +35,10 @@
                         Margin="2" Command="{Binding SyncACWindowCommand}"/>
                 <Button x:Name="btnWriteAC" Content="DIM2IMPORTDIMS" FontSize="10" Width="70" Height="20"
                         Margin="2" Command="{Binding Dim2ImportDimsCommand}"/>
-                <Button x:Name="btnTest1" Content="Test Btn 1" FontSize="10" Width="70" Height="20" 
-                        Margin="2" Command="{Binding Test01Command}"/>
+                <Button x:Name="btnSaveResult" Content="Save Result" FontSize="10" Width="70" Height="20" 
+                        Margin="2" Command="{Binding SaveResultCommand}"/>
+                <Button x:Name="btnLoadResult" Content="Load Result" FontSize="10" Width="70" Height="20" 
+                        Margin="2" Command="{Binding LoadResultCommand}"/>
             </StackPanel>
 
             <!-- Main Content Area -->
@@ -46,7 +48,7 @@
                     <Label Content="Vælg egenskab til afbildning:" FontSize="10" VerticalAlignment="Center" Margin="2" Foreground="{DynamicResource Text}"/>
                     <ComboBox x:Name="propertyDropdown" Width="200" Height="24" VerticalAlignment="Center"
                               ItemsSource="{Binding MapProperties}" SelectedItem="{Binding SelectedMapPropertyWrapper}"
-                              IsEnabled="{Binding IsMapDropdownEnabled}">
+                              IsEnabled="true">
                         <ComboBox.ItemTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding Description}" Foreground="Black"/>

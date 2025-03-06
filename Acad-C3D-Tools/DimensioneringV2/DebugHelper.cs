@@ -5,10 +5,10 @@ using static IntersectUtilities.UtilsCommon.Utils;
 
 namespace DimensioneringV2
 {
-    public static class MissingAssemblyLoader
+    public static class MissingAssemblyLoaderDimV2
     {
 #if DEBUG
-        public static Assembly Debug_AssemblyResolve(object sender, ResolveEventArgs args)
+        public static Assembly Debug_AssemblyResolveV2(object sender, ResolveEventArgs args)
         {
             string assemblyFolder = @"X:\GitHub\shtirlitsDva\Autocad-Civil3d-Tools\Acad-C3D-Tools\DimensioneringV2\bin\Debug";
             prdDbg($"Asked for assembly: {args.Name}!");
@@ -21,7 +21,7 @@ namespace DimensioneringV2
         }
 #endif
 #if RELEASE
-        public static Assembly Debug_AssemblyResolve(object sender, ResolveEventArgs args)
+        public static Assembly Debug_AssemblyResolveV2(object sender, ResolveEventArgs args)
         {
             string assemblyFolder = @"X:\AutoCAD DRI - 01 Civil 3D\NetloadV2\2025\DimensioneringV2";
             

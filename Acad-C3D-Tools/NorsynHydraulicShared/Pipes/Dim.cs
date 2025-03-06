@@ -6,19 +6,19 @@ namespace NorsynHydraulicCalc.Pipes
 {
     public struct Dim : IEquatable<Dim>
     {
-        public int NominalDiameter;
-        public double OuterDiameter;
-        public double InnerDiameter_mm;
-        public double InnerDiameter_m;
-        public double WallThickness;
-        public double CrossSectionArea;
-        public double Roughness_m;
-        public string DimName;
-        public PipeType PipeType;
-        public int OrderingPriority;
-        public int[] RGB;
-        public double Price_m;
-        private double price_stk;
+        public int NominalDiameter { get; set; }
+        public double OuterDiameter { get; set; }
+        public double InnerDiameter_mm { get; set; }
+        public double InnerDiameter_m { get; set; }
+        public double WallThickness { get; set; }
+        public double CrossSectionArea { get; set; }
+        public double Roughness_m { get; set; }
+        public string DimName { get; set; }
+        public PipeType PipeType { get; set; }
+        public int OrderingPriority { get; set; }
+        public int[] RGB { get; set; }
+        public double Price_m { get; set; }
+        private double price_stk { get; set; }
         public double RelativeRoughness { get => Roughness_m / InnerDiameter_m; }
         public double Price_stk(SegmentType st) => st == SegmentType.Stikledning ? price_stk : 0;
 
@@ -50,7 +50,7 @@ namespace NorsynHydraulicCalc.Pipes
             Price_m = price_m;
             this.price_stk = price_stk;
         }
-        public static Dim NA => new Dim(0, 0, 0, 0, 0, 0, "NA ", PipeType.Stål, 0, [0, 0, 0], 0, 0);
+        public static Dim NA => new Dim(0, 0, 0, 0, 0, 0, "NA ", PipeType.Stål, 0, new int[] { 0, 0, 0 }, 0, 0);
         public override string ToString()
         {
             return DimName;

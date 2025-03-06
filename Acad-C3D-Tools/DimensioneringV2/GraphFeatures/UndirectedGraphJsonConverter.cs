@@ -27,11 +27,7 @@ namespace DimensioneringV2.GraphFeatures
 
         public override void Write(Utf8JsonWriter writer, UndirectedGraph<NodeJunction, EdgePipeSegment> value, JsonSerializerOptions options)
         {
-            var dto = new UndirectedGraphDto
-            {
-                Vertices = value.Vertices.ToList(),
-                Edges = value.Edges.ToList()
-            };
+            var dto = new UndirectedGraphDto(value);
             JsonSerializer.Serialize(writer, dto, options);
         }
     }

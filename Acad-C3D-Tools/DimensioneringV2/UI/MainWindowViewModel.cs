@@ -58,10 +58,6 @@ namespace DimensioneringV2.UI
         public IEnumerable<MapPropertyWrapper> MapProperties => GetMapProperties(typeof(AnalysisFeature));
         [ObservableProperty]
         private MapPropertyWrapper selectedMapPropertyWrapper;
-        [ObservableProperty]
-        private bool isMapDropdownEnabled = false;
-        [ObservableProperty]
-        private bool isPriceCalcEnabled = false;
 
         public MainWindowViewModel()
         {
@@ -619,9 +615,11 @@ namespace DimensioneringV2.UI
             {
                 var graphs = _dataService.Graphs;
 
-                AcContext.Current.Post(_ => 
-                { AutoCAD.Dim2WriteDims.Write(
-                    graphs.SelectMany(x => x.Edges.Select(e => e.PipeSegment))); }, null);
+                AcContext.Current.Post(_ =>
+                {
+                    AutoCAD.Dim2WriteDims.Write(
+                    graphs.SelectMany(x => x.Edges.Select(e => e.PipeSegment)));
+                }, null);
 
                 //TypeTreeSerializer.GenerateTypeTreeReport(graphs, @"C:\Temp\type_tree_report.html");
 
@@ -655,9 +653,9 @@ namespace DimensioneringV2.UI
         }
         #endregion
 
-        #region Test01 Command
-        public AsyncRelayCommand Test01Command => new AsyncRelayCommand(Test01);
-        private async Task Test01()
+        #region SaveResultCommand
+        public AsyncRelayCommand SaveResultCommand => new AsyncRelayCommand(SaveResult);
+        private async Task SaveResult()
         {
             var props = new List<(Func<BFEdge, dynamic> Getter, Action<BFEdge, dynamic> Setter)>
             {
@@ -671,11 +669,6 @@ namespace DimensioneringV2.UI
 
             try
             {
-                //var progressWindow = new GeneticReporting();
-                //progressWindow.Show();
-                //GeneticReportingContext.VM = (GeneticReportingViewModel)progressWindow.DataContext;
-                //GeneticReportingContext.VM.Dispatcher = progressWindow.Dispatcher;
-
                 var graphs = _dataService.Graphs;
 
                 var options = new JsonSerializerOptions();
@@ -684,20 +677,48 @@ namespace DimensioneringV2.UI
                 options.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.Preserve;
                 options.Converters.Add(new AnalysisFeatureJsonConverter());
                 options.Converters.Add(new UndirectedGraphJsonConverter());
+                options.Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping;
 
-                string json = JsonSerializer.Serialize(graphs, options);
+                string json = JsonSerializer.Serialize(graphs.ToArray(), options);
                 File.WriteAllText(@"C:\Temp\graphs.json", json);
+            }
+            catch (System.Exception ex)
+            {
+                utils.prdDbg($"An error occurred during calculations: {ex.Message}");
+                utils.prdDbg(ex);
+            }
+        }
+        #endregion
 
-                //Reset the results
-                //foreach (var f in graphs.SelectMany(g => g.Edges.Select(e => e.PipeSegment))) f.ResetHydraulicResults();
+        #region LoadResultCommand
+        public AsyncRelayCommand LoadResultCommand => new AsyncRelayCommand(LoadResult);
+        private async Task LoadResult()
+        {
+            var props = new List<(Func<BFEdge, dynamic> Getter, Action<BFEdge, dynamic> Setter)>
+            {
+                (f => f.NumberOfBuildingsConnected, (f, v) => f.NumberOfBuildingsSupplied = v),
+                (f => f.NumberOfUnitsConnected, (f, v) => f.NumberOfUnitsSupplied = v),
+                (f => f.HeatingDemandConnected, (f, v) => f.HeatingDemandSupplied = v)
+            };
 
-                //await Task.Run(() =>
-                //{
-                //    foreach (UndirectedGraph<NodeJunction, EdgePipeSegment> graph in graphs)
-                //    {
-                //        HydraulicCalculationsService.CreateSubGraphs(graph);
-                //    }
-                //});
+            //Init the hydraulic calculation service using current settings
+            HydraulicCalculationService.Initialize();
+
+            try
+            {
+                var graphs = _dataService.Graphs;
+
+                var options = new JsonSerializerOptions();
+                options.WriteIndented = true;
+                options.NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals;
+                options.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.Preserve;
+                options.Converters.Add(new AnalysisFeatureJsonConverter());
+                options.Converters.Add(new UndirectedGraphJsonConverter());
+                options.Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping;
+                var graphs2 = JsonSerializer.Deserialize<UndirectedGraph<NodeJunction, EdgePipeSegment>[]>(
+                    File.ReadAllText(@"C:\Temp\graphs.json"), options);
+                if (graphs2 == null) throw new System.Exception("Deserialization failed.");
+                _dataService.LoadSavedResultsData(graphs2);
             }
             catch (System.Exception ex)
             {
@@ -727,19 +748,10 @@ namespace DimensioneringV2.UI
 
         private void OnCalculationsCompleted(object sender, EventArgs e)
         {
-            Features = new(_dataService!.CalculatedFeatures.SelectMany(x => x));
+            Features = new(_dataService!.Features.SelectMany(x => x));
 
-            if (!IsMapDropdownEnabled)
-            {
-                IsMapDropdownEnabled = true;
-                SelectedMapPropertyWrapper = null;
-                SelectedMapPropertyWrapper = MapProperties.First();
-            }
-
-            if (!IsPriceCalcEnabled)
-            {
-                IsPriceCalcEnabled = true;
-            }
+            SelectedMapPropertyWrapper = null;
+            SelectedMapPropertyWrapper = MapProperties.First();
         }
 
         private static IPersistentCache<byte[]>? _defaultCache;
