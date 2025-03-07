@@ -24,10 +24,43 @@ namespace DimensioneringV2.GraphFeatures
         #region Constructors
         public AnalysisFeature() : base() { }
 
+        /// <summary>
+        /// This constructor is used to create a new AnalysisFeature from an existing one.
+        /// This is used in the ReProjectFeatures method in the ProjectionService class.
+        /// Mapsui internally copyies the original feature by activating a new instance
+        /// of the feature and using this constructor.
+        /// So this constructor needs to copy all the values from the original feature.
+        /// </summary>
         public AnalysisFeature(AnalysisFeature analysisFeature) : base(analysisFeature)
         {
-            //Geometry = analysisFeature.Geometry?.Copy();
-            InitCachedProperties();
+            // Copy all AnalysisFeature-specific properties
+            IsRootNode = analysisFeature.IsRootNode;
+            Length = analysisFeature.Length;
+            NumberOfBuildingsConnected = analysisFeature.NumberOfBuildingsConnected;
+            NumberOfUnitsConnected = analysisFeature.NumberOfUnitsConnected;
+            HeatingDemandConnected = analysisFeature.HeatingDemandConnected;
+
+            NumberOfBuildingsSupplied = analysisFeature.NumberOfBuildingsSupplied;
+            NumberOfUnitsSupplied = analysisFeature.NumberOfUnitsSupplied;
+            HeatingDemandSupplied = analysisFeature.HeatingDemandSupplied;
+
+            PipeDim = analysisFeature.PipeDim;
+            ReynoldsSupply = analysisFeature.ReynoldsSupply;
+            ReynoldsReturn = analysisFeature.ReynoldsReturn;
+            FlowSupply = analysisFeature.FlowSupply;
+            FlowReturn = analysisFeature.FlowReturn;
+            PressureGradientSupply = analysisFeature.PressureGradientSupply;
+            PressureGradientReturn = analysisFeature.PressureGradientReturn;
+            VelocitySupply = analysisFeature.VelocitySupply;
+            VelocityReturn = analysisFeature.VelocityReturn;
+            UtilizationRate = analysisFeature.UtilizationRate;
+
+            IsBridge = analysisFeature.IsBridge;
+            SubGraphId = analysisFeature.SubGraphId;
+            PressureLossAtClient = analysisFeature.PressureLossAtClient;
+            IsCriticalPath = analysisFeature.IsCriticalPath;
+
+            foreach (var field in analysisFeature.Fields) this[field] = analysisFeature[field];
         }
         public AnalysisFeature(NetTopologySuite.Geometries.Geometry? geometry) : base(geometry)
         {

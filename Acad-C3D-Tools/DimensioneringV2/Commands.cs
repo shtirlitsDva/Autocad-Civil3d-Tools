@@ -15,7 +15,6 @@ using IntersectUtilities.UtilsCommon;
 using static IntersectUtilities.UtilsCommon.Utils;
 using dbg = IntersectUtilities.UtilsCommon.Utils.DebugHelper;
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
-using System.Windows.Forms;
 
 using AcApp = Autodesk.AutoCAD.ApplicationServices.Application;
 using cv = DimensioneringV2.CommonVariables;
@@ -31,6 +30,8 @@ using System.IO;
 using DimensioneringV2.UI;
 using Dreambuild.AutoCAD;
 using DimensioneringV2.Services;
+using Microsoft.Win32;
+using System.Windows;
 
 [assembly: CommandClass(typeof(DimensioneringV2.Commands))]
 
@@ -495,6 +496,158 @@ namespace DimensioneringV2
                 }
                 tx.Commit();
             }
+
+            prdDbg("Finished!");
+        }
+
+        [CommandMethod("DIM2COPYBBRFROMDWG")]
+        public void dim2copybbrfromdwg()
+        {
+            DocumentCollection docCol = AcApp.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            OpenFileDialog openFileDialog = new OpenFileDialog
+            {
+                Filter = "DWG Files (*.dwg)|*.dwg|All Files (*.*)|*.*",
+                DefaultExt = "dwg",
+                Title = "Select file where to copy BBR from",
+                CheckFileExists = true // Ensures the user selects an existing file
+            };
+
+            string fileName;
+            if (openFileDialog.ShowDialog() == true)
+            {
+                fileName = openFileDialog.FileName;
+            }
+            else
+            {
+                return;
+            }
+
+            if (string.IsNullOrEmpty(fileName)) return;
+
+            if (!File.Exists(fileName))
+            {
+                MessageBox.Show("The file does not exist.", "File not found", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            using Transaction localTx = localDb.TransactionManager.StartTransaction();
+
+            using Database sourceDb = new Database(false, true);
+            sourceDb.ReadDwgFile(fileName, FileOpenMode.OpenForReadAndAllShare, false, null);
+            using Transaction sourceTx = sourceDb.TransactionManager.StartTransaction();
+
+            try
+            {
+                #region Import BBR blocks
+
+                var bbrBlocks = sourceDb.ListOfType<BlockReference>(sourceTx)
+                    .Where(x => cv.AllBlockTypes.Contains(x.RealName()))
+                    .ToList();
+
+                if (bbrBlocks.Count() > 0)
+                {
+                    ObjectIdCollection idsToClone = new ObjectIdCollection();
+                    foreach (var bbr in bbrBlocks) idsToClone.Add(bbr.Id);
+
+                    Oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(sourceDb);
+                    Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
+
+                    BlockTable sourceBt = sourceDb.BlockTableId.Go<BlockTable>(sourceTx, OpenMode.ForRead);
+
+                    IdMapping mapping = new IdMapping();
+                    sourceDb.WblockCloneObjects(idsToClone, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
+                }
+                #endregion
+
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg(ex);
+                sourceTx.Abort();
+                localTx.Abort();
+                return;
+            }
+
+            sourceTx.Commit();
+            localTx.Commit();
+
+            prdDbg("Finished!");
+        }
+
+        [CommandMethod("DIM2COPYNOCROSSFROMDWG")]
+        public void dim2copynocrossfromdwg()
+        {
+            DocumentCollection docCol = AcApp.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            OpenFileDialog openFileDialog = new OpenFileDialog
+            {
+                Filter = "DWG Files (*.dwg)|*.dwg|All Files (*.*)|*.*",
+                DefaultExt = "dwg",
+                Title = "Select file where to copy nocross lines from",
+                CheckFileExists = true // Ensures the user selects an existing file
+            };
+
+            string fileName;
+            if (openFileDialog.ShowDialog() == true)
+            {
+                fileName = openFileDialog.FileName;
+            }
+            else
+            {
+                return;
+            }
+
+            if (string.IsNullOrEmpty(fileName)) return;
+
+            if (!File.Exists(fileName))
+            {
+                MessageBox.Show("The file does not exist.", "File not found", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            using Transaction localTx = localDb.TransactionManager.StartTransaction();
+
+            using Database sourceDb = new Database(false, true);
+            sourceDb.ReadDwgFile(fileName, FileOpenMode.OpenForReadAndAllShare, false, null);
+            using Transaction sourceTx = sourceDb.TransactionManager.StartTransaction();
+
+            try
+            {
+                #region Import BBR blocks
+
+                var noCrossLines = sourceDb.ListOfType<Line>(sourceTx)
+                    .Where(x => x.Layer == cv.LayerNoCross)
+                    .ToList();
+
+                if (noCrossLines.Count() > 0)
+                {
+                    ObjectIdCollection idsToClone = new ObjectIdCollection();
+                    foreach (var bbr in noCrossLines) idsToClone.Add(bbr.Id);
+
+                    Oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(sourceDb);
+                    Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
+
+                    BlockTable sourceBt = sourceDb.BlockTableId.Go<BlockTable>(sourceTx, OpenMode.ForRead);
+
+                    IdMapping mapping = new IdMapping();
+                    sourceDb.WblockCloneObjects(idsToClone, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
+                }
+                #endregion
+
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg(ex);
+                sourceTx.Abort();
+                localTx.Abort();
+                return;
+            }
+
+            sourceTx.Commit();
+            localTx.Commit();
 
             prdDbg("Finished!");
         }

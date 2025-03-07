@@ -46,7 +46,7 @@ namespace DimensioneringV2.UI
             };
             this.StateChanged += (s, e) =>
             {
-                utils.prdDbg($"State changed! V: {Visible}, wV: {WasVisible}");
+                //utils.prdDbg($"State changed! V: {Visible}, wV: {WasVisible}");
                 if (WasVisible)
                 {
                     utils.prdDbg("Saving settings!");

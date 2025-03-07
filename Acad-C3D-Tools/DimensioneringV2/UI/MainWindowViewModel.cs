@@ -51,6 +51,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Text.Json;
 using System.Windows;
+using System.Windows.Input;
 
 namespace DimensioneringV2.UI
 {
@@ -754,10 +755,13 @@ namespace DimensioneringV2.UI
             {
                 var graphs = _dataService.Graphs;
 
+                IEnumerable<AnalysisFeature> reprojected = 
+                    graphs.SelectMany(x => ProjectionService.ReProjectFeatures(
+                        x.Edges.Select(x => x.PipeSegment), "EPSG:3857", "EPSG:25832"));
+
                 AcContext.Current.Post(_ =>
                 {
-                    AutoCAD.Write2Dwg.Write(
-                    graphs.SelectMany(x => x.Edges.Select(e => e.PipeSegment)));
+                    AutoCAD.Write2Dwg.Write(reprojected);
                 }, null);
             }
             catch (System.Exception ex)
