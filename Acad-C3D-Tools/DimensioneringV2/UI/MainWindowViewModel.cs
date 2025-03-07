@@ -46,10 +46,11 @@ using DimensioneringV2.Services.SubGraphs;
 using System.Collections.Concurrent;
 using DimensioneringV2.SteinerTreeProblem;
 using System.Threading;
-using System.Windows.Forms;
+using Microsoft.Win32;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Text.Json;
+using System.Windows;
 
 namespace DimensioneringV2.UI
 {
@@ -657,18 +658,38 @@ namespace DimensioneringV2.UI
         public AsyncRelayCommand SaveResultCommand => new AsyncRelayCommand(SaveResult);
         private async Task SaveResult()
         {
-            var props = new List<(Func<BFEdge, dynamic> Getter, Action<BFEdge, dynamic> Setter)>
-            {
-                (f => f.NumberOfBuildingsConnected, (f, v) => f.NumberOfBuildingsSupplied = v),
-                (f => f.NumberOfUnitsConnected, (f, v) => f.NumberOfUnitsSupplied = v),
-                (f => f.HeatingDemandConnected, (f, v) => f.HeatingDemandSupplied = v)
-            };
-
-            //Init the hydraulic calculation service using current settings
-            HydraulicCalculationService.Initialize();
-
             try
             {
+                SaveFileDialog saveFileDialog = new SaveFileDialog
+                {
+                    Filter = "D2R Files (*.d2r)|*.d2r|All Files (*.*)|*.*",
+                    DefaultExt = "d2r",
+                    Title = "Save results"
+                };
+
+                string fileName;
+                if (saveFileDialog.ShowDialog() == true)
+                {
+                    fileName = saveFileDialog.FileName;
+                }
+                else
+                {
+                    return;
+                }
+
+                if (string.IsNullOrEmpty(fileName)) return;
+
+                if (File.Exists(fileName))
+                {
+                    MessageBoxResult result = MessageBox.Show(
+                        "The file already exists. Do you want to overwrite it?",
+                        "File already exists",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Warning);
+
+                    if (result != MessageBoxResult.Yes) return;
+                }
+
                 var graphs = _dataService.Graphs;
 
                 var options = new JsonSerializerOptions();
@@ -680,12 +701,14 @@ namespace DimensioneringV2.UI
                 options.Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping;
 
                 string json = JsonSerializer.Serialize(graphs.ToArray(), options);
-                File.WriteAllText(@"C:\Temp\graphs.json", json);
+                File.WriteAllText(fileName, json);
+
+                Utils.prtDbg($"Results saved to {fileName}");
             }
             catch (System.Exception ex)
             {
-                utils.prdDbg($"An error occurred during calculations: {ex.Message}");
-                utils.prdDbg(ex);
+                Utils.prtDbg($"An error occurred during saving: {ex.Message}");
+                Utils.prtDbg(ex);
             }
         }
         #endregion
@@ -694,18 +717,34 @@ namespace DimensioneringV2.UI
         public AsyncRelayCommand LoadResultCommand => new AsyncRelayCommand(LoadResult);
         private async Task LoadResult()
         {
-            var props = new List<(Func<BFEdge, dynamic> Getter, Action<BFEdge, dynamic> Setter)>
-            {
-                (f => f.NumberOfBuildingsConnected, (f, v) => f.NumberOfBuildingsSupplied = v),
-                (f => f.NumberOfUnitsConnected, (f, v) => f.NumberOfUnitsSupplied = v),
-                (f => f.HeatingDemandConnected, (f, v) => f.HeatingDemandSupplied = v)
-            };
-
-            //Init the hydraulic calculation service using current settings
-            HydraulicCalculationService.Initialize();
-
             try
             {
+                OpenFileDialog openFileDialog = new OpenFileDialog
+                {
+                    Filter = "D2R Files (*.d2r)|*.d2r|All Files (*.*)|*.*",
+                    DefaultExt = "d2r",
+                    Title = "Open D2R File",
+                    CheckFileExists = true // Ensures the user selects an existing file
+                };
+
+                string fileName;
+                if (openFileDialog.ShowDialog() == true)
+                {
+                    fileName = openFileDialog.FileName;
+                }
+                else
+                {
+                    return;
+                }
+
+                if (string.IsNullOrEmpty(fileName)) return;
+
+                if (!File.Exists(fileName))
+                {
+                    MessageBox.Show("The file does not exist.", "File not found", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
                 var graphs = _dataService.Graphs;
 
                 var options = new JsonSerializerOptions();
@@ -716,14 +755,16 @@ namespace DimensioneringV2.UI
                 options.Converters.Add(new UndirectedGraphJsonConverter());
                 options.Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping;
                 var graphs2 = JsonSerializer.Deserialize<UndirectedGraph<NodeJunction, EdgePipeSegment>[]>(
-                    File.ReadAllText(@"C:\Temp\graphs.json"), options);
+                    File.ReadAllText(fileName), options);
                 if (graphs2 == null) throw new System.Exception("Deserialization failed.");
                 _dataService.LoadSavedResultsData(graphs2);
+
+                Utils.prtDbg($"Results loaded from {fileName}");
             }
             catch (System.Exception ex)
             {
-                utils.prdDbg($"An error occurred during calculations: {ex.Message}");
-                utils.prdDbg(ex);
+                Utils.prtDbg($"An error occurred during loading: {ex.Message}");
+                Utils.prtDbg(ex);
             }
         }
         #endregion

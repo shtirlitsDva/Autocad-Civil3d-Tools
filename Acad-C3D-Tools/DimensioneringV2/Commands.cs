@@ -44,9 +44,13 @@ namespace DimensioneringV2
             Document doc = AcApp.DocumentManager.MdiActiveDocument;
             doc.Editor.WriteMessage("\nVelkommen til Dimensionering v2.0!");
 
-            AppDomain.CurrentDomain.AssemblyResolve +=
-                new ResolveEventHandler(MissingAssemblyLoaderDimV2.Debug_AssemblyResolveV2);
+            Assembly.LoadFrom(@"X:\AutoCAD DRI - 01 Civil 3D\NetloadV2\2025\DimensioneringV2\OxyPlot.dll");
+            Assembly.LoadFrom(@"X:\AutoCAD DRI - 01 Civil 3D\NetloadV2\2025\DimensioneringV2\OxyPlot.Wpf.dll");
 
+#if DEBUG
+            AppDomain.CurrentDomain.AssemblyResolve +=
+        new ResolveEventHandler(MissingAssemblyLoaderDimV2.Debug_AssemblyResolveV2);
+#endif
         }
 
         public void Terminate()

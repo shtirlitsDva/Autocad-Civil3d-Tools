@@ -20,21 +20,21 @@ namespace DimensioneringV2
             else { prdDbg($"File not found: {filePath}!"); return null; }
         }
 #endif
-#if RELEASE
-        public static Assembly Debug_AssemblyResolveV2(object sender, ResolveEventArgs args)
-        {
-            string assemblyFolder = @"X:\AutoCAD DRI - 01 Civil 3D\NetloadV2\2025\DimensioneringV2";
+//#if RELEASE
+//        public static Assembly Debug_AssemblyResolveV2(object sender, ResolveEventArgs args)
+//        {
+//            string assemblyFolder = @"X:\AutoCAD DRI - 01 Civil 3D\NetloadV2\2025\DimensioneringV2";
             
-            var name = args.Name.Split(',')[0];
-            name += ".dll";
-            string filePath = Path.Combine(assemblyFolder, name);
-            if (File.Exists(filePath))
-            {
-                prdDbg($"Found requested assembly: {args.Name}!");
-                return Assembly.LoadFrom(filePath);
-            }
-            else { return null; }
-        }
-#endif
+//            var name = args.Name.Split(',')[0];
+//            name += ".dll";
+//            string filePath = Path.Combine(assemblyFolder, name);
+//            if (File.Exists(filePath))
+//            {
+//                prdDbg($"Found requested assembly: {args.Name}!");
+//                return Assembly.LoadFrom(filePath);
+//            }
+//            else { return null; }
+//        }
+//#endif
     }
 }

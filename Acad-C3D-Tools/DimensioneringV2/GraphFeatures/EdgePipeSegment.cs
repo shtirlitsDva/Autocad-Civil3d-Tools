@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -13,9 +14,9 @@ namespace DimensioneringV2.GraphFeatures
         public AnalysisFeature PipeSegment { get; set; }
         public int Level { get; set; } // Level in the network hierarchy
 
-        private NodeJunction _source;
+        private NodeJunction? _source;
         public NodeJunction Source { get => _source; set => _source = value; }
-        private NodeJunction _target;
+        private NodeJunction? _target;
         public NodeJunction Target { get => _target; set => _target = value; }
 
         public EdgePipeSegment() { }
