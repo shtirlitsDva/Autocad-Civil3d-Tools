@@ -142,24 +142,217 @@ namespace DimensioneringV2.UI
             new(async () => await PerformCalculationsBFExecuteAsync());
         private async Task PerformCalculationsBFExecuteAsync()
         {
+            var props = new List<(Func<BFEdge, dynamic> Getter, Action<BFEdge, dynamic> Setter)>
+                    {
+                        (f => f.NumberOfBuildingsConnected, (f, v) => f.NumberOfBuildingsSupplied = v),
+                        (f => f.NumberOfUnitsConnected, (f, v) => f.NumberOfUnitsSupplied = v),
+                        (f => f.HeatingDemandConnected, (f, v) => f.HeatingDemandSupplied = v)
+                    };
+
             try
             {
                 //Init the hydraulic calculation service using current settings
                 HydraulicCalculationService.Initialize();
 
-                var progressWindow = new BruteForceProgressWindow();
-                progressWindow.Show();
-                BruteForceProgressContext.VM = (BruteForceProgressViewModel)progressWindow.DataContext;
-                BruteForceProgressContext.VM.Dispatcher = progressWindow.Dispatcher;
+                var reportingWindow = new GeneticOptimizedReporting();
+                reportingWindow.Show();
+                GeneticOptimizedReportingContext.VM = (GeneticOptimizedReportingViewModel)reportingWindow.DataContext;
+                GeneticOptimizedReportingContext.VM.Dispatcher = reportingWindow.Dispatcher;
 
-                await Task.Run(() => HydraulicCalculationsService.CalculateBFAnalysis(
-                    new List<(Func<BFEdge, dynamic> Getter, Action<BFEdge, dynamic> Setter)>
+                var dispatcher = GeneticOptimizedReportingContext.VM.Dispatcher;
+
+                await Task.Run(() =>
+                {
+                    var graphs = _dataService.Graphs;
+
+                    //Reset the results
+                    foreach (var f in graphs.SelectMany(g => g.Edges.Select(e => e.PipeSegment))) f.ResetHydraulicResults();
+
+                    HashSet<string> dims = new HashSet<string>();
+                    foreach (var graph in graphs)
                     {
-                        (f => f.NumberOfBuildingsConnected, (f, v) => f.NumberOfBuildingsSupplied = v),
-                        (f => f.NumberOfUnitsConnected, (f, v) => f.NumberOfUnitsSupplied = v),
-                        (f => f.HeatingDemandConnected, (f, v) => f.HeatingDemandSupplied = v)
+                        foreach (var edge in graph.Edges)
+                        {
+                            dims.Add(edge.PipeSegment.PipeDim.ToString());
+                        }
                     }
-                    ));
+
+                    foreach (UndirectedGraph<NodeJunction, EdgePipeSegment> originalGraph in graphs)
+                    {
+                        //First prepare calculation graph
+                        UndirectedGraph<BFNode, BFEdge> graph = originalGraph.CopyToBF();
+
+                        //Split the network into subgraphs
+                        var subGraphs = HydraulicCalculationsService.CreateSubGraphs(graph);
+
+                        //Build metagraph for the subgraphs
+                        var metaGraph = MetaGraphBuilder.BuildMetaGraph(subGraphs);
+
+                        //Calculate sums of calculation input properties
+                        //We can use SPDijkstra to calculate the sums here
+                        //As we are only interested in the sums for bridge nodes
+                        //because when the network is split into subgraphs
+                        //it will read the bridge nodes and variance will only
+                        //happen at non-bridge nodes
+
+                        var c = new CalculateMetaGraphRecursively(metaGraph);
+                        c.CalculateBaseSumsForMetaGraph(props);
+
+                        ////Temporary code to test the calculation of subgraphs
+                        ////Test looks like passed
+                        //Parallel.ForEach(graph.Edges, edge =>
+                        //{
+                        //    edge.PushBaseSums();
+                        //});
+
+                        Parallel.ForEach(subGraphs, (subGraph, state, index) =>
+                        {
+                            var terminals = metaGraph.GetTerminalsForSubgraph(subGraph);
+
+                            var nonbridges = FindBridges.FindNonBridges(subGraph);
+
+                            Utils.prtDbg($"Idx: {index} N: {subGraph.VertexCount} E: {subGraph.EdgeCount}");
+
+                            var stev3 = new SteinerTreesEnumeratorV3(
+                                subGraph, terminals.ToHashSet(), TimeSpan.FromSeconds(20));
+                            var solutions = stev3.Enumerate();
+
+                            var bfVM = new BruteForceGraphCalculationViewModel
+                            {
+                                // Some descriptive title
+                                Title = $"Brute Force Subgraph #{index + 1}",
+                                NodeCount = subGraph.VertexCount,
+                                EdgeCount = subGraph.EdgeCount,
+                                NonBridgesCount = nonbridges.Count.ToString(),
+                                SteinerTreesFound = solutions.Count,       // will be set later
+                                CalculatedTrees = 0,         // will increment as we go
+                                Cost = 0                     // will set once we know best
+                            };
+
+                            dispatcher.Invoke(() =>
+                            {
+                                GeneticOptimizedReportingContext.VM.GraphCalculations.Add(bfVM);
+                            });
+
+                            var nodeFlags = metaGraph.NodeFlags[subGraph];
+
+                            BFNode? rootNode = metaGraph.GetRootForSubgraph(subGraph);
+                            if (rootNode == null)
+                            {
+                                Utils.prtDbg("Root node not found.");
+                                throw new System.Exception("Root node not found.");
+                            }
+
+                            //If enumeration did not reach the time limit
+                            //We can calculate directly
+                            if (solutions.Count > 0)
+                            {
+                                ConcurrentBag<(double result, UndirectedGraph<BFNode, BFEdge> graph)> bag = new();
+
+                                int enumeratedCount = 0;
+
+                                Parallel.ForEach(solutions, solution =>
+                                {
+                                    var st = new UndirectedGraph<BFNode, BFEdge>();
+                                    foreach (var edge in solution) st.AddEdgeCopy(edge);
+
+                                    //Calculate sums again for the subgraph
+                                    var visited = new HashSet<BFNode>();
+                                    CalculateSubgraphs.BFCalcBaseSums(st, rootNode, visited, metaGraph, props);
+                                    HydraulicCalculationsService.BFCalcHydraulics(st);
+                                    var result = st.Edges.Sum(x => x.Price);
+
+                                    bag.Add((result, st));
+
+                                    Interlocked.Increment(ref enumeratedCount);
+
+                                    int countCopy = enumeratedCount;
+
+                                    dispatcher.Invoke(() =>
+                                    {
+                                        bfVM.CalculatedTrees = countCopy;
+                                    });
+                                });
+
+                                var best = bag.MinBy(x => x.result);
+
+                                dispatcher.Invoke(() =>
+                                {
+                                    bfVM.CalculatedTrees = enumeratedCount;
+                                    bfVM.Cost = best.result;
+                                });
+
+                                //Update the original graph with the results from the best result
+                                foreach (var edge in best.graph.Edges)
+                                {
+                                    edge.PushAllResults();
+                                }
+                            }
+                            else
+                            {
+                                //Solutions could not be enumerated -> too many non-bridges
+                                //Here we will use poor man's Brute Force
+
+                                UndirectedGraph<BFNode, BFEdge> seed = subGraph.CopyWithNewEdges();
+
+                                bool optimizationContinues = true;
+                                int optimizationCounter = 0;
+                                while (optimizationContinues)
+                                {
+                                    optimizationCounter++;
+                                    dispatcher.Invoke(() =>
+                                    {
+                                        bfVM.CalculatedTrees = optimizationCounter;
+                                    });
+
+                                    var bridges = FindBridges.DoFindThem(seed);
+                                    if (bridges.Count == seed.Edges.Count())
+                                    {
+                                        optimizationContinues = false;
+                                        break;
+                                    }
+
+                                    var nonBridges = seed.Edges.Where(x => !bridges.Contains(x)).ToList();
+
+                                    var results = new ConcurrentBag<(UndirectedGraph<BFNode, BFEdge> graph, double cost)>();
+
+                                    int counter = 0;
+                                    Parallel.ForEach(nonBridges, candidate =>
+                                    {
+                                        counter++;
+                                        var cGraph = seed.CopyWithNewEdges();
+                                        var cCandidate = cGraph.Edges.First(
+                                            x => x.Source == candidate.Source &&
+                                            x.Target == candidate.Target);
+                                        cGraph.RemoveEdge(cCandidate);
+
+                                        //Calculate sums again for the subgraph
+                                        var visited = new HashSet<BFNode>();
+                                        CalculateSubgraphs.BFCalcBaseSums(cGraph, rootNode, visited, metaGraph, props);
+                                        HydraulicCalculationsService.BFCalcHydraulics(cGraph);
+                                        var result = cGraph.Edges.Sum(x => x.Price);
+
+                                        results.Add((cGraph, result));
+                                    });
+
+                                    var bestResult = results.MinBy(x => x.cost);
+                                    seed = bestResult.graph;
+
+                                    dispatcher.Invoke(() =>
+                                    {
+                                        bfVM.Cost = bestResult.cost;
+                                    });
+                                }
+
+                                //Update the original graph with the results from the best result
+                                foreach (var edge in seed.Edges)
+                                {
+                                    edge.PushAllResults();
+                                }
+                            }
+                        });
+                    }
+                });
             }
             catch (System.Exception ex)
             {
@@ -755,7 +948,7 @@ namespace DimensioneringV2.UI
             {
                 var graphs = _dataService.Graphs;
 
-                IEnumerable<AnalysisFeature> reprojected = 
+                IEnumerable<AnalysisFeature> reprojected =
                     graphs.SelectMany(x => ProjectionService.ReProjectFeatures(
                         x.Edges.Select(x => x.PipeSegment), "EPSG:3857", "EPSG:25832"));
 
