@@ -62,10 +62,11 @@ namespace DimensioneringV2
         private static double tol = DimensioneringV2.Tolerance.Default;
 
         [CommandMethod("DIM2PREPAREDWG")]
-        public void dim2preparedwg()
+        public void dim2preparedwg() => dim2preparedwgmethod();
+        internal static void dim2preparedwgmethod(Database db = null)
         {
             DocumentCollection docCol = AcApp.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
+            Database localDb = db ?? docCol.MdiActiveDocument.Database;
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {

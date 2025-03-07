@@ -43,7 +43,7 @@ namespace DimensioneringV2.Services
             Graphs = graphs;
             Features = graphs.Select(x => x.Edges.Select(y => y.PipeSegment));
             DataLoaded?.Invoke(this, EventArgs.Empty);
-            CalculationDataReturned?.Invoke(this, EventArgs.Empty);
+            CalculationsFinishedEvent?.Invoke(this, EventArgs.Empty);
         }
         #endregion
 
@@ -51,12 +51,12 @@ namespace DimensioneringV2.Services
         /// <summary>
         /// Used when calculation service has returned data.
         /// </summary>
-        public event EventHandler CalculationDataReturned;
+        public event EventHandler CalculationsFinishedEvent;
         //public IEnumerable<IEnumerable<AnalysisFeature>> CalculatedFeatures { get; private set; }
-        public void StoreCalculatedData(IEnumerable<IEnumerable<AnalysisFeature>> calculatedFeatures)
+        public void CalculationsFinished(IEnumerable<IEnumerable<AnalysisFeature>> calculatedFeatures)
         {
-            Features = calculatedFeatures;
-            CalculationDataReturned?.Invoke(this, EventArgs.Empty);
+            //Features = calculatedFeatures;
+            CalculationsFinishedEvent?.Invoke(this, EventArgs.Empty);
         }
         #endregion
     }

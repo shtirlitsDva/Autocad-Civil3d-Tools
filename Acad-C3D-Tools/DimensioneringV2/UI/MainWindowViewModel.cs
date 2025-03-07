@@ -64,7 +64,7 @@ namespace DimensioneringV2.UI
         {
             _dataService = DataService.Instance;
             _dataService.DataLoaded += OnDataLoadedFirstTime;
-            _dataService.CalculationDataReturned += OnCalculationsCompleted;
+            _dataService.CalculationsFinishedEvent += OnCalculationsCompleted;
         }
 
         private IEnumerable<MapPropertyWrapper> GetMapProperties(Type type)
@@ -621,30 +621,6 @@ namespace DimensioneringV2.UI
                     AutoCAD.Dim2WriteDims.Write(
                     graphs.SelectMany(x => x.Edges.Select(e => e.PipeSegment)));
                 }, null);
-
-                //TypeTreeSerializer.GenerateTypeTreeReport(graphs, @"C:\Temp\type_tree_report.html");
-
-                //var options = new JsonSerializerOptions
-                //{
-                //    WriteIndented = true
-                //};
-
-                //var json = JsonSerializer.Serialize(graphs, options);
-
-                //using (SaveFileDialog saveFileDialog = new SaveFileDialog())
-                //{
-                //    saveFileDialog.Filter = "Json Files (*.json)|*.json|All Files (*.*)|*.*";
-                //    saveFileDialog.Title = "Save Results to File";
-                //    saveFileDialog.DefaultExt = "json";
-                //    saveFileDialog.AddExtension = true;
-
-                //    if (saveFileDialog.ShowDialog() == DialogResult.OK)
-                //    {
-                //        string filePath = saveFileDialog.FileName;
-                //        File.WriteAllText(filePath, json);
-                //        Utils.prtDbg($"Results saved to {filePath}");
-                //    }
-                //}
             }
             catch (System.Exception ex)
             {
@@ -664,7 +640,8 @@ namespace DimensioneringV2.UI
                 {
                     Filter = "D2R Files (*.d2r)|*.d2r|All Files (*.*)|*.*",
                     DefaultExt = "d2r",
-                    Title = "Save results"
+                    Title = "Save results",
+                    AddExtension = true
                 };
 
                 string fileName;
@@ -765,6 +742,28 @@ namespace DimensioneringV2.UI
             {
                 Utils.prtDbg($"An error occurred during loading: {ex.Message}");
                 Utils.prtDbg(ex);
+            }
+        }
+        #endregion
+
+        #region Write2Dwg Command
+        public AsyncRelayCommand WriteToDwgCommand => new AsyncRelayCommand(WriteToDwg);
+        private async Task WriteToDwg()
+        {
+            try
+            {
+                var graphs = _dataService.Graphs;
+
+                AcContext.Current.Post(_ =>
+                {
+                    AutoCAD.Write2Dwg.Write(
+                    graphs.SelectMany(x => x.Edges.Select(e => e.PipeSegment)));
+                }, null);
+            }
+            catch (System.Exception ex)
+            {
+                utils.prdDbg($"An error occurred during calculations: {ex.Message}");
+                utils.prdDbg(ex);
             }
         }
         #endregion

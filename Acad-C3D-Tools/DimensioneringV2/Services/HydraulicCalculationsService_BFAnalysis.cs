@@ -41,11 +41,7 @@ namespace DimensioneringV2.Services
             foreach (UndirectedGraph<NodeJunction, EdgePipeSegment> graph in graphs)
             {
                 UndirectedGraph<BFNode, BFEdge> bfGraph = graph.CopyToBF();
-                //Try to use MST to achieve a better guidance for edge removal
-                //MST does not influence the result, no effect whatsoever
-                //var mst = bfGraph.MinimumSpanningTreePrim(e => e.Length).ToHashSet();
-                //var notMst = bfGraph.Edges.Except(mst).ToHashSet();
-
+                
                 bool optimizationContinues = true;
                 int optimizationCounter = 0;
                 while (optimizationContinues)
@@ -76,10 +72,10 @@ namespace DimensioneringV2.Services
                     {
                         counter++;
                         VM.UpdateCurrentCandidate(counter);
-                        var cGraph = bfGraph.CopyWithNewVerticesAndEdges();
+                        var cGraph = bfGraph.CopyWithNewEdges();
                         var cCandidate = cGraph.Edges.First(
-                            x => x.Source.OriginalNodeJunction == candidate.Source.OriginalNodeJunction &&
-                            x.Target.OriginalNodeJunction == candidate.Target.OriginalNodeJunction);
+                            x => x.Source == candidate.Source &&
+                            x.Target == candidate.Target);
                         cGraph.RemoveEdge(cCandidate);
 
                         double cost = CalculateBFCost(cGraph, props);
@@ -91,40 +87,14 @@ namespace DimensioneringV2.Services
                     bfGraph = bestResult.graph;
                 }
 
-                //If running length, calculate hydraulic results
-                //CalculateBFCost(bfGraph, props);
-
                 //Update the original graph with the results from the best result
                 foreach (var edge in bfGraph.Edges)
                 {
-                    var originalEdge = graph.Edges.FirstOrDefault(
-                        x => x.Source == edge.Source.OriginalNodeJunction &&
-                        x.Target == edge.Target.OriginalNodeJunction);
-                    if (originalEdge == null)
-                    {
-                        originalEdge = graph.Edges.FirstOrDefault(
-                            x => x.Source == edge.Target.OriginalNodeJunction &&
-                            x.Target == edge.Source.OriginalNodeJunction);
-                    }
-                    if (originalEdge == null)
-                    {
-                        utils.prdDbg($"Couldn't find original edge for {edge.Source} -> {edge.Target}");
-                        continue;
-                    }
-                    originalEdge.PipeSegment.PipeDim = edge.PipeDim;
-                    originalEdge.PipeSegment.ReynoldsSupply = edge.ReynoldsSupply;
-                    originalEdge.PipeSegment.ReynoldsReturn = edge.ReynoldsReturn;
-                    originalEdge.PipeSegment.FlowSupply = edge.FlowSupply;
-                    originalEdge.PipeSegment.FlowReturn = edge.FlowReturn;
-                    originalEdge.PipeSegment.PressureGradientSupply = edge.PressureGradientSupply;
-                    originalEdge.PipeSegment.PressureGradientReturn = edge.PressureGradientReturn;
-                    originalEdge.PipeSegment.VelocitySupply = edge.VelocitySupply;
-                    originalEdge.PipeSegment.VelocityReturn = edge.VelocityReturn;
-                    originalEdge.PipeSegment.UtilizationRate = edge.UtilizationRate;
+                    edge.PushAllResults();
                 }
             }
 
-            _dataService.StoreCalculatedData(graphs.Select(g => g.Edges.Select(y => y.PipeSegment)));
+            _dataService.CalculationsFinished(graphs.Select(g => g.Edges.Select(y => y.PipeSegment)));
         }
     }
 }

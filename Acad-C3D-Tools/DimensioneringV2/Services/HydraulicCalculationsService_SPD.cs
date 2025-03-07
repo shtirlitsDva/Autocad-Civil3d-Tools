@@ -74,7 +74,7 @@ namespace DimensioneringV2.Services
                 CalculateHydraulics(shortestPathTree);
             }
 
-            _dataService.StoreCalculatedData(graphs.Select(g => g.Edges.Select(y => y.PipeSegment)));
+            _dataService.CalculationsFinished(graphs.Select(g => g.Edges.Select(y => y.PipeSegment)));
         }
     }
 }

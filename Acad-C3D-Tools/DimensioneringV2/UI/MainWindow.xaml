@@ -27,18 +27,18 @@
                         Margin="2" Command="{Binding PerformCalculationsGAOptimizedCommand}"/>
                 <Button x:Name="btnPrice" Content="Calculate price" FontSize="10" Width="70" Height="20" 
                         Margin="2" Command="{Binding PerformPriceCalc}" IsEnabled="true"/>
-                <Button x:Name="btnClose" Content="Toggle Labels" FontSize="10" Width="70" Height="20"
-                        Margin="2" Command="{Binding PerformLabelToggle}"/>
                 <Button x:Name="btnZoomExt" Content="Zoom Ext" FontSize="10" Width="70" Height="20"
                         Margin="2" Command="{Binding PerformZoomToExtents}"/>
                 <Button x:Name="btnSyncAC" Content="Sync AC" FontSize="10" Width="70" Height="20"
                         Margin="2" Command="{Binding SyncACWindowCommand}"/>
-                <Button x:Name="btnWriteAC" Content="DIM2IMPORTDIMS" FontSize="10" Width="70" Height="20"
+                <Button x:Name="btnWriteAC" Content="Export DIMS" FontSize="10" Width="70" Height="20"
                         Margin="2" Command="{Binding Dim2ImportDimsCommand}"/>
                 <Button x:Name="btnSaveResult" Content="Save Result" FontSize="10" Width="70" Height="20" 
                         Margin="2" Command="{Binding SaveResultCommand}"/>
                 <Button x:Name="btnLoadResult" Content="Load Result" FontSize="10" Width="70" Height="20" 
                         Margin="2" Command="{Binding LoadResultCommand}"/>
+                <Button x:Name="btnWriteToDwg" Content="Write to DWG" FontSize="10" Width="70" Height="20" 
+                        Margin="2" Command="{Binding WriteToDwgCommand}"/>
             </StackPanel>
 
             <!-- Main Content Area -->
@@ -55,6 +55,8 @@
                             </DataTemplate>
                         </ComboBox.ItemTemplate>
                     </ComboBox>
+                    <Button x:Name="btnClose" Content="Toggle Labels" FontSize="10" Width="70" Height="20" 
+                            Margin="2" Command="{Binding PerformLabelToggle}"/>
                 </StackPanel>
 
                 <!-- Map Control -->
