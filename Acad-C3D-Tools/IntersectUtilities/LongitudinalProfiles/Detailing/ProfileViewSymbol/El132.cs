@@ -17,7 +17,7 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol
     internal class El132 : BlockBase
     {
         public El132() : base("EL 132kV") { }
-        private double dia = 0.5;
+        private double dia = 0.07;
         internal override void HandleBlockDefinition(Database localDb)
         {
             CreateBlockTableRecord(localDb, dia);
