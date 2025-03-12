@@ -279,12 +279,12 @@ namespace NetReload
                         Path.Combine(netReloadDir, tempAssemblyName + ".deps.json")
                         );
 
-                    // Move new .config file from Debug directory to NetReload directory.
-                    // This is not needed for .NET 8.0 and later.???
-                    File.Move(
-                        Path.Combine(debugDir, initAssemblyName + ".dll.config"),
-                        Path.Combine(debugDir, tempAssemblyName + ".dll.config")
-                        );
+                    //// Move new .config file from Debug directory to NetReload directory.
+                    //// This is not needed for .NET 8.0 and later.???
+                    //File.Move(
+                    //    Path.Combine(debugDir, initAssemblyName + ".dll.config"),
+                    //    Path.Combine(debugDir, tempAssemblyName + ".dll.config")
+                    //    );
 
 
 
