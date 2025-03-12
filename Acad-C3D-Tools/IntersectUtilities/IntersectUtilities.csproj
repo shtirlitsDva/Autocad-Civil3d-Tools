@@ -128,9 +128,6 @@
 	</ItemGroup>
 	<ItemGroup>
 		<Content Include="DebugCommandLineAttribute.txt" />
-		<Content Include="IntersectUtilities.dll.config">
-		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-		</Content>
 	</ItemGroup>
 	<PropertyGroup>
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
