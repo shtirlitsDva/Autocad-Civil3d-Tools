@@ -36,6 +36,9 @@
 		<DebugType>full</DebugType>
 	</PropertyGroup>
 	<ItemGroup>
+	  <None Remove="IntersectUtilities.dll.config" />
+	</ItemGroup>
+	<ItemGroup>
 	  <COMReference Include="Microsoft.Office.Interop.Excel">
 	    <WrapperTool>tlbimp</WrapperTool>
 	    <VersionMinor>9</VersionMinor>
@@ -125,6 +128,9 @@
 	</ItemGroup>
 	<ItemGroup>
 		<Content Include="DebugCommandLineAttribute.txt" />
+		<Content Include="IntersectUtilities.dll.config">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</Content>
 	</ItemGroup>
 	<PropertyGroup>
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>

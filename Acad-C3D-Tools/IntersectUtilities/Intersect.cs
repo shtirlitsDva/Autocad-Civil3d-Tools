@@ -2379,7 +2379,7 @@ namespace IntersectUtilities
                     //Create clusters of POIs based on a maximum distance
                     //Distance is reduced, because was having a bad day
                     IEnumerable<IGrouping<Graph.POI, Graph.POI>> clusters
-                        = graph.POIs.GroupByCluster((x, y) => x.Point.GetDistanceTo(y.Point), 0.005);
+                        = graph.POIs.GroupByCluster((x, y) => x.Point.GetDistanceTo(y.Point), 0.003);
                     //Iterate over clusters
                     foreach (IGrouping<Graph.POI, Graph.POI> cluster in clusters)
                     {
