@@ -125,7 +125,7 @@ namespace DimensioneringV2.GraphUtilities
         /// </summary>
         private UndirectedGraph<BFNode, BFEdge> BuildSubgraph(List<BFEdge> edges)
         {
-            var sg = new UndirectedGraph<BFNode, BFEdge>(allowParallelEdges: false);
+            var sg = new UndirectedGraph<BFNode, BFEdge>();
             foreach (var v in _graph.Vertices)
                 sg.AddVertex(v);
             sg.AddEdgeRange(edges);
@@ -140,7 +140,7 @@ namespace DimensioneringV2.GraphUtilities
         {
             if (_terminals.Count == 0) return true;
 
-            var g = new UndirectedGraph<BFNode, BFEdge>(allowParallelEdges: false);
+            var g = new UndirectedGraph<BFNode, BFEdge>();
             g.AddVertexRange(vertices);
             g.AddEdgeRange(edges);
 

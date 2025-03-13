@@ -16,7 +16,7 @@ namespace DimensioneringV2.GraphFeatures
             ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
             var dto = JsonSerializer.Deserialize<UndirectedGraphDto>(ref reader, options);
-            var graph = new UndirectedGraph<NodeJunction, EdgePipeSegment>(allowParallelEdges: false);
+            var graph = new UndirectedGraph<NodeJunction, EdgePipeSegment>();
             graph.AddVertexRange(dto.Vertices);
             foreach (var edge in dto.Edges)
             {

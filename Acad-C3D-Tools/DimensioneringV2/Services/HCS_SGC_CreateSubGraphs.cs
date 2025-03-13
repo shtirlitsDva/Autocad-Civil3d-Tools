@@ -57,7 +57,7 @@ namespace DimensioneringV2.Services
             IEnumerable<BFEdge> edgesToKeep)
         {
             // 1) Create a new graph that has the same vertices but only the selected edges
-            var g = new UndirectedGraph<BFNode, BFEdge>(allowParallelEdges: false);
+            var g = new UndirectedGraph<BFNode, BFEdge>();
             
             foreach (var e in edgesToKeep)
             {
@@ -100,7 +100,7 @@ namespace DimensioneringV2.Services
                     }
 
                     // Build a subgraph
-                    var subG = new UndirectedGraph<BFNode, BFEdge>(allowParallelEdges: false);
+                    var subG = new UndirectedGraph<BFNode, BFEdge>();
                     foreach (var n in componentNodes)
                         subG.AddVertex(n);
                     foreach (var e in componentEdges.Distinct()) // might have duplicates

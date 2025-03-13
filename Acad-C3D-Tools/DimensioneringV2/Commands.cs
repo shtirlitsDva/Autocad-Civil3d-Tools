@@ -480,14 +480,12 @@ namespace DimensioneringV2
                 }
                 catch (System.Exception ex)
                 {
-                    if (ex is ArgumentException argex)
+
+                    if (ex.Message.Contains("DBG"))
                     {
-                        if (argex.Message.Contains("DBG"))
-                        {
-                            prdDbg(argex.Message);
-                            tx.Commit();
-                            return;
-                        }
+                        prdDbg(ex.Message);
+                        tx.Commit();
+                        return;
                     }
 
                     prdDbg(ex);

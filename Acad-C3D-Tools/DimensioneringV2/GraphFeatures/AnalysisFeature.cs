@@ -259,6 +259,7 @@ namespace DimensioneringV2.GraphFeatures
                            System.Reflection.BindingFlags.DeclaredOnly)
             .OrderBy(p => p.MetadataToken)
             .Where(p => p.Name != "BoundingBox")
+            .Where(p => p.Name != "Attributes")
             .Select(pi => new PropertyItem(pi.Name, pi.GetValue(this)?.ToString() ?? "null"));
 
             return props;

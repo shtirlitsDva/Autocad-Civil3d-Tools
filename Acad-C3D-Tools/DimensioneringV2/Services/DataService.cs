@@ -31,7 +31,8 @@ namespace DimensioneringV2.Services
                 samlet.Add(ProjectionService.ReProjectFeatures(
                     col, "EPSG:25832", "EPSG:3857").ToHashSet());
             Features = samlet;
-            Graphs = GraphCreationService.CreateGraphsFromFeatures(Features);
+            Graphs = GraphCreationService.CreateGraphsFromFeatures(Features);            
+
             DataLoaded?.Invoke(this, EventArgs.Empty);
         }
         /// <summary>

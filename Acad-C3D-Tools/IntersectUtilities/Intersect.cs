@@ -2471,8 +2471,7 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    System.Data.DataTable komponenter = CsvReader.ReadCsvToDataTable(
-                        @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+                    System.Data.DataTable komponenter = CsvData.FK;
                     HashSet<Entity> allEnts = localDb.GetFjvEntities(tx, true, false);
                     //Remove stiktees which are special tee blocks for stikledninger
                     allEnts = allEnts.Where(x =>

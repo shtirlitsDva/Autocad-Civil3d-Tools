@@ -154,7 +154,7 @@ namespace DimensioneringV2.UI
                 //Init the hydraulic calculation service using current settings
                 HydraulicCalculationService.Initialize();
 
-                var reportingWindow = new GeneticOptimizedReporting();
+                var reportingWindow = new GeneticOptimizedReporting();                
                 reportingWindow.Show();
                 GeneticOptimizedReportingContext.VM = (GeneticOptimizedReportingViewModel)reportingWindow.DataContext;
                 GeneticOptimizedReportingContext.VM.Dispatcher = reportingWindow.Dispatcher;
@@ -613,6 +613,7 @@ namespace DimensioneringV2.UI
                         Parallel.ForEach(subGraphs, (subGraph, state, index) =>
                         {
                             var terminals = metaGraph.GetTerminalsForSubgraph(subGraph);
+                            var rootNode = metaGraph.GetRootForSubgraph(subGraph);
 
                             var nonbridges = FindBridges.FindNonBridges(subGraph);
 
@@ -623,6 +624,25 @@ namespace DimensioneringV2.UI
                                 var stev3 = new SteinerTreesEnumeratorV3(
                                     subGraph, terminals.ToHashSet(), TimeSpan.FromSeconds(300));
                                 var solutions = stev3.Enumerate();
+
+                                if (solutions.Count == 0)
+                                {
+                                    throw new System.Exception($"SteinerEnumerator exceeded time limit for subgraph {index}!" +
+                                        $"\nSOLUTION INCOMPLETE!");
+                                }
+
+                                //List<UndirectedGraph<BFNode, BFEdge>> solutions = new List<UndirectedGraph<BFNode, BFEdge>>();
+
+                                //SteinerTreesEnumeratorV4.Enumerate(
+                                //    subGraph,
+                                //    rootNode,
+                                //    terminals.ToHashSet(),
+                                //    TimeSpan.FromSeconds(20),
+                                //    (edges) => {
+                                //        var st = new UndirectedGraph<BFNode, BFEdge>();
+                                //        foreach (var edge in edges) st.AddEdgeCopy(edge);
+                                //        solutions.Add(st);
+                                //    });
 
                                 var bfVM = new BruteForceGraphCalculationViewModel
                                 {
@@ -642,13 +662,7 @@ namespace DimensioneringV2.UI
                                 });
 
                                 var nodeFlags = metaGraph.NodeFlags[subGraph];
-
-                                BFNode? rootNode = metaGraph.GetRootForSubgraph(subGraph);
-                                if (rootNode == null)
-                                {
-                                    Utils.prtDbg("Root node not found.");
-                                    throw new System.Exception("Root node not found.");
-                                }
+                                
 
                                 ConcurrentBag<(double result, UndirectedGraph<BFNode, BFEdge> graph)> bag = new();
 
@@ -709,14 +723,7 @@ namespace DimensioneringV2.UI
                                 dispatcher.Invoke(() =>
                                 {
                                     GeneticOptimizedReportingContext.VM.GraphCalculations.Add(gaVM);
-                                });
-
-                                BFNode? rootNode = metaGraph.GetRootForSubgraph(subGraph);
-                                if (rootNode == null)
-                                {
-                                    Utils.prtDbg($"Root node not found for subgraph {index + 1}.");
-                                    throw new System.Exception("Root node not found.");
-                                }
+                                });                                
 
                                 UndirectedGraph<BFNode, BFEdge> seed = subGraph.CopyWithNewEdges();
 
@@ -779,8 +786,6 @@ namespace DimensioneringV2.UI
                                     gaVM,
                                     gaVM.CancellationToken
                                     );
-
-
                             }
                         });
                     }

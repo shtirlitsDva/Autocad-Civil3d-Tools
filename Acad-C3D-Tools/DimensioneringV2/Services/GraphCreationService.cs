@@ -1,6 +1,12 @@
-﻿using DimensioneringV2.Geometry;
+﻿using Autodesk.AutoCAD.Ribbon;
+
+using DimensioneringV2.AutoCAD;
+using DimensioneringV2.Geometry;
 using DimensioneringV2.GraphFeatures;
+using DimensioneringV2.UI;
+
 using NetTopologySuite.Geometries;
+
 using QuikGraph;
 
 using System;
@@ -66,7 +72,8 @@ namespace DimensioneringV2.Services
             // Step 2: Create edges (pipe segments) and build graphs for each disjoint network
             foreach (var featureList in allFeatures)
             {
-                var graph = new UndirectedGraph<NodeJunction, EdgePipeSegment>(false);
+                //Allow parallel edges here to be able to detect them, error and mark them
+                var graph = new UndirectedGraph<NodeJunction, EdgePipeSegment>(allowParallelEdges: true);
                 HashSet<AnalysisFeature> visited = new();
 
                 foreach (var featureNode in featureList)
@@ -124,6 +131,42 @@ namespace DimensioneringV2.Services
                 {
                     var edge = graph.AdjacentEdges(leaf).First();
                     leaf.IsBuildingNode = edge.PipeSegment.NumberOfBuildingsConnected == 1;
+                }
+            }
+
+            // Step 4: Detect parallel edges, error and mark them
+            foreach (var graph in graphs)
+            {
+                // Dictionary to track edge occurrences
+                Dictionary<(NodeJunction, NodeJunction), List<EdgePipeSegment>> edgeMap = new();
+
+                foreach (var edge in graph.Edges)
+                {
+                    // Ensure undirected uniqueness: always store the smaller NodeJunction first
+                    var key = edge.Source.GetHashCode() <= edge.Target.GetHashCode()
+                        ? (edge.Source, edge.Target)
+                        : (edge.Target, edge.Source);
+
+                    if (!edgeMap.ContainsKey(key))
+                    {
+                        edgeMap[key] = new List<EdgePipeSegment>();
+                    }
+                    edgeMap[key].Add(edge);
+                }
+
+                // Identify parallel edges
+                foreach (var kvp in edgeMap)
+                {
+                    if (kvp.Value.Count > 1)
+                    {
+                        IEnumerable<AnalysisFeature> reprojected = 
+                            ProjectionService.ReProjectFeatures(
+                                kvp.Value.Select(x => x.PipeSegment), "EPSG:3857", "EPSG:25832");
+
+                        MarkParallelEdges.Mark(reprojected);
+
+                        throw new Exception("DBG: Parallel edges detected! This is not allowed!");
+                    }
                 }
             }
 
