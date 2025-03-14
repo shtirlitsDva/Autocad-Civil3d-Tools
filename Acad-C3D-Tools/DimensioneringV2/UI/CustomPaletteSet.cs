@@ -1,6 +1,7 @@
 ﻿using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.Windows;
 
+using DimensioneringV2.AutoCAD;
 using DimensioneringV2.Services;
 
 using System;
@@ -50,7 +51,8 @@ namespace DimensioneringV2.UI
                 if (WasVisible)
                 {
                     utils.prdDbg("Saving settings!");
-                    HydraulicSettingsService.Instance.Settings.Save(Application.DocumentManager.MdiActiveDocument);
+                    HydraulicSettingsSerializer.Save(Application.DocumentManager.MdiActiveDocument,
+                        HydraulicSettingsService.Instance.Settings);
                 }
                 WasVisible = false;
             };

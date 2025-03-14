@@ -3,6 +3,7 @@ using Autodesk.AutoCAD.Windows;
 
 using CommunityToolkit.Mvvm.ComponentModel;
 
+using DimensioneringV2.AutoCAD;
 using DimensioneringV2.GraphFeatures;
 
 using QuikGraph;
@@ -25,7 +26,7 @@ namespace DimensioneringV2.Services
         private HydraulicSettings settings;
         private HydraulicSettingsService()
         {
-            settings = HydraulicSettings.Load(
+            settings = HydraulicSettingsSerializer.Load(
                 AcAp.DocumentManager.MdiActiveDocument);
 
             // Subscribe to DocumentManager events
@@ -39,17 +40,17 @@ namespace DimensioneringV2.Services
         }
         private void DocumentManager_DocumentActivated(object sender, DocumentCollectionEventArgs e)
         {
-            Settings = HydraulicSettings.Load(e.Document);
+            Settings = HydraulicSettingsSerializer.Load(e.Document);
         }
         private void DocumentManager_DocumentToBeDeactivated(object sender, DocumentCollectionEventArgs e)
         {
-            Settings.Save(e.Document);
+            HydraulicSettingsSerializer.Save(e.Document, Settings);
         }
         private void DocumentManager_DocumentToBeDestroyed(object sender, DocumentCollectionEventArgs e)
         {
             if (e.Document != null)
             {
-                Services.HydraulicSettingsService.Instance.Settings.Save(e.Document);
+                HydraulicSettingsSerializer.Save(e.Document, Services.HydraulicSettingsService.Instance.Settings);
             }
         }
     }

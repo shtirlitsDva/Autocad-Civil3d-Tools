@@ -32,6 +32,7 @@ using Dreambuild.AutoCAD;
 using DimensioneringV2.Services;
 using Microsoft.Win32;
 using System.Windows;
+using DimensioneringV2.AutoCAD;
 
 [assembly: CommandClass(typeof(DimensioneringV2.Commands))]
 
@@ -646,29 +647,6 @@ namespace DimensioneringV2
 
             sourceTx.Commit();
             localTx.Commit();
-
-            prdDbg("Finished!");
-        }
-
-        //[CommandMethod("DIM2TESTHSETSERIALIZATION")]
-        public void dim2testhsetserialization()
-        {
-            DocumentCollection docCol = AcApp.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-
-            HydraulicSettings hs = new HydraulicSettings();
-
-            hs.TempFremFL = 300000;
-
-            hs.Save(docCol.MdiActiveDocument);
-
-            hs = null;
-
-            hs = HydraulicSettings.Load(docCol.MdiActiveDocument);
-
-            hs.Save(@"C:\Temp\HS.json");
 
             prdDbg("Finished!");
         }

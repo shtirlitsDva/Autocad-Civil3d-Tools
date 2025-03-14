@@ -1,4 +1,6 @@
-﻿using NorsynHydraulicCalc;
+﻿using DimensioneringV2.AutoCAD;
+
+using NorsynHydraulicCalc;
 
 using System;
 using System.Collections.Generic;
@@ -12,7 +14,10 @@ namespace DimensioneringV2.Services
     internal class HydraulicCalculationService
     {
         private static HydraulicCalc hc;
-        internal static void Initialize() => hc = new HydraulicCalc(HydraulicSettingsService.Instance.Settings);
+        internal static void Initialize() => 
+            hc = new HydraulicCalc(
+                HydraulicSettingsService.Instance.Settings,
+                new Logger());
         internal static HydraulicCalc Calc => hc;
     }
 }

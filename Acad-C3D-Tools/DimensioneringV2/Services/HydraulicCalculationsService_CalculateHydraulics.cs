@@ -14,6 +14,7 @@ using System.Diagnostics;
 using utils = IntersectUtilities.UtilsCommon.Utils;
 using System.IO;
 using NorsynHydraulicCalc;
+using DimensioneringV2.AutoCAD;
 
 namespace DimensioneringV2.Services
 {
@@ -23,7 +24,9 @@ namespace DimensioneringV2.Services
         private static void CalculateHydraulics(
             UndirectedGraph<NodeJunction, EdgePipeSegment> graph)
         {
-            HydraulicCalc hc = new(HydraulicSettingsService.Instance.Settings);
+            HydraulicCalc hc = new(
+                HydraulicSettingsService.Instance.Settings,
+                new Logger());
 
             Parallel.ForEach(graph.Edges, edge =>
             {

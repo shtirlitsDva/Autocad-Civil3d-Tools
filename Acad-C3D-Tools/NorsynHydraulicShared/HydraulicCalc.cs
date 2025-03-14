@@ -1,6 +1,4 @@
-﻿using DimensioneringV2.GraphFeatures;
-
-using NorsynHydraulicCalc.Pipes;
+﻿using NorsynHydraulicCalc.Pipes;
 
 using NorsynHydraulicShared;
 
@@ -8,16 +6,17 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Numerics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-
-using utils = IntersectUtilities.UtilsCommon.Utils;
 
 namespace NorsynHydraulicCalc
 {
     public class HydraulicCalc
     {
         public static Version version = new Version(20250304, 0);
+
+        private ILog log { get; set; }
 
         #region Static properties for max flow pipe table
         private List<(Dim Dim, double MaxFlowFrem, double MaxFlowReturn)> maxFlowTableFL;
@@ -87,18 +86,20 @@ namespace NorsynHydraulicCalc
         #endregion
 
         #region Constructor
-        public HydraulicCalc(HydraulicSettings settings)
+        public HydraulicCalc(HydraulicSettings settings, ILog logger)
         {
+            log = logger;
+
             s = settings;
             pipeTypes = new PipeTypes(s);
 
-            utils.prdDbg($"HydraulicCalc {version}.");
+            log.Report($"HydraulicCalc {version}.");
 
             sw.Start();
             CalculateMaxFlowValues();
             sw.Stop();
             if (reportToConsole)
-                utils.prdDbg($"Initialization time {sw.ElapsedMilliseconds} ms.");
+                log.Report($"Initialization time {sw.ElapsedMilliseconds} ms.");
         }
         #endregion
 
@@ -218,14 +219,14 @@ namespace NorsynHydraulicCalc
             if (reportToConsole)
             {
                 //Print report
-                utils.prdDbg(
+                log.Report(
                     AsciiTableFormatter.CreateAsciiTableRows(
                         "Fordelingsledninger", reportingRowsFL, reportingColumnNames, reportingUnits, "F6"));
-                utils.prdDbg();
-                utils.prdDbg(
+                log.Report();
+                log.Report(
                     AsciiTableFormatter.CreateAsciiTableRows(
                         "Stikledninger", reportingRowsSL, reportingColumnNames, reportingUnits, "F6"));
-                utils.prdDbg();
+                log.Report();
             }
             #endregion
         }
@@ -390,7 +391,7 @@ namespace NorsynHydraulicCalc
                 f2 = f_new;
             }
 
-            utils.prdDbg("Warning: Secant method did not converge.");
+            log.Report("Warning: Secant method did not converge.");
             return f2;
 
 
@@ -634,8 +635,8 @@ namespace NorsynHydraulicCalc
 
                 List<string> rowNames = new List<string> { "Frem 1", "Frem 2", "Retur 1", "Retur 2" };
 
-                utils.prdDbg(AsciiTableFormatter.CreateAsciiTableColumns(columns, rowNames, "F6"));
-                utils.prdDbg();
+                log.Report(AsciiTableFormatter.CreateAsciiTableColumns(columns, rowNames, "F6"));
+                log.Report();
             }
 
             double flowSupply = Math.Max(dimFlow1Frem, dimFlow2Frem);
@@ -699,7 +700,7 @@ namespace NorsynHydraulicCalc
             if (reportToConsole)
             {
                 //Now report these five values to console
-                utils.prdDbg(
+                log.Report(
                     $"Segment type: {r.SegmentType}\n" +
                     $"Pipe type: {r.Dim.PipeType}\n" +
                     $"Dim name: {r.Dim.DimName}\n" +
@@ -714,7 +715,7 @@ namespace NorsynHydraulicCalc
             sw.Stop();
             if (reportToConsole)
             {
-                utils.prdDbg($"Calculation time {sw.ElapsedMilliseconds} ms.");
+                log.Report($"Calculation time {sw.ElapsedMilliseconds} ms.");
             }
 
             return r;
@@ -828,7 +829,7 @@ namespace NorsynHydraulicCalc
         public double f(double reynolds, double relativeRoughness, double tol)
         {
             double f = CalculateFrictionFactorColebrookWhite(reynolds, relativeRoughness, tol);
-            utils.prdDbg("f: " + f);
+            log.Report("f: " + f);
 
             return f;
         }

@@ -21,6 +21,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)HydraulicCalc.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)HydraulicSettings.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)IHydraulicSegment.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ILog.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)LookupData.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Pipes\Dim.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Pipes\IPipe.cs" />

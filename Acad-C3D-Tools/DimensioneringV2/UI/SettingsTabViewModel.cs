@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using NorsynHydraulicCalc;
 using DimensioneringV2.GraphFeatures;
 using CommunityToolkit.Mvvm.Input;
+using DimensioneringV2.AutoCAD;
 
 namespace DimensioneringV2.UI
 {
@@ -22,7 +23,7 @@ namespace DimensioneringV2.UI
 
         public Array CalculationTypes => Enum.GetValues(typeof(CalcType));
         public Array PipeTypes => Enum.GetValues(typeof(PipeType));
-        
+
         public SettingsTabViewModel()
         {
             settings = Services.HydraulicSettingsService.Instance.Settings;
@@ -36,12 +37,14 @@ namespace DimensioneringV2.UI
             };
         }
 
-        public AsyncRelayCommand  SaveSettingsCommand => new AsyncRelayCommand(SaveSettings);
+        public AsyncRelayCommand SaveSettingsCommand => new AsyncRelayCommand(SaveSettings);
 
         private async Task SaveSettings()
         {
             Services.HydraulicSettingsService.Instance.Settings = Settings;
-            Services.HydraulicSettingsService.Instance.Settings.Save(AcAp.DocumentManager.MdiActiveDocument);
+            HydraulicSettingsSerializer.Save(
+                AcAp.DocumentManager.MdiActiveDocument,
+                Services.HydraulicSettingsService.Instance.Settings);
         }
     }
 }
