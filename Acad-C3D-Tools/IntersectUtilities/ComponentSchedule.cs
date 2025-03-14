@@ -361,6 +361,19 @@ namespace IntersectUtilities
                     string value = query.FirstOrDefault();
                     if (parseProperty)
                     {
+                        //Catch ordinary block attributes
+                        //This is a quick fix!
+                        //TODO: Refactor attributes reading!!!!
+
+                        if (value.StartsWith("#"))
+                        {
+                            value = value.Substring(1);
+
+                            value = br.GetAttributeStringValue(value);
+                        }
+
+                        //Continue with old dynamic attributes logic
+
                         value = ConstructStringByRegex(br, value);
                         if (value.StartsWith("$"))
                         {
@@ -372,13 +385,25 @@ namespace IntersectUtilities
                                 value = GetValueByRegex(br, parameter, value);
                             }
                             //Else the value is parameter literal to read
-                            else return br.GetDynamicPropertyByName(value)?.Value?.ToString() ?? "";
+                            else
+                            {
+                                var result = br.GetDynamicPropertyByName(value)?.Value?.ToString() ?? "";
+                                if (result == "") 
+                                {
+                                    //If the value is not found within dynamic properties,
+                                    //try to read it from the block attributes
+                                    result = br.GetAttributeStringValue(value);
+                                    return result;
+                                }
+
+                                return result;
+                            }
                         }
                         return value;
                     }
                     else return value;
                 }
-                else return default;
+                else return "";
             }
         }
         public static PipelineElementType GetPipelineType(this BlockReference br)
