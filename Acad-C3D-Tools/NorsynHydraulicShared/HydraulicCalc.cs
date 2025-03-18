@@ -660,7 +660,7 @@ namespace NorsynHydraulicCalc
                 double plossSupply = resSupply.gradient * length;
                 double plossReturn = resReturn.gradient * length;
 
-                while (plossSupply > maxPressureLoss || plossReturn > maxPressureLoss)
+                while (plossSupply + plossReturn > maxPressureLoss)
                 {
                     var idx = maxFlowTableSL.FindIndex(x => x.Dim == dim);
 
