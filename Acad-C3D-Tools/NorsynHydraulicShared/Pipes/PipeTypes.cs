@@ -6,8 +6,8 @@ namespace NorsynHydraulicCalc.Pipes
 {
     public class PipeTypes
     {
-        private HydraulicSettings? s;
-        public PipeTypes(HydraulicSettings settings)
+        private IHydraulicSettings? s;
+        public PipeTypes(IHydraulicSettings settings)
         {
             s = settings;
             _stål = new PipeSteel(s.RuhedSteel);

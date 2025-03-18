@@ -29,7 +29,7 @@ namespace NorsynHydraulicCalc
 
         #region Private properties
         //Settings
-        private HydraulicSettings s;
+        private IHydraulicSettings s;
         //Pipe types
         private PipeTypes pipeTypes;
 
@@ -86,7 +86,7 @@ namespace NorsynHydraulicCalc
         #endregion
 
         #region Constructor
-        public HydraulicCalc(HydraulicSettings settings, ILog logger)
+        public HydraulicCalc(IHydraulicSettings settings, ILog logger)
         {
             log = logger;
 
