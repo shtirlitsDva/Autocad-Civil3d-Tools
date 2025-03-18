@@ -1,8 +1,5 @@
 ﻿using NorsynHydraulicCalc;
 
-using System.IO;
-using System.Text.Json;
-
 public interface IHydraulicSettings
 {
     // Miscellaneous
