@@ -1,6 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
-
-using NorsynHydraulicCalc;
+﻿using NorsynHydraulicCalc;
 
 using System.IO;
 using System.Text.Json;
