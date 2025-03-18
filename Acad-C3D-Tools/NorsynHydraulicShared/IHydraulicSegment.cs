@@ -6,7 +6,7 @@ using System.Text;
 
 namespace NorsynHydraulicShared
 {
-    internal interface IHydraulicSegment
+    public interface IHydraulicSegment
     {
         SegmentType SegmentType { get; }
         double HeatingDemandSupplied { get; }

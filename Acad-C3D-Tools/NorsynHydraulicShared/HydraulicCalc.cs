@@ -559,7 +559,7 @@ namespace NorsynHydraulicCalc
         #endregion
         #endregion
 
-        internal CalculationResult CalculateHydraulicSegment(IHydraulicSegment segment)
+        public CalculationResult CalculateHydraulicSegment(IHydraulicSegment segment)
         {
             #region Set calculation variables
             //Convert segmentType to enum
