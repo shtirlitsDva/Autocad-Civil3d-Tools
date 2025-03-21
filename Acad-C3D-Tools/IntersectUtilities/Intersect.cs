@@ -1494,7 +1494,7 @@ namespace IntersectUtilities
                         path = dialog.FileName;
                     }
                     else return;
-                    
+
                     prdDbg(path);
                     //string fileName = path + name;
                     using (Database extDb = new Database(false, true))
@@ -1852,7 +1852,7 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
-        }        
+        }
         /// <command>CREATEALLLINETYPESLAYERS</command>
         /// <summary>
         /// Creates a layer and a polyline for each linetype in drawing with the linetype assigned.
@@ -2362,7 +2362,7 @@ namespace IntersectUtilities
             IntersectUtilities.ODDataConverter.ODDataConverter.attachpropertysetstoobjects();
             IntersectUtilities.ODDataConverter.ODDataConverter.populatepropertysetswithoddata();
         }
-        
+
         public void graphpopulate(Database db = null)
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -3810,7 +3810,7 @@ namespace IntersectUtilities
                 {
                     OutputWriter(
                         "C:\\Temp\\names.txt",
-                        string.Join("\n", 
+                        string.Join("\n",
                         PropertySetManager.AllPropertyNamesAndDataType(localDb).OrderBy(x => x.Item1)),
                         true);
                 }
@@ -3888,7 +3888,8 @@ namespace IntersectUtilities
                 try
                 {
                     Polyline clipPolyline = tx.GetObject(clipPlineId, OpenMode.ForRead) as Polyline;
-                    if (clipPolyline == null) { tx.Abort(); return; };
+                    if (clipPolyline == null) { tx.Abort(); return; }
+                    ;
                     //Try to optimize the intersection algorithm
                     double splitLength = 500.0;
                     int nrOfSegments = (int)(clipPolyline.Length / splitLength);
@@ -3999,7 +4000,8 @@ namespace IntersectUtilities
                 try
                 {
                     Polyline clipPolyline = tx.GetObject(per.ObjectId, OpenMode.ForRead) as Polyline;
-                    if (clipPolyline == null) { tx.Abort(); return; };
+                    if (clipPolyline == null) { tx.Abort(); return; }
+                    ;
                     //Determine if the polyline is inside or outside the clip polyline
                     using (MPolygon mpg = new MPolygon())
                     {
@@ -4844,9 +4846,9 @@ namespace IntersectUtilities
                 try
                 {
                     TestEnum testEnum = TestEnum.None;
-                        //| TestEnum.TestSecond
-                        //| TestEnum.TestThird
-                
+                    //| TestEnum.TestSecond
+                    //| TestEnum.TestThird
+
                     testEnum |= TestEnum.TestFirst;
                     testEnum |= TestEnum.TestSecond;
                     testEnum |= TestEnum.TestThird;
@@ -5342,6 +5344,154 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
+        }
+        [CommandMethod("PRINTPIPEVOLUMESUMMARY")]
+        public static void PrintPipeVolumeSummaryAllInOne()
+        {
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+            if (doc == null) return;
+            Editor ed = doc.Editor;
+            Database db = doc.Database;
+
+            // Prompt the user whether single pipes are drawn as one polyline.
+            PromptKeywordOptions pko = new PromptKeywordOptions("\nAre single pipes (ENKELT) drawn as one polyline (representing both pipes)? [Yes/No] <Yes>:");
+            pko.Keywords.Add("Yes");
+            pko.Keywords.Add("No");
+            pko.Keywords.Default = "Yes";
+            pko.AllowNone = true;
+            PromptResult pr = ed.GetKeywords(pko);
+            if (pr.Status != PromptStatus.OK) return;
+            bool singleAsOne = (pr.StringResult == "Yes" || pr.StringResult == "");
+
+            // Collect all polylines from Model Space.
+            List<Polyline> polylines = new List<Polyline>();
+            using (Transaction tx = db.TransactionManager.StartTransaction())
+            {
+                BlockTable bt = tx.GetObject(db.BlockTableId, OpenMode.ForRead) as BlockTable;
+                BlockTableRecord modelSpace = tx.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForRead) as BlockTableRecord;
+                foreach (ObjectId objId in modelSpace)
+                {
+                    Entity ent = tx.GetObject(objId, OpenMode.ForRead) as Entity;
+                    if (ent is Polyline pl)
+                        polylines.Add(pl);
+                }
+                tx.Commit();
+            }
+
+            if (polylines.Count == 0)
+            {
+                ed.WriteMessage("\nNo polylines found in model space.");
+                return;
+            }
+
+            // We'll aggregate data into a dictionary keyed by (system, type, DN).
+            // If the type is FREM or RETUR, we'll recode it as "ENKELT".
+            Dictionary<(string system, string type, int dn), (double totalLength, double totalVolume)> summary =
+                new Dictionary<(string, string, int), (double, double)>();
+
+            double overallLength = 0.0;
+            double overallVolume = 0.0;
+
+            foreach (Polyline pl in polylines)
+            {
+                // Get system, type, and DN using your PipeScheduleV2 methods.
+                PipeSystemEnum systemEnum = GetPipeSystem(pl);
+                PipeTypeEnum typeEnum = GetPipeType(pl);
+                int dn = GetPipeDN(pl);
+                if (dn == 0)
+                {
+                    ed.WriteMessage($"\nWarning: Could not determine DN for entity {pl.Handle}");
+                    continue;
+                }
+
+                // Convert system "DN" to "STÅL"
+                string sysString = GetSystemString(systemEnum);
+                if (sysString.Equals("DN", StringComparison.OrdinalIgnoreCase))
+                    sysString = "STÅL";
+
+                // Recode FREM/RETUR as "ENKELT". Use the original type for Twin.
+                string finalType;
+                if (typeEnum == PipeTypeEnum.Frem || typeEnum == PipeTypeEnum.Retur)
+                    finalType = "ENKELT";
+                else
+                    finalType = typeEnum.ToString();
+
+                // Get the internal diameter (in mm) and convert to meters.
+                double idMm = GetPipeId(pl);
+                if (idMm <= 0.0)
+                {
+                    ed.WriteMessage($"\nWarning: Could not find internal diameter for entity {pl.Handle}");
+                    continue;
+                }
+                double idMeters = idMm / 1000.0;
+                double area = Math.PI * Math.Pow(idMeters, 2) / 4.0; // m²
+                double length = pl.Length; // in m
+                double volume = area * length; // m³
+
+                // If pipes of type ENKELT (or Twin) are drawn as one polyline,
+                // multiply the volume by 2.
+                if ((finalType.Equals("ENKELT", StringComparison.OrdinalIgnoreCase) || finalType.Equals("Twin", StringComparison.OrdinalIgnoreCase))
+                    && singleAsOne)
+                {
+                    volume *= 2.0;
+                }
+
+                var key = (system: sysString, type: finalType, dn: dn);
+                if (summary.ContainsKey(key))
+                {
+                    var current = summary[key];
+                    summary[key] = (current.totalLength + length, current.totalVolume + volume);
+                }
+                else
+                {
+                    summary.Add(key, (length, volume));
+                }
+
+                overallLength += length;
+                overallVolume += volume;
+            }
+
+            if (summary.Count == 0)
+            {
+                ed.WriteMessage("\nNo valid pipe items found.");
+                return;
+            }
+
+            // Sort the summary entries.
+            // 1) "STÅL" appears first; then other systems sorted alphabetically.
+            // 2) Within the same system, sort by DN descending.
+            // 3) Within same system and DN, "ENKELT" appears before "Twin".
+            var sortedEntries = summary.OrderBy(entry =>
+                    entry.Key.system.Equals("STÅL", StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+                .ThenBy(entry => entry.Key.system, StringComparer.OrdinalIgnoreCase)
+                .ThenByDescending(entry => entry.Key.dn)
+                .ThenBy(entry => entry.Key.type.Equals("ENKELT", StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+                .ToList();
+
+            // Print header with increased spacing.
+            ed.WriteMessage("\nPipe Volume Summary (PipeScheduleV2):");
+            ed.WriteMessage("\n--------------------------------------");
+            string header = string.Format("{0,-30}{1,14}{2,14}",
+                "Pipe (System-Type-DN)", "Length (m)", "Volume (m³)");
+            ed.WriteMessage("\n" + header);
+
+            // Print each sorted entry (one aggregated line per unique key, no extra blank lines)
+            foreach (var entry in sortedEntries)
+            {
+                string label = $"{entry.Key.system}-{entry.Key.type}-DN{entry.Key.dn}";
+                double len = Math.Round(entry.Value.totalLength, 1);
+                double vol = Math.Round(entry.Value.totalVolume, 1);
+                string line = string.Format("{0,-30}{1,14:0.0}{2,14:0.0}",
+                    label, len, vol);
+                ed.WriteMessage("\n" + line);
+            }
+
+            // Print total line.
+            double totLen = Math.Round(overallLength, 1);
+            double totVol = Math.Round(overallVolume, 1);
+            string totalLine = string.Format("{0,-30}{1,14:0.0}{2,14:0.0}",
+                "TOTAL", totLen, totVol);
+            ed.WriteMessage("\n" + totalLine);
         }
     }
 }
