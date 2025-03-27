@@ -2098,6 +2098,127 @@ namespace IntersectUtilities
             dbpts.Dispose();
         }
 
+        [CommandMethod("LER2SNAPBRANCHES")]
+        public void ler2snapbranches()
+        {
+            // Get the current document, database, and editor.
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor ed = docCol.MdiActiveDocument.Editor;
+
+            // Prompt the user to select the branch 3D polylines to be modified.
+            PromptSelectionOptions pso = new PromptSelectionOptions
+            {
+                MessageForAdding = "\nSelect branch 3D polylines to modify: "
+            };
+            // 3D polylines are stored as "POLYLINE" in DWG, not "3dpolyline"
+            SelectionFilter filter = new SelectionFilter(new TypedValue[]
+            {
+        new TypedValue((int)DxfCode.Start, "POLYLINE")
+            });
+            PromptSelectionResult psr = ed.GetSelection(pso, filter);
+            if (psr.Status != PromptStatus.OK)
+            {
+                ed.WriteMessage("\nNo branch polylines selected.");
+                return;
+            }
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                // Build a set of branch polylines (the ones selected).
+                HashSet<Polyline3d> branchPolylines = new HashSet<Polyline3d>();
+                foreach (SelectedObject so in psr.Value)
+                {
+                    if (so != null)
+                    {
+                        // Verify it's actually a Polyline3d
+                        Entity ent = tx.GetObject(so.ObjectId, OpenMode.ForWrite) as Entity;
+                        if (ent is Polyline3d branchPl)
+                            branchPolylines.Add(branchPl);
+                    }
+                }
+
+                // Get all 3D polylines in the drawing.
+                HashSet<Polyline3d> allPlines = localDb.HashSetOfType<Polyline3d>(tx, true);
+
+                // Define the main polylines as those not selected by the user.
+                HashSet<Polyline3d> mainPolylines = new HashSet<Polyline3d>(allPlines);
+                mainPolylines.ExceptWith(branchPolylines);
+
+                // Collect all vertices from the main polylines.
+                List<Point3d> mainVertices = new List<Point3d>();
+                foreach (Polyline3d mainPl in mainPolylines)
+                {
+                    PolylineVertex3d[] verts = mainPl.GetVertices(tx);
+                    foreach (PolylineVertex3d v in verts)
+                    {
+                        mainVertices.Add(v.Position);
+                    }
+                }
+
+                // We'll use two tolerances:
+                //   1) A very tight XY tolerance to decide if the XYs "match"
+                //   2) A 1.0 tolerance for how far apart the Z can be to consider it a candidate
+                double xyTol = Tolerance.Global.EqualPoint; // or set your own
+                double zTol = 1.0;
+
+                int totalBranchVertices = 0;
+                int updatedVertices = 0;
+
+                // Process each branch polyline.
+                foreach (Polyline3d branchPl in branchPolylines)
+                {
+                    PolylineVertex3d[] branchVerts = branchPl.GetVertices(tx);
+                    for (int i = 0; i < branchVerts.Length; i++)
+                    {
+                        totalBranchVertices++;
+                        Point3d branchPt = branchVerts[i].Position;
+                        List<Point3d> candidates = new List<Point3d>();
+
+                        // Look for main vertices whose XY is effectively the same as the branch vertex
+                        // and whose Z is within ± zTol of the branch’s Z.
+                        foreach (Point3d mainPt in mainVertices)
+                        {
+                            double dx = branchPt.X - mainPt.X;
+                            double dy = branchPt.Y - mainPt.Y;
+                            if ((Math.Abs(dx) <= xyTol) && (Math.Abs(dy) <= xyTol))
+                            {
+                                // Check if the vertical difference is within zTol.
+                                if (Math.Abs(branchPt.Z - mainPt.Z) <= zTol)
+                                {
+                                    candidates.Add(mainPt);
+                                }
+                            }
+                        }
+
+                        if (candidates.Count == 1)
+                        {
+                            // Exactly one candidate => snap to that candidate's full coordinate
+                            branchVerts[i].CheckOrOpenForWrite();
+                            branchVerts[i].Position = candidates[0];
+                            updatedVertices++;
+                        }
+                        else if (candidates.Count == 2)
+                        {
+                            // Exactly two candidates => set the branch vertex's Z to the midpoint
+                            // and keep the original branch XY
+                            double closestZ = (Math.Abs(branchPt.Z - candidates[0].Z) < Math.Abs(branchPt.Z - candidates[1].Z))
+                                ? candidates[0].Z
+                                : candidates[1].Z;
+
+                            branchVerts[i].CheckOrOpenForWrite();
+                            branchVerts[i].Position = new Point3d(branchPt.X, branchPt.Y, closestZ);
+                            updatedVertices++;
+                        }
+                        // If 0 or more than 2, do nothing for that vertex.
+                    }
+                }
+
+                tx.Commit();
+                ed.WriteMessage($"\nUpdated {updatedVertices} out of {totalBranchVertices} vertices in selected branch polylines.");
+            }
+        }
+
         private class Polyline3dHandleComparer : IEqualityComparer<Polyline3d>
         {
             public bool Equals(Polyline3d x, Polyline3d y)
