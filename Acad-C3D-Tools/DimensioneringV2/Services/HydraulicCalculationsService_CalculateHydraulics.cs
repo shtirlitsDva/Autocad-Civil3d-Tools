@@ -26,7 +26,7 @@ namespace DimensioneringV2.Services
         {
             HydraulicCalc hc = new(
                 HydraulicSettingsService.Instance.Settings,
-                new Logger());
+                new LoggerAcConsole());
 
             Parallel.ForEach(graph.Edges, edge =>
             {

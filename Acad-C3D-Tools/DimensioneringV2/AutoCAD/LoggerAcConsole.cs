@@ -9,7 +9,7 @@ using System.Windows.Forms;
 
 namespace DimensioneringV2.AutoCAD
 {
-    internal class Logger : ILog
+    internal class LoggerAcConsole : ILog
     {
         public void Log(object obj)
         {
@@ -34,6 +34,10 @@ namespace DimensioneringV2.AutoCAD
         public void Report()
         {
             DimensioneringV2.Utils.prtDbg();
+        }
+
+        public void Dispose()
+        {
         }
     }
 }
