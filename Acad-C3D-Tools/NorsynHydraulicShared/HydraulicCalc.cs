@@ -369,6 +369,10 @@ namespace NorsynHydraulicCalc
             double f1 = CalculateFrictionFactorTkachenkoMileikovskyi(Re, relativeRoughness);
             double f2 = f1 + 0.05;
 
+#if DEBUG
+
+#endif
+
             for (int i = 0; i < 100; i++)
             {
                 // Colebrook-White residual function g(f)
@@ -389,6 +393,11 @@ namespace NorsynHydraulicCalc
                 // Update guesses
                 f1 = f2;
                 f2 = f_new;
+
+                if (reportToConsole)
+                {
+
+                }    
             }
 
             log.Report("Warning: Secant method did not converge.");

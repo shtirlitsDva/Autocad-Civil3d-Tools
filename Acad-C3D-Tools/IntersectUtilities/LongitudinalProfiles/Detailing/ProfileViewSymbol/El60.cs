@@ -14,20 +14,14 @@ using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 
 namespace IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol
 {
-    internal class ElLuft : BlockBase
+    internal class El60 : BlockBase
     {
-        public ElLuft() : base("EL LUFT") { }
+        public El60() : base("EL 60kV") { }
         private double dia = 0.07;
         internal override void HandleBlockDefinition(Database localDb)
         {
             CreateBlockTableRecord(localDb, dia);
         }
         protected override double getDia() => dia;
-        public override void CreateDistances(
-            BlockTableRecord btr, Matrix3d transform, Point3d labelLocation,
-            double dia, string layer, string distance, double kappeOd)
-        {
-            //Nothing to do
-        }
     }
 }

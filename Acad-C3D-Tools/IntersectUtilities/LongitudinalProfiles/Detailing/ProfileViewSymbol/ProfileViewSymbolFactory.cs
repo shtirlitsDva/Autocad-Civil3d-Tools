@@ -1,12 +1,10 @@
-﻿using IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol;
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace IntersectUtilities.LongitudinalProfiles
+namespace IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol
 {
     internal static class ProfileViewSymbolFactory
     {
@@ -24,8 +22,11 @@ namespace IntersectUtilities.LongitudinalProfiles
                 case "EL 10kV":
                     return new El10();
                 case "EL 30kV":
-                case "EL 50kV":
                     return new El30();
+                case "EL 50kV":
+                    return new El50();
+                case "EL 60kV":
+                    return new El60();
                 case "EL 132kV":
                     return new El132();
                 case "EL LUFT":
