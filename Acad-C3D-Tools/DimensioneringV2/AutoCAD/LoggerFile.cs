@@ -11,95 +11,104 @@ using System.Threading.Tasks;
 
 namespace DimensioneringV2.AutoCAD
 {
-    internal class LoggerFile : ILog, IDisposable
+    internal class LoggerFile : ILog
     {
-        private readonly string LogFilePath = @"C:\Temp\HydroLog.log";
-        private readonly ConcurrentQueue<string> _buffer = new();
-        private readonly Timer _flushTimer;
-        private readonly int _flushThreshold = 100;
-        private readonly object _flushLock = new();
+        private readonly string _logFilePath = @"C:\Temp\HydroLog.log";
+        private readonly ConcurrentQueue<string> _queue = new();
+        private readonly object _lock = new();
 
-        private volatile bool _timerRunning = false;
-        private DateTime _lastWriteTime;
-        private StreamWriter _writer;
+        private Timer? _timer;
+        private volatile bool _flushInProgress = false;
+        private const int _flushThreshold = 10000;
+        private const int _idleFlushMilliseconds = 1500;
 
         public LoggerFile()
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(LogFilePath)!);
-            _writer = new StreamWriter(LogFilePath, append: true) { AutoFlush = true };
-            _flushTimer = new Timer(FlushIfIdle, null, Timeout.Infinite, Timeout.Infinite);
+            Directory.CreateDirectory(Path.GetDirectoryName(_logFilePath)!);
+            File.WriteAllText(_logFilePath, string.Empty);
         }
 
         public void Report(string message) => Enqueue(message);
         public void Report(object obj) => Enqueue(obj?.ToString() ?? "null");
-        public void Report() => Enqueue("");
+        public void Report() => Enqueue(string.Empty);
+
+        public void Log(string message) => throw new NotImplementedException();
+        public void Log(object obj) => throw new NotImplementedException();
 
         private void Enqueue(string message)
         {
-            _buffer.Enqueue(message);
-            _lastWriteTime = DateTime.UtcNow;
+            _queue.Enqueue(message);
 
-            if (_buffer.Count >= _flushThreshold)
-                Flush();
+            if (_queue.Count >= _flushThreshold)
+            {
+                StartAsyncFlush();
+            }
 
-            StartTimerIfNeeded();
+            ResetTimer();
         }
 
-        private void StartTimerIfNeeded()
+        private void ResetTimer()
         {
-            if (_timerRunning) return;
-
-            lock (_flushLock)
+            lock (_lock)
             {
-                if (_timerRunning) return;
-
-                _flushTimer.Change(1000, 1000); // check every second
-                _timerRunning = true;
+                _timer?.Dispose(); // cancel previous timer
+                _timer = new Timer(OnTimerElapsed, null, _idleFlushMilliseconds, Timeout.Infinite);
             }
         }
 
-        private void FlushIfIdle(object? state)
+        private void OnTimerElapsed(object? state)
         {
-            if ((DateTime.UtcNow - _lastWriteTime).TotalSeconds > 5)
+            lock (_lock)
             {
-                Flush();
+                _timer?.Dispose();
+                _timer = null;
+            }
 
-                lock (_flushLock)
+            StartAsyncFlush();
+        }
+
+        private void StartAsyncFlush()
+        {
+            lock (_lock)
+            {
+                if (_flushInProgress) return;
+                _flushInProgress = true;
+            }
+
+            Task.Run(() =>
+            {
+                try
                 {
-                    _flushTimer.Change(Timeout.Infinite, Timeout.Infinite);
-                    _timerRunning = false;
+                    FlushBufferToDisk();
                 }
-            }
-        }
-
-        private void Flush()
-        {
-            lock (_flushLock)
-            {
-                while (_buffer.TryDequeue(out var line))
+                finally
                 {
-                    _writer.WriteLine(line);
+                    lock (_lock)
+                    {
+                        _flushInProgress = false;
+                    }
                 }
-                _writer.Flush();
+            });
+        }
+
+        private void FlushBufferToDisk()
+        {
+            var lines = new List<string>();
+            while (_queue.TryDequeue(out var line))
+            {
+                lines.Add(line);
             }
-        }
 
-        public void Dispose()
-        {
-            _flushTimer.Dispose();
-            Flush();
-            _writer.Dispose();
-        }
+            if (lines.Count == 0) return;
 
-        public void Log(object obj)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void Log(string message)
-        {
-            throw new NotImplementedException();
+            try
+            {
+                File.AppendAllLines(_logFilePath, lines);
+            }
+            catch
+            {
+                // Optional: handle logging failures here
+            }
         }
     }
-
 }

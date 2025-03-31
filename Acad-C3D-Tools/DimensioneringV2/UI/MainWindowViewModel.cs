@@ -168,14 +168,14 @@ namespace DimensioneringV2.UI
                     //Reset the results
                     foreach (var f in graphs.SelectMany(g => g.Edges.Select(e => e.PipeSegment))) f.ResetHydraulicResults();
 
-                    HashSet<string> dims = new HashSet<string>();
-                    foreach (var graph in graphs)
-                    {
-                        foreach (var edge in graph.Edges)
-                        {
-                            dims.Add(edge.PipeSegment.PipeDim.ToString());
-                        }
-                    }
+                    //HashSet<string> dims = new HashSet<string>();
+                    //foreach (var graph in graphs)
+                    //{
+                    //    foreach (var edge in graph.Edges)
+                    //    {
+                    //        dims.Add(edge.PipeSegment.PipeDim.ToString());
+                    //    }
+                    //}
 
                     foreach (UndirectedGraph<NodeJunction, EdgePipeSegment> originalGraph in graphs)
                     {
@@ -198,12 +198,12 @@ namespace DimensioneringV2.UI
                         var c = new CalculateMetaGraphRecursively(metaGraph);
                         c.CalculateBaseSumsForMetaGraph(props);
 
-                        ////Temporary code to test the calculation of subgraphs
-                        ////Test looks like passed
-                        //Parallel.ForEach(graph.Edges, edge =>
-                        //{
-                        //    edge.PushBaseSums();
-                        //});
+                        //Temporary code to test the calculation of subgraphs
+                        //Test looks like passed
+                        Parallel.ForEach(graph.Edges, edge =>
+                        {
+                            edge.PushBaseSums();
+                        });
 
                         Parallel.ForEach(subGraphs, (subGraph, state, index) =>
                         {

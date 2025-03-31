@@ -34,12 +34,21 @@ namespace DimensioneringV2.MapStyles
 
             var s1 = base.GetStyles(feature).First();
 
+            Color foreColor = Color.Black;
+            Color backColor = Color.White;
+            if (value is double d1 && double.IsNaN(d1))
+            {
+                foreColor = Color.Red;
+                backColor = Color.Yellow;
+            }            
+
             var s2 = new LabelStyle
             {
                 Text = value is double d ? d.ToString("F2") : value.ToString(),
                 //BackColor = new Brush(_gradientHelper.LookupColor(f.NumberOfBuildingsSupplied)),
-                ForeColor = Color.Black,
+                ForeColor = foreColor,
                 //Offset = new Offset(0, 0),
+                
                 HorizontalAlignment = LabelStyle.HorizontalAlignmentEnum.Center,
                 VerticalAlignment = LabelStyle.VerticalAlignmentEnum.Center
             };

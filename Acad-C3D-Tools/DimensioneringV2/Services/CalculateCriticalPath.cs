@@ -37,7 +37,7 @@ namespace DimensioneringV2.Services.SubGraphs
             //    sw.Write(json);
             //}
 
-            ExportGraphToDot.Export(graph);
+            //ExportGraphToDot.Export(graph);
 
             List<(
                 NodeJunction client,

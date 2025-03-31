@@ -23,8 +23,8 @@ namespace NorsynHydraulicCalc
         private List<(Dim Dim, double MaxFlowFrem, double MaxFlowReturn)> maxFlowTableSL;
         private List<string> reportingColumnNames;
         private List<string> reportingUnits;
-        private List<(string, List<double>)> reportingRowsFL;
-        private List<(string, List<double>)> reportingRowsSL;
+        private List<(string, List<object>)> reportingRowsFL;
+        private List<(string, List<object>)> reportingRowsSL;
         #endregion
 
         #region Private properties
@@ -37,7 +37,7 @@ namespace NorsynHydraulicCalc
         private int hotWaterReturnTemp => s.HotWaterReturnTemp; // degree
         private double factorTillægForOpvarmningUdenBrugsvandsprioritering =>
             s.FactorTillægForOpvarmningUdenBrugsvandsprioritering;
-        
+
         //Not used for Hydraulic calculations, only used when calculating critical path
         //private double minDifferentialPressureOverHovedHaner =>
         //    s.MinDifferentialPressureOverHovedHaner; // bar
@@ -126,8 +126,8 @@ namespace NorsynHydraulicCalc
 
                 };
 
-                reportingRowsFL = new List<(string, List<double>)>();
-                reportingRowsSL = new List<(string, List<double>)>();
+                reportingRowsFL = new List<(string, List<object>)>();
+                reportingRowsSL = new List<(string, List<object>)>();
             }
             #endregion
 
@@ -247,7 +247,7 @@ namespace NorsynHydraulicCalc
             if (reportToConsole)
             {
                 string rowName = $"{dim.DimName} {tempSetType}";
-                List<double> data = new List<double>()
+                List<object> data = new List<object>()
                 {
                     vmax, dim.InnerDiameter_m, dim.CrossSectionArea, Qmax_velocity_m3hr,
                     dPdx_max(dim, st), dim.Roughness_m / dim.InnerDiameter_m,
@@ -370,7 +370,9 @@ namespace NorsynHydraulicCalc
             double f2 = f1 + 0.05;
 
 #if DEBUG
-
+            List<string> cns = ["Re", "rr", "tol", "f1", "f2", "g1", "g2", "f_new", "f_new - f2", "abs(f_new - f2)"];
+            List<string> u = ["", "", "", "", "", "", "", "", "", ""];
+            List<(string, List<object>)> vals = new();
 #endif
 
             for (int i = 0; i < 100; i++)
@@ -394,16 +396,26 @@ namespace NorsynHydraulicCalc
                 f1 = f2;
                 f2 = f_new;
 
+#if DEBUG
                 if (reportToConsole)
                 {
-
-                }    
+                    vals.Add((i.ToString(), [Re, relativeRoughness, tolerance, f1, f2, g1, g2, f_new, f_new - f2, Math.Abs(f_new - f2)]));
+                }
+#endif
             }
 
             log.Report("Warning: Secant method did not converge.");
+
+#if DEBUG
+            if (reportToConsole)
+            {
+                log.Report(
+                    AsciiTableFormatter.CreateAsciiTableRows(
+                        "Colebrook-White iterations", vals, cns, u, "F6"));
+            }
+#endif
+
             return f2;
-
-
             //return f; // Return friction factor
         }
         private double CalculateFrictionFactorTkachenkoMileikovskyi(double Re, double relativeRoughness)
@@ -580,7 +592,33 @@ namespace NorsynHydraulicCalc
             double length = segment.Length;
             #endregion
 
-            sw.Restart();
+#if DEBUG
+            if (reportToConsole)
+            {
+                if (
+                    totalHeatingDemand == 0 ||
+                    numberOfBuildings == 0 ||
+                    numberOfUnits == 0)
+                {
+                    log.Report("ERROR!!! Zero values in segment!\n" +
+                    $"Calculating {st} segment.\n" +
+                    $"Total heating demand: {totalHeatingDemand} kW.\n" +
+                    $"Number of buildings: {numberOfBuildings}.\n" +
+                    $"Number of units: {numberOfUnits}.\n" +
+                    $"Length: {length} m.\n");
+                }
+            }
+#endif
+            if (
+                    totalHeatingDemand == 0 ||
+                    numberOfBuildings == 0 ||
+                    numberOfUnits == 0)
+            {
+                return new CalculationResult();
+            }
+
+
+                sw.Restart();
 
             double s_heat = (double)N1(st) / (double)N50 + (1.0 - (double)N1(st) / (double)N50) / (double)numberOfBuildings;
             double s_hw = (51.0 - (double)numberOfUnits) / (50.0 * Math.Sqrt((double)numberOfUnits));
@@ -596,40 +634,40 @@ namespace NorsynHydraulicCalc
 
             if (reportToConsole)
             {
-                List<(string, List<double>)> columns = new List<(string, List<double>)>
+                List<(string, List<object>)> columns = new List<(string, List<object>)>
                 {
-                    ("Heating demand", new List<double>()
+                    ("Heating demand", new List<object>()
                     {
                         totalHeatingDemand,
                         totalHeatingDemand,
                         totalHeatingDemand,
                         totalHeatingDemand
                     }),
-                    ("Flow", new List<double>()
+                    ("Flow", new List<object>()
                     {
                         totalHeatingDemand / N1(st) * 1000.0/(dT1(st) * 4.231),
                         totalHeatingDemand / N1(st) * 1000.0 /(dT1(st) * 4.231),
                         totalHeatingDemand / N1(st) * 1000.0 /(dT1(st) * 4.231),
                         totalHeatingDemand / N1(st) * 1000.0 /(dT1(st) * 4.231)
                     }),
-                    ("Demand ajusted", new List<double>()
+                    ("Demand ajusted", new List<object>()
                     {
                         (totalHeatingDemand * 1000 / N1(st)),
                         (totalHeatingDemand * 1000 / N1(st)),
                         (totalHeatingDemand * 1000 / N1(st)),
                         (totalHeatingDemand * 1000 / N1(st)),
                     }),
-                    ("s_heat", new List<double>() { s_heat, s_heat, s_heat, s_heat }),
-                    ("s_hw", new List<double>() { 0, s_hw, 0, s_hw }),
-                    ("rho heat", new List<double>() { rho(Tf(st)), rho(Tf(st)), rho(Tr(st)), rho(Tr(st))}),
-                    ("rho hw", new List<double>() { rho(Tf(st)), rho(Tf(st)), rho(Tr_hw), rho(Tr_hw)}),
-                    ("Cp heat", new List<double>() { cp(Tf(st)), cp(Tf(st)), cp(Tr(st)), cp(Tr(st)) }),
-                    ("Cp hw", new List<double>() { cp(Tf(st)), cp(Tf(st)), cp(Tr_hw), cp(Tr_hw)}),
-                    ("m^3/kW heat", new List<double>() { 
+                    ("s_heat", new List<object>() { s_heat, s_heat, s_heat, s_heat }),
+                    ("s_hw", new List<object>() { 0, s_hw, 0, s_hw }),
+                    ("rho heat", new List<object>() { rho(Tf(st)), rho(Tf(st)), rho(Tr(st)), rho(Tr(st))}),
+                    ("rho hw", new List<object>() { rho(Tf(st)), rho(Tf(st)), rho(Tr_hw), rho(Tr_hw)}),
+                    ("Cp heat", new List<object>() { cp(Tf(st)), cp(Tf(st)), cp(Tr(st)), cp(Tr(st)) }),
+                    ("Cp hw", new List<object>() { cp(Tf(st)), cp(Tf(st)), cp(Tr_hw), cp(Tr_hw)}),
+                    ("m^3/kW heat", new List<object>() {
                         volume(Tf(st), dT1(st)), volume(Tf(st), dT1(st)), volume(Tr(st), dT1(st)), volume(Tr(st), dT1(st)) }),
-                    ("m^3/kW hw", new List<double>() { 0, volume(Tf(st), dT2(st)), 0, volume(Tr_hw, dT2(st)) }),
-                    ("Flow m³/hr", new List<double>() { dimFlow1Frem, dimFlow2Frem, dimFlow1Retur, dimFlow2Retur }),
-                    ("Flow kg/s", new List<double>()
+                    ("m^3/kW hw", new List<object>() { 0, volume(Tf(st), dT2(st)), 0, volume(Tr_hw, dT2(st)) }),
+                    ("Flow m³/hr", new List<object>() { dimFlow1Frem, dimFlow2Frem, dimFlow1Retur, dimFlow2Retur }),
+                    ("Flow kg/s", new List<object>()
                     {
                         dimFlow1Frem * rho(Tf(st)) / 3600,
                         dimFlow2Frem * rho(Tf(st)) / 3600,
@@ -732,6 +770,13 @@ namespace NorsynHydraulicCalc
         private (double reynolds, double gradient, double velocity) CalculateGradientAndVelocity(
             double flow, Dim dim, TempSetType tst, SegmentType st)
         {
+
+#if DEBUG
+            List<string> cns = ["flow", "dim", "tst", "st", "V", "rho", "mu", "Re", "f", "gradient"];
+            List<string> u = ["", "", "", "", "", "", "", "", "", ""];
+            List<(string, List<object>)> vals = new();
+#endif
+
             double velocity = flow / 3600 / dim.CrossSectionArea;
             double reynolds = Reynolds(
                 rho(this.Temp(tst, st)),
@@ -754,6 +799,15 @@ namespace NorsynHydraulicCalc
 
             double gradient = f * rho(this.Temp(tst, st)) * velocity * velocity / (2 * dim.InnerDiameter_m);
             //double gradient = f * 951 * velocity * velocity / (2 * dim.InnerDiameter_m);
+#if DEBUG
+            if (reportToConsole)
+            {
+                vals.Add(("Values", [flow, dim, tst, st, velocity, rho(this.Temp(tst, st)), mu(this.Temp(tst, st)), reynolds, f, gradient]));
+                log.Report(
+                    AsciiTableFormatter.CreateAsciiTableRows(
+                        "Gradient and velocity", vals, cns, u, "F6"));
+            }
+#endif
             return (reynolds, gradient, velocity);
         }
         private Dim determineDim(double flow, TempSetType tst, SegmentType st)
@@ -833,7 +887,7 @@ namespace NorsynHydraulicCalc
                 (flowSupply - minFlowFrem) / (entry.MaxFlowFrem - minFlowFrem),
                 (flowReturn - minFlowReturn) / (entry.MaxFlowReturn - minFlowReturn));
         }
-        
+
         //Debug and testing
         public double f(double reynolds, double relativeRoughness, double tol)
         {
