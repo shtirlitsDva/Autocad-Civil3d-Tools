@@ -1801,9 +1801,9 @@ namespace IntersectUtilities
             }
         }
 
-        /// <command>EXPORTFJVTOGEOJSONWGS84</command>
+        /// <command>EXPORTFJVTOKML</command>
         /// <summary>
-        /// Exports fjernvarme fremtidig to an all polygon GeoJSON file in WGS84 coordinate system.
+        /// Exports fjernvarme fremtidig to an all polygon KML file to use in Google Earth.
         /// All elements are converted to polygons for better presentation.
         /// </summary>
         /// <category>GIS</category>
