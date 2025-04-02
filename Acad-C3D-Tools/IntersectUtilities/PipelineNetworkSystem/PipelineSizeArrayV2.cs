@@ -70,7 +70,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
         public IPipelineSizeArrayV2 GetPartialSizeArrayForPV(ProfileView pv)
         {
             return new PipelineSizeArrayV2Partial(GetArrayOfSizesForPv(pv));
-        } 
+        }
         #endregion
         #region Methods to read properties of sizes
         protected bool TryGetDN(IPipelineV2 pipeline, double start, double end, out int dn)
@@ -722,6 +722,24 @@ namespace IntersectUtilities.PipelineNetworkSystem
         public readonly PipeTypeEnum Type;
         [JsonInclude]
         public readonly PipeSeriesEnum Series;
+
+        [JsonIgnore]
+        public string SizePrefix
+        {
+            get
+            {
+                return this.System switch
+                {
+                    PipeSystemEnum.Ukendt => "UK",
+                    PipeSystemEnum.Stål => "DN",
+                    PipeSystemEnum.Kobberflex => "Ø",
+                    PipeSystemEnum.AluPex => "Ø",
+                    PipeSystemEnum.PertFlextra => "Ø",
+                    PipeSystemEnum.AquaTherm11 => "Ø",
+                    _ => "UNKNOWN",
+                };
+            }
+        }
 
         public SizeEntryV2(
             int dn, double startStation, double endStation, double kod, PipeSystemEnum ps, PipeTypeEnum pt, PipeSeriesEnum series)
