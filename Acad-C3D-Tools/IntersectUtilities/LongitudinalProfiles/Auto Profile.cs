@@ -79,7 +79,9 @@ namespace IntersectUtilities
         public void apdataexport()
         {
             DataManager.DataManager dm = new DataManager.DataManager(new DataReferencesOptions());
-            if (!dm.IsValid()) return;
+            if (!dm.IsValid()) { dm.Dispose(); return; }
+
+            Directory.CreateDirectory(apDataExportPath);
 
             try
             {
@@ -88,11 +90,14 @@ namespace IntersectUtilities
                 gatherhorizontalarcdata(dm);
                 gatherutilitydata(dm);
             }
-            catch (System.Exception ex)
-            {
+            catch(System.Exception ex)
+            {                
                 prdDbg(ex);
-                
-                throw;
+                return;
+            }
+            finally
+            {
+                dm.Dispose();
             }
         }
 
@@ -168,7 +173,7 @@ namespace IntersectUtilities
                 {
                     tx.Abort();
                     prdDbg(ex);
-                    return;
+                    throw;
                 }
                 tx.Commit();
             }
@@ -182,7 +187,7 @@ namespace IntersectUtilities
 
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
-            
+
             Database fjvDb = dm.GetForRead("Fremtid");
             Transaction fjvTx = fjvDb.TransactionManager.StartTransaction();
 
@@ -220,12 +225,12 @@ namespace IntersectUtilities
                 fjvTx.Dispose();
                 fjvDb.Dispose();
                 prdDbg(ex);
-                return;
+                throw;
             }
             tx.Commit();
             fjvTx.Commit();
             fjvTx.Dispose();
-            fjvDb.Dispose();
+            //fjvDb.Dispose();
         }
 
         //[CommandMethod("APGHAD")]
@@ -298,12 +303,12 @@ namespace IntersectUtilities
                 fjvTx.Dispose();
                 fjvDb.Dispose();
                 prdDbg(ex);
-                return;
+                throw;
             }
             tx.Commit();
             fjvTx.Commit();
             fjvTx.Dispose();
-            fjvDb.Dispose();
+            //fjvDb.Dispose();
         }
 
         //[CommandMethod("APGUTD")]
@@ -327,7 +332,7 @@ namespace IntersectUtilities
 
                 PipelineNetwork pn = new PipelineNetwork();
                 pn.CreatePipelineNetwork(ents, als);
-                
+
                 var brs = localDb.HashSetOfType<BlockReference>(tx);
                 var query = brs
                     .Where(x => x.RealName().EndsWith("_PV"))
@@ -394,7 +399,7 @@ namespace IntersectUtilities
                         }
                     }
 
-                    List <double[]> doubles = new();
+                    List<double[]> doubles = new();
                     double station = 0.0;
                     double elevation = 0.0;
                     foreach (var env in envelopes
@@ -407,16 +412,16 @@ namespace IntersectUtilities
                         }))
                     {
                         var cs = env.Coordinates;
-                        
+
                         var d = new double[4];
 
                         pv.FindStationAndElevationAtXY(cs[0].X, cs[0].Y, ref station, ref elevation);
-                        
+
                         d[0] = station;
                         d[1] = elevation;
 
                         pv.FindStationAndElevationAtXY(cs[2].X, cs[2].Y, ref station, ref elevation);
-                        
+
                         d[2] = station;
                         d[3] = elevation;
 
@@ -447,7 +452,7 @@ namespace IntersectUtilities
 
                 string filePath = Path.Combine(apDataExportPath, "UtilityData.json");
                 using var w = new StreamWriter(filePath, false);
-                
+
                 w.WriteLine(json);
             }
             catch (System.Exception ex)
@@ -457,12 +462,12 @@ namespace IntersectUtilities
                 fjvTx.Dispose();
                 fjvDb.Dispose();
                 prdDbg(ex);
-                return;
+                throw;
             }
             tx.Commit();
             fjvTx.Commit();
             fjvTx.Dispose();
-            fjvDb.Dispose();
+            //fjvDb.Dispose();
         }
     }
 }

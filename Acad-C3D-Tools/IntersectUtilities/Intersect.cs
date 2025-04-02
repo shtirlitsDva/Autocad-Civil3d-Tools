@@ -58,6 +58,7 @@ using QuikGraph.Algorithms.Search;
 
 using Microsoft.Win32;
 using IntersectUtilities.LongitudinalProfiles;
+using IntersectUtilities.ProjectsManager;
 
 [assembly: CommandClass(typeof(IntersectUtilities.Intersect))]
 namespace IntersectUtilities
@@ -4526,6 +4527,34 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
+        }
+
+        /// <command>OPENDWG</command>
+        /// <summary>
+        /// Opens DWG of specified type for the chosen project and phase.
+        /// </summary>
+        /// <category>Utilities</category>
+        [CommandMethod("OPENDWG")]
+        public void opendwg()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            var dro = new DataReferencesOptions();
+
+            var result = StringGridFormCaller.Call(["Fremtid", "Alignments", "Surface"], "What DWG to open?");
+            if (result.IsNoE()) return;
+
+            string path = UtilsCommon.Utils.GetPathToDataFiles(dro.ProjectName, dro.EtapeName, result);
+            
+            if (path.IsNoE()) return;
+            if (!File.Exists(path))
+            {
+                prdDbg("File does not exist!");
+                return;
+            }
+            Document doc = docCol.Open(path, false);
+            docCol.MdiActiveDocument = doc;
         }
         //[CommandMethod("TESTQUIKGRAPH")]
         public void testquikgraph()

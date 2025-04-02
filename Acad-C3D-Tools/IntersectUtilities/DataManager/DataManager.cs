@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 
 namespace IntersectUtilities.DataManager
 {
-    public class DataManager
+    public class DataManager : IDisposable
     {
         private Dictionary<string, Database> cache = new Dictionary<string, Database>();
         private string project;
@@ -53,6 +53,14 @@ namespace IntersectUtilities.DataManager
             });
 
             return dbs;
+        }
+
+        public void Dispose()
+        {
+            foreach (var item in cache)
+            {
+                item.Value?.Dispose();
+            }
         }
     }
 }
