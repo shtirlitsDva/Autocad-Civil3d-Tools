@@ -1909,8 +1909,8 @@ namespace IntersectUtilities
                                     //    $"{profileViewStyle.GraphStyle.VerticalExaggeration} = {deltaY}");
                                     BlockReference brInt =
                                         dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
-                                    brInt.SetAttributeStringValue("LEFTSIZE", $"DN {pvSizeArray[i].DN}");
-                                    brInt.SetAttributeStringValue("RIGHTSIZE", $"DN {pvSizeArray[i + 1].DN}");
+                                    brInt.SetAttributeStringValue("LEFTSIZE", $"{pvSizeArray[i].SizePrefix} {pvSizeArray[i].DN}");
+                                    brInt.SetAttributeStringValue("RIGHTSIZE", $"{pvSizeArray[i + 1].SizePrefix} {pvSizeArray[i + 1].DN}");
 
                                     psmSourceReference.WritePropertyObject(
                                         brInt, driSourceReference.AlignmentStation, curStationBL);
@@ -1926,7 +1926,7 @@ namespace IntersectUtilities
                                     BlockReference brAt0 =
                                         dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
                                     brAt0.SetAttributeStringValue("LEFTSIZE", "");
-                                    brAt0.SetAttributeStringValue("RIGHTSIZE", $"DN {pvSizeArray[0].DN}");
+                                    brAt0.SetAttributeStringValue("RIGHTSIZE", $"{pvSizeArray[0].SizePrefix} {pvSizeArray[0].DN}");
 
                                     psmSourceReference.WritePropertyObject(
                                         brAt0, driSourceReference.AlignmentStation, curStationBL);
@@ -1940,7 +1940,7 @@ namespace IntersectUtilities
                                             profileViewStyle.GraphStyle.VerticalExaggeration;
                                         BlockReference brAtEnd =
                                             dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
-                                        brAtEnd.SetAttributeStringValue("LEFTSIZE", $"DN {pvSizeArray[0].DN}");
+                                        brAtEnd.SetAttributeStringValue("LEFTSIZE", $"{pvSizeArray[0].SizePrefix} {pvSizeArray[0].DN}");
                                         brAtEnd.SetAttributeStringValue("RIGHTSIZE", "");
 
                                         psmSourceReference.WritePropertyObject(
@@ -1956,7 +1956,7 @@ namespace IntersectUtilities
                                         profileViewStyle.GraphStyle.VerticalExaggeration;
                                     BlockReference brAtEnd =
                                         dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
-                                    brAtEnd.SetAttributeStringValue("LEFTSIZE", $"DN {pvSizeArray[i + 1].DN}");
+                                    brAtEnd.SetAttributeStringValue("LEFTSIZE", $"{pvSizeArray[i + 1].SizePrefix} {pvSizeArray[i + 1].DN}");
                                     brAtEnd.SetAttributeStringValue("RIGHTSIZE", "");
 
                                     psmSourceReference.WritePropertyObject(

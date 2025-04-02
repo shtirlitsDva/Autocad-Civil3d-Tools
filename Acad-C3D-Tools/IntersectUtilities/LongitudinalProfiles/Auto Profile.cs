@@ -54,6 +54,7 @@ using IntersectUtilities.PipelineNetworkSystem;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.Operation.Union;
 using IntersectUtilities.LongitudinalProfiles;
+using IntersectUtilities.DataManager;
 
 namespace IntersectUtilities
 {
@@ -66,8 +67,37 @@ namespace IntersectUtilities
             DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
         };
 
-        [CommandMethod("APGSPD")]
-        [CommandMethod("APGATHERSURFACEPROFILEDATA")]
+        private static string apDataExportPath = @"c:\Temp\AP\";
+
+        /// <command>APDATAEXPORT</command>
+        /// <summary>
+        /// Data export for AutoProfile. Exports data for surface profiles, pipeline sizes, horizontal arcs and utility data.
+        /// Json files are written to C:\Temp\AP\.
+        /// </summary>
+        /// <category>Longitudinal Profiles</category>
+        [CommandMethod("APDATAEXPORT")]
+        public void apdataexport()
+        {
+            DataManager.DataManager dm = new DataManager.DataManager(new DataReferencesOptions());
+            if (!dm.IsValid()) return;
+
+            try
+            {
+                gathersurfaceprofiledata();
+                gatherpipelinedata(dm);
+                gatherhorizontalarcdata(dm);
+                gatherutilitydata(dm);
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg(ex);
+                
+                throw;
+            }
+        }
+
+        //[CommandMethod("APGSPD")]
+        //[CommandMethod("APGATHERSURFACEPROFILEDATA")]
         public void gathersurfaceprofiledata()
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -86,7 +116,7 @@ namespace IntersectUtilities
                         return;
                     }
 
-                    string filePath = @"c:\Temp\SurfaceProfileData.json";
+                    string filePath = Path.Combine(apDataExportPath, "SurfaceProfileData.json");
 
                     HashSet<AP_PipelineData> ppls = new HashSet<AP_PipelineData>();
 
@@ -144,16 +174,15 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("APGPLD")]
-        [CommandMethod("APGATHERPIPELINEDATA")]
-        public void gatherpipelinedata()
+        //[CommandMethod("APGPLD")]
+        //[CommandMethod("APGATHERPIPELINEDATA")]
+        public void gatherpipelinedata(DataManager.DataManager dm)
         {
             prdDbg("Dette skal køres i Længdeprofiler!");
 
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
-
-            DataManager.DataManager dm = new DataManager.DataManager(new DataReferencesOptions());
+            
             Database fjvDb = dm.GetForRead("Fremtid");
             Transaction fjvTx = fjvDb.TransactionManager.StartTransaction();
 
@@ -168,7 +197,7 @@ namespace IntersectUtilities
                 pn.CreatePipelineNetwork(ents, als);
                 pn.CreateSizeArrays();
 
-                string filePath = @"c:\Temp\PipelineSizeData.json";
+                string filePath = Path.Combine(apDataExportPath, "PipelineSizeData.json");
                 using var w = new StreamWriter(filePath, false);
 
                 var sizes = pn.GetAllSizeArrays();
@@ -199,16 +228,15 @@ namespace IntersectUtilities
             fjvDb.Dispose();
         }
 
-        [CommandMethod("APGHAD")]
-        [CommandMethod("APGATHERHORIZONTALARCDATA")]
-        public void gatherhorizontalarcdata()
+        //[CommandMethod("APGHAD")]
+        //[CommandMethod("APGATHERHORIZONTALARCDATA")]
+        public void gatherhorizontalarcdata(DataManager.DataManager dm)
         {
             prdDbg("Dette skal køres i Længdeprofiler!");
 
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
 
-            DataManager.DataManager dm = new DataManager.DataManager(new DataReferencesOptions());
             Database fjvDb = dm.GetForRead("Fremtid");
             Transaction fjvTx = fjvDb.TransactionManager.StartTransaction();
 
@@ -257,7 +285,7 @@ namespace IntersectUtilities
                     ppls.Add(ap);
                 }
 
-                string filePath = @"c:\Temp\HorizontalArcData.json";
+                string filePath = Path.Combine(apDataExportPath, "HorizontalArcData.json");
 
                 var json = JsonSerializer.Serialize(ppls, apJsonOptions);
                 using var w = new StreamWriter(filePath, false);
@@ -278,16 +306,15 @@ namespace IntersectUtilities
             fjvDb.Dispose();
         }
 
-        [CommandMethod("APGUTD")]
-        [CommandMethod("APGATHERUTILITYDATA")]
-        public void gatherutilitydata()
+        //[CommandMethod("APGUTD")]
+        //[CommandMethod("APGATHERUTILITYDATA")]
+        public void gatherutilitydata(DataManager.DataManager dm)
         {
             prdDbg("Dette skal køres i Længdeprofiler!");
 
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
 
-            DataManager.DataManager dm = new DataManager.DataManager(new DataReferencesOptions());
             Database fjvDb = dm.GetForRead("Fremtid");
             Transaction fjvTx = fjvDb.TransactionManager.StartTransaction();
 
@@ -418,7 +445,7 @@ namespace IntersectUtilities
                 }
                 var json = JsonSerializer.Serialize(ppls, apJsonOptions);
 
-                string filePath = @"c:\Temp\UtilityData.json";
+                string filePath = Path.Combine(apDataExportPath, "UtilityData.json");
                 using var w = new StreamWriter(filePath, false);
                 
                 w.WriteLine(json);

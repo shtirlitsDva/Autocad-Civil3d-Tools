@@ -84,7 +84,7 @@ namespace IntersectUtilities
             {
                 Properties = new Dictionary<string, object>
                 {
-                    { "DN", GetPipeDN(pl) },
+                    { "Nominal Diameter", GetPipeDN(pl) },
                     { "System", GetPipeType(pl).ToString() },
                     { "Serie", GetPipeSeriesV2(pl).ToString() },
                     { "Type", GetPipeSystem(pl).ToString() },
@@ -184,11 +184,11 @@ namespace IntersectUtilities
             var props = new Dictionary<string, object>
             {
                 { "BlockName", br.RealName() },
-                { "Type", ComponentSchedule.ReadComponentType(br, dt) },
+                { "Type", br.ReadDynamicCsvProperty(DynamicProperty.Type) },
                 { "Rotation", ComponentSchedule.ReadBlockRotation(br, dt).ToString("0.00") },
                 { "System", ComponentSchedule.ReadComponentSystem(br, dt) },
-                { "DN1", ComponentSchedule.ReadComponentDN1(br, dt) },
-                { "DN2", ComponentSchedule.ReadComponentDN2(br, dt) },
+                { "Nominal Diameter 1", ComponentSchedule.ReadComponentDN1(br, dt) },
+                { "Nominal Diameter 2", ComponentSchedule.ReadComponentDN2(br, dt) },
                 { "Serie", PropertyReader.ReadComponentSeries(br, dt) },
                 { "Vinkel", ComponentSchedule.ReadComponentVinkel(br, dt) },
                 { "color", "#000000" },

@@ -23,6 +23,7 @@ namespace IntersectUtilities.DataManager
             project = dro.ProjectName;
             etape = dro.EtapeName;
         }
+        public bool IsValid() => !string.IsNullOrEmpty(project) && !string.IsNullOrEmpty(etape);
         /// <summary>
         /// Surface, Alignments, Fremtid
         /// </summary>

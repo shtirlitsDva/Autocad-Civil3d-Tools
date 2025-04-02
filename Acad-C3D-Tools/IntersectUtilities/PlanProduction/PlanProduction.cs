@@ -57,6 +57,7 @@ using Plane = Autodesk.AutoCAD.Geometry.Plane;
 using NetTopologySuite.Triangulate;
 using IntersectUtilities.LongitudinalProfiles;
 using NetTopologySuite.Algorithm;
+using SharpKml.Base;
 
 namespace IntersectUtilities
 {
@@ -1798,6 +1799,170 @@ namespace IntersectUtilities
                 prdDbg("File is locked for write! Abort operation.");
                 return;
             }
+        }
+
+        /// <command>EXPORTFJVTOGEOJSONWGS84</command>
+        /// <summary>
+        /// Exports fjernvarme fremtidig to an all polygon GeoJSON file in WGS84 coordinate system.
+        /// All elements are converted to polygons for better presentation.
+        /// </summary>
+        /// <category>GIS</category>
+        [CommandMethod("EXPORTFJVTOKML")]
+        public void exportfjvtokml()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+
+            GeoJsonFeatureCollection gjfc = new GeoJsonFeatureCollection("FjernVarme");            
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var ents = localDb.GetFjvEntities(tx, true);
+
+                    foreach (var ent in ents)
+                    {
+                        var opts = new FjvToGeoJsonConverterOptions()
+                        {
+                            CRS = CRS.WGS84
+                        };
+                        var converter = FjvToGeoJsonConverterFactory.CreateConverter(ent, opts);
+                        if (converter == null) continue;
+                        var geoJsonFeature = converter.Convert(ent);
+                        gjfc.Features.AddRange(geoJsonFeature);
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+
+            var kmlDoc = new SharpKml.Dom.Document();
+            kmlDoc.Name = "Fjernvarme";
+
+            #region Create styles for coloring polygons
+            var stylesByColor = new Dictionary<string, SharpKml.Dom.Style>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var feature in gjfc.Features)
+            {
+                if (!feature.Properties.TryGetValue("color", out var colorObj)) continue;
+
+                string colorHex = colorObj?.ToString()?.Trim() ?? "#000000";
+                if (!Regex.IsMatch(colorHex, "^#?[0-9a-fA-F]{6}$"))
+                    colorHex = "#000000";
+
+                colorHex = colorHex.StartsWith("#") ? colorHex : $"#{colorHex}";
+                colorHex = colorHex.ToLowerInvariant();
+
+                if (stylesByColor.ContainsKey(colorHex)) continue;
+
+                var style = new SharpKml.Dom.Style
+                {
+                    Id = $"style-{colorHex.Substring(1)}", // e.g. "style-ff0000"
+                    Polygon = new SharpKml.Dom.PolygonStyle { Color = ParseHexToColor32(colorHex), Fill = true, Outline = true },
+                    Line = new SharpKml.Dom.LineStyle { Color = ParseHexToColor32(colorHex), Width = 2 }
+                };
+
+                stylesByColor[colorHex] = style;
+                kmlDoc.AddStyle(style);
+            }
+            #endregion
+
+            foreach (var feature in gjfc.Features)
+            {
+                var gjpolygon = feature.Geometry as GeoJsonGeometryPolygon;
+                if (gjpolygon == null) continue;
+
+                var polygon = new SharpKml.Dom.Polygon();
+                var outerBoundary = new SharpKml.Dom.LinearRing();
+                outerBoundary.Coordinates = [.. gjpolygon.Coordinates.SelectMany(x => x.Select(y => new Vector(y[1], y[0])))];
+                polygon.OuterBoundary = new SharpKml.Dom.OuterBoundary { LinearRing = outerBoundary };
+
+                var sb = new StringBuilder();
+                void AddLine(string label, string? value)
+                {
+                    if (!string.IsNullOrWhiteSpace(value))
+                        sb.AppendLine($"<p><b>{label}</b><br/>{value}</p>");
+                    else sb.AppendLine($"<p><b>{label}</b><br/>" + @"¯\_(ツ)_/¯</p>");
+                }
+
+                foreach (var prop in feature.Properties)                
+                    AddLine(prop.Key, prop.Value?.ToString());
+
+                string colorHex = feature.Properties.TryGetValue("color", out var colorObj)
+                    ? colorObj?.ToString() : "#000000"; // default
+
+                if (!Regex.IsMatch(colorHex ?? "", "^#?[0-9a-fA-F]{6}$"))
+                    colorHex = "#000000";
+
+                colorHex = colorHex.StartsWith("#") ? colorHex : $"#{colorHex}";
+                colorHex = colorHex.ToLowerInvariant();
+
+                var styleId = stylesByColor[colorHex].Id;
+
+                var placemark = new SharpKml.Dom.Placemark()
+                {
+                    Geometry = polygon,                    
+                    Description = new SharpKml.Dom.Description { Text = sb.ToString() },
+                    StyleUrl = new Uri($"#{styleId}", UriKind.Relative)
+                };
+
+                kmlDoc.AddFeature(placemark);
+                //prdDbg(feature.Properties.Select(x => $"{x.Key}: {x.Value}").Aggregate((x, y) => $"{x}, {y}"));
+            }
+
+            var kml = new SharpKml.Dom.Kml { Feature = kmlDoc };
+            var serializer = new SharpKml.Base.Serializer();
+
+            string path = Path.GetDirectoryName(localDb.Filename);
+            string kmlFileName = Path.Combine(path, "Fjernvarme.kml");
+
+            using (var stream = File.Create(kmlFileName)) serializer.Serialize(kml, stream);
+
+
+            //var encoderSettings = new TextEncoderSettings();
+            //encoderSettings.AllowRange(UnicodeRanges.All);
+
+            //var options = new JsonSerializerOptions
+            //{
+            //    //WriteIndented = true,
+            //    //PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            //    Encoder = JavaScriptEncoder.Create(encoderSettings),
+            //    Converters = { new JsonConverterDouble(8) }
+            //};
+
+            //string geoJsonFileName = Path.Combine(path, "Fjernvarme.geojson");
+            //string json = JsonSerializer.Serialize(gjfc, options);
+
+            //try
+            //{
+            //    File.WriteAllText(geoJsonFileName, json);
+            //}
+            //catch (System.IO.IOException)
+            //{
+            //    prdDbg("File is locked for write! Abort operation.");
+            //    return;
+            //}
+        }
+
+        private static Color32 ParseHexToColor32(string hex)
+        {
+            if (string.IsNullOrWhiteSpace(hex) || !Regex.IsMatch(hex, "^#?[0-9a-fA-F]{6}$"))
+                return new Color32(255, 0, 0, 0); // default: opaque black
+
+            hex = hex.TrimStart('#');
+
+            byte r = Convert.ToByte(hex.Substring(0, 2), 16);
+            byte g = Convert.ToByte(hex.Substring(2, 2), 16);
+            byte b = Convert.ToByte(hex.Substring(4, 2), 16);
+
+            return new Color32(255, b, g, r); // alpha, blue, green, red
         }
 
         /// <command>EXPORTFJVTOGEOJSONUTM32N</command>
