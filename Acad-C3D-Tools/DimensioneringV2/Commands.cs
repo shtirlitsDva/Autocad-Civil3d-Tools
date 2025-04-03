@@ -470,6 +470,34 @@ namespace DimensioneringV2
                     var graph = new DimensioneringV2.GraphModelRoads.Graph();
                     graph.BuildGraph(pls, basePoints, brs, noCrossLines);
 
+                    //Validation
+                    if (graph.ConnectedComponents.Count != graph.RootNodes.Count)
+                    {
+                        prdDbg("Graph is not connected!");
+
+                        //Draw convex hull around connected elements to help find disconnects
+                        foreach (ConnectedComponent component in graph.ConnectedComponents)
+                        {
+                            var hull = Algorithms.GetConvexHull(component.AllPoints());
+                            if (hull != null && hull.Count > 0)
+                            {
+                                Polyline pl = new Polyline(hull.Count);
+                                for (int i = 0; i < hull.Count; i++)
+                                {
+                                    pl.AddVertexAt(i, hull[i].To2d(), 0, 0, 0);
+                                }
+                                pl.Closed = true;
+                                pl.Layer = cv.LayerDebugLines;
+                                pl.Color = ColorByName("yellow");
+                                pl.ConstantWidth = 0.5;
+                                pl.AddEntityToDbModelSpace(localDb);
+                            }
+                        }
+
+                        tx.Commit();
+                        return;
+                    }
+
                     var features = GraphTranslator.TranslateGraph(graph);
 
                     if (features != null)

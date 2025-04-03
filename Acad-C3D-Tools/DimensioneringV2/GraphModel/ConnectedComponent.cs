@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Autodesk.AutoCAD.Geometry;
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -14,6 +16,17 @@ namespace DimensioneringV2.GraphModelRoads
         public ConnectedComponent()
         {
             Segments = new List<SegmentNode>();
+        }
+
+        public List<Point3d> AllPoints()
+        {
+            List<Point3d> points = new List<Point3d>();
+            foreach (var segment in Segments)
+            {
+                points.Add(segment.StartPoint.To3d());
+                points.Add(segment.EndPoint.To3d());
+            }
+            return points;
         }
     }
 }
