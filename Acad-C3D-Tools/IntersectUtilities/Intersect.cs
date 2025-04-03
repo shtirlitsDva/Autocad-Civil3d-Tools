@@ -4546,7 +4546,7 @@ namespace IntersectUtilities
             if (result.IsNoE()) return;
 
             string path = UtilsCommon.Utils.GetPathToDataFiles(dro.ProjectName, dro.EtapeName, result);
-            
+
             if (path.IsNoE()) return;
             if (!File.Exists(path))
             {
@@ -5521,6 +5521,129 @@ namespace IntersectUtilities
             string totalLine = string.Format("{0,-30}{1,14:0.0}{2,14:0.0}",
                 "TOTAL", totLen, totVol);
             ed.WriteMessage("\n" + totalLine);
+        }
+        /// <command>CREATEVEJMIDTETEXT</command>
+        /// <summary>
+        /// Creates labels for vejmidte lines.
+        /// </summary>
+        /// <category>Utilities</category>
+        [CommandMethod("CREATEVEJMIDTETEXT")]
+        public void createvejmidtetext()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            string layNavn = "Vejnavne";
+
+            double distance = 0;
+            distance = Interaction.GetDistance(
+                "Specify distance from the center of the line to the text: ");
+
+            if (double.IsNaN(distance) || distance <= 0)
+            {
+                prdDbg("Invalid distance specified.");
+                return;
+            }
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Fix standard text
+                    TextStyleTable tst = tx.GetObject(localDb.TextStyleTableId, OpenMode.ForRead) as TextStyleTable;
+                    if (tst == null)
+                    {
+                        prdDbg("TextStyleTable is null.");
+                        tx.Abort();
+                        return;
+                    }
+
+                    var standard = tst["Standard"].Go<TextStyleTableRecord>(tx, OpenMode.ForWrite);
+                    if (standard == null)
+                    {
+                        prdDbg("Standard text style is null.");
+                        tx.Abort();
+                        return;
+                    }
+
+                    standard.BigFontFileName = "Arial.ttf";
+                    standard.TextSize = 1.6;
+                    #endregion
+
+                    Func<Entity, string> reader = ent =>
+                        PropertySetManager.ReadNonDefinedPropertySetString(ent, "NavngivenVej", "vejnavn");
+
+                    localDb.CheckOrCreateLayer(layNavn);
+
+                    var plines = localDb.HashSetOfType<Polyline>(tx);
+
+                    foreach (var pline in plines)
+                    {
+                        string vejNavn = reader(pline);
+                        if (vejNavn.IsNoE()) continue;
+
+                        double plLength = pline.Length;
+                        if (plLength < Tolerance.Global.EqualPoint)
+                        {
+                            prdDbg($"Polyline {pline.Handle} is too short.");
+                            continue;
+                        }
+
+                        int textCount = (int)(plLength / distance);
+                        if (textCount < 1) textCount = 1;
+
+                        double spacing = distance;
+                        if (textCount == 1)
+                        {
+                            double param = pline.GetParameterAtDistance(plLength / 2);
+                            Point3d pos = pline.GetPointAtParameter(param);
+                            Vector3d dir = pline.GetFirstDerivative(pos).GetNormal();
+
+                            AddText(localDb, layNavn, vejNavn, pos, dir.AngleOnPlane(new Plane()));
+                        }
+                        else
+                        {
+                            double totalTextLength = (textCount - 1) * spacing;
+                            double startDist = (plLength - totalTextLength) / 2;
+
+                            for (int i = 0; i < textCount; i++)
+                            {
+                                double dist = startDist + i * spacing;
+                                if (dist > plLength) break;
+
+                                Point3d pos = pline.GetPointAtDist(dist);
+                                Vector3d dir = pline.GetFirstDerivative(pos).GetNormal();
+
+                                AddText(localDb, layNavn, vejNavn, pos, dir.AngleOnPlane(new Plane()));
+                            }
+                        }                        
+                    }
+
+                    void AddText(Database db, string layer, string textStr, Point3d pos, double rotation)
+                    {
+                        DBText text = new DBText
+                        {
+                            Position = pos,
+                            TextString = textStr,
+                            Height = 1.6,
+                            Rotation = rotation,
+                            Layer = layer,
+                            HorizontalMode = TextHorizontalMode.TextCenter,
+                            VerticalMode = TextVerticalMode.TextVerticalMid,
+                            AlignmentPoint = pos
+                        };
+
+                        text.AddEntityToDbModelSpace(db);
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
         }
     }
 }
