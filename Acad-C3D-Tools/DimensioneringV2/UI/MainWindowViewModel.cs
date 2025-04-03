@@ -617,19 +617,29 @@ namespace DimensioneringV2.UI
 
                             var nonbridges = FindBridges.FindNonBridges(subGraph);
 
-                            Utils.prtDbg($"Idx: {index} N: {subGraph.VertexCount} E: {subGraph.EdgeCount}");
+                            Utils.prtDbg($"Idx: {index} N: {subGraph.VertexCount} E: {subGraph.EdgeCount} " +
+                                $"NB: {nonbridges.Count}");
 
-                            if (nonbridges.Count <= 50)
+                            var stev3 = new SteinerTreesEnumeratorV3(
+                                    subGraph, terminals.ToHashSet(), TimeSpan.FromSeconds(15));
+                            var solutions = stev3.Enumerate();
+
+                            if (solutions.Count == 0)
+                            {
+                                Utils.prtDbg($"SteinerEnumerator exceeded time limit for subgraph {index}!\n" +
+                                    $"Using GA.");
+                                //throw new System.Exception($"SteinerEnumerator exceeded time limit for subgraph {index}!" +
+                                //    $"\nSOLUTION INCOMPLETE!");
+                            }
+                            else
+                            {
+                                Utils.prtDbg($"SteinerEnumerator found {solutions.Count} solutions for subgraph {index}." +
+                                    $"\nUsing brute force.");
+                            }
+
+                            if (solutions.Count > 0)
                             {//Use bruteforce
-                                var stev3 = new SteinerTreesEnumeratorV3(
-                                    subGraph, terminals.ToHashSet(), TimeSpan.FromSeconds(300));
-                                var solutions = stev3.Enumerate();
-
-                                if (solutions.Count == 0)
-                                {
-                                    throw new System.Exception($"SteinerEnumerator exceeded time limit for subgraph {index}!" +
-                                        $"\nSOLUTION INCOMPLETE!");
-                                }
+                                
 
                                 //List<UndirectedGraph<BFNode, BFEdge>> solutions = new List<UndirectedGraph<BFNode, BFEdge>>();
 
@@ -804,6 +814,8 @@ namespace DimensioneringV2.UI
                 utils.prdDbg($"An error occurred during calculations: {ex.Message}");
                 utils.prdDbg(ex);
             }
+
+            Utils.prtDbg("Calculations completed.");
         }
         #endregion
 
