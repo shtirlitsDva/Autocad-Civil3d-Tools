@@ -89,6 +89,7 @@ namespace IntersectUtilities
                 gatherpipelinedata(dm);
                 gatherhorizontalarcdata(dm);
                 gatherutilitydata(dm);
+                gatherprofileviewdata();
             }
             catch(System.Exception ex)
             {                
@@ -158,14 +159,16 @@ namespace IntersectUtilities
 
                         var ppl = new AP_PipelineData(al.Name);
                         ppl.SurfaceProfile = new AP_SurfaceProfileData(p.Name);
-                        ppl.SurfaceProfile.SurfaceProfile =
+                        ppl.SurfaceProfile.ProfilePoints =
                             query.Select(x => new double[] { x.RawStation, x.Elevation })
                             .ToArray();
                         ppls.Add(ppl);
                     }
 
                     //Write the collection to json
-                    var json = JsonSerializer.Serialize(ppls, apJsonOptions);
+                    var json = JsonSerializer.Serialize(
+                        ppls.OrderBy(x => x.Name), 
+                        apJsonOptions);
                     using var writer = new StreamWriter(filePath, false);
                     writer.WriteLine(json);
 
@@ -217,7 +220,9 @@ namespace IntersectUtilities
                     ppls.Add(ppl);
                 }
 
-                var json = JsonSerializer.Serialize(ppls, apJsonOptions);
+                var json = JsonSerializer.Serialize(
+                    ppls.OrderBy(x => x.Name),
+                    apJsonOptions);
                 w.WriteLine(json);
             }
             catch (System.Exception ex)
@@ -294,7 +299,8 @@ namespace IntersectUtilities
 
                 string filePath = Path.Combine(apDataExportPath, "HorizontalArcData.json");
 
-                var json = JsonSerializer.Serialize(ppls, apJsonOptions);
+                var json = JsonSerializer.Serialize(
+                    ppls.OrderBy(x => x.Name), apJsonOptions);
                 using var w = new StreamWriter(filePath, false);
                 w.WriteLine(json);
             }
@@ -450,7 +456,8 @@ namespace IntersectUtilities
                     ppl.Utility = doubles.ToArray();
                     ppls.Add(ppl);
                 }
-                var json = JsonSerializer.Serialize(ppls, apJsonOptions);
+                var json = JsonSerializer.Serialize(
+                    ppls.OrderBy(x => x.Name), apJsonOptions);
 
                 string filePath = Path.Combine(apDataExportPath, "UtilityData.json");
                 using var w = new StreamWriter(filePath, false);
@@ -470,6 +477,77 @@ namespace IntersectUtilities
             fjvTx.Commit();
             fjvTx.Dispose();
             //fjvDb.Dispose();
+        }
+
+        public void gatherprofileviewdata()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var als = localDb.HashSetOfType<Alignment>(tx);
+
+                    if (als.Count == 0)
+                    {
+                        prdDbg("No Alignments found in the drawing");
+                        tx.Abort();
+                        return;
+                    }
+
+                    string filePath = Path.Combine(apDataExportPath, "ProfileViewData.json");
+
+                    HashSet<AP_PipelineData> ppls = new HashSet<AP_PipelineData>();
+
+                    foreach (Alignment al in als.OrderBy(x => x.Name))
+                    {
+                        prdDbg($"Processing {al.Name}");
+                        System.Windows.Forms.Application.DoEvents();
+
+                        var pvids = al.GetProfileViewIds();
+                        Oid pvid = Oid.Null;
+                        foreach (Oid item in pvids) pvid = item;
+
+                        if (pvid == Oid.Null)
+                        {
+                            prdDbg($"No profile view found for {al.Name}");
+                            continue;
+                        }
+
+                        ProfileView pv = pvid.Go<ProfileView>(tx);
+
+                        if (pv == null)
+                        {
+                            prdDbg($"No profile view found for {al.Name}");
+                            continue;
+                        }
+
+                        var ppl = new AP_PipelineData(al.Name);
+                        var pvd = new AP_ProfileViewData(pv.Name);
+                        pvd.Origin = [pv.Location.X, pv.Location.Y];
+                        pvd.ElevationAtOrigin = pv.ElevationMin;
+                        ppl.ProfileView = pvd;
+
+                        ppls.Add(ppl);
+                    }
+
+                    //Write the collection to json
+                    var json = JsonSerializer.Serialize(
+                        ppls.OrderBy(x => x.Name),
+                        apJsonOptions);
+                    using var writer = new StreamWriter(filePath, false);
+                    writer.WriteLine(json);
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    throw;
+                }
+                tx.Commit();
+            }
         }
     }
 }

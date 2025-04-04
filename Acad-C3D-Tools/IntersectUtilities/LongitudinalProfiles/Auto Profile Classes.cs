@@ -18,6 +18,7 @@ namespace IntersectUtilities.LongitudinalProfiles
         public IPipelineSizeArrayV2? PipelineSizes { get; set; } = null;
         public double[][]? HorizontalArcs { get; set; } = null;
         public double[][]? Utility { get; set; } = null;
+        public AP_ProfileViewData? ProfileView { get; set; } = null;
         public AP_PipelineData(string name)
         {
             Name = name;
@@ -28,8 +29,21 @@ namespace IntersectUtilities.LongitudinalProfiles
         [JsonInclude]
         public string Name { get; set; }
         [JsonInclude]
-        public double[][]? SurfaceProfile { get; set; }
+        public double[][]? ProfilePoints { get; set; }
         public AP_SurfaceProfileData(string name)
+        {
+            Name = name;
+        }
+    }
+    class AP_ProfileViewData
+    {
+        [JsonInclude]
+        public string Name { get; set; }
+        [JsonInclude]
+        public double[] Origin { get; set; } = [0, 0];
+        [JsonInclude]
+        public double ElevationAtOrigin { get; set; } = 0;
+        public AP_ProfileViewData(string name)
         {
             Name = name;
         }
