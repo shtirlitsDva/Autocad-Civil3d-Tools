@@ -99,6 +99,8 @@ namespace IntersectUtilities
             {
                 dm.Dispose();
             }
+
+            prdDbg("Done!");
         }
 
         //[CommandMethod("APGSPD")]
