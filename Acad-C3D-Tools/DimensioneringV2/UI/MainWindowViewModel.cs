@@ -819,6 +819,64 @@ namespace DimensioneringV2.UI
         }
         #endregion
 
+        #region PerformCalculationsPhysarumCommand
+        public AsyncRelayCommand PerformCalculationsPhysarumCommand => new(PerformCalculationsPhysarumExecuteAsync);
+
+        private async Task PerformCalculationsPhysarumExecuteAsync()
+        {
+            var props = new List<(Func<BFEdge, dynamic> Getter, Action<BFEdge, dynamic> Setter)>
+            {
+                (f => f.NumberOfBuildingsConnected, (f, v) => f.NumberOfBuildingsSupplied = v),
+                (f => f.NumberOfUnitsConnected, (f, v) => f.NumberOfUnitsSupplied = v),
+                (f => f.HeatingDemandConnected, (f, v) => f.HeatingDemandSupplied = v)
+            };
+
+            try
+            {
+                //Init the hydraulic calculation service using current settings
+                HydraulicCalculationService.Initialize();
+
+                //var reportingWindow = new GeneticOptimizedReporting();
+                //reportingWindow.Show();
+                //GeneticOptimizedReportingContext.VM = (GeneticOptimizedReportingViewModel)reportingWindow.DataContext;
+                //GeneticOptimizedReportingContext.VM.Dispatcher = reportingWindow.Dispatcher;
+
+                //var dispatcher = GeneticOptimizedReportingContext.VM.Dispatcher;
+
+                await Task.Run(() =>
+                {
+                    var graphs = _dataService.Graphs;
+
+                    //Reset the results
+                    foreach (var f in graphs.SelectMany(g => g.Edges.Select(e => e.PipeSegment))) f.ResetHydraulicResults();
+
+                    foreach (UndirectedGraph<NodeJunction, EdgePipeSegment> originalGraph in graphs)
+                    {
+                        //First prepare calculation graph
+                        UndirectedGraph<BFNode, BFEdge> graph = originalGraph.CopyToBF();
+
+                        
+                    }
+                });
+
+                var graphs = _dataService.Graphs;
+
+                //Perform post processing
+                foreach (var graph in graphs)
+                {
+                    CriticalPathService.Calculate(graph);
+                }
+            }
+            catch (System.Exception ex)
+            {
+                utils.prdDbg($"An error occurred during calculations: {ex.Message}");
+                utils.prdDbg(ex);
+            }
+
+            Utils.prtDbg("Calculations completed.");
+        }
+        #endregion
+
         #region Dim2ImportDims Command
         public AsyncRelayCommand Dim2ImportDimsCommand => new AsyncRelayCommand(Dim2ImportDims);
         private async Task Dim2ImportDims()
