@@ -1,4 +1,6 @@
-﻿using QuikGraph;
+﻿using DimensioneringV2.GraphFeatures;
+
+using QuikGraph;
 
 using System;
 using System.Collections.Generic;
@@ -16,17 +18,15 @@ namespace DimensioneringV2.PhysarumAlgorithm
         public double Length { get; set; }
         public double Conductance { get; set; } = 0.01;
         public double Flow { get; set; } = 0.0;
+        
+        public EdgePipeSegment OriginalEdge { get; }
 
-        public string PipeSize { get; set; } = null;
-        public double UnitCost { get; set; } = 0.0;
-
-        public double Cost => UnitCost * Length;
-
-        public PhyEdge(PhyNode source, PhyNode target, double length)
+        public PhyEdge(PhyNode source, PhyNode target, EdgePipeSegment edge)
         {
             Source = source;
             Target = target;
-            Length = length;
+            Length = edge.PipeSegment.Length;
+            OriginalEdge = edge;
         }
 
         public PhyNode GetOther(PhyNode PhyNode) =>

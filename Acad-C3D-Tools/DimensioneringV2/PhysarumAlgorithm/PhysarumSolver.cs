@@ -15,9 +15,11 @@ namespace DimensioneringV2.PhysarumAlgorithm
         private readonly double _mu;
         private readonly double _timeStep;
         private readonly double _tolerance;
+        private Action<int>? _callback;
 
         public PhysarumSolver(
             UndirectedGraph<PhyNode, PhyEdge> graph,
+            Action<int>? callback = null,
             double mu = 1.0,
             double timeStep = 0.1,
             double tolerance = 1e-3)
@@ -28,7 +30,7 @@ namespace DimensioneringV2.PhysarumAlgorithm
             _tolerance = tolerance;
         }
 
-        public void Run(int maxIterations = 10000)
+        public void Run(int maxIterations = 100)
         {
             var nodeList = _graph.Vertices.ToList();
             var nodeIndex = nodeList.Select((n, i) => new { n, i }).ToDictionary(x => x.n, x => x.i);
@@ -36,6 +38,9 @@ namespace DimensioneringV2.PhysarumAlgorithm
 
             for (int iteration = 0; iteration < maxIterations; iteration++)
             {
+                //if (iteration % 10 == 0)
+                _callback?.Invoke(iteration);                
+
                 // Step 1: Solve linear system for pressures
                 var A = Matrix.Build.Dense(n, n);
                 var b = Vector.Build.Dense(n);

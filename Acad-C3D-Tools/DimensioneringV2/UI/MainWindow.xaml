@@ -25,8 +25,8 @@
                         Margin="2" Command="{Binding PerformCalculationsGACommand}"/>
                 <Button x:Name="btnCalcGAOpt" Content="Optmized GA" FontSize="10" Width="70" Height="20" 
                         Margin="2" Command="{Binding PerformCalculationsGAOptimizedCommand}"/>
-                <Button x:Name="btnCalcPhysarum" Content="Physarum" FontSize="10" Width="70" Height="20" 
-                        Margin="2" Command="{Binding PerformCalculationsPhysarumCommand}"/>
+                <!--<Button x:Name="btnCalcPhysarum" Content="Physarum" FontSize="10" Width="70" Height="20" 
+                        Margin="2" Command="{Binding PerformCalculationsPhysarumCommand}"/>-->
                 <Button x:Name="btnPrice" Content="Calculate price" FontSize="10" Width="70" Height="20" 
                         Margin="2" Command="{Binding PerformPriceCalc}" IsEnabled="true"/>
                 <Button x:Name="btnZoomExt" Content="Zoom Ext" FontSize="10" Width="70" Height="20"

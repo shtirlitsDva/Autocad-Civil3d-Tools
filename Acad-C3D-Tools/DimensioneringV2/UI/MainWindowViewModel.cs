@@ -52,6 +52,7 @@ using System.Windows.Controls.Primitives;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Input;
+using DimensioneringV2.PhysarumAlgorithm;
 
 namespace DimensioneringV2.UI
 {
@@ -852,20 +853,55 @@ namespace DimensioneringV2.UI
 
                     foreach (UndirectedGraph<NodeJunction, EdgePipeSegment> originalGraph in graphs)
                     {
-                        //First prepare calculation graph
-                        UndirectedGraph<BFNode, BFEdge> graph = originalGraph.CopyToBF();
+                        var phyGraph = new UndirectedGraph<PhyNode, PhyEdge>();
 
-                        
+                        var nodeMap = new Dictionary<NodeJunction, PhyNode>();
+
+                        foreach (var node in originalGraph.Vertices)
+                        {
+                            var phyNode = new PhyNode(node);
+
+                            if (node.IsRootNode) phyNode.IsSource = true;
+                            if (node.IsBuildingNode) phyNode.IsTerminal = true;
+
+                            if (phyNode.IsTerminal)
+                            {
+                                //Here we assume that building nodes only have one edge attached
+                                var serviceLine = originalGraph.AdjacentEdges(node).First();
+                                phyNode.ExternalDemand = -serviceLine.PipeSegment.HeatingDemandConnected;
+                            }
+
+                            if (phyNode.IsSource)                                                            
+                                phyNode.ExternalDemand = originalGraph.Edges                                    
+                                    .Sum(x => x.PipeSegment.HeatingDemandConnected);                            
+
+                            phyGraph.AddVertex(phyNode);
+                            nodeMap.Add(node, phyNode);
+                        }
+
+                        foreach (var edge in originalGraph.Edges)
+                        {
+                            var phyEdge = new PhyEdge(nodeMap[edge.Source], nodeMap[edge.Target], edge);
+                            phyGraph.AddEdge(phyEdge);
+                        }
+
+                        var solver = new PhysarumSolver(phyGraph, i => Utils.prtDbg($"Iteration {i}"));
+                        solver.Run(1000);
+
+                        foreach (var phyEdge in phyGraph.Edges)
+                        {
+                            phyEdge.OriginalEdge.PipeSegment.HeatingDemandSupplied = phyEdge.Flow;
+                        }
                     }
                 });
 
-                var graphs = _dataService.Graphs;
+                //var graphs = _dataService.Graphs;
 
-                //Perform post processing
-                foreach (var graph in graphs)
-                {
-                    CriticalPathService.Calculate(graph);
-                }
+                ////Perform post processing
+                //foreach (var graph in graphs)
+                //{
+                //    CriticalPathService.Calculate(graph);
+                //}
             }
             catch (System.Exception ex)
             {
