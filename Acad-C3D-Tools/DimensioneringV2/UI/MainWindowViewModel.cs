@@ -919,12 +919,15 @@ namespace DimensioneringV2.UI
         {
             try
             {
-                var graphs = _dataService.Graphs;
+                var graphs = _dataService.Graphs;                
+
+                IEnumerable<AnalysisFeature> reprojected =
+                    graphs.SelectMany(x => ProjectionService.ReProjectFeatures(
+                        x.Edges.Select(x => x.PipeSegment), "EPSG:3857", "EPSG:25832"));
 
                 AcContext.Current.Post(_ =>
                 {
-                    AutoCAD.Dim2WriteDims.Write(
-                    graphs.SelectMany(x => x.Edges.Select(e => e.PipeSegment)));
+                    AutoCAD.Dim2WriteDims.Write(reprojected);
                 }, null);
             }
             catch (System.Exception ex)
