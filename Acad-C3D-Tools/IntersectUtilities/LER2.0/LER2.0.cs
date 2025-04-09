@@ -13,6 +13,7 @@ using System.Data;
 using IntersectUtilities.UtilsCommon;
 using Dreambuild.AutoCAD;
 using static IntersectUtilities.Utils;
+using static IntersectUtilities.Enums;
 
 using static IntersectUtilities.UtilsCommon.UtilsDataTables;
 using static IntersectUtilities.UtilsCommon.Utils;
@@ -28,11 +29,18 @@ using IntersectUtilities.LER2;
 using GroupByCluster;
 using MoreLinq;
 using Microsoft.Win32;
+using Autodesk.Civil.ApplicationServices;
+using System.Globalization;
 
 namespace IntersectUtilities
 {
     public partial class Intersect
     {
+        /// <command>LER2SORT2DFROM3D</command>
+        /// <summary>
+        /// Sorts polylines3d to 2D or 3D layers based on the elevation of the vertices.
+        /// </summary>
+        /// <category>LER2</category>
         [CommandMethod("LER2SORT2DFROM3D")]
         public void ler2sort2dfrom3d()
         {
@@ -122,6 +130,11 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>CHECK3DELEVATIONS</command>
+        /// <summary>
+        /// Validates 3D polyline intersection elevations by comparing intersection points calculated from alignments and 3D polylines against a referenced surface using CSV layer and depth data.
+        /// </summary>
+        /// <category>LER2</category>
         [CommandMethod("CHECK3DELEVATIONS")]
         public void check3delevations()
         {
@@ -287,6 +300,11 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>FLATTENPL3D</command>
+        /// <summary>
+        /// Flattens selected or user-picked 3D polylines by setting all vertex elevations to a fixed value (-99).
+        /// </summary>
+        /// <category>LER2</category>
         [CommandMethod("FLATTENPL3D", CommandFlags.UsePickSet)]
         public void flattenpl3d()
         {
@@ -367,6 +385,12 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>LER2ASTIK</command>
+        /// <command>LER2ADJUSTSTIK</command>
+        /// <summary>
+        /// Adjusts the elevations along selected 3D polylines based on a user-provided slope, aligning the vertices with a connected main pipe endpoint.
+        /// </summary>
+        /// <category>LER2</category>
         private static double slope = 0;
         [CommandMethod("LER2ASTIK", CommandFlags.UsePickSet)]
         [CommandMethod("LER2ADJUSTSTIK", CommandFlags.UsePickSet)]
@@ -577,6 +601,11 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>LER2INTERPOLATEPL3DS</command>
+        /// <summary>
+        /// Interpolates intermediate vertex elevations for all 3D polylines by distributing the elevation change linearly between endpoints.
+        /// </summary>
+        /// <category>LER2</category>
         [CommandMethod("LER2INTERPOLATEPL3DS")]
         public void ler2interpolatepl3ds()
         {
@@ -687,6 +716,11 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>LER2INTERPOLATEPL3D</command>
+        /// <summary>
+        /// Performs linear interpolation of vertex elevations on a user-selected 3D polyline, adjusting intermediate vertices based on horizontal distances between endpoints.
+        /// </summary>
+        /// <category>LER2</category>
         [CommandMethod("LER2INTERPOLATEPL3D")]
         public void ler2interpolatepl3d()
         {
@@ -796,6 +830,12 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>LER2DCI</command>
+        /// <command>LER2DETECTCOINCIDENTVERTICI</command>
+        /// <summary>
+        /// Identifies and corrects vertices with placeholder elevation (-99) on 3D polylines by matching them with valid adjacent vertices.
+        /// </summary>
+        /// <category>LER2</category>
         [CommandMethod("LER2DCI")]
         [CommandMethod("LER2DETECTCOINCIDENTVERTICI")]
         public void ler2detectcoincidentvertici()
@@ -915,6 +955,12 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>LER2IBI</command>
+        /// <command>LER2INTERPOLATEBETWEENISLANDS</command>
+        /// <summary>
+        /// Interpolates vertex elevations on 3D polylines by detecting segments with placeholder (-99) values and linearly interpolating between the surrounding valid vertices.
+        /// </summary>
+        /// <category>LER2</category>
         [CommandMethod("LER2IBI")]
         [CommandMethod("LER2INTERPOLATEBETWEENISLANDS")]
         public void p3dinterpolatebetweenislands()
@@ -1015,6 +1061,11 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>LER2DETECTCOINCIDENTENDS</command>
+        /// <summary>
+        /// Identifies 2D endpoints of 3D polylines that are coincident with corresponding 3D endpoints and synchronizes their elevation by updating the 2D vertices.
+        /// </summary>
+        /// <category>LER2</category>
         [CommandMethod("LER2DETECTCOINCIDENTENDS")]
         public void ler2detectcoincidentends()
         {
@@ -1075,6 +1126,11 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>LISTLAYERSOFSELECTION</command>
+        /// <summary>
+        /// Retrieves and outputs the unique layer names from the current selection set.
+        /// </summary>
+        /// <category>LER2</category>
         [CommandMethod("LISTLAYERSOFSELECTION", CommandFlags.UsePickSet)]
         public void listlayersofselection()
         {
@@ -1104,7 +1160,7 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("LER2ANALYZEOVERLAPS")]
+        //[CommandMethod("LER2ANALYZEOVERLAPS")]
         public void ler2analyzeoverlaps()
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -1358,7 +1414,7 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("LER2CORRECTENDSBEFOREMERGE")]
+        //[CommandMethod("LER2CORRECTENDSBEFOREMERGE")]
         public void ler2correctendsbeforemerge()
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -1429,7 +1485,7 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("LER2MERGEOVERLAPS")]
+        //[CommandMethod("LER2MERGEOVERLAPS")]
         public void ler2mergeoverlaps()
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -1527,6 +1583,11 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>LER2ANALYZEDUPLICATES</command>
+        /// <summary>
+        /// Analyzes 3D polylines to identify duplicates based on vertex and property comparisons, generating analysis data and report files.
+        /// </summary>
+        /// <category>LER2</category>
         [CommandMethod("LER2ANALYZEDUPLICATES")]
         public void ler2analyzeduplicates()
         {
@@ -1696,6 +1757,11 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>LER2REMOVEDUPLICATES</command>
+        /// <summary>
+        /// Removes redundant 3D polylines by deleting duplicate entities identified through vertex and property comparisons.
+        /// </summary>
+        /// <category>LER2</category>
         [CommandMethod("LER2REMOVEDUPLICATES")]
         public void ler2removeduplicates()
         {
@@ -1883,6 +1949,11 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>LER2REMOVEDUPLICATEPOINTSBUNDKOTE</command>
+        /// <summary>
+        /// Eliminates duplicate DBPoints that have identical 'Bundkote' values by clustering points with similar positions and erasing redundant ones.
+        /// </summary>
+        /// <category>LER2</category>
         [CommandMethod("LER2REMOVEDUPLICATEPOINTSBUNDKOTE")]
         public void ler2removeduplicatepointsbundkote()
         {
@@ -1955,6 +2026,12 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>LER2TRANSFORMLTF</command>
+        /// <summary>
+        /// Behandling af Lyngby Taarbæk Forsynings data, når de leverer LER1 data i stedet for LER2.
+        /// Adjusts vertex elevations in 3D LER polylines by reading reference points from an external DWG and interpolating intermediate elevations accordingly.
+        /// </summary>
+        /// <category>LER2</category>
         [CommandMethod("LER2TRANSFORMLTF")]
         public void ler2tranformltf()
         {
@@ -2098,6 +2175,11 @@ namespace IntersectUtilities
             dbpts.Dispose();
         }
 
+        /// <command>LER2SNAPBRANCHES</command>
+        /// <summary>
+        /// Snaps vertices of selected branch 3D polylines to nearby main polyline vertices based on matching XY coordinates and adjusts the Z value for proper alignment.
+        /// </summary>
+        /// <category>LER2</category>
         [CommandMethod("LER2SNAPBRANCHES")]
         public void ler2snapbranches()
         {
@@ -2111,11 +2193,10 @@ namespace IntersectUtilities
             {
                 MessageForAdding = "\nSelect branch 3D polylines to modify: "
             };
+            
             // 3D polylines are stored as "POLYLINE" in DWG, not "3dpolyline"
-            SelectionFilter filter = new SelectionFilter(new TypedValue[]
-            {
-        new TypedValue((int)DxfCode.Start, "POLYLINE")
-            });
+            SelectionFilter filter = new SelectionFilter(
+                [new TypedValue((int)DxfCode.Start, "POLYLINE")]);
             PromptSelectionResult psr = ed.GetSelection(pso, filter);
             if (psr.Status != PromptStatus.OK)
             {
@@ -2216,6 +2297,307 @@ namespace IntersectUtilities
 
                 tx.Commit();
                 ed.WriteMessage($"\nUpdated {updatedVertices} out of {totalBranchVertices} vertices in selected branch polylines.");
+            }
+        }
+
+        /// <command>LER2EDITELEVATIONS, LER2EE</command>
+        /// <summary>
+        /// Allows to edit vertice elevations of a polyline3d using manual input, text parsing, intersection with another polyline3d or calculating from slope.
+        /// </summary>
+        /// <category>LER2</category>
+        [CommandMethod("LER2EDITELEVATIONS")]
+        [CommandMethod("LER2EE")]
+        public void editelevations()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;            
+            
+            bool cont = true;
+            while (cont)
+            {
+                #region Select pline3d
+                PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
+                    "\nSelect polyline3d to modify:");
+                promptEntityOptions1.SetRejectMessage("\n Not a polyline3d!");
+                promptEntityOptions1.AddAllowedClass(typeof(Polyline3d), true);
+                PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                if (((PromptResult)entity1).Status != PromptStatus.OK) return;
+                Autodesk.AutoCAD.DatabaseServices.ObjectId pline3dId = entity1.ObjectId;
+                #endregion
+                #region Choose manual input or parsing of elevations
+
+                List<string> keywords = ["Manual","Text","OnOtherPl3d", "CalculateFromSlope"];
+                var kw = StringGridFormCaller.Call(keywords, "Select method to edit elevation:");
+                if (kw == null) return;
+
+                ElevationInputMethod eim = ElevationInputMethod.None;
+                switch (kw)
+                {
+                    case "Manual":
+                        eim = ElevationInputMethod.Manual;
+                        break;
+                    case "Text":
+                        eim = ElevationInputMethod.Text;
+                        break;
+                    case "OnOtherPl3d":
+                        eim = ElevationInputMethod.OnOtherPl3d;
+                        break;
+                    case "CalculateFromSlope":
+                        eim = ElevationInputMethod.CalculateFromSlope;
+                        break;
+                    default:
+                        cont = false;
+                        return;
+                }
+                #endregion
+                Point3d selectedPoint;
+                #region Get elevation depending on method
+                double elevation = 0;
+                switch (eim)
+                {
+                    case ElevationInputMethod.None:
+                        cont = false;
+                        continue;
+                    case ElevationInputMethod.Manual:
+                        {
+                            #region Select point
+                            PromptPointOptions pPtOpts = new PromptPointOptions("");
+                            // Prompt for the start point
+                            pPtOpts.Message = "\nEnter location where to modify the pline3d (must be a vertex):";
+                            PromptPointResult pPtRes = editor.GetPoint(pPtOpts);
+                            selectedPoint = pPtRes.Value;
+                            // Exit if the user presses ESC or cancels the command
+                            if (pPtRes.Status != PromptStatus.OK) return;
+                            #endregion
+                            #region Get elevation
+                            PromptDoubleResult result = editor.GetDouble("\nEnter elevation in meters:");
+                            if (((PromptResult)result).Status != PromptStatus.OK) return;
+                            elevation = result.Value;
+                            #endregion
+                        }
+                        break;
+                    case ElevationInputMethod.Text:
+                        {
+                            #region Select point
+                            PromptPointOptions pPtOpts = new PromptPointOptions("");
+                            // Prompt for the start point
+                            pPtOpts.Message = "\nEnter location where to modify the pline3d (must be a vertex):";
+                            PromptPointResult pPtRes = editor.GetPoint(pPtOpts);
+                            selectedPoint = pPtRes.Value;
+                            // Exit if the user presses ESC or cancels the command
+                            if (pPtRes.Status != PromptStatus.OK) return;
+                            #endregion
+                            #region Select and parse text
+                            PromptEntityOptions promptEntityOptions2 = new PromptEntityOptions(
+                                "\nSelect to parse as elevation:");
+                            promptEntityOptions2.SetRejectMessage("\n Not a text!");
+                            promptEntityOptions2.AddAllowedClass(typeof(DBText), true);
+                            PromptEntityResult entity2 = editor.GetEntity(promptEntityOptions2);
+                            if (((PromptResult)entity2).Status != PromptStatus.OK) return;
+                            Autodesk.AutoCAD.DatabaseServices.ObjectId DBtextId = entity2.ObjectId;
+                            using (Transaction tx2 = localDb.TransactionManager.StartTransaction())
+                            {
+                                DBText dBText = DBtextId.Go<DBText>(tx2);
+                                string readValue = dBText.TextString;
+                                double parsedResult;
+                                if (double.TryParse(readValue, NumberStyles.AllowDecimalPoint,
+                                        CultureInfo.InvariantCulture, out parsedResult))
+                                {
+                                    elevation = parsedResult;
+                                }
+                                else
+                                {
+                                    editor.WriteMessage("\nParsing of text failed!");
+                                    return;
+                                }
+                                tx2.Commit();
+                            }
+                        }
+                        break;
+                    #endregion
+                    case ElevationInputMethod.OnOtherPl3d:
+                        {
+                            //Create vertical line to intersect the Ler line
+                            #region Select point
+                            PromptPointOptions pPtOpts = new PromptPointOptions("");
+                            // Prompt for the start point
+                            pPtOpts.Message = "\nEnter location where to modify the pline3d (must be a vertex):";
+                            PromptPointResult pPtRes = editor.GetPoint(pPtOpts);
+                            selectedPoint = pPtRes.Value;
+                            // Exit if the user presses ESC or cancels the command
+                            if (pPtRes.Status != PromptStatus.OK) return;
+                            #endregion
+                            Oid newPolyId;
+                            using (Transaction txp3d = localDb.TransactionManager.StartTransaction())
+                            {
+                                Point3dCollection newP3dCol = new Point3dCollection();
+                                //Intersection at 0
+                                newP3dCol.Add(selectedPoint);
+                                //New point at very far away
+                                newP3dCol.Add(new Point3d(selectedPoint.X, selectedPoint.Y, 1000));
+                                Polyline3d newPoly = new Polyline3d(Poly3dType.SimplePoly, newP3dCol, false);
+                                //Open modelspace
+                                BlockTable bTbl = txp3d.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                                BlockTableRecord bTblRec = txp3d.GetObject(bTbl[BlockTableRecord.ModelSpace],
+                                                 OpenMode.ForWrite) as BlockTableRecord;
+                                bTblRec.AppendEntity(newPoly);
+                                txp3d.AddNewlyCreatedDBObject(newPoly, true);
+                                newPolyId = newPoly.ObjectId;
+                                txp3d.Commit();
+                            }
+                            #region Select pline3d
+                            PromptEntityOptions promptEntityOptions3 = new PromptEntityOptions(
+                                "\nSelect polyline3d to get elevation:");
+                            promptEntityOptions3.SetRejectMessage("\n Not a polyline3d!");
+                            promptEntityOptions3.AddAllowedClass(typeof(Polyline3d), true);
+                            PromptEntityResult entity3 = editor.GetEntity(promptEntityOptions3);
+                            if (((PromptResult)entity3).Status != PromptStatus.OK) return;
+                            Oid pline3dToGetElevationsId = entity3.ObjectId;
+                            #endregion
+                            using (Transaction txOther = localDb.TransactionManager.StartTransaction())
+                            {
+                                Polyline3d otherPoly3d = pline3dToGetElevationsId.Go<Polyline3d>(txOther);
+                                Polyline3d newPoly3d = newPolyId.Go<Polyline3d>(txOther);
+                                PointOnCurve3d[] intPoints = newPoly3d.GetGeCurve().GetClosestPointTo(
+                                    otherPoly3d.GetGeCurve());
+                                //Assume one intersection
+                                Point3d result = intPoints.First().Point;
+                                elevation = result.Z;
+                                //using (Point3dCollection p3dIntCol = new Point3dCollection())
+                                //{
+                                //    otherPoly3d.IntersectWith(newPoly3d, 0, p3dIntCol, new IntPtr(0), new IntPtr(0));
+                                //    if (p3dIntCol.Count > 0 && p3dIntCol.Count < 2)
+                                //    {
+                                //        foreach (Point3d p3dInt in p3dIntCol)
+                                //        {
+                                //            //Assume only one intersection
+                                //            elevation = p3dInt.Z;
+                                //        }
+                                //    }
+                                //}
+                                newPoly3d.UpgradeOpen();
+                                newPoly3d.Erase(true);
+                                txOther.Commit();
+                            }
+                        }
+                        break;
+                    case ElevationInputMethod.CalculateFromSlope:
+                        {
+                            #region Select point from which to calculate
+                            PromptPointOptions pPtOpts2 = new PromptPointOptions("");
+                            // Prompt for the start point
+                            pPtOpts2.Message = "\nEnter location from where to calculate using slope:";
+                            PromptPointResult pPtRes2 = editor.GetPoint(pPtOpts2);
+                            Point3d pointFrom = pPtRes2.Value;
+                            // Exit if the user presses ESC or cancels the command
+                            if (pPtRes2.Status != PromptStatus.OK) return;
+                            #endregion
+                            #region Get slope value
+                            PromptDoubleResult result2 = editor.GetDouble("\nEnter slope in pro mille (negative slope downward):");
+                            if (((PromptResult)result2).Status != PromptStatus.OK) return;
+                            double slope = result2.Value;
+                            #endregion
+                            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                            {
+                                try
+                                {
+                                    Polyline3d pline3d = pline3dId.Go<Polyline3d>(tx);
+                                    var vertices = pline3d.GetVertices(tx);
+                                    //Starts from start
+                                    if (pointFrom.HorizontalEqualz(vertices[0].Position))
+                                    {
+                                        double totalLength = 0;
+                                        double startElevation = vertices[0].Position.Z;
+                                        for (int i = 0; i < vertices.Length; i++)
+                                        {
+                                            if (i == 0) continue; //Skip first iteration, assume elevation is set
+                                            totalLength += vertices[i - 1].Position
+                                                                        .DistanceHorizontalTo(
+                                                                               vertices[i].Position);
+                                            double newDelta = totalLength * slope / 1000;
+                                            double newElevation = startElevation + newDelta;
+                                            //Write the new elevation
+                                            vertices[i].CheckOrOpenForWrite();
+                                            vertices[i].Position = new Point3d(
+                                                vertices[i].Position.X, vertices[i].Position.Y, newElevation);
+                                            vertices[i].DowngradeOpen();
+                                        }
+                                    }
+                                    //Starts from end
+                                    else if (pointFrom.HorizontalEqualz(vertices[vertices.Length - 1].Position))
+                                    {
+                                        double totalLength = 0;
+                                        double startElevation = vertices[vertices.Length - 1].Position.Z;
+                                        for (int i = vertices.Length - 1; i >= 0; i--)
+                                        {
+                                            if (i == vertices.Length - 1) continue; //Skip first iteration, assume elevation is set
+                                            totalLength += vertices[i + 1].Position
+                                                                        .DistanceHorizontalTo(
+                                                                               vertices[i].Position);
+                                            double newDelta = totalLength * slope / 1000;
+                                            double newElevation = startElevation + newDelta;
+                                            //Write the new elevation
+                                            vertices[i].CheckOrOpenForWrite();
+                                            vertices[i].Position = new Point3d(
+                                                vertices[i].Position.X, vertices[i].Position.Y, newElevation);
+                                            vertices[i].DowngradeOpen();
+                                        }
+                                    }
+                                    else
+                                    {
+                                        editor.WriteMessage("\nSelected point is neither start nor end of the poly3d!");
+                                        continue;
+                                    }
+                                }
+                                catch (System.Exception ex)
+                                {
+                                    tx.Abort();
+                                    editor.WriteMessage("\n" + ex.ToString());
+                                    return;
+                                }
+                                tx.Commit();
+                            }
+                            //Continue the while loop
+                            continue;
+                        }
+                    default:
+                        return;
+                }
+                #endregion
+                #region Modify elevation of pline3d
+                using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                {
+                    try
+                    {
+                        Polyline3d pline3d = pline3dId.Go<Polyline3d>(tx);
+                        var vertices = pline3d.GetVertices(tx);
+                        bool matchNotFound = true;
+                        for (int i = 0; i < vertices.Length; i++)
+                        {
+                            if (vertices[i].Position.HorizontalEqualz(selectedPoint))
+                            {
+                                vertices[i].UpgradeOpen();
+                                vertices[i].Position = new Point3d(
+                                    vertices[i].Position.X, vertices[i].Position.Y, elevation);
+                                vertices[i].DowngradeOpen();
+                                matchNotFound = false;
+                            }
+                        }
+                        if (matchNotFound)
+                        {
+                            editor.WriteMessage("\nNo match found for vertices! P3d was not modified!");
+                        }
+                    }
+                    catch (System.Exception ex)
+                    {
+                        tx.Abort();
+                        editor.WriteMessage("\n" + ex.ToString());
+                        return;
+                    }
+                    tx.Commit();
+                }
+                #endregion
             }
         }
 
