@@ -385,8 +385,7 @@ namespace IntersectUtilities
             }
         }
 
-        /// <command>LER2ASTIK</command>
-        /// <command>LER2ADJUSTSTIK</command>
+        /// <command>LER2ADJUSTSTIK, LER2ASTIK</command>
         /// <summary>
         /// Adjusts the elevations along selected 3D polylines based on a user-provided slope, aligning the vertices with a connected main pipe endpoint.
         /// </summary>
@@ -830,8 +829,7 @@ namespace IntersectUtilities
             }
         }
 
-        /// <command>LER2DCI</command>
-        /// <command>LER2DETECTCOINCIDENTVERTICI</command>
+        /// <command>LER2DETECTCOINCIDENTVERTICI, LER2DCI</command>
         /// <summary>
         /// Identifies and corrects vertices with placeholder elevation (-99) on 3D polylines by matching them with valid adjacent vertices.
         /// </summary>
@@ -955,8 +953,7 @@ namespace IntersectUtilities
             }
         }
 
-        /// <command>LER2IBI</command>
-        /// <command>LER2INTERPOLATEBETWEENISLANDS</command>
+        /// <command>LER2INTERPOLATEBETWEENISLANDS, LER2IBI</command>
         /// <summary>
         /// Interpolates vertex elevations on 3D polylines by detecting segments with placeholder (-99) values and linearly interpolating between the surrounding valid vertices.
         /// </summary>
