@@ -2,6 +2,7 @@
 
 public interface IHydraulicSettings
 {
+    ProjectTypeEnum ProjectType { get; set; }
     // Miscellaneous
     int HotWaterReturnTemp { get; set; }
     double FactorTillægForOpvarmningUdenBrugsvandsprioritering { get; set; }

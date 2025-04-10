@@ -30,4 +30,10 @@ namespace NorsynHydraulicCalc
         CW,
         TM
     }
+
+    public enum ProjectTypeEnum
+    {
+        Fjernvarme,
+        Termonet,
+    }
 }

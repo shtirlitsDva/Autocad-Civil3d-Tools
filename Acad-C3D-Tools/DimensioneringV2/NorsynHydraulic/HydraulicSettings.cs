@@ -4,6 +4,9 @@ using NorsynHydraulicCalc;
 
 public partial class HydraulicSettings : ObservableObject, IHydraulicSettings
 {
+    [ObservableProperty]
+    private ProjectTypeEnum projectType = ProjectTypeEnum.Fjernvarme; // Dropdown: Fjernvarme, Termonet
+    
     // Miscellaneous
     [ObservableProperty]
     private int hotWaterReturnTemp = 75;
@@ -101,5 +104,5 @@ public partial class HydraulicSettings : ObservableObject, IHydraulicSettings
     private int acceptPressureGradient20_150SL = 600;
 
     [ObservableProperty]
-    private double maxPressureLossStikSL = 0.3;
+    private double maxPressureLossStikSL = 0.3;    
 }

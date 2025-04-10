@@ -32,4 +32,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Pipes\PipeSteel.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Pipes\PipeTypes.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)Pipes\Sizes\PipePeSizes.csv" />
+  </ItemGroup>
 </Project>
