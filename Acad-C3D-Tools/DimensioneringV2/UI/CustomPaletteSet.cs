@@ -25,6 +25,7 @@ namespace DimensioneringV2.UI
                 PaletteSetStyles.ShowCloseButton |
                 PaletteSetStyles.ShowPropertiesMenu;
             MinimumSize = new System.Drawing.Size(250, 150);
+            Location = new System.Drawing.Point(0, 0);
 
             AddVisual("MAP", new MainWindow());
             AddVisual("SETTINGS", new SettingsTab());
@@ -32,21 +33,24 @@ namespace DimensioneringV2.UI
 
             // automatically hide the palette while none document is active (no document state)
             var docs = Application.DocumentManager;
-            docs.DocumentBecameCurrent += (s, e) => Visible = e.Document == null ? false : WasVisible;
-            docs.DocumentCreated += (s, e) => Visible = WasVisible;
-            docs.DocumentToBeDeactivated += (s, e) => WasVisible = Visible;
+            docs.DocumentBecameCurrent += (s, e) => { Visible = e.Document == null ? false : WasVisible; utils.prdDbg("DocumentBecameCurrent fired!"); };
+            docs.DocumentCreated += (s, e) => { Visible = WasVisible; utils.prdDbg("DocumentCreated fired!"); };
+            docs.DocumentToBeDeactivated += (s, e) => { WasVisible = Visible; utils.prdDbg("DocumentToBeDeactivated fired!"); };
             docs.DocumentToBeDestroyed += (s, e) =>
             {
+                utils.prdDbg("DocumentToBeDestroyed fired!");
                 WasVisible = Visible;
                 if (docs.Count == 1)
                 {
                     Visible = false;
+                    this.Close();
                     this.Dispose();
                     Services.PaletteSetCache.paletteSet = null;
                 }
             };
             this.StateChanged += (s, e) =>
             {
+                utils.prdDbg("this.StateChanged fired!");
                 //utils.prdDbg($"State changed! V: {Visible}, wV: {WasVisible}");
                 if (WasVisible)
                 {

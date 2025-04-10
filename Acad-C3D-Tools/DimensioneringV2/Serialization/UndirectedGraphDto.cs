@@ -1,4 +1,6 @@
-﻿using QuikGraph;
+﻿using DimensioneringV2.GraphFeatures;
+
+using QuikGraph;
 
 using System;
 using System.Collections.Generic;
@@ -6,7 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DimensioneringV2.GraphFeatures
+namespace DimensioneringV2.Serialization
 {
     internal class UndirectedGraphDto
     {

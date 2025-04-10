@@ -53,6 +53,7 @@ using System.Text.Json;
 using System.Windows;
 using System.Windows.Input;
 using DimensioneringV2.PhysarumAlgorithm;
+using DimensioneringV2.Serialization;
 
 namespace DimensioneringV2.UI
 {
@@ -682,8 +683,7 @@ namespace DimensioneringV2.UI
                                 Parallel.ForEach(solutions, solution =>
                                 {
                                     var st = new UndirectedGraph<BFNode, BFEdge>();
-                                    foreach (var edge in solution)
-                                        st.AddEdgeCopy(edge);
+                                    foreach (var edge in solution) st.AddEdgeCopy(edge);
 
                                     //Calculate sums again for the subgraph
                                     var visited = new HashSet<BFNode>();
@@ -1036,6 +1036,7 @@ namespace DimensioneringV2.UI
                 options.WriteIndented = true;
                 options.NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals;
                 options.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.Preserve;
+                options.Converters.Add(new DimJsonConverter());
                 options.Converters.Add(new AnalysisFeatureJsonConverter());
                 options.Converters.Add(new UndirectedGraphJsonConverter());
                 options.Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping;

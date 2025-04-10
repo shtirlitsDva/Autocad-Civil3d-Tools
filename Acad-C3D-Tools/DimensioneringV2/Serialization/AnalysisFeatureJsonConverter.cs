@@ -1,4 +1,6 @@
-﻿using System;
+﻿using DimensioneringV2.GraphFeatures;
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -6,7 +8,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
-namespace DimensioneringV2.GraphFeatures
+namespace DimensioneringV2.Serialization
 {
     internal class AnalysisFeatureJsonConverter : JsonConverter<AnalysisFeature>
     {

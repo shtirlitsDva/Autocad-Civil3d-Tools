@@ -1,4 +1,6 @@
-﻿using QuikGraph;
+﻿using DimensioneringV2.GraphFeatures;
+
+using QuikGraph;
 
 using System;
 using System.Collections.Generic;
@@ -8,7 +10,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
-namespace DimensioneringV2.GraphFeatures
+namespace DimensioneringV2.Serialization
 {
     internal class UndirectedGraphJsonConverter : JsonConverter<UndirectedGraph<NodeJunction, EdgePipeSegment>>
     {
