@@ -2,8 +2,8 @@
 
 public interface IHydraulicSettings
 {
-    ProjectTypeEnum ProjectType { get; set; }
-    // Miscellaneous
+    // General
+    MedieTypeEnum MedieType { get; set; }
     int HotWaterReturnTemp { get; set; }
     double FactorTillægForOpvarmningUdenBrugsvandsprioritering { get; set; }
     double MinDifferentialPressureOverHovedHaner { get; set; }
@@ -11,6 +11,7 @@ public interface IHydraulicSettings
     double RuhedPertFlextra { get; set; }
     double RuhedAluPEX { get; set; }
     double RuhedCu { get; set; }
+    double RuhedPe { get; set; }    
     CalcType CalculationType { get; set; }
     bool ReportToConsole { get; set; }
 
@@ -26,6 +27,7 @@ public interface IHydraulicSettings
     int AcceptPressureGradient20_150FL { get; set; }
     int AcceptPressureGradient200_300FL { get; set; }
     int AcceptPressureGradient350PlusFL { get; set; }
+    PipeType PipeTypeFL { get; set; }
     bool UsePertFlextraFL { get; set; }
     int PertFlextraMaxDnFL { get; set; }
 

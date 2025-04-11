@@ -19,7 +19,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)CalculationResult.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Enums.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)HydraulicCalc.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)HydraulicSettings.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)IHydraulicSettings.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)IHydraulicSegment.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ILog.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)LookupData.cs" />
@@ -28,6 +28,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Pipes\PipeAluPex.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Pipes\PipeBase.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Pipes\PipeCu.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Pipes\PipePe.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Pipes\PipePertFlextra.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Pipes\PipeSteel.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Pipes\PipeTypes.cs" />

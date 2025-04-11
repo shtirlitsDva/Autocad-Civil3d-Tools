@@ -4,10 +4,10 @@ using NorsynHydraulicCalc;
 
 public partial class HydraulicSettings : ObservableObject, IHydraulicSettings
 {
+    // General
     [ObservableProperty]
-    private ProjectTypeEnum projectType = ProjectTypeEnum.Fjernvarme; // Dropdown: Fjernvarme, Termonet
-    
-    // Miscellaneous
+    private MedieTypeEnum medieType = MedieTypeEnum.Vand;
+
     [ObservableProperty]
     private int hotWaterReturnTemp = 75;
 
@@ -28,6 +28,9 @@ public partial class HydraulicSettings : ObservableObject, IHydraulicSettings
 
     [ObservableProperty]
     private double ruhedCu = 0.01;
+
+    [ObservableProperty]
+    private double ruhedPe = 0.01;
 
     [ObservableProperty]
     private CalcType calculationType = CalcType.CW; // "CW" or "TM"
@@ -70,6 +73,9 @@ public partial class HydraulicSettings : ObservableObject, IHydraulicSettings
     private int acceptPressureGradient350PlusFL = 120;
 
     [ObservableProperty]
+    private PipeType pipeTypeFL = PipeType.Stål;
+
+    [ObservableProperty]
     private bool usePertFlextraFL = true;
 
     [ObservableProperty]
@@ -89,7 +95,7 @@ public partial class HydraulicSettings : ObservableObject, IHydraulicSettings
     private int nyttetimerOneUserSL = 2000;
 
     [ObservableProperty]
-    private PipeType pipeTypeSL = PipeType.AluPEX; // Dropdown: AluPEX, Kobber, Stål, PertFlextra
+    private PipeType pipeTypeSL = PipeType.AluPEX; // Dropdown: AluPEX, Kobber, Stål, PertFlextra, Pe
 
     [ObservableProperty]
     private double acceptVelocityFlexibleSL = 1.0;

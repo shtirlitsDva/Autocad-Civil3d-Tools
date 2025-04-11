@@ -14,6 +14,7 @@ namespace NorsynHydraulicCalc.Pipes
             _aluPex = new PipeAluPex(s.RuhedAluPEX);
             _pertFlextra = new PipePertFlextra(s.RuhedPertFlextra);
             _cu = new PipeCu(s.RuhedCu);
+            _pe = new PipePe(s.RuhedPe);
         }
 
         private PipeSteel _stål;
@@ -27,5 +28,8 @@ namespace NorsynHydraulicCalc.Pipes
 
         private PipeCu _cu;
         public PipeCu Cu => _cu;
+
+        public PipePe _pe;
+        public PipePe Pe => _pe;
     }
 }

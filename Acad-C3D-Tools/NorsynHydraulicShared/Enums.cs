@@ -16,7 +16,8 @@ namespace NorsynHydraulicCalc
         PertFlextra,
         AquaTherm11,
         AluPEX,
-        Kobber
+        Kobber,
+        Pe,
     }
 
     public enum TempSetType
@@ -31,9 +32,9 @@ namespace NorsynHydraulicCalc
         TM
     }
 
-    public enum ProjectTypeEnum
+    public enum MedieTypeEnum
     {
-        Fjernvarme,
-        Termonet,
+        Vand,
+        Vand75Ipa25,
     }
 }
