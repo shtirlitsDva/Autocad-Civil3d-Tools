@@ -34,7 +34,7 @@ namespace NorsynHydraulicCalc
 
     public enum MedieTypeEnum
     {
-        Vand,
-        Vand75Ipa25,
+        Water,
+        Water75Ipa25,
     }
 }
