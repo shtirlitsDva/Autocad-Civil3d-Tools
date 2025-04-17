@@ -13,13 +13,13 @@ namespace DimensioneringV2.NorsynHydraulic
         public void ApplyDefaults(HydraulicSettings settings)
         {
             settings.PipeTypeFL = PipeType.Stål;
-            if (settings.PipeTypeSL == PipeType.Pe)
-                settings.PipeTypeSL = PipeType.AluPEX;
+            settings.PipeTypeSL = PipeType.AluPEX;
         }
 
         public IEnumerable<PipeType> GetValidPipeTypesForService()
         {
-            return Enum.GetValues(typeof(PipeType)).Cast<PipeType>().Where(p => p != PipeType.Pe);
+            return Enum.GetValues(typeof(PipeType))
+                .Cast<PipeType>().Where(p => p != PipeType.Pe);
         }
 
         public IEnumerable<PipeType> GetValidPipeTypesForSupply()
