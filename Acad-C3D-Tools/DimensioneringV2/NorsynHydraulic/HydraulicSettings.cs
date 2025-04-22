@@ -9,7 +9,7 @@ public partial class HydraulicSettings : ObservableObject, IHydraulicSettings
 {
     // General
     [ObservableProperty]
-    private MedieTypeEnum medieType = MedieTypeEnum.Water;
+    private MediumTypeEnum medieType = MediumTypeEnum.Water;
 
     [ObservableProperty]
     private int hotWaterReturnTemp = 75;

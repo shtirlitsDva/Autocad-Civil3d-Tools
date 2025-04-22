@@ -32,9 +32,9 @@ namespace NorsynHydraulicCalc
         TM
     }
 
-    public enum MedieTypeEnum
+    public enum MediumTypeEnum
     {
         Water,
-        Water75Ipa25,
+        Water72Ipa28,
     }
 }

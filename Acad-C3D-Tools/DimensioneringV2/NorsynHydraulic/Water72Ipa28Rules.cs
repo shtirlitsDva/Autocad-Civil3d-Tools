@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace DimensioneringV2.NorsynHydraulic
 {
-    class Water75Ipa25Rules : IMediumRules
+    class Water72Ipa28Rules : IMediumRules
     {
         public bool SupportsPertFlextra => false;
 

@@ -22,7 +22,11 @@
     <Compile Include="$(MSBuildThisFileDirectory)IHydraulicSettings.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)IHydraulicSegment.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ILog.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)LookupData.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)LookupData\ILookupData.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)LookupData\LookupDataBase.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)LookupData\LookupDataFactory.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)LookupData\LookupDataWater.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)LookupData\LookupDataWater72Ipa28.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Pipes\Dim.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Pipes\IPipe.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Pipes\PipeAluPex.cs" />
@@ -34,6 +38,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)Pipes\PipeTypes.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="$(MSBuildThisFileDirectory)Pipes\Sizes\PipePeSizes.csv" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Pipes\Sizes\PipePeSizes.csv" />
   </ItemGroup>
 </Project>

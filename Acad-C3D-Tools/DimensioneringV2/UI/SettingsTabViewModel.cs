@@ -22,7 +22,7 @@ namespace DimensioneringV2.UI
         [ObservableProperty]
         private HydraulicSettings settings;
 
-        public Array MedieTypes => Enum.GetValues(typeof(MedieTypeEnum));
+        public Array MedieTypes => Enum.GetValues(typeof(MediumTypeEnum));
         public Array CalculationTypes => Enum.GetValues(typeof(CalcType));
         public Array PipeTypes => Enum.GetValues(typeof(PipeType));
 

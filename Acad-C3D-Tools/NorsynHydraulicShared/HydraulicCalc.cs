@@ -1,4 +1,5 @@
-﻿using NorsynHydraulicCalc.Pipes;
+﻿using NorsynHydraulicCalc.LookupData;
+using NorsynHydraulicCalc.Pipes;
 
 using NorsynHydraulicShared;
 
@@ -32,6 +33,8 @@ namespace NorsynHydraulicCalc
         private IHydraulicSettings s;
         //Pipe types
         private PipeTypes pipeTypes;
+        //Lookup data
+        private ILookupData ld;
 
         // Shared
         private int hotWaterReturnTemp => s.HotWaterReturnTemp; // degree
@@ -92,6 +95,10 @@ namespace NorsynHydraulicCalc
 
             s = settings;
             pipeTypes = new PipeTypes(s);
+            ld = LookupDataFactory.GetLookupData(s.MedieType);
+            rho = ld.rho;
+            cp = ld.cp;
+            mu = ld.mu;
 
             log.Report($"HydraulicCalc {version}.");
 
@@ -512,69 +519,10 @@ namespace NorsynHydraulicCalc
         private double KX => factorTillægForOpvarmningUdenBrugsvandsprioritering;
         #endregion
 
-        #region Water properties
-        private static double rho(int T)
-        {
-            if (LookupData.rho.TryGetValue(T, out double value))
-                return value * 1000;
-            else if (T > 100 && T < 301)
-            {
-                int lowerkey = ((T - 100) / 50) * 50 + 100;
-                int upperkey = lowerkey + 50;
-
-                double lowerValue = LookupData.rho[lowerkey];
-                double upperValue = LookupData.rho[upperkey];
-                //Interpolate
-                return (lowerValue + (upperValue - lowerValue) * ((T - lowerkey) / (double)(upperkey - lowerkey))
-                    ) * 1000;
-            }
-            throw new ArgumentException($"Temperature out of range for \"rho\": {T}, allowed values: 0 - 300.");
-        }
-        private static double cp(int T)
-        {
-            if (LookupData.cp.TryGetValue(T, out double value)) return value;
-            else if (T > 0 && T < 201)
-            {
-                int lowerkey = LookupData.cp.Keys.Where(k => k < T).Max();
-                int upperkey = LookupData.cp.Keys.Where(k => k > T).Min();
-
-                double lowerValue = LookupData.cp[lowerkey];
-                double upperValue = LookupData.cp[upperkey];
-                //Interpolate
-                return lowerValue + (upperValue - lowerValue) * ((T - lowerkey) / (double)(upperkey - lowerkey));
-            }
-            throw new ArgumentException($"Temperature out of range for \"cp\": {T}, allowed values: 0 - 200.");
-        }
-        private static double nu(int T)
-        {
-            if (LookupData.nu.TryGetValue(T, out double value)) return value * 10e-6;
-            else if (T > 0 && T < 201)
-            {
-                int lowerkey = LookupData.nu.Keys.Where(k => k < T).Max();
-                int upperkey = LookupData.nu.Keys.Where(k => k > T).Min();
-
-                double lowerValue = LookupData.nu[lowerkey];
-                double upperValue = LookupData.nu[upperkey];
-                //Interpolate
-                return (lowerValue + (upperValue - lowerValue) * ((T - lowerkey) / (double)(upperkey - lowerkey))) * 10e-6;
-            }
-            throw new ArgumentException($"Temperature out of range for \"nu\": {T}, allowed values: 0 - 200.");
-        }
-        private static double mu(int T)
-        {
-            if (LookupData.mu.TryGetValue(T, out double value)) return value;
-            else if (T > 0 && T < 201)
-            {
-                int lowerkey = LookupData.mu.Keys.Where(k => k < T).Max();
-                int upperkey = LookupData.mu.Keys.Where(k => k > T).Min();
-
-                double lowerValue = LookupData.mu[lowerkey];
-                double upperValue = LookupData.mu[upperkey];
-                //Interpolate
-                return (lowerValue + (upperValue - lowerValue) * ((T - lowerkey) / (double)(upperkey - lowerkey)));
-            }
-            throw new ArgumentException($"Temperature out of range for \"nu\": {T}, allowed values: 0 - 200.");
-        }
+        #region Medium properties
+        private static Func<int, double> rho;
+        private static Func<int, double> cp;
+        private static Func<int, double> mu;
         private static double volume(int temp, int deltaT) => 3600.0 / (rho(temp) * cp(temp) * deltaT);
         //private static double volume(int temp, int deltaT) => 3600.0 / (951.0 * 4.231 * deltaT);
         #endregion

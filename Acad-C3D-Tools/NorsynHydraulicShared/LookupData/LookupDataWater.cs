@@ -1,12 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Linq;
 
-namespace NorsynHydraulicCalc
+namespace NorsynHydraulicCalc.LookupData
 {
-    internal static class LookupData
+    internal class LookupDataWater : LookupDataBase
     {
-        public static Dictionary<int, double> rho = new Dictionary<int, double>()
+        private static Dictionary<int, double> _rhoD = new Dictionary<int, double>()
         {
             { 0, 0.999843 },
             { 1, 0.999902 },
@@ -114,7 +115,8 @@ namespace NorsynHydraulicCalc
             { 250, 0.7992 },
             { 300, 0.7124 },
         };
-        public static Dictionary<int, double> cp = new Dictionary<int, double>()
+        protected override Dictionary<int, double> rhoD => _rhoD;
+        private static Dictionary<int, double> _cpD = new Dictionary<int, double>()
         {
             { 0, 4.219 },
             { 5, 4.205 },
@@ -144,10 +146,11 @@ namespace NorsynHydraulicCalc
             { 180, 4.405 },
             { 200, 4.4958 },
         };
+        protected override Dictionary<int, double> cpD => _cpD;
         /// <summary>
         /// Kinematic viscosity
         /// </summary>
-        public static Dictionary<int, double> nu = new Dictionary<int, double>()
+        private static Dictionary<int, double> _nuD = new Dictionary<int, double>()
         {
             { 0, 1.7918 },
             { 10, 1.3065 },
@@ -168,7 +171,8 @@ namespace NorsynHydraulicCalc
             { 180, 0.1695 },
             { 200, 0.1556 },
         };
-        public static Dictionary<int, double> mu = new Dictionary<int, double>()
+        protected override Dictionary<int, double> nuD => _nuD;
+        private static Dictionary<int, double> _muD = new Dictionary<int, double>()
         {
             { 0, 0.0017914 },
             { 10, 0.001306 },
@@ -189,5 +193,8 @@ namespace NorsynHydraulicCalc
             { 180, 0.0001504 },
             { 200, 0.0001346 },
         };
+        protected override Dictionary<int, double> muD => _muD;
+        protected override int LowT => 0;
+        protected override int HighT => 200;
     }
 }

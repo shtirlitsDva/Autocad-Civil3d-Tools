@@ -10,12 +10,12 @@ namespace DimensioneringV2.NorsynHydraulic
 {
     class MediumRulesFactory
     {
-        public static IMediumRules GetRules(MedieTypeEnum medium)
+        public static IMediumRules GetRules(MediumTypeEnum medium)
         {
             return medium switch
             {
-                MedieTypeEnum.Water => new WaterRules(),
-                MedieTypeEnum.Water75Ipa25 => new Water75Ipa25Rules(),
+                MediumTypeEnum.Water => new WaterRules(),
+                MediumTypeEnum.Water72Ipa28 => new Water72Ipa28Rules(),
                 _ => throw new NotSupportedException($"Unknown medium: {medium}")
             };
         }

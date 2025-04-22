@@ -3,7 +3,7 @@
 public interface IHydraulicSettings
 {
     // General
-    MedieTypeEnum MedieType { get; set; }
+    MediumTypeEnum MedieType { get; set; }
     int HotWaterReturnTemp { get; set; }
     double FactorTillægForOpvarmningUdenBrugsvandsprioritering { get; set; }
     double MinDifferentialPressureOverHovedHaner { get; set; }
