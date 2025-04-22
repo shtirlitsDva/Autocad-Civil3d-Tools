@@ -12,6 +12,7 @@ namespace DimensioneringV2.NorsynHydraulic
     {
         IEnumerable<PipeType> GetValidPipeTypesForSupply();
         IEnumerable<PipeType> GetValidPipeTypesForService();
+        bool SupportsPertFlextra { get; }
         void ApplyDefaults(HydraulicSettings settings);
     }
 }

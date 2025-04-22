@@ -50,12 +50,12 @@ namespace DimensioneringV2.AutoCAD
                     }
                     catch (System.Exception ex)
                     {
-                        utils.prdDbg("Error loading HydraulicSettings from FlexDataStore.");
-                        utils.prdDbg(ex);
+                        Utils.prtDbg("Error loading HydraulicSettings from FlexDataStore.");
+                        Utils.prtDbg(ex);
                         throw;
                     }
                 }
-                utils.prdDbg($"Store does not have requested key: \"HydraulicSettings\"");
+                Utils.prtDbg($"Store does not have requested key: \"HydraulicSettings\"");
                 return new HydraulicSettings();
             }
         }

@@ -1206,6 +1206,8 @@ namespace DimensioneringV2.UI
 
         public ObservableCollection<PropertyItem> FeatureProperties { get; } = new();
 
+        //PopUp is defined inside the mainwindow.xaml
+
         public void OnMapInfo(object? sender, MapInfoEventArgs e)
         {
             if (e.MapInfo?.Feature == null)

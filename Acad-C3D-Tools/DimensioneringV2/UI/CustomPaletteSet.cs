@@ -31,35 +31,35 @@ namespace DimensioneringV2.UI
             AddVisual("SETTINGS", new SettingsTab());
             Activate(0);
 
-            // automatically hide the palette while none document is active (no document state)
-            var docs = Application.DocumentManager;
-            docs.DocumentBecameCurrent += (s, e) => { Visible = e.Document == null ? false : WasVisible; utils.prdDbg("DocumentBecameCurrent fired!"); };
-            docs.DocumentCreated += (s, e) => { Visible = WasVisible; utils.prdDbg("DocumentCreated fired!"); };
-            docs.DocumentToBeDeactivated += (s, e) => { WasVisible = Visible; utils.prdDbg("DocumentToBeDeactivated fired!"); };
-            docs.DocumentToBeDestroyed += (s, e) =>
-            {
-                utils.prdDbg("DocumentToBeDestroyed fired!");
-                WasVisible = Visible;
-                if (docs.Count == 1)
-                {
-                    Visible = false;
-                    this.Close();
-                    this.Dispose();
-                    Services.PaletteSetCache.paletteSet = null;
-                }
-            };
-            this.StateChanged += (s, e) =>
-            {
-                utils.prdDbg("this.StateChanged fired!");
-                //utils.prdDbg($"State changed! V: {Visible}, wV: {WasVisible}");
-                if (WasVisible)
-                {
-                    utils.prdDbg("Saving settings!");
-                    HydraulicSettingsSerializer.Save(Application.DocumentManager.MdiActiveDocument,
-                        HydraulicSettingsService.Instance.Settings);
-                }
-                WasVisible = false;
-            };
+            //// automatically hide the palette while none document is active (no document state)
+            //var docs = Application.DocumentManager;
+            //docs.DocumentBecameCurrent += (s, e) => { Visible = e.Document == null ? false : WasVisible; };//utils.prdDbg("DocumentBecameCurrent fired!"); };
+            //docs.DocumentCreated += (s, e) => { Visible = WasVisible; };//utils.prdDbg("DocumentCreated fired!"); };
+            //docs.DocumentToBeDeactivated += (s, e) => { WasVisible = Visible; };//utils.prdDbg("DocumentToBeDeactivated fired!"); };
+            //docs.DocumentToBeDestroyed += (s, e) =>
+            //{
+            //    utils.prdDbg("DocumentToBeDestroyed fired!");
+            //    WasVisible = Visible;
+            //    if (docs.Count == 1)
+            //    {
+            //        Visible = false;
+            //        this.Close();
+            //        this.Dispose();
+            //        Services.PaletteSetCache.paletteSet = null;
+            //    }
+            //};
+            //this.StateChanged += (s, e) =>
+            //{
+            //    //utils.prdDbg("this.StateChanged fired!");
+            //    //utils.prdDbg($"State changed! V: {Visible}, wV: {WasVisible}");
+            //    if (WasVisible)
+            //    {
+            //        utils.prdDbg("Saving settings!");
+            //        HydraulicSettingsSerializer.Save(Application.DocumentManager.MdiActiveDocument,
+            //            HydraulicSettingsService.Instance.Settings);
+            //    }
+            //    WasVisible = false;
+            //};
         }
     }
 }

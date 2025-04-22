@@ -10,6 +10,8 @@ namespace DimensioneringV2.NorsynHydraulic
 {
     class WaterRules : IMediumRules
     {
+        public bool SupportsPertFlextra => true;
+
         public void ApplyDefaults(HydraulicSettings settings)
         {
             settings.PipeTypeFL = PipeType.Stål;

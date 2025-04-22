@@ -26,7 +26,7 @@ namespace DimensioneringV2.UI
         public Array CalculationTypes => Enum.GetValues(typeof(CalcType));
         public Array PipeTypes => Enum.GetValues(typeof(PipeType));
 
-        #region Implementation of system switching
+        #region Implementation of medium switching
         partial void OnSettingsChanged(HydraulicSettings value)
         {
             value.PropertyChanged += (s, e) =>
@@ -40,6 +40,9 @@ namespace DimensioneringV2.UI
                     OnPropertyChanged(nameof(ValidPipeTypesSL));
                     OnPropertyChanged(nameof(IsPipeTypeFLSelectable));
                     OnPropertyChanged(nameof(IsPipeTypeSLSelectable));
+
+                    if (!rules.SupportsPertFlextra) value.UsePertFlextraFL = false;
+                    OnPropertyChanged(nameof(IsPertFlextraSelectable));
                 }
             };
         }
@@ -51,29 +54,31 @@ namespace DimensioneringV2.UI
 
         public bool IsPipeTypeFLSelectable => ValidPipeTypesFL.Count() > 1;
         public bool IsPipeTypeSLSelectable => ValidPipeTypesSL.Count() > 1;
+        public bool IsPertFlextraSelectable =>
+            MediumRulesFactory.GetRules(Settings.MedieType).SupportsPertFlextra;
         #endregion
 
         public SettingsTabViewModel()
         {
-            settings = Services.HydraulicSettingsService.Instance.Settings;
-            Services.HydraulicSettingsService.Instance.PropertyChanged += (s, e) =>
-            {
-                if (e.PropertyName == nameof(Services.HydraulicSettingsService.Settings))
-                {
-                    Settings = Services.HydraulicSettingsService.Instance.Settings;
-                    OnPropertyChanged(nameof(Settings));
-                }
-            };
+            Settings = Services.HydraulicSettingsService.Instance.Settings;            
         }
 
         public AsyncRelayCommand SaveSettingsCommand => new AsyncRelayCommand(SaveSettings);
 
         private async Task SaveSettings()
-        {
-            Services.HydraulicSettingsService.Instance.Settings = Settings;
+        {   
+            Utils.prtDbg($"Saving settings to {AcAp.DocumentManager.MdiActiveDocument.Name}");
             HydraulicSettingsSerializer.Save(
                 AcAp.DocumentManager.MdiActiveDocument,
-                Services.HydraulicSettingsService.Instance.Settings);
+                Settings);
+        }
+
+        public RelayCommand ObserveSettingsCommand => new RelayCommand(ObserveSettings);
+        private void ObserveSettings()
+        {
+            var w = new SettingsObserverWindow();
+            w.Init(Settings);
+            w.Show();
         }
     }
 }

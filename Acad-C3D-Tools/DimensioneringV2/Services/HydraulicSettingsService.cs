@@ -40,14 +40,20 @@ namespace DimensioneringV2.Services
         }
         private void DocumentManager_DocumentActivated(object sender, DocumentCollectionEventArgs e)
         {
-            Settings = HydraulicSettingsSerializer.Load(e.Document);
+            Utils.prtDbg($"{DateTime.Now} Document activated event: {e.Document.Name}");
+            var loaded = HydraulicSettingsSerializer.Load(e.Document);
+            //To avoid having OLD instances of the settings still bound to the UI
+            //Do not create new instance of the settings, but copy the loaded settings
+            Settings.CopyFrom(loaded);
         }
         private void DocumentManager_DocumentToBeDeactivated(object sender, DocumentCollectionEventArgs e)
         {
+            Utils.prtDbg($"{DateTime.Now} Document To Be Deactivated event: {e.Document.Name}");
             HydraulicSettingsSerializer.Save(e.Document, Settings);
         }
         private void DocumentManager_DocumentToBeDestroyed(object sender, DocumentCollectionEventArgs e)
         {
+            Utils.prtDbg($"Document To Be Destroyed event: {e.Document.Name}");
             if (e.Document != null)
             {
                 HydraulicSettingsSerializer.Save(e.Document, Services.HydraulicSettingsService.Instance.Settings);

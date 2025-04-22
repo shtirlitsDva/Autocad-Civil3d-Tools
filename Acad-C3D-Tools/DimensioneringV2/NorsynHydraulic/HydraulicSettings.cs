@@ -2,6 +2,9 @@
 
 using NorsynHydraulicCalc;
 
+using System;
+using System.Linq;
+
 public partial class HydraulicSettings : ObservableObject, IHydraulicSettings
 {
     // General
@@ -110,5 +113,18 @@ public partial class HydraulicSettings : ObservableObject, IHydraulicSettings
     private int acceptPressureGradient20_150SL = 600;
 
     [ObservableProperty]
-    private double maxPressureLossStikSL = 0.3;    
+    private double maxPressureLossStikSL = 0.3;
+
+    internal void CopyFrom(HydraulicSettings src)
+    {
+        if (src == null) throw new ArgumentNullException(nameof(src));
+
+        foreach (var p in typeof(HydraulicSettings)
+                          .GetProperties(System.Reflection.BindingFlags.Instance |
+                                         System.Reflection.BindingFlags.Public)
+                          .Where(pr => pr.CanRead && pr.CanWrite && pr.GetIndexParameters().Length == 0))
+        {
+            p.SetValue(this, p.GetValue(src));
+        }
+    }
 }
