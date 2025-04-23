@@ -1,4 +1,5 @@
 ﻿using NorsynHydraulicCalc.LookupData;
+using NorsynHydraulicCalc.MaxFlowCalc;
 using NorsynHydraulicCalc.Pipes;
 
 using NorsynHydraulicShared;
@@ -35,6 +36,8 @@ namespace NorsynHydraulicCalc
         private PipeTypes pipeTypes;
         //Lookup data
         private ILookupData ld;
+        //MaxFlowCalculations
+        private IMaxFlowCalc mfc;
 
         // Shared
         private int hotWaterReturnTemp => s.HotWaterReturnTemp; // degree
@@ -99,6 +102,7 @@ namespace NorsynHydraulicCalc
             rho = ld.rho;
             cp = ld.cp;
             mu = ld.mu;
+            mfc = MaxFlowCalcFactory.GetMaxFlowCalc(s.MedieType, s);
 
             log.Report($"HydraulicCalc {version}.");
 
@@ -154,71 +158,75 @@ namespace NorsynHydraulicCalc
             #region Populate maxFlowTableFL
             //Populate maxFlowTableFL
             {
-                int steelMinDn = 32;
+                mfc.CalculateMaxFlowTableFL(maxFlowTableFL, CalculateMaxFlow);
 
-                if (usePertFlextraFL)
-                {
-                    foreach (var dim in pipeTypes.PertFlextra.GetDimsRange(
-                        50, pertFlextraMaxDnFL))
-                    {
-                        maxFlowTableFL.Add((dim,
-                            CalculateMaxFlow(dim, TempSetType.Supply, SegmentType.Fordelingsledning),
-                            CalculateMaxFlow(dim, TempSetType.Return, SegmentType.Fordelingsledning)));
-                    }
+                //int steelMinDn = 32;
 
-                    steelMinDn = translationBetweenMaxPertAndMinStål[pertFlextraMaxDnFL];
-                }
+                //if (usePertFlextraFL)
+                //{
+                //    foreach (var dim in pipeTypes.PertFlextra.GetDimsRange(
+                //        50, pertFlextraMaxDnFL))
+                //    {
+                //        maxFlowTableFL.Add((dim,
+                //            CalculateMaxFlow(dim, TempSetType.Supply, SegmentType.Fordelingsledning),
+                //            CalculateMaxFlow(dim, TempSetType.Return, SegmentType.Fordelingsledning)));
+                //    }
 
-                foreach (var dim in pipeTypes.Stål.GetDimsRange(steelMinDn, 1000))
-                {
-                    maxFlowTableFL.Add((dim,
-                            CalculateMaxFlow(dim, TempSetType.Supply, SegmentType.Fordelingsledning),
-                            CalculateMaxFlow(dim, TempSetType.Return, SegmentType.Fordelingsledning)));
-                }
+                //    steelMinDn = translationBetweenMaxPertAndMinStål[pertFlextraMaxDnFL];
+                //}
+
+                //foreach (var dim in pipeTypes.Stål.GetDimsRange(steelMinDn, 1000))
+                //{
+                //    maxFlowTableFL.Add((dim,
+                //            CalculateMaxFlow(dim, TempSetType.Supply, SegmentType.Fordelingsledning),
+                //            CalculateMaxFlow(dim, TempSetType.Return, SegmentType.Fordelingsledning)));
+                //}
             }
             #endregion
 
             #region Populate maxFlowTableSL
             //Populate maxFlowTableSL
             {
-                switch (pipeTypeSL)
-                {
-                    case PipeType.Stål:
-                        throw new Exception("Stål-stikledninger er ikke tilladt!");
-                    case PipeType.PertFlextra:
-                        foreach (var dim in pipeTypes.PertFlextra.GetDimsRange(25, 75))
-                        {
-                            maxFlowTableSL.Add((dim,
-                                CalculateMaxFlow(dim, TempSetType.Supply, SegmentType.Stikledning),
-                                CalculateMaxFlow(dim, TempSetType.Return, SegmentType.Stikledning)));
-                        }
-                        break;
-                    case PipeType.AluPEX:
-                        foreach (var dim in pipeTypes.AluPex.GetDimsRange(26, 32))
-                        {
-                            maxFlowTableSL.Add((dim,
-                                CalculateMaxFlow(dim, TempSetType.Supply, SegmentType.Stikledning),
-                                CalculateMaxFlow(dim, TempSetType.Return, SegmentType.Stikledning)));
-                        }
-                        break;
-                    case PipeType.Kobber:
-                        foreach (var dim in pipeTypes.Cu.GetDimsRange(22, 28))
-                        {
-                            maxFlowTableSL.Add((dim,
-                                CalculateMaxFlow(dim, TempSetType.Supply, SegmentType.Stikledning),
-                                CalculateMaxFlow(dim, TempSetType.Return, SegmentType.Stikledning)));
-                        }
-                        break;
-                    default:
-                        throw new NotImplementedException($"{pipeTypeSL} not Implemented!");
-                }
+                mfc.CalculateMaxFlowTableSL(maxFlowTableSL, CalculateMaxFlow);
 
-                foreach (var dim in pipeTypes.Stål.GetDimsRange(32, 1000))
-                {
-                    maxFlowTableSL.Add((dim,
-                            CalculateMaxFlow(dim, TempSetType.Supply, SegmentType.Stikledning),
-                            CalculateMaxFlow(dim, TempSetType.Return, SegmentType.Stikledning)));
-                }
+                //switch (pipeTypeSL)
+                //{
+                //    case PipeType.Stål:
+                //        throw new Exception("Stål-stikledninger er ikke tilladt!");
+                //    case PipeType.PertFlextra:
+                //        foreach (var dim in pipeTypes.PertFlextra.GetDimsRange(25, 75))
+                //        {
+                //            maxFlowTableSL.Add((dim,
+                //                CalculateMaxFlow(dim, TempSetType.Supply, SegmentType.Stikledning),
+                //                CalculateMaxFlow(dim, TempSetType.Return, SegmentType.Stikledning)));
+                //        }
+                //        break;
+                //    case PipeType.AluPEX:
+                //        foreach (var dim in pipeTypes.AluPex.GetDimsRange(26, 32))
+                //        {
+                //            maxFlowTableSL.Add((dim,
+                //                CalculateMaxFlow(dim, TempSetType.Supply, SegmentType.Stikledning),
+                //                CalculateMaxFlow(dim, TempSetType.Return, SegmentType.Stikledning)));
+                //        }
+                //        break;
+                //    case PipeType.Kobber:
+                //        foreach (var dim in pipeTypes.Cu.GetDimsRange(22, 28))
+                //        {
+                //            maxFlowTableSL.Add((dim,
+                //                CalculateMaxFlow(dim, TempSetType.Supply, SegmentType.Stikledning),
+                //                CalculateMaxFlow(dim, TempSetType.Return, SegmentType.Stikledning)));
+                //        }
+                //        break;
+                //    default:
+                //        throw new NotImplementedException($"{pipeTypeSL} not Implemented!");
+                //}
+
+                //foreach (var dim in pipeTypes.Stål.GetDimsRange(32, 1000))
+                //{
+                //    maxFlowTableSL.Add((dim,
+                //            CalculateMaxFlow(dim, TempSetType.Supply, SegmentType.Stikledning),
+                //            CalculateMaxFlow(dim, TempSetType.Return, SegmentType.Stikledning)));
+                //}
             }
             #endregion
 
@@ -566,7 +574,7 @@ namespace NorsynHydraulicCalc
             }
 
 
-                sw.Restart();
+            sw.Restart();
 
             double s_heat = (double)N1(st) / (double)N50 + (1.0 - (double)N1(st) / (double)N50) / (double)numberOfBuildings;
             double s_hw = (51.0 - (double)numberOfUnits) / (50.0 * Math.Sqrt((double)numberOfUnits));
@@ -669,8 +677,8 @@ namespace NorsynHydraulicCalc
             }
             else
             {
-                resSupply =
-                CalculateGradientAndVelocity(flowSupply, dim, TempSetType.Supply, st);
+                resSupply = 
+                    CalculateGradientAndVelocity(flowSupply, dim, TempSetType.Supply, st);
                 resReturn =
                     CalculateGradientAndVelocity(flowReturn, dim, TempSetType.Return, st);
             }
