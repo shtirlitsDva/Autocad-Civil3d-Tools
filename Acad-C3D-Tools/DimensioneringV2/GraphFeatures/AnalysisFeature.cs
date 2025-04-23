@@ -47,7 +47,54 @@ namespace DimensioneringV2.GraphFeatures
             {
                 this[attribute.Key] = attribute.Value;
             }
-        }        
+        }
+        #endregion
+
+        #region Properties to attributes mapper, indexer
+        private static Dictionary<MapPropertyEnum, string>? _propertyKeyLookup;
+        private static Dictionary<MapPropertyEnum, string> PropertyKeyLookup =>
+            _propertyKeyLookup ??= typeof(AnalysisFeature)
+                .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .Select(prop => (prop, attr: prop.GetCustomAttribute<MapPropertyAttribute>()))
+                .Where(x => x.attr != null)
+                .ToDictionary(
+                    x => x.attr!.Property,
+                    x => x.prop.Name
+                );
+        public object? this[MapPropertyEnum property]
+        {
+            get
+            {
+                if (!PropertyKeyLookup.TryGetValue(property, out var key))
+                    throw new KeyNotFoundException($"Property enum '{property}' not found in lookup.");
+                return this[key];
+            }
+            set
+            {
+                if (!PropertyKeyLookup.TryGetValue(property, out var key))
+                    throw new KeyNotFoundException($"Property enum '{property}' not found in lookup.");
+                this[key] = value!;
+            }
+            }
+            public T GetAttributeValue<T>(MapPropertyEnum property)
+        {
+            var val = this[property];
+            if (val is T tVal) return tVal;
+            if (val == null) return default!;
+            return (T)Convert.ChangeType(val, typeof(T));
+        }
+
+        public void SetAttributeValue<T>(MapPropertyEnum property, T value)
+        {
+            this[property] = value!;
+        }
+
+        public static string GetAttributeName(MapPropertyEnum property)
+        {
+            if (!PropertyKeyLookup.TryGetValue(property, out var key))
+                throw new KeyNotFoundException($"Property enum '{property}' not found in lookup.");
+            return key;
+        }
         #endregion
 
         #region Calculation properties
@@ -108,8 +155,8 @@ namespace DimensioneringV2.GraphFeatures
         [MapPropertyAttribute(MapPropertyEnum.Bygninger)]
         public int NumberOfBuildingsSupplied
         {
-            get => this["NumberOfBuildingsSupplied"] as int? ?? 0;
-            set => this["NumberOfBuildingsSupplied"] = value;
+            get => GetAttributeValue<int>(MapPropertyEnum.Bygninger);
+            set => SetAttributeValue(MapPropertyEnum.Bygninger, value);
         }
 
         /// <summary>
@@ -118,8 +165,8 @@ namespace DimensioneringV2.GraphFeatures
         [MapPropertyAttribute(MapPropertyEnum.Units)]
         public int NumberOfUnitsSupplied
         {
-            get => this["NumberOfUnitsSupplied"] as int? ?? 0;
-            set => this["NumberOfUnitsSupplied"] = value;
+            get => GetAttributeValue<int>(MapPropertyEnum.Units);
+            set => SetAttributeValue(MapPropertyEnum.Units, value);
         }
 
         /// <summary>
@@ -128,8 +175,8 @@ namespace DimensioneringV2.GraphFeatures
         [MapPropertyAttribute(MapPropertyEnum.HeatingDemand)]
         public double HeatingDemandSupplied
         {
-            get => this["HeatingDemandSupplied"] as double? ?? 0;
-            set => this["HeatingDemandSupplied"] = value;
+            get => GetAttributeValue<double>(MapPropertyEnum.HeatingDemand);
+            set => SetAttributeValue(MapPropertyEnum.HeatingDemand, value);
         }
 
         /// <summary>
@@ -138,8 +185,8 @@ namespace DimensioneringV2.GraphFeatures
         [MapPropertyAttribute(MapPropertyEnum.Pipe)]
         public Dim PipeDim
         {
-            get => this["PipeDim"] is Dim d ? d : Dim.NA;
-            set => this["PipeDim"] = value;
+            get => GetAttributeValue<Dim>(MapPropertyEnum.Pipe);
+            set => SetAttributeValue(MapPropertyEnum.Pipe, value);
         }
 
         /// <summary>
@@ -166,8 +213,8 @@ namespace DimensioneringV2.GraphFeatures
         [MapPropertyAttribute(MapPropertyEnum.FlowSupply)]
         public double FlowSupply
         {
-            get => this["FlowSupply"] as double? ?? 0;
-            set => this["FlowSupply"] = value;
+            get => GetAttributeValue<double>(MapPropertyEnum.FlowSupply);
+            set => SetAttributeValue(MapPropertyEnum.FlowSupply, value);
         }
 
         /// <summary>
@@ -176,8 +223,8 @@ namespace DimensioneringV2.GraphFeatures
         [MapPropertyAttribute(MapPropertyEnum.FlowReturn)]
         public double FlowReturn
         {
-            get => this["FlowReturn"] as double? ?? 0;
-            set => this["FlowReturn"] = value;
+            get => GetAttributeValue<double>(MapPropertyEnum.FlowReturn);
+            set => SetAttributeValue(MapPropertyEnum.FlowReturn, value);
         }
 
         /// <summary>
@@ -186,8 +233,8 @@ namespace DimensioneringV2.GraphFeatures
         [MapPropertyAttribute(MapPropertyEnum.PressureGradientSupply)]
         public double PressureGradientSupply
         {
-            get => this["PressureGradientSupply"] as double? ?? 0;
-            set => this["PressureGradientSupply"] = value;
+            get => GetAttributeValue<double>(MapPropertyEnum.PressureGradientSupply);
+            set => SetAttributeValue(MapPropertyEnum.PressureGradientSupply, value);
         }
 
         /// <summary>
@@ -196,8 +243,8 @@ namespace DimensioneringV2.GraphFeatures
         [MapPropertyAttribute(MapPropertyEnum.PressureGradientReturn)]
         public double PressureGradientReturn
         {
-            get => this["PressureGradientReturn"] as double? ?? 0;
-            set => this["PressureGradientReturn"] = value;
+            get => GetAttributeValue<double>(MapPropertyEnum.PressureGradientReturn);
+            set => SetAttributeValue(MapPropertyEnum.PressureGradientReturn, value);
         }
 
         /// <summary>
@@ -206,8 +253,8 @@ namespace DimensioneringV2.GraphFeatures
         [MapPropertyAttribute(MapPropertyEnum.VelocitySupply)]
         public double VelocitySupply
         {
-            get => this["VelocitySupply"] as double? ?? 0;
-            set => this["VelocitySupply"] = value;
+            get => GetAttributeValue<double>(MapPropertyEnum.VelocitySupply);
+            set => SetAttributeValue(MapPropertyEnum.VelocitySupply, value);
         }
 
         /// <summary>
@@ -216,8 +263,8 @@ namespace DimensioneringV2.GraphFeatures
         [MapPropertyAttribute(MapPropertyEnum.VelocityReturn)]
         public double VelocityReturn
         {
-            get => this["VelocityReturn"] as double? ?? 0;
-            set => this["VelocityReturn"] = value;
+            get => GetAttributeValue<double>(MapPropertyEnum.VelocityReturn);
+            set => SetAttributeValue(MapPropertyEnum.VelocityReturn, value);
         }
 
         /// <summary>
@@ -226,8 +273,8 @@ namespace DimensioneringV2.GraphFeatures
         [MapPropertyAttribute(MapPropertyEnum.UtilizationRate)]
         public double UtilizationRate
         {
-            get => this["UtilizationRate"] as double? ?? 0;
-            set => this["UtilizationRate"] = value;
+            get => GetAttributeValue<double>(MapPropertyEnum.UtilizationRate);
+            set => SetAttributeValue(MapPropertyEnum.UtilizationRate, value);
         }
 
         /// <summary>
@@ -236,8 +283,8 @@ namespace DimensioneringV2.GraphFeatures
         [MapProperty(MapPropertyEnum.Bridge)]
         public bool IsBridge
         {
-            get => this["IsBridge"] is bool value ? value : false;
-            set => this["IsBridge"] = value;
+            get => GetAttributeValue<bool>(MapPropertyEnum.Bridge);
+            set => SetAttributeValue(MapPropertyEnum.Bridge, value);
         }
 
         /// <summary>
@@ -246,8 +293,8 @@ namespace DimensioneringV2.GraphFeatures
         [MapProperty(MapPropertyEnum.SubGraphId)]
         public int SubGraphId
         {
-            get => this["SubGraphId"] as int? ?? -1;
-            set => this["SubGraphId"] = value;
+            get => GetAttributeValue<int>(MapPropertyEnum.SubGraphId);
+            set => SetAttributeValue(MapPropertyEnum.SubGraphId, value);
         }
 
         /// <summary>
@@ -268,8 +315,8 @@ namespace DimensioneringV2.GraphFeatures
         [MapProperty(MapPropertyEnum.CriticalPath)]
         public bool IsCriticalPath
         {
-            get => this["IsCriticalPath"] is bool value ? value : false;
-            set => this["IsCriticalPath"] = value;
+            get => GetAttributeValue<bool>(MapPropertyEnum.CriticalPath);
+            set => SetAttributeValue(MapPropertyEnum.CriticalPath, value);
         }
 
         public void ResetHydraulicResults()
@@ -325,23 +372,12 @@ namespace DimensioneringV2.GraphFeatures
         //But right now it is to support creation of FeatureCollection
         //to be able to serialize it to GeoJSON directly without translating
         public Envelope BoundingBox { get => this.Geometry!.EnvelopeInternal; set => throw new NotImplementedException(); }
-        public IAttributesTable Attributes 
+        private AttributesTable _attributesTable;
+        public IAttributesTable Attributes
         { 
-            get => new AttributesTable(this.Fields.ToDictionary(f => f, f => this[f])); 
+            get => _attributesTable ??= new AttributesTable(this.Fields.ToDictionary(f => f, f => this[f])); 
             set => throw new NotImplementedException(); 
-        }
-        //private AttributesTable _attributes
-        //{
-        //    get
-        //    {
-        //        AttributesTable table = new();
-        //        foreach (string field in this.Fields)
-        //        {
-        //            table.Add(field, this[field]);
-        //        }
-        //        return table;
-        //    }
-        //}
+        }        
         #endregion
     }
 }
