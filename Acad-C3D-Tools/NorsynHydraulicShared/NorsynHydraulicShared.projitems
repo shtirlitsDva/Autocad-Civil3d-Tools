@@ -27,6 +27,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)LookupData\LookupDataFactory.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)LookupData\LookupDataWater.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)LookupData\LookupDataWater72Ipa28.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)MaxFlowCalc\IMaxFlowCalc.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Pipes\Dim.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Pipes\IPipe.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Pipes\PipeAluPex.cs" />
