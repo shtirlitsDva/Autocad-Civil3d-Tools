@@ -21,11 +21,12 @@ namespace DimensioneringV2.Services.SubGraphs
         internal static void Calculate(
             UndirectedGraph<NodeJunction, EdgePipeSegment> graph)
         {
-            var rootNode = graph.Vertices.First(v => v.IsRootNode);
-            var clientNodes = graph.Vertices.Where(v => v.IsBuildingNode);
+            var cGraph = graph.CopyToBFConditional(e => e.PipeSegment.NumberOfBuildingsSupplied > 0);
+            foreach (var edge in cGraph.Edges) edge.YankAllResults();
+            var rootNode = cGraph.Vertices.First(v => v.IsRootNode);
+            var clientNodes = cGraph.Vertices.Where(v => v.IsBuildingNode);
 
-            var tryGetPaths = graph.ShortestPathsDijkstra(
-                edge => edge.PipeSegment.Length, rootNode);
+            var tryGetPaths = cGraph.ShortestPathsDijkstra(edge => edge.Length, rootNode);
 
             //NetTopologySuite.Features.FeatureCollection fc = 
             //    new NetTopologySuite.Features.FeatureCollection(
@@ -40,15 +41,15 @@ namespace DimensioneringV2.Services.SubGraphs
             //ExportGraphToDot.Export(graph);
 
             List<(
-                NodeJunction client,
-                EdgePipeSegment stik,
-                IEnumerable<EdgePipeSegment> path)> paths = new();
+                BFNode client,
+                BFEdge stik,
+                IEnumerable<BFEdge> path)> paths = new();
 
             foreach (var client in clientNodes)
             {
-                if (tryGetPaths(client, out IEnumerable<EdgePipeSegment>? path))
+                if (tryGetPaths(client, out IEnumerable<BFEdge>? path))
                 {
-                    var edges = graph.AdjacentEdges(client);
+                    var edges = cGraph.AdjacentEdges(client);
                     if (edges.Count() > 1)
                         throw new Exception(
                             $"Client node {client.Location} has more than one adjacent edge!");
@@ -59,20 +60,22 @@ namespace DimensioneringV2.Services.SubGraphs
 
             foreach (var path in paths)
             {
-                path.stik.PipeSegment.PressureLossAtClient =
+                path.stik.PressureLossAtClient =
                     path.path.Sum(e =>
-                    (e.PipeSegment.PressureGradientReturn +
-                    e.PipeSegment.PressureGradientSupply) *
-                    e.PipeSegment.Length) / 100000 + 
+                    (e.PressureGradientReturn +
+                    e.PressureGradientSupply) *
+                    e.Length) / 100000 + 
                     HydraulicSettingsService.Instance.Settings
                     .MinDifferentialPressureOverHovedHaner;
             }
 
-            var criticalPath = paths.MaxBy(p => p.stik.PipeSegment.PressureLossAtClient);
+            var criticalPath = paths.MaxBy(p => p.stik.PressureLossAtClient);
 
             foreach (var edge in criticalPath.path)
             {
-                edge.PipeSegment.IsCriticalPath = true;
+                edge.IsCriticalPath = true;
+                edge.OriginalEdge.PipeSegment.IsCriticalPath = true;
+                edge.OriginalEdge.PipeSegment.PressureLossAtClient = edge.PressureLossAtClient;
             }
         }
     }

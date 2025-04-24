@@ -108,6 +108,31 @@ namespace DimensioneringV2
 
             return bfGraph;
         }
+        public static UndirectedGraph<BFNode, BFEdge> CopyToBFConditional(
+            this UndirectedGraph<NodeJunction, EdgePipeSegment> graph,
+            Predicate<EdgePipeSegment> predicate)
+        {
+            var bfGraph = new UndirectedGraph<BFNode, BFEdge>();
+
+            var nodeMap = new Dictionary<NodeJunction, BFNode>();
+
+            // Copy nodes
+            foreach (NodeJunction node in graph.Vertices)
+            {
+                var bfNode = new BFNode(node);
+                nodeMap[node] = bfNode;
+                bfGraph.AddVertex(bfNode);
+            }
+
+            // Copy edges
+            foreach (EdgePipeSegment edge in graph.Edges.Where(x => predicate(x)))
+            {
+                var bfEdge = new BFEdge(nodeMap[edge.Source], nodeMap[edge.Target], edge);
+                bfGraph.AddEdge(bfEdge);
+            }
+
+            return bfGraph;
+        }
         public static UndirectedGraph<BFNode, BFEdge> CopyWithNewVerticesAndEdges(this UndirectedGraph<BFNode, BFEdge> graph)
         {
             var bfGraph = new UndirectedGraph<BFNode, BFEdge>();

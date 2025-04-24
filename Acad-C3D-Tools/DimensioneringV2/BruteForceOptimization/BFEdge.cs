@@ -39,10 +39,11 @@ namespace DimensioneringV2.BruteForceOptimization
         public double FlowReturn { get; set; }
         public double PressureGradientSupply { get; set; }
         public double PressureGradientReturn { get; set; }
+        public double PressureLossAtClient { get; set; } // Pressure loss at the client
+        public bool IsCriticalPath { get; set; } = false;
         public double VelocitySupply { get; set; }
         public double VelocityReturn { get; set; }
-        public double UtilizationRate { get; set; }
-        public int Level { get; set; } // Level in the network hierarchy
+        public double UtilizationRate { get; set; }        
         public EdgePipeSegment OriginalEdge { get; }
         public int NonBridgeChromosomeIndex { get; internal set; } = -1;
         public BFEdge([NotNull] BFNode source, [NotNull] BFNode target, EdgePipeSegment edge) : base(source, target)
@@ -67,9 +68,11 @@ namespace DimensioneringV2.BruteForceOptimization
             OriginalEdge.PipeSegment.FlowReturn = FlowReturn;
             OriginalEdge.PipeSegment.PressureGradientSupply = PressureGradientSupply;
             OriginalEdge.PipeSegment.PressureGradientReturn = PressureGradientReturn;
+            OriginalEdge.PipeSegment.PressureLossAtClient = PressureLossAtClient;
+            OriginalEdge.PipeSegment.IsCriticalPath = IsCriticalPath;
             OriginalEdge.PipeSegment.VelocitySupply = VelocitySupply;
             OriginalEdge.PipeSegment.VelocityReturn = VelocityReturn;
-            OriginalEdge.PipeSegment.UtilizationRate = UtilizationRate;
+            OriginalEdge.PipeSegment.UtilizationRate = UtilizationRate;            
         }
 
         internal void SyncBaseSums(BFEdge edge)
@@ -81,5 +84,25 @@ namespace DimensioneringV2.BruteForceOptimization
 
         public override string ToString() =>
             $"BFEdge(Id={Id}, {Source.Id}--{Target.Id})";
+
+        internal void YankAllResults()
+        {
+            //Yank all results from the original edge
+            NumberOfBuildingsSupplied = OriginalEdge.PipeSegment.NumberOfBuildingsSupplied;
+            NumberOfUnitsSupplied = OriginalEdge.PipeSegment.NumberOfUnitsSupplied;
+            HeatingDemandSupplied = OriginalEdge.PipeSegment.HeatingDemandSupplied;
+            PipeDim = OriginalEdge.PipeSegment.PipeDim;
+            ReynoldsSupply = OriginalEdge.PipeSegment.ReynoldsSupply;
+            ReynoldsReturn = OriginalEdge.PipeSegment.ReynoldsReturn;
+            FlowSupply = OriginalEdge.PipeSegment.FlowSupply;
+            FlowReturn = OriginalEdge.PipeSegment.FlowReturn;
+            PressureGradientSupply = OriginalEdge.PipeSegment.PressureGradientSupply;
+            PressureGradientReturn = OriginalEdge.PipeSegment.PressureGradientReturn;
+            PressureLossAtClient = OriginalEdge.PipeSegment.PressureLossAtClient;
+            IsCriticalPath = OriginalEdge.PipeSegment.IsCriticalPath;
+            VelocitySupply = OriginalEdge.PipeSegment.VelocitySupply;
+            VelocityReturn = OriginalEdge.PipeSegment.VelocityReturn;
+            UtilizationRate = OriginalEdge.PipeSegment.UtilizationRate;
+        }
     }
 }

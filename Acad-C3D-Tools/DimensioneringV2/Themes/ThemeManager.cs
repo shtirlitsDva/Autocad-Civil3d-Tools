@@ -1,15 +1,13 @@
-﻿using DimensioneringV2.MapStyles;
-using DimensioneringV2.UI;
+﻿using DimensioneringV2.UI;
+using DimensioneringV2.GraphFeatures;
 using Mapsui.Styles.Thematics;
 using Mapsui.Styles;
-using NetTopologySuite.Features;
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using DimensioneringV2.GraphFeatures;
 
 namespace DimensioneringV2.Themes
 {
@@ -21,6 +19,24 @@ namespace DimensioneringV2.Themes
         public ThemeManager(IEnumerable<AnalysisFeature> allFeatures)
         {
             _allFeatures = allFeatures;
+            RegisterCategoryThemes();
+        }
+
+        private readonly Dictionary<MapPropertyEnum, Func<IStyle>> _categoryThemeBuilders = new();
+
+        private void RegisterCategoryThemes()
+        {
+            _categoryThemeBuilders[MapPropertyEnum.SubGraphId] =
+                () => BuildCategoryTheme(MapPropertyEnum.SubGraphId, f => f.SubGraphId);
+
+            _categoryThemeBuilders[MapPropertyEnum.CriticalPath] =
+                () => BuildCategoryTheme(MapPropertyEnum.CriticalPath, f => f.IsCriticalPath);
+
+            _categoryThemeBuilders[MapPropertyEnum.Bridge] =
+                () => BuildCategoryTheme(MapPropertyEnum.Bridge, f => f.IsBridge);
+
+            _categoryThemeBuilders[MapPropertyEnum.Pipe] =
+                () => BuildCategoryTheme(MapPropertyEnum.Pipe, f => f.PipeDim.DimName);
         }
 
         public void SetTheme(MapPropertyEnum property)
@@ -35,22 +51,21 @@ namespace DimensioneringV2.Themes
                 case MapPropertyEnum.VelocityReturn:
                 case MapPropertyEnum.UtilizationRate:
                 case MapPropertyEnum.HeatingDemand:
+                case MapPropertyEnum.Bygninger:
+                case MapPropertyEnum.Units:
                     CurrentTheme = BuildGradientTheme(property);
                     break;
 
-                case MapPropertyEnum.Bygninger:
-                case MapPropertyEnum.Units:
                 case MapPropertyEnum.SubGraphId:
-                    CurrentTheme = BuildCategoryTheme(property);
-                    break;
-
+                case MapPropertyEnum.CriticalPath:
+                case MapPropertyEnum.Bridge:
                 case MapPropertyEnum.Pipe:
-                    CurrentTheme = BuildCategoryTheme("PipeDim");  // e.g. if your feature has "PipeSize"
+                    CurrentTheme = _categoryThemeBuilders[property]();
                     break;
 
                 // Fallback or default
                 default:
-                    CurrentTheme = new StyleDefault();
+                    CurrentTheme = new DefaultTheme();
                     break;
             }
         }
@@ -63,7 +78,7 @@ namespace DimensioneringV2.Themes
                 .Where(v => !double.IsNaN(v))
                 .ToList();
 
-            if (!values.Any()) return new StyleDefault();
+            if (!values.Any()) return new DefaultTheme();
 
             double min = values.Min();
             double max = values.Max();
@@ -72,37 +87,48 @@ namespace DimensioneringV2.Themes
                 columnName: AnalysisFeature.GetAttributeName(prop),
                 minValue: min,
                 maxValue: max,
-                minStyle: new VectorStyle { Line = new Pen(Color.Green, 1) },
-                maxStyle: new VectorStyle { Line = new Pen(Color.Red, 4) }
+                minStyle: new VectorStyle { Line = new Pen(Color.Green, 2) },
+                maxStyle: new VectorStyle { Line = new Pen(Color.Red, 8) }
             );
 
             theme.LineColorBlend = ColorBlend.Rainbow5;
-
             return theme;
         }
 
-        private IStyle BuildCategoryTheme(MapPropertyEnum prop)
+        private IStyle BuildCategoryTheme<T>(
+            MapPropertyEnum prop,
+            Func<AnalysisFeature, T>? selector = null)
         {
+            var key = AnalysisFeature.GetAttributeName(prop);
+            selector ??= f => (T)f[prop]!;
+
             // Gather distinct category values
-            var categories = _allFeatures.Select(f => f[prop]).Distinct().ToList();
-            if (categories.Count == 0) return new StyleDefault();
+            var values = _allFeatures
+                .Cast<AnalysisFeature>()
+                .Select(selector)
+                .Distinct()
+                .OrderBy(x => x) // Ensure consistent ordering
+                .ToList();
 
-            // Example color set; add more as needed
-            var colorPool = new[] { Color.Green, Color.Blue, Color.Red, Color.Orange, Color.Purple };
+            if (values.Count == 0) return new DefaultTheme();
 
-            var themeDict = new Dictionary<object, IStyle>();
-            int idx = 0;
-            foreach (var cat in categories)
+            var colorBlend = ColorBlend.Rainbow7;
+            //workaround for the Rainbow7 bug
+            colorBlend.Positions![^1] = 1.0;
+            int count = values.Count;
+            var styles = new Dictionary<T, IStyle>(count);
+
+            for (int i = 0; i < count; i++)
             {
-                var color = colorPool[idx % colorPool.Length];
-                themeDict[cat] = new VectorStyle
+                float pos = count == 1 ? 0.5f : (float)i / (count - 1);
+                var color = colorBlend.GetColor(pos);
+                styles[values[i]] = new VectorStyle
                 {
-                    Line = new Pen(color, 2 + (idx % 3)) // vary the line width a bit
-                };
-                idx++;
+                    Line = new Pen(color, 4)                    
+                };                
             }
 
-            return new CategoryTheme(key) { Themes = themeDict };
+            return new CategoryTheme<T>(selector, styles);
         }
     }
 }

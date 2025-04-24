@@ -54,6 +54,7 @@ using System.Windows;
 using System.Windows.Input;
 using DimensioneringV2.PhysarumAlgorithm;
 using DimensioneringV2.Serialization;
+using DimensioneringV2.Themes;
 
 namespace DimensioneringV2.UI
 {
@@ -84,8 +85,7 @@ namespace DimensioneringV2.UI
 
         partial void OnSelectedMapPropertyWrapperChanged(MapPropertyWrapper value)
         {
-            if (value == null) return;
-            _styleManager = new StyleManager(value.EnumValue);
+            if (value == null) return;            
             UpdateMap();
         }
 
@@ -200,18 +200,19 @@ namespace DimensioneringV2.UI
                         var c = new CalculateMetaGraphRecursively(metaGraph);
                         c.CalculateBaseSumsForMetaGraph(props);
 
-                        //Temporary code to test the calculation of subgraphs
-                        //Test looks like passed
-                        Parallel.ForEach(graph.Edges, edge =>
-                        {
-                            edge.PushBaseSums();
-                        });
+                        ////Temporary code to test the calculation of subgraphs
+                        ////Test looks like passed
+                        //Parallel.ForEach(graph.Edges, edge =>
+                        //{
+                        //    edge.PushBaseSums();
+                        //});
 
                         Parallel.ForEach(subGraphs, (subGraph, state, index) =>
                         {
                             var terminals = metaGraph.GetTerminalsForSubgraph(subGraph);
 
                             var nonbridges = FindBridges.FindNonBridges(subGraph);
+                            foreach (var edge in FindBridges.DoFindThem(subGraph)) edge.OriginalEdge.PipeSegment.IsBridge = true;
 
                             Utils.prtDbg($"Idx: {index} N: {subGraph.VertexCount} E: {subGraph.EdgeCount}");
 
@@ -478,7 +479,7 @@ namespace DimensioneringV2.UI
             new RelayCommand(ToggleLabelStyles, () => true);
         private void ToggleLabelStyles()
         {
-            _styleManager.Switch();
+            //_styleManager.Switch();
             UpdateMap();
         }
         #endregion
@@ -575,14 +576,14 @@ namespace DimensioneringV2.UI
                     //Reset the results
                     foreach (var f in graphs.SelectMany(g => g.Edges.Select(e => e.PipeSegment))) f.ResetHydraulicResults();
 
-                    HashSet<string> dims = new HashSet<string>();
-                    foreach (var graph in graphs)
-                    {
-                        foreach (var edge in graph.Edges)
-                        {
-                            dims.Add(edge.PipeSegment.PipeDim.ToString());
-                        }
-                    }
+                    //HashSet<string> dims = new HashSet<string>();
+                    //foreach (var graph in graphs)
+                    //{
+                    //    foreach (var edge in graph.Edges)
+                    //    {
+                    //        dims.Add(edge.PipeSegment.PipeDim.ToString());
+                    //    }
+                    //}
 
                     foreach (UndirectedGraph<NodeJunction, EdgePipeSegment> originalGraph in graphs)
                     {
@@ -618,6 +619,7 @@ namespace DimensioneringV2.UI
                             var rootNode = metaGraph.GetRootForSubgraph(subGraph);
 
                             var nonbridges = FindBridges.FindNonBridges(subGraph);
+                            foreach (var edge in FindBridges.DoFindThem(subGraph)) edge.OriginalEdge.PipeSegment.IsBridge = true;
 
                             Utils.prtDbg($"Idx: {index} N: {subGraph.VertexCount} E: {subGraph.EdgeCount} " +
                                 $"NB: {nonbridges.Count}");
@@ -1083,7 +1085,7 @@ namespace DimensioneringV2.UI
         [ObservableProperty]
         private Map _mymap = new() { CRS = "EPSG:3857" };
 
-        private StyleManager _styleManager;
+        private ThemeManager _themeManager;
 
         public ObservableCollection<IFeature> Features { get; private set; }
 
@@ -1094,7 +1096,7 @@ namespace DimensioneringV2.UI
             // Update observable collections
             Features = new(_dataService!.Features.SelectMany(x => x));
 
-            _styleManager = new StyleManager(MapPropertyEnum.Basic);
+            _themeManager = new ThemeManager(_dataService.Features.SelectMany(x => x));
             CreateMapFirstTime();
         }
 
@@ -1112,8 +1114,8 @@ namespace DimensioneringV2.UI
         {
             if (Mymap == null) return;
 
-            _styleManager.CurrentStyle.ApplyStyle(Features);
-
+            _themeManager.SetTheme(MapPropertyEnum.Default);
+            
             var provider = new MemoryProvider(Features)
             {
                 CRS = "EPSG:3857"
@@ -1123,8 +1125,9 @@ namespace DimensioneringV2.UI
             {
                 DataSource = provider,
                 Name = "Features",
-                IsMapInfoLayer = true
-            };
+                IsMapInfoLayer = true,
+                Style = _themeManager.CurrentTheme
+            };            
 
             var extent = layer.Extent!.Grow(100);
 
@@ -1167,7 +1170,7 @@ namespace DimensioneringV2.UI
         {
             if (Mymap == null) return;
 
-            _styleManager.CurrentStyle.ApplyStyle(Features);
+            _themeManager.SetTheme(SelectedMapPropertyWrapper.EnumValue);
 
             var provider = new MemoryProvider(Features)
             {
@@ -1175,10 +1178,11 @@ namespace DimensioneringV2.UI
             };
 
             Layer layer = new Layer
-            {
+            { 
                 DataSource = provider,
                 Name = "Features",
-                IsMapInfoLayer = true
+                IsMapInfoLayer = true,
+                Style = _themeManager.CurrentTheme
             };
 
             var exLayer = Mymap.Layers.FirstOrDefault(x => x.Name == "Features");
