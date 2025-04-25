@@ -15,6 +15,9 @@ namespace DimensioneringV2.Themes
     {
         private readonly IEnumerable<AnalysisFeature> _allFeatures;
         public IStyle? CurrentTheme { get; private set; }
+        private ColorBlend _cb = GetColorBlend(
+            [Color.Blue, Color.Yellow, Color.Red]
+        );
 
         public ThemeManager(IEnumerable<AnalysisFeature> allFeatures)
         {
@@ -27,16 +30,20 @@ namespace DimensioneringV2.Themes
         private void RegisterCategoryThemes()
         {
             _categoryThemeBuilders[MapPropertyEnum.SubGraphId] =
-                () => BuildCategoryTheme(MapPropertyEnum.SubGraphId, f => f.SubGraphId);
+                () => BuildCategoryTheme(
+                    MapPropertyEnum.SubGraphId, f => f.SubGraphId, []);
 
             _categoryThemeBuilders[MapPropertyEnum.CriticalPath] =
-                () => BuildCategoryTheme(MapPropertyEnum.CriticalPath, f => f.IsCriticalPath);
+                () => BuildCategoryTheme(
+                    MapPropertyEnum.CriticalPath, f => f.IsCriticalPath, [false]);
 
             _categoryThemeBuilders[MapPropertyEnum.Bridge] =
-                () => BuildCategoryTheme(MapPropertyEnum.Bridge, f => f.IsBridge);
+                () => BuildCategoryTheme(
+                    MapPropertyEnum.Bridge, f => f.IsBridge, [true]);
 
             _categoryThemeBuilders[MapPropertyEnum.Pipe] =
-                () => BuildCategoryTheme(MapPropertyEnum.Pipe, f => f.PipeDim.DimName);
+                () => BuildCategoryTheme(
+                    MapPropertyEnum.Pipe, f => f.PipeDim.DimName, ["NA 000"]);
         }
 
         public void SetTheme(MapPropertyEnum property)
@@ -80,55 +87,67 @@ namespace DimensioneringV2.Themes
 
             if (!values.Any()) return new DefaultTheme();
 
+            //Handle zero values, the idea is that Min is larger than zero
+            //If a zero value is passed to the Theme, it returns basic style            
             double min = values.Min();
+            if (min == 0.0) { values.Remove(min); min = values.Min(); }
+
             double max = values.Max();
 
-            var theme = new GradientTheme(
+            var theme = new GradientWithDefaultTheme(
                 columnName: AnalysisFeature.GetAttributeName(prop),
                 minValue: min,
                 maxValue: max,
-                minStyle: new VectorStyle { Line = new Pen(Color.Green, 2) },
-                maxStyle: new VectorStyle { Line = new Pen(Color.Red, 8) }
-            );
+                minStyle: new VectorStyle { Line = new Pen(Color.Blue, 2) },
+                maxStyle: new VectorStyle { Line = new Pen(Color.Red, 10) }
+            )
+            {
+                LineColorBlend = _cb
+            };
 
-            theme.LineColorBlend = ColorBlend.Rainbow5;
             return theme;
         }
 
         private IStyle BuildCategoryTheme<T>(
             MapPropertyEnum prop,
-            Func<AnalysisFeature, T>? selector = null)
+            Func<AnalysisFeature, T> selector,
+            T[] basicStyleValues)
         {
-            var key = AnalysisFeature.GetAttributeName(prop);
-            selector ??= f => (T)f[prop]!;
-
             // Gather distinct category values
-            var values = _allFeatures
-                .Cast<AnalysisFeature>()
-                .Select(selector)
-                .Distinct()
-                .OrderBy(x => x) // Ensure consistent ordering
-                .ToList();
+            var values = ValueListProvider.GetValues(
+                prop, _allFeatures.Cast<AnalysisFeature>(), selector, basicStyleValues);
 
             if (values.Count == 0) return new DefaultTheme();
 
-            var colorBlend = ColorBlend.Rainbow7;
-            //workaround for the Rainbow7 bug
-            colorBlend.Positions![^1] = 1.0;
+            var colorBlend = _cb;
+
             int count = values.Count;
             var styles = new Dictionary<T, IStyle>(count);
 
+            //Assign basic style to values that we don't want to style
+            foreach (var value in basicStyleValues)
+            {
+                styles[value] = StyleProvider.BasicStyle;
+            }
+
+            //Assign colors to the rest of the values
             for (int i = 0; i < count; i++)
             {
-                float pos = count == 1 ? 0.5f : (float)i / (count - 1);
+                double pos = count == 1 ? 0.5 : (double)i / (count - 1);
                 var color = colorBlend.GetColor(pos);
                 styles[values[i]] = new VectorStyle
                 {
-                    Line = new Pen(color, 4)                    
-                };                
+                    Line = new Pen(color, 4)
+                };
             }
 
             return new CategoryTheme<T>(selector, styles);
+        }
+
+        private static ColorBlend GetColorBlend(Color[] colors)
+        {
+            var positions = Enumerable.Range(0, colors.Length).Select(i => (double)i / (colors.Length - 1)).ToArray();
+            return new ColorBlend(colors, positions);
         }
     }
 }

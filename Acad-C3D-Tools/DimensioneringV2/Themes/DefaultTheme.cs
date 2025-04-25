@@ -21,11 +21,7 @@ namespace DimensioneringV2.Themes
         readonly IStyle _yellow = new VectorStyle
         {
             Line = new Pen(Color.Yellow) { Width = 3 }
-        };
-        readonly IStyle _default = new VectorStyle
-        {
-            Line = new Pen(Color.Black) { Width = 2 }
-        };
+        };        
 
         public DefaultTheme() {}
 
@@ -37,7 +33,7 @@ namespace DimensioneringV2.Themes
             }
             else
             {
-                return _default;
+                return StyleProvider.BasicStyle;
             }
         }
     }
