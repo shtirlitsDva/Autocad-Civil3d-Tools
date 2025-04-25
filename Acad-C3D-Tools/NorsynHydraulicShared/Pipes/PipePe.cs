@@ -11,6 +11,6 @@ namespace NorsynHydraulicCalc.Pipes
         protected override PipeType PipeType => PipeType.Pe;
         protected override string DimName => "PE";
         protected override int OrderingPriority => 1;
-        protected override double PricePerStk => 27990;
+        protected override double PricePerStk => 13000;
     }
 }
