@@ -355,6 +355,7 @@ namespace DimensioneringV2.GraphFeatures
             .GetProperties(System.Reflection.BindingFlags.Public |
                            System.Reflection.BindingFlags.Instance |
                            System.Reflection.BindingFlags.DeclaredOnly)
+            .Where(p => p.GetIndexParameters().Length == 0)
             .OrderBy(p => p.MetadataToken)
             .Where(p => p.Name != "BoundingBox")
             .Where(p => p.Name != "Attributes")

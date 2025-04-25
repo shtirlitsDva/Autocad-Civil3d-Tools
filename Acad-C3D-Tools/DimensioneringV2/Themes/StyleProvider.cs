@@ -12,7 +12,7 @@ namespace DimensioneringV2.Themes
     {
         public static IStyle BasicStyle { get; } = new VectorStyle
         {
-            Line = new Pen(Color.Black) { Width = 3 }
+            Line = new Pen(Color.Black) { Width = 1.5 }
         };
     }    
 }

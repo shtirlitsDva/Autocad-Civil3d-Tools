@@ -88,10 +88,8 @@ namespace DimensioneringV2.Themes
             if (!values.Any()) return new DefaultTheme();
 
             //Handle zero values, the idea is that Min is larger than zero
-            //If a zero value is passed to the Theme, it returns basic style            
-            double min = values.Min();
-            if (min == 0.0) { values.Remove(min); min = values.Min(); }
-
+            //If a zero value is passed to the Theme, it returns basic style
+            double min = values.Where(x => x > 1e-8).Min();            
             double max = values.Max();
 
             var theme = new GradientWithDefaultTheme(
