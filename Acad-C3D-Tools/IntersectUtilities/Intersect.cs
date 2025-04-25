@@ -5066,6 +5066,7 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+
         [CommandMethod("PRINTPIPEVOLUMESUMMARY")]
         public static void PrintPipeVolumeSummaryAllInOne()
         {
@@ -5214,6 +5215,7 @@ namespace IntersectUtilities
                 "TOTAL", totLen, totVol);
             ed.WriteMessage("\n" + totalLine);
         }
+
         /// <command>CREATEVEJMIDTETEXT</command>
         /// <summary>
         /// Creates labels for vejmidte lines.
@@ -5336,6 +5338,46 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
+        }
+
+        [CommandMethod("BBRFROMPTS")]
+        public void bbrfrompts()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            using Transaction tx = localDb.TransactionManager.StartTransaction();
+
+            try
+            {
+                Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+
+                PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.BBR);
+                PSetDefs.BBR bbr = new PSetDefs.BBR();
+
+                var pts = localDb.HashSetOfType<DBPoint>(tx);
+                foreach (var pt in pts)
+                {
+                    var id = ReadIntPropertyValue(
+                        tables, pt.ObjectId, "Leistungsangaben_Oststadt", "FeatId");
+
+                    var last = ReadDoublePropertyValue(
+                        tables, pt.ObjectId, "Leistungsangaben_Oststadt", "LeistungMV");
+
+                    var br = localDb.CreateBlockWithAttributes("Naturgas", pt.Position);
+
+                    psm.WritePropertyString(br, bbr.Adresse, id.ToString());
+                    psm.WritePropertyObject(br, bbr.EstimeretVarmeForbrug, last);
+                }
+            }
+            catch (System.Exception ex)
+            {
+                tx.Abort();
+                prdDbg(ex);
+                return;                
+            }
+
+            tx.Commit();            
         }
     }
 }
