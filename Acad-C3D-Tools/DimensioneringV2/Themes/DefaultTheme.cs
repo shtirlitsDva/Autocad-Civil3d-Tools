@@ -21,7 +21,7 @@ namespace DimensioneringV2.Themes
         };
         readonly IStyle _yellow = new VectorStyle
         {
-            Line = new Pen(Color.Yellow) { Width = 3 }
+            Line = new Pen(Color.) { Width = 3 }
         };
 
         public DefaultTheme() {}
@@ -34,13 +34,13 @@ namespace DimensioneringV2.Themes
                 {
                     Label = "Forsyningsrør",
                     SymbolColor = Color.Red,
-                    SymbolWidth = 3
+                    SymbolLineWidth = 3
                 },
                 new LegendItem
                 {
                     Label = "Stikrør",
                     SymbolColor = Color.Yellow,
-                    SymbolWidth = 3
+                    SymbolLineWidth = 3
                 }
             };
         }

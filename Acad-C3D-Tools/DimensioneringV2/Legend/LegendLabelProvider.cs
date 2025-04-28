@@ -16,7 +16,7 @@ namespace DimensioneringV2.Legend
 
             return property switch
             {
-                MapPropertyEnum.Bridge => (value is bool b && b) ? "Non-bridge edge" : "Bridge edge",
+                MapPropertyEnum.Bridge => (value is bool b && b) ? "Bridge edge" : "Non-bridge edge",
                 MapPropertyEnum.CriticalPath => (value is bool b && b) ? "Kritisk forbruger" : "",
                 MapPropertyEnum.SubGraphId => $"Sub-graph {value}",
                 MapPropertyEnum.Pipe => value.ToString() ?? "Unknown Pipe",

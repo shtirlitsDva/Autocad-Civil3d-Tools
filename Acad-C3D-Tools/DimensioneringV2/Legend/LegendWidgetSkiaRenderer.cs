@@ -29,14 +29,17 @@ namespace DimensioneringV2.Legend
             };
 
             // Calculate background size based on items
-            int itemHeight = 30;
+            int itemHeight = 24;
             int width = 200;
             int height = legendWidget.Items.Count * itemHeight + 10;
 
             canvas.DrawRect(x - 10, y - 10, width, height, backgroundPaint);
 
-            foreach (var item in legendWidget.Items)
+            foreach (LegendItem item in legendWidget.Items)
             {
+                float symbolLineWidth = item.SymbolLineWidth;
+                float centerY = y + itemHeight / 2;
+
                 if (item.SymbolBitmap != null)
                 {
                     canvas.DrawBitmap(item.SymbolBitmap, new SKRect(x, y, x + 20, y + 20));
@@ -44,26 +47,29 @@ namespace DimensioneringV2.Legend
                 else if (item.SymbolColor != null)
                 {
                     var mapsuiColor = item.SymbolColor;
-
-                    using var symbolPaint = new SKPaint
+                    using var linePaint = new SKPaint
                     {
                         Color = new SKColor(
                             (byte)mapsuiColor.R,
-                            (byte)mapsuiColor.G, 
-                            (byte)mapsuiColor.B, 
+                            (byte)mapsuiColor.G,
+                            (byte)mapsuiColor.B,
                             (byte)mapsuiColor.A),
-                        Style = SKPaintStyle.Fill
+                        StrokeWidth = symbolLineWidth,
+                        Style = SKPaintStyle.Stroke,
+                        IsAntialias = true
                     };
-                    canvas.DrawRect(x, y, x + 20, y + 20, symbolPaint);
+
+                    // Draw a horizontal line centered vertically
+                    canvas.DrawLine(x, centerY, x + 30, centerY, linePaint);
                 }
 
                 using var textPaint = new SKPaint
                 {
                     Color = SKColors.Black,
-                    TextSize = 16,
+                    TextSize = 14,
                     IsAntialias = true
                 };
-                canvas.DrawText(item.Label, x + 30, y + 17, textPaint);
+                canvas.DrawText(item.Label, x + 40, y + 6, textPaint);
 
                 y += itemHeight;
             }

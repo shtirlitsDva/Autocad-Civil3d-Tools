@@ -134,7 +134,7 @@ namespace DimensioneringV2.Themes
                 {
                     Label = LegendLabelProvider.GetLabel(prop, value),
                     SymbolColor = Color.Black,
-                    SymbolWidth = 1.5
+                    SymbolLineWidth = 1.5f
                 };
                 legendItems.Add(li);
             }
@@ -153,7 +153,7 @@ namespace DimensioneringV2.Themes
                 {
                     Label = LegendLabelProvider.GetLabel(prop, values[i]),
                     SymbolColor = color,
-                    SymbolWidth = 4
+                    SymbolLineWidth = 4
                 };
                 legendItems.Add(li);
             }            
