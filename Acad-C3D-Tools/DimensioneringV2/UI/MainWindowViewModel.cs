@@ -55,6 +55,8 @@ using System.Windows.Input;
 using DimensioneringV2.PhysarumAlgorithm;
 using DimensioneringV2.Serialization;
 using DimensioneringV2.Themes;
+using DimensioneringV2.Legend;
+using Mapsui.Styles.Thematics;
 
 namespace DimensioneringV2.UI
 {
@@ -1084,6 +1086,11 @@ namespace DimensioneringV2.UI
 
         [ObservableProperty]
         private Map _mymap = new() { CRS = "EPSG:3857" };
+        private MapControl _mapControl;
+        internal void SetMapControl(MapControl mapControl)
+        {
+            _mapControl = mapControl;
+        }
 
         private ThemeManager _themeManager;
 
@@ -1165,6 +1172,14 @@ namespace DimensioneringV2.UI
             Mymap.Layers.Add(layer);
 
             Mymap.Navigator.ZoomToBox(extent);
+
+            //Legends
+            _legendWidget = new LegendWidget() 
+            {
+                Items = ((ILegendItemProvider)_themeManager.CurrentTheme!).GetLegendItems().ToList()
+            };
+            Mymap.Widgets.Enqueue(_legendWidget);
+            _mapControl.Renderer.WidgetRenders[typeof(LegendWidget)] = new LegendWidgetSkiaRenderer();
         }
         private void UpdateMap()
         {
@@ -1192,6 +1207,16 @@ namespace DimensioneringV2.UI
             }
 
             Mymap.Layers.Add(layer);
+
+            if (_legendWidget != null)
+            {
+                var lip = _themeManager.CurrentTheme as ILegendItemProvider;
+                if (lip != null)
+                {
+                    _legendWidget.Items = lip.GetLegendItems().ToList();
+                    Mymap.RefreshData();
+                }
+            }
         }
 
         #region Popup setup
@@ -1249,5 +1274,21 @@ namespace DimensioneringV2.UI
                 Description = description;
             }
         }
+
+        #region Legend
+        [ObservableProperty]
+        private bool isLegendVisible;
+        private LegendWidget? _legendWidget;
+        partial void OnIsLegendVisibleChanged(bool value)
+        {
+            UpdateLegendVisibility();
+        }
+        private void UpdateLegendVisibility()
+        {
+            if (_legendWidget == null) return;
+            _legendWidget.Enabled = IsLegendVisible;
+            _mymap.RefreshData();
+        }        
+        #endregion
     }
 }

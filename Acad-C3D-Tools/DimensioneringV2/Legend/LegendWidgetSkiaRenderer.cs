@@ -41,11 +41,17 @@ namespace DimensioneringV2.Legend
                 {
                     canvas.DrawBitmap(item.SymbolBitmap, new SKRect(x, y, x + 20, y + 20));
                 }
-                else if (item.SymbolColor.HasValue)
+                else if (item.SymbolColor != null)
                 {
+                    var mapsuiColor = item.SymbolColor;
+
                     using var symbolPaint = new SKPaint
                     {
-                        Color = item.SymbolColor.Value.ToSkia(),
+                        Color = new SKColor(
+                            (byte)mapsuiColor.R,
+                            (byte)mapsuiColor.G, 
+                            (byte)mapsuiColor.B, 
+                            (byte)mapsuiColor.A),
                         Style = SKPaintStyle.Fill
                     };
                     canvas.DrawRect(x, y, x + 20, y + 20, symbolPaint);

@@ -14,5 +14,6 @@ namespace DimensioneringV2.Legend
         public string Label { get; set; } = string.Empty;
         public SKBitmap? SymbolBitmap { get; set; }
         public Color? SymbolColor { get; set; }
+        public double SymbolWidth { get; set; }
     }
 }

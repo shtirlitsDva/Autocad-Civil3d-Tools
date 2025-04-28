@@ -22,6 +22,7 @@ namespace DimensioneringV2.Legend
 
         public bool HandleWidgetTouched(Navigator navigator, MPoint position)
         {
+            navigator.CenterOn(0, 0);
             // We don't need touch handling for now
             return false;
         }

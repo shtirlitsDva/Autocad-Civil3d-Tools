@@ -1,4 +1,5 @@
 ﻿using DimensioneringV2.GraphFeatures;
+using DimensioneringV2.Legend;
 
 using Mapsui;
 using Mapsui.Styles;
@@ -12,7 +13,7 @@ using System.Threading.Tasks;
 
 namespace DimensioneringV2.Themes
 {
-    class DefaultTheme : StyleBase, IThemeStyle, IStyle    
+    class DefaultTheme : StyleBase, IThemeStyle, IStyle, ILegendItemProvider
     {
         readonly IStyle _red = new VectorStyle
         {
@@ -21,9 +22,28 @@ namespace DimensioneringV2.Themes
         readonly IStyle _yellow = new VectorStyle
         {
             Line = new Pen(Color.Yellow) { Width = 3 }
-        };        
+        };
 
         public DefaultTheme() {}
+
+        public IList<LegendItem> GetLegendItems()
+        {
+            return new List<LegendItem>()
+            {
+                new LegendItem
+                {
+                    Label = "Forsyningsrør",
+                    SymbolColor = Color.Red,
+                    SymbolWidth = 3
+                },
+                new LegendItem
+                {
+                    Label = "Stikrør",
+                    SymbolColor = Color.Yellow,
+                    SymbolWidth = 3
+                }
+            };
+        }
 
         public IStyle? GetStyle(IFeature feature)
         {

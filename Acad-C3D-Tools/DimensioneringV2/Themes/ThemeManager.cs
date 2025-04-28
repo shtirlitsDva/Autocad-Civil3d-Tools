@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using DimensioneringV2.Legend;
 
 namespace DimensioneringV2.Themes
 {
@@ -122,10 +123,20 @@ namespace DimensioneringV2.Themes
             int count = values.Count;
             var styles = new Dictionary<T, IStyle>(count);
 
+            //Create legend items
+            var legendItems = new List<LegendItem>(count);            
+
             //Assign basic style to values that we don't want to style
             foreach (var value in basicStyleValues)
             {
                 styles[value] = StyleProvider.BasicStyle;
+                var li = new LegendItem()
+                {
+                    Label = LegendLabelProvider.GetLabel(prop, value),
+                    SymbolColor = Color.Black,
+                    SymbolWidth = 1.5
+                };
+                legendItems.Add(li);
             }
 
             //Assign colors to the rest of the values
@@ -137,9 +148,17 @@ namespace DimensioneringV2.Themes
                 {
                     Line = new Pen(color, 4)
                 };
-            }
 
-            return new CategoryTheme<T>(selector, styles);
+                var li = new LegendItem()
+                {
+                    Label = LegendLabelProvider.GetLabel(prop, values[i]),
+                    SymbolColor = color,
+                    SymbolWidth = 4
+                };
+                legendItems.Add(li);
+            }            
+
+            return new CategoryTheme<T>(selector, styles, legendItems);
         }
 
         private static ColorBlend GetColorBlend(Color[] colors)
