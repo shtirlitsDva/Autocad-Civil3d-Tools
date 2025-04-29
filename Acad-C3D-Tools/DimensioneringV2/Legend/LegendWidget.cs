@@ -18,7 +18,7 @@ namespace DimensioneringV2.Legend
         public MRect? Envelope { get; set; }
         public bool Enabled { get; set; } = true;
 
-        public List<LegendItem> Items { get; set; } = new();
+        public ILegendData? LegendData { get; set; }
 
         public bool HandleWidgetTouched(Navigator navigator, MPoint position)
         {
@@ -26,5 +26,12 @@ namespace DimensioneringV2.Legend
             // We don't need touch handling for now
             return false;
         }
+    }
+
+    internal enum LegendType
+    {
+        None,
+        Categorical,
+        Gradient
     }
 }

@@ -57,6 +57,7 @@ using DimensioneringV2.Serialization;
 using DimensioneringV2.Themes;
 using DimensioneringV2.Legend;
 using Mapsui.Styles.Thematics;
+using System.Windows.Navigation;
 
 namespace DimensioneringV2.UI
 {
@@ -87,7 +88,7 @@ namespace DimensioneringV2.UI
 
         partial void OnSelectedMapPropertyWrapperChanged(MapPropertyWrapper value)
         {
-            if (value == null) return;            
+            if (value == null) return;
             UpdateMap();
         }
 
@@ -158,7 +159,7 @@ namespace DimensioneringV2.UI
                 //Init the hydraulic calculation service using current settings
                 HydraulicCalculationService.Initialize();
 
-                var reportingWindow = new GeneticOptimizedReporting();                
+                var reportingWindow = new GeneticOptimizedReporting();
                 reportingWindow.Show();
                 GeneticOptimizedReportingContext.VM = (GeneticOptimizedReportingViewModel)reportingWindow.DataContext;
                 GeneticOptimizedReportingContext.VM.Dispatcher = reportingWindow.Dispatcher;
@@ -645,7 +646,7 @@ namespace DimensioneringV2.UI
 
                             if (solutions.Count > 0)
                             {//Use bruteforce
-                                
+
 
                                 //List<UndirectedGraph<BFNode, BFEdge>> solutions = new List<UndirectedGraph<BFNode, BFEdge>>();
 
@@ -678,7 +679,7 @@ namespace DimensioneringV2.UI
                                 });
 
                                 var nodeFlags = metaGraph.NodeFlags[subGraph];
-                                
+
 
                                 ConcurrentBag<(double result, UndirectedGraph<BFNode, BFEdge> graph)> bag = new();
 
@@ -738,7 +739,7 @@ namespace DimensioneringV2.UI
                                 dispatcher.Invoke(() =>
                                 {
                                     GeneticOptimizedReportingContext.VM.GraphCalculations.Add(gaVM);
-                                });                                
+                                });
 
                                 UndirectedGraph<BFNode, BFEdge> seed = subGraph.CopyWithNewEdges();
 
@@ -875,9 +876,9 @@ namespace DimensioneringV2.UI
                                 phyNode.ExternalDemand = -serviceLine.PipeSegment.HeatingDemandConnected;
                             }
 
-                            if (phyNode.IsSource)                                                            
-                                phyNode.ExternalDemand = originalGraph.Edges                                    
-                                    .Sum(x => x.PipeSegment.HeatingDemandConnected);                            
+                            if (phyNode.IsSource)
+                                phyNode.ExternalDemand = originalGraph.Edges
+                                    .Sum(x => x.PipeSegment.HeatingDemandConnected);
 
                             phyGraph.AddVertex(phyNode);
                             nodeMap.Add(node, phyNode);
@@ -923,7 +924,7 @@ namespace DimensioneringV2.UI
         {
             try
             {
-                var graphs = _dataService.Graphs;                
+                var graphs = _dataService.Graphs;
 
                 IEnumerable<AnalysisFeature> reprojected =
                     graphs.SelectMany(x => ProjectionService.ReProjectFeatures(
@@ -1122,7 +1123,7 @@ namespace DimensioneringV2.UI
             if (Mymap == null) return;
 
             _themeManager.SetTheme(MapPropertyEnum.Default);
-            
+
             var provider = new MemoryProvider(Features)
             {
                 CRS = "EPSG:3857"
@@ -1134,7 +1135,7 @@ namespace DimensioneringV2.UI
                 Name = "Features",
                 IsMapInfoLayer = true,
                 Style = _themeManager.CurrentTheme
-            };            
+            };
 
             var extent = layer.Extent!.Grow(100);
 
@@ -1174,7 +1175,7 @@ namespace DimensioneringV2.UI
             Mymap.Navigator.ZoomToBox(extent);
 
             //Legends
-            _legendWidget = new LegendWidget() 
+            _legendWidget = new LegendWidget()
             {
                 Items = ((ILegendItemProvider)_themeManager.CurrentTheme!).GetLegendItems().ToList()
             };
@@ -1193,7 +1194,7 @@ namespace DimensioneringV2.UI
             };
 
             Layer layer = new Layer
-            { 
+            {
                 DataSource = provider,
                 Name = "Features",
                 IsMapInfoLayer = true,
@@ -1210,10 +1211,11 @@ namespace DimensioneringV2.UI
 
             if (_legendWidget != null)
             {
-                var lip = _themeManager.CurrentTheme as ILegendItemProvider;
-                if (lip != null)
+                var ldp = _themeManager.CurrentTheme as ILegendData;
+
+                if (ldp != null)
                 {
-                    _legendWidget.Items = lip.GetLegendItems().ToList();
+                    _legendWidget.LegendData = ldp;
                     Mymap.RefreshData();
                 }
             }
@@ -1288,7 +1290,7 @@ namespace DimensioneringV2.UI
             if (_legendWidget == null) return;
             _legendWidget.Enabled = IsLegendVisible;
             _mymap.RefreshData();
-        }        
+        }
         #endregion
     }
 }

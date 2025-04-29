@@ -16,11 +16,19 @@ namespace DimensioneringV2.Legend
 
             return property switch
             {
+                //Categorical theme
                 MapPropertyEnum.Bridge => (value is bool b && b) ? "Bridge edge" : "Non-bridge edge",
                 MapPropertyEnum.CriticalPath => (value is bool b && b) ? "Kritisk forbruger" : "",
                 MapPropertyEnum.SubGraphId => $"Sub-graph {value}",
                 MapPropertyEnum.Pipe => value is string s ? s == "NA 000" ? "" : s.ToString() : "",
-                _ => value.ToString() ?? "Unknown"
+                
+                //Not used for gradient legend
+
+                //Not used
+                MapPropertyEnum.Default => "",
+                MapPropertyEnum.Basic => "",
+
+                _ => value.ToString() ?? "Unknown",
             };
         }
     }

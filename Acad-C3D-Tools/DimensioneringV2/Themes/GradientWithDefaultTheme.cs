@@ -11,7 +11,7 @@ using DimensioneringV2.Legend;
 
 namespace DimensioneringV2.Themes
 {
-    class GradientWithDefaultTheme : StyleBase, IThemeStyle, ILegendItemProvider
+    class GradientWithDefaultTheme : StyleBase, IThemeStyle, ILegendData
     {
         /// <summary>
         /// Gets or sets the column name from where to get the attribute value
@@ -51,7 +51,7 @@ namespace DimensioneringV2.Themes
         /// <summary>
         /// Gets or sets the <see cref="ColorBlend"/> used as Fill
         /// </summary>
-        public ColorBlend? FillColorBlend { get; init; }
+        public ColorBlend? FillColorBlend { get; init; }        
 
         /// <summary>
         /// Initializes a new instance of the GradientTheme class
@@ -61,13 +61,21 @@ namespace DimensioneringV2.Themes
         /// <param name="maxValue">Maximum value</param>
         /// <param name="minStyle">Color for minimum value</param>
         /// <param name="maxStyle">Color for maximum value</param>
-        public GradientWithDefaultTheme(string columnName, double minValue, double maxValue, IStyle minStyle, IStyle maxStyle)
+        public GradientWithDefaultTheme(
+            string columnName, 
+            double minValue, 
+            double maxValue, 
+            IStyle minStyle, 
+            IStyle maxStyle,
+            string legendTitle
+            )
         {
             ColumnName = columnName;
             Min = minValue;
             Max = maxValue;
             MaxStyle = maxStyle;
             MinStyle = minStyle;
+            _legendTitle = legendTitle;
         }
 
         /// <summary>
@@ -210,11 +218,13 @@ namespace DimensioneringV2.Themes
             if (a > 255) a = 255;
 
             return Color.FromArgb((int)a, (int)r, (int)g, (int)b);
-        }        
+        }
 
         #region Legend
-        private IList<LegendItem> _legendItems;
-        public IList<LegendItem> GetLegendItems() => _legendItems;        
+        public LegendType LegendType => LegendType.Gradient;
+        private string _legendTitle;
+        public string LegendTitle => _legendTitle;
+        public IList<LegendItem> Items => throw new NotImplementedException();
         #endregion
     }
 }

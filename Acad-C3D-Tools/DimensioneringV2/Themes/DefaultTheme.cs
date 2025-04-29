@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 
 namespace DimensioneringV2.Themes
 {
-    class DefaultTheme : StyleBase, IThemeStyle, IStyle, ILegendItemProvider
+    class DefaultTheme : StyleBase, IThemeStyle, IStyle
     {
         readonly IStyle _red = new VectorStyle
         {

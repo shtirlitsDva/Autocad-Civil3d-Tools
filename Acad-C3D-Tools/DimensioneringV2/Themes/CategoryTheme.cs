@@ -13,9 +13,20 @@ using System.Threading.Tasks;
 
 namespace DimensioneringV2.Themes
 {
-    class CategoryTheme<T> : StyleBase, IThemeStyle, IStyle, ILegendItemProvider
+    class CategoryTheme<T> : StyleBase, IThemeStyle, IStyle, ILegendData
     {
         private Func<AnalysisFeature, T> _valueSelector { get; }
+
+        public LegendType LegendType => LegendType.Categorical;
+
+        private string _legendTitle;
+        public string LegendTitle => _legendTitle;
+
+        public IList<LegendItem> Items => _legendItems;
+
+        public double Max => throw new NotImplementedException();
+
+        public double Min => throw new NotImplementedException();
 
         private IDictionary<T, IStyle> _stylesMap;
 
@@ -24,11 +35,13 @@ namespace DimensioneringV2.Themes
         public CategoryTheme(
             Func<AnalysisFeature, T> valueSelector,
             IDictionary<T, IStyle> stylesMap,
-            IList<LegendItem> legendItems)
+            IList<LegendItem> legendItems,
+            string legendTitle)
         {
             _valueSelector = valueSelector ?? throw new ArgumentNullException(nameof(valueSelector));
             _stylesMap = stylesMap ?? throw new ArgumentNullException(nameof(stylesMap));
             _legendItems = legendItems ?? throw new ArgumentNullException(nameof(legendItems));
+            _legendTitle = legendTitle;
         }
 
         public IStyle? GetStyle(IFeature feature)
@@ -41,8 +54,6 @@ namespace DimensioneringV2.Themes
             T key = _valueSelector(afeature);
             if (_stylesMap.TryGetValue(key, out var style)) return style;
             return StyleProvider.BasicStyle;
-        }
-
-        public IList<LegendItem> GetLegendItems() => _legendItems;
+        }        
     }
 }

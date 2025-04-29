@@ -16,9 +16,7 @@ namespace DimensioneringV2.Themes
     {
         private readonly IEnumerable<AnalysisFeature> _allFeatures;
         public IStyle? CurrentTheme { get; private set; }
-        private ColorBlend _cb = GetColorBlend(
-            [Color.Blue, Color.Yellow, Color.Red]
-        );
+        private ColorBlend _cb = ColorBlendProvider.Standard;
 
         public ThemeManager(IEnumerable<AnalysisFeature> allFeatures)
         {
@@ -90,7 +88,7 @@ namespace DimensioneringV2.Themes
 
             //Handle zero values, the idea is that Min is larger than zero
             //If a zero value is passed to the Theme, it returns basic style
-            double min = values.Where(x => x > 1e-8).Min();            
+            double min = values.Where(x => x > 1e-9).Min();            
             double max = values.Max();
 
             var theme = new GradientWithDefaultTheme(
@@ -98,7 +96,8 @@ namespace DimensioneringV2.Themes
                 minValue: min,
                 maxValue: max,
                 minStyle: new VectorStyle { Line = new Pen(Color.Blue, 2) },
-                maxStyle: new VectorStyle { Line = new Pen(Color.Red, 10) }
+                maxStyle: new VectorStyle { Line = new Pen(Color.Red, 10) },
+                legendTitle: LegendTitleProvider.GetTitle(prop)
             )
             {
                 LineColorBlend = _cb
@@ -158,13 +157,9 @@ namespace DimensioneringV2.Themes
                 legendItems.Add(li);
             }            
 
-            return new CategoryTheme<T>(selector, styles, legendItems);
-        }
-
-        private static ColorBlend GetColorBlend(Color[] colors)
-        {
-            var positions = Enumerable.Range(0, colors.Length).Select(i => (double)i / (colors.Length - 1)).ToArray();
-            return new ColorBlend(colors, positions);
-        }
+            return new CategoryTheme<T>(
+                selector, styles, legendItems,
+                LegendTitleProvider.GetTitle(prop));
+        }        
     }
 }
