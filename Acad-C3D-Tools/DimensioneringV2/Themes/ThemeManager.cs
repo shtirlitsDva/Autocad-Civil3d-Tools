@@ -142,7 +142,7 @@ namespace DimensioneringV2.Themes
             //Assign colors to the rest of the values
             for (int i = 0; i < count; i++)
             {
-                double pos = count == 1 ? 0.5 : (double)i / (count - 1);
+                double pos = count == 1 ? 1 : (double)i / (count - 1);
                 var color = colorBlend.GetColor(pos);
                 styles[values[i]] = new VectorStyle
                 {
