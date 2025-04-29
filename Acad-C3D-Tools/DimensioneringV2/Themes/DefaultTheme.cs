@@ -21,7 +21,7 @@ namespace DimensioneringV2.Themes
         };
         readonly IStyle _yellow = new VectorStyle
         {
-            Line = new Pen(Color.) { Width = 3 }
+            Line = new Pen(Color.DarkOrange) { Width = 3 }
         };
 
         public DefaultTheme() {}
@@ -39,7 +39,7 @@ namespace DimensioneringV2.Themes
                 new LegendItem
                 {
                     Label = "Stikrør",
-                    SymbolColor = Color.Yellow,
+                    SymbolColor = Color.DarkOrange,
                     SymbolLineWidth = 3
                 }
             };
