@@ -7,10 +7,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Mapsui;
+using DimensioneringV2.Legend;
 
 namespace DimensioneringV2.Themes
 {
-    class GradientWithDefaultTheme : StyleBase, IThemeStyle
+    class GradientWithDefaultTheme : StyleBase, IThemeStyle, ILegendItemProvider
     {
         /// <summary>
         /// Gets or sets the column name from where to get the attribute value
@@ -209,6 +210,11 @@ namespace DimensioneringV2.Themes
             if (a > 255) a = 255;
 
             return Color.FromArgb((int)a, (int)r, (int)g, (int)b);
-        }
+        }        
+
+        #region Legend
+        private IList<LegendItem> _legendItems;
+        public IList<LegendItem> GetLegendItems() => _legendItems;        
+        #endregion
     }
 }

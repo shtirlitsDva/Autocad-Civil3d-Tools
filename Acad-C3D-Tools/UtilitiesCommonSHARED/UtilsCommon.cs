@@ -3515,6 +3515,7 @@ namespace IntersectUtilities.UtilsCommon
             {
                 "SVEJSEPUNKT",
                 "SVEJSEPUNKT-NOTXT",
+                "SVEJSEPUNKT-V2",
             };
 
             HashSet<string> stikBlocks = new HashSet<string>()
