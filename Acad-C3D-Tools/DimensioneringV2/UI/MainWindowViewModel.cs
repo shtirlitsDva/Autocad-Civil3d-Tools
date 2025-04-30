@@ -1178,6 +1178,7 @@ namespace DimensioneringV2.UI
             _legendWidget = new LegendWidget()
             {
                 LegendData = _themeManager.CurrentTheme as ILegendData,
+                Enabled = IsLegendVisible
             };
             Mymap.Widgets.Enqueue(_legendWidget);
             _mapControl.Renderer.WidgetRenders[typeof(LegendWidget)] = new LegendWidgetSkiaRenderer();
