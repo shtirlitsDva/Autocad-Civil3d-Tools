@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 
 namespace DimensioneringV2.Themes
 {
-    class DefaultTheme : StyleBase, IThemeStyle, IStyle
+    class DefaultTheme : StyleBase, IThemeStyle, IStyle, ILegendData
     {
         readonly IStyle _red = new VectorStyle
         {
@@ -26,7 +26,17 @@ namespace DimensioneringV2.Themes
 
         public DefaultTheme() {}
 
-        public IList<LegendItem> GetLegendItems()
+        public LegendType LegendType => LegendType.Categorical;
+
+        public string LegendTitle => LegendTitleProvider.GetTitle(UI.MapPropertyEnum.Default);
+
+        public IList<LegendItem> Items => GetLegendItems();
+
+        public double Max => throw new NotImplementedException();
+
+        public double Min => throw new NotImplementedException();
+
+        private IList<LegendItem> GetLegendItems()
         {
             return new List<LegendItem>()
             {

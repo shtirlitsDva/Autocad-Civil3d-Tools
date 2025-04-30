@@ -88,8 +88,9 @@ namespace DimensioneringV2.Themes
 
             //Handle zero values, the idea is that Min is larger than zero
             //If a zero value is passed to the Theme, it returns basic style
-            double min = values.Where(x => x > 1e-9).Min();            
-            double max = values.Max();
+            var query = values.Where(x => x > 1e-9);
+            double min = query.Count() > 0 ? query.Min() : 0;
+            double max = query.Count() > 0 ? values.Max() : 1;
 
             var theme = new GradientWithDefaultTheme(
                 columnName: AnalysisFeature.GetAttributeName(prop),

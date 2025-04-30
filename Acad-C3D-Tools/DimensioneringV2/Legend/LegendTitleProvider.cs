@@ -15,25 +15,25 @@ namespace DimensioneringV2.Legend
             return property switch
             {
                 //Categorical theme
-                MapPropertyEnum.Bridge => "Bridges and non-bridges",
-                MapPropertyEnum.CriticalPath => "Kritisk forbruger",
+                MapPropertyEnum.Bridge => "Bridges/\nnon-bridges",
+                MapPropertyEnum.CriticalPath => "Kritisk\nforbruger",
                 MapPropertyEnum.SubGraphId => $"Sub-graphs",
                 MapPropertyEnum.Pipe => "Rørdimensioner",
 
                 //Gradient theme
-                MapPropertyEnum.Bygninger => $"Bygninger forsynet [stk]",
-                MapPropertyEnum.Units => $"Enheder forsynet [stk]",
-                MapPropertyEnum.HeatingDemand => $"Estimeret varmebehov [MWh/år]",
-                MapPropertyEnum.FlowSupply => $"Vandflow, frem [m³/h]",
-                MapPropertyEnum.FlowReturn => $"Vandflow, retur [m³/h]",
-                MapPropertyEnum.PressureGradientSupply => $"Trykgradient, frem [Pa/m]",
-                MapPropertyEnum.PressureGradientReturn => $"Trykgradient, retur [Pa/m]",
-                MapPropertyEnum.VelocitySupply => $"Hastighed, frem [m/s]",
-                MapPropertyEnum.VelocityReturn => $"Hastighed, retur [m/s]",
-                MapPropertyEnum.UtilizationRate => $"Udnyttelsesfaktor [%]",
+                MapPropertyEnum.Bygninger => $"Bygninger\nforsynet\n[stk]",
+                MapPropertyEnum.Units => $"Enheder\nforsynet\n[stk]",
+                MapPropertyEnum.HeatingDemand => $"Estimeret\nvarmebehov\n[MWh/år]",
+                MapPropertyEnum.FlowSupply => $"Vandflow\nfrem [m³/h]",
+                MapPropertyEnum.FlowReturn => $"Vandflow\nretur [m³/h]",
+                MapPropertyEnum.PressureGradientSupply => $"Trykgradient\nfrem [Pa/m]",
+                MapPropertyEnum.PressureGradientReturn => $"Trykgradient\nretur [Pa/m]",
+                MapPropertyEnum.VelocitySupply => $"Hastighed\nfrem [m/s]",
+                MapPropertyEnum.VelocityReturn => $"Hastighed\nretur [m/s]",
+                MapPropertyEnum.UtilizationRate => $"Udnyttelses-\nfaktor [%]",
 
                 //Not used
-                MapPropertyEnum.Default => "",
+                MapPropertyEnum.Default => "Ledninger",
                 MapPropertyEnum.Basic => "",
 
                 _ => property.ToString(),
