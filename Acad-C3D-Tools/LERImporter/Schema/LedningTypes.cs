@@ -238,14 +238,14 @@ namespace LERImporter.Schema
         {
             if (this.type == null)
             {
-                Log.log($"WARNING! Element id {gmlid} has NO TelekommunikationsledningType specified! (holding type is null)\n" +
-                    $"Typen angives som UKENDT!");
+                //Log.log($"WARNING! Element id {gmlid} has NO TelekommunikationsledningType specified! (holding type is null)\n" +
+                //    $"Typen angives som UKENDT!");
                 return TelekommunikationsledningTypeEnum.ukendt;
             }
             if (this.type.Value.IsNoE())
             {
-                Log.log($"WARNING! Element id {gmlid} has NO TelekommunikationsledningType specified! (string Value is NoE)\n" +
-                    $"Typen angives som UKENDT!");
+                //Log.log($"WARNING! Element id {gmlid} has NO TelekommunikationsledningType specified! (string Value is NoE)\n" +
+                //    $"Typen angives som UKENDT!");
                 return TelekommunikationsledningTypeEnum.ukendt;
             }
 

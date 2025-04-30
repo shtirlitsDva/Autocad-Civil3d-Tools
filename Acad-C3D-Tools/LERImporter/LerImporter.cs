@@ -54,7 +54,7 @@ namespace LERImporter
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
             doc.Editor.WriteMessage("\nLER Import Application indlæst.");
-            doc.Editor.WriteMessage("\nKommando til LER 2.0 -> IMPORTCONSOLIDATEDGML.");
+            doc.Editor.WriteMessage("\nKommando til LER 2.0 -> IGMLBATCH.");
 
             if (doc != null)
             {
@@ -376,7 +376,7 @@ namespace LERImporter
                 #endregion
 
                 #region Actual converting
-                Log.LogFileName = pathToTopFolder + "LerImport.log";
+                Log.LogFileName = Path.Combine(pathToTopFolder, "LerImport.log");
 
                 #region Enhance gml files and create 3D ler files
                 List<string> modFiles = new List<string>();
@@ -474,6 +474,7 @@ namespace LERImporter
                 Log.log(ex.ToString());
                 return;
             }
+            Log.log("Finished importing LER data.");
         }
     }
 

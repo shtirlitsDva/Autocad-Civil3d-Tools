@@ -389,10 +389,6 @@ namespace LERImporter.Schema
             Log.log($"Number of ledningstraceMember -> {this.ledningstraceMember?.Length.ToString()}");
             Log.log($"Number of ledningskomponentMember -> {this.ledningskomponentMember?.Length.ToString()}");
 
-
-
-
-
             foreach (GraveforespoergselssvarTypeLedningMember member in ledningMember)
             {
                 if (member.Item == null)

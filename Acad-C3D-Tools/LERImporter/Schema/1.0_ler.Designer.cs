@@ -196,6 +196,10 @@ namespace LERImporter.Schema
         permeabelbelægning,
         regnbed,
         wadi,
+        [XmlEnumAttribute("other: fordelerbygvaerk")]
+        fordelerbygvaerk,
+        [XmlEnumAttribute("other: maalerbygvaerk")]
+        maalerbygvaerk,
         [XmlEnumAttribute("other: ukendt")]
         ukendt
     }
