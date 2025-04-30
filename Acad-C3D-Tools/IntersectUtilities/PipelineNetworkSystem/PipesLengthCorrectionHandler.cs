@@ -51,7 +51,10 @@ namespace IntersectUtilities.PipelineNetworkSystem
                     double division = pipeLength / pipeStdLength;
                     int nrOfSections = (int)division;
                     double remainder = pipeLength - nrOfSections * pipeStdLength;
-                    double missingLength = pipeStdLength - remainder;
+
+                    bool shorten = false;
+                    if (remainder < 2 && nrOfSections > 0) shorten = true;
+                    double missingLength = shorten ? remainder : pipeStdLength - remainder;
 
                     //Skip if pipe is missing less than 1 mm
                     if (remainder < 1e-3 || pipeStdLength - remainder < 1e-3)
@@ -99,9 +102,10 @@ namespace IntersectUtilities.PipelineNetworkSystem
                     #endregion
 
                     //(Old) Case 4: Missing length is relatively small (now 2 meters) -> move transition back
-                    if (missingLength >= pipeStdLength - 2 && nrOfSections != 0)
+                    //if (missingLength >= pipeStdLength - 2 && nrOfSections != 0)
+                    if (shorten)
                     {
-                        result.Combine(CorrectPlinesReverse(db, pline1, br, pline2, missingLength, ps));
+                        result.Combine(CorrectPlinesReverse(db, pline1, br, pline2, missingLength, ps));                        
                         continue;
                     }
 
@@ -281,7 +285,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
         }
         private Result CorrectPlines(
             Database db, Polyline pline1, BlockReference reducer, Polyline pline2, double missingLength,
-            PipelineSegment ps)
+            PipelineSegment ps, bool reverseResult = false)
         {
             using (Transaction tx = db.TransactionManager.StartTransaction())
             {
@@ -304,6 +308,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                                 $"In that case run CORRECTCUTLENGTHSV2 afterwards again.");
                         DebugHelper.CreateDebugLine(
                             pline2.GetPointAtDist(missingLength), ColorByName("red"));
+                        tx.Commit();
                         return new Result(
                             ResultStatus.SoftError,
                             "Moved end landed on arc segment. Modify length aborted.");
@@ -353,6 +358,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                             ps.ExchangeEntity(pline2, newPline2);
                             PropertySetManager.CopyAllProperties(pline2, newPline2);
                             newPline2.ConstantWidth = pline2.ConstantWidthSafe();
+                            if (reverseResult) newPline2.ReverseCurve();
                             //Already opened
                             pline2.Erase(true);
                             pline2 = newPline2;
@@ -442,6 +448,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                             ps.ExchangeEntity(pline2, newPline2);
                             PropertySetManager.CopyAllProperties(pline2, newPline2);
                             newPline2.ConstantWidth = pline2.ConstantWidthSafe();
+                            if (reverseResult) newPline2.ReverseCurve();
                             //Already opened
                             pline2.Erase(true);
                             pline2 = newPline2;
@@ -503,8 +510,10 @@ namespace IntersectUtilities.PipelineNetworkSystem
             pline1.DowngradeOpen();
             pline2.DowngradeOpen();
 
-            var result = CorrectPlines(db, pline2, reducer, pline1, missingLength, ps);
+            var result = CorrectPlines(db, pline2, reducer, pline1, missingLength, ps, true);
 
+            //Pline1 should have been split in the method and thus no longer be relevant
+            //No, wait, actually they need to be reversed if the operation was aborted.
             pline1.UpgradeOpen();
             pline2.UpgradeOpen();
             pline1.ReverseCurve();
