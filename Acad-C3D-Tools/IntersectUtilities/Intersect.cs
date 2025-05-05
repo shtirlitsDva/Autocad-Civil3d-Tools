@@ -5379,5 +5379,39 @@ namespace IntersectUtilities
 
             tx.Commit();            
         }
+
+        [CommandMethod("NUMBERBBRADDR")]
+        public void numberbbraddr()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            using Transaction tx = localDb.TransactionManager.StartTransaction();
+
+            try
+            {
+                PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.BBR);
+                PSetDefs.BBR bbr = new PSetDefs.BBR();
+
+                var brs = localDb.HashSetOfType<BlockReference>(tx)
+                    .Where(x => x.RealName() == "Naturgas")
+                    .OrderBy(x => x.Position.X);
+                string prefix = "Test";
+                int idx = 0;
+                foreach (var br in brs)
+                {
+                    idx++;
+                    psm.WritePropertyString(br, bbr.Adresse, $"{prefix}{idx.ToString("D3")}");
+                }
+            }
+            catch (System.Exception ex)
+            {
+                tx.Abort();
+                prdDbg(ex);
+                return;
+            }
+
+            tx.Commit();
+        }
     }
 }

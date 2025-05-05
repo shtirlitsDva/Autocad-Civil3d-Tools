@@ -32,7 +32,7 @@ namespace DimensioneringV2.Services
             // Subscribe to DocumentManager events
             AcAp.DocumentManager.DocumentActivated += DocumentManager_DocumentActivated;
             AcAp.DocumentManager.DocumentToBeDeactivated += DocumentManager_DocumentToBeDeactivated;
-            AcAp.DocumentManager.DocumentToBeDestroyed += DocumentManager_DocumentToBeDestroyed;
+            //AcAp.DocumentManager.DocumentToBeDestroyed += DocumentManager_DocumentToBeDestroyed;
             //Saving of settings when the palette is made invisible
             //must be handled by the PaletteSet as this service does not know
             //when the palette is instatiated
@@ -51,13 +51,13 @@ namespace DimensioneringV2.Services
             Utils.prtDbg($"{DateTime.Now} Document To Be Deactivated event: {e.Document.Name}");
             HydraulicSettingsSerializer.Save(e.Document, Settings);
         }
-        private void DocumentManager_DocumentToBeDestroyed(object sender, DocumentCollectionEventArgs e)
-        {
-            Utils.prtDbg($"Document To Be Destroyed event: {e.Document.Name}");
-            if (e.Document != null)
-            {
-                HydraulicSettingsSerializer.Save(e.Document, Services.HydraulicSettingsService.Instance.Settings);
-            }
-        }
+        //private void DocumentManager_DocumentToBeDestroyed(object sender, DocumentCollectionEventArgs e)
+        //{
+        //    Utils.prtDbg($"Document To Be Destroyed event: {e.Document.Name}");
+        //    if (e.Document != null)
+        //    {
+        //        HydraulicSettingsSerializer.Save(e.Document, Services.HydraulicSettingsService.Instance.Settings);
+        //    }
+        //}
     }
 }

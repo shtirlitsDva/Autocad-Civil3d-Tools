@@ -582,8 +582,7 @@ namespace IntersectUtilities
                     128, collectints);
             }
             #endregion
-
-            [CommandMethod("DRIFJVPLINE")]
+            
             public static void drifjvpline()
             {
                 DocumentCollection docCol = Application.DocumentManager;
@@ -722,6 +721,12 @@ namespace IntersectUtilities
                     }
                 }
             }
+        }
+
+        [CommandMethod("NORFJVPLINE")]
+        public void drifjvpline()
+        {
+            DriFjvPolyJig.drifjvpline();
         }
     }
 }
