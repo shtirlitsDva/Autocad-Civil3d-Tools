@@ -1850,6 +1850,8 @@ namespace IntersectUtilities
                         prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
                         #endregion
 
+                        Polyline alPl = al.GetPolyline().Go<Polyline>(tx);
+
                         IPipelineV2 pipeline = PipelineV2Factory.Create(curves.Cast<Entity>().Union(brs), al);
                         IPipelineSizeArrayV2 sizeArray = PipelineSizeArrayFactory.CreateSizeArray(pipeline);
                         prdDbg(sizeArray.ToString());
@@ -1989,7 +1991,8 @@ namespace IntersectUtilities
                                 if (type == "Reduktion" || type == "Svejsning") continue;
                                 //Buerør need special treatment
                                 if (br.RealName() == "BUEROR1" || br.RealName() == "BUEROR2") continue;
-                                Point3d brLocation = al.GetClosestPointTo(br.Position, false);
+                                //Point3d brLocation = al.GetClosestPointTo(br.Position, false);
+                                Point3d brLocation = alPl.GetClosestPointTo(br.Position, false);
 
                                 double station = 0;
                                 double offset = 0;
@@ -2250,8 +2253,11 @@ namespace IntersectUtilities
                                     }
                                 }
                             }
-                            #endregion
+                            #endregion                            
                         }
+
+                        alPl.CheckOrOpenForWrite();
+                        alPl.Erase(true);
                     }
                 }
                 catch (System.Exception ex)
