@@ -58,6 +58,7 @@ using QuikGraph.Algorithms.Search;
 
 using Microsoft.Win32;
 using IntersectUtilities.LongitudinalProfiles;
+using System.Reflection;
 
 namespace IntersectUtilities
 {
@@ -69,6 +70,7 @@ namespace IntersectUtilities
             public int Number { get; set; }
             public string? Text { get; set; }
         }
+        
         [CommandMethod("testing", CommandFlags.UsePickSet)]
         public void testing()
         {
@@ -81,6 +83,20 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Find out AssemblyResolve subscribers
+                    {
+                        //AppDomain.CurrentDomain.AssemblyResolve += (sender, args) =>
+                        //{
+                        //    var stack = new StackTrace();
+                        //    Console.WriteLine("AssemblyResolve triggered for: " + args.Name);
+                        //    Console.WriteLine(stack);
+
+                        //    return null; // Let others handle it
+                        //};
+
+                        //Assembly.Load("System.Drawing.Test");
+                    }
+                    #endregion
                     #region Test alignment intersection with pl3d at very close distance and large coords
                     //var mpgs = localDb.HashSetOfType<MPolygon>(tx);
                     Alignment al = localDb.ListOfType<Alignment>(tx).First();
