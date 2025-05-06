@@ -4118,10 +4118,16 @@ namespace IntersectUtilities.Dimensionering
                     HashSet<string> sysDns = new HashSet<string>();
 #endif
                     #region Read excel workbook data into a list: dimList<(string Name, int Dim)>
-                    Worksheet ws;
-                    IEnumerable<int> sheetRange = Enumerable.Range(1, 100);
+                    //Determine the number of numeric sheets
+                    //This change is because the number of sheets is not fixed
+                    var query = wb.Sheets
+                        .Cast<Worksheet>()
+                        .Where(x => int.TryParse(x.Name, out _))
+                        .Select(x => int.Parse(x.Name));
+                    IEnumerable<int> sheetRange = Enumerable.Range(query.Min(), query.Max());
                     Handle zeroHandle = new Handle(Convert.ToInt64("0", 16));
                     var dimList = new List<DimEntry>();
+                    Worksheet ws;
                     foreach (int sheetNumber in sheetRange)
                     {
                         ws = wb.Sheets[sheetNumber.ToString()];
