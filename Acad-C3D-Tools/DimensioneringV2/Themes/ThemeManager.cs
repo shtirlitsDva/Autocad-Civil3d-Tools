@@ -9,6 +9,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using DimensioneringV2.Legend;
+using Mapsui.Extensions;
+using DimensioneringV2.Labels;
 
 namespace DimensioneringV2.Themes
 {
@@ -45,8 +47,10 @@ namespace DimensioneringV2.Themes
                     MapPropertyEnum.Pipe, f => f.PipeDim.DimName, ["NA 000"]);
         }
 
-        public void SetTheme(MapPropertyEnum property)
+        public void SetTheme(MapPropertyEnum property, bool labelsEnabled = false)
         {
+            IStyle theme = null;
+            
             switch (property)
             {
                 case MapPropertyEnum.FlowSupply:
@@ -59,21 +63,38 @@ namespace DimensioneringV2.Themes
                 case MapPropertyEnum.HeatingDemand:
                 case MapPropertyEnum.Bygninger:
                 case MapPropertyEnum.Units:
-                    CurrentTheme = BuildGradientTheme(property);
+                    theme = BuildGradientTheme(property);
                     break;
 
                 case MapPropertyEnum.SubGraphId:
                 case MapPropertyEnum.CriticalPath:
                 case MapPropertyEnum.Bridge:
                 case MapPropertyEnum.Pipe:
-                    CurrentTheme = _categoryThemeBuilders[property]();
+                    theme = _categoryThemeBuilders[property]();
                     break;
 
                 // Fallback or default
                 default:
-                    CurrentTheme = new DefaultTheme();
-                    break;
+                    CurrentTheme = new StyleCollection() { Styles = [new DefaultTheme()] };
+                    return;
             }
+
+            if (labelsEnabled && property != MapPropertyEnum.Default)
+            {
+                CurrentTheme = new StyleCollection()
+                {
+                    Styles = [theme, LabelManager.GetLabelStyle(property)]
+                };
+            }
+            else
+            {
+                CurrentTheme = theme;
+            }
+        }
+        public ILegendData? GetTheme()
+        {
+            if (CurrentTheme is StyleCollection col) return col.Styles[0] as ILegendData;
+            else return CurrentTheme as ILegendData;            
         }
 
         private IStyle BuildGradientTheme(MapPropertyEnum prop)

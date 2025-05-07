@@ -59,6 +59,7 @@ using DimensioneringV2.Legend;
 using Mapsui.Styles.Thematics;
 using System.Windows.Navigation;
 using DimensioneringV2.Labels;
+using Mapsui.Styles;
 
 namespace DimensioneringV2.UI
 {
@@ -479,11 +480,13 @@ namespace DimensioneringV2.UI
         #endregion
 
         #region Toggle Labels
+        private bool _showLabels = false;
         public RelayCommand PerformLabelToggle =>
             new RelayCommand(ToggleLabelStyles, () => true);
         private void ToggleLabelStyles()
-        {            
-            ToggleLabels();
+        {
+            _showLabels = !_showLabels;
+            UpdateMap();
         }
         #endregion
 
@@ -1122,6 +1125,7 @@ namespace DimensioneringV2.UI
         {
             if (Mymap == null) return;
 
+            SelectedMapPropertyWrapper = new MapPropertyWrapper(MapPropertyEnum.Default, "Default");
             _themeManager.SetTheme(MapPropertyEnum.Default);
 
             var provider = new MemoryProvider(Features)
@@ -1177,7 +1181,7 @@ namespace DimensioneringV2.UI
             //Legends
             _legendWidget = new LegendWidget()
             {
-                LegendData = _themeManager.CurrentTheme as ILegendData,
+                LegendData = _themeManager.GetTheme(),
                 Enabled = IsLegendVisible
             };
             Mymap.Widgets.Enqueue(_legendWidget);
@@ -1187,7 +1191,8 @@ namespace DimensioneringV2.UI
         {
             if (Mymap == null) return;
 
-            _themeManager.SetTheme(SelectedMapPropertyWrapper.EnumValue);
+            _themeManager.SetTheme(
+                SelectedMapPropertyWrapper.EnumValue, _showLabels);
 
             var provider = new MemoryProvider(Features)
             {
@@ -1210,63 +1215,16 @@ namespace DimensioneringV2.UI
 
             Mymap.Layers.Add(layer);
 
-            //Handle existing labels
-            var exLabelLayer = Mymap.Layers.FirstOrDefault(x => x.Name == "Labels");
-            var labelStyle = LabelManager.GetLabelStyle(SelectedMapPropertyWrapper.EnumValue);
-            if (exLabelLayer != null && labelStyle != null)
-            {
-                Mymap.Layers.Remove(exLabelLayer);
-
-                var labelLayer = new Layer("Labels")
-                {
-                    DataSource = layer.DataSource,
-                    Style = labelStyle
-                };
-                Mymap.Layers.Add(labelLayer);                
-            }
-
             if (_legendWidget != null)
             {
-                var ldp = _themeManager.CurrentTheme as ILegendData;
+                var ldp = _themeManager.GetTheme() as ILegendData;
 
                 if (ldp != null)
                 {
                     _legendWidget.LegendData = ldp;
                     Mymap.RefreshData();
                 }
-            }            
-        }
-
-        private void ToggleLabels()
-        {
-            if (Mymap == null) return;
-
-            var labelStyle = LabelManager.GetLabelStyle(SelectedMapPropertyWrapper.EnumValue);
-            if (labelStyle == null) return;
-
-            var exLabelLayer = Mymap.Layers.FirstOrDefault(x => x.Name == "Labels");
-            if (exLabelLayer != null)
-            {
-                Mymap.Layers.Remove(exLabelLayer);
-                Mymap.RefreshGraphics();
-                return;
             }
-            else
-            {
-                var exFeatureLayer = Mymap.Layers.FirstOrDefault(x => x.Name == "Features") as Layer;
-                if (exFeatureLayer != null)
-                {
-                    var labelLayer = new Layer("Labels")
-                    {
-                        DataSource = exFeatureLayer.DataSource,
-                        Style = labelStyle
-                    };
-                    Mymap.Layers.Add(labelLayer);
-                    Mymap.RefreshGraphics();
-                    return;
-                }
-                else return;                    
-            }                
         }
 
         #region Popup setup
