@@ -58,6 +58,7 @@ using DimensioneringV2.Themes;
 using DimensioneringV2.Legend;
 using Mapsui.Styles.Thematics;
 using System.Windows.Navigation;
+using DimensioneringV2.Labels;
 
 namespace DimensioneringV2.UI
 {
@@ -481,9 +482,8 @@ namespace DimensioneringV2.UI
         public RelayCommand PerformLabelToggle =>
             new RelayCommand(ToggleLabelStyles, () => true);
         private void ToggleLabelStyles()
-        {
-            //_styleManager.Switch();
-            UpdateMap();
+        {            
+            ToggleLabels();
         }
         #endregion
 
@@ -1210,6 +1210,21 @@ namespace DimensioneringV2.UI
 
             Mymap.Layers.Add(layer);
 
+            //Handle existing labels
+            var exLabelLayer = Mymap.Layers.FirstOrDefault(x => x.Name == "Labels");
+            var labelStyle = LabelManager.GetLabelStyle(SelectedMapPropertyWrapper.EnumValue);
+            if (exLabelLayer != null && labelStyle != null)
+            {
+                Mymap.Layers.Remove(exLabelLayer);
+
+                var labelLayer = new Layer("Labels")
+                {
+                    DataSource = layer.DataSource,
+                    Style = labelStyle
+                };
+                Mymap.Layers.Add(labelLayer);                
+            }
+
             if (_legendWidget != null)
             {
                 var ldp = _themeManager.CurrentTheme as ILegendData;
@@ -1219,7 +1234,39 @@ namespace DimensioneringV2.UI
                     _legendWidget.LegendData = ldp;
                     Mymap.RefreshData();
                 }
+            }            
+        }
+
+        private void ToggleLabels()
+        {
+            if (Mymap == null) return;
+
+            var labelStyle = LabelManager.GetLabelStyle(SelectedMapPropertyWrapper.EnumValue);
+            if (labelStyle == null) return;
+
+            var exLabelLayer = Mymap.Layers.FirstOrDefault(x => x.Name == "Labels");
+            if (exLabelLayer != null)
+            {
+                Mymap.Layers.Remove(exLabelLayer);
+                Mymap.RefreshGraphics();
+                return;
             }
+            else
+            {
+                var exFeatureLayer = Mymap.Layers.FirstOrDefault(x => x.Name == "Features") as Layer;
+                if (exFeatureLayer != null)
+                {
+                    var labelLayer = new Layer("Labels")
+                    {
+                        DataSource = exFeatureLayer.DataSource,
+                        Style = labelStyle
+                    };
+                    Mymap.Layers.Add(labelLayer);
+                    Mymap.RefreshGraphics();
+                    return;
+                }
+                else return;                    
+            }                
         }
 
         #region Popup setup
