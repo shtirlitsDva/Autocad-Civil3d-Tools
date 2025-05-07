@@ -210,7 +210,7 @@ namespace IntersectUtilities
                 string filePath = Path.Combine(apDataExportPath, "PipelineSizeData.json");
                 using var w = new StreamWriter(filePath, false);
 
-                var sizes = pn.GetAllSizeArrays();
+                var sizes = pn.GetAllSizeArrays(includeNas: false);
 
                 var ppls = new HashSet<AP_PipelineData>();
                 foreach (var size in sizes)
@@ -268,7 +268,8 @@ namespace IntersectUtilities
                     .Where(x => x is Polyline)
                     .Cast<Polyline>()
                     .GroupBy(x => psh.Pipeline.ReadPropertyString(
-                        x, psh.PipelineDef.BelongsToAlignment));
+                        x, psh.PipelineDef.BelongsToAlignment))
+                    .Where(x => als.Select(x => x.Name).Contains(x.Key));
 
                 HashSet<AP_PipelineData> ppls = new HashSet<AP_PipelineData>();
                 foreach (var gp in gps.OrderBy(x => x.Key))

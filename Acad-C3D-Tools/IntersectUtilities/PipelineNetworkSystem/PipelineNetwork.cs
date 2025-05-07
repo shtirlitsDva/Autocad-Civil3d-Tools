@@ -146,11 +146,12 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 pipeline.CreateSizeArray();
             }
         }
-        public List<(string, IPipelineSizeArrayV2)> GetAllSizeArrays()
+        public List<(string, IPipelineSizeArrayV2)> GetAllSizeArrays(bool includeNas = true)
         {
             List<(string, IPipelineSizeArrayV2)> data = new();
             foreach (var pipeline in pipelines)
             {
+                if (!includeNas && pipeline is PipelineV2Na) continue;
                 data.Add((pipeline.Name, pipeline.PipelineSizes));
             }
             return data;
