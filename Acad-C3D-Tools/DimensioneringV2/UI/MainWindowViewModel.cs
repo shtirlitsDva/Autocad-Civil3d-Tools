@@ -60,6 +60,7 @@ using Mapsui.Styles.Thematics;
 using System.Windows.Navigation;
 using DimensioneringV2.Labels;
 using Mapsui.Styles;
+using DimensioneringV2.ResultCache;
 
 namespace DimensioneringV2.UI
 {
@@ -159,30 +160,32 @@ namespace DimensioneringV2.UI
             try
             {
                 //Init the hydraulic calculation service using current settings
-                HydraulicCalculationService.Initialize();
+                HydraulicCalculationService.Initialize();                
 
                 var reportingWindow = new GeneticOptimizedReporting();
                 reportingWindow.Show();
                 GeneticOptimizedReportingContext.VM = (GeneticOptimizedReportingViewModel)reportingWindow.DataContext;
                 GeneticOptimizedReportingContext.VM.Dispatcher = reportingWindow.Dispatcher;
 
-                var dispatcher = GeneticOptimizedReportingContext.VM.Dispatcher;
+                var dispatcher = GeneticOptimizedReportingContext.VM.Dispatcher;                
 
                 await Task.Run(() =>
                 {
                     var graphs = _dataService.Graphs;
 
+                    #region Setup result cache and precalculate service lines
+                    var cache = new HydraulicCalculationCache(
+                        HydraulicCalculationService.Calc.CalculateHydraulicSegment,
+                        false
+                        );
+                    cache.PrecalculateServicePipes(
+                        graphs
+                        .SelectMany(g => g.Edges.Select(e => e.PipeSegment))
+                        .Where(x => x.SegmentType == NorsynHydraulicCalc.SegmentType.Stikledning));    
+                    #endregion
+
                     //Reset the results
                     foreach (var f in graphs.SelectMany(g => g.Edges.Select(e => e.PipeSegment))) f.ResetHydraulicResults();
-
-                    //HashSet<string> dims = new HashSet<string>();
-                    //foreach (var graph in graphs)
-                    //{
-                    //    foreach (var edge in graph.Edges)
-                    //    {
-                    //        dims.Add(edge.PipeSegment.PipeDim.ToString());
-                    //    }
-                    //}
 
                     foreach (UndirectedGraph<NodeJunction, EdgePipeSegment> originalGraph in graphs)
                     {
@@ -204,13 +207,6 @@ namespace DimensioneringV2.UI
 
                         var c = new CalculateMetaGraphRecursively(metaGraph);
                         c.CalculateBaseSumsForMetaGraph(props);
-
-                        ////Temporary code to test the calculation of subgraphs
-                        ////Test looks like passed
-                        //Parallel.ForEach(graph.Edges, edge =>
-                        //{
-                        //    edge.PushBaseSums();
-                        //});
 
                         Parallel.ForEach(subGraphs, (subGraph, state, index) =>
                         {
@@ -267,7 +263,7 @@ namespace DimensioneringV2.UI
                                     //Calculate sums again for the subgraph
                                     var visited = new HashSet<BFNode>();
                                     CalculateSubgraphs.BFCalcBaseSums(st, rootNode, visited, metaGraph, props);
-                                    HydraulicCalculationsService.BFCalcHydraulics(st);
+                                    HydraulicCalculationsService.BFCalcHydraulics(st, cache);
                                     var result = st.Edges.Sum(x => x.Price);
 
                                     bag.Add((result, st));
@@ -337,7 +333,7 @@ namespace DimensioneringV2.UI
                                         //Calculate sums again for the subgraph
                                         var visited = new HashSet<BFNode>();
                                         CalculateSubgraphs.BFCalcBaseSums(cGraph, rootNode, visited, metaGraph, props);
-                                        HydraulicCalculationsService.BFCalcHydraulics(cGraph);
+                                        HydraulicCalculationsService.BFCalcHydraulics(cGraph, cache);
                                         var result = cGraph.Edges.Sum(x => x.Price);
 
                                         results.Add((cGraph, result));

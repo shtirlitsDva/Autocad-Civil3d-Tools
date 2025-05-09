@@ -662,7 +662,7 @@ namespace NorsynHydraulicCalc
 
                 double plossSupply = resSupply.gradient * length;
                 double plossReturn = resReturn.gradient * length;
-
+                
                 while (plossSupply + plossReturn > maxPressureLoss)
                 {
                     var idx = maxFlowTableSL.FindIndex(x => x.Dim == dim);
@@ -684,6 +684,12 @@ namespace NorsynHydraulicCalc
             }
             #endregion
 
+            //Utilization rate can result in negative numbers for stikledninger
+            //This happens when stikledning is incremented in size to prevent exceeding max pressure loss
+            //and so the calculation is done with a larger dimension than the one in the maxFlowTable
+            //the larger dimension's minFlow is then larger than the calculated flow
+            //and this gives negative utilization rate
+            //AS UTIL RATE IS NOT USED FOR ANYTHING CURRENTLY THIS IS NOT CRITICAL
             var utilRate = determineUtilizationRate(dim, flowSupply, flowReturn, st);
 
             var r = new CalculationResult(
@@ -839,9 +845,13 @@ namespace NorsynHydraulicCalc
             //Console.WriteLine(
             //    $"{(flowSupply / entry.MaxFlowFrem * 100).ToString("F2")}, " +
             //    $"{(flowReturn / entry.MaxFlowReturn * 100).ToString("F2")}");
-            return Math.Max(
+            var res = Math.Max(
                 (flowSupply - minFlowFrem) / (entry.MaxFlowFrem - minFlowFrem),
                 (flowReturn - minFlowReturn) / (entry.MaxFlowReturn - minFlowReturn));
+
+            if (res < 0) { ; }
+
+            return res;
         }
 
         //Debug and testing

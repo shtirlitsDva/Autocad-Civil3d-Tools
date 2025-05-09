@@ -15,17 +15,26 @@ using utils = IntersectUtilities.UtilsCommon.Utils;
 using System.IO;
 using NorsynHydraulicCalc;
 using DimensioneringV2.BruteForceOptimization;
+using DimensioneringV2.ResultCache;
 
 namespace DimensioneringV2.Services
 {
     internal partial class HydraulicCalculationsService
     {
         internal static void BFCalcHydraulics(
-            UndirectedGraph<BFNode, BFEdge> graph)
+            UndirectedGraph<BFNode, BFEdge> graph, HydraulicCalculationCache cache)
         {
             Parallel.ForEach(graph.Edges, edge =>
             {
-                var result = HydraulicCalculationService.Calc.CalculateHydraulicSegment(edge);
+                CalculationResult result;
+                if (edge.SegmentType == SegmentType.Stikledning)
+                {
+                    result = cache.GetServicePipeResult(edge.OriginalEdge.PipeSegment);
+                }
+                else
+                {
+                    result = cache.GetOrCalculateSupplyPipeResult(edge);
+                }                    
                 edge.PipeDim = result.Dim;
                 edge.ReynoldsSupply = result.ReynoldsSupply;
                 edge.ReynoldsReturn = result.ReynoldsReturn;
