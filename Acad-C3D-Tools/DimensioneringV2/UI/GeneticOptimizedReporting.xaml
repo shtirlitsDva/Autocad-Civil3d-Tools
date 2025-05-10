@@ -24,36 +24,68 @@
             <!-- Brute Force card template -->
             <DataTemplate DataType="{x:Type local:BruteForceGraphCalculationViewModel}">
                 <Border CornerRadius="5" BorderBrush="Gray" BorderThickness="1" Padding="10" Margin="5">
-                    <StackPanel>
-                        <TextBlock Text="Brute Force Graph" FontWeight="Bold" />
-                        <TextBlock Text="{Binding Title}" FontStyle="Italic"/>
-                        <Separator Margin="5"/>
+                    <Grid>
+                        <Grid.Resources>
+                            <Style TargetType="StackPanel" x:Key="MainContentStyle">
+                                <Setter Property="Visibility" Value="Visible"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding ShowCountdownOverlay}" Value="True">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
 
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="Nodes: " FontWeight="Bold"/>
-                            <TextBlock Text="{Binding NodeCount}"/>
+                            <Style TargetType="Grid" x:Key="OverlayStyle">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding ShowCountdownOverlay}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Grid.Resources>
+
+                        <!-- Main content -->
+                        <StackPanel Style="{StaticResource MainContentStyle}">
+                            <TextBlock Text="Brute Force Graph" FontWeight="Bold" />
+                            <TextBlock Text="{Binding Title}" FontStyle="Italic"/>
+                            <Separator Margin="5"/>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Nodes: " FontWeight="Bold"/>
+                                <TextBlock Text="{Binding NodeCount}"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Edges: " FontWeight="Bold"/>
+                                <TextBlock Text="{Binding EdgeCount}"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Non bridges: " FontWeight="Bold"/>
+                                <TextBlock Text="{Binding NonBridgesCount}"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Steiner Trees found: " FontWeight="Bold"/>
+                                <TextBlock Text="{Binding SteinerTreesFound}"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Calculated Trees: " FontWeight="Bold"/>
+                                <TextBlock Text="{Binding CalculatedTrees}"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Cost: " FontWeight="Bold"/>
+                                <TextBlock Text="{Binding Cost, StringFormat={}{0:N0}, ConverterCulture=da-DK}"/>
+                            </StackPanel>
                         </StackPanel>
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="Edges: " FontWeight="Bold"/>
-                            <TextBlock Text="{Binding EdgeCount}"/>
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="Non bridges: " FontWeight="Bold"/>
-                            <TextBlock Text="{Binding NonBridgesCount}"/>
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="Steiner Trees found: " FontWeight="Bold"/>
-                            <TextBlock Text="{Binding SteinerTreesFound}"/>
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="Calculated Trees: " FontWeight="Bold"/>
-                            <TextBlock Text="{Binding CalculatedTrees}"/>
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="Cost: " FontWeight="Bold"/>
-                            <TextBlock Text="{Binding Cost, StringFormat={}{0:N0}, ConverterCulture=da-DK}"/>
-                        </StackPanel>
-                    </StackPanel>
+
+                        <!-- Overlay countdown -->
+                        <Grid Background="#AA000000" Style="{StaticResource OverlayStyle}">
+                            <TextBlock Text="{Binding RemainingTime}"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           Foreground="White"
+                           FontWeight="Bold"
+                           FontSize="24"/>
+                        </Grid>
+                    </Grid>
                 </Border>
             </DataTemplate>
 

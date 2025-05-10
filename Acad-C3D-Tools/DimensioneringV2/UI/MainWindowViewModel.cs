@@ -167,7 +167,9 @@ namespace DimensioneringV2.UI
                 GeneticOptimizedReportingContext.VM = (GeneticOptimizedReportingViewModel)reportingWindow.DataContext;
                 GeneticOptimizedReportingContext.VM.Dispatcher = reportingWindow.Dispatcher;
 
-                var dispatcher = GeneticOptimizedReportingContext.VM.Dispatcher;                
+                var dispatcher = GeneticOptimizedReportingContext.VM.Dispatcher;
+
+                var settings = HydraulicSettingsService.Instance.Settings;
 
                 await Task.Run(() =>
                 {
@@ -218,7 +220,7 @@ namespace DimensioneringV2.UI
 
                             Utils.prtDbg($"Idx: {index} N: {subGraph.VertexCount} E: {subGraph.EdgeCount}");
 
-                            int timeToEnumerate = 20;
+                            int timeToEnumerate = settings.TimeToSteinerTreeEnumeration;
 
                             var bfVM = new BruteForceGraphCalculationViewModel
                             {
@@ -244,6 +246,11 @@ namespace DimensioneringV2.UI
                             var stev3 = new SteinerTreesEnumeratorV3(
                                 subGraph, terminals.ToHashSet(), TimeSpan.FromSeconds(timeToEnumerate));
                             var solutions = stev3.Enumerate();
+
+                            dispatcher.Invoke(() =>
+                            {
+                                bfVM.ShowCountdownOverlay = false;
+                            });
 
                             var nodeFlags = metaGraph.NodeFlags[subGraph];
 

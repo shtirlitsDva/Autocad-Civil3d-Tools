@@ -36,6 +36,9 @@ public partial class HydraulicSettings : ObservableObject, IHydraulicSettings
     private double ruhedPe = 0.01;
 
     [ObservableProperty]
+    private int timeToSteinerTreeEnumeration = 20; // in seconds
+
+    [ObservableProperty]
     private CalcType calculationType = CalcType.CW; // "CW" or "TM"
 
     [ObservableProperty]

@@ -49,6 +49,7 @@ namespace DimensioneringV2.UI
                     }
                     else
                     {
+                        ShowCountdownOverlay = false;
                         countdownTimer?.Dispose();
                     }
                 });
