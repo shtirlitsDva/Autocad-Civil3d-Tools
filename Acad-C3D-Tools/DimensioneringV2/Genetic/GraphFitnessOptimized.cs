@@ -1,5 +1,6 @@
 ﻿using DimensioneringV2.BruteForceOptimization;
 using DimensioneringV2.GraphModel;
+using DimensioneringV2.ResultCache;
 using DimensioneringV2.Services;
 using DimensioneringV2.Services.SubGraphs;
 
@@ -22,12 +23,13 @@ namespace DimensioneringV2.Genetic
     {
         private readonly List<(Func<BFEdge, dynamic> Getter, Action<BFEdge, dynamic> Setter)> _props;
         private readonly CoherencyManagerOptimized _chm;
+        private readonly HydraulicCalculationCache _cache;
 
         public GraphFitnessOptimized(
             CoherencyManagerOptimized coherencyManager,
-            List<(Func<BFEdge, dynamic> Getter, Action<BFEdge, dynamic> Setter)> props
-            )
-        { _props = props; _chm = coherencyManager; }
+            List<(Func<BFEdge, dynamic> Getter, Action<BFEdge, dynamic> Setter)> props,
+            HydraulicCalculationCache cache)
+        { _props = props; _chm = coherencyManager; _cache = cache; }
 
         public double Evaluate(IChromosome chromosome)
         {
@@ -41,7 +43,7 @@ namespace DimensioneringV2.Genetic
             }
 
             double result = HCS_SGC_CalculateSumsAndCost.CalculateSumsAndCost(
-                graphChromosome, _props);
+                graphChromosome, _props, _cache);
 
             return -result;
         }

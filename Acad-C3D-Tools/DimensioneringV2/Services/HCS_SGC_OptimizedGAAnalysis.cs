@@ -19,6 +19,7 @@ using System.Windows;
 using DimensioneringV2.UI;
 using DimensioneringV2.GraphModel;
 using DimensioneringV2.Services.SubGraphs;
+using DimensioneringV2.ResultCache;
 
 namespace DimensioneringV2.Services
 {
@@ -30,9 +31,10 @@ namespace DimensioneringV2.Services
             UndirectedGraph<BFNode, BFEdge> seed,
             List<(Func<BFEdge, dynamic> Getter, Action<BFEdge, dynamic> Setter)> props,
             GeneticAlgorithmCalculationViewModel gaVM,
-            CancellationToken token)
+            CancellationToken token,
+            HydraulicCalculationCache cache)
         {
-            var ga = SetupOptimizedGAAnalysis(metaGraph, subGraph, seed, props);
+            var ga = SetupOptimizedGAAnalysis(metaGraph, subGraph, seed, props, cache);
 
             ga.GenerationRan += (s, e) =>
             {
@@ -72,7 +74,8 @@ namespace DimensioneringV2.Services
             var visited = new HashSet<BFNode>();
             var rootNode = metaGraph.GetRootForSubgraph(subGraph);
 
-            HCS_SGC_CalculateSumsAndCost.CalculateSumsAndCost(bestChromosome, props);
+            HCS_SGC_CalculateSumsAndCost.CalculateSumsAndCost(
+                bestChromosome, props, cache);
             
             //Update the original graph with the results from the best result
             foreach (var edge in bestChromosome.LocalGraph.Edges)

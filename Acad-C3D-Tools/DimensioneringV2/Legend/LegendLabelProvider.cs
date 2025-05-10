@@ -12,7 +12,7 @@ namespace DimensioneringV2.Legend
     {
         public static string GetLabel(MapPropertyEnum property, object? value)
         {
-            if (value == null) return null;
+            if (value == null) return "NULL";
 
             return property switch
             {

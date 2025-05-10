@@ -176,15 +176,16 @@ namespace DimensioneringV2.UI
                     #region Setup result cache and precalculate service lines
                     var cache = new HydraulicCalculationCache(
                         HydraulicCalculationService.Calc.CalculateHydraulicSegment,
-                        false
+                        HydraulicSettingsService.Instance.Settings.CacheResults,
+                        HydraulicSettingsService.Instance.Settings.CachePrecision
                         );
                     cache.PrecalculateServicePipes(
                         graphs
                         .SelectMany(g => g.Edges.Select(e => e.PipeSegment))
-                        .Where(x => x.SegmentType == NorsynHydraulicCalc.SegmentType.Stikledning));    
+                        .Where(x => x.SegmentType == NorsynHydraulicCalc.SegmentType.Stikledning));
                     #endregion
 
-                    //Reset the results
+                    //Reset the results, must happen after precalculation of service lines
                     foreach (var f in graphs.SelectMany(g => g.Edges.Select(e => e.PipeSegment))) f.ResetHydraulicResults();
 
                     foreach (UndirectedGraph<NodeJunction, EdgePipeSegment> originalGraph in graphs)
@@ -353,6 +354,17 @@ namespace DimensioneringV2.UI
                                 {
                                     edge.PushAllResults();
                                 }
+
+                                //IEnumerable<AnalysisFeature> reprojected = 
+                                //graphs.SelectMany(x => 
+                                //ProjectionService.ReProjectFeatures(
+                                //    x.Edges.Select(x => x.PipeSegment)
+                                //    .Where(x => x.PipeDim == null), "EPSG:3857", "EPSG:25832"));
+
+                                //AcContext.Current.Post(_ =>
+                                //{
+                                //    AutoCAD.MarkNullEdges.Mark(reprojected);
+                                //}, null);
                             }
                         });
                     }
@@ -370,60 +382,6 @@ namespace DimensioneringV2.UI
             foreach (var graph in graphs)
             {
                 CriticalPathService.Calculate(graph);
-            }
-        }
-        #endregion
-
-        #region PerformCalculationsGACommand
-        public AsyncRelayCommand PerformCalculationsGACommand => new(PerformCalculationsGAExecuteAsync);
-
-        private async Task PerformCalculationsGAExecuteAsync()
-        {
-            var props = new List<(Func<BFEdge, dynamic> Getter, Action<BFEdge, dynamic> Setter)>
-            {
-                (f => f.NumberOfBuildingsConnected, (f, v) => f.NumberOfBuildingsSupplied = v),
-                (f => f.NumberOfUnitsConnected, (f, v) => f.NumberOfUnitsSupplied = v),
-                (f => f.HeatingDemandConnected, (f, v) => f.HeatingDemandSupplied = v)
-            };
-
-            //Init the hydraulic calculation service using current settings
-            HydraulicCalculationService.Initialize();
-
-            try
-            {
-                var progressWindow = new GeneticReporting();
-                progressWindow.Show();
-                GeneticReportingContext.VM = (GeneticReportingViewModel)progressWindow.DataContext;
-                GeneticReportingContext.VM.Dispatcher = progressWindow.Dispatcher;
-
-                await Task.Run(() =>
-                {
-                    var graphs = _dataService.Graphs;
-
-                    //Reset the results
-                    foreach (var f in graphs.SelectMany(g => g.Edges.Select(e => e.PipeSegment))) f.ResetHydraulicResults();
-
-                    foreach (UndirectedGraph<NodeJunction, EdgePipeSegment> graph in graphs)
-                    {
-                        HydraulicCalculationsService.CalculateGAAnalysis(
-                            graph,
-                            props,
-                            (generation, fitness) =>
-                            {
-                                progressWindow.Dispatcher.Invoke(() =>
-                                {
-                                    GeneticReportingContext.VM.UpdatePlot(generation, fitness);
-                                });
-                            },
-                            GeneticReportingContext.VM.CancellationToken
-                            );
-                    }
-                });
-            }
-            catch (System.Exception ex)
-            {
-                utils.prdDbg($"An error occurred during calculations: {ex.Message}");
-                utils.prdDbg(ex);
             }
         }
         #endregion
@@ -575,17 +533,20 @@ namespace DimensioneringV2.UI
                 {
                     var graphs = _dataService.Graphs;
 
-                    //Reset the results
-                    foreach (var f in graphs.SelectMany(g => g.Edges.Select(e => e.PipeSegment))) f.ResetHydraulicResults();
+                    #region Setup result cache and precalculate service lines
+                    var cache = new HydraulicCalculationCache(
+                        HydraulicCalculationService.Calc.CalculateHydraulicSegment,
+                        HydraulicSettingsService.Instance.Settings.CacheResults,
+                        HydraulicSettingsService.Instance.Settings.CachePrecision
+                        );
+                    cache.PrecalculateServicePipes(
+                        graphs
+                        .SelectMany(g => g.Edges.Select(e => e.PipeSegment))
+                        .Where(x => x.SegmentType == NorsynHydraulicCalc.SegmentType.Stikledning));
+                    #endregion
 
-                    //HashSet<string> dims = new HashSet<string>();
-                    //foreach (var graph in graphs)
-                    //{
-                    //    foreach (var edge in graph.Edges)
-                    //    {
-                    //        dims.Add(edge.PipeSegment.PipeDim.ToString());
-                    //    }
-                    //}
+                    //Reset the results after the precalculation of service lines
+                    foreach (var f in graphs.SelectMany(g => g.Edges.Select(e => e.PipeSegment))) f.ResetHydraulicResults();
 
                     foreach (UndirectedGraph<NodeJunction, EdgePipeSegment> originalGraph in graphs)
                     {
@@ -645,21 +606,6 @@ namespace DimensioneringV2.UI
 
                             if (solutions.Count > 0)
                             {//Use bruteforce
-
-
-                                //List<UndirectedGraph<BFNode, BFEdge>> solutions = new List<UndirectedGraph<BFNode, BFEdge>>();
-
-                                //SteinerTreesEnumeratorV4.Enumerate(
-                                //    subGraph,
-                                //    rootNode,
-                                //    terminals.ToHashSet(),
-                                //    TimeSpan.FromSeconds(20),
-                                //    (edges) => {
-                                //        var st = new UndirectedGraph<BFNode, BFEdge>();
-                                //        foreach (var edge in edges) st.AddEdgeCopy(edge);
-                                //        solutions.Add(st);
-                                //    });
-
                                 var bfVM = new BruteForceGraphCalculationViewModel
                                 {
                                     // Some descriptive title
@@ -679,7 +625,6 @@ namespace DimensioneringV2.UI
 
                                 var nodeFlags = metaGraph.NodeFlags[subGraph];
 
-
                                 ConcurrentBag<(double result, UndirectedGraph<BFNode, BFEdge> graph)> bag = new();
 
                                 int enumeratedCount = 0;
@@ -692,7 +637,7 @@ namespace DimensioneringV2.UI
                                     //Calculate sums again for the subgraph
                                     var visited = new HashSet<BFNode>();
                                     CalculateSubgraphs.BFCalcBaseSums(st, rootNode, visited, metaGraph, props);
-                                    HydraulicCalculationsService.BFCalcHydraulics(st);
+                                    HydraulicCalculationsService.BFCalcHydraulics(st, cache);
                                     var result = st.Edges.Sum(x => x.Price);
 
                                     bag.Add((result, st));
@@ -778,7 +723,7 @@ namespace DimensioneringV2.UI
                                         //Calculate sums again for the subgraph
                                         var visited = new HashSet<BFNode>();
                                         CalculateSubgraphs.BFCalcBaseSums(cGraph, rootNode, visited, metaGraph, props);
-                                        HydraulicCalculationsService.BFCalcHydraulics(cGraph);
+                                        HydraulicCalculationsService.BFCalcHydraulics(cGraph, cache);
                                         var result = cGraph.Edges.Sum(x => x.Price);
 
                                         results.Add((cGraph, result));
@@ -799,7 +744,8 @@ namespace DimensioneringV2.UI
                                     seed,
                                     props,
                                     gaVM,
-                                    gaVM.CancellationToken
+                                    gaVM.CancellationToken,
+                                    cache
                                     );
                             }
                         });

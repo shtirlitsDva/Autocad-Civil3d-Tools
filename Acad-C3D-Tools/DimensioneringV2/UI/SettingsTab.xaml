@@ -56,6 +56,8 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
                     <Label Grid.Row="0" Grid.Column="0" Content="Medietype:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
@@ -96,6 +98,14 @@
                     <CheckBox Grid.Row="10" Grid.Column="0" Grid.ColumnSpan="2" Content="Skriv resultater til konsolvinduet [Langsommere]"
                               IsChecked="{Binding Settings.ReportToConsole, UpdateSourceTrigger=PropertyChanged}"
                               Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
+
+                    <!-- CheckBox spans both columns if needed -->
+                    <CheckBox Grid.Row="11" Grid.Column="0" Grid.ColumnSpan="2" Content="Brug resultat caching"
+                              IsChecked="{Binding Settings.CacheResults, UpdateSourceTrigger=PropertyChanged}"
+                              Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
+
+                    <Label Grid.Row="12" Grid.Column="0" Content="Præcision for caching [Heltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
+                    <TextBox Grid.Row="12" Grid.Column="1" Width="50" Text="{Binding Settings.CachePrecision, UpdateSourceTrigger=PropertyChanged}"/>
                 </Grid>
             </GroupBox>
 

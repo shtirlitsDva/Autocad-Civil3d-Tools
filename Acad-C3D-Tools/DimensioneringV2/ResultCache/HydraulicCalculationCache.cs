@@ -35,18 +35,25 @@ namespace DimensioneringV2.ResultCache
         {
             foreach (var segment in segments)
             {
-                var key = new SegmentKey(segment, _precisionFactor);
-                if (!_cache.ContainsKey(key))
+                if (!_stikCache.ContainsKey(segment))
                 {
+                    if (segment is not AnalysisFeature feature) continue;
+                    feature.NumberOfBuildingsSupplied = 1;
+                    feature.NumberOfUnitsSupplied = feature.NumberOfUnitsConnected;
+                    feature.HeatingDemandSupplied = feature.HeatingDemandConnected;
+
                     var result = _calcFunc(segment);
-                    _cache.TryAdd(key, result);
+                    _stikCache.Add(segment, result);
                 }
             }
         }
 
+        /// <summary>
+        /// Must operate on the original AnalysisFeature!
+        /// </summary>
         public CalculationResult GetServicePipeResult(IHydraulicSegment segment)
         {
-            if (segment is null) throw new ArgumentNullException(nameof(segment));
+            ArgumentNullException.ThrowIfNull(segment);
             if (segment.SegmentType == SegmentType.Stikledning)
             {
                 if (_stikCache.TryGetValue(segment, out var result)) return result;

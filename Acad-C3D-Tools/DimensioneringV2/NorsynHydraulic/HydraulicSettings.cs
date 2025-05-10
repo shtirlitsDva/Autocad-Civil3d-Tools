@@ -41,6 +41,12 @@ public partial class HydraulicSettings : ObservableObject, IHydraulicSettings
     [ObservableProperty]
     private bool reportToConsole = false;
 
+    [ObservableProperty]
+    private bool cacheResults = false;
+
+    [ObservableProperty]
+    private int cachePrecision = 4;
+
     // Supply Lines (FL)
     [ObservableProperty]
     private int tempFremFL = 110;

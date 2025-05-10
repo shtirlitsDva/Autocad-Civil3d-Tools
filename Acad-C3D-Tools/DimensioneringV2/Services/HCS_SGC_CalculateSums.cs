@@ -1,5 +1,6 @@
 ﻿using DimensioneringV2.BruteForceOptimization;
 using DimensioneringV2.GraphModel;
+using DimensioneringV2.ResultCache;
 
 using NorsynHydraulicCalc;
 
@@ -77,14 +78,23 @@ namespace DimensioneringV2.Services.SubGraphs
         /// Calculates the hydraulic properties of the edges in the graph
         /// </summary>
         internal static void CalculateHydraulics(
-            HydraulicCalc hc,
-            UndirectedGraph<BFNode, BFEdge> graph)
+            UndirectedGraph<BFNode, BFEdge> graph,
+            HydraulicCalculationCache cache)
         {
             //Avoid oversubscription of the cpu
             //Parallel.ForEach(graph.Edges, edge =>
             foreach (var edge in graph.Edges)
             {
-                var result = hc.CalculateHydraulicSegment(edge);
+                CalculationResult result;
+                if (edge.SegmentType == SegmentType.Stikledning)
+                {
+                    result = cache.GetServicePipeResult(edge.OriginalEdge.PipeSegment);
+                }
+                else
+                {
+                    result = cache.GetOrCalculateSupplyPipeResult(edge);
+                }
+                
                 edge.PipeDim = result.Dim;
                 edge.ReynoldsSupply = result.ReynoldsSupply;
                 edge.ReynoldsReturn = result.ReynoldsReturn;

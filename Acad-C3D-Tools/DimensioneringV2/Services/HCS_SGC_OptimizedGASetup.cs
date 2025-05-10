@@ -19,6 +19,7 @@ using System.Collections;
 using System.Collections.Concurrent;
 using Mapsui.Utilities;
 using DimensioneringV2.GraphModel;
+using DimensioneringV2.ResultCache;
 
 namespace DimensioneringV2.Services
 {
@@ -28,7 +29,8 @@ namespace DimensioneringV2.Services
             MetaGraph<UndirectedGraph<BFNode, BFEdge>> metaGraph,
             UndirectedGraph<BFNode, BFEdge> subGraph,
             UndirectedGraph<BFNode, BFEdge> seed,
-            List<(Func<BFEdge, dynamic> Getter, Action<BFEdge, dynamic> Setter)> props)
+            List<(Func<BFEdge, dynamic> Getter, Action<BFEdge, dynamic> Setter)> props,
+            HydraulicCalculationCache cache)
         {
             CoherencyManagerOptimized chm = new CoherencyManagerOptimized(metaGraph, subGraph, seed);
 
@@ -37,7 +39,7 @@ namespace DimensioneringV2.Services
                 200,
                 new GraphChromosomeOptimized(chm));
 
-            var fitness = new GraphFitnessOptimized(chm, props);
+            var fitness = new GraphFitnessOptimized(chm, props, cache);
             var selection = new EliteSelection();
             var crossover = new UniqueCrossoverOptimized(chm, 0.5f);
             var mutation = new GraphMutationOptimized(chm);

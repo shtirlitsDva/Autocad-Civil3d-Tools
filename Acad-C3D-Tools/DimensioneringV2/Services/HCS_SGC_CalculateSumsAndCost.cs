@@ -1,6 +1,7 @@
 ﻿using DimensioneringV2.BruteForceOptimization;
 using DimensioneringV2.Genetic;
 using DimensioneringV2.GraphModel;
+using DimensioneringV2.ResultCache;
 using DimensioneringV2.Services.SubGraphs;
 
 using QuikGraph;
@@ -22,11 +23,16 @@ namespace DimensioneringV2.Services
         internal static double CalculateSumsAndCost(GraphChromosomeOptimized chr,
             List<(
                 Func<BFEdge, dynamic> Getter,
-                Action<BFEdge, dynamic> Setter)> props)
+                Action<BFEdge, dynamic> Setter)> props,
+            HydraulicCalculationCache cache)
         {
 
             var r = CalculateSumsAndCost(
-                chr.LocalGraph, chr.CoherencyManager.OriginalGraph, props, chr.CoherencyManager.MetaGraph);
+                chr.LocalGraph,
+                chr.CoherencyManager.OriginalGraph,
+                props,
+                chr.CoherencyManager.MetaGraph,
+                cache);
 
             //Assume that NonBridgeChromosomeIndex has been preserved in the graph
             //even if we have new copies of the edges
@@ -46,7 +52,8 @@ namespace DimensioneringV2.Services
             List<(
                 Func<BFEdge, dynamic> Getter,
                 Action<BFEdge, dynamic> Setter)> props,
-            MetaGraph<UndirectedGraph<BFNode, BFEdge>> metaGraph)
+            MetaGraph<UndirectedGraph<BFNode, BFEdge>> metaGraph,
+            HydraulicCalculationCache cache)
         {
             var rootNode = metaGraph.GetRootForSubgraph(originalSubGraph);
 
@@ -81,8 +88,7 @@ namespace DimensioneringV2.Services
             CalculateSubgraphs.BFCalcBaseSums(
                 spt, rootNode, new HashSet<BFNode>(), metaGraph, props);
             // Calculate the cost
-            CalculateSubgraphs.CalculateHydraulics(
-                HydraulicCalculationService.Calc, spt);
+            CalculateSubgraphs.CalculateHydraulics(spt, cache);
 
             return (spt.Edges.Sum(x => x.Price), spt);
         }
