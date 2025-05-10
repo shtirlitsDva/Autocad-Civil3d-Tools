@@ -218,9 +218,7 @@ namespace DimensioneringV2.UI
 
                             Utils.prtDbg($"Idx: {index} N: {subGraph.VertexCount} E: {subGraph.EdgeCount}");
 
-                            var stev3 = new SteinerTreesEnumeratorV3(
-                                subGraph, terminals.ToHashSet(), TimeSpan.FromSeconds(20));
-                            var solutions = stev3.Enumerate();
+                            int timeToEnumerate = 20;
 
                             var bfVM = new BruteForceGraphCalculationViewModel
                             {
@@ -229,15 +227,23 @@ namespace DimensioneringV2.UI
                                 NodeCount = subGraph.VertexCount,
                                 EdgeCount = subGraph.EdgeCount,
                                 NonBridgesCount = nonbridges.Count.ToString(),
-                                SteinerTreesFound = solutions.Count,       // will be set later
+                                SteinerTreesFound = 0,       // will be set later
                                 CalculatedTrees = 0,         // will increment as we go
-                                Cost = 0                     // will set once we know best
+                                Cost = 0,                    // will set once we know best
+                                TimeToEnumerate = timeToEnumerate
                             };
+
+                            bfVM.RemainingTime = timeToEnumerate;
 
                             dispatcher.Invoke(() =>
                             {
                                 GeneticOptimizedReportingContext.VM.GraphCalculations.Add(bfVM);
+                                bfVM.StartCountdown(dispatcher);
                             });
+
+                            var stev3 = new SteinerTreesEnumeratorV3(
+                                subGraph, terminals.ToHashSet(), TimeSpan.FromSeconds(timeToEnumerate));
+                            var solutions = stev3.Enumerate();
 
                             var nodeFlags = metaGraph.NodeFlags[subGraph];
 
