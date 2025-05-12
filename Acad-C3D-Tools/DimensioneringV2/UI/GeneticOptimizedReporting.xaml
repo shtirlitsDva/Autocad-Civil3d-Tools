@@ -133,6 +133,21 @@
                     </StackPanel>
                 </Border>
             </DataTemplate>
+
+            <DataTemplate DataType="{x:Type local:PlaceholderGraphCalculationViewModel}">
+                <Border CornerRadius="5" BorderBrush="Gray" BorderThickness="1" Padding="10" Margin="5"
+            Background="#AA000000">
+                    <Grid>
+                        <TextBlock Text="{Binding RemainingTime}"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       Foreground="White"
+                       FontWeight="Bold"
+                       FontSize="24"/>
+                    </Grid>
+                </Border>
+            </DataTemplate>
+            
         </ResourceDictionary>
     </Window.Resources>
 

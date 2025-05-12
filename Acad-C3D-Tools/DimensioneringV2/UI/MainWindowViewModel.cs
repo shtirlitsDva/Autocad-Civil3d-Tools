@@ -57,7 +57,6 @@ using DimensioneringV2.Serialization;
 using DimensioneringV2.Themes;
 using DimensioneringV2.Legend;
 using Mapsui.Styles.Thematics;
-using System.Windows.Navigation;
 using DimensioneringV2.Labels;
 using Mapsui.Styles;
 using DimensioneringV2.ResultCache;
@@ -160,7 +159,7 @@ namespace DimensioneringV2.UI
             try
             {
                 //Init the hydraulic calculation service using current settings
-                HydraulicCalculationService.Initialize();                
+                HydraulicCalculationService.Initialize();
 
                 var reportingWindow = new GeneticOptimizedReporting();
                 reportingWindow.Show();
@@ -250,6 +249,7 @@ namespace DimensioneringV2.UI
                             dispatcher.Invoke(() =>
                             {
                                 bfVM.ShowCountdownOverlay = false;
+                                bfVM.SteinerTreesFound = solutions.Count;
                             });
 
                             var nodeFlags = metaGraph.NodeFlags[subGraph];
@@ -542,6 +542,8 @@ namespace DimensioneringV2.UI
 
                 var dispatcher = GeneticOptimizedReportingContext.VM.Dispatcher;
 
+                var settings = HydraulicSettingsService.Instance.Settings;
+
                 await Task.Run(() =>
                 {
                     var graphs = _dataService.Graphs;
@@ -582,13 +584,6 @@ namespace DimensioneringV2.UI
                         var c = new CalculateMetaGraphRecursively(metaGraph);
                         c.CalculateBaseSumsForMetaGraph(props);
 
-                        ////Temporary code to test the calculation of subgraphs
-                        ////Test looks like passed
-                        //Parallel.ForEach(graph.Edges, edge =>
-                        //{
-                        //    edge.PushBaseSums();
-                        //});
-
                         Parallel.ForEach(subGraphs, (subGraph, state, index) =>
                         {
                             var terminals = metaGraph.GetTerminalsForSubgraph(subGraph);
@@ -599,6 +594,27 @@ namespace DimensioneringV2.UI
 
                             Utils.prtDbg($"Idx: {index} N: {subGraph.VertexCount} E: {subGraph.EdgeCount} " +
                                 $"NB: {nonbridges.Count}");
+
+                            int timeToEnumerate = settings.TimeToSteinerTreeEnumeration;
+
+                            var placeholderVM = new PlaceholderGraphCalculationViewModel
+                            {
+                                // Some descriptive title
+                                Title = $"Brute Force Subgraph #{index + 1}",
+                                NodeCount = subGraph.VertexCount,
+                                EdgeCount = subGraph.EdgeCount,
+                                NonBridgesCount = nonbridges.Count.ToString(),
+                                Cost = 0,                    // will set once we know best
+                                TimeToEnumerate = timeToEnumerate
+                            };
+
+                            placeholderVM.RemainingTime = timeToEnumerate;
+
+                            dispatcher.Invoke(() =>
+                            {
+                                GeneticOptimizedReportingContext.VM.GraphCalculations.Add(placeholderVM);
+                                placeholderVM.StartCountdown(dispatcher);
+                            });
 
                             var stev3 = new SteinerTreesEnumeratorV3(
                                     subGraph, terminals.ToHashSet(), TimeSpan.FromSeconds(15));
@@ -617,6 +633,10 @@ namespace DimensioneringV2.UI
                                     $"\nUsing brute force.");
                             }
 
+                            //Remove the countdown placeholder
+                            dispatcher.Invoke(() =>
+                            { GeneticOptimizedReportingContext.VM.GraphCalculations.Remove(placeholderVM); });
+
                             if (solutions.Count > 0)
                             {//Use bruteforce
                                 var bfVM = new BruteForceGraphCalculationViewModel
@@ -628,12 +648,15 @@ namespace DimensioneringV2.UI
                                     NonBridgesCount = nonbridges.Count.ToString(),
                                     SteinerTreesFound = solutions.Count,       // will be set later
                                     CalculatedTrees = 0,         // will increment as we go
-                                    Cost = 0                     // will set once we know best
+                                    Cost = 0,                    // will set once we know best
+                                    TimeToEnumerate = 0
                                 };
 
                                 dispatcher.Invoke(() =>
                                 {
                                     GeneticOptimizedReportingContext.VM.GraphCalculations.Add(bfVM);
+                                    bfVM.ShowCountdownOverlay = false;
+                                    bfVM.SteinerTreesFound = solutions.Count;
                                 });
 
                                 var nodeFlags = metaGraph.NodeFlags[subGraph];
@@ -681,7 +704,6 @@ namespace DimensioneringV2.UI
                             }
                             else
                             {//Use GA
-
                                 var gaVM = new GeneticAlgorithmCalculationViewModel
                                 {
                                     // Some descriptive title
