@@ -1,6 +1,7 @@
 ﻿using DimensioneringV2.GraphFeatures;
 
 using NorsynHydraulicCalc;
+using NorsynHydraulicCalc.Pipes;
 
 using NorsynHydraulicShared;
 
@@ -67,6 +68,11 @@ namespace DimensioneringV2.ResultCache
         public CalculationResult GetOrCalculateSupplyPipeResult(IHydraulicSegment segment)
         {
             if (segment is null) throw new ArgumentNullException(nameof(segment));
+
+            if (segment.NumberOfBuildingsSupplied == 0 &&
+                segment.HeatingDemandSupplied == 0)
+                return new CalculationResult(
+                    "Fordelingsledning", Dim.NA, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
             if (!_cacheEnabled) return _calcFunc(segment);
 

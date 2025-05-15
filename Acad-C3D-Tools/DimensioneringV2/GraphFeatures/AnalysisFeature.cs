@@ -73,19 +73,24 @@ namespace DimensioneringV2.GraphFeatures
             {
                 if (!PropertyKeyLookup.TryGetValue(property, out var key))
                     throw new KeyNotFoundException($"Property enum '{property}' not found in lookup.");
+
+                if (value == null)
+                    throw new ArgumentNullException(nameof(value), $"Cannot assign null to property '{property}' via indexer.");
+
                 this[key] = value!;
             }
-            }
-            public T GetAttributeValue<T>(MapPropertyEnum property)
+        }
+        public T GetAttributeValue<T>(MapPropertyEnum property)
         {
             var val = this[property];
             if (val is T tVal) return tVal;
             if (val == null) return default!;
             return (T)Convert.ChangeType(val, typeof(T));
         }
-
         public void SetAttributeValue<T>(MapPropertyEnum property, T value)
         {
+            if (value == null)
+                throw new ArgumentNullException(nameof(value), $"Property {property} cannot be set to null!");
             this[property] = value!;
         }
 
@@ -120,7 +125,7 @@ namespace DimensioneringV2.GraphFeatures
         /// </summary>
         public int NumberOfBuildingsConnected
         {
-            get => (this["IsBuildingConnection"] as bool? ?? false) ? 1 : 0;            
+            get => (this["IsBuildingConnection"] as bool? ?? false) ? 1 : 0;
         }
 
         /// <summary>
@@ -377,10 +382,10 @@ namespace DimensioneringV2.GraphFeatures
         public Envelope BoundingBox { get => this.Geometry!.EnvelopeInternal; set => throw new NotImplementedException(); }
         private AttributesTable _attributesTable;
         public IAttributesTable Attributes
-        { 
-            get => _attributesTable ??= new AttributesTable(this.Fields.ToDictionary(f => f, f => this[f])); 
-            set => throw new NotImplementedException(); 
-        }        
+        {
+            get => _attributesTable ??= new AttributesTable(this.Fields.ToDictionary(f => f, f => this[f]));
+            set => throw new NotImplementedException();
+        }
         #endregion
     }
 }

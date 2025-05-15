@@ -34,6 +34,9 @@ namespace DimensioneringV2.Services
                 else
                 {
                     result = cache.GetOrCalculateSupplyPipeResult(edge);
+                    if (result.Dim == null)
+                        throw new Exception(
+                            $"Pipe dimension is null for edge {edge.Source.Location} -> {edge.Target.Location}");
                 }                    
                 edge.PipeDim = result.Dim;
                 edge.ReynoldsSupply = result.ReynoldsSupply;
