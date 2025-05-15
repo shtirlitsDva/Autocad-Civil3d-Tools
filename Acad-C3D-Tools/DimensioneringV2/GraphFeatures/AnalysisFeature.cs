@@ -334,6 +334,8 @@ namespace DimensioneringV2.GraphFeatures
             VelocitySupply = 0;
             VelocityReturn = 0;
             UtilizationRate = 0;
+            IsCriticalPath = false;
+            //SubGraphId = 0;
         }
         #region ICloneable Implementation
         public object Clone()

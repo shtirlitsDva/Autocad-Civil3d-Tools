@@ -19,7 +19,7 @@ namespace NorsynHydraulicCalc.Pipes
         public int[] RGB { get; set; }
         public double Price_m { get; set; }
         private double price_stk { get; set; }
-        public double RelativeRoughness { get => Roughness_m / InnerDiameter_m; }
+        public double RelativeRoughness { get => InnerDiameter_m == 0 ? 0 : Roughness_m / InnerDiameter_m; }
         public double Price_stk(SegmentType st) => st == SegmentType.Stikledning ? price_stk : 0;
 
         public Dim(

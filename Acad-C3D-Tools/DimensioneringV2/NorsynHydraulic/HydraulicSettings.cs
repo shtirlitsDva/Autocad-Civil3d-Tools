@@ -36,6 +36,12 @@ public partial class HydraulicSettings : ObservableObject, IHydraulicSettings
     private double ruhedPe = 0.01;
 
     [ObservableProperty]
+    private int procentTillægTilTryktab = 0;
+
+    [ObservableProperty]
+    private int numberOfGSLUToEnd = 300;
+
+    [ObservableProperty]
     private int timeToSteinerTreeEnumeration = 20; // in seconds
 
     [ObservableProperty]

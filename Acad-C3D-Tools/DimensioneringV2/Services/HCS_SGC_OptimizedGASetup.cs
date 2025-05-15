@@ -46,7 +46,8 @@ namespace DimensioneringV2.Services
 
             var ga = new GeneticAlgorithm(population, fitness, selection, crossover, mutation)
             {
-                Termination = new FitnessStagnationTermination(300)
+                Termination = new FitnessStagnationTermination(
+                    HydraulicSettingsService.Instance.Settings.NumberOfGSLUToEnd)
             };
 
             //ga.TaskExecutor = new ParallelTaskExecutor()

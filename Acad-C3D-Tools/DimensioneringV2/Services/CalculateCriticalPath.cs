@@ -67,6 +67,10 @@ namespace DimensioneringV2.Services.SubGraphs
                     e.Length) / 100000 + 
                     HydraulicSettingsService.Instance.Settings
                     .MinDifferentialPressureOverHovedHaner;
+
+                //Push the calculated values back to the original edge
+                path.stik.OriginalEdge.PipeSegment
+                    .PressureLossAtClient = path.stik.PressureLossAtClient;
             }
 
             var criticalPath = paths.MaxBy(p => p.stik.PressureLossAtClient);
@@ -74,8 +78,7 @@ namespace DimensioneringV2.Services.SubGraphs
             foreach (var edge in criticalPath.path)
             {
                 edge.IsCriticalPath = true;
-                edge.OriginalEdge.PipeSegment.IsCriticalPath = true;
-                edge.OriginalEdge.PipeSegment.PressureLossAtClient = edge.PressureLossAtClient;
+                edge.OriginalEdge.PipeSegment.IsCriticalPath = true;                
             }
         }
     }

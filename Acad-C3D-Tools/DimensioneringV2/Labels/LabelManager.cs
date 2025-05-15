@@ -9,6 +9,7 @@ using Accessibility;
 using DimensioneringV2.GraphFeatures;
 using DimensioneringV2.UI;
 
+using Mapsui;
 using Mapsui.Styles;
 
 namespace DimensioneringV2.Labels
@@ -30,6 +31,7 @@ namespace DimensioneringV2.Labels
 
                     return prop switch
                     {
+                        MapPropertyEnum.CriticalPath => formatCriticalPath(feature),
                         MapPropertyEnum.UtilizationRate => value is double d ? $"{d * 100:F0}%" : value?.ToString(),
                         _ => value switch
                         {
@@ -49,7 +51,14 @@ namespace DimensioneringV2.Labels
                 HorizontalAlignment = LabelStyle.HorizontalAlignmentEnum.Center,
                 VerticalAlignment = LabelStyle.VerticalAlignmentEnum.Center,
                 CollisionDetection = true,
-            };
+            };            
+
+            string? formatCriticalPath(IFeature feature)
+            {
+                if (feature is not AnalysisFeature af) return null;
+                if (af.SegmentType != NorsynHydraulicCalc.SegmentType.Stikledning) return null;
+                return af.PressureLossAtClient.ToString("F2");
+            }
 
             return labelStyle;
         }

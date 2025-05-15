@@ -51,12 +51,12 @@ namespace DimensioneringV2.ResultCache
         /// <summary>
         /// Must operate on the original AnalysisFeature!
         /// </summary>
-        public CalculationResult GetServicePipeResult(IHydraulicSegment segment)
+        public CalculationResult GetServicePipeResult(IHydraulicSegment originalAnalysisFeature)
         {
-            ArgumentNullException.ThrowIfNull(segment);
-            if (segment.SegmentType == SegmentType.Stikledning)
+            ArgumentNullException.ThrowIfNull(originalAnalysisFeature);
+            if (originalAnalysisFeature.SegmentType == SegmentType.Stikledning)
             {
-                if (_stikCache.TryGetValue(segment, out var result)) return result;
+                if (_stikCache.TryGetValue(originalAnalysisFeature, out var result)) return result;
                 else throw new Exception("Stikledning not found in cache!!!");
             }
             else

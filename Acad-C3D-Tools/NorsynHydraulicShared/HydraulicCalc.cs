@@ -16,7 +16,7 @@ namespace NorsynHydraulicCalc
 {
     public class HydraulicCalc
     {
-        public static Version version = new Version(20250304, 0);
+        public static Version version = new Version(20250515, 0);
 
         private ILog log { get; set; }
 
@@ -389,12 +389,13 @@ namespace NorsynHydraulicCalc
             List<string> u = ["", "", "", "", "", "", "", "", "", ""];
             List<(string, List<object>)> vals = new();
 #endif
-
+            //Constant expression, no need to recalculate each loop
+            var A = relativeRoughness / 3.7;
             for (int i = 0; i < 100; i++)
             {
                 // Colebrook-White residual function g(f)
-                double g1 = 1.0 / Math.Sqrt(f1) + 2.0 * Math.Log10((relativeRoughness / 3.7) + (2.51 / (Re * Math.Sqrt(f1))));
-                double g2 = 1.0 / Math.Sqrt(f2) + 2.0 * Math.Log10((relativeRoughness / 3.7) + (2.51 / (Re * Math.Sqrt(f2))));
+                double g1 = 1.0 / Math.Sqrt(f1) + 2.0 * Math.Log10(A + (2.51 / (Re * Math.Sqrt(f1))));
+                double g2 = 1.0 / Math.Sqrt(f2) + 2.0 * Math.Log10(A + (2.51 / (Re * Math.Sqrt(f2))));
 
                 // Update using the secant method
                 double f_new = f2 - (f2 - f1) * g2 / (g2 - g1);
