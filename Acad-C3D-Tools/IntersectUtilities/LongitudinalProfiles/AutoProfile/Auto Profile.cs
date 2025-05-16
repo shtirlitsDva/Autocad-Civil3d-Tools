@@ -53,8 +53,8 @@ using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using IntersectUtilities.PipelineNetworkSystem;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.Operation.Union;
-using IntersectUtilities.LongitudinalProfiles;
 using IntersectUtilities.DataManager;
+using IntersectUtilities.LongitudinalProfiles.AutoProfile;
 
 namespace IntersectUtilities
 {

@@ -7,7 +7,7 @@ using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
-namespace IntersectUtilities.LongitudinalProfiles
+namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
 {
     class AP_PipelineData
     {
