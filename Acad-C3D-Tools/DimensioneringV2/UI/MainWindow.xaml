@@ -79,7 +79,29 @@
             BorderBrush="Black"
             Background="{DynamicResource Background}">
 
-                <DataGrid ItemsSource="{Binding FeatureProperties}"
+                <StackPanel>
+
+                    <StackPanel Margin="5" Orientation="Horizontal">
+                        <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsSelectedFeatureServiceLine}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </StackPanel.Style>
+
+                        <Button Content="Trykprofil"
+                            Margin="0,0,5,5"
+                            Padding="5,2"/>
+                        <Button Content="Trykprofil m. kote"
+                            Margin="0,0,5,5"
+                            Padding="5,2"/>
+                    </StackPanel>
+
+                    <DataGrid ItemsSource="{Binding FeatureProperties}"
                   AutoGenerateColumns="False"
                   CanUserAddRows="False"
                   CanUserDeleteRows="False"
@@ -98,50 +120,51 @@
                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                   ScrollViewer.VerticalScrollBarVisibility="Disabled">
 
-                    <!-- Remove row borders -->
-                    <DataGrid.RowStyle>
-                        <Style TargetType="DataGridRow">
-                            <Setter Property="BorderBrush" Value="Transparent"/>
-                            <Setter Property="BorderThickness" Value="0"/>
-                        </Style>
-                    </DataGrid.RowStyle>
+                        <!-- Remove row borders -->
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow">
+                                <Setter Property="BorderBrush" Value="Transparent"/>
+                                <Setter Property="BorderThickness" Value="0"/>
+                            </Style>
+                        </DataGrid.RowStyle>
 
-                    <!-- Uniform dark cell background, no grid lines -->
-                    <DataGrid.CellStyle>
-                        <Style TargetType="DataGridCell">
-                            <Setter Property="Background" Value="{DynamicResource Background}"/>
-                            <Setter Property="Foreground" Value="{DynamicResource Text}"/>
-                            <Setter Property="Padding" Value="5,2,5,2"/>
-                            <Setter Property="BorderBrush" Value="Transparent"/>
-                            <Setter Property="BorderThickness" Value="0"/>
-                            <Setter Property="HorizontalContentAlignment" Value="Left"/>
-                        </Style>
-                    </DataGrid.CellStyle>
+                        <!-- Uniform dark cell background, no grid lines -->
+                        <DataGrid.CellStyle>
+                            <Style TargetType="DataGridCell">
+                                <Setter Property="Background" Value="{DynamicResource Background}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource Text}"/>
+                                <Setter Property="Padding" Value="5,2,5,2"/>
+                                <Setter Property="BorderBrush" Value="Transparent"/>
+                                <Setter Property="BorderThickness" Value="0"/>
+                                <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                            </Style>
+                        </DataGrid.CellStyle>
 
-                    <!-- Dark theme column headers -->
-                    <DataGrid.ColumnHeaderStyle>
-                        <Style TargetType="DataGridColumnHeader">
-                            <Setter Property="Background" Value="{DynamicResource Background}"/>
-                            <Setter Property="Foreground" Value="{DynamicResource Text}"/>
-                            <Setter Property="FontWeight" Value="Bold"/>
-                            <Setter Property="Padding" Value="5,2,5,2"/>
-                            <Setter Property="BorderBrush" Value="Transparent"/>
-                            <Setter Property="BorderThickness" Value="0"/>
-                        </Style>
-                    </DataGrid.ColumnHeaderStyle>
+                        <!-- Dark theme column headers -->
+                        <DataGrid.ColumnHeaderStyle>
+                            <Style TargetType="DataGridColumnHeader">
+                                <Setter Property="Background" Value="{DynamicResource Background}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource Text}"/>
+                                <Setter Property="FontWeight" Value="Bold"/>
+                                <Setter Property="Padding" Value="5,2,5,2"/>
+                                <Setter Property="BorderBrush" Value="Transparent"/>
+                                <Setter Property="BorderThickness" Value="0"/>
+                            </Style>
+                        </DataGrid.ColumnHeaderStyle>
 
-                    <DataGrid.Columns>
-                        <!-- Left-aligned name column -->
-                        <DataGridTextColumn Header="Property"
+                        <DataGrid.Columns>
+                            <!-- Left-aligned name column -->
+                            <DataGridTextColumn Header="Property"
                                     Binding="{Binding Name}"
                                     Width="SizeToCells" />
-                        <!-- Right-aligned value column -->
-                        <DataGridTextColumn Header="Value"
+                            <!-- Right-aligned value column -->
+                            <DataGridTextColumn Header="Value"
                                     Binding="{Binding Value}"
                                     Width="SizeToCells">
-                        </DataGridTextColumn>
-                    </DataGrid.Columns>
-                </DataGrid>
+                            </DataGridTextColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </StackPanel>
             </Border>
         </Popup>
     </Grid>

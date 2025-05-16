@@ -1218,6 +1218,12 @@ namespace DimensioneringV2.UI
         [ObservableProperty]
         private double popupY;
 
+        [ObservableProperty]
+        private AnalysisFeature? selectedFeature;
+
+        [ObservableProperty]
+        private bool isSelectedFeatureServiceLine = false;
+
         public ObservableCollection<PropertyItem> FeatureProperties { get; } = new();
 
         //PopUp is defined inside the mainwindow.xaml
@@ -1227,6 +1233,8 @@ namespace DimensioneringV2.UI
             if (e.MapInfo?.Feature == null)
             {
                 IsPopupOpen = false;
+                SelectedFeature = null;
+                IsSelectedFeatureServiceLine = false;
                 return;
             }
 
@@ -1234,7 +1242,20 @@ namespace DimensioneringV2.UI
             if (infoFeature == null)
             {
                 IsPopupOpen = false;
+                SelectedFeature = null;
+                IsSelectedFeatureServiceLine = false;
                 return;
+            }
+
+            //Prepare for trykprofil
+            SelectedFeature = e.MapInfo.Feature as AnalysisFeature;
+            if (SelectedFeature == null) IsSelectedFeatureServiceLine = false;
+            else
+            {
+                if (SelectedFeature.SegmentType == NorsynHydraulicCalc.SegmentType.Stikledning)
+                    IsSelectedFeatureServiceLine = true;
+                else
+                    IsSelectedFeatureServiceLine = false;
             }
 
             var items = infoFeature.PropertiesToDataGrid();
