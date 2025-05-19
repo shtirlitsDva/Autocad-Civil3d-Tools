@@ -60,6 +60,58 @@ namespace IntersectUtilities
 {
     public partial class Intersect
     {
+        /// <command>APCREATE</command>
+        /// <summary>
+        /// Creates automatic pipe profile for longitudinal sections.
+        /// </summary>
+        /// <category>Longitudinal Profiles</category>
+        [CommandMethod("APCREATE")]
+        public void apcreate()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            DataManager.DataManager dm = new DataManager.DataManager(new DataReferencesOptions());
+            if (!dm.IsValid()) { dm.Dispose(); return; }            
+
+            using Transaction tx = localDb.TransactionManager.StartTransaction();
+            try
+            {
+                #region Select profile to operate on
+                var als = localDb.HashSetOfType<Alignment>(tx);
+
+                if (als.Count == 0)
+                {
+                    prdDbg("No Alignments found in the drawing");
+                    tx.Abort();
+                    return;
+                }
+
+                var names = als
+                    .Select(x => x.Name)
+                    .OrderBy(x => x);
+                    
+                #endregion
+
+                gathersurfaceprofiledata();
+                gatherpipelinedata(dm);
+                gatherhorizontalarcdata(dm);
+                gatherutilitydata(dm);
+                gatherprofileviewdata();
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg(ex);
+                return;
+            }
+            finally
+            {
+                dm.Dispose();
+            }
+
+            prdDbg("Done!");
+        }
+
         private static JsonSerializerOptions apJsonOptions = new JsonSerializerOptions
         {
             WriteIndented = true,
