@@ -9,15 +9,28 @@ using Autodesk.Civil.ApplicationServices;
 using Autodesk.Civil.DatabaseServices;
 using Autodesk.Civil.DatabaseServices.Styles;
 using Autodesk.Civil.DataShortcuts;
-using Autodesk.Gis.Map;
-using Autodesk.Gis.Map.ObjectData;
-using Autodesk.Gis.Map.Utilities;
-using Autodesk.Aec.PropertyData;
-using Autodesk.Aec.PropertyData.DatabaseServices;
+
+using Dreambuild.AutoCAD;
+
+using GroupByCluster;
+
+using IntersectUtilities.DataManager;
+using IntersectUtilities.LongitudinalProfiles.AutoProfile;
+using IntersectUtilities.LongitudinalProfiles.AutoProfile.DataGatherers;
+using IntersectUtilities.PipelineNetworkSystem;
+using IntersectUtilities.UtilsCommon;
+
+using MoreLinq;
+
+using NetTopologySuite.Geometries;
+using NetTopologySuite.Operation.Union;
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Data;
+using System.Diagnostics.Eventing.Reader;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -25,38 +38,25 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
-using System.Data;
-using MoreLinq;
-using GroupByCluster;
-using IntersectUtilities.UtilsCommon;
-using Dreambuild.AutoCAD;
 
 using static IntersectUtilities.Enums;
 using static IntersectUtilities.HelperMethods;
-using static IntersectUtilities.Utils;
 using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
-
+using static IntersectUtilities.Utils;
+using static IntersectUtilities.UtilsCommon.Utils;
 using static IntersectUtilities.UtilsCommon.UtilsDataTables;
 using static IntersectUtilities.UtilsCommon.UtilsODData;
-using static IntersectUtilities.UtilsCommon.Utils;
 
+using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
 using CivSurface = Autodesk.Civil.DatabaseServices.Surface;
 using DataType = Autodesk.Gis.Map.Constants.DataType;
+using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
+using Label = Autodesk.Civil.DatabaseServices.Label;
 using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
-using Application = Autodesk.AutoCAD.ApplicationServices.Application;
-using Label = Autodesk.Civil.DatabaseServices.Label;
-using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
-using IntersectUtilities.PipelineNetworkSystem;
-using NetTopologySuite.Geometries;
-using NetTopologySuite.Operation.Union;
-using IntersectUtilities.DataManager;
-using IntersectUtilities.LongitudinalProfiles.AutoProfile;
-using IntersectUtilities.LongitudinalProfiles.AutoProfile.DataGatherers;
-using System.Diagnostics.Eventing.Reader;
 
 namespace IntersectUtilities
 {
@@ -78,6 +78,7 @@ namespace IntersectUtilities
             if (!dm.IsValid()) { dm.Dispose(); return; }
             Database fjvDb = dm.GetForRead("Fremtid");
             using Transaction fjvTx = fjvDb.TransactionManager.StartTransaction();
+            PropertySetHelper pshFjv = new(fjvDb);
             #endregion
 
             using Transaction tx = localDb.TransactionManager.StartTransaction();
@@ -102,6 +103,29 @@ namespace IntersectUtilities
                     pn.GetAllSizeArrays(includeNas: false)
                     .ToDictionary(x => x.Item1, x => x.Item2);
 
+                var entsGroupedByAl = als
+                    .Select(al => new
+                    {
+                        al,
+                        entities = ents
+                            .Where(x => x is Polyline)
+                            .Cast<Polyline>()
+                            .Where(p => pshFjv.Pipeline.ReadPropertyString(
+                                p, pshFjv.PipelineDef.BelongsToAlignment) == al.Name)
+                            .ToList()
+                    })
+                    .Where(x => x.entities.Any())
+                    .ToDictionary(x => x.al, x => x.entities);
+
+                var brs = localDb.ListOfType<BlockReference>(tx);
+                var detailingBlockDict = brs
+                    .Where(x => x.RealName().EndsWith("_PV"))
+                    .OrderBy(x => x.RealName())
+                    .ToDictionary(x => x.RealName().Replace("_PV", ""), x => x);
+
+                var pvsDict = localDb
+                    .ListOfType<ProfileView>(tx)
+                    .ToDictionary(x => x.Name.Replace("_PV", ""));
                 #endregion
 
                 #region Select profile to operate on
@@ -127,19 +151,141 @@ namespace IntersectUtilities
                     ppld.SurfaceProfile = SurfaceProfileDataGatherer.GatherData(al);
 
                     #region Get pipline size array 
-                    if (sizeArrays.TryGetValue(al.Name, out var sa)) ppld.PipelineSizes = sa;
+                    if (sizeArrays.TryGetValue(al.Name, out var sa)) ppld.SizeArray = sa;
                     else throw new System.Exception($"No pipeline size array found for {al.Name}!");
                     #endregion
 
+                    #region Gather horizontal arc data
+                    var ppl = pn.GetPipeline(al.Name);
+                    if (ppl == null) throw new System.Exception($"No pipeline found for {al.Name}!");
+                    var gp = entsGroupedByAl[al];
+                    List<double[]> tuples = new();
+                    foreach (Polyline pl in gp.OrderBy(ppl.GetPolylineMiddleStation))
+                    {
+                        for (int i = 0; i < pl.NumberOfVertices; i++)
+                        {
+                            var st = pl.GetSegmentType(i);
+                            if (st == SegmentType.Arc)
+                            {
+                                var arc = pl.GetArcSegmentAt(i);
+                                tuples.Add(
+                                    [ppl.GetStationAtPoint(arc.StartPoint), ppl.GetStationAtPoint(arc.EndPoint)]);
+                            }
+                        }
+                    }
+                    ppld.HorizontalArcs = tuples.OrderBy(x => x[0]).ToArray();
+                    #endregion
 
+                    #region Gather Utility data
+                    if (!pvsDict.TryGetValue(al.Name, out var pv))
+                        throw new System.Exception($"No profile view found for {al.Name}!");
 
+                    if (!detailingBlockDict.TryGetValue(al.Name, out var br))
+                        throw new System.Exception($"No detailing block found for {al.Name}!");
+
+                    BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
+                    Matrix3d trf = br.BlockTransform;
+
+                    var geometryFactory = new GeometryFactory();
+                    var polygons = new List<Polygon>();
+
+                    foreach (Oid id in btr)
+                    {
+                        if (id.IsDerivedFrom<BlockReference>()) continue;
+                        if (!(id.IsDerivedFrom<Polyline>() ||
+                            id.IsDerivedFrom<Arc>() ||
+                            id.IsDerivedFrom<Circle>())) continue;
+                        var ent = id.Go<Entity>(tx);
+                        var exts = ent.GeometricExtents;
+                        exts.TransformBy(trf);
+
+                        polygons.Add(
+                            geometryFactory.CreatePolygon(
+                                [
+                                    new Coordinate(exts.MinPoint.X, exts.MinPoint.Y),
+                                    new Coordinate(exts.MaxPoint.X, exts.MinPoint.Y),
+                                    new Coordinate(exts.MaxPoint.X, exts.MaxPoint.Y),
+                                    new Coordinate(exts.MinPoint.X, exts.MaxPoint.Y),
+                                    new Coordinate(exts.MinPoint.X, exts.MinPoint.Y)
+                                ]));
+                    }
+
+                    Geometry union = CascadedPolygonUnion.Union(polygons.ToArray());
+                    List<Geometry> envelopes = new List<Geometry>();
+
+                    if (union == null || union.IsEmpty)
+                    {
+                        // Handle the case where the union result is null or empty
+                        prdDbg($"The union operation for {al.Name} resulted in an empty geometry.");                        
+                    }
+                    else if (union is Polygon singlePolygon)
+                    {
+                        envelopes.Add(singlePolygon.Envelope);
+                    }
+                    else if (union is MultiPolygon multiPolygon)
+                    {
+                        // The result is a MultiPolygon
+                        foreach (Polygon poly in multiPolygon.Geometries)
+                        {
+                            envelopes.Add(poly.Envelope);
+                        }
+                    }
+
+                    if (envelopes.Count == 0) ppld.Utility = [];                    
+                    else
+                    {
+                        double station = 0.0;
+                        double elevation = 0.0;
+                        foreach (var env in envelopes
+                            .OrderBy(x =>
+                            {
+                                double s = 0.0;
+                                double e = 0.0;
+                                pv.FindStationAndElevationAtXY(x.Coordinates[0].X, x.Coordinates[0].Y, ref s, ref e);
+                                return s;
+                            }))
+                        {
+                            var cs = env.Coordinates;
+                            var minX = cs[0].X;
+                            var minY = cs[0].Y;
+                            var maxX = cs[2].X;
+                            var maxY = cs[2].Y;
+
+                            var x = (minX + maxX) / 2.0;
+                            var y = (minY + maxY) / 2.0;
+
+                            pv.FindStationAndElevationAtXY(x, y, ref station, ref elevation);
+
+                            ppld.Utility.Add(new AP_Utility(env, station));
+                        }                        
+                    }
+                    #endregion
+
+                    pplds.Add(ppld);
                 }
-
-                gatherpipelinedata(dm);
-                gatherhorizontalarcdata(dm);
-                gatherutilitydata(dm);
-                gatherprofileviewdata();
                 #endregion
+
+                #region Debug and dev layer
+                string devLyr = "AutoProfileTest";
+                localDb.CheckOrCreateLayer(devLyr, 1, false);
+                #endregion
+
+                foreach (var ppld in pplds)
+                {
+                    //Test utility data
+                    foreach (var utility in ppld.Utility)
+                    {
+                        var hatch = utility.GetUtilityHatch();
+                        hatch.EvaluateHatch(true);
+                        hatch.Layer = devLyr;
+                        hatch.AddEntityToDbModelSpace(localDb);
+
+                        var radius = ppld.SizeArray.GetSizeAtStation(utility.Station).VerticalMinRadius;
+                        var arc = utility.GetTangencyArc(radius);
+                        arc.Layer = devLyr;
+                        arc.AddEntityToDbModelSpace(localDb);
+                    }                    
+                }
             }
             catch (System.Exception ex)
             {
@@ -152,6 +298,7 @@ namespace IntersectUtilities
                 fjvTx.Abort();
                 dm.Dispose();
             }
+            tx.Commit();
 
             prdDbg("Done!");
         }
@@ -312,7 +459,7 @@ namespace IntersectUtilities
                 foreach (var size in sizes)
                 {
                     var ppl = new AP_PipelineData(size.Item1);
-                    ppl.PipelineSizes = size.Item2;
+                    ppl.SizeArray = size.Item2;
                     ppls.Add(ppl);
                 }
 
@@ -420,160 +567,160 @@ namespace IntersectUtilities
         //[CommandMethod("APGATHERUTILITYDATA")]
         public void gatherutilitydata(DataManager.DataManager dm)
         {
-            prdDbg("Dette skal køres i Længdeprofiler!");
+            //prdDbg("Dette skal køres i Længdeprofiler!");
 
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
+            //DocumentCollection docCol = Application.DocumentManager;
+            //Database localDb = docCol.MdiActiveDocument.Database;
 
-            Database fjvDb = dm.GetForRead("Fremtid");
-            Transaction fjvTx = fjvDb.TransactionManager.StartTransaction();
+            //Database fjvDb = dm.GetForRead("Fremtid");
+            //Transaction fjvTx = fjvDb.TransactionManager.StartTransaction();
 
-            using Transaction tx = localDb.TransactionManager.StartTransaction();
+            //using Transaction tx = localDb.TransactionManager.StartTransaction();
 
-            try
-            {
-                var ents = fjvDb.GetFjvEntities(fjvTx, true, false);
-                var als = localDb.HashSetOfType<Alignment>(tx);
+            //try
+            //{
+            //    var ents = fjvDb.GetFjvEntities(fjvTx, true, false);
+            //    var als = localDb.HashSetOfType<Alignment>(tx);
 
-                PipelineNetwork pn = new PipelineNetwork();
-                pn.CreatePipelineNetwork(ents, als);
+            //    PipelineNetwork pn = new PipelineNetwork();
+            //    pn.CreatePipelineNetwork(ents, als);
 
-                var brs = localDb.HashSetOfType<BlockReference>(tx);
-                var query = brs
-                    .Where(x => x.RealName().EndsWith("_PV"))
-                    .OrderBy(x => x.RealName());
+            //    var brs = localDb.HashSetOfType<BlockReference>(tx);
+            //    var query = brs
+            //        .Where(x => x.RealName().EndsWith("_PV"))
+            //        .OrderBy(x => x.RealName());
 
-                var pvs = localDb.ListOfType<ProfileView>(tx).ToDictionary(x => x.Name);
+            //    var pvs = localDb.ListOfType<ProfileView>(tx).ToDictionary(x => x.Name);
 
-                HashSet<AP_PipelineData> ppls = new HashSet<AP_PipelineData>();
-                foreach (var br in query)
-                {
-                    string name = br.RealName().Replace("_PV", "");
-                    pvs.TryGetValue(br.RealName(), out ProfileView pv);
-                    if (pv == null) continue;
+            //    HashSet<AP_PipelineData> ppls = new HashSet<AP_PipelineData>();
+            //    foreach (var br in query)
+            //    {
+            //        string name = br.RealName().Replace("_PV", "");
+            //        pvs.TryGetValue(br.RealName(), out ProfileView pv);
+            //        if (pv == null) continue;
 
-                    var ppl = new AP_PipelineData(name);
-                    prdDbg($"Pipeline: {name}");
+            //        var ppl = new AP_PipelineData(name);
+            //        prdDbg($"Pipeline: {name}");
 
-                    BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
-                    Matrix3d trf = br.BlockTransform;
+            //        BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
+            //        Matrix3d trf = br.BlockTransform;
 
-                    var geometryFactory = new GeometryFactory();
-                    var polygons = new List<Polygon>();
+            //        var geometryFactory = new GeometryFactory();
+            //        var polygons = new List<Polygon>();
 
-                    foreach (Oid id in btr)
-                    {
-                        if (id.IsDerivedFrom<BlockReference>()) continue;
-                        if (!(id.IsDerivedFrom<Polyline>() ||
-                            id.IsDerivedFrom<Arc>() ||
-                            id.IsDerivedFrom<Circle>())) continue;
-                        var ent = id.Go<Entity>(tx);
-                        var exts = ent.GeometricExtents;
-                        exts.TransformBy(trf);
+            //        foreach (Oid id in btr)
+            //        {
+            //            if (id.IsDerivedFrom<BlockReference>()) continue;
+            //            if (!(id.IsDerivedFrom<Polyline>() ||
+            //                id.IsDerivedFrom<Arc>() ||
+            //                id.IsDerivedFrom<Circle>())) continue;
+            //            var ent = id.Go<Entity>(tx);
+            //            var exts = ent.GeometricExtents;
+            //            exts.TransformBy(trf);
 
-                        polygons.Add(
-                            geometryFactory.CreatePolygon(
-                                [
-                                    new Coordinate(exts.MinPoint.X, exts.MinPoint.Y),
-                                    new Coordinate(exts.MaxPoint.X, exts.MinPoint.Y),
-                                    new Coordinate(exts.MaxPoint.X, exts.MaxPoint.Y),
-                                    new Coordinate(exts.MinPoint.X, exts.MaxPoint.Y),
-                                    new Coordinate(exts.MinPoint.X, exts.MinPoint.Y)
-                                ]));
-                    }
+            //            polygons.Add(
+            //                geometryFactory.CreatePolygon(
+            //                    [
+            //                        new Coordinate(exts.MinPoint.X, exts.MinPoint.Y),
+            //                        new Coordinate(exts.MaxPoint.X, exts.MinPoint.Y),
+            //                        new Coordinate(exts.MaxPoint.X, exts.MaxPoint.Y),
+            //                        new Coordinate(exts.MinPoint.X, exts.MaxPoint.Y),
+            //                        new Coordinate(exts.MinPoint.X, exts.MinPoint.Y)
+            //                    ]));
+            //        }
 
-                    Geometry union = CascadedPolygonUnion.Union(polygons.ToArray());
-                    List<Geometry> envelopes = new List<Geometry>();
+            //        Geometry union = CascadedPolygonUnion.Union(polygons.ToArray());
+            //        List<Geometry> envelopes = new List<Geometry>();
 
-                    if (union == null || union.IsEmpty)
-                    {
-                        // Handle the case where the union result is null or empty
-                        Console.WriteLine($"The union operation for {name} resulted in an empty geometry.");
-                        continue;
-                    }
-                    if (union is Polygon singlePolygon)
-                    {
-                        envelopes.Add(singlePolygon.Envelope);
-                    }
-                    else if (union is MultiPolygon multiPolygon)
-                    {
-                        // The result is a MultiPolygon
-                        foreach (Polygon poly in multiPolygon.Geometries)
-                        {
-                            envelopes.Add(poly.Envelope);
-                        }
-                    }
+            //        if (union == null || union.IsEmpty)
+            //        {
+            //            // Handle the case where the union result is null or empty
+            //            Console.WriteLine($"The union operation for {name} resulted in an empty geometry.");
+            //            continue;
+            //        }
+            //        if (union is Polygon singlePolygon)
+            //        {
+            //            envelopes.Add(singlePolygon.Envelope);
+            //        }
+            //        else if (union is MultiPolygon multiPolygon)
+            //        {
+            //            // The result is a MultiPolygon
+            //            foreach (Polygon poly in multiPolygon.Geometries)
+            //            {
+            //                envelopes.Add(poly.Envelope);
+            //            }
+            //        }
 
-                    List<double[]> doubles = new();
-                    double station = 0.0;
-                    double elevation = 0.0;
-                    foreach (var env in envelopes
-                        .OrderBy(x =>
-                        {
-                            double s = 0.0;
-                            double e = 0.0;
-                            pv.FindStationAndElevationAtXY(x.Coordinates[0].X, x.Coordinates[0].Y, ref s, ref e);
-                            return s;
-                        }))
-                    {
-                        var cs = env.Coordinates;
+            //        List<double[]> doubles = new();
+            //        double station = 0.0;
+            //        double elevation = 0.0;
+            //        foreach (var env in envelopes
+            //            .OrderBy(x =>
+            //            {
+            //                double s = 0.0;
+            //                double e = 0.0;
+            //                pv.FindStationAndElevationAtXY(x.Coordinates[0].X, x.Coordinates[0].Y, ref s, ref e);
+            //                return s;
+            //            }))
+            //        {
+            //            var cs = env.Coordinates;
 
-                        var d = new double[4];
+            //            var d = new double[4];
 
-                        pv.FindStationAndElevationAtXY(cs[0].X, cs[0].Y, ref station, ref elevation);
+            //            pv.FindStationAndElevationAtXY(cs[0].X, cs[0].Y, ref station, ref elevation);
 
-                        d[0] = station;
-                        d[1] = elevation;
+            //            d[0] = station;
+            //            d[1] = elevation;
 
-                        pv.FindStationAndElevationAtXY(cs[2].X, cs[2].Y, ref station, ref elevation);
+            //            pv.FindStationAndElevationAtXY(cs[2].X, cs[2].Y, ref station, ref elevation);
 
-                        d[2] = station;
-                        d[3] = elevation;
+            //            d[2] = station;
+            //            d[3] = elevation;
 
-                        doubles.Add(d);
-                        #region Debug
-                        //Hatch hatch = new Hatch();
-                        //hatch.Normal = new Vector3d(0.0, 0.0, 1.0);
-                        //hatch.Elevation = 0.0;
-                        //hatch.PatternScale = 1.0;
-                        //hatch.SetHatchPattern(HatchPatternType.PreDefined, "SOLID");
-                        //Oid hatchId = hatch.AddEntityToDbModelSpace(localDb);
+            //            doubles.Add(d);
+            //            #region Debug
+            //            //Hatch hatch = new Hatch();
+            //            //hatch.Normal = new Vector3d(0.0, 0.0, 1.0);
+            //            //hatch.Elevation = 0.0;
+            //            //hatch.PatternScale = 1.0;
+            //            //hatch.SetHatchPattern(HatchPatternType.PreDefined, "SOLID");
+            //            //Oid hatchId = hatch.AddEntityToDbModelSpace(localDb);
 
-                        //hatch.AppendLoop(HatchLoopTypes.Default,
-                        //    [new Point2d(cs[0].X, cs[0].Y),
-                        //    new Point2d(cs[1].X, cs[1].Y),
-                        //    new Point2d(cs[2].X, cs[2].Y),
-                        //    new Point2d(cs[3].X, cs[3].Y),
-                        //    new Point2d(cs[0].X, cs[0].Y)],
-                        //    [0.0, 0.0, 0.0, 0.0, 0.0]);
-                        //hatch.EvaluateHatch(true); 
-                        #endregion
-                    }
+            //            //hatch.AppendLoop(HatchLoopTypes.Default,
+            //            //    [new Point2d(cs[0].X, cs[0].Y),
+            //            //    new Point2d(cs[1].X, cs[1].Y),
+            //            //    new Point2d(cs[2].X, cs[2].Y),
+            //            //    new Point2d(cs[3].X, cs[3].Y),
+            //            //    new Point2d(cs[0].X, cs[0].Y)],
+            //            //    [0.0, 0.0, 0.0, 0.0, 0.0]);
+            //            //hatch.EvaluateHatch(true); 
+            //            #endregion
+            //        }
 
-                    ppl.Utility = doubles.ToArray();
-                    ppls.Add(ppl);
-                }
-                var json = JsonSerializer.Serialize(
-                    ppls.OrderBy(x => x.Name), apJsonOptions);
+            //        ppl.Utility = doubles.ToArray();
+            //        ppls.Add(ppl);
+            //    }
+            //    var json = JsonSerializer.Serialize(
+            //        ppls.OrderBy(x => x.Name), apJsonOptions);
 
-                string filePath = Path.Combine(apDataExportPath, "UtilityData.json");
-                using var w = new StreamWriter(filePath, false);
+            //    string filePath = Path.Combine(apDataExportPath, "UtilityData.json");
+            //    using var w = new StreamWriter(filePath, false);
 
-                w.WriteLine(json);
-            }
-            catch (System.Exception ex)
-            {
-                tx.Abort();
-                fjvTx.Abort();
-                fjvTx.Dispose();
-                fjvDb.Dispose();
-                prdDbg(ex);
-                throw;
-            }
-            tx.Commit();
-            fjvTx.Commit();
-            fjvTx.Dispose();
-            //fjvDb.Dispose();
+            //    w.WriteLine(json);
+            //}
+            //catch (System.Exception ex)
+            //{
+            //    tx.Abort();
+            //    fjvTx.Abort();
+            //    fjvTx.Dispose();
+            //    fjvDb.Dispose();
+            //    prdDbg(ex);
+            //    throw;
+            //}
+            //tx.Commit();
+            //fjvTx.Commit();
+            //fjvTx.Dispose();
+            ////fjvDb.Dispose();
         }
 
         public void gatherprofileviewdata()
