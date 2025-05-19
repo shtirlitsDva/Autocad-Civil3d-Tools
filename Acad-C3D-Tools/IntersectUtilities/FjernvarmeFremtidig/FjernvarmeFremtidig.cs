@@ -92,14 +92,14 @@ namespace IntersectUtilities
             var dm = new DataManager.DataManager(dro);
             Database alDb = dm.GetForRead("Alignments");
             Transaction alTx = alDb.TransactionManager.StartTransaction();
+            HashSet<Alignment> als = alDb.HashSetOfType<Alignment>(alTx);
+            var alPls = als.ToDictionary(x => x, x => x.GetPolyline().Go<Polyline>(alTx));
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
                 {
-                    System.Data.DataTable fk = CsvData.FK;
-
-                    HashSet<Alignment> als = alDb.HashSetOfType<Alignment>(alTx);
+                    System.Data.DataTable fk = CsvData.FK;                    
                     HashSet<Polyline> allPipes = localDb.GetFjvPipes(tx);
                     HashSet<BlockReference> brs = localDb.GetFjvBlocks(tx, fk, true, false);
 
@@ -372,17 +372,17 @@ namespace IntersectUtilities
                         {
                             foreach (Alignment al in als)
                             {
-                                if (al.Length < 1) continue;
+                                var alPl = alPls[al];
                                 double midParam = curve.EndParam / 2.0;
                                 Point3d curveMidPoint = curve.GetPointAtParameter(midParam);
-                                Point3d closestPoint = al.GetClosestPointTo(curveMidPoint, false);
-                                if (closestPoint != null)
+                                Point3d closestPoint = alPl.GetClosestPointTo(curveMidPoint, false);
+                                if (closestPoint != default)
                                     alDistTuples.Add((curve, curveMidPoint.DistanceHorizontalTo(closestPoint), al));
                             }
                         }
                         catch (System.Exception)
                         {
-                            prdDbg("Error in Curves GetClosestPointTo -> loop incomplete!");
+                            prdDbg("Error in Curves GetClosestPointTo -> loop incomplete!");                                
                         }
 
                         double distThreshold = 0.25;
@@ -647,6 +647,14 @@ namespace IntersectUtilities
                     tx.Abort();
                     prdDbg(ex);
                     return;
+                }
+                finally
+                {
+                    foreach (var alPl in alPls.Values)
+                    {
+                        alPl.CheckOrOpenForWrite();
+                        alPl.Erase(true);
+                    }
                 }
                 alTx.Abort();
                 alTx.Dispose();

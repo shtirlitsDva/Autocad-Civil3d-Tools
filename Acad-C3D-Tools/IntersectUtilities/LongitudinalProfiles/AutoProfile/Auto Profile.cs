@@ -55,6 +55,8 @@ using NetTopologySuite.Geometries;
 using NetTopologySuite.Operation.Union;
 using IntersectUtilities.DataManager;
 using IntersectUtilities.LongitudinalProfiles.AutoProfile;
+using IntersectUtilities.LongitudinalProfiles.AutoProfile.DataGatherers;
+using System.Diagnostics.Eventing.Reader;
 
 namespace IntersectUtilities
 {
@@ -71,13 +73,17 @@ namespace IntersectUtilities
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
 
+            #region DataManager and FJVDATA
             DataManager.DataManager dm = new DataManager.DataManager(new DataReferencesOptions());
-            if (!dm.IsValid()) { dm.Dispose(); return; }            
+            if (!dm.IsValid()) { dm.Dispose(); return; }
+            Database fjvDb = dm.GetForRead("Fremtid");
+            using Transaction fjvTx = fjvDb.TransactionManager.StartTransaction();
+            #endregion
 
             using Transaction tx = localDb.TransactionManager.StartTransaction();
             try
             {
-                #region Select profile to operate on
+                #region Build PipeNetwork
                 var als = localDb.HashSetOfType<Alignment>(tx);
 
                 if (als.Count == 0)
@@ -87,25 +93,63 @@ namespace IntersectUtilities
                     return;
                 }
 
-                var names = als
-                    .Select(x => x.Name)
-                    .OrderBy(x => x);
-                    
+                var ents = fjvDb.GetFjvEntities(fjvTx);
+
+                PipelineNetwork pn = new PipelineNetwork();
+                pn.CreatePipelineNetwork(ents, als);
+                pn.CreateSizeArrays();
+                var sizeArrays =
+                    pn.GetAllSizeArrays(includeNas: false)
+                    .ToDictionary(x => x.Item1, x => x.Item2);
+
                 #endregion
 
-                gathersurfaceprofiledata();
+                #region Select profile to operate on
+                var names = als
+                    .Select(x => x.Name)
+                    .OrderBy(x => x)
+                    .Prepend("All");
+
+                string choice = StringGridFormCaller.Call(names, "Vælg alignment:");
+                if (choice == null) { tx.Abort(); return; }
+
+                if (choice != "All")
+                    als = als.Where(x => x.Name == choice).ToHashSet();
+                #endregion
+
+                #region Gather data
+                var pplds = new HashSet<AP_PipelineData>();
+                foreach (var al in als)
+                {
+                    prdDbg($"Processing {al.Name}");
+                    System.Windows.Forms.Application.DoEvents();
+                    var ppld = new AP_PipelineData(al.Name);
+                    ppld.SurfaceProfile = SurfaceProfileDataGatherer.GatherData(al);
+
+                    #region Get pipline size array 
+                    if (sizeArrays.TryGetValue(al.Name, out var sa)) ppld.PipelineSizes = sa;
+                    else throw new System.Exception($"No pipeline size array found for {al.Name}!");
+                    #endregion
+
+
+
+                }
+
                 gatherpipelinedata(dm);
                 gatherhorizontalarcdata(dm);
                 gatherutilitydata(dm);
                 gatherprofileviewdata();
+                #endregion
             }
             catch (System.Exception ex)
             {
+                tx.Abort();
                 prdDbg(ex);
                 return;
             }
             finally
             {
+                fjvTx.Abort();
                 dm.Dispose();
             }
 
@@ -143,8 +187,8 @@ namespace IntersectUtilities
                 gatherutilitydata(dm);
                 gatherprofileviewdata();
             }
-            catch(System.Exception ex)
-            {                
+            catch (System.Exception ex)
+            {
                 prdDbg(ex);
                 return;
             }
@@ -219,7 +263,7 @@ namespace IntersectUtilities
 
                     //Write the collection to json
                     var json = JsonSerializer.Serialize(
-                        ppls.OrderBy(x => x.Name), 
+                        ppls.OrderBy(x => x.Name),
                         apJsonOptions);
                     using var writer = new StreamWriter(filePath, false);
                     writer.WriteLine(json);
