@@ -281,7 +281,7 @@ namespace IntersectUtilities
                         hatch.AddEntityToDbModelSpace(localDb);
 
                         var radius = ppld.SizeArray.GetSizeAtStation(utility.Station).VerticalMinRadius;
-                        var arc = utility.GetTangencyArc(radius);
+                        var arc = utility.GetExtendedArc(radius, ppld.SurfaceProfile.ProfilePolyline);
                         arc.Layer = devLyr;
                         arc.AddEntityToDbModelSpace(localDb);
                     }                    

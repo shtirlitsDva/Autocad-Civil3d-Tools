@@ -36,6 +36,7 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
         public string Name { get; set; }
         [JsonInclude]
         public double[][]? ProfilePoints { get; set; }
+        public Polyline? ProfilePolyline { get; set; } = null;
         public AP_SurfaceProfileData(string name)
         {
             Name = name;
@@ -87,23 +88,52 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
 
             return hatch;
         }
-        public Arc GetTangencyArc(double radius)
+        private Point2d GetCentreOfTangencyArc(double radius)
         {
             var M = new LineSegment2d(BL, BR).MidPoint;
-
             double halfDist = BL.GetDistanceTo(BR) / 2;
-
             if (halfDist > radius)
                 throw new ArgumentException(
                     $"The radius {radius} is too small for the distance between" +
                     $" the left and right points {BL} and {BR}.");
-
             double h = Math.Sqrt(radius * radius - halfDist * halfDist);
-            var center = new Point3d(M.X, M.Y + h, 0);
+            return new Point2d(M.X, M.Y + h);
+        }
+        public Arc GetTangencyArc(double radius)
+        {
+            var center = GetCentreOfTangencyArc(radius).To3d();
 
             return new Arc(center, radius,
                 (BL.To3d() - center).AngleOnPlane(new Plane()),
                 (BR.To3d() - center).AngleOnPlane(new Plane()));
+        }
+        public Arc GetExtendedArc(double radius, Polyline boundary)
+        {
+            var centre = GetCentreOfTangencyArc(radius).To3d();
+            Circle circle = new Circle(centre, Vector3d.ZAxis, radius);
+            using Point3dCollection pts = new Point3dCollection();
+            circle.IntersectWith(
+                boundary, Autodesk.AutoCAD.DatabaseServices.Intersect.OnBothOperands,
+                new Plane(), pts, 0, 0);
+
+            //Assume 2 intersection points until proven otherwise
+            if (pts.Count != 2)
+                throw new ArgumentException(
+                    $"The circle at {centre} with radius {radius} does not intersect the boundary " +
+                    $"at 2 points. It intersects at {pts.Count} points.");
+
+            var ptsSorted = pts.Cast<Point3d>()
+                .OrderBy(x => x.X)
+                .ToList();
+
+            var start = ptsSorted[0];
+            var end = ptsSorted[1];
+
+            var arc = GetTangencyArc(radius);
+            arc.Extend(true, start);
+            arc.Extend(false, end);
+
+            return arc;
         }
     }
 }

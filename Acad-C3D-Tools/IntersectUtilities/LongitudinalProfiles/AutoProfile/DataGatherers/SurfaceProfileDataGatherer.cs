@@ -11,6 +11,7 @@ using System.Linq;
 using System.Text;
 
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
+using Autodesk.AutoCAD.Geometry;
 
 namespace IntersectUtilities.LongitudinalProfiles.AutoProfile.DataGatherers
 {
@@ -46,6 +47,28 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile.DataGatherers
             spd.ProfilePoints = query.Select(
                 x => new double[] { x.RawStation, x.Elevation })
                 .ToArray();
+
+            //Create a polyline from the profile
+            var pvs = al.GetProfileViewIds().Entities<ProfileView>(tx).ToList();
+            if (pvs.Count != 1) throw new Exception(
+                $"Alignment {al.Name} has more than one profile view!");
+
+            ProfileView pv = pvs[0];
+
+            var pline = p.ToPolyline(pv);
+
+            //Add hanging start and end segments to catch arcs that are too close
+            //to the start and end of the profile view
+
+            var start = pline.GetPoint2dAt(0);
+            var addStart = new Point2d(start.X, start.Y - 50);
+            pline.AddVertexAt(0, addStart, 0, 0, 0);
+
+            var end = pline.GetPoint2dAt(pline.NumberOfVertices - 1);
+            var addEnd = new Point2d(end.X, end.Y - 50);
+            pline.AddVertexAt(pline.NumberOfVertices, addEnd, 0, 0, 0);
+
+            spd.ProfilePolyline = pline;
 
             return spd;
         }
