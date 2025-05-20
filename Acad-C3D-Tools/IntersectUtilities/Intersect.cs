@@ -348,7 +348,7 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
-        
+
         /// <command>IMPORTCIVILSTYLES</command>
         /// <summary>
         /// Imports Civil 3D styles into the current drawing.
@@ -5148,15 +5148,15 @@ namespace IntersectUtilities
                 double idMeters = idMm / 1000.0;
                 double area = Math.PI * Math.Pow(idMeters, 2) / 4.0; // m²
                 double length = pl.Length; // in m
+
+                // If pipes of type ENKELT are drawn as one polyline, multiply the length by 2.
+                if (finalType.Equals("ENKELT", StringComparison.OrdinalIgnoreCase) && singleAsOne)
+                    length *= 2.0;
+
                 double volume = area * length; // m³
 
-                // If pipes of type ENKELT (or Twin) are drawn as one polyline,
-                // multiply the volume by 2.
-                if ((finalType.Equals("ENKELT", StringComparison.OrdinalIgnoreCase) || finalType.Equals("Twin", StringComparison.OrdinalIgnoreCase))
-                    && singleAsOne)
-                {
+                if (finalType.Equals("Twin", StringComparison.OrdinalIgnoreCase))
                     volume *= 2.0;
-                }
 
                 var key = (system: sysString, type: finalType, dn: dn);
                 if (summary.ContainsKey(key))
@@ -5193,8 +5193,8 @@ namespace IntersectUtilities
             // Print header with increased spacing.
             ed.WriteMessage("\nPipe Volume Summary (PipeScheduleV2):");
             ed.WriteMessage("\n--------------------------------------");
-            string header = string.Format("{0,-30}{1,14}{2,14}",
-                "Pipe (System-Type-DN)", "Length (m)", "Volume (m³)");
+            string header = string.Format("{0,-30}{1,19}{2,14}",
+                "Pipe (System-Type-DN)", "Pipe Length (m)", "Volume (m³)");
             ed.WriteMessage("\n" + header);
 
             // Print each sorted entry (one aggregated line per unique key, no extra blank lines)
@@ -5203,7 +5203,7 @@ namespace IntersectUtilities
                 string label = $"{entry.Key.system}-{entry.Key.type}-DN{entry.Key.dn}";
                 double len = Math.Round(entry.Value.totalLength, 1);
                 double vol = Math.Round(entry.Value.totalVolume, 1);
-                string line = string.Format("{0,-30}{1,14:0.0}{2,14:0.0}",
+                string line = string.Format("{0,-30}{1,19:0.0}{2,14:0.0}",
                     label, len, vol);
                 ed.WriteMessage("\n" + line);
             }
@@ -5211,7 +5211,7 @@ namespace IntersectUtilities
             // Print total line.
             double totLen = Math.Round(overallLength, 1);
             double totVol = Math.Round(overallVolume, 1);
-            string totalLine = string.Format("{0,-30}{1,14:0.0}{2,14:0.0}",
+            string totalLine = string.Format("{0,-30}{1,19:0.0}{2,14:0.0}",
                 "TOTAL", totLen, totVol);
             ed.WriteMessage("\n" + totalLine);
         }
@@ -5310,7 +5310,7 @@ namespace IntersectUtilities
 
                                 AddText(localDb, layNavn, vejNavn, pos, dir.AngleOnPlane(new Plane()));
                             }
-                        }                        
+                        }
                     }
 
                     void AddText(Database db, string layer, string textStr, Point3d pos, double rotation)
@@ -5374,10 +5374,10 @@ namespace IntersectUtilities
             {
                 tx.Abort();
                 prdDbg(ex);
-                return;                
+                return;
             }
 
-            tx.Commit();            
+            tx.Commit();
         }
 
         [CommandMethod("NUMBERBBRADDR")]
