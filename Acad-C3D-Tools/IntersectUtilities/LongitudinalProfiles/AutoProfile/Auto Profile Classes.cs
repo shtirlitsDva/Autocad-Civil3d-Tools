@@ -2,6 +2,7 @@
 using Autodesk.AutoCAD.Geometry;
 
 using IntersectUtilities.PipelineNetworkSystem;
+using IntersectUtilities.PipeScheduleV2;
 using IntersectUtilities.UtilsCommon;
 
 using NetTopologySuite.Geometries;
@@ -32,14 +33,83 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
     }
     internal class AP_SurfaceProfileData
     {
+        private static double DouglaPeukerTolerance = 0.1;
         [JsonInclude]
         public string Name { get; set; }
         [JsonInclude]
         public double[][]? ProfilePoints { get; set; }
-        public Polyline? ProfilePolyline { get; set; } = null;
+        public Polyline? SurfacePolyline { get; set; } = null;
+        public Polyline? SurfacePolylineWithHangingEnds { get; set; } = null;
+        private List<(double station, Polyline pline)> offsetCentrelines = new();
+        public List<(double EndStation, Polyline OffsetCentreLine)> OffsetCentrelines => offsetCentrelines;
         public AP_SurfaceProfileData(string name)
         {
             Name = name;
+        }
+
+        internal void BuildOffsetCentrelines(IPipelineSizeArrayV2 sizeArray)
+        {
+            if (SurfacePolyline == null) throw new Exception($"No surface polyline found for {Name}!");
+
+            Polyline? reducedPolyline = SurfacePolyline.GetDouglasPeukerReducedCopy(DouglaPeukerTolerance);
+            if (reducedPolyline == null) throw new Exception($"No reduced polyline found for {Name}!");
+
+            DoubleCollection splitDoubles = new();
+            
+            if (sizeArray.Length > 1)
+            {
+                for (int i = 0; i < sizeArray.Length - 1; i++)
+                {//-1 to avoid adding a split point at the end of polyline
+                    splitDoubles.Add(
+                        SurfacePolyline.GetParameterAtStationX(
+                            sizeArray[i].EndStation));
+                }
+            }
+
+            List<(SizeEntryV2, Polyline)> polylinesToOffset = new();
+
+            if (splitDoubles.Count == 0)
+            {
+                polylinesToOffset.Add((sizeArray[0], reducedPolyline));
+            }
+            else
+            {
+                using var splitCurves = reducedPolyline.GetSplitCurves(splitDoubles);
+                //Check for sanity
+                if (!(splitCurves.Count == sizeArray.Length))
+                    throw new Exception($"The number of split curves {splitCurves.Count} does not match" +
+                        $" the number of sizes {sizeArray.Length}!");
+
+                for (int i = 0; i < splitCurves.Count; i++)
+                {
+                    var current = splitCurves[i] as Polyline;
+                    if (current == null) throw new Exception($"The split curve {i} is not a polyline!");
+
+                    var size = sizeArray[i];
+                    
+                    polylinesToOffset.Add((size, current));
+                }
+            }
+
+            for (int i = 0; i < polylinesToOffset.Count; i++)
+            {
+                var size = polylinesToOffset[i].Item1;
+                var pline = polylinesToOffset[i].Item2;
+
+                double offset =
+                    PipeScheduleV2.PipeScheduleV2.GetCoverDepth(size.DN, size.System, size.Type) +
+                    size.Kod / 1000 / 2;
+
+                using var offsetCurves = pline.GetOffsetCurves(offset);
+
+                foreach (var ent in offsetCurves)
+                {
+                    if (ent is Polyline poly)
+                    {
+                        offsetCentrelines.Add((size.EndStation, poly));
+                    }
+                }                
+            }
         }
     }
     internal class AP_ProfileViewData
@@ -58,8 +128,11 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
     internal class AP_Utility
     {
         private Extents2d extents;
-        private double station;
-        public double Station => station;
+        private double midStation;
+        public double MidStation => midStation;
+        public double MinStation => midStation - (extents.MaxPoint.X - extents.MinPoint.X) / 2;
+        public double MaxStation => midStation + (extents.MaxPoint.X - extents.MinPoint.X) / 2;
+
         /// <summary>
         /// Expects a bounding box of the utility to be passed in.
         /// </summary>        
@@ -67,12 +140,13 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
         {
             var cs = envelope.Coordinates;
             extents = new Extents2d(cs[0].X, cs[0].Y, cs[2].X, cs[2].Y);
-            this.station = station;
+            this.midStation = station;
         }
         public Point2d BL => extents.MinPoint;
         public Point2d BR => new Point2d(extents.MaxPoint.X, extents.MinPoint.Y);
         private Point2d TL => new Point2d(extents.MinPoint.X, extents.MaxPoint.Y);
         private Point2d TR => extents.MaxPoint;
+
         public Hatch GetUtilityHatch()
         {
             Hatch hatch = new Hatch();

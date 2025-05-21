@@ -42,6 +42,7 @@ using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using DebugHelper = IntersectUtilities.UtilsCommon.Utils.DebugHelper;
+using Autodesk.AutoCAD.MacroRecorder;
 
 namespace IntersectUtilities.UtilsCommon
 {
@@ -608,7 +609,7 @@ namespace IntersectUtilities.UtilsCommon
                 tx.Commit();
             }
         }
-        
+
         #region Enums
         public enum EndType
         {
@@ -3171,6 +3172,56 @@ namespace IntersectUtilities.UtilsCommon
             }
             return points;
         }
+        public static Polyline? GetDouglasPeukerReducedCopy(this Polyline polyline, double douglasPeukerTolerance)
+        {
+            var originalPoints = polyline.GetSamplePoints();
+            var reducedPoints = DouglasPeuckerReduction.DouglasPeuckerReductionMethod(originalPoints, douglasPeukerTolerance);
+            if (reducedPoints.Count == 0) throw new System.Exception("DouglasPeuckerReduction failed! No points returned.");
+            var reducedPolyline = new Polyline(reducedPoints.Count);
+            for (int i = 0; i < reducedPoints.Count; i++)
+                reducedPolyline.AddVertexAt(reducedPolyline.NumberOfVertices, reducedPoints[i], 0, 0, 0);
+            return reducedPolyline;
+        }
+        /// <summary>
+        /// Calculates the parameter value at a specified station along the polyline (projected on X-axis).
+        /// </summary>
+        /// <remarks>The method assumes that the polyline is composed of straight segments and calculates
+        /// the parameter based on linear interpolation between vertices. The station offset is measured along the
+        /// X-axis relative to the starting point of the polyline.</remarks>
+        /// <param name="profile">The polyline representing the profile to evaluate.</param>
+        /// <param name="stationX">The station offset, relative to the start of the polyline, for which to calculate the parameter value.</param>
+        /// <returns>A double value representing the parameter at the specified station. The parameter is calculated as the
+        /// vertex index plus a fractional value indicating the relative position between two vertices. Returns 0.0 if
+        /// the station is before the start of the polyline, or the last vertex index if the station is beyond the end
+        /// of the polyline.</returns>
+        public static double GetParameterAtStationX(this Polyline profile, double stationX)
+        {
+            double baseX = profile.GetPoint2dAt(0).X;
+            double targetX = baseX + stationX;
+
+            for (int i = 0; i < profile.NumberOfVertices - 1; i++)
+            {
+                Point2d p0 = profile.GetPoint2dAt(i);
+                Point2d p1 = profile.GetPoint2dAt(i + 1);
+
+                double x0 = p0.X;
+                double x1 = p1.X;
+
+                if (x0 <= targetX && targetX <= x1)
+                {
+                    double dx = x1 - x0;
+                    double ratio = dx == 0 ? 0 : (targetX - x0) / dx;
+
+                    return i + ratio;
+                }
+            }
+
+            if (stationX <= 0)
+                return 0.0;
+
+            return profile.NumberOfVertices - 1;
+        }
+
         /// <summary>
         /// Remember that the grouped objects need to have Equals and GetHashCode implemented
         /// </summary>

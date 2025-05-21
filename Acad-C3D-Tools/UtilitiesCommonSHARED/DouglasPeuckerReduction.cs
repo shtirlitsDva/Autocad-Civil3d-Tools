@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Autodesk.AutoCAD.Geometry;
 
-namespace IntersectUtilities
+namespace IntersectUtilities.UtilsCommon
 {
     static class DouglasPeuckerReduction
     {
@@ -92,7 +92,7 @@ namespace IntersectUtilities
         /// <param name="pt2">The PT2.</param>
         /// <param name="p">The p.</param>
         /// <returns></returns>
-        public static Double PerpendicularDistance
+        public static double PerpendicularDistance
             (Point2d Point1, Point2d Point2, Point2d Point)
         {
             //Area = |(1/2)(x1y2 + x2y3 + x3y1 - x2y1 - x3y2 - x1y3)|   *Area of triangle

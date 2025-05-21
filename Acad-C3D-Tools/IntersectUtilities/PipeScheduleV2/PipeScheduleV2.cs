@@ -17,6 +17,7 @@ using DataColumn = System.Data.DataColumn;
 using IntersectUtilities.UtilsCommon;
 
 using static IntersectUtilities.UtilsCommon.Utils;
+using IntersectUtilities.PipelineNetworkSystem;
 
 namespace IntersectUtilities.PipeScheduleV2
 {
@@ -601,6 +602,14 @@ namespace IntersectUtilities.PipeScheduleV2
             if (!lineTypePrefixDict.ContainsKey(system))
                 throw new Exception($"Undefined PipeType system {system}!");
             return lineTypePrefixDict[system];
+        }
+        /// <summary>
+        /// Currently set to return 0.6 m.
+        /// </summary>        
+        internal static double GetCoverDepth(int DN, PipeSystemEnum ps, PipeTypeEnum pt)
+        {
+            //Temporary solution to get cover depth from size entry
+            return 0.6;
         }
         #endregion
     }

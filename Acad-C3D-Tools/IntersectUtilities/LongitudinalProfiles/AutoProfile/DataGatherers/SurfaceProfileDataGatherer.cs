@@ -12,12 +12,13 @@ using System.Text;
 
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using Autodesk.AutoCAD.Geometry;
+using IntersectUtilities.PipelineNetworkSystem;
 
 namespace IntersectUtilities.LongitudinalProfiles.AutoProfile.DataGatherers
 {
     internal static class SurfaceProfileDataGatherer
     {
-        public static AP_SurfaceProfileData GatherData(Alignment al)
+        public static AP_SurfaceProfileData GatherData(Alignment al, IPipelineSizeArrayV2 sizeArray)
         {
             Transaction tx = al.Database.TransactionManager.TopTransaction;
             
@@ -57,6 +58,8 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile.DataGatherers
 
             var pline = p.ToPolyline(pv);
 
+            spd.SurfacePolyline = pline.Clone() as Polyline;
+
             //Add hanging start and end segments to catch arcs that are too close
             //to the start and end of the profile view
 
@@ -68,7 +71,9 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile.DataGatherers
             var addEnd = new Point2d(end.X, end.Y - 50);
             pline.AddVertexAt(pline.NumberOfVertices, addEnd, 0, 0, 0);
 
-            spd.ProfilePolyline = pline;
+            spd.SurfacePolylineWithHangingEnds = pline;            
+
+            spd.BuildOffsetCentrelines(sizeArray);
 
             return spd;
         }

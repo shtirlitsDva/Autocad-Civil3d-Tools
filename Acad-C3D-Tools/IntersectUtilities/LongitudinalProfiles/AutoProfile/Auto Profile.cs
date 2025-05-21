@@ -73,6 +73,9 @@ namespace IntersectUtilities
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
 
+            //Settings
+            double DouglasPeukerTolerance = 0.5;
+
             #region DataManager and FJVDATA
             DataManager.DataManager dm = new DataManager.DataManager(new DataReferencesOptions());
             if (!dm.IsValid()) { dm.Dispose(); return; }
@@ -148,11 +151,14 @@ namespace IntersectUtilities
                     prdDbg($"Processing {al.Name}");
                     System.Windows.Forms.Application.DoEvents();
                     var ppld = new AP_PipelineData(al.Name);
-                    ppld.SurfaceProfile = SurfaceProfileDataGatherer.GatherData(al);
 
                     #region Get pipline size array 
                     if (sizeArrays.TryGetValue(al.Name, out var sa)) ppld.SizeArray = sa;
                     else throw new System.Exception($"No pipeline size array found for {al.Name}!");
+                    #endregion
+
+                    #region Build surface related data                    
+                    ppld.SurfaceProfile = SurfaceProfileDataGatherer.GatherData(al, ppld.SizeArray);
                     #endregion
 
                     #region Gather horizontal arc data
@@ -272,19 +278,25 @@ namespace IntersectUtilities
 
                 foreach (var ppld in pplds)
                 {
+                    foreach (var item in ppld.SurfaceProfile.OffsetCentrelines)
+                    {
+                        item.OffsetCentreLine.Layer = devLyr;
+                        item.OffsetCentreLine.AddEntityToDbModelSpace(localDb);
+                    }                    
+
                     //Test utility data
                     foreach (var utility in ppld.Utility)
                     {
-                        var hatch = utility.GetUtilityHatch();
-                        hatch.EvaluateHatch(true);
-                        hatch.Layer = devLyr;
-                        hatch.AddEntityToDbModelSpace(localDb);
+                        //var hatch = utility.GetUtilityHatch();
+                        //hatch.EvaluateHatch(true);
+                        //hatch.Layer = devLyr;
+                        //hatch.AddEntityToDbModelSpace(localDb);
 
-                        var radius = ppld.SizeArray.GetSizeAtStation(utility.Station).VerticalMinRadius;
-                        var arc = utility.GetExtendedArc(radius, ppld.SurfaceProfile.ProfilePolyline);
-                        arc.Layer = devLyr;
-                        arc.AddEntityToDbModelSpace(localDb);
-                    }                    
+                        //var radius = ppld.SizeArray.GetSizeAtStation(utility.MidStation).VerticalMinRadius;
+                        //var arc = utility.GetExtendedArc(radius, ppld.SurfaceProfile.SurfacePolylineWithHangingEnds);
+                        //arc.Layer = devLyr;
+                        //arc.AddEntityToDbModelSpace(localDb);
+                    }
                 }
             }
             catch (System.Exception ex)
