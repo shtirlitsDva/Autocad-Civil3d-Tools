@@ -83,8 +83,12 @@ namespace IntersectUtilities
             {
                 var ents = localDb.HashSetOfType<Entity>(
                     localDb.TransactionManager.TopTransaction)
-                    .Where(x => x.Layer == devLyr)
-                    .Select(x => x.Erase(true));
+                    .Where(x => x.Layer == devLyr);
+                foreach (var ent in ents)
+                {
+                    ent.UpgradeOpen();
+                    ent.Erase(true);
+                }
                 tx2.Commit();
             }
 
