@@ -263,10 +263,10 @@ namespace IntersectUtilities.PipelineNetworkSystem
             orderedSizeBrs = sizeBrs.OrderBy(x => pipeline.GetBlockStation(x)).ToArray();
 
 #if DEBUG
-            foreach (var item in orderedSizeBrs)
-            {
-                prdDbg($"Block {item.RealName()} at station {pipeline.GetBlockStation(item)}");
-            }
+            //foreach (var item in orderedSizeBrs)
+            //{
+            //    prdDbg($"Block {item.RealName()} at station {pipeline.GetBlockStation(item)}");
+            //}
 #endif
 
             // The direction is assumed to be from start to and of alignment (or NA)

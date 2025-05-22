@@ -61,7 +61,7 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
                 for (int i = 0; i < sizeArray.Length - 1; i++)
                 {//-1 to avoid adding a split point at the end of polyline
                     splitDoubles.Add(
-                        SurfacePolyline.GetParameterAtStationX(
+                        reducedPolyline.GetParameterAtStationX(
                             sizeArray[i].EndStation));
                 }
             }

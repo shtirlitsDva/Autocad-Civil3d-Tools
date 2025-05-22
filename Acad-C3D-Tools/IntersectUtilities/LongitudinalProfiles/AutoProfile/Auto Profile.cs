@@ -73,6 +73,22 @@ namespace IntersectUtilities
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
 
+            #region Debug and dev layer
+            string devLyr = "AutoProfileTest";
+            localDb.CheckOrCreateLayer(devLyr, 1, false);
+            #endregion
+
+            //Delete previous entities on dev layer
+            using (Transaction tx2 = localDb.TransactionManager.StartTransaction())
+            {
+                var ents = localDb.HashSetOfType<Entity>(
+                    localDb.TransactionManager.TopTransaction)
+                    .Where(x => x.Layer == devLyr)
+                    .Select(x => x.Erase(true));
+                tx2.Commit();
+            }
+
+
             //Settings
             double DouglasPeukerTolerance = 0.5;
 
@@ -146,7 +162,7 @@ namespace IntersectUtilities
 
                 #region Gather data
                 var pplds = new HashSet<AP_PipelineData>();
-                foreach (var al in als)
+                foreach (var al in als.OrderBy(x => x.Name))
                 {
                     prdDbg($"Processing {al.Name}");
                     System.Windows.Forms.Application.DoEvents();
@@ -155,6 +171,7 @@ namespace IntersectUtilities
                     #region Get pipline size array 
                     if (sizeArrays.TryGetValue(al.Name, out var sa)) ppld.SizeArray = sa;
                     else throw new System.Exception($"No pipeline size array found for {al.Name}!");
+                    prdDbg(ppld.SizeArray);
                     #endregion
 
                     #region Build surface related data                    
@@ -222,7 +239,7 @@ namespace IntersectUtilities
                     if (union == null || union.IsEmpty)
                     {
                         // Handle the case where the union result is null or empty
-                        prdDbg($"The union operation for {al.Name} resulted in an empty geometry.");                        
+                        prdDbg($"The union operation for {al.Name} resulted in an empty geometry.");
                     }
                     else if (union is Polygon singlePolygon)
                     {
@@ -237,7 +254,7 @@ namespace IntersectUtilities
                         }
                     }
 
-                    if (envelopes.Count == 0) ppld.Utility = [];                    
+                    if (envelopes.Count == 0) ppld.Utility = [];
                     else
                     {
                         double station = 0.0;
@@ -263,34 +280,32 @@ namespace IntersectUtilities
                             pv.FindStationAndElevationAtXY(x, y, ref station, ref elevation);
 
                             ppld.Utility.Add(new AP_Utility(env, station));
-                        }                        
+                        }
                     }
                     #endregion
 
                     pplds.Add(ppld);
                 }
-                #endregion
+                #endregion                
 
-                #region Debug and dev layer
-                string devLyr = "AutoProfileTest";
-                localDb.CheckOrCreateLayer(devLyr, 1, false);
-                #endregion
-
-                foreach (var ppld in pplds)
+                foreach (var ppld in pplds.OrderBy(x => x.Name))
                 {
+                    prdDbg($"Processing {ppld.Name}");
+                    prdDbg(ppld.SizeArray);
+                    System.Windows.Forms.Application.DoEvents();
                     foreach (var item in ppld.SurfaceProfile.OffsetCentrelines)
                     {
                         item.OffsetCentreLine.Layer = devLyr;
                         item.OffsetCentreLine.AddEntityToDbModelSpace(localDb);
-                    }                    
+                    }
 
                     //Test utility data
                     foreach (var utility in ppld.Utility)
                     {
-                        //var hatch = utility.GetUtilityHatch();
-                        //hatch.EvaluateHatch(true);
-                        //hatch.Layer = devLyr;
-                        //hatch.AddEntityToDbModelSpace(localDb);
+                        var hatch = utility.GetUtilityHatch();
+                        hatch.EvaluateHatch(true);
+                        hatch.Layer = devLyr;
+                        hatch.AddEntityToDbModelSpace(localDb);
 
                         //var radius = ppld.SizeArray.GetSizeAtStation(utility.MidStation).VerticalMinRadius;
                         //var arc = utility.GetExtendedArc(radius, ppld.SurfaceProfile.SurfacePolylineWithHangingEnds);
