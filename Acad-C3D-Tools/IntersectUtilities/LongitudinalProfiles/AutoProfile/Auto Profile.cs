@@ -297,18 +297,18 @@ namespace IntersectUtilities
                     prdDbg($"Processing {ppld.Name}");
                     prdDbg(ppld.SizeArray);
                     System.Windows.Forms.Application.DoEvents();
-                    foreach (var item in ppld.SurfaceProfile.OffsetCentrelines)
-                    {
-                        item.OffsetCentreLine.Layer = devLyr;
-                        item.OffsetCentreLine.AddEntityToDbModelSpace(localDb);
-                    }
+
+                    ppld.SurfaceProfile.OffsetCentrelines.Layer = devLyr;
+                    ppld.SurfaceProfile.OffsetCentrelines.AddEntityToDbModelSpace(localDb);
 
                     //Test utility data
-                    foreach (var utility in ppld.Utility)
+                    foreach (AP_Utility utility in ppld.Utility)
                     {
+                        utility.TestFloatingStatus(ppld.SurfaceProfile.OffsetCentrelines);
+
                         var hatch = utility.GetUtilityHatch();
-                        hatch.EvaluateHatch(true);
                         hatch.Layer = devLyr;
+                        if (utility.IsFloating) hatch.Color = ColorByName("green");
                         hatch.AddEntityToDbModelSpace(localDb);
 
                         //var radius = ppld.SizeArray.GetSizeAtStation(utility.MidStation).VerticalMinRadius;

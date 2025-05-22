@@ -1,4 +1,5 @@
-﻿using Autodesk.AutoCAD.DatabaseServices;
+﻿using Autodesk.AutoCAD.ApplicationServices;
+using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 
 using IntersectUtilities.PipelineNetworkSystem;
@@ -40,8 +41,8 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
         public double[][]? ProfilePoints { get; set; }
         public Polyline? SurfacePolyline { get; set; } = null;
         public Polyline? SurfacePolylineWithHangingEnds { get; set; } = null;
-        private List<(double station, Polyline pline)> offsetCentrelines = new();
-        public List<(double EndStation, Polyline OffsetCentreLine)> OffsetCentrelines => offsetCentrelines;
+        private Polyline? offsetCentrelines;
+        public Polyline? OffsetCentrelines => offsetCentrelines;
         public AP_SurfaceProfileData(string name)
         {
             Name = name;
@@ -55,7 +56,7 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
             if (reducedPolyline == null) throw new Exception($"No reduced polyline found for {Name}!");
 
             DoubleCollection splitDoubles = new();
-            
+
             if (sizeArray.Length > 1)
             {
                 for (int i = 0; i < sizeArray.Length - 1; i++)
@@ -86,11 +87,12 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
                     if (current == null) throw new Exception($"The split curve {i} is not a polyline!");
 
                     var size = sizeArray[i];
-                    
+
                     polylinesToOffset.Add((size, current));
                 }
             }
 
+            List<Polyline> offsets = new();
             for (int i = 0; i < polylinesToOffset.Count; i++)
             {
                 var size = polylinesToOffset[i].Item1;
@@ -106,9 +108,23 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
                 {
                     if (ent is Polyline poly)
                     {
-                        offsetCentrelines.Add((size.EndStation, poly));
+                        offsets.Add(poly);
                     }
-                }                
+                }
+            }
+
+            if (offsets.Count == 0) throw new Exception($"No offset polylines found for {Name}!");
+            if (offsets.Count == 1) offsetCentrelines = offsets[0];
+            else
+            {
+                Polyline combined = new Polyline();
+                for (int i = 0; i < offsets.Count; i++)
+                {
+                    var cur = offsets[i];
+                    for (int j = 0; j < cur.NumberOfVertices; j++)
+                        combined.AddVertexAt(combined.NumberOfVertices, cur.GetPoint2dAt(j), 0, 0, 0);                    
+                }
+                offsetCentrelines = combined;
             }
         }
     }
@@ -127,8 +143,10 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
     }
     internal class AP_Utility
     {
+        private string devLyr = "AutoProfileTest";
         private Extents2d extents;
         private double midStation;
+        public bool IsFloating { get; set; } = true;
         public double MidStation => midStation;
         public double MinStation => midStation - (extents.MaxPoint.X - extents.MinPoint.X) / 2;
         public double MaxStation => midStation + (extents.MaxPoint.X - extents.MinPoint.X) / 2;
@@ -209,5 +227,39 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
 
             return arc;
         }
+        public void TestFloatingStatus(Polyline profile)
+        {
+            //Define utility as a polyline
+            Polyline utility = new Polyline(4);
+            utility.AddVertexAt(0, BL, 0, 0, 0);
+            utility.AddVertexAt(1, TL, 0, 0, 0);
+            utility.AddVertexAt(2, TR, 0, 0, 0);
+            utility.AddVertexAt(3, BR, 0, 0, 0);
+            utility.Closed = true;
+
+            using Point3dCollection pts = new Point3dCollection();
+            profile.IntersectWith(
+                utility, Autodesk.AutoCAD.DatabaseServices.Intersect.OnBothOperands,
+                new Plane(), pts, 0, 0);
+
+            //Neeed to test IntersectWith as it is very incorrect at large coordinates
+            var query = pts
+                .Cast<Point3d>()
+                .Where(x => utility.GetClosestPointTo(x, false)
+                .DistanceHorizontalTo(x) < 0.00000001);            
+
+            if (query.Count() != 0) IsFloating = false;
+            else
+            {
+                Point3d left = profile.GetClosestPointTo(BL.To3d(), Vector3d.YAxis, true);
+                Point3d right = profile.GetClosestPointTo(BR.To3d(), Vector3d.YAxis, true);                
+
+                if (BL.Y > left.Y && BR.Y > right.Y)
+                {
+                    IsFloating = false;
+                }
+                else IsFloating = true;                
+            }
+        }        
     }
 }
