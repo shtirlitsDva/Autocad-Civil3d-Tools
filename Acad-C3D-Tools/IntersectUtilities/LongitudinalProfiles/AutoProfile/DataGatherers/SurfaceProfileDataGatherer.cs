@@ -58,7 +58,7 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile.DataGatherers
 
             var pline = p.ToPolyline(pv);
 
-            spd.SurfacePolyline = pline.Clone() as Polyline;
+            spd.SurfacePolylineFull = pline.Clone() as Polyline;
 
             //Add hanging start and end segments to catch arcs that are too close
             //to the start and end of the profile view

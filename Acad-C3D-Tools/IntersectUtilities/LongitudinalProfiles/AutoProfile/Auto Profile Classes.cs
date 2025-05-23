@@ -12,6 +12,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
@@ -23,13 +24,30 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
         public string Name { get; set; }
         [JsonInclude]
         public AP_SurfaceProfileData? SurfaceProfile { get; set; } = null;
+        [JsonIgnore]
         public IPipelineSizeArrayV2? SizeArray { get; set; } = null;
+        [JsonIgnore]
         public List<HorizontalArc> HorizontalArcs { get; set; } = new();
+        [JsonInclude]
         public List<AP_Utility> Utility { get; set; } = new();
+        [JsonIgnore]
         public AP_ProfileViewData? ProfileView { get; set; } = null;
         public AP_PipelineData(string name)
         {
             Name = name;
+        }
+
+        public void Serialize(string filename)
+        {
+            var options = new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+            };
+            options.Converters.Add(new PolylineJsonConverter());
+            options.Converters.Add(new Extents2dJsonConverter());
+            var json = JsonSerializer.Serialize(this, options);
+            System.IO.File.WriteAllText(filename, json);
         }
     }
     internal class AP_SurfaceProfileData
@@ -37,11 +55,16 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
         private static double DouglaPeukerTolerance = 0.1;
         [JsonInclude]
         public string Name { get; set; }
-        [JsonInclude]
+        [JsonIgnore]
         public double[][]? ProfilePoints { get; set; }
-        public Polyline? SurfacePolyline { get; set; } = null;
+        [JsonIgnore]
+        public Polyline? SurfacePolylineFull { get; set; } = null;
+        [JsonInclude]
+        public Polyline? SurfacePolylineSimplified { get; set; } = null;
+        [JsonIgnore]
         public Polyline? SurfacePolylineWithHangingEnds { get; set; } = null;
         private Polyline? offsetCentrelines;
+        [JsonIgnore]
         public Polyline? OffsetCentrelines => offsetCentrelines;
         public AP_SurfaceProfileData(string name)
         {
@@ -50,10 +73,10 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
 
         internal void BuildOffsetCentrelines(IPipelineSizeArrayV2 sizeArray)
         {
-            if (SurfacePolyline == null) throw new Exception($"No surface polyline found for {Name}!");
+            if (SurfacePolylineFull == null) throw new Exception($"No surface polyline found for {Name}!");
 
-            Polyline? reducedPolyline = SurfacePolyline.GetDouglasPeukerReducedCopy(DouglaPeukerTolerance);
-            if (reducedPolyline == null) throw new Exception($"No reduced polyline found for {Name}!");
+            SurfacePolylineSimplified = SurfacePolylineFull.GetDouglasPeukerReducedCopy(DouglaPeukerTolerance);
+            if (SurfacePolylineSimplified == null) throw new Exception($"No reduced polyline found for {Name}!");
 
             DoubleCollection splitDoubles = new();
 
@@ -62,7 +85,7 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
                 for (int i = 0; i < sizeArray.Length - 1; i++)
                 {//-1 to avoid adding a split point at the end of polyline
                     splitDoubles.Add(
-                        reducedPolyline.GetParameterAtStationX(
+                        SurfacePolylineSimplified.GetParameterAtStationX(
                             sizeArray[i].EndStation));
                 }
             }
@@ -71,11 +94,11 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
 
             if (splitDoubles.Count == 0)
             {
-                polylinesToOffset.Add((sizeArray[0], reducedPolyline));
+                polylinesToOffset.Add((sizeArray[0], SurfacePolylineSimplified));
             }
             else
             {
-                using var splitCurves = reducedPolyline.GetSplitCurves(splitDoubles);
+                using var splitCurves = SurfacePolylineSimplified.GetSplitCurves(splitDoubles);
                 //Check for sanity
                 if (!(splitCurves.Count == sizeArray.Length))
                     throw new Exception($"The number of split curves {splitCurves.Count} does not match" +
@@ -130,11 +153,8 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
     }
     internal class AP_ProfileViewData
     {
-        [JsonInclude]
         public string Name { get; set; }
-        [JsonInclude]
         public double[] Origin { get; set; } = [0, 0];
-        [JsonInclude]
         public double ElevationAtOrigin { get; set; } = 0;
         public AP_ProfileViewData(string name)
         {
@@ -145,10 +165,16 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
     {
         private string devLyr = "AutoProfileTest";
         private Extents2d extents;
+        [JsonInclude]
+        public Extents2d Extents { get => extents; set { extents = value; } }
         private double midStation;
+        [JsonIgnore]
         public bool IsFloating { get; set; } = true;
+        [JsonIgnore]
         public double MidStation => midStation;
+        [JsonIgnore]
         public double StartStation => midStation - (extents.MaxPoint.X - extents.MinPoint.X) / 2;
+        [JsonIgnore]
         public double EndStation => midStation + (extents.MaxPoint.X - extents.MinPoint.X) / 2;
 
         /// <summary>
@@ -160,9 +186,13 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
             extents = new Extents2d(cs[0].X, cs[0].Y, cs[2].X, cs[2].Y);
             this.midStation = station;
         }
+        [JsonIgnore]
         public Point2d BL => extents.MinPoint;
+        [JsonIgnore]
         public Point2d BR => new Point2d(extents.MaxPoint.X, extents.MinPoint.Y);
+        [JsonIgnore]
         private Point2d TL => new Point2d(extents.MinPoint.X, extents.MaxPoint.Y);
+        [JsonIgnore]
         private Point2d TR => extents.MaxPoint;
 
         public Hatch GetUtilityHatch()

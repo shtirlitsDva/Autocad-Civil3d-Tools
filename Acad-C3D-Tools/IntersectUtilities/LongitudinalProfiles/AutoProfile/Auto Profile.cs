@@ -280,8 +280,8 @@ namespace IntersectUtilities
                             var maxX = cs[2].X;
                             var maxY = cs[2].Y;
 
-                            var x = (minX + maxX) / 2.0;
-                            var y = (minY + maxY) / 2.0;
+                            x = (minX + maxX) / 2.0;
+                            y = (minY + maxY) / 2.0;
 
                             pv.FindStationAndElevationAtXY(x, y, ref station, ref elevation);
 
@@ -357,7 +357,14 @@ namespace IntersectUtilities
                     {
                         
                     }
+
+                    ppld.Serialize($"C:\\Temp\\sample_data_{ppld.Name}.json");
                 }
+
+                #region Export ppl to json
+                //Write the collection to json
+                
+                #endregion
             }
             catch (System.Exception ex)
             {
@@ -561,77 +568,77 @@ namespace IntersectUtilities
         {
             prdDbg("Dette skal køres i Længdeprofiler!");
 
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
+            //DocumentCollection docCol = Application.DocumentManager;
+            //Database localDb = docCol.MdiActiveDocument.Database;
 
-            Database fjvDb = dm.GetForRead("Fremtid");
-            Transaction fjvTx = fjvDb.TransactionManager.StartTransaction();
+            //Database fjvDb = dm.GetForRead("Fremtid");
+            //Transaction fjvTx = fjvDb.TransactionManager.StartTransaction();
 
-            using Transaction tx = localDb.TransactionManager.StartTransaction();
+            //using Transaction tx = localDb.TransactionManager.StartTransaction();
 
-            PropertySetHelper psh = new(fjvDb);
+            //PropertySetHelper psh = new(fjvDb);
 
-            try
-            {
-                var ents = fjvDb.GetFjvEntities(fjvTx, true, false);
-                var als = localDb.HashSetOfType<Alignment>(tx);
+            //try
+            //{
+            //    var ents = fjvDb.GetFjvEntities(fjvTx, true, false);
+            //    var als = localDb.HashSetOfType<Alignment>(tx);
 
-                PipelineNetwork pn = new PipelineNetwork();
-                pn.CreatePipelineNetwork(ents, als);
+            //    PipelineNetwork pn = new PipelineNetwork();
+            //    pn.CreatePipelineNetwork(ents, als);
 
-                var gps = ents
-                    .Where(x => x is Polyline)
-                    .Cast<Polyline>()
-                    .GroupBy(x => psh.Pipeline.ReadPropertyString(
-                        x, psh.PipelineDef.BelongsToAlignment))
-                    .Where(x => als.Select(x => x.Name).Contains(x.Key));
+            //    var gps = ents
+            //        .Where(x => x is Polyline)
+            //        .Cast<Polyline>()
+            //        .GroupBy(x => psh.Pipeline.ReadPropertyString(
+            //            x, psh.PipelineDef.BelongsToAlignment))
+            //        .Where(x => als.Select(x => x.Name).Contains(x.Key));
 
-                HashSet<AP_PipelineData> ppls = new HashSet<AP_PipelineData>();
-                foreach (var gp in gps.OrderBy(x => x.Key))
-                {
-                    prdDbg($"Pipeline: {gp.Key}");
+            //    HashSet<AP_PipelineData> ppls = new HashSet<AP_PipelineData>();
+            //    foreach (var gp in gps.OrderBy(x => x.Key))
+            //    {
+            //        prdDbg($"Pipeline: {gp.Key}");
 
-                    var ppl = pn.GetPipeline(gp.Key);
-                    if (ppl == null) continue;
+            //        var ppl = pn.GetPipeline(gp.Key);
+            //        if (ppl == null) continue;
 
-                    List<double[]> tuples = new();
-                    foreach (Polyline pl in gp.OrderBy(ppl.GetPolylineMiddleStation))
-                    {
-                        for (int i = 0; i < pl.NumberOfVertices; i++)
-                        {
-                            var st = pl.GetSegmentType(i);
-                            if (st == SegmentType.Arc)
-                            {
-                                var arc = pl.GetArcSegmentAt(i);
-                                tuples.Add(
-                                    [ppl.GetStationAtPoint(arc.StartPoint), ppl.GetStationAtPoint(arc.EndPoint)]);
-                            }
-                        }
-                    }
-                    var ap = new AP_PipelineData(gp.Key);
-                    ap.HorizontalArcs = tuples.OrderBy(x => x[0]).ToArray();
-                    ppls.Add(ap);
-                }
+            //        List<double[]> tuples = new();
+            //        foreach (Polyline pl in gp.OrderBy(ppl.GetPolylineMiddleStation))
+            //        {
+            //            for (int i = 0; i < pl.NumberOfVertices; i++)
+            //            {
+            //                var st = pl.GetSegmentType(i);
+            //                if (st == SegmentType.Arc)
+            //                {
+            //                    var arc = pl.GetArcSegmentAt(i);
+            //                    tuples.Add(
+            //                        [ppl.GetStationAtPoint(arc.StartPoint), ppl.GetStationAtPoint(arc.EndPoint)]);
+            //                }
+            //            }
+            //        }
+            //        var ap = new AP_PipelineData(gp.Key);
+            //        ap.HorizontalArcs = tuples.OrderBy(x => x[0]).ToArray();
+            //        ppls.Add(ap);
+            //    }
 
-                string filePath = Path.Combine(apDataExportPath, "HorizontalArcData.json");
+            //    string filePath = Path.Combine(apDataExportPath, "HorizontalArcData.json");
 
-                var json = JsonSerializer.Serialize(
-                    ppls.OrderBy(x => x.Name), apJsonOptions);
-                using var w = new StreamWriter(filePath, false);
-                w.WriteLine(json);
-            }
-            catch (System.Exception ex)
-            {
-                tx.Abort();
-                fjvTx.Abort();
-                fjvTx.Dispose();
-                fjvDb.Dispose();
-                prdDbg(ex);
-                throw;
-            }
-            tx.Commit();
-            fjvTx.Commit();
-            fjvTx.Dispose();
+            //    var json = JsonSerializer.Serialize(
+            //        ppls.OrderBy(x => x.Name), apJsonOptions);
+            //    using var w = new StreamWriter(filePath, false);
+            //    w.WriteLine(json);
+            //}
+            //catch (System.Exception ex)
+            //{
+            //    tx.Abort();
+            //    fjvTx.Abort();
+            //    fjvTx.Dispose();
+            //    fjvDb.Dispose();
+            //    prdDbg(ex);
+            //    throw;
+            //}
+            //tx.Commit();
+            //fjvTx.Commit();
+            //fjvTx.Dispose();
             //fjvDb.Dispose();
         }
 
