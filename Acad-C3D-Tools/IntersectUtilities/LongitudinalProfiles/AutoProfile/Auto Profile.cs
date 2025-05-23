@@ -92,9 +92,12 @@ namespace IntersectUtilities
                 tx2.Commit();
             }
 
-
             //Settings
             double DouglasPeukerTolerance = 0.5;
+
+            //Variables for sampling
+            double x = 0.0;
+            double y = 0.0;
 
             #region DataManager and FJVDATA
             DataManager.DataManager dm = new DataManager.DataManager(new DataReferencesOptions());
@@ -185,8 +188,7 @@ namespace IntersectUtilities
                     #region Gather horizontal arc data
                     var ppl = pn.GetPipeline(al.Name);
                     if (ppl == null) throw new System.Exception($"No pipeline found for {al.Name}!");
-                    var gp = entsGroupedByAl[al];
-                    List<double[]> tuples = new();
+                    var gp = entsGroupedByAl[al];                    
                     foreach (Polyline pl in gp.OrderBy(ppl.GetPolylineMiddleStation))
                     {
                         for (int i = 0; i < pl.NumberOfVertices; i++)
@@ -195,12 +197,12 @@ namespace IntersectUtilities
                             if (st == SegmentType.Arc)
                             {
                                 var arc = pl.GetArcSegmentAt(i);
-                                tuples.Add(
-                                    [ppl.GetStationAtPoint(arc.StartPoint), ppl.GetStationAtPoint(arc.EndPoint)]);
+                                ppld.HorizontalArcs.Add(new HorizontalArc(
+                                    ppl.GetStationAtPoint(arc.StartPoint), ppl.GetStationAtPoint(arc.EndPoint)));
                             }
                         }
                     }
-                    ppld.HorizontalArcs = tuples.OrderBy(x => x[0]).ToArray();
+                    ppld.HorizontalArcs = ppld.HorizontalArcs.OrderBy(x => x.StartStation).ToList();
                     #endregion
 
                     #region Gather Utility data
@@ -298,12 +300,13 @@ namespace IntersectUtilities
                     prdDbg(ppld.SizeArray);
                     System.Windows.Forms.Application.DoEvents();
 
-                    ppld.SurfaceProfile.OffsetCentrelines.Layer = devLyr;
-                    ppld.SurfaceProfile.OffsetCentrelines.AddEntityToDbModelSpace(localDb);
+                    //ppld.SurfaceProfile.OffsetCentrelines.Layer = devLyr;
+                    //ppld.SurfaceProfile.OffsetCentrelines.AddEntityToDbModelSpace(localDb);
 
-                    //Test utility data
+                    //DETERMINE FLOATING STATUS
                     foreach (AP_Utility utility in ppld.Utility)
                     {
+                        //DETERMINE FLOATING STATUS
                         utility.TestFloatingStatus(ppld.SurfaceProfile.OffsetCentrelines);
 
                         var hatch = utility.GetUtilityHatch();
@@ -315,6 +318,44 @@ namespace IntersectUtilities
                         //var arc = utility.GetExtendedArc(radius, ppld.SurfaceProfile.SurfacePolylineWithHangingEnds);
                         //arc.Layer = devLyr;
                         //arc.AddEntityToDbModelSpace(localDb);
+                    }
+
+                    //PREPARE HORIZONTAL ARCS
+                    //1. Detect which obstacles are in the range of Horizontal Arcs (find Os[])
+                    var utilitiesCoveredByHorizontalArcs = ppld.Utility
+                        .Where(utility => ppld.HorizontalArcs
+                        .Any(harc => harc.StartStation <= utility.EndStation &&
+                                     harc.EndStation >= utility.StartStation))
+                        .ToList();
+
+                    if (utilitiesCoveredByHorizontalArcs.Count != 0)
+                    {
+                        foreach (var utility in utilitiesCoveredByHorizontalArcs)
+                        {
+                            //Find the horizontal arcs that cover this utility
+                            //and add them to the utility object
+                            var harcsForThisUtility = ppld.HorizontalArcs
+                                .Where(harc => harc.StartStation <= utility.EndStation &&
+                                               harc.EndStation >= utility.StartStation)
+                                .ToList();
+
+                            if (harcsForThisUtility.Count == 0)
+                                throw new System.Exception("No horizontal arcs found for this utility! UNEXPECTED!");
+
+                            double minStation = harcsForThisUtility.Min(x => x.StartStation);
+                            double maxStation = harcsForThisUtility.Max(x => x.EndStation);                            
+
+                            pvsDict[ppld.Name].FindXYAtStationAndElevation(minStation, 0, ref x, ref y);
+                            var startPoint = new Point3d(x, utility.BL.Y, 0.0);
+                            pvsDict[ppld.Name].FindXYAtStationAndElevation(maxStation, 0, ref x, ref y);
+                            var endPoint = new Point3d(x, utility.BL.Y, 0.0);
+                        }
+                        
+                    }
+
+                    foreach (var horizontalArc in ppld.HorizontalArcs)
+                    {
+                        
                     }
                 }
             }

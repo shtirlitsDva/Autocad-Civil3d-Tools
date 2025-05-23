@@ -24,7 +24,7 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
         [JsonInclude]
         public AP_SurfaceProfileData? SurfaceProfile { get; set; } = null;
         public IPipelineSizeArrayV2? SizeArray { get; set; } = null;
-        public double[][]? HorizontalArcs { get; set; } = null;
+        public List<HorizontalArc> HorizontalArcs { get; set; } = new();
         public List<AP_Utility> Utility { get; set; } = new();
         public AP_ProfileViewData? ProfileView { get; set; } = null;
         public AP_PipelineData(string name)
@@ -148,8 +148,8 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
         private double midStation;
         public bool IsFloating { get; set; } = true;
         public double MidStation => midStation;
-        public double MinStation => midStation - (extents.MaxPoint.X - extents.MinPoint.X) / 2;
-        public double MaxStation => midStation + (extents.MaxPoint.X - extents.MinPoint.X) / 2;
+        public double StartStation => midStation - (extents.MaxPoint.X - extents.MinPoint.X) / 2;
+        public double EndStation => midStation + (extents.MaxPoint.X - extents.MinPoint.X) / 2;
 
         /// <summary>
         /// Expects a bounding box of the utility to be passed in.
@@ -261,5 +261,15 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
                 else IsFloating = true;                
             }
         }        
+    }
+    internal struct HorizontalArc
+    {
+        public double StartStation { get; set; }
+        public double EndStation { get; set; }
+        public HorizontalArc(double start, double end)
+        {
+            StartStation = start;
+            EndStation = end;
+        }
     }
 }
