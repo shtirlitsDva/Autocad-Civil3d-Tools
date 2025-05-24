@@ -1,4 +1,5 @@
 ﻿using Autodesk.AutoCAD.ApplicationServices;
+using Autodesk.Civil.DatabaseServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 
@@ -7,6 +8,7 @@ using IntersectUtilities.PipeScheduleV2;
 using IntersectUtilities.UtilsCommon;
 
 using NetTopologySuite.Geometries;
+using NetTopologySuite.Index.Strtree;
 
 using System;
 using System.Collections.Generic;
@@ -30,13 +32,102 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
         public List<HorizontalArc> HorizontalArcs { get; set; } = new();
         [JsonInclude]
         public List<AP_Utility> Utility { get; set; } = new();
+        private STRtree<AP_Utility> utilityIndex = new();
+        public void BuildUtilityIndex()
+        {
+            utilityIndex = new STRtree<AP_Utility>();
+            foreach (var util in Utility)
+            {
+                var env = new Envelope(
+                    util.StartStation, util.BottomElevation,
+                    util.EndStation, util.TopElevation);
+                utilityIndex.Insert(env, util);
+            }
+            utilityIndex.Build();
+        }
+        public bool IsInsideAnyUtility(double station, double elevation)
+        {
+            if (utilityIndex == null) throw new Exception("Utility index is not built yet!");
+            var env = new Envelope(new Coordinate(station, elevation));
+            var query = utilityIndex.Query(env);
+            return query.Count > 0;
+        }
         [JsonIgnore]
         public AP_ProfileViewData? ProfileView { get; set; } = null;
+
+        //Search space tracking
+        private HashSet<(int x, int y, int theta)> _visited = new();
+        private double Snap(double value, double step) => Math.Round(value / step) * step;
+        private double cStep = 0.1;
+        private double aStep = 5;
+        public bool IsVisited(double x, double y, double theta)
+        {
+            var key = (
+                (int)(Snap(x, cStep) * 10),
+                (int)(Snap(y, cStep) * 10),
+                (int)(Snap(theta, aStep) /5) // 5 degrees step
+                );
+            return _visited.Contains(key);
+        }
+        public void MarkVisited(double x, double y, double theta)
+        {
+            var key = (
+                (int)(Snap(x, cStep) * 10),
+                (int)(Snap(y, cStep) * 10),
+                (int)(Snap(theta, aStep) / 5) // 5 degrees step
+                );
+            _visited.Add(key);
+        }
+        public bool IsWithinWorkZone(double station, double elevation)
+        {
+            if (ProfileView == null) throw new Exception("ProfileView is not set!");
+            if (SurfaceProfile == null) throw new Exception("SurfaceProfile is not set!");
+
+            //HERE X Y ARE MODEL SPACE COORDINATES, NOT ELEVATION AND STATION!
+            double x = 0.0;
+            double y = 0.0;
+            ProfileView.ProfileView.FindXYAtStationAndElevation(station, elevation, ref x, ref y);
+            var samplePt = SurfaceProfile.OffsetCentrelines!.GetClosestPointTo(new Point3d(x, y, 0), false);
+            double sampleStation = 0.0;
+            double sampleElevation = 0.0;
+            ProfileView.ProfileView.FindStationAndElevationAtXY(samplePt.X, samplePt.Y, ref sampleStation, ref sampleElevation);
+            return sampleElevation >= elevation && 
+                station >= ProfileView.ProfileView.StationStart &&
+                station <= ProfileView.ProfileView.StationEnd;
+        }
+        public double ComputeDepthCost(double station, double elevation)
+        {
+            if (SurfaceProfile == null) throw new Exception("SurfaceProfile is not set!");
+            if (SurfaceProfile.Profile == null) throw new Exception("SurfaceProfile.Profile is not set!");
+            //HERE X Y ARE MODEL SPACE COORDINATES, NOT ELEVATION AND STATION!
+
+            var sampleEl = SurfaceProfile.Profile.ElevationAt(station);
+            return sampleEl - elevation;
+        }
+        public Polyline ReconstructPath(PipeState goalState)
+        {
+            var path = new List<PipeState>();
+            var current = goalState;
+            while (current != null)
+            {
+                path.Add(current);
+                current = current.Parent;
+            }
+            path.Reverse();
+
+            var pts = path.Select(p => new Point2d(p.X, p.Y)).ToList();
+            var pline = new Polyline();
+            for (int i = 0; i < pts.Count; i++)
+            {
+                pline.AddVertexAt(pline.NumberOfVertices, pts[i], 0, 0, 0);
+            }
+
+            return pline;
+        }
         public AP_PipelineData(string name)
         {
             Name = name;
         }
-
         public void Serialize(string filename)
         {
             var options = new JsonSerializerOptions
@@ -50,13 +141,21 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
             System.IO.File.WriteAllText(filename, json);
         }
     }
-    internal class AP_SurfaceProfileData
+    internal abstract class PipelineData
+    {
+        protected AP_PipelineData _pipeLine;
+        public PipelineData(AP_PipelineData pipeLine)
+        {
+            _pipeLine = pipeLine;
+        }
+    }
+    internal class AP_SurfaceProfileData : PipelineData
     {
         private static double DouglaPeukerTolerance = 0.1;
         [JsonInclude]
         public string Name { get; set; }
         [JsonIgnore]
-        public double[][]? ProfilePoints { get; set; }
+        public Profile? Profile { get; set; }
         [JsonIgnore]
         public Polyline? SurfacePolylineFull { get; set; } = null;
         [JsonInclude]
@@ -66,9 +165,30 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
         private Polyline? offsetCentrelines;
         [JsonIgnore]
         public Polyline? OffsetCentrelines => offsetCentrelines;
-        public AP_SurfaceProfileData(string name)
+        public AP_SurfaceProfileData(string name, Profile p, AP_PipelineData pipeline) : base(pipeline)
         {
             Name = name;
+
+            Profile = p;
+
+            var pline = p.ToPolyline(pipeline.ProfileView!.ProfileView);
+
+            SurfacePolylineFull = pline.Clone() as Polyline;
+
+            //Add hanging start and end segments to catch arcs that are too close
+            //to the start and end of the profile view
+
+            var start = pline.GetPoint2dAt(0);
+            var addStart = new Point2d(start.X, start.Y - 50);
+            pline.AddVertexAt(0, addStart, 0, 0, 0);
+
+            var end = pline.GetPoint2dAt(pline.NumberOfVertices - 1);
+            var addEnd = new Point2d(end.X, end.Y - 50);
+            pline.AddVertexAt(pline.NumberOfVertices, addEnd, 0, 0, 0);
+
+            SurfacePolylineWithHangingEnds = pline;
+
+            BuildOffsetCentrelines(pipeline.SizeArray!);
         }
 
         internal void BuildOffsetCentrelines(IPipelineSizeArrayV2 sizeArray)
@@ -145,46 +265,58 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
                 {
                     var cur = offsets[i];
                     for (int j = 0; j < cur.NumberOfVertices; j++)
-                        combined.AddVertexAt(combined.NumberOfVertices, cur.GetPoint2dAt(j), 0, 0, 0);                    
+                        combined.AddVertexAt(combined.NumberOfVertices, cur.GetPoint2dAt(j), 0, 0, 0);
                 }
                 offsetCentrelines = combined;
             }
         }
-    }
-    internal class AP_ProfileViewData
-    {
-        public string Name { get; set; }
-        public double[] Origin { get; set; } = [0, 0];
-        public double ElevationAtOrigin { get; set; } = 0;
-        public AP_ProfileViewData(string name)
+        /// <summary>
+        /// x is station along the profile view. Returns the elevation at this station.
+        /// </summary>
+        internal double GetSurfaceYAtX(double x)
         {
-            Name = name;
+            if (Profile == null) throw new Exception($"No profile found for {Name}!");
+            return Profile.ElevationAt(x);
         }
     }
-    internal class AP_Utility
+    internal class AP_Utility : PipelineData
     {
         private string devLyr = "AutoProfileTest";
         private Extents2d extents;
-        [JsonInclude]
+        [JsonIgnore]
         public Extents2d Extents { get => extents; set { extents = value; } }
         private double midStation;
         [JsonIgnore]
         public bool IsFloating { get; set; } = true;
         [JsonIgnore]
         public double MidStation => midStation;
-        [JsonIgnore]
-        public double StartStation => midStation - (extents.MaxPoint.X - extents.MinPoint.X) / 2;
-        [JsonIgnore]
-        public double EndStation => midStation + (extents.MaxPoint.X - extents.MinPoint.X) / 2;
+        [JsonInclude]
+        public double StartStation { get; private set; }
+        [JsonInclude]
+        public double EndStation { get; private set; }
+        [JsonInclude]
+        public double TopElevation { get; private set; }
+        [JsonInclude]
+        public double BottomElevation { get; private set; }
 
         /// <summary>
         /// Expects a bounding box of the utility to be passed in.
         /// </summary>        
-        public AP_Utility(Geometry envelope, double station)
+        public AP_Utility(Geometry envelope, double station, AP_PipelineData pipeline) : base(pipeline)
         {
             var cs = envelope.Coordinates;
             extents = new Extents2d(cs[0].X, cs[0].Y, cs[2].X, cs[2].Y);
             this.midStation = station;
+            StartStation = midStation - (extents.MaxPoint.X - extents.MinPoint.X) / 2;
+            EndStation = midStation + (extents.MaxPoint.X - extents.MinPoint.X) / 2;
+            double st = 0.0;
+            double el = 0.0;
+            pipeline.ProfileView!.ProfileView.FindStationAndElevationAtXY(
+                extents.MinPoint.X, extents.MaxPoint.Y, ref st, ref el);
+            TopElevation = el;
+            pipeline.ProfileView!.ProfileView.FindStationAndElevationAtXY(
+                extents.MinPoint.X, extents.MinPoint.Y, ref st, ref el);
+            BottomElevation = el;
         }
         [JsonIgnore]
         public Point2d BL => extents.MinPoint;
@@ -276,27 +408,38 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
             var query = pts
                 .Cast<Point3d>()
                 .Where(x => utility.GetClosestPointTo(x, false)
-                .DistanceHorizontalTo(x) < 0.00000001);            
+                .DistanceHorizontalTo(x) < 0.00000001);
 
             if (query.Count() != 0) IsFloating = false;
             else
             {
                 Point3d left = profile.GetClosestPointTo(BL.To3d(), Vector3d.YAxis, true);
-                Point3d right = profile.GetClosestPointTo(BR.To3d(), Vector3d.YAxis, true);                
+                Point3d right = profile.GetClosestPointTo(BR.To3d(), Vector3d.YAxis, true);
 
                 if (BL.Y > left.Y && BR.Y > right.Y)
                 {
                     IsFloating = false;
                 }
-                else IsFloating = true;                
+                else IsFloating = true;
             }
-        }        
+        }
     }
-    internal struct HorizontalArc
+    internal class AP_ProfileViewData : PipelineData
+    {
+        public string Name { get; set; }
+        public ProfileView ProfileView { get; set; }
+        public AP_ProfileViewData(string name, ProfileView profileView, AP_PipelineData pipeline) : base(pipeline)
+        {
+            Name = name;
+            ProfileView = profileView;
+        }
+    }
+
+    internal class HorizontalArc : PipelineData
     {
         public double StartStation { get; set; }
         public double EndStation { get; set; }
-        public HorizontalArc(double start, double end)
+        public HorizontalArc(double start, double end, AP_PipelineData pipeline) : base(pipeline)
         {
             StartStation = start;
             EndStation = end;

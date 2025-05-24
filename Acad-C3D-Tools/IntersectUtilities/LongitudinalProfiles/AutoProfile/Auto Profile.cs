@@ -16,7 +16,6 @@ using GroupByCluster;
 
 using IntersectUtilities.DataManager;
 using IntersectUtilities.LongitudinalProfiles.AutoProfile;
-using IntersectUtilities.LongitudinalProfiles.AutoProfile.DataGatherers;
 using IntersectUtilities.PipelineNetworkSystem;
 using IntersectUtilities.UtilsCommon;
 
@@ -78,6 +77,7 @@ namespace IntersectUtilities
             localDb.CheckOrCreateLayer(devLyr, 1, false);
             #endregion
 
+            #region Delete previous debug entities
             //Delete previous entities on dev layer
             using (Transaction tx2 = localDb.TransactionManager.StartTransaction())
             {
@@ -90,7 +90,8 @@ namespace IntersectUtilities
                     ent.Erase(true);
                 }
                 tx2.Commit();
-            }
+            } 
+            #endregion
 
             //Settings
             double DouglasPeukerTolerance = 0.5;
@@ -175,6 +176,17 @@ namespace IntersectUtilities
                     System.Windows.Forms.Application.DoEvents();
                     var ppld = new AP_PipelineData(al.Name);
 
+                    #region Get profile view
+                    var pvs = al.GetProfileViewIds().Entities<ProfileView>(tx).ToList();
+                    if (pvs.Count != 1) throw new SystemException(
+                        $"Alignment {al.Name} has more than one profile view!");
+
+                    ProfileView pv = pvs[0];
+
+                    AP_ProfileViewData pvd = new AP_ProfileViewData(pv.Name, pv, ppld);
+                    ppld.ProfileView = pvd; 
+                    #endregion
+
                     #region Get pipline size array 
                     if (sizeArrays.TryGetValue(al.Name, out var sa)) ppld.SizeArray = sa;
                     else throw new System.Exception($"No pipeline size array found for {al.Name}!");
@@ -182,7 +194,24 @@ namespace IntersectUtilities
                     #endregion
 
                     #region Build surface related data                    
-                    ppld.SurfaceProfile = SurfaceProfileDataGatherer.GatherData(al, ppld.SizeArray);
+                    ObjectIdCollection pids = al.GetProfileIds();
+                    if (pids.Count == 0) throw new System.Exception($"Alignment {al.Name} has no profiles!");
+
+                    Profile? p = null;
+                    foreach (Oid pid in pids)
+                    {
+                        Profile ptemp = pid.Go<Profile>(tx);
+                        if (ptemp.Name.EndsWith("surface_P"))
+                        {
+                            p = ptemp;
+                            break;
+                        }
+                    }
+
+                    if (p == null) throw new System.Exception($"No surface profile found for {al.Name}!");
+
+                    var spd = new AP_SurfaceProfileData(p.Name, p, ppld);
+                    ppld.SurfaceProfile = spd;
                     #endregion
 
                     #region Gather horizontal arc data
@@ -198,7 +227,9 @@ namespace IntersectUtilities
                             {
                                 var arc = pl.GetArcSegmentAt(i);
                                 ppld.HorizontalArcs.Add(new HorizontalArc(
-                                    ppl.GetStationAtPoint(arc.StartPoint), ppl.GetStationAtPoint(arc.EndPoint)));
+                                    ppl.GetStationAtPoint(arc.StartPoint), 
+                                    ppl.GetStationAtPoint(arc.EndPoint),
+                                    ppld));
                             }
                         }
                     }
@@ -206,9 +237,6 @@ namespace IntersectUtilities
                     #endregion
 
                     #region Gather Utility data
-                    if (!pvsDict.TryGetValue(al.Name, out var pv))
-                        throw new System.Exception($"No profile view found for {al.Name}!");
-
                     if (!detailingBlockDict.TryGetValue(al.Name, out var br))
                         throw new System.Exception($"No detailing block found for {al.Name}!");
 
@@ -285,7 +313,7 @@ namespace IntersectUtilities
 
                             pv.FindStationAndElevationAtXY(x, y, ref station, ref elevation);
 
-                            ppld.Utility.Add(new AP_Utility(env, station));
+                            ppld.Utility.Add(new AP_Utility(env, station, ppld));
                         }
                     }
                     #endregion
@@ -299,6 +327,62 @@ namespace IntersectUtilities
                     prdDbg($"Processing {ppld.Name}");
                     prdDbg(ppld.SizeArray);
                     System.Windows.Forms.Application.DoEvents();
+
+                    ppld.BuildUtilityIndex();
+
+                    List<MotionPrimitive> primitives = [
+                        new MotionPrimitive(0, 1, false),
+                        new MotionPrimitive(0.5, 10, true),
+                        new MotionPrimitive(0.5, -10, true),
+                        ];
+
+                    double startX = 0.0;
+                    double startY = 21.0;
+                    double startTheta = 0.0;
+
+                    double goalX = ppld.ProfileView!.ProfileView.StationEnd;
+                    double goalTolerance = 0.5;
+                    PipeState? goalState = null;
+
+                    var startState = new PipeState(startX, startY, startTheta, 0.0, null);
+                    var openQueue = new Queue<PipeState>();
+                    var visited = new HashSet<(double x, double y, double theta)>();
+
+                    openQueue.Enqueue(startState);
+
+                    while (openQueue.Count > 0)
+                    {
+                        var current = openQueue.Dequeue();
+
+                        foreach (var mp in primitives)
+                        {
+                            var (xNew, yNew, thetaNew) = 
+                                MotionPrimitive.ApplyPrimitive(current.X, current.Y, current.ThetaDeg, mp);
+
+                            if (ppld.IsVisited(xNew, yNew, thetaNew)) continue;
+                            if (!ppld.IsWithinWorkZone(xNew, yNew)) continue;
+                            if (ppld.IsInsideAnyUtility(xNew, yNew)) continue;
+
+                            double cost = current.Cost + ppld.ComputeDepthCost(xNew, yNew);
+
+                            var newState = new PipeState(xNew, yNew, thetaNew, cost, current);
+                            if (Math.Abs(xNew - goalX) < goalTolerance)
+                            {
+                                goalState = newState;
+                                break;
+                            }
+                            openQueue.Enqueue(newState);
+                            ppld.MarkVisited(xNew, yNew, thetaNew);
+                        }
+                    }
+
+                    if (goalState is not null) 
+                    { 
+                        var pline = ppld.ReconstructPath(goalState);
+                        pline.Layer = devLyr;
+                        pline.AddEntityToDbModelSpace(localDb);
+                    }
+                    else prdDbg($"No path found for {ppld.Name}!");
 
                     //ppld.SurfaceProfile.OffsetCentrelines.Layer = devLyr;
                     //ppld.SurfaceProfile.OffsetCentrelines.AddEntityToDbModelSpace(localDb);
@@ -322,43 +406,43 @@ namespace IntersectUtilities
 
                     //PREPARE HORIZONTAL ARCS
                     //1. Detect which obstacles are in the range of Horizontal Arcs (find Os[])
-                    var utilitiesCoveredByHorizontalArcs = ppld.Utility
-                        .Where(utility => ppld.HorizontalArcs
-                        .Any(harc => harc.StartStation <= utility.EndStation &&
-                                     harc.EndStation >= utility.StartStation))
-                        .ToList();
+                    //var utilitiesCoveredByHorizontalArcs = ppld.Utility
+                    //    .Where(utility => ppld.HorizontalArcs
+                    //    .Any(harc => harc.StartStation <= utility.EndStation &&
+                    //                 harc.EndStation >= utility.StartStation))
+                    //    .ToList();
 
-                    if (utilitiesCoveredByHorizontalArcs.Count != 0)
-                    {
-                        foreach (var utility in utilitiesCoveredByHorizontalArcs)
-                        {
-                            //Find the horizontal arcs that cover this utility
-                            //and add them to the utility object
-                            var harcsForThisUtility = ppld.HorizontalArcs
-                                .Where(harc => harc.StartStation <= utility.EndStation &&
-                                               harc.EndStation >= utility.StartStation)
-                                .ToList();
+                    //if (utilitiesCoveredByHorizontalArcs.Count != 0)
+                    //{
+                    //    foreach (var utility in utilitiesCoveredByHorizontalArcs)
+                    //    {
+                    //        //Find the horizontal arcs that cover this utility
+                    //        //and add them to the utility object
+                    //        var harcsForThisUtility = ppld.HorizontalArcs
+                    //            .Where(harc => harc.StartStation <= utility.EndStation &&
+                    //                           harc.EndStation >= utility.StartStation)
+                    //            .ToList();
 
-                            if (harcsForThisUtility.Count == 0)
-                                throw new System.Exception("No horizontal arcs found for this utility! UNEXPECTED!");
+                    //        if (harcsForThisUtility.Count == 0)
+                    //            throw new System.Exception("No horizontal arcs found for this utility! UNEXPECTED!");
 
-                            double minStation = harcsForThisUtility.Min(x => x.StartStation);
-                            double maxStation = harcsForThisUtility.Max(x => x.EndStation);                            
+                    //        double minStation = harcsForThisUtility.Min(x => x.StartStation);
+                    //        double maxStation = harcsForThisUtility.Max(x => x.EndStation);                            
 
-                            pvsDict[ppld.Name].FindXYAtStationAndElevation(minStation, 0, ref x, ref y);
-                            var startPoint = new Point3d(x, utility.BL.Y, 0.0);
-                            pvsDict[ppld.Name].FindXYAtStationAndElevation(maxStation, 0, ref x, ref y);
-                            var endPoint = new Point3d(x, utility.BL.Y, 0.0);
-                        }
+                    //        pvsDict[ppld.Name].FindXYAtStationAndElevation(minStation, 0, ref x, ref y);
+                    //        var startPoint = new Point3d(x, utility.BL.Y, 0.0);
+                    //        pvsDict[ppld.Name].FindXYAtStationAndElevation(maxStation, 0, ref x, ref y);
+                    //        var endPoint = new Point3d(x, utility.BL.Y, 0.0);
+                    //    }
                         
-                    }
+                    //}
 
-                    foreach (var horizontalArc in ppld.HorizontalArcs)
-                    {
+                    //foreach (var horizontalArc in ppld.HorizontalArcs)
+                    //{
                         
-                    }
+                    //}
 
-                    ppld.Serialize($"C:\\Temp\\sample_data_{ppld.Name}.json");
+                    //ppld.Serialize($"C:\\Temp\\sample_data_{ppld.Name}.json");
                 }
 
                 #region Export ppl to json
@@ -430,80 +514,80 @@ namespace IntersectUtilities
         //[CommandMethod("APGATHERSURFACEPROFILEDATA")]
         public void gathersurfaceprofiledata()
         {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
+            //DocumentCollection docCol = Application.DocumentManager;
+            //Database localDb = docCol.MdiActiveDocument.Database;
 
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    var als = localDb.HashSetOfType<Alignment>(tx);
+            //using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            //{
+            //    try
+            //    {
+            //        var als = localDb.HashSetOfType<Alignment>(tx);
 
-                    if (als.Count == 0)
-                    {
-                        prdDbg("No Alignments found in the drawing");
-                        tx.Abort();
-                        return;
-                    }
+            //        if (als.Count == 0)
+            //        {
+            //            prdDbg("No Alignments found in the drawing");
+            //            tx.Abort();
+            //            return;
+            //        }
 
-                    string filePath = Path.Combine(apDataExportPath, "SurfaceProfileData.json");
+            //        string filePath = Path.Combine(apDataExportPath, "SurfaceProfileData.json");
 
-                    HashSet<AP_PipelineData> ppls = new HashSet<AP_PipelineData>();
+            //        HashSet<AP_PipelineData> ppls = new HashSet<AP_PipelineData>();
 
-                    foreach (Alignment al in als.OrderBy(x => x.Name))
-                    {
-                        prdDbg($"Processing {al.Name}");
-                        System.Windows.Forms.Application.DoEvents();
+            //        foreach (Alignment al in als.OrderBy(x => x.Name))
+            //        {
+            //            prdDbg($"Processing {al.Name}");
+            //            System.Windows.Forms.Application.DoEvents();
 
-                        var pids = al.GetProfileIds();
-                        Profile p = null;
+            //            var pids = al.GetProfileIds();
+            //            Profile p = null;
 
-                        foreach (Oid pid in pids)
-                        {
-                            Profile ptemp = pid.Go<Profile>(tx);
-                            if (ptemp.Name.EndsWith("surface_P"))
-                            {
-                                p = ptemp;
-                                break;
-                            }
-                        }
+            //            foreach (Oid pid in pids)
+            //            {
+            //                Profile ptemp = pid.Go<Profile>(tx);
+            //                if (ptemp.Name.EndsWith("surface_P"))
+            //                {
+            //                    p = ptemp;
+            //                    break;
+            //                }
+            //            }
 
-                        if (p == null)
-                        {
-                            prdDbg($"No surface profile found for {al.Name}");
-                            continue;
-                        }
+            //            if (p == null)
+            //            {
+            //                prdDbg($"No surface profile found for {al.Name}");
+            //                continue;
+            //            }
 
-                        ProfilePVICollection pvis = p.PVIs;
+            //            ProfilePVICollection pvis = p.PVIs;
 
-                        var query = pvis.Select(
-                            pvis => new { pvis.RawStation, pvis.Elevation }).OrderBy(x => x.RawStation);
+            //            var query = pvis.Select(
+            //                pvis => new { pvis.RawStation, pvis.Elevation }).OrderBy(x => x.RawStation);
 
-                        var ppl = new AP_PipelineData(al.Name);
-                        ppl.SurfaceProfile = new AP_SurfaceProfileData(p.Name);
-                        ppl.SurfaceProfile.ProfilePoints =
-                            query.Select(x => new double[] { x.RawStation, x.Elevation })
-                            .ToArray();
-                        ppls.Add(ppl);
-                    }
+            //            var ppl = new AP_PipelineData(al.Name);
+            //            ppl.SurfaceProfile = new AP_SurfaceProfileData(p.Name);
+            //            ppl.SurfaceProfile.ProfilePoints =
+            //                query.Select(x => new double[] { x.RawStation, x.Elevation })
+            //                .ToArray();
+            //            ppls.Add(ppl);
+            //        }
 
-                    //Write the collection to json
-                    var json = JsonSerializer.Serialize(
-                        ppls.OrderBy(x => x.Name),
-                        apJsonOptions);
-                    using var writer = new StreamWriter(filePath, false);
-                    writer.WriteLine(json);
+            //        //Write the collection to json
+            //        var json = JsonSerializer.Serialize(
+            //            ppls.OrderBy(x => x.Name),
+            //            apJsonOptions);
+            //        using var writer = new StreamWriter(filePath, false);
+            //        writer.WriteLine(json);
 
-                    prdDbg("Done!");
-                }
-                catch (System.Exception ex)
-                {
-                    tx.Abort();
-                    prdDbg(ex);
-                    throw;
-                }
-                tx.Commit();
-            }
+            //        prdDbg("Done!");
+            //    }
+            //    catch (System.Exception ex)
+            //    {
+            //        tx.Abort();
+            //        prdDbg(ex);
+            //        throw;
+            //    }
+            //    tx.Commit();
+            //}
         }
 
         //[CommandMethod("APGPLD")]
@@ -804,73 +888,73 @@ namespace IntersectUtilities
 
         public void gatherprofileviewdata()
         {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
+            //DocumentCollection docCol = Application.DocumentManager;
+            //Database localDb = docCol.MdiActiveDocument.Database;
 
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    var als = localDb.HashSetOfType<Alignment>(tx);
+            //using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            //{
+            //    try
+            //    {
+            //        var als = localDb.HashSetOfType<Alignment>(tx);
 
-                    if (als.Count == 0)
-                    {
-                        prdDbg("No Alignments found in the drawing");
-                        tx.Abort();
-                        return;
-                    }
+            //        if (als.Count == 0)
+            //        {
+            //            prdDbg("No Alignments found in the drawing");
+            //            tx.Abort();
+            //            return;
+            //        }
 
-                    string filePath = Path.Combine(apDataExportPath, "ProfileViewData.json");
+            //        string filePath = Path.Combine(apDataExportPath, "ProfileViewData.json");
 
-                    HashSet<AP_PipelineData> ppls = new HashSet<AP_PipelineData>();
+            //        HashSet<AP_PipelineData> ppls = new HashSet<AP_PipelineData>();
 
-                    foreach (Alignment al in als.OrderBy(x => x.Name))
-                    {
-                        prdDbg($"Processing {al.Name}");
-                        System.Windows.Forms.Application.DoEvents();
+            //        foreach (Alignment al in als.OrderBy(x => x.Name))
+            //        {
+            //            prdDbg($"Processing {al.Name}");
+            //            System.Windows.Forms.Application.DoEvents();
 
-                        var pvids = al.GetProfileViewIds();
-                        Oid pvid = Oid.Null;
-                        foreach (Oid item in pvids) pvid = item;
+            //            var pvids = al.GetProfileViewIds();
+            //            Oid pvid = Oid.Null;
+            //            foreach (Oid item in pvids) pvid = item;
 
-                        if (pvid == Oid.Null)
-                        {
-                            prdDbg($"No profile view found for {al.Name}");
-                            continue;
-                        }
+            //            if (pvid == Oid.Null)
+            //            {
+            //                prdDbg($"No profile view found for {al.Name}");
+            //                continue;
+            //            }
 
-                        ProfileView pv = pvid.Go<ProfileView>(tx);
+            //            ProfileView pv = pvid.Go<ProfileView>(tx);
 
-                        if (pv == null)
-                        {
-                            prdDbg($"No profile view found for {al.Name}");
-                            continue;
-                        }
+            //            if (pv == null)
+            //            {
+            //                prdDbg($"No profile view found for {al.Name}");
+            //                continue;
+            //            }
 
-                        var ppl = new AP_PipelineData(al.Name);
-                        var pvd = new AP_ProfileViewData(pv.Name);
-                        pvd.Origin = [pv.Location.X, pv.Location.Y];
-                        pvd.ElevationAtOrigin = pv.ElevationMin;
-                        ppl.ProfileView = pvd;
+            //            var ppl = new AP_PipelineData(al.Name);
+            //            var pvd = new AP_ProfileViewData(pv.Name);
+            //            pvd.Origin = [pv.Location.X, pv.Location.Y];
+            //            pvd.ElevationAtOrigin = pv.ElevationMin;
+            //            ppl.ProfileView = pvd;
 
-                        ppls.Add(ppl);
-                    }
+            //            ppls.Add(ppl);
+            //        }
 
-                    //Write the collection to json
-                    var json = JsonSerializer.Serialize(
-                        ppls.OrderBy(x => x.Name),
-                        apJsonOptions);
-                    using var writer = new StreamWriter(filePath, false);
-                    writer.WriteLine(json);
-                }
-                catch (System.Exception ex)
-                {
-                    tx.Abort();
-                    prdDbg(ex);
-                    throw;
-                }
-                tx.Commit();
-            }
+            //        //Write the collection to json
+            //        var json = JsonSerializer.Serialize(
+            //            ppls.OrderBy(x => x.Name),
+            //            apJsonOptions);
+            //        using var writer = new StreamWriter(filePath, false);
+            //        writer.WriteLine(json);
+            //    }
+            //    catch (System.Exception ex)
+            //    {
+            //        tx.Abort();
+            //        prdDbg(ex);
+            //        throw;
+            //    }
+            //    tx.Commit();
+            //}
         }
     }
 }
