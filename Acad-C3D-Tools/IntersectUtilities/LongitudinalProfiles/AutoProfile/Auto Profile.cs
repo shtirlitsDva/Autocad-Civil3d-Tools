@@ -332,8 +332,8 @@ namespace IntersectUtilities
 
                     List<MotionPrimitive> primitives = [
                         new MotionPrimitive(0, 1, false),
-                        new MotionPrimitive(0.5, 10, true),
-                        new MotionPrimitive(0.5, -10, true),
+                        new MotionPrimitive(1, 10, true),
+                        new MotionPrimitive(1, -10, true),
                         ];
 
                     double startX = 0.0;
