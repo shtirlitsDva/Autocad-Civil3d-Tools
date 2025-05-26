@@ -45,6 +45,25 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
             }
             utilityIndex.Build();
         }
+        public void GenerateAvoidanceGeometryForUtilities() 
+        {
+            foreach (var utility in Utility)
+            {
+                //Avoidance arc
+                double radius = SizeArray!.GetSizeAtStation(utility.MidStation).VerticalMinRadius;
+                utility.BuildExtendedAvoidanceArc(radius, SurfaceProfile!.SurfacePolylineWithHangingEnds!);
+
+                //Harc avoidance polyline
+                //Find the horizontal arcs that cover this utility
+                var harcsForThisUtility = HorizontalArcs
+                    .Where(harc => harc.StartStation <= utility.EndStation &&
+                                   harc.EndStation >= utility.StartStation)
+                    .ToList();
+                double startStation = harcsForThisUtility.Min(x => x.StartStation);
+                double endStation = harcsForThisUtility.Max(x => x.EndStation);
+                utility.BuildHorizontalArcPolylineWithTrimmedArcs(startStation, endStation);
+            }
+        }
         public bool IsInsideAnyUtility(double station, double elevation)
         {
             if (utilityIndex == null) throw new Exception("Utility index is not built yet!");
@@ -54,76 +73,6 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
         }
         [JsonIgnore]
         public AP_ProfileViewData? ProfileView { get; set; } = null;
-
-        //Search space tracking
-        private HashSet<(int x, int y, int theta)> _visited = new();
-        private double Snap(double value, double step) => Math.Round(value / step) * step;
-        private double cStep = 0.1;
-        private double aStep = 5;
-        public bool IsVisited(double x, double y, double theta)
-        {
-            var key = (
-                (int)(Snap(x, cStep) * 10),
-                (int)(Snap(y, cStep) * 10),
-                (int)(Snap(theta, aStep) /5) // 5 degrees step
-                );
-            return _visited.Contains(key);
-        }
-        public void MarkVisited(double x, double y, double theta)
-        {
-            var key = (
-                (int)(Snap(x, cStep) * 10),
-                (int)(Snap(y, cStep) * 10),
-                (int)(Snap(theta, aStep) / 5) // 5 degrees step
-                );
-            _visited.Add(key);
-        }
-        public bool IsWithinWorkZone(double station, double elevation)
-        {
-            if (ProfileView == null) throw new Exception("ProfileView is not set!");
-            if (SurfaceProfile == null) throw new Exception("SurfaceProfile is not set!");
-
-            //HERE X Y ARE MODEL SPACE COORDINATES, NOT ELEVATION AND STATION!
-            double x = 0.0;
-            double y = 0.0;
-            ProfileView.ProfileView.FindXYAtStationAndElevation(station, elevation, ref x, ref y);
-            var samplePt = SurfaceProfile.OffsetCentrelines!.GetClosestPointTo(new Point3d(x, y, 0), false);
-            double sampleStation = 0.0;
-            double sampleElevation = 0.0;
-            ProfileView.ProfileView.FindStationAndElevationAtXY(samplePt.X, samplePt.Y, ref sampleStation, ref sampleElevation);
-            return sampleElevation >= elevation && 
-                station >= ProfileView.ProfileView.StationStart &&
-                station <= ProfileView.ProfileView.StationEnd;
-        }
-        public double ComputeDepthCost(double station, double elevation)
-        {
-            if (SurfaceProfile == null) throw new Exception("SurfaceProfile is not set!");
-            if (SurfaceProfile.Profile == null) throw new Exception("SurfaceProfile.Profile is not set!");
-            //HERE X Y ARE MODEL SPACE COORDINATES, NOT ELEVATION AND STATION!
-
-            var sampleEl = SurfaceProfile.Profile.ElevationAt(station);
-            return sampleEl - elevation;
-        }
-        public Polyline ReconstructPath(PipeState goalState)
-        {
-            var path = new List<PipeState>();
-            var current = goalState;
-            while (current != null)
-            {
-                path.Add(current);
-                current = current.Parent;
-            }
-            path.Reverse();
-
-            var pts = path.Select(p => new Point2d(p.X, p.Y)).ToList();
-            var pline = new Polyline();
-            for (int i = 0; i < pts.Count; i++)
-            {
-                pline.AddVertexAt(pline.NumberOfVertices, pts[i], 0, 0, 0);
-            }
-
-            return pline;
-        }
         public AP_PipelineData(string name)
         {
             Name = name;
@@ -317,6 +266,8 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
             pipeline.ProfileView!.ProfileView.FindStationAndElevationAtXY(
                 extents.MinPoint.X, extents.MinPoint.Y, ref st, ref el);
             BottomElevation = el;
+
+
         }
         [JsonIgnore]
         public Point2d BL => extents.MinPoint;
@@ -326,6 +277,10 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
         private Point2d TL => new Point2d(extents.MinPoint.X, extents.MaxPoint.Y);
         [JsonIgnore]
         private Point2d TR => extents.MaxPoint;
+        [JsonIgnore]
+        public Arc? AvoidanceArc { get; private set; }
+        [JsonIgnore]
+        public Polyline? HorizontalArcAvoidancePolyline { get; private set; }        
 
         public Hatch GetUtilityHatch()
         {
@@ -342,7 +297,7 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
 
             return hatch;
         }
-        private Point2d GetCentreOfTangencyArc(double radius)
+        private Point2d GetCentreOfAvoidanceArc(double radius)
         {
             var M = new LineSegment2d(BL, BR).MidPoint;
             double halfDist = BL.GetDistanceTo(BR) / 2;
@@ -353,17 +308,23 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
             double h = Math.Sqrt(radius * radius - halfDist * halfDist);
             return new Point2d(M.X, M.Y + h);
         }
-        public Arc GetTangencyArc(double radius)
+        private Point2d GetCentreOfTangencyArc(Point2d tangencyPoint, double radius)
         {
-            var center = GetCentreOfTangencyArc(radius).To3d();
+            //Use the tangency point to get the centre of the arc
+            var C = tangencyPoint + new Vector2d(0, radius);
+            return C;
+        }
+        public Arc BuildAvoidanceArc(double radius)
+        {
+            var center = GetCentreOfAvoidanceArc(radius).To3d();
 
             return new Arc(center, radius,
                 (BL.To3d() - center).AngleOnPlane(new Plane()),
                 (BR.To3d() - center).AngleOnPlane(new Plane()));
         }
-        public Arc GetExtendedArc(double radius, Polyline boundary)
+        public Arc BuildExtendedAvoidanceArc(double radius, Polyline boundary)
         {
-            var centre = GetCentreOfTangencyArc(radius).To3d();
+            var centre = GetCentreOfAvoidanceArc(radius).To3d();
             Circle circle = new Circle(centre, Vector3d.ZAxis, radius);
             using Point3dCollection pts = new Point3dCollection();
             circle.IntersectWith(
@@ -383,9 +344,11 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
             var start = ptsSorted[0];
             var end = ptsSorted[1];
 
-            var arc = GetTangencyArc(radius);
+            var arc = BuildAvoidanceArc(radius);
             arc.Extend(true, start);
             arc.Extend(false, end);
+
+            AvoidanceArc = arc;
 
             return arc;
         }
@@ -422,6 +385,77 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
                 }
                 else IsFloating = true;
             }
+        }
+        internal Polyline BuildHorizontalArcPolylineWithTrimmedArcs(double startStation, double endStation)
+        {
+            var trimPolyline = _pipeLine.SurfaceProfile!.SurfacePolylineWithHangingEnds;
+
+            //Start arc
+            var startPointRadius = _pipeLine.SizeArray!.GetSizeAtStation(startStation).VerticalMinRadius;
+
+            double x = 0.0, y = 0.0;
+            _pipeLine.ProfileView!.ProfileView.FindXYAtStationAndElevation(
+                startStation, BottomElevation, ref x, ref y);
+
+            var startCentre = GetCentreOfTangencyArc(new Point2d(x, y), startPointRadius).To3d();
+
+            Arc startArc = new Arc(startCentre, startPointRadius, Math.PI / 2, Math.PI * 3 / 2);
+            using Point3dCollection startPts = new Point3dCollection();
+            startArc.IntersectWith(trimPolyline,
+                Autodesk.AutoCAD.DatabaseServices.Intersect.OnBothOperands,
+                new Plane(), startPts, 0, 0);
+
+            var query = startPts
+                .Cast<Point3d>()
+                .Where(pt => trimPolyline!.GetClosestPointTo(pt, false)
+                .DistanceHorizontalTo(pt) < 0.00000001).ToList();
+
+            if (query.Count == 1)
+            {
+                var snitPt = query[0];
+                startArc = new Arc(startCentre, startPointRadius,
+                    (snitPt - startCentre).AngleOnPlane(new Plane()),
+                    Math.PI * 3 / 2);
+            }
+
+            //End arc
+            var endPointRadius = _pipeLine.SizeArray!.GetSizeAtStation(endStation).VerticalMinRadius;
+
+            _pipeLine.ProfileView!.ProfileView.FindXYAtStationAndElevation(
+                endStation, BottomElevation, ref x, ref y);
+
+            var endCentre = GetCentreOfTangencyArc(new Point2d(x, y), endPointRadius).To3d();
+
+            Arc endArc = new Arc(endCentre, endPointRadius, Math.PI * 3 / 2, Math.PI / 2);
+            using Point3dCollection endPts = new Point3dCollection();
+            endArc.IntersectWith(trimPolyline,
+                Autodesk.AutoCAD.DatabaseServices.Intersect.OnBothOperands,
+                new Plane(), endPts, 0, 0);
+
+            query = endPts
+                .Cast<Point3d>()
+                .Where(pt => trimPolyline!.GetClosestPointTo(pt, false)
+                .DistanceHorizontalTo(pt) < 0.00000001).ToList();
+
+            if (query.Count == 1)
+            {
+                var snitPt = query[0];
+                endArc = new Arc(endCentre, endPointRadius,
+                    Math.PI * 3 / 2,
+                    (snitPt - endCentre).AngleOnPlane(new Plane())
+                    );
+            }
+
+            //Construct the polyline
+            Polyline harcPolyline = new Polyline(4);
+            harcPolyline.AddVertexAt(0, startArc.StartPoint.To2d(), startArc.GetBulge(), 0, 0);
+            harcPolyline.AddVertexAt(1, startArc.EndPoint.To2d(), 0, 0, 0);
+            harcPolyline.AddVertexAt(2, endArc.StartPoint.To2d(), endArc.GetBulge(), 0, 0);
+            harcPolyline.AddVertexAt(3, endArc.EndPoint.To2d(), 0, 0, 0);
+
+            HorizontalArcAvoidancePolyline = harcPolyline;
+
+            return harcPolyline;
         }
     }
     internal class AP_ProfileViewData : PipelineData

@@ -90,7 +90,7 @@ namespace IntersectUtilities
                     ent.Erase(true);
                 }
                 tx2.Commit();
-            } 
+            }
             #endregion
 
             //Settings
@@ -184,7 +184,7 @@ namespace IntersectUtilities
                     ProfileView pv = pvs[0];
 
                     AP_ProfileViewData pvd = new AP_ProfileViewData(pv.Name, pv, ppld);
-                    ppld.ProfileView = pvd; 
+                    ppld.ProfileView = pvd;
                     #endregion
 
                     #region Get pipline size array 
@@ -217,7 +217,7 @@ namespace IntersectUtilities
                     #region Gather horizontal arc data
                     var ppl = pn.GetPipeline(al.Name);
                     if (ppl == null) throw new System.Exception($"No pipeline found for {al.Name}!");
-                    var gp = entsGroupedByAl[al];                    
+                    var gp = entsGroupedByAl[al];
                     foreach (Polyline pl in gp.OrderBy(ppl.GetPolylineMiddleStation))
                     {
                         for (int i = 0; i < pl.NumberOfVertices; i++)
@@ -226,17 +226,16 @@ namespace IntersectUtilities
                             if (st == SegmentType.Arc)
                             {
                                 var arc = pl.GetArcSegmentAt(i);
-                                ppld.HorizontalArcs.Add(new HorizontalArc(
-                                    ppl.GetStationAtPoint(arc.StartPoint), 
-                                    ppl.GetStationAtPoint(arc.EndPoint),
-                                    ppld));
+                                double[] sts =
+                                    [ppl.GetStationAtPoint(arc.StartPoint), ppl.GetStationAtPoint(arc.EndPoint)];                                
+                                ppld.HorizontalArcs.Add(new HorizontalArc(sts.Min(), sts.Max(), ppld));
                             }
                         }
                     }
                     ppld.HorizontalArcs = ppld.HorizontalArcs.OrderBy(x => x.StartStation).ToList();
                     #endregion
 
-                    #region Gather Utility data
+                    #region Gather and initialize Utility data
                     if (!detailingBlockDict.TryGetValue(al.Name, out var br))
                         throw new System.Exception($"No detailing block found for {al.Name}!");
 
@@ -316,6 +315,8 @@ namespace IntersectUtilities
                             ppld.Utility.Add(new AP_Utility(env, station, ppld));
                         }
                     }
+
+                    ppld.GenerateAvoidanceGeometryForUtilities();
                     #endregion
 
                     pplds.Add(ppld);
@@ -330,62 +331,8 @@ namespace IntersectUtilities
 
                     ppld.BuildUtilityIndex();
 
-                    List<MotionPrimitive> primitives = [
-                        new MotionPrimitive(0, 1, false),
-                        new MotionPrimitive(1, 10, true),
-                        new MotionPrimitive(1, -10, true),
-                        ];
-
-                    double startX = 0.0;
-                    double startY = 21.0;
-                    double startTheta = 0.0;
-
-                    double goalX = ppld.ProfileView!.ProfileView.StationEnd;
-                    double goalTolerance = 0.5;
-                    PipeState? goalState = null;
-
-                    var startState = new PipeState(startX, startY, startTheta, 0.0, null);
-                    var openQueue = new Queue<PipeState>();
-                    var visited = new HashSet<(double x, double y, double theta)>();
-
-                    openQueue.Enqueue(startState);
-
-                    while (openQueue.Count > 0)
-                    {
-                        var current = openQueue.Dequeue();
-
-                        foreach (var mp in primitives)
-                        {
-                            var (xNew, yNew, thetaNew) = 
-                                MotionPrimitive.ApplyPrimitive(current.X, current.Y, current.ThetaDeg, mp);
-
-                            if (ppld.IsVisited(xNew, yNew, thetaNew)) continue;
-                            if (!ppld.IsWithinWorkZone(xNew, yNew)) continue;
-                            if (ppld.IsInsideAnyUtility(xNew, yNew)) continue;
-
-                            double cost = current.Cost + ppld.ComputeDepthCost(xNew, yNew);
-
-                            var newState = new PipeState(xNew, yNew, thetaNew, cost, current);
-                            if (Math.Abs(xNew - goalX) < goalTolerance)
-                            {
-                                goalState = newState;
-                                break;
-                            }
-                            openQueue.Enqueue(newState);
-                            ppld.MarkVisited(xNew, yNew, thetaNew);
-                        }
-                    }
-
-                    if (goalState is not null) 
-                    { 
-                        var pline = ppld.ReconstructPath(goalState);
-                        pline.Layer = devLyr;
-                        pline.AddEntityToDbModelSpace(localDb);
-                    }
-                    else prdDbg($"No path found for {ppld.Name}!");
-
-                    //ppld.SurfaceProfile.OffsetCentrelines.Layer = devLyr;
-                    //ppld.SurfaceProfile.OffsetCentrelines.AddEntityToDbModelSpace(localDb);
+                    ppld.SurfaceProfile.OffsetCentrelines.Layer = devLyr;
+                    ppld.SurfaceProfile.OffsetCentrelines.AddEntityToDbModelSpace(localDb);
 
                     //DETERMINE FLOATING STATUS
                     foreach (AP_Utility utility in ppld.Utility)
@@ -396,58 +343,23 @@ namespace IntersectUtilities
                         var hatch = utility.GetUtilityHatch();
                         hatch.Layer = devLyr;
                         if (utility.IsFloating) hatch.Color = ColorByName("green");
-                        hatch.AddEntityToDbModelSpace(localDb);
-
-                        //var radius = ppld.SizeArray.GetSizeAtStation(utility.MidStation).VerticalMinRadius;
-                        //var arc = utility.GetExtendedArc(radius, ppld.SurfaceProfile.SurfacePolylineWithHangingEnds);
-                        //arc.Layer = devLyr;
-                        //arc.AddEntityToDbModelSpace(localDb);
+                        hatch.AddEntityToDbModelSpace(localDb);                        
                     }
 
-                    //PREPARE HORIZONTAL ARCS
-                    //1. Detect which obstacles are in the range of Horizontal Arcs (find Os[])
-                    //var utilitiesCoveredByHorizontalArcs = ppld.Utility
-                    //    .Where(utility => ppld.HorizontalArcs
-                    //    .Any(harc => harc.StartStation <= utility.EndStation &&
-                    //                 harc.EndStation >= utility.StartStation))
-                    //    .ToList();
+                    
 
-                    //if (utilitiesCoveredByHorizontalArcs.Count != 0)
-                    //{
-                    //    foreach (var utility in utilitiesCoveredByHorizontalArcs)
-                    //    {
-                    //        //Find the horizontal arcs that cover this utility
-                    //        //and add them to the utility object
-                    //        var harcsForThisUtility = ppld.HorizontalArcs
-                    //            .Where(harc => harc.StartStation <= utility.EndStation &&
-                    //                           harc.EndStation >= utility.StartStation)
-                    //            .ToList();
 
-                    //        if (harcsForThisUtility.Count == 0)
-                    //            throw new System.Exception("No horizontal arcs found for this utility! UNEXPECTED!");
+                    foreach (var horizontalArc in ppld.HorizontalArcs)
+                    {
 
-                    //        double minStation = harcsForThisUtility.Min(x => x.StartStation);
-                    //        double maxStation = harcsForThisUtility.Max(x => x.EndStation);                            
-
-                    //        pvsDict[ppld.Name].FindXYAtStationAndElevation(minStation, 0, ref x, ref y);
-                    //        var startPoint = new Point3d(x, utility.BL.Y, 0.0);
-                    //        pvsDict[ppld.Name].FindXYAtStationAndElevation(maxStation, 0, ref x, ref y);
-                    //        var endPoint = new Point3d(x, utility.BL.Y, 0.0);
-                    //    }
-                        
-                    //}
-
-                    //foreach (var horizontalArc in ppld.HorizontalArcs)
-                    //{
-                        
-                    //}
+                    }
 
                     //ppld.Serialize($"C:\\Temp\\sample_data_{ppld.Name}.json");
                 }
 
                 #region Export ppl to json
                 //Write the collection to json
-                
+
                 #endregion
             }
             catch (System.Exception ex)
