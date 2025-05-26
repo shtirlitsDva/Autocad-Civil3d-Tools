@@ -317,6 +317,7 @@ namespace IntersectUtilities
                     }
 
                     ppld.GenerateAvoidanceGeometryForUtilities();
+                    ppld.GenerateAvoidanceRegionsForUtilities();
                     #endregion
 
                     pplds.Add(ppld);
@@ -343,16 +344,15 @@ namespace IntersectUtilities
                         var hatch = utility.GetUtilityHatch();
                         hatch.Layer = devLyr;
                         if (utility.IsFloating) hatch.Color = ColorByName("green");
-                        hatch.AddEntityToDbModelSpace(localDb);                        
+                        hatch.AddEntityToDbModelSpace(localDb);
+
+                        utility.AvoidanceRegion.Layer = devLyr;
+                        utility.AvoidanceRegion.AddEntityToDbModelSpace(localDb);
                     }
 
                     
 
 
-                    foreach (var horizontalArc in ppld.HorizontalArcs)
-                    {
-
-                    }
 
                     //ppld.Serialize($"C:\\Temp\\sample_data_{ppld.Name}.json");
                 }
@@ -361,6 +361,25 @@ namespace IntersectUtilities
                 //Write the collection to json
 
                 #endregion
+            }
+            catch (DebugException dex)
+            {
+                tx.Abort();
+                prdDbg(dex);
+
+                if (dex.DebugEntities != null && dex.DebugEntities.Count > 0)
+                {
+                    using Transaction dtx = localDb.TransactionManager.StartTransaction();
+                    //Write debug entities to the dev layer
+                    foreach (var ent in dex.DebugEntities)
+                    {
+                        ent.Layer = devLyr;
+                        ent.AddEntityToDbModelSpace(localDb);
+                    }
+                    dtx.Commit();
+                }
+
+                return;
             }
             catch (System.Exception ex)
             {

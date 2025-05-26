@@ -59,9 +59,74 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
                     .Where(harc => harc.StartStation <= utility.EndStation &&
                                    harc.EndStation >= utility.StartStation)
                     .ToList();
+                if (harcsForThisUtility.Count == 0) continue;
                 double startStation = harcsForThisUtility.Min(x => x.StartStation);
                 double endStation = harcsForThisUtility.Max(x => x.EndStation);
                 utility.BuildHorizontalArcPolylineWithTrimmedArcs(startStation, endStation);
+            }
+        }
+        internal void GenerateAvoidanceRegionsForUtilities()
+        {
+            foreach (var utility in Utility)
+            {
+                if (utility.AvoidanceArc == null || SurfaceProfile?.SurfacePolylineWithHangingEnds == null)
+                    continue;
+
+                //// Intersect AvoidanceArc with SurfacePolylineWithHangingEnds
+                //using Point3dCollection intersectionPoints = new Point3dCollection();
+                //utility.AvoidanceArc.IntersectWith(
+                //    SurfaceProfile.SurfacePolylineWithHangingEnds,
+                //    Autodesk.AutoCAD.DatabaseServices.Intersect.OnBothOperands,
+                //    new Plane(),
+                //    intersectionPoints,
+                //    IntPtr.Zero,
+                //    IntPtr.Zero
+                //);
+
+                //// Ensure we have exactly two intersection points
+                //if (intersectionPoints.Count != 2)
+                //    throw new DebugException(
+                //        $"Expected 2 intersection points, but found {intersectionPoints.Count} for utility {utility}.",
+                //        [utility.AvoidanceArc, SurfaceProfile.SurfacePolylineWithHangingEnds]
+                //    );
+
+                //// Sort intersection points by X-coordinate
+                //var sortedPoints = intersectionPoints.Cast<Point3d>().OrderBy(p => p.X).ToList();
+                //var startPoint = sortedPoints[0];
+                //var endPoint = sortedPoints[1];
+                //Point3dCollection pts = new Point3dCollection
+                //{
+                //    startPoint,
+                //    endPoint
+                //};
+
+                using Point3dCollection pts = new Point3dCollection()
+                {
+                    SurfaceProfile.SurfacePolylineWithHangingEnds
+                    .GetClosestPointTo(utility.AvoidanceArc.GetPoint3dAt(0), false),
+                    SurfaceProfile.SurfacePolylineWithHangingEnds
+                    .GetClosestPointTo(utility.AvoidanceArc.GetPoint3dAt(
+                        utility.AvoidanceArc.NumberOfVertices - 1), false)
+                };
+
+                //Assume always three split curves
+                var objs = SurfaceProfile.SurfacePolylineWithHangingEnds.GetSplitCurves(pts);
+                var pline = objs[1] as Polyline;
+                
+
+                // Create a Region from the closed loop
+                using DBObjectCollection regionCurves = [utility.AvoidanceArc, pline];
+
+                using DBObjectCollection regions = Region.CreateFromCurves(regionCurves);
+                if (regions.Count == 0)
+                    throw new InvalidOperationException($"Failed to create a region for utility {utility}.");
+
+                // Process the created region (e.g., store it, add it to the drawing, etc.)
+                Region region = regions[0] as Region;
+                if (region != null)
+                {
+                    utility.AvoidanceRegion = region;
+                }
             }
         }
         public bool IsInsideAnyUtility(double station, double elevation)
@@ -120,12 +185,17 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
 
             Profile = p;
 
-            var pline = p.ToPolyline(pipeline.ProfileView!.ProfileView);
+            
 
-            SurfacePolylineFull = pline.Clone() as Polyline;
+            SurfacePolylineFull = p.ToPolyline(pipeline.ProfileView!.ProfileView);
+
+            SurfacePolylineSimplified = SurfacePolylineFull.GetDouglasPeukerReducedCopy(DouglaPeukerTolerance);
+            if (SurfacePolylineSimplified == null) throw new Exception($"No reduced polyline found for {Name}!");
 
             //Add hanging start and end segments to catch arcs that are too close
             //to the start and end of the profile view
+
+            Polyline pline = SurfacePolylineSimplified.Clone() as Polyline;
 
             var start = pline.GetPoint2dAt(0);
             var addStart = new Point2d(start.X, start.Y - 50);
@@ -140,12 +210,9 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
             BuildOffsetCentrelines(pipeline.SizeArray!);
         }
 
-        internal void BuildOffsetCentrelines(IPipelineSizeArrayV2 sizeArray)
+        private void BuildOffsetCentrelines(IPipelineSizeArrayV2 sizeArray)
         {
             if (SurfacePolylineFull == null) throw new Exception($"No surface polyline found for {Name}!");
-
-            SurfacePolylineSimplified = SurfacePolylineFull.GetDouglasPeukerReducedCopy(DouglaPeukerTolerance);
-            if (SurfacePolylineSimplified == null) throw new Exception($"No reduced polyline found for {Name}!");
 
             DoubleCollection splitDoubles = new();
 
@@ -277,8 +344,12 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
         private Point2d TL => new Point2d(extents.MinPoint.X, extents.MaxPoint.Y);
         [JsonIgnore]
         private Point2d TR => extents.MaxPoint;
+        [JsonInclude]
+        public AP_Status Status { get; set; } = AP_Status.Unknown;
         [JsonIgnore]
-        public Arc? AvoidanceArc { get; private set; }
+        public Polyline? AvoidanceArc { get; private set; }
+        [JsonIgnore]
+        public Region? AvoidanceRegion { get; set; } = null;
         [JsonIgnore]
         public Polyline? HorizontalArcAvoidancePolyline { get; private set; }        
 
@@ -345,10 +416,25 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
             var end = ptsSorted[1];
 
             var arc = BuildAvoidanceArc(radius);
-            arc.Extend(true, start);
-            arc.Extend(false, end);
+            //arc.Extend(true, start);
+            //arc.Extend(false, end);
 
-            AvoidanceArc = arc;
+            arc.StartAngle = (start - centre).AngleOnPlane(new Plane());
+            arc.EndAngle = (end - centre).AngleOnPlane(new Plane());
+
+            //var startPt = boundary.GetClosestPointTo(arc.StartPoint, false).To2d();
+            //var endPt = boundary.GetClosestPointTo(arc.EndPoint, false).To2d();
+
+            Polyline polyline = new Polyline(2);
+            //polyline.AddVertexAt(0, startPt, 0, 0, 0);
+            polyline.AddVertexAt(polyline.NumberOfVertices, arc.StartPoint.To2d(), arc.GetBulge(), 0, 0);
+            polyline.AddVertexAt(polyline.NumberOfVertices, arc.EndPoint.To2d(), 0, 0, 0);
+            //polyline.AddVertexAt(3, endPt, 0, 0, 0);
+
+            //(BL.To3d() - center).AngleOnPlane(new Plane()),
+            //    (BR.To3d() - center).AngleOnPlane(new Plane())
+
+            AvoidanceArc = polyline;
 
             return arc;
         }
@@ -410,9 +496,9 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
                 .Where(pt => trimPolyline!.GetClosestPointTo(pt, false)
                 .DistanceHorizontalTo(pt) < 0.00000001).ToList();
 
-            if (query.Count == 1)
+            if (query.Count > 0)
             {
-                var snitPt = query[0];
+                var snitPt = query.MinBy(pt => pt.DistanceHorizontalTo(new Point3d(x, y, 0)));
                 startArc = new Arc(startCentre, startPointRadius,
                     (snitPt - startCentre).AngleOnPlane(new Plane()),
                     Math.PI * 3 / 2);
@@ -437,9 +523,9 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
                 .Where(pt => trimPolyline!.GetClosestPointTo(pt, false)
                 .DistanceHorizontalTo(pt) < 0.00000001).ToList();
 
-            if (query.Count == 1)
+            if (query.Count > 0)
             {
-                var snitPt = query[0];
+                var snitPt = query.MinBy(pt => pt.DistanceHorizontalTo(new Point3d(x, y, 0))); ;
                 endArc = new Arc(endCentre, endPointRadius,
                     Math.PI * 3 / 2,
                     (snitPt - endCentre).AngleOnPlane(new Plane())
@@ -478,5 +564,11 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
             StartStation = start;
             EndStation = end;
         }
+    }
+    internal enum AP_Status
+    {
+        Unknown,
+        Selected,
+        Ignored
     }
 }

@@ -42,6 +42,7 @@ using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using DebugHelper = IntersectUtilities.UtilsCommon.Utils.DebugHelper;
+using System.Runtime.Serialization;
 
 namespace IntersectUtilities.UtilsCommon
 {
@@ -3971,6 +3972,18 @@ namespace IntersectUtilities.UtilsCommon
             public short DRed { get; set; }
             public short DGreen { get; set; }
             public short DBlue { get; set; }
+        }
+    }
+    public class DebugException : System.Exception
+    {
+        public List<Entity> DebugEntities { get; }
+        public DebugException(string message, List<Entity>? debugEntities = null) : base(message)
+        {
+            DebugEntities = debugEntities ?? new List<Entity>();
+            if (DebugEntities.Count > 0)
+            {
+                this.Data[nameof(DebugEntities)] = DebugEntities;
+            }
         }
     }
 }
