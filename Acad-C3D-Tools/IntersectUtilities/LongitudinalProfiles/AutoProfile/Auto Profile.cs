@@ -346,11 +346,24 @@ namespace IntersectUtilities
                         if (utility.IsFloating) hatch.Color = ColorByName("green");
                         hatch.AddEntityToDbModelSpace(localDb);
 
-                        utility.AvoidanceRegion.Layer = devLyr;
-                        utility.AvoidanceRegion.AddEntityToDbModelSpace(localDb);
+                        //if (utility.HorizontalArcAvoidanceRegion == null) continue;
+                        //utility.HorizontalArcAvoidanceRegion.Layer = devLyr;
+                        //utility.HorizontalArcAvoidanceRegion.AddEntityToDbModelSpace(localDb);
                     }
 
-                    
+                    var queryDeepestUnknownNonFloating = ppld.Utility
+                        .Where(x => x.IsFloating == false && x.Status == AP_Status.Unknown)
+                        .OrderByDescending(x => x.BottomElevation);
+
+                    var queryIntersectingFloating = ppld.Utility
+                        .Where(x => x.IsFloating == true && x.Status == )
+                        .OrderByDescending(x => x.BottomElevation);
+
+                    while (queryDeepestUnknownNonFloating.FirstOrDefault() != null)
+                    {
+
+                    }
+                        
 
 
 

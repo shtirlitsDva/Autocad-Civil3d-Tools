@@ -72,35 +72,8 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
                 if (utility.AvoidanceArc == null || SurfaceProfile?.SurfacePolylineWithHangingEnds == null)
                     continue;
 
-                //// Intersect AvoidanceArc with SurfacePolylineWithHangingEnds
-                //using Point3dCollection intersectionPoints = new Point3dCollection();
-                //utility.AvoidanceArc.IntersectWith(
-                //    SurfaceProfile.SurfacePolylineWithHangingEnds,
-                //    Autodesk.AutoCAD.DatabaseServices.Intersect.OnBothOperands,
-                //    new Plane(),
-                //    intersectionPoints,
-                //    IntPtr.Zero,
-                //    IntPtr.Zero
-                //);
-
-                //// Ensure we have exactly two intersection points
-                //if (intersectionPoints.Count != 2)
-                //    throw new DebugException(
-                //        $"Expected 2 intersection points, but found {intersectionPoints.Count} for utility {utility}.",
-                //        [utility.AvoidanceArc, SurfaceProfile.SurfacePolylineWithHangingEnds]
-                //    );
-
-                //// Sort intersection points by X-coordinate
-                //var sortedPoints = intersectionPoints.Cast<Point3d>().OrderBy(p => p.X).ToList();
-                //var startPoint = sortedPoints[0];
-                //var endPoint = sortedPoints[1];
-                //Point3dCollection pts = new Point3dCollection
-                //{
-                //    startPoint,
-                //    endPoint
-                //};
-
-                using Point3dCollection pts = new Point3dCollection()
+                #region Normal avoidance region
+                using Point3dCollection pts1 = new Point3dCollection()
                 {
                     SurfaceProfile.SurfacePolylineWithHangingEnds
                     .GetClosestPointTo(utility.AvoidanceArc.GetPoint3dAt(0), false),
@@ -110,23 +83,63 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
                 };
 
                 //Assume always three split curves
-                var objs = SurfaceProfile.SurfacePolylineWithHangingEnds.GetSplitCurves(pts);
+                var objs = SurfaceProfile.SurfacePolylineWithHangingEnds.GetSplitCurves(pts1);
                 var pline = objs[1] as Polyline;
-                
+
 
                 // Create a Region from the closed loop
-                using DBObjectCollection regionCurves = [utility.AvoidanceArc, pline];
+                using DBObjectCollection regionCurves1 = [utility.AvoidanceArc, pline];
 
-                using DBObjectCollection regions = Region.CreateFromCurves(regionCurves);
-                if (regions.Count == 0)
+                using DBObjectCollection regions1 = Region.CreateFromCurves(regionCurves1);
+                if (regions1.Count == 0)
                     throw new InvalidOperationException($"Failed to create a region for utility {utility}.");
 
                 // Process the created region (e.g., store it, add it to the drawing, etc.)
-                Region region = regions[0] as Region;
+                Region region = regions1[0] as Region;
                 if (region != null)
                 {
                     utility.AvoidanceRegion = region;
                 }
+                #endregion
+
+                #region Harc avoidance region
+                if (utility.HorizontalArcAvoidancePolyline == null) continue;
+                using Point3dCollection pts2 = new Point3dCollection()
+                {
+                    SurfaceProfile.SurfacePolylineWithHangingEnds
+                    .GetClosestPointTo(utility.HorizontalArcAvoidancePolyline.GetPoint3dAt(0), false),
+                    SurfaceProfile.SurfacePolylineWithHangingEnds
+                    .GetClosestPointTo(utility.HorizontalArcAvoidancePolyline.GetPoint3dAt(
+                        utility.HorizontalArcAvoidancePolyline.NumberOfVertices - 1), false)
+                };
+
+                //Assume always three split curves
+                objs = SurfaceProfile.SurfacePolylineWithHangingEnds.GetSplitCurves(pts2);
+                pline = objs[1] as Polyline;
+
+
+                // Create a Region from the closed loop
+                using DBObjectCollection regionCurves2 = [utility.HorizontalArcAvoidancePolyline, pline];
+
+                try
+                {
+                    using DBObjectCollection regions2 = Region.CreateFromCurves(regionCurves2);
+                    if (regions2.Count == 0)
+                        throw new InvalidOperationException($"Failed to create a region for utility {utility}.");
+
+                    // Process the created region (e.g., store it, add it to the drawing, etc.)
+                    region = regions2[0] as Region;
+                    if (region != null)
+                    {
+                        utility.HorizontalArcAvoidanceRegion = region;
+                    }
+                }
+                catch (Exception ex)
+                {                    
+                    throw new DebugException(ex.Message, 
+                        [utility.HorizontalArcAvoidancePolyline, pline, SurfaceProfile.SurfacePolylineWithHangingEnds]);
+                }                
+                #endregion
             }
         }
         public bool IsInsideAnyUtility(double station, double elevation)
@@ -351,7 +364,9 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
         [JsonIgnore]
         public Region? AvoidanceRegion { get; set; } = null;
         [JsonIgnore]
-        public Polyline? HorizontalArcAvoidancePolyline { get; private set; }        
+        public Polyline? HorizontalArcAvoidancePolyline { get; private set; }
+        [JsonIgnore]
+        public Region? HorizontalArcAvoidanceRegion { get; set; } = null;
 
         public Hatch GetUtilityHatch()
         {
