@@ -16,6 +16,7 @@ using GroupByCluster;
 
 using IntersectUtilities.DataManager;
 using IntersectUtilities.LongitudinalProfiles.AutoProfile;
+using IntersectUtilities.NTS;
 using IntersectUtilities.PipelineNetworkSystem;
 using IntersectUtilities.UtilsCommon;
 
@@ -317,7 +318,7 @@ namespace IntersectUtilities
                     }
 
                     ppld.GenerateAvoidanceGeometryForUtilities();
-                    ppld.GenerateAvoidanceRegionsForUtilities();
+                    ppld.GenerateAvoidancePolygonsForUtilities();
                     #endregion
 
                     pplds.Add(ppld);
@@ -346,24 +347,51 @@ namespace IntersectUtilities
                         if (utility.IsFloating) hatch.Color = ColorByName("green");
                         hatch.AddEntityToDbModelSpace(localDb);
 
-                        //if (utility.HorizontalArcAvoidanceRegion == null) continue;
-                        //utility.HorizontalArcAvoidanceRegion.Layer = devLyr;
-                        //utility.HorizontalArcAvoidanceRegion.AddEntityToDbModelSpace(localDb);
+                        //utility.AvoidanceArc.Layer = devLyr;
+                        //utility.AvoidanceArc.AddEntityToDbModelSpace(localDb);
+
+                        //var pphatch = NTSConversion.ConvertNTSPolygonToHatch(utility.AvoidancePolygon);
+                        //pphatch.Layer = devLyr;
+                        //pphatch.Color = ColorByName("green");
+                        //pphatch.AddEntityToDbModelSpace(localDb);
+
+                        //if (utility.HorizontalArcAvoidancePolyline != null)
+                        //{
+                            //utility.HorizontalArcAvoidancePolyline.Layer = devLyr;
+                            //utility.HorizontalArcAvoidancePolyline.AddEntityToDbModelSpace(localDb);
+
+                            //var polyHatch = NTSConversion.ConvertNTSPolygonToHatch(utility.HorizontalArcAvoidancePolygon);
+                            //polyHatch.Layer = devLyr;
+                            //polyHatch.Color = ColorByName("yellow");
+                            //polyHatch.AddEntityToDbModelSpace(localDb);
+                        //}
                     }
+
+                    
 
                     var queryDeepestUnknownNonFloating = ppld.Utility
                         .Where(x => x.IsFloating == false && x.Status == AP_Status.Unknown)
                         .OrderByDescending(x => x.BottomElevation);
 
                     var queryIntersectingFloating = ppld.Utility
-                        .Where(x => x.IsFloating == true && x.Status == )
+                        .Where(x => 
+                        x.IsFloating == true && x.Status == AP_Status.Unknown &&)
                         .OrderByDescending(x => x.BottomElevation);
 
+                    int safetyCounter = 0;
                     while (queryDeepestUnknownNonFloating.FirstOrDefault() != null)
                     {
+                        safetyCounter++;
 
+
+
+                        if (safetyCounter > 10000)
+                        {
+                            prdDbg($"Safety counter exceeded {safetyCounter} iterations, breaking loop to prevent infinite loop.");
+                            break;
+                        }
                     }
-                        
+
 
 
 
