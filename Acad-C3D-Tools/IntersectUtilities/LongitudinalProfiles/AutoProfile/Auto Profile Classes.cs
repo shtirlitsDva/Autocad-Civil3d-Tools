@@ -19,11 +19,16 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using NetTopologySuite.Operation.Union;
 
 namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
 {
     internal class AP_PipelineData
     {
+        public AP_PipelineData(string name)
+        {
+            Name = name;
+        }
         [JsonInclude]
         public string Name { get; set; }
         [JsonInclude]
@@ -32,21 +37,10 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
         public IPipelineSizeArrayV2? SizeArray { get; set; } = null;
         [JsonIgnore]
         public List<HorizontalArc> HorizontalArcs { get; set; } = new();
+        [JsonIgnore]
+        public AP_ProfileViewData? ProfileView { get; set; } = null;        
         [JsonInclude]
         public List<AP_Utility> Utility { get; set; } = new();
-        private STRtree<AP_Utility> utilityIndex = new();
-        public void BuildUtilityIndex()
-        {
-            utilityIndex = new STRtree<AP_Utility>();
-            foreach (var util in Utility)
-            {
-                var env = new Envelope(
-                    util.StartStation, util.BottomElevation,
-                    util.EndStation, util.TopElevation);
-                utilityIndex.Insert(env, util);
-            }
-            utilityIndex.Build();
-        }
         public void GenerateAvoidanceGeometryForUtilities()
         {
             foreach (var utility in Utility)
@@ -82,7 +76,7 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
 
                 #region Harc avoidance region
                 if (utility.HorizontalArcAvoidancePolyline == null) continue;
-                
+
                 Polygon poly = NTSConversion.ConvertClosedPlineToNTSPolygonWithCurveApproximation(
                     utility.HorizontalArcAvoidancePolyline);
 
@@ -92,18 +86,66 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
                 #endregion
             }
         }
-        public bool IsInsideAnyUtility(double station, double elevation)
+        internal void MergeAvoidancePolygonsForUtilities()
         {
-            if (utilityIndex == null) throw new Exception("Utility index is not built yet!");
-            var env = new Envelope(new Coordinate(station, elevation));
-            var query = utilityIndex.Query(env);
-            return query.Count > 0;
+            //Merge the avoidance polygons for each utility
+            foreach (AP_Utility utility in Utility)
+            {
+                if (utility.AvoidancePolygon == null) continue;
+                if (utility.HorizontalArcAvoidancePolygon == null)
+                {
+                    utility.MergedAvoidancePolygon = utility.AvoidancePolygon;
+                    continue;
+                }
+                var merged = utility.AvoidancePolygon.Union(utility.HorizontalArcAvoidancePolygon);
+                if (merged is Polygon poly)
+                {
+                    utility.MergedAvoidancePolygon = poly;
+                }
+                else throw new Exception($"Merged polygon is not a valid polygon!");
+            }
         }
-        [JsonIgnore]
-        public AP_ProfileViewData? ProfileView { get; set; } = null;
-        public AP_PipelineData(string name)
+        public Polygon? test { get; set; }
+        internal void ProcessSelectedUtilities()
         {
-            Name = name;
+            if (SurfaceProfile == null) throw new Exception("No surface profile found for the pipeline!");
+            if (SurfaceProfile.OffsetCentrelines == null) throw new Exception("No offset centrelines found for the surface profile!");
+
+            Polygon mergedPolygon = null;
+
+            //1. Create a polygon from pipe centreline
+            var poly = SurfaceProfile.OffsetCentrelines.Clone() as Polyline;
+            if (poly == null) throw new Exception("No offset centrelines found for the surface profile!");
+            var sp = poly.GetPoint2dAt(0);
+            poly.AddVertexAt(0, new Point2d(sp.X, sp.Y + 20), 0, 0, 0);
+            var ep = poly.GetPoint2dAt(poly.NumberOfVertices - 1);
+            poly.AddVertexAt(poly.NumberOfVertices, new Point2d(ep.X, ep.Y + 20), 0, 0, 0);
+            poly.Closed = true;
+            Polygon centrelinePolygon = NTSConversion.ConvertClosedPlineToNTSPolygonWithCurveApproximation(poly);            
+
+            //2. Merge pipe centreline polygon with selected utility polygons
+            var query = Utility.Where(
+                x => x.Status == AP_Status.Selected && x.MergedAvoidancePolygon != null)
+                .Select(x => x.MergedAvoidancePolygon);
+            if (query.Count() == 0) { mergedPolygon = centrelinePolygon; } //No selected utilities
+            else
+            {
+                var merged = UnaryUnionOp.Union(query.Prepend(centrelinePolygon));
+                if (merged is Polygon mergedPoly)
+                {
+                    mergedPolygon = mergedPoly;
+                }
+                else if (merged is MultiPolygon multiPoly)
+                {
+                    throw new Exception($"Merged polygon is a multipolygon with {multiPoly.NumGeometries} geometries! " +
+                        $"This is not supported in this version of AutoProfile!");
+                }
+                else throw new Exception($"Merged polygon is not a valid polygon!");
+            }
+
+            //3. Extract "lower" polyline
+            if (mergedPolygon == null) throw new Exception("No merged polygon found!");
+            test = mergedPolygon; //For debugging purposes
         }
         public void Serialize(string filename)
         {
@@ -266,6 +308,7 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
         public Extents2d Extents { get => extents; set { extents = value; } }
         [JsonIgnore]
         public Polygon UtilityPolygon { get; private set; }
+        public Polygon? MergedAvoidancePolygon { get; set; } = null!;
         private double midStation;
         [JsonIgnore]
         public bool IsFloating { get; set; } = true;
@@ -326,8 +369,7 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
         public Polyline? HorizontalArcAvoidancePolyline { get; private set; }
         [JsonIgnore]
         public Polygon? HorizontalArcAvoidancePolygon { get; set; } = null;
-
-        public Relation IntersectWithPolygon(Polygon other)
+        public Relation RelateUtilityPolygonTo(Polygon other)
         {
             var relation = other.Relate(this.UtilityPolygon);
 
@@ -335,7 +377,6 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
             if (relation.IsDisjoint()) return Relation.Outside;
             return Relation.Overlaps;
         }
-
         public Hatch GetUtilityHatch()
         {
             Hatch hatch = new Hatch();

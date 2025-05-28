@@ -319,6 +319,7 @@ namespace IntersectUtilities
 
                     ppld.GenerateAvoidanceGeometryForUtilities();
                     ppld.GenerateAvoidancePolygonsForUtilities();
+                    ppld.MergeAvoidancePolygonsForUtilities();
                     #endregion
 
                     pplds.Add(ppld);
@@ -331,8 +332,6 @@ namespace IntersectUtilities
                     prdDbg(ppld.SizeArray);
                     System.Windows.Forms.Application.DoEvents();
 
-                    ppld.BuildUtilityIndex();
-
                     ppld.SurfaceProfile.OffsetCentrelines.Layer = devLyr;
                     ppld.SurfaceProfile.OffsetCentrelines.AddEntityToDbModelSpace(localDb);
 
@@ -342,10 +341,10 @@ namespace IntersectUtilities
                         //DETERMINE FLOATING STATUS
                         utility.TestFloatingStatus(ppld.SurfaceProfile.OffsetCentrelines);
 
-                        var hatch = utility.GetUtilityHatch();
-                        hatch.Layer = devLyr;
-                        if (utility.IsFloating) hatch.Color = ColorByName("green");
-                        hatch.AddEntityToDbModelSpace(localDb);
+                        var uhatch = utility.GetUtilityHatch();
+                        uhatch.Layer = devLyr;
+                        if (utility.IsFloating) uhatch.Color = ColorByName("green");
+                        uhatch.AddEntityToDbModelSpace(localDb);
 
                         //utility.AvoidanceArc.Layer = devLyr;
                         //utility.AvoidanceArc.AddEntityToDbModelSpace(localDb);
@@ -357,33 +356,80 @@ namespace IntersectUtilities
 
                         //if (utility.HorizontalArcAvoidancePolyline != null)
                         //{
-                            //utility.HorizontalArcAvoidancePolyline.Layer = devLyr;
-                            //utility.HorizontalArcAvoidancePolyline.AddEntityToDbModelSpace(localDb);
+                        //utility.HorizontalArcAvoidancePolyline.Layer = devLyr;
+                        //utility.HorizontalArcAvoidancePolyline.AddEntityToDbModelSpace(localDb);
 
-                            //var polyHatch = NTSConversion.ConvertNTSPolygonToHatch(utility.HorizontalArcAvoidancePolygon);
-                            //polyHatch.Layer = devLyr;
-                            //polyHatch.Color = ColorByName("yellow");
-                            //polyHatch.AddEntityToDbModelSpace(localDb);
+                        //var polyHatch = NTSConversion.ConvertNTSPolygonToHatch(utility.HorizontalArcAvoidancePolygon);
+                        //polyHatch.Layer = devLyr;
+                        //polyHatch.Color = ColorByName("yellow");
+                        //polyHatch.AddEntityToDbModelSpace(localDb);
                         //}
                     }
 
-                    
+                    #region Setup deferred linq queries
+                    //Setup defered linq queries
+                    AP_Utility? current = null;
 
                     var queryDeepestUnknownNonFloating = ppld.Utility
-                        .Where(x => x.IsFloating == false && x.Status == AP_Status.Unknown)
+                        .Where(x =>
+                        x.IsFloating == false &&
+                        x.Status == AP_Status.Unknown)
                         .OrderByDescending(x => x.BottomElevation);
 
-                    var queryIntersectingFloating = ppld.Utility
-                        .Where(x => 
-                        x.IsFloating == true && x.Status == AP_Status.Unknown &&)
+                    var queryFloatingForOverlap = ppld.Utility
+                        .Where(x =>
+                        x.IsFloating == true &&
+                        x.Status == AP_Status.Unknown &&
+                        x.RelateUtilityPolygonTo(current.MergedAvoidancePolygon) == Relation.Overlaps)
                         .OrderByDescending(x => x.BottomElevation);
 
+                    //Inside is equivalent to Covered
+                    var queryNonFloatingForCovered = ppld.Utility
+                        .Where(x =>
+                        x.IsFloating == false &&
+                        x.Status == AP_Status.Unknown &&
+                        x.RelateUtilityPolygonTo(current.MergedAvoidancePolygon) == Relation.Inside)
+                        .OrderByDescending(x => x.BottomElevation);
+
+                    var queryNonFloatingForOverlap = ppld.Utility
+                        .Where(x =>
+                        x.IsFloating == false &&
+                        x.Status == AP_Status.Unknown &&
+                        x.RelateUtilityPolygonTo(current.MergedAvoidancePolygon) == Relation.Overlaps)
+                        .OrderByDescending(x => x.BottomElevation);
+                    #endregion
+
+                    #region Perform queries in a loop
+                    //Perform the queries in a loop until no more unknowns are found
                     int safetyCounter = 0;
-                    while (queryDeepestUnknownNonFloating.FirstOrDefault() != null)
+                    while (true)
                     {
                         safetyCounter++;
 
+                        current = queryDeepestUnknownNonFloating.FirstOrDefault();
+                        if (current == default) break;
 
+                        //First handle case 4: Query floating for overlaps
+                        //If we overlap a floating utility, we mark it as non-floating
+                        //Which is essentially is putting it back in query
+                        //Now, because it can be deeper than the current
+                        //We restart querying
+                        var floatingThatOverlaps = queryFloatingForOverlap.FirstOrDefault();
+                        if (floatingThatOverlaps != default)
+                        {
+                            floatingThatOverlaps.IsFloating = false;
+                            continue;
+                        }
+
+                        //Case 3: Query non-floating for covered -> Set to Ignored
+                        //If we have a hit, we mark the current as AP_Status.Ignored
+                        foreach (var covered in queryNonFloatingForCovered) covered.Status = AP_Status.Ignored;
+
+                        //Case 1 and 2: Query non-floating for overlaps -> Set to Selected
+                        //If we have no hit, we mark the current as AP_Status.Selected
+                        foreach (var overlap in queryNonFloatingForOverlap) overlap.Status = AP_Status.Selected;
+
+                        current.Status = AP_Status.Selected;
 
                         if (safetyCounter > 10000)
                         {
@@ -391,9 +437,14 @@ namespace IntersectUtilities
                             break;
                         }
                     }
+                    #endregion
 
-
-
+                    #region Process selected utilities
+                    ppld.ProcessSelectedUtilities();
+                    var hatch = NTSConversion.ConvertNTSPolygonToHatch(ppld.test);
+                    hatch.Layer = devLyr;
+                    hatch.AddEntityToDbModelSpace(localDb);
+                    #endregion
 
                     //ppld.Serialize($"C:\\Temp\\sample_data_{ppld.Name}.json");
                 }
