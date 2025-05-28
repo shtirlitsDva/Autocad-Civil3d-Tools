@@ -114,6 +114,19 @@ namespace IntersectUtilities.NTS
 
             return hatch;
         }
+        public static Polyline ConvertNTSPolygonToClosedPolyline(Polygon poly)
+        {
+            var points = poly.Coordinates.Select(x => x.GetPoint2d()).ToArray();
+
+            Polyline pline = new Polyline(points.Length);
+            for (int i = 0; i < points.Length; i++)
+            {
+                pline.AddVertexAt(i, points[i], 0, 0, 0);
+            }
+            pline.Closed = true; // Ensure the polyline is closed
+
+            return pline;
+        }
         public static MPolygon ConvertNTSPolygonToMPolygon(Polygon poly)
         {
             var points = poly.Coordinates.Select(x => x.GetPoint2d()).ToArray();

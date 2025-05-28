@@ -367,16 +367,14 @@ namespace IntersectUtilities
                     }
 
                     #region Setup deferred linq queries
-                    //Setup defered linq queries
-                    AP_Utility? current = null;
-
-                    var queryDeepestUnknownNonFloating = ppld.Utility
+                    //Setup linq queries
+                    var queryDeepestUnknownNonFloating = () => ppld.Utility
                         .Where(x =>
                         x.IsFloating == false &&
                         x.Status == AP_Status.Unknown)
                         .OrderByDescending(x => x.BottomElevation);
 
-                    var queryFloatingForOverlap = ppld.Utility
+                    var queryFloatingForOverlap = (AP_Utility current) => ppld.Utility
                         .Where(x =>
                         x.IsFloating == true &&
                         x.Status == AP_Status.Unknown &&
@@ -384,14 +382,14 @@ namespace IntersectUtilities
                         .OrderByDescending(x => x.BottomElevation);
 
                     //Inside is equivalent to Covered
-                    var queryNonFloatingForCovered = ppld.Utility
+                    var queryNonFloatingForCovered = (AP_Utility current) => ppld.Utility
                         .Where(x =>
                         x.IsFloating == false &&
                         x.Status == AP_Status.Unknown &&
                         x.RelateUtilityPolygonTo(current.MergedAvoidancePolygon) == Relation.Inside)
                         .OrderByDescending(x => x.BottomElevation);
 
-                    var queryNonFloatingForOverlap = ppld.Utility
+                    var queryNonFloatingForOverlap = (AP_Utility current) => ppld.Utility
                         .Where(x =>
                         x.IsFloating == false &&
                         x.Status == AP_Status.Unknown &&
@@ -406,7 +404,7 @@ namespace IntersectUtilities
                     {
                         safetyCounter++;
 
-                        current = queryDeepestUnknownNonFloating.FirstOrDefault();
+                        AP_Utility current = queryDeepestUnknownNonFloating().FirstOrDefault();
                         if (current == default) break;
 
                         //First handle case 4: Query floating for overlaps
@@ -414,20 +412,19 @@ namespace IntersectUtilities
                         //Which is essentially is putting it back in query
                         //Now, because it can be deeper than the current
                         //We restart querying
-                        var floatingThatOverlaps = queryFloatingForOverlap.FirstOrDefault();
-                        if (floatingThatOverlaps != default)
+                        if (queryFloatingForOverlap(current).Count() > 0)
                         {
-                            floatingThatOverlaps.IsFloating = false;
+                            foreach (var item in queryFloatingForOverlap(current)) item.IsFloating = false;                            
                             continue;
                         }
 
                         //Case 3: Query non-floating for covered -> Set to Ignored
                         //If we have a hit, we mark the current as AP_Status.Ignored
-                        foreach (var covered in queryNonFloatingForCovered) covered.Status = AP_Status.Ignored;
+                        foreach (var covered in queryNonFloatingForCovered(current)) covered.Status = AP_Status.Ignored;
 
                         //Case 1 and 2: Query non-floating for overlaps -> Set to Selected
                         //If we have no hit, we mark the current as AP_Status.Selected
-                        foreach (var overlap in queryNonFloatingForOverlap) overlap.Status = AP_Status.Selected;
+                        foreach (var overlap in queryNonFloatingForOverlap(current)) overlap.Status = AP_Status.Selected;                        
 
                         current.Status = AP_Status.Selected;
 
@@ -440,10 +437,18 @@ namespace IntersectUtilities
                     #endregion
 
                     #region Process selected utilities
-                    ppld.ProcessSelectedUtilities();
-                    var hatch = NTSConversion.ConvertNTSPolygonToHatch(ppld.test);
-                    hatch.Layer = devLyr;
-                    hatch.AddEntityToDbModelSpace(localDb);
+
+                    foreach (var utility in ppld.Utility.Where(x => x.Status == AP_Status.Selected))
+                    {
+                        var h = utility.GetUtilityHatch();
+                        h.Layer = devLyr;
+                        h.Color = ColorByName("magenta");
+                        h.AddEntityToDbModelSpace(localDb);
+                    }
+
+                    ppld.ProcessSelectedUtilities();                 
+                    ppld.test.Layer = devLyr;
+                    ppld.test.AddEntityToDbModelSpace(localDb);
                     #endregion
 
                     //ppld.Serialize($"C:\\Temp\\sample_data_{ppld.Name}.json");

@@ -105,13 +105,14 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
                 else throw new Exception($"Merged polygon is not a valid polygon!");
             }
         }
-        public Polygon? test { get; set; }
+        public Region? test { get; set; }
         internal void ProcessSelectedUtilities()
         {
             if (SurfaceProfile == null) throw new Exception("No surface profile found for the pipeline!");
             if (SurfaceProfile.OffsetCentrelines == null) throw new Exception("No offset centrelines found for the surface profile!");
+            if (ProfileView == null) throw new Exception("No profile view found for the pipeline!");
 
-            Polygon mergedPolygon = null;
+            Region? mergedRegion = null;
 
             //1. Create a polygon from pipe centreline
             var poly = SurfaceProfile.OffsetCentrelines.Clone() as Polyline;
@@ -121,31 +122,54 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
             var ep = poly.GetPoint2dAt(poly.NumberOfVertices - 1);
             poly.AddVertexAt(poly.NumberOfVertices, new Point2d(ep.X, ep.Y + 20), 0, 0, 0);
             poly.Closed = true;
-            Polygon centrelinePolygon = NTSConversion.ConvertClosedPlineToNTSPolygonWithCurveApproximation(poly);            
+            DBObjectCollection regions = Region.CreateFromCurves(new DBObjectCollection { poly });
+            if (regions.Count == 0) throw new Exception("No regions created from the offset centrelines!");
+            Region mainRegion = regions[0] as Region;
+            if (mainRegion == null) throw new Exception("No main region created from the offset centrelines!");
 
             //2. Merge pipe centreline polygon with selected utility polygons
             var query = Utility.Where(
-                x => x.Status == AP_Status.Selected && x.MergedAvoidancePolygon != null)
-                .Select(x => x.MergedAvoidancePolygon);
-            if (query.Count() == 0) { mergedPolygon = centrelinePolygon; } //No selected utilities
+                x => x.Status == AP_Status.Selected);
+                
+            if (query.Count() == 0) { mergedRegion = mainRegion; } //No selected utilities
             else
             {
-                var merged = UnaryUnionOp.Union(query.Prepend(centrelinePolygon));
-                if (merged is Polygon mergedPoly)
+                foreach (var utility in query)
                 {
-                    mergedPolygon = mergedPoly;
+                    mainRegion.BooleanOperation(BooleanOperationType.BoolUnite, utility.AvoidanceRegion!);
+
+                    if (utility.HorizontalArcAvoidanceRegion != null)
+                    {
+                        mainRegion.BooleanOperation(BooleanOperationType.BoolUnite, utility.HorizontalArcAvoidanceRegion);
+                    }
                 }
-                else if (merged is MultiPolygon multiPoly)
-                {
-                    throw new Exception($"Merged polygon is a multipolygon with {multiPoly.NumGeometries} geometries! " +
-                        $"This is not supported in this version of AutoProfile!");
-                }
-                else throw new Exception($"Merged polygon is not a valid polygon!");
             }
 
+            test = mainRegion;
+
             //3. Extract "lower" polyline
-            if (mergedPolygon == null) throw new Exception("No merged polygon found!");
-            test = mergedPolygon; //For debugging purposes
+            //if (mergedRegion == null) throw new Exception("No merged polygon found!");
+
+            //var boundary = NTSConversion.ConvertNTSPolygonToClosedPolyline(mergedPolygon);
+
+            //Point3d p1 = ProfileView.ProfileView.Location;
+            //Point3d p2 = new Point3d(p1.X + ProfileView.ProfileView.StationEnd, p1.Y, 0.0);
+            ////To try to find the nearest pline
+            //Point3d testPt = new Point3d(p1.X + ProfileView.ProfileView.StationEnd / 2, p1.Y, 0.0);
+
+            //Point3d cutP1 = boundary.GetClosestPointTo(p1, Vector3d.YAxis, false);
+            //Point3d cutP2 = boundary.GetClosestPointTo(p2, Vector3d.YAxis, false);
+
+            //var objs = boundary.GetSplitCurves(new Point3dCollection { cutP1, cutP2 });
+            //var lowerPline = objs
+            //    .Cast<Polyline>()
+            //    .MinBy(x => x.GetClosestPointTo(testPt, false).DistanceHorizontalTo(testPt));
+
+            //if (lowerPline == null) throw new Exception("No lower polyline found!");
+
+            //test = lowerPline; //For debugging purposes
+
+            
         }
         public void Serialize(string filename)
         {
@@ -366,12 +390,39 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
         [JsonIgnore]
         public Polygon? AvoidancePolygon { get; set; } = null;
         [JsonIgnore]
+        public Region? AvoidanceRegion
+        {
+            get
+            {
+                if (AvoidanceArc == null) return null;
+
+                var curves = new DBObjectCollection { AvoidanceArc.Clone() as Polyline };
+
+                var regions = Region.CreateFromCurves(curves);
+                if (regions.Count > 0) return regions[0] as Region;
+
+                return null;
+            }
+        }
+        [JsonIgnore]
         public Polyline? HorizontalArcAvoidancePolyline { get; private set; }
         [JsonIgnore]
         public Polygon? HorizontalArcAvoidancePolygon { get; set; } = null;
+        [JsonIgnore]
+        public Region? HorizontalArcAvoidanceRegion         {
+            get
+            {
+                if (HorizontalArcAvoidancePolyline == null) return null;
+                
+                var curves = new DBObjectCollection { HorizontalArcAvoidancePolyline.Clone() as Polyline };
+                var regions = Region.CreateFromCurves(curves);
+                if (regions.Count > 0) return regions[0] as Region;
+                return null;
+            }
+        }
         public Relation RelateUtilityPolygonTo(Polygon other)
         {
-            var relation = other.Relate(this.UtilityPolygon);
+            var relation = this.UtilityPolygon.Relate(other);
 
             if (relation.IsContains()) return Relation.Inside;
             if (relation.IsDisjoint()) return Relation.Outside;
