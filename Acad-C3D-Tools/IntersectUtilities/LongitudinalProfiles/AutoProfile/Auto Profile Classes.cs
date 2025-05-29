@@ -38,7 +38,7 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
         [JsonIgnore]
         public List<HorizontalArc> HorizontalArcs { get; set; } = new();
         [JsonIgnore]
-        public AP_ProfileViewData? ProfileView { get; set; } = null;        
+        public AP_ProfileViewData? ProfileView { get; set; } = null;
         [JsonInclude]
         public List<AP_Utility> Utility { get; set; } = new();
         public void GenerateAvoidanceGeometryForUtilities()
@@ -130,7 +130,7 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
             //2. Merge pipe centreline polygon with selected utility polygons
             var query = Utility.Where(
                 x => x.Status == AP_Status.Selected);
-                
+
             if (query.Count() == 0) { mergedRegion = mainRegion; } //No selected utilities
             else
             {
@@ -143,7 +143,39 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
                         mainRegion.BooleanOperation(BooleanOperationType.BoolUnite, utility.HorizontalArcAvoidanceRegion);
                     }
                 }
+
+                //Trim
+                var bbox = mainRegion.GeometricExtents;
+                var origo = ProfileView.ProfileView.Location;
+                var pv = ProfileView.ProfileView;
+
+                //Left side
+                Polyline polyline = new Polyline(4);
+                polyline.AddVertexAt(0, origo.To2d(), 0, 0, 0);
+                polyline.AddVertexAt(1, new Point2d(origo.X, bbox.MaxPoint.Y + 1), 0, 0, 0);
+                polyline.AddVertexAt(2, new Point2d(bbox.MinPoint.X - 1, bbox.MaxPoint.Y + 1), 0, 0, 0);
+                polyline.AddVertexAt(3, new Point2d(bbox.MinPoint.X - 1, origo.Y), 0, 0, 0);
+                polyline.Closed = true;
+                regions = Region.CreateFromCurves(new DBObjectCollection { polyline });
+                if (regions.Count != 1) throw new Exception("Failed to create Region!");
+                Region trimRegion = (Region)regions[0];
+                mainRegion.BooleanOperation(BooleanOperationType.BoolSubtract, trimRegion);
+
+                //Right side
+                origo = new Point3d(origo.X + pv.StationEnd, origo.Y, 0.0);
+                polyline = new Polyline(4);
+                polyline.AddVertexAt(0, origo.To2d(), 0, 0, 0);
+                polyline.AddVertexAt(1, new Point2d(origo.X, bbox.MaxPoint.Y + 1), 0, 0, 0);
+                polyline.AddVertexAt(2, new Point2d(bbox.MaxPoint.X + 1, bbox.MaxPoint.Y + 1), 0, 0, 0);
+                polyline.AddVertexAt(3, new Point2d(bbox.MaxPoint.X + 1, origo.Y), 0, 0, 0);
+                polyline.Closed = true;
+                regions = Region.CreateFromCurves(new DBObjectCollection { polyline });
+                if (regions.Count != 1) throw new Exception("Failed to create Region!");
+                trimRegion = (Region)regions[0];
+                mainRegion.BooleanOperation(BooleanOperationType.BoolSubtract, trimRegion);
             }
+
+
 
             test = mainRegion;
 
@@ -169,7 +201,7 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
 
             //test = lowerPline; //For debugging purposes
 
-            
+
         }
         public void Serialize(string filename)
         {
@@ -213,8 +245,6 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
             Name = name;
 
             Profile = p;
-
-
 
             SurfacePolylineFull = p.ToPolyline(pipeline.ProfileView!.ProfileView);
 
@@ -283,6 +313,9 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
             List<Polyline> offsets = new();
             for (int i = 0; i < polylinesToOffset.Count; i++)
             {
+                if (polylinesToOffset[i].Item2 == null)
+                    throw new Exception($"The polyline {i} is null for {Name}!");
+
                 var size = polylinesToOffset[i].Item1;
                 var pline = polylinesToOffset[i].Item2;
 
@@ -290,15 +323,11 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
                     PipeScheduleV2.PipeScheduleV2.GetCoverDepth(size.DN, size.System, size.Type) +
                     size.Kod / 1000 / 2;
 
-                using var offsetCurves = pline.GetOffsetCurves(offset);
+                Polyline offsetPline = (Polyline)pline.Clone();
 
-                foreach (var ent in offsetCurves)
-                {
-                    if (ent is Polyline poly)
-                    {
-                        offsets.Add(poly);
-                    }
-                }
+                offsetPline.TransformBy(Matrix3d.Displacement(
+                    new Vector3d(0, -offset, 0)));
+                offsets.Add(offsetPline);
             }
 
             if (offsets.Count == 0) throw new Exception($"No offset polylines found for {Name}!");
@@ -322,6 +351,18 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
         {
             if (Profile == null) throw new Exception($"No profile found for {Name}!");
             return Profile.ElevationAt(x);
+        }
+        internal double RotationOfSurfaceSimplifiedAtPointProjected(Point3d point)
+        {
+            if (SurfacePolylineSimplified == null) throw new Exception("No surface polyline found for the pipeline!");
+
+            var pline = SurfacePolylineSimplified;
+            var pt = pline.GetClosestPointTo(point, Vector3d.YAxis, false);
+            var deriv = pline.GetFirstDerivative(pt);
+
+            var rotation = Math.Atan2(deriv.Y, deriv.X);
+
+            return rotation;
         }
     }
     internal class AP_Utility : PipelineData
@@ -409,11 +450,12 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
         [JsonIgnore]
         public Polygon? HorizontalArcAvoidancePolygon { get; set; } = null;
         [JsonIgnore]
-        public Region? HorizontalArcAvoidanceRegion         {
+        public Region? HorizontalArcAvoidanceRegion
+        {
             get
             {
                 if (HorizontalArcAvoidancePolyline == null) return null;
-                
+
                 var curves = new DBObjectCollection { HorizontalArcAvoidancePolyline.Clone() as Polyline };
                 var regions = Region.CreateFromCurves(curves);
                 if (regions.Count > 0) return regions[0] as Region;
@@ -422,7 +464,8 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
         }
         public Relation RelateUtilityPolygonTo(Polygon other)
         {
-            var relation = this.UtilityPolygon.Relate(other);
+            //var relation = this.UtilityPolygon.Relate(other);
+            var relation = other.Relate(this.UtilityPolygon);
 
             if (relation.IsContains()) return Relation.Inside;
             if (relation.IsDisjoint()) return Relation.Outside;
@@ -462,11 +505,18 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
         }
         public Arc BuildAvoidanceArc(double radius)
         {
+            if (_pipeLine.SurfaceProfile == null)
+                throw new Exception("No surface profile found for the pipeline!");
+            if (_pipeLine.SurfaceProfile.SurfacePolylineSimplified == null)
+                throw new Exception("No surface polyline found for the pipeline!");
+
             var center = GetCentreOfAvoidanceArc(radius).To3d();
 
-            return new Arc(center, radius,
+            var arc = new Arc(center, radius,
                 (BL.To3d() - center).AngleOnPlane(new Plane()),
                 (BR.To3d() - center).AngleOnPlane(new Plane()));
+
+            return arc;
         }
         public Arc BuildExtendedAvoidanceArc(double radius)
         {
@@ -507,6 +557,14 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
             polyline.AddVertexAt(polyline.NumberOfVertices, arc.EndPoint.To2d(), 0, 0, 0);
 
             polyline.Closed = true;
+
+            Point3d rpt = new Point3d(arc.Center.X, arc.Center.Y - radius, 0);
+
+            //Determine the rotation angle of the arc
+            var rotation = _pipeLine.SurfaceProfile.RotationOfSurfaceSimplifiedAtPointProjected(rpt);
+
+            //Rotate the arc to match the surface profile
+            polyline.TransformBy(Matrix3d.Rotation(rotation, Vector3d.ZAxis, rpt));
 
             AvoidanceArc = polyline;
 
@@ -562,14 +620,14 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
 
             //Start arc
             var startPointRadius = _pipeLine.SizeArray.GetSizeAtStation(startStation).VerticalMinRadius;
-            
+
             _pipeLine.ProfileView.ProfileView.FindXYAtStationAndElevation(
                 startStation, BottomElevation, ref x, ref y);
 
             var startCentre = GetCentreOfTangencyArc(new Point2d(x, y), startPointRadius).To3d();
 
             Arc startArc = new Arc(startCentre, startPointRadius, Math.PI / 2, Math.PI * 3 / 2);
-            
+
             Point3d lp = new Point3d(startArc.Center.X, startArc.Center.Y - startPointRadius, 0.0);
             var surfaceElevation = _pipeLine.SurfaceProfile.GetSurfaceYAtX(startStation);
 
@@ -579,7 +637,7 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
             double dy = trimPoint.Y - startArc.Center.Y;
             double dx = Math.Sqrt(startArc.Radius * startArc.Radius - dy * dy);
 
-            var leftPt = new Point3d(startArc.Center.X - dx, trimPoint.Y, startArc.Center.Z);            
+            var leftPt = new Point3d(startArc.Center.X - dx, trimPoint.Y, startArc.Center.Z);
 
             double angle1 = Math.Atan2(leftPt.Y - startArc.Center.Y, leftPt.X - startArc.Center.X);
 
@@ -617,6 +675,17 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
             harcPolyline.AddVertexAt(3, endArc.EndPoint.To2d(), 0, 0, 0);
 
             harcPolyline.Closed = true;
+
+            //Rotate the polyline around the bottom of the utility
+            double rx = extents.MinPoint.X + (extents.MaxPoint.X - extents.MinPoint.X) / 2;
+            double ry = extents.MinPoint.Y;
+            Point3d rpt = new Point3d(rx, ry, 0);
+
+            //Determine the rotation angle of the arc
+            var rotation = _pipeLine.SurfaceProfile.RotationOfSurfaceSimplifiedAtPointProjected(rpt);
+
+            //Rotate the arc to match the surface profile
+            harcPolyline.TransformBy(Matrix3d.Rotation(rotation, Vector3d.ZAxis, rpt));
 
             HorizontalArcAvoidancePolyline = harcPolyline;
 

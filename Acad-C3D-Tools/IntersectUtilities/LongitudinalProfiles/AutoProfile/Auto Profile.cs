@@ -359,42 +359,48 @@ namespace IntersectUtilities
                         //utility.HorizontalArcAvoidancePolyline.Layer = devLyr;
                         //utility.HorizontalArcAvoidancePolyline.AddEntityToDbModelSpace(localDb);
 
-                        //var polyHatch = NTSConversion.ConvertNTSPolygonToHatch(utility.HorizontalArcAvoidancePolygon);
+                        //var polyHatch = NTSConversion.ConvertNTSPolygonToHatch(utility.MergedAvoidancePolygon);
                         //polyHatch.Layer = devLyr;
                         //polyHatch.Color = ColorByName("yellow");
                         //polyHatch.AddEntityToDbModelSpace(localDb);
-                        //}
+
                     }
 
                     #region Setup deferred linq queries
                     //Setup linq queries
+                    //The utilities must be iterated from shallowest to deepest
+                    //Otherwise, the logic will not work correctly
+                    //As then shallowest utilities will be overriding results from deeper
                     var queryDeepestUnknownNonFloating = () => ppld.Utility
                         .Where(x =>
                         x.IsFloating == false &&
                         x.Status == AP_Status.Unknown)
-                        .OrderByDescending(x => x.BottomElevation);
+                        .OrderBy(x => x.BottomElevation);
 
                     var queryFloatingForOverlap = (AP_Utility current) => ppld.Utility
                         .Where(x =>
                         x.IsFloating == true &&
                         x.Status == AP_Status.Unknown &&
-                        x.RelateUtilityPolygonTo(current.MergedAvoidancePolygon) == Relation.Overlaps)
-                        .OrderByDescending(x => x.BottomElevation);
+                        x.RelateUtilityPolygonTo(current.MergedAvoidancePolygon) == Relation.Overlaps &&
+                        x != current)
+                        .OrderBy(x => x.BottomElevation);
 
                     //Inside is equivalent to Covered
                     var queryNonFloatingForCovered = (AP_Utility current) => ppld.Utility
                         .Where(x =>
                         x.IsFloating == false &&
                         x.Status == AP_Status.Unknown &&
-                        x.RelateUtilityPolygonTo(current.MergedAvoidancePolygon) == Relation.Inside)
-                        .OrderByDescending(x => x.BottomElevation);
+                        x.RelateUtilityPolygonTo(current.MergedAvoidancePolygon) == Relation.Inside &&
+                        x != current)
+                        .OrderBy(x => x.BottomElevation);
 
                     var queryNonFloatingForOverlap = (AP_Utility current) => ppld.Utility
                         .Where(x =>
                         x.IsFloating == false &&
                         x.Status == AP_Status.Unknown &&
-                        x.RelateUtilityPolygonTo(current.MergedAvoidancePolygon) == Relation.Overlaps)
-                        .OrderByDescending(x => x.BottomElevation);
+                        x.RelateUtilityPolygonTo(current.MergedAvoidancePolygon) == Relation.Overlaps &&
+                        x != current)
+                        .OrderBy(x => x.BottomElevation);
                     #endregion
 
                     #region Perform queries in a loop
@@ -405,7 +411,8 @@ namespace IntersectUtilities
                         safetyCounter++;
 
                         AP_Utility current = queryDeepestUnknownNonFloating().FirstOrDefault();
-                        if (current == default) break;
+                        if (current == default) { prdDbg($"Iteration stopped on loop {safetyCounter}."); break; }
+                        prdDbg($"Iteration {safetyCounter}.");
 
                         //First handle case 4: Query floating for overlaps
                         //If we overlap a floating utility, we mark it as non-floating
@@ -414,18 +421,35 @@ namespace IntersectUtilities
                         //We restart querying
                         if (queryFloatingForOverlap(current).Count() > 0)
                         {
-                            foreach (var item in queryFloatingForOverlap(current)) item.IsFloating = false;                            
+                            foreach (var item in queryFloatingForOverlap(current))
+                            {
+                                prdDbg($"Ut. st: {current.MidStation.ToString("F2")} el: {current.BottomElevation.ToString("F2")}" +
+                                    $" OVERLAPS FLOATING {item.MidStation.ToString("F2")} -> NONFLOATING");
+                                item.IsFloating = false;
+                            }
                             continue;
                         }
 
                         //Case 3: Query non-floating for covered -> Set to Ignored
                         //If we have a hit, we mark the current as AP_Status.Ignored
-                        foreach (var covered in queryNonFloatingForCovered(current)) covered.Status = AP_Status.Ignored;
+                        foreach (var covered in queryNonFloatingForCovered(current))
+                        {
+                            prdDbg($"Ut. st: {current.MidStation.ToString("F2")} el: {current.BottomElevation.ToString("F2")}" +
+                                $" COVERS NONFLOATING {covered.MidStation.ToString("F2")} -> IGNORE");
+                            covered.Status = AP_Status.Ignored; 
+                        }
 
-                        //Case 1 and 2: Query non-floating for overlaps -> Set to Selected
-                        //If we have no hit, we mark the current as AP_Status.Selected
-                        foreach (var overlap in queryNonFloatingForOverlap(current)) overlap.Status = AP_Status.Selected;                        
+                        //WARNING: This messes with the logic, so do not enable this
+                        ////Case 1 and 2: Query non-floating for overlaps -> Set to Selected
+                        ////If we have no hit, we mark the current as AP_Status.Selected
+                        //foreach (var overlap in queryNonFloatingForOverlap(current))
+                        //{
+                        //    prdDbg($"I: {safetyCounter} Ut. st: {current.MidStation.ToString("F2")} OVERLAPS {overlap.MidStation.ToString("F2")}");
+                        //    overlap.Status = AP_Status.Selected; 
+                        //}
 
+                        prdDbg($"Ut. st: {current.MidStation.ToString("F2")} el: {current.BottomElevation.ToString("F2")}" +
+                            $" is now SELECTED.");
                         current.Status = AP_Status.Selected;
 
                         if (safetyCounter > 10000)
