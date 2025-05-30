@@ -332,8 +332,10 @@ namespace IntersectUtilities
                     prdDbg(ppld.SizeArray);
                     System.Windows.Forms.Application.DoEvents();
 
+#if DEBUG
                     ppld.SurfaceProfile.OffsetCentrelines.Layer = devLyr;
                     ppld.SurfaceProfile.OffsetCentrelines.AddEntityToDbModelSpace(localDb);
+#endif
 
                     //DETERMINE FLOATING STATUS
                     foreach (AP_Utility utility in ppld.Utility)
@@ -341,10 +343,12 @@ namespace IntersectUtilities
                         //DETERMINE FLOATING STATUS
                         utility.TestFloatingStatus(ppld.SurfaceProfile.OffsetCentrelines);
 
+#if DEBUG
                         var uhatch = utility.GetUtilityHatch();
                         uhatch.Layer = devLyr;
                         if (utility.IsFloating) uhatch.Color = ColorByName("green");
                         uhatch.AddEntityToDbModelSpace(localDb);
+#endif
 
                         //utility.AvoidanceArc.Layer = devLyr;
                         //utility.AvoidanceArc.AddEntityToDbModelSpace(localDb);
@@ -366,7 +370,7 @@ namespace IntersectUtilities
 
                     }
 
-                    #region Setup deferred linq queries
+                    #region Setup linq queries
                     //Setup linq queries
                     //The utilities must be iterated from shallowest to deepest
                     //Otherwise, the logic will not work correctly
@@ -462,6 +466,7 @@ namespace IntersectUtilities
 
                     #region Process selected utilities
 
+#if DEBUG
                     foreach (var utility in ppld.Utility.Where(x => x.Status == AP_Status.Selected))
                     {
                         var h = utility.GetUtilityHatch();
@@ -469,8 +474,11 @@ namespace IntersectUtilities
                         h.Color = ColorByName("magenta");
                         h.AddEntityToDbModelSpace(localDb);
                     }
-
-                    ppld.ProcessSelectedUtilities();                 
+#endif
+                    ppld.ProcessSelectedUtilities();
+                    
+                    ppld.test.Color = ColorByName("yellow");
+                    ppld.test.ConstantWidth = 0.05;
                     ppld.test.Layer = devLyr;
                     ppld.test.AddEntityToDbModelSpace(localDb);
                     #endregion

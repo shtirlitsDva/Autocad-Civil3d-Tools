@@ -19,7 +19,12 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
-using NetTopologySuite.Operation.Union;
+
+using Exception = System.Exception;
+
+using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
+using Dreambuild.AutoCAD;
+using Autodesk.AutoCAD.ApplicationServices;
 
 namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
 {
@@ -105,12 +110,13 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
                 else throw new Exception($"Merged polygon is not a valid polygon!");
             }
         }
-        public Region? test { get; set; }
+        public Polyline? test { get; set; }
         internal void ProcessSelectedUtilities()
         {
             if (SurfaceProfile == null) throw new Exception("No surface profile found for the pipeline!");
             if (SurfaceProfile.OffsetCentrelines == null) throw new Exception("No offset centrelines found for the surface profile!");
             if (ProfileView == null) throw new Exception("No profile view found for the pipeline!");
+            var pv = ProfileView.ProfileView;
 
             Region? mergedRegion = null;
 
@@ -147,7 +153,6 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
                 //Trim
                 var bbox = mainRegion.GeometricExtents;
                 var origo = ProfileView.ProfileView.Location;
-                var pv = ProfileView.ProfileView;
 
                 //Left side
                 Polyline polyline = new Polyline(4);
@@ -175,33 +180,138 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
                 mainRegion.BooleanOperation(BooleanOperationType.BoolSubtract, trimRegion);
             }
 
+            //test = mainRegion;
 
+            //3.extract "lower" polyline
+            if (mainRegion == null) throw new Exception("no merged polygon found!");
 
-            test = mainRegion;
+            using DBObjectCollection exploded = new DBObjectCollection();
+            mainRegion.Explode(exploded);
 
-            //3. Extract "lower" polyline
-            //if (mergedRegion == null) throw new Exception("No merged polygon found!");
+            var ents = exploded.Cast<Entity>().ToList();
+            List<Entity> filteredEntities = new();
+            var pvBbox = pv.GeometricExtents;
 
-            //var boundary = NTSConversion.ConvertNTSPolygonToClosedPolyline(mergedPolygon);
+            Point3d pvOrigo = new Point3d(pv.Location.X, pv.Location.Y, 0.0);
+            Point3d pvEnd = new Point3d(pv.Location.X + pv.StationEnd, pv.Location.Y, 0.0);
+            double tol = 0.01; //Tolerance for line ends
 
-            //Point3d p1 = ProfileView.ProfileView.Location;
-            //Point3d p2 = new Point3d(p1.X + ProfileView.ProfileView.StationEnd, p1.Y, 0.0);
-            ////To try to find the nearest pline
-            //Point3d testPt = new Point3d(p1.X + ProfileView.ProfileView.StationEnd / 2, p1.Y, 0.0);
+            foreach (var ent in ents)
+            {
+                switch (ent)
+                {
+                    case Line line:
+                        {
+                            //Do not take (vertical) lines at start and end
+                            if ((line.StartPoint.X < pvOrigo.X + tol && line.EndPoint.X < pvOrigo.X + tol) ||
+                                (line.StartPoint.X > pvEnd.X - tol && line.EndPoint.X > pvEnd.X - tol)) continue;
 
-            //Point3d cutP1 = boundary.GetClosestPointTo(p1, Vector3d.YAxis, false);
-            //Point3d cutP2 = boundary.GetClosestPointTo(p2, Vector3d.YAxis, false);
+                            //Do not take lines that are outside the profile view
+                            if (!pvBbox.IsPointIn(line.StartPoint) &&
+                                !pvBbox.IsPointIn(line.EndPoint)) continue;
 
-            //var objs = boundary.GetSplitCurves(new Point3dCollection { cutP1, cutP2 });
-            //var lowerPline = objs
-            //    .Cast<Polyline>()
-            //    .MinBy(x => x.GetClosestPointTo(testPt, false).DistanceHorizontalTo(testPt));
+                            filteredEntities.Add(line);
+                        }
+                        break;
+                    case Arc arc:
+                        {
+                            // Do not take(vertical) lines at start and end
+                            if ((arc.StartPoint.X < pvOrigo.X + tol && arc.EndPoint.X < pvOrigo.X + tol) ||
+                                (arc.StartPoint.X > pvEnd.X - tol && arc.EndPoint.X > pvEnd.X - tol)) continue;
 
-            //if (lowerPline == null) throw new Exception("No lower polyline found!");
+                            //Do not take lines that are outside the profile view
+                            if (!pvBbox.IsPointIn(arc.StartPoint) &&
+                                !pvBbox.IsPointIn(arc.EndPoint)) continue;
 
-            //test = lowerPline; //For debugging purposes
+                            filteredEntities.Add(arc);
+                        }
+                        break;
+                    default:
+                        break;
+                }
+            }
 
+            var sorted = filteredEntities
+                .OrderBy(x => x.GeometricExtents.MinPoint.X)
+                .ToList();
 
+            Polyline lowerpline = new Polyline();
+            Point3d previousEnd = Point3d.Origin;
+            for (int i = 0; i < sorted.Count; i++)
+            {
+                var ent = sorted[i];
+
+                switch (ent)
+                {
+                    case Line line:
+                        {
+                            if (previousEnd.DistanceTo(line.StartPoint) > 0.00001 && i != 0)
+                            {
+                                //Check if the line is connected to the previous line
+                                //If not, add a vertex at the end of the previous line
+                                lowerpline.AddVertexAt(
+                                    lowerpline.NumberOfVertices,
+                                    previousEnd.To2d(), 0, 0, 0);
+                            }
+
+                            lowerpline.AddVertexAt(
+                                lowerpline.NumberOfVertices,
+                                line.StartPoint.To2d(), 0, 0, 0);
+
+                            previousEnd = line.EndPoint;
+                        }
+                        break;
+                    case Arc arc:
+                        {
+                            if (previousEnd.DistanceTo(arc.StartPoint) > 0.00001 && i != 0)
+                            {
+                                //Check if the arc is connected to the previous line
+                                //If not, add a vertex at the end of the previous line
+                                lowerpline.AddVertexAt(
+                                    lowerpline.NumberOfVertices,
+                                    previousEnd.To2d(), 0, 0, 0);
+                            }
+
+                            lowerpline.AddVertexAt(
+                                lowerpline.NumberOfVertices,
+                                arc.StartPoint.To2d(), arc.GetBulge(), 0, 0);
+
+                            previousEnd = arc.EndPoint;
+                        }
+                        break;
+                    default:
+                        throw new Exception(
+                            $"Unsupported entity type {ent.GetType()} found in the merged region!");
+                }
+
+                //Handle last point
+                var lastPt = lowerpline.GetPoint2dAt(lowerpline.NumberOfVertices - 1);
+                switch (ent)
+                {
+                    case Line line:
+                        if (line.EndPoint.DistanceTo(lastPt.To3d()) > 0.00001)
+                        {
+                            lowerpline.AddVertexAt(
+                                lowerpline.NumberOfVertices,
+                                line.EndPoint.To2d(), 0, 0, 0);
+                        }
+                        previousEnd = line.EndPoint;
+                        break;
+                    case Arc arc:
+                        if (arc.EndPoint.DistanceTo(lastPt.To3d()) > 0.00001)
+                        {
+                            lowerpline.AddVertexAt(
+                                lowerpline.NumberOfVertices,
+                                arc.EndPoint.To2d(), 0, 0, 0);
+                        }
+                        previousEnd = arc.EndPoint;
+                        break;
+                    default:
+                        break;
+                }
+            }
+
+            test = lowerpline; //for debugging purposes
         }
         public void Serialize(string filename)
         {
