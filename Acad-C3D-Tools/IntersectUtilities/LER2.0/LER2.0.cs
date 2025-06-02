@@ -31,6 +31,7 @@ using MoreLinq;
 using Microsoft.Win32;
 using Autodesk.Civil.ApplicationServices;
 using System.Globalization;
+using System.Windows.Xps;
 
 namespace IntersectUtilities
 {
@@ -2170,6 +2171,56 @@ namespace IntersectUtilities
             ptsTx.Abort();
             ptsTx.Dispose();
             dbpts.Dispose();
+        }
+
+        /// <command>LER2TRANSFORMHSP</command>
+        /// <summary>
+        /// Behandling af data for højspændingsledninger (Gentofte).
+        /// Adjusts vertex elevations in 3D LER polylines by reading coincident points.
+        /// </summary>
+        /// <category>LER2</category>
+        [CommandMethod("LER2TRANSFORMHSP")]
+        public void ler2tranformhsp()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            using Transaction tx = localDb.TransactionManager.StartTransaction();
+            try
+            {
+                var pts = localDb.HashSetOfType<DBPoint>(tx);
+                var p3ds = localDb.HashSetOfType<Polyline3d>(tx);
+
+                foreach (Polyline3d p3d in p3ds)
+                {
+                    p3d.UpgradeOpen();
+
+                    var verts = p3d.GetVertices(tx);
+
+                    foreach (PolylineVertex3d v in verts)
+                    {
+                        // Find the point with the same XY coordinates
+                        var coincidentPoint = pts.FirstOrDefault(pt =>
+                            pt.Position.HorizontalEqualz(v.Position, 0.000001));
+                        if (coincidentPoint != null)
+                        {
+                            double kote = PropertySetManager.ReadNonDefinedPropertySetDouble(
+                                coincidentPoint, "Opmålingspunkter", "Kote");
+
+                            // Update the vertex Z coordinate to match the point's Z coordinate
+                            v.CheckOrOpenForWrite();
+                            v.Position = new Point3d(v.Position.X, v.Position.Y, kote);
+                        }
+                    }
+                }
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg(ex);
+                tx.Abort();
+                return;
+            }
+            tx.Commit();
         }
 
         /// <command>LER2SNAPBRANCHES</command>

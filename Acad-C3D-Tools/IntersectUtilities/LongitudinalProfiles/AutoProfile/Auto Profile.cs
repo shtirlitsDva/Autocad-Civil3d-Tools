@@ -36,6 +36,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 
@@ -228,7 +229,7 @@ namespace IntersectUtilities
                             {
                                 var arc = pl.GetArcSegmentAt(i);
                                 double[] sts =
-                                    [ppl.GetStationAtPoint(arc.StartPoint), ppl.GetStationAtPoint(arc.EndPoint)];                                
+                                    [ppl.GetStationAtPoint(arc.StartPoint), ppl.GetStationAtPoint(arc.EndPoint)];
                                 ppld.HorizontalArcs.Add(new HorizontalArc(sts.Min(), sts.Max(), ppld));
                             }
                         }
@@ -440,7 +441,7 @@ namespace IntersectUtilities
                         {
                             prdDbg($"Ut. st: {current.MidStation.ToString("F2")} el: {current.BottomElevation.ToString("F2")}" +
                                 $" COVERS NONFLOATING {covered.MidStation.ToString("F2")} -> IGNORE");
-                            covered.Status = AP_Status.Ignored; 
+                            covered.Status = AP_Status.Ignored;
                         }
 
                         //WARNING: This messes with the logic, so do not enable this
@@ -476,7 +477,13 @@ namespace IntersectUtilities
                     }
 #endif
                     ppld.ProcessSelectedUtilities();
-                    
+
+                    //Not used
+                    int guiltyPlinesCount = 0;
+                    int removedVerticesCount = 0;
+                    RemoveColinearVerticesPolyline(
+                            ppld.test, ref guiltyPlinesCount, ref removedVerticesCount);
+
                     ppld.test.Color = ColorByName("yellow");
                     ppld.test.ConstantWidth = 0.05;
                     ppld.test.Layer = devLyr;
@@ -520,6 +527,102 @@ namespace IntersectUtilities
             {
                 fjvTx.Abort();
                 dm.Dispose();
+            }
+            tx.Commit();
+
+            prdDbg("Done!");
+        }
+
+        [CommandMethod("APEXPORTPLINE")]
+        public void apexportpline()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            using Transaction tx = localDb.TransactionManager.StartTransaction();
+            try
+            {
+                var oid = Interaction.GetEntity("Select polyline to export:", typeof(Polyline), true);
+                if (oid.IsNull) { tx.Abort(); return; }
+
+                Polyline pl = oid.Go<Polyline>(tx);
+
+                var segments = new List<PolylineExportSegment>();
+
+                for (int i = 0; i < pl.NumberOfVertices - 1; i++)
+                {
+                    var segmentType = pl.GetSegmentType(i);
+                    var pt1 = pl.GetPoint2dAt(i);
+                    var pt2 = pl.GetPoint2dAt(i + 1);
+
+                    switch (segmentType)
+                    {
+                        case SegmentType.Line:
+                            segments.Add(new LongitudinalProfiles.AutoProfile.LineSegment
+                            {
+                                Index = i,
+                                X1 = pt1.X,
+                                Y1 = pt1.Y,
+                                X2 = pt2.X,
+                                Y2 = pt2.Y
+                            });
+                            break;
+                        case SegmentType.Arc:
+                            var arc = pl.GetArcSegment2dAt(i);
+
+                            segments.Add(new ArcSegment
+                            {
+                                Index = i,
+                                X1 = pt1.X,
+                                Y1 = pt1.Y,
+                                X2 = pt2.X,
+                                Y2 = pt2.Y,
+                                CX = arc.Center.X,
+                                CY = arc.Center.Y,
+
+                                Radius = arc.Radius
+                            });
+                            break;
+                        case SegmentType.Coincident:
+                        case SegmentType.Point:
+                        case SegmentType.Empty:
+                        default:
+                            break;
+                    }
+                }
+
+                var options = new JsonSerializerOptions
+                {
+                    WriteIndented = true,
+                    Converters = { new JsonStringEnumConverter(), new PolylineSegmentConverter() },
+                    IncludeFields = true
+                };
+
+                string json = JsonSerializer.Serialize(segments, options);
+                System.IO.File.WriteAllText(@"C:\Temp\pline.json", json);
+
+            }
+            catch (DebugException dex)
+            {
+                tx.Abort();
+                prdDbg(dex);
+                if (dex.DebugEntities != null && dex.DebugEntities.Count > 0)
+                {
+                    using Transaction dtx = localDb.TransactionManager.StartTransaction();
+                    //Write debug entities to the dev layer
+                    foreach (var ent in dex.DebugEntities)
+                    {
+                        ent.AddEntityToDbModelSpace(localDb);
+                    }
+                    dtx.Commit();
+                }
+                return;
+            }
+            catch (System.Exception ex)
+            {
+                tx.Abort();
+                prdDbg(ex);
+                return;
             }
             tx.Commit();
 

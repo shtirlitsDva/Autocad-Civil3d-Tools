@@ -4807,6 +4807,58 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>CONVERT3DPOLIESTOPOLIESPSS</command>
+        /// <summary>
+        /// Converts 3D polylines to polylines and copies property sets.
+        /// </summary>
+        /// <category>Polylines</category>
+        [CommandMethod("CONVERTPOLIESTO3DPOLIESPSS")]
+        public void convertpoliesto3dpoliespss()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            prdDbg("Remember that the PropertySets need be defined in advance!!!");
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var pls = localDb.HashSetOfType<Polyline>(tx);
+                    prdDbg($"Nr. of polylines: {pls.Count}");
+
+                    foreach (var pl in pls)
+                    {
+                        List<Point3d> pts = new List<Point3d>();
+                        for (int i = 0; i < pl.NumberOfVertices; i++) pts.Add(pl.GetPoint2dAt(i).To3d());
+                        
+                        Polyline3d p3d = new Polyline3d(
+                            Poly3dType.SimplePoly, new Point3dCollection(pts.ToArray()), false);
+
+                        p3d.AddEntityToDbModelSpace(localDb);
+
+                        p3d.Layer = pl.Layer;
+                        p3d.Color = pl.Color;
+
+                        PropertySetManager.CopyAllProperties(pl, p3d);
+
+                        pl.UpgradeOpen();
+                        pl.Erase(true);
+                    }                    
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex);
+                    tx.Abort();
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         /// <command>SETGLOBALWIDTH</command>
         /// <summary>
         /// Reads diameter information from a CSV file and sets the GLOBAL width of polylines.
