@@ -641,21 +641,18 @@ namespace IntersectUtilities
                 }
                 catch (System.Exception ex)
                 {
+                    foreach (var alPl in alPls.Values)
+                    {
+                        alPl.CheckOrOpenForWrite();
+                        alPl.Erase(true);
+                    }
                     alTx.Abort();
                     alTx.Dispose();
                     alDb.Dispose();
                     tx.Abort();
                     prdDbg(ex);
                     return;
-                }
-                finally
-                {
-                    foreach (var alPl in alPls.Values)
-                    {
-                        alPl.CheckOrOpenForWrite();
-                        alPl.Erase(true);
-                    }
-                }
+                }                
                 alTx.Abort();
                 alTx.Dispose();
                 alDb.Dispose();

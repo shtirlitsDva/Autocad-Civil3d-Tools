@@ -24,6 +24,49 @@ namespace IntersectUtilities.NTS
             points.Add(new Coordinate(pline.GetPoint3dAt(0).X, pline.GetPoint3dAt(0).Y));
             return new Polygon(new LinearRing(points.ToArray()));
         }
+        public static Polygon ConvertClosedPlineToNTSPolygonWithCurveApproximation(Polyline pline)
+        {
+            if (!pline.Closed) throw new System.Exception($"Polyline {pline.Handle} is not closed!");
+
+            //Approximation setting
+            double epsilon = 0.01;
+
+            var points = new List<Coordinate>();
+            for (int i = 0; i < pline.NumberOfVertices; i++)
+            {
+                switch (pline.GetSegmentType(i))
+                {
+                    case SegmentType.Line:
+                        points.Add(pline.GetPoint2dAt(i).GetCoordinate());
+                        break;
+                    case SegmentType.Arc:
+                        CircularArc2d arc = pline.GetArcSegment2dAt(i);
+
+                        double angle = Math.Abs(arc.EndAngle - arc.StartAngle);
+                        double safe = 2 * Math.Acos(1 - epsilon / arc.Radius);
+                        int nrOfSamples = (int)Math.Ceiling(angle / safe);
+
+                        if (nrOfSamples < 3)
+                        {
+                            points.Add(pline.GetPoint2dAt(i).GetCoordinate());
+                        }
+                        else
+                        {
+                            Point2d[] samples = arc.GetSamplePoints(nrOfSamples);                            
+                            foreach (Point2d p2d in samples.SkipLast(1)) points.Add(p2d.GetCoordinate());
+                        }
+                        break;
+                    case SegmentType.Coincident:
+                    case SegmentType.Point:
+                    case SegmentType.Empty:
+                    default:
+                        break;
+                }
+            }
+
+            points.Add(pline.GetPoint2dAt(0).GetCoordinate());
+            return new Polygon(new LinearRing(points.ToArray()));
+        }
         public static LineString ConvertPlineToNTSLineString(Polyline pline)
         {
             var points = new List<Coordinate>();
@@ -70,6 +113,19 @@ namespace IntersectUtilities.NTS
             hatch.EvaluateHatch(true);
 
             return hatch;
+        }
+        public static Polyline ConvertNTSPolygonToClosedPolyline(Polygon poly)
+        {
+            var points = poly.Coordinates.Select(x => x.GetPoint2d()).ToArray();
+
+            Polyline pline = new Polyline(points.Length);
+            for (int i = 0; i < points.Length; i++)
+            {
+                pline.AddVertexAt(i, points[i], 0, 0, 0);
+            }
+            pline.Closed = true; // Ensure the polyline is closed
+
+            return pline;
         }
         public static MPolygon ConvertNTSPolygonToMPolygon(Polygon poly)
         {
@@ -158,5 +214,7 @@ namespace IntersectUtilities.NTS
     {
         public static Point3d GetPoint3d(this Coordinate coord) => new Point3d(coord.X, coord.Y, coord.Z);
         public static Point2d GetPoint2d(this Coordinate coord) => new Point2d(coord.X, coord.Y);
+        public static Coordinate GetCoordinate(this Point2d point) => new Coordinate(point.X, point.Y);
+        public static Coordinate GetCoordinate(this Point3d point) => new Coordinate(point.X, point.Y);
     }
 }

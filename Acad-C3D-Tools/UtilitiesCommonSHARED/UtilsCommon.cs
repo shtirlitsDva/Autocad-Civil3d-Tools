@@ -42,6 +42,7 @@ using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using DebugHelper = IntersectUtilities.UtilsCommon.Utils.DebugHelper;
+using System.Runtime.Serialization;
 
 namespace IntersectUtilities.UtilsCommon
 {
@@ -1762,6 +1763,7 @@ namespace IntersectUtilities.UtilsCommon
                     throw new System.Exception($"GetBulge: ProfileEntity unknown type encountered!");
             }
         }
+        [DebuggerHidden]
         public static double LookAheadAndGetBulge(this ProfileEntityCollection collection, ProfileEntity currentEntity, ProfileView profileView)
         {
             ProfileEntity next;
@@ -1787,6 +1789,18 @@ namespace IntersectUtilities.UtilsCommon
                     prdDbg("Segment type: " + next.ToString() + ". Lav om til circular!");
                     throw new System.Exception($"LookAheadAndGetBulge: ProfileEntity unknown type encountered!");
             }
+        }
+        public static double GetBulge(this Arc arc)
+        {
+            double includedAngle = arc.EndAngle - arc.StartAngle;
+
+            // Normalize to range (-2π, 2π) to avoid full circles
+            if (includedAngle > Math.PI * 2)
+                includedAngle -= Math.PI * 2;
+            else if (includedAngle < -Math.PI * 2)
+                includedAngle += Math.PI * 2;
+
+            return Math.Tan(includedAngle / 4);
         }
         public static bool Contains(this string source, string toCheck, StringComparison comp)
         {
@@ -2149,6 +2163,7 @@ namespace IntersectUtilities.UtilsCommon
             }
             return true;
         }
+        [DebuggerHidden]
         public static Polyline ToPolyline(this Profile profile, ProfileView profileView)
         {
             ProfileEntityCollection entities = profile.Entities;
@@ -3957,6 +3972,18 @@ namespace IntersectUtilities.UtilsCommon
             public short DRed { get; set; }
             public short DGreen { get; set; }
             public short DBlue { get; set; }
+        }
+    }
+    public class DebugException : System.Exception
+    {
+        public List<Entity> DebugEntities { get; }
+        public DebugException(string message, List<Entity>? debugEntities = null) : base(message)
+        {
+            DebugEntities = debugEntities ?? new List<Entity>();
+            if (DebugEntities.Count > 0)
+            {
+                this.Data[nameof(DebugEntities)] = DebugEntities;
+            }
         }
     }
 }
