@@ -1826,6 +1826,30 @@ namespace IntersectUtilities.Dimensionering
             prdDbg("ADVARSEL: ER IKKE TESTET SAMMEN MED DIMCONNECTHUSNR!!!!!!!!!");
         }
 
+        [CommandMethod("DIMPROPEENERGY")]
+        public void DimPropeEnergy()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                PromptEntityOptions peo = new PromptEntityOptions("\n Select root polyline of tree: ");
+                peo.SetRejectMessage("\n Not a polyline");
+                peo.AddAllowedClass(typeof(Polyline), true);
+                PromptEntityResult per = editor.GetEntity(peo);
+                ObjectId plObjId = per.ObjectId;
+
+                Polyline rootPolyline = tx.GetObject(plObjId, OpenMode.ForRead, false) as Polyline;
+
+                // WIP - DML
+
+            }
+        }
+
         public static string ConvertToHtmlTree(List<(string bygning, string adresse, string enhedstype)> tuples)
         {
             var sb = new StringBuilder();
