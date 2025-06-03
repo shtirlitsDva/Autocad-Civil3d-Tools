@@ -146,7 +146,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 pipeline.CreateSizeArray();
             }
         }
-        public List<(string, IPipelineSizeArrayV2)> GetAllSizeArrays(bool includeNas = true)
+        public List<(string Name, IPipelineSizeArrayV2 SizeArray)> GetAllSizeArrays(bool includeNas = true)
         {
             List<(string, IPipelineSizeArrayV2)> data = new();
             foreach (var pipeline in pipelines)

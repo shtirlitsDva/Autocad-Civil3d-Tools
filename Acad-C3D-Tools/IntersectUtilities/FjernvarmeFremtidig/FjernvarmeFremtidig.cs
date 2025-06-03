@@ -89,7 +89,7 @@ namespace IntersectUtilities
             string etapeName = dro.EtapeName;
 
             // open the xref database
-            var dm = new DataManager.DataManager(dro);
+            var dm = new DataManagement.DataManager(dro);
             Database alDb = dm.GetForRead("Alignments");
             Transaction alTx = alDb.TransactionManager.StartTransaction();
             HashSet<Alignment> als = alDb.HashSetOfType<Alignment>(alTx);

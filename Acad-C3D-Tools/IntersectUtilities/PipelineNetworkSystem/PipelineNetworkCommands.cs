@@ -69,7 +69,7 @@ namespace IntersectUtilities
 
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
-            DataManager.DataManager dm = new DataManager.DataManager(new DataReferencesOptions());
+            DataManagement.DataManager dm = new DataManagement.DataManager(new DataReferencesOptions());
             Database alDb = dm.GetForRead("Alignments");
             Transaction alTx = alDb.TransactionManager.StartTransaction();
 
@@ -125,7 +125,7 @@ namespace IntersectUtilities
 
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
-            DataManager.DataManager dm = new DataManager.DataManager(new DataReferencesOptions());
+            DataManagement.DataManager dm = new DataManagement.DataManager(new DataReferencesOptions());
             Database alDb = dm.GetForRead("Alignments");
             Transaction alTx = alDb.TransactionManager.StartTransaction();
 
@@ -174,7 +174,7 @@ namespace IntersectUtilities
 
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
-            DataManager.DataManager dm = new DataManager.DataManager(new DataReferencesOptions());
+            DataManagement.DataManager dm = new DataManagement.DataManager(new DataReferencesOptions());
             Database alDb = dm.GetForRead("Alignments");
             Transaction alTx = alDb.TransactionManager.StartTransaction();
 
@@ -228,7 +228,7 @@ namespace IntersectUtilities
 
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
-            DataManager.DataManager dm = new DataManager.DataManager(new DataReferencesOptions());
+            DataManagement.DataManager dm = new DataManagement.DataManager(new DataReferencesOptions());
             Database alDb = dm.GetForRead("Alignments");
             Transaction alTx = alDb.TransactionManager.StartTransaction();
 
@@ -277,7 +277,7 @@ namespace IntersectUtilities
 
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
-            DataManager.DataManager dm = new DataManager.DataManager(new DataReferencesOptions());
+            DataManagement.DataManager dm = new DataManagement.DataManager(new DataReferencesOptions());
             Database alDb = dm.GetForRead("Alignments");
             Transaction alTx = alDb.TransactionManager.StartTransaction();
 

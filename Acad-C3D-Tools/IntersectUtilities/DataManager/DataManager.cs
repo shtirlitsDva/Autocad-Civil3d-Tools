@@ -11,7 +11,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace IntersectUtilities.DataManager
+namespace IntersectUtilities.DataManagement
 {
     public class DataManager : IDisposable
     {

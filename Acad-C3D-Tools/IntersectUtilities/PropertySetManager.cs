@@ -991,6 +991,11 @@ namespace IntersectUtilities
                 "Stores the handle of the crossing entity.",
                 PsDataType.Text,
                 "");
+            public Property CanBeRelocated { get; } = new Property(
+                "CanBeRelocated",
+                "Indicates if the crossing utility can be relocated.",
+                PsDataType.TrueFalse,
+                false);
             public StringCollection AppliesTo { get; } = new StringCollection()
                 {
                     RXClass.GetClass(typeof(CogoPoint)).Name

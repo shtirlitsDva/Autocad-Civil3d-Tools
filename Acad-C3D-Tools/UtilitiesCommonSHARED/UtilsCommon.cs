@@ -672,6 +672,16 @@ namespace IntersectUtilities.UtilsCommon
             PertFlextra,
             AquaTherm11
         }
+        public enum LerTypeEnum
+        {
+            Ukendt,
+            Afløb3D,
+            Afløb2D,
+            Gas,
+            Vand,
+            ElHøjSpænding,
+            ElLavSpænding
+        }
         public enum DynamicProperty
         {
             None,

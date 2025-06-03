@@ -14,7 +14,7 @@ using Dreambuild.AutoCAD;
 
 using GroupByCluster;
 
-using IntersectUtilities.DataManager;
+using IntersectUtilities.DataManagement;
 using IntersectUtilities.LongitudinalProfiles.AutoProfile;
 using IntersectUtilities.NTS;
 using IntersectUtilities.PipelineNetworkSystem;
@@ -103,7 +103,7 @@ namespace IntersectUtilities
             double y = 0.0;
 
             #region DataManager and FJVDATA
-            DataManager.DataManager dm = new DataManager.DataManager(new DataReferencesOptions());
+            DataManagement.DataManager dm = new DataManagement.DataManager(new DataReferencesOptions());
             if (!dm.IsValid()) { dm.Dispose(); return; }
             Database fjvDb = dm.GetForRead("Fremtid");
             using Transaction fjvTx = fjvDb.TransactionManager.StartTransaction();
@@ -647,7 +647,7 @@ namespace IntersectUtilities
         [CommandMethod("APDATAEXPORT")]
         public void apdataexport()
         {
-            DataManager.DataManager dm = new DataManager.DataManager(new DataReferencesOptions());
+            DataManagement.DataManager dm = new DataManagement.DataManager(new DataReferencesOptions());
             if (!dm.IsValid()) { dm.Dispose(); return; }
 
             Directory.CreateDirectory(apDataExportPath);
@@ -755,7 +755,7 @@ namespace IntersectUtilities
 
         //[CommandMethod("APGPLD")]
         //[CommandMethod("APGATHERPIPELINEDATA")]
-        public void gatherpipelinedata(DataManager.DataManager dm)
+        public void gatherpipelinedata(DataManagement.DataManager dm)
         {
             prdDbg("Dette skal køres i Længdeprofiler!");
 
@@ -811,7 +811,7 @@ namespace IntersectUtilities
 
         //[CommandMethod("APGHAD")]
         //[CommandMethod("APGATHERHORIZONTALARCDATA")]
-        public void gatherhorizontalarcdata(DataManager.DataManager dm)
+        public void gatherhorizontalarcdata(DataManagement.DataManager dm)
         {
             prdDbg("Dette skal køres i Længdeprofiler!");
 
@@ -891,7 +891,7 @@ namespace IntersectUtilities
 
         //[CommandMethod("APGUTD")]
         //[CommandMethod("APGATHERUTILITYDATA")]
-        public void gatherutilitydata(DataManager.DataManager dm)
+        public void gatherutilitydata(DataManagement.DataManager dm)
         {
             //prdDbg("Dette skal køres i Længdeprofiler!");
 
