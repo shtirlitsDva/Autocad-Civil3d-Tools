@@ -10,7 +10,6 @@ using IntersectUtilities.NTS;
 using static IntersectUtilities.UtilsCommon.Utils;
 
 using NetTopologySuite.Geometries;
-using NetTopologySuite.Index.Strtree;
 
 using System;
 using System.Collections.Generic;
@@ -24,7 +23,6 @@ using Exception = System.Exception;
 
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 using Dreambuild.AutoCAD;
-using Autodesk.AutoCAD.ApplicationServices;
 
 namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
 {

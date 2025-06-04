@@ -39,11 +39,18 @@ namespace IntersectUtilities.LongitudinalProfiles.Relocability
         public abstract bool IsRelocatable(int diameter);
 
         public static readonly IThreshold AlleLedningerRespekteres = new AlleRespekteresThreshold();
+        public static IThreshold AlleLedningerOmlægges => new AlleOmlæggesThreshold();
         public static IThreshold KanOmlæggesUnder(int limit) => new KanOmlæggesUnderThreshold(limit);
+        
 
         private sealed record AlleRespekteresThreshold : Threshold
         {
             public override bool IsRelocatable(int _) => false;
+        }
+
+        private sealed record AlleOmlæggesThreshold : Threshold
+        {
+            public override bool IsRelocatable(int _) => true;            
         }
 
         private sealed record KanOmlæggesUnderThreshold(int Limit) : Threshold
@@ -102,47 +109,53 @@ namespace IntersectUtilities.LongitudinalProfiles.Relocability
     // ------------------- Rule factory ---------------------------
     public static class RuleFactory
     {
-        public static IEnumerable<IPipeRule> DefaultRules { get; } = new IPipeRule[]
-        {
+        public static IEnumerable<IPipeRule> DefaultRules { get; } =
+        [
             // Twin steel DN32‒DN50
             new PipeRule(
-                PipeSystemType.TwinSteel, 32, 50,
-                new Dictionary<UtilityType, IThreshold>
+                PipeSystemEnum.Stål, 32, 50,
+                new Dictionary<LerTypeEnum, IThreshold>
                 {
-                    { UtilityType.Aflob,       Threshold.AlleLedningerRespekteres },
-                    { UtilityType.Gas,         Threshold.KanOmlæggesUnder(40) },
-                    { UtilityType.Water,       Threshold.KanOmlæggesUnder(40) },
-                    { UtilityType.HighVoltage, Threshold.AlleLedningerRespekteres }
+                    { LerTypeEnum.Afløb3D,       Threshold.AlleLedningerRespekteres },
+                    { LerTypeEnum.Afløb2D,       Threshold.AlleLedningerOmlægges },
+                    { LerTypeEnum.Gas,           Threshold.KanOmlæggesUnder(41) },
+                    { LerTypeEnum.Vand,          Threshold.KanOmlæggesUnder(41) },
+                    { LerTypeEnum.ElHøjSpænding, Threshold.AlleLedningerRespekteres },
+                    { LerTypeEnum.ElLavSpænding, Threshold.AlleLedningerOmlægges }
                 }),
 
             // Twin steel DN65‒DN80
             new PipeRule(
-                PipeSystemType.TwinSteel, 65, 80,
-                new Dictionary<UtilityType, IThreshold>
+                PipeSystemEnum.Stål, 65, 80,
+                new Dictionary<LerTypeEnum, IThreshold>
                 {
-                    { UtilityType.Aflob,       Threshold.AlleLedningerRespekteres },
-                    { UtilityType.Gas,         Threshold.KanOmlæggesUnder(63) },
-                    { UtilityType.Water,       Threshold.KanOmlæggesUnder(63) },
-                    { UtilityType.HighVoltage, Threshold.AlleLedningerRespekteres }
+                    { LerTypeEnum.Afløb3D,       Threshold.AlleLedningerRespekteres },
+                    { LerTypeEnum.Afløb2D,       Threshold.AlleLedningerOmlægges },
+                    { LerTypeEnum.Gas,           Threshold.KanOmlæggesUnder(64) },
+                    { LerTypeEnum.Vand,          Threshold.KanOmlæggesUnder(64) },
+                    { LerTypeEnum.ElHøjSpænding, Threshold.AlleLedningerRespekteres },
+                    { LerTypeEnum.ElLavSpænding, Threshold.AlleLedningerOmlægges }
                 }),
 
             // Twin steel DN100‒DN250
             new PipeRule(
-                PipeSystemType.TwinSteel, 100, 250,
-                new Dictionary<UtilityType, IThreshold>
+                PipeSystemEnum.Stål, 100, 250,
+                new Dictionary<LerTypeEnum, IThreshold>
                 {
-                    { UtilityType.Aflob,       Threshold.AlleLedningerRespekteres },
-                    { UtilityType.Gas,         Threshold.KanOmlæggesUnder(90) },
-                    { UtilityType.Water,       Threshold.KanOmlæggesUnder(120) },
-                    { UtilityType.HighVoltage, Threshold.AlleLedningerRespekteres }
+                    { LerTypeEnum.Afløb3D,       Threshold.AlleLedningerRespekteres },
+                    { LerTypeEnum.Afløb2D,       Threshold.AlleLedningerOmlægges },
+                    { LerTypeEnum.Gas,           Threshold.KanOmlæggesUnder(91) },
+                    { LerTypeEnum.Vand,          Threshold.KanOmlæggesUnder(121) },
+                    { LerTypeEnum.ElHøjSpænding, Threshold.AlleLedningerRespekteres },
+                    { LerTypeEnum.ElLavSpænding, Threshold.AlleLedningerOmlægges }
                 }),
 
             // PERT – all dimensions
             new PipeRule(
-                PipeSystemType.Pert, null, null,
-                Enum.GetValues<UtilityType>()
+                PipeSystemEnum.PertFlextra, null, null,
+                Enum.GetValues<LerTypeEnum>()
                     .ToDictionary(t => t, _ => Threshold.AlleLedningerRespekteres))
-        };
+        ];
 
         public static IRelocatabilityService CreateDefaultService() =>
             new RelocatabilityService(DefaultRules);
