@@ -1054,7 +1054,7 @@ namespace IntersectUtilities
             "Delete detailing",
             "Sletter eksisterende detaljering\n" +
             "af længdeprofiler.")]
-        public static Result deletedetailing(Database xDb, DataReferencesOptions dro)
+        public static Result deletedetailing(Database xDb)
         {
             //Delete detailing in affected drawings
             new Intersect().deletedetailingmethod(xDb);
@@ -1063,10 +1063,10 @@ namespace IntersectUtilities
         [MethodDescription(
             "Delete all Cogo Points",
             "Sletter alle Cogo Points i tegningen.")]
-        public static Result deleteallcogopoints()
+        public static Result deleteallcogopoints(Database xDb)
         {
             //Delete all Cogo Points in the drawing
-            new Intersect().deleteallcogopointsmethod();
+            new Intersect().deleteallcogopointsmethod(xDb);
             return new Result();
         }
         [MethodDescription(
