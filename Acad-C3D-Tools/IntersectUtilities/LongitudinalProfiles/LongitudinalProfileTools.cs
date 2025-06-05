@@ -1063,7 +1063,7 @@ namespace IntersectUtilities
                         item.Erase(true);
                     }
 
-                    prdDbg(civilDoc.PointGroups.Count.ToString());
+                    //prdDbg(civilDoc.PointGroups.Count.ToString());
 
                     civilDoc.PointGroups.UpdateAllPointGroups();
 

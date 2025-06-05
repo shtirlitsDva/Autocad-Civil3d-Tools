@@ -1067,6 +1067,18 @@ namespace IntersectUtilities
         {
             //Delete all Cogo Points in the drawing
             new Intersect().deleteallcogopointsmethod(xDb);
+
+            var brs = xDb.ListOfType<BlockReference>(xDb.TransactionManager.TopTransaction);
+            var pvs = xDb.ListOfType<ProfileView>(xDb.TransactionManager.TopTransaction);
+            foreach (BlockReference br in brs)
+            {
+                if (pvs.Any(pv => br.Position.HorizontalEqualz(pv.Location)))
+                {
+                    br.UpgradeOpen();
+                    br.Erase();
+                }
+            }
+
             return new Result();
         }
         [MethodDescription(
