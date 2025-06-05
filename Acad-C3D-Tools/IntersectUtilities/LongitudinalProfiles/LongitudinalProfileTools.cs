@@ -81,12 +81,12 @@ namespace IntersectUtilities
                     PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
                     if (((PromptResult)entity1).Status != PromptStatus.OK) return;
                     Autodesk.AutoCAD.DatabaseServices.ObjectId alObjId = entity1.ObjectId;
-                    LabelBase label = tx.GetObject(alObjId, OpenMode.ForRead, false) as LabelBase;
+                    LabelBase label = (LabelBase)tx.GetObject(alObjId, OpenMode.ForRead, false);
                     #endregion
 
                     Oid fId = label.FeatureId;
 
-                    CogoPoint p = tx.GetObject(fId, OpenMode.ForWrite) as CogoPoint;
+                    CogoPoint p = (CogoPoint)tx.GetObject(fId, OpenMode.ForWrite);
                     PromptDoubleResult result = editor.GetDouble("\nValue to modify elevation:");
                     if (((PromptResult)result).Status != PromptStatus.OK) { tx.Abort(); return; }
 
@@ -1044,9 +1044,13 @@ namespace IntersectUtilities
         [CommandMethod("DELETEALLCOGOPOINTS")]
         public void deleteallcogopoints()
         {
+            deleteallcogopointsmethod();
+        }
+        public void deleteallcogopointsmethod(Database? localDb = null)
+        {
             DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+            localDb ??= docCol.MdiActiveDocument.Database;
+            var civilDoc = CivilDocument.GetCivilDocument(localDb);
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {

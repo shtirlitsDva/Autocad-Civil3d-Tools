@@ -1051,6 +1051,25 @@ namespace IntersectUtilities
             return new Result();
         }
         [MethodDescription(
+            "Delete detailing",
+            "Sletter eksisterende detaljering\n" +
+            "af længdeprofiler.")]
+        public static Result deletedetailing(Database xDb, DataReferencesOptions dro)
+        {
+            //Delete detailing in affected drawings
+            new Intersect().deletedetailingmethod(xDb);
+            return new Result();
+        }
+        [MethodDescription(
+            "Delete all Cogo Points",
+            "Sletter alle Cogo Points i tegningen.")]
+        public static Result deleteallcogopoints()
+        {
+            //Delete all Cogo Points in the drawing
+            new Intersect().deleteallcogopointsmethod();
+            return new Result();
+        }
+        [MethodDescription(
             "Create reference to pipe profiles",
             "Opretter alle rør-profiler fra shortcuts.\n" +
             "Springer terrænprofil over.\n" +
