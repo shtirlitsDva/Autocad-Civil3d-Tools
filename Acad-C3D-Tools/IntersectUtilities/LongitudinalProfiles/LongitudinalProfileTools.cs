@@ -13,6 +13,7 @@ using System.Windows.Forms;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.DatabaseServices;
+using Autodesk.AutoCAD.DatabaseServices.Internal;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
@@ -638,8 +639,6 @@ namespace IntersectUtilities
                 PipelineNetwork pn = new PipelineNetwork();
                 pn.CreatePipelineNetwork(ents, alDb.ListOfType<Alignment>(alTx));
                 pn.CreateSizeArrays();
-                var sizeArrays = pn.GetAllSizeArrays(includeNas: false)
-                    .ToDictionary(x => x.Name, x => x.SizeArray);
 
                 HashSet<ProfileView> pvSetExisting = localDb.HashSetOfType<ProfileView>(tx);
 
@@ -655,6 +654,7 @@ namespace IntersectUtilities
                 var dtKrydsninger = CsvData.Kryds;
                 //Build the LerTypeResolution dictionary
                 var lerTypeResolver = LerTypeResolverFactory.CreateFromDataTable(dtKrydsninger);
+                var relocabilityService = RuleFactory.CreateDefaultService();
 
                 var dtDybde = CsvData.Dybde;
                 #endregion
@@ -781,8 +781,8 @@ namespace IntersectUtilities
                             0
                         );
 
-                        //Read UtilityCategory
-                        LerType lerType = lerTypeResolver.Resolve(ent.Layer);
+                        //Read UtilityCategory for Relocability
+                        LerType lerCat = lerTypeResolver.Resolve(ent.Layer);
                         #endregion
 
                         #region Populate description field
@@ -939,12 +939,13 @@ namespace IntersectUtilities
                                 0
                             );
 
+                            int diameter = 0;
                             if (diaDef.IsNotNoE())
                             {
                                 var parts = FindPropertySetParts(diaDef);
                                 if (parts.propertyName != default && parts.setName != default)
                                 {
-                                    int diameter = PropertySetManager.ReadNonDefinedPropertySetInt(
+                                    diameter = PropertySetManager.ReadNonDefinedPropertySetInt(
                                         ent,
                                         parts.setName,
                                         parts.propertyName
@@ -970,7 +971,30 @@ namespace IntersectUtilities
                             );
 
                             //Determine if the utility is relocatable
-
+                            var pipeline = pn.GetPipeline(al.Name);
+                            if (pipeline == null)
+                                throw new System.Exception(
+                                    $"Pipeline for alignment {al.Name} not found!"
+                                );
+                            var station = pipeline.GetStationAtPoint(p3d);
+                            var sizeArray = pipeline.PipelineSizes;
+                            var size = sizeArray.GetSizeAtStation(station);
+                            var fjvPipe = new FjvPipe(size.System, size.DN);
+                            var lerKrydsning = new LerKrydsning(
+                                lerCat.Type,
+                                lerCat.Spatial,
+                                diameter
+                            );
+                            bool isRelocatable = false;
+                            isRelocatable = relocabilityService.IsRelocatable(
+                                fjvPipe,
+                                lerKrydsning
+                            );
+                            psmDriCrossingData.WritePropertyObject(
+                                cogoPoint,
+                                dCDdef.CanBeRelocated,
+                                isRelocatable
+                            );
                             #endregion
 
                             //Reference newly created cogoPoint to gathering collection
@@ -1453,6 +1477,8 @@ namespace IntersectUtilities
                             Oid fId = label.FeatureId;
                             Entity fEnt = fId.Go<Entity>(tx);
 
+                            var isRelocatable = psm.ReadPropertyBool(fEnt, dcd.CanBeRelocated);
+
                             var diaOriginal = psm.ReadPropertyInt(fEnt, dcd.Diameter);
 
                             double dia = Convert.ToDouble(diaOriginal) / 1000.0;
@@ -1482,7 +1508,8 @@ namespace IntersectUtilities
                                     detailingBlock,
                                     label.LabelLocation,
                                     dia,
-                                    fEnt.Layer
+                                    fEnt.Layer,
+                                    isRelocatable
                                 );
                             }
 
@@ -6467,8 +6494,8 @@ namespace IntersectUtilities
         }
 
         public void populatedistancesmethod(
-            DataReferencesOptions dro = null,
-            HashSet<Oid> pvs = null
+            DataReferencesOptions? dro = null,
+            HashSet<Oid>? pvs = null
         )
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -6516,15 +6543,15 @@ namespace IntersectUtilities
 
                     BlockTableRecord space = (BlockTableRecord)
                         tx.GetObject(localDb.CurrentSpaceId, OpenMode.ForWrite);
-                    BlockTable bt =
-                        tx.GetObject(localDb.BlockTableId, OpenMode.ForWrite) as BlockTable;
+                    BlockTable bt = (BlockTable)
+                        tx.GetObject(localDb.BlockTableId, OpenMode.ForWrite);
 
                     #region Create layer for afstandsmarkering
                     string afstandsMarkeringLayerName = "0-PROFILE_AFSTANDS_MARKERING";
                     using (Transaction txLag = localDb.TransactionManager.StartTransaction())
                     {
-                        LayerTable lt =
-                            txLag.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
+                        LayerTable lt = (LayerTable)
+                            txLag.GetObject(localDb.LayerTableId, OpenMode.ForRead);
 
                         if (!lt.Has(afstandsMarkeringLayerName))
                         {
@@ -6683,6 +6710,11 @@ namespace IntersectUtilities
                             if (handle.IsNoE())
                                 throw new System.Exception($"Handle is empty for {cp.Handle}!");
 
+                            bool isRelocatable = psmDriCrossingData.ReadPropertyBool(
+                                cp,
+                                driCrossingData.CanBeRelocated
+                            );
+
                             Entity originalEnt = lman.GetEntityByHandle(handle);
 
                             if (originalEnt == null)
@@ -6772,7 +6804,8 @@ namespace IntersectUtilities
                                     dia,
                                     afstandsMarkeringLayerName,
                                     distance,
-                                    kappeOd
+                                    kappeOd,
+                                    isRelocatable
                                 );
                             }
 

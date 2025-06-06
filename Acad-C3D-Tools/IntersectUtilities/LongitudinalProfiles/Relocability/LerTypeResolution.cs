@@ -1,40 +1,18 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using static IntersectUtilities.UtilsCommon.Utils;
 
 namespace IntersectUtilities.LongitudinalProfiles.Relocability
 {
     // ------------------------------------------------------------
     //                    LER  TYPE  SYSTEM
     // ------------------------------------------------------------
-    public readonly record struct LerType(UtilityCategory Category, Spatial Spatial)
+    public readonly record struct LerType(LerTypeEnum Type, Spatial Spatial)
     {
-        public override string ToString() => $"{Category}_{Spatial}";
+        public override string ToString() => $"{Type}_{Spatial}";
 
-        public static readonly LerType Unknown = new(UtilityCategory.Ukendt, Spatial.Unknown);
-    }
-
-    public enum UtilityCategory
-    {
-        Ukendt,
-        Afløb,
-        Damp,
-        EL_LS, // Low Supply (EL_04)
-        EL_HS, // High Supply (EL_10, EL_30, EL_50, EL_132)
-        FJV,
-        Gas,
-        Luft,
-        Oil,
-        Vand,
-        UAD, // Ude Af Drift (Out of Service) - trumps everything
-        Ignored, // IGNORE type in CSV
-    }
-
-    public enum Spatial
-    {
-        Unknown,
-        TwoD,
-        ThreeD,
+        public static readonly LerType Unknown = new(LerTypeEnum.Ukendt, Spatial.Unknown);
     }
 
     // ------------------------------------------------------------
@@ -96,7 +74,7 @@ namespace IntersectUtilities.LongitudinalProfiles.Relocability
                     var spatialType = string.Equals(type, "3D", StringComparison.OrdinalIgnoreCase)
                         ? Spatial.ThreeD
                         : Spatial.TwoD;
-                    mapping[navn] = new LerType(UtilityCategory.UAD, spatialType);
+                    mapping[navn] = new LerType(LerTypeEnum.UAD, spatialType);
                     continue;
                 }
                 var lerType = MapDistanceAndTypeToLerType(distance, type ?? string.Empty);
@@ -114,7 +92,7 @@ namespace IntersectUtilities.LongitudinalProfiles.Relocability
             // Special case: IGNORE type gets Ignored category with Unknown spatial
             if (string.Equals(type, "IGNORE", StringComparison.OrdinalIgnoreCase))
             {
-                return new LerType(UtilityCategory.Ignored, Spatial.Unknown);
+                return new LerType(LerTypeEnum.Ignored, Spatial.Unknown);
             }
 
             // Determine geometry type based on Type column
@@ -124,22 +102,22 @@ namespace IntersectUtilities.LongitudinalProfiles.Relocability
 
             var utilityCategory = distance.ToUpperInvariant() switch
             {
-                "AFLØB" => UtilityCategory.Afløb,
-                "DAMP" => UtilityCategory.Damp,
-                "EL_04" => UtilityCategory.EL_LS, // Low Supply
-                "EL_10" => UtilityCategory.EL_HS, // High Supply
-                "EL_30" => UtilityCategory.EL_HS, // High Supply
-                "EL_50" => UtilityCategory.EL_HS, // High Supply
-                "EL_132" => UtilityCategory.EL_HS, // High Supply
-                "FJV" => UtilityCategory.FJV,
-                "GAS" => UtilityCategory.Gas,
-                "LUFT" => UtilityCategory.Luft,
-                "OIL" => UtilityCategory.Oil,
-                "VAND" => UtilityCategory.Vand,
-                _ => UtilityCategory.Ukendt,
+                "AFLØB" => LerTypeEnum.Afløb,
+                "DAMP" => LerTypeEnum.Damp,
+                "EL_04" => LerTypeEnum.EL_LS, // Low Supply
+                "EL_10" => LerTypeEnum.EL_HS, // High Supply
+                "EL_30" => LerTypeEnum.EL_HS, // High Supply
+                "EL_50" => LerTypeEnum.EL_HS, // High Supply
+                "EL_132" => LerTypeEnum.EL_HS, // High Supply
+                "FJV" => LerTypeEnum.FJV,
+                "GAS" => LerTypeEnum.Gas,
+                "LUFT" => LerTypeEnum.Luft,
+                "OIL" => LerTypeEnum.Oil,
+                "VAND" => LerTypeEnum.Vand,
+                _ => LerTypeEnum.Ukendt,
             };
 
-            if (utilityCategory == UtilityCategory.Ukendt)
+            if (utilityCategory == LerTypeEnum.Ukendt)
                 return LerType.Unknown;
 
             return new LerType(utilityCategory, geometryType);
