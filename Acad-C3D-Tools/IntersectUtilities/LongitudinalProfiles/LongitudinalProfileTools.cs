@@ -492,6 +492,9 @@ namespace IntersectUtilities
             using Database fjvDb = dataManager.GetForRead("Fremtid");
             using Transaction fjvTx = fjvDb.TransactionManager.StartTransaction();
 
+            using Database alDb = dataManager.GetForRead("Alignments");
+            using Transaction alTx = alDb.TransactionManager.StartTransaction();
+
             using Transaction tx = localDb.TransactionManager.StartTransaction();
 
             string projectName = dro.ProjectName;
@@ -513,6 +516,7 @@ namespace IntersectUtilities
             {
                 surfaceTx.Abort();
                 fjvTx.Abort();
+                alTx.Abort();
                 tx.Abort();
                 return;
             }
@@ -521,6 +525,8 @@ namespace IntersectUtilities
             {
                 editor.WriteMessage("\nSurface could not be loaded from the xref!");
                 surfaceTx.Abort();
+                fjvTx.Abort();
+                alTx.Abort();
                 tx.Abort();
                 return;
             }
@@ -543,7 +549,7 @@ namespace IntersectUtilities
                 var ents = fjvDb.GetFjvEntities(fjvTx);
 
                 PipelineNetwork pn = new PipelineNetwork();
-                pn.CreatePipelineNetwork(ents, allAlignments);
+                pn.CreatePipelineNetwork(ents, alDb.ListOfType<Alignment>(alTx));
                 pn.CreateSizeArrays();
                 var sizeArrays =
                     pn.GetAllSizeArrays(includeNas: false)
@@ -658,6 +664,7 @@ namespace IntersectUtilities
                             tx.Abort();
                             surfaceTx.Abort();
                             fjvTx.Abort();
+                            alTx.Abort();
                             return;
                         }
 
@@ -691,6 +698,7 @@ namespace IntersectUtilities
                             tx.Abort();
                             surfaceTx.Abort();
                             fjvTx.Abort();
+                            alTx.Abort();
                             return;
                         }
 
@@ -876,6 +884,7 @@ namespace IntersectUtilities
                         tx.Abort();
                         surfaceTx.Abort();
                         fjvTx.Abort();
+                        alTx.Abort();
                         return;
                     }
                     else editor.WriteMessage($"\nProfile {pSurface.Name} found!");
@@ -1027,6 +1036,7 @@ namespace IntersectUtilities
 
                 surfaceTx.Abort();
                 fjvTx.Abort();
+                alTx.Abort();
                 prdDbg(ex);
                 return;
             }
@@ -1034,6 +1044,7 @@ namespace IntersectUtilities
             tx.Commit();
             surfaceTx.Abort();
             fjvTx.Abort();
+            alTx.Abort();
         }
 
         /// <command>DELETEALLCOGOPOINTS</command>
