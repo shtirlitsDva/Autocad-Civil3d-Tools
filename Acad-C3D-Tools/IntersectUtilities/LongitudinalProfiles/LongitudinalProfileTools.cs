@@ -10,6 +10,7 @@ using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
+
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.DatabaseServices;
@@ -22,8 +23,11 @@ using Autodesk.Civil.ApplicationServices;
 using Autodesk.Civil.DatabaseServices;
 using Autodesk.Civil.DatabaseServices.Styles;
 using Autodesk.Civil.DataShortcuts;
+
 using Dreambuild.AutoCAD;
+
 using GroupByCluster;
+
 using IntersectUtilities.DataManagement;
 using IntersectUtilities.LongitudinalProfiles;
 using IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol;
@@ -31,13 +35,16 @@ using IntersectUtilities.LongitudinalProfiles.KoteReport;
 using IntersectUtilities.LongitudinalProfiles.Relocability;
 using IntersectUtilities.PipelineNetworkSystem;
 using IntersectUtilities.UtilsCommon;
+
 using MoreLinq;
+
 using static IntersectUtilities.Enums;
 using static IntersectUtilities.HelperMethods;
 using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 using static IntersectUtilities.Utils;
 using static IntersectUtilities.UtilsCommon.Utils;
 using static IntersectUtilities.UtilsCommon.UtilsDataTables;
+
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Assembly = System.Reflection.Assembly;
 using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
@@ -633,12 +640,8 @@ namespace IntersectUtilities
                     allAlignments = localDb.ListOfType<Alignment>(tx).OrderBy(x => x.Name).ToList();
                 }
 
+                //Get fjv entities for size array building
                 var ents = fjvDb.GetFjvEntities(fjvTx);
-                //Load ALL alignments from the ALIGNMENTS database
-                //This is to avoid errors if working only with one alignment (fx. UPDATESINGLEPROFILEVIEW)
-                PipelineNetwork pn = new PipelineNetwork();
-                pn.CreatePipelineNetwork(ents, alDb.ListOfType<Alignment>(alTx));
-                pn.CreateSizeArrays();
 
                 HashSet<ProfileView> pvSetExisting = localDb.HashSetOfType<ProfileView>(tx);
 
@@ -648,6 +651,12 @@ namespace IntersectUtilities
                     PSetDefs.DefinedSets.DriCrossingData
                 );
                 PSetDefs.DriCrossingData dCDdef = new PSetDefs.DriCrossingData();
+
+                PSetDefs.DriPipelineData ppld = new PSetDefs.DriPipelineData();
+                PropertySetManager psmPpld = new PropertySetManager(
+                    fjvDb,
+                    ppld.SetName
+                );
                 #endregion
 
                 #region Read Csv Data for Layers and Depth
@@ -736,6 +745,15 @@ namespace IntersectUtilities
                         Oid pgId = civilDoc.PointGroups.Add(al.Name);
                         currentPointGroup = (PointGroup)pgId.GetObject(OpenMode.ForWrite);
                     }
+                    #endregion
+
+                    #region Build size array
+                    IPipelineV2 pipeline = PipelineV2Factory.Create(
+                        ents.Where(x =>
+                            psmPpld.FilterPropetyString(
+                                x, ppld.BelongsToAlignment, al.Name)), al);
+                    IPipelineSizeArrayV2 sizeArray = 
+                        PipelineSizeArrayFactory.CreateSizeArray(pipeline);                    
                     #endregion
 
                     #region Create Points, assign elevation, layer and PS data
@@ -971,13 +989,7 @@ namespace IntersectUtilities
                             );
 
                             //Determine if the utility is relocatable
-                            var pipeline = pn.GetPipeline(al.Name);
-                            if (pipeline == null)
-                                throw new System.Exception(
-                                    $"Pipeline for alignment {al.Name} not found!"
-                                );
-                            var station = pipeline.GetStationAtPoint(p3d);
-                            var sizeArray = pipeline.PipelineSizes;
+                            var station = pipeline.GetStationAtPoint(p3d);                            
                             var size = sizeArray.GetSizeAtStation(station);
                             var fjvPipe = new FjvPipe(size.System, size.DN);
                             var lerKrydsning = new LerKrydsning(
@@ -7021,6 +7033,11 @@ namespace IntersectUtilities
             PropertySetManager.UpdatePropertySetDefinition(
                 localDb,
                 PSetDefs.DefinedSets.DriSourceReference
+            );
+
+            PropertySetManager.UpdatePropertySetDefinition(
+                localDb,
+                PSetDefs.DefinedSets.DriCrossingData
             );
 
             Point3d originalProfileViewLocation = default;
