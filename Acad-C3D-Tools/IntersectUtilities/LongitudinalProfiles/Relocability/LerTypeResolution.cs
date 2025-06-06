@@ -2,8 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 
-using Microsoft.Extensions.DependencyInjection;
-
 namespace IntersectUtilities.LongitudinalProfiles.Relocability
 {
     // ------------------------------------------------------------
@@ -21,22 +19,22 @@ namespace IntersectUtilities.LongitudinalProfiles.Relocability
         Ukendt,
         Afløb,
         Damp,
-        EL_LS,    // Low Supply (EL_04)
-        EL_HS,    // High Supply (EL_10, EL_30, EL_50, EL_132)
+        EL_LS, // Low Supply (EL_04)
+        EL_HS, // High Supply (EL_10, EL_30, EL_50, EL_132)
         FJV,
         Gas,
         Luft,
         Oil,
         Vand,
-        UAD,      // Ude Af Drift (Out of Service) - trumps everything
-        Ignored   // IGNORE type in CSV
+        UAD, // Ude Af Drift (Out of Service) - trumps everything
+        Ignored, // IGNORE type in CSV
     }
 
     public enum Spatial
     {
         Unknown,
         TwoD,
-        ThreeD
+        ThreeD,
     }
 
     // ------------------------------------------------------------
@@ -56,12 +54,14 @@ namespace IntersectUtilities.LongitudinalProfiles.Relocability
 
         public LerTypeResolver(Dictionary<string, LerType> nameToTypeMap)
         {
-            _nameToTypeMap = nameToTypeMap ?? throw new ArgumentNullException(nameof(nameToTypeMap));
+            _nameToTypeMap =
+                nameToTypeMap ?? throw new ArgumentNullException(nameof(nameToTypeMap));
         }
 
         public LerType Resolve(string name)
         {
-            if (string.IsNullOrWhiteSpace(name)) return LerType.Unknown;
+            if (string.IsNullOrWhiteSpace(name))
+                return LerType.Unknown;
 
             return _nameToTypeMap.TryGetValue(name, out var lerType) ? lerType : LerType.Unknown;
         }
@@ -75,7 +75,9 @@ namespace IntersectUtilities.LongitudinalProfiles.Relocability
         /// <summary>
         /// Builds name-to-type mapping from a DataTable - for integration with existing systems
         /// </summary>
-        public static Dictionary<string, LerType> BuildNameToTypeMappingFromDataTable(DataTable dataTable)
+        public static Dictionary<string, LerType> BuildNameToTypeMappingFromDataTable(
+            DataTable dataTable
+        )
         {
             var mapping = new Dictionary<string, LerType>(StringComparer.OrdinalIgnoreCase);
 
@@ -85,8 +87,7 @@ namespace IntersectUtilities.LongitudinalProfiles.Relocability
                 var distance = row["Distance"]?.ToString();
                 var type = row["Type"]?.ToString();
 
-                if (string.IsNullOrWhiteSpace(navn) ||
-                    string.IsNullOrWhiteSpace(distance))
+                if (string.IsNullOrWhiteSpace(navn) || string.IsNullOrWhiteSpace(distance))
                     continue;
 
                 // Special case: UAD (Ude Af Drift) trumps everything else
@@ -125,17 +126,17 @@ namespace IntersectUtilities.LongitudinalProfiles.Relocability
             {
                 "AFLØB" => UtilityCategory.Afløb,
                 "DAMP" => UtilityCategory.Damp,
-                "EL_04" => UtilityCategory.EL_LS,  // Low Supply
-                "EL_10" => UtilityCategory.EL_HS,  // High Supply
-                "EL_30" => UtilityCategory.EL_HS,  // High Supply
-                "EL_50" => UtilityCategory.EL_HS,  // High Supply
+                "EL_04" => UtilityCategory.EL_LS, // Low Supply
+                "EL_10" => UtilityCategory.EL_HS, // High Supply
+                "EL_30" => UtilityCategory.EL_HS, // High Supply
+                "EL_50" => UtilityCategory.EL_HS, // High Supply
                 "EL_132" => UtilityCategory.EL_HS, // High Supply
                 "FJV" => UtilityCategory.FJV,
                 "GAS" => UtilityCategory.Gas,
                 "LUFT" => UtilityCategory.Luft,
                 "OIL" => UtilityCategory.Oil,
                 "VAND" => UtilityCategory.Vand,
-                _ => UtilityCategory.Ukendt
+                _ => UtilityCategory.Ukendt,
             };
 
             if (utilityCategory == UtilityCategory.Ukendt)
@@ -158,5 +159,5 @@ namespace IntersectUtilities.LongitudinalProfiles.Relocability
             var mapping = LerTypeBuilder.BuildNameToTypeMappingFromDataTable(dataTable);
             return new LerTypeResolver(mapping);
         }
-    }    
+    }
 }
