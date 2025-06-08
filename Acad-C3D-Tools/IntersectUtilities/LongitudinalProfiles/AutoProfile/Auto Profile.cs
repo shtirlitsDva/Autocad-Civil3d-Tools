@@ -104,7 +104,6 @@ namespace IntersectUtilities
 
             var dcd = new PSetDefs.DriCrossingData();
             PropertySetManager.UpdatePropertySetDefinition(localDb, dcd.SetName);
-            PropertySetManager psm = new PropertySetManager(localDb, dcd.SetName);
 
             #region DataManager and FJVDATA
             DataManagement.DataManager dm = new DataManagement.DataManager(new DataReferencesOptions());
@@ -115,6 +114,9 @@ namespace IntersectUtilities
             #endregion
 
             using Transaction tx = localDb.TransactionManager.StartTransaction();
+
+            PropertySetManager psm = new PropertySetManager(localDb, dcd.SetName);
+
             try
             {
                 #region Build PipeNetwork
@@ -259,8 +261,8 @@ namespace IntersectUtilities
                             id.IsDerivedFrom<Circle>())) continue;
                         var ent = id.Go<Entity>(tx);
 
-                        var isRelocatable = psm.ReadPropertyBool(ent, dcd.CanBeRelocated);
-                        if (!isRelocatable) continue;
+                        bool isRelocatable = psm.ReadPropertyBool(ent, dcd.CanBeRelocated);
+                        if (isRelocatable) continue;
 
                         var exts = ent.GeometricExtents;
                         exts.TransformBy(trf);
