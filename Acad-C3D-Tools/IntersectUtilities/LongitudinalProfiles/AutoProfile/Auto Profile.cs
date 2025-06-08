@@ -102,6 +102,10 @@ namespace IntersectUtilities
             double x = 0.0;
             double y = 0.0;
 
+            var dcd = new PSetDefs.DriCrossingData();
+            PropertySetManager.UpdatePropertySetDefinition(localDb, dcd.SetName);
+            PropertySetManager psm = new PropertySetManager(localDb, dcd.SetName);
+
             #region DataManager and FJVDATA
             DataManagement.DataManager dm = new DataManagement.DataManager(new DataReferencesOptions());
             if (!dm.IsValid()) { dm.Dispose(); return; }
@@ -254,6 +258,10 @@ namespace IntersectUtilities
                             id.IsDerivedFrom<Arc>() ||
                             id.IsDerivedFrom<Circle>())) continue;
                         var ent = id.Go<Entity>(tx);
+
+                        var isRelocatable = psm.ReadPropertyBool(ent, dcd.CanBeRelocated);
+                        if (!isRelocatable) continue;
+
                         var exts = ent.GeometricExtents;
                         exts.TransformBy(trf);
 
