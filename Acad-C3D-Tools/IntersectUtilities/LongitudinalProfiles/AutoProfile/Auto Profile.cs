@@ -114,7 +114,6 @@ namespace IntersectUtilities
             #endregion
 
             using Transaction tx = localDb.TransactionManager.StartTransaction();
-
             PropertySetManager psm = new PropertySetManager(localDb, dcd.SetName);
 
             try
@@ -131,14 +130,12 @@ namespace IntersectUtilities
 
                 var ents = fjvDb.GetFjvEntities(fjvTx);
 
-                PipelineNetwork pn = new PipelineNetwork();
-                pn.CreatePipelineNetwork(ents, als);
-                pn.CreateSizeArrays();
-                var sizeArrays =
-                    pn.GetAllSizeArrays(includeNas: false)
-                    .ToDictionary(x => x.Item1, x => x.Item2);
+                var entsByAl = ents
+                    .GroupBy(x => pshFjv.Pipeline.ReadPropertyString(
+                        x, pshFjv.PipelineDef.BelongsToAlignment))
+                    .ToDictionary(x => x.Key, x => x.ToList());
 
-                var entsGroupedByAl = als
+                var polylinesGroupedByAl = als
                     .Select(al => new
                     {
                         al,
@@ -196,9 +193,17 @@ namespace IntersectUtilities
                     #endregion
 
                     #region Get pipline size array 
-                    if (sizeArrays.TryGetValue(al.Name, out var sa)) ppld.SizeArray = sa;
-                    else throw new System.Exception($"No pipeline size array found for {al.Name}!");
-                    prdDbg(ppld.SizeArray);
+
+                    if (!entsByAl.TryGetValue(al.Name, out var entList))
+                        throw new System.Exception($"No entities found for alignment {al.Name}!");
+
+                    IPipelineV2 pipeline = PipelineV2Factory.Create(entList, al);
+                    if (pipeline == null)
+                        throw new System.Exception($"No pipeline could be built for alignment {al.Name}!");
+                    var sa = PipelineSizeArrayFactory.CreateSizeArray(pipeline);
+                    if (sa == null) throw new System.Exception($"No pipeline size array could be built for {al.Name}!");
+                    ppld.SizeArray = sa;
+                    //prdDbg(ppld.SizeArray);
                     #endregion
 
                     #region Build surface related data                    
@@ -217,16 +222,13 @@ namespace IntersectUtilities
                     }
 
                     if (p == null) throw new System.Exception($"No surface profile found for {al.Name}!");
-
                     var spd = new AP_SurfaceProfileData(p.Name, p, ppld);
                     ppld.SurfaceProfile = spd;
                     #endregion
 
                     #region Gather horizontal arc data
-                    var ppl = pn.GetPipeline(al.Name);
-                    if (ppl == null) throw new System.Exception($"No pipeline found for {al.Name}!");
-                    var gp = entsGroupedByAl[al];
-                    foreach (Polyline pl in gp.OrderBy(ppl.GetPolylineMiddleStation))
+                    var gp = polylinesGroupedByAl[al];
+                    foreach (Polyline pl in gp.OrderBy(pipeline.GetPolylineMiddleStation))
                     {
                         for (int i = 0; i < pl.NumberOfVertices; i++)
                         {
@@ -235,7 +237,7 @@ namespace IntersectUtilities
                             {
                                 var arc = pl.GetArcSegmentAt(i);
                                 double[] sts =
-                                    [ppl.GetStationAtPoint(arc.StartPoint), ppl.GetStationAtPoint(arc.EndPoint)];
+                                    [pipeline.GetStationAtPoint(arc.StartPoint), pipeline.GetStationAtPoint(arc.EndPoint)];
                                 ppld.HorizontalArcs.Add(new HorizontalArc(sts.Min(), sts.Max(), ppld));
                             }
                         }
@@ -486,18 +488,17 @@ namespace IntersectUtilities
                         h.AddEntityToDbModelSpace(localDb);
                     }
 #endif
-                    ppld.ProcessSelectedUtilities();
+                    ppld.ProcessSelectedUtilitiesToCreateUnfilletedPolyline();
 
-                    //Not used
-                    int guiltyPlinesCount = 0;
-                    int removedVerticesCount = 0;
-                    RemoveColinearVerticesPolyline(
-                            ppld.test, ref guiltyPlinesCount, ref removedVerticesCount);
+                    //Clean polyline for colinear and coincident vertices
+                    RemoveColinearVerticesPolyline(ppld.UnfilletedPolyline);
 
-                    ppld.test.Color = ColorByName("yellow");
-                    ppld.test.ConstantWidth = 0.05;
-                    ppld.test.Layer = devLyr;
-                    ppld.test.AddEntityToDbModelSpace(localDb);
+                    ppld.FilletPolyline();
+
+                    ppld.UnfilletedPolyline.Color = ColorByName("yellow");
+                    ppld.UnfilletedPolyline.ConstantWidth = 0.03;
+                    ppld.UnfilletedPolyline.Layer = devLyr;
+                    ppld.UnfilletedPolyline.AddEntityToDbModelSpace(localDb);
                     #endregion
 
                     //ppld.Serialize($"C:\\Temp\\sample_data_{ppld.Name}.json");

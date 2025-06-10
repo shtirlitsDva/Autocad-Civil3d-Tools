@@ -108,8 +108,8 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
                 else throw new Exception($"Merged polygon is not a valid polygon!");
             }
         }
-        public Polyline? test { get; set; }
-        internal void ProcessSelectedUtilities()
+        public Polyline? UnfilletedPolyline { get; set; }
+        internal void ProcessSelectedUtilitiesToCreateUnfilletedPolyline()
         {
             if (SurfaceProfile == null) throw new Exception("No surface profile found for the pipeline!");
             if (SurfaceProfile.OffsetCentrelines == null) throw new Exception("No offset centrelines found for the surface profile!");
@@ -309,7 +309,11 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
                 }
             }
 
-            test = lowerpline; //for debugging purposes
+            UnfilletedPolyline = lowerpline;
+        }
+        internal void FilletPolyline()
+        {
+
         }
         public void Serialize(string filename)
         {
