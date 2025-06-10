@@ -708,13 +708,14 @@ namespace IntersectUtilities
                 //Used to keep track of point names
                 HashSet<string> pNames = new HashSet<string>();
                 CogoPointCollection cogoPoints = civilDoc.CogoPoints;
-                cogoPoints.Select(x => pNames.Add(x.Go<CogoPoint>(tx).PointName));
+                pNames.UnionWith(cogoPoints.Select(x => x.Go<CogoPoint>(tx).PointName));
                 #endregion
 
                 #region CogoPoint style and label reference
                 Oid cogoPointStyle = civilDoc.Styles.PointStyles["LER KRYDS"];
                 #endregion
 
+                int count = 1;
                 foreach (Alignment al in allAlignments)
                 {
                     #region Create ler data
@@ -843,8 +844,7 @@ namespace IntersectUtilities
                         #region Create points
                         List<Point3d> p3dcol = new List<Point3d>();
                         al.IntersectWithValidation((Curve)ent, p3dcol);
-
-                        int count = 1;
+                        
                         foreach (Point3d p3d in p3dcol)
                         {
                             //Determine if the intersection point is within the polygon area
