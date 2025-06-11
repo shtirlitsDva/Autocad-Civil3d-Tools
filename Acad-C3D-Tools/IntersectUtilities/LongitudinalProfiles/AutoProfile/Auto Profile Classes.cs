@@ -315,25 +315,25 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
         }
         internal void FilletPolyline()
         {
-            if (UnfilletedPolyline == null)
-            {
-                FilletedPolyline = null;
-                return;
-            }
+            //if (UnfilletedPolyline == null)
+            //{
+            //    FilletedPolyline = null;
+            //    return;
+            //}
 
-            AutoProfileFilleter filleter = new AutoProfileFilleter();
+            //AutoProfileFilleter filleter = new AutoProfileFilleter();
 
-            // Define the callback for getting the radius.
-            // This is a placeholder. You'll need to implement the actual logic 
-            // based on your application's requirements for how radius changes.
-            Func<Point3d, double> getRadiusCallback = (cornerPoint) =>
-            {
-                // Example: Constant radius for now. 
-                // Replace with your actual logic e.g. based on SizeArray and cornerPoint's station.
-                return 5.0; // Placeholder constant radius
-            };
+            //// Define the callback for getting the radius.
+            //// This is a placeholder. You'll need to implement the actual logic 
+            //// based on your application's requirements for how radius changes.
+            //Func<Point3d, double> getRadiusCallback = (cornerPoint) =>
+            //{
+            //    // Example: Constant radius for now. 
+            //    // Replace with your actual logic e.g. based on SizeArray and cornerPoint's station.
+            //    return 5.0; // Placeholder constant radius
+            //};
 
-            FilletedPolyline = filleter.FilletPolyline(UnfilletedPolyline, getRadiusCallback);
+            //FilletedPolyline = filleter.FilletPolyline(UnfilletedPolyline, getRadiusCallback);
         }
         public void Serialize(string filename)
         {

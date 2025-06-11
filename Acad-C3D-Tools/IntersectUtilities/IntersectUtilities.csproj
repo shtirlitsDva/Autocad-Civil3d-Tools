@@ -36,6 +36,10 @@
 		<DebugType>full</DebugType>
 	</PropertyGroup>
 	<ItemGroup>
+	  <Compile Remove="LongitudinalProfiles\AutoProfile\SolidAutoProfileFilleter.cs" />
+	  <Compile Remove="LongitudinalProfiles\AutoProfile\SolidAutoProfileFilleter_Complete.cs" />
+	</ItemGroup>
+	<ItemGroup>
 	  <None Remove="IntersectUtilities.dll.config" />
 	</ItemGroup>
 	<ItemGroup>
