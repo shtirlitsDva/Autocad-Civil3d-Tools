@@ -216,8 +216,8 @@ namespace IntersectUtilities
                                 double rotation = br.Rotation;
                                 Vector3d brDir = new Vector3d(Math.Cos(rotation), Math.Sin(rotation), 0);
 
-                                Polyline falPline = first.al.GetPolyline().Go<Polyline>(alTx);
-                                Polyline salPline = second.al.GetPolyline().Go<Polyline>(alTx);
+                                Polyline falPline = alPls[first.al];
+                                Polyline salPline = alPls[second.al];
 
                                 double firstDotProduct = 0;
                                 double secondDotProduct = 0;
@@ -245,14 +245,7 @@ namespace IntersectUtilities
                                     prdDbg("Error in GetClosestPointTo -> loop incomplete! (Using GetFirstDerivative)");
                                     prdDbg($"F: {first.al.Name}, S: {second.al.Name}");
                                     throw;
-                                }
-                                finally
-                                {
-                                    falPline.UpgradeOpen();
-                                    falPline.Erase(true);
-                                    salPline.UpgradeOpen();
-                                    salPline.Erase(true);
-                                }
+                                }                                
 
                                 Alignment mainAl = null;
                                 Alignment branchAl = null;
@@ -312,8 +305,10 @@ namespace IntersectUtilities
                                 var transform = br.BlockTransform;
                                 var vx = transform.CoordinateSystem3d.Xaxis;
 
-                                Point3d firstClosestPoint = result.First().al.GetClosestPointTo(br.Position, false);
-                                Vector3d firstDeriv = result.First().al.GetFirstDerivative(firstClosestPoint);
+                                var samplePoly = alPls[result.First().al];
+
+                                Point3d firstClosestPoint = samplePoly.GetClosestPointTo(br.Position, false);
+                                Vector3d firstDeriv = samplePoly.GetFirstDerivative(firstClosestPoint);
                                 double firstDotProduct = Math.Abs(vx.DotProduct(firstDeriv));
 
                                 double angle = Math.Acos(firstDotProduct) * 180 / Math.PI;
