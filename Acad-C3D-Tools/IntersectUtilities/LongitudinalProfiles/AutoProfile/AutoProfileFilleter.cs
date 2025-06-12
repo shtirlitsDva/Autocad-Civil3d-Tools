@@ -7,7 +7,6 @@ using Autodesk.AutoCAD.Geometry;
 namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
 {
     #region Core Interfaces
-
     /// <summary>
     /// Represents a segment of a polyline with native AutoCAD geometry support
     /// </summary>
@@ -66,7 +65,6 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
     {
         Polyline BuildPolyline(IList<IPolylineSegment> segments);
     }
-
     #endregion
 
     #region Core Data Structures
@@ -179,52 +177,6 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
     #endregion
 
     #region Service Implementations
-
-    /// <summary>
-    /// Extracts segments using AutoCAD's native API methods
-    /// </summary>
-    public class SegmentExtractor : ISegmentExtractor
-    {
-        public IList<IPolylineSegment> ExtractSegments(Polyline polyline)
-        {
-            var segments = new List<IPolylineSegment>();
-
-            if (polyline == null || polyline.NumberOfVertices < 2)
-                return segments;
-
-            int numSegments = polyline.Closed ? polyline.NumberOfVertices : polyline.NumberOfVertices - 1;
-
-            for (int i = 0; i < numSegments; i++)
-            {
-                var segmentType = polyline.GetSegmentType(i);
-
-                switch (segmentType)
-                {
-                    case SegmentType.Line:
-                        var lineGeometry = polyline.GetLineSegment2dAt(i);
-                        segments.Add(new PolylineLineSegment(lineGeometry));
-                        break;
-
-                    case SegmentType.Arc:
-                        var arcGeometry = polyline.GetArcSegment2dAt(i);
-                        segments.Add(new PolylineArcSegment(arcGeometry));
-                        break;
-
-                    case SegmentType.Coincident:
-                    case SegmentType.Point:
-                    case SegmentType.Empty:
-                        // Skip degenerate segments
-                        break;
-
-                    default:
-                        throw new NotSupportedException($"Segment type {segmentType} is not supported");
-                }
-            }
-
-            return segments;
-        }
-    }
-
     /// <summary>
     /// Simple radius provider using callback function
     /// </summary>
@@ -307,94 +259,15 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
         }
     }
 
-    #endregion
-
-    #region Fillet Strategies
-
-    /// <summary>
-    /// Strategy for filleting two line segments
-    /// </summary>
-    public class LineToLineFilletStrategy : IFilletStrategy
-    {
-        public bool CanHandle(IPolylineSegment segment1, IPolylineSegment segment2)
-        {
-            return segment1.SegmentType == SegmentType.Line && segment2.SegmentType == SegmentType.Line;
-        }
-
-        public FilletResult CreateFillet(IPolylineSegment segment1, IPolylineSegment segment2, double radius)
-        {
-            if (!CanHandle(segment1, segment2))
-                return new FilletResult(false) { FailureReason = FilletFailureReason.UnsupportedSegmentTypes };
-
-            if (radius <= 0)
-                return new FilletResult(false) { FailureReason = FilletFailureReason.InvalidRadius };
-
-            try
-            {
-                var line1 = (PolylineLineSegment)segment1;
-                var line2 = (PolylineLineSegment)segment2;
-
-                var geom1 = (LineSegment2d)line1.GetGeometry2d();
-                var geom2 = (LineSegment2d)line2.GetGeometry2d();
-
-                if (geom1.IsParallelTo(geom2) || geom1.IsColinearTo(geom2))
-                    return new FilletResult(false) { FailureReason = FilletFailureReason.SegmentsAreTangential };
-
-                double angle = geom1.Direction.GetAngleTo(geom2.Direction);
-                if (angle > Math.PI) angle = 2 * Math.PI - angle;
-
-                double tanDist = radius / Math.Tan(angle / 2.0);
-
-                if (tanDist >= geom1.Length)
-                    return new FilletResult(false) { FailureReason = FilletFailureReason.Seg1TooShort };
-
-                if (tanDist >= geom2.Length)
-                    return new FilletResult(false) { FailureReason = FilletFailureReason.Seg2TooShort };
-
-                Point2d tangentPoint1 = geom1.EndPoint - geom1.Direction * tanDist;
-                Point2d tangentPoint2 = geom2.StartPoint + geom2.Direction * tanDist;
-
-                // Create simple fillet arc using three points
-                Point2d midPoint = new Point2d((tangentPoint1.X + tangentPoint2.X) / 2, 
-                                              (tangentPoint1.Y + tangentPoint2.Y) / 2);
-                var filletArc = new CircularArc2d(tangentPoint1, midPoint, tangentPoint2);
-
-                var trimmedLine1 = new LineSegment2d(geom1.StartPoint, tangentPoint1);
-                var trimmedLine2 = new LineSegment2d(tangentPoint2, geom2.EndPoint);
-
-                var trimmedSeg1 = new PolylineLineSegment(trimmedLine1);
-                var trimmedSeg2 = new PolylineLineSegment(trimmedLine2);
-                var filletSegment = new PolylineArcSegment(filletArc);
-
-                return new FilletResult(true)
-                {
-                    TrimmedSegment1 = trimmedSeg1,
-                    FilletSegment = filletSegment,
-                    TrimmedSegment2 = trimmedSeg2
-                };
-            }
-            catch (Exception ex)
-            {
-                return new FilletResult(false)
-                {
-                    FailureReason = FilletFailureReason.CalculationError,
-                    ErrorMessage = ex.Message
-                };
-            }
-        }
-    }
-
-    #endregion
+    #endregion    
 
     #region Strategy Manager
-
     /// <summary>
     /// Manages all fillet strategies using Strategy pattern
     /// </summary>
     public class FilletStrategyManager
     {
         private readonly List<IFilletStrategy> _strategies;
-
         public FilletStrategyManager()
         {
             _strategies = new List<IFilletStrategy>
@@ -426,36 +299,28 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
     #endregion
 
     #region Main Filleter Class
-
-    public class SolidAutoProfileFilleter
-    {
-        private readonly ISegmentExtractor _segmentExtractor;
+    public class AutoProfileFilleter
+    {        
         private readonly IFilletRadiusProvider _radiusProvider;
         private readonly IPolylineBuilder _polylineBuilder;
         private readonly FilletStrategyManager _strategyManager;
+        private readonly PolylineManager _polyManager;
 
-        public SolidAutoProfileFilleter(
-            ISegmentExtractor segmentExtractor,
+        public AutoProfileFilleter(
             IFilletRadiusProvider radiusProvider,
             IPolylineBuilder polylineBuilder,
             FilletStrategyManager? strategyManager = null)
         {
-            _segmentExtractor = segmentExtractor ?? throw new ArgumentNullException(nameof(segmentExtractor));
             _radiusProvider = radiusProvider ?? throw new ArgumentNullException(nameof(radiusProvider));
             _polylineBuilder = polylineBuilder ?? throw new ArgumentNullException(nameof(polylineBuilder));
             _strategyManager = strategyManager ?? new FilletStrategyManager();
         }
 
-        public static SolidAutoProfileFilleter CreateDefault(
-            Func<Point2d, double> radiusCallback)
-        {
-            var segmentExtractor = new SegmentExtractor();
-            
-            var radiusProvider = new RadiusProvider(radiusCallback);
-            
+        public static AutoProfileFilleter CreateDefault(Func<Point2d, double> radiusCallback)
+        {                     
+            var radiusProvider = new RadiusProvider(radiusCallback);            
             var polylineBuilder = new AutoCadPolylineBuilder();
-
-            return new SolidAutoProfileFilleter(segmentExtractor, radiusProvider, polylineBuilder);
+            return new AutoProfileFilleter(radiusProvider, polylineBuilder);
         }
 
         public Polyline PerformFilleting(Polyline polyline)
@@ -468,8 +333,7 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
                 var segments = _segmentExtractor.ExtractSegments(polyline);
                 var segmentList = segments.ToList();
 
-                if (segmentList.Count < 2)
-                    return (Polyline)polyline.Clone();
+                if (segmentList.Count < 2) return (Polyline)polyline.Clone();
 
                 var resultSegments = new List<IPolylineSegment>();
 
@@ -510,7 +374,7 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
                         if (i == 0) resultSegments.Add(segment1);
                         resultSegments.Add(segment2);
                     }
-                }
+                }                
 
                 return _polylineBuilder.BuildPolyline(resultSegments);
             }
@@ -520,6 +384,5 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
             }
         }
     }
-
     #endregion
 }

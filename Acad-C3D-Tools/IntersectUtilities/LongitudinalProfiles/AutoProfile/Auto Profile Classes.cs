@@ -315,25 +315,27 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
         }
         internal void FilletPolyline()
         {
-            //if (UnfilletedPolyline == null)
-            //{
-            //    FilletedPolyline = null;
-            //    return;
-            //}
+            if (ProfileView == null) throw new Exception("No profile view found for the pipeline!");
+            if (SizeArray == null) throw new Exception("No size array found for the pipeline!");
 
-            //AutoProfileFilleter filleter = new AutoProfileFilleter();
+            if (UnfilletedPolyline == null)
+            {
+                FilletedPolyline = null;
+                return;
+            }
 
-            //// Define the callback for getting the radius.
-            //// This is a placeholder. You'll need to implement the actual logic 
-            //// based on your application's requirements for how radius changes.
-            //Func<Point3d, double> getRadiusCallback = (cornerPoint) =>
-            //{
-            //    // Example: Constant radius for now. 
-            //    // Replace with your actual logic e.g. based on SizeArray and cornerPoint's station.
-            //    return 5.0; // Placeholder constant radius
-            //};
+            double station = 0, elevation = 0;
+            var filleter = AutoProfileFilleter.CreateDefault(sampleRadius);
 
-            //FilletedPolyline = filleter.FilletPolyline(UnfilletedPolyline, getRadiusCallback);
+            double sampleRadius(Point2d pt)
+            {
+                //Get the station and elevation at the point
+                ProfileView!.ProfileView.FindStationAndElevationAtXY(pt.X, pt.Y, ref station, ref elevation);
+                var size = SizeArray!.GetSizeAtStation(station);
+                return size.VerticalMinRadius;
+            }
+
+            FilletedPolyline = filleter.PerformFilleting(UnfilletedPolyline);
         }
         public void Serialize(string filename)
         {
