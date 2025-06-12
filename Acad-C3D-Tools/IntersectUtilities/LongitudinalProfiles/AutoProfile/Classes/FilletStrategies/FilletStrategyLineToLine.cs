@@ -12,7 +12,7 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
     /// <summary>
     /// Strategy for filleting two line segments
     /// </summary>
-    internal sealed class LineToLineFilletStrategy : IFilletStrategy
+    internal sealed class FilletStrategyLineToLine : IFilletStrategy
     {
         public bool CanHandle(IPolylineSegment s1, IPolylineSegment s2) =>
             s1 is PolylineLineSegment && s2 is PolylineLineSegment;

@@ -8,10 +8,10 @@ using System.Threading.Tasks;
 
 namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
 {
-    internal sealed class LineToArcFilletStrategy : IFilletStrategy
+    internal sealed class FilletStrategyArcToLine : IFilletStrategy
     {
         public bool CanHandle(IPolylineSegment s1, IPolylineSegment s2) =>
-            s1 is PolylineLineSegment && s2 is PolylineArcSegment;
+            s1 is PolylineArcSegment && s2 is PolylineLineSegment;
 
         public FilletResult CreateFillet(IPolylineSegment s1, IPolylineSegment s2, double r)
         {
@@ -19,32 +19,33 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
 
             try
             {
-                var ln = (LineSegment2d)((PolylineLineSegment)s1).GetGeometry2d();
-                var arc = (CircularArc2d)((PolylineArcSegment)s2).GetGeometry2d();
-                Point2d v = ln.EndPoint;                           // shared vertex
+                var arc = (CircularArc2d)((PolylineArcSegment)s1).GetGeometry2d();
+                var ln = (LineSegment2d)((PolylineLineSegment)s2).GetGeometry2d();
+                Point2d v = arc.EndPoint;                            // shared vertex
 
-                Vector2d d1 = (ln.StartPoint - ln.EndPoint).GetNormal();
                 Vector2d rad = v - arc.Center;
-                Vector2d d2 = arc.IsClockWise
-                             ? new Vector2d(rad.Y, -rad.X).GetNormal()
-                             : new Vector2d(-rad.Y, rad.X).GetNormal();
+                Vector2d tOut = arc.IsClockWise
+                              ? new Vector2d(rad.Y, -rad.X).GetNormal()
+                              : new Vector2d(-rad.Y, rad.X).GetNormal();
+                Vector2d d1 = -tOut;                                 // into arc interior
+                Vector2d d2 = (ln.EndPoint - ln.StartPoint).GetNormal();
 
                 if (!FilletMath.TryConstructFillet(v, d1, d2, r, out Point2d t1, out Point2d t2,
                                                    out CircularArc2d f))
                     return new FilletResult(false) { FailureReason = FilletFailureReason.CalculationError };
 
-                var trimmedLn = new LineSegment2d(ln.StartPoint, t1);
-                double ns = Math.Atan2(t2.Y - arc.Center.Y, t2.X - arc.Center.X);
+                double newEnd = Math.Atan2(t1.Y - arc.Center.Y, t1.X - arc.Center.X);
                 var trimmedArc = new CircularArc2d(arc.Center, arc.Radius,
-                                                   ns, arc.EndAngle,
-                                                   Vector2d.XAxis,
+                                                   arc.StartAngle, newEnd,
+                                                    Vector2d.XAxis,
                                                    arc.IsClockWise);
+                var trimmedLn = new LineSegment2d(t2, ln.EndPoint);
 
                 return new FilletResult(true)
                 {
-                    TrimmedSegment1 = new PolylineLineSegment(trimmedLn),
+                    TrimmedSegment1 = new PolylineArcSegment(trimmedArc),
                     FilletSegment = new PolylineArcSegment(f),
-                    TrimmedSegment2 = new PolylineArcSegment(trimmedArc)
+                    TrimmedSegment2 = new PolylineLineSegment(trimmedLn)
                 };
             }
             catch (Exception ex)

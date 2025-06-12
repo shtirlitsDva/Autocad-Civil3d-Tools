@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace IntersectUtilities.LongitudinalProfiles.AutoProfile.Classes.FilletStrategies
 {
-    internal sealed class ArcToArcFilletStrategy : IFilletStrategy
+    internal sealed class FilletStrategyArcToArc : IFilletStrategy
     {
         public bool CanHandle(IPolylineSegment s1, IPolylineSegment s2) =>
             s1 is PolylineArcSegment && s2 is PolylineArcSegment;
