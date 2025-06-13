@@ -8,6 +8,7 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
         None,
         Seg1TooShort,
         Seg2TooShort,
+        BothSegsTooShort,
         RadiusTooLarge,
         SegmentsDoNotIntersect,
         SegmentsAreTangential,
@@ -15,5 +16,4 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
         CalculationError,
         InvalidRadius
     }
-    #endregion
 }

@@ -549,6 +549,42 @@ namespace IntersectUtilities
             prdDbg("Done!");
         }
 
+#if DEBUG
+        [CommandMethod("APTEST")]
+        public void aptest()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            using Transaction tx = localDb.TransactionManager.StartTransaction();
+            try
+            {
+                var oid = Interaction.GetEntity("Select polyline to test:", typeof(Polyline), true);
+                if (oid.IsNull) { tx.Abort(); return; }
+                Polyline pl = oid.Go<Polyline>(tx);
+                prdDbg($"Number of vertices: {pl.NumberOfVertices}");
+                prdDbg($"Length: {pl.Length}");
+                for (int i = 0; i < pl.NumberOfVertices; i++)
+                {
+                    prdDbg($"Vertex {i}: {pl.GetPoint2dAt(i)}");
+                }
+
+                var filleter = AutoProfileFilleter.CreateDefault(_ => 30.0);
+                var newPl = filleter.PerformFilleting(pl);
+                newPl.AddEntityToDbModelSpace(localDb);
+                newPl.Layer = "AutoProfileTest";
+                newPl.Color = ColorByName("red");
+            }
+            catch (System.Exception ex)
+            {
+                tx.Abort();
+                prdDbg(ex);
+                return;
+            }
+            tx.Commit();
+            prdDbg("Done!");
+        }
+#endif
+
         [CommandMethod("APEXPORTPLINE")]
         public void apexportpline()
         {

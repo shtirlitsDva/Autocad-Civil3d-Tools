@@ -20,7 +20,7 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
             _radiusCallback = radiusCallback ?? throw new ArgumentNullException(nameof(radiusCallback));
         }
 
-        public double GetRadiusAtPoint(Point2d point)
+        public double GetRadius(Point2d point)
         {
             return _radiusCallback(point);
         }

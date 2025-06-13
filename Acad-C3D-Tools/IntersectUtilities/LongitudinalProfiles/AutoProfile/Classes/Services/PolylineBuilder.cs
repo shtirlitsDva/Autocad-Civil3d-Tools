@@ -14,7 +14,7 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
     /// </summary>
     internal class PolylineBuilder : IPolylineBuilder
     {
-        public Polyline BuildPolyline(IList<IPolylineSegment> segments)
+        public Polyline BuildPolyline(ICollection<IPolylineSegment> segments)
         {
             if (segments == null)
                 throw new ArgumentNullException(nameof(segments));
@@ -22,8 +22,7 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
             if (segments.Count == 0)
                 throw new ArgumentException("At least one segment is required", nameof(segments));
 
-            var polyline = new Polyline();
-            int vertexIndex = 0;
+            var polyline = new Polyline();            
 
             foreach (var segment in segments)
             {
@@ -32,28 +31,27 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
                     var lineSegment = (PolylineLineSegment)segment;
                     var lineGeom = (LineSegment2d)lineSegment.GetGeometry2d();
 
-                    if (vertexIndex == 0)
+                    if (polyline.NumberOfVertices == 0)
                     {
-                        polyline.AddVertexAt(vertexIndex++, lineGeom.StartPoint, 0.0, 0.0, 0.0);
+                        polyline.AddVertexAt(polyline.NumberOfVertices, lineGeom.StartPoint, 0.0, 0.0, 0.0);
                     }
-                    polyline.AddVertexAt(vertexIndex++, lineGeom.EndPoint, 0.0, 0.0, 0.0);
+                    polyline.AddVertexAt(polyline.NumberOfVertices, lineGeom.EndPoint, 0.0, 0.0, 0.0);
                 }
                 else if (segment.SegmentType == SegmentType.Arc)
                 {
                     var arcSegment = (PolylineArcSegment)segment;
                     var arcGeom = (CircularArc2d)arcSegment.GetGeometry2d();
-
-                    if (vertexIndex == 0)
-                    {
-                        double bulge = CalculateBulgeFromArc(arcGeom);
-                        polyline.AddVertexAt(vertexIndex++, arcGeom.StartPoint, bulge, 0.0, 0.0);
+                    double bulge = CalculateBulgeFromArc(arcGeom);
+                    
+                    if (polyline.NumberOfVertices == 0)
+                    {                        
+                        polyline.AddVertexAt(polyline.NumberOfVertices, arcGeom.StartPoint, bulge, 0.0, 0.0);
                     }
                     else
                     {
-                        double bulge = CalculateBulgeFromArc(arcGeom);
-                        polyline.SetBulgeAt(vertexIndex - 1, bulge);
+                        polyline.SetBulgeAt(polyline.NumberOfVertices - 1, bulge);
                     }
-                    polyline.AddVertexAt(vertexIndex++, arcGeom.EndPoint, 0.0, 0.0, 0.0);
+                    polyline.AddVertexAt(polyline.NumberOfVertices, arcGeom.EndPoint, 0.0, 0.0, 0.0);
                 }
             }
             return polyline;
@@ -66,8 +64,7 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
                 sweepAngle = 2 * Math.PI - sweepAngle;
 
             double bulge = Math.Tan(sweepAngle / 4.0);
-            if (arc.IsClockWise)
-                bulge = -bulge;
+            if (arc.IsClockWise) bulge = -bulge;
 
             return bulge;
         }

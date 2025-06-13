@@ -1,11 +1,6 @@
-﻿using Autodesk.AutoCAD.DatabaseServices;
-using Autodesk.AutoCAD.Geometry;
+﻿using Autodesk.AutoCAD.Geometry;
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
 {
@@ -17,10 +12,10 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
         public bool CanHandle(IPolylineSegment s1, IPolylineSegment s2) =>
             s1 is PolylineLineSegment && s2 is PolylineLineSegment;
 
-        public FilletResult CreateFillet(IPolylineSegment s1, IPolylineSegment s2, double r)
+        public IFilletResult CreateFillet(IPolylineSegment s1, IPolylineSegment s2, double r)
         {
             if (r <= 0)
-                return new FilletResult(false) { FailureReason = FilletFailureReason.InvalidRadius };
+                return new FilletResultThreePart(false) { FailureReason = FilletFailureReason.InvalidRadius };
 
             try
             {
@@ -36,12 +31,16 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
                                                    out Point2d t1,
                                                    out Point2d t2,
                                                    out CircularArc2d fil))
-                    return new FilletResult(false) { FailureReason = FilletFailureReason.SegmentsAreTangential };
+                    return new FilletResultThreePart(false) { FailureReason = FilletFailureReason.SegmentsAreTangential };
+
+                var legCheck = FilletValidation.CheckLegRoom(s1, t1, s2, t2);
+                if (legCheck != FilletFailureReason.None)                
+                    return new FilletResultThreePart(false) { FailureReason = legCheck };                
 
                 var trimmedL1 = new LineSegment2d(l1.StartPoint, t1);
                 var trimmedL2 = new LineSegment2d(t2, l2.EndPoint);
 
-                return new FilletResult(true)
+                return new FilletResultThreePart(true)
                 {
                     TrimmedSegment1 = new PolylineLineSegment(trimmedL1),
                     FilletSegment = new PolylineArcSegment(fil),
@@ -50,7 +49,7 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
             }
             catch (Exception ex)
             {
-                return new FilletResult(false)
+                return new FilletResultThreePart(false)
                 {
                     FailureReason = FilletFailureReason.CalculationError,
                     ErrorMessage = ex.Message

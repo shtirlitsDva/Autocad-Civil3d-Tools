@@ -7,7 +7,6 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
     /// </summary>
     public interface IFilletRadiusProvider
     {
-        double GetRadiusAtPoint(Point2d point);
+        double GetRadius(Point2d point);
     }
-    #endregion
 }

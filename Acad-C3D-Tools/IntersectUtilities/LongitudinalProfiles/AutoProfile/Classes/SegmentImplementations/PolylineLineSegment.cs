@@ -28,5 +28,4 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
 
         public override string ToString() => $"Line: {StartPoint} -> {EndPoint}";
     }
-    #endregion
 }

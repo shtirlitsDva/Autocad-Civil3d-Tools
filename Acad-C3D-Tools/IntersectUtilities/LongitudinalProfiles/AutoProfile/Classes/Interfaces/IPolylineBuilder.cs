@@ -9,7 +9,6 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
     /// </summary>
     public interface IPolylineBuilder
     {
-        Polyline BuildPolyline(IList<IPolylineSegment> segments);
+        Polyline BuildPolyline(ICollection<IPolylineSegment> segments);
     }
-    #endregion
 }

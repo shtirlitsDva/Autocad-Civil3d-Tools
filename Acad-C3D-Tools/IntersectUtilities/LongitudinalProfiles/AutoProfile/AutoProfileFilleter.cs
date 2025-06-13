@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 
 using Autodesk.AutoCAD.DatabaseServices;
@@ -6,14 +7,14 @@ using Autodesk.AutoCAD.Geometry;
 
 namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
 {
-    public class AutoProfileFilleter
+    internal class AutoProfileFilleter
     {        
         private readonly IFilletRadiusProvider _radiusProvider;
         private readonly IPolylineBuilder _polylineBuilder;
         private readonly ISegmentExtractor _segmentExtractor;
         private readonly FilletStrategyManager _strategyManager;
         
-        public AutoProfileFilleter(
+        internal AutoProfileFilleter(
             IFilletRadiusProvider radiusProvider,
             IPolylineBuilder polylineBuilder,
             ISegmentExtractor segmentExtractor,
@@ -25,7 +26,7 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
             _strategyManager = strategyManager ?? new FilletStrategyManager();
         }
 
-        public static AutoProfileFilleter CreateDefault(Func<Point2d, double> radiusCallback)
+        internal static AutoProfileFilleter CreateDefault(Func<Point2d, double> radiusCallback)
         {                     
             var radiusProvider = new RadiusProvider(radiusCallback);            
             var polylineBuilder = new PolylineBuilder();
@@ -33,57 +34,56 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
             return new AutoProfileFilleter(radiusProvider, polylineBuilder, segmentExtractor);
         }
 
-        public Polyline PerformFilleting(Polyline polyline)
+        internal Polyline PerformFilleting(Polyline polyline)
         {
             if (polyline == null)
                 throw new ArgumentNullException(nameof(polyline));            
 
             try
             {
-                
+                var segments = _segmentExtractor.ExtractSegments(polyline);
 
-                
+                //Remove very short segments from the segments
+                //As these cause autocad internal stuff to fail
+                double threshold = 0.01;
+                var lquery = () => segments.Any(x => x.Length < threshold);
+                while (lquery.Invoke())                
+                    PolylineSanitizer.PruneShortSegments(segments, threshold);                
 
-                for (int i = 0; i < segmentList.Count - 1; i++)
-                {
-                    var segment1 = segmentList[i];
-                    var segment2 = segmentList[i + 1];
-
-                    double radius = _radiusProvider.GetRadiusAtPoint(segment1.EndPoint);
-
-                    var strategy = _strategyManager.GetStrategy(segment1, segment2);
-                    if (strategy == null)
+                //Begin the filleting procedure
+                var skipped = new HashSet<VertexKey>();                
+                int safetyCounter = 0;
+                while (segments.TryGetFilletCandidate(
+                        skipped, _strategyManager, out var nodes))
+                { 
+                    if (safetyCounter++ > 300)                    
+                        throw new InvalidOperationException(
+                            "Safety limit exceeded while filleting segments. " +
+                            "Possible infinite loop detected.");
+                    
+                    var seg1 = nodes.firstNode.Value;
+                    var seg2 = nodes.secondNode.Value;
+                    var strategy = _strategyManager.GetStrategy(seg1, seg2);
+                    if (strategy == null) 
                     {
-                        if (i == 0) resultSegments.Add(segment1);
-                        resultSegments.Add(segment2);
+                        skipped.Add(VertexKey.From(seg1.EndPoint));
                         continue;
                     }
 
-                    var filletResult = strategy.CreateFillet(segment1, segment2, radius);
-                    
-                    if (filletResult.Success && filletResult.TrimmedSegment1 != null && 
-                        filletResult.FilletSegment != null && filletResult.TrimmedSegment2 != null)
+                    IFilletResult result = strategy.CreateFillet(
+                        seg1, seg2, _radiusProvider.GetRadius(seg1.EndPoint));
+
+                    if (result.Success)
                     {
-                        if (i == 0) resultSegments.Add(filletResult.TrimmedSegment1);
-                        resultSegments.Add(filletResult.FilletSegment);
-                        
-                        if (i < segmentList.Count - 2)
-                        {
-                            segmentList[i + 1] = filletResult.TrimmedSegment2;
-                        }
-                        else
-                        {
-                            resultSegments.Add(filletResult.TrimmedSegment2);
-                        }
+                        result.UpdateWithResults(segments, nodes);
                     }
                     else
                     {
-                        if (i == 0) resultSegments.Add(segment1);
-                        resultSegments.Add(segment2);
+                        skipped.Add(VertexKey.From(seg1.EndPoint));
                     }
-                }                
+                }                              
 
-                return _polylineBuilder.BuildPolyline(resultSegments);
+                return _polylineBuilder.BuildPolyline(segments);
             }
             catch (Exception ex)
             {

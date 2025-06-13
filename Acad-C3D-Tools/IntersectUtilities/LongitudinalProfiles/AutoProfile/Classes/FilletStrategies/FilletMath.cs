@@ -1,10 +1,6 @@
 ﻿using Autodesk.AutoCAD.Geometry;
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
 {
@@ -25,22 +21,45 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
             fil = null;
 
             double ang = d1.GetAngleTo(d2);
-            if (ang < Eps || ang > Math.PI - Eps) return false;     // parallel or 180°
+            if (ang < Eps || ang > Math.PI - Eps) return false;
 
-            double t = r * Math.Tan(ang / 2.0);                   // offset along each segment
+            double t = r / Math.Tan(ang / 2.0);
             p1 = v + d1 * t;
             p2 = v + d2 * t;
 
-            Vector2d bis = (d1 + d2).GetNormal();                  // interior bisector
+            Vector2d bis = (d1 + d2).GetNormal();
             double off = r / Math.Sin(ang / 2.0);
             Point2d cen = v + bis * off;
 
-            double a1 = Math.Atan2(p1.Y - cen.Y, p1.X - cen.X);
-            double a2 = Math.Atan2(p2.Y - cen.Y, p2.X - cen.X);
-            bool cw = ((p1 - cen).X * (p2 - cen).Y -
-                         (p1 - cen).Y * (p2 - cen).X) < 0.0;
+            static double NormCCW(double a)
+            {
+                a %= 2 * Math.PI;
+                return a < 0 ? a + 2 * Math.PI : a;
+            }
 
-            fil = new CircularArc2d(cen, r, a1, a2, Vector2d.XAxis, cw);
+            double a1CCW = NormCCW(Math.Atan2(p1.Y - cen.Y, p1.X - cen.X));
+            double a2CCW = NormCCW(Math.Atan2(p2.Y - cen.Y, p2.X - cen.X));
+
+            bool cw = ((p1 - cen).X * (p2 - cen).Y -
+                       (p1 - cen).Y * (p2 - cen).X) < 0.0;
+
+            double startAng, endAng;
+            if (cw)
+            {
+                // convert to clockwise measurement
+                startAng = 2 * Math.PI - a1CCW;
+                endAng = 2 * Math.PI - a2CCW;
+            }
+            else
+            {
+                startAng = a1CCW;
+                endAng = a2CCW;
+            }
+
+            // enforce end > start as required by AcGe
+            if (endAng <= startAng) endAng += 2 * Math.PI;
+
+            fil = new CircularArc2d(cen, r, startAng, endAng, Vector2d.XAxis, cw);
             return true;
         }
     }

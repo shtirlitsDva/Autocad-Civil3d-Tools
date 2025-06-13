@@ -28,5 +28,4 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
         /// </summary>
         Vector2d GetEndTangent();
     }
-    #endregion
 }

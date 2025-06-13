@@ -7,10 +7,10 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
     /// <summary>
     /// Manages all fillet strategies using Strategy pattern
     /// </summary>
-    public class FilletStrategyManager
+    internal class FilletStrategyManager
     {
         private readonly List<IFilletStrategy> _strategies;
-        public FilletStrategyManager()
+        internal FilletStrategyManager()
         {
             _strategies = new List<IFilletStrategy>
             {
@@ -19,7 +19,7 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
             };
         }
 
-        public void RegisterStrategy(IFilletStrategy strategy)
+        internal void RegisterStrategy(IFilletStrategy strategy)
         {
             if (strategy == null)
                 throw new ArgumentNullException(nameof(strategy));
@@ -27,12 +27,12 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
             _strategies.Add(strategy);
         }
 
-        public IFilletStrategy? GetStrategy(IPolylineSegment segment1, IPolylineSegment segment2)
+        internal IFilletStrategy? GetStrategy(IPolylineSegment segment1, IPolylineSegment segment2)
         {
             return _strategies.FirstOrDefault(s => s.CanHandle(segment1, segment2));
         }
 
-        public IReadOnlyList<IFilletStrategy> GetAllStrategies()
+        internal IReadOnlyList<IFilletStrategy> GetAllStrategies()
         {
             return _strategies.AsReadOnly();
         }

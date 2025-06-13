@@ -1,10 +1,6 @@
 ﻿using Autodesk.AutoCAD.Geometry;
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
 {
@@ -13,15 +9,15 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
         public bool CanHandle(IPolylineSegment s1, IPolylineSegment s2) =>
             s1 is PolylineLineSegment && s2 is PolylineArcSegment;
 
-        public FilletResult CreateFillet(IPolylineSegment s1, IPolylineSegment s2, double r)
+        public IFilletResult CreateFillet(IPolylineSegment s1, IPolylineSegment s2, double r)
         {
-            if (r <= 0) return new FilletResult(false) { FailureReason = FilletFailureReason.InvalidRadius };
+            if (r <= 0) return new FilletResultThreePart(false) { FailureReason = FilletFailureReason.InvalidRadius };
 
             try
             {
                 var ln = (LineSegment2d)((PolylineLineSegment)s1).GetGeometry2d();
                 var arc = (CircularArc2d)((PolylineArcSegment)s2).GetGeometry2d();
-                Point2d v = ln.EndPoint;                           // shared vertex
+                Point2d v = ln.EndPoint;
 
                 Vector2d d1 = (ln.StartPoint - ln.EndPoint).GetNormal();
                 Vector2d rad = v - arc.Center;
@@ -31,7 +27,11 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
 
                 if (!FilletMath.TryConstructFillet(v, d1, d2, r, out Point2d t1, out Point2d t2,
                                                    out CircularArc2d f))
-                    return new FilletResult(false) { FailureReason = FilletFailureReason.CalculationError };
+                    return new FilletResultThreePart(false) { FailureReason = FilletFailureReason.CalculationError };
+
+                var legCheck = FilletValidation.CheckLegRoom(s1, t1, s2, t2);
+                if (legCheck != FilletFailureReason.None)
+                    return new FilletResultThreePart(false) { FailureReason = legCheck };
 
                 var trimmedLn = new LineSegment2d(ln.StartPoint, t1);
                 double ns = Math.Atan2(t2.Y - arc.Center.Y, t2.X - arc.Center.X);
@@ -40,7 +40,7 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
                                                    Vector2d.XAxis,
                                                    arc.IsClockWise);
 
-                return new FilletResult(true)
+                return new FilletResultThreePart(true)
                 {
                     TrimmedSegment1 = new PolylineLineSegment(trimmedLn),
                     FilletSegment = new PolylineArcSegment(f),
@@ -49,7 +49,7 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
             }
             catch (Exception ex)
             {
-                return new FilletResult(false)
+                return new FilletResultThreePart(false)
                 { FailureReason = FilletFailureReason.CalculationError, ErrorMessage = ex.Message };
             }
         }

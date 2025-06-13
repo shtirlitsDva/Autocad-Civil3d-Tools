@@ -1,10 +1,6 @@
 ﻿using Autodesk.AutoCAD.Geometry;
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
 {
@@ -13,26 +9,30 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
         public bool CanHandle(IPolylineSegment s1, IPolylineSegment s2) =>
             s1 is PolylineArcSegment && s2 is PolylineLineSegment;
 
-        public FilletResult CreateFillet(IPolylineSegment s1, IPolylineSegment s2, double r)
+        public IFilletResult CreateFillet(IPolylineSegment s1, IPolylineSegment s2, double r)
         {
-            if (r <= 0) return new FilletResult(false) { FailureReason = FilletFailureReason.InvalidRadius };
+            if (r <= 0) return new FilletResultThreePart(false) { FailureReason = FilletFailureReason.InvalidRadius };
 
             try
             {
                 var arc = (CircularArc2d)((PolylineArcSegment)s1).GetGeometry2d();
                 var ln = (LineSegment2d)((PolylineLineSegment)s2).GetGeometry2d();
-                Point2d v = arc.EndPoint;                            // shared vertex
+                Point2d v = arc.EndPoint;
 
                 Vector2d rad = v - arc.Center;
                 Vector2d tOut = arc.IsClockWise
                               ? new Vector2d(rad.Y, -rad.X).GetNormal()
                               : new Vector2d(-rad.Y, rad.X).GetNormal();
-                Vector2d d1 = -tOut;                                 // into arc interior
+                Vector2d d1 = -tOut;
                 Vector2d d2 = (ln.EndPoint - ln.StartPoint).GetNormal();
 
                 if (!FilletMath.TryConstructFillet(v, d1, d2, r, out Point2d t1, out Point2d t2,
                                                    out CircularArc2d f))
-                    return new FilletResult(false) { FailureReason = FilletFailureReason.CalculationError };
+                    return new FilletResultThreePart(false) { FailureReason = FilletFailureReason.CalculationError };
+
+                var legCheck = FilletValidation.CheckLegRoom(s1, t1, s2, t2);
+                if (legCheck != FilletFailureReason.None)
+                    return new FilletResultThreePart(false) { FailureReason = legCheck };
 
                 double newEnd = Math.Atan2(t1.Y - arc.Center.Y, t1.X - arc.Center.X);
                 var trimmedArc = new CircularArc2d(arc.Center, arc.Radius,
@@ -41,7 +41,7 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
                                                    arc.IsClockWise);
                 var trimmedLn = new LineSegment2d(t2, ln.EndPoint);
 
-                return new FilletResult(true)
+                return new FilletResultThreePart(true)
                 {
                     TrimmedSegment1 = new PolylineArcSegment(trimmedArc),
                     FilletSegment = new PolylineArcSegment(f),
@@ -50,7 +50,7 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
             }
             catch (Exception ex)
             {
-                return new FilletResult(false)
+                return new FilletResultThreePart(false)
                 { FailureReason = FilletFailureReason.CalculationError, ErrorMessage = ex.Message };
             }
         }
