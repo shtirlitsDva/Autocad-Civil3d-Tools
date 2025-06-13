@@ -11,46 +11,79 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
 
         public IFilletResult CreateFillet(IPolylineSegment s1, IPolylineSegment s2, double r)
         {
-            if (r <= 0) return new FilletResultThreePart(false) { FailureReason = FilletFailureReason.InvalidRadius };
+            if (r <= 0)
+                return new FilletResultThreePart(false)
+                { FailureReason = FilletFailureReason.InvalidRadius };
 
             try
             {
                 var ln = (LineSegment2d)((PolylineLineSegment)s1).GetGeometry2d();
                 var arc = (CircularArc2d)((PolylineArcSegment)s2).GetGeometry2d();
+
                 Point2d v = ln.EndPoint;
+                Vector2d uL = (ln.EndPoint - ln.StartPoint).GetNormal();
 
-                Vector2d d1 = (ln.StartPoint - ln.EndPoint).GetNormal();
-                Vector2d rad = v - arc.Center;
-                Vector2d d2 = arc.IsClockWise
-                             ? new Vector2d(rad.Y, -rad.X).GetNormal()
-                             : new Vector2d(-rad.Y, rad.X).GetNormal();
+                // ---- 1.  analytic solution -----------------------------------------
+                if (!FilletMath.TryLineArcTangent(
+                        ln: ln, arc: arc,
+                        filletR: r,
+                        out Point2d cen, out Point2d pArc, out Point2d pLin))
+                    return new FilletResultThreePart(false)
+                    { FailureReason = FilletFailureReason.RadiusTooLarge };
 
-                if (!FilletMath.TryConstructFillet(v, d1, d2, r, out Point2d t1, out Point2d t2,
-                                                   out CircularArc2d f))
-                    return new FilletResultThreePart(false) { FailureReason = FilletFailureReason.CalculationError };
-
-                var legCheck = FilletValidation.CheckLegRoom(s1, t1, s2, t2);
+                var legCheck = FilletValidation.CheckLegRoom(s1, pLin, s2, pArc);
                 if (legCheck != FilletFailureReason.None)
                     return new FilletResultThreePart(false) { FailureReason = legCheck };
 
-                var trimmedLn = new LineSegment2d(ln.StartPoint, t1);
-                double ns = Math.Atan2(t2.Y - arc.Center.Y, t2.X - arc.Center.X);
-                var trimmedArc = new CircularArc2d(arc.Center, arc.Radius,
-                                                   ns, arc.EndAngle,
-                                                   Vector2d.XAxis,
-                                                   arc.IsClockWise);
+#if DEBUG
+                //var dbg = FilletMath.DumpLineArcDebug(ln, arc, v, r, cen, pLin, pArc, legCheck);
+                //prdDbg(dbg);
+                //throw new InvalidOperationException();
+#endif
+
+                // ---- 2.  trim primitives -------------------------------------------
+                var trimmedLn = new LineSegment2d(ln.StartPoint, pLin);
+                var trimmedArc = FilletMath.TrimArcToPoint(arc, pArc, trimEnd: false);
+
+                // ---- 3.  fillet arc -------------------------------------------------
+                bool cw = ((pLin - cen).X * (pArc - cen).Y -
+                           (pLin - cen).Y * (pArc - cen).X) < 0.0;
+
+                double aStartCCW = Math.Atan2(pLin.Y - cen.Y, pLin.X - cen.X);
+                double aEndCCW = Math.Atan2(pArc.Y - cen.Y, pArc.X - cen.X);
+
+                double startAng, endAng;
+                if (cw)
+                {
+                    startAng = 2 * Math.PI - aStartCCW;
+                    endAng = 2 * Math.PI - aEndCCW;
+                    if (endAng <= startAng) endAng += 2 * Math.PI;
+                }
+                else
+                {
+                    startAng = aStartCCW;
+                    endAng = aEndCCW;
+                    if (endAng <= startAng) endAng += 2 * Math.PI;
+                }
+
+                var fillet = new CircularArc2d(cen, r,
+                                               startAng, endAng,
+                                               Vector2d.XAxis, cw);
 
                 return new FilletResultThreePart(true)
                 {
                     TrimmedSegment1 = new PolylineLineSegment(trimmedLn),
-                    FilletSegment = new PolylineArcSegment(f),
+                    FilletSegment = new PolylineArcSegment(fillet),
                     TrimmedSegment2 = new PolylineArcSegment(trimmedArc)
                 };
             }
             catch (Exception ex)
             {
                 return new FilletResultThreePart(false)
-                { FailureReason = FilletFailureReason.CalculationError, ErrorMessage = ex.Message };
+                {
+                    FailureReason = FilletFailureReason.CalculationError,
+                    ErrorMessage = ex.Message
+                };
             }
         }
     }

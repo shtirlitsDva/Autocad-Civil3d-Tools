@@ -14,8 +14,10 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
         {
             _strategies = new List<IFilletStrategy>
             {
-                new FilletStrategyLineToLine()
-                // Additional strategies can be added here
+                new FilletStrategyLineToLine(),
+                new FilletStrategyArcToArc(),
+                new FilletStrategyArcToLine(),
+                new FilletStrategyLineToArc(),
             };
         }
 

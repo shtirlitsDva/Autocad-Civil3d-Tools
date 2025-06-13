@@ -7,8 +7,7 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
     /// Result of a fillet operation with detailed error reporting
     /// </summary>
     public class FilletResultThreePart : FilletResultBase
-    {
-        
+    {        
         public IPolylineSegment? TrimmedSegment1 { get; set; }
         public IPolylineSegment? FilletSegment { get; set; }
         public IPolylineSegment? TrimmedSegment2 { get; set; }

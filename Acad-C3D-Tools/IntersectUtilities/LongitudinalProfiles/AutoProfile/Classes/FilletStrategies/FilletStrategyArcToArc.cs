@@ -1,8 +1,10 @@
 ﻿using Autodesk.AutoCAD.Geometry;
+using static IntersectUtilities.UtilsCommon.Utils;
 
 using System;
+using System.Windows.Documents;
 
-namespace IntersectUtilities.LongitudinalProfiles.AutoProfile.Classes.FilletStrategies
+namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
 {
     internal sealed class FilletStrategyArcToArc : IFilletStrategy
     {
@@ -11,56 +13,98 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile.Classes.FilletStra
 
         public IFilletResult CreateFillet(IPolylineSegment s1, IPolylineSegment s2, double r)
         {
-            if (r <= 0) return new FilletResultThreePart(false) { FailureReason = FilletFailureReason.InvalidRadius };
+            if (r <= 0)
+                return new FilletResultThreePart(false)
+                { FailureReason = FilletFailureReason.InvalidRadius };
 
             try
             {
-                var a1 = (CircularArc2d)((PolylineArcSegment)s1).GetGeometry2d();
-                var a2 = (CircularArc2d)((PolylineArcSegment)s2).GetGeometry2d();
-                Point2d v = a1.EndPoint;
+                var arc1 = (CircularArc2d)((PolylineArcSegment)s1).GetGeometry2d();
+                var arc2 = (CircularArc2d)((PolylineArcSegment)s2).GetGeometry2d();
 
-                Vector2d rad1 = v - a1.Center;
-                Vector2d tOut1 = a1.IsClockWise
-                               ? new Vector2d(rad1.Y, -rad1.X).GetNormal()
-                               : new Vector2d(-rad1.Y, rad1.X).GetNormal();
-                Vector2d d1 = -tOut1;
+                // ---- 1.  centres that satisfy CiF = Ri + r --------------------------
+                if (!FilletMath.TryCircleCircleTangent(
+                        arc1.Center, arc1.Radius,
+                        arc2.Center, arc2.Radius,
+                        r,
+                        out Point2d cA, out Point2d cB))
+                    return new FilletResultThreePart(false)
+                    { FailureReason = FilletFailureReason.RadiusTooLarge };
 
-                Vector2d rad2 = v - a2.Center;
-                Vector2d d2 = a2.IsClockWise
-                               ? new Vector2d(rad2.Y, -rad2.X).GetNormal()
-                               : new Vector2d(-rad2.Y, rad2.X).GetNormal();
+                // choose the centre that sits inside the interior angle
+                Point2d ChooseValidCentre(Point2d candCen)
+                {
+                    Vector2d d1 = (candCen - arc1.Center).GetNormal();
+                    Vector2d d2 = (candCen - arc2.Center).GetNormal();
 
-                if (!FilletMath.TryConstructFillet(v, d1, d2, r, out Point2d t1, out Point2d t2,
-                                                   out CircularArc2d f))
-                    return new FilletResultThreePart(false) { FailureReason = FilletFailureReason.CalculationError };
+                    Point2d q1 = arc1.Center + d1 * arc1.Radius;
+                    Point2d q2 = arc2.Center + d2 * arc2.Radius;
 
-                var legCheck = FilletValidation.CheckLegRoom(s1, t1, s2, t2);
-                if (legCheck != FilletFailureReason.None)
-                    return new FilletResultThreePart(false) { FailureReason = legCheck };
+                    return (arc1.IsOn(q1) && arc2.IsOn(q2)) ? candCen : Point2d.Origin;
+                }
 
-                double newEnd1 = Math.Atan2(t1.Y - a1.Center.Y, t1.X - a1.Center.X);
-                var trimmedA1 = new CircularArc2d(a1.Center, a1.Radius,
-                                                     a1.StartAngle, newEnd1,
-                                                     Vector2d.XAxis,
-                                                     a1.IsClockWise);
+                Point2d filletCen = ChooseValidCentre(cA);
+                if (filletCen == Point2d.Origin)
+                    filletCen = ChooseValidCentre(cB);
+                if (filletCen == Point2d.Origin)
+                    return new FilletResultThreePart(false)
+                    { FailureReason = FilletFailureReason.RadiusTooLarge };
 
-                double newStart2 = Math.Atan2(t2.Y - a2.Center.Y, t2.X - a2.Center.X);
-                var trimmedA2 = new CircularArc2d(a2.Center, a2.Radius,
-                                                     newStart2, a2.EndAngle,
-                                                     Vector2d.XAxis,
-                                                     a2.IsClockWise);
+                // ---- 2.  tangent points ------------------------------------------------
+                Vector2d dir1 = (filletCen - arc1.Center).GetNormal();
+                Vector2d dir2 = (filletCen - arc2.Center).GetNormal();
+
+                Point2d p1 = arc1.Center + dir1 * arc1.Radius;
+                Point2d p2 = arc2.Center + dir2 * arc2.Radius;
+
+                // ---- 3.  trim source arcs exactly at those points ---------------------
+                var trimmed1 = FilletMath.TrimArcToPoint(arc1, p1, trimEnd: true);
+                var trimmed2 = FilletMath.TrimArcToPoint(arc2, p2, trimEnd: false);
+#if DEBUG
+                //var dbg = FilletMath.DumpArcToArcDebug(
+                //    arc1, arc2, v, cA, cB, filletCen, dir1, dir2, p1, p2, trimmed1, trimmed2);
+                //prdDbg(dbg);
+                //throw new InvalidOperationException();
+#endif
+
+                // ---- 4.  build fillet arc --------------------------------------------
+                bool cwFil = dir1.CrossProduct(dir2) < 0;
+                double aStartCCW = Math.Atan2(p1.Y - filletCen.Y, p1.X - filletCen.X);
+                double aEndCCW = Math.Atan2(p2.Y - filletCen.Y, p2.X - filletCen.X);
+
+                double startAng, endAng;
+                if (cwFil)
+                {
+                    // convert each CCW angle to its clockwise measure
+                    startAng = 2 * Math.PI - aStartCCW;
+                    endAng = 2 * Math.PI - aEndCCW;
+                    if (endAng <= startAng) endAng += 2 * Math.PI;
+                }
+                else
+                {
+                    startAng = aStartCCW;
+                    endAng = aEndCCW;
+                    if (endAng <= startAng) endAng += 2 * Math.PI;
+                }
+
+                var fillet = new CircularArc2d(filletCen, r,
+                                               startAng, endAng,
+                                               Vector2d.XAxis, cwFil);
 
                 return new FilletResultThreePart(true)
                 {
-                    TrimmedSegment1 = new PolylineArcSegment(trimmedA1),
-                    FilletSegment = new PolylineArcSegment(f),
-                    TrimmedSegment2 = new PolylineArcSegment(trimmedA2)
+                    TrimmedSegment1 = new PolylineArcSegment(trimmed1),
+                    FilletSegment = new PolylineArcSegment(fillet),
+                    TrimmedSegment2 = new PolylineArcSegment(trimmed2)
                 };
             }
             catch (Exception ex)
             {
                 return new FilletResultThreePart(false)
-                { FailureReason = FilletFailureReason.CalculationError, ErrorMessage = ex.Message };
+                {
+                    FailureReason = FilletFailureReason.CalculationError,
+                    ErrorMessage = ex.Message
+                };
             }
         }
     }
