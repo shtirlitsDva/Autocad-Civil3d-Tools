@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Data;
+using System.Data.Common;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -898,6 +899,25 @@ namespace IntersectUtilities.UtilsCommon
                 if (layer.IsNotNoE())
                     line.Layer = layer;
                 line.AddEntityToDbModelSpace(db);
+            }
+
+            public static void CreateDebugText(
+                Point3d position,
+                string text,
+                double height = 2.5,
+                string layer = "0",
+                string color = "magenta"
+            )
+            {
+                Database db = Application.DocumentManager.MdiActiveDocument.Database;
+                DBText dbText = new DBText();
+                dbText.Position = position;
+                dbText.Height = height;
+                dbText.TextStyleId = db.Textstyle;
+                dbText.TextString = text;
+                dbText.Color = ColorByName(color);
+                if (layer.IsNotNoE()) dbText.Layer = layer;
+                dbText.AddEntityToDbModelSpace(db);
             }
         }
     }

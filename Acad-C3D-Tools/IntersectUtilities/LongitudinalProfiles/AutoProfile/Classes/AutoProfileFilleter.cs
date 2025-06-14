@@ -1,6 +1,8 @@
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 
+using IntersectUtilities.UtilsCommon;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,17 +17,20 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
         private readonly IPolylineBuilder _polylineBuilder;
         private readonly ISegmentExtractor _segmentExtractor;
         private readonly FilletStrategyManager _strategyManager;
+        private readonly TriageStrategyManager _triageStrategyManager;
 
         internal AutoProfileFilleter(
             IFilletRadiusProvider radiusProvider,
             IPolylineBuilder polylineBuilder,
             ISegmentExtractor segmentExtractor,
-            FilletStrategyManager? strategyManager = null)
+            FilletStrategyManager? strategyManager = null,
+            TriageStrategyManager? triageStrategyManager = null)
         {
             _radiusProvider = radiusProvider ?? throw new ArgumentNullException(nameof(radiusProvider));
             _polylineBuilder = polylineBuilder ?? throw new ArgumentNullException(nameof(polylineBuilder));
             _segmentExtractor = segmentExtractor ?? throw new ArgumentNullException(nameof(segmentExtractor));
             _strategyManager = strategyManager ?? new FilletStrategyManager();
+            _triageStrategyManager = triageStrategyManager ?? new TriageStrategyManager();
         }
 
         internal static AutoProfileFilleter CreateDefault(Func<Point2d, double> radiusCallback)
@@ -52,6 +57,8 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
                 while (lquery.Invoke())
                     PolylineSanitizer.PruneShortSegments(segments, threshold);
 
+                PolylineSanitizer.LinearizeAlmostLineArcs(segments, maxSagitta: 0.005);
+
                 //Begin the filleting procedure
                 var skipped = new HashSet<VertexKey>();
                 int safetyCounter = 0;
@@ -59,33 +66,52 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
                         skipped, _strategyManager, out var nodes))
                 {
                     if (safetyCounter++ > 300) break;
-                        //throw new InvalidOperationException(
-                        //    "Safety limit exceeded while filleting segments. " +
-                        //    "Possible infinite loop detected.");
+                    //throw new InvalidOperationException(
+                    //    "Safety limit exceeded while filleting segments. " +
+                    //    "Possible infinite loop detected.");
 
                     var seg1 = nodes.firstNode.Value;
                     var seg2 = nodes.secondNode.Value;
-                    var strategy = _strategyManager.GetStrategy(seg1, seg2);
-                    if (strategy == null)
+                    var filletStrategy = _strategyManager.GetStrategy(seg1, seg2);
+                    if (filletStrategy == null)
                     {
                         skipped.Add(VertexKey.From(seg1.EndPoint));
                         continue;
                     }
 
-#if DEBUG
-                    //prdDbg($"Strategy: {strategy}");
-#endif
+                    double radius = _radiusProvider.GetRadius(seg1.EndPoint);
+                    IFilletResult filletResult = filletStrategy.CreateFillet(
+                        seg1, seg2, radius);
 
-                    IFilletResult result = strategy.CreateFillet(
-                        seg1, seg2, _radiusProvider.GetRadius(seg1.EndPoint));
+                    DebugHelper.CreateDebugText(
+                        seg1.EndPoint.To3d(),
+                        safetyCounter.ToString(),
+                        layer: "AutoProfileTest");
 
-                    if (result.Success)
+                    if (filletResult.Success)
                     {
-                        result.UpdateWithResults(segments, nodes);                        
+                        filletResult.UpdateWithResults(segments);
                     }
                     else
                     {
-                        skipped.Add(VertexKey.From(seg1.EndPoint));
+                        var triageStrategy = _triageStrategyManager.GetStrategy(
+                            filletStrategy, filletResult.FailureReason);
+                        if (triageStrategy == null)
+                        {
+                            skipped.Add(VertexKey.From(seg1.EndPoint));
+                            continue;
+                        }
+
+                        IFilletResult triageResult = triageStrategy.Triage(nodes, radius);
+                        
+                        if (triageResult.Success)
+                        {
+                            triageResult.UpdateWithResults(segments);
+                        }
+                        else
+                        {
+                            skipped.Add(VertexKey.From(seg1.EndPoint));
+                        }
                     }
                 }
 

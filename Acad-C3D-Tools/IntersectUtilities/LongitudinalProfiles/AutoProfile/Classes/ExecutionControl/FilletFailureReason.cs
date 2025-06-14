@@ -9,11 +9,10 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
         Seg1TooShort,
         Seg2TooShort,
         BothSegsTooShort,
-        RadiusTooLarge,
-        SegmentsDoNotIntersect,
         SegmentsAreTangential,
         UnsupportedSegmentTypes,
         CalculationError,
-        InvalidRadius
+        InvalidRadius,
+        RadiusTooLarge
     }
 }

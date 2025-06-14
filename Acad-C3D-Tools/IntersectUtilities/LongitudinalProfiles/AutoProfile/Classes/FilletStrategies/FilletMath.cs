@@ -199,6 +199,30 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
             if (ang < 0) ang += 2 * Math.PI;                      // 0 … 2π
             return ang;
         }
+        /// <summary>
+        /// Returns <c>true</c> when the circular arc “bulges upward” in WCS, i.e. its
+        /// highest point lies above the straight chord connecting the ends.
+        /// Works for both CW and CCW arcs, any UCS rotation is ignored (pure XY test).
+        /// </summary>
+        internal static bool IsArcBulgeUpwards(CircularArc2d arc)
+        {
+            Point2d s = arc.StartPoint;
+            Point2d e = arc.EndPoint;
+
+            // midpoint of the chord
+            Point2d midChord = new Point2d((s.X + e.X) * 0.5, (s.Y + e.Y) * 0.5);
+
+            // evaluate the arc exactly halfway in parameter space
+            double midAngle = (arc.StartAngle + arc.EndAngle) * 0.5;
+            if (arc.IsClockWise && midAngle <= arc.StartAngle) midAngle += 2 * Math.PI;
+            if (!arc.IsClockWise && midAngle >= arc.EndAngle) midAngle -= 2 * Math.PI;
+
+            Vector2d refVec = arc.ReferenceVector;
+            Vector2d radial = refVec.RotateBy(midAngle);         // points from centre to mid-arc
+            Point2d midArc = arc.Center + radial * arc.Radius;
+
+            return midArc.Y > midChord.Y;                        // global “up”
+        }
 
 #if DEBUG
         internal static string DumpArcToArcDebug(

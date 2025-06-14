@@ -7,29 +7,56 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
     /// Result of a fillet operation with detailed error reporting
     /// </summary>
     public class FilletResultThreePart : FilletResultBase
-    {        
+    {
+        public IPolylineSegment? OriginalFirstSegment { get; set; }
+        public IPolylineSegment? OriginalSecondSegment { get; set; }
         public IPolylineSegment? TrimmedSegment1 { get; set; }
         public IPolylineSegment? FilletSegment { get; set; }
         public IPolylineSegment? TrimmedSegment2 { get; set; }
-        public FilletResultThreePart(bool success = false) : base(success)
+        /// <summary>
+        /// Constructor for failure case, initializes all segments to null.
+        /// </summary>
+        public FilletResultThreePart() : base(false)
         {
+            OriginalFirstSegment = null;
+            OriginalSecondSegment = null;
             TrimmedSegment1 = null;
             FilletSegment = null;
             TrimmedSegment2 = null;
         }
+        /// <summary>
+        /// Constructor for success case, initializes all segments.
+        /// </summary>        
+        public FilletResultThreePart(IPolylineSegment originalFirstSegment,
+            IPolylineSegment originalSecondSegment,
+            IPolylineSegment trimmedSegment1,
+            IPolylineSegment filletSegment,
+            IPolylineSegment trimmedSegment2)
+            : base(true)
+        {
+            OriginalFirstSegment = originalFirstSegment ?? throw new ArgumentNullException(nameof(originalFirstSegment));
+            OriginalSecondSegment = originalSecondSegment ?? throw new ArgumentNullException(nameof(originalSecondSegment));
+            TrimmedSegment1 = trimmedSegment1 ?? throw new ArgumentNullException(nameof(trimmedSegment1));
+            FilletSegment = filletSegment ?? throw new ArgumentNullException(nameof(filletSegment));
+            TrimmedSegment2 = trimmedSegment2 ?? throw new ArgumentNullException(nameof(trimmedSegment2));
+        }
 
         public override void UpdateWithResults(
-            LinkedList<IPolylineSegment> segments, 
-            (LinkedListNode<IPolylineSegment> firstNode, 
-            LinkedListNode<IPolylineSegment> secondNode) originalNodes)
+            LinkedList<IPolylineSegment> segments)
         {
             if (!Success)
                 throw new InvalidOperationException("FilletResult not successful.");
+            if (OriginalFirstSegment is null || OriginalSecondSegment is null)
+                throw new InvalidOperationException("Original nodes not set.");
             if (TrimmedSegment1 == null || FilletSegment == null || TrimmedSegment2 == null)
                 throw new InvalidOperationException("Fillet segments not set.");
 
-            var first = originalNodes.firstNode;
-            var second = originalNodes.secondNode;
+            var first = segments.Find(OriginalFirstSegment);
+            if (first is null)
+                throw new InvalidOperationException("Original first segment not found in segments.");
+            var second = segments.Find(OriginalSecondSegment);
+            if (second is null)
+                throw new InvalidOperationException("Original second segment not found in segments.");
 
             // verify that first precedes second—no goto needed
             bool inOrder = false;
@@ -37,7 +64,7 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
                 inOrder = n == second;
 
             if (!inOrder)
-                throw new ArgumentException("firstNode must precede secondNode.");            
+                throw new ArgumentException("firstNode must precede secondNode.");
 
             // replace boundary segments
             first.Value = TrimmedSegment1;
@@ -50,7 +77,7 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
                     throw new InvalidOperationException(
                         "LinkedList structure corrupted: no node found between first and second.");
 
-                var toRemove = cur;                
+                var toRemove = cur;
                 cur = cur.Next;
                 segments.Remove(toRemove);
             }
@@ -58,5 +85,5 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
             // insert the fillet arc between the two trimmed segments
             segments.AddAfter(first, FilletSegment);
         }
-    }    
+    }
 }

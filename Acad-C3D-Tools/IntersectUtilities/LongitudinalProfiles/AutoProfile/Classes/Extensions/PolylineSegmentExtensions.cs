@@ -20,7 +20,8 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
 
             if (t1.IsZeroLength() || t2.IsZeroLength()) return true; // degenerate ⇒ treat as tangent
 
-            return t1.GetAngleTo(t2) < AngleTol;
+            double angle = t1.GetAngleTo(t2);
+            return angle < AngleTol || Math.Abs(angle - Math.PI) < AngleTol;
         }
 
         private static Vector2d GetEndTangentVector(IPolylineSegment seg, bool atStart)

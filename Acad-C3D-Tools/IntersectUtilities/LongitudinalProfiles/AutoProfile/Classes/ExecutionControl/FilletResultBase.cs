@@ -18,9 +18,6 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
         }
 
         public abstract void UpdateWithResults(
-            LinkedList<IPolylineSegment> segments, 
-            (LinkedListNode<IPolylineSegment> firstNode, 
-            LinkedListNode<IPolylineSegment> secondNode) originalNodes);
-
+            LinkedList<IPolylineSegment> segments);
     }
 }

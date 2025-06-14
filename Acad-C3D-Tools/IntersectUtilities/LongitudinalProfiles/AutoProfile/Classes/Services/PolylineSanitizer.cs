@@ -36,13 +36,39 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
                 node = nextNode;
             }
         }
+        /// <summary>
+        /// Converts every arc whose sagitta (maximum deviation from its chord) is
+        /// below <paramref name="maxSagitta"/> into a straight line segment.
+        /// </summary>
+        internal static void LinearizeAlmostLineArcs(
+            LinkedList<IPolylineSegment> segments,
+            double maxSagitta = 0.005)
+        {
+            for (var node = segments.First; node != null; node = node.Next)
+            {
+                if (node.Value is not PolylineArcSegment pas) continue;
 
+                var a = (CircularArc2d)pas.GetGeometry2d();
+                Point2d s = a.StartPoint;
+                Point2d e = a.EndPoint;
+
+                // mid-point of the chord
+                Point2d m = new Point2d((s.X + e.X) * 0.5, (s.Y + e.Y) * 0.5);
+
+                // sagitta = |CM| − R   (absolute value: works for both bulge directions)
+                double sagitta = Math.Abs((m - a.Center).Length - a.Radius);
+
+                if (sagitta > maxSagitta) continue;      // visibly curved → keep as arc
+
+                // replace by a straight line
+                node.Value = new PolylineLineSegment(new LineSegment2d(s, e));
+            }
+        }
         private static double AngleRelToRef(Point2d p, Point2d c, Vector2d refVec)
         {
             var v = (p - c).GetNormal();
             return refVec.GetAngleTo(v);
         }
-
         private static IPolylineSegment ReplaceStartPoint(IPolylineSegment seg, Point2d newStart)
         {
             switch (seg)
@@ -74,7 +100,6 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
                 default: throw new NotSupportedException();
             }
         }
-
         private static IPolylineSegment ReplaceEndPoint(IPolylineSegment seg, Point2d newEnd)
         {
             switch (seg)
@@ -104,6 +129,6 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
 
                 default: throw new NotSupportedException();
             }
-        }
+        }        
     }
 }

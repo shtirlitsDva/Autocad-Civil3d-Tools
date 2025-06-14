@@ -12,7 +12,7 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
         public IFilletResult CreateFillet(IPolylineSegment s1, IPolylineSegment s2, double r)
         {
             if (r <= 0)
-                return new FilletResultThreePart(false)
+                return new FilletResultThreePart()
                 { FailureReason = FilletFailureReason.InvalidRadius };
 
             try
@@ -28,12 +28,12 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
                         ln: ln, arc: arc,                        
                         filletR: r,
                         out Point2d cen, out Point2d pArc, out Point2d pLin))
-                    return new FilletResultThreePart(false)
+                    return new FilletResultThreePart()
                     { FailureReason = FilletFailureReason.RadiusTooLarge };
 
                 var legCheck = FilletValidation.CheckLegRoom(s1, pArc, s2, pLin);
                 if (legCheck != FilletFailureReason.None)
-                    return new FilletResultThreePart(false) { FailureReason = legCheck };
+                    return new FilletResultThreePart() { FailureReason = legCheck };
 
                 // ---- 2.  trim arc & line exactly at those points -------------------
                 var trimmedArc = FilletMath.TrimArcToPoint(arc, pArc, trimEnd: true);
@@ -64,16 +64,17 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
                                                startAng, endAng,
                                                Vector2d.XAxis, cw);
 
-                return new FilletResultThreePart(true)
-                {
-                    TrimmedSegment1 = new PolylineArcSegment(trimmedArc),
-                    FilletSegment = new PolylineArcSegment(fillet),
-                    TrimmedSegment2 = new PolylineLineSegment(trimmedLn)
-                };
+                return new FilletResultThreePart
+                    (
+                       s1, s2,
+                       new PolylineArcSegment(trimmedArc),
+                       new PolylineArcSegment(fillet),
+                       new PolylineLineSegment(trimmedLn)
+                    );                
             }
             catch (Exception ex)
             {
-                return new FilletResultThreePart(false)
+                return new FilletResultThreePart()
                 {
                     FailureReason = FilletFailureReason.CalculationError,
                     ErrorMessage = ex.Message
