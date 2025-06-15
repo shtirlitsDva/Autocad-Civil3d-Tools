@@ -238,7 +238,7 @@ namespace IntersectUtilities
                                 var arc = pl.GetArcSegmentAt(i);
                                 double[] sts =
                                     [pipeline.GetStationAtPoint(arc.StartPoint), pipeline.GetStationAtPoint(arc.EndPoint)];
-                                ppld.HorizontalArcs.Add(new HorizontalArc(sts.Min(), sts.Max(), ppld));
+                                ppld.HorizontalArcs.Add(new AP_HorizontalArc(sts.Min(), sts.Max(), ppld));
                             }
                         }
                     }
