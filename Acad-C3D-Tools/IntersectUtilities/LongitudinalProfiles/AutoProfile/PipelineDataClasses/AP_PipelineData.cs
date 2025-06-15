@@ -1,9 +1,11 @@
 ﻿using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 
+using Dreambuild.AutoCAD;
+
+using IntersectUtilities.NTS;
 using IntersectUtilities.PipelineNetworkSystem;
 using IntersectUtilities.UtilsCommon;
-using IntersectUtilities.NTS;
 
 using NetTopologySuite.Geometries;
 
@@ -13,10 +15,8 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-using Exception = System.Exception;
-
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
-using Dreambuild.AutoCAD;
+using Exception = System.Exception;
 
 namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
 {
@@ -330,6 +330,48 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
             }
 
             FilletedPolyline = filleter.PerformFilleting(UnfilletedPolyline);
+            if (FilletedPolyline == null)
+            {
+                throw new Exception("Filleted polyline is null!");
+            }
+
+            //Test to see if any utilities are now crossing the filleted polyline
+            //If so, we need to reprocess the utilities to create a new unfilleted polyline
+            //and so on until no utilities are crossing the filleted polyline
+            var test = () => Utility.Where(x =>
+                x.Status == AP_Status.Ignored ||
+                x.Status == AP_Status.Unknown)
+                .Any(UtilityIsCrossingFilletedPolyline);
+            while (test())
+            {
+                var newlyCrossingUtilities = Utility.Where(x =>
+                    x.Status == AP_Status.Ignored ||
+                    x.Status == AP_Status.Unknown)
+                    .Where(UtilityIsCrossingFilletedPolyline);
+
+                foreach (var utility in newlyCrossingUtilities)
+                    utility.Status = AP_Status.Selected;
+
+                //Recreate the unfilleted polyline
+                ProcessSelectedUtilitiesToCreateUnfilletedPolyline();
+                if (UnfilletedPolyline == null)
+                {
+                    throw new Exception("Unfilleted polyline is null after reprocessing utilities!");
+                }
+
+                //Clean polyline for colinear and coincident vertices
+                Utils.RemoveColinearVerticesPolyline(UnfilletedPolyline);
+
+                FilletedPolyline = filleter.PerformFilleting(UnfilletedPolyline);
+            }
+
+            bool UtilityIsCrossingFilletedPolyline(AP_Utility utility)
+            {
+                var upoly = NTSConversion.ConvertNTSPolygonToClosedPolyline(utility.UtilityPolygon);
+                var pts = FilletedPolyline!.IntersectWithValidation(upoly);
+                if (pts == null || pts.Count == 0) return false;
+                return true;
+            }
         }
         public void Serialize(string filename)
         {

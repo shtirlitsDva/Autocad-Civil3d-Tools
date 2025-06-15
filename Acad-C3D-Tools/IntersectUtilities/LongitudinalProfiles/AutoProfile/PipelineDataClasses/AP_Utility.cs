@@ -1,12 +1,13 @@
 ﻿using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
-using IntersectUtilities.UtilsCommon;
+
 using IntersectUtilities.NTS;
+using IntersectUtilities.UtilsCommon;
 
 using NetTopologySuite.Geometries;
 
 using System;
-using System.Linq;
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
 using Exception = System.Exception;
@@ -228,18 +229,10 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
             utility.AddVertexAt(3, BR, 0, 0, 0);
             utility.Closed = true;
 
-            using Point3dCollection pts = new Point3dCollection();
-            profile.IntersectWith(
-                utility, Autodesk.AutoCAD.DatabaseServices.Intersect.OnBothOperands,
-                new Plane(), pts, 0, 0);
+            List<Point3d> pts = new();
+            profile.IntersectWithValidation(utility, pts);
 
-            //Neeed to test IntersectWith as it is very incorrect at large coordinates
-            var query = pts
-                .Cast<Point3d>()
-                .Where(x => utility.GetClosestPointTo(x, false)
-                .DistanceHorizontalTo(x) < 0.00000001);
-
-            if (query.Count() != 0) IsFloating = false;
+            if (pts.Count != 0) IsFloating = false;
             else
             {
                 Point3d left = profile.GetClosestPointTo(BL.To3d(), Vector3d.YAxis, true);

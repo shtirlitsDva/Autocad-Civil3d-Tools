@@ -346,8 +346,8 @@ namespace IntersectUtilities
                     System.Windows.Forms.Application.DoEvents();
 
 #if DEBUG
-                    ppld.SurfaceProfile.OffsetCentrelines.Layer = devLyr;
-                    ppld.SurfaceProfile.OffsetCentrelines.AddEntityToDbModelSpace(localDb);
+                    //ppld.SurfaceProfile.OffsetCentrelines.Layer = devLyr;
+                    //ppld.SurfaceProfile.OffsetCentrelines.AddEntityToDbModelSpace(localDb);
 #endif
 
                     //DETERMINE FLOATING STATUS
@@ -495,13 +495,13 @@ namespace IntersectUtilities
 
                     ppld.FilletPolyline();
 
-                    ppld.UnfilletedPolyline.Color = ColorByName("yellow");
-                    ppld.UnfilletedPolyline.ConstantWidth = 0.07;
-                    ppld.UnfilletedPolyline.Layer = devLyr;
-                    ppld.UnfilletedPolyline.AddEntityToDbModelSpace(localDb);
+                    //ppld.UnfilletedPolyline.Color = ColorByName("yellow");
+                    //ppld.UnfilletedPolyline.ConstantWidth = 0.07;
+                    //ppld.UnfilletedPolyline.Layer = devLyr;
+                    //ppld.UnfilletedPolyline.AddEntityToDbModelSpace(localDb);
 
                     ppld.FilletedPolyline.Color = ColorByName("red");
-                    ppld.FilletedPolyline.ConstantWidth = 0.02;
+                    ppld.FilletedPolyline.ConstantWidth = 0.07;
                     ppld.FilletedPolyline.Layer = devLyr;
                     ppld.FilletedPolyline.AddEntityToDbModelSpace(localDb);
                     #endregion

@@ -83,10 +83,10 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
                     IFilletResult filletResult = filletStrategy.CreateFillet(
                         seg1, seg2, radius);
 
-                    DebugHelper.CreateDebugText(
-                        seg1.EndPoint.To3d(),
-                        safetyCounter.ToString(),
-                        layer: "AutoProfileTest");
+                    //DebugHelper.CreateDebugText(
+                    //    seg1.EndPoint.To3d(),
+                    //    safetyCounter.ToString(),
+                    //    layer: "AutoProfileTest");
 
                     if (filletResult.Success)
                     {
