@@ -127,6 +127,73 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
             Region mainRegion = regions[0] as Region;
             if (mainRegion == null) throw new Exception("No main region created from the offset centrelines!");
 
+            //1.1. Fix for vertical segments where the dim changes
+            double station = 0, elevation = 0;
+            for (int i = 0; i < poly.NumberOfVertices; i++)
+            {
+                var segmentType = poly.GetSegmentType(i);
+                switch (segmentType)
+                {
+                    case SegmentType.Line:
+                        {
+                            //Check if the line is vertical
+                            var line = poly.GetLineSegment2dAt(i);
+                            if (Math.Abs(line.StartPoint.X - line.EndPoint.X) < 0.00001)
+                            {
+                                Point2d lowPt = line.StartPoint.Y < line.EndPoint.Y
+                                    ? line.StartPoint
+                                    : line.EndPoint;
+
+                                double r = sampleRadius(lowPt);
+                                if (r < 0.00001) continue; //No radius, skip
+                                Point3d center = new Point3d(lowPt.X, lowPt.Y + r, 0);   // centre R above low point
+
+                                const double deltaDeg = 4.0;                             // ±4°
+                                double startAngle = (270 - deltaDeg) * Math.PI / 180.0;  // CCW from +X (WCS)
+                                double endAngle = (270 + deltaDeg) * Math.PI / 180.0;
+
+                                var arc = new Arc(center, r, startAngle, endAngle);
+
+                                var surfaceElevation = SurfaceProfile.GetSurfaceYAtX(station);
+                                var trimPoint = new Point3d(lowPt.X, lowPt.Y + (surfaceElevation - elevation), 0.0);
+
+                                double dy = trimPoint.Y - arc.Center.Y;
+                                double dx = Math.Sqrt(arc.Radius * arc.Radius - dy * dy);
+
+                                var leftPt = new Point3d(arc.Center.X - dx, trimPoint.Y, arc.Center.Z);
+                                var rightPt = new Point3d(arc.Center.X + dx, trimPoint.Y, arc.Center.Z);
+
+                                double angle1 = Math.Atan2(leftPt.Y - arc.Center.Y, leftPt.X - arc.Center.X);
+                                double angle2 = Math.Atan2(rightPt.Y - arc.Center.Y, rightPt.X - arc.Center.X);
+
+                                if (angle2 < angle1) (angle1, angle2) = (angle2, angle1);
+
+                                arc.StartAngle = angle1;
+                                arc.EndAngle = angle2;
+
+                                Polyline vPolyline = new Polyline(2);
+                                vPolyline.AddVertexAt(vPolyline.NumberOfVertices, arc.StartPoint.To2d(), arc.GetBulge(), 0, 0);
+                                vPolyline.AddVertexAt(vPolyline.NumberOfVertices, arc.EndPoint.To2d(), 0, 0, 0);
+                                vPolyline.Closed = true;
+
+                                DBObjectCollection rs = Region.CreateFromCurves(new DBObjectCollection { vPolyline });
+                                if (rs.Count == 0) throw new Exception("No regions created from vertical lines!");
+                                Region vRegion = (Region)rs[0];
+                                mainRegion.BooleanOperation(BooleanOperationType.BoolUnite, vRegion);
+                            }
+                        }
+                        break;
+                }
+            }
+
+            double sampleRadius(Point2d pt)
+            {
+                //Get the station and elevation at the point
+                ProfileView!.ProfileView.FindStationAndElevationAtXY(pt.X, pt.Y, ref station, ref elevation);
+                var size = SizeArray!.GetSizeAtStation(station);
+                return size.VerticalMinRadius;
+            }
+
             //2. Merge pipe centreline polygon with selected utility polygons
             var query = Utility.Where(
                 x => x.Status == AP_Status.Selected);
