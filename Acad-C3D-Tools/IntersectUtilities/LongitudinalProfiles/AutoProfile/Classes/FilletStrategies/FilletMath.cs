@@ -212,16 +212,28 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
             // midpoint of the chord
             Point2d midChord = new Point2d((s.X + e.X) * 0.5, (s.Y + e.Y) * 0.5);
 
-            // evaluate the arc exactly halfway in parameter space
-            double midAngle = (arc.StartAngle + arc.EndAngle) * 0.5;
-            if (arc.IsClockWise && midAngle <= arc.StartAngle) midAngle += 2 * Math.PI;
-            if (!arc.IsClockWise && midAngle >= arc.EndAngle) midAngle -= 2 * Math.PI;
+            Vector2d rS = (s - arc.Center).GetNormal();
+            Vector2d rE = (e - arc.Center).GetNormal();
+            Vector2d bis = (rS + rE);
+            if (bis.IsZeroLength()) bis = rS.GetPerpendicularVector(); // 180° arc
 
-            Vector2d refVec = arc.ReferenceVector;
-            Vector2d radial = refVec.RotateBy(midAngle);         // points from centre to mid-arc
-            Point2d midArc = arc.Center + radial * arc.Radius;
+            Point2d midArc = arc.Center + bis.GetNormal() * arc.Radius;
 
-            return midArc.Y > midChord.Y;                        // global “up”
+            // arc bulges upward when its sagitta has a positive global-Y component
+            return midArc.Y > midChord.Y;
+        }
+        /// <summary>
+        /// True when the sagitta (maximum deviation from the chord) is smaller than
+        /// <paramref name="maxSagitta"/>.  Independent of CW/CCW and ReferenceVector.
+        /// </summary>
+        internal static bool IsArcAlmostLinear(CircularArc2d arc, double maxSagitta = 0.005)
+        {
+            Point2d s = arc.StartPoint;
+            Point2d e = arc.EndPoint;
+            Point2d m = new Point2d((s.X + e.X) * 0.5, (s.Y + e.Y) * 0.5);
+
+            double sagitta = Math.Abs((m - arc.Center).Length - arc.Radius);
+            return sagitta <= maxSagitta;
         }
 
 #if DEBUG

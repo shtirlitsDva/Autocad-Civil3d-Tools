@@ -53,7 +53,12 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
                     // ---------- upward-bulge arc may be skipped ---------------------
                     case PolylineArcSegment a when
                          FilletMath.IsArcBulgeUpwards((CircularArc2d)a.GetGeometry2d()):
-                        candNode = candNode.Next;
+                        candNode = candNode.Previous;
+                        continue;
+
+                    case PolylineArcSegment a when
+                         FilletMath.IsArcAlmostLinear((CircularArc2d)a.GetGeometry2d(), 0.05):
+                        candNode = candNode.Previous;
                         continue;
 
                     // ---------- downward-bulge arc must fillet ----------------------

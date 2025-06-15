@@ -568,7 +568,7 @@ namespace IntersectUtilities
                     prdDbg($"Vertex {i}: {pl.GetPoint2dAt(i)}");
                 }
 
-                var filleter = AutoProfileFilleter.CreateDefault(_ => 30.0);
+                var filleter = AutoProfileFilleter.CreateDefault(_ => 9.9);
                 var newPl = filleter.PerformFilleting(pl);
                 newPl.AddEntityToDbModelSpace(localDb);
                 newPl.Layer = "AutoProfileTest";

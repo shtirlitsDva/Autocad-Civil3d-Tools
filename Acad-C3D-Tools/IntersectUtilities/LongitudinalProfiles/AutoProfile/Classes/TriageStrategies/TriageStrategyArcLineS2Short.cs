@@ -26,8 +26,8 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
             double toGo = 0.0;
             double limit = radius;
 
-            var arcNode = nodes.firstNode;          // the arc that stays fixed
-            var candNode = nodes.secondNode.Next;   // start with *next* segment
+            var arcNode = nodes.firstNode;
+            var candNode = nodes.secondNode.Next;
             while (candNode != null && toGo < limit)
             {
                 switch (candNode.Value)
@@ -53,6 +53,11 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
                     // ---------- upward-bulge arc may be skipped ---------------------
                     case PolylineArcSegment a when
                          FilletMath.IsArcBulgeUpwards((CircularArc2d)a.GetGeometry2d()):
+                        candNode = candNode.Next;
+                        continue;
+
+                    case PolylineArcSegment a when
+                         FilletMath.IsArcAlmostLinear((CircularArc2d)a.GetGeometry2d(), 0.05):
                         candNode = candNode.Next;
                         continue;
 
