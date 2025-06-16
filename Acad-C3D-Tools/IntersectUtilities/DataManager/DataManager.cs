@@ -54,7 +54,6 @@ namespace IntersectUtilities.DataManagement
 
             return dbs;
         }
-
         public void Dispose()
         {
             foreach (var item in cache)

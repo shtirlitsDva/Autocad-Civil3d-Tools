@@ -74,9 +74,12 @@ namespace IntersectUtilities
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
 
-            #region Debug and dev layer
+            #region Layers
             string devLyr = "AutoProfileTest";
             localDb.CheckOrCreateLayer(devLyr, 1, false);
+
+            string AP_Layer = "AutoProfile";
+            localDb.CheckOrCreateLayer(AP_Layer, 1, false);
             #endregion
 
             #region Delete previous debug entities
@@ -102,6 +105,9 @@ namespace IntersectUtilities
             double x = 0.0;
             double y = 0.0;
 
+            var dcd = new PSetDefs.DriCrossingData();
+            PropertySetManager.UpdatePropertySetDefinition(localDb, dcd.SetName);
+
             #region DataManager and FJVDATA
             DataManagement.DataManager dm = new DataManagement.DataManager(new DataReferencesOptions());
             if (!dm.IsValid()) { dm.Dispose(); return; }
@@ -111,6 +117,8 @@ namespace IntersectUtilities
             #endregion
 
             using Transaction tx = localDb.TransactionManager.StartTransaction();
+            PropertySetManager psm = new PropertySetManager(localDb, dcd.SetName);
+
             try
             {
                 #region Build PipeNetwork
@@ -125,14 +133,12 @@ namespace IntersectUtilities
 
                 var ents = fjvDb.GetFjvEntities(fjvTx);
 
-                PipelineNetwork pn = new PipelineNetwork();
-                pn.CreatePipelineNetwork(ents, als);
-                pn.CreateSizeArrays();
-                var sizeArrays =
-                    pn.GetAllSizeArrays(includeNas: false)
-                    .ToDictionary(x => x.Item1, x => x.Item2);
+                var entsByAl = ents
+                    .GroupBy(x => pshFjv.Pipeline.ReadPropertyString(
+                        x, pshFjv.PipelineDef.BelongsToAlignment))
+                    .ToDictionary(x => x.Key, x => x.ToList());
 
-                var entsGroupedByAl = als
+                var polylinesGroupedByAl = als
                     .Select(al => new
                     {
                         al,
@@ -190,9 +196,17 @@ namespace IntersectUtilities
                     #endregion
 
                     #region Get pipline size array 
-                    if (sizeArrays.TryGetValue(al.Name, out var sa)) ppld.SizeArray = sa;
-                    else throw new System.Exception($"No pipeline size array found for {al.Name}!");
-                    prdDbg(ppld.SizeArray);
+
+                    if (!entsByAl.TryGetValue(al.Name, out var entList))
+                        throw new System.Exception($"No entities found for alignment {al.Name}!");
+
+                    IPipelineV2 pipeline = PipelineV2Factory.Create(entList, al);
+                    if (pipeline == null)
+                        throw new System.Exception($"No pipeline could be built for alignment {al.Name}!");
+                    var sa = PipelineSizeArrayFactory.CreateSizeArray(pipeline);
+                    if (sa == null) throw new System.Exception($"No pipeline size array could be built for {al.Name}!");
+                    ppld.SizeArray = sa;
+                    //prdDbg(ppld.SizeArray);
                     #endregion
 
                     #region Build surface related data                    
@@ -211,16 +225,13 @@ namespace IntersectUtilities
                     }
 
                     if (p == null) throw new System.Exception($"No surface profile found for {al.Name}!");
-
                     var spd = new AP_SurfaceProfileData(p.Name, p, ppld);
                     ppld.SurfaceProfile = spd;
                     #endregion
 
                     #region Gather horizontal arc data
-                    var ppl = pn.GetPipeline(al.Name);
-                    if (ppl == null) throw new System.Exception($"No pipeline found for {al.Name}!");
-                    var gp = entsGroupedByAl[al];
-                    foreach (Polyline pl in gp.OrderBy(ppl.GetPolylineMiddleStation))
+                    var gp = polylinesGroupedByAl[al];
+                    foreach (Polyline pl in gp.OrderBy(pipeline.GetPolylineMiddleStation))
                     {
                         for (int i = 0; i < pl.NumberOfVertices; i++)
                         {
@@ -229,8 +240,8 @@ namespace IntersectUtilities
                             {
                                 var arc = pl.GetArcSegmentAt(i);
                                 double[] sts =
-                                    [ppl.GetStationAtPoint(arc.StartPoint), ppl.GetStationAtPoint(arc.EndPoint)];
-                                ppld.HorizontalArcs.Add(new HorizontalArc(sts.Min(), sts.Max(), ppld));
+                                    [pipeline.GetStationAtPoint(arc.StartPoint), pipeline.GetStationAtPoint(arc.EndPoint)];
+                                ppld.HorizontalArcs.Add(new AP_HorizontalArc(sts.Min(), sts.Max(), ppld));
                             }
                         }
                     }
@@ -254,6 +265,10 @@ namespace IntersectUtilities
                             id.IsDerivedFrom<Arc>() ||
                             id.IsDerivedFrom<Circle>())) continue;
                         var ent = id.Go<Entity>(tx);
+
+                        bool isRelocatable = psm.ReadPropertyBool(ent, dcd.CanBeRelocated);
+                        if (isRelocatable) continue;
+
                         var exts = ent.GeometricExtents;
                         exts.TransformBy(trf);
 
@@ -333,42 +348,11 @@ namespace IntersectUtilities
                     prdDbg(ppld.SizeArray);
                     System.Windows.Forms.Application.DoEvents();
 
-#if DEBUG
-                    ppld.SurfaceProfile.OffsetCentrelines.Layer = devLyr;
-                    ppld.SurfaceProfile.OffsetCentrelines.AddEntityToDbModelSpace(localDb);
-#endif
-
                     //DETERMINE FLOATING STATUS
                     foreach (AP_Utility utility in ppld.Utility)
                     {
                         //DETERMINE FLOATING STATUS
                         utility.TestFloatingStatus(ppld.SurfaceProfile.OffsetCentrelines);
-
-#if DEBUG
-                        var uhatch = utility.GetUtilityHatch();
-                        uhatch.Layer = devLyr;
-                        if (utility.IsFloating) uhatch.Color = ColorByName("green");
-                        uhatch.AddEntityToDbModelSpace(localDb);
-#endif
-
-                        //utility.AvoidanceArc.Layer = devLyr;
-                        //utility.AvoidanceArc.AddEntityToDbModelSpace(localDb);
-
-                        //var pphatch = NTSConversion.ConvertNTSPolygonToHatch(utility.AvoidancePolygon);
-                        //pphatch.Layer = devLyr;
-                        //pphatch.Color = ColorByName("green");
-                        //pphatch.AddEntityToDbModelSpace(localDb);
-
-                        //if (utility.HorizontalArcAvoidancePolyline != null)
-                        //{
-                        //utility.HorizontalArcAvoidancePolyline.Layer = devLyr;
-                        //utility.HorizontalArcAvoidancePolyline.AddEntityToDbModelSpace(localDb);
-
-                        //var polyHatch = NTSConversion.ConvertNTSPolygonToHatch(utility.MergedAvoidancePolygon);
-                        //polyHatch.Layer = devLyr;
-                        //polyHatch.Color = ColorByName("yellow");
-                        //polyHatch.AddEntityToDbModelSpace(localDb);
-
                     }
 
                     #region Setup linq queries
@@ -416,8 +400,10 @@ namespace IntersectUtilities
                         safetyCounter++;
 
                         AP_Utility current = queryDeepestUnknownNonFloating().FirstOrDefault();
-                        if (current == default) { prdDbg($"Iteration stopped on loop {safetyCounter}."); break; }
-                        prdDbg($"Iteration {safetyCounter}.");
+                        if (current == default) { 
+                            //prdDbg($"Iteration stopped on loop {safetyCounter}."); 
+                            break; }
+                        //prdDbg($"Iteration {safetyCounter}.");
 
                         //First handle case 4: Query floating for overlaps
                         //If we overlap a floating utility, we mark it as non-floating
@@ -428,8 +414,8 @@ namespace IntersectUtilities
                         {
                             foreach (var item in queryFloatingForOverlap(current))
                             {
-                                prdDbg($"Ut. st: {current.MidStation.ToString("F2")} el: {current.BottomElevation.ToString("F2")}" +
-                                    $" OVERLAPS FLOATING {item.MidStation.ToString("F2")} -> NONFLOATING");
+                                //prdDbg($"Ut. st: {current.MidStation.ToString("F2")} el: {current.BottomElevation.ToString("F2")}" +
+                                //    $" OVERLAPS FLOATING {item.MidStation.ToString("F2")} -> NONFLOATING");
                                 item.IsFloating = false;
                             }
                             continue;
@@ -439,8 +425,8 @@ namespace IntersectUtilities
                         //If we have a hit, we mark the current as AP_Status.Ignored
                         foreach (var covered in queryNonFloatingForCovered(current))
                         {
-                            prdDbg($"Ut. st: {current.MidStation.ToString("F2")} el: {current.BottomElevation.ToString("F2")}" +
-                                $" COVERS NONFLOATING {covered.MidStation.ToString("F2")} -> IGNORE");
+                            //prdDbg($"Ut. st: {current.MidStation.ToString("F2")} el: {current.BottomElevation.ToString("F2")}" +
+                            //    $" COVERS NONFLOATING {covered.MidStation.ToString("F2")} -> IGNORE");
                             covered.Status = AP_Status.Ignored;
                         }
 
@@ -453,8 +439,8 @@ namespace IntersectUtilities
                         //    overlap.Status = AP_Status.Selected; 
                         //}
 
-                        prdDbg($"Ut. st: {current.MidStation.ToString("F2")} el: {current.BottomElevation.ToString("F2")}" +
-                            $" is now SELECTED.");
+                        //prdDbg($"Ut. st: {current.MidStation.ToString("F2")} el: {current.BottomElevation.ToString("F2")}" +
+                        //    $" is now SELECTED.");
                         current.Status = AP_Status.Selected;
 
                         if (safetyCounter > 10000)
@@ -466,37 +452,19 @@ namespace IntersectUtilities
                     #endregion
 
                     #region Process selected utilities
+                    ppld.ProcessSelectedUtilitiesToCreateUnfilletedPolyline();
 
-#if DEBUG
-                    foreach (var utility in ppld.Utility.Where(x => x.Status == AP_Status.Selected))
-                    {
-                        var h = utility.GetUtilityHatch();
-                        h.Layer = devLyr;
-                        h.Color = ColorByName("magenta");
-                        h.AddEntityToDbModelSpace(localDb);
-                    }
-#endif
-                    ppld.ProcessSelectedUtilities();
+                    //Clean polyline for colinear and coincident vertices
+                    RemoveColinearVerticesPolyline(ppld.UnfilletedPolyline);
 
-                    //Not used
-                    int guiltyPlinesCount = 0;
-                    int removedVerticesCount = 0;
-                    RemoveColinearVerticesPolyline(
-                            ppld.test, ref guiltyPlinesCount, ref removedVerticesCount);
+                    ppld.FilletPolyline();                    
 
-                    ppld.test.Color = ColorByName("yellow");
-                    ppld.test.ConstantWidth = 0.05;
-                    ppld.test.Layer = devLyr;
-                    ppld.test.AddEntityToDbModelSpace(localDb);
-                    #endregion
-
-                    //ppld.Serialize($"C:\\Temp\\sample_data_{ppld.Name}.json");
-                }
-
-                #region Export ppl to json
-                //Write the collection to json
-
-                #endregion
+                    ppld.FilletedPolyline.Color = ColorByName("red");
+                    ppld.FilletedPolyline.ConstantWidth = 0.07;
+                    ppld.FilletedPolyline.Layer = AP_Layer;
+                    ppld.FilletedPolyline.AddEntityToDbModelSpace(localDb);
+                    #endregion                    
+                }                
             }
             catch (DebugException dex)
             {
@@ -532,6 +500,42 @@ namespace IntersectUtilities
 
             prdDbg("Done!");
         }
+
+#if DEBUG
+        [CommandMethod("APTEST")]
+        public void aptest()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            using Transaction tx = localDb.TransactionManager.StartTransaction();
+            try
+            {
+                var oid = Interaction.GetEntity("Select polyline to test:", typeof(Polyline), true);
+                if (oid.IsNull) { tx.Abort(); return; }
+                Polyline pl = oid.Go<Polyline>(tx);
+                prdDbg($"Number of vertices: {pl.NumberOfVertices}");
+                prdDbg($"Length: {pl.Length}");
+                for (int i = 0; i < pl.NumberOfVertices; i++)
+                {
+                    prdDbg($"Vertex {i}: {pl.GetPoint2dAt(i)}");
+                }
+
+                var filleter = AutoProfileFilleter.CreateDefault(_ => 9.9);
+                var newPl = filleter.PerformFilleting(pl);
+                newPl.AddEntityToDbModelSpace(localDb);
+                newPl.Layer = "AutoProfileTest";
+                newPl.Color = ColorByName("red");
+            }
+            catch (System.Exception ex)
+            {
+                tx.Abort();
+                prdDbg(ex);
+                return;
+            }
+            tx.Commit();
+            prdDbg("Done!");
+        }
+#endif
 
         [CommandMethod("APEXPORTPLINE")]
         public void apexportpline()

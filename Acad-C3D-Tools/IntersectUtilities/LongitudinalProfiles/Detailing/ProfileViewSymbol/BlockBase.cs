@@ -1,43 +1,64 @@
-﻿using Autodesk.AutoCAD.ApplicationServices;
-using Autodesk.AutoCAD.DatabaseServices;
-using Autodesk.AutoCAD.Geometry;
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-
-using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
-
-using static IntersectUtilities.UtilsCommon.Utils;
+using Autodesk.AutoCAD.ApplicationServices;
+using Autodesk.AutoCAD.DatabaseServices;
+using Autodesk.AutoCAD.Geometry;
+using Autodesk.AutoCAD.Internal.Windows;
 using IntersectUtilities.UtilsCommon;
 using Microsoft.AspNetCore.Rewrite;
+using static IntersectUtilities.UtilsCommon.Utils;
+using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 
 namespace IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol
 {
     internal abstract class BlockBase : ProfileViewSymbol
     {
         protected string _blockName { get; set; }
-        protected BlockBase(string blockName) { _blockName = blockName; }
+
+        protected BlockBase(string blockName)
+        {
+            _blockName = blockName;
+        }
+
         public override void CreateSymbol(
-            BlockTable bt, BlockTableRecord detailingBlock, Point3d location,
-            double dia, string layer)
+            BlockTable bt,
+            BlockTableRecord detailingBlock,
+            Point3d location,
+            double dia,
+            string layer,
+            bool isRelocatable
+        )
         {
             var br = new BlockReference(location, bt[_blockName]);
             br.Layer = layer;
             detailingBlock.AppendEntity(br);
             bt.Database.TransactionManager.TopTransaction.AddNewlyCreatedDBObject(br, true);
+
+            PropertySetManager psm = new PropertySetManager(
+                bt.Database,
+                PSetDefs.DefinedSets.DriCrossingData
+            );
+
+            psm.WritePropertyObject(
+                br,
+                new PSetDefs.DriCrossingData().CanBeRelocated,
+                isRelocatable
+            );
         }
+
         internal abstract void HandleBlockDefinition(Database localDb);
+
         protected void CreateBlockTableRecord(Database localDb, double dia)
         {
             Transaction tx = localDb.TransactionManager.TopTransaction;
             BlockTable bt = (BlockTable)tx.GetObject(localDb.BlockTableId, OpenMode.ForWrite);
             if (!bt.Has(_blockName))
             {
-                BlockTableRecord mspace = (BlockTableRecord)tx
-                    .GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForWrite);
+                BlockTableRecord mspace = (BlockTableRecord)
+                    tx.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForWrite);
 
                 if (!bt.Has(_blockName))
                 {
@@ -77,9 +98,17 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol
                 }
             }
         }
+
         public override void CreateDistances(
-            BlockTableRecord btr, Matrix3d transform, Point3d labelLocation,
-            double dia, string layer, string distance, double kappeOd)
+            BlockTableRecord btr,
+            Matrix3d transform,
+            Point3d labelLocation,
+            double dia,
+            string layer,
+            string distance,
+            double kappeOd,
+            bool isRelocatable
+        )
         {
             Transaction tx = btr.Database.TransactionManager.TopTransaction;
 
@@ -96,12 +125,21 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol
                 if (!double.TryParse(split[1], out botDist))
                     throw new System.Exception($"Could not parse distance: {split[1]} to double!");
             }
-            else throw new System.Exception($"Distance definition: {distance} does not follow convention!");
+            else
+                throw new System.Exception(
+                    $"Distance definition: {distance} does not follow convention!"
+                );
 
-            Point3d theoreticalLocation = new Point3d(labelLocation.X, labelLocation.Y - (dia / 2), 0);
+            Point3d theoreticalLocation = new Point3d(
+                labelLocation.X,
+                labelLocation.Y - (dia / 2),
+                0
+            );
             theoreticalLocation = theoreticalLocation.TransformBy(transform);
 
-            Arc a;
+            var dcd = new PSetDefs.DriCrossingData();
+            PropertySetManager psm = new PropertySetManager(btr.Database, dcd.SetName);
+
             Arc createArc(Point3d c, double r, double s, double e)
             {
                 Arc arc = new Arc();
@@ -111,20 +149,43 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol
                 arc.EndAngle = e;
                 arc.Normal = Vector3d.ZAxis;
                 arc.Layer = layer;
-                a = arc;
                 return arc;
             }
-            
-            btr.AppendEntity(createArc(theoreticalLocation, dia / 2 + botDist, Math.PI, 2 * Math.PI));
-            tx.AddNewlyCreatedDBObject(a, true);
-            btr.AppendEntity(createArc(theoreticalLocation, dia / 2 + botDist + kappeOd / 2, Math.PI, 2 * Math.PI));
-            tx.AddNewlyCreatedDBObject(a, true);
-            btr.AppendEntity(createArc(theoreticalLocation, dia / 2 + topDist, 0, Math.PI));
-            tx.AddNewlyCreatedDBObject(a, true);
-            btr.AppendEntity(createArc(theoreticalLocation, dia / 2 + topDist + kappeOd / 2, 0, Math.PI));
-            tx.AddNewlyCreatedDBObject(a, true);
+            //Arc 1
+            Entity? entity = createArc(
+                theoreticalLocation,
+                dia / 2 + botDist,
+                Math.PI,
+                2 * Math.PI
+            );
+            btr.AppendEntity(entity);
+            tx.AddNewlyCreatedDBObject(entity, true);
+            psm.WritePropertyObject(entity, dcd.CanBeRelocated, isRelocatable);
 
+            //Arc 2
+            entity = createArc(
+                theoreticalLocation,
+                dia / 2 + botDist + kappeOd / 2,
+                Math.PI,
+                2 * Math.PI
+            );
+            btr.AppendEntity(entity);
+            tx.AddNewlyCreatedDBObject(entity, true);
+            psm.WritePropertyObject(entity, dcd.CanBeRelocated, isRelocatable);
+
+            //Arc 3
+            entity = createArc(theoreticalLocation, dia / 2 + topDist, 0, Math.PI);
+            btr.AppendEntity(entity);
+            tx.AddNewlyCreatedDBObject(entity, true);
+            psm.WritePropertyObject(entity, dcd.CanBeRelocated, isRelocatable);
+
+            //Arc 4
+            entity = createArc(theoreticalLocation, dia / 2 + topDist + kappeOd / 2, 0, Math.PI);
+            btr.AppendEntity(entity);
+            tx.AddNewlyCreatedDBObject(entity, true);
+            psm.WritePropertyObject(entity, dcd.CanBeRelocated, isRelocatable);
         }
+
         protected virtual double getDia() => 0;
     }
 }

@@ -330,3 +330,6 @@ ASALocalRun/
 .mfractor/
 /Acad-C3D-Tools/SnoopCivil3DObjects.dll
 /Acad-C3D-Tools/TspWithGeneticSharp
+/Acad-C3D-Tools/IntersectUtilities/LongitudinalProfiles/AutoProfile/SolidAutoProfileFilleter_Complete.cs
+/Acad-C3D-Tools/IntersectUtilities/LongitudinalProfiles/AutoProfile/SOLID_Filleter_README.md
+/Acad-C3D-Tools/IntersectUtilities/LongitudinalProfiles/AutoProfile/SolidAutoProfileFilleter.cs
