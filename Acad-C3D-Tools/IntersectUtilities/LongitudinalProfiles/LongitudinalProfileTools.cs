@@ -6134,7 +6134,7 @@ namespace IntersectUtilities
 
                     List<(double radius, ProfilePVI pvi)> pvis = new();
 
-                    pv.FindStationAndElevationAtXY(profile.StartPoint.X, profile.StartPoint.Y,
+                    pv.FindStationAndElevationAtXY(polyline.StartPoint.X, polyline.StartPoint.Y,
                         ref station,
                         ref elevation
                     );
