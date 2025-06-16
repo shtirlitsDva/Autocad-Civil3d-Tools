@@ -1,20 +1,6 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Collections.Specialized;
-using System.Data;
-using System.Globalization;
-using System.IO;
-using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Windows.Forms;
-
-using Autodesk.AutoCAD.ApplicationServices;
+﻿using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.DatabaseServices;
-using Autodesk.AutoCAD.DatabaseServices.Internal;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
@@ -22,7 +8,6 @@ using Autodesk.Civil;
 using Autodesk.Civil.ApplicationServices;
 using Autodesk.Civil.DatabaseServices;
 using Autodesk.Civil.DatabaseServices.Styles;
-using Autodesk.Civil.DataShortcuts;
 
 using Dreambuild.AutoCAD;
 
@@ -37,6 +22,14 @@ using IntersectUtilities.PipelineNetworkSystem;
 using IntersectUtilities.UtilsCommon;
 
 using MoreLinq;
+
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
 
 using static IntersectUtilities.Enums;
 using static IntersectUtilities.HelperMethods;
@@ -753,8 +746,8 @@ namespace IntersectUtilities
                         ents.Where(x =>
                             psmPpld.FilterPropetyString(
                                 x, ppld.BelongsToAlignment, al.Name)), al);
-                    IPipelineSizeArrayV2 sizeArray = 
-                        PipelineSizeArrayFactory.CreateSizeArray(pipeline);                    
+                    IPipelineSizeArrayV2 sizeArray =
+                        PipelineSizeArrayFactory.CreateSizeArray(pipeline);
                     #endregion
 
                     #region Create Points, assign elevation, layer and PS data
@@ -844,7 +837,7 @@ namespace IntersectUtilities
                         #region Create points
                         List<Point3d> p3dcol = new List<Point3d>();
                         al.IntersectWithValidation((Curve)ent, p3dcol);
-                        
+
                         foreach (Point3d p3d in p3dcol)
                         {
                             //Determine if the intersection point is within the polygon area
@@ -989,7 +982,7 @@ namespace IntersectUtilities
                             );
 
                             //Determine if the utility is relocatable
-                            var station = pipeline.GetStationAtPoint(p3d);                            
+                            var station = pipeline.GetStationAtPoint(p3d);
                             var size = sizeArray.GetSizeAtStation(station);
                             var fjvPipe = new FjvPipe(size.System, size.DN);
                             var lerKrydsning = new LerKrydsning(
@@ -5869,12 +5862,7 @@ namespace IntersectUtilities
             }
         }
 
-        /// <command>MYPFP</command>
-        /// <summary>
-        /// Creates a profile from a polyline in the selected profile view.
-        /// </summary>
-        /// <category>Longitudinal Profiles</category>
-        [CommandMethod("MYPFP")]
+        //[CommandMethod("MYPFPOLD")]
         public void profilefrompolyline()
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -6054,7 +6042,12 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("MYPFP2")]
+        /// <command>MYPFP</command>
+        /// <summary>
+        /// Creates a profile from a polyline in the selected profile view.
+        /// </summary>
+        /// <category>Longitudinal Profiles</category>
+        [CommandMethod("MYPFP")]
         public void profilefrompolyline2()
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -6066,9 +6059,9 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Selection of polyline and profile view
                     PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
-                        "\n Select a polyline : "
-                    );
+                                    "\n Select a polyline : ");
                     promptEntityOptions1.SetRejectMessage("\n Not a polyline");
                     promptEntityOptions1.AddAllowedClass(typeof(Polyline), true);
                     PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
@@ -6083,9 +6076,10 @@ namespace IntersectUtilities
                     PromptEntityResult entity2 = editor.GetEntity(promptEntityOptions2);
                     if (((PromptResult)entity2).Status != PromptStatus.OK)
                         return;
+                    #endregion
 
-                    ProfileView pv =
-                        tx.GetObject(entity2.ObjectId, OpenMode.ForWrite) as ProfileView;
+                    #region PV and style
+                    ProfileView pv = entity2.ObjectId.Go<ProfileView>(tx, OpenMode.ForWrite);
                     double x = 0.0;
                     double y = 0.0;
                     if (pv.ElevationRangeMode == ElevationRangeType.Automatic)
@@ -6106,173 +6100,125 @@ namespace IntersectUtilities
                             ref y
                         );
 
-                    ProfileViewStyle profileViewStyle =
-                        tx.GetObject(
-                            ((Autodesk.Aec.DatabaseServices.Entity)pv).StyleId,
-                            OpenMode.ForRead
-                        ) as ProfileViewStyle;
+                    ProfileViewStyle profileViewStyle = pv.StyleId.Go<ProfileViewStyle>(tx);
+                    #endregion
 
-                    Autodesk.AutoCAD.DatabaseServices.ObjectId layerId = (
-                        (Autodesk.Aec.DatabaseServices.Entity)(
-                            tx.GetObject(pv.AlignmentId, OpenMode.ForRead) as Alignment
-                        )
-                    ).LayerId;
+                    Oid layerId = pv.AlignmentId.Go<Alignment>(tx).LayerId;
 
-                    Autodesk.AutoCAD.DatabaseServices.ObjectId profileStyleId = (
-                        (StyleCollectionBase)doc.Styles.ProfileStyles
-                    ).FirstOrDefault();
+                    Oid profileStyleId;
+                    try
+                    {
+                        profileStyleId = doc.Styles.ProfileStyles["PROFIL STYLE MGO"];
+                    }
+                    catch (System.Exception)
+                    {
+                        profileStyleId = doc.Styles.ProfileStyles.FirstOrDefault();
+                    }
 
-                    Autodesk.AutoCAD.DatabaseServices.ObjectId profileLabelSetStylesId = (
-                        (StyleCollectionBase)doc.Styles.LabelSetStyles.ProfileLabelSetStyles
-                    ).FirstOrDefault();
+                    Oid profileLabelSetStylesId = doc.Styles.LabelSetStyles.ProfileLabelSetStyles
+                        .FirstOrDefault();
 
-                    Autodesk.AutoCAD.DatabaseServices.ObjectId profByLayout =
-                        Profile.CreateByLayout(
-                            "New Profile",
-                            pv.AlignmentId,
-                            layerId,
-                            profileStyleId,
-                            profileLabelSetStylesId
-                        );
+                    Oid pId =
+                        Profile.CreateByLayout("New Profile", pv.AlignmentId,
+                            layerId, profileStyleId, profileLabelSetStylesId);
 
-                    Profile profile = tx.GetObject(profByLayout, OpenMode.ForWrite) as Profile;
+                    Profile profile = pId.Go<Profile>(tx, OpenMode.ForWrite);
 
-                    BlockTableRecord blockTableRecord =
-                        tx.GetObject(database.CurrentSpaceId, OpenMode.ForWrite)
-                        as BlockTableRecord;
-
-                    Polyline polyline = tx.GetObject(plObjId, OpenMode.ForRead, false) as Polyline;
+                    Polyline polyline = plObjId.Go<Polyline>(tx);
 
                     double station = 0.0;
                     double elevation = 0.0;
 
-                    if (polyline != null)
+                    if (polyline == null) { tx.Abort(); return; }
+                    int numOfVert = polyline.NumberOfVertices - 1;
+
+                    List<(double radius, ProfilePVI pvi)> pvis = new();
+
+                    pv.FindStationAndElevationAtXY(profile.StartPoint.X, profile.StartPoint.Y,
+                        ref station,
+                        ref elevation
+                    );
+                    profile.PVIs.AddPVI(station, elevation);
+
+                    for (int i = 0; i < numOfVert; i++)
                     {
-                        int numOfVert = polyline.NumberOfVertices - 1;
-                        Point2d point2d1;
-                        Point2d point2d2;
-                        Point2d point2d3;
-
-                        for (int i = 0; i < numOfVert; i++)
+                        switch (polyline.GetSegmentType(i))
                         {
-                            switch (polyline.GetSegmentType(i))
-                            {
-                                case SegmentType.Line:
+                            case SegmentType.Line:
+                                {
                                     LineSegment2d line = polyline.GetLineSegment2dAt(i);
-                                    //point2d1 = lineSegment2dAt.StartPoint;
-                                    //double x1 = point2d1.X;
-                                    //double y1 = point2d1.Y;
-                                    //double num4 = x1 - x;
-                                    //double num5 = (y1 - y) / profileViewStyle.GraphStyle.VerticalExaggeration + pv.ElevationMin;
-                                    //point2d2 = new Point2d(num4, num5);
 
-                                    //point2d1 = lineSegment2dAt.EndPoint;
-                                    //double x2 = point2d1.X;
-                                    //double y2 = point2d1.Y;
-                                    //double num6 = x2 - x;
-                                    //double num7 = (y2 - y) / profileViewStyle.GraphStyle.VerticalExaggeration + pv.ElevationMin;
-                                    //point2d3 = new Point2d(num6, num7);
-
-                                    if (i == 0)
+                                    var nextEntityType = polyline.GetSegmentType(i + 1);
+                                    switch (nextEntityType)
                                     {
-                                        pv.FindStationAndElevationAtXY(
-                                            line.StartPoint.X,
-                                            line.StartPoint.Y,
-                                            ref station,
-                                            ref elevation
-                                        );
-                                        profile.PVIs.AddPVI(station, elevation);
+                                        case SegmentType.Line:
+                                            pv.FindStationAndElevationAtXY(
+                                                line.EndPoint.X,
+                                                line.EndPoint.Y,
+                                                ref station,
+                                                ref elevation);
+                                            profile.PVIs.AddPVI(station, elevation);
+                                            break;
                                     }
-                                    pv.FindStationAndElevationAtXY(
-                                        line.EndPoint.X,
-                                        line.EndPoint.Y,
-                                        ref station,
-                                        ref elevation
-                                    );
-                                    profile.PVIs.AddPVI(station, elevation);
-
-                                    //profile.Entities.AddFixedTangent(point2d2, point2d3);
-                                    break;
-                                case SegmentType.Arc:
+                                }
+                                break;
+                            case SegmentType.Arc:
+                                {
                                     CircularArc2d arc = polyline.GetArcSegment2dAt(i);
 
-                                    // Get radius vectors
-                                    Vector2d v1 = arc.StartPoint - arc.Center;
-                                    Vector2d v2 = arc.EndPoint - arc.Center;
+                                    var ts = arc.GetTangent(arc.StartPoint);
+                                    var te = arc.GetTangent(arc.EndPoint);
 
-                                    // Get tangent directions (perpendicular to radius, adjusted for direction)
-                                    Vector2d t1 = arc.IsClockWise
-                                        ? v1.GetPerpendicularVector()
-                                        : -v1.GetPerpendicularVector();
-                                    Vector2d t2 = arc.IsClockWise
-                                        ? -v2.GetPerpendicularVector()
-                                        : v2.GetPerpendicularVector();
+                                    var pts = ts.IntersectWith(te);
 
-                                    // Define lines as parametric: P + t * D
-                                    // Solve for t1 and t2 where StartPoint + t1 * dir1 == EndPoint + t2 * dir2
+                                    if (pts.Length != 1) { prdDbg("Multiple intersections!"); }
 
-                                    // Solve the linear system
-                                    double a1 = t1.X,
-                                        b1 = -t2.X,
-                                        c1 = arc.EndPoint.X - arc.StartPoint.X;
-                                    double a2 = t1.Y,
-                                        b2 = -t2.Y,
-                                        c2 = arc.EndPoint.Y - arc.StartPoint.Y;
+                                    var ins = pts[0];
+                                    pv.FindStationAndElevationAtXY(
+                                        ins.X, ins.Y, ref station, ref elevation);
 
-                                    double denom = a1 * b2 - a2 * b1;
+                                    var pvi = profile.PVIs.AddPVI(station, elevation);
+                                    pvis.Add((arc.Radius, pvi));
 
-                                    if (Math.Abs(denom) > 1e-10)
+                                    var nextEntityType = polyline.GetSegmentType(i + 1);
+                                    switch (nextEntityType)
                                     {
-                                        double s = (c1 * b2 - c2 * b1) / denom;
-                                        Point2d ins = arc.StartPoint + s * t1;
-
-                                        pv.FindStationAndElevationAtXY(
-                                            ins.X,
-                                            ins.Y,
-                                            ref station,
-                                            ref elevation
-                                        );
-
-                                        var pvi = profile.PVIs.AddPVI(station, elevation);
-
-                                        pv.FindStationAndElevationAtXY(
-                                            arc.EndPoint.X,
-                                            arc.EndPoint.Y,
-                                            ref station,
-                                            ref elevation
-                                        );
-
-                                        profile.PVIs.AddPVI(station, elevation);
-
-                                        //profile.Entities.AddFreeCircularCurveByPVIAndRadius(pvi, arc.Radius);
-
-                                        //profile.Entities.AddFreeCircularCurve
-
-                                        // intersection is the fillet's theoretical corner point
+                                        case SegmentType.Point:
+                                            pv.FindStationAndElevationAtXY(
+                                                arc.EndPoint.X, arc.EndPoint.Y, ref station, ref elevation);
+                                            profile.PVIs.AddPVI(station, elevation);
+                                            break;
                                     }
+                                }
+                                break;
+                            default:
+                                break;
+                        }
+                    }
 
-                                    break;
-                                case SegmentType.Coincident:
-                                    break;
-                                case SegmentType.Point:
-                                    break;
-                                case SegmentType.Empty:
-                                    break;
-                                default:
-                                    break;
-                            }
+                    foreach (var (radius, pvi) in pvis)
+                    {
+                        try
+                        {
+                            profile.Entities.AddFreeCircularCurveByPVIAndRadius(pvi, radius);
+                        }
+                        catch (System.Exception)
+                        {
+                            continue;
                         }
                     }
                 }
                 catch (System.Exception ex)
                 {
-                    editor.WriteMessage("\n" + ex.Message);
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
                 }
                 tx.Commit();
             }
         }
 
-        [CommandMethod("MYPFPUDV")]
+        //[CommandMethod("MYPFPUDV")]
         public void profilefrompolylineUDV()
         {
             DocumentCollection docCol = Application.DocumentManager;

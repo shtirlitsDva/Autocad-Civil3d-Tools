@@ -886,12 +886,7 @@ namespace IntersectUtilities.UtilsCommon
                 CreateDebugLine(start, end, color, "");
             }
 
-            public static void CreateDebugLine(
-                Point3d start,
-                Point3d end,
-                Color color,
-                string layer
-            )
+            public static void CreateDebugLine(Point3d start, Point3d end, Color color, string layer)
             {
                 Database db = Application.DocumentManager.MdiActiveDocument.Database;
                 Line line = new Line(start, end);
@@ -899,6 +894,11 @@ namespace IntersectUtilities.UtilsCommon
                 if (layer.IsNotNoE())
                     line.Layer = layer;
                 line.AddEntityToDbModelSpace(db);
+            }
+
+            public static void CreateDebugLine(Point3d start, Point3d end, string color, string layer)
+            {
+                CreateDebugLine(start, end, ColorByName(color), layer);                
             }
 
             public static void CreateDebugText(

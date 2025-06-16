@@ -74,9 +74,12 @@ namespace IntersectUtilities
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
 
-            #region Debug and dev layer
+            #region Layers
             string devLyr = "AutoProfileTest";
             localDb.CheckOrCreateLayer(devLyr, 1, false);
+
+            string AP_Layer = "AutoProfile";
+            localDb.CheckOrCreateLayer(AP_Layer, 1, false);
             #endregion
 
             #region Delete previous debug entities
@@ -345,42 +348,11 @@ namespace IntersectUtilities
                     prdDbg(ppld.SizeArray);
                     System.Windows.Forms.Application.DoEvents();
 
-#if DEBUG
-                    //ppld.SurfaceProfile.OffsetCentrelines.Layer = devLyr;
-                    //ppld.SurfaceProfile.OffsetCentrelines.AddEntityToDbModelSpace(localDb);
-#endif
-
                     //DETERMINE FLOATING STATUS
                     foreach (AP_Utility utility in ppld.Utility)
                     {
                         //DETERMINE FLOATING STATUS
                         utility.TestFloatingStatus(ppld.SurfaceProfile.OffsetCentrelines);
-
-#if DEBUG
-                        var uhatch = utility.GetUtilityHatch();
-                        uhatch.Layer = devLyr;
-                        if (utility.IsFloating) uhatch.Color = ColorByName("green");
-                        uhatch.AddEntityToDbModelSpace(localDb);
-#endif
-
-                        //utility.AvoidanceArc.Layer = devLyr;
-                        //utility.AvoidanceArc.AddEntityToDbModelSpace(localDb);
-
-                        //var pphatch = NTSConversion.ConvertNTSPolygonToHatch(utility.AvoidancePolygon);
-                        //pphatch.Layer = devLyr;
-                        //pphatch.Color = ColorByName("green");
-                        //pphatch.AddEntityToDbModelSpace(localDb);
-
-                        //if (utility.HorizontalArcAvoidancePolyline != null)
-                        //{
-                        //utility.HorizontalArcAvoidancePolyline.Layer = devLyr;
-                        //utility.HorizontalArcAvoidancePolyline.AddEntityToDbModelSpace(localDb);
-
-                        //var polyHatch = NTSConversion.ConvertNTSPolygonToHatch(utility.MergedAvoidancePolygon);
-                        //polyHatch.Layer = devLyr;
-                        //polyHatch.Color = ColorByName("yellow");
-                        //polyHatch.AddEntityToDbModelSpace(localDb);
-
                     }
 
                     #region Setup linq queries
@@ -428,8 +400,10 @@ namespace IntersectUtilities
                         safetyCounter++;
 
                         AP_Utility current = queryDeepestUnknownNonFloating().FirstOrDefault();
-                        if (current == default) { prdDbg($"Iteration stopped on loop {safetyCounter}."); break; }
-                        prdDbg($"Iteration {safetyCounter}.");
+                        if (current == default) { 
+                            //prdDbg($"Iteration stopped on loop {safetyCounter}."); 
+                            break; }
+                        //prdDbg($"Iteration {safetyCounter}.");
 
                         //First handle case 4: Query floating for overlaps
                         //If we overlap a floating utility, we mark it as non-floating
@@ -440,8 +414,8 @@ namespace IntersectUtilities
                         {
                             foreach (var item in queryFloatingForOverlap(current))
                             {
-                                prdDbg($"Ut. st: {current.MidStation.ToString("F2")} el: {current.BottomElevation.ToString("F2")}" +
-                                    $" OVERLAPS FLOATING {item.MidStation.ToString("F2")} -> NONFLOATING");
+                                //prdDbg($"Ut. st: {current.MidStation.ToString("F2")} el: {current.BottomElevation.ToString("F2")}" +
+                                //    $" OVERLAPS FLOATING {item.MidStation.ToString("F2")} -> NONFLOATING");
                                 item.IsFloating = false;
                             }
                             continue;
@@ -451,8 +425,8 @@ namespace IntersectUtilities
                         //If we have a hit, we mark the current as AP_Status.Ignored
                         foreach (var covered in queryNonFloatingForCovered(current))
                         {
-                            prdDbg($"Ut. st: {current.MidStation.ToString("F2")} el: {current.BottomElevation.ToString("F2")}" +
-                                $" COVERS NONFLOATING {covered.MidStation.ToString("F2")} -> IGNORE");
+                            //prdDbg($"Ut. st: {current.MidStation.ToString("F2")} el: {current.BottomElevation.ToString("F2")}" +
+                            //    $" COVERS NONFLOATING {covered.MidStation.ToString("F2")} -> IGNORE");
                             covered.Status = AP_Status.Ignored;
                         }
 
@@ -465,8 +439,8 @@ namespace IntersectUtilities
                         //    overlap.Status = AP_Status.Selected; 
                         //}
 
-                        prdDbg($"Ut. st: {current.MidStation.ToString("F2")} el: {current.BottomElevation.ToString("F2")}" +
-                            $" is now SELECTED.");
+                        //prdDbg($"Ut. st: {current.MidStation.ToString("F2")} el: {current.BottomElevation.ToString("F2")}" +
+                        //    $" is now SELECTED.");
                         current.Status = AP_Status.Selected;
 
                         if (safetyCounter > 10000)
@@ -478,41 +452,19 @@ namespace IntersectUtilities
                     #endregion
 
                     #region Process selected utilities
-
-#if DEBUG
-                    foreach (var utility in ppld.Utility.Where(x => x.Status == AP_Status.Selected))
-                    {
-                        var h = utility.GetUtilityHatch();
-                        h.Layer = devLyr;
-                        h.Color = ColorByName("magenta");
-                        h.AddEntityToDbModelSpace(localDb);
-                    }
-#endif
                     ppld.ProcessSelectedUtilitiesToCreateUnfilletedPolyline();
 
                     //Clean polyline for colinear and coincident vertices
                     RemoveColinearVerticesPolyline(ppld.UnfilletedPolyline);
 
-                    ppld.FilletPolyline();
-
-                    //ppld.UnfilletedPolyline.Color = ColorByName("yellow");
-                    //ppld.UnfilletedPolyline.ConstantWidth = 0.07;
-                    //ppld.UnfilletedPolyline.Layer = devLyr;
-                    //ppld.UnfilletedPolyline.AddEntityToDbModelSpace(localDb);
+                    ppld.FilletPolyline();                    
 
                     ppld.FilletedPolyline.Color = ColorByName("red");
                     ppld.FilletedPolyline.ConstantWidth = 0.07;
-                    ppld.FilletedPolyline.Layer = devLyr;
+                    ppld.FilletedPolyline.Layer = AP_Layer;
                     ppld.FilletedPolyline.AddEntityToDbModelSpace(localDb);
-                    #endregion
-
-                    //ppld.Serialize($"C:\\Temp\\sample_data_{ppld.Name}.json");
-                }
-
-                #region Export ppl to json
-                //Write the collection to json
-
-                #endregion
+                    #endregion                    
+                }                
             }
             catch (DebugException dex)
             {

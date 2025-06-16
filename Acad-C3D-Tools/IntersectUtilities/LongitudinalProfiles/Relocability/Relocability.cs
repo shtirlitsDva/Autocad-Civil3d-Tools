@@ -2,9 +2,12 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+
 using IntersectUtilities.PipeScheduleV2;
 using IntersectUtilities.UtilsCommon;
+
 using Microsoft.Extensions.DependencyInjection;
+
 using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 using static IntersectUtilities.UtilsCommon.Utils;
 
@@ -245,8 +248,22 @@ namespace IntersectUtilities.LongitudinalProfiles.Relocability
                     PipeSystemEnum.PertFlextra,
                     null,
                     null,
-                    Enum.GetValues<LerTypeEnum>()
-                        .ToDictionary(t => new RuleKey(t), _ => Threshold.AlleLedningerRespekteres)
+                    new Dictionary<RuleKey, IThreshold>
+                    {
+                        { new RuleKey(LerTypeEnum.Afløb, Spatial.ThreeD), Threshold.AlleLedningerRespekteres },
+                        { new RuleKey(LerTypeEnum.Afløb, Spatial.TwoD), Threshold.AlleLedningerOmlægges },
+                        { new RuleKey(LerTypeEnum.Damp), Threshold.AlleLedningerRespekteres },
+                        { new RuleKey(LerTypeEnum.EL_LS), Threshold.AlleLedningerOmlægges },
+                        { new RuleKey(LerTypeEnum.EL_HS), Threshold.AlleLedningerRespekteres },
+                        { new RuleKey(LerTypeEnum.FJV), Threshold.AlleLedningerRespekteres },
+                        { new RuleKey(LerTypeEnum.Gas), Threshold.AlleLedningerRespekteres },
+                        { new RuleKey(LerTypeEnum.Luft), Threshold.AlleLedningerRespekteres },
+                        { new RuleKey(LerTypeEnum.Oil), Threshold.AlleLedningerRespekteres },
+                        { new RuleKey(LerTypeEnum.Vand, Spatial.ThreeD), Threshold.AlleLedningerRespekteres },
+                        { new RuleKey(LerTypeEnum.Vand, Spatial.TwoD), Threshold.AlleLedningerOmlægges },
+                        { new RuleKey(LerTypeEnum.UAD), Threshold.AlleLedningerOmlægges },
+                        { new RuleKey(LerTypeEnum.Ignored), Threshold.AlleLedningerOmlægges },
+                    }
                 ),
             ];
 
