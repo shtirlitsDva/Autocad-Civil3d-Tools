@@ -81,8 +81,8 @@ namespace IntersectUtilities.LongitudinalProfiles.Relocability
     {
         public abstract bool IsRelocatable(int diameter);
 
-        public static readonly IThreshold AlleLedningerRespekteres = new AlleRespekteresThreshold();
-        public static IThreshold AlleLedningerOmlægges => new AlleOmlæggesThreshold();
+        public static readonly IThreshold AlleRespekteres = new AlleRespekteresThreshold();
+        public static IThreshold AlleOmlægges => new AlleOmlæggesThreshold();
 
         public static IThreshold KanOmlæggesUnder(int limit) =>
             new KanOmlæggesUnderThreshold(limit);
@@ -171,22 +171,22 @@ namespace IntersectUtilities.LongitudinalProfiles.Relocability
                     {
                         {
                             new RuleKey(LerTypeEnum.Afløb, Spatial.ThreeD),
-                            Threshold.AlleLedningerRespekteres
+                            Threshold.AlleRespekteres
                         },
                         {
                             new RuleKey(LerTypeEnum.Afløb, Spatial.TwoD),
-                            Threshold.AlleLedningerOmlægges
+                            Threshold.AlleOmlægges
                         },
-                        { new RuleKey(LerTypeEnum.Damp), Threshold.AlleLedningerRespekteres },
-                        { new RuleKey(LerTypeEnum.EL_LS), Threshold.AlleLedningerOmlægges },
-                        { new RuleKey(LerTypeEnum.EL_HS), Threshold.AlleLedningerRespekteres },
-                        { new RuleKey(LerTypeEnum.FJV), Threshold.AlleLedningerRespekteres },
+                        { new RuleKey(LerTypeEnum.Damp), Threshold.AlleRespekteres },
+                        { new RuleKey(LerTypeEnum.EL_LS), Threshold.AlleOmlægges },
+                        { new RuleKey(LerTypeEnum.EL_HS), Threshold.AlleRespekteres },
+                        { new RuleKey(LerTypeEnum.FJV), Threshold.AlleRespekteres },
                         { new RuleKey(LerTypeEnum.Gas), Threshold.KanOmlæggesUnder(41) },
-                        { new RuleKey(LerTypeEnum.Luft), Threshold.AlleLedningerOmlægges },
-                        { new RuleKey(LerTypeEnum.Oil), Threshold.AlleLedningerRespekteres },
+                        { new RuleKey(LerTypeEnum.Luft), Threshold.AlleOmlægges },
+                        { new RuleKey(LerTypeEnum.Oil), Threshold.AlleRespekteres },
                         { new RuleKey(LerTypeEnum.Vand), Threshold.KanOmlæggesUnder(41) },
-                        { new RuleKey(LerTypeEnum.UAD), Threshold.AlleLedningerOmlægges },
-                        { new RuleKey(LerTypeEnum.Ignored), Threshold.AlleLedningerOmlægges },
+                        { new RuleKey(LerTypeEnum.UAD), Threshold.AlleOmlægges },
+                        { new RuleKey(LerTypeEnum.Ignored), Threshold.AlleOmlægges },
                     }
                 ),
                 // Twin steel DN65‒DN80
@@ -198,22 +198,22 @@ namespace IntersectUtilities.LongitudinalProfiles.Relocability
                     {
                         {
                             new RuleKey(LerTypeEnum.Afløb, Spatial.ThreeD),
-                            Threshold.AlleLedningerRespekteres
+                            Threshold.AlleRespekteres
                         },
                         {
                             new RuleKey(LerTypeEnum.Afløb, Spatial.TwoD),
-                            Threshold.AlleLedningerOmlægges
+                            Threshold.AlleOmlægges
                         },
-                        { new RuleKey(LerTypeEnum.Damp), Threshold.AlleLedningerRespekteres },
-                        { new RuleKey(LerTypeEnum.EL_LS), Threshold.AlleLedningerOmlægges },
-                        { new RuleKey(LerTypeEnum.EL_HS), Threshold.AlleLedningerRespekteres },
-                        { new RuleKey(LerTypeEnum.FJV), Threshold.AlleLedningerRespekteres },
+                        { new RuleKey(LerTypeEnum.Damp), Threshold.AlleRespekteres },
+                        { new RuleKey(LerTypeEnum.EL_LS), Threshold.AlleOmlægges },
+                        { new RuleKey(LerTypeEnum.EL_HS), Threshold.AlleRespekteres },
+                        { new RuleKey(LerTypeEnum.FJV), Threshold.AlleRespekteres },
                         { new RuleKey(LerTypeEnum.Gas), Threshold.KanOmlæggesUnder(64) },
-                        { new RuleKey(LerTypeEnum.Luft), Threshold.AlleLedningerOmlægges },
-                        { new RuleKey(LerTypeEnum.Oil), Threshold.AlleLedningerRespekteres },
+                        { new RuleKey(LerTypeEnum.Luft), Threshold.AlleOmlægges },
+                        { new RuleKey(LerTypeEnum.Oil), Threshold.AlleRespekteres },
                         { new RuleKey(LerTypeEnum.Vand), Threshold.KanOmlæggesUnder(64) },
-                        { new RuleKey(LerTypeEnum.UAD), Threshold.AlleLedningerOmlægges },
-                        { new RuleKey(LerTypeEnum.Ignored), Threshold.AlleLedningerOmlægges },
+                        { new RuleKey(LerTypeEnum.UAD), Threshold.AlleOmlægges },
+                        { new RuleKey(LerTypeEnum.Ignored), Threshold.AlleOmlægges },
                     }
                 ),
                 // Twin steel DN100‒DN250
@@ -225,22 +225,22 @@ namespace IntersectUtilities.LongitudinalProfiles.Relocability
                     {
                         {
                             new RuleKey(LerTypeEnum.Afløb, Spatial.ThreeD),
-                            Threshold.AlleLedningerRespekteres
+                            Threshold.AlleRespekteres
                         },
                         {
                             new RuleKey(LerTypeEnum.Afløb, Spatial.TwoD),
-                            Threshold.AlleLedningerOmlægges
+                            Threshold.AlleOmlægges
                         },
-                        { new RuleKey(LerTypeEnum.Damp), Threshold.AlleLedningerRespekteres },
-                        { new RuleKey(LerTypeEnum.EL_LS), Threshold.AlleLedningerOmlægges },
-                        { new RuleKey(LerTypeEnum.EL_HS), Threshold.AlleLedningerRespekteres },
-                        { new RuleKey(LerTypeEnum.FJV), Threshold.AlleLedningerRespekteres },
+                        { new RuleKey(LerTypeEnum.Damp), Threshold.AlleRespekteres },
+                        { new RuleKey(LerTypeEnum.EL_LS), Threshold.AlleOmlægges },
+                        { new RuleKey(LerTypeEnum.EL_HS), Threshold.AlleRespekteres },
+                        { new RuleKey(LerTypeEnum.FJV), Threshold.AlleRespekteres },
                         { new RuleKey(LerTypeEnum.Gas), Threshold.KanOmlæggesUnder(91) },
-                        { new RuleKey(LerTypeEnum.Luft), Threshold.AlleLedningerOmlægges },
-                        { new RuleKey(LerTypeEnum.Oil), Threshold.AlleLedningerRespekteres },
+                        { new RuleKey(LerTypeEnum.Luft), Threshold.AlleOmlægges },
+                        { new RuleKey(LerTypeEnum.Oil), Threshold.AlleRespekteres },
                         { new RuleKey(LerTypeEnum.Vand), Threshold.KanOmlæggesUnder(121) },
-                        { new RuleKey(LerTypeEnum.UAD), Threshold.AlleLedningerOmlægges },
-                        { new RuleKey(LerTypeEnum.Ignored), Threshold.AlleLedningerOmlægges },
+                        { new RuleKey(LerTypeEnum.UAD), Threshold.AlleOmlægges },
+                        { new RuleKey(LerTypeEnum.Ignored), Threshold.AlleOmlægges },
                     }
                 ),
                 // PERT – all dimensions
@@ -250,19 +250,19 @@ namespace IntersectUtilities.LongitudinalProfiles.Relocability
                     null,
                     new Dictionary<RuleKey, IThreshold>
                     {
-                        { new RuleKey(LerTypeEnum.Afløb, Spatial.ThreeD), Threshold.AlleLedningerRespekteres },
-                        { new RuleKey(LerTypeEnum.Afløb, Spatial.TwoD), Threshold.AlleLedningerOmlægges },
-                        { new RuleKey(LerTypeEnum.Damp), Threshold.AlleLedningerRespekteres },
-                        { new RuleKey(LerTypeEnum.EL_LS), Threshold.AlleLedningerOmlægges },
-                        { new RuleKey(LerTypeEnum.EL_HS), Threshold.AlleLedningerRespekteres },
-                        { new RuleKey(LerTypeEnum.FJV), Threshold.AlleLedningerRespekteres },
-                        { new RuleKey(LerTypeEnum.Gas), Threshold.AlleLedningerRespekteres },
-                        { new RuleKey(LerTypeEnum.Luft), Threshold.AlleLedningerRespekteres },
-                        { new RuleKey(LerTypeEnum.Oil), Threshold.AlleLedningerRespekteres },
-                        { new RuleKey(LerTypeEnum.Vand, Spatial.ThreeD), Threshold.AlleLedningerRespekteres },
-                        { new RuleKey(LerTypeEnum.Vand, Spatial.TwoD), Threshold.AlleLedningerOmlægges },
-                        { new RuleKey(LerTypeEnum.UAD), Threshold.AlleLedningerOmlægges },
-                        { new RuleKey(LerTypeEnum.Ignored), Threshold.AlleLedningerOmlægges },
+                        { new RuleKey(LerTypeEnum.Afløb, Spatial.ThreeD), Threshold.AlleRespekteres },
+                        { new RuleKey(LerTypeEnum.Afløb, Spatial.TwoD), Threshold.AlleOmlægges },
+                        { new RuleKey(LerTypeEnum.Damp), Threshold.AlleRespekteres },
+                        { new RuleKey(LerTypeEnum.EL_LS), Threshold.AlleOmlægges },
+                        { new RuleKey(LerTypeEnum.EL_HS), Threshold.AlleRespekteres },
+                        { new RuleKey(LerTypeEnum.FJV), Threshold.AlleRespekteres },
+                        { new RuleKey(LerTypeEnum.Gas), Threshold.AlleRespekteres },
+                        { new RuleKey(LerTypeEnum.Luft), Threshold.AlleRespekteres },
+                        { new RuleKey(LerTypeEnum.Oil), Threshold.AlleRespekteres },
+                        { new RuleKey(LerTypeEnum.Vand, Spatial.ThreeD), Threshold.AlleRespekteres },
+                        { new RuleKey(LerTypeEnum.Vand, Spatial.TwoD), Threshold.AlleOmlægges },
+                        { new RuleKey(LerTypeEnum.UAD), Threshold.AlleOmlægges },
+                        { new RuleKey(LerTypeEnum.Ignored), Threshold.AlleOmlægges },
                     }
                 ),
             ];
