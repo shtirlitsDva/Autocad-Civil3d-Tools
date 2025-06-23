@@ -192,6 +192,7 @@ namespace DimensioneringV2.GraphFeatures
                             attributes["OpvarmningsMiddel"] = bbr.OpvarmningsMiddel;
                             attributes["InstallationOgBrændsel"] = bbr.InstallationOgBrændsel;
                             attributes["Vejnavn"] = bbr.Vejnavn;
+                            attributes["Vejklasse"] = bbr.Vejklasse;
                             attributes["Husnummer"] = bbr.Husnummer;
                             attributes["Postnr"] = bbr.Postnr;
                             attributes["By"] = bbr.By;

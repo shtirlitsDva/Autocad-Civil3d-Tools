@@ -33,6 +33,7 @@ using DimensioneringV2.Services;
 using Microsoft.Win32;
 using System.Windows;
 using DimensioneringV2.AutoCAD;
+using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 
 [assembly: CommandClass(typeof(DimensioneringV2.Commands))]
 
@@ -419,6 +420,10 @@ namespace DimensioneringV2
         public static void dim2map()
         {
             AcContext.Current = SynchronizationContext.Current;
+
+            PropertySetManager.UpdatePropertySetDefinition(
+                Application.DocumentManager.MdiActiveDocument.Database,
+                PSetDefs.DefinedSets.BBR);
 
             if (Services.PaletteSetCache.paletteSet == null) Services.PaletteSetCache.paletteSet = new CustomPaletteSet();
             Services.PaletteSetCache.paletteSet.Visible = true;

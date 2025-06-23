@@ -1417,6 +1417,8 @@ namespace IntersectUtilities
             public Property Status { get; } = new Property("Status", "Status", PsDataType.Text, "");
             public Property Vejnavn { get; } =
                 new Property("Vejnavn", "Vejnavn", PsDataType.Text, "");
+            public Property Vejklasse { get; } =
+                new Property("Vejklasse", "Vejklasse", PsDataType.Integer, 0);
             public Property Husnummer { get; } =
                 new Property("Husnummer", "Husnummer", PsDataType.Text, "");
             public Property Postnr { get; } = new Property("Postnr", "Postnr", PsDataType.Text, "");
@@ -1656,6 +1658,11 @@ namespace IntersectUtilities
         {
             get => ReadPropertyString(_ent, _def.Vejnavn);
             set => WritePropertyObject(_ent, _def.Vejnavn, value);
+        }
+        public int Vejklasse
+        {
+            get => ReadPropertyInt(_ent, _def.Vejklasse);
+            set => WritePropertyObject(_ent, _def.Vejklasse, value);
         }
         public string Husnummer
         {
