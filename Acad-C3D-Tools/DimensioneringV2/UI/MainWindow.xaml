@@ -39,6 +39,10 @@
                         Margin="2" Command="{Binding LoadResultCommand}"/>
                 <Button x:Name="btnWriteToDwg" Content="Write to DWG" FontSize="10" Width="70" Height="20" 
                         Margin="2" Command="{Binding WriteToDwgCommand}"/>
+                <Button x:Name="btnFillOutVejklasser" Content="Udfyld vejklasser" FontSize="8" Width="70" Height="20"
+                        Margin="2" Command="{Binding FillOutVejklasserCommand}"/>
+                <Button x:Name="btnCreateVejklasserSchedule" Content="Stik og vejklasser" FontSize="8" Width="70" Height="20"
+        Margin="2" Command="{Binding StikOgVejklasserCommand}"/>
             </StackPanel>
 
             <!-- Main Content Area -->

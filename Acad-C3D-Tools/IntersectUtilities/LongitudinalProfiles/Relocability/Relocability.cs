@@ -265,6 +265,27 @@ namespace IntersectUtilities.LongitudinalProfiles.Relocability
                         { new RuleKey(LerTypeEnum.Ignored), Threshold.AlleOmlægges },
                     }
                 ),
+                //AquaTherm11 - all dimension
+                new PipeRule(
+                    PipeSystemEnum.AquaTherm11,
+                    null,
+                    null,
+                    new Dictionary<RuleKey, IThreshold>
+                    {
+                        { new RuleKey(LerTypeEnum.Afløb, Spatial.ThreeD), Threshold.AlleRespekteres },
+                        { new RuleKey(LerTypeEnum.Afløb, Spatial.TwoD), Threshold.AlleOmlægges },
+                        { new RuleKey(LerTypeEnum.Damp), Threshold.AlleRespekteres },
+                        { new RuleKey(LerTypeEnum.EL_LS), Threshold.AlleOmlægges },
+                        { new RuleKey(LerTypeEnum.EL_HS), Threshold.AlleRespekteres },
+                        { new RuleKey(LerTypeEnum.FJV), Threshold.AlleRespekteres },
+                        { new RuleKey(LerTypeEnum.Gas), Threshold.KanOmlæggesUnder(62) },
+                        { new RuleKey(LerTypeEnum.Luft), Threshold.AlleRespekteres },
+                        { new RuleKey(LerTypeEnum.Oil), Threshold.AlleRespekteres },
+                        { new RuleKey(LerTypeEnum.Vand), Threshold.KanOmlæggesUnder(39) },
+                        { new RuleKey(LerTypeEnum.UAD), Threshold.AlleOmlægges },
+                        { new RuleKey(LerTypeEnum.Ignored), Threshold.AlleOmlægges },
+                    }
+                ),
             ];
 
         public static IRelocatabilityService CreateDefaultService() =>
