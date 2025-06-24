@@ -795,9 +795,10 @@ namespace IntersectUtilities
             }
             DictionaryPropertySetDefinitions dpsdict = new DictionaryPropertySetDefinitions(db);
 
-            string psName = GetKeywords("Select property set: ", dpsdict.NamesInUse.ToList());
-            if (psName == null)
-                return default;
+            var psName = StringGridFormCaller.Call(
+                dpsdict.NamesInUse.ToList().Order(), "Select property set: ");
+            
+            if (psName == null) return default;
 
             PropertySetDefinition psDef = dpsdict
                 .GetAt(psName)
@@ -807,9 +808,8 @@ namespace IntersectUtilities
             foreach (PropertyDefinition propDef in propDefs)
                 propDefNames.Add(propDef.Name);
 
-            string propName = GetKeywords("Select property name: ", propDefNames);
-            if (propName == null)
-                return default;
+            string propName = StringGridFormCaller.Call(propDefNames.Order(), "Select property name: ");
+            if (propName == null) return default;
 
             return (psName, propName);
         }
@@ -822,7 +822,8 @@ namespace IntersectUtilities
                 return default;
             }
             DictionaryPropertySetDefinitions dpsdict = new DictionaryPropertySetDefinitions(db);
-            string psName = GetKeywords("Select property set: ", dpsdict.NamesInUse.ToList());
+            var psName = StringGridFormCaller.Call(
+                dpsdict.NamesInUse.ToList().Order(), "Select property set: ");
             if (psName == null)
                 return default;
             return psName;

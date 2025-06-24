@@ -137,18 +137,6 @@
 		<Compile Include="..\IntersectUtilities\Utils.cs">
 			<Link>Utils.cs</Link>
 		</Compile>
-		<Compile Include="..\IntersectUtilities\Forms\StringGridFormCaller.cs">
-			<Link>Forms\StringGridFormCaller.cs</Link>
-		</Compile>
-		<Compile Include="..\IntersectUtilities\Forms\StringGridForm.cs">
-			<Link>Forms\StringGridForm.cs</Link>
-		</Compile>
-		<Compile Include="..\IntersectUtilities\Forms\StringGridForm.Designer.cs">
-			<Link>Forms\StringGridForm.Designer.cs</Link>
-		</Compile>
-		<Compile Include="..\IntersectUtilities\Forms\OverlayForm.cs">
-			<Link>Forms\OverlayForm.cs</Link>
-		</Compile>
 	</ItemGroup>
 	<ItemGroup>
 	  <COMReference Include="Microsoft.Office.Interop.Excel">

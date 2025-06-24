@@ -47,20 +47,6 @@
 		</Reference>
 	</ItemGroup>
 	<ItemGroup>
-		<Compile Include="..\IntersectUtilities\Forms\StringGridFormCaller.cs">
-			<Link>Forms\StringGridFormCaller.cs</Link>
-		</Compile>
-		<Compile Include="..\IntersectUtilities\Forms\StringGridForm.cs">
-			<Link>Forms\StringGridForm.cs</Link>
-		</Compile>
-		<Compile Include="..\IntersectUtilities\Forms\StringGridForm.Designer.cs">
-			<Link>Forms\StringGridForm.Designer.cs</Link>
-		</Compile>
-		<Compile Include="..\IntersectUtilities\Forms\OverlayForm.cs">
-			<Link>Forms\OverlayForm.cs</Link>
-		</Compile>
-	</ItemGroup>
-	<ItemGroup>
 		<PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
 		<PackageReference Include="Microsoft.VisualStudio.Interop" Version="17.10.40170" />
 		<PackageReference Include="System.Data.DataSetExtensions" Version="4.5.0" />

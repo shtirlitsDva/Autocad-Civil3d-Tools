@@ -37,20 +37,6 @@
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AcMPolygonMGD.dll</HintPath>
 		</Reference>
 	</ItemGroup>
-	<ItemGroup>
-		<Compile Include="..\IntersectUtilities\Forms\StringGridFormCaller.cs">
-			<Link>Forms\StringGridFormCaller.cs</Link>
-		</Compile>
-		<Compile Include="..\IntersectUtilities\Forms\StringGridForm.cs">
-			<Link>Forms\StringGridForm.cs</Link>
-		</Compile>
-		<Compile Include="..\IntersectUtilities\Forms\StringGridForm.Designer.cs">
-			<Link>Forms\StringGridForm.Designer.cs</Link>
-		</Compile>
-		<Compile Include="..\IntersectUtilities\Forms\OverlayForm.cs">
-			<Link>Forms\OverlayForm.cs</Link>
-		</Compile>
-	</ItemGroup>
 	<PropertyGroup>
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
 	</PropertyGroup>

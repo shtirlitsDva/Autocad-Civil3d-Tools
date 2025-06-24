@@ -32,7 +32,7 @@
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
 		<OutputPath>bin\Release\</OutputPath>
 		<DebugType>full</DebugType>
-	</PropertyGroup>
+	</PropertyGroup>	
 		<ItemGroup>
 		<Reference Include="accoremgd">
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\accoremgd.dll</HintPath>
@@ -135,18 +135,6 @@
 		<Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeScheduleV2.cs">
 			<Link>Links\PipeScheduleV2\PipeScheduleV2.cs</Link>
 		</Compile>
-		<Compile Include="..\IntersectUtilities\Forms\StringGridFormCaller.cs">
-			<Link>Links\Forms\StringGridFormCaller.cs</Link>
-		</Compile>
-		<Compile Include="..\IntersectUtilities\Forms\StringGridForm.cs">
-			<Link>Links\Forms\StringGridForm.cs</Link>
-		</Compile>
-		<Compile Include="..\IntersectUtilities\Forms\StringGridForm.Designer.cs">
-			<Link>Links\Forms\StringGridForm.Designer.cs</Link>
-		</Compile>
-		<Compile Include="..\IntersectUtilities\Forms\OverlayForm.cs">
-			<Link>Links\Forms\OverlayForm.cs</Link>
-		</Compile>
 	</ItemGroup>
 	<ItemGroup>
 		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
@@ -173,10 +161,7 @@
 		<PackageReference Include="QuikGraph.Graphviz" Version="2.5.0" />
 	</ItemGroup>
 	<ItemGroup>
-		<Folder Include="Links\" />
-	</ItemGroup>
-	<ItemGroup>
-	  <Resource Include="UI\SettingsTabViewModel.cs" />
+		<Folder Include="Links\" />		
 	</ItemGroup>
 	<ItemGroup>
 		<Compile Update="Properties\Settings.Designer.cs">

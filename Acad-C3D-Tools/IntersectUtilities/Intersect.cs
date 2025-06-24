@@ -2339,10 +2339,13 @@ namespace IntersectUtilities
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
             Editor editor = docCol.MdiActiveDocument.Editor;
-            string kwd = Interaction.GetKeywords("Exact or contains match: ", new string[] { "Exact", "Contains" });
+
+            var kwd = StringGridFormCaller.Call(
+                ["Exact", "Contains"], "Exact or contains match: ");
             if (kwd == null) return;
             PropertySetManager.MatchTypeEnum matchType;
             if (!Enum.TryParse(kwd, out matchType)) return;
+            
             string valueToFind;
             PromptStringOptions opts3 = new PromptStringOptions("\nEnter data to search: ");
             opts3.AllowSpaces = true;
@@ -4834,7 +4837,7 @@ namespace IntersectUtilities
                     {
                         List<Point3d> pts = new List<Point3d>();
                         for (int i = 0; i < pl.NumberOfVertices; i++) pts.Add(pl.GetPoint2dAt(i).To3d());
-                        
+
                         Polyline3d p3d = new Polyline3d(
                             Poly3dType.SimplePoly, new Point3dCollection(pts.ToArray()), false);
 
@@ -4847,7 +4850,7 @@ namespace IntersectUtilities
 
                         pl.UpgradeOpen();
                         pl.Erase(true);
-                    }                    
+                    }
                 }
                 catch (System.Exception ex)
                 {
