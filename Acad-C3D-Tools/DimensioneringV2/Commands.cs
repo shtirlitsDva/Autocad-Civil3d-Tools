@@ -34,6 +34,9 @@ using Microsoft.Win32;
 using System.Windows;
 using DimensioneringV2.AutoCAD;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
+using DimensioneringV2.Vejklasser.Models;
+using DimensioneringV2.Vejklasser.Views;
+using Autodesk.Internal.Windows;
 
 [assembly: CommandClass(typeof(DimensioneringV2.Commands))]
 
@@ -680,6 +683,54 @@ namespace DimensioneringV2
 
             sourceTx.Commit();
             localTx.Commit();
+
+            prdDbg("Finished!");
+        }
+
+        [CommandMethod("DIM2VEJKLASSERASSIGN")]
+        public void dim2vejklasserassign()
+        {
+            DocumentCollection docCol = AcApp.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            PropertySetManager.UpdatePropertySetDefinition(
+                localDb, PSetDefs.DefinedSets.BBR);
+
+            using Transaction tx = localDb.TransactionManager.StartTransaction();
+            try
+            {
+                var brs = localDb.HashSetOfType<BlockReference>(tx, true)
+                    .Where(x => cv.AcceptedBlockTypes.Contains(
+                        PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "Type")));
+
+                var bbrs = brs.Select(x => new BBR(x));
+
+                var bbrsPåVeje = bbrs
+                    .GroupBy(x => x.Vejnavn)
+                    .Select(x => new VejnavnTilVejklasseModel(x.Key, x.ToList()))
+                    .OrderBy(x => x.Vejnavn)
+                    .ToList();
+
+                var window = new VejklasserGridView(bbrsPåVeje);
+                window.ShowDialog();
+
+                var results = window.Results;
+
+                foreach (var result in results)
+                {
+                    foreach (var bbr in result.BBRs)
+                    {
+                        bbr.Vejklasse = result.Vejklasse;
+                    }
+                }
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg(ex);
+                tx.Abort();
+                return;
+            }
+            tx.Commit();
 
             prdDbg("Finished!");
         }
