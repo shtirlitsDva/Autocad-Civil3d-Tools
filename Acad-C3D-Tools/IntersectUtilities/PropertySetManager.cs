@@ -321,6 +321,15 @@ namespace IntersectUtilities
             this.CurrentPropertySet.DowngradeOpen();
         }
 
+        public void WritePropertyInt(Entity ent, PSetDefs.Property property, int value)
+        {
+            GetOrAttachPropertySet(ent);
+            int propertyId = this.CurrentPropertySet.PropertyNameToId(property.Name);
+            this.CurrentPropertySet.CheckOrOpenForWrite();
+            this.CurrentPropertySet.SetAt(propertyId, value);
+            this.CurrentPropertySet.DowngradeOpen();
+        }
+
         public bool FilterPropetyString(Entity ent, PSetDefs.Property property, string value)
         {
             GetOrAttachPropertySet(ent);

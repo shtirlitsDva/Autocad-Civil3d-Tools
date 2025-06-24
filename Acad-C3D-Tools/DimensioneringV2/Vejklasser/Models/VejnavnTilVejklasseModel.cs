@@ -22,8 +22,8 @@ namespace DimensioneringV2.Vejklasser.Models
 
             //Determine if vejklasse exists
             var existVejklasser = bBRs
-                .DistinctBy(x => x.Vejklasse)
-                .Select(x => x.Vejklasse);
+                .Select(x => x.Vejklasse)
+                .Distinct();
 
             if (existVejklasser.Count() == 1) Vejklasse = existVejklasser.First();
             else Vejklasse = 0;

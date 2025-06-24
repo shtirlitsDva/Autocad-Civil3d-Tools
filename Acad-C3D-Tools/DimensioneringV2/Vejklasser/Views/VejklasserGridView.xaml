@@ -56,7 +56,7 @@
                         <DataTemplate>
                             <!-- always live, no edit-mode needed -->
                             <ComboBox ItemsSource="{StaticResource VejklasseValues}"
-                      SelectedItem="{Binding Vejklasse, Mode=TwoWay}"
+                      SelectedItem="{Binding Vejklasse, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                       IsTabStop="True"   />
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
