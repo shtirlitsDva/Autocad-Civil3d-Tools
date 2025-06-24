@@ -33,7 +33,7 @@
 		<OutputPath>bin\Release\</OutputPath>
 		<DebugType>full</DebugType>
 	</PropertyGroup>
-	<ItemGroup>
+		<ItemGroup>
 		<Reference Include="accoremgd">
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\accoremgd.dll</HintPath>
 			<Private>False</Private>
@@ -106,8 +106,8 @@
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\Map\ManagedMapApi.dll</HintPath>
 			<Private>False</Private>
 		</Reference>
-	</ItemGroup>
-	<ItemGroup>
+	</ItemGroup>	
+	<ItemGroup>		
 		<Compile Include="..\IntersectUtilities\PropertySetManager.cs">
 			<Link>Links\PropertySetManager.cs</Link>
 		</Compile>
@@ -151,6 +151,7 @@
 	<ItemGroup>
 		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
 		<PackageReference Include="GeneticSharp" Version="3.1.4" />
+		<PackageReference Include="HandyControls" Version="3.6.0" />
 		<PackageReference Include="Mapsui" Version="4.1.9" />
 		<PackageReference Include="Mapsui.Extensions" Version="4.1.9" />
 		<PackageReference Include="Mapsui.Nts" Version="4.1.9" />
@@ -173,6 +174,9 @@
 	</ItemGroup>
 	<ItemGroup>
 		<Folder Include="Links\" />
+	</ItemGroup>
+	<ItemGroup>
+	  <Resource Include="UI\SettingsTabViewModel.cs" />
 	</ItemGroup>
 	<ItemGroup>
 		<Compile Update="Properties\Settings.Designer.cs">
