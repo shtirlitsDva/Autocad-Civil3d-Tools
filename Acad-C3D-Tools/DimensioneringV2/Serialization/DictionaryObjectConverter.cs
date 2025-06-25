@@ -20,14 +20,14 @@ namespace DimensioneringV2.Serialization
                 .GetProperties(BindingFlags.Public | BindingFlags.Instance)
                 .Where(p => p.CanWrite || p.GetSetMethod(true) != null || p.CanRead);
 
-            var dups = props
+            IEnumerable<IGrouping<string, PropertyInfo>> dups = props
            .GroupBy(a => a.Name)
            .Where(g => g.Count() > 1)
-           .Select(g => g.Key)
-           .ToArray();
+           .Select(g => g);
 
-            if (dups.Length > 0)
-                throw new InvalidDataException($"Duplicate attribute(s): {string.Join(", ", dups)}");
+            if (dups.Count() > 0)
+                throw new InvalidDataException($"Duplicate attribute(s): " +
+                    $"{string.Join(", ", dups.Select(x => x.Key))}");
 
             var propertyTypes = props  // read-only props also useful for matching
                 .ToDictionary(p => p.Name, p => p.PropertyType, StringComparer.OrdinalIgnoreCase);
