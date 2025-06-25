@@ -815,10 +815,12 @@ namespace DimensioneringV2
                 }
             }
 
-            var fwe = Path.GetFileNameWithoutExtension(fileName);
-            var newFileName = fwe + "_Vejklasser.d2r";
+            
+            var newFileName = Path.Combine(
+                Path.GetDirectoryName(fileName)!,
+                Path.GetFileNameWithoutExtension(fileName) + "_Vejklasser.d2r");
 
-            if (File.Exists(fileName))
+            if (File.Exists(newFileName))
             {
                 MessageBoxResult result = MessageBox.Show(
                     "The file already exists. Do you want to overwrite it?",
@@ -840,7 +842,7 @@ namespace DimensioneringV2
             string json = JsonSerializer.Serialize(graphs, options);
             File.WriteAllText(newFileName, json);
 
-            Utils.prtDbg($"Results saved to {newFileName}");
+            prdDbg($"Results saved to {newFileName}");
 
             prdDbg("Finished!");
         }

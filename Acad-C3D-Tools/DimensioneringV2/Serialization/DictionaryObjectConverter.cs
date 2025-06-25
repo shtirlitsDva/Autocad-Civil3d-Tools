@@ -18,18 +18,19 @@ namespace DimensioneringV2.Serialization
 
             var props = modelType
                 .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                .Where(p => p.CanWrite || p.GetSetMethod(true) != null || p.CanRead);
+                .Where(p => p.CanWrite || p.GetSetMethod(true) != null || p.CanRead)
+                .Where(p => p.GetIndexParameters().Length == 0); // skip indexers!;
 
-            IEnumerable<IGrouping<string, PropertyInfo>> dups = props
-           .GroupBy(a => a.Name)
-           .Where(g => g.Count() > 1)
-           .Select(g => g);
+            IEnumerable<IGrouping<string, PropertyInfo>> dups = props                
+                .GroupBy(a => a.Name)
+                .Where(g => g.Count() > 1)
+                .Select(g => g);
 
             if (dups.Count() > 0)
                 throw new InvalidDataException($"Duplicate attribute(s): " +
                     $"{string.Join(", ", dups.Select(x => x.Key))}");
 
-            var propertyTypes = props  // read-only props also useful for matching
+            var propertyTypes = props  // read-only props also useful for matching                
                 .ToDictionary(p => p.Name, p => p.PropertyType, StringComparer.OrdinalIgnoreCase);
 
             foreach (var (key, jsonElement) in attributes)
