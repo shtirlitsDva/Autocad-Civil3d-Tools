@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -15,9 +16,20 @@ namespace DimensioneringV2.Serialization
         {
             var typedAttributes = new Dictionary<string, object>();
 
-            var propertyTypes = modelType
+            var props = modelType
                 .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                .Where(p => p.CanWrite || p.GetSetMethod(true) != null || p.CanRead) // read-only props also useful for matching
+                .Where(p => p.CanWrite || p.GetSetMethod(true) != null || p.CanRead);
+
+            var dups = props
+           .GroupBy(a => a.Name)
+           .Where(g => g.Count() > 1)
+           .Select(g => g.Key)
+           .ToArray();
+
+            if (dups.Length > 0)
+                throw new InvalidDataException($"Duplicate attribute(s): {string.Join(", ", dups)}");
+
+            var propertyTypes = props  // read-only props also useful for matching
                 .ToDictionary(p => p.Name, p => p.PropertyType, StringComparer.OrdinalIgnoreCase);
 
             foreach (var (key, jsonElement) in attributes)

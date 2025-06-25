@@ -10,14 +10,11 @@ using System.Threading.Tasks;
 
 namespace DimensioneringV2.Vejklasser.Models
 {
-    public partial class VejnavnTilVejklasseModel : ObservableObject
-    {
-        [ObservableProperty] private string _vejnavn;
-        [ObservableProperty] private int _vejklasse = 0;
+    public class VTV_BBR_Model : VejnavnTilVejklasseBase
+    {        
         public List<BBR> BBRs { get; set; }
-        public VejnavnTilVejklasseModel(string vejnavn, List<BBR> bBRs)
-        {
-            Vejnavn = vejnavn;
+        public VTV_BBR_Model(string vejnavn, List<BBR> bBRs) : base(vejnavn)
+        {            
             BBRs = bBRs;
 
             //Determine if vejklasse exists

@@ -1,4 +1,5 @@
-﻿using DimensioneringV2.Vejklasser.Models;
+﻿using DimensioneringV2.Vejklasser.Interfaces;
+using DimensioneringV2.Vejklasser.Models;
 using DimensioneringV2.Vejklasser.ViewModels;
 
 using HandyControl.Themes;
@@ -27,7 +28,7 @@ namespace DimensioneringV2.Vejklasser.Views
     public partial class VejklasserGridView : Window
     {
         VejklasserGridViewModel vm = new();
-        public VejklasserGridView(List<VejnavnTilVejklasseModel> models)
+        public VejklasserGridView(IEnumerable<IVejnavnTilVejklasse> models)
         {
             InitializeComponent();
             vm.ReceiveData(models);
@@ -36,6 +37,6 @@ namespace DimensioneringV2.Vejklasser.Views
             ThemeManager.Current.ApplicationTheme = ApplicationTheme.Dark;
         }
 
-        public List<VejnavnTilVejklasseModel> Results => vm.Models.ToList();
+        public List<IVejnavnTilVejklasse> Results => vm.Models.ToList();
     }
 }

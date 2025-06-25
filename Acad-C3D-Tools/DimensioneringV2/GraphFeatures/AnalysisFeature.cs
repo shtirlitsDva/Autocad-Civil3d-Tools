@@ -19,7 +19,7 @@ using static IntersectUtilities.UtilsCommon.Utils;
 
 namespace DimensioneringV2.GraphFeatures
 {
-    internal class AnalysisFeature : GeometryFeature, IFeature, ICloneable, IHydraulicSegment, IInfoForFeature
+    public class AnalysisFeature : GeometryFeature, IFeature, ICloneable, IHydraulicSegment, IInfoForFeature
     {
         #region Constructors
         public AnalysisFeature() : base() { }

@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace DimensioneringV2.UI
 {
-    enum MapPropertyEnum
+    public enum MapPropertyEnum
     {
         Default,
         Basic,

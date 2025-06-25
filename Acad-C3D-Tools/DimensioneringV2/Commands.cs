@@ -1,42 +1,52 @@
 ﻿using Autodesk.AutoCAD.ApplicationServices;
+using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
+using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
+using Autodesk.Internal.Windows;
+
+using DimensioneringV2.AutoCAD;
+using DimensioneringV2.Geometry;
+using DimensioneringV2.GraphFeatures;
+using DimensioneringV2.GraphModelRoads;
+using DimensioneringV2.Serialization;
+using DimensioneringV2.Services;
+using DimensioneringV2.UI;
+using DimensioneringV2.Vejklasser.Models;
+using DimensioneringV2.Vejklasser.Views;
+using DimensioneringV2.Vejklasser.Interfaces;
+
+using Dreambuild.AutoCAD;
+
+using IntersectUtilities;
+using IntersectUtilities.UtilsCommon;
+
+using Microsoft.Win32;
+
+using NetTopologySuite.Features;
+using NetTopologySuite.IO.Esri;
+
+using QuikGraph;
 
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
+using System.Windows;
 
-using IntersectUtilities.UtilsCommon;
 using static IntersectUtilities.UtilsCommon.Utils;
-using dbg = IntersectUtilities.UtilsCommon.Utils.DebugHelper;
-using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 
 using AcApp = Autodesk.AutoCAD.ApplicationServices.Application;
-using cv = DimensioneringV2.CommonVariables;
-using Autodesk.AutoCAD.Geometry;
-using DimensioneringV2.GraphModelRoads;
-using DimensioneringV2.Geometry;
-using IntersectUtilities;
-using Autodesk.AutoCAD.Colors;
-using DimensioneringV2.GraphFeatures;
-using NetTopologySuite.Features;
-using NetTopologySuite.IO.Esri;
-using System.IO;
-using DimensioneringV2.UI;
-using Dreambuild.AutoCAD;
-using DimensioneringV2.Services;
-using Microsoft.Win32;
-using System.Windows;
-using DimensioneringV2.AutoCAD;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
-using DimensioneringV2.Vejklasser.Models;
-using DimensioneringV2.Vejklasser.Views;
-using Autodesk.Internal.Windows;
+using cv = DimensioneringV2.CommonVariables;
+using dbg = IntersectUtilities.UtilsCommon.Utils.DebugHelper;
+using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 
 [assembly: CommandClass(typeof(DimensioneringV2.Commands))]
 
@@ -687,8 +697,8 @@ namespace DimensioneringV2
             prdDbg("Finished!");
         }
 
-        [CommandMethod("DIM2VEJKLASSERASSIGN")]
-        public void dim2vejklasserassign()
+        [CommandMethod("DIM2VEJKLASSERASSIGNBBR")]
+        public void dim2vejklasserassignbbr()
         {
             DocumentCollection docCol = AcApp.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
@@ -707,7 +717,7 @@ namespace DimensioneringV2
 
                 var bbrsPåVeje = bbrs
                     .GroupBy(x => x.Vejnavn)
-                    .Select(x => new VejnavnTilVejklasseModel(x.Key, x.ToList()))
+                    .Select(x => new VTV_BBR_Model(x.Key, x.ToList()))
                     .OrderBy(x => x.Vejnavn)
                     .ToList();
 
@@ -716,7 +726,7 @@ namespace DimensioneringV2
 
                 var results = window.Results;
 
-                foreach (var result in results)
+                foreach (VTV_BBR_Model result in results)
                 {
                     foreach (var bbr in result.BBRs)
                     {
@@ -731,6 +741,106 @@ namespace DimensioneringV2
                 return;
             }
             tx.Commit();
+
+            prdDbg("Finished!");
+        }
+
+        [CommandMethod("DIM2VEJKLASSERASSIGND2R")]
+        public void dim2vejklasserassignd2r()
+        {
+            DocumentCollection docCol = AcApp.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            PropertySetManager.UpdatePropertySetDefinition(
+                localDb, PSetDefs.DefinedSets.BBR);
+
+            OpenFileDialog openFileDialog = new OpenFileDialog
+            {
+                Filter = "D2R Files (*.d2r)|*.d2r|All Files (*.*)|*.*",
+                DefaultExt = "d2r",
+                Title = "Open D2R File",
+                CheckFileExists = true // Ensures the user selects an existing file
+            };
+
+            string fileName;
+            if (openFileDialog.ShowDialog() == true)
+            {
+                fileName = openFileDialog.FileName;
+            }
+            else
+            {
+                return;
+            }
+
+            if (string.IsNullOrEmpty(fileName)) return;
+
+            if (!File.Exists(fileName))
+            {
+                MessageBox.Show("The file does not exist.", "File not found", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var options = new JsonSerializerOptions();
+            options.WriteIndented = true;
+            options.NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals;
+            options.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.Preserve;
+            options.Converters.Add(new DimJsonConverter());
+            options.Converters.Add(new AnalysisFeatureJsonConverter());
+            options.Converters.Add(new UndirectedGraphJsonConverter());
+            options.Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping;
+            UndirectedGraph<NodeJunction, EdgePipeSegment>[]? graphs =
+                JsonSerializer.Deserialize<UndirectedGraph<NodeJunction, EdgePipeSegment>[]>(
+                    File.ReadAllText(fileName), options);
+            if (graphs == null) throw new System.Exception("Deserialization failed.");
+
+            var afsPåVeje = graphs
+                .SelectMany(x => x.Edges)
+                .Select(x => x.PipeSegment)
+                .Where(x => x.NumberOfBuildingsConnected == 1) //Should be stik
+                .GroupBy(x => (string)x["Vejnavn"]!)
+                .Select(x => new VTV_AF_Model(x.Key, x.ToList()))
+                .OrderBy(x => x.Vejnavn)
+                .ToList();
+
+            var window = new VejklasserGridView(afsPåVeje);
+            window.ShowDialog();
+
+            var results = window.Results;
+
+            foreach (VTV_AF_Model result in results)
+            {
+                foreach (var af in result.AFs)
+                {
+                    af["Vejklasse"] = result.Vejklasse;
+                }
+            }
+
+            var fwe = Path.GetFileNameWithoutExtension(fileName);
+            var newFileName = fwe + "_Vejklasser.d2r";
+
+            if (File.Exists(fileName))
+            {
+                MessageBoxResult result = MessageBox.Show(
+                    "The file already exists. Do you want to overwrite it?",
+                    "File already exists",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning);
+
+                if (result != MessageBoxResult.Yes) return;
+            }
+
+            options = new JsonSerializerOptions();
+            options.WriteIndented = true;
+            options.NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals;
+            options.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.Preserve;
+            options.Converters.Add(new AnalysisFeatureJsonConverter());
+            options.Converters.Add(new UndirectedGraphJsonConverter());
+            options.Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping;
+
+            string json = JsonSerializer.Serialize(graphs, options);
+            File.WriteAllText(newFileName, json);
+
+            Utils.prtDbg($"Results saved to {newFileName}");
 
             prdDbg("Finished!");
         }

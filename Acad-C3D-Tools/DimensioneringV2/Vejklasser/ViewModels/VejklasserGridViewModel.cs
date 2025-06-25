@@ -1,5 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 
+using DimensioneringV2.Vejklasser.Interfaces;
 using DimensioneringV2.Vejklasser.Models;
 
 using System;
@@ -15,9 +16,9 @@ namespace DimensioneringV2.Vejklasser.ViewModels
 {
     public partial class VejklasserGridViewModel : ObservableObject
     {
-        public ObservableCollection<VejnavnTilVejklasseModel> Models { get; } = new();        
+        public ObservableCollection<IVejnavnTilVejklasse> Models { get; } = new();        
         public VejklasserGridViewModel() {}
-        public void ReceiveData(List<VejnavnTilVejklasseModel> models)
+        public void ReceiveData(IEnumerable<IVejnavnTilVejklasse> models)
         {
             Models.Clear();
             foreach (var model in models)
