@@ -456,7 +456,7 @@ namespace DimensioneringV2.UI
             //var fls = afs.Where(x => !x.PipeDim.Equals(default(Dim)) && x.NumberOfBuildingsConnected == 0);
             // Calculate data for service lines (stik)
             var stikTable = afs
-                .Where(x => !x.PipeDim.Equals(default(Dim)) && x.NumberOfBuildingsConnected == 1)
+                .Where(x => !x.PipeDim.Equals(default) && x.NumberOfBuildingsConnected == 1)
                 .GroupBy(x => x.PipeDim.DimName)
                 .Select(g => new
                 {
@@ -476,7 +476,7 @@ namespace DimensioneringV2.UI
 
             // Calculate data for supply lines (fls)
             var flsTable = afs
-                .Where(x => !x.PipeDim.Equals(default(Dim)) && x.NumberOfBuildingsConnected == 0)
+                .Where(x => !x.PipeDim.Equals(default) && x.NumberOfBuildingsConnected == 0)
                 .GroupBy(x => x.PipeDim.DimName)
                 .Select(g => new
                 {

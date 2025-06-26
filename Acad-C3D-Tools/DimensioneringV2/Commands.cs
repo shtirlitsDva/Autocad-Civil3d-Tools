@@ -13,18 +13,21 @@ using DimensioneringV2.GraphModelRoads;
 using DimensioneringV2.Serialization;
 using DimensioneringV2.Services;
 using DimensioneringV2.UI;
+using DimensioneringV2.Vejklasser.Interfaces;
 using DimensioneringV2.Vejklasser.Models;
 using DimensioneringV2.Vejklasser.Views;
-using DimensioneringV2.Vejklasser.Interfaces;
 
 using Dreambuild.AutoCAD;
 
 using IntersectUtilities;
+using IntersectUtilities.NTS;
 using IntersectUtilities.UtilsCommon;
 
 using Microsoft.Win32;
 
+using NetTopologySuite;
 using NetTopologySuite.Features;
+using NetTopologySuite.Geometries;
 using NetTopologySuite.IO.Esri;
 
 using QuikGraph;
@@ -496,20 +499,32 @@ namespace DimensioneringV2
                         //Draw convex hull around connected elements to help find disconnects
                         foreach (ConnectedComponent component in graph.ConnectedComponents)
                         {
-                            var hull = Algorithms.GetConvexHull(component.AllPoints());
-                            if (hull != null && hull.Count > 0)
+                            var ntsCoordinates = component.AllPoints()
+                                .Select(p => new Coordinate(p.X, p.Y)) // ignore Z for 2D geometry
+                                .ToArray();
+
+                            if (ntsCoordinates.Length < 3)
                             {
-                                Polyline pl = new Polyline(hull.Count);
-                                for (int i = 0; i < hull.Count; i++)
+                                foreach (var p in component.AllPoints())
                                 {
-                                    pl.AddVertexAt(i, hull[i].To2d(), 0, 0, 0);
+                                    DebugHelper.CreateDebugLine(p, ColorByName("yellow"));
                                 }
-                                pl.Closed = true;
-                                pl.Layer = cv.LayerDebugLines;
-                                pl.Color = ColorByName("yellow");
-                                pl.ConstantWidth = 0.5;
-                                pl.AddEntityToDbModelSpace(localDb);
+                                continue;
                             }
+
+                            var geometryFactory =
+                                NtsGeometryServices.Instance.CreateGeometryFactory(
+                                    srid: 25832);
+                            var multiPoint = geometryFactory
+                                .CreateMultiPointFromCoords(ntsCoordinates);
+
+                            var ch = multiPoint.ConvexHull();
+                            var pl = NTSConversion.ConvertNTSPolygonToClosedPolyline((Polygon)ch);
+                            pl.Closed = true;
+                            pl.Layer = cv.LayerDebugLines;
+                            pl.Color = ColorByName("yellow");
+                            pl.ConstantWidth = 0.5;
+                            pl.AddEntityToDbModelSpace(localDb);
                         }
 
                         tx.Commit();

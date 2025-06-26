@@ -153,6 +153,7 @@ namespace DimensioneringV2.GraphFeatures
                             { "OpvarmningsMiddel", "" },
                             { "InstallationOgBrændsel", "" },
                             { "Vejnavn", "" },
+                            { "Vejklasse", "" },
                             { "Husnummer", "" },
                             { "Postnr", "" },
                             { "By", "" },
@@ -163,6 +164,9 @@ namespace DimensioneringV2.GraphFeatures
                             { "IsBuildingConnection", false },
                             { "IsRootNode", false },
                         };
+
+                        //Remember the EPSG 25832 Length, as the 3857 length cannot be used
+                        attributes["Length"] = geometry.Length;
 
                         if (originalNodes.Any(x => x.IsBuildingConnection))
                         {

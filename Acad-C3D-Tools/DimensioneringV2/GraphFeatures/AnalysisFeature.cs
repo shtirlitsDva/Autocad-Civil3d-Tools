@@ -117,7 +117,13 @@ namespace DimensioneringV2.GraphFeatures
         /// </summary>
         public double Length
         {
-            get => Geometry != null ? Geometry.Length : 0;
+            get
+            {
+                var l = this["Length"];
+                if (l == null) throw new Exception(
+                    "Old results data encountered! These results are too old!");
+                return (double)l;
+            }
         }
 
         /// <summary>
