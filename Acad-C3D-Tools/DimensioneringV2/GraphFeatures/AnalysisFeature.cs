@@ -34,20 +34,29 @@ namespace DimensioneringV2.GraphFeatures
         public AnalysisFeature(AnalysisFeature analysisFeature) : base(analysisFeature)
         {
             foreach (var field in analysisFeature.Fields) this[field] = analysisFeature[field];
+            this.OriginalGeometry = analysisFeature.OriginalGeometry;
         }
-        public AnalysisFeature(NetTopologySuite.Geometries.Geometry? geometry) : base(geometry)
+        public AnalysisFeature(
+            NetTopologySuite.Geometries.Geometry? geometry, 
+            OriginalGeometry originalGeometry) : base(geometry)
         {
-            //Geometry = geometry;
+            OriginalGeometry = originalGeometry;            
         }
         public AnalysisFeature(
             NetTopologySuite.Geometries.Geometry geometry,
+            OriginalGeometry originalGeometry,
             Dictionary<string, object> attributes) : base(geometry)
         {
             foreach (var attribute in attributes)
             {
                 this[attribute.Key] = attribute.Value;
             }
+            this.OriginalGeometry = originalGeometry;
         }
+        #endregion
+
+        #region Cache for original geometry
+        public OriginalGeometry OriginalGeometry { get; set; }
         #endregion
 
         #region Properties to attributes mapper, indexer
@@ -115,16 +124,7 @@ namespace DimensioneringV2.GraphFeatures
         /// <summary>
         /// Length of the segment
         /// </summary>
-        public double Length
-        {
-            get
-            {
-                var l = this["Length"];
-                if (l == null) throw new Exception(
-                    "Old results data encountered! These results are too old!");
-                return (double)l;
-            }
-        }
+        public double Length => OriginalGeometry.Length;        
 
         /// <summary>
         /// Is the segment a service line, then returns 1, else 0

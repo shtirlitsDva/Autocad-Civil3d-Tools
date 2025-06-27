@@ -43,9 +43,9 @@ namespace DimensioneringV2.Serialization
         public AnalysisFeature ToAnalysisFeature(JsonSerializerOptions? options = null)
         {
             var geometry = new LineString(Coordinates.Select(c => new Coordinate(c[0], c[1])).ToArray());
-            var typedAttributes = DictionaryObjectConverter.ConvertAttributesToTyped(Attributes, typeof(AnalysisFeature), options);
+            var typedAttributes = DictionaryObjectConverter.ConvertAttributesToTyped(
+                Attributes, typeof(AnalysisFeature), options);
             return new AnalysisFeature(geometry, typedAttributes);
         }
     }
-
 }

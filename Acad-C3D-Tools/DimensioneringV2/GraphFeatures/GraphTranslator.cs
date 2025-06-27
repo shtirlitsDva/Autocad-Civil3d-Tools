@@ -16,6 +16,7 @@ using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using IntersectUtilities.UtilsCommon;
 using Graph = DimensioneringV2.GraphModelRoads.Graph;
+using Geometry = NetTopologySuite.Geometries.Geometry;
 
 namespace DimensioneringV2.GraphFeatures
 {
@@ -43,7 +44,7 @@ namespace DimensioneringV2.GraphFeatures
 
                 //dbg.CreateDebugLine(ep.To3d(), utils.ColorByName("green"));
 
-                Stack <(SegmentNode seg, Point2D entry)> stack = new();
+                Stack<(SegmentNode seg, Point2D entry)> stack = new();
                 stack.Push((root, ep)); // seed the stack with the root node
 
                 List<SegmentNode> originalNodes = new();
@@ -111,9 +112,12 @@ namespace DimensioneringV2.GraphFeatures
 
                     if (startNew)
                     {
-                        //Translate geometry
+                        #region Merge geometry to one line string
+                        //Merge geometry so each segment only has one linestring
+                        //After doing that, cache the original geometry
+                        //So that one can easily restore stik og vej segments
                         var lines = originalNodes.Select(n => n.ToLineString()).ToList();
-                        NetTopologySuite.Geometries.Geometry geometry;
+                        NetTopologySuite.Geometries.Geometry fullGeometry;
                         if (lines.Count > 1)
                         {
                             var merger = new NetTopologySuite.Operation.Linemerge.LineMerger();
@@ -133,10 +137,47 @@ namespace DimensioneringV2.GraphFeatures
                                 utils.prdDbg("Merging returned multiple linestrings!");
                                 throw new Exception("DBG: Merging returned multiple linestrings!");
                             }
-                            geometry = merged[0];
-                            //geometry = sequenced;
+                            fullGeometry = merged[0];
                         }
-                        else geometry = lines[0];
+                        else fullGeometry = lines[0];
+                        #endregion
+
+                        #region Cache the original geometry to better restore later
+                        NetTopologySuite.Geometries.Geometry? stik = null;
+                        NetTopologySuite.Geometries.Geometry? vej = null;
+                        //Handle stik geometry if any
+                        var stikquery = originalNodes.FirstOrDefault(x => x.IsBuildingConnection);
+                        if (stikquery != null)
+                            stik = stikquery.ToLineString();
+                        //Handle vej geometry if any
+                        var vejquery = originalNodes.Where(x => !x.IsBuildingConnection).ToList();
+                        if (vejquery.Count == 1) vej = vejquery.First().ToLineString();
+                        else if (vejquery.Count > 1)
+                        {
+                            var vlist = vejquery.Select(x => x.ToLineString()).ToList();
+
+                            var merger = new NetTopologySuite.Operation.Linemerge.LineMerger();
+                            merger.Add(vlist);
+                            var merged = merger.GetMergedLineStrings();
+
+                            if (merged.Count > 1)
+                            {
+                                foreach (var item in originalNodes)
+                                {
+                                    dbg.CreateDebugLine(
+                                        item.StartPoint.To3d(), utils.ColorByName("red"));
+                                    dbg.CreateDebugLine(
+                                        item.EndPoint.To3d(), utils.ColorByName("cyan"));
+                                }
+                                utils.prdDbg("Merging returned multiple linestrings!");
+                                throw new Exception("DBG: Merging returned multiple linestrings!");
+                            }
+                            vej = merged[0];
+                        }
+
+                        OriginalGeometry originalGeometry = 
+                            new OriginalGeometry(stik as LineString, vej as LineString);
+                        #endregion
 
                         //Translate building data if any
                         Dictionary<string, object> attributes = new()
@@ -166,7 +207,7 @@ namespace DimensioneringV2.GraphFeatures
                         };
 
                         //Remember the EPSG 25832 Length, as the 3857 length cannot be used
-                        attributes["Length"] = geometry.Length;
+                        attributes["Length"] = fullGeometry.Length;
 
                         if (originalNodes.Any(x => x.IsBuildingConnection))
                         {
@@ -183,7 +224,7 @@ namespace DimensioneringV2.GraphFeatures
                                     $"{buildingConnection.BuildingId}");
                             }
                             IntersectUtilities.BBR bbr = new IntersectUtilities.BBR(building);
-                            
+
                             attributes["id_lokalId"] = bbr.id_lokalId;
                             attributes["Name"] = bbr.Name;
                             attributes["Adresse"] = bbr.Adresse;
@@ -212,7 +253,7 @@ namespace DimensioneringV2.GraphFeatures
                             attributes["IsRootNode"] = true;
                         }
 
-                        AnalysisFeature fn = new AnalysisFeature(geometry, attributes);
+                        AnalysisFeature fn = new AnalysisFeature(fullGeometry, originalGeometry, attributes);
                         nodes.Add(fn);
                     }
                 }
