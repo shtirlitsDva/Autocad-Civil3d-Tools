@@ -17,6 +17,7 @@ namespace DimensioneringV2.Serialization
     internal class AnalysisFeatureDto
     {
         public double[][] Coordinates { get; set; }
+        public OriginalGeometry OriginalGeometry { get; set; }
 
         public Dictionary<string, JsonElement> Attributes { get; set; }
 
@@ -31,6 +32,7 @@ namespace DimensioneringV2.Serialization
                 .Select(c => new[] { c.X, c.Y })
                 .ToArray();
 
+            this.OriginalGeometry = analysisFeature.OriginalGeometry;
             Attributes = new Dictionary<string, JsonElement>();
 
             foreach (var field in analysisFeature.Fields)
@@ -45,7 +47,7 @@ namespace DimensioneringV2.Serialization
             var geometry = new LineString(Coordinates.Select(c => new Coordinate(c[0], c[1])).ToArray());
             var typedAttributes = DictionaryObjectConverter.ConvertAttributesToTyped(
                 Attributes, typeof(AnalysisFeature), options);
-            return new AnalysisFeature(geometry, typedAttributes);
+            return new AnalysisFeature(geometry, OriginalGeometry, typedAttributes);
         }
     }
 }
