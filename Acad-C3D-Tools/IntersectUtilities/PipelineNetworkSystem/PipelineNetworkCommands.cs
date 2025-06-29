@@ -245,6 +245,7 @@ namespace IntersectUtilities
                     PipelineNetwork pn = new PipelineNetwork();
                     pn.CreatePipelineNetwork(ents, als);
                     pn.CreatePipelineGraph();
+                    pn.CreateSizeArrays();
 
                     pn.GatherWeldPoints(wps);
                 }

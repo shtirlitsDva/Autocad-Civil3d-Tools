@@ -776,6 +776,11 @@ namespace IntersectUtilities.PipelineNetworkSystem
 
                                                     }
                                                     break;
+                                                case PipelineElementType.Reduktion:
+                                                    var size = pipeline.PipelineSizes.GetSizeAtStation(
+                                                        pipeline.GetStationAtPoint(wPt));
+                                                    DN = size.DN;
+                                                    break;
                                             }
                                         }
 
