@@ -1115,7 +1115,8 @@ namespace DimensioneringV2.UI
                         .Last();
 
                     var obj = edge.PipeSegment["Vejklasse"];
-                    long vejklasse = obj is not null ? (long)obj : 0;
+                    if (obj == null) obj = 0;
+                    var vejklasse = Convert.ToInt32(obj);
                     if (vejklasse == 0)
                         throw new Exception("Vejklasse er ikke defineret for ét af stikkene!\n" +
                             "Vejklasser skal udfyldes!");
