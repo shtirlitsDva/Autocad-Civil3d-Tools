@@ -2096,14 +2096,15 @@ namespace IntersectUtilities
                 string bueBlockName = "DRIPipeArcAnno";
                 //////////////////////////////////////
 
+                #region AlPls
+                HashSet<Alignment> als = alignments ?? dB.HashSetOfType<Alignment>(tx);
+                Dictionary<Alignment, Polyline> alDict =
+                    als.ToDictionary(x => x, x => x.GetPolyline().Go<Polyline>(tx));
+                #endregion
+
                 try
                 {
-                    #region Common variables
-                    //BlockTableRecord modelSpace = localDb.GetModelspaceForWrite();
                     BlockTable bt = tx.GetObject(dB.BlockTableId, OpenMode.ForRead) as BlockTable;
-                    //Plane plane = new Plane(); //For intersecting
-                    HashSet<Alignment> als = alignments ?? dB.HashSetOfType<Alignment>(tx);
-                    #endregion
 
                     #region Import blocks if missing
                     if (!bt.Has(komponentBlockName) || !bt.Has(bueBlockName))
@@ -2213,7 +2214,7 @@ namespace IntersectUtilities
                         prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
                         #endregion
 
-                        Polyline alPl = al.GetPolyline().Go<Polyline>(tx);
+                        Polyline alPl = alDict[al];
 
                         IPipelineV2 pipeline = PipelineV2Factory.Create(
                             curves.Cast<Entity>().Union(brs),
@@ -2673,7 +2674,7 @@ namespace IntersectUtilities
                                         Point2d samplePoint = (
                                             (Curve2d)arcSegment2dAt
                                         ).GetSamplePoints(11)[5];
-                                        Point3d location = al.GetClosestPointTo(
+                                        Point3d location = alPl.GetClosestPointTo(
                                             new Point3d(samplePoint.X, samplePoint.Y, 0),
                                             false
                                         );
@@ -2706,7 +2707,7 @@ namespace IntersectUtilities
                                             tos = TypeOfSegment.ElasticArc;
 
                                         //Acquire start and end stations
-                                        location = al.GetClosestPointTo(
+                                        location = alPl.GetClosestPointTo(
                                             pline.GetPoint3dAt(i),
                                             false
                                         );
@@ -2731,7 +2732,7 @@ namespace IntersectUtilities
                                             throw;
                                         }
 
-                                        location = al.GetClosestPointTo(
+                                        location = alPl.GetClosestPointTo(
                                             pline.GetPoint3dAt(i + 1),
                                             false
                                         );
@@ -2811,13 +2812,16 @@ namespace IntersectUtilities
                             }
                             #endregion
                         }
-
-                        alPl.CheckOrOpenForWrite();
-                        alPl.Erase(true);
                     }
                 }
                 catch (System.Exception ex)
                 {
+                    foreach (var x in alDict.Values)
+                    {
+                        x.UpgradeOpen();
+                        x.Erase(true);
+                    }
+
                     fremTx.Abort();
                     fremTx.Dispose();
                     fremDb.Dispose();
@@ -2826,6 +2830,12 @@ namespace IntersectUtilities
                     prdDbg(ex);
                     return;
                 }
+                foreach (var x in alDict.Values)
+                {
+                    x.UpgradeOpen();
+                    x.Erase(true);
+                }
+
                 fremTx.Abort();
                 fremTx.Dispose();
                 fremDb.Dispose();
