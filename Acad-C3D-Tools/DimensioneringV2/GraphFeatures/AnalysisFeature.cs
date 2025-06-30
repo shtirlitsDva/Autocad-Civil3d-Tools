@@ -15,8 +15,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
-using static IntersectUtilities.UtilsCommon.Utils;
-
 namespace DimensioneringV2.GraphFeatures
 {
     public class AnalysisFeature : GeometryFeature, IFeature, ICloneable, IHydraulicSegment, IInfoForFeature
@@ -37,10 +35,10 @@ namespace DimensioneringV2.GraphFeatures
             this.OriginalGeometry = analysisFeature.OriginalGeometry;
         }
         public AnalysisFeature(
-            NetTopologySuite.Geometries.Geometry? geometry, 
+            NetTopologySuite.Geometries.Geometry? geometry,
             OriginalGeometry originalGeometry) : base(geometry)
         {
-            OriginalGeometry = originalGeometry;            
+            OriginalGeometry = originalGeometry;
         }
         public AnalysisFeature(
             NetTopologySuite.Geometries.Geometry geometry,
@@ -124,7 +122,7 @@ namespace DimensioneringV2.GraphFeatures
         /// <summary>
         /// Length of the segment
         /// </summary>
-        public double Length => OriginalGeometry.Length;        
+        public double Length => OriginalGeometry.Length;
 
         /// <summary>
         /// Is the segment a service line, then returns 1, else 0
@@ -361,7 +359,12 @@ namespace DimensioneringV2.GraphFeatures
             }
             return clonedObject;
         }
-
+        private HashSet<string> ignoreProps = new HashSet<string>()
+        {
+            "BoundingBox",
+            "Attributes",
+            "OriginalGeometry"
+        };
         IEnumerable<PropertyItem> IInfoForFeature.PropertiesToDataGrid()
         {
             var props = GetType()
@@ -370,8 +373,7 @@ namespace DimensioneringV2.GraphFeatures
                            System.Reflection.BindingFlags.DeclaredOnly)
             .Where(p => p.GetIndexParameters().Length == 0)
             .OrderBy(p => p.MetadataToken)
-            .Where(p => p.Name != "BoundingBox")
-            .Where(p => p.Name != "Attributes")
+            .Where(p => !ignoreProps.Contains(p.Name))
             .Select(pi => new PropertyItem(pi.Name, pi.GetValue(this)?.ToString() ?? "null"));
 
             return props;

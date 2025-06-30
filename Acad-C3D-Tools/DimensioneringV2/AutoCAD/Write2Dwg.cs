@@ -92,36 +92,29 @@ namespace DimensioneringV2.AutoCAD
                         prdDbg($"Feature is not a LineString! Check your geometry.");
                         continue;
                     }
-
-                    var pline = NTSConversion.ConvertNTSLineStringToPline(lineString);
-
-                    Entity entToAdd;
-                    string layerName;
-                    if (feature.NumberOfBuildingsConnected == 1)
+                    
+                    if (feature.OriginalGeometry.Stik != null)
                     {
-                        Line line = new Line(
-                            new Point3d(pline.StartPoint.X, pline.StartPoint.Y, 0),
-                            new Point3d(pline.EndPoint.X, pline.EndPoint.Y, 0));
-                        entToAdd = line;
+                        var ntssp = feature.OriginalGeometry.Stik.StartPoint;
+                        var ntsep = feature.OriginalGeometry.Stik.EndPoint;
 
-                        layerName = cv.LayerConnectionLine;
+                        Line stik = new Line(
+                            new Point3d(ntssp.X, ntssp.Y, 0),
+                            new Point3d(ntsep.X, ntsep.Y, 0));
+                        stik.AddEntityToDbModelSpace(dimDb);
+                        stik.Layer = cv.LayerConnectionLine;
                     }
-                    else
-                    {
-                        entToAdd = pline;
 
+                    if (feature.OriginalGeometry.Vej != null)
+                    {
+                        var pline = NTSConversion.ConvertNTSLineStringToPline(
+                            feature.OriginalGeometry.Vej);
+
+                        pline.AddEntityToDbModelSpace(dimDb);
                         if (feature.NumberOfBuildingsSupplied == 0)
-                        {
-                            layerName = cv.LayerVejmidteSlukket;
-                        }
-                        else
-                        {
-                            layerName = cv.LayerVejmidteTændt;
-                        }
+                            pline.Layer = cv.LayerVejmidteSlukket;
+                        else pline.Layer = cv.LayerVejmidteTændt;
                     }
-
-                    entToAdd.AddEntityToDbModelSpace(dimDb);
-                    entToAdd.Layer = layerName;
                 }
             }
             catch (Exception ex)
