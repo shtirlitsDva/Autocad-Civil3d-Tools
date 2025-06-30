@@ -742,6 +742,7 @@ namespace IntersectUtilities.UtilsCommon
             AluPex,
             PertFlextra,
             AquaTherm11,
+            PE,
         }
 
         public enum LerTypeEnum

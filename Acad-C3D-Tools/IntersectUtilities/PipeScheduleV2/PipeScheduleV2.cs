@@ -1,22 +1,19 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
-
-using Autodesk.AutoCAD.ApplicationServices;
-using Autodesk.AutoCAD.Colors;
+﻿using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 
-using DataTable = System.Data.DataTable;
-using DataColumn = System.Data.DataColumn;
-
 using IntersectUtilities.UtilsCommon;
 
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Text.RegularExpressions;
+
 using static IntersectUtilities.UtilsCommon.Utils;
+
+using DataColumn = System.Data.DataColumn;
+using DataTable = System.Data.DataTable;
 
 namespace IntersectUtilities.PipeScheduleV2
 {
@@ -120,36 +117,40 @@ namespace IntersectUtilities.PipeScheduleV2
             //{ "PEXU", typeof(PipeTypePEXU) },
             { "PRTFLEXL", typeof(PipeTypePRTFLEXL) },
             { "AQTHRM11", typeof(PipeTypeAQTHRM11) },
+            { "PE", typeof(PipeTypePE) },
         };
         public static Dictionary<string, PipeSystemEnum> systemDict = new Dictionary<string, PipeSystemEnum>()
         {
-            {"DN", PipeSystemEnum.Stål },
-            {"ALUPEX", PipeSystemEnum.AluPex },
-            {"CU", PipeSystemEnum.Kobberflex },
+            { "DN", PipeSystemEnum.Stål },
+            { "ALUPEX", PipeSystemEnum.AluPex },
+            { "CU", PipeSystemEnum.Kobberflex },
             //{"PEXU", PipeSystemEnum.PexU },
-            {"PRTFLEXL", PipeSystemEnum.PertFlextra },
-            {"AQTHRM11", PipeSystemEnum.AquaTherm11 },
+            { "PRTFLEXL", PipeSystemEnum.PertFlextra },
+            { "AQTHRM11", PipeSystemEnum.AquaTherm11 },
+            { "PE", PipeSystemEnum.PE },
         };
-        private static Dictionary<PipeSystemEnum, string> systemDictReversed = 
+        private static Dictionary<PipeSystemEnum, string> systemDictReversed =
             new Dictionary<PipeSystemEnum, string>()
-        {
-            {PipeSystemEnum.Stål, "DN" },
-            {PipeSystemEnum.AluPex , "ALUPEX" },
-            {PipeSystemEnum.Kobberflex , "CU" },
-            //{PipeSystemEnum.PexU , "PEXU" },
-            {PipeSystemEnum.PertFlextra , "PRTFLEXL" },
-            {PipeSystemEnum.AquaTherm11 , "AQTHRM11" },
-        };
-        private static Dictionary<PipeSystemEnum, string> lineTypePrefixDict = 
+            {
+                {PipeSystemEnum.Stål, "DN" },
+                {PipeSystemEnum.AluPex , "ALUPEX" },
+                {PipeSystemEnum.Kobberflex , "CU" },
+                //{PipeSystemEnum.PexU , "PEXU" },
+                {PipeSystemEnum.PertFlextra , "PRTFLEXL" },
+                {PipeSystemEnum.AquaTherm11 , "AQTHRM11" },
+                {PipeSystemEnum.PE, "PE" } ,
+            };
+        private static Dictionary<PipeSystemEnum, string> lineTypePrefixDict =
             new Dictionary<PipeSystemEnum, string>()
-        {
-            {PipeSystemEnum.Stål, "ST" },
-            {PipeSystemEnum.AluPex , "AP" },
-            {PipeSystemEnum.Kobberflex , "CU" },
-            //{PipeSystemEnum.PexU , "PEXU" },
-            {PipeSystemEnum.PertFlextra , "PRT" },
-            {PipeSystemEnum.AquaTherm11 , "AT" },
-        };
+            {
+                {PipeSystemEnum.Stål, "ST" },
+                {PipeSystemEnum.AluPex , "AP" },
+                {PipeSystemEnum.Kobberflex , "CU" },
+                //{PipeSystemEnum.PexU , "PEXU" },
+                {PipeSystemEnum.PertFlextra , "PRT" },
+                {PipeSystemEnum.AquaTherm11 , "AT" },
+                {PipeSystemEnum.PE, "PE" },
+            };
         private static Dictionary<PipeSystemEnum, double[]> availableStdLengths = new()
         {
             {PipeSystemEnum.Stål, new double[] {12, 16}},
@@ -158,6 +159,7 @@ namespace IntersectUtilities.PipeScheduleV2
             //{PipeSystemEnum.PexU, new[] {100}},
             {PipeSystemEnum.PertFlextra, new double[] {12, 16, 100}},
             {PipeSystemEnum.AquaTherm11, new double[] {11.6}},
+            {PipeSystemEnum.PE, new double[] {12, 50}}
         };
         public static double[] GetStdLengthsForSystem(PipeSystemEnum pipeSystem) => availableStdLengths[pipeSystem];
         private static string pipeTypes = string.Join(
@@ -1083,6 +1085,55 @@ namespace IntersectUtilities.PipeScheduleV2
             }
         }
     }
+    public class PipeTypePE : PipeTypeBase
+    {
+        public override double GetBuerorMinRadius(int dn, int std) => 0;
+        public override string GetLabel(int DN, PipeTypeEnum type, double od, double kOd)
+        {
+            switch (type)
+            {
+                case PipeTypeEnum.Ukendt:
+                    return "";
+                case PipeTypeEnum.Twin:
+                    return $"PE-ø{DN}+ø{DN}";
+                case PipeTypeEnum.Frem:
+                case PipeTypeEnum.Retur:
+                case PipeTypeEnum.Enkelt:
+                    return $"PE-ø{DN}";
+                default:
+                    return "";
+            }
+        }
+        public override double GetPipeKOd(int dn, PipeTypeEnum type, PipeSeriesEnum series)
+        {
+            if (type == PipeTypeEnum.Retur ||
+                type == PipeTypeEnum.Frem)
+                type = PipeTypeEnum.Enkelt;
+
+            //We IGNORE the series for this type as it only has ONE series!
+
+            var results = _data.Select($"DN = {dn} AND PipeType = '{type}'");
+            if (results != null && results.Length > 0) return (double)results[0]["kOd"];
+            return 0;
+        }
+        public override short GetLayerColor(PipeTypeEnum type)
+        {
+            switch (type)
+            {
+                case PipeTypeEnum.Ukendt:
+                    return 0;
+                case PipeTypeEnum.Twin:
+                    return 200;
+                case PipeTypeEnum.Frem:
+                    return 20;
+                case PipeTypeEnum.Retur:
+                    return 160;
+                case PipeTypeEnum.Enkelt:
+                    return 200;
+                default: return 0;
+            }
+        }
+    }
     public interface IPipeTypeRepository
     {
         void Initialize(Dictionary<string, IPipeType> pipeTypeDict);
@@ -1123,11 +1174,11 @@ namespace IntersectUtilities.PipeScheduleV2
             {
                 string type = System.IO.Path.GetFileNameWithoutExtension(path);
                 DataTable dataTable = CsvReader.ReadCsvToDataTable(path, type);
-                if (!PipeScheduleV2.typeDict.ContainsKey(type)) 
-                { 
+                if (!PipeScheduleV2.typeDict.ContainsKey(type))
+                {
                     prdDbg($"PipeType {type} is not defined in PipeScheduleV2!");
                     continue;
-                }                    
+                }
                 IPipeType pipeType = Activator.CreateInstance(
                     PipeScheduleV2.typeDict[type]) as IPipeType;
                 pipeType.Initialize(dataTable, PipeScheduleV2.systemDict[type]);
@@ -1237,7 +1288,7 @@ namespace IntersectUtilities.PipeScheduleV2
                     prdDbg($"PipeRadii {company} is not defined in PipeScheduleV2!");
                     continue;
                 }
-                    
+
                 IPipeRadiusData pipeRadiusData = Activator.CreateInstance(
                     PipeScheduleV2.companyDict[company]) as IPipeRadiusData;
                 pipeRadiusData.Initialize(dataTable, PipeScheduleV2.companyEnumDict[company]);
