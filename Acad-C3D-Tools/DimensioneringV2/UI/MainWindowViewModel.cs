@@ -1200,6 +1200,31 @@ namespace DimensioneringV2.UI
         }
         #endregion
 
+        #region Trykprofil
+        public AsyncRelayCommand TrykprofilCommand => new(Trykprofil);
+
+        private async Task Trykprofil()
+        {
+            var trykprofilWindow = new TrykprofilWindow();
+            trykprofilWindow.Show();
+
+
+
+            try
+            {
+                
+
+               
+                
+            }
+            catch (Exception ex)
+            {
+                Utils.prtDbg(ex);
+                return;
+            }
+        }
+        #endregion
+
         [ObservableProperty]
         private Map _mymap = new() { CRS = "EPSG:3857" };
         private MapControl _mapControl;
@@ -1354,7 +1379,7 @@ namespace DimensioneringV2.UI
         private double popupY;
 
         [ObservableProperty]
-        private AnalysisFeature? selectedFeature;
+        private AnalysisFeature? _selectedFeature;
 
         [ObservableProperty]
         private bool isSelectedFeatureServiceLine = false;
@@ -1362,7 +1387,6 @@ namespace DimensioneringV2.UI
         public ObservableCollection<PropertyItem> FeatureProperties { get; } = new();
 
         //PopUp is defined inside the mainwindow.xaml
-
         public void OnMapInfo(object? sender, MapInfoEventArgs e)
         {
             if (e.MapInfo?.Feature == null)
@@ -1382,6 +1406,7 @@ namespace DimensioneringV2.UI
                 return;
             }
 
+            #region Set the selected feature for use elsewhere
             //Prepare for trykprofil
             SelectedFeature = e.MapInfo.Feature as AnalysisFeature;
             if (SelectedFeature == null) IsSelectedFeatureServiceLine = false;
@@ -1391,7 +1416,8 @@ namespace DimensioneringV2.UI
                     IsSelectedFeatureServiceLine = true;
                 else
                     IsSelectedFeatureServiceLine = false;
-            }
+            } 
+            #endregion
 
             var items = infoFeature.PropertiesToDataGrid();
 
