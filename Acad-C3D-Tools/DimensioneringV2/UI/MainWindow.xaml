@@ -95,9 +95,9 @@
                             </Style>
                         </StackPanel.Style>
 
-                        <Button Content="Trykprofil"
-                            Margin="0,0,5,5"
-                            Padding="5,2"/>
+                        <Button Content="Trykprofil" Margin="0,0,5,5" Padding="5,2"
+                                Command="{Binding TrykprofilCommand}"
+                                />
                         <Button Content="Trykprofil m. kote"
                             Margin="0,0,5,5"
                             Padding="5,2"/>

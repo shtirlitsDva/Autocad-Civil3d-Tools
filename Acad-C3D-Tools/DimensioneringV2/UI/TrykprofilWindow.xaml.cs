@@ -1,4 +1,6 @@
-﻿using System;
+﻿using DimensioneringV2.Models.Trykprofil;
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -19,11 +21,12 @@ namespace DimensioneringV2.UI
     /// </summary>
     public partial class TrykprofilWindow : Window
     {
-        private TrykprofilWindow vm = new();
-        public TrykprofilWindow()
+        private TrykprofilWindowViewModel vm = new();
+        public TrykprofilWindow(IEnumerable<PressureProfileEntry> entries)
         {
             InitializeComponent();
             DataContext = vm;
+            vm.LoadData(entries);
         }
     }
 }

@@ -33,6 +33,8 @@ using ProjNet.CoordinateSystems;
 using ProjNet.CoordinateSystems.Transformations;
 
 using QuikGraph;
+using QuikGraph.Algorithms.Search;
+using QuikGraph.Algorithms.Observers;
 
 using System;
 using System.Collections.Concurrent;
@@ -48,6 +50,7 @@ using System.Windows;
 
 using AcAp = Autodesk.AutoCAD.ApplicationServices.Application;
 using utils = IntersectUtilities.UtilsCommon.Utils;
+using DimensioneringV2.Models.Trykprofil;
 
 namespace DimensioneringV2.UI
 {
@@ -1100,7 +1103,7 @@ namespace DimensioneringV2.UI
 
                 foreach (var edge in query)
                 {
-                    UndirectedGraph<NodeJunction, EdgePipeSegment>? graph = 
+                    UndirectedGraph<NodeJunction, EdgePipeSegment>? graph =
                         graphs.Where(x => x.ContainsEdge(edge)).FirstOrDefault();
                     if (graph == null) continue;
                     var adjacentEdges = graph.AdjacentEdges(edge.Source).ToList();
@@ -1205,17 +1208,71 @@ namespace DimensioneringV2.UI
 
         private async Task Trykprofil()
         {
-            var trykprofilWindow = new TrykprofilWindow();
-            trykprofilWindow.Show();
+            AnalysisFeature? feature = SelectedFeature;
+            if (feature == null) return;
+            if (feature.NumberOfBuildingsSupplied == 0) return;
 
-
+            var settings = HydraulicSettingsService.Instance.Settings;
+            List<PressureProfileEntry> entries = null;
 
             try
             {
-                
+                await Task.Run(() =>
+                {
+                    var graphs = DataService.Instance.Graphs;
 
-               
-                
+                    var oGraph = graphs.Where(
+                        g => g.Edges.Any(
+                            e => e.PipeSegment == feature))
+                    .FirstOrDefault();
+
+                    if (oGraph == null) return; //<-- HERE MAKE THE WINDOW DISPLAY AN ERROR TEXT
+
+                    UndirectedGraph<BFNode, BFEdge> graph = oGraph.CopyToBFConditional(
+                        x => x.PipeSegment.NumberOfBuildingsSupplied > 0);
+                    foreach (var edge in graph.Edges) edge.YankAllResults(); //Get results from the base features
+
+                    var targetEdge = graph.Edges.Where(
+                        x => x.OriginalEdge.PipeSegment == feature).FirstOrDefault();
+                    if (targetEdge == null) return; //<-- HERE MAKE THE WINDOW DISPLAY AN ERROR TEXT
+
+                    var targetNode = graph.AdjacentDegree(targetEdge.Source) == 1 ?
+                        targetEdge.Source : targetEdge.Target;
+
+                    var root = graph.GetRoot();
+                    if (root == null) return; //<-- HERE MAKE THE WINDOW DISPLAY AN ERROR TEXT
+
+                    var bfs = new UndirectedBreadthFirstSearchAlgorithm<BFNode, BFEdge>(graph);
+                    var pred = new UndirectedVertexPredecessorRecorderObserver<BFNode, BFEdge>();
+                    pred.Attach(bfs);
+                    bfs.Compute(root);
+
+                    if (!pred.TryGetPath(targetNode, out var path)) return; //<-- HERE MAKE THE WINDOW DISPLAY AN ERROR TEXT
+
+                    var lossAtClient = settings.MinDifferentialPressureOverHovedHaner;
+
+                    double paToBar = 100_000.0;
+
+                    var totalDP = path.Sum(
+                        x => (x.PressureGradientReturn + x.PressureGradientSupply) * x.Length) / paToBar
+                        + lossAtClient;
+
+                    entries = [new(0, 0, totalDP)];
+                    double length = 0, sp = 0, rp = totalDP;
+                    foreach (var edge in path)
+                    {
+                        length += edge.Length;
+                        sp += edge.Length * edge.PressureGradientSupply / paToBar;
+                        rp -= edge.Length * edge.PressureGradientReturn / paToBar;
+                        entries.Add(new(length, sp, rp));
+                    }
+                });
+
+                if (entries == null) return;
+                var trykprofilWindow = new TrykprofilWindow(entries);
+                trykprofilWindow.Show();
+                TrykprofilWindowContext.VM = (TrykprofilWindowViewModel)trykprofilWindow.DataContext;
+                TrykprofilWindowContext.VM.Dispatcher = trykprofilWindow.Dispatcher;
             }
             catch (Exception ex)
             {
@@ -1416,7 +1473,7 @@ namespace DimensioneringV2.UI
                     IsSelectedFeatureServiceLine = true;
                 else
                     IsSelectedFeatureServiceLine = false;
-            } 
+            }
             #endregion
 
             var items = infoFeature.PropertiesToDataGrid();
