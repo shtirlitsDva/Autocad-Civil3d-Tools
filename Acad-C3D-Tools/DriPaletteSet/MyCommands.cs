@@ -15,8 +15,18 @@ using CadApp = Autodesk.AutoCAD.ApplicationServices.Application;
 
 namespace DriPaletteSet
 {
-    public class MyCommands
+    public class MyCommands : IExtensionApplication
     {
+        public void Initialize()
+        {
+            _myPs = null;
+        }
+
+        public void Terminate()
+        {
+            _myPs = null;
+        }
+
         private static MyPaletteSet _myPs = null;
 
         [CommandMethod("NORPALETTE")]
@@ -37,6 +47,6 @@ namespace DriPaletteSet
                 _myPs.Dock = Autodesk.AutoCAD.Windows.DockSides.Right;
                 _myPs.Size = new System.Drawing.Size(500, 1500);
             }
-        }
+        }        
     }
 }
