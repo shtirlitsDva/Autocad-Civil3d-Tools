@@ -41,8 +41,16 @@ namespace DimensioneringV2.UI
                 Title = "Pressure [bar]"
             });
 
-            var supplySeries = new LineSeries { Title = "Supply" };
-            var returnSeries = new LineSeries { Title = "Return" };
+            var supplySeries = new LineSeries 
+            {
+                Title = "Supply",
+                Color = OxyColor.Parse("#FFFF0000")
+            };
+            var returnSeries = new LineSeries 
+            { 
+                Title = "Return",
+                Color = OxyColor.Parse("#FF0000FF")
+            };
 
             foreach (var p in Profile)
             {
