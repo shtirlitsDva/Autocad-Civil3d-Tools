@@ -124,6 +124,8 @@ namespace DimensioneringV2.AutoCAD
                     return PipeSystemEnum.Kobberflex;
                 case NorsynHydraulicCalc.PipeType.AquaTherm11:
                     return PipeSystemEnum.AquaTherm11;
+                case NorsynHydraulicCalc.PipeType.Pe:
+                    return PipeSystemEnum.PE;
                 default:
                     return PipeSystemEnum.Ukendt;
             }
