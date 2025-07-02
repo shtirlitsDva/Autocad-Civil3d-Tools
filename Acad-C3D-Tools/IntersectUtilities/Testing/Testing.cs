@@ -1,64 +1,20 @@
 ﻿using Autodesk.AutoCAD.ApplicationServices;
-using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
-using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
-using Autodesk.Civil;
 using Autodesk.Civil.ApplicationServices;
 using Autodesk.Civil.DatabaseServices;
-using Autodesk.Civil.DatabaseServices.Styles;
-using Autodesk.Civil.DataShortcuts;
-using Autodesk.Gis.Map;
-using Autodesk.Gis.Map.ObjectData;
-using Autodesk.Gis.Map.Utilities;
-using Autodesk.Aec.PropertyData;
-using Autodesk.Aec.PropertyData.DatabaseServices;
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Collections.Specialized;
-using System.Globalization;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Windows.Forms;
-using System.Data;
-using GroupByCluster;
+
 using IntersectUtilities.UtilsCommon;
+
+using System.Collections.Generic;
+using System.Linq;
+
 using static IntersectUtilities.UtilsCommon.Utils;
-using Dreambuild.AutoCAD;
-using static IntersectUtilities.Enums;
-using static IntersectUtilities.HelperMethods;
-using static IntersectUtilities.Utils;
-using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
-using static IntersectUtilities.UtilsCommon.UtilsDataTables;
-using static IntersectUtilities.UtilsCommon.UtilsODData;
-using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
-using CivSurface = Autodesk.Civil.DatabaseServices.Surface;
-using DataType = Autodesk.Gis.Map.Constants.DataType;
-using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
-using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
+
+using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
-using Application = Autodesk.AutoCAD.ApplicationServices.Application;
-using Label = Autodesk.Civil.DatabaseServices.Label;
-using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
-using OpenFileDialog = Microsoft.Win32.OpenFileDialog;
-using Assembly = System.Reflection.Assembly;
-using IntersectUtilities.DynamicBlocks;
-using System.Diagnostics;
-using System.Text.Json;
-using IntersectUtilities.Forms;
-using IntersectUtilities.GraphClasses;
-using QuikGraph;
-using QuikGraph.Graphviz;
-using QuikGraph.Algorithms.Search;
-
-using Microsoft.Win32;
-using IntersectUtilities.LongitudinalProfiles;
-using System.Reflection;
 
 namespace IntersectUtilities
 {
@@ -70,7 +26,7 @@ namespace IntersectUtilities
             public int Number { get; set; }
             public string? Text { get; set; }
         }
-        
+
         [CommandMethod("testing", CommandFlags.UsePickSet)]
         public void testing()
         {
@@ -1519,11 +1475,41 @@ namespace IntersectUtilities
                     //}
                     #endregion
                     #region ProfileProjectionLabel testing
-                    //HashSet<ProfileProjectionLabel> labels = localDb.HashSetOfType<ProfileProjectionLabel>(tx);
+                    //List<ProfileProjectionLabel> labels = new();
+
+                    // Get the block table for the current database
+                    //var blockTable = (BlockTable)tx.GetObject(localDb.BlockTableId, OpenMode.ForRead);
+
+                    // Get the model space block table record
+                    //var modelSpace = (BlockTableRecord)
+                    //    tx.GetObject(blockTable[BlockTableRecord.ModelSpace], OpenMode.ForRead);
+
+                    //RXClass theClass = RXObject.GetClass(typeof(ProfileProjectionLabel));
+
+                    // Loop through the entities in model space
+                    //foreach (Oid oid in modelSpace)
+                    //{
+                    //     Look for entities of the correct type
+                    //    if (oid.ObjectClass.IsDerivedFrom(theClass))
+                    //    {
+                    //        var entity = (ProfileProjectionLabel)tx.GetObject(oid, OpenMode.ForRead);
+                    //        labels.Add(entity);
+                    //    }
+                    //}
+
                     //foreach (var label in labels)
                     //{
-                    //    DBPoint testPoint = new DBPoint(label.LabelLocation);
-                    //    testPoint.AddEntityToDbModelSpace<DBPoint>(localDb);
+
+                    //    try
+                    //    {
+                    //        double x = label.LabelLocation.X; //<-- throws here
+                    //    }
+                    //    catch (System.Exception ex)
+                    //    {
+
+                    //        label.UpgradeOpen();
+                    //        label.Erase(true);
+                    //    }
                     //}
                     #endregion
                     #region PropertySets testing 1

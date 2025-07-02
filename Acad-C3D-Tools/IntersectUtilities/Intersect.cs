@@ -5468,5 +5468,48 @@ namespace IntersectUtilities
 
             tx.Commit();
         }
+
+        [CommandMethod("FIXBROKENLABELS")]
+        public void fixbrokenlabels()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            using Transaction tx = localDb.TransactionManager.StartTransaction();
+
+            try
+            {
+                var labels = localDb.HashSetOfType<ProfileProjectionLabel>(tx);
+
+                var toDelete = new HashSet<ProfileProjectionLabel>();
+
+                foreach (var label in labels)
+                {
+                    try
+                    {
+                        var x = label.LabelLocation.X;
+                    }
+                    catch (System.Exception)
+                    {
+                        toDelete.Add(label);
+                        continue;
+                    }
+                }
+
+                foreach (var label in toDelete)
+                {
+                    label.UpgradeOpen();
+                    label.Erase(true);
+                }
+            }
+            catch (System.Exception ex)
+            {
+                tx.Abort();
+                prdDbg(ex);
+                return;
+            }
+
+            tx.Commit();
+        }
     }
 }
