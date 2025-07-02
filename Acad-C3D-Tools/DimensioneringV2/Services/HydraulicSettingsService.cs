@@ -40,6 +40,7 @@ namespace DimensioneringV2.Services
         }
         private void DocumentManager_DocumentActivated(object sender, DocumentCollectionEventArgs e)
         {
+            if (e.Document == null) return;
             Utils.prtDbg($"{DateTime.Now} Document activated event: {e.Document.Name}");
             var loaded = HydraulicSettingsSerializer.Load(e.Document);
             //To avoid having OLD instances of the settings still bound to the UI
@@ -48,6 +49,7 @@ namespace DimensioneringV2.Services
         }
         private void DocumentManager_DocumentToBeDeactivated(object sender, DocumentCollectionEventArgs e)
         {
+            if (e.Document == null) return;
             Utils.prtDbg($"{DateTime.Now} Document To Be Deactivated event: {e.Document.Name}");
             HydraulicSettingsSerializer.Save(e.Document, Settings);
         }
