@@ -59,6 +59,7 @@ using QuikGraph.Algorithms.Search;
 using Microsoft.Win32;
 using IntersectUtilities.LongitudinalProfiles;
 using IntersectUtilities.ProjectsManager;
+using IntersectUtilities.DataManagement;
 
 [assembly: CommandClass(typeof(IntersectUtilities.Intersect))]
 namespace IntersectUtilities
@@ -5509,6 +5510,49 @@ namespace IntersectUtilities
                 return;
             }
 
+            tx.Commit();
+        }
+
+        [CommandMethod("CREATEALIGNMENTS")]
+        [CommandMethod("CALS")]
+        public void createalignments()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            DataReferencesOptions dro = new();
+            if (dro.ProjectName.IsNoE() || dro.EtapeName.IsNoE()) return;
+
+            var dm = new DataManager(dro);
+            using Database fjvDb = dm.GetForRead("Fremtid");
+            using Transaction fjvTx = fjvDb.TransactionManager.StartTransaction();
+
+            using Transaction tx = localDb.TransactionManager.StartTransaction();
+
+            try
+            {
+                bool proceed = true;
+
+                while (proceed)
+                {
+                    List<string> kwds = ["New", "Continue", "Cancel"];
+                    var choice = StringGridFormCaller.Call(
+                        kwds, "\'New\', \'Continue\' or \'Cancel\':");
+
+                    if (choice == null || choice == "Cancel") break;
+
+
+                }
+            }
+            catch (System.Exception ex)
+            {
+                fjvTx.Abort();
+                tx.Abort();
+                prdDbg(ex);
+                return;
+            }
+
+            fjvTx.Commit();
             tx.Commit();
         }
     }
