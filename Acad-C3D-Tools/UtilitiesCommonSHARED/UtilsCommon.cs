@@ -849,6 +849,8 @@ namespace IntersectUtilities.UtilsCommon
             PreskoblingTee,
             PræisoleretBøjning90gr,
             PræisoleretBøjning45gr,
+            PræisoleretBøjning30gr,
+            PræisoleretBøjning15gr,
             PræisoleretBøjningVariabel,
             PræisoleretVentil,
             PræventilMedUdluftning,
@@ -4839,6 +4841,11 @@ namespace IntersectUtilities.UtilsCommon
             else
                 throw new System.Exception($"Csv name {name} not defined!\nUpdate registration.");
         }
+
+        ///<summary>
+        ///Stier til projektfiler
+        ///</summary>
+        public static DataTable Stier => GetDataTable("stier");
 
         /// <summary>
         /// Fjernvarme komponenter

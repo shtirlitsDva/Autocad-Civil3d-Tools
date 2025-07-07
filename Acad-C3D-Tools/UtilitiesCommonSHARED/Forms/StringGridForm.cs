@@ -12,7 +12,7 @@ namespace IntersectUtilities.Forms
 {
     public partial class StringGridForm : Form
     {
-        public string SelectedValue { get; private set; }
+        public string? SelectedValue { get; private set; }
         private enum PrimaryNorsynColors
         {
             Dark = 1455948,

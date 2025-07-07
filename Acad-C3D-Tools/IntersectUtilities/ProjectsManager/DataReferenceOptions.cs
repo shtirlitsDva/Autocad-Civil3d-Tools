@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.IO;
 using IntersectUtilities.Forms;
+using IntersectUtilities.UtilsCommon;
 
 namespace IntersectUtilities
 {
@@ -119,8 +120,36 @@ namespace IntersectUtilities
             //return pKeyRes.StringResult; 
             #endregion
         }
-        public DataReferencesOptions()
+        public DataReferencesOptions(bool useAuto = true)
         {
+            if (useAuto)
+            {
+                var dwgName = Application.DocumentManager.MdiActiveDocument.Database.Filename;
+                var tbl = CsvData.Stier;
+                var results = FindProjIdEtape(tbl, dwgName);
+                if (results.Count > 0)
+                {
+                    if (results.Count == 1)
+                    {
+                        ProjectName = results[0].PrjId;
+                        EtapeName = results[0].Etape;
+                        return;
+                    }
+                    else
+                    {
+                        var dict = results.ToDictionary(x => $"{x.PrjId}:{x.Etape}", x => x);
+                        var choice = StringGridFormCaller.Call(dict.Keys.Order(), "Matched projects, choose one:");
+                        if (choice == null)
+                            throw new Exception("No project/etape selected!");
+
+                        var pe = dict[choice];
+                        ProjectName = pe.PrjId;
+                        EtapeName = pe.Etape;
+                        return;
+                    }                    
+                }
+            }
+
             ProjectName = GetProjectName();
             EtapeName = GetEtapeName(ProjectName);
         }
@@ -128,6 +157,22 @@ namespace IntersectUtilities
         {
             ProjectName = projectName;
             EtapeName = etapeName;
+        }
+        private static List<(string PrjId, string Etape)> FindProjIdEtape(DataTable table, string searchValue)
+        {
+            string search = searchValue?.Trim() ?? string.Empty;
+
+            return table.AsEnumerable()
+                .Where(row => table.Columns.Cast<DataColumn>()
+                .Any(col => string.Equals(row[col]?.ToString(), search, StringComparison.OrdinalIgnoreCase)) &&
+                row["PrjId"] is string prj && !string.IsNullOrEmpty(prj) &&
+                row["Etape"] is string etape && !string.IsNullOrEmpty(etape))
+                .Select(row =>
+                {//Extraction gets rid of the nullability warning without using '!'.
+                    var prj = (string)row["PrjId"];
+                    var etape = (string)row["Etape"];
+                    return (prj, etape);
+                }).ToList();
         }
     }
 }
