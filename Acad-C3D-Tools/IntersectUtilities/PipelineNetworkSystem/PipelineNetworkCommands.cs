@@ -47,6 +47,7 @@ using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using IntersectUtilities.PipelineNetworkSystem;
+using IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray;
 
 namespace IntersectUtilities
 {
@@ -308,6 +309,69 @@ namespace IntersectUtilities
                 }
                 tx.Abort();
             }
+        }
+
+        [CommandMethod("TSPSA")]
+        public void testsinglepipelinesizearray()
+        {
+            prdDbg("Dette skal køres i FJV Fremtid!");
+
+            graphclear();
+            graphpopulate();
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;            
+
+            DataManagement.DataManager dm = new DataManagement.DataManager(new DataReferencesOptions());
+            using Database alDb = dm.GetForRead("Alignments");
+            using Transaction alTx = alDb.TransactionManager.StartTransaction();
+
+            using Transaction tx = localDb.TransactionManager.StartTransaction();
+            PropertySetHelper pshFjv = new(localDb);
+
+            try
+            {
+                var allEnts = localDb.GetFjvEntities(tx, false, false);
+                var als = alDb.HashSetOfType<Alignment>(alTx);
+
+                //Choose what pipeline to print
+                var alNames = allEnts
+                    .Select(pshFjv.Pipeline.BelongsToAlignment)
+                    .Distinct()
+                    .Where(x => als.Any(al => al.Name == x))
+                    .Order();
+
+                var choice = StringGridFormCaller.Call(alNames, "Choose pipeline to build size array: ");
+                if (choice.IsNoE()) 
+                {
+                    tx.Abort();
+                    return;
+                }
+
+                var al = als.First(x => x.Name == choice);
+                var ents = allEnts.Where(x => pshFjv.Pipeline.BelongsToAlignment(x) == choice);
+
+                IPipelineV2 pipeline = PipelineV2Factory.Create(ents, al);
+                if (pipeline == null)
+                    throw new System.Exception($"Pipeline building failed!");
+                var sa = PipelineSizeArrayFactory.CreateSizeArray(pipeline);
+                if (sa == null)
+                    throw new System.Exception($"SizeArray building failed!");
+                prdDbg(sa.ToString());
+            }
+            catch (System.Exception ex)
+            {
+                tx.Abort();
+                prdDbg(ex);
+                return;
+            }
+            finally
+            {
+                alTx.Abort();
+                dm.Dispose();
+            }
+            tx.Abort();
+
         }
 
         [CommandMethod("RPDIRS")]

@@ -7,13 +7,13 @@ using System.Text.RegularExpressions;
 using Autodesk.AutoCAD.DatabaseServices;
 
 using IntersectUtilities.UtilsCommon;
-using IntersectUtilities.PipelineNetworkSystem;
 using static IntersectUtilities.UtilsCommon.Utils;
 using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 using Autodesk.AutoCAD.Geometry;
 using Newtonsoft.Json.Linq;
+using IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray;
 
 namespace IntersectUtilities.Collections
 {

@@ -4,7 +4,7 @@ using Autodesk.AutoCAD.Geometry;
 using Dreambuild.AutoCAD;
 
 using IntersectUtilities.NTS;
-using IntersectUtilities.PipelineNetworkSystem;
+using IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray;
 using IntersectUtilities.UtilsCommon;
 
 using NetTopologySuite.Geometries;

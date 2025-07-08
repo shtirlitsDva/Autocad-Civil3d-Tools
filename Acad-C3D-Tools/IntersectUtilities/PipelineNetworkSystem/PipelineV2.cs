@@ -23,6 +23,7 @@ using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using static IntersectUtilities.Graph;
 using System.DirectoryServices.ActiveDirectory;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.TextBox;
+using IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray;
 
 namespace IntersectUtilities.PipelineNetworkSystem
 {

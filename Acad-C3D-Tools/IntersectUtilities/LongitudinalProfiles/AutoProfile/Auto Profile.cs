@@ -18,6 +18,7 @@ using IntersectUtilities.DataManagement;
 using IntersectUtilities.LongitudinalProfiles.AutoProfile;
 using IntersectUtilities.NTS;
 using IntersectUtilities.PipelineNetworkSystem;
+using IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray;
 using IntersectUtilities.UtilsCommon;
 
 using MoreLinq;

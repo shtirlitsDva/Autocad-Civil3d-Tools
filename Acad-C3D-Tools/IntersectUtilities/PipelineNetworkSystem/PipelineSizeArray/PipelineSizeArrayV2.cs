@@ -1,23 +1,20 @@
 ﻿using Autodesk.AutoCAD.DatabaseServices;
+using Autodesk.Civil.DatabaseServices;
 
 using IntersectUtilities.Collections;
-using static IntersectUtilities.UtilsCommon.Utils;
-using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
-using static IntersectUtilities.CommonScheduleExtensions;
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
-using IntersectUtilities.UtilsCommon;
-using Autodesk.Civil.DatabaseServices;
-
-using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
-using IntersectUtilities.PipeScheduleV2;
 using System.Text.Json.Serialization;
 
-namespace IntersectUtilities.PipelineNetworkSystem
+using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
+using static IntersectUtilities.UtilsCommon.Utils;
+
+using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
+
+namespace IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray
 {
     public interface IPipelineSizeArrayV2
     {
@@ -62,7 +59,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
         }
         private SizeEntryV2[] GetArrayOfSizesForPv(ProfileView pv)
         {
-            var list = this.GetIndexesOfSizesAppearingInProfileView(pv.StationStart, pv.StationEnd);
+            var list = GetIndexesOfSizesAppearingInProfileView(pv.StationStart, pv.StationEnd);
             SizeEntryV2[] partialAr = new SizeEntryV2[list.Count];
             for (int i = 0; i < list.Count; i++) partialAr[i] = this[list[i]];
             return partialAr;
@@ -273,14 +270,13 @@ namespace IntersectUtilities.PipelineNetworkSystem
             // Use a new method using stations to gather blocks
             // Build an array to represent the topology of the pipeline
 
-            List<(string type, double station, BlockReference br)> topology =
-                new List<(string type, double station, BlockReference br)>();
+            List<TopologyEntry> topology = new();
 
             for (int i = 0; i < orderedSizeBrs.Length; i++)
             {
                 var br = orderedSizeBrs[i];
 
-                topology.Add(
+                topology.Add(new
                     (br.ReadDynamicCsvProperty(
                         DynamicProperty.Type, false),
                         pipeline.GetBlockStation(br), br));
@@ -337,12 +333,28 @@ namespace IntersectUtilities.PipelineNetworkSystem
             //Prepare the ranges of stations for querying
             //This is to calculate the stations for each range before building the sizes array
             //This is to enable using a single method for all cases
-            var ranges = new List<(double fsS, double fsE, double ssS, double ssE, BlockReference br)>();
-            ranges.Add((0, topology[0].station, topology[0].station,
-                topology.Count == 1 ? pipeline.EndStation : topology[1].station, topology[0].br));
+            var ranges = new List<RangeEntry>();
+            ranges.Add(new(0, topology[0].station, topology[0].station,
+                topology.Count == 1 ? pipeline.EndStation : topology[1].station,
+                topology[0].br, getNext(0)?.br, null));
             for (int i = 0; i < topology.Count; i++)
-                ranges.Add((topology[i].station, i == topology.Count - 1 ? pipeline.EndStation : topology[i + 1].station,
-                    i == 0 ? 0.0 : topology[i - 1].station, topology[i].station, topology[i].br));
+                ranges.Add(new(topology[i].station, i == topology.Count - 1 ? pipeline.EndStation : topology[i + 1].station,
+                    i == 0 ? 0.0 : topology[i - 1].station, topology[i].station, topology[i].br,
+                    getNext(i)?.br, getPrev(i)?.br)); //<-- this is not just prev and next, here the main is next
+            //and the prev is secondary to help establish dn sequence
+
+            TopologyEntry? getNext(int curIdx)
+            {
+                int count = topology.Count;
+                if (curIdx + 1 < topology.Count) return topology[curIdx + 1];
+                else return null;
+            }
+            TopologyEntry? getPrev(int curIdx)
+            {
+                int count = topology.Count;
+                if (curIdx > 0) return topology[curIdx - 1];
+                else return null;
+            }
 
             //Build the sizes array
             for (int i = 0; i < ranges.Count; i++)
@@ -376,20 +388,15 @@ namespace IntersectUtilities.PipelineNetworkSystem
             }
         }
 
-        private SizeEntryV2 GetSizeData(IPipelineV2 pipeline,
-            (double fsS, double fsE, double ssS, double ssE, BlockReference br) range)
+        private SizeEntryV2 GetSizeData(IPipelineV2 pipeline, RangeEntry range)
         {
-            //string handle = range.br.Handle.ToString();
-
-            //;
-
             var current = range.br;
             PipelineElementType type = current.GetPipelineType();
             double start;
             double end;
 
             #region TryGetDN
-            start = range.fsS; end = range.fsE;
+            start = range.mainS; end = range.mainE;
 
             int dn;
             switch (type)
@@ -414,13 +421,30 @@ namespace IntersectUtilities.PipelineNetworkSystem
                             DynamicProperty.DN2, true));
 
                         //set the query params for the other side
-                        start = range.ssS; end = range.ssE;
+                        start = range.secondaryS; end = range.secondaryE;
 
                         int otherSideDN;
                         if (!TryGetDN(pipeline, start, end, out otherSideDN))
                         {
-                            prdDbg($"Could not find DN for block {current.Handle}!");
-                            throw new Exception("Could not find DN for block!");
+                            prdDbg($"Could not find DN for block {current.Handle} using FIRST method! Trying SECOND method...");
+
+                            //The following code tries to handle a case where reduktion/materialeskift
+                            //is adjacent with nothing in between.
+                            int otherDN1 = Convert.ToInt32(range.mainBr?.ReadDynamicCsvProperty(
+                                DynamicProperty.DN1, true));
+                            int otherDN2 = Convert.ToInt32(range.mainBr?.ReadDynamicCsvProperty(
+                                DynamicProperty.DN2, true));
+
+                            if (DN1 == otherDN1) dn = DN1;
+                            else if (DN1 == otherDN2) dn = DN1;
+                            else if (DN2 == otherDN1) dn = DN2;
+                            else if (DN2 == otherDN2) dn = DN2;
+                            else
+                            {
+                                prdDbg($"Could not find DN for block {current.Handle} using SECOND method!");
+                                throw new Exception("Could not find DN for block!");
+                            }
+                            prdDbg("Second METHOD success!");
                         }
                         else
                         {
@@ -443,7 +467,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
             #region TryGetPipeSystem
             //Reset query params for deferred execution
             //because they could have been changed
-            start = range.fsS; end = range.fsE;
+            start = range.mainS; end = range.mainE;
 
             PipeSystemEnum ps;
             switch (type)
@@ -452,7 +476,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                     if (!TryGetPipeSystem(pipeline, start, end, out ps))
                     {//If operation fails, try other side
 
-                        start = range.ssS; end = range.ssE;
+                        start = range.secondaryS; end = range.secondaryE;
 
                         PipeSystemEnum otherSidePS;
                         if (!TryGetPipeSystem(pipeline, start, end, out otherSidePS))
@@ -490,7 +514,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
             #region TryGetPipeType
             //Reset query params for deferred execution
             //because they could have been changed
-            start = range.fsS; end = range.fsE;
+            start = range.mainS; end = range.mainE;
 
             PipeTypeEnum pt;
             switch (type)
@@ -500,7 +524,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                     if (!TryGetPipeType(pipeline, start, end, out pt))
                     {//If operation fails, try other side   
 
-                        start = range.ssS; end = range.ssE;
+                        start = range.secondaryS; end = range.secondaryE;
 
                         PipeTypeEnum otherSidePT;
                         if (!TryGetPipeType(pipeline, start, end, out otherSidePT))
@@ -534,7 +558,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
             #region TryGetPipeSeries
             //Reset query params for deferred execution
             //because they could have been changed
-            start = range.fsS; end = range.fsE;
+            start = range.mainS; end = range.mainE;
 
             PipeSeriesEnum serie;
 
@@ -564,7 +588,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
             }
             #endregion
 
-            return new SizeEntryV2(dn, range.fsS, range.fsE, GetPipeKOd(ps, dn, pt, serie), ps, pt, serie);
+            return new SizeEntryV2(dn, range.mainS, range.mainE, GetPipeKOd(ps, dn, pt, serie), ps, pt, serie);
         }
         /// <summary>
         /// Assuming br is a SizeArray block. Currently NOT USED.
@@ -591,11 +615,11 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 if (ce.Count == 3)
                 {
                     var query1 = ce.Where(x => x.Any(y =>
-                    CommonScheduleExtensions.GetEntityPipeType(y, true) == PipeTypeEnum.Enkelt));
+                    y.GetEntityPipeType(true) == PipeTypeEnum.Enkelt));
                     foreach (var item in query1) one.UnionWith(item);
 
                     var query2 = ce.Where(x => x.Any(y =>
-                    CommonScheduleExtensions.GetEntityPipeType(y, true) == PipeTypeEnum.Twin));
+                    y.GetEntityPipeType(true) == PipeTypeEnum.Twin));
                     foreach (var item in query2) two.UnionWith(item);
 
                     return res;
@@ -704,6 +728,11 @@ namespace IntersectUtilities.PipelineNetworkSystem
             throw new NotImplementedException();
         }
     }
+    public readonly record struct TopologyEntry(
+        string type, double station, BlockReference br);
+    public readonly record struct RangeEntry(
+        double mainS, double mainE, double secondaryS, double secondaryE, BlockReference br,
+        BlockReference? mainBr, BlockReference? secondaryBr);
     public struct SizeEntryV2
     {
         [JsonInclude]
@@ -728,7 +757,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
         {
             get
             {
-                return this.System switch
+                return System switch
                 {
                     PipeSystemEnum.Ukendt => "UK",
                     PipeSystemEnum.Stål => "DN",

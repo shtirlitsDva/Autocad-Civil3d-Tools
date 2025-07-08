@@ -27,6 +27,7 @@ using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 using System.Diagnostics;
 using IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol;
+using IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray;
 
 namespace IntersectUtilities.PipelineNetworkSystem
 {

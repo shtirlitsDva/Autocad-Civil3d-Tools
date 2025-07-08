@@ -19,6 +19,7 @@ using IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol;
 using IntersectUtilities.LongitudinalProfiles.KoteReport;
 using IntersectUtilities.LongitudinalProfiles.Relocability;
 using IntersectUtilities.PipelineNetworkSystem;
+using IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray;
 using IntersectUtilities.UtilsCommon;
 
 using MoreLinq;

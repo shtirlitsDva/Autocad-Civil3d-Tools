@@ -54,8 +54,7 @@ namespace IntersectUtilities
             {
                 prdDbg("PropertySetManager: Must be instantiated within a Transaction!");
                 throw new System.Exception(
-                    "PropertySetManager: Must be instantiated within a Transaction!"
-                );
+                    "PropertySetManager: Must be instantiated within a Transaction!");
             }
             //3
             PropertySetDefinition = GetOrCreatePropertySetDefinition(propertySetName);
@@ -1143,7 +1142,14 @@ namespace IntersectUtilities
             Contains,
         }
     }
-
+    public class PSM_Pipeline : PropertySetManager
+    {
+        public PSM_Pipeline(Database database)
+            : base(database, PSetDefs.DefinedSets.DriPipelineData) { }
+        private PSetDefs.DriPipelineData def => new();
+        public string BelongsToAlignment(Entity x) =>
+            ReadPropertyString(x, def.BelongsToAlignment);
+    }
     public class PSetDefs
     {
         public enum DefinedSets
@@ -1550,7 +1556,7 @@ namespace IntersectUtilities
     public class PropertySetHelper
     {
         public PropertySetManager Graph;
-        public PropertySetManager Pipeline;
+        public PSM_Pipeline Pipeline;
         public PSetDefs.DriGraph GraphDef;
         public PSetDefs.DriPipelineData PipelineDef;
 
@@ -1563,7 +1569,7 @@ namespace IntersectUtilities
 
             Graph = new PropertySetManager(db, PSetDefs.DefinedSets.DriGraph);
             GraphDef = new PSetDefs.DriGraph();
-            Pipeline = new PropertySetManager(db, PSetDefs.DefinedSets.DriPipelineData);
+            Pipeline = new PSM_Pipeline(db);
             PipelineDef = new PSetDefs.DriPipelineData();
         }
     }

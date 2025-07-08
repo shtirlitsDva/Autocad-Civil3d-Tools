@@ -1,8 +1,6 @@
 ﻿using Autodesk.Civil.DatabaseServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
-
-using IntersectUtilities.PipelineNetworkSystem;
 using IntersectUtilities.UtilsCommon;
 
 using System;
@@ -11,6 +9,7 @@ using System.Text.Json.Serialization;
 
 using Exception = System.Exception;
 using Dreambuild.AutoCAD;
+using IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray;
 
 namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
 {
