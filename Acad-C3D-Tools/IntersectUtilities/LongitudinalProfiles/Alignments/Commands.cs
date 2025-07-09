@@ -26,7 +26,7 @@ namespace IntersectUtilities
             DataReferencesOptions dro = new();
             if (dro.ProjectName.IsNoE() || dro.EtapeName.IsNoE()) return;
 
-            var dm = new DataManager(dro);
+            var dm = new DataManagement.DataManager(dro);
             using Database fjvDb = dm.GetForRead("Fremtid");
             using Transaction fjvTx = fjvDb.TransactionManager.StartTransaction();
 

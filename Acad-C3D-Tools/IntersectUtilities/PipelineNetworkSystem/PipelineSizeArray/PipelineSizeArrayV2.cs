@@ -257,7 +257,7 @@ namespace IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray
                     DynamicProperty.Function, false) == "SizeArray");
 
             // Order the blocks by station
-            orderedSizeBrs = sizeBrs.OrderBy(x => pipeline.GetBlockStation(x)).ToArray();
+            orderedSizeBrs = [.. sizeBrs.OrderBy(pipeline.GetBlockStation)];
 
 #if DEBUG
             //foreach (var item in orderedSizeBrs)
@@ -441,8 +441,20 @@ namespace IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray
                             else if (DN2 == otherDN2) dn = DN2;
                             else
                             {
-                                prdDbg($"Could not find DN for block {current.Handle} using SECOND method!");
-                                throw new Exception("Could not find DN for block!");
+                                otherDN1 = Convert.ToInt32(range.secondaryBr?.ReadDynamicCsvProperty(
+                                DynamicProperty.DN1, true));
+                                otherDN2 = Convert.ToInt32(range.secondaryBr?.ReadDynamicCsvProperty(
+                                    DynamicProperty.DN2, true));
+
+                                if (DN1 == otherDN1) dn = DN1;
+                                else if (DN1 == otherDN2) dn = DN1;
+                                else if (DN2 == otherDN1) dn = DN2;
+                                else if (DN2 == otherDN2) dn = DN2;
+                                else
+                                {
+                                    prdDbg($"Could not find DN for block {current.Handle} using SECOND method!");
+                                    throw new Exception("Could not find DN for block!");
+                                }
                             }
                             prdDbg("Second METHOD success!");
                         }
@@ -481,8 +493,15 @@ namespace IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray
                         PipeSystemEnum otherSidePS;
                         if (!TryGetPipeSystem(pipeline, start, end, out otherSidePS))
                         {
-                            prdDbg($"Could not find PipeSystem for block {current.Handle}!");
-                            throw new Exception("Could not find PipeSystem for block!");
+                            var M1 = GetSystemType(current.ReadDynamicCsvProperty(DynamicProperty.M1));
+                            var M2 = GetSystemType(current.ReadDynamicCsvProperty(DynamicProperty.M2));
+
+                            var dn1 = Convert.ToInt32(current.ReadDynamicCsvProperty(DynamicProperty.DN1));
+                            var dn2 = Convert.ToInt32(current.ReadDynamicCsvProperty(DynamicProperty.DN2));
+
+                            if (dn1 == dn) ps = M1;
+                            else if (dn2 == dn1) ps = M2;
+                            else ps = PipeSystemEnum.Ukendt;                            
                         }
                         else
                         {
@@ -492,7 +511,7 @@ namespace IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray
                             if (M1 == otherSidePS) ps = M2;
                             else ps = M1;
                         }
-                    }
+                    }                    
                     break;
                 case PipelineElementType.F_Model:
                 case PipelineElementType.Y_Model:

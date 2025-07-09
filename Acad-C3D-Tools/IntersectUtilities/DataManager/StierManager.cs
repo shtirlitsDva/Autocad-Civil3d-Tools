@@ -10,7 +10,7 @@ namespace IntersectUtilities.DataManager
     {
         private static readonly string[] ValueColumns = ["Ler", "Surface", "Alignments", "Fremtid", "Længdeprofiler"];
 
-        private static readonly Lazy<Dictionary<(string ProjectId, string EtapeId), HashSet<StierRecord>>> _cache
-            = new(() => LoadAndResolve(), isThreadSafe: true);
+        //private static readonly Lazy<Dictionary<(string ProjectId, string EtapeId), HashSet<StierRecord>>> _cache
+        //    = new(() => LoadAndResolve(), isThreadSafe: true);
     }
 }

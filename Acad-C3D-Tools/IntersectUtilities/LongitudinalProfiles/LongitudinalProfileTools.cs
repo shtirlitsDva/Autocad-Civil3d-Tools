@@ -572,7 +572,7 @@ namespace IntersectUtilities
                 PSetDefs.DefinedSets.DriCrossingData
             );
 
-            DataManager dataManager = new DataManager(dro);
+            DataManagement.DataManager dataManager = new(dro);
             using Database surfaceDb = dataManager.GetForRead("Surface");
             using Transaction surfaceTx = surfaceDb.TransactionManager.StartTransaction();
 
