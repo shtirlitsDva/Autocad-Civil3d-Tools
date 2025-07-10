@@ -14,7 +14,7 @@ using Dreambuild.AutoCAD;
 
 using GroupByCluster;
 
-using IntersectUtilities.DataManagement;
+using IntersectUtilities.UtilsCommon.DataManager;
 using IntersectUtilities.LongitudinalProfiles.AutoProfile;
 using IntersectUtilities.NTS;
 using IntersectUtilities.PipelineNetworkSystem;
@@ -110,9 +110,8 @@ namespace IntersectUtilities
             PropertySetManager.UpdatePropertySetDefinition(localDb, dcd.SetName);
 
             #region DataManager and FJVDATA
-            DataManagement.DataManager dm = new DataManagement.DataManager(new DataReferencesOptions());
-            if (!dm.IsValid()) { dm.Dispose(); return; }
-            Database fjvDb = dm.GetForRead("Fremtid");
+            var dm = new DataManager(new DataReferencesOptions());            
+            using Database fjvDb = dm.Fremtid();
             using Transaction fjvTx = fjvDb.TransactionManager.StartTransaction();
             PropertySetHelper pshFjv = new(fjvDb);
             #endregion
@@ -495,7 +494,6 @@ namespace IntersectUtilities
             finally
             {
                 fjvTx.Abort();
-                dm.Dispose();
             }
             tx.Commit();
 
@@ -652,8 +650,7 @@ namespace IntersectUtilities
         [CommandMethod("APDATAEXPORT")]
         public void apdataexport()
         {
-            DataManagement.DataManager dm = new DataManagement.DataManager(new DataReferencesOptions());
-            if (!dm.IsValid()) { dm.Dispose(); return; }
+            var dm = new DataManager(new DataReferencesOptions());
 
             Directory.CreateDirectory(apDataExportPath);
 
@@ -669,11 +666,7 @@ namespace IntersectUtilities
             {
                 prdDbg(ex);
                 return;
-            }
-            finally
-            {
-                dm.Dispose();
-            }
+            }            
 
             prdDbg("Done!");
         }
@@ -760,15 +753,15 @@ namespace IntersectUtilities
 
         //[CommandMethod("APGPLD")]
         //[CommandMethod("APGATHERPIPELINEDATA")]
-        public void gatherpipelinedata(DataManagement.DataManager dm)
+        public void gatherpipelinedata(DataManager dm)
         {
             prdDbg("Dette skal køres i Længdeprofiler!");
 
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
 
-            Database fjvDb = dm.GetForRead("Fremtid");
-            Transaction fjvTx = fjvDb.TransactionManager.StartTransaction();
+            using Database fjvDb = dm.Fremtid();
+            using Transaction fjvTx = fjvDb.TransactionManager.StartTransaction();
 
             using Transaction tx = localDb.TransactionManager.StartTransaction();
 
@@ -803,20 +796,20 @@ namespace IntersectUtilities
             {
                 tx.Abort();
                 fjvTx.Abort();
-                fjvTx.Dispose();
-                fjvDb.Dispose();
+                //fjvTx.Dispose();
+                //fjvDb.Dispose();
                 prdDbg(ex);
                 throw;
             }
             tx.Commit();
             fjvTx.Commit();
-            fjvTx.Dispose();
+            //fjvTx.Dispose();
             //fjvDb.Dispose();
         }
 
         //[CommandMethod("APGHAD")]
         //[CommandMethod("APGATHERHORIZONTALARCDATA")]
-        public void gatherhorizontalarcdata(DataManagement.DataManager dm)
+        public void gatherhorizontalarcdata(DataManager dm)
         {
             prdDbg("Dette skal køres i Længdeprofiler!");
 
@@ -896,7 +889,7 @@ namespace IntersectUtilities
 
         //[CommandMethod("APGUTD")]
         //[CommandMethod("APGATHERUTILITYDATA")]
-        public void gatherutilitydata(DataManagement.DataManager dm)
+        public void gatherutilitydata(DataManager dm)
         {
             //prdDbg("Dette skal køres i Længdeprofiler!");
 

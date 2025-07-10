@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 
-namespace IntersectUtilities.DataManager.FileResolvers
+namespace IntersectUtilities.UtilsCommon.DataManager.FileResolvers
 {
     internal class FileResolverLer : MultipleFileResolverBase
     {

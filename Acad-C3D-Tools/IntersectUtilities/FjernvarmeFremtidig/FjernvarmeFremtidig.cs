@@ -54,6 +54,7 @@ using static IntersectUtilities.Graph;
 using IntersectUtilities.PipeScheduleV2;
 using Autodesk.AutoCAD.Internal;
 using System.DirectoryServices.ActiveDirectory;
+using IntersectUtilities.UtilsCommon.DataManager;
 
 namespace IntersectUtilities
 {
@@ -89,9 +90,9 @@ namespace IntersectUtilities
             string etapeName = dro.EtapeName;
 
             // open the xref database
-            var dm = new DataManagement.DataManager(dro);
-            Database alDb = dm.GetForRead("Alignments");
-            Transaction alTx = alDb.TransactionManager.StartTransaction();
+            var dm = new DataManager(dro);
+            using Database alDb = dm.Alignments();
+            using Transaction alTx = alDb.TransactionManager.StartTransaction();
             HashSet<Alignment> als = alDb.HashSetOfType<Alignment>(alTx);
             var alPls = als.ToDictionary(x => x, x => x.GetPolyline().Go<Polyline>(alTx));
 
@@ -928,24 +929,18 @@ namespace IntersectUtilities
                 tx.Commit();
             }
 
+            DataReferencesOptions dro = new DataReferencesOptions();
+            var dm = new DataManager(dro);
+
+            // open the LER dwg database
+            using var xRefFjvDB = dm.Fremtid();
+            using var xRefFjvTx = xRefFjvDB.TransactionManager.StartTransaction();
+
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                Database xRefFjvDB = null;
-                Transaction xRefFjvTx = null;
+            {                
                 try
                 {
                     #region Load linework
-                    DataReferencesOptions dro = new DataReferencesOptions();
-                    string projectName = dro.ProjectName;
-                    string etapeName = dro.EtapeName;
-                    editor.WriteMessage("\n" + GetPathToDataFiles(projectName, etapeName, "Fremtid"));
-
-                    // open the LER dwg database
-                    xRefFjvDB = new Database(false, true);
-
-                    xRefFjvDB.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Fremtid"),
-                        FileOpenMode.OpenForReadAndAllShare, false, null);
-                    xRefFjvTx = xRefFjvDB.TransactionManager.StartTransaction();
 
                     HashSet<Line> lines = xRefFjvDB.HashSetOfType<Line>(xRefFjvTx, true);
                     //HashSet<Spline> splines = xRefFjvDB.HashSetOfType<Spline>(xRefLerTx);

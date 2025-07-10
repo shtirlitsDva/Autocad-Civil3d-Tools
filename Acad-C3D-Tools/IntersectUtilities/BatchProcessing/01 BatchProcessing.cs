@@ -28,6 +28,7 @@ using System.Data;
 using MoreLinq;
 using GroupByCluster;
 using IntersectUtilities.UtilsCommon;
+using IntersectUtilities.UtilsCommon.DataManager;
 using static IntersectUtilities.UtilsCommon.Utils;
 using Dreambuild.AutoCAD;
 
@@ -51,7 +52,6 @@ using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using Result = IntersectUtilities.Result;
 using System.Diagnostics;
-using Autodesk.AutoCAD.MacroRecorder;
 
 namespace IntersectUtilities
 {

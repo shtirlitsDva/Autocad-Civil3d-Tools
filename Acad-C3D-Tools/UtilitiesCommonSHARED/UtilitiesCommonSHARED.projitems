@@ -9,6 +9,16 @@
     <Import_RootNamespace>UtilitiesCommonSHARED</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)DataManager\DataManager.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)DataManager\DataReferenceOptions.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)DataManager\FileResolvers\FileResolverLer.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)DataManager\FileResolvers\FileResolverLængdeprofiler.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)DataManager\FileResolvers\FileResolverSingle.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)DataManager\FileResolvers\IFileResolver.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)DataManager\FileResolvers\MultipleFileResolverBase.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)DataManager\StierDataType.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)DataManager\StierManager.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)DataManager\StierRecord.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)DouglasPeuckerReduction.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Forms\OverlayForm.cs">
       <SubType>Form</SubType>

@@ -2,7 +2,7 @@
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Runtime;
 
-using IntersectUtilities.DataManagement;
+using IntersectUtilities.UtilsCommon.DataManager;
 using IntersectUtilities.UtilsCommon;
 using static IntersectUtilities.UtilsCommon.Utils;
 
@@ -26,8 +26,8 @@ namespace IntersectUtilities
             DataReferencesOptions dro = new();
             if (dro.ProjectName.IsNoE() || dro.EtapeName.IsNoE()) return;
 
-            var dm = new DataManagement.DataManager(dro);
-            using Database fjvDb = dm.GetForRead("Fremtid");
+            var dm = new DataManager(dro);
+            using Database fjvDb = dm.Fremtid();
             using Transaction fjvTx = fjvDb.TransactionManager.StartTransaction();
 
             using Transaction tx = localDb.TransactionManager.StartTransaction();

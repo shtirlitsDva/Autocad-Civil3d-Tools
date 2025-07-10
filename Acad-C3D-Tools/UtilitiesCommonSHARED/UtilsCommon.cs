@@ -357,50 +357,6 @@ namespace IntersectUtilities.UtilsCommon
                 + lnormal * Math.Cos(alpha * 0.5) * radius;
         }
 
-        /// <summary>
-        /// Returns path to dwg file.
-        /// </summary>
-        /// <param name="etapeName">4.1 .. 4.12</param>
-        /// <param name="pathType">Ler, Surface</param>
-        /// <returns>Path as string</returns>
-        public static string GetPathToDataFiles(
-            string projectName,
-            string etapeName,
-            string pathType
-        )
-        {
-            #region Read Csv Data for paths
-            string pathStier = "X:\\AutoCAD DRI - 01 Civil 3D\\Stier.csv";
-            System.Data.DataTable dtStier = CsvReader.ReadCsvToDataTable(pathStier, "Stier");
-            #endregion
-
-            var query = dtStier
-                .AsEnumerable()
-                .Where(row =>
-                    (string)row["PrjId"] == projectName && (string)row["Etape"] == etapeName
-                );
-
-            if (query.Count() != 1)
-            {
-                prdDbg("GetPathToDataFiles could not determine Etape!");
-                return "";
-            }
-
-            string result = (string)query.First()[pathType];
-            if (result.IsNoE())
-                throw new System.Exception(
-                    $"{pathType} mangler at blive defineret i "
-                        + $"X:\\AutoCAD DRI - 01 Civil 3D\\Stier.csv!"
-                );
-            if (File.Exists(result) || Directory.Exists(result))
-                return result;
-            else
-                throw new System.Exception(
-                    $"Programmet kan ikke finde filen {result} "
-                        + $"på det specificerede sti: {result}"
-                );
-        }
-
         public static void AbortGracefully(object exMsg, params Database[] dbs)
         {
             foreach (var db in dbs)

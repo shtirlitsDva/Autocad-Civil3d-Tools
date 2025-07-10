@@ -13,7 +13,6 @@ using Dreambuild.AutoCAD;
 
 using GroupByCluster;
 
-using IntersectUtilities.DataManagement;
 using IntersectUtilities.LongitudinalProfiles;
 using IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol;
 using IntersectUtilities.LongitudinalProfiles.KoteReport;
@@ -21,6 +20,7 @@ using IntersectUtilities.LongitudinalProfiles.Relocability;
 using IntersectUtilities.PipelineNetworkSystem;
 using IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray;
 using IntersectUtilities.UtilsCommon;
+using IntersectUtilities.UtilsCommon.DataManager;
 
 using MoreLinq;
 
@@ -271,8 +271,8 @@ namespace IntersectUtilities
         }
 
         private void createsurfaceprofilesmethod(
-            DataReferencesOptions dro = null,
-            List<Alignment> allAlignments = null
+            DataReferencesOptions? dro = null,
+            List<Alignment>? allAlignments = null
         )
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -293,20 +293,16 @@ namespace IntersectUtilities
                 string projectName = dro.ProjectName;
                 string etapeName = dro.EtapeName;
 
-                editor.WriteMessage("\n" + GetPathToDataFiles(projectName, etapeName, "Surface"));
+                var dm = new DataManager(dro);
 
                 #region Read surface from file
                 // open the xref database
-                Database xRefSurfaceDB = new Database(false, true);
-                xRefSurfaceDB.ReadDwgFile(
-                    GetPathToDataFiles(projectName, etapeName, "Surface"),
-                    FileOpenMode.OpenForReadAndAllShare,
-                    false,
-                    null
-                );
-                Transaction xRefSurfaceTx = xRefSurfaceDB.TransactionManager.StartTransaction();
+                using Database xRefSurfaceDB = dm.Surface();
+                using Transaction xRefSurfaceTx = xRefSurfaceDB.TransactionManager.StartTransaction();
 
-                CivSurface surface = null;
+                prdDbg(xRefSurfaceDB.Filename);
+
+                CivSurface? surface = null;
                 try
                 {
                     surface =
@@ -572,26 +568,20 @@ namespace IntersectUtilities
                 PSetDefs.DefinedSets.DriCrossingData
             );
 
-            DataManagement.DataManager dataManager = new(dro);
-            using Database surfaceDb = dataManager.GetForRead("Surface");
+            DataManager dm = new(dro);
+            using Database surfaceDb = dm.Surface();
             using Transaction surfaceTx = surfaceDb.TransactionManager.StartTransaction();
 
-            using Database fjvDb = dataManager.GetForRead("Fremtid");
+            using Database fjvDb = dm.Fremtid();
             using Transaction fjvTx = fjvDb.TransactionManager.StartTransaction();
 
-            using Database alDb = dataManager.GetForRead("Alignments");
+            using Database alDb = dm.Alignments();
             using Transaction alTx = alDb.TransactionManager.StartTransaction();
 
             using Transaction tx = localDb.TransactionManager.StartTransaction();
 
             string projectName = dro.ProjectName;
             string etapeName = dro.EtapeName;
-            Application.DocumentManager.MdiActiveDocument.Editor.WriteMessage(
-                "\n" + GetPathToDataFiles(projectName, etapeName, "Ler")
-            );
-            Application.DocumentManager.MdiActiveDocument.Editor.WriteMessage(
-                "\n" + GetPathToDataFiles(projectName, etapeName, "Surface")
-            );
 
             #region Read surface from file
             CivSurface? surface = null;
@@ -621,9 +611,7 @@ namespace IntersectUtilities
             #endregion
 
             #region Load LER data
-            ILer3dManager lman = Ler3dManagerFactory.LoadLer3d(
-                GetPathToDataFiles(projectName, etapeName, "Ler")
-            );
+            ILer3dManager lman = Ler3dManagerFactory.LoadLer3d(dm);
             #endregion
 
             try
@@ -1351,10 +1339,10 @@ namespace IntersectUtilities
             }
             #endregion
 
+            var dm = new DataManager(dro);
+
             #region Get Ler data
-            ILer3dManager lman = Ler3dManagerFactory.LoadLer3d(
-                GetPathToDataFiles(dro.ProjectName, dro.EtapeName, "Ler")
-            );
+            ILer3dManager lman = Ler3dManagerFactory.LoadLer3d(dm);
             #endregion
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
@@ -1597,18 +1585,12 @@ namespace IntersectUtilities
                 #region Open fremtidig db and get entities
                 if (dro == null)
                     dro = new DataReferencesOptions();
-                string projectName = dro.ProjectName;
-                string etapeName = dro.EtapeName;
+
+                var dm = new DataManager(dro);
 
                 // open the xref database
-                Database fremDb = new Database(false, true);
-                fremDb.ReadDwgFile(
-                    GetPathToDataFiles(projectName, etapeName, "Fremtid"),
-                    FileOpenMode.OpenForReadAndAllShare,
-                    false,
-                    null
-                );
-                Transaction fremTx = fremDb.TransactionManager.StartTransaction();
+                using Database fremDb = dm.Fremtid();
+                using Transaction fremTx = fremDb.TransactionManager.StartTransaction();
 
                 #region Read CSV
                 System.Data.DataTable dynBlocks = CsvData.FK;
@@ -2033,9 +2015,9 @@ namespace IntersectUtilities
         }
 
         public void createdetailingpreliminarymethod(
-            DataReferencesOptions dataReferencesOptions = default,
-            Database database = default,
-            HashSet<Alignment> alignments = default
+            DataReferencesOptions? dataReferencesOptions = default,
+            Database? database = default,
+            HashSet<Alignment>? alignments = default
         )
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -2049,31 +2031,20 @@ namespace IntersectUtilities
                 .ActiveDocument;
 
             DataReferencesOptions dro = dataReferencesOptions ?? new DataReferencesOptions();
-            string projectName = dro.ProjectName;
-            string etapeName = dro.EtapeName;
+            var dm = new DataManager(dro);
 
-            System.Data.DataTable dt = CsvReader.ReadCsvToDataTable(
-                @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv",
-                "FjvKomponenter"
-            );
+            var dt = CsvData.FK;
 
             PropertySetManager.UpdatePropertySetDefinition(
                 dB,
-                PSetDefs.DefinedSets.DriSourceReference
-            );
+                PSetDefs.DefinedSets.DriSourceReference);
 
             using (Transaction tx = dB.TransactionManager.StartTransaction())
             {
                 #region Open fremtidig db
                 // open the xref database
-                Database fremDb = new Database(false, true);
-                fremDb.ReadDwgFile(
-                    GetPathToDataFiles(projectName, etapeName, "Fremtid"),
-                    FileOpenMode.OpenForReadAndAllShare,
-                    false,
-                    null
-                );
-                Transaction fremTx = fremDb.TransactionManager.StartTransaction();
+                using Database fremDb = dm.Fremtid();
+                using Transaction fremTx = fremDb.TransactionManager.StartTransaction();
                 HashSet<Curve> allCurves = fremDb.GetFjvPipes(fremTx).Cast<Curve>().ToHashSet();
                 HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
                 #endregion
@@ -2856,8 +2827,8 @@ namespace IntersectUtilities
         }
 
         public void createdetailingmethod(
-            DataReferencesOptions dataReferencesOptions = default,
-            Database database = default
+            DataReferencesOptions? dataReferencesOptions = default,
+            Database? database = default
         )
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -2868,18 +2839,11 @@ namespace IntersectUtilities
             {
                 #region Open fremtidig db
                 DataReferencesOptions dro = dataReferencesOptions ?? new DataReferencesOptions();
-                string projectName = dro.ProjectName;
-                string etapeName = dro.EtapeName;
+                var dm = new DataManager(dro);
 
                 // open the xref database
-                Database fremDb = new Database(false, true);
-                fremDb.ReadDwgFile(
-                    GetPathToDataFiles(projectName, etapeName, "Fremtid"),
-                    FileOpenMode.OpenForReadAndAllShare,
-                    false,
-                    null
-                );
-                Transaction fremTx = fremDb.TransactionManager.StartTransaction();
+                using Database fremDb = dm.Fremtid();
+                using Transaction fremTx = fremDb.TransactionManager.StartTransaction();
                 HashSet<Curve> allCurves = fremDb.GetFjvPipes(fremTx).Cast<Curve>().ToHashSet();
                 HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
                 #endregion
@@ -4177,18 +4141,11 @@ namespace IntersectUtilities
                 DataReferencesOptions dro = dataReferencesOptions;
                 if (dro == null)
                     dro = new DataReferencesOptions();
-                string projectName = dro.ProjectName;
-                string etapeName = dro.EtapeName;
+                var dm = new DataManager(dro);
 
                 //open the xref database
-                Database fremDb = new Database(false, true);
-                fremDb.ReadDwgFile(
-                    GetPathToDataFiles(projectName, etapeName, "Fremtid"),
-                    FileOpenMode.OpenForReadAndAllShare,
-                    false,
-                    null
-                );
-                Transaction fremTx = fremDb.TransactionManager.StartTransaction();
+                using Database fremDb = dm.Fremtid();
+                using Transaction fremTx = fremDb.TransactionManager.StartTransaction();
                 HashSet<Curve> allCurves = fremDb.HashSetOfType<Curve>(fremTx);
                 HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
                 #endregion
@@ -5665,17 +5622,10 @@ namespace IntersectUtilities
                 #region Open fremtidig db
 
                 DataReferencesOptions dro = new DataReferencesOptions();
-                string projectName = dro.ProjectName;
-                string etapeName = dro.EtapeName;
+                var dm = new DataManager(dro);
                 //open the xref database
-                Database fremDb = new Database(false, true);
-                fremDb.ReadDwgFile(
-                    GetPathToDataFiles(projectName, etapeName, "Fremtid"),
-                    FileOpenMode.OpenForReadAndAllShare,
-                    false,
-                    null
-                );
-                Transaction fremTx = fremDb.TransactionManager.StartTransaction();
+                using Database fremDb = dm.Fremtid();
+                using Transaction fremTx = fremDb.TransactionManager.StartTransaction();
                 //HashSet<Curve> allCurves = fremDb.HashSetOfType<Curve>(fremTx);
                 HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
                 #endregion
@@ -6480,24 +6430,15 @@ namespace IntersectUtilities
             #region Open fremtidig db
             if (dro == null)
                 dro = new DataReferencesOptions();
-            string projectName = dro.ProjectName;
-            string etapeName = dro.EtapeName;
+            var dm = new DataManager(dro);
 
             // open the xref database
-            Database fremDb = new Database(false, true);
-            fremDb.ReadDwgFile(
-                GetPathToDataFiles(projectName, etapeName, "Fremtid"),
-                FileOpenMode.OpenForReadAndAllShare,
-                false,
-                null
-            );
-            Transaction fremTx = fremDb.TransactionManager.StartTransaction();
+            using Database fremDb = dm.Fremtid();
+            using Transaction fremTx = fremDb.TransactionManager.StartTransaction();
             HashSet<Curve> allCurves = fremDb.GetFjvPipes(fremTx).Cast<Curve>().ToHashSet();
             HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
 
-            ILer3dManager lman = Ler3dManagerFactory.LoadLer3d(
-                GetPathToDataFiles(projectName, etapeName, "Ler")
-            );
+            ILer3dManager lman = Ler3dManagerFactory.LoadLer3d(dm);
             #endregion
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
@@ -7211,18 +7152,11 @@ namespace IntersectUtilities
 
             #region Open fremtidig db and get entities
             var dro = new DataReferencesOptions();
-            string projectName = dro.ProjectName;
-            string etapeName = dro.EtapeName;
+            var dm = new DataManager(dro);
 
             // open the xref database
-            Database fremDb = new Database(false, true);
-            fremDb.ReadDwgFile(
-                GetPathToDataFiles(projectName, etapeName, "Fremtid"),
-                FileOpenMode.OpenForReadAndAllShare,
-                false,
-                null
-            );
-            Transaction fremTx = fremDb.TransactionManager.StartTransaction();
+            using Database fremDb = dm.Fremtid();
+            using Transaction fremTx = fremDb.TransactionManager.StartTransaction();
 
             HashSet<Curve> allCurves = fremDb.GetFjvPipes(fremTx).Cast<Curve>().ToHashSet();
             var allBrs = fremDb
@@ -7554,15 +7488,13 @@ namespace IntersectUtilities
                 return;
             #endregion
 
-            DataManagement.DataManager dm = new DataManagement.DataManager(
-                new DataReferencesOptions()
-            );
-            Database fjvDb = dm.GetForRead("Fremtid");
-            Database alDb = dm.GetForRead("Alignments");
-            HashSet<Database> længdeprofilerdbs = dm.GetLængdepfofilerDatabases();
+            var dm = new DataManager(new DataReferencesOptions());
+            using Database fjvDb = dm.Fremtid();
+            using Database alDb = dm.Alignments();
+            HashSet<Database> længdeprofilerdbs = dm.Ler().ToHashSet();
 
-            Transaction fjvTx = fjvDb.TransactionManager.StartTransaction();
-            Transaction alTx = alDb.TransactionManager.StartTransaction();
+            using Transaction fjvTx = fjvDb.TransactionManager.StartTransaction();
+            using Transaction alTx = alDb.TransactionManager.StartTransaction();
 
             try
             {

@@ -4,62 +4,53 @@ using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
-using Autodesk.Civil;
 using Autodesk.Civil.ApplicationServices;
 using Autodesk.Civil.DatabaseServices;
 using Autodesk.Civil.DatabaseServices.Styles;
-using Autodesk.Civil.DataShortcuts;
 using Autodesk.Gis.Map;
 using Autodesk.Gis.Map.ObjectData;
-using Autodesk.Gis.Map.Utilities;
-using Autodesk.Aec.PropertyData;
-using Autodesk.Aec.PropertyData.DatabaseServices;
+
+using Dreambuild.AutoCAD;
+
+using GroupByCluster;
+
+using IntersectUtilities.DynamicBlocks;
+using IntersectUtilities.Forms;
+using IntersectUtilities.GraphClasses;
+using IntersectUtilities.UtilsCommon;
+using IntersectUtilities.UtilsCommon.DataManager;
+
+using Microsoft.Win32;
+
+using QuikGraph;
+using QuikGraph.Algorithms.Search;
+using QuikGraph.Graphviz;
+
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Collections.Specialized;
+using System.Data;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
-using System.Windows.Forms;
-using System.Data;
-using GroupByCluster;
-using IntersectUtilities.UtilsCommon;
-using static IntersectUtilities.UtilsCommon.Utils;
-using Dreambuild.AutoCAD;
-using static IntersectUtilities.Enums;
-using static IntersectUtilities.HelperMethods;
-using static IntersectUtilities.Utils;
+
 using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
+using static IntersectUtilities.Utils;
+using static IntersectUtilities.UtilsCommon.Utils;
 using static IntersectUtilities.UtilsCommon.UtilsDataTables;
 using static IntersectUtilities.UtilsCommon.UtilsODData;
+
+using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
-using CivSurface = Autodesk.Civil.DatabaseServices.Surface;
-using DataType = Autodesk.Gis.Map.Constants.DataType;
+using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
-using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
-using Application = Autodesk.AutoCAD.ApplicationServices.Application;
-using Label = Autodesk.Civil.DatabaseServices.Label;
-using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using OpenFileDialog = Microsoft.Win32.OpenFileDialog;
-using Assembly = System.Reflection.Assembly;
-using IntersectUtilities.DynamicBlocks;
-using System.Diagnostics;
-using System.Text.Json;
-using IntersectUtilities.Forms;
-using IntersectUtilities.GraphClasses;
-using QuikGraph;
-using QuikGraph.Graphviz;
-using QuikGraph.Algorithms.Search;
-
-using Microsoft.Win32;
-using IntersectUtilities.LongitudinalProfiles;
-using IntersectUtilities.ProjectsManager;
-using IntersectUtilities.DataManagement;
+using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 
 [assembly: CommandClass(typeof(IntersectUtilities.Intersect))]
 namespace IntersectUtilities
@@ -2346,7 +2337,7 @@ namespace IntersectUtilities
             if (kwd == null) return;
             PropertySetManager.MatchTypeEnum matchType;
             if (!Enum.TryParse(kwd, out matchType)) return;
-            
+
             string valueToFind;
             PromptStringOptions opts3 = new PromptStringOptions("\nEnter data to search: ");
             opts3.AllowSpaces = true;
@@ -4099,87 +4090,6 @@ namespace IntersectUtilities
             }
         }
 
-        /// <command>GATHERELEMENTSBYPREDICATE</command>
-        /// <summary>
-        /// Gathers LER elements to a separate dwg filtered by a specified predicate.
-        /// Specifc command for a specific task. Not part of the standard workflow.
-        /// </summary>
-        /// <category>Miscellaneous</category>
-        [CommandMethod("GATHERELEMENTSBYPREDICATE")]
-        public void gatherelementsbypredicate()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Database newDb = new Database(false, true);
-            if (!File.Exists(@"X:\AutoCAD DRI - SETUP\Templates\acadiso.dwt"))
-                throw new System.Exception(@"X:\AutoCAD DRI - SETUP\Templates\acadiso.dwt does not exist!");
-            newDb.ReadDwgFile(@"X:\AutoCAD DRI - SETUP\Templates\acadiso.dwt",
-                FileOpenMode.OpenForReadAndAllShare, false, null);
-            var type = typeof(Polyline3d);
-            var projects = new ProjectsManager.ProjectsManager();
-            foreach (var project in projects.Projects.AsEnumerable().Reverse().Take(20))
-            {
-                foreach (var phase in project.Phases)
-                {
-                    if (phase.Ler.IsNoE()) continue;
-                    ILer3dManager lerman;
-                    try
-                    {
-                        lerman = Ler3dManagerFactory.LoadLer3d(phase.Ler);
-                    }
-                    catch (System.Exception)
-                    {
-                        prdDbg($"Failed to load LER: {phase.Ler}");
-                        continue;
-                    }
-                    foreach (Database lerdb in lerman.GetDatabases())
-                    {
-                        using (Transaction lertx = lerdb.TransactionManager.StartTransaction())
-                        using (Transaction newTx = newDb.TransactionManager.StartTransaction())
-                        {
-                            try
-                            {
-                                ObjectIdCollection idsToClone = new ObjectIdCollection();
-                                var ents = lerdb.HashSetOfType<Polyline3d>(lertx);
-                                foreach (var ent in ents)
-                                    if (predicate1(ent)) idsToClone.Add(ent.Id);
-                                if (idsToClone.Count == 0) { lertx.Abort(); newTx.Abort(); continue; }
-                                IdMapping idMap = new IdMapping();
-                                lerdb.WblockCloneObjects(idsToClone,
-                                    SymbolUtilityServices.GetBlockModelSpaceId(newDb),
-                                    idMap, DuplicateRecordCloning.Replace, false);
-                            }
-                            catch (System.Exception ex)
-                            {
-                                lertx.Abort();
-                                newTx.Abort();
-                                lerman.Dispose(true);
-                                newDb.Dispose();
-                                prdDbg(ex);
-                                return;
-                            }
-                            lertx.Commit();
-                            newTx.Commit();
-                        }
-                    }
-                    lerman.Dispose(true);
-                }
-            }
-            newDb.SaveAs(@"C:\Temp\Collect.dwg", DwgVersion.Current);
-            newDb.Dispose();
-            bool predicate1(Entity ent)
-            {
-                if (ent is Polyline3d)
-                {
-                    if (ent.Layer.Contains("Forsyningskabel-10kV")) return true;
-                    else if (ent.Layer.Contains("Stikkabel-10kV")) return true;
-                    else if (ent.Layer.Contains("30kV")) return true;
-                    else if (ent.Layer.Contains("50kV")) return true;
-                }
-                return false;
-            }
-        }
-
         /// <command>DELETEALLPROPERTYSETS</command>
         /// <summary>
         /// Deletes ALL property sets in the drawing.
@@ -4238,10 +4148,24 @@ namespace IntersectUtilities
 
             var dro = new DataReferencesOptions();
 
-            var result = StringGridFormCaller.Call(["Fremtid", "Alignments", "Surface"], "What DWG to open?");
+            var result = StringGridFormCaller.Call(
+                ["Fremtid", "Alignments", "Surface", "Ler", "Længdeprofiler"], "What DWG to open?");
             if (result.IsNoE()) return;
 
-            string path = UtilsCommon.Utils.GetPathToDataFiles(dro.ProjectName, dro.EtapeName, result);
+            var type = (StierDataType)Enum.Parse(typeof(StierDataType), result);
+            var dm = new DataManager(dro);
+
+            string path;
+            var paths = dm.GetFileNames(type);
+            if (paths == null || paths.Count() == 0) return;
+            if (paths.Count() > 1)
+            {
+                var fs = paths.ToDictionary(x => Path.GetFileNameWithoutExtension(x), x => x);
+                result = StringGridFormCaller.Call(fs.Keys.Order(), "Select individual file: ");
+                if (result.IsNoE()) return;
+                path = fs[result];
+            }
+            else path = paths.First();
 
             if (path.IsNoE()) return;
             if (!File.Exists(path))
@@ -5477,6 +5401,6 @@ namespace IntersectUtilities
             }
 
             tx.Commit();
-        }        
+        }
     }
 }

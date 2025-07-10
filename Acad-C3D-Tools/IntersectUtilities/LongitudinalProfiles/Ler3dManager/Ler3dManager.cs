@@ -1,27 +1,24 @@
-﻿using Autodesk.AutoCAD.Geometry;
-using Autodesk.AutoCAD.DatabaseServices;
+﻿using Autodesk.AutoCAD.DatabaseServices;
+using Autodesk.AutoCAD.Geometry;
 using Autodesk.Civil.DatabaseServices;
+
+using IntersectUtilities.UtilsCommon;
+using IntersectUtilities.UtilsCommon.DataManager;
+
+using NetTopologySuite.Geometries;
 
 using System;
 using System.Collections.Generic;
-using System.Data;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
-
-using NetTopologySuite.Geometries;
-using IntersectUtilities.UtilsCommon;
 
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
-using Dreambuild.AutoCAD;
 
 namespace IntersectUtilities.LongitudinalProfiles
 {
     public interface ILer3dManager
     {
-        void Load(string path);
         void Dispose(bool disposing);
         HashSet<Entity> GetIntersectingEntities(Alignment al);
         string GetHandle(Entity ent);
@@ -32,7 +29,6 @@ namespace IntersectUtilities.LongitudinalProfiles
     public abstract class Ler3dManagerBase : ILer3dManager, IDisposable
     {
         private bool _disposed = false;
-        public abstract void Load(string path);
         protected abstract bool IsLoadValid();
         public virtual void Dispose(bool disposing)
         {
@@ -55,16 +51,11 @@ namespace IntersectUtilities.LongitudinalProfiles
     {
         private Database _db;
         private Transaction _tx;
-        public override void Load(string path)
+        public Ler3dManagerFile(Database db)
         {
-            if (!File.Exists(path)) throw new Exception("Ler3d file does not exist!: " + path);
-
-            var db = new Database(false, true);
-            db.ReadDwgFile(path, FileOpenMode.OpenForReadAndAllShare, false, null);
             _db = db;
             _tx = _db.TransactionManager.StartTransaction();
-
-            if (!IsLoadValid()) throw new Exception("Ler3d load failed!: \n" + path);
+            if (!IsLoadValid()) throw new Exception("Ler3d load failed!: \n" + db.Filename);
         }
         protected override bool IsLoadValid() => _db != null;
         public override void Dispose(bool disposing)
@@ -135,34 +126,30 @@ namespace IntersectUtilities.LongitudinalProfiles
         private Dictionary<string, Database> storage = new Dictionary<string, Database>();
         private Dictionary<string, Transaction> trans = new Dictionary<string, Transaction>();
         private Dictionary<string, Polygon> areas = new Dictionary<string, Polygon>();
-        public override void Load(string path)
+        public Ler3dManagerFolder(IEnumerable<Database> databases)
         {
-            var files = Directory.EnumerateFiles(path, "*_3DLER.dwg", SearchOption.TopDirectoryOnly);
+            if (databases.Count() < 2)
+                throw new Exception($"Less files than expected! At least 2 files expected.");
 
-            if (files.Count() == 0)
-                throw new Exception($"No files with search mask \"*_3DLER.dwg\" found in {path}!");
-
-            foreach (var file in files)
+            foreach (Database db in databases)
             {
-                var name = Path.GetFileNameWithoutExtension(file);
-                var db = new Database(false, true);
-                db.ReadDwgFile(file, FileOpenMode.OpenForReadAndReadShare, true, "");
+                var name = Path.GetFileNameWithoutExtension(db.Filename);
                 storage.Add(name, db);
 
                 Transaction tx = db.TransactionManager.StartTransaction();
-                MPolygon mpg = db.ListOfType<MPolygon>(tx).FirstOrDefault();
+                MPolygon? mpg = db.ListOfType<MPolygon>(tx).FirstOrDefault();
 
                 if (mpg == null)
                 {
                     this.Dispose(true);
-                    throw new Exception($"No MPolygon found in {file}!");
+                    throw new Exception($"No MPolygon found in {db.Filename}!");
                 }
-
                 trans.Add(name, tx);
                 areas.Add(name, NTS.NTSConversion.ConvertMPolygonToNTSPolygon(mpg));
             }
-            if (!IsLoadValid()) throw new Exception("Ler3d load failed!: \n" + path);
-        }
+
+            if (!IsLoadValid()) throw new Exception("Ler3d load failed!");
+        }        
         protected override bool IsLoadValid() =>
             storage != null &&
             storage.Count > 0 &&
@@ -274,35 +261,54 @@ namespace IntersectUtilities.LongitudinalProfiles
                 $"ERR::2024:03:05:001\n" +
                 $"Received handle {handle} which does not match the regex!");
         }
-        public override HashSet<Database> GetDatabases() => new HashSet<Database>(storage.Values);
+        public override HashSet<Database> GetDatabases() => [.. storage.Values];
     }
     public static class Ler3dManagerFactory
     {
-        public static ILer3dManager LoadLer3d(string path)
+        public static ILer3dManager LoadLer3d(DataManager dm)
         {
-            if (File.Exists(path))
+            var dbs = dm.Ler();
+
+            if (dbs.Count() == 1)
             {
                 UtilsCommon.Utils.prdDbg("Loading Ler 3d from single file!");
-                if (Path.GetExtension(path).ToLower() == ".dwg")
-                {
-                    var obj = new Ler3dManagerFile();
-                    obj.Load(path);
-                    return obj;
-                }
-
-                else throw new Exception("Ler3d has wrong extension: " + path);
+                return new Ler3dManagerFile(dbs.First());
             }
-            else if (Directory.Exists(path))
+            else if (dbs.Count() > 1)
             {
                 UtilsCommon.Utils.prdDbg("Loading Ler 3d from a collection of files!");
-                var obj = new Ler3dManagerFolder();
-                obj.Load(path);
-                return obj;
+                return new Ler3dManagerFolder(dbs);
             }
             else
             {
-                throw new Exception("Ler3d info not found: " + path);
+                throw new Exception($"Ler3d cannot be loaded: {dm.StierKey}");
             }
         }
+        //public static ILer3dManager LoadLer3d(string path)
+        //{
+        //    if (File.Exists(path))
+        //    {
+        //        UtilsCommon.Utils.prdDbg("Loading Ler 3d from single file!");
+        //        if (Path.GetExtension(path).ToLower() == ".dwg")
+        //        {
+        //            var obj = new Ler3dManagerFile();
+        //            obj.Load(path);
+        //            return obj;
+        //        }
+
+        //        else throw new Exception("Ler3d has wrong extension: " + path);
+        //    }
+        //    else if (Directory.Exists(path))
+        //    {
+        //        UtilsCommon.Utils.prdDbg("Loading Ler 3d from a collection of files!");
+        //        var obj = new Ler3dManagerFolder();
+        //        obj.Load(path);
+        //        return obj;
+        //    }
+        //    else
+        //    {
+        //        throw new Exception("Ler3d info not found: " + path);
+        //    }
+        //}
     }
 }

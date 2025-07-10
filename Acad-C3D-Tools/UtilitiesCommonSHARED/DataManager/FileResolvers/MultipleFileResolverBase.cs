@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace IntersectUtilities.DataManager.FileResolvers
+namespace IntersectUtilities.UtilsCommon.DataManager.FileResolvers
 {
     internal abstract class MultipleFileResolverBase : IFileResolver
     {

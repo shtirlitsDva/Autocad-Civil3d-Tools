@@ -54,12 +54,9 @@ using Plane = Autodesk.AutoCAD.Geometry.Plane;
 using NetTopologySuite.Triangulate;
 using IntersectUtilities.LongitudinalProfiles;
 using NetTopologySuite.Algorithm;
-using IntersectUtilities.DataManagement;
+using IntersectUtilities.UtilsCommon.DataManager;
 using Microsoft.Win32;
 using IntersectUtilities.PlanProduction;
-using System.Security.Cryptography;
-using Autodesk.Aec.Geometry;
-using Autodesk.AutoCAD.Ribbon;
 
 namespace IntersectUtilities
 {

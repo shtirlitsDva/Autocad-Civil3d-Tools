@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace IntersectUtilities.DataManager
+namespace IntersectUtilities.UtilsCommon.DataManager
 {
     internal enum StierDataType
     {
