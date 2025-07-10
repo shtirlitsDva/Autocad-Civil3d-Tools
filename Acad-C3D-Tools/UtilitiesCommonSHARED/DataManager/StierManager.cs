@@ -36,7 +36,8 @@ namespace IntersectUtilities.UtilsCommon.DataManager
             };
         }        
         public static IEnumerable<string> Projects() => _cache.Keys.Select(x => x.ProjectId).Distinct().Order();
-        public static IEnumerable<string> Phases() => _cache.Keys.Select(x => x.EtapeId).Distinct().Order();        
+        public static IEnumerable<string> PhasesForProject(string projectId) => 
+            _cache.Keys.Where(x => x.ProjectId == projectId).Select(x => x.EtapeId).Distinct().Order();        
         public static IEnumerable<(string ProjectId, string EtapeId)> DetectProjectAndEtape(string fileName) =>
             _cache.Values.Where(x => x.ContainsFile(fileName)).Select(x => x.Key).OrderBy(x => x.ProjectId).ThenBy(x => x.EtapeId);
         private static Dictionary<(string ProjectId, string EtapeId), StierRecord> LoadStierData()

@@ -220,7 +220,7 @@ namespace IntersectUtilities.LongitudinalProfiles.Relocability
                 new PipeRule(
                     PipeSystemEnum.Stål,
                     100,
-                    250,
+                    600,
                     new Dictionary<RuleKey, IThreshold>
                     {
                         {

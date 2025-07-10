@@ -1,12 +1,7 @@
 ﻿using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.EditorInput;
 
-using IntersectUtilities.Forms;
-using IntersectUtilities.UtilsCommon;
-
 using System;
-using System.Collections.Generic;
-using System.Data;
 using System.Linq;
 
 using static IntersectUtilities.UtilsCommon.DataManager.StierManager;
@@ -14,40 +9,44 @@ using static IntersectUtilities.UtilsCommon.DataManager.StierManager;
 namespace IntersectUtilities.UtilsCommon.DataManager
 {
     public class DataReferencesOptions
-    {        
-        public string ProjectName;
-        public string EtapeName;
-        public static string GetProjectName()
+    {
+        private string _projectId;
+        private string _etapeId;
+        public string ProjectName { get => _projectId; }
+        public string EtapeName { get => _etapeId; }
+        public string GetProjectName()
         {
             DocumentCollection docCol = Application.DocumentManager;
             Editor editor = docCol.MdiActiveDocument.Editor;
 
             var sgf = StringGridFormCaller.Call(Projects(), "VÆLG PROJEKT");
             if (sgf == null) throw new Exception("Cancelled!");
+            _projectId = sgf;
             return sgf;
         }
-        public static string GetEtapeName(string projectName)
+        public string GetEtapeName(string projectName)
         {
             DocumentCollection docCol = Application.DocumentManager;
             Editor editor = docCol.MdiActiveDocument.Editor;
 
-            var sgf = StringGridFormCaller.Call(Phases(), "VÆLG ETAPE");
+            var sgf = StringGridFormCaller.Call(PhasesForProject(_projectId), "VÆLG ETAPE");
             if (sgf == null) throw new Exception("Cancelled!");
+            _etapeId = sgf;
             return sgf;
         }
         public DataReferencesOptions(bool useAuto = true)
         {
             if (useAuto)
             {
-                var dwgName = Application.DocumentManager.MdiActiveDocument.Database.Filename;                
+                var dwgName = Application.DocumentManager.MdiActiveDocument.Database.Filename;
                 var results = DetectProjectAndEtape(dwgName);
 
                 if (results.Count() > 0)
                 {
                     if (results.Count() == 1)
                     {
-                        ProjectName = results.First().ProjectId;
-                        EtapeName = results.First().EtapeId;
+                        _projectId = results.First().ProjectId;
+                        _etapeId = results.First().EtapeId;
                         return;
                     }
                     else
@@ -58,20 +57,20 @@ namespace IntersectUtilities.UtilsCommon.DataManager
                             throw new Exception("No project/etape selected!");
 
                         var pe = dict[choice];
-                        ProjectName = pe.ProjectId;
-                        EtapeName = pe.EtapeId;
+                        _projectId = pe.ProjectId;
+                        _etapeId = pe.EtapeId;
                         return;
                     }
                 }
             }
 
-            ProjectName = GetProjectName();
-            EtapeName = GetEtapeName(ProjectName);
+            _projectId = GetProjectName();
+            _etapeId = GetEtapeName(ProjectName);
         }
         public DataReferencesOptions(string projectName, string etapeName)
         {
-            ProjectName = projectName;
-            EtapeName = etapeName;
-        }        
+            _projectId = projectName;
+            _etapeId = etapeName;
+        }
     }
 }
