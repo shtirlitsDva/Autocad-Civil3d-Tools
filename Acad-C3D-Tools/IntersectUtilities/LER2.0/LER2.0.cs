@@ -32,6 +32,7 @@ using Microsoft.Win32;
 using Autodesk.Civil.ApplicationServices;
 using System.Globalization;
 using System.Windows.Xps;
+using IntersectUtilities.UtilsCommon.DataManager;
 
 namespace IntersectUtilities
 {
@@ -156,18 +157,12 @@ namespace IntersectUtilities
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 DataReferencesOptions dro = new DataReferencesOptions();
-                string projectName = dro.ProjectName;
-                string etapeName = dro.EtapeName;
-
-                editor.WriteMessage("\n" + GetPathToDataFiles(projectName, etapeName, "Alignments"));
-                editor.WriteMessage("\n" + GetPathToDataFiles(projectName, etapeName, "Surface"));
+                var dm = new DataManager(dro);
 
                 #region Read surface from file
                 // open the xref database
-                Database xRefSurfaceDB = new Database(false, true);
-                xRefSurfaceDB.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Surface"),
-                    FileOpenMode.OpenForReadAndAllShare, false, null);
-                Transaction xRefSurfaceTx = xRefSurfaceDB.TransactionManager.StartTransaction();
+                using Database xRefSurfaceDB = dm.Surface();
+                using Transaction xRefSurfaceTx = xRefSurfaceDB.TransactionManager.StartTransaction();
 
                 CivSurface surface = null;
                 try
@@ -200,11 +195,8 @@ namespace IntersectUtilities
                 alignments = localDb.HashSetOfType<Alignment>(tx);
 
                 // open the LER dwg database
-                Database xRefAlsDB = new Database(false, true);
-
-                xRefAlsDB.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Alignments"),
-                    FileOpenMode.OpenForReadAndAllShare, false, null);
-                Transaction xRefAlsTx = xRefAlsDB.TransactionManager.StartTransaction();
+                using Database xRefAlsDB = dm.Alignments();
+                using Transaction xRefAlsTx = xRefAlsDB.TransactionManager.StartTransaction();
 
                 if (alignments.Count < 1)
                 {

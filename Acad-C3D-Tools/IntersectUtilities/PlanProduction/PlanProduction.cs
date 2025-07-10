@@ -58,6 +58,7 @@ using NetTopologySuite.Triangulate;
 using IntersectUtilities.LongitudinalProfiles;
 using NetTopologySuite.Algorithm;
 using SharpKml.Base;
+using IntersectUtilities.UtilsCommon.DataManager;
 
 namespace IntersectUtilities
 {
@@ -925,17 +926,14 @@ namespace IntersectUtilities
 
                     //Create crossing points first
                     DataReferencesOptions dro = new DataReferencesOptions(droText[0], droText[1]);
-                    string projectName = dro.ProjectName;
-                    string etapeName = dro.EtapeName;
+                    var dm = new DataManager(dro);
 
-                    string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
-                    System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
+                    var dtKrydsninger = CsvData.Kryds;
 
                     Plane plane = new Plane();
 
                     #region Load linework from LER Xref
-                    ILer3dManager lman = Ler3dManagerFactory.LoadLer3d(
-                        GetPathToDataFiles(projectName, etapeName, "Ler"));
+                    ILer3dManager lman = Ler3dManagerFactory.LoadLer3d(dm);
                     #endregion
 
                     try
