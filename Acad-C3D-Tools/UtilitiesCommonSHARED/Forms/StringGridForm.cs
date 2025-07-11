@@ -52,7 +52,39 @@ namespace IntersectUtilities.Forms
             var font = new Font("Microsoft Sans Serif", 8.25F, FontStyle.Bold);
 
             int itemCount = stringList.Count();
-            int columns = (int)Math.Ceiling(Math.Sqrt(itemCount));
+            // Measure every item's text size once
+            var sizes = stringList.Select(str => TextRenderer.MeasureText(str, font)).ToList();
+
+            // Row height is uniform
+            maxButtonHeight = sizes.Max(sz => sz.Height) + 20;
+
+            // Initial estimate targeting ~16:9 aspect
+            int columns = (int)Math.Ceiling(Math.Sqrt(itemCount * 16.0 / 9.0));
+            if (columns < 1) columns = 1;
+            if (columns > itemCount) columns = itemCount;
+
+            // Refine columns so overall panel stays within 16:9 (w / h)
+            while (columns > 1)
+            {
+                int rowsCandidate = (int)Math.Ceiling((double)itemCount / columns);
+
+                // Compute total width with this column count
+                int[] tmpWidths = new int[columns];
+                for (int i = 0; i < itemCount; i++)
+                {
+                    int col = i % columns;
+                    tmpWidths[col] = Math.Max(tmpWidths[col], sizes[i].Width + 10);
+                }
+
+                int panelWidthCandidate = tmpWidths.Sum();
+                int panelHeightCandidate = rowsCandidate * maxButtonHeight;
+
+                if ((double)panelWidthCandidate / panelHeightCandidate <= 16.0 / 9.0)
+                    break; // acceptable
+
+                columns--; // too wide, reduce column count
+            }
+
             int rows = (int)Math.Ceiling((double)itemCount / columns);
 
             int[] columnWidths = new int[columns];
@@ -62,8 +94,8 @@ namespace IntersectUtilities.Forms
             {
                 Size textSize = TextRenderer.MeasureText(str, font);
                 int col = idx % columns;
-                columnWidths[col] = Math.Max(columnWidths[col], textSize.Width + 20);
-                maxButtonHeight = Math.Max(maxButtonHeight, textSize.Height + 20);
+                columnWidths[col] = Math.Max(columnWidths[col], textSize.Width + 10);
+                maxButtonHeight = Math.Max(maxButtonHeight, textSize.Height + 10);
                 idx++;
             }
 
