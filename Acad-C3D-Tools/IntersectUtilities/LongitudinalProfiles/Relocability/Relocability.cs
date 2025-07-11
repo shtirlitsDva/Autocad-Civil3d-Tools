@@ -286,6 +286,50 @@ namespace IntersectUtilities.LongitudinalProfiles.Relocability
                         { new RuleKey(LerTypeEnum.Ignored), Threshold.AlleOmlægges },
                     }
                 ),
+                //Kobberflex - all dimension
+                new PipeRule(
+                    PipeSystemEnum.Kobberflex,
+                    null,
+                    null,
+                    new Dictionary<RuleKey, IThreshold>
+                    {
+                        { new RuleKey(LerTypeEnum.Afløb, Spatial.ThreeD), Threshold.AlleRespekteres },
+                        { new RuleKey(LerTypeEnum.Afløb, Spatial.TwoD), Threshold.AlleOmlægges },
+                        { new RuleKey(LerTypeEnum.Damp), Threshold.AlleRespekteres },
+                        { new RuleKey(LerTypeEnum.EL_LS), Threshold.AlleOmlægges },
+                        { new RuleKey(LerTypeEnum.EL_HS), Threshold.AlleRespekteres },
+                        { new RuleKey(LerTypeEnum.FJV), Threshold.AlleRespekteres },
+                        { new RuleKey(LerTypeEnum.Gas), Threshold.AlleRespekteres },
+                        { new RuleKey(LerTypeEnum.Luft), Threshold.AlleRespekteres },
+                        { new RuleKey(LerTypeEnum.Oil), Threshold.AlleRespekteres },
+                        { new RuleKey(LerTypeEnum.Vand, Spatial.ThreeD), Threshold.AlleRespekteres },
+                        { new RuleKey(LerTypeEnum.Vand, Spatial.TwoD), Threshold.AlleOmlægges },
+                        { new RuleKey(LerTypeEnum.UAD), Threshold.AlleOmlægges },
+                        { new RuleKey(LerTypeEnum.Ignored), Threshold.AlleOmlægges },
+                    }
+                ),
+                //AluPEX - all dimension
+                new PipeRule(
+                    PipeSystemEnum.AluPex,
+                    null,
+                    null,
+                    new Dictionary<RuleKey, IThreshold>
+                    {
+                        { new RuleKey(LerTypeEnum.Afløb, Spatial.ThreeD), Threshold.AlleRespekteres },
+                        { new RuleKey(LerTypeEnum.Afløb, Spatial.TwoD), Threshold.AlleOmlægges },
+                        { new RuleKey(LerTypeEnum.Damp), Threshold.AlleRespekteres },
+                        { new RuleKey(LerTypeEnum.EL_LS), Threshold.AlleOmlægges },
+                        { new RuleKey(LerTypeEnum.EL_HS), Threshold.AlleRespekteres },
+                        { new RuleKey(LerTypeEnum.FJV), Threshold.AlleRespekteres },
+                        { new RuleKey(LerTypeEnum.Gas), Threshold.AlleRespekteres },
+                        { new RuleKey(LerTypeEnum.Luft), Threshold.AlleRespekteres },
+                        { new RuleKey(LerTypeEnum.Oil), Threshold.AlleRespekteres },
+                        { new RuleKey(LerTypeEnum.Vand, Spatial.ThreeD), Threshold.AlleRespekteres },
+                        { new RuleKey(LerTypeEnum.Vand, Spatial.TwoD), Threshold.AlleOmlægges },
+                        { new RuleKey(LerTypeEnum.UAD), Threshold.AlleOmlægges },
+                        { new RuleKey(LerTypeEnum.Ignored), Threshold.AlleOmlægges },
+                    }
+                ),
             ];
 
         public static IRelocatabilityService CreateDefaultService() =>
