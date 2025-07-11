@@ -47,22 +47,25 @@ namespace IntersectUtilities.Forms
                 AutoSize = true,
             };
 
-            int maxButtonWidth = 0;
             int maxButtonHeight = 0;
 
             var font = new Font("Microsoft Sans Serif", 8.25F, FontStyle.Bold);
 
-            // Calculate the maximum button size based on the longest string
-            foreach (var str in stringList)
-            {
-                Size textSize = TextRenderer.MeasureText(str, font);
-                maxButtonWidth = Math.Max(maxButtonWidth, textSize.Width + 20);  // +20 for padding
-                maxButtonHeight = Math.Max(maxButtonHeight, textSize.Height + 20);  // +20 for padding
-            }
-
             int itemCount = stringList.Count();
             int columns = (int)Math.Ceiling(Math.Sqrt(itemCount));
             int rows = (int)Math.Ceiling((double)itemCount / columns);
+
+            int[] columnWidths = new int[columns];
+
+            int idx = 0;
+            foreach (var str in stringList)
+            {
+                Size textSize = TextRenderer.MeasureText(str, font);
+                int col = idx % columns;
+                columnWidths[col] = Math.Max(columnWidths[col], textSize.Width + 20);
+                maxButtonHeight = Math.Max(maxButtonHeight, textSize.Height + 20);
+                idx++;
+            }
 
             // Adjust columns if we have more than needed
             if (columns > rows && columns * (rows - 1) >= itemCount)
@@ -108,11 +111,11 @@ namespace IntersectUtilities.Forms
 
             for (int i = 0; i < columns; i++)
             {
-                panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, maxButtonWidth));
+                panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, columnWidths[i]));
             }
 
             // Adjust panel dimensions
-            int panelWidth = maxButtonWidth * columns;
+            int panelWidth = columnWidths.Sum();
             int panelHeight = maxButtonHeight * rows;
 
             this.ClientSize = new Size(panelWidth, panelHeight);
