@@ -32,6 +32,9 @@ namespace IntersectUtilities
             using Transaction fjvTx = fjvDb.TransactionManager.StartTransaction();
             var psh = new PropertySetHelper(fjvDb);
 
+            graphclear(fjvDb);
+            graphpopulate(fjvDb);
+
             using Transaction tx = localDb.TransactionManager.StartTransaction();
 
             try

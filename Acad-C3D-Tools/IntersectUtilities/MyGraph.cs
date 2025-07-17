@@ -153,7 +153,7 @@ namespace IntersectUtilities
                     BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
 
                     //Quick and dirty fix for missing data
-                    if (br.RealName() == "SH LIGE")
+                    if (br.RealName() == "SH LIGE" || br.RealName() == "SH VINKLET")
                     {
                         PropertySetManager psmPipeline =
                                     new PropertySetManager(dB, PSetDefs.DefinedSets.DriPipelineData);
