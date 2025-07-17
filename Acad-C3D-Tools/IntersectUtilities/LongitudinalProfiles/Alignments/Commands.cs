@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Autodesk.Civil.DatabaseServices;
 
 namespace IntersectUtilities
 {
@@ -29,6 +30,7 @@ namespace IntersectUtilities
             var dm = new DataManager(dro);
             using Database fjvDb = dm.Fremtid();
             using Transaction fjvTx = fjvDb.TransactionManager.StartTransaction();
+            var psh = new PropertySetHelper(fjvDb);
 
             using Transaction tx = localDb.TransactionManager.StartTransaction();
 
@@ -41,6 +43,8 @@ namespace IntersectUtilities
                         kwds, "\'New\', \'Continue\' or \'Cancel\':");
 
                     if (choice == null || choice == "Cancel") break;
+
+                    var als = localDb.ListOfType<Alignment>(tx);
 
 
                 }
