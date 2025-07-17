@@ -5360,6 +5360,13 @@ namespace IntersectUtilities
             tx.Commit();
         }
 
+        /// <command>FIXBROKENLABELS</command>
+        /// <summary>
+        /// Sletter korrupte projection labels i tegningen. Problemet er set med nogle længdeprofiler,
+        /// hvor labels er blevet korrupte og ikke kan læses korrekt.
+        /// Programmet laver fejl når den tilgår projicerede punkter via deres labels.
+        /// </summary>
+        /// <category>Utilities</category>
         [CommandMethod("FIXBROKENLABELS")]
         public void fixbrokenlabels()
         {
