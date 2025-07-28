@@ -5409,5 +5409,63 @@ namespace IntersectUtilities
 
             tx.Commit();
         }
+
+        /// <command>CHECKALLPOLYLINERADII</command>
+        /// <summary>
+        /// Gennemgår alle 2D-polylinjer i tegningen, eksploderer dem midlertidigt for at finde bue-segmenter,
+        /// beregner hver arcs radius og udskriver den mindste bue-radius pr. lag i kommandolinjen.
+        /// Tegningen forbliver uændret, da eksploderingen kun foregår i hukommelsen.
+        /// </summary>
+        /// <category>Utilities</category>
+
+        [CommandMethod("CHECKALLPOLYLINERADII")]
+        public void checkallpolylineradii()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+
+            using Transaction tx = localDb.TransactionManager.StartTransaction();
+
+
+            //Get all polylines
+            var pls = localDb.HashSetOfType<Polyline>(tx);
+
+            var arcsWithRadius = new List<(string layer, double radius)>();
+
+            foreach (var p in pls)
+            {
+                var exploded = new DBObjectCollection();
+                p.Explode(exploded);
+
+                foreach (DBObject obj in exploded)
+                {
+                    if (obj is Arc arc)
+                    {
+                        arcsWithRadius.Add((arc.Layer, arc.Radius));
+                    }
+
+                    obj.Dispose();
+                }
+            }
+
+            var sortedArcsWithRadius = arcsWithRadius
+            .OrderBy(info => info.layer)
+            .ThenBy(info => info.radius);
+
+            var minRadiusPerLayer = sortedArcsWithRadius
+                .GroupBy(info => info.layer)
+                .ToDictionary(
+                    grp => grp.Key,
+                    grp => grp.Min(info => info.radius)
+                );
+
+            editor.WriteMessage("Smallest radius of each layer:");
+
+            foreach (var kv in minRadiusPerLayer)
+            {
+                editor.WriteMessage($"\n{kv.Key} - {kv.Value:F2}");
+            }
+        }
     }
 }
