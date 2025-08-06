@@ -49,6 +49,7 @@ using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using Line = Autodesk.AutoCAD.DatabaseServices.Line;
 using NetTopologySuite.Geometries;
 using Point = NetTopologySuite.Geometries.Point;
+using IntersectUtilities.UtilsCommon.DataManager;
 
 namespace IntersectUtilities.DRITBL
 {
@@ -133,10 +134,10 @@ namespace IntersectUtilities.DRITBL
             Database localDb = docCol.MdiActiveDocument.Database;
 
             DataReferencesOptions dro = new DataReferencesOptions();
-            Database fremDb = new Database(false, true);
-            fremDb.ReadDwgFile(GetPathToDataFiles(dro.ProjectName, dro.EtapeName, "Fremtid"),
-                FileOpenMode.OpenForReadAndAllShare, false, null);
-            Transaction fremTx = fremDb.TransactionManager.StartTransaction();
+            DataManager dm = new DataManager(dro);
+
+            using Database fremDb = dm.Fremtid();            
+            using Transaction fremTx = fremDb.TransactionManager.StartTransaction();
 
             HashSet<IntersectResult> allResults = new HashSet<IntersectResult>();
 
