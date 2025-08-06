@@ -108,9 +108,6 @@
 		<Compile Include="..\IntersectUtilities\CsvReader.cs">
 			<Link>CsvReader.cs</Link>
 		</Compile>
-		<Compile Include="..\IntersectUtilities\ProjectsManager\DataReferenceOptions.cs">
-			<Link>DataReferenceOptions.cs</Link>
-		</Compile>
 		<Compile Include="..\IntersectUtilities\PipeSchedule.cs">
 			<Link>PipeSchedule.cs</Link>
 		</Compile>
