@@ -9,9 +9,6 @@ using Autodesk.Civil.ApplicationServices;
 using Autodesk.Civil.DatabaseServices;
 using Autodesk.Civil.DatabaseServices.Styles;
 using Autodesk.Civil.DataShortcuts;
-using Autodesk.Gis.Map;
-using Autodesk.Gis.Map.ObjectData;
-using Autodesk.Gis.Map.Utilities;
 using Autodesk.Aec.PropertyData;
 using Autodesk.Aec.PropertyData.DatabaseServices;
 using System;
@@ -49,11 +46,8 @@ using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
-using System.Windows.Documents;
 using static IntersectUtilities.Graph;
 using IntersectUtilities.PipeScheduleV2;
-using Autodesk.AutoCAD.Internal;
-using System.DirectoryServices.ActiveDirectory;
 using IntersectUtilities.UtilsCommon.DataManager;
 
 namespace IntersectUtilities
