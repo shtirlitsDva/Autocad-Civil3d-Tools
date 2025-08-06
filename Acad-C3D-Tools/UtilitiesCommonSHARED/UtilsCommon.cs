@@ -765,6 +765,8 @@ namespace IntersectUtilities.UtilsCommon
                 { "Parallelafgrening", PipelineElementType.AfgreningParallel },
                 { "Præisoleret bøjning, 90gr", PipelineElementType.PræisoleretBøjning90gr },
                 { "Præisoleret bøjning, 45gr", PipelineElementType.PræisoleretBøjning45gr },
+                { "Præisoleret bøjning, 30gr", PipelineElementType.PræisoleretBøjning30gr },
+                { "Præisoleret bøjning, 15gr", PipelineElementType.PræisoleretBøjning15gr },
                 {
                     "$Præisoleret bøjning, L {$L1}x{$L2} m, V {$V}°",
                     PipelineElementType.PræisoleretBøjningVariabel
