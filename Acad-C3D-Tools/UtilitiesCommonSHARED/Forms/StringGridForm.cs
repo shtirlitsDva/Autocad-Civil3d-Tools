@@ -73,7 +73,7 @@ namespace IntersectUtilities.Forms
                 for (int i = 0; i < itemCount; i++)
                 {
                     int col = i % columns;
-                    tmpWidths[col] = Math.Max(tmpWidths[col], sizes[i].Width + 10);
+                    tmpWidths[col] = Math.Max(tmpWidths[col], sizes[i].Width + 20);
                 }
 
                 int panelWidthCandidate = tmpWidths.Sum();
@@ -88,6 +88,11 @@ namespace IntersectUtilities.Forms
             int rows = (int)Math.Ceiling((double)itemCount / columns);
 
             int[] columnWidths = new int[columns];
+            for (int i = 0; i < itemCount; i++)
+            {
+                int col = i % columns;
+                columnWidths[col] = Math.Max(columnWidths[col], sizes[i].Width + 20);
+            }
 
             int idx = 0;
             foreach (var str in stringList)
@@ -117,7 +122,9 @@ namespace IntersectUtilities.Forms
                 Button btn = new Button
                 {
                     Text = str,
-                    AutoSize = true,
+                    //AutoSize = true,
+                    AutoSize = false,
+                    AutoEllipsis = true,
                     Dock = DockStyle.Fill,
                     BackColor = Color.FromArgb(50, 50, 50),
                     ForeColor = Color.FromArgb(200, 200, 200),
