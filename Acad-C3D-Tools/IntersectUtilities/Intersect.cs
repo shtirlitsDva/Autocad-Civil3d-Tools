@@ -5468,7 +5468,8 @@ namespace IntersectUtilities
                         ? ""
                         : string.Join(", ", gp
                             .Where(x => x.radius < tr)
-                            .Select(x => x.originalPl.Handle.ToString()));
+                            .Select(x => x.originalPl.Handle.ToString())
+                            .Distinct());
 
                     return new object[]
                     {
