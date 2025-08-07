@@ -435,11 +435,7 @@ namespace DimensioneringV2
         [CommandMethod("DIM2MAP")]
         public static void dim2map()
         {
-            AcContext.Current = SynchronizationContext.Current;
-
-            PropertySetManager.UpdatePropertySetDefinition(
-                Application.DocumentManager.MdiActiveDocument.Database,
-                PSetDefs.DefinedSets.BBR);
+            AcContext.Current = SynchronizationContext.Current;            
 
             if (Services.PaletteSetCache.paletteSet == null) Services.PaletteSetCache.paletteSet = new CustomPaletteSet();
             Services.PaletteSetCache.paletteSet.Visible = true;
@@ -465,6 +461,10 @@ namespace DimensioneringV2
             Database localDb = docCol.MdiActiveDocument.Database;
             Editor editor = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
+
+            PropertySetManager.UpdatePropertySetDefinition(
+                Application.DocumentManager.MdiActiveDocument.Database,
+                PSetDefs.DefinedSets.BBR);
 
             if (PaletteSetCache.paletteSet == null) { prdDbg("This command is run from DIM2MAP"); return; }
 
