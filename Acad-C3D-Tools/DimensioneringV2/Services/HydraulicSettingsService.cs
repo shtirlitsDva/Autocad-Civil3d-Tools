@@ -55,8 +55,8 @@ namespace DimensioneringV2.Services
         }
         private void DocumentManager_DocumentToBeDestroyed(object sender, DocumentCollectionEventArgs e)
         {
-            Utils.prtDbg($"Document To Be Destroyed event: {e.Document.Name}");
             if (e.Document == null) return;
+            Utils.prtDbg($"Document To Be Destroyed event: {e.Document.Name}");            
             HydraulicSettingsSerializer.Save(e.Document, Services.HydraulicSettingsService.Instance.Settings);
         }
     }
