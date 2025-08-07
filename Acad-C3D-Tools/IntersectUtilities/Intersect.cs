@@ -3878,7 +3878,7 @@ namespace IntersectUtilities
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
-            Point3d p = Interaction.GetPoint($"Pick point for Google Street View: ");
+            Point3d p = Interaction.GetPoint($"Pick point for Skråfoto: ");
             if (p == Algorithms.NullPoint3d) { return; }
             //var latlong = p.ToWGS84FromUtm32N();
             int x = (int)p.X;
@@ -5423,49 +5423,59 @@ namespace IntersectUtilities
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
 
             using Transaction tx = localDb.TransactionManager.StartTransaction();
 
-
-            //Get all polylines
-            var pls = localDb.HashSetOfType<Polyline>(tx);
-
-            var arcsWithRadius = new List<(string layer, double radius)>();
-
-            foreach (var p in pls)
+            try
             {
-                var exploded = new DBObjectCollection();
-                p.Explode(exploded);
+                //Get all polylines
+                var pls = localDb.GetFjvPipes(tx);
 
-                foreach (DBObject obj in exploded)
+                var arcsWithRadius = new List<(string layer, double radius)>();
+
+                foreach (var p in pls)
                 {
-                    if (obj is Arc arc)
-                    {
-                        arcsWithRadius.Add((arc.Layer, arc.Radius));
-                    }
+                    using var exploded = new DBObjectCollection();
+                    p.Explode(exploded);
 
-                    obj.Dispose();
+                    foreach (DBObject obj in exploded)
+                    {
+                        if (obj is Arc arc)
+                        {
+                            arcsWithRadius.Add((p.Layer, arc.Radius));
+                        }
+
+                        obj.Dispose();
+                    }
+                }
+
+                var sortedArcsWithRadius = arcsWithRadius
+                .OrderBy(info => info.layer)
+                .ThenBy(info => info.radius);
+
+                var minRadiusPerLayer = sortedArcsWithRadius
+                    .GroupBy(info => info.layer)
+                    .ToDictionary(
+                        grp => grp.Key,
+                        grp => grp.Min(info => info.radius)
+                    );
+
+                prdDbg("Arc radius analysis:");
+
+
+
+                foreach (var kv in minRadiusPerLayer)
+                {
+                    prdDbg($"\n{kv.Key} - {kv.Value:F2}");
                 }
             }
-
-            var sortedArcsWithRadius = arcsWithRadius
-            .OrderBy(info => info.layer)
-            .ThenBy(info => info.radius);
-
-            var minRadiusPerLayer = sortedArcsWithRadius
-                .GroupBy(info => info.layer)
-                .ToDictionary(
-                    grp => grp.Key,
-                    grp => grp.Min(info => info.radius)
-                );
-
-            editor.WriteMessage("Smallest radius of each layer:");
-
-            foreach (var kv in minRadiusPerLayer)
+            catch (System.Exception ex)
             {
-                editor.WriteMessage($"\n{kv.Key} - {kv.Value:F2}");
+                prdDbg(ex);
+                tx.Abort();
+                return;
             }
+            tx.Abort();
         }
     }
 }

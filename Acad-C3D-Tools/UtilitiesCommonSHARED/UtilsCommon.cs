@@ -45,19 +45,23 @@ namespace IntersectUtilities.UtilsCommon
 {
     public class SimpleLogger
     {
-        public bool EchoToEditor { get; set; } = true;
-        public string LogFileName { get; set; } = "C:\\Temp\\ShapeExportLog.txt";
+        public SimpleLogger(bool echoToEditor = true, string? logFileName = null)
+        { 
+            _echoToEditor = echoToEditor;
+            _logFileName = logFileName ?? "C:\\Temp\\log.txt";
+        }
+        private bool _echoToEditor;
+        private string _logFileName;
 
         public void ClearLog()
         {
-            File.WriteAllText(LogFileName, string.Empty);
+            File.WriteAllText(_logFileName, string.Empty);
         }
 
         public void log(string msg)
         {
-            File.AppendAllLines(LogFileName, new string[] { $"{DateTime.Now}: {msg}" });
-            if (EchoToEditor)
-                prdDbg(msg);
+            File.AppendAllLines(_logFileName, [$"{DateTime.Now}: {msg}"]);
+            if (_echoToEditor) prdDbg(msg);
         }
     }
 
@@ -4493,6 +4497,7 @@ namespace IntersectUtilities.UtilsCommon
             {
                 "SVEJSEPUNKT",
                 "SVEJSEPUNKT-NOTXT",
+                "SVEJSEPUNKT-V2"
             };
 
             HashSet<string> stikBlocks = new HashSet<string>() { "STIKAFGRENING", "STIKTEE" };
