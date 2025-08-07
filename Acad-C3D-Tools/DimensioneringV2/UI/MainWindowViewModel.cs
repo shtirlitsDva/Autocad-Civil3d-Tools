@@ -895,11 +895,26 @@ namespace DimensioneringV2.UI
         {
             try
             {
+                var result = MessageBox.Show(
+                    "Include service lines?",
+                    "Confirm",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (result != MessageBoxResult.Yes &&
+                    result != MessageBoxResult.No) return;
+
+                bool includeServiceLines = result == MessageBoxResult.Yes;
+
                 var graphs = _dataService.Graphs;
 
+                var edges = graphs.SelectMany(x => x.Edges.Select(x => x.PipeSegment));
+
+                if (!includeServiceLines) edges = edges.Where(
+                    x => x.SegmentType != NorsynHydraulicCalc.SegmentType.Stikledning);
+
                 IEnumerable<AnalysisFeature> reprojected =
-                    graphs.SelectMany(x => ProjectionService.ReProjectFeatures(
-                        x.Edges.Select(x => x.PipeSegment), "EPSG:3857", "EPSG:25832"));
+                    ProjectionService.ReProjectFeatures(edges, "EPSG:3857", "EPSG:25832");
 
                 AcContext.Current.Post(_ =>
                 {
