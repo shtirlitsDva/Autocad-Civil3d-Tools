@@ -1752,7 +1752,7 @@ namespace IntersectUtilities.Dimensionering
                             .OrderBy(x => x.Antal);
 
                         PrintTable(
-                            new string[] {"Antal", "Forekomster"},
+                            ["Antal", "Forekomster"],
                             groupByCount.Select(g => new object[] {g.Antal, g.Forekomst} as IEnumerable<object>)
                             );
 
@@ -1799,7 +1799,7 @@ namespace IntersectUtilities.Dimensionering
                         .OrderByDescending(x => x.Count);
 
                     PrintTable(
-                        new string[] {"Antal enheder", "Antal forekomster"},
+                        ["Antal enheder", "Antal forekomster"],
                         analysis.Select(x => new object[] {x.Value, x.Count} as IEnumerable<object>)
                         );
                 }
@@ -1826,6 +1826,7 @@ namespace IntersectUtilities.Dimensionering
             prdDbg("ADVARSEL: ER IKKE TESTET SAMMEN MED DIMCONNECTHUSNR!!!!!!!!!");
         }
 
+#if DEBUG
         [CommandMethod("DIMPROPEENERGY")]
         public void DimPropeEnergy()
         {
@@ -1848,7 +1849,8 @@ namespace IntersectUtilities.Dimensionering
                 // WIP - DML
 
             }
-        }
+        } 
+#endif
 
         public static string ConvertToHtmlTree(List<(string bygning, string adresse, string enhedstype)> tuples)
         {

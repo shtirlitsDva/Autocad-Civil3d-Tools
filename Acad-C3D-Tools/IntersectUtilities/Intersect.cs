@@ -5431,7 +5431,7 @@ namespace IntersectUtilities
                 //Get all polylines
                 var pls = localDb.GetFjvPipes(tx);
 
-                var arcsWithRadius = new List<(string layer, double radius)>();
+                var arcsWithRadius = new List<(string layer, double radius, Polyline originalPl)>();
 
                 foreach (var p in pls)
                 {
@@ -5442,32 +5442,51 @@ namespace IntersectUtilities
                     {
                         if (obj is Arc arc)
                         {
-                            arcsWithRadius.Add((p.Layer, arc.Radius));
+                            arcsWithRadius.Add((p.Layer, arc.Radius, p));
                         }
 
                         obj.Dispose();
                     }
                 }
 
-                var sortedArcsWithRadius = arcsWithRadius
-                .OrderBy(info => info.layer)
-                .ThenBy(info => info.radius);
+                var gps = arcsWithRadius
+                    .GroupBy(x => x.layer)
+                    .OrderBy(x => GetPipeSystem(x.Key))
+                    .ThenBy(x => GetPipeDN(x.Key));
 
-                var minRadiusPerLayer = sortedArcsWithRadius
-                    .GroupBy(info => info.layer)
-                    .ToDictionary(
-                        grp => grp.Key,
-                        grp => grp.Min(info => info.radius)
-                    );
+                var rows = gps.Select(gp =>
+                {
+                    double fr = gp.Min(x => x.radius);
+                    double tr =
+                    GetPipeMinElasticRadiusHorizontalCharacteristic(
+                        GetPipeSystem(gp.Key),
+                        GetPipeDN(gp.Key),
+                        GetPipeType(gp.Key),
+                        false);
+                    string status = fr >= tr ? "OK" : "ERROR";
+                    string handles = status == "OK"
+                        ? ""
+                        : string.Join(", ", gp
+                            .Where(x => x.radius < tr)
+                            .Select(x => x.originalPl.Handle.ToString()));
+
+                    return new object[]
+                    {
+                        gp.Key,     // Layer
+                        fr.ToString("#.0"),         // FR (Faktisk radius)
+                        tr,         // TR (Tilladt radius)
+                        status,     // Status
+                        handles     // Handles (if any)
+                    };
+                });
 
                 prdDbg("Arc radius analysis:");
+                prdDbg("FR = Faktisk min. radius");
+                prdDbg("TR = Tilladt min. radius");
 
+                string[] hdrs = ["Layer", "FR", "TR", "Status", "Handles"];
 
-
-                foreach (var kv in minRadiusPerLayer)
-                {
-                    prdDbg($"\n{kv.Key} - {kv.Value:F2}");
-                }
+                PrintTable(hdrs, rows);
             }
             catch (System.Exception ex)
             {
