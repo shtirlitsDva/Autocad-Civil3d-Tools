@@ -4,51 +4,32 @@ using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
-using Autodesk.Civil;
 using Autodesk.Civil.ApplicationServices;
 using Autodesk.Civil.DatabaseServices;
-using Autodesk.Civil.DatabaseServices.Styles;
-using Autodesk.Civil.DataShortcuts;
-using Autodesk.Aec.PropertyData;
-using Autodesk.Aec.PropertyData.DatabaseServices;
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Collections.Specialized;
-using System.Globalization;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Windows.Forms;
-using System.Data;
-using MoreLinq;
-using GroupByCluster;
-using IntersectUtilities.UtilsCommon;
-using static IntersectUtilities.UtilsCommon.Utils;
+
 using Dreambuild.AutoCAD;
 
-using static IntersectUtilities.Enums;
-using static IntersectUtilities.HelperMethods;
-using static IntersectUtilities.Utils;
+using IntersectUtilities.UtilsCommon;
+using IntersectUtilities.UtilsCommon.DataManager;
+
+using MoreLinq;
+
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+
+using static IntersectUtilities.Graph;
 using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
-
+using static IntersectUtilities.UtilsCommon.Utils;
 using static IntersectUtilities.UtilsCommon.UtilsDataTables;
-using static IntersectUtilities.UtilsCommon.UtilsODData;
 
+using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
-using CivSurface = Autodesk.Civil.DatabaseServices.Surface;
-using DataType = Autodesk.Gis.Map.Constants.DataType;
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
-using Application = Autodesk.AutoCAD.ApplicationServices.Application;
-using Label = Autodesk.Civil.DatabaseServices.Label;
-using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
-using static IntersectUtilities.Graph;
-using IntersectUtilities.PipeScheduleV2;
-using IntersectUtilities.UtilsCommon.DataManager;
 
 namespace IntersectUtilities
 {
@@ -94,7 +75,7 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    System.Data.DataTable fk = CsvData.FK;                    
+                    System.Data.DataTable fk = CsvData.FK;
                     HashSet<Polyline> allPipes = localDb.GetFjvPipes(tx);
                     HashSet<BlockReference> brs = localDb.GetFjvBlocks(tx, fk, true, false);
 
@@ -240,7 +221,7 @@ namespace IntersectUtilities
                                     prdDbg("Error in GetClosestPointTo -> loop incomplete! (Using GetFirstDerivative)");
                                     prdDbg($"F: {first.al.Name}, S: {second.al.Name}");
                                     throw;
-                                }                                
+                                }
 
                                 Alignment mainAl = null;
                                 Alignment branchAl = null;
@@ -372,7 +353,7 @@ namespace IntersectUtilities
                         }
                         catch (System.Exception)
                         {
-                            prdDbg("Error in Curves GetClosestPointTo -> loop incomplete!");                                
+                            prdDbg("Error in Curves GetClosestPointTo -> loop incomplete!");
                         }
 
                         double distThreshold = 0.25;
@@ -642,7 +623,7 @@ namespace IntersectUtilities
                     tx.Abort();
                     prdDbg(ex);
                     return;
-                }                
+                }
                 alTx.Abort();
                 alTx.Dispose();
                 alDb.Dispose();
@@ -931,7 +912,7 @@ namespace IntersectUtilities
             using var xRefFjvTx = xRefFjvDB.TransactionManager.StartTransaction();
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {                
+            {
                 try
                 {
                     #region Load linework
@@ -1175,5 +1156,35 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+
+#if DEBUG
+        /// <command>OFFSETVK</command>
+        /// <summary>
+        /// Offsets selected vejkant.
+        /// The offset is to middle of the nearest pipe.
+        /// </summary>
+        /// <category>Fjernvarme Fremtidig</category>
+        [CommandMethod("OFFSETVK")]
+        public void offsetvk()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            using Transaction tx = localDb.TransactionManager.StartTransaction();
+
+            try
+            {
+
+
+            }
+            catch (System.Exception ex)
+            {
+                tx.Abort();
+                prdDbg(ex);
+                return;
+            }
+            tx.Commit();
+        }
     }
+#endif
 }
