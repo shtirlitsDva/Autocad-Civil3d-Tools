@@ -7491,7 +7491,7 @@ namespace IntersectUtilities
             var dm = new DataManager(new DataReferencesOptions());
             using Database fjvDb = dm.Fremtid();
             using Database alDb = dm.Alignments();
-            HashSet<Database> længdeprofilerdbs = dm.Ler().ToHashSet();
+            HashSet<Database> længdeprofilerdbs = dm.Længdeprofiler().ToHashSet();
 
             using Transaction fjvTx = fjvDb.TransactionManager.StartTransaction();
             using Transaction alTx = alDb.TransactionManager.StartTransaction();
