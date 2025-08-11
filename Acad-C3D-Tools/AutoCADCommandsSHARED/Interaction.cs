@@ -257,6 +257,27 @@ namespace Dreambuild.AutoCAD
         }
 
         /// <summary>
+        /// Gets a new line.
+        /// </summary>
+        /// <param name="message">The message.</param>
+        /// <returns>The line.</returns>
+        public static Line? GetLine(string message)
+        {
+            Point3d startPoint = Interaction.GetPoint(message);
+            if (startPoint == Algorithms.NullPoint3d) { return null; }
+
+            var ed = Application.DocumentManager.MdiActiveDocument.Editor;
+            var jig = new LineJig(startPoint, "Select end point: ");
+            var res = ed.Drag(jig);
+            if (res.Status == PromptStatus.OK)
+            {
+                return new Line(startPoint, jig.EndPoint);
+            }
+
+            return null;
+        }
+
+        /// <summary>
         /// Get corner point.
         /// </summary>
         /// <param name="message">The message.</param>

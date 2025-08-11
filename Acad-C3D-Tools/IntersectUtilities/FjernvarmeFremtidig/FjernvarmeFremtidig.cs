@@ -9,6 +9,7 @@ using Autodesk.Civil.DatabaseServices;
 
 using Dreambuild.AutoCAD;
 
+using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset;
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.DataManager;
 
@@ -17,6 +18,7 @@ using MoreLinq;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.IO;
 using System.Linq;
 
 using static IntersectUtilities.Graph;
@@ -1170,20 +1172,111 @@ namespace IntersectUtilities
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
 
-            using Transaction tx = localDb.TransactionManager.StartTransaction();
+            #region Layer
+            string layer = "0-VKOFFSET";
+            localDb.CheckOrCreateLayer(layer, ColorByName("yellow"));
+            #endregion
 
-            try
+            #region Settings
+            string pathToSettings =
+                    Path.Combine(
+                        Path.GetDirectoryName(localDb.Filename)!,
+                        "VejkantOffsetSettings.json");
+
+            VejkantOffsetSettings? settings;
+            if (File.Exists(pathToSettings))
             {
+                settings = VejkantOffsetSettings.DeserializeFromFile(pathToSettings);
 
-
+                if (!settings.IsValid)
+                {
+                    settings = setFilePaths(localDb);
+                    if (settings == null) return;
+                    settings.SerializeToFile(pathToSettings);
+                }
             }
-            catch (System.Exception ex)
+            else
             {
-                tx.Abort();
-                prdDbg(ex);
-                return;
+                settings = setFilePaths(localDb);
+                if (settings == null) return;
+                settings.SerializeToFile(pathToSettings);
             }
-            tx.Commit();
+            #endregion
+
+            #region Read databases
+            using var gkDb = new Database(false, true);
+            gkDb.ReadDwgFile(settings.Grundkort, FileShare.Read, true, "");
+
+
+            using var dimDb = new Database(false, true);
+            dimDb.ReadDwgFile(settings.FjernvarmeDim, FileShare.Read, true, "");
+            #endregion
+
+            while (true)
+            {
+                using var tx = localDb.TransactionManager.StartTransaction();
+                using var gkTx = gkDb.TransactionManager.StartTransaction();
+                using var dimTx = dimDb.TransactionManager.StartTransaction();
+
+                try
+                {
+                    var gkLine = Interaction.GetLine("Draw VEJKANT line: ");
+                    if (gkLine == null) break;
+
+
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    gkTx.Abort();
+                    dimTx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+                gkTx.Abort();
+                dimTx.Abort();
+            }
+
+
+            static void gatherChildrenNames(GraphNode iroot, Dictionary<string, string> infd)
+            {
+                for (int o = 0; o < iroot.NumOut; o++)
+                {
+                    XrefGraphNode? child = iroot.Out(o) as XrefGraphNode;
+                    if (child == null) continue;
+                    var fn = child.Database.Filename;
+                    infd.Add(Path.GetFileNameWithoutExtension(fn), fn);
+                    gatherChildrenNames(child, infd);
+                }
+            }
+
+            static VejkantOffsetSettings? setFilePaths(Database db)
+            {
+                db.ResolveXrefs(true, false);
+                XrefGraph xg = db.GetHostDwgXrefGraph(true);
+                GraphNode root = xg.RootNode;
+                Dictionary<string, string> nameFileDict = [];
+                gatherChildrenNames(root, nameFileDict);
+
+                var grundkortName = StringGridFormCaller.Call(
+                    nameFileDict.Select(x => x.Key),
+                    "SELECT GRUNDKORT XREF:");
+
+                if (grundkortName == null) return null;
+
+                var dimName = StringGridFormCaller.Call(
+                    nameFileDict.Select(x => x.Key),
+                    "SELECT DIMENSIONERING XREF:");
+
+                if (dimName == null) return null;
+
+                VejkantOffsetSettings settings = new(
+                    nameFileDict[grundkortName],
+                    nameFileDict[dimName]);
+
+                return settings;
+            }
         }
     }
 #endif
