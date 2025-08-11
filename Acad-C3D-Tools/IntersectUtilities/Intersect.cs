@@ -4,6 +4,7 @@ using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
+using Autodesk.Civil;
 using Autodesk.Civil.ApplicationServices;
 using Autodesk.Civil.DatabaseServices;
 using Autodesk.Civil.DatabaseServices.Styles;
@@ -5497,5 +5498,56 @@ namespace IntersectUtilities
             }
             tx.Abort();
         }
+
+        [CommandMethod("CENTERVIEWFRAMENUMBER")]
+        public void CenterViewFrameNumber()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            using Transaction tx = localDb.TransactionManager.StartTransaction();
+
+            try
+            {
+                var cdoc = CivilApplication.ActiveDocument;
+
+                // Get the View Frame label style root
+                var vfRoot = cdoc.Styles.LabelStyles.ViewFrameLabelStyles;
+
+                // Try to get the "Basic" style (change name if needed)
+                if (!vfRoot.LabelStyles.Contains("Basic"))
+                {
+                    prdDbg("View Frame label style 'Basic' not found.");
+                    tx.Abort();
+                    return;
+                }
+
+                var styleId = vfRoot.LabelStyles["Basic"];
+                var style = (LabelStyle)tx.GetObject(styleId, OpenMode.ForWrite);
+
+                prdDbg($"Number of text components: {style.GetComponentsCount(LabelStyleComponentType.Text)}");
+
+                // Get all TEXT components and adjust them
+                foreach (ObjectId compId in style.GetComponents(LabelStyleComponentType.Text))
+                {
+                    var txt = (LabelStyleTextComponent)tx.GetObject(compId, OpenMode.ForWrite);
+
+                    txt.Text.Attachment.Value = LabelTextAttachmentType.MiddleCenter;
+                    txt.Text.XOffset.Value = 0.0;
+                    txt.Text.YOffset.Value = 0.0;
+                }
+
+                prdDbg("View Frame label style 'Basic' centered successfully.");
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg(ex);
+                tx.Abort();
+                return;
+            }
+
+            tx.Abort();
+        }
+
     }
 }
