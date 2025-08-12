@@ -1,29 +1,22 @@
-﻿using Autodesk.AutoCAD.ApplicationServices;
-using Autodesk.AutoCAD.DatabaseServices;
+﻿using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 using Autodesk.Civil.DatabaseServices;
 
-using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.Collections;
-using static IntersectUtilities.UtilsCommon.Utils;
-using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
+using IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray;
+using IntersectUtilities.UtilsCommon;
 
 using MoreLinq;
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
+
+using static IntersectUtilities.Graph;
+using static IntersectUtilities.UtilsCommon.Utils;
 
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
-using static IntersectUtilities.Graph;
-using System.DirectoryServices.ActiveDirectory;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement.TextBox;
-using IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray;
 
 namespace IntersectUtilities.PipelineNetworkSystem
 {
@@ -74,8 +67,19 @@ namespace IntersectUtilities.PipelineNetworkSystem
         {
             source.Partition(IsNotWeld, out this.pipelineEntities, out this.pipelineWelds);
 
-            if (psh == null)
-                psh = new PropertySetHelper(pipelineEntities?.FirstOrDefault()?.Database);
+            try
+            {
+
+                if (psh == null)
+                    psh = new PropertySetHelper(pipelineEntities?.FirstOrDefault()?.Database);
+            }
+            catch (Exception)
+            {
+                if (pipelineEntities == null)
+                    prdDbg(@"pipelineEntities is null!");
+                else foreach (var entity in pipelineEntities) { prdDbg(entity.Handle); }
+                throw;
+            }
 
             bool IsNotWeld(Entity e) =>
                 (e is BlockReference br &&
@@ -858,7 +862,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
     public static class PipelineV2Factory
     {
         public static IPipelineV2 Create(IEnumerable<Entity> ents, Alignment al)
-        {
+        {            
             if (al == null) return new PipelineV2Na(ents);
             else return new PipelineV2Alignment(ents, al);
         }

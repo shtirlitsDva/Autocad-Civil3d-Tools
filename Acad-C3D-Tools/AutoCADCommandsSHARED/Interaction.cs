@@ -264,7 +264,7 @@ namespace Dreambuild.AutoCAD
         public static Line? GetLine(string message)
         {
             Point3d startPoint = Interaction.GetPoint(message);
-            if (startPoint == Algorithms.NullPoint3d) { return null; }
+            if (startPoint.IsNull()) { return null; }
 
             var ed = Application.DocumentManager.MdiActiveDocument.Editor;
             var jig = new LineJig(startPoint, "Select end point: ");

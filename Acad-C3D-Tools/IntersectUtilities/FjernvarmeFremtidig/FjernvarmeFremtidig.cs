@@ -12,6 +12,7 @@ using Dreambuild.AutoCAD;
 using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset;
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.DataManager;
+using IntersectUtilities.Jigs;
 
 using MoreLinq;
 
@@ -1170,6 +1171,7 @@ namespace IntersectUtilities
         public void offsetvk()
         {
             DocumentCollection docCol = Application.DocumentManager;
+            Editor ed = docCol.MdiActiveDocument.Editor;
             Database localDb = docCol.MdiActiveDocument.Database;
 
             #region Layer
@@ -1220,8 +1222,15 @@ namespace IntersectUtilities
 
                 try
                 {
-                    var gkLine = Interaction.GetLine("Draw VEJKANT line: ");
+                    var keywords = new List<LineJigKeyword>() 
+                    {
+                        new LineJigKeyword("_A", "A",  (ed, _)
+                        )
+                    };
+
+                    var gkLine = LineJigWithKeywords.GetLine();
                     if (gkLine == null) break;
+
 
 
                 }
