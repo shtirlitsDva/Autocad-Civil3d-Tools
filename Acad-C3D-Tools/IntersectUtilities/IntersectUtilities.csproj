@@ -36,10 +36,6 @@
 		<DebugType>full</DebugType>
 	</PropertyGroup>
 	<ItemGroup>
-	  <Compile Remove="MyGraphV2.cs" />
-	  <Compile Remove="Pipeline.cs" />
-	</ItemGroup>
-	<ItemGroup>
 	  <None Remove="IntersectUtilities.dll.config" />
 	</ItemGroup>
 	<ItemGroup>
