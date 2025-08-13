@@ -1448,6 +1448,6 @@ namespace IntersectUtilities
                 return settings;
             }
         }
-    }
 #endif
+    }
 }

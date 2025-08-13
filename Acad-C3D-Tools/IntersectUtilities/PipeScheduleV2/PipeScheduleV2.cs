@@ -181,8 +181,7 @@ namespace IntersectUtilities.PipeScheduleV2
             {"VertFactor", typeof(double)},
             {"color", typeof(short)},
             {"DefaultL", typeof(double)},
-            {"OffsetULM", typeof (double)}, //Offset Under eller Lig Med
-            {"OffsetO", typeof (double)}, //Offset Over
+            {"OffsetUnder7_5", typeof (double)}, //Offset Under eller Lig Med
         };
         public static void LoadPipeTypeData(string pathToPipeTypesStore)
         {
