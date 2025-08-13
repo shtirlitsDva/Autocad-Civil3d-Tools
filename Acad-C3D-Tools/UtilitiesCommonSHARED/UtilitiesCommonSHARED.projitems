@@ -31,6 +31,7 @@
     </Compile>
     <Compile Include="$(MSBuildThisFileDirectory)Forms\StringGridFormCaller.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)UtilsCommon.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Win32Cursor.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)Forms\OverlayForm.resx">

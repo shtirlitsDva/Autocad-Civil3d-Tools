@@ -689,7 +689,7 @@ namespace AcadOverrules
                             else
                             {
                                 double angleRad = ls2d1.Direction.GetAngleTo(ls2d2.Direction);
-                                double angleDeg = angleRad.ToDegrees();
+                                double angleDeg = angleRad.ToDeg();
                                 double plineWidth = pline.ConstantWidthSafe();
 
                                 if (plineWidth.IsZero()) plineWidth = 0.25;
@@ -716,7 +716,7 @@ namespace AcadOverrules
                             var dirs = pline.DirectionsAt(i + 1); //Uses look back, while for loop uses look forward
 
                             double angleRad = dirs.dir1.GetAngleTo(dirs.dir2);
-                            double angleDeg = angleRad.ToDegrees();
+                            double angleDeg = angleRad.ToDeg();
                             //prdDbg(angleDeg.ToString("0.####") + "°");
                             if (angleDeg <= 5.0 && !angleDeg.IsZero())
                             {

@@ -13,6 +13,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using System.Xml.Serialization;
+
 using Autodesk.Aec.PropertyData.DatabaseServices;
 using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.DatabaseServices;
@@ -24,9 +25,12 @@ using Autodesk.Gis.Map;
 using Autodesk.Gis.Map.Constants;
 using Autodesk.Gis.Map.ObjectData;
 using Autodesk.Gis.Map.Utilities;
+
 using MoreLinq;
+
 using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 using static IntersectUtilities.UtilsCommon.Utils;
+
 using AcRx = Autodesk.AutoCAD.Runtime;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
@@ -46,7 +50,7 @@ namespace IntersectUtilities.UtilsCommon
     public class SimpleLogger
     {
         public SimpleLogger(bool echoToEditor = true, string? logFileName = null)
-        { 
+        {
             _echoToEditor = echoToEditor;
             _logFileName = logFileName ?? "C:\\Temp\\log.txt";
         }
@@ -863,7 +867,7 @@ namespace IntersectUtilities.UtilsCommon
 
             public static void CreateDebugLine(Point3d start, Point3d end, string color, string layer)
             {
-                CreateDebugLine(start, end, ColorByName(color), layer);                
+                CreateDebugLine(start, end, ColorByName(color), layer);
             }
 
             public static void CreateDebugText(
@@ -2938,7 +2942,7 @@ namespace IntersectUtilities.UtilsCommon
                             return property.Value.ToString();
                         case DynamicBlockReferencePropertyUnitsType.Angular:
                             double angular = Convert.ToDouble(property.Value);
-                            return angular.ToDegrees().ToString("0.##");
+                            return angular.ToDeg().ToString("0.##");
                         case DynamicBlockReferencePropertyUnitsType.Distance:
                             double distance = Convert.ToDouble(property.Value);
                             return distance.ToString("0.##");
@@ -3172,6 +3176,12 @@ namespace IntersectUtilities.UtilsCommon
 
         public static Point3d To3d(this Point2d p2d, double Z = 0.0) =>
             new Point3d(p2d.X, p2d.Y, Z);
+
+        public static Point2d MidPoint(this Point2d p1, Point2d p2) =>
+            new Point2d((p1.X + p2.X) / 2, (p1.Y + p2.Y) / 2);
+
+        public static Point3d MidPoint(this Point3d p1, Point3d p2) =>
+            new Point3d((p1.X + p2.X) / 2, (p1.Y + p2.Y) / 2, (p1.Z + p2.Z) / 2);
 
         /// <summary>
         /// 2D key for use in dictionaries for faster points lookup.
@@ -4580,9 +4590,9 @@ namespace IntersectUtilities.UtilsCommon
             return set;
         }
 
-        public static double ToDegrees(this double radians) => (180 / Math.PI) * radians;
+        public static double ToDeg(this double radians) => (180 / Math.PI) * radians;
 
-        public static double ToRadians(this double degrees) => (Math.PI / 180) * degrees;
+        public static double ToRad(this double degrees) => (Math.PI / 180) * degrees;
 
         public static void Zoom(this Editor ed, Extents3d ext)
         {

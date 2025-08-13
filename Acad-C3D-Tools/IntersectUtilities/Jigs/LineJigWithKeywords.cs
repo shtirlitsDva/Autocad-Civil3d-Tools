@@ -13,36 +13,46 @@ using System.Threading.Tasks;
 
 namespace IntersectUtilities.Jigs
 {
-    public sealed class LineJigWithKeywords : EntityJig
-    {
-        private readonly Line _line;
-        private readonly IReadOnlyList<LineJigKeyword> _keywords;
-        private readonly Dictionary<string, LineJigKeyword> _keywordMap;
-        private Point3d _end; // dynamic (rubber-banded) point
+	public sealed class LineJigWithKeywords<TContext> : EntityJig
+	{
+		private readonly Line _line;
+		private readonly IReadOnlyList<LineJigKeyword<TContext>> _keywords;
+		private readonly Dictionary<string, LineJigKeyword<TContext>> _keywordMap;
+		private readonly TContext _context;
+		private Point3d _end; // dynamic (rubber-banded) point
 
-        public LineJigWithKeywords(Line line, IEnumerable<LineJigKeyword>? keywords)
-            : base(line)
-        {
-            _line = line ?? throw new ArgumentNullException(nameof(line));
-            _keywords = (keywords ?? Array.Empty<LineJigKeyword>()).ToList();
-            _keywordMap = new Dictionary<string, LineJigKeyword>(StringComparer.OrdinalIgnoreCase);
-            if (keywords != null)
-                foreach (var key in keywords)
-                    _keywordMap.Add(key.Global, key);
-            _end = line.EndPoint;
-        }
+		public LineJigWithKeywords(Line line, IEnumerable<LineJigKeyword<TContext>>? keywords, TContext context)
+			: base(line)
+		{
+			_line = line ?? throw new ArgumentNullException(nameof(line));
+			_keywords = (keywords ?? Array.Empty<LineJigKeyword<TContext>>()).ToList();
+			_keywordMap = new Dictionary<string, LineJigKeyword<TContext>>(StringComparer.OrdinalIgnoreCase);
+			if (keywords != null)
+				foreach (var key in keywords)
+				{
+					_keywordMap[key.Global] = key;
+					if (!string.Equals(key.Local, key.Global, StringComparison.OrdinalIgnoreCase))
+						_keywordMap[key.Local] = key;
+				}
+			_context = context;
+			_end = line.EndPoint;
+		}
 
         protected override SamplerStatus Sampler(JigPrompts prompts)
         {
             var display = string.Join("/", _keywords.Select(k => k.Local));
-            var globals = string.Join(" ", _keywords.Select(k => k.Global));
-            var msg = $"\nSpecify end point [{display}]";
-
-            var opts = new JigPromptPointOptions("\nSpecify end point or choose an option:")
+            var opts = new JigPromptPointOptions($"\nSpecify end point [{display}] ")
             {
                 BasePoint = _line.StartPoint,
                 UseBasePoint = true
             };
+
+            // Configure keywords (only those visible and enabled)
+            foreach (var k in _keywords)
+            {
+                //if (!k.Visible || !k.Enabled) continue;
+                opts.Keywords.Add(k.Global, k.Local, k.Local, k.Visible, k.Enabled);
+            }
 
             // Allow keywords during point acquisition
             opts.UserInputControls = UserInputControls.GovernedByOrthoMode |
@@ -77,7 +87,7 @@ namespace IntersectUtilities.Jigs
         {
             if (_keywordMap.TryGetValue(keyword, out var k))
             {
-                status = k.Handler(ed, _line);
+                status = k.Handler(ed, _line, _context);
                 return true;
             }
 
@@ -85,16 +95,16 @@ namespace IntersectUtilities.Jigs
             return false;
         }
 
-        public static Line? GetLine(IEnumerable<LineJigKeyword>? keywords)
+        public static Line? GetLine(IEnumerable<LineJigKeyword<TContext>>? keywords, TContext context)
         {
-            var ed = Application.DocumentManager.MdiActiveDocument.Editor;            
+            var ed = Application.DocumentManager.MdiActiveDocument.Editor;
 
             Point3d sp = Interaction.GetPoint("Select start location: ");
             if (sp.IsNull()) return null;
 
             Line ln = new Line(sp, Point3d.Origin);
 
-            var jig = new LineJigWithKeywords(ln, keywords);
+            var jig = new LineJigWithKeywords<TContext>(ln, keywords, context);
 
             while (true)
             {
@@ -119,7 +129,7 @@ namespace IntersectUtilities.Jigs
                 else
                 {
                     ln.Dispose();
-                    return ln;
+                    return null;
                 }
             }
         }

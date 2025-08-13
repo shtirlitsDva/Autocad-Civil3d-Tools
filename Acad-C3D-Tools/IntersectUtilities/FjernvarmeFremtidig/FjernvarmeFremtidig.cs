@@ -10,9 +10,9 @@ using Autodesk.Civil.DatabaseServices;
 using Dreambuild.AutoCAD;
 
 using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset;
+using IntersectUtilities.Jigs;
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.DataManager;
-using IntersectUtilities.Jigs;
 
 using MoreLinq;
 
@@ -1185,22 +1185,27 @@ namespace IntersectUtilities
                         Path.GetDirectoryName(localDb.Filename)!,
                         "VejkantOffsetSettings.json");
 
-            VejkantOffsetSettings? settings;
+            VejkantOffsetSettings settings;
             if (File.Exists(pathToSettings))
             {
-                settings = VejkantOffsetSettings.DeserializeFromFile(pathToSettings);
-
-                if (!settings.IsValid)
+                var loaded = VejkantOffsetSettings.DeserializeFromFile(pathToSettings);
+                if (!loaded.IsValid)
                 {
-                    settings = setFilePaths(localDb);
-                    if (settings == null) return;
+                    var resolved = setFilePaths(localDb);
+                    if (resolved == null) return;
+                    settings = resolved;
                     settings.SerializeToFile(pathToSettings);
+                }
+                else
+                {
+                    settings = loaded;
                 }
             }
             else
             {
-                settings = setFilePaths(localDb);
-                if (settings == null) return;
+                var resolved = setFilePaths(localDb);
+                if (resolved == null) return;
+                settings = resolved;
                 settings.SerializeToFile(pathToSettings);
             }
             #endregion
@@ -1214,6 +1219,68 @@ namespace IntersectUtilities
             dimDb.ReadDwgFile(settings.FjernvarmeDim, FileShare.Read, true, "");
             #endregion
 
+            #region Set up keywords
+            var keywords = new List<LineJigKeyword<VejkantOffsetSettings>>()
+            {
+                new(
+                    "_Angle", "Angle",
+                    (ed, line, ctx) =>
+                    {
+                        var p = new PromptDoubleOptions("\nSet Max Angle (deg): ")
+                        { DefaultValue = ctx.MaxAngleDeg, UseDefaultValue = true };
+                        var r = ed.GetDouble(p);
+                        if (r.Status == PromptStatus.OK)
+                        { ctx.MaxAngleDeg = r.Value; prdDbg($"\nMaxAngleDeg = {ctx.MaxAngleDeg}"); }
+                        return r.Status;
+                    }
+                ),
+                new(
+                    "_Offset", "Offset",
+                    (ed, line, ctx) =>
+                    {
+                         //Remember original cursor position
+                         var (cx, cy) = Win32Cursor.GetPosition();
+
+                        using var txl = localDb.TransactionManager.StartOpenCloseTransaction();
+                        Line cp = (Line)line.Clone();
+                        var cpId = cp.AddEntityToDbModelSpace(localDb);
+                        txl.Commit();
+                        localDb.TransactionManager.QueueForGraphicsFlush();
+
+                        var p = new PromptDistanceOptions("\nSet Max Offset: ")
+                        { DefaultValue = ctx.MaxOffset, UseDefaultValue = true };
+                        //User moves cursor to get distance input
+                        var r = ed.GetDistance(p);
+
+                         if (r.Status == PromptStatus.OK)
+                         {
+                             ctx.MaxOffset = r.Value;
+                             prdDbg($"\nMaxOffset = {ctx.MaxOffset}");
+                             //Return cursor to remembered position
+                             Win32Cursor.SetPosition(cx, cy);
+                         }
+
+                        cpId.Erase();
+                        localDb.TransactionManager.QueueForGraphicsFlush();
+
+                        return r.Status;
+                    }
+                ),
+                new(
+                    "_OVerlap", "OVerlap",
+                    (ed, line, ctx) =>
+                    {
+                        var p = new PromptDoubleOptions("\nSet Min Overlap: ")
+                        { DefaultValue = ctx.MinOverlap, UseDefaultValue = true };
+                        var r = ed.GetDouble(p);
+                        if (r.Status == PromptStatus.OK)
+                        { ctx.MinOverlap = r.Value; prdDbg($"\nMinOverlap = {ctx.MinOverlap}"); }
+                        return r.Status;
+                    }
+                )
+            };
+            #endregion
+
             while (true)
             {
                 using var tx = localDb.TransactionManager.StartTransaction();
@@ -1222,17 +1289,110 @@ namespace IntersectUtilities
 
                 try
                 {
-                    var keywords = new List<LineJigKeyword>() 
-                    {
-                        new LineJigKeyword("_A", "A",  (ed, _)
-                        )
-                    };
-
-                    var gkLine = LineJigWithKeywords.GetLine();
+                    var gkLine = LineJigWithKeywords<VejkantOffsetSettings>.GetLine(keywords, settings);
                     if (gkLine == null) break;
 
+                    var polylines = dimDb.ListOfType<Polyline>(dimTx);
 
+                    var A = gkLine.StartPoint.To2d();
+                    var B = gkLine.EndPoint.To2d();
+                    var wDir = A.GetVectorTo(B);
+                    var wLen = wDir.Length;
+                    if (wLen <= 1e-6) continue;
 
+                    var wU = wDir / wLen;
+                    var leftNormal = new Vector2d(-wU.Y, wU.X);
+                    double cosTol = Math.Cos(settings.MaxAngleDeg.ToRad());
+
+                    var candidates = new List<SegmentHit>();
+
+                    foreach (var pl in polylines) 
+                    {
+                        if (pl == null || pl.IsErased) continue;
+
+                        for (int i = 0; i < pl.NumberOfVertices - 1; i++)
+                        {
+                            if (pl.GetSegmentType(i) != SegmentType.Line) continue;
+
+                            var seg = pl.GetLineSegment2dAt(i);
+
+                            var sA = seg.StartPoint;
+                            var sB = seg.EndPoint;
+                            var sDir = sA.GetVectorTo(sB);
+                            if (sDir.Length <= 1e-6) continue;
+
+                            var sU = sDir / sDir.Length;
+
+                            //prallelism check
+                            double cos = Math.Abs(sU.DotProduct(wU));
+                            if (cos < cosTol) continue;
+
+                            //Offset checks
+                            double d0 = Math.Abs(wU.Cross2d(sA - A));
+                            double d1 = Math.Abs(wU.Cross2d(sB - A));
+                            double dMax = Math.Max(d0, d1);
+                            if (dMax > settings.MaxOffset) continue;
+
+                            double t0 = wU.DotProduct(sA - A);
+                            double t1 = wU.DotProduct(sB - A);
+
+                            double segMin = Math.Min(t0, t1);
+                            double segMax = Math.Max(t0, t1);
+                            double ov0 = Math.Max(0.0, segMin);
+                            double ov1 = Math.Min(wLen, segMax);
+                            double ovLen = Math.Max(0.0, ov1 - ov0);
+                            if (ovLen < settings.MinOverlap) continue;
+
+                            //signed side
+                            var mid = seg.MidPoint;
+                            double tm = wU.DotProduct(mid - A);
+                            var foot = A + wU * tm;
+                            double signedOffset = wU.Cross2d(mid - foot);
+
+                            //sortkey from start
+                            double sortKey = Math.Clamp(segMin, 0.0, wLen);
+
+                            candidates.Add(new SegmentHit
+                            { 
+                                PolylineId = pl.ObjectId,
+                                SegmentIndex = i,
+                                A = sA,
+                                B = sB,
+                                S0 = Math.Clamp(t0, 0.0, wLen),
+                                S1 = Math.Clamp(t1, 0.0, wLen),
+                                Overlap0 = ov0,
+                                Overlap1 = ov1,
+                                SignedOffset = signedOffset,
+                                SortKey = sortKey
+                            });
+                        }
+                    }
+
+                    if (candidates.Count == 0) continue;
+
+                    //choose side
+                    double weightLeft = 0, weightRight = 0;
+                    foreach (var c in candidates)
+                    {
+                        double w = Math.Max(1e-9, c.Overlap1 - c.Overlap0);
+                        if (c.SignedOffset >= 0) weightLeft += w;
+                        else weightRight += w;
+                    }
+                    int sideSign = (weightLeft >= weightRight) ? 1 : -1;
+                    var sideNormal = sideSign >= 0 ? leftNormal : -leftNormal;
+
+                    var ordered = candidates
+                        .Where(c => Math.Sign(c.SignedOffset) == sideSign || Math.Abs(c.SignedOffset) < 1e-12)
+                        .OrderBy(c => c.SortKey)
+                        .ThenBy(c => c.Overlap0)
+                        .ToList();
+
+                    foreach (var c in ordered) DebugHelper.CreateDebugLine(
+                        gkLine.GetPointAtDist(gkLine.Length / 2),
+                        c.A.MidPoint(c.B).To3d(), ColorByName("yellow"));
+
+                    //gkLine.AddEntityToDbModelSpace(localDb);
+                    //gkLine.Dispose();
                 }
                 catch (System.Exception ex)
                 {
@@ -1246,7 +1406,8 @@ namespace IntersectUtilities
                 gkTx.Abort();
                 dimTx.Abort();
             }
-
+            // Persist any changes to settings made via keywords
+            settings.SerializeToFile(pathToSettings);
 
             static void gatherChildrenNames(GraphNode iroot, Dictionary<string, string> infd)
             {

@@ -180,7 +180,9 @@ namespace IntersectUtilities.PipeScheduleV2
             {"minElasticRadii", typeof(double)},
             {"VertFactor", typeof(double)},
             {"color", typeof(short)},
-            {"DefaultL", typeof(double)}
+            {"DefaultL", typeof(double)},
+            {"OffsetULM", typeof (double)}, //Offset Under eller Lig Med
+            {"OffsetO", typeof (double)}, //Offset Over
         };
         public static void LoadPipeTypeData(string pathToPipeTypesStore)
         {
@@ -675,7 +677,7 @@ namespace IntersectUtilities.PipeScheduleV2
                     missingColumns.Add(col.ColumnName);
 
             if (missingColumns.Count > 0)
-                throw new Exception($"Missing data type definitions for columns: " +
+                prdDbg($"Missing data type definitions for columns: " +
                     $"{string.Join(", ", missingColumns)}");
             #endregion
 

@@ -1754,7 +1754,7 @@ namespace IntersectUtilities
 
                         //Settings
                         double weedAngle = 5; //In degrees
-                        double weedAngleRad = weedAngle.ToRadians();
+                        double weedAngleRad = weedAngle.ToRad();
                         double DouglasPeuckerTolerance = .05;
 
                         double stepLength = 0.1;

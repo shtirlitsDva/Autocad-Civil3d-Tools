@@ -104,7 +104,7 @@ namespace IntersectUtilities.PlanDetailing.Components
                     LineSegment2d seg1 = run.GetLineSegment2dAt(idx);
                     LineSegment2d seg2 = run.GetLineSegment2dAt(idx - 1);
 
-                    double angle = seg1.Direction.GetAngleTo(seg2.Direction).ToDegrees();
+                    double angle = seg1.Direction.GetAngleTo(seg2.Direction).ToDeg();
 
                     if (!angle.Equalz(90.0, 0.00001))
                     {

@@ -41,7 +41,7 @@ namespace IntersectUtilities
                             return property.Value.ToString();
                         case DynamicBlockReferencePropertyUnitsType.Angular:
                             double angular = Convert.ToDouble(property.Value);
-                            return angular.ToDegrees().ToString("0.##");
+                            return angular.ToDeg().ToString("0.##");
                         case DynamicBlockReferencePropertyUnitsType.Distance:
                             double distance = Convert.ToDouble(property.Value);
                             return distance.ToString("0.##");

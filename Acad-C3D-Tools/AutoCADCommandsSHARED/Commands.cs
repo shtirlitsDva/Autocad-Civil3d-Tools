@@ -1518,7 +1518,7 @@ namespace Dreambuild.AutoCAD
             using (var trans = entityId.Database.TransactionManager.StartTransaction())
             {
                 var entity = trans.GetObject(entityId, OpenMode.ForWrite);
-                entity.Erase();
+                entity.Erase(true);
                 trans.Commit();
             }
         }
