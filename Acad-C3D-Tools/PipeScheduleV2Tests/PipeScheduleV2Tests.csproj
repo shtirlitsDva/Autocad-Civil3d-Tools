@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<TargetFramework>net8.0-windows</TargetFramework>
 		<ImplicitUsings>enable</ImplicitUsings>
@@ -37,12 +37,18 @@
 		<Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeScheduleV2.cs">
 			<Link>Links\PipeScheduleV2\PipeScheduleV2.cs</Link>
 		</Compile>
-		<Compile Include="..\IntersectUtilities\PipeScheduleV2\MigrationStrategy.md">
+		<None Include="..\IntersectUtilities\PipeScheduleV2\MigrationStrategy.md">
 			<Link>Links\PipeScheduleV2\MigrationStrategy.md</Link>
-		</Compile>
-		<Compile Include="PipeScheduleV2TestsClass.Core.cs" />
+		</None>
+		<Compile Include="Ps2Status.cs" />
+		<Compile Include="Ps2Result.cs" />
+		<Compile Include="Ps2TestAttribute.cs" />
+		<Compile Include="Ps2SkipException.cs" />
+		<Compile Include="PipeScheduleV2TestsClass.Tests.cs" />
+		<Compile Include="PipeScheduleV2TestsClass.MoreTests.cs" />
 		<Compile Include="PipeScheduleV2Report.cs" />
 		<Compile Include="PipeScheduleV2EntityRegistry.cs" />
+		<Compile Include="PipeScheduleV2TestsClass.Core.cs" />
 	</ItemGroup>
 	<ItemGroup>
 		<Reference Include="accoremgd">

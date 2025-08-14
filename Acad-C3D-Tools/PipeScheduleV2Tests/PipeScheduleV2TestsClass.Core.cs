@@ -15,7 +15,7 @@ namespace PipeScheduleV2Tests
             var db = Application.DocumentManager.MdiActiveDocument.Database;
             // Registry now lives alongside the test dll (local folder under PipeScheduleV2Tests bin)
             string registryPath = PipeScheduleV2EntityRegistry.GetRegistryPath();
-            string reportsDir = System.IO.Path.Combine(dwgDir, ReportsFolderName);
+            string reportsDir = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(db.Filename) ?? System.AppDomain.CurrentDomain.BaseDirectory, ReportsFolderName);
             System.IO.Directory.CreateDirectory(reportsDir);
 
             PipeScheduleV2EntityRegistry.EnsureRegistryFileExists(registryPath);
