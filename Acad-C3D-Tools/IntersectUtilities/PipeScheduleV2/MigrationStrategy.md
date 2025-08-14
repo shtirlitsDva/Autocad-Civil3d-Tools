@@ -247,6 +247,15 @@ Runner responsibilities:
 6. Run the full test suite; fix any discrepancies.
 7. Remove `System.Data` usage, `columnTypeDict`/`radiiColumnTypeDict`, and `ReadCsvToDataTable` once tests are green.
 
+### File layout for tests (partial classes and helpers)
+- Split the test harness into focused files for maintainability:
+  - `PipeScheduleV2TestsClass.Core.cs`: partial class with init, `[CommandMethod("RUNPS2TESTS")]`, reflection runner, and summary.
+  - `PipeScheduleV2Report.cs`: HTML and raw log report writer utilities.
+  - `PipeScheduleV2EntityRegistry.cs`: CSV registry utilities and polyline creation in the test DWG.
+  - `PipeScheduleV2TestsClass.Tests.cs`: partial class containing all `[Ps2Test]` methods.
+  - Optionally standalone attribute/result types if you don’t want them in the main partial: `Ps2TestAttribute.cs`, `Ps2Result.cs`, `Ps2Status.cs`, `Ps2SkipException.cs`.
+- Update the test project `.csproj` to include the new files; keep `PipeScheduleV2.cs` linked and `UtilitiesCommonSHARED` imported.
+
 ### Performance
 - Building composite-key dictionaries provides O(1) lookup for hot paths:
   - `(DN, PipeTypeEnum, PipeSeriesEnum) → PipeTypeRecord`

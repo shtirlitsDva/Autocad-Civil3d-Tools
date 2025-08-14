@@ -40,6 +40,9 @@
 		<Compile Include="..\IntersectUtilities\PipeScheduleV2\MigrationStrategy.md">
 			<Link>Links\PipeScheduleV2\MigrationStrategy.md</Link>
 		</Compile>
+		<Compile Include="PipeScheduleV2TestsClass.Core.cs" />
+		<Compile Include="PipeScheduleV2Report.cs" />
+		<Compile Include="PipeScheduleV2EntityRegistry.cs" />
 	</ItemGroup>
 	<ItemGroup>
 		<Reference Include="accoremgd">
