@@ -166,6 +166,71 @@ static List<T> LoadRecords<T, TMap>(string path) where TMap : ClassMap<T>, new()
 
 Note: Because the tests use original CSVs, they will reflect current production data. This matches the requested constraint and ensures high-fidelity verification.
 
+### In-host test harness (no IntersectUtilities.dll load)
+- Create a dedicated class library project: `PipeScheduleV2UnitTests` (TargetFramework `net8.0-windows10.0.26100.0`).
+- Compile the code-under-test directly into the test dll:
+  - Link `..\\IntersectUtilities\\PipeScheduleV2\\PipeScheduleV2.cs` into the test project (`<Compile Include="..\\IntersectUtilities\\PipeScheduleV2\\PipeScheduleV2.cs" Link="PipeScheduleV2\\PipeScheduleV2.cs" />`).
+  - Import the shared project `..\\UtilitiesCommonSHARED\\UtilitiesCommonSHARED.projitems` (for enums/utilities).
+  - Add Autodesk references required by `PipeScheduleV2.cs` (copy the same `<Reference>` entries and HintPaths used in `IntersectUtilities.csproj`).
+- Do NOT reference `IntersectUtilities.csproj`. The goal is to netload only `PipeScheduleV2UnitTests.dll`.
+- Inside `PipeScheduleV2UnitTests` implement a tiny test runner:
+  - Define a custom attribute `[Ps2Test]` to mark test methods.
+  - Add an AutoCAD command `[CommandMethod("RUN_PS2_TESTS")]` that discovers methods with `[Ps2Test]` via reflection (in the current assembly) and invokes them, reporting pass/fail to the AutoCAD editor.
+  - Tests call `PipeScheduleV2` public APIs and use the real CSV directories.
+
+Run tests via AcCoreConsole using a script, e.g. `run_tests.scr`:
+```
+(netload "X:\\path\\to\\PipeScheduleV2UnitTests.dll")
+RUN_PS2_TESTS
+QUIT Y
+```
+
+Then execute:
+```
+"C:\\Program Files\\Autodesk\\AutoCAD 2025\\AcCoreConsole.exe" /product C3D /language en-US /s "X:\\path\\run_tests.scr"
+```
+
+### Test DWG with sample entities (for Entity-accepting APIs)
+- Some `PipeScheduleV2` APIs accept `Entity ent`. To test them, use a dedicated DWG with known entities and stable Handles.
+- Create a drawing (e.g., `X:\\AutoCAD DRI - 01 Civil 3D\\PipeSchedule\\Tests\\PS2_TestData.dwg`) containing:
+  - Polylines on layers representing different systems/types (so `GetPipeSystem`, `GetPipeType`, `GetPipeDN` work).
+  - Polylines with `ConstantWidth` set to match `kOd/1000` where series detection is required (`GetPipeSeriesV2`).
+  - Optional extra entities for label and color tests.
+- For each entity-based method under test, document the expected entity type and record a stable Handle to use in tests.
+  - Add an attribute on the test method to document this, e.g. `[Ps2EntityHandle("2A3B", typeof(Polyline))]`.
+  - The test runner resolves the entity by Handle from the current drawing (opened by CoreConsole via `/i`).
+
+Script adjustment to open the test DWG:
+```
+"C:\\Program Files\\Autodesk\\AutoCAD 2025\\AcCoreConsole.exe" \
+  /product C3D /language en-US \
+  /i "X:\\AutoCAD DRI - 01 Civil 3D\\PipeSchedule\\Tests\\PS2_TestData.dwg" \
+  /s "X:\\path\\run_tests.scr"
+```
+
+Runner responsibilities:
+- On start, assert an active document is present (DWG opened by CoreConsole).
+- Resolve entities by Handle before invoking tests that declare `[Ps2EntityHandle]` (pass entity to helper methods inside the test).
+- If a Handle is missing, report a failed test with a clear message.
+
+### Reporting (HTML + minimal console)
+- Each run must emit a timestamped HTML report (e.g., `PS2_TestReport_yyyyMMdd_HHmmss.html`) to a reports directory such as:
+  `X:\\AutoCAD DRI - 01 Civil 3D\\PipeSchedule\\Tests\\Reports\\`
+- Content requirements:
+  - Header summary: start time, duration, totals (tests, passed, failed, errors, skipped)
+  - Environment: AutoCAD version, .NET version, machine name, CSV folder paths, DWG path
+  - Detailed table: Test Name, Status (Pass/Fail/Error/Skip), Duration, Message, StackTrace (collapsible), optional entity Handle used
+  - Footer with overall result color (green/red) and file generation time
+- Minimal console (editor) output:
+  - Print in console a short progress line every N tests (e.g., `Processed 25/140...`)
+  - Print in console only failures/errors inline as they occur (single-line: name + message)
+  - Final one-line summary: `Tests: X, Passed: Y, Failed: Z, Errors: E, Skipped: S. Report: <path>`
+- Implementation sketch:
+  - Capture per-test start/stop times, exceptions (`ex.GetBaseException()`), and stack traces
+  - Accumulate results in a list; at the end, build an HTML string (basic CSS) and write to file using `File.WriteAllText`
+  - Ensure the reports directory exists; if not, create it
+  - Optionally also write a raw log file alongside the HTML (same basename with `.log`) containing console output
+
 ### Migration steps
 0. Git workflow:
    - Create unit test branch `UnitTestForPS2` and create unit tests in it. Open a PR against `master` when ready.

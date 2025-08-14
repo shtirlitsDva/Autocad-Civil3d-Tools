@@ -57,6 +57,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DocsCreateCommandDescriptio
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NorsynHydraulicNuget", "NorsynHydraulicNuget\NorsynHydraulicNuget.csproj", "{67E99206-B86E-43A8-AB5D-C1DC41DECBE5}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PipeScheduleV2Tests", "PipeScheduleV2Tests\PipeScheduleV2Tests.csproj", "{CED12273-62B2-425E-A10A-AE65609856F9}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -225,6 +227,14 @@ Global
 		{67E99206-B86E-43A8-AB5D-C1DC41DECBE5}.Release|Any CPU.Build.0 = Release|Any CPU
 		{67E99206-B86E-43A8-AB5D-C1DC41DECBE5}.Release|x64.ActiveCfg = Release|Any CPU
 		{67E99206-B86E-43A8-AB5D-C1DC41DECBE5}.Release|x64.Build.0 = Release|Any CPU
+		{CED12273-62B2-425E-A10A-AE65609856F9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CED12273-62B2-425E-A10A-AE65609856F9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CED12273-62B2-425E-A10A-AE65609856F9}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{CED12273-62B2-425E-A10A-AE65609856F9}.Debug|x64.Build.0 = Debug|Any CPU
+		{CED12273-62B2-425E-A10A-AE65609856F9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CED12273-62B2-425E-A10A-AE65609856F9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CED12273-62B2-425E-A10A-AE65609856F9}.Release|x64.ActiveCfg = Release|Any CPU
+		{CED12273-62B2-425E-A10A-AE65609856F9}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -251,6 +261,7 @@ Global
 		AutoCADCommandsSHARED\AutoCADCommandsSHARED.projitems*{c578718c-90f5-4546-adac-6c9d91e02a95}*SharedItemsImports = 5
 		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{c578718c-90f5-4546-adac-6c9d91e02a95}*SharedItemsImports = 5
 		AutoCADCommandsSHARED\AutoCADCommandsSHARED.projitems*{c5f6c326-952b-43e8-9830-311f190bab11}*SharedItemsImports = 5
+		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{ced12273-62b2-425e-a10a-ae65609856f9}*SharedItemsImports = 5
 		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{db2cde26-a283-45d0-a170-7645cf29c507}*SharedItemsImports = 13
 		AutoCADCommandsSHARED\AutoCADCommandsSHARED.projitems*{e5fa3287-b46f-41bb-a860-79f03b57b411}*SharedItemsImports = 5
 		NorsynHydraulicShared\NorsynHydraulicShared.projitems*{e5fa3287-b46f-41bb-a860-79f03b57b411}*SharedItemsImports = 5
