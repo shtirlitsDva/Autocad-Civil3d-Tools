@@ -20,6 +20,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)DataManager\StierManager.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)DataManager\StierRecord.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)DouglasPeuckerReduction.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Enums.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Forms\OverlayForm.cs">
       <SubType>Form</SubType>
     </Compile>
