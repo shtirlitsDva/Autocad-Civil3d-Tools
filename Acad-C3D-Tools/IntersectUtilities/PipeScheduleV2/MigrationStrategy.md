@@ -175,7 +175,7 @@ Note: Because the tests use original CSVs, they will reflect current production 
 - Do NOT reference `IntersectUtilities.csproj`. The goal is to netload only `PipeScheduleV2UnitTests.dll`.
 - Inside `PipeScheduleV2UnitTests` implement a tiny test runner:
   - Define a custom attribute `[Ps2Test]` to mark test methods.
-  - Add an AutoCAD command `[CommandMethod("RUN_PS2_TESTS")]` that discovers methods with `[Ps2Test]` via reflection (in the current assembly) and invokes them, reporting pass/fail to the AutoCAD editor.
+  - Add an AutoCAD command `[CommandMethod("RUNPS2TESTS")]` that discovers methods with `[Ps2Test]` via reflection (in the current assembly) and invokes them, reporting pass/fail to the AutoCAD editor.
   - Tests call `PipeScheduleV2` public APIs and use the real CSV directories.
 
 Run tests via AcCoreConsole using a script, e.g. `run_tests.scr`:
@@ -229,7 +229,8 @@ Runner responsibilities:
   - Capture per-test start/stop times, exceptions (`ex.GetBaseException()`), and stack traces
   - Accumulate results in a list; at the end, build an HTML string (basic CSS) and write to file using `File.WriteAllText`
   - Ensure the reports directory exists; if not, create it
-  - Optionally also write a raw log file alongside the HTML (same basename with `.log`) containing console output
+  - Write also a raw log file alongside the HTML (same basename with `.log`) containing console output
+  - For output to console use method prdDbg(object obj). It will call .ToString() on the object and end with a new line.
 
 ### Migration steps
 0. Git workflow:

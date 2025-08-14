@@ -13,6 +13,7 @@
     <Product>NorsynHydraulic</Product>
     <Description>NorsynHydraulic library contains tools to calculate hydraulic tasks.</Description>
     <Copyright>Norsyn</Copyright>
+    <Platforms>x64</Platforms>
   </PropertyGroup>
 
   <Import Project="..\NorsynHydraulicShared\NorsynHydraulicShared.projitems" Label="Shared" />
