@@ -1306,7 +1306,7 @@ namespace IntersectUtilities
 
                     var candidates = new List<SegmentHit>();
 
-                    foreach (var pl in polylines) 
+                    foreach (var pl in polylines)
                     {
                         if (pl == null || pl.IsErased) continue;
 
@@ -1353,7 +1353,7 @@ namespace IntersectUtilities
                             double sortKey = Math.Clamp(segMin, 0.0, wLen);
 
                             candidates.Add(new SegmentHit
-                            { 
+                            {
                                 PolylineId = pl.ObjectId,
                                 SegmentIndex = i,
                                 A = sA,
