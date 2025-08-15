@@ -39,9 +39,9 @@ namespace IntersectUtilities.Jigs
 		}
 
         protected override SamplerStatus Sampler(JigPrompts prompts)
-        {
-            var display = string.Join("/", _keywords.Select(k => k.Local));
-            var opts = new JigPromptPointOptions($"\nSpecify end point [{display}] ")
+        {            
+            var display = string.Join("|", _keywords.Select(k => k.StatusDisplay.Invoke(_context)));
+            var opts = new JigPromptPointOptions($"\n Specify end point  [{display}] ")
             {
                 BasePoint = _line.StartPoint,
                 UseBasePoint = true

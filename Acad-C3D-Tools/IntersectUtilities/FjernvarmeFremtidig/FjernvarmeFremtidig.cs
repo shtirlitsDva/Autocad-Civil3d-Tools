@@ -1223,19 +1223,20 @@ namespace IntersectUtilities
             var keywords = new List<LineJigKeyword<VejkantOffsetSettings>>()
             {
                 new(
-                    "_Angle", "Angle",
+                    "_Vinkel", "Vinkel",                    
                     (ed, line, ctx) =>
                     {
-                        var p = new PromptDoubleOptions("\nSet Max Angle (deg): ")
+                        var p = new PromptDoubleOptions("\nAngiv max. vinkel til detektering af parallele rør (grader): ")
                         { DefaultValue = ctx.MaxAngleDeg, UseDefaultValue = true };
                         var r = ed.GetDouble(p);
                         if (r.Status == PromptStatus.OK)
-                        { ctx.MaxAngleDeg = r.Value; prdDbg($"\nMaxAngleDeg = {ctx.MaxAngleDeg}"); }
+                        { ctx.MaxAngleDeg = r.Value; prdDbg($"\nDetekteringsvinkel = {ctx.MaxAngleDeg}"); }
                         return r.Status;
-                    }
+                    },
+                    (settings) => $"V:{settings.MaxAngleDeg.ToString("0.##")}°"
                 ),
                 new(
-                    "_Offset", "Offset",
+                    "_Bredde", "Bredde",
                     (ed, line, ctx) =>
                     {
                          //Remember original cursor position
@@ -1247,15 +1248,15 @@ namespace IntersectUtilities
                         txl.Commit();
                         localDb.TransactionManager.QueueForGraphicsFlush();
 
-                        var p = new PromptDistanceOptions("\nSet Max Offset: ")
-                        { DefaultValue = ctx.MaxOffset, UseDefaultValue = true };
+                        var p = new PromptDistanceOptions("\nAngiv vejens bredde: ")
+                        { DefaultValue = ctx.Width, UseDefaultValue = true };
                         //User moves cursor to get distance input
                         var r = ed.GetDistance(p);
 
                          if (r.Status == PromptStatus.OK)
                          {
-                             ctx.MaxOffset = r.Value;
-                             prdDbg($"\nMaxOffset = {ctx.MaxOffset}");
+                             ctx.Width = r.Value;
+                             prdDbg($"\nBredde = {ctx.Width}");
                              //Return cursor to remembered position
                              Win32Cursor.SetPosition(cx, cy);
                          }
@@ -1264,19 +1265,21 @@ namespace IntersectUtilities
                         localDb.TransactionManager.QueueForGraphicsFlush();
 
                         return r.Status;
-                    }
+                    },
+                    (settings) => $"B:{settings.Width.ToString("0.##")}m"
                 ),
                 new(
-                    "_OVerlap", "OVerlap",
+                    "_Tillæg", "Tillæg",
                     (ed, line, ctx) =>
                     {
-                        var p = new PromptDoubleOptions("\nSet Min Overlap: ")
-                        { DefaultValue = ctx.MinOverlap, UseDefaultValue = true };
+                        var p = new PromptDoubleOptions("\nAngiv tillæg: ")
+                        { DefaultValue = ctx.Supplement, UseDefaultValue = true };
                         var r = ed.GetDouble(p);
                         if (r.Status == PromptStatus.OK)
-                        { ctx.MinOverlap = r.Value; prdDbg($"\nMinOverlap = {ctx.MinOverlap}"); }
+                        { ctx.Supplement = r.Value; prdDbg($"\nTillæg = {ctx.Supplement}"); }
                         return r.Status;
-                    }
+                    },
+                    (settings) => $"T:{settings.Supplement.ToString("0.##")}m"
                 )
             };
             #endregion
@@ -1331,7 +1334,7 @@ namespace IntersectUtilities
                             double d0 = Math.Abs(wU.Cross2d(sA - A));
                             double d1 = Math.Abs(wU.Cross2d(sB - A));
                             double dMax = Math.Max(d0, d1);
-                            if (dMax > settings.MaxOffset) continue;
+                            if (dMax > settings.Width) continue;
 
                             double t0 = wU.DotProduct(sA - A);
                             double t1 = wU.DotProduct(sB - A);
@@ -1341,7 +1344,7 @@ namespace IntersectUtilities
                             double ov0 = Math.Max(0.0, segMin);
                             double ov1 = Math.Min(wLen, segMax);
                             double ovLen = Math.Max(0.0, ov1 - ov0);
-                            if (ovLen < settings.MinOverlap) continue;
+                            if (ovLen < settings.Supplement) continue;
 
                             //signed side
                             var mid = seg.MidPoint;
@@ -1364,12 +1367,14 @@ namespace IntersectUtilities
                                 Overlap1 = ov1,
                                 SignedOffset = signedOffset,
                                 SortKey = sortKey,
-                                Offset = GetOffset(pl, PipeSeriesEnum.S3, settings.MaxOffset, settings.OffsetSupplement)
+                                Offset = GetOffset(pl, PipeSeriesEnum.S3, settings.Width, settings.OffsetSupplement)
                             });
                         }
                     }
 
                     if (candidates.Count == 0) continue;
+
+                    prdDbg(string.Join(", ", candidates.Select(x => x.Offset).Distinct()));
 
                     //choose side
                     double weightLeft = 0, weightRight = 0;
@@ -1424,10 +1429,10 @@ namespace IntersectUtilities
 
                     if (squashed.Count < 1) continue;
 
-                    Polyline npl = new Polyline();
-
-                    var dir = gkLine.Normal *
+                    var dir = (gkLine.EndPoint - gkLine.StartPoint).GetPerpendicularVector() *
                         (Math.Sign(squashed.First().SignedOffset));
+
+                    Polyline npl = new Polyline();
 
                     //First point
                     var sp = gkLine.StartPoint;
@@ -1438,22 +1443,35 @@ namespace IntersectUtilities
                     {
                         var cur = squashed[i];
 
-                        //add endpoint of cur group
-                        var ep = gkLine.GetClosestPointTo(cur.B.To3d(), false);
-                        var nEp = ep.TransformBy(Matrix3d.Displacement(dir * cur.Offset));
-                        npl.AddVertexAt(npl.NumberOfVertices, nEp.To2d(), 0, 0, 0);
-                        
                         //guard against last segment
-                        if (i == squashed.Count - 1) continue;
+                        if (i == squashed.Count - 1)
+                        {
+                            //add endpoint of cur group
+                            var ep = gkLine.EndPoint;
+                            var nEp = ep.TransformBy(Matrix3d.Displacement(dir * cur.Offset));
+                            npl.AddVertexAt(npl.NumberOfVertices, nEp.To2d(), 0, 0, 0);
+                            continue;
+                        }
+                        else
+                        {
+                            //add endpoint of cur group
+                            var ep = gkLine.GetClosestPointTo(cur.B.To3d(), false);
+                            var nEp = ep.TransformBy(Matrix3d.Displacement(dir * cur.Offset));
+                            npl.AddVertexAt(npl.NumberOfVertices, nEp.To2d(), 0, 0, 0);
+                        }
 
                         //Add startpoint of next group
-                        var next = squashed[i + i];
+                        var next = squashed[i + 1];
                         sp = gkLine.GetClosestPointTo(next.A.To3d(), false);
                         nSp = sp.TransformBy(Matrix3d.Displacement(dir * next.Offset));
                         npl.AddVertexAt(npl.NumberOfVertices, nSp.To2d(), 0, 0, 0);
                     }
 
                     npl.AddEntityToDbModelSpace(localDb);
+                    npl.Color = ColorByName("yellow");
+
+                    gkLine.Color = ColorByName("red");
+                    gkLine.AddEntityToDbModelSpace(localDb);
 
                     //foreach (var c in ordered) DebugHelper.CreateDebugLine(
                     //    gkLine.GetPointAtDist(gkLine.Length / 2),
