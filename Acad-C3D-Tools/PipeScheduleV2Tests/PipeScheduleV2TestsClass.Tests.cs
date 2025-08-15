@@ -47,13 +47,13 @@ namespace PipeScheduleV2Tests
                 throw new Exception($"Expected known type, got {type}");
         }
 
-        [Ps2Test]
-        private static void GetPipeKOd_BySystemDnTypeSeries()
-        {
-            SkipIfScheduleMissing();
-            double kod = GetPipeKOd(20, IntersectUtilities.UtilsCommon.Utils.PipeSystemEnum.Stål, IntersectUtilities.UtilsCommon.Utils.PipeTypeEnum.Enkelt, IntersectUtilities.UtilsCommon.Utils.PipeSeriesEnum.S1);
-            if (Math.Abs(kod - 90.0) > 0.001) throw new Exception($"Expected kOd≈90 for DN20 S1 Enkelt Stål, got {kod}");
-        }
+        		[Ps2Test]
+		private static void GetPipeKOd_BySystemDnTypeSeries()
+		{
+			SkipIfScheduleMissing();
+			double kod = GetPipeKOd(IntersectUtilities.UtilsCommon.Utils.PipeSystemEnum.Stål, 20, IntersectUtilities.UtilsCommon.Utils.PipeTypeEnum.Enkelt, IntersectUtilities.UtilsCommon.Utils.PipeSeriesEnum.S1);
+			if (Math.Abs(kod - 90.0) > 0.001) throw new Exception($"Expected kOd≈90 for DN20 S1 Enkelt Stål, got {kod}");
+		}
 
         [Ps2Test]
         private static void GetOffset_And_StdLength()
