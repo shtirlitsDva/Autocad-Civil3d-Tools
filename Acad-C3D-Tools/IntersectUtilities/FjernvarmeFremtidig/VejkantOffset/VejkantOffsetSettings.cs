@@ -17,6 +17,7 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset
         public double MaxAngleDeg { get; set; } = 7.5;
         public double MaxOffset { get; set; } = 2.0;
         public double MinOverlap { get; set; } = 0.05;
+        public double OffsetSupplement { get; set; } = 0.0;
 
         public bool IsValid => File.Exists(Grundkort) && File.Exists(FjernvarmeDim);
 

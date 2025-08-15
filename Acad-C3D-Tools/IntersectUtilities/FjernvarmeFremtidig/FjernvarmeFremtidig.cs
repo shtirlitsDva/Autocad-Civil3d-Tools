@@ -1363,7 +1363,8 @@ namespace IntersectUtilities
                                 Overlap0 = ov0,
                                 Overlap1 = ov1,
                                 SignedOffset = signedOffset,
-                                SortKey = sortKey
+                                SortKey = sortKey,
+                                Offset = GetOffset(pl, PipeSeriesEnum.S3, settings.MaxOffset, settings.OffsetSupplement)
                             });
                         }
                     }
