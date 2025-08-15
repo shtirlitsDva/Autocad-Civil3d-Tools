@@ -1386,11 +1386,78 @@ namespace IntersectUtilities
                         .Where(c => Math.Sign(c.SignedOffset) == sideSign || Math.Abs(c.SignedOffset) < 1e-12)
                         .OrderBy(c => c.SortKey)
                         .ThenBy(c => c.Overlap0)
-                        .ToList();
+                        .ToArray();
 
-                    foreach (var c in ordered) DebugHelper.CreateDebugLine(
-                        gkLine.GetPointAtDist(gkLine.Length / 2),
-                        c.A.MidPoint(c.B).To3d(), ColorByName("yellow"));
+                    var squashed = new List<SegmentHit>();
+
+                    for (int i = 0; i < ordered.Length; i++)
+                    {
+                        var first = ordered[i];
+                        int j = i;
+
+                        // Look-ahead: merge adjacent items while Offset stays the same
+                        while (j + 1 < ordered.Length && Math.Abs(ordered[j + 1].Offset - first.Offset) < 1e-9)
+                        {
+                            j++;
+                        }
+
+                        var last = ordered[j];
+
+                        squashed.Add(new SegmentHit
+                        {
+                            PolylineId = first.PolylineId,
+                            SegmentIndex = first.SegmentIndex,
+                            A = first.A,
+                            B = last.B,
+                            S0 = first.S0,
+                            S1 = last.S1,
+                            Overlap0 = first.Overlap0,
+                            Overlap1 = last.Overlap1,
+                            SignedOffset = first.SignedOffset,
+                            SortKey = first.SortKey,
+                            Offset = first.Offset
+                        });
+
+                        // Skip over the merged group
+                        i = j;
+                    }
+
+                    if (squashed.Count < 1) continue;
+
+                    Polyline npl = new Polyline();
+
+                    var dir = gkLine.Normal *
+                        (Math.Sign(squashed.First().SignedOffset));
+
+                    //First point
+                    var sp = gkLine.StartPoint;
+                    var nSp = sp.TransformBy(Matrix3d.Displacement(dir * squashed.First().Offset));
+                    npl.AddVertexAt(0, nSp.To2d(), 0, 0, 0);
+
+                    for (int i = 0; i < squashed.Count; i++)
+                    {
+                        var cur = squashed[i];
+
+                        //add endpoint of cur group
+                        var ep = gkLine.GetClosestPointTo(cur.B.To3d(), false);
+                        var nEp = ep.TransformBy(Matrix3d.Displacement(dir * cur.Offset));
+                        npl.AddVertexAt(npl.NumberOfVertices, nEp.To2d(), 0, 0, 0);
+                        
+                        //guard against last segment
+                        if (i == squashed.Count - 1) continue;
+
+                        //Add startpoint of next group
+                        var next = squashed[i + i];
+                        sp = gkLine.GetClosestPointTo(next.A.To3d(), false);
+                        nSp = sp.TransformBy(Matrix3d.Displacement(dir * next.Offset));
+                        npl.AddVertexAt(npl.NumberOfVertices, nSp.To2d(), 0, 0, 0);
+                    }
+
+                    npl.AddEntityToDbModelSpace(localDb);
+
+                    //foreach (var c in ordered) DebugHelper.CreateDebugLine(
+                    //    gkLine.GetPointAtDist(gkLine.Length / 2),
+                    //    c.A.MidPoint(c.B).To3d(), ColorByName("yellow"));
 
                     //gkLine.AddEntityToDbModelSpace(localDb);
                     //gkLine.Dispose();

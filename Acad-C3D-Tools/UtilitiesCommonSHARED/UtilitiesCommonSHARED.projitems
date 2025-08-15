@@ -21,25 +21,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)DataManager\StierRecord.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)DouglasPeuckerReduction.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Enums.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Forms\OverlayForm.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="$(MSBuildThisFileDirectory)Forms\StringGridForm.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="$(MSBuildThisFileDirectory)Forms\StringGridForm.Designer.cs">
-      <DependentUpon>StringGridForm.cs</DependentUpon>
-    </Compile>
-    <Compile Include="$(MSBuildThisFileDirectory)Forms\StringGridFormCaller.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)UtilsCommon.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Win32Cursor.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Forms\OverlayForm.resx">
-      <DependentUpon>OverlayForm.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Forms\StringGridForm.resx">
-      <DependentUpon>StringGridForm.cs</DependentUpon>
-    </EmbeddedResource>
   </ItemGroup>
 </Project>

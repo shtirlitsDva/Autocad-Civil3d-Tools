@@ -57,6 +57,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DocsCreateCommandDescriptio
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NorsynHydraulicNuget", "NorsynHydraulicNuget\NorsynHydraulicNuget.csproj", "{67E99206-B86E-43A8-AB5D-C1DC41DECBE5}"
 EndProject
+Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "FormsSHARED", "FormsSHARED\FormsSHARED.shproj", "{30B69123-15B9-4243-946E-EE2B2953244D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -236,7 +238,10 @@ Global
 		AutoCADCommandsSHARED\AutoCADCommandsSHARED.projitems*{0f92c1bb-fadb-4df2-8ff8-f28391c1ed3c}*SharedItemsImports = 5
 		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{0f92c1bb-fadb-4df2-8ff8-f28391c1ed3c}*SharedItemsImports = 5
 		NorsynHydraulicShared\NorsynHydraulicShared.projitems*{1356cf62-02fe-40e8-a35c-976077f7f8d7}*SharedItemsImports = 13
+		FormsSHARED\FormsSHARED.projitems*{30b69123-15b9-4243-946e-ee2b2953244d}*SharedItemsImports = 13
+		FormsSHARED\FormsSHARED.projitems*{322e89dd-d28e-48c9-8807-3c3a593d9892}*SharedItemsImports = 5
 		AutoCADCommandsSHARED\AutoCADCommandsSHARED.projitems*{3dbcde07-d2c7-45a3-9bd6-5b7873a85166}*SharedItemsImports = 5
+		FormsSHARED\FormsSHARED.projitems*{3dbcde07-d2c7-45a3-9bd6-5b7873a85166}*SharedItemsImports = 5
 		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{3dbcde07-d2c7-45a3-9bd6-5b7873a85166}*SharedItemsImports = 5
 		NorsynHydraulicShared\NorsynHydraulicShared.projitems*{67e99206-b86e-43a8-ab5d-c1dc41decbe5}*SharedItemsImports = 5
 		AutoCADCommandsSHARED\AutoCADCommandsSHARED.projitems*{774d8c82-954d-40a1-993a-62c9385fdf12}*SharedItemsImports = 5
