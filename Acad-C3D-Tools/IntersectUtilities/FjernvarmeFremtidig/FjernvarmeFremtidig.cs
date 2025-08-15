@@ -1306,7 +1306,7 @@ namespace IntersectUtilities
 
                     var candidates = new List<SegmentHit>();
 
-                    foreach (var pl in polylines) 
+                    foreach (var pl in polylines)
                     {
                         if (pl == null || pl.IsErased) continue;
 
@@ -1353,7 +1353,7 @@ namespace IntersectUtilities
                             double sortKey = Math.Clamp(segMin, 0.0, wLen);
 
                             candidates.Add(new SegmentHit
-                            { 
+                            {
                                 PolylineId = pl.ObjectId,
                                 SegmentIndex = i,
                                 A = sA,
@@ -1363,7 +1363,8 @@ namespace IntersectUtilities
                                 Overlap0 = ov0,
                                 Overlap1 = ov1,
                                 SignedOffset = signedOffset,
-                                SortKey = sortKey
+                                SortKey = sortKey,
+                                Offset = GetOffset(pl, PipeSeriesEnum.S3, settings.MaxOffset, settings.OffsetSupplement)
                             });
                         }
                     }
@@ -1384,12 +1385,21 @@ namespace IntersectUtilities
                     var ordered = candidates
                         .Where(c => Math.Sign(c.SignedOffset) == sideSign || Math.Abs(c.SignedOffset) < 1e-12)
                         .OrderBy(c => c.SortKey)
-                        .ThenBy(c => c.Overlap0)
-                        .ToList();
+                        .ThenBy(c => c.Overlap0);
+                        
 
-                    foreach (var c in ordered) DebugHelper.CreateDebugLine(
-                        gkLine.GetPointAtDist(gkLine.Length / 2),
-                        c.A.MidPoint(c.B).To3d(), ColorByName("yellow"));
+
+                    //for (int i = 0; i < ordered.Count(); i++)
+                    //{
+                    //    var c = ordered[i];
+                    //    DebugHelper.CreateDebugText(
+                    //        c.A.MidPoint(c.B).To3d(),
+                    //        $"{i + 1}______{c.Offset}");
+                    //}
+
+                    //foreach (var c in ordered) DebugHelper.CreateDebugLine(
+                    //    gkLine.GetPointAtDist(gkLine.Length / 2),
+                    //    c.A.MidPoint(c.B).To3d(), ColorByName("yellow"));
 
                     //gkLine.AddEntityToDbModelSpace(localDb);
                     //gkLine.Dispose();

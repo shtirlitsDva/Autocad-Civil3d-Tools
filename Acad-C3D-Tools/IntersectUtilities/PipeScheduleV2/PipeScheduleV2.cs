@@ -592,6 +592,22 @@ namespace IntersectUtilities.PipeScheduleV2
             if (pathWidth > 7.5) offset += 0.15;
             return offset += offsetSupplement;
         }
+        public static double GetOffset(
+            Entity ent,
+            double pathWidth, double offsetSupplement = 0)
+        {            
+            return GetOffset(ent, GetPipeSeriesV2(ent), pathWidth, offsetSupplement);            
+        }
+        public static double GetOffset(
+            Entity ent, PipeSeriesEnum series,
+            double pathWidth, double offsetSupplement = 0)
+        {
+            var system = GetPipeSystem(ent);
+            var dn = GetPipeDN(ent);
+            var type = GetPipeType(ent);
+
+            return GetOffset(dn, system, type, series, pathWidth, offsetSupplement);
+        }
         public static short GetColorForDim(string layer)
         {
             layer = ExtractLayerName(layer);
