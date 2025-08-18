@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset
@@ -16,9 +17,8 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset
         public string FjernvarmeDim { get; set; } = fjernvarmeDim;
         public double MaxAngleDeg { get; set; } = 7.5;
         public double Width { get; set; } = 2.0;
-        public double Supplement { get; set; } = 0.05;
         public double OffsetSupplement { get; set; } = 0.0;
-
+        [JsonIgnore]
         public bool IsValid => File.Exists(Grundkort) && File.Exists(FjernvarmeDim);
 
         public static void SerializeToFile(VejkantOffsetSettings settings, string filePath)

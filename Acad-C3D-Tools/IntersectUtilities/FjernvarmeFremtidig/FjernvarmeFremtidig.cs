@@ -1160,11 +1160,14 @@ namespace IntersectUtilities
             }
         }
 
-#if DEBUG
         /// <command>OFFSETVK</command>
         /// <summary>
         /// Offsets selected vejkant.
         /// The offset is to middle of the nearest pipe.
+        /// Vinkel [°] - parallelisme kriterie.
+        /// Bredde [m] - normalt vejens bredde, ellers afstand langs linjen for at søge
+        /// dimensionsgivende segmenter.
+        /// Tillæg [m] - mulighed for at give afsætningen et tillæg.
         /// </summary>
         /// <category>Fjernvarme Fremtidig</category>
         [CommandMethod("OFFSETVK")]
@@ -1214,7 +1217,6 @@ namespace IntersectUtilities
             using var gkDb = new Database(false, true);
             gkDb.ReadDwgFile(settings.Grundkort, FileShare.Read, true, "");
 
-
             using var dimDb = new Database(false, true);
             dimDb.ReadDwgFile(settings.FjernvarmeDim, FileShare.Read, true, "");
             #endregion
@@ -1223,7 +1225,7 @@ namespace IntersectUtilities
             var keywords = new List<LineJigKeyword<VejkantOffsetSettings>>()
             {
                 new(
-                    "_Vinkel", "Vinkel",                    
+                    "_Vinkel", "Vinkel",
                     (ed, line, ctx) =>
                     {
                         var p = new PromptDoubleOptions("\nAngiv max. vinkel til detektering af parallele rør (grader): ")
@@ -1273,13 +1275,13 @@ namespace IntersectUtilities
                     (ed, line, ctx) =>
                     {
                         var p = new PromptDoubleOptions("\nAngiv tillæg: ")
-                        { DefaultValue = ctx.Supplement, UseDefaultValue = true };
+                        { DefaultValue = ctx.OffsetSupplement, UseDefaultValue = true };
                         var r = ed.GetDouble(p);
                         if (r.Status == PromptStatus.OK)
-                        { ctx.Supplement = r.Value; prdDbg($"\nTillæg = {ctx.Supplement}"); }
+                        { ctx.OffsetSupplement = r.Value; prdDbg($"\nTillæg = {ctx.OffsetSupplement}"); }
                         return r.Status;
                     },
-                    (settings) => $"T:{settings.Supplement.ToString("0.##")}m"
+                    (settings) => $"T:{settings.OffsetSupplement.ToString("0.##")}m"
                 )
             };
             #endregion
@@ -1303,7 +1305,7 @@ namespace IntersectUtilities
                     var wLen = wDir.Length;
                     if (wLen <= 1e-6) continue;
 
-                    var wU = wDir / wLen;
+                    var wU = wDir.GetNormal();
                     var leftNormal = new Vector2d(-wU.Y, wU.X);
                     double cosTol = Math.Cos(settings.MaxAngleDeg.ToRad());
 
@@ -1324,7 +1326,7 @@ namespace IntersectUtilities
                             var sDir = sA.GetVectorTo(sB);
                             if (sDir.Length <= 1e-6) continue;
 
-                            var sU = sDir / sDir.Length;
+                            var sU = sDir.GetNormal();
 
                             //prallelism check
                             double cos = Math.Abs(sU.DotProduct(wU));
@@ -1343,8 +1345,7 @@ namespace IntersectUtilities
                             double segMax = Math.Max(t0, t1);
                             double ov0 = Math.Max(0.0, segMin);
                             double ov1 = Math.Min(wLen, segMax);
-                            double ovLen = Math.Max(0.0, ov1 - ov0);
-                            if (ovLen < settings.Supplement) continue;
+                            if (ov1 <= ov0) continue;
 
                             //signed side
                             var mid = seg.MidPoint;
@@ -1374,7 +1375,7 @@ namespace IntersectUtilities
 
                     if (candidates.Count == 0) continue;
 
-                    prdDbg(string.Join(", ", candidates.Select(x => x.Offset).Distinct()));
+                    prdDbg(string.Join(", ", candidates.Select(x => x.Offset).Distinct()) + "\n");
 
                     //choose side
                     double weightLeft = 0, weightRight = 0;
@@ -1434,37 +1435,32 @@ namespace IntersectUtilities
 
                     Polyline npl = new Polyline();
 
-                    //First point
-                    var sp = gkLine.StartPoint;
-                    var nSp = sp.TransformBy(Matrix3d.Displacement(dir * squashed.First().Offset));
-                    npl.AddVertexAt(0, nSp.To2d(), 0, 0, 0);
+                    // unit direction along the white line (for parameter t in drawing units)
+                    var wU3 = (gkLine.EndPoint - gkLine.StartPoint).GetNormal();
+                    Point3d WL(double t) => gkLine.StartPoint + wU3 * t;
+                    
+                    // start at t=0 with the first group's offset
+                    {
+                        var p0 = WL(0.0) + dir * squashed[0].Offset;
+                        npl.AddVertexAt(npl.NumberOfVertices, p0.To2d(), 0, 0, 0);
+                    }
 
+                    // walk group-by-group using stations, not A/B
                     for (int i = 0; i < squashed.Count; i++)
                     {
                         var cur = squashed[i];
 
-                        //guard against last segment
-                        if (i == squashed.Count - 1)
-                        {
-                            //add endpoint of cur group
-                            var ep = gkLine.EndPoint;
-                            var nEp = ep.TransformBy(Matrix3d.Displacement(dir * cur.Offset));
-                            npl.AddVertexAt(npl.NumberOfVertices, nEp.To2d(), 0, 0, 0);
-                            continue;
-                        }
-                        else
-                        {
-                            //add endpoint of cur group
-                            var ep = gkLine.GetClosestPointTo(cur.B.To3d(), false);
-                            var nEp = ep.TransformBy(Matrix3d.Displacement(dir * cur.Offset));
-                            npl.AddVertexAt(npl.NumberOfVertices, nEp.To2d(), 0, 0, 0);
-                        }
+                        // end of current group at its end station (Overlap1)
+                        var pEnd = WL(cur.Overlap1) + dir * cur.Offset;
+                        npl.AddVertexAt(npl.NumberOfVertices, pEnd.To2d(), 0, 0, 0);
 
-                        //Add startpoint of next group
-                        var next = squashed[i + 1];
-                        sp = gkLine.GetClosestPointTo(next.A.To3d(), false);
-                        nSp = sp.TransformBy(Matrix3d.Displacement(dir * next.Offset));
-                        npl.AddVertexAt(npl.NumberOfVertices, nSp.To2d(), 0, 0, 0);
+                        // if there is a next group, hop at the SAME station to next offset
+                        if (i + 1 < squashed.Count)
+                        {
+                            var next = squashed[i + 1];
+                            var pHop = WL(cur.Overlap1) + dir * next.Offset;
+                            npl.AddVertexAt(npl.NumberOfVertices, pHop.To2d(), 0, 0, 0);
+                        }
                     }
 
                     npl.AddEntityToDbModelSpace(localDb);
@@ -1534,6 +1530,5 @@ namespace IntersectUtilities
                 return settings;
             }
         }
-#endif
     }
 }
