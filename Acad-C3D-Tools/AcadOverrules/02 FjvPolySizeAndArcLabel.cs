@@ -22,6 +22,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Data;
 using IntersectUtilities.UtilsCommon;
+using IntersectUtilities.UtilsCommon.Enums;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 using static IntersectUtilities.UtilsCommon.UtilsDataTables;

@@ -4,14 +4,15 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using IntersectUtilities.UtilsCommon;
+using IntersectUtilities.UtilsCommon.Enums;
 
 namespace DriPaletteSet
 {
     public class PipeSystemTypeCombination
     {
-        public Utils.PipeSystemEnum System { get; set; }
-        public Utils.PipeTypeEnum Type { get; set; }
-        public PipeSystemTypeCombination(Utils.PipeSystemEnum system, Utils.PipeTypeEnum type)
+        public PipeSystemEnum System { get; set; }
+        public PipeTypeEnum Type { get; set; }
+        public PipeSystemTypeCombination(PipeSystemEnum system, PipeTypeEnum type)
         {
             System = system;
             Type = type;

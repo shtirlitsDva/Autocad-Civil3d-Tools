@@ -28,6 +28,7 @@ using System.Reflection;
 using MoreLinq;
 //using GroupByCluster;
 using IntersectUtilities.UtilsCommon;
+using IntersectUtilities.UtilsCommon.Enums;
 //using Microsoft.Office.Interop.Excel;
 
 //using static IntersectUtilities.Enums;

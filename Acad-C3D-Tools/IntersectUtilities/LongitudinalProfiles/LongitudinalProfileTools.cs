@@ -21,6 +21,7 @@ using IntersectUtilities.PipelineNetworkSystem;
 using IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray;
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.DataManager;
+using IntersectUtilities.UtilsCommon.Enums;
 
 using MoreLinq;
 

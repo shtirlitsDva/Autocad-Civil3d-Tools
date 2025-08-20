@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using static IntersectUtilities.UtilsCommon.Utils;
+using IntersectUtilities.UtilsCommon.Enums;
 
 namespace IntersectUtilities.LongitudinalProfiles.Relocability
 {

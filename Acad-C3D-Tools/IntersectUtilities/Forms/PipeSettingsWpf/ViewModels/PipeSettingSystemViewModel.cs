@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using static IntersectUtilities.UtilsCommon.Utils;
+using IntersectUtilities.UtilsCommon.Enums;
 
 namespace IntersectUtilities.Forms.PipeSettingsWpf.ViewModels
 {

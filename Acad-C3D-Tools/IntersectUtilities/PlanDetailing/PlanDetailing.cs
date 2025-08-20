@@ -51,6 +51,7 @@ using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
+using IntersectUtilities.UtilsCommon.Enums;
 
 namespace IntersectUtilities
 {

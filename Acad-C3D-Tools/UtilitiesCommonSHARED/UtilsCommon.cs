@@ -701,6 +701,50 @@ namespace IntersectUtilities.UtilsCommon
                 dbText.AddEntityToDbModelSpace(db);
             }
         }
+
+        public static Dictionary<string, PipelineElementType> PipelineElementTypeDict =
+        new Dictionary<string, PipelineElementType>()
+        {
+                { "Pipe", PipelineElementType.Pipe },
+                { "Afgrening med spring", PipelineElementType.AfgreningMedSpring },
+                { "Afgrening, parallel", PipelineElementType.AfgreningParallel },
+                { "Afgreningsstuds", PipelineElementType.Afgreningsstuds },
+                { "Endebund", PipelineElementType.Endebund },
+                { "Engangsventil", PipelineElementType.Engangsventil },
+                { "F-Model", PipelineElementType.F_Model },
+                { "Kedelrørsbøjning", PipelineElementType.Kedelrørsbøjning },
+                { "Kedelrørsbøjning, vertikal", PipelineElementType.Kedelrørsbøjning },
+                { "Lige afgrening", PipelineElementType.LigeAfgrening },
+                { "Parallelafgrening", PipelineElementType.AfgreningParallel },
+                { "Præisoleret bøjning, 90gr", PipelineElementType.PræisoleretBøjning90gr },
+                { "Præisoleret bøjning, 45gr", PipelineElementType.PræisoleretBøjning45gr },
+                { "Præisoleret bøjning, 30gr", PipelineElementType.PræisoleretBøjning30gr },
+                { "Præisoleret bøjning, 15gr", PipelineElementType.PræisoleretBøjning15gr },
+                {
+                    "$Præisoleret bøjning, L {$L1}x{$L2} m, V {$V}°",
+                    PipelineElementType.PræisoleretBøjningVariabel
+                },
+                {
+                    "$Præisoleret bøjning, 90gr, L {$L1}x{$L2} m",
+                    PipelineElementType.PræisoleretBøjningVariabel
+                },
+                {
+                    "Præisoleret bøjning, L {$L1}x{$L2} m, V {$V}°",
+                    PipelineElementType.PræisoleretBøjningVariabel
+                },
+                { "Præisoleret ventil", PipelineElementType.PræisoleretVentil },
+                { "Præventil med udluftning", PipelineElementType.PræventilMedUdluftning },
+                { "Reduktion", PipelineElementType.Reduktion },
+                { "Svanehals", PipelineElementType.Svanehals },
+                { "Svejsetee", PipelineElementType.Svejsetee },
+                { "Svejsning", PipelineElementType.Svejsning },
+                { "Y-Model", PipelineElementType.Y_Model },
+                { "$Buerør V{$Vinkel}° R{$R} L{$L}", PipelineElementType.Buerør },
+                { "Stikafgrening", PipelineElementType.Stikafgrening },
+                { "Muffetee", PipelineElementType.Muffetee },
+                { "Preskobling tee", PipelineElementType.Muffetee },
+                { "Materialeskift {#M1}{#DN1}x{#M2}{#DN2}", PipelineElementType.Materialeskift },
+        };
     }
 
     public static class UtilsDataTables
@@ -4439,51 +4483,7 @@ namespace IntersectUtilities.UtilsCommon
         }
 
         public static DoubleCollection ToDoubleCollection(this IEnumerable<double> list) =>
-            new DoubleCollection(list.ToArray());
-
-        public static Dictionary<string, PipelineElementType> PipelineElementTypeDict =
-        new Dictionary<string, PipelineElementType>()
-        {
-                { "Pipe", PipelineElementType.Pipe },
-                { "Afgrening med spring", PipelineElementType.AfgreningMedSpring },
-                { "Afgrening, parallel", PipelineElementType.AfgreningParallel },
-                { "Afgreningsstuds", PipelineElementType.Afgreningsstuds },
-                { "Endebund", PipelineElementType.Endebund },
-                { "Engangsventil", PipelineElementType.Engangsventil },
-                { "F-Model", PipelineElementType.F_Model },
-                { "Kedelrørsbøjning", PipelineElementType.Kedelrørsbøjning },
-                { "Kedelrørsbøjning, vertikal", PipelineElementType.Kedelrørsbøjning },
-                { "Lige afgrening", PipelineElementType.LigeAfgrening },
-                { "Parallelafgrening", PipelineElementType.AfgreningParallel },
-                { "Præisoleret bøjning, 90gr", PipelineElementType.PræisoleretBøjning90gr },
-                { "Præisoleret bøjning, 45gr", PipelineElementType.PræisoleretBøjning45gr },
-                { "Præisoleret bøjning, 30gr", PipelineElementType.PræisoleretBøjning30gr },
-                { "Præisoleret bøjning, 15gr", PipelineElementType.PræisoleretBøjning15gr },
-                {
-                    "$Præisoleret bøjning, L {$L1}x{$L2} m, V {$V}°",
-                    PipelineElementType.PræisoleretBøjningVariabel
-                },
-                {
-                    "$Præisoleret bøjning, 90gr, L {$L1}x{$L2} m",
-                    PipelineElementType.PræisoleretBøjningVariabel
-                },
-                {
-                    "Præisoleret bøjning, L {$L1}x{$L2} m, V {$V}°",
-                    PipelineElementType.PræisoleretBøjningVariabel
-                },
-                { "Præisoleret ventil", PipelineElementType.PræisoleretVentil },
-                { "Præventil med udluftning", PipelineElementType.PræventilMedUdluftning },
-                { "Reduktion", PipelineElementType.Reduktion },
-                { "Svanehals", PipelineElementType.Svanehals },
-                { "Svejsetee", PipelineElementType.Svejsetee },
-                { "Svejsning", PipelineElementType.Svejsning },
-                { "Y-Model", PipelineElementType.Y_Model },
-                { "$Buerør V{$Vinkel}° R{$R} L{$L}", PipelineElementType.Buerør },
-                { "Stikafgrening", PipelineElementType.Stikafgrening },
-                { "Muffetee", PipelineElementType.Muffetee },
-                { "Preskobling tee", PipelineElementType.Muffetee },
-                { "Materialeskift {#M1}{#DN1}x{#M2}{#DN2}", PipelineElementType.Materialeskift },
-        };
+            new DoubleCollection(list.ToArray());        
     }
 
     public class PointDBHorizontalComparer : IEqualityComparer<DBPoint>

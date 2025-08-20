@@ -2,6 +2,7 @@
 
 using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 using IntersectUtilities.UtilsCommon;
+using IntersectUtilities.UtilsCommon.Enums;
 
 using NetTopologySuite.Features;
 
@@ -103,14 +104,14 @@ namespace ExportShapeFiles
             var props = new AttributesTable
             {
                 { "BlockName", br.RealName() },
-                { "BlockType", br.ReadDynamicCsvProperty(Utils.DynamicProperty.Type) },
+                { "BlockType", br.ReadDynamicCsvProperty(DynamicProperty.Type) },
                 { "Rotation", ComponentSchedule.ReadBlockRotation(br, dt) },
-                { "System", br.ReadDynamicCsvProperty(Utils.DynamicProperty.SysNavn) },
-                { "Type", br.ReadDynamicCsvProperty(Utils.DynamicProperty.System) },
-                { "DN1", br.ReadDynamicCsvProperty(Utils.DynamicProperty.DN1) },
-                { "DN2", br.ReadDynamicCsvProperty(Utils.DynamicProperty.DN2) },
-                { "Serie", br.ReadDynamicCsvProperty(Utils.DynamicProperty.Serie) },
-                { "Angle", br.ReadDynamicCsvProperty(Utils.DynamicProperty.Vinkel) }
+                { "System", br.ReadDynamicCsvProperty(DynamicProperty.SysNavn) },
+                { "Type", br.ReadDynamicCsvProperty(DynamicProperty.System) },
+                { "DN1", br.ReadDynamicCsvProperty(DynamicProperty.DN1) },
+                { "DN2", br.ReadDynamicCsvProperty(DynamicProperty.DN2) },
+                { "Serie", br.ReadDynamicCsvProperty(DynamicProperty.Serie) },
+                { "Angle", br.ReadDynamicCsvProperty(DynamicProperty.Vinkel) }
             };
 
             var geom = new NetTopologySuite.Geometries.Point(

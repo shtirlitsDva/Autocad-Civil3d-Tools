@@ -20,6 +20,7 @@ using IntersectUtilities.Forms;
 using IntersectUtilities.GraphClasses;
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.DataManager;
+using IntersectUtilities.UtilsCommon.Enums;
 
 using Microsoft.Win32;
 

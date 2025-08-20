@@ -3,6 +3,8 @@ using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
 using System;
 
+using IntersectUtilities.UtilsCommon.Enums;
+
 using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 using static IntersectUtilities.UtilsCommon.Utils;
 

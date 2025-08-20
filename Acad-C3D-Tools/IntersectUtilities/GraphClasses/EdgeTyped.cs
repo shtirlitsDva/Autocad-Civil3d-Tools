@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 using Autodesk.AutoCAD.DatabaseServices;
 using static IntersectUtilities.UtilsCommon.Utils;
+using IntersectUtilities.UtilsCommon.Enums;
 
 using QuikGraph;
 

@@ -19,6 +19,7 @@ using Autodesk.Aec.PropertyData.DatabaseServices;
 using Autodesk.AutoCAD.Colors;
 using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 using IntersectUtilities.UtilsCommon;
+using IntersectUtilities.UtilsCommon.Enums;
 using static IntersectUtilities.UtilsCommon.Utils;
 
 using AcRx = Autodesk.AutoCAD.Runtime;

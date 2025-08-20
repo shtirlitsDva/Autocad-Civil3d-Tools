@@ -48,6 +48,7 @@ using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using DataTable = System.Data.DataTable;
 using IntersectUtilities;
+using IntersectUtilities.UtilsCommon.Enums;
 
 namespace IntersectUtilities.PlanDetailing.Components
 {

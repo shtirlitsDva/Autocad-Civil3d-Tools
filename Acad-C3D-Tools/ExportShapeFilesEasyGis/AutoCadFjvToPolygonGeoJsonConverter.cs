@@ -6,6 +6,7 @@ using Dreambuild.AutoCAD;
 using IntersectUtilities;
 using IntersectUtilities.DynamicBlocks;
 using IntersectUtilities.UtilsCommon;
+using IntersectUtilities.UtilsCommon.Enums;
 
 using NetTopologySuite.Features;
 using NetTopologySuite.Geometries;

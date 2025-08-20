@@ -1166,6 +1166,7 @@ namespace IntersectUtilities
         /// Offsets selected vejkant.
         /// The offset is to middle of the nearest pipe.
         /// Vinkel [°] - parallelisme kriterie.
+        /// Serie - mulighed for at vælge en isoleringsserie.
         /// Bredde [m] - normalt vejens bredde, ellers afstand langs linjen for at søge
         /// dimensionsgivende segmenter.
         /// Tillæg [m] - mulighed for at give afsætningen et tillæg.
@@ -1272,6 +1273,20 @@ namespace IntersectUtilities
                     (settings) => $"B:{settings.Width.ToString("0.##")}m"
                 ),
                 new(
+                    "_Serie", "Serie",
+                    (ed, line, ctx) =>
+                    {
+                        var p = new PromptDoubleOptions("\nAngiv serie: ")
+                        { DefaultValue = ctx.OffsetSupplement, UseDefaultValue = true };
+                        
+                        var series = StringGridFormCaller.SelectEnum(
+                            "Vælg serie: ", [PipeSeriesEnum.Undefined]);
+                        if (series.HasValue) { ctx.Series = series.Value; prdDbg($"\nSerie = {ctx.Series}"); }
+                        return PromptStatus.OK;                        
+                    },
+                    (settings) => $"S:{settings.Series.ToString()}"
+                ),
+                new(
                     "_Tillæg", "Tillæg",
                     (ed, line, ctx) =>
                     {
@@ -1298,177 +1313,17 @@ namespace IntersectUtilities
                     var gkLine = LineJigWithKeywords<VejkantOffsetSettings>.GetLine(keywords, settings);
                     if (gkLine == null) break;
 
-                    var polylines = dimDb.ListOfType<Polyline>(dimTx);
+                    var polylines = dimDb.ListOfType<Polyline>(dimTx);                    
 
-                    var A = gkLine.StartPoint.To2d();
-                    var B = gkLine.EndPoint.To2d();
-                    var wDir = A.GetVectorTo(B);
-                    var wLen = wDir.Length;
-                    if (wLen <= 1e-6) continue;
-
-                    var wU = wDir.GetNormal();
-                    var leftNormal = new Vector2d(-wU.Y, wU.X);
-                    double cosTol = Math.Cos(settings.MaxAngleDeg.ToRad());
-
-                    var candidates = new List<SegmentHit>();
-
-                    foreach (var pl in polylines)
+                    var npl = VejKantAnalyzerOffsetter.CreateOffsetPolyline(gkLine, polylines, settings);
+                    if (npl != null)
                     {
-                        if (pl == null || pl.IsErased) continue;
+                        npl.AddEntityToDbModelSpace(localDb);
+                        npl.Color = ColorByName("yellow");
 
-                        for (int i = 0; i < pl.NumberOfVertices - 1; i++)
-                        {
-                            if (pl.GetSegmentType(i) != SegmentType.Line) continue;
-
-                            var seg = pl.GetLineSegment2dAt(i);
-
-                            var sA = seg.StartPoint;
-                            var sB = seg.EndPoint;
-                            var sDir = sA.GetVectorTo(sB);
-                            if (sDir.Length <= 1e-6) continue;
-
-                            var sU = sDir.GetNormal();
-
-                            //prallelism check
-                            double cos = Math.Abs(sU.DotProduct(wU));
-                            if (cos < cosTol) continue;
-
-                            //Offset checks
-                            double d0 = Math.Abs(wU.Cross2d(sA - A));
-                            double d1 = Math.Abs(wU.Cross2d(sB - A));
-                            double dMax = Math.Max(d0, d1);
-                            if (dMax > settings.Width) continue;
-
-                            double t0 = wU.DotProduct(sA - A);
-                            double t1 = wU.DotProduct(sB - A);
-
-                            double segMin = Math.Min(t0, t1);
-                            double segMax = Math.Max(t0, t1);
-                            double ov0 = Math.Max(0.0, segMin);
-                            double ov1 = Math.Min(wLen, segMax);
-                            if (ov1 <= ov0) continue;
-
-                            //signed side
-                            var mid = seg.MidPoint;
-                            double tm = wU.DotProduct(mid - A);
-                            var foot = A + wU * tm;
-                            double signedOffset = wU.Cross2d(mid - foot);
-
-                            //sortkey from start
-                            double sortKey = Math.Clamp(segMin, 0.0, wLen);
-
-                            candidates.Add(new SegmentHit
-                            {
-                                PolylineId = pl.ObjectId,
-                                SegmentIndex = i,
-                                A = sA,
-                                B = sB,
-                                S0 = Math.Clamp(t0, 0.0, wLen),
-                                S1 = Math.Clamp(t1, 0.0, wLen),
-                                Overlap0 = ov0,
-                                Overlap1 = ov1,
-                                SignedOffset = signedOffset,
-                                SortKey = sortKey,
-                                Offset = GetOffset(pl, PipeSeriesEnum.S3, settings.Width, settings.OffsetSupplement)
-                            });
-                        }
+                        gkLine.Color = ColorByName("red");
+                        gkLine.AddEntityToDbModelSpace(localDb);
                     }
-
-                    if (candidates.Count == 0) continue;
-
-                    prdDbg(string.Join(", ", candidates.Select(x => x.Offset).Distinct()) + "\n");
-
-                    //choose side
-                    double weightLeft = 0, weightRight = 0;
-                    foreach (var c in candidates)
-                    {
-                        double w = Math.Max(1e-9, c.Overlap1 - c.Overlap0);
-                        if (c.SignedOffset >= 0) weightLeft += w;
-                        else weightRight += w;
-                    }
-                    int sideSign = (weightLeft >= weightRight) ? 1 : -1;
-                    var sideNormal = sideSign >= 0 ? leftNormal : -leftNormal;
-
-                    var ordered = candidates
-                        .Where(c => Math.Sign(c.SignedOffset) == sideSign || Math.Abs(c.SignedOffset) < 1e-12)
-                        .OrderBy(c => c.SortKey)
-                        .ThenBy(c => c.Overlap0)
-                        .ToArray();
-
-                    var squashed = new List<SegmentHit>();
-
-                    for (int i = 0; i < ordered.Length; i++)
-                    {
-                        var first = ordered[i];
-                        int j = i;
-
-                        // Look-ahead: merge adjacent items while Offset stays the same
-                        while (j + 1 < ordered.Length && Math.Abs(ordered[j + 1].Offset - first.Offset) < 1e-9)
-                        {
-                            j++;
-                        }
-
-                        var last = ordered[j];
-
-                        squashed.Add(new SegmentHit
-                        {
-                            PolylineId = first.PolylineId,
-                            SegmentIndex = first.SegmentIndex,
-                            A = first.A,
-                            B = last.B,
-                            S0 = first.S0,
-                            S1 = last.S1,
-                            Overlap0 = first.Overlap0,
-                            Overlap1 = last.Overlap1,
-                            SignedOffset = first.SignedOffset,
-                            SortKey = first.SortKey,
-                            Offset = first.Offset
-                        });
-
-                        // Skip over the merged group
-                        i = j;
-                    }
-
-                    if (squashed.Count < 1) continue;
-
-                    var dir = (gkLine.EndPoint - gkLine.StartPoint).GetPerpendicularVector() *
-                        (Math.Sign(squashed.First().SignedOffset));
-
-                    Polyline npl = new Polyline();
-
-                    // unit direction along the white line (for parameter t in drawing units)
-                    var wU3 = (gkLine.EndPoint - gkLine.StartPoint).GetNormal();
-                    Point3d WL(double t) => gkLine.StartPoint + wU3 * t;
-                    
-                    // start at t=0 with the first group's offset
-                    {
-                        var p0 = WL(0.0) + dir * squashed[0].Offset;
-                        npl.AddVertexAt(npl.NumberOfVertices, p0.To2d(), 0, 0, 0);
-                    }
-
-                    // walk group-by-group using stations, not A/B
-                    for (int i = 0; i < squashed.Count; i++)
-                    {
-                        var cur = squashed[i];
-
-                        // end of current group at its end station (Overlap1)
-                        var pEnd = WL(cur.Overlap1) + dir * cur.Offset;
-                        npl.AddVertexAt(npl.NumberOfVertices, pEnd.To2d(), 0, 0, 0);
-
-                        // if there is a next group, hop at the SAME station to next offset
-                        if (i + 1 < squashed.Count)
-                        {
-                            var next = squashed[i + 1];
-                            var pHop = WL(cur.Overlap1) + dir * next.Offset;
-                            npl.AddVertexAt(npl.NumberOfVertices, pHop.To2d(), 0, 0, 0);
-                        }
-                    }
-
-                    npl.AddEntityToDbModelSpace(localDb);
-                    npl.Color = ColorByName("yellow");
-
-                    gkLine.Color = ColorByName("red");
-                    gkLine.AddEntityToDbModelSpace(localDb);
 
                     //foreach (var c in ordered) DebugHelper.CreateDebugLine(
                     //    gkLine.GetPointAtDist(gkLine.Length / 2),
@@ -1497,8 +1352,8 @@ namespace IntersectUtilities
                 for (int o = 0; o < iroot.NumOut; o++)
                 {
                     XrefGraphNode? child = iroot.Out(o) as XrefGraphNode;
-                    if (child == null) continue;
-                    var fn = child.Database.Filename;
+                    if (child == null || child.XrefStatus != XrefStatus.Resolved) continue;
+                    var fn = child.Database.Filename;                    
                     infd.Add(Path.GetFileNameWithoutExtension(fn), fn);
                     gatherChildrenNames(child, infd);
                 }
@@ -1506,7 +1361,7 @@ namespace IntersectUtilities
 
             static VejkantOffsetSettings? setFilePaths(Database db)
             {
-                db.ResolveXrefs(true, false);
+                //db.ResolveXrefs(true, false);
                 XrefGraph xg = db.GetHostDwgXrefGraph(true);
                 GraphNode root = xg.RootNode;
                 Dictionary<string, string> nameFileDict = [];

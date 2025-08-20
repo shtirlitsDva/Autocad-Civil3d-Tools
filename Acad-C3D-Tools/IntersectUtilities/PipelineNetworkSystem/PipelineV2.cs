@@ -5,6 +5,7 @@ using Autodesk.Civil.DatabaseServices;
 using IntersectUtilities.Collections;
 using IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray;
 using IntersectUtilities.UtilsCommon;
+using IntersectUtilities.UtilsCommon.Enums;
 
 using MoreLinq;
 

@@ -108,9 +108,6 @@
 		<Compile Include="..\IntersectUtilities\CsvReader.cs">
 			<Link>CsvReader.cs</Link>
 		</Compile>
-		<Compile Include="..\IntersectUtilities\PipeSchedule.cs">
-			<Link>PipeSchedule.cs</Link>
-		</Compile>
 		<Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeScheduleV2.cs">
 			<Link>PipeScheduleV2\PipeScheduleV2.cs</Link>
 		</Compile>
@@ -134,4 +131,5 @@
 	</ItemGroup>
 	<Import Project="..\UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems" Label="Shared" />
 	<Import Project="..\AutoCADCommandsSHARED\AutoCADCommandsSHARED.projitems" Label="Shared" />
+	<Import Project="..\FormsSHARED\FormsSHARED.projitems" Label="Shared" />
 </Project>

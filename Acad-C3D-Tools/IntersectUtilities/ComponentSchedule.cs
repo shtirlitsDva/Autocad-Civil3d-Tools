@@ -13,6 +13,8 @@ using static IntersectUtilities.UtilsCommon.UtilsDataTables;
 using static IntersectUtilities.UtilsCommon.Utils;
 using System.Data;
 using System.Collections.Generic;
+using static IntersectUtilities.UtilsCommon.Utils;
+using IntersectUtilities.UtilsCommon.Enums;
 
 namespace IntersectUtilities
 {

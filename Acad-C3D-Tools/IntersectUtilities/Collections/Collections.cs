@@ -7,6 +7,7 @@ using System.Text.RegularExpressions;
 using Autodesk.AutoCAD.DatabaseServices;
 
 using IntersectUtilities.UtilsCommon;
+using IntersectUtilities.UtilsCommon.Enums;
 using static IntersectUtilities.UtilsCommon.Utils;
 using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 
