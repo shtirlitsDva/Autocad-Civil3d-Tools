@@ -13,6 +13,7 @@ using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset;
 using IntersectUtilities.Jigs;
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.DataManager;
+using IntersectUtilities.UtilsCommon.Enums;
 
 using MoreLinq;
 

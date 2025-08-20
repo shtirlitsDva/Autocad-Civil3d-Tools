@@ -7,6 +7,8 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
+using IntersectUtilities.UtilsCommon.Enums;
+
 namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset
 {
     internal class VejkantOffsetSettings(string grundkort, string fjernvarmeDim)
@@ -17,6 +19,7 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset
         public string FjernvarmeDim { get; set; } = fjernvarmeDim;
         public double MaxAngleDeg { get; set; } = 7.5;
         public double Width { get; set; } = 2.0;
+        public PipeSeriesEnum Series { get; set; } = PipeSeriesEnum.S3;
         public double OffsetSupplement { get; set; } = 0.0;
         [JsonIgnore]
         public bool IsValid => File.Exists(Grundkort) && File.Exists(FjernvarmeDim);
