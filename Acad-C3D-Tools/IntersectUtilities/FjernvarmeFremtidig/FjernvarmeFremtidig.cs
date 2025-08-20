@@ -829,7 +829,7 @@ namespace IntersectUtilities
             }
         }
 
-        /// <command>DECORATEPOLYLINES</command>
+        /// <command>DECORATEPOLYLINEs</command>
         /// <summary>
         /// Is used when creaing alignments.
         /// In a new drawing, fjernvarme fremtidig must be xrefed in.
@@ -1302,19 +1302,21 @@ namespace IntersectUtilities
             };
             #endregion
 
-            while (true)
+            // Get all lines continuously using the new method
+            var gkLines = LineJigWithKeywords<VejkantOffsetSettings>.GetLinesContinuous(keywords, settings);
+            if (gkLines.Count == 0) return;
+
+            // Process all collected lines
+            using var tx = localDb.TransactionManager.StartTransaction();
+            using var gkTx = gkDb.TransactionManager.StartTransaction();
+            using var dimTx = dimDb.TransactionManager.StartTransaction();
+
+            try
             {
-                using var tx = localDb.TransactionManager.StartTransaction();
-                using var gkTx = gkDb.TransactionManager.StartTransaction();
-                using var dimTx = dimDb.TransactionManager.StartTransaction();
+                var polylines = dimDb.ListOfType<Polyline>(dimTx);
 
-                try
+                foreach (var gkLine in gkLines)
                 {
-                    var gkLine = LineJigWithKeywords<VejkantOffsetSettings>.GetLine(keywords, settings);
-                    if (gkLine == null) break;
-
-                    var polylines = dimDb.ListOfType<Polyline>(dimTx);                    
-
                     var npl = VejKantAnalyzerOffsetter.CreateOffsetPolyline(gkLine, polylines, settings);
                     if (npl != null)
                     {
@@ -1328,22 +1330,25 @@ namespace IntersectUtilities
                     //foreach (var c in ordered) DebugHelper.CreateDebugLine(
                     //    gkLine.GetPointAtDist(gkLine.Length / 2),
                     //    c.A.MidPoint(c.B).To3d(), ColorByName("yellow"));
+                }
 
-                    //gkLine.AddEntityToDbModelSpace(localDb);
-                    //gkLine.Dispose();
-                }
-                catch (System.Exception ex)
+                // Clean up the temporary lines
+                foreach (var gkLine in gkLines)
                 {
-                    tx.Abort();
-                    gkTx.Abort();
-                    dimTx.Abort();
-                    prdDbg(ex);
-                    return;
+                    gkLine.Dispose();
                 }
-                tx.Commit();
+            }
+            catch (System.Exception ex)
+            {
+                tx.Abort();
                 gkTx.Abort();
                 dimTx.Abort();
+                prdDbg(ex);
+                return;
             }
+            tx.Commit();
+            gkTx.Abort();
+            dimTx.Abort();
             // Persist any changes to settings made via keywords
             settings.SerializeToFile(pathToSettings);
 
