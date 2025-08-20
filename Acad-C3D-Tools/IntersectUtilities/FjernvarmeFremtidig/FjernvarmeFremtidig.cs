@@ -1222,7 +1222,7 @@ namespace IntersectUtilities
             using var dimDb = new Database(false, true);
             dimDb.ReadDwgFile(settings.FjernvarmeDim, FileShare.Read, true, "");
             #endregion
-
+            
             #region Set up keywords
             var keywords = new List<LineJigKeyword<VejkantOffsetSettings>>()
             {
@@ -1302,53 +1302,24 @@ namespace IntersectUtilities
             };
             #endregion
 
-            // Get all lines continuously using the new method
-            var gkLines = LineJigWithKeywords<VejkantOffsetSettings>.GetLinesContinuous(keywords, settings);
-            if (gkLines.Count == 0) return;
-
-            // Process all collected lines
-            using var tx = localDb.TransactionManager.StartTransaction();
-            using var gkTx = gkDb.TransactionManager.StartTransaction();
-            using var dimTx = dimDb.TransactionManager.StartTransaction();
-
+            // Controller-driven: command initializes and hands off control, no business logic here
             try
             {
-                var polylines = dimDb.ListOfType<Polyline>(dimTx);
+                var controller = new VejkantOffset.App.OffsetJigController(
+                    analyzer: new VejkantOffset.App.AnalyzerAdapter(),
+                    renderer: new VejkantOffset.Rendering.TransientPreviewRenderer(),
+                    visualizer: new VejkantOffset.UI.Views.OffsetPaletteViewModelVisualizer(),
+                    dimDb: dimDb,
+                    gkDb: gkDb,
+                    settings: settings);
 
-                foreach (var gkLine in gkLines)
-                {
-                    var npl = VejKantAnalyzerOffsetter.CreateOffsetPolyline(gkLine, polylines, settings);
-                    if (npl != null)
-                    {
-                        npl.AddEntityToDbModelSpace(localDb);
-                        npl.Color = ColorByName("yellow");
-
-                        gkLine.Color = ColorByName("red");
-                        gkLine.AddEntityToDbModelSpace(localDb);
-                    }
-
-                    //foreach (var c in ordered) DebugHelper.CreateDebugLine(
-                    //    gkLine.GetPointAtDist(gkLine.Length / 2),
-                    //    c.A.MidPoint(c.B).To3d(), ColorByName("yellow"));
-                }
-
-                // Clean up the temporary lines
-                foreach (var gkLine in gkLines)
-                {
-                    gkLine.Dispose();
-                }
+                controller.Run(keywords);
             }
             catch (System.Exception ex)
             {
-                tx.Abort();
-                gkTx.Abort();
-                dimTx.Abort();
                 prdDbg(ex);
                 return;
             }
-            tx.Commit();
-            gkTx.Abort();
-            dimTx.Abort();
             // Persist any changes to settings made via keywords
             settings.SerializeToFile(pathToSettings);
 

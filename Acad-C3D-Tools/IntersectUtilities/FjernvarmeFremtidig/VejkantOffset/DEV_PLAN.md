@@ -163,6 +163,13 @@ public interface IWpfVisualizer
 }
 ```
 
+Controller entry point (called by command):
+
+```csharp
+// VejkantOffset/App/OffsetJigController.cs
+public void Run(IEnumerable<LineJigKeyword<VejkantOffsetSettings>> keywords);
+```
+
 ---
 
 ### MVVM (WPF) with CommunityToolkit
@@ -180,10 +187,14 @@ public interface IWpfVisualizer
 
 ### Interaction rules
 
-- Continuous jig:
-  - First invocation: prompt for start.
+- Command is thin: init and launch only
+  - Command constructs `OffsetJigController` with DBs, settings, and renderer/visualizer.
+  - Command calls `controller.Run(keywords)` and returns.
+
+- Controller drives the operation loop
+  - Internally asks the jig to acquire points and drags (via callbacks), repeatedly, until stop.
   - As user moves, sampler triggers `OnSamplerPointChanged` → analyze → render preview → update UI.
-  - On OK: `OnCommit` → commit DB polyline, start next segment from last end.
+  - On OK: `OnCommit` → commit DB polyline (and guide line) to local DB, seed next start at last end.
   - On Esc: first → `OnCancelLevel1` (reset to start prompt, clear preview); second → `OnCancelLevel2` (full exit & cleanup).
 
 ---

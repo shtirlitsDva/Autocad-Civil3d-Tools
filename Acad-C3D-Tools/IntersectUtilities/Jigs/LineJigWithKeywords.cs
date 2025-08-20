@@ -19,6 +19,7 @@ namespace IntersectUtilities.Jigs
 		private readonly IReadOnlyList<LineJigKeyword<TContext>> _keywords;
 		private readonly Dictionary<string, LineJigKeyword<TContext>> _keywordMap;
 		private readonly TContext _context;
+		private readonly ILineJigCallbacks? _callbacks;
 		private Point3d _end; // dynamic (rubber-banded) point
 
 		public LineJigWithKeywords(Line line, IEnumerable<LineJigKeyword<TContext>>? keywords, TContext context)
@@ -35,7 +36,14 @@ namespace IntersectUtilities.Jigs
 						_keywordMap[key.Local] = key;
 				}
 			_context = context;
+			_callbacks = null;
 			_end = line.EndPoint;
+		}
+
+		public LineJigWithKeywords(Line line, IEnumerable<LineJigKeyword<TContext>>? keywords, TContext context, ILineJigCallbacks callbacks)
+			: this(line, keywords, context)
+		{
+			_callbacks = callbacks;
 		}
 
         protected override SamplerStatus Sampler(JigPrompts prompts)
@@ -71,6 +79,7 @@ namespace IntersectUtilities.Jigs
                 return SamplerStatus.NoChange;
 
             _end = res.Value;
+            _callbacks?.OnSamplerPointChanged(_line.StartPoint, _end);
             return SamplerStatus.OK;
         }
 
@@ -88,6 +97,7 @@ namespace IntersectUtilities.Jigs
             if (_keywordMap.TryGetValue(keyword, out var k))
             {
                 status = k.Handler(ed, _line, _context);
+                _callbacks?.OnKeyword(keyword);
                 return true;
             }
 
@@ -97,6 +107,11 @@ namespace IntersectUtilities.Jigs
 
         public static Line? GetLine(IEnumerable<LineJigKeyword<TContext>>? keywords, TContext context)
         {
+            return GetLine(keywords, context, callbacks: null);
+        }
+
+        public static Line? GetLine(IEnumerable<LineJigKeyword<TContext>>? keywords, TContext context, ILineJigCallbacks? callbacks)
+        {
             var ed = Application.DocumentManager.MdiActiveDocument.Editor;
 
             Point3d sp = Interaction.GetPoint("Select start location: ");
@@ -104,7 +119,9 @@ namespace IntersectUtilities.Jigs
 
             Line ln = new Line(sp, Point3d.Origin);
 
-            var jig = new LineJigWithKeywords<TContext>(ln, keywords, context);
+            var jig = callbacks == null
+                ? new LineJigWithKeywords<TContext>(ln, keywords, context)
+                : new LineJigWithKeywords<TContext>(ln, keywords, context, callbacks);
 
             while (true)
             {
@@ -124,10 +141,12 @@ namespace IntersectUtilities.Jigs
                 }
                 else if (drag.Status == PromptStatus.OK)
                 {
+                    callbacks?.OnCommit(ln);
                     return ln;
                 }
                 else
                 {
+                    callbacks?.OnCancelLevel1();
                     ln.Dispose();
                     return null;
                 }
