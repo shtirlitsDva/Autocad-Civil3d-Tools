@@ -18,9 +18,9 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App
 			_cancelArmed = false;
 		}
 
-		public void OnSamplerPointChanged(Point3d start, Point3d end)
+		public void OnSamplerPointChanged(Line line)
 		{
-			_controller.OnSamplerPointChanged(start, end);
+			_controller.OnSamplerPointChanged(line);
 		}
 
 		public void OnKeyword(string keyword)

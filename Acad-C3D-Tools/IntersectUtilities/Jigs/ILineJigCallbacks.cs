@@ -5,7 +5,7 @@ namespace IntersectUtilities.Jigs
 {
 	public interface ILineJigCallbacks
 	{
-		void OnSamplerPointChanged(Point3d start, Point3d end);
+		void OnSamplerPointChanged(Line line);
 		void OnKeyword(string keyword);
 		void OnCommit(Line line);
 		void OnCancelLevel1();
