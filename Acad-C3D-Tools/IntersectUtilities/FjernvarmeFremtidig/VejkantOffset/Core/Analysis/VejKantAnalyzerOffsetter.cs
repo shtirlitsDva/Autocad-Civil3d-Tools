@@ -96,7 +96,7 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset
 
 			if (candidates.Count == 0) return null;
 
-			prdDbg(string.Join(", ", candidates.Select(x => x.Offset).Distinct()) + "\n");
+			//prdDbg(string.Join(", ", candidates.Select(x => x.Offset).Distinct()) + "\n");
 
 			//choose side
 			double weightLeft = 0, weightRight = 0;

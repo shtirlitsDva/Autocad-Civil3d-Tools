@@ -10,8 +10,12 @@ using Autodesk.Civil.DatabaseServices;
 using Dreambuild.AutoCAD;
 
 using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset;
+using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.Core;
+using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.Core.Models;
 using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App;
 using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.Rendering;
+using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.UI;
+using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.UI.Models;
 using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.UI.Views;
 
 using IntersectUtilities.Jigs;
@@ -1226,7 +1230,7 @@ namespace IntersectUtilities
             using var dimDb = new Database(false, true);
             dimDb.ReadDwgFile(settings.FjernvarmeDim, FileShare.Read, true, "");
             #endregion
-            
+
             #region Set up keywords
             var keywords = new List<LineJigKeyword<VejkantOffsetSettings>>()
             {
@@ -1282,11 +1286,11 @@ namespace IntersectUtilities
                     {
                         var p = new PromptDoubleOptions("\nAngiv serie: ")
                         { DefaultValue = ctx.OffsetSupplement, UseDefaultValue = true };
-                        
+
                         var series = StringGridFormCaller.SelectEnum(
                             "Vælg serie: ", [PipeSeriesEnum.Undefined]);
                         if (series.HasValue) { ctx.Series = series.Value; prdDbg($"\nSerie = {ctx.Series}"); }
-                        return PromptStatus.OK;                        
+                        return PromptStatus.OK;
                     },
                     (settings) => $"S:{settings.Series.ToString()}"
                 ),
@@ -1306,18 +1310,16 @@ namespace IntersectUtilities
             };
             #endregion
 
-            // Controller-driven: command initializes and hands off control, no business logic here
             try
             {
-                var controller = new OffsetJigController(
-                    analyzer: new AnalyzerAdapter(),
+                var controller = new JigController<VejkantAnalysis, OffsetInspectorModel, VejkantOffsetSettings>(
+                    analyzer: new VejkantAnalyzer(dimDb, gkDb, localDb, settings),
                     renderer: new TransientPreviewRenderer(),
                     visualizer: new OffsetPaletteViewModelVisualizer(),
-                    dimDb: dimDb,
-                    gkDb: gkDb,
-                    settings: settings);
+                    sceneComposer: new VejkantSceneComposer(),
+                    inspectorMapper: new VejkantInspectorMapper());
 
-                controller.Run(keywords);
+                controller.Run(keywords, settings);
             }
             catch (System.Exception ex)
             {
@@ -1333,7 +1335,7 @@ namespace IntersectUtilities
                 {
                     XrefGraphNode? child = iroot.Out(o) as XrefGraphNode;
                     if (child == null || child.XrefStatus != XrefStatus.Resolved) continue;
-                    var fn = child.Database.Filename;                    
+                    var fn = child.Database.Filename;
                     infd.Add(Path.GetFileNameWithoutExtension(fn), fn);
                     gatherChildrenNames(child, infd);
                 }

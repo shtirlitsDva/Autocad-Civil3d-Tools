@@ -1,20 +1,19 @@
 using Autodesk.AutoCAD.DatabaseServices;
+using ADB = Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 
 using IntersectUtilities.Jigs;
 
 namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App
 {
-	internal sealed class JigCallbacksAdapter : ILineJigCallbacks
+	internal sealed class JigCallbacksAdapter<TAnalysis, TInspectorModel, TContext> : ILineJigCallbacks
 	{
-		private readonly OffsetJigController _controller;
-		private readonly Database _targetDb;
+		private readonly JigController<TAnalysis, TInspectorModel, TContext> _controller;
 		private bool _cancelArmed;
 
-		public JigCallbacksAdapter(OffsetJigController controller, Database targetDb)
+		public JigCallbacksAdapter(JigController<TAnalysis, TInspectorModel, TContext> controller)
 		{
 			_controller = controller;
-			_targetDb = targetDb;
 			_cancelArmed = false;
 		}
 
@@ -25,13 +24,12 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App
 
 		public void OnKeyword(string keyword)
 		{
-			// No-op for now; could route to controller if needed
 		}
 
 		public void OnCommit(Line line)
 		{
-			_controller.OnCommit(line, _targetDb);
-			_cancelArmed = false; // reset the cancel state after a successful commit
+			_controller.OnCommit(line);
+			_cancelArmed = false;
 		}
 
 		public void OnCancelLevel1()
@@ -39,7 +37,7 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App
 			if (!_cancelArmed)
 			{
 				_controller.OnCancelLevel1();
-				_cancelArmed = true; // first escape
+				_cancelArmed = true;
 			}
 			else
 			{

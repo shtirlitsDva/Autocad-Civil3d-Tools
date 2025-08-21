@@ -9,7 +9,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-        <StackPanel Orientation="Horizontal" Spacing="12">
+        <StackPanel Orientation="Horizontal">
             <TextBlock Text="Length:"/>
             <TextBlock Text="{Binding CurrentLength, StringFormat=F2}"/>
             <TextBlock Text="Side:" Margin="16,0,0,0"/>

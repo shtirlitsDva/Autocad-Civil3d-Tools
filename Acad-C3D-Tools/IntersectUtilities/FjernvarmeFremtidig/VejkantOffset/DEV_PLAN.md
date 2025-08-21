@@ -5,9 +5,9 @@ This document is the single source of truth for the continuous jig workflow, liv
 ### Core goals
 - Keep the jig generic and reusable; do not create a new jig type dedicated to Vejkanter.
 - Add continuous operation: every committed end point seeds the next segment start.
-- On every sampler move, run `VejKantAnalyzerOffsetter` and show a live offset polyline via AutoCAD Transient graphics.
+- On every sampler move, run `VejKantAnalyzerOffsetter` and show a live offset preview via AutoCAD Transient graphics.
 - First Escape returns to “Select first point”; second Escape exits.
-- Provide a WPF MVVM visualizer (CommunityToolkit) that shows the jigged line and the vejkanter it crosses.
+- Provide a WPF MVVM visualizer that remains domain-agnostic; Vejkant-specific logic stays in analyzer and mappers.
 - Encapsulate Vejkant-specific logic in `VejkantOffset/` and keep `Jigs/LineJigWithKeywords<TContext>` task-agnostic.
 
 ---
@@ -17,36 +17,25 @@ This document is the single source of truth for the continuous jig workflow, liv
 ```mermaid
 flowchart TD
   User["User"] -->|Drag / Keywords / Escape| Jig["LineJigWithKeywords<TContext> (generic)"]
-  Jig -->|Sampler point| Ctrl["OffsetJigController (Vejkant-specific)"]
+  Jig -->|Sampler point| Ctrl["JigController<TAnalysis,TInspectorModel,TContext>"]
   Jig -->|Keywords| Ctrl
   Jig -->|OK / Cancel| Ctrl
 
-  Ctrl --> Analyzer["IOffsetAnalyzer → VejKantAnalyzerOffsetter"]
+  Ctrl --> Analyzer["IAnalyzer<Line,TAnalysis> (VejkantAnalyzer)"]
   Analyzer --> Ctrl
 
-  Ctrl --> Render["ITransientRenderer (TransientManager)"]
-  Ctrl --> Viz["IWpfVisualizer (PaletteSet + WPF, MVVM)"]
+  Ctrl --> SceneComposer["ISceneComposer<TAnalysis>"]
+  SceneComposer --> Render["IRenderer (TransientManager)"]
+  Ctrl --> InspectorMapper["IInspectorMapper<TAnalysis,TInspectorModel>"]
+  InspectorMapper --> Viz["IVisualizer<TInspectorModel> (PaletteSet + WPF, MVVM)"]
 
-  Ctrl --> DB[(AutoCAD DB)]
-  Ctrl -->|Set next start point| Jig
+  Ctrl --> DB[(AutoCAD DB)]:::db
+  Analyzer -. owns .-> DB
 
-  subgraph Runtime_State
-    Jig
-    Ctrl
-    Render
-    Viz
-  end
-
-  subgraph Data_Sources
-    GK[gkDb: vejkanter plines]
-    DIM[dimDb: dimensionering plines]
-  end
-
-  Ctrl -. preload .-> GK
-  Ctrl -. preload .-> DIM
+classDef db fill:#eef,stroke:#99f
 ```
 
-Key principle: Jig remains agnostic. Vejkant logic lives entirely in the controller and collaborators.
+Key principle: Renderer and Visualizer are domain-agnostic. Only the Analyzer and Composers/Mappers are Vejkant-specific.
 
 ---
 
@@ -55,33 +44,30 @@ Key principle: Jig remains agnostic. Vejkant logic lives entirely in the control
 - Jig: `LineJigWithKeywords<TContext>` (existing, generic)
   - Provides a continuous workflow by reusing the end point as the next start point.
   - Exposes extensibility via optional callbacks (no Vejkant dependencies):
-    - `OnSamplerPointChanged(Point3d start, Point3d end)`
+    - `OnSamplerPointChanged(Line line)`
     - `OnKeyword(string keyword)`
     - `OnCommit(Line line)` — user confirms end point
     - `OnCancelLevel1()` — return to start-point prompt
     - `OnCancelLevel2()` — exit jig
-  - Note: We can implement these as constructor-injected delegates or an interface `ILineJigCallbacks` to avoid tight coupling.
 
-- Controller: `OffsetJigController` (Vejkant-specific)
-  - Preloads and caches geometry from `gkDb` and `dimDb` for fast analysis (2D segments, ObjectIds, etc.).
-  - On every sampler tick, converts the work line to 2D and calls `IOffsetAnalyzer`.
-  - Pushes a preview (offset polyline + helpers) to `ITransientRenderer`.
-  - Sends a snapshot DTO to the WPF visualizer for schematic rendering.
-  - On commit: adds the resulting offset polyline to the DB (colors, layers) and seeds next start.
-  - On cancel L1: clears preview and returns to start-point selection.
-  - On cancel L2: full cleanup and dispose.
+- Controller: `JigController<TAnalysis, TInspectorModel, TContext>` (generic)
+  - No DB access; orchestrates services.
+  - On sampler tick: `Analyze(Line)` → `SceneComposer.Compose` → `IRenderer.Show`; `IInspectorMapper.Map` → `IVisualizer.Update`.
+  - On commit: repeats analyze, clears renderer, updates visualizer, then `IAnalyzer.Commit`.
+  - On cancel: clears preview or hides UI.
 
-- Analyzer: `IOffsetAnalyzer` → adapter over `VejKantAnalyzerOffsetter`
-  - Stable contract for analysis; internally uses `VejKantAnalyzerOffsetter.CreateOffsetPolyline(Line, IEnumerable<Polyline>, VejkantOffsetSettings)`.
-  - Enables testing/mocking and future replacement.
+- Analyzer: `IAnalyzer<Line, VejkantAnalysis>` → `VejkantAnalyzer`
+  - Constructed with DBs and settings.
+  - Returns domain result `VejkantAnalysis`; owns `Commit` to DB.
 
-- Renderer: `ITransientRenderer`
-  - Draws transient preview of the current jig line, computed offset polyline, and optional helpers (stations, normal hops).
-  - Provides `Show(PreviewModel)` and `Clear()`.
+- Rendering (domain-agnostic)
+  - `Scene`, `IRenderable`, `IRenderVisitor`, primitives: `Line2D`, `Arc2D`, `PolyPath2D`, `Style`.
+  - `IRenderer.Show(Scene)`, `Clear()`.
 
-- Visualizer: `IWpfVisualizer` (PaletteSet-hosted WPF)
-  - MVVM with CommunityToolkit. Receives simple DTOs describing the current sampler state and intersections.
-  - Renders a longitudinal schematic similar to the provided image.
+- Visualization (domain-agnostic)
+  - `IVisualizer<TInspectorModel>`.
+  - Vejkant UI model: `OffsetInspectorModel`.
+  - Mapper: `IInspectorMapper<VejkantAnalysis, OffsetInspectorModel>`.
 
 ---
 
@@ -90,23 +76,27 @@ Key principle: Jig remains agnostic. Vejkant logic lives entirely in the control
 ```
 VejkantOffset/
   App/
-    OffsetJigController.cs
+    OffsetJigController.cs (JigController<TAnalysis,TInspectorModel,TContext>)
     Contracts/
-      IOffsetAnalyzer.cs
-      ITransientRenderer.cs
-      IWpfVisualizer.cs
-      PreviewModel.cs
-      SamplerSnapshot.cs
+      IOffsetAnalyzer.cs (IAnalyzer<,>, ISceneComposer<>, IInspectorMapper<,>)
+      ITransientRenderer.cs (IRenderer)
+      IWpfVisualizer.cs (IVisualizer<TModel>)
   Core/
     Analysis/
       VejKantAnalyzerOffsetter.cs
     Models/
       SegmentHit.cs
+      VejkantAnalysis.cs
     Settings/
       VejkantOffsetSettings.cs
   Rendering/
+    Scene.cs (Scene, IRenderable, IRenderVisitor, Line2D, Arc2D, PolyPath2D, Style)
     TransientPreviewRenderer.cs
+    VejkantSceneComposer.cs
   UI/
+    Models/
+      OffsetInspectorModel.cs
+    VejkantInspectorMapper.cs
     Views/
       OffsetPaletteView.xaml
       OffsetPaletteView.xaml.cs
@@ -117,8 +107,8 @@ VejkantOffset/
 ```
 
 Notes:
-- Generic jig stays in `Jigs/` as `LineJigWithKeywords<TContext>`. We may rename to `ContinuousLineJig<TContext>` only if it clarifies intent, but it must remain task-agnostic.
-- Existing files will be moved into `Core/Analysis`, `Core/Models`, and `Core/Settings` accordingly.
+- Generic jig stays in `Jigs/` as `LineJigWithKeywords<TContext>`.
+- Analyzer owns DB access; controller is DB-free.
 
 ---
 
@@ -128,37 +118,40 @@ Notes:
 // Jigs/LineJigWithKeywords.cs (generic)
 public interface ILineJigCallbacks
 {
-    void OnSamplerPointChanged(Point3d start, Point3d end);
+    void OnSamplerPointChanged(Line line);
     void OnKeyword(string keyword);
     void OnCommit(Line line);
     void OnCancelLevel1();
     void OnCancelLevel2();
 }
 
-// Optional in constructor; null-safe
-public LineJigWithKeywords(Line line,
-    IEnumerable<LineJigKeyword<TContext>>? keywords,
-    TContext context,
-    ILineJigCallbacks? callbacks = null);
-
 // VejkantOffset/App/Contracts
-public interface IOffsetAnalyzer
+public interface IAnalyzer<TInput, TResult>
 {
-    Polyline? Analyze(Line workingLine, VejkantOffsetSettings settings,
-                      IEnumerable<Polyline> dimPlines, IEnumerable<Polyline> gkPlines,
-                      out SamplerSnapshot snapshot);
+    TResult Analyze(TInput input);
+    void Commit(TResult result);
 }
 
-public interface ITransientRenderer
+public interface ISceneComposer<TAnalysis>
 {
-    void Show(PreviewModel model); // line + offset + helpers
+    Scene Compose(TAnalysis analysis, Line workingLine);
+}
+
+public interface IInspectorMapper<TAnalysis, TModel>
+{
+    TModel Map(TAnalysis analysis, Line workingLine);
+}
+
+public interface IRenderer
+{
+    void Show(Scene scene);
     void Clear();
 }
 
-public interface IWpfVisualizer
+public interface IVisualizer<TModel>
 {
     void Show();
-    void Update(SamplerSnapshot snapshot);
+    void Update(TModel model);
     void Hide();
 }
 ```
@@ -167,54 +160,60 @@ Controller entry point (called by command):
 
 ```csharp
 // VejkantOffset/App/OffsetJigController.cs
-public void Run(IEnumerable<LineJigKeyword<VejkantOffsetSettings>> keywords);
+public void Run(IEnumerable<LineJigKeyword<VejkantOffsetSettings>> keywords, VejkantOffsetSettings context);
 ```
 
 ---
 
-### MVVM (WPF) with CommunityToolkit
+### Sequence (runtime)
 
-- NuGet: `CommunityToolkit.Mvvm`.
-- ViewModel: `OffsetPaletteViewModel`
-  - Observable properties: `CurrentLength`, `ChosenSide`, `Groups`, `OffsetsDistinct`, `MouseStation`, etc.
-  - Commands: `ToggleHelpers`, `ToggleSide`, `ZoomToSegment`.
-- View: `OffsetPaletteView.xaml`
-  - Draws schematic using either `Canvas` or a lightweight items control.
-  - Pure bindings; no code-behind logic beyond view plumbing.
-- Controller updates ViewModel via `IWpfVisualizer.Update(SamplerSnapshot)`.
+```mermaid
+sequenceDiagram
+  participant Jig
+  participant Ctrl as Controller
+  participant Ana as Analyzer
+  participant Comp as SceneComposer
+  participant Rend as Renderer
+  participant Map as InspectorMapper
+  participant Viz as Visualizer
 
----
+  Jig->>Ctrl: OnSamplerPointChanged(Line)
+  Ctrl->>Ana: Analyze(Line)
+  Ana-->>Ctrl: VejkantAnalysis
+  Ctrl->>Comp: Compose(Analysis, Line)
+  Comp-->>Ctrl: Scene
+  Ctrl->>Rend: Show(Scene)
+  Ctrl->>Map: Map(Analysis, Line)
+  Map-->>Ctrl: OffsetInspectorModel
+  Ctrl->>Viz: Update(OffsetInspectorModel)
 
-### Interaction rules
-
-- Command is thin: init and launch only
-  - Command constructs `OffsetJigController` with DBs, settings, and renderer/visualizer.
-  - Command calls `controller.Run(keywords)` and returns.
-
-- Controller drives the operation loop
-  - Internally asks the jig to acquire points and drags (via callbacks), repeatedly, until stop.
-  - As user moves, sampler triggers `OnSamplerPointChanged` → analyze → render preview → update UI.
-  - On OK: `OnCommit` → commit DB polyline (and guide line) to local DB, seed next start at last end.
-  - On Esc: first → `OnCancelLevel1` (reset to start prompt, clear preview); second → `OnCancelLevel2` (full exit & cleanup).
+  Jig->>Ctrl: OnCommit(Line)
+  Ctrl->>Ana: Analyze(Line)
+  Ana-->>Ctrl: VejkantAnalysis
+  Ctrl->>Rend: Clear()
+  Ctrl->>Viz: Update(OffsetInspectorModel)
+  Ctrl->>Ana: Commit(Analysis)
+```
 
 ---
 
 ### Milestones
 
-1) Wiring and contracts
-   - Add `ILineJigCallbacks` to existing jig; implement two-level cancel behavior.
-   - Create `OffsetJigController` and contracts (analyzer adapter, renderer, visualizer).
+1) Wiring and abstractions
+   - Introduce `Scene` and rendering/visualization interfaces.
+   - Replace `OffsetJigController` with generic `JigController<TAnalysis,TInspectorModel,TContext>`.
 
 2) Live preview
-   - Implement `TransientPreviewRenderer` (line + offset polyline, yellow/red colors as current code).
-   - Preload and cache `gkDb` and `dimDb` polylines once per session.
+   - Implement `TransientPreviewRenderer` to render `Scene`.
+   - Analyzer owns all DB access.
 
 3) Analyzer integration
-   - Wrap `VejKantAnalyzerOffsetter` with `IOffsetAnalyzer`; return both `Polyline?` and a `SamplerSnapshot` DTO for the UI.
+   - Implement `VejkantAnalyzer` returning `VejkantAnalysis` and committing DB geometry.
+   - Build `VejkantSceneComposer`.
 
 4) MVVM UI
-   - PaletteSet host, `OffsetPaletteView` + `OffsetPaletteViewModel` using CommunityToolkit.
-   - Render schematic like the reference image.
+   - `OffsetInspectorModel` + `VejkantInspectorMapper`.
+   - Update `OffsetPaletteView`/ViewModel and visualizer.
 
 5) Persistence & polish
    - Commit behavior, color/layer rules, settings binding, keyword handlers.
@@ -224,16 +223,9 @@ public void Run(IEnumerable<LineJigKeyword<VejkantOffsetSettings>> keywords);
 
 ### Risks / mitigations
 
-- Performance under frequent sampler ticks → Cache geometry; minimize DB access; use 2D math; throttle to ~20–30 Hz if needed.
+- Performance under frequent sampler ticks → Keep scene primitives light; throttle to ~20–30 Hz if needed.
 - Transient lifetime leaks → Centralized renderer with `Clear()` on every tick and `Dispose` on exit.
 - UI thread marshaling → Use dispatcher-safe updates and light DTOs.
-
----
-
-### Open questions
-
-- Should we rename the jig to better reflect continuous behavior while staying generic? Proposal: keep name and add callbacks.
-- Exact layer/color rules for committed offset polylines (document current conventions?).
 
 ---
 

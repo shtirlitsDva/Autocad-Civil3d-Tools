@@ -1,6 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 
-using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App.Contracts;
+using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.UI.Models;
 
 namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.UI.ViewModels
 {
@@ -12,10 +12,10 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.UI.ViewModels
 		[ObservableProperty]
 		private string? chosenSideLabel;
 
-		public void Update(SamplerSnapshot snapshot)
+		public void Update(OffsetInspectorModel model)
 		{
-			CurrentLength = snapshot.Length;
-			ChosenSideLabel = snapshot.ChosenSideLabel;
+			CurrentLength = model.Length;
+			ChosenSideLabel = model.ChosenSideLabel;
 		}
 	}
 }

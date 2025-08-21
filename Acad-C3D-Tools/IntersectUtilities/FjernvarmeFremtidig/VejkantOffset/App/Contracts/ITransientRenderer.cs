@@ -1,10 +1,10 @@
-using Autodesk.AutoCAD.DatabaseServices;
+using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.Rendering;
 
 namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App.Contracts
 {
-	public interface ITransientRenderer
+	public interface IRenderer
 	{
-		void Show(PreviewModel model);
+		void Show(Scene scene);
 		void Clear();
 	}
 }

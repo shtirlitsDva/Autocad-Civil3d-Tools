@@ -9,6 +9,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
+using static IntersectUtilities.UtilsCommon.Utils;
+
 namespace IntersectUtilities.Jigs
 {
     public sealed class LineJigWithKeywords<TContext> : EntityJig
@@ -57,7 +59,7 @@ namespace IntersectUtilities.Jigs
                 UseBasePoint = true
             };
 
-            // Configure keywords (only those visible and enabled)
+            // Configure keywords
             foreach (var k in _keywords)
             {
                 //if (!k.Visible || !k.Enabled) continue;
@@ -79,6 +81,12 @@ namespace IntersectUtilities.Jigs
 
             if (_end.IsEqualTo(res.Value, Tolerance.Global))
                 return SamplerStatus.NoChange;
+            
+            if (res.Status != PromptStatus.OK)
+            {
+                _callbacks?.OnCancelLevel1();
+                return SamplerStatus.Cancel;
+            }
 
             _end = res.Value;            
             return SamplerStatus.OK;
@@ -158,5 +166,66 @@ namespace IntersectUtilities.Jigs
                 }
             }
         }
+
+		/// Runs the jig continuously, reusing the previous end point as the next start point.
+		/// The acquireStartPoint provider is only called when starting fresh or after Cancel Level 1.
+		public static void RunContinuous(
+			IEnumerable<LineJigKeyword<TContext>>? keywords,
+			TContext context,
+			ILineJigCallbacks? callbacks,
+			Func<Point3d?> acquireStartPoint)
+		{
+			var ed = Application.DocumentManager.MdiActiveDocument.Editor;
+			Point3d? cachedStart = null;
+			Point3d? startOpt = acquireStartPoint();
+			if (startOpt == null)
+			{
+				callbacks?.OnCancelLevel2();
+				return;
+			}
+			cachedStart = startOpt;
+
+			while (true)
+			{
+				Point3d start = startOpt.Value;
+				Line ln = new Line(start, Point3d.Origin);
+
+				var jig = callbacks == null
+					? new LineJigWithKeywords<TContext>(ln, keywords, context)
+					: new LineJigWithKeywords<TContext>(ln, keywords, context, callbacks);
+
+				var drag = ed.Drag(jig);
+
+				if (drag.Status == PromptStatus.Keyword)
+				{
+					if (!jig.TryHandleKeyword(drag.StringResult, ed, out var ps))
+						ed.WriteMessage($"\nUnknown option: {drag.StringResult}");					
+					continue; // resume jigging
+				}
+				else if (drag.Status == PromptStatus.OK)
+				{
+					callbacks?.OnCommit(ln);
+					// seed next start as last end
+					startOpt = ln.EndPoint;
+					cachedStart = startOpt;
+					continue;
+				}
+				else
+				{
+					callbacks?.OnCancelLevel1();
+					ln.Dispose();
+					// ask for new start; if cancelled, exit (reset cached)
+					cachedStart = null;
+					startOpt = acquireStartPoint();
+					if (startOpt == null)
+					{
+						callbacks?.OnCancelLevel2();
+						return;
+					}
+					cachedStart = startOpt;
+					// else loop with new start
+				}
+			}
+		}
     }
 }

@@ -1,9 +1,9 @@
 namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App.Contracts
 {
-	public interface IWpfVisualizer
+	public interface IVisualizer<TModel>
 	{
 		void Show();
-		void Update(SamplerSnapshot snapshot);
+		void Update(TModel model);
 		void Hide();
 	}
 }

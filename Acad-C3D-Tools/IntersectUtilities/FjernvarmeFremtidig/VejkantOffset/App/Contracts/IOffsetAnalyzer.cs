@@ -1,16 +1,20 @@
-using Autodesk.AutoCAD.DatabaseServices;
-using Autodesk.AutoCAD.Geometry;
-
 namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App.Contracts
 {
-	public interface IOffsetAnalyzer
+	// Generic analyzer contract
+	public interface IAnalyzer<TInput, TResult>
 	{
-		Polyline? Analyze(
-			Line workingLine,
-			VejkantOffsetSettings settings,
-			IEnumerable<Polyline> dimPlines,
-			IEnumerable<Polyline> gkPlines,
-			out SamplerSnapshot snapshot);
+		TResult Analyze(TInput input);
+		void Commit(TResult result);
+	}
+
+	public interface ISceneComposer<TAnalysis>
+	{
+		IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.Rendering.Scene Compose(TAnalysis analysis, Autodesk.AutoCAD.DatabaseServices.Line workingLine);
+	}
+
+	public interface IInspectorMapper<TAnalysis, TModel>
+	{
+		TModel Map(TAnalysis analysis, Autodesk.AutoCAD.DatabaseServices.Line workingLine);
 	}
 }
 
