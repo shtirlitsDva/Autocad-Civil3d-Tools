@@ -1,9 +1,16 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 
 using Dreambuild.AutoCAD;
 
 using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App.Contracts;
+using IntersectUtilities.Jigs;
+
+using IntersectUtilities.UtilsCommon;
 
 using System.Collections.Generic;
 
@@ -34,13 +41,13 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App
 			_settings = settings;
 		}
 
-		public void Run(IEnumerable<Jigs.LineJigKeyword<VejkantOffsetSettings>> keywords)
+		public void Run(IEnumerable<LineJigKeyword<VejkantOffsetSettings>> keywords)
 		{
 			// Drive the jig loop by repeatedly calling the jig with callbacks until user exits
 			while (true)
 			{
 				var callbacks = new JigCallbacksAdapter(this, HostApplicationServices.WorkingDatabase);
-				var line = Jigs.LineJigWithKeywords<VejkantOffsetSettings>.GetLine(keywords, _settings, callbacks);
+				var line = LineJigWithKeywords<VejkantOffsetSettings>.GetLine(keywords, _settings, callbacks);
 				if (line == null)
 					break; // user exited
 			}
@@ -55,7 +62,7 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App
 			return (dim, gk);
 		}
 
-		public void OnSamplerPointChanged(Point3d start, Point3d end)
+		public void OnSamplerPointChanged(Line line)
 		{
 			using var line = new Line(start, end);
 			var (dim, gk) = GetPlines();

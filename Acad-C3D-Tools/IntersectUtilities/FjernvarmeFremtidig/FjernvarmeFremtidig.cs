@@ -10,6 +10,10 @@ using Autodesk.Civil.DatabaseServices;
 using Dreambuild.AutoCAD;
 
 using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset;
+using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App;
+using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.Rendering;
+using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.UI.Views;
+
 using IntersectUtilities.Jigs;
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.DataManager;
@@ -1305,10 +1309,10 @@ namespace IntersectUtilities
             // Controller-driven: command initializes and hands off control, no business logic here
             try
             {
-                var controller = new VejkantOffset.App.OffsetJigController(
-                    analyzer: new VejkantOffset.App.AnalyzerAdapter(),
-                    renderer: new VejkantOffset.Rendering.TransientPreviewRenderer(),
-                    visualizer: new VejkantOffset.UI.Views.OffsetPaletteViewModelVisualizer(),
+                var controller = new OffsetJigController(
+                    analyzer: new AnalyzerAdapter(),
+                    renderer: new TransientPreviewRenderer(),
+                    visualizer: new OffsetPaletteViewModelVisualizer(),
                     dimDb: dimDb,
                     gkDb: gkDb,
                     settings: settings);
