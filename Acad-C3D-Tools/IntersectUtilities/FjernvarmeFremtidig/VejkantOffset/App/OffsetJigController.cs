@@ -5,6 +5,8 @@ using Dreambuild.AutoCAD;
 
 using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App.Contracts;
 
+using System.Collections.Generic;
+
 namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App
 {
 	internal sealed class OffsetJigController
