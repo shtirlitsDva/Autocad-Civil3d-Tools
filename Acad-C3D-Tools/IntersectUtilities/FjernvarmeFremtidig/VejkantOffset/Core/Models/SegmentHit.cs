@@ -11,7 +11,7 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset
 {
 	public sealed class SegmentHit
 	{
-		public ObjectId PolylineId { get; init; }
+		public Polyline? Polyline { get; init; }
 		public int SegmentIndex { get; init; }
 		public Point2d A { get; init; }
 		public Point2d B { get; init; }

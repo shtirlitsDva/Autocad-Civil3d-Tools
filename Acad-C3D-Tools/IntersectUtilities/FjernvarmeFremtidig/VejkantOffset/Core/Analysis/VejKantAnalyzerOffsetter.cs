@@ -11,19 +11,23 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.Core.Models;
 
 namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset
 {
 	internal class VejKantAnalyzerOffsetter
 	{
-		internal static Polyline? CreateOffsetPolyline(
-			Line gkLine, IEnumerable<Polyline> dimplines, VejkantOffsetSettings settings)
+		internal static void CreateOffsetSegments(
+			Line gkLine, 
+			IEnumerable<Polyline> dimplines, 
+			VejkantOffsetSettings settings,
+            List<PipelineSegment> segs)
 		{
 			var A = gkLine.StartPoint.To2d();
 			var B = gkLine.EndPoint.To2d();
 			var wDir = A.GetVectorTo(B);
 			var wLen = wDir.Length;
-			if (wLen <= 1e-6) return null;
+			if (wLen <= 1e-6) return;
 
 			var wU = wDir.GetNormal();
 			var leftNormal = new Vector2d(-wU.Y, wU.X);
@@ -78,7 +82,7 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset
 
 					candidates.Add(new SegmentHit
 					{
-						PolylineId = pl.ObjectId,
+						Polyline = pl,
 						SegmentIndex = i,
 						A = sA,
 						B = sB,
@@ -94,9 +98,7 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset
 				}
 			}
 
-			if (candidates.Count == 0) return null;
-
-			//prdDbg(string.Join(", ", candidates.Select(x => x.Offset).Distinct()) + "\n");
+			if (candidates.Count == 0) return;
 
 			//choose side
 			double weightLeft = 0, weightRight = 0;
@@ -132,7 +134,7 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset
 
 				squashed.Add(new SegmentHit
 				{
-					PolylineId = first.PolylineId,
+					Polyline = first.Polyline,
 					SegmentIndex = first.SegmentIndex,
 					A = first.A,
 					B = last.B,
@@ -149,7 +151,7 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset
 				i = j;
 			}
 
-			if (squashed.Count < 1) return null;
+			if (squashed.Count < 1) return;
 
 			var dir = (gkLine.EndPoint - gkLine.StartPoint).GetPerpendicularVector() *
 				(Math.Sign(squashed.First().SignedOffset));

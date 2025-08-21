@@ -28,16 +28,15 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App
 
 		public VejkantAnalysis Analyze(Line workingLine)
 		{
-			Polyline? offset = null;
+            var segs = new List<PipelineSegment>();
 
-			using (var tr = _dimDb.TransactionManager.StartOpenCloseTransaction())
+            using (var tr = _dimDb.TransactionManager.StartOpenCloseTransaction())
 			{
-				var dim = _dimDb.ListOfType<Polyline>(tr, discardFrozen: false);
-				offset = VejKantAnalyzerOffsetter.CreateOffsetPolyline(workingLine, dim, _settings);
+				var dim = _dimDb.ListOfType<Polyline>(tr);
+				VejKantAnalyzerOffsetter.CreateOffsetSegments(workingLine, dim, _settings, segs);
 			}
 
-			var segs = new List<PipelineSegmentDomain>();
-			if (offset != null)
+			if (segs.Count > 0)
 			{
 				for (int i = 0; i < offset.NumberOfVertices - 1; i++)
 				{
@@ -47,7 +46,7 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App
 
 					if (Math.Abs(bulge) < 1e-9)
 					{
-						segs.Add(new PipelineLineSegmentDomain
+						segs.Add(new PipelineLinePrimitiveDomain
 						{
 							Start = p0,
 							End = p1,
@@ -73,7 +72,7 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App
 						var a0 = Math.Atan2(v0.Y, v0.X);
 						var a1 = Math.Atan2(v1.Y, v1.X);
 
-						segs.Add(new PipelineArcSegmentDomain
+						segs.Add(new PipelineArcPrimitiveDomain
 						{
 							Center = center,
 							Radius = radius,
@@ -104,7 +103,7 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App
 
 			foreach (var seg in result.Segments)
 			{
-				if (seg is PipelineLineSegmentDomain ls)
+				if (seg is PipelineLinePrimitiveDomain ls)
 				{
 					if (current == null)
 					{
@@ -114,7 +113,7 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App
 					pl.AddVertexAt(vi++, new Point2d(ls.End.X, ls.End.Y), 0, 0, 0);
 					current = ls.End;
 				}
-				else if (seg is PipelineArcSegmentDomain arc)
+				else if (seg is PipelineArcPrimitiveDomain arc)
 				{
 					var s = new Point3d(
 						arc.Center.X + arc.Radius * Math.Cos(arc.StartAngle),

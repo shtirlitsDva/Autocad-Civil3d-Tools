@@ -17,7 +17,7 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.Rendering
 			{
 				switch (seg)
 				{
-					case PipelineLineSegmentDomain ls:
+					case PipelineLinePrimitiveDomain ls:
 						items.Add(new Line2D
 						{
 							A = new Point2d(ls.Start.X, ls.Start.Y),
@@ -25,7 +25,7 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.Rendering
 							Style = new Style(ls.Width, ls.ColorIndex)
 						});
 						break;
-					case PipelineArcSegmentDomain arc:
+					case PipelineArcPrimitiveDomain arc:
 						items.Add(new Arc2D
 						{
 							Center = new Point2d(arc.Center.X, arc.Center.Y),
