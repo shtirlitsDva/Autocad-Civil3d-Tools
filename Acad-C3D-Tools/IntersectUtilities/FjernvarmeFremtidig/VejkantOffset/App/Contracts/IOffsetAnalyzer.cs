@@ -9,7 +9,7 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App.Contracts
 
 	public interface ISceneComposer<TAnalysis>
 	{
-		IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.Rendering.Scene Compose(TAnalysis analysis, Autodesk.AutoCAD.DatabaseServices.Line workingLine);
+		Rendering.Scene Compose(TAnalysis analysis, Autodesk.AutoCAD.DatabaseServices.Line workingLine);
 	}
 
 	public interface IInspectorMapper<TAnalysis, TModel>

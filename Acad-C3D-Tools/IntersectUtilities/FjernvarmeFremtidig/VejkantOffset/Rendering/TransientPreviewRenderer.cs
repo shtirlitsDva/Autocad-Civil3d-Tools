@@ -5,6 +5,7 @@ using Autodesk.AutoCAD.GraphicsInterface;
 using Autodesk.AutoCAD.Geometry;
 
 using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App.Contracts;
+using Polyline = Autodesk.AutoCAD.DatabaseServices.Polyline;
 
 namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.Rendering
 {
@@ -45,10 +46,15 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.Rendering
 
 			public void Visit(Line2D line)
 			{
-				var ln = new Line(new Point3d(line.A.X, line.A.Y, 0), new Point3d(line.B.X, line.B.Y, 0));
-				if (line.Style.ColorIndex.HasValue) ln.Color = Color.FromColorIndex(ColorMethod.ByAci, line.Style.ColorIndex.Value);
-				_bucket.Add(ln);
-				_tm.AddTransient(ln, TransientDrawingMode.DirectShortTerm, 128, new IntegerCollection());
+				var pl = new Polyline(2);
+				pl.AddVertexAt(pl.NumberOfVertices, new Point2d(line.A.X, line.A.Y), 0, 0, 0);
+				pl.AddVertexAt(pl.NumberOfVertices, new Point2d(line.B.X, line.B.Y), 0, 0, 0);
+				if (line.Style.ColorIndex.HasValue)
+					pl.Color = Color.FromColorIndex(ColorMethod.ByAci, line.Style.ColorIndex.Value);
+				if (line.Style.Width > 0)
+					pl.ConstantWidth = line.Style.Width;
+                _bucket.Add(pl);
+				_tm.AddTransient(pl, TransientDrawingMode.DirectShortTerm, 128, new IntegerCollection());
 			}
 
 			public void Visit(Arc2D arc)
@@ -61,7 +67,7 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.Rendering
 
 			public void Visit(PolyPath2D path)
 			{
-				var pl = new Autodesk.AutoCAD.DatabaseServices.Polyline();
+				var pl = new Polyline();
 				for (int i = 0; i < path.Vertices.Count; i++)
 				{
 					var p = path.Vertices[i];

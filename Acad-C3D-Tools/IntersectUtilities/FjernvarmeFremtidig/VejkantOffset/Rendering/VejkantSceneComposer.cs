@@ -1,5 +1,7 @@
+using System.Linq;
 using System.Collections.Generic;
 
+using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 
 using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App.Contracts;
@@ -9,11 +11,11 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.Rendering
 {
 	internal sealed class VejkantSceneComposer : ISceneComposer<VejkantAnalysis>
 	{
-		public Scene Compose(VejkantAnalysis analysis, Autodesk.AutoCAD.DatabaseServices.Line workingLine)
+		public Scene Compose(VejkantAnalysis analysis, Line workingLine)
 		{
 			var items = new List<IRenderable>();
 
-			foreach (var seg in analysis.Segments)
+			foreach (var seg in analysis.Segments.SelectMany(x => x.Primitives))
 			{
 				switch (seg)
 				{

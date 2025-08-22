@@ -5,7 +5,6 @@ using IntersectUtilities.Jigs;
 
 using System.Collections.Generic;
 
-using ADB = Autodesk.AutoCAD.DatabaseServices;
 using Dreambuild.AutoCAD;
 using Autodesk.AutoCAD.Geometry;
 

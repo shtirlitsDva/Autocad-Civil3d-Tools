@@ -5,6 +5,7 @@ using Dreambuild.AutoCAD;
 
 using IntersectUtilities.UtilsCommon;
 using static IntersectUtilities.UtilsCommon.Utils;
+using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 
 using System;
 using System.Collections.Generic;
@@ -92,7 +93,10 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset
 						Overlap1 = ov1,
 						SignedOffset = signedOffset,
 						SortKey = sortKey,
-						Offset = PipeScheduleV2.PipeScheduleV2.GetOffset(
+						PipeSystem = GetPipeSystem(pl),
+						PipeDim = GetPipeDN(pl),
+						PipeSeries = settings.Series,
+                        Offset = GetOffset(
 							pl, settings.Series, settings.Width, settings.OffsetSupplement)
 					});
 				}
@@ -124,8 +128,8 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset
 				var first = ordered[i];
 				int j = i;
 
-				// Look-ahead: merge adjacent items while Offset stays the same
-				while (j + 1 < ordered.Length && Math.Abs(ordered[j + 1].Offset - first.Offset) < 1e-9)
+				// merge adjacent items while LayerName stays the same
+				while (j + 1 < ordered.Length && ordered[j + 1].LayerName == first.LayerName)
 				{
 					j++;
 				}
@@ -144,6 +148,9 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset
 					Overlap1 = last.Overlap1,
 					SignedOffset = first.SignedOffset,
 					SortKey = first.SortKey,
+					PipeSystem = first.PipeSystem,
+					PipeDim = first.PipeDim,
+					PipeSeries = first.PipeSeries,
 					Offset = first.Offset
 				});
 
@@ -153,40 +160,23 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset
 
 			if (squashed.Count < 1) return;
 
-			var dir = (gkLine.EndPoint - gkLine.StartPoint).GetPerpendicularVector() *
-				(Math.Sign(squashed.First().SignedOffset));
-
-			Polyline npl = new Polyline();
-
-			// unit direction along the white line (for parameter t in drawing units)
+			// 3D helpers along and perpendicular to gkLine on the chosen side
 			var wU3 = (gkLine.EndPoint - gkLine.StartPoint).GetNormal();
 			Point3d WL(double t) => gkLine.StartPoint + wU3 * t;
+			var dir3 = (gkLine.EndPoint - gkLine.StartPoint).GetPerpendicularVector().GetNormal() * (sideSign >= 0 ? 1.0 : -1.0);
 
-			// start at t=0 with the first group's offset
+			// build PipelineSegments with a single line primitive for each squashed group
+			foreach (var g in squashed)
 			{
-				var p0 = WL(0.0) + dir * squashed[0].Offset;
-				npl.AddVertexAt(npl.NumberOfVertices, p0.To2d(), 0, 0, 0);
-			}
-
-			// walk group-by-group using stations, not A/B
-			for (int i = 0; i < squashed.Count; i++)
-			{
-				var cur = squashed[i];
-
-				// end of current group at its end station (Overlap1)
-				var pEnd = WL(cur.Overlap1) + dir * cur.Offset;
-				npl.AddVertexAt(npl.NumberOfVertices, pEnd.To2d(), 0, 0, 0);
-
-				// if there is a next group, hop at the SAME station to next offset
-				if (i + 1 < squashed.Count)
+				var ps = new PipelineSegment(g.PipeSystem, g.PipeDim, g.PipeSeries);
+				var prim = new PipelineLinePrimitiveDomain(ps)
 				{
-					var next = squashed[i + 1];
-					var pHop = WL(cur.Overlap1) + dir * next.Offset;
-					npl.AddVertexAt(npl.NumberOfVertices, pHop.To2d(), 0, 0, 0);
-				}
+					Start = WL(g.Overlap0) + dir3 * g.Offset,
+					End = WL(g.Overlap1) + dir3 * g.Offset
+				};
+				ps.Primitives.Add(prim);
+				segs.Add(ps);
 			}
-
-			return npl;
 		}
 	}
 }
