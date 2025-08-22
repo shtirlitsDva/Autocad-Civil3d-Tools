@@ -3,7 +3,9 @@ using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 
 using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App.Contracts;
+using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.Core.Analysis.Spatial;
 using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.Core.Models;
+using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.Rendering;
 using IntersectUtilities.UtilsCommon;
 
 using System;
@@ -18,6 +20,7 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App
         private readonly Database _gkDb;
         private readonly Database _targetDb;
         private readonly VejkantOffsetSettings _settings;
+        private readonly SpatialGridCache _cache;
 
         public VejkantAnalyzer(Database dimDb, Database gkDb, Database targetDb, VejkantOffsetSettings settings)
         {
@@ -25,6 +28,72 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App
             _gkDb = gkDb;
             _targetDb = targetDb;
             _settings = settings;
+            _cache = new(cellSize: 5.0);
+
+            //Here goes gemetric caching of vejkant polylines
+
+            using (var tx = _gkDb.TransactionManager.StartOpenCloseTransaction())
+            {
+                var plines = _gkDb.ListOfType<Polyline>(tx)
+                    .Where(p => p.Layer == "Vejkant");
+
+                foreach (var pl in plines)
+                {
+                    var pts = new List<Point2d>();
+                    for (int i = 0; i < pl.NumberOfVertices; i++)
+                    {
+                        var pt = pl.GetPoint2dAt(i);
+                        if (pts.Count == 0 || !IsCoincident(pts[^1], pt))
+                        {
+                            pts.Add(pt);
+                        }
+                    }
+
+                    // ensure closed polylines wrap around
+                    bool closed = pl.Closed;
+                    int count = pts.Count;
+                    for (int i = 0; i < count - 1; i++)
+                    {
+                        AddSegment(pl.ObjectId, pts[i], pts[i + 1]);
+                    }
+                    if (closed && count > 1)
+                    {
+                        AddSegment(pl.ObjectId, pts[^1], pts[0]);
+                    }
+                }
+                tx.Commit();
+            }
+        }
+
+        private void AddSegment(ObjectId plId, Point2d a, Point2d b)
+        {
+            if (!IsCoincident(a, b))
+            {
+                var seg = new Segment2d(a, b, plId);
+                _cache.Insert(seg);
+            }
+        }
+
+        private static bool IsCoincident(Point2d a, Point2d b, double tol = 1e-6)
+        {
+            return a.GetDistanceTo(b) < tol;
+        }
+
+        public IEnumerable<Segment2d> QueryIntersections(Line workingLine)
+        {
+            var a = new Point2d(workingLine.StartPoint.X, workingLine.StartPoint.Y);
+            var b = new Point2d(workingLine.EndPoint.X, workingLine.EndPoint.Y);
+            var box = new Extents2d(
+            new Point2d(Math.Min(a.X, b.X), Math.Min(a.Y, b.Y)),
+            new Point2d(Math.Max(a.X, b.X), Math.Max(a.Y, b.Y)));
+
+            foreach (var seg in _cache.Query(box))
+            {
+                if (Segment2d.Intersects(a, b, seg.A, seg.B))
+                {
+                    yield return seg;
+                }
+            }
         }
 
         public VejkantAnalysis Analyze(Line workingLine)
@@ -34,7 +103,15 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App
             using (var tr = _dimDb.TransactionManager.StartOpenCloseTransaction())
             {
                 var dim = _dimDb.ListOfType<Polyline>(tr);
-                VejKantAnalyzerOffsetter.CreateOffsetSegments(workingLine, dim, _settings, pipelineSegments);
+                VejKantAnalyzer.CreateOffsetSegments(
+                    workingLine, dim, _settings, pipelineSegments);
+            }
+
+            var vejKantCrossingData = new List<Line2D>();
+
+            using (var tx = _gkDb.TransactionManager.StartOpenCloseTransaction()) 
+            {
+                VejKantAnalyzer.AnalyzeIntersectingVejkants(workingLine, _cache);
             }
 
             return new VejkantAnalysis

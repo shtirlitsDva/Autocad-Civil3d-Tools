@@ -3,22 +3,52 @@ using Autodesk.AutoCAD.Geometry;
 
 using Dreambuild.AutoCAD;
 
+using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.Core.Analysis.Spatial;
+using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.Core.Models;
 using IntersectUtilities.UtilsCommon;
-using static IntersectUtilities.UtilsCommon.Utils;
-using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.Core.Models;
+using System.Web.Caching;
+
+using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
+using static IntersectUtilities.UtilsCommon.Utils;
 
 namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset
 {
-	internal class VejKantAnalyzerOffsetter
+	internal class VejKantAnalyzer
 	{
-		internal static void CreateOffsetSegments(
+        internal static void AnalyzeIntersectingVejkants(
+			Line workingLine,
+			SpatialGridCache cache)
+        {
+            
+        }
+
+        // Query the cache to find which polylines intersect the given working line.
+        public IEnumerable<ObjectId> GetIntersectingPolylines(SpatialGridCache cache,
+			Line workingLine, double eps = 1e-7)
+        {
+            var a = new Point2d(workingLine.StartPoint.X, workingLine.StartPoint.Y);
+            var b = new Point2d(workingLine.EndPoint.X, workingLine.EndPoint.Y);
+            var probe = new Core.Analysis.Spatial.Line2d(a, b);
+
+            // Query candidates by AABB first
+            var candidates = cache.Query(probe.Bounds);
+
+            var hits = new HashSet<ObjectId>();
+            foreach (var seg in candidates)
+            {
+                if (Geometry2D.SegmentIntersects(probe, seg, eps, out _))
+                    hits.Add(seg.PolylineId);
+            }
+            return hits;
+        }
+
+        internal static void CreateOffsetSegments(
 			Line gkLine, 
 			IEnumerable<Polyline> dimplines, 
 			VejkantOffsetSettings settings,
