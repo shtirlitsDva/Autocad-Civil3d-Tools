@@ -3,33 +3,33 @@ using Autodesk.AutoCAD.Geometry;
 
 using Dreambuild.AutoCAD;
 
+using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.Core.Analysis.Spatial;
 using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.Core.Models;
-using IntersectUtilities.UtilsCommon;
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using System.Web.Caching;
 
 using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 using static IntersectUtilities.UtilsCommon.Utils;
 
 namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset
 {
-	internal class VejKantAnalyzer
+	internal class VejkantAnalyzer
 	{
         internal static void AnalyzeIntersectingVejkants(
 			Line workingLine,
-			SpatialGridCache cache)
+			SpatialGridCache cache,
+            List<Segment2d> segments)
         {
-            
+			segments.AddRange(GetBufferedSegments(cache, workingLine, 0.5));
         }
 
         // Query the cache to find which polylines intersect the given working line.
-        public IEnumerable<ObjectId> GetIntersectingPolylines(SpatialGridCache cache,
+        internal static IEnumerable<Segment2d> GetIntersectingSegments(SpatialGridCache cache,
 			Line workingLine, double eps = 1e-7)
         {
             var a = new Point2d(workingLine.StartPoint.X, workingLine.StartPoint.Y);
@@ -39,15 +39,36 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset
             // Query candidates by AABB first
             var candidates = cache.Query(probe.Bounds);
 
-            var hits = new HashSet<ObjectId>();
+            var hits = new HashSet<Segment2d>();
             foreach (var seg in candidates)
             {
                 if (Geometry2D.SegmentIntersects(probe, seg, eps, out _))
-                    hits.Add(seg.PolylineId);
+                    hits.Add(seg);
             }
             return hits;
         }
 
+        // Query the cache to find segments overlapping a buffer rectangle around the line.
+        internal static IEnumerable<Segment2d> GetBufferedSegments(SpatialGridCache cache,
+			Line workingLine, double buffer, double eps = 1e-7)
+        {
+            var a = new Point2d(workingLine.StartPoint.X, workingLine.StartPoint.Y);
+            var b = new Point2d(workingLine.EndPoint.X, workingLine.EndPoint.Y);
+
+            // Build rectangle polygon around line with given offset distance.
+            var rect = Geometry2D.BuildBufferRectangle(a, b, buffer);
+            var rectBounds = Geometry2D.BoundsOfPolygon(rect);
+
+            foreach (var seg in cache.Query(rectBounds))
+            {
+                if (Geometry2D.SegmentIntersectsPolygon(seg, rect, eps))
+                    yield return seg;
+            }
+        }
+
+        /// <summary>
+        /// Constructs the offset geometry
+        /// </summary>		
         internal static void CreateOffsetSegments(
 			Line gkLine, 
 			IEnumerable<Polyline> dimplines, 

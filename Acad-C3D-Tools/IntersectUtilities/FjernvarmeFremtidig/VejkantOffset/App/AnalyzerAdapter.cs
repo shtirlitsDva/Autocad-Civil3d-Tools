@@ -5,7 +5,6 @@ using Autodesk.AutoCAD.Geometry;
 using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App.Contracts;
 using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.Core.Analysis.Spatial;
 using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.Core.Models;
-using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.Rendering;
 using IntersectUtilities.UtilsCommon;
 
 using System;
@@ -14,7 +13,7 @@ using System.Linq;
 
 namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App
 {
-    internal sealed class VejkantAnalyzer : IAnalyzer<Line, VejkantAnalysis>
+    internal sealed class AnalyzerAdapter : IAnalyzer<Line, VejkantAnalysis>
     {
         private readonly Database _dimDb;
         private readonly Database _gkDb;
@@ -22,7 +21,7 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App
         private readonly VejkantOffsetSettings _settings;
         private readonly SpatialGridCache _cache;
 
-        public VejkantAnalyzer(Database dimDb, Database gkDb, Database targetDb, VejkantOffsetSettings settings)
+        public AnalyzerAdapter(Database dimDb, Database gkDb, Database targetDb, VejkantOffsetSettings settings)
         {
             _dimDb = dimDb;
             _gkDb = gkDb;
@@ -31,7 +30,6 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App
             _cache = new(cellSize: 5.0);
 
             //Here goes gemetric caching of vejkant polylines
-
             using (var tx = _gkDb.TransactionManager.StartOpenCloseTransaction())
             {
                 var plines = _gkDb.ListOfType<Polyline>(tx)
@@ -65,6 +63,7 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App
             }
         }
 
+        #region Caching helper methods
         private void AddSegment(ObjectId plId, Point2d a, Point2d b)
         {
             if (!IsCoincident(a, b))
@@ -73,28 +72,11 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App
                 _cache.Insert(seg);
             }
         }
-
         private static bool IsCoincident(Point2d a, Point2d b, double tol = 1e-6)
         {
             return a.GetDistanceTo(b) < tol;
         }
-
-        public IEnumerable<Segment2d> QueryIntersections(Line workingLine)
-        {
-            var a = new Point2d(workingLine.StartPoint.X, workingLine.StartPoint.Y);
-            var b = new Point2d(workingLine.EndPoint.X, workingLine.EndPoint.Y);
-            var box = new Extents2d(
-            new Point2d(Math.Min(a.X, b.X), Math.Min(a.Y, b.Y)),
-            new Point2d(Math.Max(a.X, b.X), Math.Max(a.Y, b.Y)));
-
-            foreach (var seg in _cache.Query(box))
-            {
-                if (Segment2d.Intersects(a, b, seg.A, seg.B))
-                {
-                    yield return seg;
-                }
-            }
-        }
+        #endregion
 
         public VejkantAnalysis Analyze(Line workingLine)
         {
@@ -103,24 +85,19 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App
             using (var tr = _dimDb.TransactionManager.StartOpenCloseTransaction())
             {
                 var dim = _dimDb.ListOfType<Polyline>(tr);
-                VejKantAnalyzer.CreateOffsetSegments(
+                VejkantAnalyzer.CreateOffsetSegments(
                     workingLine, dim, _settings, pipelineSegments);
             }
 
-            var vejKantCrossingData = new List<Line2D>();
+            var vejKantCrossings = new List<Segment2d>();
 
-            using (var tx = _gkDb.TransactionManager.StartOpenCloseTransaction()) 
-            {
-                VejKantAnalyzer.AnalyzeIntersectingVejkants(workingLine, _cache);
-            }
+            VejkantAnalyzer.AnalyzeIntersectingVejkants(
+                workingLine, _cache, vejKantCrossings);
 
-            return new VejkantAnalysis
-            {
-                Segments = pipelineSegments,
-                GkIntersections = Array.Empty<SegmentHit>(),
-                Length = workingLine.StartPoint.DistanceTo(workingLine.EndPoint),
-                ChosenSideLabel = null
-            };
+            return new VejkantAnalysis(
+                workingLine,
+                pipelineSegments,
+                vejKantCrossings);
         }
 
         public void Commit(VejkantAnalysis result)

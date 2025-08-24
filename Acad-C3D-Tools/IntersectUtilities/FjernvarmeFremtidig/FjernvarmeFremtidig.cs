@@ -1313,7 +1313,7 @@ namespace IntersectUtilities
             try
             {
                 var controller = new JigController<VejkantAnalysis, OffsetInspectorModel, VejkantOffsetSettings>(
-                    analyzer: new VejkantAnalyzer(dimDb, gkDb, localDb, settings),
+                    analyzer: new AnalyzerAdapter(dimDb, gkDb, localDb, settings),
                     renderer: new TransientPreviewRenderer(),
                     visualizer: new OffsetPaletteViewModelVisualizer(),
                     sceneComposer: new VejkantSceneComposer(),

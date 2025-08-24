@@ -244,7 +244,6 @@ Global
 		AutoCADCommandsSHARED\AutoCADCommandsSHARED.projitems*{3dbcde07-d2c7-45a3-9bd6-5b7873a85166}*SharedItemsImports = 5
 		FormsSHARED\FormsSHARED.projitems*{3dbcde07-d2c7-45a3-9bd6-5b7873a85166}*SharedItemsImports = 5
 		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{3dbcde07-d2c7-45a3-9bd6-5b7873a85166}*SharedItemsImports = 5
-		NorsynHydraulicShared\NorsynHydraulicShared.projitems*{67e99206-b86e-43a8-ab5d-c1dc41decbe5}*SharedItemsImports = 5
 		AutoCADCommandsSHARED\AutoCADCommandsSHARED.projitems*{774d8c82-954d-40a1-993a-62c9385fdf12}*SharedItemsImports = 5
 		FormsSHARED\FormsSHARED.projitems*{774d8c82-954d-40a1-993a-62c9385fdf12}*SharedItemsImports = 5
 		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{774d8c82-954d-40a1-993a-62c9385fdf12}*SharedItemsImports = 5
@@ -260,7 +259,6 @@ Global
 		AutoCADCommandsSHARED\AutoCADCommandsSHARED.projitems*{c578718c-90f5-4546-adac-6c9d91e02a95}*SharedItemsImports = 5
 		FormsSHARED\FormsSHARED.projitems*{c578718c-90f5-4546-adac-6c9d91e02a95}*SharedItemsImports = 5
 		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{c578718c-90f5-4546-adac-6c9d91e02a95}*SharedItemsImports = 5
-		AutoCADCommandsSHARED\AutoCADCommandsSHARED.projitems*{c5f6c326-952b-43e8-9830-311f190bab11}*SharedItemsImports = 5
 		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{db2cde26-a283-45d0-a170-7645cf29c507}*SharedItemsImports = 13
 		AutoCADCommandsSHARED\AutoCADCommandsSHARED.projitems*{e5fa3287-b46f-41bb-a860-79f03b57b411}*SharedItemsImports = 5
 		FormsSHARED\FormsSHARED.projitems*{e5fa3287-b46f-41bb-a860-79f03b57b411}*SharedItemsImports = 5

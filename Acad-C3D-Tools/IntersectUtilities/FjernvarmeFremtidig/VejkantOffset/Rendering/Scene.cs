@@ -28,7 +28,7 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.Rendering
 	{
 		public Point2d A { get; init; }
 		public Point2d B { get; init; }
-		public Style Style { get; init; }
+		public Style? Style { get; init; }
 		public void Accept(IRenderVisitor v) => v.Visit(this);
 	}
 
@@ -39,7 +39,7 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.Rendering
 		public double StartAngle { get; init; }
 		public double EndAngle { get; init; }
 		public bool IsCCW { get; init; }
-		public Style Style { get; init; }
+		public Style? Style { get; init; }
 		public void Accept(IRenderVisitor v) => v.Visit(this);
 	}
 
@@ -47,7 +47,7 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.Rendering
 	{
 		public IReadOnlyList<Point2d> Vertices { get; init; } = Array.Empty<Point2d>();
 		public IReadOnlyList<double> Bulges { get; init; } = Array.Empty<double>();
-		public Style Style { get; init; }
+		public Style? Style { get; init; }
 		public void Accept(IRenderVisitor v) => v.Visit(this);
 	}
 }
