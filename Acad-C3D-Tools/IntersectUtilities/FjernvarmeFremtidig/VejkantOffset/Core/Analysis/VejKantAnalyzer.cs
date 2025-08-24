@@ -59,9 +59,28 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset
             var rect = Geometry2D.BuildBufferRectangle(a, b, buffer);
             var rectBounds = Geometry2D.BoundsOfPolygon(rect);
 
+            // Pre-compute working line direction (unit)
+            var wVec = b - a;
+            var wLen = wVec.Length;
+            if (wLen <= eps)
+                yield break;
+            var wU = wVec.GetNormal();
+            const double degTol = 5.0; // ±5 degrees relative to working line
+            double cosTol = Math.Cos(degTol * Math.PI / 180.0);
+
             foreach (var seg in cache.Query(rectBounds))
             {
-                if (Geometry2D.SegmentIntersectsPolygon(seg, rect, eps))
+                // First: spatial overlap with buffer rectangle around working line
+                if (!Geometry2D.SegmentIntersectsPolygon(seg, rect, eps))
+                    continue;
+
+                // Second: angular filter within ±5° of working line direction
+                var sVec = seg.B - seg.A;
+                if (sVec.Length <= eps)
+                    continue;
+                var sU = sVec.GetNormal();
+                double dot = Math.Abs(wU.DotProduct(sU)); // 1 when parallel, 0 when perpendicular
+                if (dot >= cosTol)
                     yield return seg;
             }
         }

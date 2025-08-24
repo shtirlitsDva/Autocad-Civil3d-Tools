@@ -64,7 +64,7 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App
             var analysis = _analyzer.Analyze(line);
             _renderer.Show(_sceneComposer.Compose(analysis, line));
             _visualizer.Update(_inspectorMapper.Map(analysis, line));
-            IntersectUtilities.UtilsCommon.Utils.prdDbg("[Jig] Sampler tick -> Visualizer.Update called");
+            //IntersectUtilities.UtilsCommon.Utils.prdDbg("[Jig] Sampler tick -> Visualizer.Update called");
         }
 
         public void OnCommit(Line line)

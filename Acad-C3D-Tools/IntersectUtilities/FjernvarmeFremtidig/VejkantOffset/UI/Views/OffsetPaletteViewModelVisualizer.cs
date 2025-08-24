@@ -107,7 +107,10 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.UI.Views
 			if (vm != null)
 			{
 				vm.UpdateVisualization(model);
-				IntersectUtilities.UtilsCommon.Utils.prdDbg($"[Palette] Update() - Intersections: {model?.Intersections?.Count ?? 0}, WorkingLen: {model?.WorkingLine?.DisplayLength ?? 0:0.0}");
+				//IntersectUtilities.UtilsCommon.Utils.prdDbg(
+				//	$"[Palette] Update() - Intersections: " +
+				//	$"{model?.Intersections?.Count ?? 0}, " +
+				//	$"WorkingLen: {model?.WorkingLine?.DisplayLength ?? 0:0.0}");
 			}
 		}
 
@@ -117,7 +120,7 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.UI.Views
 			{
 				SaveSettings();
 				_palette.Visible = false;
-				IntersectUtilities.UtilsCommon.Utils.prdDbg("[Palette] Hide()");
+				//IntersectUtilities.UtilsCommon.Utils.prdDbg("[Palette] Hide()");
 			}
 		}
 	}

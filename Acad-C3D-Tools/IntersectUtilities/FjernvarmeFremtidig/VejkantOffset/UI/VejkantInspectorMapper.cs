@@ -26,14 +26,16 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.UI
 			{
 				StartPoint = workingLineDisplay.Start,
 				EndPoint = workingLineDisplay.End,
-				DisplayLength = workingLineDisplay.End.X - workingLineDisplay.Start.X
+				DisplayLength = workingLine.Length
 			};
 			
 			// Transform intersections to display coordinates (project X to working line, fix Y to working line + signed distance)
-			var displayIntersections = TransformIntersections(analysis.GkIntersections, coordSystem, workingLine);
+			var displayIntersections = TransformIntersections(
+				analysis.GkIntersections, coordSystem, workingLine);
 			
 			// Calculate distance measurements
-			var distanceMeasurements = CalculateDistanceMeasurements(analysis.GkIntersections, coordSystem, workingLine);
+			var distanceMeasurements = CalculateDistanceMeasurements(
+				analysis.GkIntersections, coordSystem, workingLine);
 			
 			// Generate grid
 			var grid = GenerateGrid(coordSystem, workingLine);
