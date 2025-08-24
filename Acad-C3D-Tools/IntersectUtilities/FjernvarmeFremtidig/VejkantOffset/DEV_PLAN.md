@@ -69,6 +69,28 @@ Key principle: Renderer and Visualizer are domain-agnostic. Only the Analyzer an
   - Vejkant UI model: `OffsetInspectorModel`.
   - Mapper: `IInspectorMapper<VejkantAnalysis, OffsetInspectorModel>`.
 
+sequenceDiagram
+    participant Jig as LineJig
+    participant Ctrl as JigController
+    participant Ana as Analyzer
+    participant Map as VejkantInspectorMapper
+    participant VM as OffsetPaletteViewModel
+    participant UI as WPF Window
+
+    Jig->>Ctrl: OnSamplerPointChanged(Line)
+    Ctrl->>Ana: Analyze(Line)
+    Ana-->>Ctrl: VejkantAnalysis{GkIntersections, Segments, WorkingLine}
+    
+    Ctrl->>Map: Map(analysis, line)
+    Note over Map: Extracts: Length, ChosenSideLabel, GkIntersections.Count
+    Map-->>Ctrl: OffsetInspectorModel
+    
+    Ctrl->>VM: Update(model)
+    Note over VM: Updates: CurrentLength, ChosenSideLabel
+    VM-->>UI: Data binding updates UI
+    
+    Note over UI: User sees real-time: Line length, Side choice, Intersection count
+
 ---
 
 ### Proposed folder structure (all Vejkant-specific under `VejkantOffset/`)

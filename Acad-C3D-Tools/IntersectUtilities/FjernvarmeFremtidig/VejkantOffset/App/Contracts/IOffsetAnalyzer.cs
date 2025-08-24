@@ -1,20 +1,28 @@
+using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.UI.Models;
+using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.Core.Models;
+
 namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App.Contracts
 {
 	// Generic analyzer contract
-	public interface IAnalyzer<TInput, TResult>
+	internal interface IAnalyzer<TInput, TResult>
 	{
 		TResult Analyze(TInput input);
 		void Commit(TResult result);
 	}
 
-	public interface ISceneComposer<TAnalysis>
+	internal interface ISceneComposer<TAnalysis>
 	{
 		Rendering.Scene Compose(TAnalysis analysis, Autodesk.AutoCAD.DatabaseServices.Line workingLine);
 	}
 
-	public interface IInspectorMapper<TAnalysis, TModel>
+	internal interface IInspectorMapper<TAnalysis, TModel>
 	{
 		TModel Map(TAnalysis analysis, Autodesk.AutoCAD.DatabaseServices.Line workingLine);
+	}
+	
+	// Specific contract for Vejkant visualization
+	internal interface IVejkantInspectorMapper : IInspectorMapper<VejkantAnalysis, IntersectionVisualizationModel>
+	{
 	}
 }
 

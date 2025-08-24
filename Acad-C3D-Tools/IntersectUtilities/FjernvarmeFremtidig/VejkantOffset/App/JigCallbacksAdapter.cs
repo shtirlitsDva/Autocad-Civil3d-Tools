@@ -6,12 +6,12 @@ using IntersectUtilities.Jigs;
 
 namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App
 {
-	internal sealed class JigCallbacksAdapter<TAnalysis, TInspectorModel, TContext> : ILineJigCallbacks
+	internal sealed class JigCallbacksAdapter : ILineJigCallbacks
 	{
-		private readonly JigController<TAnalysis, TInspectorModel, TContext> _controller;
+		private readonly JigController _controller;
 		private bool _cancelArmed;
 
-		public JigCallbacksAdapter(JigController<TAnalysis, TInspectorModel, TContext> controller)
+		public JigCallbacksAdapter(JigController controller)
 		{
 			_controller = controller;
 			_cancelArmed = false;
@@ -38,10 +38,13 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App
 			{
 				_controller.OnCancelLevel1();
 				_cancelArmed = true;
+				// Do NOT hide the palette here; keep it visible between Escape1 and re-prompt
 			}
 			else
 			{
-				OnCancelLevel2();
+				// If already armed, treat as second escape explicitly
+				_controller.OnCancelLevel2();
+				_cancelArmed = false;
 			}
 		}
 

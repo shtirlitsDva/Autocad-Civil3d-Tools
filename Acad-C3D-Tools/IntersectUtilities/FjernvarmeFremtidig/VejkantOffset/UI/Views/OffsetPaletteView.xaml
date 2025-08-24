@@ -3,20 +3,203 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             mc:Ignorable="d">
-    <Grid Margin="8">
+             xmlns:views="clr-namespace:IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.UI.Views"
+             mc:Ignorable="d"
+             d:DesignHeight="600" d:DesignWidth="900">
+    
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="../Resources/DarkTheme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+    
+    <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        <StackPanel Orientation="Horizontal">
-            <TextBlock Text="Length:"/>
-            <TextBlock Text="{Binding CurrentLength, StringFormat=F2}"/>
-            <TextBlock Text="Side:" Margin="16,0,0,0"/>
-            <TextBlock Text="{Binding ChosenSideLabel}"/>
-        </StackPanel>
-        <Border Grid.Row="1" BorderBrush="Gray" BorderThickness="1" CornerRadius="4" Padding="6">
-            <TextBlock Text="Preview schematic placeholder" Foreground="Gray"/>
+        
+        <!-- Main visualization area -->
+        <Border Grid.Row="1" Margin="8,4,8,8" DataContext="{Binding VisualizationModel}">
+            <Viewbox Stretch="Fill">
+                <Canvas x:Name="VisualizationCanvas" 
+                        Background="{StaticResource BackgroundSecondary}"
+                        Width="800" Height="400"
+                        ClipToBounds="True">
+                
+                <!-- Grid Lines -->
+                <ItemsControl x:Name="GridLinesControl" 
+                              ItemsSource="{Binding Grid.VerticalLines}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <Canvas/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Line X1="{Binding StartPoint.X}" 
+                                  Y1="{Binding StartPoint.Y}"
+                                  X2="{Binding EndPoint.X}" 
+                                  Y2="{Binding EndPoint.Y}"
+                                  Style="{StaticResource GridLineStyle}"/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                
+                <ItemsControl x:Name="HorizontalGridLinesControl" 
+                              ItemsSource="{Binding Grid.HorizontalLines}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <Canvas/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Line X1="{Binding StartPoint.X}" 
+                                  Y1="{Binding StartPoint.Y}"
+                                  X2="{Binding EndPoint.X}" 
+                                  Y2="{Binding EndPoint.Y}"
+                                  Style="{StaticResource GridLineStyle}"/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                
+                <!-- Grid Labels -->
+                <ItemsControl x:Name="GridLabelsControl" 
+                              ItemsSource="{Binding Grid.Labels}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <Canvas/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Text}"
+                                       Canvas.Left="{Binding Position.X}"
+                                       Canvas.Top="{Binding Position.Y}"
+                                       Style="{StaticResource CanvasTextStyle}"/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                
+                <!-- Working Line -->
+                <Line x:Name="WorkingLine"
+                      X1="{Binding WorkingLine.StartPoint.X}"
+                      Y1="{Binding WorkingLine.StartPoint.Y}"
+                      X2="{Binding WorkingLine.EndPoint.X}"
+                      Y2="{Binding WorkingLine.EndPoint.Y}"
+                      Style="{StaticResource WorkingLineStyle}"/>
+                
+                <!-- Intersection Segments -->
+                <ItemsControl x:Name="IntersectionsControl" 
+                              ItemsSource="{Binding Intersections}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <Canvas/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Line X1="{Binding StartPoint.X}" 
+                                  Y1="{Binding StartPoint.Y}"
+                                  X2="{Binding EndPoint.X}" 
+                                  Y2="{Binding EndPoint.Y}"
+                                  Style="{StaticResource IntersectionSegmentStyle}"/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                
+                <!-- Distance Measurement Lines -->
+                <ItemsControl x:Name="DistanceLinesControl" 
+                              ItemsSource="{Binding DistanceMeasurements}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <Canvas/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Line X1="{Binding FromPoint.X}" 
+                                  Y1="{Binding FromPoint.Y}"
+                                  X2="{Binding ToPoint.X}" 
+                                  Y2="{Binding ToPoint.Y}"
+                                  Style="{StaticResource DistanceLineStyle}"/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                
+                <!-- Distance Labels -->
+                <ItemsControl x:Name="DistanceLabelsControl" 
+                              ItemsSource="{Binding DistanceMeasurements}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <Canvas/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding DistanceLabel}"
+                                       Canvas.Left="{Binding LabelPosition.X}"
+                                       Canvas.Top="{Binding LabelPosition.Y}"
+                                       Style="{StaticResource DistanceLabelStyle}"/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                
+                <!-- Intersection Distance Labels -->
+                <ItemsControl x:Name="IntersectionLabelsControl" 
+                              ItemsSource="{Binding Intersections}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <Canvas/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding DistanceLabel}"
+                                       Canvas.Left="{Binding LabelPosition.X}"
+                                       Canvas.Top="{Binding LabelPosition.Y}"
+                                       Style="{StaticResource DistanceLabelStyle}"/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                
+                </Canvas>
+            </Viewbox>
+        </Border>
+        
+        <!-- Status bar (simplified: remove "Status: Updated xx intersections") -->
+        <Border Grid.Row="2" 
+                Background="{StaticResource BackgroundTertiary}"
+                BorderBrush="{StaticResource BorderSecondary}"
+                BorderThickness="0,1,0,0"
+                Padding="8,4">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Working Line: " 
+                           Foreground="{StaticResource ForegroundSecondary}"/>
+                <TextBlock Text="{Binding VisualizationModel.WorkingLine.DisplayLength, StringFormat=F1}" 
+                           Foreground="{StaticResource AccentPrimary}"
+                           FontWeight="Bold"/>
+                <TextBlock Text=" | " 
+                           Foreground="{StaticResource ForegroundTertiary}"
+                           Margin="8,0"/>
+                <TextBlock Text="Intersections: " 
+                           Foreground="{StaticResource ForegroundSecondary}"/>
+                <TextBlock Text="{Binding VisualizationModel.Intersections.Count}" 
+                           Foreground="{StaticResource AccentSecondary}"
+                           FontWeight="Bold"/>
+                <TextBlock Text=" | " 
+                           Foreground="{StaticResource ForegroundTertiary}"
+                           Margin="8,0"/>
+                <TextBlock Text="Measurements: " 
+                           Foreground="{StaticResource ForegroundSecondary}"/>
+                <TextBlock Text="{Binding VisualizationModel.DistanceMeasurements.Count}" 
+                           Foreground="{StaticResource AccentSecondary}"
+                           FontWeight="Bold"/>
+            </StackPanel>
         </Border>
     </Grid>
 </UserControl>

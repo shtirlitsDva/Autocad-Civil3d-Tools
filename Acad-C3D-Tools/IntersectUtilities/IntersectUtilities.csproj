@@ -39,6 +39,9 @@
 	  <None Remove="IntersectUtilities.dll.config" />
 	</ItemGroup>
 	<ItemGroup>
+	  <Page Remove="FjernvarmeFremtidig\VejkantOffset\UI\Resources\DarkTheme.xaml" />
+	</ItemGroup>
+	<ItemGroup>
 	  <COMReference Include="Microsoft.Office.Interop.Excel">
 	    <WrapperTool>tlbimp</WrapperTool>
 	    <VersionMinor>9</VersionMinor>
@@ -153,6 +156,9 @@
 		<PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0" />
 		<PackageReference Include="System.Text.Encodings.Web" Version="8.0.0" />
 		<PackageReference Include="System.Text.Json" Version="8.0.5" />
+	</ItemGroup>
+	<ItemGroup>
+	  <Resource Include="FjernvarmeFremtidig\VejkantOffset\UI\Resources\DarkTheme.xaml" />
 	</ItemGroup>
 	<Import Project="..\UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems" Label="Shared" />
 	<Import Project="..\AutoCADCommandsSHARED\AutoCADCommandsSHARED.projitems" Label="Shared" />

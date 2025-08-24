@@ -1,0 +1,95 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    
+    <!-- Color Palette -->
+    <SolidColorBrush x:Key="BackgroundPrimary" Color="#FF1E1E1E"/>
+    <SolidColorBrush x:Key="BackgroundSecondary" Color="#FF252526"/>
+    <SolidColorBrush x:Key="BackgroundTertiary" Color="#FF2D2D30"/>
+    <SolidColorBrush x:Key="ForegroundPrimary" Color="#FFFFFFFF"/>
+    <SolidColorBrush x:Key="ForegroundSecondary" Color="#FFCCCCCC"/>
+    <SolidColorBrush x:Key="ForegroundTertiary" Color="#FF999999"/>
+    <SolidColorBrush x:Key="AccentPrimary" Color="#FFFFD700"/>
+    <SolidColorBrush x:Key="AccentSecondary" Color="#FFFFA500"/>
+    <SolidColorBrush x:Key="BorderPrimary" Color="#FF444444"/>
+    <SolidColorBrush x:Key="BorderSecondary" Color="#FF555555"/>
+    
+    <!-- Working Line Colors -->
+    <SolidColorBrush x:Key="WorkingLineBrush" Color="#FFFFFFFF"/>
+    <SolidColorBrush x:Key="IntersectionSegmentBrush" Color="#FFFFD700"/>
+    <SolidColorBrush x:Key="DistanceLineBrush" Color="#FF00BFFF"/>
+    <SolidColorBrush x:Key="GridLineBrush" Color="#FF333333"/>
+    
+    <!-- Global Styles -->
+    <Style TargetType="UserControl">
+        <Setter Property="Background" Value="{StaticResource BackgroundPrimary}"/>
+        <Setter Property="Foreground" Value="{StaticResource ForegroundPrimary}"/>
+        <Setter Property="FontFamily" Value="Segoe UI"/>
+        <Setter Property="FontSize" Value="12"/>
+    </Style>
+    
+    <Style TargetType="Grid">
+        <Setter Property="Background" Value="{StaticResource BackgroundPrimary}"/>
+    </Style>
+    
+    <Style TargetType="Canvas">
+        <Setter Property="Background" Value="{StaticResource BackgroundSecondary}"/>
+    </Style>
+    
+    <Style TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource BackgroundSecondary}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BorderPrimary}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="4"/>
+    </Style>
+    
+    <Style TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{StaticResource ForegroundPrimary}"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Margin" Value="4"/>
+    </Style>
+    
+    <Style TargetType="StackPanel">
+        <Setter Property="Background" Value="Transparent"/>
+    </Style>
+    
+    <!-- Canvas Element Styles -->
+    <Style x:Key="WorkingLineStyle" TargetType="Line">
+        <Setter Property="Stroke" Value="{StaticResource WorkingLineBrush}"/>
+        <Setter Property="StrokeThickness" Value="2"/>
+    </Style>
+    
+    <Style x:Key="IntersectionSegmentStyle" TargetType="Line">
+        <Setter Property="Stroke" Value="{StaticResource IntersectionSegmentBrush}"/>
+        <Setter Property="StrokeThickness" Value="1.5"/>
+    </Style>
+    
+    <Style x:Key="DistanceLineStyle" TargetType="Line">
+        <Setter Property="Stroke" Value="{StaticResource DistanceLineBrush}"/>
+        <Setter Property="StrokeThickness" Value="1"/>
+        <Setter Property="StrokeDashArray" Value="2,2"/>
+    </Style>
+    
+    <Style x:Key="GridLineStyle" TargetType="Line">
+        <Setter Property="Stroke" Value="{StaticResource GridLineBrush}"/>
+        <Setter Property="StrokeThickness" Value="0.5"/>
+        <Setter Property="Opacity" Value="0.3"/>
+    </Style>
+    
+    <!-- Text Styles for Canvas -->
+    <Style x:Key="CanvasTextStyle" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{StaticResource ForegroundSecondary}"/>
+        <Setter Property="Background" Value="{StaticResource BackgroundSecondary}"/>
+        <Setter Property="Padding" Value="2,1"/>
+        <Setter Property="FontSize" Value="10"/>
+        <Setter Property="FontWeight" Value="Normal"/>
+    </Style>
+    
+    <Style x:Key="DistanceLabelStyle" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{StaticResource DistanceLineBrush}"/>
+        <Setter Property="Background" Value="{StaticResource BackgroundSecondary}"/>
+        <Setter Property="Padding" Value="3,1"/>
+        <Setter Property="FontSize" Value="9"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+    </Style>
+    
+</ResourceDictionary>
