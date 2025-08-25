@@ -215,7 +215,7 @@ namespace IntersectUtilities
                         using (Database alDb = new Database(false, true))
                         {
                             alDb.ReadDwgFile(
-                                @"X:\AutoCAD DRI - 01 Civil 3D\Templates\Alignment_til_viewframes.dwt",
+                                @"X:\AutoCAD DRI - SETUP\Templates\NS_ViewFrame.dwt",
                                 System.IO.FileShare.Read, false, string.Empty);
                             alDb.SaveAs(newFileName, true, DwgVersion.Newest, null);
                         }
