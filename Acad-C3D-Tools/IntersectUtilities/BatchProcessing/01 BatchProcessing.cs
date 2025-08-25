@@ -1478,6 +1478,37 @@ namespace IntersectUtilities
             return new Result();
         }
         [MethodDescription(
+            "Center viewframes",
+            "Reviderer stylen for viewframe labels\n" +
+            "således at viewframe nummer sidder i midten")]
+        public static Result centerviewframes(Database xDb)
+        {
+            Transaction xTx = xDb.TransactionManager.TopTransaction;
+
+            var cDoc = CivilDocument.GetCivilDocument(xDb);
+
+            var root = cDoc.Styles.LabelStyles.ViewFrameLabelStyles;
+            if (!root.LabelStyles.Contains("Basic")) 
+            { 
+                xTx.Abort(); 
+                return new Result(ResultStatus.FatalError, "No Basic viewframe label style found!"); 
+            }
+
+            var styleId = root.LabelStyles["Basic"];
+            var style = (LabelStyle)xTx.GetObject(styleId, OpenMode.ForWrite);
+
+            foreach (Oid compId in style.GetComponents(LabelStyleComponentType.Text))
+            {
+                var txt = (LabelStyleTextComponent)xTx.GetObject(compId, OpenMode.ForWrite);
+
+                txt.Text.Attachment.Value = LabelTextAttachmentType.MiddleCenter;
+                txt.Text.XOffset.Value = 0.0;
+                txt.Text.YOffset.Value = 0.0;
+            }
+
+            return new Result();
+        }
+        [MethodDescription(
             "Freeze LER points in minimap",
             "Finder alle lag brugt af LER punkter og\n" +
             "freezer dem i minikortets ViewPort.\n" +
