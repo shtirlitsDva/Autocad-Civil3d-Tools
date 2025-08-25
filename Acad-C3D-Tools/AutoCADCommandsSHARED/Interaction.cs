@@ -16,6 +16,7 @@ using Polyline = Autodesk.AutoCAD.DatabaseServices.Polyline;
 using TaskDialog = Autodesk.Windows.TaskDialog;
 using TaskDialogIcon = Autodesk.Windows.TaskDialogIcon;
 using TaskDialogButton = Autodesk.Windows.TaskDialogButton;
+using System.Threading.Tasks;
 
 namespace Dreambuild.AutoCAD
 {

@@ -40,8 +40,7 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App
         public void Run(IEnumerable<LineJigKeyword<VejkantOffsetSettings>> keywords, VejkantOffsetSettings context)
         {
             var callbacks = new JigCallbacksAdapter(this);
-            // Revert: show the palette immediately (original behavior)
-            _visualizer.Show();
+            //_visualizer.Show();
             _ignoreNextLevel2 = false;
 
             LineJigWithKeywords<VejkantOffsetSettings>.RunContinuous(
@@ -49,10 +48,7 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App
                 context,
                 callbacks,
                 acquireStartPoint: () =>
-                {
-                    // Ensure palette is shown but do not steal focus
-                    //IntersectUtilities.UtilsCommon.Utils.prdDbg("[Jig] acquireStartPoint");
-                    Autodesk.AutoCAD.Internal.Utils.SetFocusToDwgView();
+                {                    
                     var sp = Interaction.GetPoint("Select start location: ");
                     if (sp.IsNull()) return null;
                     return sp;
@@ -64,7 +60,7 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App
         {
             var analysis = _analyzer.Analyze(line);
             _renderer.Show(_sceneComposer.Compose(analysis, line));
-            _visualizer.Update(_inspectorMapper.Map(analysis, line));
+            //_visualizer.Update(_inspectorMapper.Map(analysis, line));
             //IntersectUtilities.UtilsCommon.Utils.prdDbg("[Jig] Sampler tick -> Visualizer.Update called");
         }
 
@@ -72,7 +68,7 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App
         {
             var analysis = _analyzer.Analyze(line);
             _renderer.Clear();
-            _visualizer.Update(_inspectorMapper.Map(analysis, line));
+            //_visualizer.Update(_inspectorMapper.Map(analysis, line));
             _analyzer.Commit(analysis);
         }
 
@@ -96,7 +92,7 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App
             }
             else
             {
-                _visualizer.Hide();
+                //_visualizer.Hide();
                 //IntersectUtilities.UtilsCommon.Utils.prdDbg("[Jig] OnCancelLevel2 (visualizer hidden)");
             }
         }

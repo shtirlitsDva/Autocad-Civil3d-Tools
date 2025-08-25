@@ -91,8 +91,8 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App
 
             var vejKantCrossings = new List<Segment2d>();
 
-            VejkantAnalyzer.AnalyzeIntersectingVejkants(
-                workingLine, _cache, vejKantCrossings);
+            //VejkantAnalyzer.AnalyzeIntersectingVejkants(
+            //    workingLine, _cache, vejKantCrossings);
 
             return new VejkantAnalysis(
                 workingLine,

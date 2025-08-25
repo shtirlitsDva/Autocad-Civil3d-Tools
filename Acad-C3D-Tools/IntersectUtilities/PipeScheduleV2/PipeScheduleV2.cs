@@ -821,6 +821,33 @@ namespace IntersectUtilities.PipeScheduleV2
                 type == PipeTypeEnum.Frem)
                 type = PipeTypeEnum.Enkelt;
 
+            // Normalize requested series to available range for given DN and Type
+            var availableRows = _data.Select($"DN = {dn} AND PipeType = '{type}'");
+            if (availableRows != null && availableRows.Length > 0)
+            {
+                var availableSeries = availableRows
+                    .Select(r => r["PipeSeries"])
+                    .Where(v => v != null)
+                    .Select(v =>
+                    {
+                        if (v is PipeSeriesEnum e) return e;
+                        PipeSeriesEnum parsed;
+                        return Enum.TryParse(v.ToString(), true, out parsed) ? parsed : PipeSeriesEnum.Undefined;
+                    })
+                    .Where(e => e != PipeSeriesEnum.Undefined)
+                    .Distinct()
+                    .OrderBy(e => e)
+                    .ToList();
+
+                if (availableSeries.Count > 0)
+                {
+                    var minSeries = availableSeries.First();
+                    var maxSeries = availableSeries.Last();
+                    if (series < minSeries) series = minSeries;
+                    if (series > maxSeries) series = maxSeries;
+                }
+            }
+
             DataRow[] results = _data.Select($"DN = {dn} AND PipeType = '{type}' AND PipeSeries = '{series}'");
             if (results != null && results.Length > 0) return (double)results[0]["OffsetUnder7_5"];
             return 100;
