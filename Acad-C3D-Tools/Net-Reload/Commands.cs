@@ -63,7 +63,7 @@ namespace NetReload
 
             string netReloadDir = null;
 
-#if DEBUG
+//#if DEBUG
             ResolveEventHandler assemblyResolveHandler = (sender, args) =>
                 {
                     if (netReloadDir == null) return null;
@@ -83,7 +83,7 @@ namespace NetReload
                 };
 
             AppDomain.CurrentDomain.AssemblyResolve += assemblyResolveHandler; 
-#endif
+//#endif
 
             try
             {
@@ -314,9 +314,9 @@ namespace NetReload
             }
             finally
             {
-#if DEBUG
+//#if DEBUG
                 AppDomain.CurrentDomain.AssemblyResolve -= assemblyResolveHandler;
-#endif
+//#endif
             }
         }
 
