@@ -5499,7 +5499,14 @@ namespace IntersectUtilities
             tx.Abort();
         }
 
-        [CommandMethod("CENTERVIEWFRAMENUMBER")]
+    /// <command>CENTERVIEWFRAMENUMBER</command>
+    /// <summary>
+    /// Centrerer tal-teksten i Civil 3D View Frame label-stilen "Basic".
+    /// Alle tekstkomponenter sættes til vedhæftning MiddleCenter med 0 i X/Y-offset.
+    /// Stilen hentes fra det aktive CivilDocument; geometri ændres ikke.
+    /// </summary>
+    /// <category>Utilities</category>
+    [CommandMethod("CENTERVIEWFRAMENUMBER")]
         public void CenterViewFrameNumber()
         {
             DocumentCollection docCol = Application.DocumentManager;
