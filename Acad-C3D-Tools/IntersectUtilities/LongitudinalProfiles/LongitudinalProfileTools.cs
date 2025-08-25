@@ -4370,7 +4370,11 @@ namespace IntersectUtilities
                             using (DBObjectCollection col = pline.GetOffsetCurves(halfKod))
                             {
                                 if (col.Count == 0)
-                                    throw new System.Exception("Offsetting pline failed!");
+                                {
+                                    throw new DebugException("Offseting pline failed!", [pline]);
+                                    //throw new System.Exception("Offsetting pline failed!");
+                                }
+
                                 Polyline offsetPline = col[0] as Polyline;
                                 List<double> splitPts = new List<double>();
                                 foreach (Line line in splitLines)
@@ -4529,6 +4533,31 @@ namespace IntersectUtilities
                         plineBund
                     );
                     #endregion
+                }
+
+                catch (DebugException dbex)
+                {
+                    fremTx.Abort();
+                    fremTx.Dispose();
+                    fremDb.Dispose();
+                    tx.Abort();
+
+                    prdDbg(dbex);
+                    if (dbex.DebugEntities != null && dbex.DebugEntities.Count > 0)
+                    {
+                        localDb.CheckOrCreateLayer("0-DEBUG", Color.FromColorIndex(ColorMethod.ByAci, 1));
+                        using var dbgTx = localDb.TransactionManager.StartTransaction();
+                        foreach (var obj in dbex.DebugEntities)
+                        {
+                            if (obj is Entity ent)
+                            {
+                                ent.AddEntityToDbModelSpace(localDb);
+                                ent.Layer = "0-DEBUG";
+                            }
+                        }
+                        dbgTx.Commit();
+                    }
+                    return;
                 }
                 catch (System.Exception ex)
                 {
