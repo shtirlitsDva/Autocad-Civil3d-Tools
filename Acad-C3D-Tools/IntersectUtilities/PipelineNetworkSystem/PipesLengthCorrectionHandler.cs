@@ -4,6 +4,7 @@ using Autodesk.AutoCAD.Geometry;
 using Dreambuild.AutoCAD;
 
 using IntersectUtilities.UtilsCommon;
+using IntersectUtilities.UtilsCommon.Enums;
 
 using System;
 using System.Collections.Generic;

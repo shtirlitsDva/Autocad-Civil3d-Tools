@@ -20,6 +20,7 @@ using IntersectUtilities.Forms;
 using IntersectUtilities.GraphClasses;
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.DataManager;
+using IntersectUtilities.UtilsCommon.Enums;
 
 using Microsoft.Win32;
 
@@ -1614,7 +1615,7 @@ namespace IntersectUtilities
             Oid oid = Interaction.GetEntity("Select object to write color of: ", typeof(Entity), false);
             if (oid == Oid.Null) return;
             Point3d location = Interaction.GetPoint("Select where to place the text: ");
-            if (location == Algorithms.NullPoint3d) return;
+            if (location.IsNull()) return;
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
@@ -3823,7 +3824,7 @@ namespace IntersectUtilities
                 for (int i = 0; i < 4; i++)
                 {
                     Point3d p = Interaction.GetPoint($"Pick {i + 1}. corner of view frame: ");
-                    if (p == Algorithms.NullPoint3d) { cont = false; break; }
+                    if (p.IsNull()) { cont = false; break; }
                     coords[i] = new double[] { p.X, p.Y };
                 }
                 if (cont)
@@ -3860,7 +3861,7 @@ namespace IntersectUtilities
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
             Point3d p = Interaction.GetPoint($"Pick point for Google Street View: ");
-            if (p == Algorithms.NullPoint3d) { return; }
+            if (p.IsNull()) { return; }
             var latlong = p.ToWGS84FromUtm32N();
             prdDbg($"Opening Google Street View with coordinates: {latlong[0]}, {latlong[1]}.");
             string url = $"https://www.google.com/maps/@?api=1&map_action=pano&viewpoint={latlong[0]},{latlong[1]}";
@@ -3880,7 +3881,7 @@ namespace IntersectUtilities
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
             Point3d p = Interaction.GetPoint($"Pick point for Skråfoto: ");
-            if (p == Algorithms.NullPoint3d) { return; }
+            if (p.IsNull()) { return; }
             //var latlong = p.ToWGS84FromUtm32N();
             int x = (int)p.X;
             int y = (int)p.Y;

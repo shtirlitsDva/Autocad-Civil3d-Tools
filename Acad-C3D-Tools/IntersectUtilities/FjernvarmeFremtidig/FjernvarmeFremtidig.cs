@@ -9,14 +9,26 @@ using Autodesk.Civil.DatabaseServices;
 
 using Dreambuild.AutoCAD;
 
+using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset;
+using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.Core;
+using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.Core.Models;
+using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App;
+using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.Rendering;
+using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.UI;
+using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.UI.Models;
+using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.UI.Views;
+
+using IntersectUtilities.Jigs;
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.DataManager;
+using IntersectUtilities.UtilsCommon.Enums;
 
 using MoreLinq;
 
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.IO;
 using System.Linq;
 
 using static IntersectUtilities.Graph;
@@ -825,7 +837,7 @@ namespace IntersectUtilities
             }
         }
 
-        /// <command>DECORATEPOLYLINES</command>
+        /// <command>DECORATEPOLYLINEs</command>
         /// <summary>
         /// Is used when creaing alignments.
         /// In a new drawing, fjernvarme fremtidig must be xrefed in.
@@ -1157,34 +1169,204 @@ namespace IntersectUtilities
             }
         }
 
-#if DEBUG
         /// <command>OFFSETVK</command>
         /// <summary>
         /// Offsets selected vejkant.
         /// The offset is to middle of the nearest pipe.
+        /// Vinkel [°] - parallelisme kriterie.
+        /// Serie - mulighed for at vælge en isoleringsserie.
+        /// Bredde [m] - normalt vejens bredde, ellers afstand langs linjen for at søge
+        /// dimensionsgivende segmenter.
+        /// Tillæg [m] - mulighed for at give afsætningen et tillæg.
         /// </summary>
         /// <category>Fjernvarme Fremtidig</category>
         [CommandMethod("OFFSETVK")]
         public void offsetvk()
         {
             DocumentCollection docCol = Application.DocumentManager;
+            Editor ed = docCol.MdiActiveDocument.Editor;
             Database localDb = docCol.MdiActiveDocument.Database;
 
-            using Transaction tx = localDb.TransactionManager.StartTransaction();
+            #region Layer
+            string layer = "0-VKOFFSET";
+            localDb.CheckOrCreateLayer(layer, ColorByName("yellow"));
+            #endregion
+
+            #region Settings
+            string pathToSettings =
+                    Path.Combine(
+                        Path.GetDirectoryName(localDb.Filename)!,
+                        "VejkantOffsetSettings.json");
+
+            VejkantOffsetSettings settings;
+            if (File.Exists(pathToSettings))
+            {
+                var loaded = VejkantOffsetSettings.DeserializeFromFile(pathToSettings);
+                if (!loaded.IsValid)
+                {
+                    var resolved = setFilePaths(localDb);
+                    if (resolved == null) return;
+                    settings = resolved;
+                    settings.SerializeToFile(pathToSettings);
+                }
+                else
+                {
+                    settings = loaded;
+                }
+            }
+            else
+            {
+                var resolved = setFilePaths(localDb);
+                if (resolved == null) return;
+                settings = resolved;
+                settings.SerializeToFile(pathToSettings);
+            }
+            #endregion
+
+            #region Read databases
+            using var gkDb = new Database(false, true);
+            gkDb.ReadDwgFile(settings.Grundkort, FileShare.Read, true, "");
+
+            using var dimDb = new Database(false, true);
+            dimDb.ReadDwgFile(settings.FjernvarmeDim, FileShare.Read, true, "");
+            #endregion
+
+            #region Set up keywords
+            var keywords = new List<LineJigKeyword<VejkantOffsetSettings>>()
+            {
+                new(
+                    "_Vinkel", "Vinkel",
+                    (ed, line, ctx) =>
+                    {
+                        var p = new PromptDoubleOptions("\nAngiv max. vinkel til detektering af parallele rør (grader): ")
+                        { DefaultValue = ctx.MaxAngleDeg, UseDefaultValue = true };
+                        var r = ed.GetDouble(p);
+                        if (r.Status == PromptStatus.OK)
+                        { ctx.MaxAngleDeg = r.Value; prdDbg($"\nDetekteringsvinkel = {ctx.MaxAngleDeg}"); }
+                        return r.Status;
+                    },
+                    (settings) => $"V:{settings.MaxAngleDeg.ToString("0.##")}°"
+                ),
+                new(
+                    "_Bredde", "Bredde",
+                    (ed, line, ctx) =>
+                    {
+                         //Remember original cursor position
+                         var (cx, cy) = Win32Cursor.GetPosition();
+
+                        using var txl = localDb.TransactionManager.StartOpenCloseTransaction();
+                        Line cp = (Line)line.Clone();
+                        var cpId = cp.AddEntityToDbModelSpace(localDb);
+                        txl.Commit();
+                        localDb.TransactionManager.QueueForGraphicsFlush();
+
+                        var p = new PromptDistanceOptions("\nAngiv vejens bredde: ")
+                        { DefaultValue = ctx.Width, UseDefaultValue = true };
+                        //User moves cursor to get distance input
+                        var r = ed.GetDistance(p);
+
+                         if (r.Status == PromptStatus.OK)
+                         {
+                             ctx.Width = r.Value;
+                             prdDbg($"\nBredde = {ctx.Width}");
+                             //Return cursor to remembered position
+                             Win32Cursor.SetPosition(cx, cy);
+                         }
+
+                        cpId.Erase();
+                        localDb.TransactionManager.QueueForGraphicsFlush();
+
+                        return r.Status;
+                    },
+                    (settings) => $"B:{settings.Width.ToString("0.##")}m"
+                ),
+                new(
+                    "_Serie", "Serie",
+                    (ed, line, ctx) =>
+                    {
+                        var p = new PromptDoubleOptions("\nAngiv serie: ")
+                        { DefaultValue = ctx.OffsetSupplement, UseDefaultValue = true };
+
+                        var series = StringGridFormCaller.SelectEnum(
+                            "Vælg serie: ", [PipeSeriesEnum.Undefined]);
+                        if (series.HasValue) { ctx.Series = series.Value; prdDbg($"\nSerie = {ctx.Series}"); }
+                        return PromptStatus.OK;
+                    },
+                    (settings) => $"S:{settings.Series.ToString()}"
+                ),
+                new(
+                    "_Tillæg", "Tillæg",
+                    (ed, line, ctx) =>
+                    {
+                        var p = new PromptDoubleOptions("\nAngiv tillæg: ")
+                        { DefaultValue = ctx.OffsetSupplement, UseDefaultValue = true };
+                        var r = ed.GetDouble(p);
+                        if (r.Status == PromptStatus.OK)
+                        { ctx.OffsetSupplement = r.Value; prdDbg($"\nTillæg = {ctx.OffsetSupplement}"); }
+                        return r.Status;
+                    },
+                    (settings) => $"T:{settings.OffsetSupplement.ToString("0.##")}m"
+                )
+            };
+            #endregion
 
             try
             {
+                var controller = new JigController(
+                    analyzer: new AnalyzerAdapter(dimDb, gkDb, localDb, settings),
+                    renderer: new TransientPreviewRenderer(),
+                    visualizer: new OffsetPaletteViewModelVisualizer(),
+                    sceneComposer: new VejkantSceneComposer(),
+                    inspectorMapper: new VejkantInspectorMapper());
 
-
+                controller.Run(keywords, settings);
             }
             catch (System.Exception ex)
             {
-                tx.Abort();
                 prdDbg(ex);
                 return;
             }
-            tx.Commit();
+            // Persist any changes to settings made via keywords
+            settings.SerializeToFile(pathToSettings);
+
+            static void gatherChildrenNames(GraphNode iroot, Dictionary<string, string> infd)
+            {
+                for (int o = 0; o < iroot.NumOut; o++)
+                {
+                    XrefGraphNode? child = iroot.Out(o) as XrefGraphNode;
+                    if (child == null || child.XrefStatus != XrefStatus.Resolved) continue;
+                    var fn = child.Database.Filename;
+                    infd.Add(Path.GetFileNameWithoutExtension(fn), fn);
+                    gatherChildrenNames(child, infd);
+                }
+            }
+
+            static VejkantOffsetSettings? setFilePaths(Database db)
+            {
+                //db.ResolveXrefs(true, false);
+                XrefGraph xg = db.GetHostDwgXrefGraph(true);
+                GraphNode root = xg.RootNode;
+                Dictionary<string, string> nameFileDict = [];
+                gatherChildrenNames(root, nameFileDict);
+
+                var grundkortName = StringGridFormCaller.Call(
+                    nameFileDict.Select(x => x.Key),
+                    "SELECT GRUNDKORT XREF:");
+
+                if (grundkortName == null) return null;
+
+                var dimName = StringGridFormCaller.Call(
+                    nameFileDict.Select(x => x.Key),
+                    "SELECT DIMENSIONERING XREF:");
+
+                if (dimName == null) return null;
+
+                VejkantOffsetSettings settings = new(
+                    nameFileDict[grundkortName],
+                    nameFileDict[dimName]);
+
+                return settings;
+            }
         }
     }
-#endif
 }

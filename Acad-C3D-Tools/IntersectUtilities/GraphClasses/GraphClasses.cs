@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 using static IntersectUtilities.UtilsCommon.Utils;
+using IntersectUtilities.UtilsCommon.Enums;
 
 namespace IntersectUtilities.GraphClasses
 {

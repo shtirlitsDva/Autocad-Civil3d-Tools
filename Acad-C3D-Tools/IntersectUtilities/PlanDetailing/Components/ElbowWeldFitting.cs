@@ -121,7 +121,7 @@ namespace IntersectUtilities.PlanDetailing.Components
                     LineSegment3d seg1 = run.GetLineSegmentAt(idx);
                     LineSegment3d seg2 = run.GetLineSegmentAt(idx - 1);
 
-                    double angle = seg1.Direction.GetAngleTo(seg2.Direction).ToDegrees();
+                    double angle = seg1.Direction.GetAngleTo(seg2.Direction).ToDeg();
                     prdDbg(angle);
 
                     //if (angle > 80.0 || angle < 10.0)

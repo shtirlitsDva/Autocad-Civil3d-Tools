@@ -21,6 +21,7 @@ using IntersectUtilities.PipelineNetworkSystem;
 using IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray;
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.DataManager;
+using IntersectUtilities.UtilsCommon.Enums;
 
 using MoreLinq;
 
@@ -1754,7 +1755,7 @@ namespace IntersectUtilities
 
                         //Settings
                         double weedAngle = 5; //In degrees
-                        double weedAngleRad = weedAngle.ToRadians();
+                        double weedAngleRad = weedAngle.ToRad();
                         double DouglasPeuckerTolerance = .05;
 
                         double stepLength = 0.1;

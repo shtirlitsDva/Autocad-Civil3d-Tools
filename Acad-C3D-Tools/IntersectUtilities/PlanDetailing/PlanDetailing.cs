@@ -51,6 +51,7 @@ using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
+using IntersectUtilities.UtilsCommon.Enums;
 
 namespace IntersectUtilities
 {
@@ -102,7 +103,7 @@ namespace IntersectUtilities
                 }
                 #endregion
                 tx.Commit();
-            }
+            }            
         }
 
         /// <command>FIXPLINEGLOBALWIDTH</command>
@@ -191,7 +192,7 @@ namespace IntersectUtilities
                         }
                         if (res.Status == PromptStatus.OK) location = res.Value;
                     }
-                    while (location == Algorithms.NullPoint3d);
+                    while (location.IsNull());
                     #endregion
 
                     #region Find nearest pline
@@ -280,7 +281,7 @@ namespace IntersectUtilities
                         }
                         if (res.Status == PromptStatus.OK) location = res.Value;
                     }
-                    while (location == Algorithms.NullPoint3d);
+                    while (location.IsNull());
                     #endregion
 
                     #region Find nearest pline
@@ -385,7 +386,7 @@ namespace IntersectUtilities
                         }
                         if (res.Status == PromptStatus.OK) location = res.Value;
                     }
-                    while (location == Algorithms.NullPoint3d);
+                    while (location.IsNull());
                     #endregion
 
                     #region Find nearest pline
@@ -475,7 +476,7 @@ namespace IntersectUtilities
                         }
                         if (res.Status == PromptStatus.OK) location = res.Value;
                     }
-                    while (location == Algorithms.NullPoint3d);
+                    while (location.IsNull());
                     #endregion
 
                     #region Find nearest pline
@@ -558,7 +559,7 @@ namespace IntersectUtilities
                         }
                         if (res.Status == PromptStatus.OK) location = res.Value;
                     }
-                    while (location == Algorithms.NullPoint3d);
+                    while (location.IsNull());
                     #endregion
 
                     #region Place branch
@@ -628,7 +629,7 @@ namespace IntersectUtilities
                         }
                         if (res.Status == PromptStatus.OK) location = res.Value;
                     }
-                    while (location == Algorithms.NullPoint3d);
+                    while (location.IsNull());
                     #endregion
 
                     #region Select nearest pline

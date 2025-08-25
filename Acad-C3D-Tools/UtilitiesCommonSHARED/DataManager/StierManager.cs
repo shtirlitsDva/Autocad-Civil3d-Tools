@@ -11,16 +11,15 @@ namespace IntersectUtilities.UtilsCommon.DataManager
     internal static class StierManager
     {
         private static readonly string[] ValueColumns = ["Ler", "Surface", "Alignments", "Fremtid", "Længdeprofiler"];
-
-        private static readonly Dictionary<(string ProjectId, string EtapeId), StierRecord> _cache;
-
+        
         static StierManager()
         {
-            _cache = LoadStierData();
+            
         }
 
         public static IEnumerable<string> GetFileNames((string, string) key, StierDataType dataType)
         {
+            var _cache = LoadStierData();
             if (_cache == null) throw new System.Exception("Something wrong with Stier! _cache in StierManager is null!");
             if (!_cache.TryGetValue(key, out var sr)) throw new System.Exception(
                 $"{key} is not set! This project, etape does not exist!");
@@ -35,11 +34,11 @@ namespace IntersectUtilities.UtilsCommon.DataManager
                 _ => []
             };
         }        
-        public static IEnumerable<string> Projects() => _cache.Keys.Select(x => x.ProjectId).Distinct().Order();
+        public static IEnumerable<string> Projects() => LoadStierData().Keys.Select(x => x.ProjectId).Distinct().Order();
         public static IEnumerable<string> PhasesForProject(string projectId) => 
-            _cache.Keys.Where(x => x.ProjectId == projectId).Select(x => x.EtapeId).Distinct().Order();        
+            LoadStierData().Keys.Where(x => x.ProjectId == projectId).Select(x => x.EtapeId).Distinct().Order();        
         public static IEnumerable<(string ProjectId, string EtapeId)> DetectProjectAndEtape(string fileName) =>
-            _cache.Values.Where(x => x.ContainsFile(fileName)).Select(x => x.Key).OrderBy(x => x.ProjectId).ThenBy(x => x.EtapeId);
+            LoadStierData().Values.Where(x => x.ContainsFile(fileName)).Select(x => x.Key).OrderBy(x => x.ProjectId).ThenBy(x => x.EtapeId);
         private static Dictionary<(string ProjectId, string EtapeId), StierRecord> LoadStierData()
         {
             var dt = CsvData.Stier;

@@ -17,6 +17,7 @@ using static IntersectUtilities.UtilsCommon.Utils;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using static DriPaletteSet.PaletteUtils;
 using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
+using IntersectUtilities.UtilsCommon.Enums;
 
 namespace DriPaletteSet
 {

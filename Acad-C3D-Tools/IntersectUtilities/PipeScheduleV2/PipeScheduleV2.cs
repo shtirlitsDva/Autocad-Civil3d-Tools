@@ -3,6 +3,7 @@ using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 
 using IntersectUtilities.UtilsCommon;
+using IntersectUtilities.UtilsCommon.Enums;
 
 using System;
 using System.Collections.Generic;
@@ -180,7 +181,8 @@ namespace IntersectUtilities.PipeScheduleV2
             {"minElasticRadii", typeof(double)},
             {"VertFactor", typeof(double)},
             {"color", typeof(short)},
-            {"DefaultL", typeof(double)}
+            {"DefaultL", typeof(double)},
+            {"OffsetUnder7_5", typeof (double)}, //Offset Under eller Lig Med
         };
         public static void LoadPipeTypeData(string pathToPipeTypesStore)
         {
@@ -574,10 +576,38 @@ namespace IntersectUtilities.PipeScheduleV2
             int DN, PipeSystemEnum system, PipeTypeEnum type, PipeSeriesEnum series)
         {
             if (!systemDictReversed.ContainsKey(system))
-                throw new Exception($"GetTrenchWidht received unknown system: {system}!");
+                throw new Exception($"GetTrenchWidth received unknown system: {system}!");
             var pipeType = _repository.GetPipeType(systemDictReversed[system]);
 
             return pipeType.GetTrenchWidth(DN, type, series);
+        }
+        public static double GetOffset(
+            int DN, PipeSystemEnum system, PipeTypeEnum type, PipeSeriesEnum series,
+            double pathWidth, double offsetSupplement = 0)
+        {
+            if (!systemDictReversed.ContainsKey(system))
+                throw new Exception($"GetOffset received unknown system: {system}!");
+            var pipeType = _repository.GetPipeType(systemDictReversed[system]);
+
+            var offset = pipeType.GetOffset(DN, type, series);
+            if (pathWidth > 7.5) offset += 0.15;
+            return offset += offsetSupplement;
+        }
+        public static double GetOffset(
+            Entity ent,
+            double pathWidth, double offsetSupplement = 0)
+        {
+            return GetOffset(ent, GetPipeSeriesV2(ent), pathWidth, offsetSupplement);
+        }
+        public static double GetOffset(
+            Entity ent, PipeSeriesEnum series,
+            double pathWidth, double offsetSupplement = 0)
+        {
+            var system = GetPipeSystem(ent);
+            var dn = GetPipeDN(ent);
+            var type = GetPipeType(ent);
+
+            return GetOffset(dn, system, type, series, pathWidth, offsetSupplement);
         }
         public static short GetColorForDim(string layer)
         {
@@ -630,7 +660,6 @@ namespace IntersectUtilities.PipeScheduleV2
         double GetPipeKOd(int dn, PipeTypeEnum type, PipeSeriesEnum pipeSeries);
         double GetMinElasticRadius(int dn, PipeTypeEnum type);
         double GetFactorForVerticalElasticBending(int dn, PipeTypeEnum type);
-        double GetBuerorMinRadius(int dn, int std);
         double GetPipeStdLength(int dn, PipeTypeEnum type);
         IEnumerable<int> ListAllDnsForPipeTypeSerie(PipeTypeEnum type, PipeSeriesEnum serie);
         string GetLabel(int DN, PipeTypeEnum type, double od, double kOd);
@@ -642,6 +671,7 @@ namespace IntersectUtilities.PipeScheduleV2
         IEnumerable<PipeSeriesEnum> GetAvailableSeriesForType(PipeTypeEnum type);
         double GetDefaultLengthForDnAndType(int DN, PipeTypeEnum type);
         PipeTypeEnum GetPipeTypeByAvailability(int dn);
+        double GetOffset(int dN, PipeTypeEnum type, PipeSeriesEnum series);
     }
     public abstract class PipeTypeBase : IPipeType
     {
@@ -675,7 +705,7 @@ namespace IntersectUtilities.PipeScheduleV2
                     missingColumns.Add(col.ColumnName);
 
             if (missingColumns.Count > 0)
-                throw new Exception($"Missing data type definitions for columns: " +
+                prdDbg($"Missing data type definitions for columns: " +
                     $"{string.Join(", ", missingColumns)}");
             #endregion
 
@@ -738,7 +768,6 @@ namespace IntersectUtilities.PipeScheduleV2
             if (results != null && results.Length > 0) return (double)results[0]["VertFactor"];
             return 0;
         }
-        public abstract double GetBuerorMinRadius(int dn, int std);
         public double GetPipeStdLength(int dn, PipeTypeEnum type)
         {
             if (type == PipeTypeEnum.Retur ||
@@ -785,6 +814,16 @@ namespace IntersectUtilities.PipeScheduleV2
             DataRow[] results = _data.Select($"DN = {dn} AND PipeType = '{type}' AND PipeSeries = '{series}'");
             if (results != null && results.Length > 0) return (double)results[0]["tWdth"];
             return 1000000;
+        }
+        public virtual double GetOffset(int dn, PipeTypeEnum type, PipeSeriesEnum series)
+        {
+            if (type == PipeTypeEnum.Retur ||
+                type == PipeTypeEnum.Frem)
+                type = PipeTypeEnum.Enkelt;
+
+            DataRow[] results = _data.Select($"DN = {dn} AND PipeType = '{type}' AND PipeSeries = '{series}'");
+            if (results != null && results.Length > 0) return (double)results[0]["OffsetUnder7_5"];
+            return 100;
         }
         public short GetSizeColor(int dn, PipeTypeEnum type)
         {
@@ -860,18 +899,6 @@ namespace IntersectUtilities.PipeScheduleV2
     }
     public class PipeTypeDN : PipeTypeBase
     {
-        public override double GetBuerorMinRadius(int dn, int std)
-        {
-            DataRow[] results = _data.Select($"DN = {dn}");
-
-            if (results != null && results.Length > 0)
-            {
-                double vpMax12 = (double)results[0]["VpMax12"];
-                if (vpMax12 == 0) return 0;
-                return (180 * std) / (Math.PI * vpMax12);
-            }
-            return 0;
-        }
         public override string GetLabel(int DN, PipeTypeEnum type, double od, double kOd)
         {
             switch (type)
@@ -891,7 +918,6 @@ namespace IntersectUtilities.PipeScheduleV2
     }
     public class PipeTypeALUPEX : PipeTypeBase
     {
-        public override double GetBuerorMinRadius(int dn, int std) => 0.0;
 
         public override string GetLabel(int DN, PipeTypeEnum type, double od, double kOd)
         {
@@ -912,7 +938,6 @@ namespace IntersectUtilities.PipeScheduleV2
     }
     public class PipeTypeCU : PipeTypeBase
     {
-        public override double GetBuerorMinRadius(int dn, int std) => 0.0;
         public override string GetLabel(int DN, PipeTypeEnum type, double od, double kOd)
         {
             switch (type)
@@ -942,7 +967,6 @@ namespace IntersectUtilities.PipeScheduleV2
     }
     public class PipeTypePEXU : PipeTypeBase
     {
-        public override double GetBuerorMinRadius(int dn, int std) => 0;
         public override string GetLabel(int DN, PipeTypeEnum type, double od, double kOd)
         {
             switch (type)
@@ -989,7 +1013,6 @@ namespace IntersectUtilities.PipeScheduleV2
     }
     public class PipeTypePRTFLEXL : PipeTypeBase
     {
-        public override double GetBuerorMinRadius(int dn, int std) => 0;
         public override string GetLabel(int DN, PipeTypeEnum type, double od, double kOd)
         {
             switch (type)
@@ -1038,7 +1061,6 @@ namespace IntersectUtilities.PipeScheduleV2
     }
     public class PipeTypeAQTHRM11 : PipeTypeBase
     {
-        public override double GetBuerorMinRadius(int dn, int std) => 0;
         public override string GetLabel(int DN, PipeTypeEnum type, double od, double kOd)
         {
             switch (type)
@@ -1087,7 +1109,6 @@ namespace IntersectUtilities.PipeScheduleV2
     }
     public class PipeTypePE : PipeTypeBase
     {
-        public override double GetBuerorMinRadius(int dn, int std) => 0;
         public override string GetLabel(int DN, PipeTypeEnum type, double od, double kOd)
         {
             switch (type)

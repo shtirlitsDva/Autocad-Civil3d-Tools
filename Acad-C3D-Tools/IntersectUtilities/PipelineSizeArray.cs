@@ -8,6 +8,7 @@ using static IntersectUtilities.DynamicBlocks.PropertyReader;
 using static IntersectUtilities.UtilsCommon.UtilsDataTables;
 using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 using IntersectUtilities.UtilsCommon;
+using IntersectUtilities.UtilsCommon.Enums;
 using GroupByCluster;
 using QuikGraph;
 using QuikGraph.Graphviz;

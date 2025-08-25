@@ -235,7 +235,7 @@ namespace IntersectUtilities
                                         prdDbg("Failed to get angle!");
                                         goto case "Line";
                                     }
-                                    _lockedAngle = result.ToRadians();
+                                    _lockedAngle = result.ToRad();
                                 }
                                 break;
                             case "Arc":
@@ -450,7 +450,7 @@ namespace IntersectUtilities
                             //Determine position
                             Point3d position = pl.GetPoint3dAt(pl.NumberOfVertices - 2);
 
-                            DisplayAngleLabels(angle.ToDegrees(), position);
+                            DisplayAngleLabels(angle.ToDeg(), position);
                         }
                     }
 

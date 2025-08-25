@@ -2,6 +2,7 @@
 using Autodesk.Civil.DatabaseServices;
 
 using IntersectUtilities.Collections;
+using IntersectUtilities.UtilsCommon.Enums;
 
 using System;
 using System.Collections.Generic;

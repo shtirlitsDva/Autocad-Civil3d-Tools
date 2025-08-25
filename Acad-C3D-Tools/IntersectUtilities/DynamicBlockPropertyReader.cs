@@ -17,6 +17,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using IntersectUtilities.UtilsCommon;
+using IntersectUtilities.UtilsCommon.Enums;
 using static IntersectUtilities.UtilsCommon.Utils;
 using IntersectUtilities.PipeScheduleV2;
 using IntersectUtilities;

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+using IntersectUtilities.UtilsCommon.Enums;
 using static IntersectUtilities.UtilsCommon.Utils;
 using IntersectUtilities.NTS;
 

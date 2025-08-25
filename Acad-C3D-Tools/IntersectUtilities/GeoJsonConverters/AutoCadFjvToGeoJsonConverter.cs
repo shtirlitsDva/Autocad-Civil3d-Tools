@@ -29,6 +29,7 @@ using System.Data;
 using MoreLinq;
 using GroupByCluster;
 using IntersectUtilities.UtilsCommon;
+using IntersectUtilities.UtilsCommon.Enums;
 using static IntersectUtilities.UtilsCommon.Utils;
 using Dreambuild.AutoCAD;
 

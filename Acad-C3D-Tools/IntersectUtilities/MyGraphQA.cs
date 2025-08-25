@@ -54,6 +54,7 @@ using ErrorStatus = Autodesk.AutoCAD.Runtime.ErrorStatus;
 using PsDataType = Autodesk.Aec.PropertyData.DataType;
 using Autodesk.Aec.Modeler;
 using static IntersectUtilities.Graph;
+using IntersectUtilities.UtilsCommon.Enums;
 
 namespace IntersectUtilities
 {

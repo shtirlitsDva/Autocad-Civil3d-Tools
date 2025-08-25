@@ -28,6 +28,7 @@ using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 using System.Diagnostics;
 using IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol;
 using IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray;
+using IntersectUtilities.UtilsCommon.Enums;
 
 namespace IntersectUtilities.PipelineNetworkSystem
 {

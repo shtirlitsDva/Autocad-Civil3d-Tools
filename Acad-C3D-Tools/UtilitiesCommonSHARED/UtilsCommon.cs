@@ -1,4 +1,20 @@
-﻿using System;
+﻿using Autodesk.Aec.PropertyData.DatabaseServices;
+using Autodesk.AutoCAD.Colors;
+using Autodesk.AutoCAD.DatabaseServices;
+using Autodesk.AutoCAD.EditorInput;
+using Autodesk.AutoCAD.Geometry;
+using Autodesk.AutoCAD.Runtime;
+using Autodesk.Civil.DatabaseServices;
+using Autodesk.Gis.Map;
+using Autodesk.Gis.Map.Constants;
+using Autodesk.Gis.Map.ObjectData;
+using Autodesk.Gis.Map.Utilities;
+
+using IntersectUtilities.UtilsCommon.Enums;
+
+using MoreLinq;
+
+using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Data;
@@ -13,20 +29,10 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using System.Xml.Serialization;
-using Autodesk.Aec.PropertyData.DatabaseServices;
-using Autodesk.AutoCAD.Colors;
-using Autodesk.AutoCAD.DatabaseServices;
-using Autodesk.AutoCAD.EditorInput;
-using Autodesk.AutoCAD.Geometry;
-using Autodesk.AutoCAD.Runtime;
-using Autodesk.Civil.DatabaseServices;
-using Autodesk.Gis.Map;
-using Autodesk.Gis.Map.Constants;
-using Autodesk.Gis.Map.ObjectData;
-using Autodesk.Gis.Map.Utilities;
-using MoreLinq;
+
 using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 using static IntersectUtilities.UtilsCommon.Utils;
+
 using AcRx = Autodesk.AutoCAD.Runtime;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
@@ -46,7 +52,7 @@ namespace IntersectUtilities.UtilsCommon
     public class SimpleLogger
     {
         public SimpleLogger(bool echoToEditor = true, string? logFileName = null)
-        { 
+        {
             _echoToEditor = echoToEditor;
             _logFileName = logFileName ?? "C:\\Temp\\log.txt";
         }
@@ -65,7 +71,7 @@ namespace IntersectUtilities.UtilsCommon
         }
     }
 
-    public static class Utils
+    public static partial class Utils
     {
         public static bool atZero(this double value) => value > -0.0001 && value < 0.0001;
 
@@ -636,126 +642,69 @@ namespace IntersectUtilities.UtilsCommon
                 tx.Commit();
             }
         }
-
-        #region Enums
-        public enum EndType
+        
+        public static class DebugHelper
         {
-            None, //0:
-            Start, //1: For start of pipes
-            End, //2: For ends of pipes
-            Main, //3: For main run in components
-            Branch, //4: For branches in components
-            StikAfgrening, //5: For points where stik are connected to supply pipes
-            StikStart, //6: For stik starts
-            StikEnd, //7: For stik ends
-            WeldOn, //8: For elements welded directly on pipe without breaking it
-        }
+            /// <param name="color">byblock, red, yellow, green, cyan, blue, magenta, white, grey, bylayer</param>
+            public static void CreateDebugLine(Point3d end, string color = "red")
+            {
+                CreateDebugLine(Point3d.Origin, end, ColorByName(color));
+            }
 
-        public enum PipeTypeEnum
-        {
-            Ukendt,
-            Twin,
-            Frem,
-            Retur,
-            Enkelt, //Bruges kun til blokke vist
-        }
+            public static void CreateDebugLine(Point3d end, Color color)
+            {
+                CreateDebugLine(Point3d.Origin, end, color);
+            }
 
-        public enum PipeSeriesEnum
-        {
-            Undefined,
-            S1,
-            S2,
-            S3,
-        }
+            /// <param name="color">byblock, red, yellow, green, cyan, blue, magenta, white, grey, bylayer</param>
+            public static void CreateDebugLine(Point3d start, Point3d end, string color = "red")
+            {
+                CreateDebugLine(start, end, ColorByName(color));
+            }
 
-        public enum PipeDnEnum
-        {
-            ALUPEX26,
-            ALUPEX32,
-            CU22,
-            CU28,
-            DN20,
-            DN25,
-            DN32,
-            DN40,
-            DN50,
-            DN65,
-            DN80,
-            DN100,
-            DN125,
-            DN150,
-            DN200,
-            DN250,
-            DN300,
-            DN350,
-            DN400,
-            DN450,
-            DN500,
-            DN600,
-        }
+            public static void CreateDebugLine(Point3d start, Point3d end, Color color)
+            {
+                CreateDebugLine(start, end, color, "");
+            }
 
-        public enum PipeSystemEnum
-        {
-            Ukendt,
-            Stål,
-            Kobberflex,
-            AluPex,
-            PertFlextra,
-            AquaTherm11,
-            PE,
-        }
+            public static void CreateDebugLine(Point3d start, Point3d end, Color color, string layer)
+            {
+                Database db = Application.DocumentManager.MdiActiveDocument.Database;
+                Line line = new Line(start, end);
+                line.Color = color;
+                if (layer.IsNotNoE())
+                    line.Layer = layer;
+                line.AddEntityToDbModelSpace(db);
+            }
 
-        public enum LerTypeEnum
-        {
-            Ukendt,
-            Afløb,
-            Damp,
-            EL_LS, // Low Supply (EL_04)
-            EL_HS, // High Supply (EL_10, EL_30, EL_50, EL_132)
-            FJV,
-            Gas,
-            Luft,
-            Oil,
-            Vand,
-            UAD, // Ude Af Drift (Out of Service)
-            Ignored,
-        }
+            public static void CreateDebugLine(Point3d start, Point3d end, string color, string layer)
+            {
+                CreateDebugLine(start, end, ColorByName(color), layer);
+            }
 
-        public enum Spatial
-        {
-            Unknown,
-            TwoD,
-            ThreeD,
-        }
-
-        public enum DynamicProperty
-        {
-            None,
-            Navn,
-            Type,
-            DN1,
-            DN2,
-            System,
-            Vinkel,
-            Serie,
-            Version,
-            TBLNavn,
-            M1,
-            M2,
-            Function,
-            SysNavn,
-        }
-
-        public enum CompanyEnum
-        {
-            Logstor,
-            Isoplus,
-            AquaTherm,
+            public static void CreateDebugText(
+                Point3d position,
+                string text,
+                double height = 2.5,
+                string layer = "0",
+                string color = "magenta"
+            )
+            {
+                Database db = Application.DocumentManager.MdiActiveDocument.Database;
+                DBText dbText = new DBText();
+                dbText.Position = position;
+                dbText.Height = height;
+                dbText.TextStyleId = db.Textstyle;
+                dbText.TextString = text;
+                dbText.Color = ColorByName(color);
+                if (layer.IsNotNoE()) dbText.Layer = layer;
+                dbText.AddEntityToDbModelSpace(db);
+            }
         }
 
         public static Dictionary<string, PipelineElementType> PipelineElementTypeDict =
-            new Dictionary<string, PipelineElementType>()
-            {
+        new Dictionary<string, PipelineElementType>()
+        {
                 { "Pipe", PipelineElementType.Pipe },
                 { "Afgrening med spring", PipelineElementType.AfgreningMedSpring },
                 { "Afgrening, parallel", PipelineElementType.AfgreningParallel },
@@ -795,96 +744,7 @@ namespace IntersectUtilities.UtilsCommon
                 { "Muffetee", PipelineElementType.Muffetee },
                 { "Preskobling tee", PipelineElementType.Muffetee },
                 { "Materialeskift {#M1}{#DN1}x{#M2}{#DN2}", PipelineElementType.Materialeskift },
-            };
-
-        public enum PipelineElementType
-        {
-            Pipe,
-            AfgreningMedSpring,
-            AfgreningParallel,
-            Afgreningsstuds,
-            Endebund,
-            Engangsventil,
-            F_Model,
-            Kedelrørsbøjning,
-            LigeAfgrening,
-            PreskoblingTee,
-            PræisoleretBøjning90gr,
-            PræisoleretBøjning45gr,
-            PræisoleretBøjning30gr,
-            PræisoleretBøjning15gr,
-            PræisoleretBøjningVariabel,
-            PræisoleretVentil,
-            PræventilMedUdluftning,
-            Reduktion,
-            Svanehals,
-            Svejsetee,
-            Svejsning,
-            Y_Model,
-            Buerør,
-            Stikafgrening,
-            Muffetee,
-            Materialeskift,
-        }
-        #endregion
-        public static class DebugHelper
-        {
-            /// <param name="color">byblock, red, yellow, green, cyan, blue, magenta, white, grey, bylayer</param>
-            public static void CreateDebugLine(Point3d end, string color = "red")
-            {
-                CreateDebugLine(Point3d.Origin, end, ColorByName(color));
-            }
-
-            public static void CreateDebugLine(Point3d end, Color color)
-            {
-                CreateDebugLine(Point3d.Origin, end, color);
-            }
-
-            /// <param name="color">byblock, red, yellow, green, cyan, blue, magenta, white, grey, bylayer</param>
-            public static void CreateDebugLine(Point3d start, Point3d end, string color = "red")
-            {
-                CreateDebugLine(start, end, ColorByName(color));
-            }
-
-            public static void CreateDebugLine(Point3d start, Point3d end, Color color)
-            {
-                CreateDebugLine(start, end, color, "");
-            }
-
-            public static void CreateDebugLine(Point3d start, Point3d end, Color color, string layer)
-            {
-                Database db = Application.DocumentManager.MdiActiveDocument.Database;
-                Line line = new Line(start, end);
-                line.Color = color;
-                if (layer.IsNotNoE())
-                    line.Layer = layer;
-                line.AddEntityToDbModelSpace(db);
-            }
-
-            public static void CreateDebugLine(Point3d start, Point3d end, string color, string layer)
-            {
-                CreateDebugLine(start, end, ColorByName(color), layer);                
-            }
-
-            public static void CreateDebugText(
-                Point3d position,
-                string text,
-                double height = 2.5,
-                string layer = "0",
-                string color = "magenta"
-            )
-            {
-                Database db = Application.DocumentManager.MdiActiveDocument.Database;
-                DBText dbText = new DBText();
-                dbText.Position = position;
-                dbText.Height = height;
-                dbText.TextStyleId = db.Textstyle;
-                dbText.TextString = text;
-                dbText.Color = ColorByName(color);
-                if (layer.IsNotNoE()) dbText.Layer = layer;
-                dbText.AddEntityToDbModelSpace(db);
-            }
-        }
+        };
     }
 
     public static class UtilsDataTables
@@ -2938,7 +2798,7 @@ namespace IntersectUtilities.UtilsCommon
                             return property.Value.ToString();
                         case DynamicBlockReferencePropertyUnitsType.Angular:
                             double angular = Convert.ToDouble(property.Value);
-                            return angular.ToDegrees().ToString("0.##");
+                            return angular.ToDeg().ToString("0.##");
                         case DynamicBlockReferencePropertyUnitsType.Distance:
                             double distance = Convert.ToDouble(property.Value);
                             return distance.ToString("0.##");
@@ -3172,6 +3032,12 @@ namespace IntersectUtilities.UtilsCommon
 
         public static Point3d To3d(this Point2d p2d, double Z = 0.0) =>
             new Point3d(p2d.X, p2d.Y, Z);
+
+        public static Point2d MidPoint(this Point2d p1, Point2d p2) =>
+            new Point2d((p1.X + p2.X) / 2, (p1.Y + p2.Y) / 2);
+
+        public static Point3d MidPoint(this Point3d p1, Point3d p2) =>
+            new Point3d((p1.X + p2.X) / 2, (p1.Y + p2.Y) / 2, (p1.Z + p2.Z) / 2);
 
         /// <summary>
         /// 2D key for use in dictionaries for faster points lookup.
@@ -4580,9 +4446,9 @@ namespace IntersectUtilities.UtilsCommon
             return set;
         }
 
-        public static double ToDegrees(this double radians) => (180 / Math.PI) * radians;
+        public static double ToDeg(this double radians) => (180 / Math.PI) * radians;
 
-        public static double ToRadians(this double degrees) => (Math.PI / 180) * degrees;
+        public static double ToRad(this double degrees) => (Math.PI / 180) * degrees;
 
         public static void Zoom(this Editor ed, Extents3d ext)
         {
@@ -4617,7 +4483,7 @@ namespace IntersectUtilities.UtilsCommon
         }
 
         public static DoubleCollection ToDoubleCollection(this IEnumerable<double> list) =>
-            new DoubleCollection(list.ToArray());
+            new DoubleCollection(list.ToArray());        
     }
 
     public class PointDBHorizontalComparer : IEqualityComparer<DBPoint>

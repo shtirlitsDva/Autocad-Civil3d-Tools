@@ -30,6 +30,8 @@ using GroupByCluster;
 using IntersectUtilities.UtilsCommon;
 using Microsoft.Office.Interop.Excel;
 
+using IntersectUtilities.UtilsCommon.Enums;
+
 using static IntersectUtilities.Enums;
 using static IntersectUtilities.HelperMethods;
 //using static IntersectUtilities.Utils;
@@ -4178,7 +4180,7 @@ namespace IntersectUtilities.Dimensionering
                             try
                             {
                                 int dim;
-                                UtilsCommon.Utils.PipeSystemEnum system;
+                                PipeSystemEnum system;
                                 if (item.dim == "-") { dim = 25; system = PipeSystemEnum.Stål; }
                                 else
                                 {
@@ -4508,7 +4510,7 @@ namespace IntersectUtilities.Dimensionering
         {
             public string Name { get; set; }
             public int Dim { get; set; }
-            public UtilsCommon.Utils.PipeSystemEnum System { get; set; }
+            public PipeSystemEnum System { get; set; }
             public string SystemDN { get; set; }
             public Handle Pipe { get; set; } = new Handle(Convert.ToInt64("0", 16));
             public double Station { get; set; }

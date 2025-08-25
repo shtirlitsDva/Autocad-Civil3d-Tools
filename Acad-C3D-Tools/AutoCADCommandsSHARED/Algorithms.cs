@@ -934,7 +934,7 @@ namespace Dreambuild.AutoCAD
         /// <param name="v1">The vector 1.</param>
         /// <param name="v2">The vector 2.</param>
         /// <returns>The pseudo cross product (a.k.a. 'kross').</returns>
-        public static double Kross(this Vector2d v1, Vector2d v2)
+        public static double Cross2d(this Vector2d v1, Vector2d v2)
         {
             return v1.X * v2.Y - v1.Y * v2.X;
         }
@@ -1060,7 +1060,7 @@ namespace Dreambuild.AutoCAD
         /// <returns>The result.</returns>
         public static bool IsLineSegIntersect(Point2d a1, Point2d a2, Point2d b1, Point2d b2)
         {
-            if ((a1 - a2).Kross(b1 - b2) == 0)
+            if ((a1 - a2).Cross2d(b1 - b2) == 0)
             {
                 return false;
             }
