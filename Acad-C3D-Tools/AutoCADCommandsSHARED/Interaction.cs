@@ -226,7 +226,7 @@ namespace Dreambuild.AutoCAD
             var opt = new PromptPointOptions(message)
             {
                 AllowNone = true
-            };
+            };            
 
             var res = ed.GetPoint(opt);
             if (res.Status == PromptStatus.OK)

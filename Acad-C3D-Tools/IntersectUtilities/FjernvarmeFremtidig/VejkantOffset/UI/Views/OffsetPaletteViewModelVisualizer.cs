@@ -84,12 +84,12 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.UI.Views
 				// Host WPF directly
 				_palette.AddVisual("Inspector", _view);
 				_palette.DockEnabled = DockSides.Left | DockSides.Right | DockSides.None;
-				_palette.KeepFocus = true; // revert: keep palette focus behavior as before
-				_palette.StateChanged += (s, e) =>
-				{
-					IntersectUtilities.UtilsCommon.Utils.prdDbg(
-                        $"[Palette] StateChanged -> {_palette.WindowState}");
-				};
+				//_palette.KeepFocus = true; // revert: keep palette focus behavior as before
+				//_palette.StateChanged += (s, e) =>
+				//{
+				//	IntersectUtilities.UtilsCommon.Utils.prdDbg(
+    //                    $"[Palette] StateChanged -> {_palette.WindowState}");
+				//};
 				ApplySavedSettings();
 				if (_cachedVm == null && _view?.DataContext is IntersectionVisualizationViewModel vm0)
 				{
@@ -97,7 +97,7 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.UI.Views
 				}
 			}
 			_palette.Visible = true;
-			IntersectUtilities.UtilsCommon.Utils.prdDbg("[Palette] Show()");
+			//IntersectUtilities.UtilsCommon.Utils.prdDbg("[Palette] Show()");
 		}
 
 		public void Update(IntersectionVisualizationModel model)

@@ -51,7 +51,8 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App
                 acquireStartPoint: () =>
                 {
                     // Ensure palette is shown but do not steal focus
-                    IntersectUtilities.UtilsCommon.Utils.prdDbg("[Jig] acquireStartPoint");
+                    //IntersectUtilities.UtilsCommon.Utils.prdDbg("[Jig] acquireStartPoint");
+                    Autodesk.AutoCAD.Internal.Utils.SetFocusToDwgView();
                     var sp = Interaction.GetPoint("Select start location: ");
                     if (sp.IsNull()) return null;
                     return sp;
@@ -79,7 +80,7 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App
         {
             _renderer.Clear();
             // Keep the visualizer open; user can continue to select first point
-            IntersectUtilities.UtilsCommon.Utils.prdDbg("[Jig] OnCancelLevel1");
+            //IntersectUtilities.UtilsCommon.Utils.prdDbg("[Jig] OnCancelLevel1");
             // Some jigs emit a Level2 immediately after Level1. Ignore the next Level2 once.
             _ignoreNextLevel2 = true;
         }
@@ -91,12 +92,12 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App
             {
                 // Ignore the first Level2 that follows Level1 automatically
                 _ignoreNextLevel2 = false;
-                IntersectUtilities.UtilsCommon.Utils.prdDbg("[Jig] OnCancelLevel2 ignored (paired with Level1)");
+                //IntersectUtilities.UtilsCommon.Utils.prdDbg("[Jig] OnCancelLevel2 ignored (paired with Level1)");
             }
             else
             {
                 _visualizer.Hide();
-                IntersectUtilities.UtilsCommon.Utils.prdDbg("[Jig] OnCancelLevel2 (visualizer hidden)");
+                //IntersectUtilities.UtilsCommon.Utils.prdDbg("[Jig] OnCancelLevel2 (visualizer hidden)");
             }
         }
     }
