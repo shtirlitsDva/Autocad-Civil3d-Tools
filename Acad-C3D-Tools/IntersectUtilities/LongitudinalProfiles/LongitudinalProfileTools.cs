@@ -7651,6 +7651,7 @@ namespace IntersectUtilities
                     var elev = prof.ElevationAt(st);
                     var lst = curPipeline.GetStationAtPoint(pt);
 
+                    //Place pipeline elevation label
                     var pv = localPvs.Where(x => x.Name.StartsWith(node.Name)).First();
                     var colsels = cdoc.Styles.LabelStyles.ProfileViewLabelStyles.StationElevationLabelStyles;
                     var styleId = colsels["Station and Elevation"];
@@ -7663,8 +7664,38 @@ namespace IntersectUtilities
                     double dy = 5.0;                      // always up 5
                     label.LabelLocation = new Point3d(p.X + dx, p.Y + dy, p.Z);
 
-                    prdDbg($"Pipeline: {node.Name}, Parent: {parent.Name}, " +
-                        $"Parent ST: {st.ToString("0.##")} ST: {lst.ToString("0.##")}, " +
+                    //Place parent label
+                    var parentPvs = localPvs.Where(x => x.Name.StartsWith(parent.Name)).FirstOrDefault();
+                    if (parentPvs != null)
+                    {
+                        var parentLabelId = StationElevationLabel.Create(
+                            parentPvs.Id,
+                            styleId,
+                            markerId,
+                            st,
+                            elev
+                        );
+                        var parentLabel = parentLabelId.Go<StationElevationLabel>(tx, OpenMode.ForWrite);
+                        var pp = parentLabel.LabelLocation;
+
+                        double stS = parentPvs.StationStart;
+                        double stE = parentPvs.StationEnd;
+
+                        dx = 0.0;
+                        dy = 5.0;
+
+                        const double threshold = 0.5;
+
+                        if (Math.Abs(st - stS) < threshold)
+                            dx = -5.0; // right
+                        else if (Math.Abs(st - stE) < threshold)
+                            dx = 5.0; // left
+
+                        parentLabel.LabelLocation = new Point3d(pp.X + dx, pp.Y + dy, pp.Z);
+                    }
+
+                    prdDbg($"Pipeline: {node.Name}, ST: {lst.ToString("0.##")}, " +
+                        $"Parent: {parent.Name}, Parent ST: {st.ToString("0.##")}, " +
                         $"Elevation: {elev.ToString("0.##")}");
                 }
             }
