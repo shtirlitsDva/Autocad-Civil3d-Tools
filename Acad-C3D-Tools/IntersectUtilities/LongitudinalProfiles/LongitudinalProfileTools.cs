@@ -7661,7 +7661,11 @@ namespace IntersectUtilities
                     var p = label.LabelLocation;
                     double dx = (lst < 1.0) ? -5.0 : 5.0; // left if < 1, right if >= 1
                     double dy = 5.0;                      // always up 5
-                    label.LabelLocation = new Point3d(p.X + dx, p.Y + dy, p.Z);                    
+                    label.LabelLocation = new Point3d(p.X + dx, p.Y + dy, p.Z);
+
+                    prdDbg($"Pipeline: {node.Name}, Parent: {parent.Name}, " +
+                        $"Parent ST: {st.ToString("0.##")} ST: {lst.ToString("0.##")}, " +
+                        $"Elevation: {elev.ToString("0.##")}");
                 }
             }
             catch (System.Exception ex)
