@@ -29,6 +29,7 @@ using System.Diagnostics;
 using IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol;
 using IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray;
 using IntersectUtilities.UtilsCommon.Enums;
+using System.Collections;
 
 namespace IntersectUtilities.PipelineNetworkSystem
 {
@@ -253,15 +254,83 @@ namespace IntersectUtilities.PipelineNetworkSystem
             Label = value.Label;
         }
     }
-    public class Graph
+    public class Graph : IReadOnlyCollection<INode>
     {
         public INode Root { get; private set; }
+
+        public int Count => Dfs().Count();
+
         public Graph(INode root)
         {
             Root = root;
         }
         internal string EdgesToDot() => Root.EdgesToDot();
         internal string NodesToDot() => Root.NodesToDot();
+        /// <summary>
+        /// Breadth-first traversal starting at Root (or an optional start node).
+        /// </summary>
+        public IEnumerable<INode> Bfs(INode? start = null)
+        {
+            var root = start ?? Root;
+            if (root is null) yield break;
+
+            var q = new Queue<INode>();
+            var seen = new HashSet<INode>();
+
+            q.Enqueue(root);
+            seen.Add(root);
+
+            while (q.Count > 0)
+            {
+                var n = q.Dequeue();
+                yield return n;
+
+                foreach (var c in n.Children)
+                {
+                    if (c is not null && seen.Add(c))
+                        q.Enqueue(c);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Depth-first (pre-order) traversal starting at Root (or an optional start node).
+        /// </summary>
+        public IEnumerable<INode> Dfs(INode? start = null)
+        {
+            var root = start ?? Root;
+            if (root is null) yield break;
+
+            var st = new Stack<INode>();
+            var seen = new HashSet<INode>();
+
+            st.Push(root);
+            seen.Add(root);
+
+            while (st.Count > 0)
+            {
+                var n = st.Pop();
+                yield return n;
+
+                // Push right-to-left so the leftmost child is visited first.
+                for (int i = n.Children.Count - 1; i >= 0; i--)
+                {
+                    var c = n.Children[i];
+                    if (c is not null && seen.Add(c))
+                        st.Push(c);
+                }
+            }
+        }
+
+        public IEnumerator<INode> GetEnumerator()
+        {
+            return Dfs().GetEnumerator();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
     }
     public class GraphCollection : List<Graph>
     {

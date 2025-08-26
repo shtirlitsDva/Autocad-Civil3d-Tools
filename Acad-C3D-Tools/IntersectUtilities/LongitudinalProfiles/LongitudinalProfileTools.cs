@@ -7559,5 +7559,132 @@ namespace IntersectUtilities
                     db.Dispose();
             }
         }
+
+        /// <command>PLACEELEVATIONLABELS</command>
+        /// <summary>
+        /// Labels elevations of parent profiles on MIDT profiles.
+        /// </summary>
+        /// <category>Longitudinal Profiles</category>
+        [CommandMethod("PLACEELEVATIONLABEL")]
+        public void placeelevationlabel()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            CivilDocument cdoc = CivilDocument.GetCivilDocument(localDb);
+
+            var dm = new DataManager(new DataReferencesOptions());
+            using Database fjvDb = dm.Fremtid();
+            using Database alDb = dm.Alignments();
+            HashSet<Database> længdeprofilerdbs = dm.Længdeprofiler().ToHashSet();
+
+            using var tx = localDb.TransactionManager.StartTransaction();
+            using var fjvTx = fjvDb.TransactionManager.StartTransaction();
+            using var alTx = alDb.TransactionManager.StartTransaction();
+
+            try
+            {
+                var ents = fjvDb.GetFjvEntities(fjvTx, false, false);
+                var als = alDb.HashSetOfType<Alignment>(alTx);
+
+                PipelineNetwork pn = new PipelineNetwork();
+                pn.CreatePipelineNetwork(ents, als);
+                pn.CreatePipelineGraph();
+
+                //Find the MIDT profiles for pipelines
+                var midtProfiles = new Dictionary<INode, (Database db, Oid pid)>();
+
+                var rgx = new Regex(@"(?<number>\d{2,3}).+");
+                var rawMidtProfiles = new Dictionary<string, Oid>();
+                foreach (var ldb in længdeprofilerdbs)
+                {
+                    using var ltx = ldb.TransactionManager.StartTransaction();
+                    var profs = ldb.HashSetOfType<Profile>(ltx)
+                        .Where(x => x.Name.Contains("MIDT"));
+                    foreach (var prof in profs)
+                    {
+                        string name = prof.Name;
+                        var match = rgx.Match(name);
+                        name = match.Groups["number"].Value;
+                        if (!rawMidtProfiles.TryAdd(name, prof.ObjectId))
+                        {
+                            prdDbg($"Duplicate MIDT profile found: {name} in {ldb.Filename}!");
+                            throw new System.Exception("Duplicate MIDT profiles found!");
+                        }
+                    }
+                }
+
+                foreach (var graph in pn.PipelineGraphs)
+                {
+                    foreach (var node in graph.Dfs())
+                    {
+                        if (rawMidtProfiles.TryGetValue(node.Name, out var midtProfileId))
+                        {
+                            midtProfiles[node] = (midtProfileId.Database, midtProfileId);
+                        }
+                    }
+                }
+
+                var localPvs = localDb.ListOfType<ProfileView>(tx);
+
+                var eligibleNodes = pn.PipelineGraphs
+                    .SelectMany(x => x.Select(y => y))
+                    .Where(x => x.Parent != null)
+                    .Where(x => midtProfiles.ContainsKey(x.Parent))
+                    .Where(x => localPvs.Any(y => y.Name.StartsWith(x.Name)))
+                    .ToLookup(x => x.Name, x => x);
+
+                var selection = StringGridFormCaller.Call(
+                    eligibleNodes.Select(x => x.Key)
+                    .OrderBy(x => x).ToList(), "Vælg rørstrækning: ");
+
+                if (selection != null && eligibleNodes.Contains(selection))
+                {
+                    var node = eligibleNodes[selection].First();
+                    var parent = node.Parent;
+                    var (db, pid) = midtProfiles[parent];
+                    var curPipeline = node.Value;
+                    var parentPipeline = parent.Value;
+                    var pt = curPipeline.GetConnectionLocationToParent(parentPipeline, 0.05);
+                    var st = parentPipeline.GetStationAtPoint(pt);
+                    using var ltx = db.TransactionManager.StartTransaction();
+                    var prof = pid.Go<Profile>(ltx);
+                    var elev = prof.ElevationAt(st);
+                    var lst = curPipeline.GetStationAtPoint(pt);
+
+                    var pv = localPvs.Where(x => x.Name.StartsWith(node.Name)).First();
+                    var colsels = cdoc.Styles.LabelStyles.ProfileViewLabelStyles.StationElevationLabelStyles;
+                    var styleId = colsels["Station and Elevation"];
+                    var colmark = cdoc.Styles.MarkerStyles;
+                    var markerId = colmark["Basic Circle with Cross"];
+                    var labelId = StationElevationLabel.Create(pv.Id, styleId, markerId, lst, elev);
+                    var label = labelId.Go<StationElevationLabel>(tx, OpenMode.ForWrite);
+                    var p = label.LabelLocation;
+                    double dx = (lst < 1.0) ? -5.0 : 5.0; // left if < 1, right if >= 1
+                    double dy = 5.0;                      // always up 5
+                    label.LabelLocation = new Point3d(p.X + dx, p.Y + dy, p.Z);                    
+                }
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg(ex);
+                tx.Abort();
+                return;
+            }
+            finally
+            {
+                fjvTx.Abort();
+                fjvTx.Dispose();
+                fjvDb.Dispose();
+
+                alTx.Abort();
+                alTx.Dispose();
+                alDb.Dispose();
+
+                foreach (var db in længdeprofilerdbs)
+                    db.Dispose();
+            }
+
+            tx.Commit();
+        }
     }
 }
