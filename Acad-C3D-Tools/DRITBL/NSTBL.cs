@@ -52,7 +52,7 @@ using NetTopologySuite.Geometries;
 using Point = NetTopologySuite.Geometries.Point;
 using IntersectUtilities.UtilsCommon.DataManager;
 
-namespace IntersectUtilities.DRITBL
+namespace IntersectUtilities.NSTBL
 {
     public class DimensioneringExtension : IExtensionApplication
     {
@@ -72,6 +72,16 @@ namespace IntersectUtilities.DRITBL
         {
         }
         #endregion
+        /// <command>TBLCHECKPOLYOVERLAP</command>
+        /// <summary>
+        /// Quality-checks for overlapping area polylines on layer "0-OMRÅDER-OK". Converts each
+        /// closed polyline to an NTS polygon and checks pairwise intersections. When overlap area
+        /// exceeds 0.01 m², writes a report to the command line with both handles, the overlap area,
+        /// and the percentage relative to each polygon’s area. Intended to validate area polygons
+        /// before intersection-based quantity extraction and tilbudsliste exports to prevent
+        /// polygons intersecting each other.
+        /// </summary>
+        /// <category>Tilbudsliste</category>
         [CommandMethod("TBLCHECKPOLYOVERLAP")]
         public void tblcheckpolyoverlap()
         {
@@ -385,6 +395,15 @@ namespace IntersectUtilities.DRITBL
             #endregion
         }
 
+        /// <command>TBLEXPORTCWO</command>
+        /// <summary>
+        /// Computes intersections between tender areas (layer "0-OMRÅDER-OK") and FJV objects, then
+        /// exports a CSV in the "CWO" format. Pipes are length-summed by key attributes; components are
+        /// counted by type and attributes. Output is written to C:\Temp\IntersectResult.csv and a brief
+        /// note clarifies that twin welds are not multiplied. Intended for tilbudsliste generation in the
+        /// CWO delivery format.
+        /// </summary>
+        /// <category>Tilbudsliste</category>
         [CommandMethod("TBLEXPORTCWO")]
         public void tblexportcwo()
         {
@@ -406,6 +425,16 @@ namespace IntersectUtilities.DRITBL
             #endregion
         }
 
+        /// <command>TBLEXPORTJJR</command>
+        /// <summary>
+        /// Computes intersections between tender areas (layer "0-OMRÅDER-OK") and FJV objects, then
+        /// exports a CSV in the "JJR" format with headers:
+        /// Vejklasse;Belægningstype;Komponent;DN1;DN2;Rørsystem;Serie;Antal;Længde;SystemType.
+        /// Pipes are summed by length and components by count per attribute grouping. Output is written
+        /// to C:\Temp\IntersectResult.csv. Intended for tilbudsliste generation in JJR’s required
+        /// format.
+        /// </summary>
+        /// <category>Tilbudsliste</category>
         [CommandMethod("TBLEXPORTJJR")]
         public void tblexportjjr()
         {

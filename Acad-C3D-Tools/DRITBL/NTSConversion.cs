@@ -10,7 +10,7 @@ using IntersectUtilities.UtilsCommon;
 
 using NetTopologySuite.Geometries;
 
-namespace IntersectUtilities.DRITBL
+namespace IntersectUtilities.NSTBL
 {
     internal static class NTSConversion
     {

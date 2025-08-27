@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 using NetTopologySuite.Algorithm;
 using NetTopologySuite.Geometries;
 
-namespace IntersectUtilities.DRITBL
+namespace IntersectUtilities.NSTBL
 {
     internal abstract class IntersectResult
     {

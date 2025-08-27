@@ -117,7 +117,8 @@
 	</ItemGroup>
 	<PropertyGroup>
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-		<AssemblyName>NORTBL</AssemblyName>
+		<GenerateDocumentationFile>True</GenerateDocumentationFile>
+		<AssemblyName>NSRTBL</AssemblyName>
 	</PropertyGroup>
 	<ItemGroup>
 		<PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
