@@ -59,6 +59,18 @@ namespace ExportShapeFiles
         }
         #endregion
 
+        /// <command>EXPORTSHAPEFILESOLD</command>
+        /// <summary>
+        /// This is used for exporting to shape files in old format used by Gentofte/Gladsaxe project.
+        /// Exports district heating data to two legacy shapefiles in a /SHP folder beside the DWG:
+        /// - Polyline shapefile (base + "_pipes"): FJV pipes gathered via GetFjvPipes(...), converted
+        ///   with PolylineFjvToShapeLineStringConverterOLD.
+        /// - Point shapefile (base + "_comps"): FJV component blocks from GetFjvBlocks(..., CsvData.FK, false),
+        ///   converted with BlockRefFjvToShapePointConverterOLD.
+        /// Prompts for a base name, logs to export.log, and writes a .prj using ETRS_1989_UTM_Zone_32N.
+        /// Use when reproducing the original export workflow that downstream tools still expect.
+        /// </summary>
+        /// <category>GIS</category>
         [CommandMethod("EXPORTSHAPEFILESOLD")]
         public void exportshapefilesOLD()
         {
@@ -170,6 +182,17 @@ namespace ExportShapeFiles
             }
         }
 
+        /// <command>EXPORTSHAPEFILES</command>
+        /// <summary>
+        /// Exports district heating data to two shapefiles in /SHP beside the DWG (modern converters):
+        /// - Polyline shapefile (base + "_pipes"): pipes from GetFjvPipes(...), converted with
+        ///   PolylineFjvToShapeLineStringConverter.
+        /// - Point shapefile (base + "_comps"): components from GetFjvBlocks(..., CsvData.FK), converted
+        ///   with BlockRefFjvToShapePointConverter.
+        /// Prompts for a base file name (sanitizes periods), logs to export.log, and writes .prj with
+        /// ETRS_1989_UTM_Zone_32N. Use as the primary one-drawing export for GIS delivery.
+        /// </summary>
+        /// <category>GIS</category>
         [CommandMethod("EXPORTSHAPEFILES")]
         public void exportshapefiles()
         {
@@ -280,6 +303,16 @@ namespace ExportShapeFiles
             }
         }
 
+        /// <command>EXPORTFJVTOSHAPE</command>
+        /// <summary>
+        /// Exports all FJV entities from the current drawing to a single shapefile named "Fjernvarme"
+        /// in /SHP. All entites are converted to polygons for best visual experience,
+        /// but not great for analytical work.
+        /// Entities are gathered via GetFjvEntities(tx, includePipes: true, includeBlocks: true,
+        /// includeOther: true) and converted per-entity using FjvToShapeConverterFactory. Produces a
+        /// consolidated GIS dataset and writes a .prj using ETRS_1989_UTM_Zone_32N.
+        /// </summary>
+        /// <category>GIS</category>
         [CommandMethod("EXPORTFJVTOSHAPE")]
         public void exportfjvtoshape()
         {
@@ -485,6 +518,16 @@ namespace ExportShapeFiles
         //} 
         #endregion
 
+        /// <command>EXPORTSHAPEFILESBATCH</command>
+        /// <summary>
+        /// Batch-exports shapefiles for many drawings listed in the CSV at
+        /// "X:\\AutoCAD DRI - 01 Civil 3D\\Stier.csv". Prompts for an export folder, lets you pick a
+        /// project (PrjId), filters rows for that project, validates DWG paths, opens each file as an
+        /// external database, derives the base name from the "Etape" column, and calls
+        /// exportshapefilesmethod(exportDir, etape, "", "-komponenter", extDb) to produce one pipe and
+        /// one component shapefile per drawing. Logs to batchExport.log and continues on missing files.
+        /// </summary>
+        /// <category>GIS</category>
         [CommandMethod("EXPORTSHAPEFILESBATCH")]
         public void exportshapefilesbatch()
         {
@@ -784,7 +827,14 @@ namespace ExportShapeFiles
             }
         }
 
-        [CommandMethod("selectbyhandle")]
+        /// <command>SELECTBYHANDLE, SBH</command>
+        /// <summary>
+        /// Utility (alias SBH): prompts for a hexadecimal object handle, resolves it to an ObjectId in
+        /// the current drawing, and selects the entity (implied selection). Handy for quickly finding
+        /// and verifying objects referenced in logs or attributes during export preparation.
+        /// </summary>
+        /// <category>GIS</category>
+        [CommandMethod("SELECTBYHANDLE")]
         [CommandMethod("SBH")]
         public void selectbyhandle()
         {
