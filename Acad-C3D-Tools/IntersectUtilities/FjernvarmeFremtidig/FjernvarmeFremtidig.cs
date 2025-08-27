@@ -10,12 +10,9 @@ using Autodesk.Civil.DatabaseServices;
 using Dreambuild.AutoCAD;
 
 using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset;
-using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.Core;
-using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.Core.Models;
 using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.App;
 using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.Rendering;
 using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.UI;
-using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.UI.Models;
 using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.UI.Views;
 
 using IntersectUtilities.Jigs;
@@ -835,6 +832,92 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
+        }
+
+        /// <command>LABELARCS</command>
+        /// <summary>
+        /// Labels all arcs for FJV polylines with radius annotation.
+        /// </summary>
+        /// <category>Fjernvarme Fremtidig</category>
+        [CommandMethod("LABELARCS")]
+        public void labelarcs()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            const string targetLayer = "FJV-RADIER";
+            localDb.CheckOrCreateLayer(targetLayer);
+
+            using var tx = localDb.TransactionManager.StartTransaction();
+
+            try
+            {
+                #region Delete previous radial dimensions
+                var existingDims = localDb.HashSetOfType<RadialDimension>(tx)
+                    .Where(x => x.Layer == "FJV-RADIER");
+                foreach (var edim in existingDims)
+                {
+                    edim.CheckOrOpenForWrite();
+                    edim.Erase(true);
+                }
+                #endregion
+
+                #region Style
+                Oid fjvRadierStyleId = localDb.Dimstyle; // fallback
+                var dst = (DimStyleTable)tx.GetObject(localDb.DimStyleTableId, OpenMode.ForRead);
+                if (dst.Has("FJV RADIER"))
+                    fjvRadierStyleId = dst["FJV RADIER"];
+                #endregion
+
+                HashSet<Polyline> pls = localDb.GetFjvPipes(tx);
+
+                foreach (Polyline pl in pls)
+                {
+                    for (int i = 0; i < pl.NumberOfVertices; i++)
+                    {
+                        if (pl.GetSegmentType(i) != SegmentType.Arc) continue;
+
+                        CircularArc2d arc = pl.GetArcSegment2dAt(i);
+
+                        Point3d center = arc.Center.To3d();
+                        double r = arc.Radius;
+
+                        // Mid-angle for a neat, centered leader
+                        double a1 = arc.StartAngle;
+                        double a2 = arc.EndAngle;
+                        double d = a2 - a1;
+                        while (d <= -Math.PI) d += 2 * Math.PI;
+                        while (d > Math.PI) d -= 2 * Math.PI;
+                        double amid = a1 + d / 2.0;
+
+                        // Chord point on the arc at mid-angle
+                        Point3d chord = new Point3d(
+                            arc.Center.X + r * Math.Cos(amid),
+                            arc.Center.Y + r * Math.Sin(amid),
+                            0.0
+                        );
+
+                        // Reasonable leader length (proportional, with floor)
+                        double leaderLen = Math.Max(r * 0.30, 0.5);
+
+                        using var dim = new RadialDimension();
+                        dim.Center = center;
+                        dim.ChordPoint = chord;
+                        dim.LeaderLength = leaderLen;
+                        dim.DimensionStyle = fjvRadierStyleId;
+
+                        dim.Layer = targetLayer;
+                        dim.AddEntityToDbModelSpace(localDb);
+                    }
+                }
+            }
+            catch (System.Exception ex)
+            {
+                tx.Abort();
+                prdDbg(ex);
+                return;
+            }
+            tx.Commit();
         }
 
         /// <command>DECORATEPOLYLINEs</command>
