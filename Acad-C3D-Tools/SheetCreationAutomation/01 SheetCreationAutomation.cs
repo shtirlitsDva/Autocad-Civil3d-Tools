@@ -51,6 +51,15 @@ namespace SheetCreationAutomation
         }
         #endregion
 
+        /// <command>CREATEREFERENCETOALLALIGNMENTSHORTCUTS</command>
+        /// <summary>
+        /// Creates references to all published Alignment data shortcuts in the current drawing and
+        /// applies styles. Enumerates published items via DataShortcutManager, creates references for
+        /// items of type Alignment, then assigns the alignment style "FJV TRACÉ SHOW" and imports the
+        /// label set "STD 20-5". Intended to prepare the model with referenced alignments before view
+        /// frame and sheet creation.
+        /// </summary>
+        /// <category>Sheet Production</category>
         [CommandMethod("CREATEREFERENCETOALLALIGNMENTSHORTCUTS")]
         public void createreferencetoallalignmentshortcuts()
         {
@@ -129,145 +138,14 @@ namespace SheetCreationAutomation
             }
         }
 
-        [CommandMethod("CREATEVIEWFRAMEDRAWINGS")]
-        public void createalignmentdrawings()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            //Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-
-            bool isValidCreation = false;
-            DataShortcuts.DataShortcutManager sm = DataShortcuts.CreateDataShortcutManager(ref isValidCreation);
-
-            if (isValidCreation != true)
-            {
-                prdDbg("DataShortcutManager failed to be created!");
-                return;
-            }
-
-            try
-            {
-                #region create drawings
-                int publishedCount = sm.GetPublishedItemsCount();
-                prdDbg($"publishedCount = {publishedCount}");
-
-                string pathToFolderToSave = @"C:\Temp";
-
-                OpenFolderDialog fsd = new OpenFolderDialog()
-                {
-                    Title = "Choose folder where to save view frame drawings:",
-                };
-                if (fsd.ShowDialog() == true)
-                {
-                    pathToFolderToSave = fsd.FolderName;
-                }
-                else return;
-
-                for (int i = 0; i < publishedCount; i++)
-                {
-                    DataShortcuts.DataShortcutManager.PublishedItem item =
-                        sm.GetPublishedItemAt(i);
-
-                    if (item.DSEntityType == DataShortcutEntityType.Alignment)
-                    {
-                        string newFileName = pathToFolderToSave + item.Name + "_VF" + ".dwg";
-                        using (Database alDb = new Database(false, true))
-                        {
-                            alDb.ReadDwgFile(
-                                @"X:\AutoCAD DRI - 01 Civil 3D\Templates\Alignment_til_viewframes.dwt",
-                                System.IO.FileShare.Read, false, string.Empty);
-                            alDb.SaveAs(newFileName, true, DwgVersion.Newest, null);
-                        }
-                        using (Database alDb = new Database(false, true))
-                        {
-                            using (Transaction alTx = alDb.TransactionManager.StartTransaction())
-                            {
-                                try
-                                {
-                                    alDb.ReadDwgFile(newFileName, FileOpenMode.OpenForReadAndWriteNoShare,
-                                        false, string.Empty);
-                                    prdDbg("");
-                                    prdDbg("Alignment detected! Creating reference to shortcut...");
-                                    ObjectIdCollection ids = sm.CreateReference(i, alDb);
-                                    CivilDocument civilDoc = CivilDocument.GetCivilDocument(alDb);
-                                    foreach (oid Oid in ids)
-                                    {
-                                        Alignment al = Oid.Go<Alignment>(alTx, OpenMode.ForWrite);
-                                        try
-                                        {
-                                            al.StyleId = civilDoc.Styles.AlignmentStyles["FJV TRACÉ SHOW"];
-                                            oid labelSetId = civilDoc.Styles.LabelSetStyles.AlignmentLabelSetStyles["STD 20-5"];
-                                            al.ImportLabelSet(labelSetId);
-                                        }
-                                        catch (System.Exception)
-                                        {
-                                            prdDbg("Styles for alignment or labels are missing!");
-                                            throw;
-                                        }
-                                    }
-
-                                    //Create reference to profiles
-                                    //Determine the pipeline number
-                                    Regex regexOld = new Regex(@"(?<number>\d{2,3}\s)");
-                                    Regex regexNew = new Regex(@"(?<number>\d{2,3})");
-
-                                    string number = "";
-                                    if (regexNew.IsMatch(item.Name))
-                                        number = regexNew.Match(item.Name).Groups["number"].Value;
-                                    else if (regexOld.IsMatch(item.Name))
-                                        number = regexOld.Match(item.Name).Groups["number"].Value;
-
-                                    if (!number.IsNoE())
-                                    {
-                                        prdDbg($"Strækning navn: {item.Name} -> Number: {number}");
-
-                                        for (int j = 0; j < publishedCount; j++)
-                                        {
-                                            DataShortcuts.DataShortcutManager.PublishedItem candidate = sm.GetPublishedItemAt(j);
-                                            if (candidate.DSEntityType == DataShortcutEntityType.Profile)
-                                            {
-                                                if (candidate.Name.StartsWith(number))
-                                                {
-                                                    prdDbg(candidate.Name);
-                                                    sm.CreateReference(j, alDb);
-                                                }
-                                            }
-                                        }
-                                    }
-                                    else
-                                    {
-                                        prdDbg($"Name {item.Name} does not contain pipeline number!");
-                                        continue;
-                                    }
-                                }
-                                catch (System.Exception ex)
-                                {
-                                    alTx.Abort();
-                                    throw new System.Exception(ex.Message);
-                                }
-                                alTx.Commit();
-                            }
-                            alDb.SaveAs(newFileName, true, DwgVersion.Newest, null);
-                        }
-                    }
-                }
-
-                System.Windows.Forms.Application.DoEvents();
-
-                #endregion
-            }
-            catch (System.Exception ex)
-            {
-                editor.WriteMessage("\n" + ex.Message);
-                return;
-            }
-            finally
-            {
-                sm.Dispose();
-            }
-        }
-
+        /// <command>LISTNUMBEROFVIEWFRAMES</command>
+        /// <summary>
+        /// Counts Civil 3D ViewFrames in the current drawing and writes the count to the command line
+        /// and to a temporary text file (%TEMP%\\vfCount.txt). Intended for
+        /// external automation that needs to read the number of generated sheets.
+        /// Critical for sheet production automation.
+        /// </summary>
+        /// <category>Sheet Production</category>
         [CommandMethod("LISTNUMBEROFVIEWFRAMES")]
         public void listnumberofviewframes()
         {
@@ -305,6 +183,14 @@ namespace SheetCreationAutomation
             }
         }
         
+        /// <command>CREATEREFERENCETOPROFILES</command>
+        /// <summary>
+        /// Creates references to published Profile data shortcuts. Detects a pipeline/segment number
+        /// from the first alignment’s name (for logging), initializes DataShortcutManager, iterates
+        /// published items, and creates references for items of type Profile. Intended to bring required
+        /// longitudinal profiles into the drawing prior to sheet creation workflows.
+        /// </summary>
+        /// <category>Sheet Production</category>
         [CommandMethod("CREATEREFERENCETOPROFILES")]
         public void createreferencetoprofiles()
         {
@@ -389,91 +275,6 @@ namespace SheetCreationAutomation
                 }
                 tx.Commit();
             }
-        }
-
-        /// <summary>
-        /// Run this command before creating viewframes
-        /// This is to check that all profiles have correct names
-        /// </summary>
-        [CommandMethod("TESTPROFILEREFS")]
-        public void testprofilerefs()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                bool isValidCreation = false;
-                DataShortcuts.DataShortcutManager sm = DataShortcuts.CreateDataShortcutManager(ref isValidCreation);
-
-                if (isValidCreation != true)
-                {
-                    prdDbg("DataShortcutManager failed to be created!");
-                    return;
-                }
-
-                try
-                {
-                    #region
-                    int publishedCount = sm.GetPublishedItemsCount();
-                    prdDbg($"publishedCount = {publishedCount}");
-
-                    for (int i = 0; i < publishedCount; i++)
-                    {
-                        DataShortcuts.DataShortcutManager.PublishedItem item =
-                            sm.GetPublishedItemAt(i);
-
-                        if (item.DSEntityType == DataShortcutEntityType.Alignment)
-                        {
-                            //Determine the pipeline number
-                            Regex regex = new Regex(@"(?<number>\d{2,3}?\s)");
-                            string number = "";
-                            if (regex.IsMatch(item.Name))
-                            {
-                                number = regex.Match(item.Name).Groups["number"].Value;
-                                prdDbg("");
-                                prdDbg($"Strækning navn: {item.Name} -> Number: {number}");
-
-                                for (int j = 0; j < publishedCount; j++)
-                                {
-                                    DataShortcuts.DataShortcutManager.PublishedItem candidate = sm.GetPublishedItemAt(j);
-                                    if (candidate.DSEntityType == DataShortcutEntityType.Profile)
-                                    {
-                                        if (candidate.Name.StartsWith(number))
-                                        {
-                                            prdDbg(candidate.Name);
-                                            //sm.CreateReference(i, localDb);
-                                        }
-                                    }
-                                }
-                            }
-                            else
-                            {
-                                prdDbg($"Name {item.Name} does not contain pipeline number!");
-                                continue;
-                            }
-                        }
-                    }
-
-                    System.Windows.Forms.Application.DoEvents();
-
-                    #endregion
-                }
-                catch (System.Exception ex)
-                {
-                    tx.Abort();
-                    editor.WriteMessage("\n" + ex.Message);
-                    return;
-                }
-                finally
-                {
-                    sm.Dispose();
-                }
-                tx.Commit();
-            }
-        }
+        }        
     }
 }
