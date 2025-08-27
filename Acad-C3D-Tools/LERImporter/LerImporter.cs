@@ -252,7 +252,7 @@ namespace LERImporter
             }
         }
 
-        [CommandMethod("IMPORTCONSOLIDATEDGML")]
+        //[CommandMethod("IMPORTCONSOLIDATEDGML")]
         public void importconsolidated()
         {
             try
@@ -349,6 +349,17 @@ namespace LERImporter
             }
         }
 
+        /// <command>IGMLBATCH, IMPORTCONSOLIDATEDGMLBATCH</command>
+        /// <summary>
+        /// Batch-imports consolidated LER GML files from a chosen top folder. Unzips any archives
+        /// in-place, finds all "consolidated.gml" files recursively, enhances each with Enhance.Run,
+        /// and for each file creates a 3D LER DWG "{Bemærkning}_3DLER.dwg" using the template at
+        /// X:\AutoCAD DRI - 01 Civil 3D\LerImport\Support\LerTemplate.dwt. Also builds a combined
+        /// Schema.FeatureCollection across all files and creates a single 2D LER DWG "2DLER.dwg"
+        /// in the top folder. Progress is logged to LerImport.log in the top folder. Intended to convert
+        /// all partial LER2 requests into standardized DWGs in one run.
+        /// </summary>
+        /// <category>GIS</category>
         [CommandMethod("IGMLBATCH")]
         [CommandMethod("IMPORTCONSOLIDATEDGMLBATCH")]
         public void importconsolidatedbatch()

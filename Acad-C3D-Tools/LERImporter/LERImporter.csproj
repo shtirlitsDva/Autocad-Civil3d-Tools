@@ -103,6 +103,7 @@
 	</ItemGroup>
 	<PropertyGroup>
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+		<GenerateDocumentationFile>True</GenerateDocumentationFile>
 		<AssemblyName>LERImporter</AssemblyName>
 	</PropertyGroup>
 	<ItemGroup>
