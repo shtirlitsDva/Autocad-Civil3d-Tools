@@ -79,7 +79,12 @@ namespace DimensioneringV2
         #endregion
 
         private static double tol = DimensioneringV2.Tolerance.Default;
-
+        /// <command>DIM2PREPAREDWG</command>
+        /// <summary>
+        /// Prepares a new dwg for dimensionering.
+        /// Creates layers, imports blocks etc.
+        /// </summary>
+        /// <category>DIMENSIONERING V2</category>
         [CommandMethod("DIM2PREPAREDWG")]
         public void dim2preparedwg() => dim2preparedwgmethod();
         internal static void dim2preparedwgmethod(Database db = null)
@@ -160,6 +165,12 @@ namespace DimensioneringV2
             prdDbg("Finished!");
         }
 
+        /// <command>DIM2TÆND</command>
+        /// <summary>
+        /// Interactively selects road centerline polylines and moves each to the "tændt" layer
+        /// until the user cancels.
+        /// </summary>
+        /// <category>DIMENSIONERING V2</category>
         [CommandMethod("DIM2TÆND")]
         public void dim2tænd()
         {
@@ -179,6 +190,12 @@ namespace DimensioneringV2
             prdDbg("Finished!");
         }
 
+        /// <command>DIM2SLUK</command>
+        /// <summary>
+        /// Interactively selects road centerline polylines and moves each to the "slukket" layer
+        /// until the user cancels.
+        /// </summary>
+        /// <category>DIMENSIONERING V2</category>
         [CommandMethod("DIM2SLUK")]
         public void dim2sluk()
         {
@@ -198,6 +215,12 @@ namespace DimensioneringV2
             prdDbg("Finished!");
         }
 
+        /// <command>DIM2INTERSECTVEJMIDTE</command>
+        /// <summary>
+        /// Detects intersections among all polylines on "Tændt" layer and inserts a missing
+        /// vertex at each true intersection point on both involved polylines.
+        /// </summary>
+        /// <category>DIMENSIONERING V2</category>
         [CommandMethod("DIM2INTERSECTVEJMIDTE")]
         public void dim2intersectvejmidte()
         {
@@ -262,6 +285,13 @@ namespace DimensioneringV2
             prdDbg("Finished!");
         }
 
+        /// <command>DIM2MARKENDPOINTS</command>
+        /// <summary>
+        /// Ensures vertices exist at intersections among "tændt" centerlines, removes existing endpoint
+        /// blocks, and places new endpoint blocks on start/end points that are not shared with other
+        /// polylines. Helpful for detecting false endpoints.
+        /// </summary>
+        /// <category>DIMENSIONERING V2</category>
         [CommandMethod("DIM2MARKENDPOINTS")]
         public void dim2markendpoints()
         {
@@ -370,6 +400,12 @@ namespace DimensioneringV2
             prdDbg("Finished!");
         }
 
+        /// <command>DIM2DRAWBUILDINGSEGMENTS</command>
+        /// <summary>
+        /// Clears existing connection lines, builds a graph from centerlines, supply points, building
+        /// blocks and no-cross lines, then draws building connection segments.
+        /// </summary>
+        /// <category>DIMENSIONERING V2</category>
         [CommandMethod("DIM2DRAWBUILDINGSEGMENTS")]
         public void dim2drawbuildingsegments()
         {
@@ -432,6 +468,11 @@ namespace DimensioneringV2
             prdDbg("Finished!");
         }
 
+        /// <command>DIM2MAP</command>
+        /// <summary>
+        /// Opens the Dimensionering V2 map palette, creating it if necessary, and makes it visible.
+        /// </summary>
+        /// <category>DIMENSIONERING V2</category>
         [CommandMethod("DIM2MAP")]
         public static void dim2map()
         {
@@ -454,6 +495,14 @@ namespace DimensioneringV2
             //}
         }
 
+        /// <command>DIM2MAPCOLLECTFEATURES</command>
+        /// <summary>
+        /// THIS COMMAND MUST NOT BE RUN MANUALLY! It is called from Dim2Map window.
+        /// Builds the road/building graph from drawing data, validates connectivity (drawing convex hulls
+        /// around disconnected components), converts it into features, and loads them into the data
+        /// service for the map palette.
+        /// </summary>
+        /// <category>DIMENSIONERING V2</category>
         [CommandMethod("DIM2MAPCOLLECTFEATURES")]
         public void dim2mapcollectfeatures()
         {
@@ -560,6 +609,12 @@ namespace DimensioneringV2
             prdDbg("Finished!");
         }
 
+        /// <command>DIM2COPYBBRFROMDWG</command>
+        /// <summary>
+        /// Prompts for a DWG file and copies all BBR block references from the
+        /// source drawing into the current drawing.
+        /// </summary>
+        /// <category>DIMENSIONERING V2</category>
         [CommandMethod("DIM2COPYBBRFROMDWG")]
         public void dim2copybbrfromdwg()
         {
@@ -636,6 +691,12 @@ namespace DimensioneringV2
             prdDbg("Finished!");
         }
 
+        /// <command>DIM2COPYNOCROSSFROMDWG</command>
+        /// <summary>
+        /// Prompts for a DWG file and copies all no-cross lines from the source drawing into
+        /// the current drawing.
+        /// </summary>
+        /// <category>DIMENSIONERING V2</category>
         [CommandMethod("DIM2COPYNOCROSSFROMDWG")]
         public void dim2copynocrossfromdwg()
         {
@@ -712,6 +773,12 @@ namespace DimensioneringV2
             prdDbg("Finished!");
         }
 
+        /// <command>DIM2VEJKLASSERASSIGNBBR</command>
+        /// <summary>
+        /// Aggregates BBR blocks by road name, opens a grid view to assign road classes (vejklasser),
+        /// and writes the selected class back to each BBR instance.
+        /// </summary>
+        /// <category>DIMENSIONERING V2</category>
         [CommandMethod("DIM2VEJKLASSERASSIGNBBR")]
         public void dim2vejklasserassignbbr()
         {
@@ -760,6 +827,12 @@ namespace DimensioneringV2
             prdDbg("Finished!");
         }
 
+        /// <command>DIM2VEJKLASSERASSIGND2R</command>
+        /// <summary>
+        /// Opens a D2R file, groups single-building service segments by road name, lets the user assign
+        /// road classes, applies them to the features, and saves a new D2R file with the assignments.
+        /// </summary>
+        /// <category>DIMENSIONERING V2</category>
         [CommandMethod("DIM2VEJKLASSERASSIGND2R")]
         public void dim2vejklasserassignd2r()
         {
