@@ -98,6 +98,13 @@ namespace IntersectUtilities.Dimensionering
         {
         }
         #endregion
+        /// <command>DIMIMPORTBBRBLOCKS</command>
+        /// <summary>
+        /// Imports BBR features from a selected GeoJSON file as block references and writes their
+        /// attributes into the BBR property set. Intended to populate the drawing with building points
+        /// carrying BBR data for subsequent graph and reporting workflows.
+        /// </summary>
+        /// <category>Dimensionering</category>
         [CommandMethod("DIMIMPORTBBRBLOCKS")]
         public void dimimportbbrblocks()
         {
@@ -233,13 +240,13 @@ namespace IntersectUtilities.Dimensionering
 
         }
 
-        //[CommandMethod("TESTRXCLASS")]
-        public void testrxclass()
-        {
-            prdDbg(RXClass.GetClass(typeof(Polyline)).Name);
-            prdDbg(RXClass.GetClass(typeof(MPolygon)).Name);
-        }
-
+        /// <command>DIMINTERSECTAREAS</command>
+        /// <summary>
+        /// Assigns an area name to BBR blocks based on spatial containment within selected POLYLINE or
+        /// MPOLYGON boundaries, writing the chosen property to each contained block and removing blocks
+        /// not claimed. Intended to prepare per-area datasets for downstream analysis and exports.
+        /// </summary>
+        /// <category>Dimensionering</category>
         [CommandMethod("DIMINTERSECTAREAS")]
         public void dimintersectareas()
         {
@@ -470,17 +477,37 @@ namespace IntersectUtilities.Dimensionering
             return value;
         }
 
+        /// <command>DIMADRESSERDUMP</command>
+        /// <summary>
+        /// Exports addresses and related BBR data for the selected area to a CSV file. Intended for
+        /// quick review, QA, and as input to external tools or spreadsheets.
+        /// </summary>
+        /// <category>Dimensionering</category>
         [CommandMethod("DIMADRESSERDUMP")]
         public void dimadresserdump()
         {
             Dimensionering.dimadressedump();
         }
 
+        /// <command>DIMPOPULATEGRAPH</command>
+        /// <summary>
+        /// Builds the connection graph for the selected area: clears previous graph data, creates
+        /// connection lines from buildings to pipes, assigns parents/children in property sets, and
+        /// labels pipe segments. Intended to structure the network for designing and reporting.
+        /// </summary>
+        /// <category>Dimensionering</category>
         [CommandMethod("DIMPOPULATEGRAPH")]
         public void dimpopulategraph()
         {
             Dimensionering.dimpopulategraph();
         }
+        /// <command>DIMCONNECTHUSNR</command>
+        /// <summary>
+        /// Connects buildings to multiple address points (husnumre) by creating blocks and lines,
+        /// sets graph and BBR properties, and then analyzes duplicate addresses. Intended to map
+        /// multi-address buildings accurately before graph population and Excel exports.
+        /// </summary>
+        /// <category>Dimensionering</category>
         [CommandMethod("DIMCONNECTHUSNR")]
         public void dimconnecthusnr()
         {
@@ -506,6 +533,12 @@ namespace IntersectUtilities.Dimensionering
             Dimensionering.dimwriteexcel();
         }
 
+        /// <command>DIMSELECTOBJS</command>
+        /// <summary>
+        /// Selects objects in the drawing by area and type (polylines, blocks, or all) and places them
+        /// into the implied selection set. Intended to speed up batch edits and QA for a specific area.
+        /// </summary>
+        /// <category>Dimensionering</category>
         [CommandMethod("DIMSELECTOBJS")]
         public void dimselectobjs()
         {
@@ -604,6 +637,13 @@ namespace IntersectUtilities.Dimensionering
             }
         }
 
+        /// <command>DIMREMOVEHUSNR</command>
+        /// <summary>
+        /// Interactively removes selected husnummer blocks and their lines, updates the in-memory address
+        /// list, and supports saving changes back to GeoJSON. Intended to curate and correct address
+        /// points associated with buildings.
+        /// </summary>
+        /// <category>Dimensionering</category>
         [CommandMethod("DIMREMOVEHUSNR")]
         public void dimremovehusnr()
         {
@@ -792,6 +832,13 @@ namespace IntersectUtilities.Dimensionering
             }
         }
 
+        /// <command>DIMPREPAREDWG</command>
+        /// <summary>
+        /// Prepares the current drawing for dimensionering by importing missing building symbol blocks
+        /// and creating required layers (future FJV and no-cross). Intended as the first setup step
+        /// before data import and graph operations.
+        /// </summary>
+        /// <category>Dimensionering</category>
         [CommandMethod("DIMPREPAREDWG")]
         public void dimpreparedwg()
         {
@@ -862,6 +909,13 @@ namespace IntersectUtilities.Dimensionering
             }
         }
 
+        /// <command>DIMWRITEEXCEL</command>
+        /// <summary>
+        /// Generates Excel workbooks from BBR and FJV data for one area or all areas using a selected
+        /// template, including address and connection-length tables. Intended to produce excel files for
+        /// design work.
+        /// </summary>
+        /// <category>Dimensionering</category>
         [CommandMethod("DIMWRITEEXCEL")]
         public void dimwriteall()
         {
@@ -1026,6 +1080,13 @@ namespace IntersectUtilities.Dimensionering
             }
         }
 
+        /// <command>DIMIMPORTDIMS</command>
+        /// <summary>
+        /// Imports pipeline dimensions from Excel workbooks (single or batch), maps addresses to pipes
+        /// via the graph, and creates sized pipe polylines in a side-loaded DWG using the selected
+        /// series. Intended to turn Excel dimensioning into modeled pipelines.
+        /// </summary>
+        /// <category>Dimensionering</category>
         [CommandMethod("DIMIMPORTDIMS")]
         public void dimimportdims()
         {
@@ -1375,6 +1436,13 @@ namespace IntersectUtilities.Dimensionering
             }
         }
 
+        /// <command>DIMANALYZEDUPLICATEADDR</command>
+        /// <summary>
+        /// Analyzes buildings with identical addresses, assigns or repairs duplicate numbers in the BBR
+        /// property set to ensure unique address labels, and exports a CSV report. Intended to normalize
+        /// duplicate addresses before Excel generation and other downstream processes.
+        /// </summary>
+        /// <category>Dimensionering</category>
         [CommandMethod("DIMANALYZEDUPLICATEADDR")]
         public void dimanalyzeduplicateaddr()
         {
@@ -1536,6 +1604,13 @@ namespace IntersectUtilities.Dimensionering
             }
         }
 
+        /// <command>DIMENHEDERLIST</command>
+        /// <summary>
+        /// Builds an HTML report listing building units by building and address from BBR datasets for a
+        /// selected path. Intended to review unit types and distributions for QA and planning.
+        /// Report is written to: C:\Temp\enheder.html
+        /// </summary>
+        /// <category>Dimensionering</category>
         [CommandMethod("DIMENHEDERLIST")]
         public void dimenhederlist()
         {
@@ -1672,6 +1747,12 @@ namespace IntersectUtilities.Dimensionering
             prdDbg("Finished!");
         }
 
+        /// <command>DIMENHEDERANALYZE</command>
+        /// <summary>
+        /// Analyzes BBR unit data to count residential units per building and writes results back to
+        /// the drawing (e.g., AntalEnheder). Intended to quantify demand per building for planning.
+        /// </summary>
+        /// <category>Dimensionering</category>
         [CommandMethod("DIMENHEDERANALYZE")]
         public void dimenhederanalyze()
         {
@@ -1829,7 +1910,7 @@ namespace IntersectUtilities.Dimensionering
         }
 
 #if DEBUG
-        [CommandMethod("DIMPROPEENERGY")]
+        //[CommandMethod("DIMPROPEENERGY")]
         public void DimPropeEnergy()
         {
             DocumentCollection docCol = Application.DocumentManager;
