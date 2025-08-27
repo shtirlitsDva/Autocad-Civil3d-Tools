@@ -60,7 +60,7 @@ namespace Ler2PolygonSplitting
         /// "LER2POLYGON-SPLITFORGML" with rotating colors. Prints area statistics for QA. Intended to
         /// prepare complex (irregular) input polygons for downstream GML export and submission limits.
         /// </summary>
-        /// <category>GIS</category>
+        /// <category>LER2</category>
         [CommandMethod("LER2SPLITIRREGULAR")]
         public void ler2splitirregular()
         {
@@ -374,7 +374,7 @@ namespace Ler2PolygonSplitting
         /// "LER2POLYGON-SPLITFORGML", and reports per-tile area and percent over/under max. Intended for
         /// regularized, submission-friendly polygon tiling when irregular partitions are not needed.
         /// </summary>
-        /// <category>GIS</category>
+        /// <category>LER2</category>
         [CommandMethod("LER2SPLITRECTANGULAR")]
         public void ler2splitrectangular()
         {
@@ -491,7 +491,7 @@ namespace Ler2PolygonSplitting
         /// extracts vertex sequences across loops, and writes space-separated X Y pairs per polygon
         /// line. Intended to produce coordinate lists for LER2/GML submission after splitting.
         /// </summary>
-        /// <category>GIS</category>
+        /// <category>LER2</category>
         [CommandMethod("LER2EXPORT2LER2")]
         public void ler2export2ler2()
         {

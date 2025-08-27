@@ -37,7 +37,7 @@ using ErrorStatus = Autodesk.AutoCAD.Runtime.ErrorStatus;
 using PsDataType = Autodesk.Aec.PropertyData.DataType;
 using IntersectUtilities;
 
-namespace DriPaletteSet
+namespace NSPaletteSet
 {
     internal static class PaletteUtils
     {

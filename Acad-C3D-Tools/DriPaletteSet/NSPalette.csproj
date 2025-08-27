@@ -126,7 +126,7 @@
 	</ItemGroup>
 	<PropertyGroup>
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-		<AssemblyName>NorPalette</AssemblyName>
+		<AssemblyName>NSPalette</AssemblyName>
 		<SupportedOSPlatformVersion>8.0</SupportedOSPlatformVersion>
 	</PropertyGroup>
 	<ItemGroup>

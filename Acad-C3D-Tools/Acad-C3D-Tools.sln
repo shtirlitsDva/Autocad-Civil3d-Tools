@@ -27,7 +27,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AcadOverrules", "AcadOverru
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LERImporter", "LERImporter\LERImporter.csproj", "{FBEE18FE-055A-4901-9D67-DC0A18588F7D}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NorPalette", "DriPaletteSet\NorPalette.csproj", "{0F92C1BB-FADB-4DF2-8FF8-F28391C1ED3C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NSPalette", "DriPaletteSet\NSPalette.csproj", "{0F92C1BB-FADB-4DF2-8FF8-F28391C1ED3C}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dimensionering", "Dimensionering\Dimensionering.csproj", "{C578718C-90F5-4546-ADAC-6C9D91E02A95}"
 EndProject

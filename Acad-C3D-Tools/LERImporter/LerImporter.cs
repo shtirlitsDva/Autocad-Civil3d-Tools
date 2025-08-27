@@ -359,7 +359,7 @@ namespace LERImporter
         /// in the top folder. Progress is logged to LerImport.log in the top folder. Intended to convert
         /// all partial LER2 requests into standardized DWGs in one run.
         /// </summary>
-        /// <category>GIS</category>
+        /// <category>LER2</category>
         [CommandMethod("IGMLBATCH")]
         [CommandMethod("IMPORTCONSOLIDATEDGMLBATCH")]
         public void importconsolidatedbatch()

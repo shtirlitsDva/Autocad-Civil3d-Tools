@@ -11,7 +11,7 @@ using System.Windows.Forms;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 
-namespace DriPaletteSet
+namespace NSPaletteSet
 {
     public partial class PipePalette : UserControl
     {

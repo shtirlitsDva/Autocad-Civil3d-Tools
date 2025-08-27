@@ -1,4 +1,4 @@
-﻿namespace DriPaletteSet
+﻿namespace NSPaletteSet
 {
     partial class EnkeltPalette
     {

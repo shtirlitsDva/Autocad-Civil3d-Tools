@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 using Autodesk.AutoCAD.Windows;
 
-namespace DriPaletteSet
+namespace NSPaletteSet
 {
     public class MyPaletteSet : PaletteSet
     {

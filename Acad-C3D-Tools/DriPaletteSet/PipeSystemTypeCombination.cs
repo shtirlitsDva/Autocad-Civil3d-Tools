@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.Enums;
 
-namespace DriPaletteSet
+namespace NSPaletteSet
 {
     public class PipeSystemTypeCombination
     {

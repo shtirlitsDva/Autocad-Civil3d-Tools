@@ -10,16 +10,18 @@ using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Runtime;
 using CadApp = Autodesk.AutoCAD.ApplicationServices.Application;
+using static IntersectUtilities.UtilsCommon.Utils;
 
-[assembly: CommandClass(typeof(DriPaletteSet.MyCommands))]
+[assembly: CommandClass(typeof(NSPaletteSet.MyCommands))]
 
-namespace DriPaletteSet
+namespace NSPaletteSet
 {
     public class MyCommands : IExtensionApplication
     {
         public void Initialize()
         {
             _myPs = null;
+            prdDbg("NSPALETTE er klar! <-- BEMÆRK! Nyt navn.");
         }
 
         public void Terminate()
@@ -29,7 +31,12 @@ namespace DriPaletteSet
 
         private static MyPaletteSet _myPs = null;
 
-        [CommandMethod("NORPALETTE")]
+        /// <command>NSPALETTE</command>
+        /// <summary>
+        /// Åbner Norsyns palette med værktøjer til fjernvarme.
+        /// </summary>
+        /// <category>Fjernvarme Fremtidig</category>
+        [CommandMethod("NSPALETTE")]
         public static void ShowMyPaletteSet()
         {
             bool firstShow = false;
