@@ -442,10 +442,12 @@ namespace AcadOverrules
                 int numberOfLabels = (int)(length / labelDist);
                 if (numberOfLabels == 0) numberOfLabels = 1;
                 int dn = GetPipeDN(pline);
-                string system =
-                    GetPipeType(pline) == PipeTypeEnum.Twin ?
+                var type = GetPipeType(pline);
+                string typeString =
+                    type == PipeTypeEnum.Twin ?
                     "T" : "E";
-                string label = $"DN{dn}-{system}";
+                var prefix = GetLineTypeLayerPrefix(GetPipeSystem(pline));
+                string label = $"{prefix}{dn}-{typeString}";
                 var extents = style.ExtentsBox(label, true, false, null);
 
                 for (int i = 0; i < numberOfLabels + 1; i++)

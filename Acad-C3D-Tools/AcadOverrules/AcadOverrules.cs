@@ -6,6 +6,8 @@ using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using AcadOverrules.ViewFrameGripOverrule;
 using System;
 
+using static IntersectUtilities.UtilsCommon.Utils;
+
 namespace AcadOverrules
 {
     public class Commands : IExtensionApplication
@@ -13,6 +15,7 @@ namespace AcadOverrules
         #region Interface memebers
         public void Initialize()
         {
+            prdDbg("AcadOverrules Initializing!");
 #if DEBUG
             AppDomain.CurrentDomain.AssemblyResolve += new ResolveEventHandler(
                 IntersectUtilities.EventHandlers.Debug_AssemblyResolve);
@@ -26,7 +29,15 @@ namespace AcadOverrules
         #endregion
 
         private static FjvPolylineLabel _fjvPolylineLabelOverrule;
-
+        /// <command>TOGGLEFJVLABEL</command>
+        /// <summary>
+        /// Labels pipe with system prefix, size and type, ie. DN50-T.
+        /// T - Twin, E - Enkelt.
+        /// Labels arcs with radius and marking for buerør, in-situ buk
+        /// and impossible radius.
+        /// Marks small angle deviations between pl segments.
+        /// </summary>
+        /// <category>Overrules</category>
         [CommandMethod("TOGGLEFJVLABEL")]
         public static void togglefjvlabeloverrule()
         {
@@ -43,51 +54,14 @@ namespace AcadOverrules
                 _fjvPolylineLabelOverrule = null;
             }
             Application.DocumentManager.MdiActiveDocument.Editor.Regen();
-        }
-
-        private static GasPolylineLabel _GasPolylineLabelOverrule;
-
-        [CommandMethod("TOGGLEGASLABEL")]
-        public static void togglegaslabeloverrule()
-        {
-            if (_GasPolylineLabelOverrule == null)
-            {
-                _GasPolylineLabelOverrule = new GasPolylineLabel();
-                Overrule.AddOverrule(RXObject.GetClass(typeof(Polyline)), _GasPolylineLabelOverrule, false);
-                Overrule.Overruling = true;
-            }
-            else
-            {
-                Overrule.RemoveOverrule(RXObject.GetClass(typeof(Polyline)), _GasPolylineLabelOverrule);
-                _GasPolylineLabelOverrule.Dispose();
-                _GasPolylineLabelOverrule = null;
-            }
-            Application.DocumentManager.MdiActiveDocument.Editor.Regen();
-        }
-
-        private static AlignmentNaMark _AlignmentNaMark;
-
-        //Not working, development suspended
-        //[CommandMethod("TOGGLEALNA")]
-        public static void togglealnaoverrule()
-        {
-            if (_AlignmentNaMark == null)
-            {
-                _AlignmentNaMark = new AlignmentNaMark();
-                Overrule.AddOverrule(RXObject.GetClass(typeof(Polyline)), _AlignmentNaMark, false);
-                Overrule.Overruling = true;
-            }
-            else
-            {
-                Overrule.RemoveOverrule(RXObject.GetClass(typeof(Polyline)), _AlignmentNaMark);
-                _AlignmentNaMark.Dispose();
-                _AlignmentNaMark = null;
-            }
-            Application.DocumentManager.MdiActiveDocument.Editor.Regen();
-        }
+        }        
 
         private static PolylineDirection _polylineDirection;
-
+        /// <command>TOGGLEPOLYDIR</command>
+        /// <summary>
+        /// Creates arrows for all polylines that visualise the direction of the polyline.
+        /// </summary>
+        /// <category>Overrules</category>
         [CommandMethod("TOGGLEPOLYDIR")]
         public static void togglepolydiroverrule()
         {
@@ -107,7 +81,12 @@ namespace AcadOverrules
         }
 
         private static PolylineDirFjv _polylineDirFjv;
-
+        /// <command>TOGGLEFJVDIR</command>
+        /// <summary>
+        /// This applies only to polylines that resides in layers that correspond to pipe systems.
+        /// Creates arrows for all these polylines that visualise the direction of the polyline.
+        /// </summary>
+        /// <category>Overrules</category>
         [CommandMethod("TOGGLEFJVDIR")]
         public static void togglefjvdiroverrule()
         {
@@ -125,7 +104,7 @@ namespace AcadOverrules
             }
             Application.DocumentManager.MdiActiveDocument.Editor.Regen();
         }
-
+#if DEBUG
         private static GripVectorOverrule _gripVectorOverrule;
 
         [CommandMethod("TOGGLEGRIPOR")]
@@ -145,7 +124,9 @@ namespace AcadOverrules
             }
             Application.DocumentManager.MdiActiveDocument.Editor.Regen();
         }
+#endif
 
+#if DEBUG
         private static ViewFrameCentreGripOverrule _viewFrameCentreGripOverrule;
 
         [CommandMethod("TOGGLEVIEWFRAMESOVERRULE")]
@@ -164,5 +145,6 @@ namespace AcadOverrules
                 _viewFrameCentreGripOverrule = null;
             }
         }
+#endif
     }
 }
