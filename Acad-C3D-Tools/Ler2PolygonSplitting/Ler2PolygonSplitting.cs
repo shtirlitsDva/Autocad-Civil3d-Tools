@@ -50,6 +50,17 @@ namespace Ler2PolygonSplitting
         }
         #endregion
 
+        /// <command>LER2SPLITIRREGULAR</command>
+        /// <summary>
+        /// Splits source polygons on layer "LER2POLYGON-SOURCE" into K area-balanced sub-polygons using
+        /// a grid-sampling, Balanced K-Means clustering, and Voronoi partitioning workflow. Prompts for
+        /// the target number of polygons (with suggestions based on total area and a 250,000 m² cap),
+        /// generates a point grid, clips it to the polygon, clusters to K centroids, builds Voronoi
+        /// cells clipped to the original polygon, and writes the resulting MPolygons to
+        /// "LER2POLYGON-SPLITFORGML" with rotating colors. Prints area statistics for QA. Intended to
+        /// prepare complex (irregular) input polygons for downstream GML export and submission limits.
+        /// </summary>
+        /// <category>GIS</category>
         [CommandMethod("LER2SPLITIRREGULAR")]
         public void ler2splitirregular()
         {
@@ -355,6 +366,15 @@ namespace Ler2PolygonSplitting
             return aspectRatio <= 3.0 && polygon.Area > 6.0;
         }
 
+        /// <command>LER2SPLITRECTANGULAR</command>
+        /// <summary>
+        /// Splits each polygon on layer "LER2POLYGON-SOURCE" into a grid of rectangular tiles so
+        /// that each tile’s area is under (or close to) 250,000 m². Computes a grid from the polygon’s
+        /// envelope sized by the target area, converts each tile to MPolygon, writes them on layer
+        /// "LER2POLYGON-SPLITFORGML", and reports per-tile area and percent over/under max. Intended for
+        /// regularized, submission-friendly polygon tiling when irregular partitions are not needed.
+        /// </summary>
+        /// <category>GIS</category>
         [CommandMethod("LER2SPLITRECTANGULAR")]
         public void ler2splitrectangular()
         {
@@ -464,6 +484,14 @@ namespace Ler2PolygonSplitting
             return result;
         }
 
+        /// <command>LER2EXPORT2LER2</command>
+        /// <summary>
+        /// Exports coordinates of all MPolygons on layer "LER2POLYGON-SPLITFORGML" to a text file
+        /// (GMLCoordinates.txt) in the DWG’s directory. Validates that no polygon exceeds 250,000 m²,
+        /// extracts vertex sequences across loops, and writes space-separated X Y pairs per polygon
+        /// line. Intended to produce coordinate lists for LER2/GML submission after splitting.
+        /// </summary>
+        /// <category>GIS</category>
         [CommandMethod("LER2EXPORT2LER2")]
         public void ler2export2ler2()
         {

@@ -38,6 +38,7 @@
 		</Reference>
 	</ItemGroup>
 	<PropertyGroup>
+		<GenerateDocumentationFile>True</GenerateDocumentationFile>
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
 	</PropertyGroup>
 	<ItemGroup>
