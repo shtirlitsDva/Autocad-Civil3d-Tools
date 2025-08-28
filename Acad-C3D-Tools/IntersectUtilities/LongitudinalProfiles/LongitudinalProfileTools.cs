@@ -6125,6 +6125,9 @@ namespace IntersectUtilities
                     }
 
                     //Trim polyline if ends overlap the boundaries
+                    Polyline firstCut = null;
+                    Polyline lastCut = null;
+
                     var vpo = pv.Location;
                     var delta = vpo.X - polyline.StartPoint.X;
                     if (delta > 0 && Math.Abs(delta) > Tolerance.Global.EqualPoint)
@@ -6137,6 +6140,8 @@ namespace IntersectUtilities
                         {
                             var obj = objs[1] as Polyline;
                             if (obj != null) polyline = obj;
+                            obj = objs[0] as Polyline;
+                            if (obj != null) firstCut = obj;
                         }
                     }
                     delta = polyline.EndPoint.X - pv.GeometricExtents.MaxPoint.X;
@@ -6152,6 +6157,8 @@ namespace IntersectUtilities
                         {
                             var obj = objs[0] as Polyline;
                             if (obj != null) polyline = obj;
+                            obj = objs[1] as Polyline;
+                            if (obj != null) lastCut = obj;
                         }
                     }
 
@@ -6164,11 +6171,97 @@ namespace IntersectUtilities
 
                     List<(double radius, ProfilePVI pvi)> pvis = new();
 
-                    pv.FindStationAndElevationAtXY(polyline.StartPoint.X, polyline.StartPoint.Y,
-                        ref station,
-                        ref elevation
-                    );
-                    profile.PVIs.AddPVI(station, elevation);
+                    if (firstCut != null)
+                    {
+                        int idx = polyline.NumberOfVertices - 1;
+                        Point2d point2d1;
+                        Point2d point2d2;
+                        Point2d point2d3;
+
+                        for (int i = 0; i < idx; i++)
+                        {
+                            switch (polyline.GetSegmentType(i))
+                            {
+                                case SegmentType.Line:
+                                    LineSegment2d lineSegment2dAt = polyline.GetLineSegment2dAt(i);
+                                    point2d1 = lineSegment2dAt.StartPoint;
+                                    double x1 = point2d1.X;
+                                    double y1 = point2d1.Y;
+                                    double num4 = x1 - x;
+                                    double num5 =
+                                        (y1 - y) / profileViewStyle.GraphStyle.VerticalExaggeration
+                                        + pv.ElevationMin;
+                                    point2d2 = new Point2d(num4, num5);
+
+                                    point2d1 = lineSegment2dAt.EndPoint;
+                                    double x2 = point2d1.X;
+                                    double y2 = point2d1.Y;
+                                    double num6 = x2 - x;
+                                    double num7 =
+                                        (y2 - y) / profileViewStyle.GraphStyle.VerticalExaggeration
+                                        + pv.ElevationMin;
+                                    point2d3 = new Point2d(num6, num7);
+
+                                    profile.Entities.AddFixedTangent(point2d2, point2d3);
+                                    break;
+                                case SegmentType.Arc:
+                                    CircularArc2d arcSegment2dAt = polyline.GetArcSegment2dAt(i);
+
+                                    point2d1 = arcSegment2dAt.StartPoint;
+                                    double x3 = point2d1.X;
+                                    double y3 = point2d1.Y;
+                                    point2d1 = arcSegment2dAt.EndPoint;
+                                    double x4 = point2d1.X;
+                                    double y4 = point2d1.Y;
+
+                                    double num8 = x3 - x;
+                                    double num9 =
+                                        (y3 - y) / profileViewStyle.GraphStyle.VerticalExaggeration
+                                        + pv.ElevationMin;
+                                    double num10 = x4 - x;
+                                    double num11 =
+                                        (y4 - y) / profileViewStyle.GraphStyle.VerticalExaggeration
+                                        + pv.ElevationMin;
+
+                                    Point2d samplePoint = ((Curve2d)arcSegment2dAt).GetSamplePoints(
+                                        11
+                                    )[5]; //<-- was (10)[6] here, is wrong?
+                                    double num12 = samplePoint.X - x;
+                                    double num13 =
+                                        (samplePoint.Y - y)
+                                            / profileViewStyle.GraphStyle.VerticalExaggeration
+                                        + pv.ElevationMin;
+
+                                    Point2d point2d4 = new Point2d(num12, num13);
+                                    point2d3 = new Point2d(num10, num11);
+                                    point2d2 = new Point2d(num8, num9);
+                                    profile.Entities.AddFixedSymmetricParabolaByThreePoints(
+                                        point2d2,
+                                        point2d4,
+                                        point2d3
+                                    );
+
+                                    break;
+                                case SegmentType.Coincident:
+                                    break;
+                                case SegmentType.Point:
+                                    break;
+                                case SegmentType.Empty:
+                                    break;
+                                default:
+                                    break;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        pv.FindStationAndElevationAtXY(
+                            polyline.StartPoint.X, polyline.StartPoint.Y,
+                            ref station,
+                            ref elevation
+                        );
+                        profile.PVIs.AddPVI(station, elevation);
+                    }                        
 
                     for (int i = 0; i < numOfVert; i++)
                     {
