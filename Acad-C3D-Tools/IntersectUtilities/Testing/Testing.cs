@@ -42,6 +42,22 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Test PVI grades
+                    //var id = Interaction.GetEntity("Select profile: ", typeof(Profile));
+                    //if (id == Oid.Null) { tx.Abort(); return; }
+                    //var p = id.Go<Profile>(tx);
+                    //double GI = double.NaN;
+                    //double GO = double.NaN;
+                    //foreach (ProfilePVI pvi in p.PVIs)
+                    //{
+                    //    try { GI = pvi.GradeIn; }
+                    //    catch { GI = double.NaN; }
+                    //    try { GO = pvi.GradeOut; }
+                    //    catch { GO = double.NaN; }
+
+                    //    prdDbg($"Type:{pvi.PVIType}; GI:{GI}; GO:{GO};");
+                    //}
+                    #endregion
                     #region Test GetClosestPoint(p, v3d, bool) to see what happens outside of range
                     //{
                     //    var ent1 = Interaction.GetEntity("Select polyline: ", typeof(Polyline));

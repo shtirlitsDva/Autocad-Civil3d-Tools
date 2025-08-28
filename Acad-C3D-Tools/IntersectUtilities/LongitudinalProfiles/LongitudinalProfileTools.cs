@@ -6173,17 +6173,17 @@ namespace IntersectUtilities
 
                     if (firstCut != null)
                     {
-                        int idx = polyline.NumberOfVertices - 1;
+                        int idx = firstCut.NumberOfVertices - 1;
                         Point2d point2d1;
                         Point2d point2d2;
                         Point2d point2d3;
 
                         for (int i = 0; i < idx; i++)
                         {
-                            switch (polyline.GetSegmentType(i))
+                            switch (firstCut.GetSegmentType(i))
                             {
                                 case SegmentType.Line:
-                                    LineSegment2d lineSegment2dAt = polyline.GetLineSegment2dAt(i);
+                                    LineSegment2d lineSegment2dAt = firstCut.GetLineSegment2dAt(i);
                                     point2d1 = lineSegment2dAt.StartPoint;
                                     double x1 = point2d1.X;
                                     double y1 = point2d1.Y;
@@ -6205,7 +6205,7 @@ namespace IntersectUtilities
                                     profile.Entities.AddFixedTangent(point2d2, point2d3);
                                     break;
                                 case SegmentType.Arc:
-                                    CircularArc2d arcSegment2dAt = polyline.GetArcSegment2dAt(i);
+                                    CircularArc2d arcSegment2dAt = firstCut.GetArcSegment2dAt(i);
 
                                     point2d1 = arcSegment2dAt.StartPoint;
                                     double x3 = point2d1.X;
@@ -6223,7 +6223,7 @@ namespace IntersectUtilities
                                         (y4 - y) / profileViewStyle.GraphStyle.VerticalExaggeration
                                         + pv.ElevationMin;
 
-                                    Point2d samplePoint = ((Curve2d)arcSegment2dAt).GetSamplePoints(
+                                    Point2d samplePoint = arcSegment2dAt.GetSamplePoints(
                                         11
                                     )[5]; //<-- was (10)[6] here, is wrong?
                                     double num12 = samplePoint.X - x;
@@ -6343,6 +6343,35 @@ namespace IntersectUtilities
                         }
                         catch { /* keep going */ }
                     }
+
+                    prdDbg(profile.PVIs.Count);
+
+                    const double EPS = 1e-10;  // single tolerance
+
+                    var pvicol = profile.PVIs;
+
+                    // walk backwards so RemoveAt is safe
+                    for (int i = pvicol.Count - 1; i >= 0; i--)
+                    {
+                        var pvi = pvicol[i];
+
+                        // skip circular PVIs
+                        if (pvi.PVIType == ProfileEntityType.Circular) continue;
+
+                        // skip first and last PVI (no GI/GO available there)
+                        if (i == 0 || i == pvicol.Count - 1) continue;
+
+                        double gi = pvi.GradeIn;   // safe now
+                        double go = pvi.GradeOut;  // safe now
+
+                        // check for "straight through"
+                        if (Math.Abs(go - gi) <= EPS)
+                        {
+                            pvicol.RemoveAt(i);
+                        }
+                    }                    
+
+                    prdDbg(profile.PVIs.Count);
                 }
                 catch (System.Exception ex)
                 {
