@@ -1,9 +1,12 @@
 ﻿using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
+using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
 using Autodesk.Civil.ApplicationServices;
 using Autodesk.Civil.DatabaseServices;
+
+using Dreambuild.AutoCAD;
 
 using IntersectUtilities.UtilsCommon;
 
@@ -39,6 +42,23 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Test GetClosestPoint(p, v3d, bool) to see what happens outside of range
+                    //{
+                    //    var ent1 = Interaction.GetEntity("Select polyline: ", typeof(Polyline));
+                    //    if (ent1 == Oid.Null) { tx.Abort(); return; }
+
+                    //    var p = Interaction.GetPoint("Select point: ");
+                    //    if (p.IsNull()) { tx.Abort(); return; }
+
+                    //    var pl = ent1.Go<Polyline>(tx);
+                    //    var cp = pl.GetClosestPointTo(p, -Vector3d.XAxis, false);
+
+                    //    DebugHelper.CreateDebugLine(p, cp, ColorByName("red"));
+
+                    //    //Findings are truly horrific
+                    //    //Using a vector as the direction does not at all work as expected
+                    //}
+                    #endregion
                     #region Find out AssemblyResolve subscribers
                     {
                         //AppDomain.CurrentDomain.AssemblyResolve += (sender, args) =>
@@ -54,55 +74,55 @@ namespace IntersectUtilities
                     }
                     #endregion
                     #region Test alignment intersection with pl3d at very close distance and large coords
-                    //var mpgs = localDb.HashSetOfType<MPolygon>(tx);
-                    Alignment al = localDb.ListOfType<Alignment>(tx).First();
-                    //Polyline pline = al.GetPolyline().Go<Polyline>(tx);
+                    ////var mpgs = localDb.HashSetOfType<MPolygon>(tx);
+                    //Alignment al = localDb.ListOfType<Alignment>(tx).First();
+                    ////Polyline pline = al.GetPolyline().Go<Polyline>(tx);
 
-                    var pl3ds = localDb.HashSetOfType<Polyline3d>(tx);
+                    //var pl3ds = localDb.HashSetOfType<Polyline3d>(tx);
 
-                    foreach (var pl3d in pl3ds)
-                    {
-                        //using (Curve c1 = al.GetProjectedCurve(new Plane(), Vector3d.ZAxis))
-                        //using (Curve c2 = pl3d.GetProjectedCurve(new Plane(), Vector3d.ZAxis))
-                        //using (Point3dCollection p3dcol = new Point3dCollection())
-                        //{
-                        //    c1.IntersectWith(
-                        //        c2, Autodesk.AutoCAD.DatabaseServices.Intersect.OnBothOperands,
-                        //        new Plane(),
-                        //        p3dcol, IntPtr.Zero, IntPtr.Zero);
+                    //foreach (var pl3d in pl3ds)
+                    //{
+                    //    //using (Curve c1 = al.GetProjectedCurve(new Plane(), Vector3d.ZAxis))
+                    //    //using (Curve c2 = pl3d.GetProjectedCurve(new Plane(), Vector3d.ZAxis))
+                    //    //using (Point3dCollection p3dcol = new Point3dCollection())
+                    //    //{
+                    //    //    c1.IntersectWith(
+                    //    //        c2, Autodesk.AutoCAD.DatabaseServices.Intersect.OnBothOperands,
+                    //    //        new Plane(),
+                    //    //        p3dcol, IntPtr.Zero, IntPtr.Zero);
 
-                        //    foreach (Point3d p in p3dcol)
-                        //    {
-                        //        DebugHelper.CreateDebugLine(p, ColorByName("red"));
+                    //    //    foreach (Point3d p in p3dcol)
+                    //    //    {
+                    //    //        DebugHelper.CreateDebugLine(p, ColorByName("red"));
 
-                        //        var tp1 = c1.GetClosestPointTo(p, false);
-                        //        var tp2 = c2.GetClosestPointTo(p, false);
+                    //    //        var tp1 = c1.GetClosestPointTo(p, false);
+                    //    //        var tp2 = c2.GetClosestPointTo(p, false);
 
-                        //        using (Line tl1 = new Line(p, tp1))
-                        //        using (Line tl2 = new Line(p, tp2))
-                        //        using (Line tl3 = new Line(tp1, tp2))
-                        //        {
-                        //            if (
-                        //                //tl1.Length < Tolerance.Global.EqualPoint &&
-                        //                //tl2.Length < Tolerance.Global.EqualPoint &&
-                        //                tl3.Length < Tolerance.Global.EqualPoint
-                        //                ) prdDbg("Correct intersection result!");
-                        //            else
-                        //            {
-                        //                prdDbg(
-                        //                    //$"1: {tl1.Length} > {Tolerance.Global.EqualPoint} -> {tl1.Length > Tolerance.Global.EqualPoint}\n" +
-                        //                    //$"2: {tl2.Length} > {Tolerance.Global.EqualPoint} -> {tl2.Length > Tolerance.Global.EqualPoint}\n" +
-                        //                    $"3: {tl3.Length} > {Tolerance.Global.EqualPoint} -> {tl3.Length > Tolerance.Global.EqualPoint}");
-                        //                prdDbg("Wrong intersection result!");
-                        //            }
-                        //        }
-                        //    }
-                        //}
+                    //    //        using (Line tl1 = new Line(p, tp1))
+                    //    //        using (Line tl2 = new Line(p, tp2))
+                    //    //        using (Line tl3 = new Line(tp1, tp2))
+                    //    //        {
+                    //    //            if (
+                    //    //                //tl1.Length < Tolerance.Global.EqualPoint &&
+                    //    //                //tl2.Length < Tolerance.Global.EqualPoint &&
+                    //    //                tl3.Length < Tolerance.Global.EqualPoint
+                    //    //                ) prdDbg("Correct intersection result!");
+                    //    //            else
+                    //    //            {
+                    //    //                prdDbg(
+                    //    //                    //$"1: {tl1.Length} > {Tolerance.Global.EqualPoint} -> {tl1.Length > Tolerance.Global.EqualPoint}\n" +
+                    //    //                    //$"2: {tl2.Length} > {Tolerance.Global.EqualPoint} -> {tl2.Length > Tolerance.Global.EqualPoint}\n" +
+                    //    //                    $"3: {tl3.Length} > {Tolerance.Global.EqualPoint} -> {tl3.Length > Tolerance.Global.EqualPoint}");
+                    //    //                prdDbg("Wrong intersection result!");
+                    //    //            }
+                    //    //        }
+                    //    //    }
+                    //    //}
 
-                        var pnts = al.IntersectWithValidation(pl3d);
+                    //    var pnts = al.IntersectWithValidation(pl3d);
 
-                        prdDbg(pnts.Count);
-                    }
+                    //    prdDbg(pnts.Count);
+                    //}
 
                     //var line = NTSConversion.ConvertPlineToNTSLineString(pline);
                     //foreach (MPolygon mpg in mpgs)
