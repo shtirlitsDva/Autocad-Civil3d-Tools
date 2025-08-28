@@ -863,7 +863,7 @@ namespace IntersectUtilities
                 #endregion
 
                 #region Style
-                Oid fjvRadierStyleId = localDb.Dimstyle; // fallback
+                Oid fjvRadierStyleId = localDb.Dimstyle;
                 var dst = (DimStyleTable)tx.GetObject(localDb.DimStyleTableId, OpenMode.ForRead);
                 if (dst.Has("FJV RADIER"))
                     fjvRadierStyleId = dst["FJV RADIER"];
@@ -882,25 +882,17 @@ namespace IntersectUtilities
                         Point3d center = arc.Center.To3d();
                         double r = arc.Radius;
 
-                        // Mid-angle for a neat, centered leader
-                        double a1 = arc.StartAngle;
-                        double a2 = arc.EndAngle;
-                        double d = a2 - a1;
-                        while (d <= -Math.PI) d += 2 * Math.PI;
-                        while (d > Math.PI) d -= 2 * Math.PI;
-                        double amid = a1 + d / 2.0;
+                        var sp = arc.GetParameterOf(arc.StartPoint);
+                        var ep = arc.GetParameterOf(arc.EndPoint);
+                        var ml = arc.GetLength(sp, ep);
+                        var mp = arc.GetParameterAtLength(sp, ml / 2.0, true);
+                        var p = arc.EvaluatePoint(mp);
+                        Point3d chord = p.To3d();
+                        double leaderLen = 3.0;
 
-                        // Chord point on the arc at mid-angle
-                        Point3d chord = new Point3d(
-                            arc.Center.X + r * Math.Cos(amid),
-                            arc.Center.Y + r * Math.Sin(amid),
-                            0.0
-                        );
-
-                        // Reasonable leader length (proportional, with floor)
-                        double leaderLen = Math.Max(r * 0.30, 0.5);
-
-                        using var dim = new RadialDimension();
+                        var dim = new RadialDimension();
+                        dim.SetDatabaseDefaults(localDb);
+                        dim.Normal = Vector3d.ZAxis;
                         dim.Center = center;
                         dim.ChordPoint = chord;
                         dim.LeaderLength = leaderLen;
@@ -908,6 +900,7 @@ namespace IntersectUtilities
 
                         dim.Layer = targetLayer;
                         dim.AddEntityToDbModelSpace(localDb);
+                        dim.RecordGraphicsModified(true);
                     }
                 }
             }
