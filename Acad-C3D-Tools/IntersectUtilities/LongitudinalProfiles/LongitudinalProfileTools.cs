@@ -2077,7 +2077,7 @@ namespace IntersectUtilities
 
                 try
                 {
-                    BlockTable bt = tx.GetObject(dB.BlockTableId, OpenMode.ForRead) as BlockTable;
+                    BlockTable bt = dB.BlockTableId.Go<BlockTable>(tx);
 
                     #region Import blocks if missing
                     if (!bt.Has(komponentBlockName) || !bt.Has(bueBlockName))
@@ -2097,7 +2097,7 @@ namespace IntersectUtilities
                         Oid destDbMsId = dB.BlockTableId;
 
                         BlockTable sourceBt =
-                            blockTx.GetObject(blockDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                            blockDb.BlockTableId.Go<BlockTable>(blockTx);
                         ObjectIdCollection idsToClone = new ObjectIdCollection();
                         if (!bt.Has(komponentBlockName))
                             idsToClone.Add(sourceBt[komponentBlockName]);
@@ -2226,10 +2226,7 @@ namespace IntersectUtilities
 
                             #region Prepare exaggeration handling
                             ProfileViewStyle profileViewStyle =
-                                tx.GetObject(
-                                    ((Autodesk.Aec.DatabaseServices.Entity)pv).StyleId,
-                                    OpenMode.ForRead
-                                ) as ProfileViewStyle;
+                                pv.StyleId.Go<ProfileViewStyle>(tx);
                             #endregion
 
                             double curStationBL = 0;

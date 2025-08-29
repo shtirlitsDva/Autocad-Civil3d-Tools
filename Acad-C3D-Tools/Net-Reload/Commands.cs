@@ -67,18 +67,18 @@ namespace NetReload
             ResolveEventHandler assemblyResolveHandler = (sender, args) =>
                 {
                     if (netReloadDir == null) return null;
-                    ed.WriteMessage($"Resolving assembly: {args.Name}\n");
+                    //ed.WriteMessage($"Resolving assembly: {args.Name}\n");
 
                     string parentDir = Directory.GetParent(netReloadDir).FullName;
                     string assemblyPath = Path.Combine(parentDir, new AssemblyName(args.Name).Name + ".dll");
 
                     if (File.Exists(assemblyPath))
                     {
-                        ed.WriteMessage($"Found and loading assembly!\n");
+                        //ed.WriteMessage($"Found and loading assembly!\n");
                         return Assembly.LoadFrom(assemblyPath);
                     }
 
-                    ed.WriteMessage($"Assembly not found in parent path!\n");
+                    //ed.WriteMessage($"Assembly not found in parent path!\n");
                     return null; // Let the default resolution process handle it
                 };
 
