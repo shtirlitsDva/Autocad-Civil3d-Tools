@@ -11,7 +11,7 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.BlockDetailing
     /// Handles all standard component blocks except reductions, welds and bue rør.
     /// Responsible for LEFTSIZE/RIGHTSIZE attributes and source refs.
     /// </summary>
-    public sealed class GenericComponentDetailer : BlockDetailerBase
+    public sealed class DetailerGeneric : BlockDetailerBase
     {
         private static readonly string[] RightSizeFromBranchTypes = new[]
         {
@@ -33,8 +33,9 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.BlockDetailing
             if (RealName(sourceBlock) == "BUEROR1" || RealName(sourceBlock) == "BUEROR2")
                 return false;
 
-            if (type == "Reduktion" || type == "Svejsning")
-                return false;
+            if (type == "Reduktion" || type == "Svejsning") return false;
+
+            if (type == "Afgreningsstuds" || type == "Svanehals") return false;
 
             return true;
         }

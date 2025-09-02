@@ -31,7 +31,7 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.BlockDetailing
         {
             // Order matters if handlers overlap. Place special cases first.
             yield return new BueRorDetailer();
-            yield return new GenericComponentDetailer();
+            yield return new DetailerBelongsToInverted();
         }
     }
 }
