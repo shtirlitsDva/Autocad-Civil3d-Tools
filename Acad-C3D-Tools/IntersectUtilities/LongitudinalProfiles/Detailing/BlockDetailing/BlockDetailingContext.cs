@@ -25,10 +25,10 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.BlockDetailing
         public string ComponentBlockName { get; }
         public string BueRorBlockName { get; }
         public System.Data.DataTable ComponentDataTable { get; }
-        public dynamic PipelineData { get; }
-        public dynamic PipelineDataKeys { get; }
-        public dynamic SourceReference { get; }
-        public dynamic SourceReferenceKeys { get; }
+        public PropertySetManager PipelineData { get; }
+        public PSetDefs.DriPipelineData PipelineDataKeys { get; }
+        public PropertySetManager SourceReference { get; }
+        public PSetDefs.DriSourceReference SourceReferenceKeys { get; }
 
         /// <summary>
         /// Samples the mid alignment profile elevation at a given station.
@@ -50,11 +50,13 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.BlockDetailing
             string componentBlockName,
             string bueRorBlockName,
             System.Data.DataTable componentDataTable,
-            dynamic pipelineData,
-            dynamic pipelineDataKeys,
-            dynamic sourceReference,
-            dynamic sourceReferenceKeys,
-            Func<double, double> sampleElevationAtStation)
+            PropertySetManager pipelineData,
+            PSetDefs.DriPipelineData pipelineDataKeys,
+            PropertySetManager sourceReference,
+            PSetDefs.DriSourceReference sourceReferenceKeys,
+            Func<double, double> sampleElevationAtStation,
+            bool preliminary = false
+            )
         {
             Database = database;
             Transaction = transaction;

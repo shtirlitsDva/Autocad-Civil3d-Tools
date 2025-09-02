@@ -10,12 +10,8 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.BlockDetailing
     /// <summary>
     /// Shared behavior for block detailers.
     /// </summary>
-    public abstract class BlockDetailerBase : IBlockDetailer
+    public abstract class BlockDetailerBase
     {
-        public abstract bool CanHandle(BlockReference sourceBlock, BlockDetailingContext context);
-
-        public abstract void Detail(BlockReference sourceBlock, BlockDetailingContext context);
-
         protected bool IsWithinProfileView(double station, BlockDetailingContext context)
         {
             return station >= context.ProfileViewStartStation && station <= context.ProfileViewEndStation;
@@ -58,8 +54,7 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.BlockDetailing
 
         protected void WriteSourceReference(BlockReference target, BlockDetailingContext context, string sourceHandle, double station)
         {
-            // dynamic psmSourceReference.WritePropertyString(target, key, value)
-            // dynamic psmSourceReference.WritePropertyObject(target, key, value)
+            
             context.SourceReference.WritePropertyString(target, context.SourceReferenceKeys.SourceEntityHandle, sourceHandle);
             context.SourceReference.WritePropertyObject(target, context.SourceReferenceKeys.AlignmentStation, station);
         }

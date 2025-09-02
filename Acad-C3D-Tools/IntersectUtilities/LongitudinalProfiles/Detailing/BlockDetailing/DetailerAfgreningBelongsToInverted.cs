@@ -5,10 +5,7 @@ using IntersectUtilities.UtilsCommon.Enums;
 
 namespace IntersectUtilities.LongitudinalProfiles.Detailing.BlockDetailing
 {
-    /// <summary>
-    /// Handles general components. RIGHTSIZE policy is applied outside via enum grouping (factory decides handler).
-    /// </summary>
-    public sealed class DetailerGeneric : BlockDetailerBase, IBlockDetailer
+    public sealed class DetailerAfgreningBelongsToInverted : BlockDetailerBase, IBlockDetailer
     {
         public void Detail(BlockReference sourceBlock, BlockDetailingContext context, PipelineElementType elementType)
         {
@@ -20,11 +17,11 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.BlockDetailing
 
             string type = sourceBlock.ReadDynamicCsvProperty(DynamicProperty.Type) ?? string.Empty;
             SetAttribute(target, "LEFTSIZE", type);
-            SetAttribute(target, "RIGHTSIZE", "");
+
+            string right = context.PipelineData.ReadPropertyString(sourceBlock, context.PipelineDataKeys.BelongsToAlignment);
+            SetAttribute(target, "RIGHTSIZE", right);
 
             WriteSourceReference(target, context, sourceBlock.Handle.ToString(), station);
         }
     }
 }
-
-

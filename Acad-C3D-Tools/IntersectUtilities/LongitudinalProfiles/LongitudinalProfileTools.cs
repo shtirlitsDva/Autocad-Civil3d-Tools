@@ -14,6 +14,7 @@ using Dreambuild.AutoCAD;
 using GroupByCluster;
 
 using IntersectUtilities.LongitudinalProfiles;
+using IntersectUtilities.LongitudinalProfiles.Detailing.BlockDetailing;
 using IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol;
 using IntersectUtilities.LongitudinalProfiles.KoteReport;
 using IntersectUtilities.LongitudinalProfiles.Relocability;
@@ -51,7 +52,6 @@ using Label = Autodesk.Civil.DatabaseServices.Label;
 using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
-using IntersectUtilities.LongitudinalProfiles.Detailing.BlockDetailing;
 
 namespace IntersectUtilities
 {
@@ -2407,11 +2407,17 @@ namespace IntersectUtilities
                                     driPipelineData,
                                     psmSourceReference,
                                     driSourceReference,
-                                    (double st) => SampleProfile(surfaceProfile, st)                                    
+                                    (double st) => SampleProfile(surfaceProfile, st),
+                                    true
                                 );
 
-                                var orchestrator = new BlockDetailingOrchestrator();
-                                orchestrator.DetailAll(brs, detailingContext);
+                                foreach (var br in brs)
+                                {
+                                    PipelineElementType type = br.GetPipelineType();
+                                    var detailer = BlockDetailerFactory.Resolve(type);
+                                    if (detailer == null) continue;
+                                    detailer.Detail(br, detailingContext, type);
+                                }
                             }
                             #endregion
 
@@ -6060,7 +6066,7 @@ namespace IntersectUtilities
                             profile.Entities.AddFreeCircularCurveByPVIAndRadius(pvi, radius);
                         }
                         catch { /* keep going */ }
-                    }                    
+                    }
                 }
                 catch (System.Exception ex)
                 {

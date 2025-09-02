@@ -1,4 +1,5 @@
 using Autodesk.AutoCAD.DatabaseServices;
+using IntersectUtilities.UtilsCommon.Enums;
 
 namespace IntersectUtilities.LongitudinalProfiles.Detailing.BlockDetailing
 {
@@ -8,15 +9,10 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.BlockDetailing
     public interface IBlockDetailer
     {
         /// <summary>
-        /// Returns true if this detailer can handle the given source block.
-        /// </summary>
-        bool CanHandle(BlockReference sourceBlock, BlockDetailingContext context);
-
-        /// <summary>
         /// Creates the detailing representation for the source block on the profile view.
         /// Implementations must perform all necessary checks (e.g., station within PV range).
         /// </summary>
-        void Detail(BlockReference sourceBlock, BlockDetailingContext context);
+        void Detail(BlockReference sourceBlock, BlockDetailingContext context, PipelineElementType elementType);
     }
 }
 
