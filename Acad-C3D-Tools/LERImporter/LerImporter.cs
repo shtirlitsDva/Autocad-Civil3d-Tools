@@ -3,47 +3,28 @@ using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Runtime;
 using Autodesk.Civil.ApplicationServices;
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Collections.Specialized;
-using System.Globalization;
-using System.IO;
-using System.IO.Compression;
-using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Windows.Forms;
-using System.Data;
-using System.Xml;
-using System.Xml.Serialization;
 //using MoreLinq;
 //using GroupByCluster;
 using IntersectUtilities.UtilsCommon;
-using static IntersectUtilities.UtilsCommon.Utils;
 
+using LERImporter.Enhancer;
+
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.IO;
+using System.Linq;
+using System.Xml.Serialization;
+
+using static IntersectUtilities.UtilsCommon.Utils;
 //using static IntersectUtilities.Enums;
 //using static IntersectUtilities.HelperMethods;
 //using static IntersectUtilities.Utils;
 //using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 
-using static IntersectUtilities.UtilsCommon.UtilsDataTables;
-
-using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
-using CivSurface = Autodesk.Civil.DatabaseServices.Surface;
-using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
-using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
-using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
-using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
-using Label = Autodesk.Civil.DatabaseServices.Label;
-using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using Log = LERImporter.SimpleLogger;
 using OpenFileDialog = Microsoft.Win32.OpenFileDialog;
-using System.Xml.Linq;
-using LERImporter.Schema;
-using LERImporter.Enhancer;
-using Microsoft.Win32;
 
 namespace LERImporter
 {
@@ -477,6 +458,122 @@ namespace LERImporter
                     ler2dDb.SaveAs(new2dFilename, DwgVersion.Current);
                 }
                 #endregion 
+                #endregion
+
+            }
+            catch (System.Exception ex)
+            {
+                Log.log(ex.ToString());
+                return;
+            }
+            Log.log("Finished importing LER data.");
+        }
+
+        [CommandMethod("LER2KLARFUK")]
+        public void ler2klarfuk()
+        {
+            try
+            {
+                #region Get file and folder of gml
+                string pathToTopFolder = string.Empty;
+                var folderDialog = new Microsoft.Win32.OpenFolderDialog()
+                {
+                    Title = "Choose folder where gml files are stored: ",
+                };
+                if (folderDialog.ShowDialog() == true)
+                {
+                    pathToTopFolder = folderDialog.FolderName;
+                }
+                else return;
+
+                #region Unzip zip files
+                ZipExtractor.UnzipFilesInDirectory(pathToTopFolder);
+                #endregion
+
+                var files = Directory.EnumerateFiles(
+                    pathToTopFolder, "consolidated.gml", SearchOption.AllDirectories);
+                #endregion
+
+                #region Actual converting
+                Log.LogFileName = Path.Combine(pathToTopFolder, "LerImport.log");
+
+                #region Enhance gml files and create 3D ler files
+                List<string> modFiles = new List<string>();
+                Schema.FeatureCollection gfCombined = new Schema.FeatureCollection();
+                gfCombined.featureCollection = new List<Schema.FeatureMember>();
+                foreach (var file in files)
+                {
+                    string fileName = Path.GetFileNameWithoutExtension(file);
+                    string extension = Path.GetExtension(file);
+                    string folderPath = Path.GetDirectoryName(file) + "\\";
+
+                    Log.log($"Importing {file}");
+                    string modFile = Enhance.Run(file);
+                    modFiles.Add(modFile);
+
+                    var serializer = new XmlSerializer(typeof(Schema.FeatureCollection));
+                    Schema.FeatureCollection gf;
+                    using (var fileStream = new FileStream(modFile, FileMode.Open))
+                    {
+                        gf = (Schema.FeatureCollection)serializer.Deserialize(fileStream);
+                    }
+
+                    //Gather combined file for Ler 2D
+                    gfCombined.featureCollection.AddRange(gf.featureCollection);
+                }
+
+                //Filter LER data for our purposes
+                gfCombined.featureCollection = gfCombined.featureCollection
+                    .Where(x =>
+                    x.item is Schema.AfloebsledningType ||
+                    x.item is Schema.AfloebskomponentType ||
+                    x.item is Schema.UtilityOwner)
+                    .ToList();
+
+                //Create LER 3D and 2D file
+                using Database ler3dDb = new Database(false, true);
+                using Database ler2dDb = new Database(false, true);
+
+                ler3dDb.ReadDwgFile(
+                    @"X:\AutoCAD DRI - 01 Civil 3D\LerImport\Support\LerTemplate.dwt",
+                    FileOpenMode.OpenForReadAndAllShare, false, null);
+                //Build the new future file name of the drawing
+                string new3dFilename = Path.Combine(
+                    pathToTopFolder, $"AFLOEB-3D.dwg");
+                Log.log($"Writing Ler 3D to new dwg file:\n" + $"{new3dFilename}.");
+
+                ler2dDb.ReadDwgFile(
+                    @"X:\AutoCAD DRI - 01 Civil 3D\LerImport\Support\LerTemplate.dwt",
+                    FileOpenMode.OpenForReadAndAllShare, false, null);
+                //Build the new future file name of the drawing
+                string new2dFilename = Path.Combine(
+                    pathToTopFolder, $"AFLOEB-2D.dwg");
+                Log.log($"Writing Ler 2D to new dwg file:\n" + $"{new2dFilename}.");
+
+                using Transaction ler3dTx = ler3dDb.TransactionManager.StartTransaction();
+                using Transaction ler2dTx = ler2dDb.TransactionManager.StartTransaction();
+
+                try
+                {
+                    LERImporter.ConsolidatedCreator.CreateLerData(ler2dDb, ler3dDb, gfCombined);
+                }
+                catch (System.Exception ex)
+                {
+                    Log.log(ex.ToString());
+                    ler3dTx.Abort();
+                    ler2dTx.Abort();
+                    throw;
+                }
+
+                ler3dTx.Commit();
+                ler2dTx.Commit();
+
+                //Save the new dwg file
+                ler3dDb.SaveAs(new3dFilename, DwgVersion.Current);
+                ler2dDb.SaveAs(new2dFilename, DwgVersion.Current);
+
+                #endregion
+
                 #endregion
 
             }
