@@ -12,7 +12,7 @@ namespace DimensioneringV2.Services
 {
     internal class DataService
     {
-        private static DataService _instance;
+        private static DataService? _instance;
         public static DataService Instance => _instance ??= new DataService();
         private DataService() { }
 

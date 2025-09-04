@@ -102,6 +102,23 @@ namespace DimensioneringV2.UI
         }
         #endregion
 
+        #region LoadElevationsCommand
+        public RelayCommand LoadElevationsCommand => new RelayCommand(LoadElevationsExecute);
+
+        private async void LoadElevationsExecute()
+        {
+            var docs = AcAp.DocumentManager;
+            var ed = docs.MdiActiveDocument.Editor;
+
+            await docs.ExecuteInCommandContextAsync(
+                async (obj) =>
+                {
+                    await ed.CommandAsync("DIM2MAPLOADELEVATIONS");
+                }, null
+                );
+        }
+        #endregion
+
         #region PerformCalculationsSPDCommand
         public RelayCommand PerformCalculationsSPDCommand =>
             new(async () => await PerformCalculationsSPDExecuteAsync());
@@ -1228,7 +1245,7 @@ namespace DimensioneringV2.UI
             if (feature.NumberOfBuildingsSupplied == 0) return;
 
             var settings = HydraulicSettingsService.Instance.Settings;
-            List<PressureProfileEntry> entries = null;
+            List<PressureProfileEntry>? entries = null;
 
             try
             {
@@ -1264,21 +1281,26 @@ namespace DimensioneringV2.UI
 
                     if (!pred.TryGetPath(targetNode, out var path)) return; //<-- HERE MAKE THE WINDOW DISPLAY AN ERROR TEXT
 
+                    //The pressure profile must be calculated observing the total DP needed for network
+                    //And not just the pressure loss on the path to the client node
+                    //Whole network has the total pressure to supply the whole network
+                    //So each path to individual consumer must consinder not only
+                    //Paths' pressure loss but the total pressure level
+
                     var lossAtClient = settings.MinDifferentialPressureOverHovedHaner;
 
                     double paToBar = 100_000.0;
 
-                    var totalDP = path.Sum(
-                        x => (x.PressureGradientReturn + x.PressureGradientSupply) * x.Length) / paToBar
-                        + lossAtClient;
+                    //Here we get the total pressure level needed for the whole network
+                    var totalDP = graph.Edges.Max(x => x.OriginalEdge.PipeSegment.PressureLossAtClient);
 
-                    entries = [new(0, 0, totalDP)];
-                    double length = 0, sp = 0, rp = totalDP;
+                    entries = [new(0, totalDP, 0)];
+                    double length = 0, sp = totalDP, rp = 0;
                     foreach (var edge in path)
                     {
                         length += edge.Length;
-                        sp += edge.Length * edge.PressureGradientSupply / paToBar;
-                        rp -= edge.Length * edge.PressureGradientReturn / paToBar;
+                        sp -= edge.Length * edge.PressureGradientSupply / paToBar;
+                        rp += edge.Length * edge.PressureGradientReturn / paToBar;
                         entries.Add(new(length, sp, rp));
                     }
                 });
