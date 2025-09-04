@@ -4,35 +4,40 @@ using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
 using Autodesk.Civil.DatabaseServices;
+
+using Dreambuild.AutoCAD;
+
+using GroupByCluster;
+
+using IntersectUtilities.LER2;
+using IntersectUtilities.UtilsCommon;
+using IntersectUtilities.UtilsCommon.DataManager;
+
+using Microsoft.Win32;
+
+using MoreLinq;
+
 using System;
 using System.Collections.Generic;
+using System.Data;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Data;
-using IntersectUtilities.UtilsCommon;
-using Dreambuild.AutoCAD;
-using static IntersectUtilities.Utils;
-using static IntersectUtilities.Enums;
+using System.Text.Encodings.Web;
+using System.Text.Json;
+using System.Text.Unicode;
 
-using static IntersectUtilities.UtilsCommon.UtilsDataTables;
+using static IntersectUtilities.Enums;
+using static IntersectUtilities.Utils;
 using static IntersectUtilities.UtilsCommon.Utils;
+using static IntersectUtilities.UtilsCommon.UtilsDataTables;
+
+using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using CivSurface = Autodesk.Civil.DatabaseServices.Surface;
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
-using Application = Autodesk.AutoCAD.ApplicationServices.Application;
-using System.Text.Json;
-using System.Text.Encodings.Web;
-using System.Text.Unicode;
-using IntersectUtilities.LER2;
-using GroupByCluster;
-using MoreLinq;
-using Microsoft.Win32;
-using Autodesk.Civil.ApplicationServices;
-using System.Globalization;
-using System.Windows.Xps;
-using IntersectUtilities.UtilsCommon.DataManager;
 
 namespace IntersectUtilities
 {
@@ -2233,7 +2238,7 @@ namespace IntersectUtilities
             {
                 MessageForAdding = "\nSelect branch 3D polylines to modify: "
             };
-            
+
             // 3D polylines are stored as "POLYLINE" in DWG, not "3dpolyline"
             SelectionFilter filter = new SelectionFilter(
                 [new TypedValue((int)DxfCode.Start, "POLYLINE")]);
@@ -2351,8 +2356,8 @@ namespace IntersectUtilities
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;            
-            
+            Editor editor = docCol.MdiActiveDocument.Editor;
+
             bool cont = true;
             while (cont)
             {
@@ -2367,7 +2372,7 @@ namespace IntersectUtilities
                 #endregion
                 #region Choose manual input or parsing of elevations
 
-                List<string> keywords = ["Manual","Text","OnOtherPl3d", "CalculateFromSlope"];
+                List<string> keywords = ["Manual", "Text", "OnOtherPl3d", "CalculateFromSlope"];
                 var kw = StringGridFormCaller.Call(keywords, "Select method to edit elevation:");
                 if (kw == null) return;
 
@@ -2638,6 +2643,116 @@ namespace IntersectUtilities
                     tx.Commit();
                 }
                 #endregion
+            }
+        }
+
+        [CommandMethod("LER2TRANSFORM3DELEVATIONS")]
+        public void ler2transform3delevations()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            #region Find folder and files
+            string pathToFolder;
+            var folderDialog = new OpenFolderDialog
+            {
+                Title = "Select folder where 3D LER dwg files are stored: ",
+            };
+
+            if (folderDialog.ShowDialog() == true)
+            {
+                pathToFolder = folderDialog.FolderName + "\\";
+            }
+            else return;
+
+            string pathTo2DLer;
+            var fileDialog = new OpenFileDialog { Title = "Select 2D LER dwg file (med komponentpunkter): " };
+            if (fileDialog.ShowDialog() == true)
+            {
+                pathTo2DLer = fileDialog.FileName;
+            }
+            else return;
+
+            var ler3dbs = Directory.EnumerateFiles(pathToFolder, "*_3DLER.dwg");
+            if (ler3dbs.Count() < 1) return;
+            #endregion
+
+            using Database ptsDb = new Database(false, true);
+            ptsDb.ReadDwgFile(pathTo2DLer, FileShare.Read, false, "");
+            using Transaction ptsTx = ptsDb.TransactionManager.StartTransaction();
+
+            var points = ptsDb.ListOfType<DBPoint>(ptsTx);
+
+            //Filtering points
+            //It seems there are mixed data in drawings: KLAR and Køge Kommune
+            //And both have elevation data and pipes
+            //Predicate 1: Must be 3D
+            var bundkote = (Entity pt) =>
+                PropertySetManager.ReadNonDefinedPropertySetDouble(
+                    pt, "Afloebskomponent", "Bundkote");
+            var p1 = (Entity pt) => bundkote(pt) != 0 && bundkote(pt) > -98;
+            //Predicate 2: Must be from KLAR Forsyning A/S or Køge Kommune
+            var lejer = (Entity pt, string ps) =>
+                PropertySetManager.ReadNonDefinedPropertySetString(
+                    pt, ps, "LedningsEjersNavn");
+            var p2 = (Entity pt, string ps) =>
+                lejer(pt, ps) == "KLAR Forsyning A/S" ||
+                lejer(pt, ps) == "Køge Kommune";
+            //Predicate 3: Must not be a dæksel
+            var p3 = (Entity pt) =>
+                PropertySetManager.ReadNonDefinedPropertySetString(
+                    pt, "Afloebskomponent", "Type") != "dæksel";
+
+            var fps = points
+                .Where(x => p1(x)) //Filter out points with z below -25
+                .Where(x => p2(x, "Afloebskomponent"))
+                .Where(x => p3(x))
+                .ToList();
+
+            try
+            {
+                foreach (string ler3db in ler3dbs)
+                {
+                    prdDbg("Behandler: " + Path.GetFileName(ler3db));
+
+                    using Database db3d = new Database(false, true);
+                    db3d.ReadDwgFile(ler3db, FileShare.ReadWrite, false, "");
+                    using Transaction db3dTx = db3d.TransactionManager.StartTransaction();
+                    var pipes = db3d.ListOfType<Polyline3d>(db3dTx, true);
+
+                    //Filtering
+                    var fpipes = pipes
+                        .Where(x => p2(x, "Afloebsledning"))
+                        .ToList();
+
+                    foreach (var pipe in fpipes)
+                    {
+                        var verts = pipe.GetVertices(db3dTx);
+
+                        foreach (var v in verts)
+                        {
+                            var query = fps
+                                .Where(x => x.Position.HorizontalEqualz(v.Position, 0.001))
+                                .MinBy(x => bundkote(x));
+
+                            if (query == null) continue;
+
+                            double newZ = bundkote(query);
+                            v.CheckOrOpenForWrite();
+                            v.Position = new Point3d(v.Position.X, v.Position.Y, newZ);
+                        }
+                    }
+
+                    db3dTx.Commit();
+                    db3d.SaveAs(db3d.Filename, true, DwgVersion.Current, db3d.SecurityParameters);
+                }
+
+                prdDbg("Finished!");
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg(ex);
+                return;
             }
         }
 
