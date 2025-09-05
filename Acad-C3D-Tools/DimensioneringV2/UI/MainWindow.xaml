@@ -43,6 +43,8 @@
                         Margin="2" Command="{Binding WriteToDwgCommand}"/>
                 <Button x:Name="btnCreateVejklasserSchedule" Content="Stik og vejklasser" FontSize="8.5" Width="70" Height="20"
                         Margin="2" Command="{Binding WriteStikOgVejklasserCommand}"/>
+                <Button x:Name="btnTestElevations" Content="Test koter" FontSize="10" Width="70" Height="20"
+                        Margin="2" Command="{Binding TestElevationsCommand}"/>
             </StackPanel>
 
             <!-- Main Content Area -->

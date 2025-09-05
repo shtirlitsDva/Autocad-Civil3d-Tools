@@ -7,31 +7,164 @@ using OSGeo.GDAL;
 
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 
-namespace DimensioneringV2.Services
+namespace DimensioneringV2.Services.Elevations
 {
     internal class ElevationService
     {
         private static ElevationService? _instance;
         public static ElevationService Instance => _instance ??= new ElevationService();
         private static string? _token;
-        private ElevationSettings? elevationSettings;
-        private ElevationGdalVrtHandle? _vrt;
+        private ElevationSettings? elevationSettings;        
         private ElevationService() { }
+        private ElevationGdalVrtHandle? _vrt;
+        private ThreadLocal<ElevationSampler>? _tls;
+
+        #region Elevation Sampler
+        public double? SampleElevation25832(double x, double y, bool bilinear = true)
+        {
+            PublishElevationData();
+            return _tls!.Value!.Sample(x, y, bilinear);
+        }
+
+        /// <summary>
+        /// Samples elevations for the given points. Returns elevations in the same order.
+        /// </summary>
+        public async Task<IReadOnlyList<double?>> SampleBulkAsync(
+            IReadOnlyList<PointXY> points,
+            int maxDegreeOfParallelism = 0,
+            IProgress<(int done, int total)>? progress = null,
+            CancellationToken ct = default,
+            int progressBatchSize = 50)
+        {
+            PublishElevationData();
+            if (_vrt == null) throw new InvalidOperationException("VRT not ready.");
+
+            if (maxDegreeOfParallelism <= 0)
+                maxDegreeOfParallelism = Math.Max(1, Environment.ProcessorCount - 1);
+
+            var total = points.Count;
+            if (total == 0) return Array.Empty<double?>();
+
+            var results = new double?[total];
+            var range = System.Collections.Concurrent.Partitioner.Create(
+                0, total, Math.Max(256, total / (maxDegreeOfParallelism * 8)));
+
+            var vrtPath = _vrt.VrtPath;
+            int done = 0;
+
+            await Task.WhenAll(
+                Enumerable.Range(0, maxDegreeOfParallelism).Select(async _ =>
+                {
+                    using var sampler = new ElevationSampler(vrtPath);
+
+                    int localCompleted = 0; // <-- per worker counter
+
+                    foreach (var (from, to) in range.GetDynamicPartitions())
+                    {
+                        for (int i = from; i < to; i++)
+                        {
+                            ct.ThrowIfCancellationRequested();
+
+                            var p = points[i];
+                            results[i] = sampler.Sample(p.X, p.Y, bilinear: true);
+
+                            // Batch progress
+                            if (progress != null && ++localCompleted >= progressBatchSize)
+                            {
+                                int now = Interlocked.Add(ref done, localCompleted);
+                                localCompleted = 0;
+                                progress.Report((now, total));
+                            }
+                        }
+                        // Optional: yield to keep UI responsive (cheap)
+                        await Task.Yield();
+                    }
+
+                    // Final flush for any remainder
+                    if (progress != null && localCompleted > 0)
+                    {
+                        int now = Interlocked.Add(ref done, localCompleted);
+                        progress.Report((now, total));
+                    }
+                })
+            ).ConfigureAwait(false);
+
+            return new ReadOnlyCollection<double?>(results);
+        }
+
+        private sealed class ElevationSampler : IDisposable
+        {
+            private readonly Dataset _ds;
+            private readonly Band _band;
+            private readonly double[] _gt = new double[6];
+            private readonly double _noData; private readonly bool _hasNoData;
+
+            public ElevationSampler(string vrtPath)
+            {
+                _ds = Gdal.Open(vrtPath, Access.GA_ReadOnly) ?? throw new InvalidOperationException($"Open failed: {vrtPath}");
+                _band = _ds.GetRasterBand(1);
+                _ds.GetGeoTransform(_gt);
+                double nd; int has; _band.GetNoDataValue(out nd, out has); _noData = nd; _hasNoData = has != 0;
+            }
+
+            public double? Sample(double x, double y, bool bilinear = true)
+            {
+                double det = _gt[1] * _gt[5] - _gt[2] * _gt[4];
+                if (Math.Abs(det) < 1e-18) return null;
+
+                double col = (_gt[5] * (x - _gt[0]) - _gt[2] * (y - _gt[3])) / det;
+                double row = (-_gt[4] * (x - _gt[0]) + _gt[1] * (y - _gt[3])) / det;
+
+                return bilinear ? ReadBilinear(row, col) : ReadNearest((int)Math.Round(row), (int)Math.Round(col));
+            }
+
+            private double? ReadNearest(int r, int c)
+            {
+                if (r < 0 || c < 0 || r >= _band.YSize || c >= _band.XSize) return null;
+                float[] buf = new float[1];
+                _band.ReadRaster(c, r, 1, 1, buf, 1, 1, 0, 0);
+                if (_hasNoData && Math.Abs(buf[0] - _noData) <= 1e-6) return null;
+                return buf[0];
+            }
+
+            private double? ReadBilinear(double r, double c)
+            {
+                int r0 = (int)Math.Floor(r), c0 = (int)Math.Floor(c);
+                int r1 = r0 + 1, c1 = c0 + 1;
+                if (r0 < 0 || c0 < 0 || r1 >= _band.YSize || c1 >= _band.XSize) return null;
+
+                float[] b = new float[4];
+                _band.ReadRaster(c0, r0, 2, 2, b, 2, 2, 0, 0);
+                bool bad(int i) => _hasNoData && Math.Abs(b[i] - _noData) <= 1e-6;
+                if (bad(0) || bad(1) || bad(2) || bad(3)) return ReadNearest((int)Math.Round(r), (int)Math.Round(c));
+
+                double dr = r - r0, dc = c - c0;
+                double v00 = b[0], v01 = b[1], v10 = b[2], v11 = b[3];
+                double v0 = v00 * (1 - dc) + v01 * dc;
+                double v1 = v10 * (1 - dc) + v11 * dc;
+                return v0 * (1 - dr) + v1 * dr;
+            }
+
+            public void Dispose() { _band.Dispose(); _ds.Dispose(); }
+        }
+        #endregion
 
         #region Publish elevation data
         public void PublishElevationData()
         {
             elevationSettings = SettingsSerializer<ElevationSettings>.Load(
-                Autodesk.AutoCAD.ApplicationServices.Application.
+                Autodesk.AutoCAD.ApplicationServices.Core.Application.
                 DocumentManager.MdiActiveDocument);
 
             if (string.IsNullOrEmpty(elevationSettings?.BaseFileName))
@@ -40,8 +173,6 @@ namespace DimensioneringV2.Services
                     "Download, venligst, først noget terræn data.");
                 return;
             }
-
-            GdalBootstrap.Init();
 
             var baseName = elevationSettings.BaseFileName;
 
@@ -52,8 +183,10 @@ namespace DimensioneringV2.Services
                 return;
             }
 
+            GdalBootstrap.Init();
+
             //Build new VRT
-            var dbFileName = Autodesk.AutoCAD.ApplicationServices.Application.
+            var dbFileName = Autodesk.AutoCAD.ApplicationServices.Core.Application.
                     DocumentManager.MdiActiveDocument.Database.Filename;
             string elevationsDir = EnsureElevationsFolder(dbFileName);
 
@@ -72,6 +205,14 @@ namespace DimensioneringV2.Services
             EnsureVrtCached(baseName, elevationsDir, geoTiffFiles);
             if (_vrt == null)
                 throw new InvalidOperationException("Failed to build or load VRT.");
+
+            if (_vrt != null && _tls == null)
+            {
+                var vrtPath = _vrt.VrtPath;
+                _tls = new ThreadLocal<ElevationSampler>(
+                    () => new ElevationSampler(vrtPath),
+                    trackAllValues: true);
+            }
 
             // (Optional) warm-up: read geotransform / nodata once for later queries
             double[] gt = new double[6];
@@ -197,9 +338,11 @@ namespace DimensioneringV2.Services
             //Remember to persist
             string baseName = GenerateUniqueBaseName(elevationsDir);
 
+            if (elevationSettings == null)
+                elevationSettings = new ElevationSettings();
             elevationSettings.BaseFileName = baseName;
             SettingsSerializer<ElevationSettings>.Save(
-                Autodesk.AutoCAD.ApplicationServices.Application.
+                Autodesk.AutoCAD.ApplicationServices.Core.Application.
                 DocumentManager.MdiActiveDocument, elevationSettings);
 
             foreach (var fe in finalExtents)
@@ -210,8 +353,8 @@ namespace DimensioneringV2.Services
                 string iterationFileName = NextAvailableFilePath(
                     elevationsDir, baseName, ref imageCount);
 
-                System.IO.File.Delete(iterationFileName);
-                System.IO.File.WriteAllBytes(iterationFileName, buffer);
+                File.Delete(iterationFileName);
+                File.WriteAllBytes(iterationFileName, buffer);
 
                 MemoryStream ms = new MemoryStream(buffer);
 
@@ -426,7 +569,7 @@ namespace DimensioneringV2.Services
             {
                 if (m % i == 0)
                 {
-                    yield return (m / i, i, ((double)m / i) / i);
+                    yield return (m / i, i, (double)m / i / i);
                 }
 
                 i += increment;

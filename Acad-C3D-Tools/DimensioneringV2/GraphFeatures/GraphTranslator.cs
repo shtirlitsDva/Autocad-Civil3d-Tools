@@ -176,7 +176,8 @@ namespace DimensioneringV2.GraphFeatures
                         }
 
                         OriginalGeometry originalGeometry = 
-                            new OriginalGeometry(stik as LineString, vej as LineString);
+                            new OriginalGeometry(
+                                stik as LineString, vej as LineString, fullGeometry as LineString);
                         #endregion
 
                         //Translate building data if any

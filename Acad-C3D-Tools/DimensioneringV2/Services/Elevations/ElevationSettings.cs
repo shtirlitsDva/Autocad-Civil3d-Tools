@@ -1,4 +1,4 @@
-﻿namespace DimensioneringV2.Services
+﻿namespace DimensioneringV2.Services.Elevations
 {
     internal class ElevationSettings
     {

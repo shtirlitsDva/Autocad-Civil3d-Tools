@@ -139,6 +139,7 @@
 	</ItemGroup>
 	<ItemGroup>
 		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
+		<PackageReference Include="GDAL" Version="3.11.3" />
 		<PackageReference Include="GeneticSharp" Version="3.1.4" />
 		<PackageReference Include="HandyControls" Version="3.6.0" />
 		<PackageReference Include="Mapsui" Version="4.1.9" />
@@ -146,7 +147,6 @@
 		<PackageReference Include="Mapsui.Nts" Version="4.1.9" />
 		<PackageReference Include="Mapsui.Wpf" Version="4.1.9" />
 		<PackageReference Include="MathNet.Numerics" Version="6.0.0-beta2" />
-		<PackageReference Include="MaxRev.Gdal.Core" Version="3.11.3.339" />
 		<PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
 		<PackageReference Include="NetTopologySuite" Version="2.5.0" />
 		<PackageReference Include="NetTopologySuite.Features" Version="2.2.0" />

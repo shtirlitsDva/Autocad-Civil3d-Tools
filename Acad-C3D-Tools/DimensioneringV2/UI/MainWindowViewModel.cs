@@ -51,6 +51,7 @@ using System.Windows;
 using AcAp = Autodesk.AutoCAD.ApplicationServices.Application;
 using utils = IntersectUtilities.UtilsCommon.Utils;
 using DimensioneringV2.Models.Trykprofil;
+using DimensioneringV2.Services.Elevations;
 
 namespace DimensioneringV2.UI
 {
@@ -1222,6 +1223,39 @@ namespace DimensioneringV2.UI
             {
                 Utils.prtDbg(ex);
                 return;
+            }
+        }
+        #endregion
+
+        #region Test Elevations Command
+        public AsyncRelayCommand TestElevationsCommand => new AsyncRelayCommand(TestElevations);
+        private async Task TestElevations()
+        {
+            try
+            {
+                var graphs = _dataService.Graphs;
+
+                var caches = graphs
+                    .SelectMany(g => g.Edges.Select(e => e.PipeSegment))
+                    .Select(f => f.Elevations)
+                    .ToArray();
+
+                var progress = new Progress<(int done, int total)>(t =>
+                {
+                    Utils.prtDbg($"Elevation sampling progress: {t.done}/{t.total}");
+                });
+
+                await ElevationDispatcher.PreSampleAsync(caches, progress: progress);
+
+                AcContext.Current.Post(_ =>
+                {
+                    AutoCAD.WriteElevations2CurrentDrawing.Write(caches);
+                }, null);
+            }
+            catch (System.Exception ex)
+            {
+                utils.prdDbg($"An error occurred during elevations testing: {ex.Message}");
+                utils.prdDbg(ex);
             }
         }
         #endregion

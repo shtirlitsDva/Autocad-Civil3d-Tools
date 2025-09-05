@@ -1,6 +1,7 @@
 ﻿using DimensioneringV2.BruteForceOptimization;
 using DimensioneringV2.GraphFeatures;
 using DimensioneringV2.GraphModel;
+using DimensioneringV2.Services.Elevations;
 
 using NorsynHydraulicCalc;
 
@@ -21,24 +22,19 @@ namespace DimensioneringV2.Services.SubGraphs
         internal static void Calculate(
             UndirectedGraph<NodeJunction, EdgePipeSegment> graph)
         {
+            ElevationService es = ElevationService.Instance;
+            es.PublishElevationData();
+
             var cGraph = graph.CopyToBFConditional(e => e.PipeSegment.NumberOfBuildingsSupplied > 0);
             foreach (var edge in cGraph.Edges) edge.YankAllResults();
+
             var rootNode = cGraph.Vertices.First(v => v.IsRootNode);
             var clientNodes = cGraph.Vertices.Where(v => v.IsBuildingNode);
 
-            var tryGetPaths = cGraph.ShortestPathsDijkstra(edge => edge.Length, rootNode);
+            var tryGetPaths = cGraph.ShortestPathsDijkstra(edge => edge.Length, rootNode);            
 
-            //NetTopologySuite.Features.FeatureCollection fc = 
-            //    new NetTopologySuite.Features.FeatureCollection(
-            //        graph.Edges.Select(x => x.PipeSegment));
-            //NetTopologySuite.IO.GeoJsonWriter writer = new NetTopologySuite.IO.GeoJsonWriter();
-            //string json = writer.Write(fc);
-            //using (var sw = new StreamWriter("C:\\Temp\\testfc.geojson"))
-            //{
-            //    sw.Write(json);
-            //}
 
-            //ExportGraphToDot.Export(graph);
+
 
             List<(
                 BFNode client,
