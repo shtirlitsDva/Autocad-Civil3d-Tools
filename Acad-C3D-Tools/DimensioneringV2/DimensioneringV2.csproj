@@ -103,9 +103,25 @@
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\ACA\AecPropDataMgd.dll</HintPath>
 			<Private>False</Private>
 		</Reference>
+		<Reference Include="gdalconst_csharp">
+		  <HintPath>..\..\..\..\..\AutoCAD DRI - 01 Civil 3D\NetloadV2\Dependencies\Gdal\gdalconst_csharp.dll</HintPath>
+		  <Private>True</Private>
+		</Reference>
+		<Reference Include="gdal_csharp">
+		  <HintPath>..\..\..\..\..\AutoCAD DRI - 01 Civil 3D\NetloadV2\Dependencies\Gdal\gdal_csharp.dll</HintPath>
+		  <Private>True</Private>
+		</Reference>
 		<Reference Include="ManagedMapApi">
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\Map\ManagedMapApi.dll</HintPath>
 			<Private>False</Private>
+		</Reference>
+		<Reference Include="ogr_csharp">
+		  <HintPath>..\..\..\..\..\AutoCAD DRI - 01 Civil 3D\NetloadV2\Dependencies\Gdal\ogr_csharp.dll</HintPath>
+		  <Private>True</Private>
+		</Reference>
+		<Reference Include="osr_csharp">
+		  <HintPath>..\..\..\..\..\AutoCAD DRI - 01 Civil 3D\NetloadV2\Dependencies\Gdal\osr_csharp.dll</HintPath>
+		  <Private>True</Private>
 		</Reference>
 	</ItemGroup>	
 	<ItemGroup>		
@@ -140,6 +156,7 @@
 	<ItemGroup>
 		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
 		<PackageReference Include="GDAL" Version="3.11.3" />
+		<PackageReference Include="GDAL.Native" Version="3.11.3" />
 		<PackageReference Include="GeneticSharp" Version="3.1.4" />
 		<PackageReference Include="HandyControls" Version="3.6.0" />
 		<PackageReference Include="Mapsui" Version="4.1.9" />

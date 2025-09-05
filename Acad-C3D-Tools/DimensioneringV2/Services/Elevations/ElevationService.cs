@@ -181,9 +181,7 @@ namespace DimensioneringV2.Services.Elevations
             {
                 // already built & cached
                 return;
-            }
-
-            GdalBootstrap.Init();
+            }            
 
             //Build new VRT
             var dbFileName = Autodesk.AutoCAD.ApplicationServices.Core.Application.
