@@ -92,32 +92,35 @@
                     <Label Grid.Row="8" Grid.Column="0" Content="Ruhed PE [mm:Decimaltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
                     <TextBox Grid.Row="8" Grid.Column="1" Width="50" Text="{Binding Settings.RuhedPe, UpdateSourceTrigger=PropertyChanged}"/>
 
-                    <Label Grid.Row="9" Grid.Column="0" Content="Tillæg til tryktab i procent [%:Heltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                    <TextBox Grid.Row="9" Grid.Column="1" Width="50" Text="{Binding Settings.ProcentTillægTilTryktab, UpdateSourceTrigger=PropertyChanged}"/>
-                    
-                    <Label Grid.Row="10" Grid.Column="0" Content="Antal GSLU for at afslutte [Heltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                    <TextBox Grid.Row="10" Grid.Column="1" Width="50" Text="{Binding Settings.NumberOfGSLUToEnd, UpdateSourceTrigger=PropertyChanged}"/>
-                    
-                    <Label Grid.Row="11" Grid.Column="0" Content="Tid til søgning af Steiner træer [sek:Heltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                    <TextBox Grid.Row="11" Grid.Column="1" Width="50" Text="{Binding Settings.TimeToSteinerTreeEnumeration, UpdateSourceTrigger=PropertyChanged}"/>
+                    <Label Grid.Row="9" Grid.Column="0" Content="Tillæg til holdetryk [bar:Decimaltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
+                    <TextBox Grid.Row="9" Grid.Column="1" Width="50" Text="{Binding Settings.TillægTilHoldetryk, UpdateSourceTrigger=PropertyChanged}"/>
 
-                    <Label Grid.Row="12" Grid.Column="0" Content="Friktionsfaktor formel [CW = ColebrookWhite, TM = TkaczenkoMileikovskyi]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                    <ComboBox Grid.Row="12" Grid.Column="1" Width="100"
+                    <Label Grid.Row="10" Grid.Column="0" Content="Tillæg til tryktab i procent [%:Heltal]: (virker ikke)" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
+                    <TextBox Grid.Row="10" Grid.Column="1" Width="50" Text="{Binding Settings.ProcentTillægTilTryktab, UpdateSourceTrigger=PropertyChanged}"/>
+                    
+                    <Label Grid.Row="11" Grid.Column="0" Content="Antal GSLU for at afslutte [Heltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
+                    <TextBox Grid.Row="11" Grid.Column="1" Width="50" Text="{Binding Settings.NumberOfGSLUToEnd, UpdateSourceTrigger=PropertyChanged}"/>
+                    
+                    <Label Grid.Row="12" Grid.Column="0" Content="Tid til søgning af Steiner træer [sek:Heltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
+                    <TextBox Grid.Row="12" Grid.Column="1" Width="50" Text="{Binding Settings.TimeToSteinerTreeEnumeration, UpdateSourceTrigger=PropertyChanged}"/>
+
+                    <Label Grid.Row="13" Grid.Column="0" Content="Friktionsfaktor formel [CW = ColebrookWhite, TM = TkaczenkoMileikovskyi]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
+                    <ComboBox Grid.Row="13" Grid.Column="1" Width="100"
                               ItemsSource="{Binding CalculationTypes}"
                               SelectedItem="{Binding Settings.CalculationType, UpdateSourceTrigger=PropertyChanged}"/>
 
                     <!-- CheckBox spans both columns if needed -->
-                    <CheckBox Grid.Row="13" Grid.Column="0" Grid.ColumnSpan="2" Content="Skriv resultater til konsolvinduet [Langsommere]"
+                    <CheckBox Grid.Row="14" Grid.Column="0" Grid.ColumnSpan="2" Content="Skriv resultater til konsolvinduet [Langsommere]"
                               IsChecked="{Binding Settings.ReportToConsole, UpdateSourceTrigger=PropertyChanged}"
                               Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
 
                     <!-- CheckBox spans both columns if needed -->
-                    <CheckBox Grid.Row="14" Grid.Column="0" Grid.ColumnSpan="2" Content="Brug resultat caching"
+                    <CheckBox Grid.Row="15" Grid.Column="0" Grid.ColumnSpan="2" Content="Brug resultat caching"
                               IsChecked="{Binding Settings.CacheResults, UpdateSourceTrigger=PropertyChanged}"
                               Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
 
-                    <Label Grid.Row="15" Grid.Column="0" Content="Præcision for caching [Heltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                    <TextBox Grid.Row="15" Grid.Column="1" Width="50" Text="{Binding Settings.CachePrecision, UpdateSourceTrigger=PropertyChanged}"/>
+                    <Label Grid.Row="16" Grid.Column="0" Content="Præcision for caching [Heltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
+                    <TextBox Grid.Row="16" Grid.Column="1" Width="50" Text="{Binding Settings.CachePrecision, UpdateSourceTrigger=PropertyChanged}"/>
                 </Grid>
             </GroupBox>
 

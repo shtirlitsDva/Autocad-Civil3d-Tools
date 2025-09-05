@@ -3,7 +3,7 @@ using Autodesk.AutoCAD.Geometry;
 
 using BitMiracle.LibTiff.Classic;
 
-using RTools_NTS.Util;
+using OSGeo.GDAL;
 
 using System;
 using System.Collections.Generic;
@@ -17,13 +17,134 @@ using System.Threading.Tasks;
 using System.Xml;
 
 namespace DimensioneringV2.Services
-{    
+{
     internal class ElevationService
     {
         private static ElevationService? _instance;
         public static ElevationService Instance => _instance ??= new ElevationService();
         private static string? _token;
+        private ElevationSettings? elevationSettings;
+        private ElevationGdalVrtHandle? _vrt;
+        private ElevationService() { }
 
+        #region Publish elevation data
+        public void PublishElevationData()
+        {
+            elevationSettings = SettingsSerializer<ElevationSettings>.Load(
+                Autodesk.AutoCAD.ApplicationServices.Application.
+                DocumentManager.MdiActiveDocument);
+
+            if (string.IsNullOrEmpty(elevationSettings?.BaseFileName))
+            {
+                Utils.prtDbg("Ingen indstillinger for terrændata fundet.\n" +
+                    "Download, venligst, først noget terræn data.");
+                return;
+            }
+
+            GdalBootstrap.Init();
+
+            var baseName = elevationSettings.BaseFileName;
+
+            // If cached VRT matches, we can simply return (already prepared)
+            if (_vrt != null && string.Equals(_vrt.BaseName, baseName, StringComparison.OrdinalIgnoreCase))
+            {
+                // already built & cached
+                return;
+            }
+
+            //Build new VRT
+            var dbFileName = Autodesk.AutoCAD.ApplicationServices.Application.
+                    DocumentManager.MdiActiveDocument.Database.Filename;
+            string elevationsDir = EnsureElevationsFolder(dbFileName);
+
+            var geoTiffFiles = Directory.EnumerateFiles(
+                elevationsDir, elevationSettings.BaseFileName + "_*.tif").ToList();
+
+            if (geoTiffFiles.Count == 0)
+            {
+                Utils.prtDbg("Ingen GeoTIFF filer, tilhørende projektet, fundet i mappen:\n" +
+                    $"{elevationsDir}.\n" +
+                    "Hent venligst først noget terræn data.");
+                return;
+            }
+
+            // Load existing VRT if present; otherwise create a new one and cache it.
+            EnsureVrtCached(baseName, elevationsDir, geoTiffFiles);
+            if (_vrt == null)
+                throw new InvalidOperationException("Failed to build or load VRT.");
+
+            // (Optional) warm-up: read geotransform / nodata once for later queries
+            double[] gt = new double[6];
+            _vrt.Dataset.GetGeoTransform(gt);
+            var band = _vrt.Dataset.GetRasterBand(1);
+            
+            double noDataValue;
+            int hasNoData;
+            band.GetNoDataValue(out noDataValue, out hasNoData);
+
+            Utils.prtDbg($"VRT ready: {Path.GetFileName(_vrt.VrtPath)} | " +
+                         $"Size: {_vrt.Dataset.RasterXSize}x{_vrt.Dataset.RasterYSize} | " +
+                         $"NoData: {(hasNoData != 0 ? noDataValue.ToString() : "n/a")}");
+        }
+        private readonly object _vrtLock = new();        
+        private static string VrtPathOf(string elevationsDir, string baseName)
+            => Path.Combine(elevationsDir, baseName + ".vrt");
+        private ElevationGdalVrtHandle EnsureVrtCached(string baseName, string elevationsDir, List<string> geoTiffFiles)
+        {
+            if (geoTiffFiles.Count == 0)
+                throw new InvalidOperationException("No GeoTIFF files to build or validate VRT.");
+
+            geoTiffFiles = geoTiffFiles
+                .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            string vrtPath = VrtPathOf(elevationsDir, baseName);
+
+            lock (_vrtLock)
+            {
+                // If we already have a cached handle for the same base, reuse it.
+                if (_vrt != null && _vrt.BaseName.Equals(baseName, StringComparison.OrdinalIgnoreCase))
+                    return _vrt;
+
+                // Dispose any previous cached handle (different base)
+                _vrt?.Dispose();
+                _vrt = null;
+
+                // Case 1: VRT exists on disk -> reuse it (do NOT delete or rebuild)
+                if (File.Exists(vrtPath))
+                {
+                    // We still ensure that there are tiles on disk (already checked by caller);
+                    // Open and cache the existing VRT.
+                    var ds = Gdal.Open(vrtPath, Access.GA_ReadOnly)
+                        ?? throw new InvalidOperationException($"Could not open existing VRT: {vrtPath}");
+
+                    _vrt = new ElevationGdalVrtHandle(baseName, vrtPath, geoTiffFiles, ds);
+                    return _vrt;
+                }
+
+                // Case 2: No VRT -> create one from the tiles, then open and cache it
+                using (var opts = new GDALBuildVRTOptions(
+                ["-resolution", "highest"
+                // add -srcnodata/-vrtnodata here if you have a known NoData
+                ]))
+                {
+                    // This call creates the VRT file at vrtPath (no deleting of any pre-existing file here)
+                    var vrtDs = Gdal.wrapper_GDALBuildVRT_names(vrtPath, geoTiffFiles.ToArray(), opts, null, null);
+                    if (vrtDs == null)
+                        throw new InvalidOperationException("GDAL failed to build VRT.");
+                    vrtDs.Dispose(); // writes the .vrt
+                }
+
+                var opened = Gdal.Open(vrtPath, Access.GA_ReadOnly)
+                    ?? throw new InvalidOperationException($"Failed to open newly built VRT: {vrtPath}");
+
+                _vrt = new ElevationGdalVrtHandle(baseName, vrtPath, geoTiffFiles, opened);
+                return _vrt;
+            }
+        }
+        #endregion
+
+        #region Downloading of GeoTIFFs
         public void DownloadElevationData(Extents3d bbox, string dbFileName)
         {
             string token = _token ??= GetToken();
@@ -76,10 +197,15 @@ namespace DimensioneringV2.Services
             //Remember to persist
             string baseName = GenerateUniqueBaseName(elevationsDir);
 
+            elevationSettings.BaseFileName = baseName;
+            SettingsSerializer<ElevationSettings>.Save(
+                Autodesk.AutoCAD.ApplicationServices.Application.
+                DocumentManager.MdiActiveDocument, elevationSettings);
+
             foreach (var fe in finalExtents)
-            {                
+            {
                 byte[] buffer = RequestWcsData(fe.bbox, fe.wh.width, fe.wh.height);
-                if (buffer == default || buffer.Length == 0) continue;                
+                if (buffer == default || buffer.Length == 0) continue;
 
                 string iterationFileName = NextAvailableFilePath(
                     elevationsDir, baseName, ref imageCount);
@@ -110,8 +236,10 @@ namespace DimensioneringV2.Services
 
                 Utils.prtDbg($"GeoTiff til terræn gemt som:\n{iterationFileName}.\n");
             }
-        }
 
+            Utils.prtDbg($"Download af terræn data færdig.\n" +
+                $"{imageCount} filer gemt i mappen:\n{elevationsDir}.\n");
+        }
         private static byte[] RequestWcsData(Extents3d bbox, int width, int height)
         {
             string USER_NAME = IntersectUtilities.UtilsCommon.Infrastructure.USER_NAME_SHORT;
@@ -132,7 +260,7 @@ namespace DimensioneringV2.Services
                     $"&RESPONSE_CRS=EPSG:25832" +
                     $"&WIDTH={width}" +
                     $"&HEIGHT={height}"
-                ;            
+                ;
 
             //request a resource with the token
             HttpClient client = new HttpClient();
@@ -144,12 +272,13 @@ namespace DimensioneringV2.Services
 
             return task.Result;
         }
+        #endregion
 
         #region Filename handling
         private static string EnsureElevationsFolder(string projectFilePath)
         {
             var projectDir = Path.GetDirectoryName(projectFilePath)
-                            ?? throw new InvalidOperationException("Project path has no directory.");
+                ?? throw new InvalidOperationException("Project path has no directory.");
             var elevDir = Path.Combine(projectDir, "Elevations");
             Directory.CreateDirectory(elevDir);
             return elevDir;
@@ -391,7 +520,7 @@ namespace DimensioneringV2.Services
                 return tokenNode.OuterXml;
             }
             throw new Exception("Token not found in response");
-        } 
+        }
         #endregion
     }
 }
