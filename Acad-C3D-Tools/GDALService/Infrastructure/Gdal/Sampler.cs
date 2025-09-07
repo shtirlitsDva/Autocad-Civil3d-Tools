@@ -16,65 +16,116 @@ namespace GDALService.Infrastructure.Gdal
     {
         internal sealed class Summary { public int Total, Ok, Outside, NoData, Err; }
 
-        public static (List<PointOut> rows, Summary sum) Sample(Dataset ds, IEnumerable<PointIn> pts, int? threads, IProgressReporter progress)
+        public static (List<PointOut> rows, Summary sum) Sample(
+            string vrtPath, 
+            IEnumerable<PointIn> pts, 
+            int? threads, 
+            IProgressReporter progress)
         {
-            var band = ds.GetRasterBand(1) ?? throw new InvalidOperationException("No band 1.");
-            band.GetNoDataValue(out double nodata, out int hasNd);
-            bool hasNoData = hasNd != 0;
-
-            var (_, inv) = GeoTransformUtil.GetTransforms(ds);
-
             var bag = new ConcurrentBag<PointOut>();
             var sum = new Summary();
+
             var po = new ParallelOptions
             {
-                MaxDegreeOfParallelism = threads.HasValue && threads.Value > 0 ? threads.Value : Math.Max(1, Environment.ProcessorCount - 1)
+                MaxDegreeOfParallelism = threads.HasValue && threads.Value > 0
+                    ? threads.Value : Math.Max(1, Environment.ProcessorCount - 1)
             };
 
             int total = 0;
             foreach (var _ in pts) total++;
             int done = 0;
 
-            Parallel.ForEach(pts, po, p =>
-            {
-                try
+            // Each worker opens its own Dataset/Band and builds its own transforms.
+            Parallel.ForEach(Partitioner.Create(pts), po,
+                // local init
+                () =>
                 {
-                    OSGeo.GDAL.Gdal.ApplyGeoTransform(inv, p.X, p.Y, out double px, out double py);
-                    int ix = (int)Math.Floor(px), iy = (int)Math.Floor(py);
-                    if (ix < 0 || iy < 0 || ix >= ds.RasterXSize || iy >= ds.RasterYSize)
+                    var ds = OSGeo.GDAL.Gdal.Open(vrtPath, Access.GA_ReadOnly);
+                    if (ds == null) throw new InvalidOperationException("Failed to open VRT in worker.");
+                    var band = ds.GetRasterBand(1) ?? throw new InvalidOperationException("No band 1.");
+                    band.GetNoDataValue(out double nodata, out int hasNd);
+
+                    var gt = new double[6];
+                    ds.GetGeoTransform(gt);
+                    var inv = new double[6];
+                    if (OSGeo.GDAL.Gdal.InvGeoTransform(gt, inv) == 0)
+                        throw new InvalidOperationException("Cannot invert geotransform.");
+
+                    return new WorkerState(ds, band, inv, hasNd != 0, nodata);
+                },
+                // loop body
+                (p, loopState, local) =>
+                {
+                    try
                     {
-                        Interlocked.Increment(ref sum.Outside);
-                        bag.Add(new PointOut { GeomId = p.GeomId, Seq = p.Seq, S_M = p.S_M, X = p.X, Y = p.Y, Elev = double.NaN, Status = "OUTSIDE" });
-                    }
-                    else
-                    {
-                        double[] buf = new double[1];
-                        var err = band.ReadRaster(ix, iy, 1, 1, buf, 1, 1, 0, 0);
-                        if (err != CPLErr.CE_None)
+                        OSGeo.GDAL.Gdal.ApplyGeoTransform(local.Inv, p.X, p.Y, out double px, out double py);
+                        int ix = (int)Math.Floor(px), iy = (int)Math.Floor(py);
+
+                        if (ix < 0 || iy < 0 || ix >= local.Ds.RasterXSize || iy >= local.Ds.RasterYSize)
                         {
-                            Interlocked.Increment(ref sum.Err);
-                            bag.Add(new PointOut { GeomId = p.GeomId, Seq = p.Seq, S_M = p.S_M, X = p.X, Y = p.Y, Elev = double.NaN, Status = "ERR" });
+                            Interlocked.Increment(ref sum.Outside);
+                            bag.Add(new PointOut { GeomId = p.GeomId, Seq = p.Seq, S_M = p.S_M, X = p.X, Y = p.Y, Elev = double.NaN, Status = "OUTSIDE" });
                         }
                         else
                         {
+                            double[] buf = new double[1];
+                            try
+                            {
+                                // Important: wrap to swallow strip read exceptions and keep batch alive
+                                var err = local.Band.ReadRaster(ix, iy, 1, 1, buf, 1, 1, 0, 0);
+                                if (err != CPLErr.CE_None)
+                                    throw new ApplicationException("Raster read error.");
+                            }
+                            catch
+                            {
+                                Interlocked.Increment(ref sum.Err);
+                                bag.Add(new PointOut { GeomId = p.GeomId, Seq = p.Seq, S_M = p.S_M, X = p.X, Y = p.Y, Elev = double.NaN, Status = "ERR" });
+                                goto NEXT;
+                            }
+
                             var v = buf[0];
-                            var status = (hasNoData && v.Equals(nodata)) ? "NODATA" : "OK";
-                            if (status == "NODATA") Interlocked.Increment(ref sum.NoData); else Interlocked.Increment(ref sum.Ok);
+                            var status = (local.HasNoData && v.Equals(local.NoData)) ? "NODATA" : "OK";
+                            if (status == "NODATA") Interlocked.Increment(ref sum.NoData);
+                            else Interlocked.Increment(ref sum.Ok);
                             bag.Add(new PointOut { GeomId = p.GeomId, Seq = p.Seq, S_M = p.S_M, X = p.X, Y = p.Y, Elev = v, Status = status });
                         }
-                    }
-                }
-                finally
-                {
-                    var d = Interlocked.Increment(ref done);
-                    progress.MaybeReport(d, total);
-                }
-            });
 
-            sum.Total = total;
+                    NEXT:
+                        var d = Interlocked.Increment(ref done);
+                        progress.MaybeReport(d, total);
+                        return local;
+                    }
+                    catch
+                    {
+                        Interlocked.Increment(ref sum.Err);
+                        bag.Add(new PointOut { GeomId = p.GeomId, Seq = p.Seq, S_M = p.S_M, X = p.X, Y = p.Y, Elev = double.NaN, Status = "ERR" });
+                        var d = Interlocked.Increment(ref done);
+                        progress.MaybeReport(d, total);
+                        return local;
+                    }
+                },
+                // local finally
+                local =>
+                {
+                    local.Band.Dispose();
+                    local.Ds.Dispose();
+                });
+
             var rows = bag.ToList();
-            rows.Sort((a, b) => a.GeomId == b.GeomId ? a.Seq.CompareTo(b.Seq) : string.CompareOrdinal(a.GeomId, b.GeomId));
+            rows.Sort((a, b) => a.GeomId == b.GeomId ? a.Seq.CompareTo(b.Seq) : a.GeomId.CompareTo(b.GeomId));
+            sum.Total = total;
             return (rows, sum);
+        }
+
+        private sealed class WorkerState
+        {
+            public Dataset Ds { get; }
+            public Band Band { get; }
+            public double[] Inv { get; }
+            public bool HasNoData { get; }
+            public double NoData { get; }
+            public WorkerState(Dataset ds, Band band, double[] inv, bool hasNd, double nd)
+            { Ds = ds; Band = band; Inv = inv; HasNoData = hasNd; NoData = nd; }
         }
     }
 }

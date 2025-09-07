@@ -36,7 +36,7 @@ namespace DimensioneringV2.AutoCAD
         {
             DocumentCollection docCol = AcApp.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
-
+            using DocumentLock docLock = docCol.MdiActiveDocument.LockDocument();
             using Transaction tx = localDb.TransactionManager.StartTransaction();
 
             try

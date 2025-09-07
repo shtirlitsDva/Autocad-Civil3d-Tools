@@ -8,7 +8,7 @@ namespace GDALService.Domain.Models
 {
     internal sealed class PointIn
     {
-        public string GeomId { get; set; } = "";
+        public long GeomId { get; set; }
         public int Seq { get; set; }
         public double S_M { get; set; }
         public double X { get; set; }
@@ -16,7 +16,7 @@ namespace GDALService.Domain.Models
     }
     internal sealed class PointOut
     {
-        public string GeomId { get; set; } = "";
+        public long GeomId { get; set; }
         public int Seq { get; set; }
         public double S_M { get; set; }
         public double X { get; set; }

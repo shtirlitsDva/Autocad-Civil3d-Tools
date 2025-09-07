@@ -16,30 +16,22 @@ namespace DimensioneringV2.Services.Elevations
         private readonly OriginalGeometry _og;   // FullGeometry in EPSG:25832
         private readonly object _lock = new();
         private List<ElevationSample>? _forward;
-        private double _length;
 
         public ElevationProfileCache(OriginalGeometry og)
         {
             _og = og ?? throw new ArgumentNullException(nameof(og));
-            _length = og.FullGeometry.Length;
-            if (_length <= 0) throw new ArgumentException("FullGeometry must have positive length.");
         }
 
         public LineString FullGeometry25832 => _og.FullGeometry;
-        public double LengthMeters => _length;
-        public void AcceptElevationProfile(IReadOnlyList<ElevationSample> forward, double lengthMeters)
+        public double LengthMeters => _og.Length;
+        public void AcceptElevationProfile(IReadOnlyList<ElevationSample> forward)
         {
-            lock (_lock)
-            {
-                _forward = [.. forward];
-                _length = lengthMeters;
-            }
+            lock (_lock) { _forward = [.. forward]; }
         }
         public IReadOnlyList<ElevationSample> GetProfile(Coordinate start3857, Coordinate end3857)
-        {
-            EnsureSampledForwardOnce(); // fallback if not prewarmed
+        {            
             var fwd = _forward!;
-            var len = _length;
+            var len = _og.Length;
 
             var gs = _og.FullGeometry.StartPoint.Coordinate;
             var ge = _og.FullGeometry.EndPoint.Coordinate;
@@ -57,35 +49,8 @@ namespace DimensioneringV2.Services.Elevations
             }
             return rev;
         }
-        public IReadOnlyList<ElevationSample> GetDefaultProfile()
-        {
-            EnsureSampledForwardOnce(); // fallback if not prewarmed
-            return _forward!;
-        }
-        private void EnsureSampledForwardOnce()
-        {
-            if (_forward != null) return;
-            lock (_lock)
-            {
-                if (_forward != null) return;
-
-                // local (non-parallel) fallback
-                var es = ElevationService.Instance;
-                es.PublishElevationData();
-
-                var ls = _og.FullGeometry;
-                var lil = new LengthIndexedLine(ls);
-                var outList = new List<ElevationSample>((int)Math.Ceiling(_length) + 1);
-                for (double s = 0.0; s <= _length; s += 1.0)
-                {
-                    double idx = (s < _length) ? s : _length;
-                    var p = lil.ExtractPoint(idx);
-                    double elev = es.SampleElevation25832(p.X, p.Y) ?? double.NaN;
-                    outList.Add(new ElevationSample(s, elev, p.X, p.Y));
-                }
-                _forward = outList;
-            }
-        }
+        public IReadOnlyList<ElevationSample> GetDefaultProfile() => _forward!;
+        
         private static (double, double) Normalize(double x, double y)
         { var L = Math.Sqrt(x * x + y * y); return L > 0 ? (x / L, y / L) : (0, 0); }
     }

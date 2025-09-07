@@ -3,17 +3,16 @@ using Autodesk.AutoCAD.Geometry;
 
 using BitMiracle.LibTiff.Classic;
 
-using OSGeo.GDAL;
-
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
@@ -22,265 +21,145 @@ namespace DimensioneringV2.Services.Elevations
 {
     internal class ElevationService
     {
-        private static ElevationService? _instance;
-        public static ElevationService Instance => _instance ??= new ElevationService();
+        private static readonly Lazy<ElevationService> _lazy = new(() => new ElevationService());
+        public static ElevationService Instance => _lazy.Value;
         private static string? _token;
-        private ElevationSettings? elevationSettings;        
         private ElevationService() { }
-        private ElevationGdalVrtHandle? _vrt;
-        private ThreadLocal<ElevationSampler>? _tls;
 
         #region Elevation Sampler
-        public double? SampleElevation25832(double x, double y, bool bilinear = true)
+        private string ServiceFolder = 
+            @"X:\AutoCAD DRI - 01 Civil 3D\NetloadV2\Dependencies\GdalService";
+        private string ServiceExeName = "GDALService.exe";
+
+        // ---- process state ----
+        private readonly object _sync = new();
+        private Process? _proc;
+        private StreamWriter? _stdin;
+        private StreamReader? _stdout;
+        private Task? _stderrPump;
+
+        private int _nextReqId = 0;
+
+        // Simple request/response DTOs for NDJSON
+        private sealed record RpcReq(string id, string type, object payload);
+        private sealed record RpcResp(string id, int status, JsonElement? result, string? error);
+
+        internal async Task EnsureProjectAsync(string projectId, string basePath, CancellationToken ct = default)
         {
-            PublishElevationData();
-            return _tls!.Value!.Sample(x, y, bilinear);
+            // HELLO
+            var hello = await SendAsync(new RpcReq(NewId(), "HELLO", new { }), ct).ConfigureAwait(false);
+            if (hello.status != 0) throw new InvalidOperationException("GDALService HELLO failed: " + hello.error);
+
+            // SET_PROJECT
+            var set = await SendAsync(new RpcReq(NewId(), "SET_PROJECT",
+                new { projectId, basePath }), ct).ConfigureAwait(false);
+
+            if (set.status != 0)
+                throw new InvalidOperationException($"SET_PROJECT failed: {set.error}");
         }
 
-        /// <summary>
-        /// Samples elevations for the given points. Returns elevations in the same order.
-        /// </summary>
-        public async Task<IReadOnlyList<double?>> SampleBulkAsync(
-            IReadOnlyList<PointXY> points,
-            int maxDegreeOfParallelism = 0,
-            IProgress<(int done, int total)>? progress = null,
-            CancellationToken ct = default,
-            int progressBatchSize = 50)
+        public async Task<IReadOnlyList<(long geomId, int seq, double s, double x, double y, double elev, string status)>>
+        SampleTaggedAsync(IEnumerable<(long geomId, int seq, double s, double x, double y)> points,
+                          int? threads, CancellationToken ct = default)
         {
-            PublishElevationData();
-            if (_vrt == null) throw new InvalidOperationException("VRT not ready.");
+            var payload = new
+            {
+                threads = threads ?? 0,
+                points = points.Select(p => new {
+                    geomId = p.geomId,
+                    seq = p.seq,
+                    s_m = p.s,
+                    x = p.x,
+                    y = p.y
+                }).ToArray()
+            };
 
-            if (maxDegreeOfParallelism <= 0)
-                maxDegreeOfParallelism = Math.Max(1, Environment.ProcessorCount - 1);
+            var resp = await SendAsync(new RpcReq(NewId(), "SAMPLE_POINTS", payload), ct).ConfigureAwait(false);
+            if (resp.status != 0)
+                throw new InvalidOperationException($"SAMPLE_POINTS failed: {resp.error}");
 
-            var total = points.Count;
-            if (total == 0) return Array.Empty<double?>();
+            // Parse result.rows
+            var rowsProp = resp.result.GetValueOrDefault().GetProperty("rows");
+            var list = new List<(long, int, double, double, double, double, string)>(rowsProp.GetArrayLength());
+            foreach (var row in rowsProp.EnumerateArray())
+            {
+                long gid = row.GetProperty("geomId").GetInt32()!;                
+                int seq = row.GetProperty("seq").GetInt32();
+                double s = row.GetProperty("s_M").GetDouble();
+                double x = row.GetProperty("x").GetDouble();
+                double y = row.GetProperty("y").GetDouble();
+                string status = row.GetProperty("status").GetString()!;
+                double elev = row.GetProperty("elev").GetDouble(); // NaN comes as NaN
 
-            var results = new double?[total];
-            var range = System.Collections.Concurrent.Partitioner.Create(
-                0, total, Math.Max(256, total / (maxDegreeOfParallelism * 8)));
+                list.Add((gid, seq, s, x, y, elev, status));
+            }
+            return list;
+        }
 
-            var vrtPath = _vrt.VrtPath;
-            int done = 0;
+        public async Task<double?> SampleSingleAsync(double x, double y, CancellationToken ct = default)
+        {
+            var tagged = await SampleTaggedAsync(new[] { (geomId: 0L, seq: 0, s: 0.0, x, y) }, threads: 1, ct);
+            var r = tagged[0];
+            return r.status == "OK" ? r.elev : (double?)null;
+        }
 
-            await Task.WhenAll(
-                Enumerable.Range(0, maxDegreeOfParallelism).Select(async _ =>
+        internal async Task EnsureServerAsync(CancellationToken ct)
+        {
+            lock (_sync)
+            {
+                if (_proc is { HasExited: false } && _stdin != null && _stdout != null) return;
+
+                // (Re)start server process
+                _proc?.Dispose();
+                _proc = new Process
                 {
-                    using var sampler = new ElevationSampler(vrtPath);
-
-                    int localCompleted = 0; // <-- per worker counter
-
-                    foreach (var (from, to) in range.GetDynamicPartitions())
+                    StartInfo = new ProcessStartInfo
                     {
-                        for (int i = from; i < to; i++)
-                        {
-                            ct.ThrowIfCancellationRequested();
+                        FileName = Path.Combine(ServiceFolder, ServiceExeName),
+                        WorkingDirectory = ServiceFolder,
+                        UseShellExecute = false,
+                        RedirectStandardInput = true,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        CreateNoWindow = true,
+                        StandardOutputEncoding = Encoding.UTF8,
+                        StandardErrorEncoding = Encoding.UTF8
+                    },
+                    EnableRaisingEvents = true
+                };
+                if (!_proc.Start())
+                    throw new InvalidOperationException("Failed to start GDALService.");
 
-                            var p = points[i];
-                            results[i] = sampler.Sample(p.X, p.Y, bilinear: true);
+                _stdin = _proc.StandardInput;
+                _stdout = _proc.StandardOutput;
 
-                            // Batch progress
-                            if (progress != null && ++localCompleted >= progressBatchSize)
-                            {
-                                int now = Interlocked.Add(ref done, localCompleted);
-                                localCompleted = 0;
-                                progress.Report((now, total));
-                            }
-                        }
-                        // Optional: yield to keep UI responsive (cheap)
-                        await Task.Yield();
-                    }
-
-                    // Final flush for any remainder
-                    if (progress != null && localCompleted > 0)
-                    {
-                        int now = Interlocked.Add(ref done, localCompleted);
-                        progress.Report((now, total));
-                    }
-                })
-            ).ConfigureAwait(false);
-
-            return new ReadOnlyCollection<double?>(results);
-        }
-
-        private sealed class ElevationSampler : IDisposable
-        {
-            private readonly Dataset _ds;
-            private readonly Band _band;
-            private readonly double[] _gt = new double[6];
-            private readonly double _noData; private readonly bool _hasNoData;
-
-            public ElevationSampler(string vrtPath)
-            {
-                _ds = Gdal.Open(vrtPath, Access.GA_ReadOnly) ?? throw new InvalidOperationException($"Open failed: {vrtPath}");
-                _band = _ds.GetRasterBand(1);
-                _ds.GetGeoTransform(_gt);
-                double nd; int has; _band.GetNoDataValue(out nd, out has); _noData = nd; _hasNoData = has != 0;
-            }
-
-            public double? Sample(double x, double y, bool bilinear = true)
-            {
-                double det = _gt[1] * _gt[5] - _gt[2] * _gt[4];
-                if (Math.Abs(det) < 1e-18) return null;
-
-                double col = (_gt[5] * (x - _gt[0]) - _gt[2] * (y - _gt[3])) / det;
-                double row = (-_gt[4] * (x - _gt[0]) + _gt[1] * (y - _gt[3])) / det;
-
-                return bilinear ? ReadBilinear(row, col) : ReadNearest((int)Math.Round(row), (int)Math.Round(col));
-            }
-
-            private double? ReadNearest(int r, int c)
-            {
-                if (r < 0 || c < 0 || r >= _band.YSize || c >= _band.XSize) return null;
-                float[] buf = new float[1];
-                _band.ReadRaster(c, r, 1, 1, buf, 1, 1, 0, 0);
-                if (_hasNoData && Math.Abs(buf[0] - _noData) <= 1e-6) return null;
-                return buf[0];
-            }
-
-            private double? ReadBilinear(double r, double c)
-            {
-                int r0 = (int)Math.Floor(r), c0 = (int)Math.Floor(c);
-                int r1 = r0 + 1, c1 = c0 + 1;
-                if (r0 < 0 || c0 < 0 || r1 >= _band.YSize || c1 >= _band.XSize) return null;
-
-                float[] b = new float[4];
-                _band.ReadRaster(c0, r0, 2, 2, b, 2, 2, 0, 0);
-                bool bad(int i) => _hasNoData && Math.Abs(b[i] - _noData) <= 1e-6;
-                if (bad(0) || bad(1) || bad(2) || bad(3)) return ReadNearest((int)Math.Round(r), (int)Math.Round(c));
-
-                double dr = r - r0, dc = c - c0;
-                double v00 = b[0], v01 = b[1], v10 = b[2], v11 = b[3];
-                double v0 = v00 * (1 - dc) + v01 * dc;
-                double v1 = v10 * (1 - dc) + v11 * dc;
-                return v0 * (1 - dr) + v1 * dr;
-            }
-
-            public void Dispose() { _band.Dispose(); _ds.Dispose(); }
-        }
-        #endregion
-
-        #region Publish elevation data
-        public void PublishElevationData()
-        {
-            elevationSettings = SettingsSerializer<ElevationSettings>.Load(
-                Autodesk.AutoCAD.ApplicationServices.Core.Application.
-                DocumentManager.MdiActiveDocument);
-
-            if (string.IsNullOrEmpty(elevationSettings?.BaseFileName))
-            {
-                Utils.prtDbg("Ingen indstillinger for terrændata fundet.\n" +
-                    "Download, venligst, først noget terræn data.");
-                return;
-            }
-
-            var baseName = elevationSettings.BaseFileName;
-
-            // If cached VRT matches, we can simply return (already prepared)
-            if (_vrt != null && string.Equals(_vrt.BaseName, baseName, StringComparison.OrdinalIgnoreCase))
-            {
-                // already built & cached
-                return;
-            }            
-
-            //Build new VRT
-            var dbFileName = Autodesk.AutoCAD.ApplicationServices.Core.Application.
-                    DocumentManager.MdiActiveDocument.Database.Filename;
-            string elevationsDir = EnsureElevationsFolder(dbFileName);
-
-            var geoTiffFiles = Directory.EnumerateFiles(
-                elevationsDir, elevationSettings.BaseFileName + "_*.tif").ToList();
-
-            if (geoTiffFiles.Count == 0)
-            {
-                Utils.prtDbg("Ingen GeoTIFF filer, tilhørende projektet, fundet i mappen:\n" +
-                    $"{elevationsDir}.\n" +
-                    "Hent venligst først noget terræn data.");
-                return;
-            }
-
-            // Load existing VRT if present; otherwise create a new one and cache it.
-            EnsureVrtCached(baseName, elevationsDir, geoTiffFiles);
-            if (_vrt == null)
-                throw new InvalidOperationException("Failed to build or load VRT.");
-
-            if (_vrt != null && _tls == null)
-            {
-                var vrtPath = _vrt.VrtPath;
-                _tls = new ThreadLocal<ElevationSampler>(
-                    () => new ElevationSampler(vrtPath),
-                    trackAllValues: true);
-            }
-
-            // (Optional) warm-up: read geotransform / nodata once for later queries
-            double[] gt = new double[6];
-            _vrt.Dataset.GetGeoTransform(gt);
-            var band = _vrt.Dataset.GetRasterBand(1);
-            
-            double noDataValue;
-            int hasNoData;
-            band.GetNoDataValue(out noDataValue, out hasNoData);
-
-            Utils.prtDbg($"VRT ready: {Path.GetFileName(_vrt.VrtPath)} | " +
-                         $"Size: {_vrt.Dataset.RasterXSize}x{_vrt.Dataset.RasterYSize} | " +
-                         $"NoData: {(hasNoData != 0 ? noDataValue.ToString() : "n/a")}");
-        }
-        private readonly object _vrtLock = new();        
-        private static string VrtPathOf(string elevationsDir, string baseName)
-            => Path.Combine(elevationsDir, baseName + ".vrt");
-        private ElevationGdalVrtHandle EnsureVrtCached(string baseName, string elevationsDir, List<string> geoTiffFiles)
-        {
-            if (geoTiffFiles.Count == 0)
-                throw new InvalidOperationException("No GeoTIFF files to build or validate VRT.");
-
-            geoTiffFiles = geoTiffFiles
-                .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            string vrtPath = VrtPathOf(elevationsDir, baseName);
-
-            lock (_vrtLock)
-            {
-                // If we already have a cached handle for the same base, reuse it.
-                if (_vrt != null && _vrt.BaseName.Equals(baseName, StringComparison.OrdinalIgnoreCase))
-                    return _vrt;
-
-                // Dispose any previous cached handle (different base)
-                _vrt?.Dispose();
-                _vrt = null;
-
-                // Case 1: VRT exists on disk -> reuse it (do NOT delete or rebuild)
-                if (File.Exists(vrtPath))
+                // pump stderr to Debug/Trace (READY/PROGRESS messages)
+                var sr = _proc.StandardError;
+                _stderrPump = Task.Run(async () =>
                 {
-                    // We still ensure that there are tiles on disk (already checked by caller);
-                    // Open and cache the existing VRT.
-                    var ds = Gdal.Open(vrtPath, Access.GA_ReadOnly)
-                        ?? throw new InvalidOperationException($"Could not open existing VRT: {vrtPath}");
-
-                    _vrt = new ElevationGdalVrtHandle(baseName, vrtPath, geoTiffFiles, ds);
-                    return _vrt;
-                }
-
-                // Case 2: No VRT -> create one from the tiles, then open and cache it
-                using (var opts = new GDALBuildVRTOptions(
-                ["-resolution", "highest"
-                // add -srcnodata/-vrtnodata here if you have a known NoData
-                ]))
-                {
-                    // This call creates the VRT file at vrtPath (no deleting of any pre-existing file here)
-                    var vrtDs = Gdal.wrapper_GDALBuildVRT_names(vrtPath, geoTiffFiles.ToArray(), opts, null, null);
-                    if (vrtDs == null)
-                        throw new InvalidOperationException("GDAL failed to build VRT.");
-                    vrtDs.Dispose(); // writes the .vrt
-                }
-
-                var opened = Gdal.Open(vrtPath, Access.GA_ReadOnly)
-                    ?? throw new InvalidOperationException($"Failed to open newly built VRT: {vrtPath}");
-
-                _vrt = new ElevationGdalVrtHandle(baseName, vrtPath, geoTiffFiles, opened);
-                return _vrt;
+                    string? line;
+                    while ((line = await sr.ReadLineAsync().ConfigureAwait(false)) != null)
+                        System.Diagnostics.Debug.WriteLine("[GDALService] " + line);
+                });
             }
+
+            // wait for READY banner (stderr is already pumped), give it a short grace
+            await Task.Delay(50, ct).ConfigureAwait(false);
         }
+
+        private async Task<RpcResp> SendAsync(RpcReq req, CancellationToken ct)
+        {
+            string json = JsonSerializer.Serialize(req, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+            lock (_sync) { _stdin!.WriteLine(json); _stdin.Flush(); }
+
+            // one response per line (same order)
+            var line = await _stdout!.ReadLineAsync().WaitAsync(ct).ConfigureAwait(false);
+            if (line == null) throw new EndOfStreamException("GDALService ended.");
+            var resp = JsonSerializer.Deserialize<RpcResp>(line, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })!;
+            return resp;
+        }
+
+        private string NewId() => Interlocked.Increment(ref _nextReqId).ToString();
         #endregion
 
         #region Downloading of GeoTIFFs
@@ -335,9 +214,8 @@ namespace DimensioneringV2.Services.Elevations
 
             //Remember to persist
             string baseName = GenerateUniqueBaseName(elevationsDir);
-
-            if (elevationSettings == null)
-                elevationSettings = new ElevationSettings();
+            
+            var elevationSettings = new ElevationSettings();
             elevationSettings.BaseFileName = baseName;
             SettingsSerializer<ElevationSettings>.Save(
                 Autodesk.AutoCAD.ApplicationServices.Core.Application.

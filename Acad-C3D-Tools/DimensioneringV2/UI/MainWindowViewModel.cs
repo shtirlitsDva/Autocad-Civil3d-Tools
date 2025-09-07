@@ -1245,12 +1245,18 @@ namespace DimensioneringV2.UI
                     Utils.prtDbg($"Elevation sampling progress: {t.done}/{t.total}");
                 });
 
-                await ElevationDispatcher.PreSampleAsync(caches, progress: progress);
+                var dispatcher = new ElevationDispatcher();
 
-                AcContext.Current.Post(_ =>
+                var res = await dispatcher.PreSampleAsync(caches, 1, progress: progress);
+
+                if (res.Ok)
                 {
-                    AutoCAD.WriteElevations2CurrentDrawing.Write(caches);
-                }, null);
+                    AcContext.Current.Post(_ =>
+                    {
+                        AutoCAD.WriteElevations2CurrentDrawing.Write(caches);
+                    }, null);
+                }
+                else Utils.prtDbg(res.Error);
             }
             catch (System.Exception ex)
             {

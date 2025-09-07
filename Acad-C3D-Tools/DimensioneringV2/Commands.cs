@@ -481,40 +481,7 @@ namespace DimensioneringV2
 
             if (Services.PaletteSetCache.paletteSet == null) Services.PaletteSetCache.paletteSet = new CustomPaletteSet();
             Services.PaletteSetCache.paletteSet.Visible = true;
-            Services.PaletteSetCache.paletteSet.WasVisible = true;
-
-            try
-            {
-                //GDAL.GdalConfiguration.ConfigureGdal();
-                //GDAL.GdalConfiguration.ConfigureOgr();
-                GDAL.GdalConfiguration.ConfigureGdal();
-            }
-            catch (System.Exception ex)
-            {
-                DumpException(ex);
-                //Utils.prtDbg(ex);
-            }
-
-            void DumpException(System.Exception ex, int indent = 0)
-            {
-                string pad = new string(' ', indent);
-                Utils.prtDbg($"{pad}{ex.GetType().FullName}: {ex.Message}");
-                Utils.prtDbg($"{pad}HResult: 0x{ex.HResult:X8}");
-                if (ex is TypeInitializationException tie && !string.IsNullOrEmpty(tie.TypeName))
-                    Utils.prtDbg($"{pad}TypeName: {tie.TypeName}");
-                if (ex is DllNotFoundException)
-                    Utils.prtDbg($"{pad}(DllNotFoundException often means a missing/mismatched native dep)");
-
-                // Show a few top stack frames (optional)
-                var lines = ex.StackTrace?.Split(new[] { Environment.NewLine }, StringSplitOptions.None) ?? Array.Empty<string>();
-                foreach (var line in lines.Take(6)) Utils.prtDbg(pad + line);
-
-                if (ex.InnerException != null)
-                {
-                    Utils.prtDbg(pad + "Inner →");
-                    DumpException(ex.InnerException, indent + 2);
-                }
-            }
+            Services.PaletteSetCache.paletteSet.WasVisible = true;            
 
             //var events = PaletteSetCache.paletteSet.GetType().GetEvents(BindingFlags.Public | BindingFlags.Instance);
             //foreach (var ev in events)

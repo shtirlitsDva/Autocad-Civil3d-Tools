@@ -29,11 +29,10 @@ namespace GDALService.Application.Handlers
             if (!ctxRes.Ok)
                 return Task.FromResult(Result<SamplePointsRes>.Fail(ctxRes.Status, ctxRes.Error));
 
-            var ds = ctxRes.Value!.Dataset;
-
+            var ctx = ctxRes.Value!;
             var reporter = new BatchProgressReporter(_options.ProgressEvery); // or inject via options
             var (rows, sum) = Sampler.Sample(
-                ds: ds,
+                vrtPath: ctx.VrtPath,
                 pts: req.Points.Select(q => new PointIn { GeomId = q.GeomId, Seq = q.Seq, S_M = q.S_M, X = q.X, Y = q.Y }),
                 threads: req.Threads,
                 progress: reporter

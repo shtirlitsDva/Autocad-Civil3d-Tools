@@ -23,7 +23,7 @@ namespace DimensioneringV2.Services.SubGraphs
             UndirectedGraph<NodeJunction, EdgePipeSegment> graph)
         {
             ElevationService es = ElevationService.Instance;
-            es.PublishElevationData();
+            
 
             var cGraph = graph.CopyToBFConditional(e => e.PipeSegment.NumberOfBuildingsSupplied > 0);
             foreach (var edge in cGraph.Edges) edge.YankAllResults();
