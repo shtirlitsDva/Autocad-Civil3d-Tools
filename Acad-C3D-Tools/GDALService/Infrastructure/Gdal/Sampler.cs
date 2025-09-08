@@ -17,6 +17,9 @@ namespace GDALService.Infrastructure.Gdal
             int? threads,
             IProgressReporter progress)
         {
+            var points = pts.ToList();
+            int total = points.Count;
+
             var bag = new ConcurrentBag<PointOut>();
             var sum = new Summary();
 
@@ -26,12 +29,10 @@ namespace GDALService.Infrastructure.Gdal
                     ? threads.Value : Math.Max(1, Environment.ProcessorCount - 1)
             };
 
-            int total = 0;
-            foreach (var _ in pts) total++;
             int done = 0;
 
             // Each worker opens its own Dataset/Band and builds its own transforms.
-            Parallel.ForEach(Partitioner.Create(pts), po,
+            Parallel.ForEach(Partitioner.Create(points), po,
                 () =>
                 {                    
                     if (ds == null) throw new InvalidOperationException("Failed to open VRT in worker.");
@@ -100,8 +101,7 @@ namespace GDALService.Infrastructure.Gdal
                 // local finally
                 local =>
                 {
-                    local.Band.Dispose();
-                    local.Ds.Dispose();
+                    
                 });
 
             var rows = bag.ToList();

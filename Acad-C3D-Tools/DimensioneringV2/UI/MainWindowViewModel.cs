@@ -1247,7 +1247,7 @@ namespace DimensioneringV2.UI
 
                 var dispatcher = new ElevationDispatcher();
 
-                var res = await dispatcher.PreSampleAsync(caches, 1, progress: progress);
+                var res = await dispatcher.PreSampleAsync(caches, 5, progress: progress);
 
                 if (res.Ok)
                 {
