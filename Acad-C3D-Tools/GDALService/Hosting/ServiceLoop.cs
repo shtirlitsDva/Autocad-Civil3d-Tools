@@ -19,7 +19,6 @@ namespace GDALService.Hosting
     internal sealed class ServiceLoop
     {
         private readonly ServiceOptions _opt;
-        private readonly DatasetCache _cache = new();
         private readonly VrtManager _vrt = new();
 
         public ServiceLoop(ServiceOptions opt) { _opt = opt; }
@@ -62,7 +61,7 @@ namespace GDALService.Hosting
                         {
                             var p = Protocol.Json.Extract<SetProjectReq>(req.Payload);
                             IRequestHandler<SetProjectReq, Result<SetProjectRes>> h
-                                = new SetProjectHandler(_cache, _vrt);
+                                = new SetProjectHandler(_vrt);
                             var r = await h.HandleAsync(p);
                             return new Response { Id = req.Id, Status = (int)r.Status, Result = r.Value, Error = r.Error };
                         }
@@ -71,12 +70,13 @@ namespace GDALService.Hosting
                         {
                             var p = Protocol.Json.Extract<SamplePointsReq>(req.Payload);
                             IRequestHandler<SamplePointsReq, Result<SamplePointsRes>> h
-                                = new SamplePointsHandler(_cache, _opt);
+                                = new SamplePointsHandler(_vrt, _opt);
                             var r = await h.HandleAsync(p);
                             return new Response { Id = req.Id, Status = (int)r.Status, Result = r.Value, Error = r.Error };
                         }
 
                     case "SHUTDOWN":
+                        _vrt.Dispose();
                         return new Response { Id = req.Id, Status = (int)StatusCode.Success, Result = new { msg = "BYE" } };
 
                     default:

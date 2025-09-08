@@ -15,24 +15,24 @@ namespace GDALService.Application.Handlers
 {
     internal class SamplePointsHandler : IRequestHandler<SamplePointsReq, Result<SamplePointsRes>>
     {
-        private readonly DatasetCache _cache;
         private readonly ServiceOptions _options;
-        public SamplePointsHandler(DatasetCache cache, ServiceOptions options)
+        private readonly VrtManager _vrt;
+        public SamplePointsHandler(VrtManager vrt, ServiceOptions options)
         { 
-            _cache = cache;
+            _vrt = vrt;
             _options = options;
         }
 
         public Task<Result<SamplePointsRes>> HandleAsync(SamplePointsReq req, CancellationToken ct = default)
         {
-            var ctxRes = _cache.GetCurrent();
+            var ctxRes = _vrt.TryGetDataset();
             if (!ctxRes.Ok)
                 return Task.FromResult(Result<SamplePointsRes>.Fail(ctxRes.Status, ctxRes.Error));
 
             var ctx = ctxRes.Value!;
             var reporter = new BatchProgressReporter(_options.ProgressEvery); // or inject via options
             var (rows, sum) = Sampler.Sample(
-                vrtPath: ctx.VrtPath,
+                ds: ctx.Ds,
                 pts: req.Points.Select(q => new PointIn { GeomId = q.GeomId, Seq = q.Seq, S_M = q.S_M, X = q.X, Y = q.Y }),
                 threads: req.Threads,
                 progress: reporter

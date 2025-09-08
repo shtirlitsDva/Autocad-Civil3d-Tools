@@ -3,12 +3,7 @@ using GDALService.Domain.Models;
 
 using OSGeo.GDAL;
 
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace GDALService.Infrastructure.Gdal
 {
@@ -17,9 +12,9 @@ namespace GDALService.Infrastructure.Gdal
         internal sealed class Summary { public int Total, Ok, Outside, NoData, Err; }
 
         public static (List<PointOut> rows, Summary sum) Sample(
-            string vrtPath, 
-            IEnumerable<PointIn> pts, 
-            int? threads, 
+            Dataset ds,
+            IEnumerable<PointIn> pts,
+            int? threads,
             IProgressReporter progress)
         {
             var bag = new ConcurrentBag<PointOut>();
@@ -37,10 +32,8 @@ namespace GDALService.Infrastructure.Gdal
 
             // Each worker opens its own Dataset/Band and builds its own transforms.
             Parallel.ForEach(Partitioner.Create(pts), po,
-                // local init
                 () =>
-                {
-                    var ds = OSGeo.GDAL.Gdal.Open(vrtPath, Access.GA_ReadOnly);
+                {                    
                     if (ds == null) throw new InvalidOperationException("Failed to open VRT in worker.");
                     var band = ds.GetRasterBand(1) ?? throw new InvalidOperationException("No band 1.");
                     band.GetNoDataValue(out double nodata, out int hasNd);

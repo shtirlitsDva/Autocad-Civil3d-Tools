@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace GDALService.Application.Abstractions
 {
-    public interface IRequestHandler<in TReq, TRes>
+    internal interface IRequestHandler<in TReq, TRes>
     {
         Task<TRes> HandleAsync(TReq request, CancellationToken ct = default);
     }
