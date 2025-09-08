@@ -12,6 +12,7 @@ using DimensioneringV2.GraphFeatures;
 using DimensioneringV2.GraphModelRoads;
 using DimensioneringV2.Serialization;
 using DimensioneringV2.Services;
+using DimensioneringV2.Services.Elevations;
 using DimensioneringV2.UI;
 using DimensioneringV2.Vejklasser.Interfaces;
 using DimensioneringV2.Vejklasser.Models;
@@ -65,7 +66,7 @@ namespace DimensioneringV2
 
             Assembly.LoadFrom(@"X:\AutoCAD DRI - 01 Civil 3D\NetloadV2\2025\DimensioneringV2\OxyPlot.dll");
             Assembly.LoadFrom(@"X:\AutoCAD DRI - 01 Civil 3D\NetloadV2\2025\DimensioneringV2\OxyPlot.Wpf.dll");
-
+            
 #if DEBUG
             AppDomain.CurrentDomain.AssemblyResolve +=
         new ResolveEventHandler(MissingAssemblyLoaderDimV2.Debug_AssemblyResolveV2);
@@ -476,11 +477,11 @@ namespace DimensioneringV2
         [CommandMethod("DIM2MAP")]
         public static void dim2map()
         {
-            AcContext.Current = SynchronizationContext.Current;            
+            AcContext.Current = SynchronizationContext.Current;
 
             if (Services.PaletteSetCache.paletteSet == null) Services.PaletteSetCache.paletteSet = new CustomPaletteSet();
             Services.PaletteSetCache.paletteSet.Visible = true;
-            Services.PaletteSetCache.paletteSet.WasVisible = true;
+            Services.PaletteSetCache.paletteSet.WasVisible = true;            
 
             //var events = PaletteSetCache.paletteSet.GetType().GetEvents(BindingFlags.Public | BindingFlags.Instance);
             //foreach (var ev in events)
@@ -605,6 +606,98 @@ namespace DimensioneringV2
                 }
                 tx.Commit();
             }
+
+            prdDbg("Finished!");
+        }
+
+        /// <command>DIM2MAPLOADELEVATIONS</command>
+        /// <summary>
+        /// THIS COMMAND MUST NOT BE RUN MANUALLY! It is called from Dim2Map window.
+        /// Loads GeoTIFF files with surface elevation data.
+        /// </summary>
+        /// <category>DIMENSIONERING V2</category>
+        [CommandMethod("DIM2MAPLOADELEVATIONS")]
+        public void dim2maploadelevations()
+        {
+            DocumentCollection docCol = AcApp.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+
+            if (PaletteSetCache.paletteSet == null) { prdDbg("This command is run from DIM2MAP"); return; }
+
+            using var tx = localDb.TransactionManager.StartTransaction();
+
+            try
+            {
+                #region Determine extents
+                var pls = localDb.ListOfType<Polyline>(tx)
+                            .Where(x =>
+                            x.Layer == cv.LayerVejmidteTændt ||
+                            x.Layer == cv.LayerVejmidteSlukket)
+                            .ToList();
+
+                var brs = localDb.ListOfType<BlockReference>(tx, true)
+                    .Where(x => cv.AcceptedBlockTypes.Contains(
+                        PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "Type")));
+
+                var xs = (Polyline pl) => pl.GetPolyPoints().Select(x => x.X);
+                var ys = (Polyline pl) => pl.GetPolyPoints().Select(x => x.Y);
+
+                var maxX = (Entity ent) =>
+                {
+                    if (ent is Polyline pl) return xs(pl).Max();
+                    else if (ent is BlockReference br) return br.Position.X;
+                    else return 0.0;
+                };
+
+                var maxY = (Entity ent) =>
+                {
+                    if (ent is Polyline pl) return ys(pl).Max();
+                    else if (ent is BlockReference br) return br.Position.Y;
+                    else return 0.0;
+                };
+
+                var minX = (Entity ent) =>
+                {
+                    if (ent is Polyline pl) return xs(pl).Min();
+                    else if (ent is BlockReference br) return br.Position.X;
+                    else return 0.0;
+                };
+
+                var minY = (Entity ent) =>
+                {
+                    if (ent is Polyline pl) return ys(pl).Min();
+                    else if (ent is BlockReference br) return br.Position.Y;
+                    else return 0.0;
+                };
+
+                var extents = new Extents3d(
+                    new Point3d(
+                    Math.Min(pls.Select(x => minX(x)).Min(), brs.Select(x => minX(x)).Min()) - 2,
+                    Math.Min(pls.Select(x => minY(x)).Min(), brs.Select(x => minY(x)).Min()) - 2, 0),                
+                new Point3d(
+                    Math.Max(pls.Select(x => maxX(x)).Max(), brs.Select(x => maxX(x)).Max()) + 2,
+                    Math.Max(pls.Select(x => maxY(x)).Max(), brs.Select(x => maxY(x)).Max()) + 2, 0));
+                #endregion
+
+                ElevationService.Instance.DownloadElevationData(extents, localDb.Filename);
+            }
+            catch (System.Exception ex)
+            {
+                if (ex.Message.Contains("DBG"))
+                {
+                    prdDbg(ex.Message);
+                    tx.Commit();
+                    return;
+                }
+
+                prdDbg(ex);
+                tx.Abort();
+                return;
+            }
+            tx.Commit();
+
 
             prdDbg("Finished!");
         }
@@ -903,7 +996,7 @@ namespace DimensioneringV2
                 }
             }
 
-            
+
             var newFileName = Path.Combine(
                 Path.GetDirectoryName(fileName)!,
                 Path.GetFileNameWithoutExtension(fileName) + "_Vejklasser.d2r");

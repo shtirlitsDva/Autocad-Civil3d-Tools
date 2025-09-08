@@ -1478,6 +1478,26 @@ namespace IntersectUtilities
             }
             return objs;
         }
+
+        public static StationOffsetResult GetStationOffset(this Alignment al, Point3d p3d)
+        {
+            double station = 0.0;
+            double offset = 0.0;
+            al.StationOffset(p3d.X, p3d.Y, ref station, ref offset);
+            return new StationOffsetResult(station, offset);
+        }
+    }
+
+    public readonly struct StationOffsetResult
+    {
+        public double Station { get; }
+        public double Offset { get; }
+
+        public StationOffsetResult(double station, double offset)
+        {
+            Station = station;
+            Offset = offset;
+        }
     }
 
     public static class Enums

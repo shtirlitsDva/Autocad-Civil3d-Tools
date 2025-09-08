@@ -1,4 +1,5 @@
-﻿using DimensioneringV2.UI;
+﻿using DimensioneringV2.Services.Elevations;
+using DimensioneringV2.UI;
 
 using Mapsui.Nts;
 
@@ -33,12 +34,14 @@ namespace DimensioneringV2.GraphFeatures
         {
             foreach (var field in analysisFeature.Fields) this[field] = analysisFeature[field];
             this.OriginalGeometry = analysisFeature.OriginalGeometry;
+            this.Elevations = new ElevationProfileCache(OriginalGeometry);
         }
         public AnalysisFeature(
             NetTopologySuite.Geometries.Geometry? geometry,
             OriginalGeometry originalGeometry) : base(geometry)
         {
             OriginalGeometry = originalGeometry;
+            Elevations = new ElevationProfileCache(originalGeometry);
         }
         public AnalysisFeature(
             NetTopologySuite.Geometries.Geometry geometry,
@@ -50,11 +53,13 @@ namespace DimensioneringV2.GraphFeatures
                 this[attribute.Key] = attribute.Value;
             }
             this.OriginalGeometry = originalGeometry;
+            this.Elevations = new ElevationProfileCache(originalGeometry);
         }
         #endregion
 
-        #region Cache for original geometry
-        public OriginalGeometry OriginalGeometry { get; set; }
+        #region Spatial data storage
+        public OriginalGeometry OriginalGeometry { get; }
+        internal ElevationProfileCache Elevations { get; }
         #endregion
 
         #region Properties to attributes mapper, indexer

@@ -17,6 +17,8 @@
             <StackPanel Orientation="Vertical" DockPanel.Dock="Left" Margin="2" Width="80">
                 <Button x:Name="btnLoadData" Content="Load Civil 3D" FontSize="10" Width="70" Height="20" 
                     Margin="2" Command="{Binding CollectFeaturesCommand}"/>
+                <Button x:Name="btnLoadElevationData" Content="Load elevations" FontSize="9" Width="70" Height="20" 
+                    Margin="2" Command="{Binding LoadElevationsCommand}"/>
                 <Button x:Name="btnCalcSPD" Content="Calc SPD" FontSize="10" Width="70" Height="20" 
                     Margin="2" Command="{Binding PerformCalculationsSPDCommand}"/>
                 <Button x:Name="btnCalcSTP" Content="BRUTE FORCE" FontSize="10" Width="70" Height="20" 
@@ -41,6 +43,8 @@
                         Margin="2" Command="{Binding WriteToDwgCommand}"/>
                 <Button x:Name="btnCreateVejklasserSchedule" Content="Stik og vejklasser" FontSize="8.5" Width="70" Height="20"
                         Margin="2" Command="{Binding WriteStikOgVejklasserCommand}"/>
+                <Button x:Name="btnTestElevations" Content="Test koter" FontSize="10" Width="70" Height="20"
+                        Margin="2" Command="{Binding TestElevationsCommand}"/>
             </StackPanel>
 
             <!-- Main Content Area -->

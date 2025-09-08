@@ -51,6 +51,7 @@ using System.Windows;
 using AcAp = Autodesk.AutoCAD.ApplicationServices.Application;
 using utils = IntersectUtilities.UtilsCommon.Utils;
 using DimensioneringV2.Models.Trykprofil;
+using DimensioneringV2.Services.Elevations;
 
 namespace DimensioneringV2.UI
 {
@@ -97,6 +98,23 @@ namespace DimensioneringV2.UI
                 async (obj) =>
                 {
                     await ed.CommandAsync("DIM2MAPCOLLECTFEATURES");
+                }, null
+                );
+        }
+        #endregion
+
+        #region LoadElevationsCommand
+        public RelayCommand LoadElevationsCommand => new RelayCommand(LoadElevationsExecute);
+
+        private async void LoadElevationsExecute()
+        {
+            var docs = AcAp.DocumentManager;
+            var ed = docs.MdiActiveDocument.Editor;
+
+            await docs.ExecuteInCommandContextAsync(
+                async (obj) =>
+                {
+                    await ed.CommandAsync("DIM2MAPLOADELEVATIONS");
                 }, null
                 );
         }
@@ -796,99 +814,6 @@ namespace DimensioneringV2.UI
         }
         #endregion
 
-        #region PerformCalculationsPhysarumCommand
-        public AsyncRelayCommand PerformCalculationsPhysarumCommand => new(PerformCalculationsPhysarumExecuteAsync);
-
-        private async Task PerformCalculationsPhysarumExecuteAsync()
-        {
-            var props = new List<(Func<BFEdge, dynamic> Getter, Action<BFEdge, dynamic> Setter)>
-            {
-                (f => f.NumberOfBuildingsConnected, (f, v) => f.NumberOfBuildingsSupplied = v),
-                (f => f.NumberOfUnitsConnected, (f, v) => f.NumberOfUnitsSupplied = v),
-                (f => f.HeatingDemandConnected, (f, v) => f.HeatingDemandSupplied = v)
-            };
-
-            try
-            {
-                //Init the hydraulic calculation service using current settings
-                HydraulicCalculationService.Initialize();
-
-                //var reportingWindow = new GeneticOptimizedReporting();
-                //reportingWindow.Show();
-                //GeneticOptimizedReportingContext.VM = (GeneticOptimizedReportingViewModel)reportingWindow.DataContext;
-                //GeneticOptimizedReportingContext.VM.Dispatcher = reportingWindow.Dispatcher;
-
-                //var dispatcher = GeneticOptimizedReportingContext.VM.Dispatcher;
-
-                await Task.Run(() =>
-                {
-                    var graphs = _dataService.Graphs;
-
-                    //Reset the results
-                    foreach (var f in graphs.SelectMany(g => g.Edges.Select(e => e.PipeSegment))) f.ResetHydraulicResults();
-
-                    foreach (UndirectedGraph<NodeJunction, EdgePipeSegment> originalGraph in graphs)
-                    {
-                        var phyGraph = new UndirectedGraph<PhyNode, PhyEdge>();
-
-                        var nodeMap = new Dictionary<NodeJunction, PhyNode>();
-
-                        foreach (var node in originalGraph.Vertices)
-                        {
-                            var phyNode = new PhyNode(node);
-
-                            if (node.IsRootNode) phyNode.IsSource = true;
-                            if (node.IsBuildingNode) phyNode.IsTerminal = true;
-
-                            if (phyNode.IsTerminal)
-                            {
-                                //Here we assume that building nodes only have one edge attached
-                                var serviceLine = originalGraph.AdjacentEdges(node).First();
-                                phyNode.ExternalDemand = -serviceLine.PipeSegment.HeatingDemandConnected;
-                            }
-
-                            if (phyNode.IsSource)
-                                phyNode.ExternalDemand = originalGraph.Edges
-                                    .Sum(x => x.PipeSegment.HeatingDemandConnected);
-
-                            phyGraph.AddVertex(phyNode);
-                            nodeMap.Add(node, phyNode);
-                        }
-
-                        foreach (var edge in originalGraph.Edges)
-                        {
-                            var phyEdge = new PhyEdge(nodeMap[edge.Source], nodeMap[edge.Target], edge);
-                            phyGraph.AddEdge(phyEdge);
-                        }
-
-                        var solver = new PhysarumSolver(phyGraph, i => Utils.prtDbg($"Iteration {i}"));
-                        solver.Run(1000);
-
-                        foreach (var phyEdge in phyGraph.Edges)
-                        {
-                            phyEdge.OriginalEdge.PipeSegment.HeatingDemandSupplied = phyEdge.Flow;
-                        }
-                    }
-                });
-
-                //var graphs = _dataService.Graphs;
-
-                ////Perform post processing
-                //foreach (var graph in graphs)
-                //{
-                //    CriticalPathService.Calculate(graph);
-                //}
-            }
-            catch (System.Exception ex)
-            {
-                utils.prdDbg($"An error occurred during calculations: {ex.Message}");
-                utils.prdDbg(ex);
-            }
-
-            Utils.prtDbg("Calculations completed.");
-        }
-        #endregion
-
         #region Dim2ImportDims Command
         public AsyncRelayCommand Dim2ImportDimsCommand => new AsyncRelayCommand(Dim2ImportDims);
         private async Task Dim2ImportDims()
@@ -1228,7 +1153,7 @@ namespace DimensioneringV2.UI
             if (feature.NumberOfBuildingsSupplied == 0) return;
 
             var settings = HydraulicSettingsService.Instance.Settings;
-            List<PressureProfileEntry> entries = null;
+            List<PressureProfileEntry>? entries = null;
 
             try
             {
@@ -1264,21 +1189,26 @@ namespace DimensioneringV2.UI
 
                     if (!pred.TryGetPath(targetNode, out var path)) return; //<-- HERE MAKE THE WINDOW DISPLAY AN ERROR TEXT
 
+                    //The pressure profile must be calculated observing the total DP needed for network
+                    //And not just the pressure loss on the path to the client node
+                    //Whole network has the total pressure to supply the whole network
+                    //So each path to individual consumer must consinder not only
+                    //Paths' pressure loss but the total pressure level
+
                     var lossAtClient = settings.MinDifferentialPressureOverHovedHaner;
 
                     double paToBar = 100_000.0;
 
-                    var totalDP = path.Sum(
-                        x => (x.PressureGradientReturn + x.PressureGradientSupply) * x.Length) / paToBar
-                        + lossAtClient;
+                    //Here we get the total pressure level needed for the whole network
+                    var totalDP = graph.Edges.Max(x => x.OriginalEdge.PipeSegment.PressureLossAtClient);
 
-                    entries = [new(0, 0, totalDP)];
-                    double length = 0, sp = 0, rp = totalDP;
+                    entries = [new(0, totalDP, 0)];
+                    double length = 0, sp = totalDP, rp = 0;
                     foreach (var edge in path)
                     {
                         length += edge.Length;
-                        sp += edge.Length * edge.PressureGradientSupply / paToBar;
-                        rp -= edge.Length * edge.PressureGradientReturn / paToBar;
+                        sp -= edge.Length * edge.PressureGradientSupply / paToBar;
+                        rp += edge.Length * edge.PressureGradientReturn / paToBar;
                         entries.Add(new(length, sp, rp));
                     }
                 });
@@ -1293,6 +1223,45 @@ namespace DimensioneringV2.UI
             {
                 Utils.prtDbg(ex);
                 return;
+            }
+        }
+        #endregion
+
+        #region Test Elevations Command
+        public AsyncRelayCommand TestElevationsCommand => new AsyncRelayCommand(TestElevations);
+        private async Task TestElevations()
+        {
+            try
+            {
+                var graphs = _dataService.Graphs;
+
+                var caches = graphs
+                    .SelectMany(g => g.Edges.Select(e => e.PipeSegment))
+                    .Select(f => f.Elevations)
+                    .ToArray();
+
+                var progress = new Progress<(int done, int total)>(t =>
+                {
+                    Utils.prtDbg($"Elevation sampling progress: {t.done}/{t.total}");
+                });
+
+                var dispatcher = new ElevationDispatcher();
+
+                var res = await dispatcher.PreSampleAsync(caches, 5, progress: progress);
+
+                if (res.Ok)
+                {
+                    AcContext.Current.Post(_ =>
+                    {
+                        AutoCAD.WriteElevations2CurrentDrawing.Write(caches);
+                    }, null);
+                }
+                else Utils.prtDbg(res.Error);
+            }
+            catch (System.Exception ex)
+            {
+                utils.prdDbg($"An error occurred during elevations testing: {ex.Message}");
+                utils.prdDbg(ex);
             }
         }
         #endregion

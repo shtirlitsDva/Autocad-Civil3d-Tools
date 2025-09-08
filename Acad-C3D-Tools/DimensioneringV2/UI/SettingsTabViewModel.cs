@@ -47,7 +47,7 @@ namespace DimensioneringV2.UI
             };
         }
         public IEnumerable<PipeType> ValidPipeTypesFL
-        => MediumRulesFactory.GetRules(Settings.MedieType).GetValidPipeTypesForSupply();
+            => MediumRulesFactory.GetRules(Settings.MedieType).GetValidPipeTypesForSupply();
 
         public IEnumerable<PipeType> ValidPipeTypesSL
             => MediumRulesFactory.GetRules(Settings.MedieType).GetValidPipeTypesForService();

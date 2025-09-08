@@ -1,0 +1,4 @@
+{"id":"1","type":"HELLO","payload":{}}
+{"id":"2","type":"SET_PROJECT","payload":{"projectId":"K1LJKYA7","basePath":"C:\\Temp\\GDALTest"}}
+{"id":"3","type":"SAMPLE_POINTS","payload":{"threads":0,"points":[{"geomId":42,"seq":0,"s_m":0.0,"x":685970.9942,"y":6170310.4412},{"geomId":42,"seq":1,"s_m":1.0,"x":686342.83,"y":6170626.18},{"geomId":77,"seq":0,"s_m":0.0,"x":686079.69,"y":6170910.595},{"geomId":77,"seq":1,"s_m":0.0,"x":686079.69,"y":6170910.595}]}}
+{"id":"9","type":"SHUTDOWN","payload":{}}

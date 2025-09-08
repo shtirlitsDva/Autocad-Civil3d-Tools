@@ -59,6 +59,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NorsynHydraulicNuget", "Nor
 EndProject
 Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "FormsSHARED", "FormsSHARED\FormsSHARED.shproj", "{30B69123-15B9-4243-946E-EE2B2953244D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GDALService", "GDALService\GDALService.csproj", "{3766D21C-5944-4CE6-BE50-721DC127895B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -227,6 +229,14 @@ Global
 		{67E99206-B86E-43A8-AB5D-C1DC41DECBE5}.Release|Any CPU.Build.0 = Release|Any CPU
 		{67E99206-B86E-43A8-AB5D-C1DC41DECBE5}.Release|x64.ActiveCfg = Release|Any CPU
 		{67E99206-B86E-43A8-AB5D-C1DC41DECBE5}.Release|x64.Build.0 = Release|Any CPU
+		{3766D21C-5944-4CE6-BE50-721DC127895B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3766D21C-5944-4CE6-BE50-721DC127895B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3766D21C-5944-4CE6-BE50-721DC127895B}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{3766D21C-5944-4CE6-BE50-721DC127895B}.Debug|x64.Build.0 = Debug|Any CPU
+		{3766D21C-5944-4CE6-BE50-721DC127895B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3766D21C-5944-4CE6-BE50-721DC127895B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3766D21C-5944-4CE6-BE50-721DC127895B}.Release|x64.ActiveCfg = Release|Any CPU
+		{3766D21C-5944-4CE6-BE50-721DC127895B}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

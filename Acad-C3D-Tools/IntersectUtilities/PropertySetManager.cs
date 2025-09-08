@@ -3,14 +3,19 @@ using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Data;
 using System.Linq;
+
 using Autodesk.Aec.PropertyData.DatabaseServices;
 using Autodesk.AutoCAD.ApplicationServices.Core;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Runtime;
 using Autodesk.Civil.DatabaseServices;
+
 using IntersectUtilities.UtilsCommon;
+
 using MoreLinq;
+
 using static IntersectUtilities.UtilsCommon.Utils;
+
 using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
@@ -456,7 +461,7 @@ namespace IntersectUtilities
             }
         }
 
-        public static object ReadNonDefinedPropertySetObject(
+        public static object? ReadNonDefinedPropertySetObject(
             Entity ent,
             string propertySetName,
             string propertyName
@@ -465,27 +470,23 @@ namespace IntersectUtilities
             ObjectIdCollection psIds = PropertyDataServices.GetPropertySets(ent);
             Dictionary<string, PropertySet> pss = new Dictionary<string, PropertySet>();
 
-            using (
-                OpenCloseTransaction tx =
-                    ent.Database.TransactionManager.StartOpenCloseTransaction()
-            )
-            {
-                foreach (Oid oid in psIds)
-                {
-                    PropertySet ps = oid.Go<PropertySet>(tx);
-                    pss[ps.PropertySetDefinitionName] = ps;
-                }
+            using OpenCloseTransaction tx =
+                    ent.Database.TransactionManager.StartOpenCloseTransaction();
 
-                if (pss.TryGetValue(propertySetName, out PropertySet matchingPropertySet))
+            foreach (Oid oid in psIds)
+            {
+                PropertySet ps = oid.Go<PropertySet>(tx);
+
+                if (ps.PropertySetDefinitionName == propertySetName)
                 {
-                    int id = matchingPropertySet.PropertyNameToId(propertyName);
-                    object value = matchingPropertySet.GetAt(id);
+                    int id = ps.PropertyNameToId(propertyName);
+                    object value = ps.GetAt(id);
                     tx.Commit();
                     return value;
                 }
-
-                tx.Commit();
             }
+
+            tx.Commit();
             return null;
         }
 
@@ -805,7 +806,7 @@ namespace IntersectUtilities
 
             var psName = StringGridFormCaller.Call(
                 dpsdict.NamesInUse.ToList().Order(), "Select property set: ");
-            
+
             if (psName == null) return default;
 
             PropertySetDefinition psDef = dpsdict

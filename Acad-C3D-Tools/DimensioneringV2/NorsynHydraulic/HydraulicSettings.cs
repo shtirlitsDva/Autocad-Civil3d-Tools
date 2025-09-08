@@ -39,6 +39,9 @@ public partial class HydraulicSettings : ObservableObject, IHydraulicSettings
     private int procentTillægTilTryktab = 0;
 
     [ObservableProperty]
+    private double tillægTilHoldetryk = 1.3;
+
+    [ObservableProperty]
     private int numberOfGSLUToEnd = 300;
 
     [ObservableProperty]

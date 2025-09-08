@@ -21,6 +21,7 @@ namespace DimensioneringV2.Serialization
         public double[][] Coordinates { get; set; }
         public double[][]? OriginalStik { get; set; }
         public double[][]? OriginalVej { get; set; }
+        public double[][] FullGeometry { get; set; }
 
         public Dictionary<string, JsonElement> Attributes { get; set; }
 
@@ -47,6 +48,10 @@ namespace DimensioneringV2.Serialization
                     .Select(c => new[] { c.X, c.Y })
                     .ToArray();
 
+            FullGeometry = analysisFeature.OriginalGeometry.FullGeometry.Coordinates
+                .Select(c => new[] { c.X, c.Y })
+                .ToArray();
+
             Attributes = new Dictionary<string, JsonElement>();
 
             foreach (var field in analysisFeature.Fields)
@@ -69,10 +74,12 @@ namespace DimensioneringV2.Serialization
                 originalVej = new LineString(
                     OriginalVej.Select(
                         c => new Coordinate(c[0], c[1])).ToArray());
+            LineString fullGeometry = new LineString(
+                FullGeometry.Select(c => new Coordinate(c[0], c[1])).ToArray());
             var typedAttributes = DictionaryObjectConverter.ConvertAttributesToTyped(
                 Attributes, typeof(AnalysisFeature), options);
             return new AnalysisFeature(
-                geometry, new OriginalGeometry(originalStik, originalVej), typedAttributes);
+                geometry, new OriginalGeometry(originalStik, originalVej, fullGeometry), typedAttributes);
         }
     }
 }

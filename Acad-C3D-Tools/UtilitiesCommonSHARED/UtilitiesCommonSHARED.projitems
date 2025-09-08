@@ -21,6 +21,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)DataManager\StierRecord.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)DouglasPeuckerReduction.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Enums.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Infrastructure.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)UtilsCommon.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Win32Cursor.cs" />
   </ItemGroup>
