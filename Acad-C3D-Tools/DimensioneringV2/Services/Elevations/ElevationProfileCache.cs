@@ -13,13 +13,15 @@ namespace DimensioneringV2.Services.Elevations
 {
     internal sealed class ElevationProfileCache
     {
+        public AnalysisFeature Owner { get; init; }
         private readonly OriginalGeometry _og;   // FullGeometry in EPSG:25832
         private readonly object _lock = new();
         private List<ElevationSample>? _forward;
         public bool Sampled => _forward != null && _forward.Count != 0;
 
-        public ElevationProfileCache(OriginalGeometry og)
+        public ElevationProfileCache(AnalysisFeature owner, OriginalGeometry og)
         {
+            this.Owner = owner;
             _og = og ?? throw new ArgumentNullException(nameof(og));
         }
 
@@ -29,7 +31,7 @@ namespace DimensioneringV2.Services.Elevations
         {
             lock (_lock) { _forward = [.. forward]; }
         }
-        public IReadOnlyList<ElevationSample> GetProfile(Coordinate start3857, Coordinate end3857)
+        public IReadOnlyList<ElevationSample> GetProfile(Coordinate start, Coordinate end)
         {            
             var fwd = _forward!;
             var len = _og.Length;
@@ -37,7 +39,7 @@ namespace DimensioneringV2.Services.Elevations
             var gs = _og.FullGeometry.StartPoint.Coordinate;
             var ge = _og.FullGeometry.EndPoint.Coordinate;
             var (ex, ey) = Normalize(ge.X - gs.X, ge.Y - gs.Y);
-            var (vx, vy) = Normalize(end3857.X - start3857.X, end3857.Y - start3857.Y);
+            var (vx, vy) = Normalize(end.X - start.X, end.Y - start.Y);
             double dot = ex * vx + ey * vy;
 
             if (dot >= 0) return fwd;

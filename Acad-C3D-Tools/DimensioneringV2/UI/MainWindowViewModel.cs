@@ -1208,14 +1208,7 @@ namespace DimensioneringV2.UI
                         targetEdge.Source : targetEdge.Target;
 
                     var root = graph.GetRoot();
-                    if (root == null) return; //<-- HERE MAKE THE WINDOW DISPLAY AN ERROR TEXT
-
-                    var bfs = new UndirectedBreadthFirstSearchAlgorithm<BFNode, BFEdge>(graph);
-                    var pred = new UndirectedVertexPredecessorRecorderObserver<BFNode, BFEdge>();
-                    pred.Attach(bfs);
-                    bfs.Compute(root);
-
-                    if (!pred.TryGetPath(targetNode, out var path)) return; //<-- HERE MAKE THE WINDOW DISPLAY AN ERROR TEXT
+                    if (root == null) return; //<-- HERE MAKE THE WINDOW DISPLAY AN ERROR TEXT                    
 
                     //Calculate the new pressure profile with elevations
                     //Step 1. Calculate holdetryk
@@ -1223,10 +1216,24 @@ namespace DimensioneringV2.UI
                     //Max kote:
                     caches = graph.Edges.Select(x => x.OriginalEdge.PipeSegment.Elevations);
                     var maxKote = caches.Max(x => x.GetDefaultProfile().Max(y => y.Elevation));
+                    //Holdetryk
+                    var holdeTrykMVS = maxKote - graph.RootElevation(root)
+                    + settings.TillægTilHoldetrykMVS;
 
+                    //Max overpressure
+                    var neededSupplyPmVS = graph.Edges.Max(
+                        x => x.OriginalEdge.PipeSegment.PressureLossAtClient)
+                    .mVS();
 
+                    //Total maximum pressure
+                    var maxPmVS = holdeTrykMVS + neededSupplyPmVS;
 
-                    var lossAtClient = settings.MinDifferentialPressureOverHovedHaner;
+                    //Compute the elevation profile, this should be oriented in the path dir
+                    var path = graph.OrientedProfiles(root, targetNode);
+
+                    
+
+                    
 
                     double paToBar = 100_000.0;
 

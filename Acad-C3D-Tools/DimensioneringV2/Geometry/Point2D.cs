@@ -7,6 +7,8 @@ using System.Windows.Media.Media3D;
 
 using Autodesk.AutoCAD.Geometry;
 
+using NetTopologySuite.Geometries;
+
 namespace DimensioneringV2.Geometry
 {
     internal readonly struct Point2D
@@ -49,6 +51,7 @@ namespace DimensioneringV2.Geometry
                 return hash;
             }
         }
+        public Coordinate Coordinate => new Coordinate(X, Y);
         public Point2d To2d() => new Point2d(X, Y);
         public Point3d To3d() => new Point3d(X, Y, 0);
         // Implement == and != operators

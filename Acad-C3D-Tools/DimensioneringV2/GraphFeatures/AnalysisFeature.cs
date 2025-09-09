@@ -34,14 +34,14 @@ namespace DimensioneringV2.GraphFeatures
         {
             foreach (var field in analysisFeature.Fields) this[field] = analysisFeature[field];
             this.OriginalGeometry = analysisFeature.OriginalGeometry;
-            this.Elevations = new ElevationProfileCache(OriginalGeometry);
+            this.Elevations = new ElevationProfileCache(this, OriginalGeometry);
         }
         public AnalysisFeature(
             NetTopologySuite.Geometries.Geometry? geometry,
             OriginalGeometry originalGeometry) : base(geometry)
         {
             OriginalGeometry = originalGeometry;
-            Elevations = new ElevationProfileCache(originalGeometry);
+            Elevations = new ElevationProfileCache(this, originalGeometry);
         }
         public AnalysisFeature(
             NetTopologySuite.Geometries.Geometry geometry,
@@ -53,7 +53,7 @@ namespace DimensioneringV2.GraphFeatures
                 this[attribute.Key] = attribute.Value;
             }
             this.OriginalGeometry = originalGeometry;
-            this.Elevations = new ElevationProfileCache(originalGeometry);
+            this.Elevations = new ElevationProfileCache(this, originalGeometry);
         }
         #endregion
 

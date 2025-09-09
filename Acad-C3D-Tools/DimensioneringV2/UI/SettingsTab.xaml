@@ -92,7 +92,7 @@
                     <Label Grid.Row="8" Grid.Column="0" Content="Ruhed PE [mm:Decimaltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
                     <TextBox Grid.Row="8" Grid.Column="1" Width="50" Text="{Binding Settings.RuhedPe, UpdateSourceTrigger=PropertyChanged}"/>
 
-                    <Label Grid.Row="9" Grid.Column="0" Content="Tillæg til holdetryk [bar:Decimaltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
+                    <Label Grid.Row="9" Grid.Column="0" Content="Tillæg til holdetryk [mVS:Decimaltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
                     <TextBox Grid.Row="9" Grid.Column="1" Width="50" Text="{Binding Settings.TillægTilHoldetryk, UpdateSourceTrigger=PropertyChanged}"/>
 
                     <Label Grid.Row="10" Grid.Column="0" Content="Tillæg til tryktab i procent [%:Heltal]: (virker ikke)" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>

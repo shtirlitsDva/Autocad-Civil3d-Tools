@@ -5,9 +5,12 @@ using DimensioneringV2.BruteForceOptimization;
 using DimensioneringV2.Geometry;
 using DimensioneringV2.GraphFeatures;
 using DimensioneringV2.Services;
+using DimensioneringV2.Services.Elevations;
 using DimensioneringV2.SteinerTreeProblem;
 
 using QuikGraph;
+using QuikGraph.Algorithms.Observers;
+using QuikGraph.Algorithms.Search;
 
 using System;
 using System.Collections.Generic;
@@ -82,6 +85,8 @@ namespace DimensioneringV2
 
             return stp;
         }
+        public static double mVS(this double bar) => bar * 10.19744;
+        public static double Bar(this double mVS) => mVS / 10.19744;
         #endregion
 
         #region Graph extensions
@@ -322,6 +327,85 @@ namespace DimensioneringV2
             var rootNode = graph.Vertices.FirstOrDefault(x => x.IsRootNode);
             if (rootNode != null) return rootNode;
             else return null;
+        }
+        public static double RootElevation(this UndirectedGraph<BFNode, BFEdge> graph, BFNode root)
+        {
+            if (graph == null) throw new ArgumentNullException(nameof(graph));
+            if (root == null) throw new ArgumentNullException(nameof(root));
+
+            // Ensure root has exactly one incident edge
+            var edge = graph.AdjacentEdges(root).SingleOrDefault();
+            if (edge == null)
+                throw new InvalidOperationException("Root node has no incident edge.");
+
+            // Orient profile: root → neighbor
+            var neighbor = edge.Source.Equals(root) ? edge.Target : edge.Source;
+
+            var cache = edge.OriginalEdge.PipeSegment.Elevations;
+            var prof = cache.GetProfile(
+                root.OriginalNodeJunction.Location.Coordinate,
+                neighbor.OriginalNodeJunction.Location.Coordinate);
+
+            if (prof.Count == 0)
+                throw new InvalidOperationException("No elevation samples available for root edge.");
+
+            return prof[0].Elevation;
+        }
+        /// <summary>
+        /// Returns oriented elevation profiles along the BFS path root→target.
+        /// Each tuple is (AnalysisFeature, oriented profile) in traversal order.
+        /// </summary>
+        public static IEnumerable<(AnalysisFeature feature, List<ElevationSample> profile)>
+            OrientedProfiles(this UndirectedGraph<BFNode, BFEdge> graph, BFNode root, BFNode target)
+        {
+            if (graph == null) throw new System.ArgumentNullException(nameof(graph));
+            if (root == null) throw new System.ArgumentNullException(nameof(root));
+            if (target == null) throw new System.ArgumentNullException(nameof(target));
+            if (Equals(root, target)) yield break;
+
+            // BFS + predecessor recorder
+            var bfs = new UndirectedBreadthFirstSearchAlgorithm<BFNode, BFEdge>(graph);
+            var rec = new UndirectedVertexPredecessorRecorderObserver<BFNode, BFEdge>();
+            rec.Attach(bfs);
+            bfs.Compute(root);
+
+            // Reconstruct vertex path root→target
+            var vs = ReconstructVertexPath(root, target, rec.VerticesPredecessors);
+            if (vs.Count < 2) yield break;
+
+            // Walk consecutive vertex pairs; orient each edge’s profile
+            for (int i = 0; i < vs.Count - 1; i++)
+            {
+                var a = vs[i];
+                var b = vs[i + 1];
+
+                // find the undirected edge between a and b
+                var edge = graph.AdjacentEdges(a).First(e => e.Source.Equals(b) || e.Target.Equals(b));
+
+                var feature = edge.OriginalEdge.PipeSegment;                 // AnalysisFeature
+                var cache = feature.Elevations;                            // ElevationProfileCache
+                var prof = cache.GetProfile(
+                    a.Location.Coordinate, b.Location.Coordinate)     // orient by node vectors (EPSG:3857)
+                .ToList();                                // materialize
+
+                yield return (feature, prof);
+            }
+
+            List<BFNode> ReconstructVertexPath(
+                BFNode root, BFNode target, IDictionary<BFNode, BFEdge> pred)
+            {
+                var vs = new List<BFNode>();
+                var v = target;
+                while (!Equals(v, root))
+                {
+                    if (!pred.TryGetValue(v, out var pe)) return new List<BFNode>(); // unreachable
+                    vs.Add(v);
+                    v = pe.Source.Equals(v) ? pe.Target : pe.Source; // step toward root
+                }
+                vs.Add(root);
+                vs.Reverse();
+                return vs;
+            }
         }
         #endregion
 
