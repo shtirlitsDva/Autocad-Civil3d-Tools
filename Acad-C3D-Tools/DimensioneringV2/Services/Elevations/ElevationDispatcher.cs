@@ -90,8 +90,13 @@ namespace DimensioneringV2.Services.Elevations
                 {
                     double idx = (s < len) ? s : len;
                     var p = lil.ExtractPoint(idx);
-                    reqs.Add(new RequestRow(gid, seq++, s, p.X, p.Y));
+                    reqs.Add(new RequestRow(gid, seq++, idx, p.X, p.Y));
                 }
+
+                //Add end point as it is (almost) never added in the loop
+                double remainder = len % spacingMeters;
+                if (remainder > 0.001) // if not already added
+                    reqs.Add(new RequestRow(gid, seq++, len, ls.EndPoint.X, ls.EndPoint.Y));
             }
 
             // 2) Call GDALService (tagged points). Catch and report failures.
