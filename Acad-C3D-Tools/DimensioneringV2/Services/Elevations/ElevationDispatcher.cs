@@ -57,7 +57,7 @@ namespace DimensioneringV2.Services.Elevations
         }
 
         /// <summary>Sample ALL caches at a given spacing (meters) and populate caches. Returns number of caches populated.</summary>
-        public async Task<OpResult<int>> PreSampleAsync(
+        public async Task<OpResult<int>> SampleAsync(
             IEnumerable<ElevationProfileCache> caches,
             double spacingMeters,
             int? maxThreads = null,

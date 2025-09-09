@@ -155,8 +155,6 @@
 	</ItemGroup>
 	<ItemGroup>
 		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
-		<PackageReference Include="GDAL" Version="3.11.3" />
-		<PackageReference Include="GDAL.Native" Version="3.11.3" />
 		<PackageReference Include="GeneticSharp" Version="3.1.4" />
 		<PackageReference Include="HandyControls" Version="3.6.0" />
 		<PackageReference Include="Mapsui" Version="4.1.9" />

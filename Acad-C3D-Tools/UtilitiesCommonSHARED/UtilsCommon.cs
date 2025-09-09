@@ -716,7 +716,7 @@ namespace IntersectUtilities.UtilsCommon
                 { "Kedelrørsbøjning, vertikal", PipelineElementType.Kedelrørsbøjning },
                 { "Lige afgrening", PipelineElementType.LigeAfgrening },
                 { "Parallelafgrening", PipelineElementType.AfgreningParallel },
-                { "Bøjning, 90gr", PipelineElementType.PræisoleretBøjning90gr },
+                { "Præisoleret bøjning, 90gr", PipelineElementType.PræisoleretBøjning90gr },
                 { "Bøjning, 45gr", PipelineElementType.Bøjning45gr },
                 { "Bøjning, 30gr", PipelineElementType.Bøjning30gr },
                 { "Bøjning, 15gr", PipelineElementType.Bøjning15gr },
