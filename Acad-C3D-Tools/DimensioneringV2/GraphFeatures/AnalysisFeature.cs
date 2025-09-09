@@ -324,6 +324,19 @@ namespace DimensioneringV2.GraphFeatures
         }
 
         /// <summary>
+        /// Differential pressure at the client.
+        /// This is intented only for clients' connections
+        /// where the differential pressure is calculated
+        /// using the max pressure for network minus
+        /// pressure loss for the whole path in both dirs.
+        /// </summary>
+        public double DifferentialPressureAtClient
+        {
+            get => this["DifferentialPressureAtClient"] as double? ?? 0;
+            set => this["DifferentialPressureAtClient"] = value;
+        }
+
+        /// <summary>
         /// Marks the segment as a part of a critical path.
         /// </summary>
         [MapProperty(MapPropertyEnum.CriticalPath)]
@@ -349,6 +362,8 @@ namespace DimensioneringV2.GraphFeatures
             VelocityReturn = 0;
             UtilizationRate = 0;
             IsCriticalPath = false;
+            PressureLossAtClient = 0;
+            DifferentialPressureAtClient = 0;
             //SubGraphId = 0;
         }
         #region ICloneable Implementation
@@ -368,7 +383,8 @@ namespace DimensioneringV2.GraphFeatures
         {
             "BoundingBox",
             "Attributes",
-            "OriginalGeometry"
+            "OriginalGeometry",
+            "Elevations"
         };
         IEnumerable<PropertyItem> IInfoForFeature.PropertiesToDataGrid()
         {

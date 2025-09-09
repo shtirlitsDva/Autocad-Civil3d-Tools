@@ -95,7 +95,7 @@ namespace DimensioneringV2.Services.Elevations
 
                 //Add end point as it is (almost) never added in the loop
                 double remainder = len % spacingMeters;
-                if (remainder > 0.001) // if not already added
+                if (remainder > 0.001)
                     reqs.Add(new RequestRow(gid, seq++, len, ls.EndPoint.X, ls.EndPoint.Y));
             }
 

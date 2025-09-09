@@ -10,6 +10,8 @@ namespace IntersectUtilities
     {
         public static string Call(IEnumerable<string> list, string message)
         {
+            if (list == null || !list.Any())
+                throw new ArgumentException("List cannot be null or empty.", nameof(list));
             var form = new Forms.StringGridForm(list, message);
             form.ShowDialog();
             return form.SelectedValue;

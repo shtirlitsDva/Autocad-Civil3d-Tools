@@ -17,24 +17,19 @@ using System.Threading.Tasks;
 
 namespace DimensioneringV2.Services.SubGraphs
 {
-    internal class CriticalPathService
+    internal class PressureAnalysisService
     {
-        internal static void Calculate(
+        internal static void CalculateDifferentialLossAtClient(
             UndirectedGraph<NodeJunction, EdgePipeSegment> graph)
         {
-            ElevationService es = ElevationService.Instance;
-            
-
             var cGraph = graph.CopyToBFConditional(e => e.PipeSegment.NumberOfBuildingsSupplied > 0);
             foreach (var edge in cGraph.Edges) edge.YankAllResults();
 
+            //Calculate paths
             var rootNode = cGraph.Vertices.First(v => v.IsRootNode);
             var clientNodes = cGraph.Vertices.Where(v => v.IsBuildingNode);
 
-            var tryGetPaths = cGraph.ShortestPathsDijkstra(edge => edge.Length, rootNode);            
-
-
-
+            var tryGetPaths = cGraph.ShortestPathsDijkstra(edge => edge.Length, rootNode);
 
             List<(
                 BFNode client,
@@ -60,7 +55,7 @@ namespace DimensioneringV2.Services.SubGraphs
                     path.path.Sum(e =>
                     (e.PressureGradientReturn +
                     e.PressureGradientSupply) *
-                    e.Length) / 100000 + 
+                    e.Length) / 100000 +
                     HydraulicSettingsService.Instance.Settings
                     .MinDifferentialPressureOverHovedHaner;
 
@@ -74,7 +69,21 @@ namespace DimensioneringV2.Services.SubGraphs
             foreach (var edge in criticalPath.path)
             {
                 edge.IsCriticalPath = true;
-                edge.OriginalEdge.PipeSegment.IsCriticalPath = true;                
+                edge.OriginalEdge.PipeSegment.IsCriticalPath = true;
+            }
+
+            //Calculate diff pressure at client
+            var maxPressure = criticalPath.stik.PressureLossAtClient;
+
+            foreach (var path in paths)
+            {
+                path.stik.DifferentialPressureAtClient =
+                    maxPressure - path.stik.PressureLossAtClient +
+                    HydraulicSettingsService.Instance.Settings
+                    .MinDifferentialPressureOverHovedHaner;
+                //Push result to original edge
+                path.stik.OriginalEdge.PipeSegment
+                    .DifferentialPressureAtClient = path.stik.DifferentialPressureAtClient;
             }
         }
     }

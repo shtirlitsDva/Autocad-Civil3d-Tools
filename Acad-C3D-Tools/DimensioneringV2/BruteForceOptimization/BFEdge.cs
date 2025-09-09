@@ -40,6 +40,7 @@ namespace DimensioneringV2.BruteForceOptimization
         public double PressureGradientSupply { get; set; }
         public double PressureGradientReturn { get; set; }
         public double PressureLossAtClient { get; set; } // Pressure loss at the client
+        public double DifferentialPressureAtClient { get; set; }
         public bool IsCriticalPath { get; set; } = false;
         public double VelocitySupply { get; set; }
         public double VelocityReturn { get; set; }
@@ -69,6 +70,7 @@ namespace DimensioneringV2.BruteForceOptimization
             OriginalEdge.PipeSegment.PressureGradientSupply = PressureGradientSupply;
             OriginalEdge.PipeSegment.PressureGradientReturn = PressureGradientReturn;
             OriginalEdge.PipeSegment.PressureLossAtClient = PressureLossAtClient;
+            OriginalEdge.PipeSegment.DifferentialPressureAtClient = DifferentialPressureAtClient;
             OriginalEdge.PipeSegment.IsCriticalPath = IsCriticalPath;
             OriginalEdge.PipeSegment.VelocitySupply = VelocitySupply;
             OriginalEdge.PipeSegment.VelocityReturn = VelocityReturn;
@@ -99,6 +101,7 @@ namespace DimensioneringV2.BruteForceOptimization
             PressureGradientSupply = OriginalEdge.PipeSegment.PressureGradientSupply;
             PressureGradientReturn = OriginalEdge.PipeSegment.PressureGradientReturn;
             PressureLossAtClient = OriginalEdge.PipeSegment.PressureLossAtClient;
+            DifferentialPressureAtClient = OriginalEdge.PipeSegment.DifferentialPressureAtClient;
             IsCriticalPath = OriginalEdge.PipeSegment.IsCriticalPath;
             VelocitySupply = OriginalEdge.PipeSegment.VelocitySupply;
             VelocityReturn = OriginalEdge.PipeSegment.VelocityReturn;

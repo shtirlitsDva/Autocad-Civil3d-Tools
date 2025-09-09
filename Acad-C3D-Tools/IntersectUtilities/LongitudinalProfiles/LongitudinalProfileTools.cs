@@ -7486,7 +7486,9 @@ namespace IntersectUtilities
                 {
                     foreach (var node in graph.Dfs())
                     {
-                        if (rawMidtProfiles.TryGetValue(node.Name, out var midtProfileId))
+                        var match = rgx.Match(node.Name);
+                        var name = match.Groups["number"].Value;
+                        if (rawMidtProfiles.TryGetValue(name, out var midtProfileId))
                         {
                             midtProfiles[node] = (midtProfileId.Database, midtProfileId);
                         }

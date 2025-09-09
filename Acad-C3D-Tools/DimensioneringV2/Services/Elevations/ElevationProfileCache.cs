@@ -16,6 +16,7 @@ namespace DimensioneringV2.Services.Elevations
         private readonly OriginalGeometry _og;   // FullGeometry in EPSG:25832
         private readonly object _lock = new();
         private List<ElevationSample>? _forward;
+        public bool Sampled => _forward != null && _forward.Count != 0;
 
         public ElevationProfileCache(OriginalGeometry og)
         {

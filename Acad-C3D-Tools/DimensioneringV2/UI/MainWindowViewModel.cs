@@ -16,6 +16,7 @@ using DimensioneringV2.Serialization;
 using DimensioneringV2.Services;
 using DimensioneringV2.Services.SubGraphs;
 using DimensioneringV2.Themes;
+using DimensioneringV2.Common;
 
 using IntersectUtilities.UtilsCommon;
 
@@ -142,7 +143,7 @@ namespace DimensioneringV2.UI
                 //Perform post processing
                 foreach (var graph in graphs)
                 {
-                    CriticalPathService.Calculate(graph);
+                    PressureAnalysisService.CalculateDifferentialLossAtClient(graph);
                 }
             }
             catch (System.Exception ex)
@@ -403,7 +404,7 @@ namespace DimensioneringV2.UI
             //Perform post processing
             foreach (var graph in graphs)
             {
-                CriticalPathService.Calculate(graph);
+                PressureAnalysisService.CalculateDifferentialLossAtClient(graph);
             }
         }
         #endregion
@@ -796,18 +797,20 @@ namespace DimensioneringV2.UI
                     }
                 });
 
+                //Perform post processing
+                //Pressure profile analysis
                 var graphs = _dataService.Graphs;
 
-                //Perform post processing
                 foreach (var graph in graphs)
                 {
-                    CriticalPathService.Calculate(graph);
+                    PressureAnalysisService.CalculateDifferentialLossAtClient(graph);
                 }
+
             }
             catch (System.Exception ex)
             {
-                utils.prdDbg($"An error occurred during calculations: {ex.Message}");
-                utils.prdDbg(ex);
+                Utils.prtDbg($"An error occurred during calculations: {ex.Message}");
+                Utils.prtDbg(ex);
             }
 
             Utils.prtDbg("Calculations completed.");
@@ -1153,14 +1156,39 @@ namespace DimensioneringV2.UI
             if (feature.NumberOfBuildingsSupplied == 0) return;
 
             var settings = HydraulicSettingsService.Instance.Settings;
-            List<PressureProfileEntry>? entries = null;
+            List<PressureProfileEntry>? entries = null;            
 
             try
             {
-                await Task.Run(() =>
+                await Task.Run(async () =>
                 {
                     var graphs = DataService.Instance.Graphs;
 
+                    //Handle elevations
+                    var caches = graphs
+                        .SelectMany(g => g.Edges.Select(e => e.PipeSegment))
+                        .Select(f => f.Elevations);
+
+                    var res = OpResult<int>.Success(0);
+
+                    if (!caches.All(x => x.Sampled))
+                    {
+                        var progress = new Progress<(int done, int total)>(t =>
+                        {
+                            Utils.prtDbg($"Elevation sampling progress: {t.done}/{t.total}");
+                        });
+
+                        var gdal = new ElevationDispatcher();
+                        res = await gdal.SampleAsync(caches, 5, progress: progress);
+                    }
+
+                    if (!res.Ok)
+                    {
+                        Utils.prtDbg("Could not sample elevations: " + res.Error);
+                        return;
+                    }
+
+                    //Get the graph that the selected feature is part of
                     var oGraph = graphs.Where(
                         g => g.Edges.Any(
                             e => e.PipeSegment == feature))
@@ -1189,11 +1217,14 @@ namespace DimensioneringV2.UI
 
                     if (!pred.TryGetPath(targetNode, out var path)) return; //<-- HERE MAKE THE WINDOW DISPLAY AN ERROR TEXT
 
-                    //The pressure profile must be calculated observing the total DP needed for network
-                    //And not just the pressure loss on the path to the client node
-                    //Whole network has the total pressure to supply the whole network
-                    //So each path to individual consumer must consinder not only
-                    //Paths' pressure loss but the total pressure level
+                    //Calculate the new pressure profile with elevations
+                    //Step 1. Calculate holdetryk
+                    //Holdetryk er maxkote for netværket - kote fra forsyningspunktet
+                    //Max kote:
+                    caches = graph.Edges.Select(x => x.OriginalEdge.PipeSegment.Elevations);
+                    var maxKote = caches.Max(x => x.GetDefaultProfile().Max(y => y.Elevation));
+
+
 
                     var lossAtClient = settings.MinDifferentialPressureOverHovedHaner;
 

@@ -53,11 +53,12 @@ namespace DimensioneringV2.Labels
                 CollisionDetection = true,
             };            
 
+            //Efter ønske fra JJR skal kritisk kort vise diff tryk
             string? formatCriticalPath(IFeature feature)
             {
                 if (feature is not AnalysisFeature af) return null;
                 if (af.SegmentType != NorsynHydraulicCalc.SegmentType.Stikledning) return null;
-                return af.PressureLossAtClient.ToString("F2");
+                return af.DifferentialPressureAtClient.ToString("F2");
             }
 
             return labelStyle;
