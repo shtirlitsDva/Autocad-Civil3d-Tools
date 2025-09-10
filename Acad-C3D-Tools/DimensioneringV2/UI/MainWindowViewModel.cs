@@ -1214,7 +1214,7 @@ namespace DimensioneringV2.UI
                     caches = graph.Edges.Select(x => x.OriginalEdge.PipeSegment.Elevations);
                     var maxKote = caches.Max(x => x.GetDefaultProfile().Max(y => y.Elevation));
                     //Holdetryk
-                    var holdeTrykMVS = maxKote - graph.RootElevation(root)
+                    var holdeTrykMVS = maxKote // - graph.RootElevation(root)
                     + settings.TillægTilHoldetrykMVS;
 
                     //Required overpressure
@@ -1230,11 +1230,10 @@ namespace DimensioneringV2.UI
 
                     double paToBar = 100_000.0;
 
-                    //First graph
-                    //0. Length, 1. Elevation, 2. Supply pressure, 3. Return pressure
-                    //Units: m, mVS, mVS, mVS
-                    //entries = [new(0, , 0)];
-                    double length = 0, elevation = 0, sp = maxPmVS, rp = holdeTrykMVS;
+                    double length = 0, elevation = 0, 
+                    spmvs = maxPmVS, rpmvs = holdeTrykMVS,
+                    spbar = 0, rpbar = 0;
+
                     foreach (var edge in path)
                     {
                         var (f, p) = edge;
@@ -1244,11 +1243,18 @@ namespace DimensioneringV2.UI
                             var prevSt = i == 0 ? 0 : p[i - 1].Station;
                             var deltaL = pp.Station - prevSt;
 
+                            //Trykniveau
                             length += deltaL;
                             elevation = pp.Elevation;
-                            sp -= (deltaL * f.PressureGradientSupply / paToBar).mVS();
-                            rp += (deltaL * f.PressureGradientReturn / paToBar).mVS();
-                            entries.Add(new(length, elevation, sp, rp));
+                            spmvs -= (deltaL * f.PressureGradientSupply / paToBar).mVS();
+                            rpmvs += (deltaL * f.PressureGradientReturn / paToBar).mVS();
+
+                            //Tryk
+                            spbar = (spmvs - elevation).Bar();
+                            rpbar = (rpmvs - elevation).Bar();                            
+                            
+                            entries.Add(
+                                new(length, elevation, spmvs, rpmvs, spbar, rpbar));
                         }
                     }
                 });

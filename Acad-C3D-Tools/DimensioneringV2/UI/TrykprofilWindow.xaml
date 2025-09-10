@@ -5,9 +5,26 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:DimensioneringV2.UI"
         xmlns:oxy="http://oxyplot.org/wpf"
-        mc:Ignorable="d"      
+        mc:Ignorable="d"
         Title="TrykprofilWindow" Height="450" Width="800">
-    <Grid>
-        <oxy:PlotView Model="{Binding PressurePlot}"/>
-    </Grid>
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <Grid Margin="12">
+            <Grid.RowDefinitions>
+                <!-- First plot can grow to fill remaining viewport height -->
+                <RowDefinition Height="*" />
+                <!-- Second plot measured as content; adds to scrollable height -->
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- Top plot -->
+            <oxy:PlotView Grid.Row="0"
+                          Model="{Binding PressurePlot}"
+                          MinHeight="300" />
+
+            <!-- Bottom plot -->
+            <oxy:PlotView Grid.Row="1"                        
+                          Model="{Binding PressurePlot2}"
+                          Height="300" />
+        </Grid>
+    </ScrollViewer>
 </Window>

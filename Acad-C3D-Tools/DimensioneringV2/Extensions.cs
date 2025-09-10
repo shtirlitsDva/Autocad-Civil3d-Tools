@@ -85,8 +85,8 @@ namespace DimensioneringV2
 
             return stp;
         }
-        public static double mVS(this double bar) => bar * 10.19744;
-        public static double Bar(this double mVS) => mVS / 10.19744;
+        public static double mVS(this double bar) => bar * 10.19716;
+        public static double Bar(this double mVS) => mVS / 10.19716;
         #endregion
 
         #region Graph extensions
