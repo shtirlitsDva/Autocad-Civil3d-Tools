@@ -132,7 +132,7 @@ namespace DimensioneringV2.Services.Elevations
                 if (progress != null)
                 {
                     done++;
-                    if ((done & 0x3FFF) == 0) progress.Report((done, total)); // every ~16k
+                    if ((done & 0x03FF) == 0) progress.Report((done, total)); //1024 lines
                 }
             }
 

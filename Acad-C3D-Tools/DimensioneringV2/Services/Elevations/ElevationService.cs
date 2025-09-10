@@ -68,7 +68,7 @@ namespace DimensioneringV2.Services.Elevations
                 points = points.Select(p => new {
                     geomId = p.geomId,
                     seq = p.seq,
-                    s_m = p.s,
+                    s = p.s,
                     x = p.x,
                     y = p.y
                 }).ToArray()
@@ -85,7 +85,7 @@ namespace DimensioneringV2.Services.Elevations
             {
                 long gid = row.GetProperty("geomId").GetInt32()!;                
                 int seq = row.GetProperty("seq").GetInt32();
-                double s = row.GetProperty("s_M").GetDouble();
+                double s = row.GetProperty("s").GetDouble();
                 double x = row.GetProperty("x").GetDouble();
                 double y = row.GetProperty("y").GetDouble();
                 string status = row.GetProperty("status").GetString()!;

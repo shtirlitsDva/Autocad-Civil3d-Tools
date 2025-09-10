@@ -33,13 +33,13 @@ namespace GDALService.Application.Handlers
             var reporter = new BatchProgressReporter(_options.ProgressEvery); // or inject via options
             var (rows, sum) = Sampler.Sample(
                 ds: ctx.Ds,
-                pts: req.Points.Select(q => new PointIn { GeomId = q.GeomId, Seq = q.Seq, S_M = q.S_M, X = q.X, Y = q.Y }),
+                pts: req.Points.Select(q => new PointIn { GeomId = q.GeomId, Seq = q.Seq, S = q.S, X = q.X, Y = q.Y }),
                 threads: req.Threads,
                 progress: reporter
             );
 
             var outRows = rows.Select(r => new Domain.Models.PointOut
-            { GeomId = r.GeomId, Seq = r.Seq, S_M = r.S_M, X = r.X, Y = r.Y, Elev = r.Elev, Status = r.Status }).ToList();
+            { GeomId = r.GeomId, Seq = r.Seq, S = r.S, X = r.X, Y = r.Y, Elev = r.Elev, Status = r.Status }).ToList();
 
             var res = new SamplePointsRes
             {

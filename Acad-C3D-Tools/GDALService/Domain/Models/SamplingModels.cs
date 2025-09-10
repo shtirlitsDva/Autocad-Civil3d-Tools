@@ -10,7 +10,7 @@ namespace GDALService.Domain.Models
     {
         public long GeomId { get; set; }
         public int Seq { get; set; }
-        public double S_M { get; set; }
+        public double S { get; set; }
         public double X { get; set; }
         public double Y { get; set; }
     }
@@ -18,7 +18,7 @@ namespace GDALService.Domain.Models
     {
         public long GeomId { get; set; }
         public int Seq { get; set; }
-        public double S_M { get; set; }
+        public double S { get; set; }
         public double X { get; set; }
         public double Y { get; set; }
         public double Elev { get; set; }

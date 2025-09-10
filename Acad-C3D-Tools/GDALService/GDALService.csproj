@@ -6,6 +6,7 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Platform>x64</Platform>
 		<Nullable>enable</Nullable>
+		<AssemblyName>GDALService</AssemblyName>
 	</PropertyGroup>
 	
 	<ItemGroup>

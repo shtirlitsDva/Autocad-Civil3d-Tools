@@ -21,14 +21,11 @@ namespace DimensioneringV2.UI
     {
         internal Dispatcher? Dispatcher { get; set; }
 
-        public ObservableCollection<PressureProfileEntry>? Profile { get; private set; }
         public PlotModel? PressurePlot { get; private set; }
         public TrykprofilWindowViewModel() { }
         public void LoadData(IEnumerable<PressureProfileEntry> profile)
         {
-            Profile = new(profile);
-
-            PressurePlot = new PlotModel { Title = "Pressure profile" };
+            PressurePlot = new PlotModel { Title = "Trykniveau" };
 
             PressurePlot.Axes.Add(new LinearAxis
             {
@@ -38,26 +35,33 @@ namespace DimensioneringV2.UI
             PressurePlot.Axes.Add(new LinearAxis
             {
                 Position = AxisPosition.Left,
-                Title = "Pressure [bar]"
+                Title = "Trykniveau [mVS]"
             });
 
+            var elevationSeries = new LineSeries
+            {
+                Title = "Kote",
+                Color = OxyColor.Parse("#00FF0000")
+            };
             var supplySeries = new LineSeries 
             {
-                Title = "Supply",
+                Title = "Frem",
                 Color = OxyColor.Parse("#FFFF0000")
             };
             var returnSeries = new LineSeries 
             { 
-                Title = "Return",
+                Title = "Retur",
                 Color = OxyColor.Parse("#FF0000FF")
             };
 
-            foreach (var p in Profile)
+            foreach (var p in profile)
             {
-                supplySeries.Points.Add(new DataPoint(p.Distance, p.SupplyPressure));
-                returnSeries.Points.Add(new DataPoint(p.Distance, p.ReturnPressure));
+                elevationSeries.Points.Add(new DataPoint(p.Length, p.Elevation));
+                supplySeries.Points.Add(new DataPoint(p.Length, p.SPmVS));
+                returnSeries.Points.Add(new DataPoint(p.Length, p.RPmVS));
             }
 
+            PressurePlot.Series.Add(elevationSeries);
             PressurePlot.Series.Add(supplySeries);
             PressurePlot.Series.Add(returnSeries);
             PressurePlot.InvalidatePlot(true);

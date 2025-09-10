@@ -6,16 +6,6 @@ using System.Threading.Tasks;
 
 namespace DimensioneringV2.Models.Trykprofil
 {
-    public class PressureProfileEntry
-    {
-        public double Distance { get; init; }
-        public double SupplyPressure { get; init; }
-        public double ReturnPressure { get; init; }
-        public PressureProfileEntry(double distance, double supplyPressure, double returnPressure)
-        {
-            Distance = distance;
-            SupplyPressure = supplyPressure;
-            ReturnPressure = returnPressure;
-        }
-    }
+    public readonly record struct PressureProfileEntry(
+        double Length, double Elevation, double SPmVS, double RPmVS);
 }

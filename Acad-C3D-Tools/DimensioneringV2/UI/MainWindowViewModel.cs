@@ -6,17 +6,18 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
 using DimensioneringV2.BruteForceOptimization;
+using DimensioneringV2.Common;
 using DimensioneringV2.GraphFeatures;
 using DimensioneringV2.GraphModel;
 using DimensioneringV2.GraphUtilities;
 using DimensioneringV2.Legend;
-using DimensioneringV2.PhysarumAlgorithm;
+using DimensioneringV2.Models.Trykprofil;
 using DimensioneringV2.ResultCache;
 using DimensioneringV2.Serialization;
 using DimensioneringV2.Services;
+using DimensioneringV2.Services.Elevations;
 using DimensioneringV2.Services.SubGraphs;
 using DimensioneringV2.Themes;
-using DimensioneringV2.Common;
 
 using IntersectUtilities.UtilsCommon;
 
@@ -34,8 +35,6 @@ using ProjNet.CoordinateSystems;
 using ProjNet.CoordinateSystems.Transformations;
 
 using QuikGraph;
-using QuikGraph.Algorithms.Search;
-using QuikGraph.Algorithms.Observers;
 
 using System;
 using System.Collections.Concurrent;
@@ -51,8 +50,6 @@ using System.Windows;
 
 using AcAp = Autodesk.AutoCAD.ApplicationServices.Application;
 using utils = IntersectUtilities.UtilsCommon.Utils;
-using DimensioneringV2.Models.Trykprofil;
-using DimensioneringV2.Services.Elevations;
 
 namespace DimensioneringV2.UI
 {
@@ -1156,7 +1153,7 @@ namespace DimensioneringV2.UI
             if (feature.NumberOfBuildingsSupplied == 0) return;
 
             var settings = HydraulicSettingsService.Instance.Settings;
-            List<PressureProfileEntry>? entries = null;            
+            List<PressureProfileEntry> entries = new();
 
             try
             {
@@ -1220,38 +1217,42 @@ namespace DimensioneringV2.UI
                     var holdeTrykMVS = maxKote - graph.RootElevation(root)
                     + settings.TillægTilHoldetrykMVS;
 
-                    //Max overpressure
+                    //Required overpressure
                     var neededSupplyPmVS = graph.Edges.Max(
                         x => x.OriginalEdge.PipeSegment.PressureLossAtClient)
                     .mVS();
 
-                    //Total maximum pressure
+                    //Total pressure required at supply point
                     var maxPmVS = holdeTrykMVS + neededSupplyPmVS;
 
                     //Compute the elevation profile, this should be oriented in the path dir
                     var path = graph.OrientedProfiles(root, targetNode);
 
-                    
-
-                    
-
                     double paToBar = 100_000.0;
 
-                    //Here we get the total pressure level needed for the whole network
-                    var totalDP = graph.Edges.Max(x => x.OriginalEdge.PipeSegment.PressureLossAtClient);
-
-                    entries = [new(0, totalDP, 0)];
-                    double length = 0, sp = totalDP, rp = 0;
+                    //First graph
+                    //0. Length, 1. Elevation, 2. Supply pressure, 3. Return pressure
+                    //Units: m, mVS, mVS, mVS
+                    //entries = [new(0, , 0)];
+                    double length = 0, elevation = 0, sp = maxPmVS, rp = holdeTrykMVS;
                     foreach (var edge in path)
                     {
-                        length += edge.Length;
-                        sp -= edge.Length * edge.PressureGradientSupply / paToBar;
-                        rp += edge.Length * edge.PressureGradientReturn / paToBar;
-                        entries.Add(new(length, sp, rp));
+                        var (f, p) = edge;
+                        for (int i = 0; i < p.Count; i++)
+                        {
+                            var pp = p[i];
+                            var prevSt = i == 0 ? 0 : p[i - 1].Station;
+                            var deltaL = pp.Station - prevSt;
+
+                            length += deltaL;
+                            elevation = pp.Elevation;
+                            sp -= (deltaL * f.PressureGradientSupply / paToBar).mVS();
+                            rp += (deltaL * f.PressureGradientReturn / paToBar).mVS();
+                            entries.Add(new(length, elevation, sp, rp));
+                        }
                     }
                 });
 
-                if (entries == null) return;
                 var trykprofilWindow = new TrykprofilWindow(entries);
                 trykprofilWindow.Show();
                 TrykprofilWindowContext.VM = (TrykprofilWindowViewModel)trykprofilWindow.DataContext;

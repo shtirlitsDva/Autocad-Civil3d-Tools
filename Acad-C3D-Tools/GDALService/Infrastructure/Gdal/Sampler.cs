@@ -58,7 +58,7 @@ namespace GDALService.Infrastructure.Gdal
                         if (ix < 0 || iy < 0 || ix >= local.Ds.RasterXSize || iy >= local.Ds.RasterYSize)
                         {
                             Interlocked.Increment(ref sum.Outside);
-                            bag.Add(new PointOut { GeomId = p.GeomId, Seq = p.Seq, S_M = p.S_M, X = p.X, Y = p.Y, Elev = double.NaN, Status = "OUTSIDE" });
+                            bag.Add(new PointOut { GeomId = p.GeomId, Seq = p.Seq, S = p.S, X = p.X, Y = p.Y, Elev = double.NaN, Status = "OUTSIDE" });
                         }
                         else
                         {
@@ -73,7 +73,7 @@ namespace GDALService.Infrastructure.Gdal
                             catch
                             {
                                 Interlocked.Increment(ref sum.Err);
-                                bag.Add(new PointOut { GeomId = p.GeomId, Seq = p.Seq, S_M = p.S_M, X = p.X, Y = p.Y, Elev = double.NaN, Status = "ERR" });
+                                bag.Add(new PointOut { GeomId = p.GeomId, Seq = p.Seq, S = p.S, X = p.X, Y = p.Y, Elev = double.NaN, Status = "ERR" });
                                 goto NEXT;
                             }
 
@@ -81,7 +81,7 @@ namespace GDALService.Infrastructure.Gdal
                             var status = (local.HasNoData && v.Equals(local.NoData)) ? "NODATA" : "OK";
                             if (status == "NODATA") Interlocked.Increment(ref sum.NoData);
                             else Interlocked.Increment(ref sum.Ok);
-                            bag.Add(new PointOut { GeomId = p.GeomId, Seq = p.Seq, S_M = p.S_M, X = p.X, Y = p.Y, Elev = v, Status = status });
+                            bag.Add(new PointOut { GeomId = p.GeomId, Seq = p.Seq, S = p.S, X = p.X, Y = p.Y, Elev = v, Status = status });
                         }
 
                     NEXT:
@@ -92,7 +92,7 @@ namespace GDALService.Infrastructure.Gdal
                     catch
                     {
                         Interlocked.Increment(ref sum.Err);
-                        bag.Add(new PointOut { GeomId = p.GeomId, Seq = p.Seq, S_M = p.S_M, X = p.X, Y = p.Y, Elev = double.NaN, Status = "ERR" });
+                        bag.Add(new PointOut { GeomId = p.GeomId, Seq = p.Seq, S = p.S, X = p.X, Y = p.Y, Elev = double.NaN, Status = "ERR" });
                         var d = Interlocked.Increment(ref done);
                         progress.MaybeReport(d, total);
                         return local;
