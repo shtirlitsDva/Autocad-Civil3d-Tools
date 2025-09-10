@@ -41,7 +41,7 @@ namespace DimensioneringV2.UI
             var elevationSeries = new LineSeries
             {
                 Title = "Kote",
-                Color = OxyColor.Parse("#00FF0000")
+                Color = OxyColor.Parse("#FF00FF00")
             };
             var supplySeries = new LineSeries 
             {
