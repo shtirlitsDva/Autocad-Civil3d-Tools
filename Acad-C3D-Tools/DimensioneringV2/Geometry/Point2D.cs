@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using System.Windows.Media.Media3D;
 
@@ -51,6 +52,7 @@ namespace DimensioneringV2.Geometry
                 return hash;
             }
         }
+        [JsonIgnore]
         public Coordinate Coordinate => new Coordinate(X, Y);
         public Point2d To2d() => new Point2d(X, Y);
         public Point3d To3d() => new Point3d(X, Y, 0);
