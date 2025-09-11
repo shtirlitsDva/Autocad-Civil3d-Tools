@@ -18,7 +18,6 @@ using Mapsui.Extensions;
 using Mapsui.Layers;
 using Mapsui.Providers;
 using Mapsui.UI.Wpf;
-using Mapsui.UI;
 
 using ProjNet.CoordinateSystems;
 using ProjNet.CoordinateSystems.Transformations;
@@ -138,21 +137,7 @@ namespace DimensioneringV2.UI
 
         private async Task AngivDim()
         {
-            if (Features == null || Features.Count == 0) return;
-            if (_dataService?.Graphs == null || !_dataService.Graphs.Any()) return;
 
-            // Initialize overlay and pathfinding
-            _angivOverlay ??= new UI.MapOverlay.AngivOverlayManager(Mymap);
-            _pathFinding = new Services.PathFindingService(_dataService.Graphs);
-
-            _isAngivMode = true;
-            _angivOverlay.ClearAll();
-            IsPopupOpen = false;
-
-            // subscribe mouse events
-            _mapControl.MouseMove += OnMouseMove_Angiv;
-            _mapControl.MouseLeave += OnMouseLeave_Angiv;
-            _mapControl.MouseLeftButtonUp += OnMouseLeftButtonUp_Angiv;
         }
         #endregion
 
@@ -359,118 +344,6 @@ namespace DimensioneringV2.UI
             PopupX = e.MapInfo?.ScreenPosition?.X ?? 0.0;
             PopupY = e.MapInfo?.ScreenPosition?.Y ?? 0.0;
             IsPopupOpen = true;
-        }
-        #endregion
-
-        #region AngivDim state & handlers
-        private bool _isAngivMode = false;
-        private IFeature _angivStartFeature;
-        private HashSet<IFeature> _angivPreviewPath = new();
-        private HashSet<IFeature> _angivFinalPath = new();
-        private UI.MapOverlay.AngivOverlayManager _angivOverlay;
-        private Services.PathFindingService _pathFinding;
-
-        private void EndAngivMode()
-        {
-            if (!_isAngivMode) return;
-            _isAngivMode = false;
-            _mapControl.MouseMove -= OnMouseMove_Angiv;
-            _mapControl.MouseLeave -= OnMouseLeave_Angiv;
-            _mapControl.MouseLeftButtonUp -= OnMouseLeftButtonUp_Angiv;
-            _angivOverlay?.ClearAll();
-            _angivStartFeature = null;
-            _angivPreviewPath.Clear();
-            _angivFinalPath.Clear();
-        }
-
-        private void OnMouseLeave_Angiv(object sender, System.Windows.Input.MouseEventArgs e)
-        {
-            if (!_isAngivMode) return;
-            _angivOverlay.SetHover(null);
-            if (_angivStartFeature == null) _angivOverlay.ClearAll();
-        }
-
-        private void OnMouseMove_Angiv(object sender, System.Windows.Input.MouseEventArgs e)
-        {
-            if (!_isAngivMode) return;
-            var pos = e.GetPosition(_mapControl);
-            var info = _mapControl.GetMapInfo(pos.X, pos.Y, 10);
-            var feature = info?.Feature;
-
-            // hover highlight
-            _angivOverlay.SetHover(feature);
-
-            if (_angivStartFeature == null)
-            {
-                // No start yet: only show hover
-                return;
-            }
-
-            if (feature == null || ReferenceEquals(feature, _angivStartFeature))
-            {
-                _angivOverlay.SetPreview(Array.Empty<IFeature>());
-                return;
-            }
-
-            if (!_pathFinding.AreInSameGraph(_angivStartFeature, feature))
-            {
-                _angivOverlay.SetPreview(Array.Empty<IFeature>());
-                return;
-            }
-
-            if (_pathFinding.TryComputePath(_angivStartFeature, feature, out var path))
-            {
-                _angivPreviewPath = new HashSet<IFeature>(path);
-                _angivOverlay.SetPreview(_angivPreviewPath);
-            }
-            else
-            {
-                _angivOverlay.SetPreview(Array.Empty<IFeature>());
-            }
-        }
-
-        private void OnMouseLeftButtonUp_Angiv(object sender, System.Windows.Input.MouseButtonEventArgs e)
-        {
-            if (!_isAngivMode) return;
-            var pos = e.GetPosition(_mapControl);
-            var info = _mapControl.GetMapInfo(pos.X, pos.Y, 10);
-            var feature = info?.Feature;
-            if (feature == null) return;
-
-            if (_angivStartFeature == null)
-            {
-                _angivStartFeature = feature;
-                _angivOverlay.SetFinal(new[] { _angivStartFeature });
-                return;
-            }
-
-            if (!_pathFinding.AreInSameGraph(_angivStartFeature, feature)) return;
-            if (!_pathFinding.TryComputePath(_angivStartFeature, feature, out var path)) return;
-
-            _angivFinalPath = new HashSet<IFeature>(path);
-            _angivOverlay.SetFinal(_angivFinalPath);
-
-            // Show dialog to pick dim (sync on UI thread)
-            var dim = UI.SelectDimDialogInterop.ShowSelectDimDialog();
-            if (dim.HasValue)
-            {
-                ApplyPipeDimToSelection(dim.Value);
-            }
-            // end regardless (cancel should clear)
-            EndAngivMode();
-        }
-
-        private void ApplyPipeDimToSelection(NorsynHydraulicCalc.Pipes.Dim dim)
-        {
-            foreach (var f in _angivFinalPath)
-            {
-                if (f is AnalysisFeature af)
-                {
-                    af.PipeDim = dim;
-                }
-            }
-            // Refresh map for potential Pipe theme
-            Mymap.RefreshData();
         }
         #endregion
 
