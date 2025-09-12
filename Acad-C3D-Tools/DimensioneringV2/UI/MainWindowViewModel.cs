@@ -10,6 +10,8 @@ using DimensioneringV2.Legend;
 using DimensioneringV2.MapCommands;
 using DimensioneringV2.Services;
 using DimensioneringV2.Themes;
+using DimensioneringV2.UI.ApplyDim;
+using DimensioneringV2.UI.MapOverlay;
 
 using IntersectUtilities.UtilsCommon;
 
@@ -63,6 +65,7 @@ namespace DimensioneringV2.UI
             UpdateMap();
         }
 
+        #region MapCommands
         public RelayCommand CollectFeaturesCommand => new RelayCommand(CollectFeatures.Execute);
         public RelayCommand LoadElevationsCommand => new RelayCommand(LoadElevations.Execute);
         public RelayCommand PerformCalculationsSPDCommand => new(async () => await new CalculateSPD().Execute());
@@ -75,7 +78,8 @@ namespace DimensioneringV2.UI
         public RelayCommand WriteToDwgCommand => new RelayCommand(() => new Write2Dwg().Execute());
         public RelayCommand WriteStikOgVejklasserCommand => new RelayCommand(() => new WriteStikOgVejklasser().Execute());
         public AsyncRelayCommand TestElevationsCommand => new AsyncRelayCommand(new TestElevations().Execute);
-        public AsyncRelayCommand TrykprofilCommand => new(async () => { await new Trykprofil().Execute(SelectedFeature); });
+        public AsyncRelayCommand TrykprofilCommand => new(async () => { await new Trykprofil().Execute(SelectedFeature); }); 
+        #endregion
 
         #region ZoomToExtents
         public RelayCommand PerformZoomToExtents => new RelayCommand(ZoomToExtents, () => true);
@@ -130,16 +134,7 @@ namespace DimensioneringV2.UI
             _showLabels = !_showLabels;
             UpdateMap();
         }
-        #endregion
-
-        #region Angiv dim command
-        public AsyncRelayCommand AngivDimCommand => new(AngivDim);
-
-        private async Task AngivDim()
-        {
-
-        }
-        #endregion
+        #endregion        
 
         [ObservableProperty]
         private Map _mymap = new() { CRS = "EPSG:3857" };
@@ -150,7 +145,8 @@ namespace DimensioneringV2.UI
         }
 
         private ThemeManager _themeManager;
-
+        private MapPropertyWrapper _prevSelectedProperty;
+        
         public ObservableCollection<IFeature> Features { get; private set; }
 
         private readonly DataService _dataService;
@@ -305,6 +301,12 @@ namespace DimensioneringV2.UI
         //PopUp is defined inside the mainwindow.xaml
         public void OnMapInfo(object? sender, MapInfoEventArgs e)
         {
+            if (_angivDim != null)
+            {
+                // Suppress popup while in AngivDim mode
+                IsPopupOpen = false;
+                return;
+            }
             if (e.MapInfo?.Feature == null)
             {
                 IsPopupOpen = false;
@@ -372,6 +374,85 @@ namespace DimensioneringV2.UI
             _legendWidget.Enabled = IsLegendVisible;
             _mymap.RefreshData();
         }
+        #endregion
+
+        #region Angiv dim command
+        public RelayCommand AngivDimCommand => new(AngivDim);
+
+        private void AngivDim()
+        {
+            if (_angivDim != null)
+            {
+                // Toggle off if already active
+                _angivDim.Stop();
+                _angivDim = null;
+                SelectedMapPropertyWrapper = _prevSelectedProperty;
+                UpdateMap();
+                return;
+            }
+
+            if (_dataService?.Graphs == null || !_dataService.Graphs.Any()) return;
+
+            _prevSelectedProperty = SelectedMapPropertyWrapper;
+            SelectedMapPropertyWrapper = new MapPropertyWrapper(MapPropertyEnum.Pipe, "Rørdimension");
+            UpdateMap();
+
+            _overlayManager ??= new AngivDimOverlayManager(Mymap);
+            _angivDim = new AngivDimManager(_mapControl, _dataService.Graphs, _overlayManager);
+            _angivDim.PathFinalized += OnAngivPathFinalized;
+            _angivDim.Start();
+        }        
+
+        private AngivDimManager? _angivDim;
+        private AngivDimOverlayManager _overlayManager;
+
+        #region AngivDim handlers
+        private void OnAngivPathFinalized(IEnumerable<AnalysisFeature> features)
+        {
+            var dlg = new DimensioneringV2.UI.Dialogs.SelectPipeDimDialog();
+            dlg.Owner = System.Windows.Application.Current?.MainWindow;
+            var r = dlg.ShowDialog();
+
+            if (dlg.ResultReason == DimensioneringV2.UI.Dialogs.SelectPipeDimViewModel.CloseReason.Retry)
+            {
+                _angivDim?.RetryKeepFirst();
+                return;
+            }
+            if (dlg.ResultReason != DimensioneringV2.UI.Dialogs.SelectPipeDimViewModel.CloseReason.Ok)
+            {
+                // Cancel: exit mode and restore theme
+                _angivDim?.Stop();
+                _angivDim = null;
+                SelectedMapPropertyWrapper = _prevSelectedProperty;
+                UpdateMap();
+                return;
+            }
+
+            // Apply selected dim to features
+            var settings = Services.HydraulicSettingsService.Instance.Settings;
+            var types = new NorsynHydraulicCalc.Pipes.PipeTypes(settings);
+            var selectedType = dlg.ViewModel.SelectedPipeType;
+            var selectedNominal = dlg.ViewModel.SelectedNominal;
+
+            NorsynHydraulicCalc.Pipes.Dim dim = selectedType switch
+            {
+                NorsynHydraulicCalc.PipeType.Stål => types.Stål.GetDim(selectedNominal),
+                NorsynHydraulicCalc.PipeType.AluPEX => types.AluPex.GetDim(selectedNominal),
+                NorsynHydraulicCalc.PipeType.PertFlextra => types.PertFlextra.GetDim(selectedNominal),
+                NorsynHydraulicCalc.PipeType.Kobber => types.Cu.GetDim(selectedNominal),
+                NorsynHydraulicCalc.PipeType.Pe => types.Pe.GetDim(selectedNominal),
+                _ => types.Stål.GetDim(selectedNominal)
+            };
+
+            foreach (var f in features)
+                f.PipeDim = dim;
+
+            // Refresh theme and reset to first selection
+            _themeManager.SetTheme(MapPropertyEnum.Pipe);
+            UpdateMap();
+            _angivDim?.ResetToFirstSelection();
+        }
+        #endregion
         #endregion
     }
 }
