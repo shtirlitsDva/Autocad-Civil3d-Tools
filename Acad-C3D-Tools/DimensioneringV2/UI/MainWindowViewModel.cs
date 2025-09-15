@@ -397,16 +397,23 @@ namespace DimensioneringV2.UI
             SelectedMapPropertyWrapper = new MapPropertyWrapper(MapPropertyEnum.Pipe, "Rørdimension");
             UpdateMap();
 
-            _overlayManager ??= new AngivDimOverlayManager(Mymap);
-            _angivDim = new AngivDimManager(_mapControl, _dataService.Graphs, _overlayManager);
+            _overlayManager ??= new ApplyDimOverlayManager(Mymap);
+            _angivDim = new ApplyDimManager(_mapControl, _dataService.Graphs, _overlayManager);
             _angivDim.PathFinalized += OnAngivPathFinalized;
+            _angivDim.Stopped += OnAngivDimStopped;
             _angivDim.Start();
         }        
 
-        private AngivDimManager? _angivDim;
-        private AngivDimOverlayManager _overlayManager;
+        private ApplyDimManager? _angivDim;
+        private ApplyDimOverlayManager _overlayManager;
 
         #region AngivDim handlers
+        private void OnAngivDimStopped()
+        {
+            _angivDim = null;
+            SelectedMapPropertyWrapper = _prevSelectedProperty;
+            UpdateMap();
+        }
         private void OnAngivPathFinalized(IEnumerable<AnalysisFeature> features)
         {
             var dlg = new DimensioneringV2.UI.Dialogs.SelectPipeDimDialog();

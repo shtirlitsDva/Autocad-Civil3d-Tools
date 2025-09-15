@@ -35,6 +35,8 @@ namespace DimensioneringV2.UI.Dialogs
         public SelectPipeDimViewModel()
         {
             LoadPipeTypes();
+            // Ensure nominal list is populated for the initial type
+            LoadNominals();
         }
 
         private void LoadPipeTypes()

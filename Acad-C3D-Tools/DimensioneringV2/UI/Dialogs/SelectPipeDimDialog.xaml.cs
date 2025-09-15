@@ -12,6 +12,17 @@ namespace DimensioneringV2.UI.Dialogs
             ViewModel = new SelectPipeDimViewModel();
             DataContext = ViewModel;
             ViewModel.CloseRequested += OnCloseRequested;
+            // Ensure second dropdown is populated for the initially selected type
+            Loaded += (s, e) =>
+            {
+                // Trigger nominals load if not already populated
+                if (ViewModel.NominalDiameters.Count == 0)
+                {
+                    // Force property setter to fire change handler
+                    var cur = ViewModel.SelectedPipeType;
+                    ViewModel.SelectedPipeType = cur;
+                }
+            };
         }
 
         private void OnCloseRequested(object? sender, SelectPipeDimViewModel.CloseReason e)
