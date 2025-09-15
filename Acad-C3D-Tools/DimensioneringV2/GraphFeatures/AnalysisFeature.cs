@@ -346,6 +346,17 @@ namespace DimensioneringV2.GraphFeatures
             set => SetAttributeValue(MapPropertyEnum.CriticalPath, value);
         }
 
+        /// <summary>
+        /// Marks the segment as manually assigned dimension.
+        /// It may not be overriden by automatic dimensioning.
+        /// </summary>
+        [MapProperty(MapPropertyEnum.ManualDim)]
+        public bool ManualDim
+        {
+            get => GetAttributeValue<bool>(MapPropertyEnum.ManualDim);
+            set => SetAttributeValue(MapPropertyEnum.ManualDim, value);
+        }
+
         public void ResetHydraulicResults()
         {
             NumberOfBuildingsSupplied = 0;
