@@ -197,7 +197,7 @@ namespace DimensioneringV2.GraphFeatures
         /// Dimension
         /// </summary>
         [MapPropertyAttribute(MapPropertyEnum.Pipe)]
-        public Dim PipeDim
+        public Dim Dim
         {
             get => GetAttributeValue<Dim>(MapPropertyEnum.Pipe);
             set => SetAttributeValue(MapPropertyEnum.Pipe, value);
@@ -362,7 +362,7 @@ namespace DimensioneringV2.GraphFeatures
             NumberOfBuildingsSupplied = 0;
             NumberOfUnitsSupplied = 0;
             HeatingDemandSupplied = 0;
-            PipeDim = Dim.NA;
+            Dim = Dim.NA;
             ReynoldsSupply = 0;
             ReynoldsReturn = 0;
             FlowSupply = 0;

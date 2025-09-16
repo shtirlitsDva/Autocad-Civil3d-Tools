@@ -73,9 +73,9 @@ namespace DimensioneringV2.MapCommands
                     if (adjacentEdges.Count == 0) continue;
 
                     Dim conDim = adjacentEdges
-                        .OrderBy(x => x.PipeSegment.PipeDim.OrderingPriority)
-                        .ThenBy(x => x.PipeSegment.PipeDim.DimName)
-                        .Select(x => x.PipeSegment.PipeDim)
+                        .OrderBy(x => x.PipeSegment.Dim.OrderingPriority)
+                        .ThenBy(x => x.PipeSegment.Dim.DimName)
+                        .Select(x => x.PipeSegment.Dim)
                         .Last();
 
                     var obj = edge.PipeSegment["Vejklasse"];
@@ -85,7 +85,7 @@ namespace DimensioneringV2.MapCommands
                         throw new Exception("Vejklasse er ikke defineret for ét af stikkene!\n" +
                             "Vejklasser skal udfyldes!");
 
-                    collate.Add((edge.PipeSegment.PipeDim, conDim, vejklasse));
+                    collate.Add((edge.PipeSegment.Dim, conDim, vejklasse));
                 }
 
                 var html = BuildDimensionMatrixHtml(collate);

@@ -22,8 +22,7 @@ namespace DimensioneringV2.MapCommands
                         (f => f.NumberOfBuildingsConnected, (f, v) => f.NumberOfBuildingsSupplied = v),
                         (f => f.NumberOfUnitsConnected, (f, v) => f.NumberOfUnitsSupplied = v),
                         (f => f.HeatingDemandConnected, (f, v) => f.HeatingDemandSupplied = v)
-                    }
-                    ));
+                    }));
 
                 var graphs = DataService.Instance.Graphs;
 

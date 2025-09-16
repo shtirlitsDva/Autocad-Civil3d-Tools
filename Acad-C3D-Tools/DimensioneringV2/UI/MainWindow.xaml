@@ -43,8 +43,10 @@
                         Margin="2" Command="{Binding WriteToDwgCommand}"/>
                 <Button x:Name="btnCreateVejklasserSchedule" Content="Stik og vejklasser" FontSize="8.5" Width="70" Height="20"
                         Margin="2" Command="{Binding WriteStikOgVejklasserCommand}"/>
-                <Button x:Name="btnAssignUserDefinedSize" Content="Angiv dim" FontSize="10" Width="70" Height="20"
+                <Button x:Name="btnAssignUserDefinedSize" Content="Angiv Dim" FontSize="10" Width="70" Height="20"
                         Margin="2" Command="{Binding AngivDimCommand}"/>
+                <Button x:Name="btnResetUserDefinedSize" Content="Reset Dim" FontSize="10" Width="70" Height="20"
+                        Margin="2" Command="{Binding ResetDimCommand}"/>
                 <Button x:Name="btnTestElevations" Content="Test koter" FontSize="10" Width="70" Height="20"
                         Margin="2" Command="{Binding TestElevationsCommand}"/>
             </StackPanel>

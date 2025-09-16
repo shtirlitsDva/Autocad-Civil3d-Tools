@@ -25,6 +25,7 @@ namespace DimensioneringV2.Services
                 Func<AnalysisFeature, dynamic> Getter, 
                 Action<AnalysisFeature, dynamic> Setter)> props)
         {
+            HydraulicCalculationService.Initialize();
             var graphs = _dataService.Graphs;
 
             //Reset the results
@@ -71,7 +72,7 @@ namespace DimensioneringV2.Services
                 var visited = new HashSet<NodeJunction>();
                 CalculateBaseSums(shortestPathTree, rootNode, visited, props);
 
-                CalculateHydraulics(shortestPathTree);
+                new HydraulicCalculationsService().CalculateGraph(shortestPathTree, HydraulicCalculationService.Calc);
             }
 
             _dataService.CalculationsFinished(graphs.Select(g => g.Edges.Select(y => y.PipeSegment)));

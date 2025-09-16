@@ -38,19 +38,23 @@ namespace DimensioneringV2.Themes
                 () => BuildCategoryTheme(
                     MapPropertyEnum.CriticalPath, f => f.IsCriticalPath, [false]);
 
+            _categoryThemeBuilders[MapPropertyEnum.ManualDim] =
+                () => BuildCategoryTheme(
+                    MapPropertyEnum.ManualDim, f => f.ManualDim, [false]);
+
             _categoryThemeBuilders[MapPropertyEnum.Bridge] =
                 () => BuildCategoryTheme(
                     MapPropertyEnum.Bridge, f => f.IsBridge, [true]);
 
             _categoryThemeBuilders[MapPropertyEnum.Pipe] =
                 () => BuildCategoryTheme(
-                    MapPropertyEnum.Pipe, f => f.PipeDim.DimName, ["NA 000"]);
+                    MapPropertyEnum.Pipe, f => f.Dim.DimName, ["NA 000"]);
         }
 
         public void SetTheme(MapPropertyEnum property, bool labelsEnabled = false)
         {
             IStyle theme = null;
-            
+
             switch (property)
             {
                 case MapPropertyEnum.FlowSupply:
@@ -68,6 +72,7 @@ namespace DimensioneringV2.Themes
 
                 case MapPropertyEnum.SubGraphId:
                 case MapPropertyEnum.CriticalPath:
+                case MapPropertyEnum.ManualDim:
                 case MapPropertyEnum.Bridge:
                 case MapPropertyEnum.Pipe:
                     theme = _categoryThemeBuilders[property]();
@@ -94,7 +99,7 @@ namespace DimensioneringV2.Themes
         public ILegendData? GetTheme()
         {
             if (CurrentTheme is StyleCollection col) return col.Styles[0] as ILegendData;
-            else return CurrentTheme as ILegendData;            
+            else return CurrentTheme as ILegendData;
         }
 
         private IStyle BuildGradientTheme(MapPropertyEnum prop)
@@ -145,7 +150,7 @@ namespace DimensioneringV2.Themes
             var styles = new Dictionary<T, IStyle>(count);
 
             //Create legend items
-            var legendItems = new List<LegendItem>(count);            
+            var legendItems = new List<LegendItem>(count);
 
             //Assign basic style to values that we don't want to style
             foreach (var value in basicStyleValues)
@@ -177,11 +182,11 @@ namespace DimensioneringV2.Themes
                     SymbolLineWidth = 4
                 };
                 legendItems.Add(li);
-            }            
+            }
 
             return new CategoryTheme<T>(
                 selector, styles, legendItems,
                 LegendTitleProvider.GetTitle(prop));
-        }        
+        }
     }
 }

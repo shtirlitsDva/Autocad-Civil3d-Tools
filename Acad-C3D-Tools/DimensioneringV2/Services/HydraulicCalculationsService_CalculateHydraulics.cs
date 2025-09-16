@@ -1,37 +1,45 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using DimensioneringV2.AutoCAD;
+using DimensioneringV2.GraphFeatures;
+
+using NorsynHydraulicCalc;
 
 using QuikGraph;
-using QuikGraph.Algorithms;
-using QuikGraph.Algorithms.ShortestPath;
 
-using DimensioneringV2.GraphFeatures;
-using System.Diagnostics;
-
-using utils = IntersectUtilities.UtilsCommon.Utils;
-using System.IO;
-using NorsynHydraulicCalc;
-using DimensioneringV2.AutoCAD;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace DimensioneringV2.Services
 {
     internal partial class HydraulicCalculationsService
     {
-        
-        private static void CalculateHydraulics(
-            UndirectedGraph<NodeJunction, EdgePipeSegment> graph)
+        internal void CalculateGraphs(
+            IEnumerable<UndirectedGraph<NodeJunction, EdgePipeSegment>> graphs)
         {
-            HydraulicCalc hc = new(
+            NorsynHydraulicCalc.HydraulicCalc hc;
+            if (HydraulicSettingsService.Instance.Settings.ReportToConsole)
+            {
+                hc = new HydraulicCalc(
+                HydraulicSettingsService.Instance.Settings,
+                new LoggerFile());
+            }
+            else
+            {
+                hc = new HydraulicCalc(
                 HydraulicSettingsService.Instance.Settings,
                 new LoggerAcConsole());
+            }
+            Parallel.ForEach(graphs, graph => CalculateGraph(graph, hc));
+        }
 
-            Parallel.ForEach(graph.Edges, edge =>
+        internal void CalculateGraph(
+            UndirectedGraph<NodeJunction, EdgePipeSegment> graph, NorsynHydraulicCalc.HydraulicCalc hc)
+        {
+            foreach (var edge in graph.Edges)
             {
+                if (edge.PipeSegment.Dim == NorsynHydraulicCalc.Pipes.Dim.NA) continue;
+
                 var result = hc.CalculateHydraulicSegment(edge.PipeSegment);
-                edge.PipeSegment.PipeDim = result.Dim;
+                edge.PipeSegment.Dim = result.Dim;
                 edge.PipeSegment.ReynoldsSupply = result.ReynoldsSupply;
                 edge.PipeSegment.ReynoldsReturn = result.ReynoldsReturn;
                 edge.PipeSegment.FlowSupply = result.FlowSupply;
@@ -41,7 +49,7 @@ namespace DimensioneringV2.Services
                 edge.PipeSegment.VelocitySupply = result.VelocitySupply;
                 edge.PipeSegment.VelocityReturn = result.VelocityReturn;
                 edge.PipeSegment.UtilizationRate = result.UtilizationRate;
-            });
+            }
         }
     }
 }

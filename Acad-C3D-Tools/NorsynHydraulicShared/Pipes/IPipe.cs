@@ -6,5 +6,6 @@ namespace NorsynHydraulicCalc.Pipes
 {
     public interface IPipe
     {
+        Dim GetDim(int dia);
     }
 }

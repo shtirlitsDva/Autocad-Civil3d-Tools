@@ -1,11 +1,10 @@
-﻿using DimensioneringV2.GraphFeatures;
+﻿using DimensioneringV2.AutoCAD;
+using DimensioneringV2.GraphFeatures;
 using DimensioneringV2.UI;
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace DimensioneringV2.Themes
 {
@@ -21,26 +20,39 @@ namespace DimensioneringV2.Themes
             if (selector == null) throw new ArgumentNullException(nameof(selector));
             if (basicStyleValues == null) throw new ArgumentNullException(nameof(basicStyleValues));
 
-            return property switch
+            switch (property)
             {
-                MapPropertyEnum.Pipe =>
-                    (basicStyleValues as string[] is { } temp)
-                        ? features
-                            .DistinctBy(x => x.PipeDim.DimName)
-                            .Where(x => !temp.Contains(x.PipeDim.DimName))
-                            .OrderBy(x => x.PipeDim.OrderingPriority)
-                            .ThenBy(x => x.PipeDim.DimName)
+                case MapPropertyEnum.Pipe:
+                    {
+                        if (basicStyleValues is not string[] temp)
+                            throw new ArgumentException(
+                                "Basic style values must be of type string[] for Pipe property.");
+                        
+                        var query = features
+                            .DistinctBy(x => x.Dim.DimName)
+                            .Where(x => !temp.Contains(x.Dim.DimName))                        
+                            .OrderBy(x => x.Dim.OrderingPriority)
+                            .ThenBy(x => x.Dim.DimName)
                             .Select(selector)
-                            .ToList()
-                        : throw new ArgumentException("Basic style values must be of type string[] for Pipe property."),
+                            .ToList();
 
-                _ => features
-                    .Select(selector)
-                    .Distinct()
-                    .Where(x => !basicStyleValues.Contains(x))
-                    .OrderBy(x => x)
-                    .ToList()
-            };
+                        if (query.Count != 0 && query.Any(x => x == null))
+                        {
+                            var nulls = features.Where(x => selector(x) == null).ToList();
+                            MarkNullEdges.Mark(nulls);
+                        }
+
+                        return query;
+                    }
+
+                default:
+                    return features
+                        .Select(selector)
+                        .Distinct()
+                        .Where(x => !basicStyleValues.Contains(x))
+                        .OrderBy(x => x)
+                        .ToList();
+            }
         }
     }
 }

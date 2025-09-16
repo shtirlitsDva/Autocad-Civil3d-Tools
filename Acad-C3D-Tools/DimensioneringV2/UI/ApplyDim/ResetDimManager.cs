@@ -24,7 +24,7 @@ using DimensioneringV2.StateMachine;
 
 namespace DimensioneringV2.UI.ApplyDim
 {
-    internal class ApplyDimManager : IDisposable
+    internal class ResetDimManager : IDisposable
     {
         private readonly MapControl _mapControl;
         private readonly IEnumerable<UndirectedGraph<NodeJunction, EdgePipeSegment>> _graphs;
@@ -41,7 +41,7 @@ namespace DimensioneringV2.UI.ApplyDim
         public event Action<IEnumerable<AnalysisFeature>>? PathFinalized;
         public event Action? Stopped;
 
-        public ApplyDimManager(
+        public ResetDimManager(
             MapControl mapControl,
             IEnumerable<UndirectedGraph<NodeJunction, EdgePipeSegment>> graphs,
             ApplyDimOverlayManager overlay)

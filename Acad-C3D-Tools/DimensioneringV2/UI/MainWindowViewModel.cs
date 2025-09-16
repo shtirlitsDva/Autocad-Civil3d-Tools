@@ -9,6 +9,7 @@ using DimensioneringV2.GraphFeatures;
 using DimensioneringV2.Legend;
 using DimensioneringV2.MapCommands;
 using DimensioneringV2.Services;
+using DimensioneringV2.Services.SubGraphs;
 using DimensioneringV2.Themes;
 using DimensioneringV2.UI.ApplyDim;
 using DimensioneringV2.UI.MapOverlay;
@@ -28,7 +29,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Threading.Tasks;
 
 using AcAp = Autodesk.AutoCAD.ApplicationServices.Application;
 
@@ -78,7 +78,7 @@ namespace DimensioneringV2.UI
         public RelayCommand WriteToDwgCommand => new RelayCommand(() => new Write2Dwg().Execute());
         public RelayCommand WriteStikOgVejklasserCommand => new RelayCommand(() => new WriteStikOgVejklasser().Execute());
         public AsyncRelayCommand TestElevationsCommand => new AsyncRelayCommand(new TestElevations().Execute);
-        public AsyncRelayCommand TrykprofilCommand => new(async () => { await new Trykprofil().Execute(SelectedFeature); }); 
+        public AsyncRelayCommand TrykprofilCommand => new(async () => { await new Trykprofil().Execute(SelectedFeature); });
         #endregion
 
         #region ZoomToExtents
@@ -146,7 +146,7 @@ namespace DimensioneringV2.UI
 
         private ThemeManager _themeManager;
         private MapPropertyWrapper _prevSelectedProperty;
-        
+
         public ObservableCollection<IFeature> Features { get; private set; }
 
         private readonly DataService _dataService;
@@ -301,7 +301,7 @@ namespace DimensioneringV2.UI
         //PopUp is defined inside the mainwindow.xaml
         public void OnMapInfo(object? sender, MapInfoEventArgs e)
         {
-            if (_angivDim != null)
+            if (_angivDim != null || _resetDim != null)
             {
                 // Suppress popup while in AngivDim mode
                 IsPopupOpen = false;
@@ -378,7 +378,9 @@ namespace DimensioneringV2.UI
 
         #region Angiv dim command
         public RelayCommand AngivDimCommand => new(AngivDim);
-
+        private ApplyDimManager? _angivDim;
+        private ApplyDimOverlayManager _overlayManager;
+        private NorsynHydraulicCalc.Pipes.PipeTypes? _pipes;
         private void AngivDim()
         {
             if (_angivDim != null)
@@ -393,6 +395,8 @@ namespace DimensioneringV2.UI
 
             if (_dataService?.Graphs == null || !_dataService.Graphs.Any()) return;
 
+            _pipes = new NorsynHydraulicCalc.Pipes.PipeTypes(HydraulicSettingsService.Instance.Settings);
+
             _prevSelectedProperty = SelectedMapPropertyWrapper;
             SelectedMapPropertyWrapper = new MapPropertyWrapper(MapPropertyEnum.Pipe, "Rørdimension");
             UpdateMap();
@@ -402,16 +406,20 @@ namespace DimensioneringV2.UI
             _angivDim.PathFinalized += OnAngivPathFinalized;
             _angivDim.Stopped += OnAngivDimStopped;
             _angivDim.Start();
-        }        
-
-        private ApplyDimManager? _angivDim;
-        private ApplyDimOverlayManager _overlayManager;
+        }
 
         #region AngivDim handlers
         private void OnAngivDimStopped()
         {
+            _pipes = null;
             _angivDim = null;
             SelectedMapPropertyWrapper = _prevSelectedProperty;
+
+            new HydraulicCalculationsService().CalculateGraphs(_dataService.Graphs);
+
+            foreach (var graph in DataService.Instance.Graphs)
+                PressureAnalysisService.CalculateDifferentialLossAtClient(graph);
+
             UpdateMap();
         }
         private void OnAngivPathFinalized(IEnumerable<AnalysisFeature> features)
@@ -441,18 +449,11 @@ namespace DimensioneringV2.UI
             var selectedType = dlg.ViewModel.SelectedPipeType;
             var selectedNominal = dlg.ViewModel.SelectedNominal;
 
-            NorsynHydraulicCalc.Pipes.Dim dim = selectedType switch
-            {
-                NorsynHydraulicCalc.PipeType.Stål => types.Stål.GetDim(selectedNominal),
-                NorsynHydraulicCalc.PipeType.AluPEX => types.AluPex.GetDim(selectedNominal),
-                NorsynHydraulicCalc.PipeType.PertFlextra => types.PertFlextra.GetDim(selectedNominal),
-                NorsynHydraulicCalc.PipeType.Kobber => types.Cu.GetDim(selectedNominal),
-                NorsynHydraulicCalc.PipeType.Pe => types.Pe.GetDim(selectedNominal),
-                _ => types.Stål.GetDim(selectedNominal)
-            };
+            if (_pipes == null)
+                _pipes = new NorsynHydraulicCalc.Pipes.PipeTypes(settings);
+            var dim = _pipes.GetPipeType(selectedType).GetDim(selectedNominal);
 
-            foreach (var f in features)
-                f.PipeDim = dim;
+            foreach (var f in features) { f.Dim = dim; f.ManualDim = true; }
 
             // Refresh theme and reset to first selection
             _themeManager.SetTheme(MapPropertyEnum.Pipe);
@@ -460,6 +461,47 @@ namespace DimensioneringV2.UI
             _angivDim?.ResetToFirstSelection();
         }
         #endregion
+        #endregion
+
+        #region Reset dim command
+        public RelayCommand ResetDimCommand => new(ResetDim);
+        private ResetDimManager? _resetDim;
+        private void ResetDim()
+        {
+            if (_resetDim != null)
+            {
+                // Toggle off if already active
+                _resetDim.Stop();
+                _resetDim = null;
+                SelectedMapPropertyWrapper = _prevSelectedProperty;
+                UpdateMap();
+                return;
+            }
+
+            if (_dataService?.Graphs == null || !_dataService.Graphs.Any()) return;
+
+            _prevSelectedProperty = SelectedMapPropertyWrapper;
+            SelectedMapPropertyWrapper = new MapPropertyWrapper(MapPropertyEnum.ManualDim, "Manuel dimension");
+            UpdateMap();
+
+
+
+            //if (_dataService?.Graphs == null || !_dataService.Graphs.Any()) return;
+            //var features = _dataService.Graphs.SelectMany(x => x.Features)
+            //    .Where(x => x.ManualDim).ToList();
+            //if (!features.Any()) return;
+            //foreach (var f in features)
+            //{
+            //    f.Dim = null;
+            //    f.ManualDim = false;
+            //}
+            //new HydraulicCalculationsService().CalculateGraphs(_dataService.Graphs);
+            //foreach (var graph in DataService.Instance.Graphs)
+            //    PressureAnalysisService.CalculateDifferentialLossAtClient(graph);
+            //SelectedMapPropertyWrapper = new MapPropertyWrapper(MapPropertyEnum.Pipe, "Rørdimension");
+            //_themeManager.SetTheme(MapPropertyEnum.Pipe);
+            //UpdateMap();
+        }
         #endregion
     }
 }
