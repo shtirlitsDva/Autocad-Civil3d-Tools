@@ -5991,22 +5991,18 @@ namespace IntersectUtilities
                     {
                         var segType = polyline.GetSegmentType(i);
                         bool isLast = (i == numOfVert - 1);
-                        // At the end of an open polyline, "next" is effectively a Point
                         var nextType = isLast ? SegmentType.Point : polyline.GetSegmentType(i + 1);
 
                         switch (segType)
                         {
                             case SegmentType.Line:
                                 {
-                                    // We need a PVI at the shared vertex for Line->Line,
-                                    // and we ALSO need a terminal PVI for Line->Point (end of pline).
                                     if (nextType == SegmentType.Line || nextType == SegmentType.Point)
                                     {
                                         LineSegment2d line = polyline.GetLineSegment2dAt(i);
                                         pv.FindStationAndElevationAtXY(line.EndPoint.X, line.EndPoint.Y, ref station, ref elevation);
                                         profile.PVIs.AddPVI(station, elevation);
                                     }
-                                    // Line->Arc: skip here; the Arc segment will add the PVI at the tangent intersection.
                                     break;
                                 }
 
@@ -6026,11 +6022,9 @@ namespace IntersectUtilities
                                     }
                                     else
                                     {
-                                        // Degenerate/parallel tangents; skip the curve to avoid exceptions
-                                        // (optional: log/diagnose)
+                                        
                                     }
 
-                                    // If the arc is the last segment, we also need the very end PVI.
                                     if (nextType == SegmentType.Point)
                                     {
                                         pv.FindStationAndElevationAtXY(arc.EndPoint.X, arc.EndPoint.Y, ref station, ref elevation);
@@ -6044,7 +6038,6 @@ namespace IntersectUtilities
                         }
                     }
 
-                    // --- Safety cap: ensure a terminal end PVI exists (never hurts, avoids dup errors) ---
                     {
                         double endSta = 0.0, endEl = 0.0;
                         pv.FindStationAndElevationAtXY(polyline.EndPoint.X, polyline.EndPoint.Y, ref endSta, ref endEl);
@@ -6058,14 +6051,13 @@ namespace IntersectUtilities
                             profile.PVIs.AddPVI(endSta, endEl);
                     }
 
-                    // Now add the curves; the last curve will succeed because there IS a PVI after it.
                     foreach (var (radius, pvi) in pvis)
                     {
                         try
                         {
                             profile.Entities.AddFreeCircularCurveByPVIAndRadius(pvi, radius);
                         }
-                        catch { /* keep going */ }
+                        catch {  }
                     }
                 }
                 catch (System.Exception ex)

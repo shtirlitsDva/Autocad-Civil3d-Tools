@@ -36,7 +36,7 @@ namespace DimensioneringV2.Services
         {
             foreach (var edge in graph.Edges)
             {
-                if (edge.PipeSegment.Dim == NorsynHydraulicCalc.Pipes.Dim.NA) continue;
+                if (edge.PipeSegment.NumberOfBuildingsSupplied == 0) continue;
 
                 var result = hc.CalculateHydraulicSegment(edge.PipeSegment);
                 edge.PipeSegment.Dim = result.Dim;

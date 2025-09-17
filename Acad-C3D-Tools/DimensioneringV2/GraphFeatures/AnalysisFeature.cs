@@ -204,6 +204,12 @@ namespace DimensioneringV2.GraphFeatures
         }
 
         /// <summary>
+        /// Used for storing the previous dimension before a change
+        /// In use specifically for set/reset dim manual setting
+        /// </summary>
+        internal Dim PreviousDim { get; set; }
+
+        /// <summary>
         /// Reynolds number for supply
         /// </summary>
         public double ReynoldsSupply
@@ -355,7 +361,7 @@ namespace DimensioneringV2.GraphFeatures
         {
             get => GetAttributeValue<bool>(MapPropertyEnum.ManualDim);
             set => SetAttributeValue(MapPropertyEnum.ManualDim, value);
-        }
+        }        
 
         public void ResetHydraulicResults()
         {

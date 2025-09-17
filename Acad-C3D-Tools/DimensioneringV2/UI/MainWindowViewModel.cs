@@ -453,7 +453,19 @@ namespace DimensioneringV2.UI
                 _pipes = new NorsynHydraulicCalc.Pipes.PipeTypes(settings);
             var dim = _pipes.GetPipeType(selectedType).GetDim(selectedNominal);
 
-            foreach (var f in features) { f.Dim = dim; f.ManualDim = true; }
+            foreach (var f in features)
+            {
+                if (f.ManualDim)
+                {//Case: ManualDim already set
+                    f.Dim = dim;
+                }
+                else
+                {//Case: first time setting manual dim
+                    f.PreviousDim = f.Dim;
+                    f.Dim = dim;
+                    f.ManualDim = true;
+                }
+            }
 
             // Refresh theme and reset to first selection
             _themeManager.SetTheme(MapPropertyEnum.Pipe);
@@ -478,29 +490,44 @@ namespace DimensioneringV2.UI
                 return;
             }
 
-            if (_dataService?.Graphs == null || !_dataService.Graphs.Any()) return;
+            if (_dataService?.Graphs == null ||
+                !_dataService.Graphs.Any() ||
+                !_dataService.Graphs.SelectMany(x => x.Edges).Any(x => x.PipeSegment.ManualDim)) return;
 
             _prevSelectedProperty = SelectedMapPropertyWrapper;
             SelectedMapPropertyWrapper = new MapPropertyWrapper(MapPropertyEnum.ManualDim, "Manuel dimension");
             UpdateMap();
 
+            _resetDim = new ResetDimManager(_mapControl);
+            _resetDim.Finalized += OnResetDimFinalized;
+            _resetDim.Stopped += OnResetDimStopped;
+            _resetDim.Start();
+        }
 
+        private void OnResetDimStopped()
+        {
+            _resetDim = null;
+            SelectedMapPropertyWrapper = _prevSelectedProperty;
 
-            //if (_dataService?.Graphs == null || !_dataService.Graphs.Any()) return;
-            //var features = _dataService.Graphs.SelectMany(x => x.Features)
-            //    .Where(x => x.ManualDim).ToList();
-            //if (!features.Any()) return;
-            //foreach (var f in features)
-            //{
-            //    f.Dim = null;
-            //    f.ManualDim = false;
-            //}
-            //new HydraulicCalculationsService().CalculateGraphs(_dataService.Graphs);
-            //foreach (var graph in DataService.Instance.Graphs)
-            //    PressureAnalysisService.CalculateDifferentialLossAtClient(graph);
-            //SelectedMapPropertyWrapper = new MapPropertyWrapper(MapPropertyEnum.Pipe, "Rørdimension");
-            //_themeManager.SetTheme(MapPropertyEnum.Pipe);
-            //UpdateMap();
+            new HydraulicCalculationsService().CalculateGraphs(_dataService.Graphs);
+
+            foreach (var graph in DataService.Instance.Graphs)
+                PressureAnalysisService.CalculateDifferentialLossAtClient(graph);
+
+            UpdateMap();
+        }
+        private void OnResetDimFinalized(AnalysisFeature feature)
+        {
+            if (!feature.ManualDim) return;
+            feature.ManualDim = false;
+            feature.Dim = feature.PreviousDim;
+            UpdateMap();
+
+            //Handle none manual dims left
+            if (!_dataService.Graphs.SelectMany(x => x.Edges).Any(x => x.PipeSegment.ManualDim))
+            {
+                _resetDim?.Stop();
+            }
         }
         #endregion
     }
