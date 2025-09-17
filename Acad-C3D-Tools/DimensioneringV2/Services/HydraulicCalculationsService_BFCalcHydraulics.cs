@@ -38,7 +38,7 @@ namespace DimensioneringV2.Services
                         throw new Exception(
                             $"Pipe dimension is null for edge {edge.Source.Location} -> {edge.Target.Location}");
                 }                    
-                edge.PipeDim = result.Dim;
+                edge.Dim = result.Dim;
                 edge.ReynoldsSupply = result.ReynoldsSupply;
                 edge.ReynoldsReturn = result.ReynoldsReturn;
                 edge.FlowSupply = result.FlowSupply;

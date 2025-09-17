@@ -16,7 +16,7 @@ namespace NorsynHydraulicCalc
 {
     public class HydraulicCalc
     {
-        public static Version version = new Version(20250515, 0);
+        public static Version version = new Version(20250916, 0);
 
         private ILog log { get; set; }
 
@@ -646,9 +646,17 @@ namespace NorsynHydraulicCalc
             double flowSupply = Math.Max(dimFlow1Frem, dimFlow2Frem);
             double flowReturn = Math.Max(dimFlow1Retur, dimFlow2Retur);
 
-            var dimSupply = determineDim(flowSupply, TempSetType.Supply, st);
-            var dimReturn = determineDim(flowReturn, TempSetType.Return, st);
-            var dim = new[] { dimSupply, dimReturn }.MaxBy(x => x.OuterDiameter);
+            Dim dim;
+            if (segment.ManualDim)
+            {
+                dim = segment.Dim;
+            }
+            else
+            {
+                var dimSupply = determineDim(flowSupply, TempSetType.Supply, st);
+                var dimReturn = determineDim(flowReturn, TempSetType.Return, st);
+                dim = new[] { dimSupply, dimReturn }.MaxBy(x => x.OuterDiameter);
+            }                
 
             (double reynolds, double gradient, double velocity) resSupply;
             (double reynolds, double gradient, double velocity) resReturn;

@@ -56,7 +56,7 @@ namespace DimensioneringV2.AutoCAD
 
                 foreach (AnalysisFeature feature in features)
                 {
-                    if (feature.PipeDim.NominalDiameter == 0) continue;
+                    if (feature.Dim.NominalDiameter == 0) continue;
 
                     var lineString = feature.Geometry as LineString;
                     if (lineString == null)
@@ -68,12 +68,12 @@ namespace DimensioneringV2.AutoCAD
                     var pline = NTSConversion.ConvertNTSLineStringToPline(lineString);
                     pline.AddEntityToDbModelSpace(dimDb);
 
-                    PipeSystemEnum ps = TranslatePipeTypeToSystem(feature.PipeDim.PipeType);
+                    PipeSystemEnum ps = TranslatePipeTypeToSystem(feature.Dim.PipeType);
 
                     #region Handle line type generation
                     string lineTypeText =
                         PipeScheduleV2.GetLineTypeLayerPrefix(ps) +
-                        feature.PipeDim.NominalDiameter.ToString();
+                        feature.Dim.NominalDiameter.ToString();
 
                     string lineTypeName = "LT-" + lineTypeText;
 
@@ -84,18 +84,18 @@ namespace DimensioneringV2.AutoCAD
                     #endregion
 
                     //Determine twin or single pipe
-                    PipeTypeEnum pt = PipeScheduleV2.GetPipeTypeByAvailability(ps, feature.PipeDim.NominalDiameter);
+                    PipeTypeEnum pt = PipeScheduleV2.GetPipeTypeByAvailability(ps, feature.Dim.NominalDiameter);
 
                     //Determine layer
                     string systemString = PipeScheduleV2.GetSystemString(ps);
                     string layerName = string.Concat(
-                        "FJV-", pt, "-", systemString, feature.PipeDim.NominalDiameter).ToUpper();
+                        "FJV-", pt, "-", systemString, feature.Dim.NominalDiameter).ToUpper();
 
                     CheckOrCreateLayerForPipe(dimDb, layerName, ps, pt);
 
                     pline.Layer = layerName;
                     pline.ConstantWidth = PipeScheduleV2.GetPipeKOd(
-                        ps, feature.PipeDim.NominalDiameter, pt, PipeSeriesEnum.S3) / 1000;
+                        ps, feature.Dim.NominalDiameter, pt, PipeSeriesEnum.S3) / 1000;
                     pline.LinetypeId = ltt[lineTypeName];
                     pline.Plinegen = true;
                 }

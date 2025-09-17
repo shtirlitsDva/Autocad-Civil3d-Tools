@@ -19,7 +19,7 @@ namespace DimensioneringV2.BruteForceOptimization
     internal class BFEdge : Edge<BFNode>, IHydraulicSegment
     {
         public int Id { get; set; }
-        public double Price { get => PipeDim.Price_m * Length + PipeDim.Price_stk(SegmentType); }
+        public double Price { get => Dim.Price_m * Length + Dim.Price_stk(SegmentType); }
         public bool IsRootNode { get => OriginalEdge.PipeSegment.IsRootNode; }
         public double Length { get => OriginalEdge.PipeSegment.Length; }
         public int NumberOfBuildingsConnected { get => OriginalEdge.PipeSegment.NumberOfBuildingsConnected; }
@@ -32,7 +32,8 @@ namespace DimensioneringV2.BruteForceOptimization
         public int NumberOfBuildingsSupplied { get; set; }
         public int NumberOfUnitsSupplied { get; set; }
         public double HeatingDemandSupplied { get; set; }
-        public Dim PipeDim { get; set; }
+        public Dim Dim { get; set; }
+        public bool ManualDim { get => OriginalEdge.PipeSegment.ManualDim; }
         public double ReynoldsSupply { get; set; }
         public double ReynoldsReturn { get; set; }
         public double FlowSupply { get; set; }
@@ -62,7 +63,7 @@ namespace DimensioneringV2.BruteForceOptimization
         public void PushAllResults()
         {
             PushBaseSums();
-            OriginalEdge.PipeSegment.PipeDim = PipeDim;
+            OriginalEdge.PipeSegment.Dim = Dim;
             OriginalEdge.PipeSegment.ReynoldsSupply = ReynoldsSupply;
             OriginalEdge.PipeSegment.ReynoldsReturn = ReynoldsReturn;
             OriginalEdge.PipeSegment.FlowSupply = FlowSupply;
@@ -93,7 +94,7 @@ namespace DimensioneringV2.BruteForceOptimization
             NumberOfBuildingsSupplied = OriginalEdge.PipeSegment.NumberOfBuildingsSupplied;
             NumberOfUnitsSupplied = OriginalEdge.PipeSegment.NumberOfUnitsSupplied;
             HeatingDemandSupplied = OriginalEdge.PipeSegment.HeatingDemandSupplied;
-            PipeDim = OriginalEdge.PipeSegment.PipeDim;
+            Dim = OriginalEdge.PipeSegment.Dim;
             ReynoldsSupply = OriginalEdge.PipeSegment.ReynoldsSupply;
             ReynoldsReturn = OriginalEdge.PipeSegment.ReynoldsReturn;
             FlowSupply = OriginalEdge.PipeSegment.FlowSupply;

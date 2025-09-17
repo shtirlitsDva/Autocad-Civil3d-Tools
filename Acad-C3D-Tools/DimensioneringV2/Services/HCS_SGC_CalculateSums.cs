@@ -95,7 +95,7 @@ namespace DimensioneringV2.Services.SubGraphs
                     result = cache.GetOrCalculateSupplyPipeResult(edge);
                 }
                 
-                edge.PipeDim = result.Dim;
+                edge.Dim = result.Dim;
                 edge.ReynoldsSupply = result.ReynoldsSupply;
                 edge.ReynoldsReturn = result.ReynoldsReturn;
                 edge.FlowSupply = result.FlowSupply;

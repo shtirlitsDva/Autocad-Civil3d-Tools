@@ -94,26 +94,58 @@ namespace DimensioneringV2.UI
             //Annotate plots
             var maxKote = profile.Max(x => x.Elevation);
             var maxKoteTxt = maxKote.ToString("0.##") + " mVS";
-            var holdeTrykLine = new LineAnnotation
+
+            var fp = profile.First();
+            var startKote = fp.Elevation;
+            var startKoteTxt = startKote.ToString("0.##") + " m";
+
+            var minHoldeTryk = Math.Max(0, maxKote - startKote);
+
+            var supplyPointLine = new LineAnnotation
             {
                 Type = LineAnnotationType.Horizontal,
-                Y = maxKote,
+                Y = startKote,
                 Color = OxyColor.FromRgb(40, 40, 100),
                 LineStyle = LineStyle.Dash,
                 StrokeThickness = 1
             };
-            PressurePlot.Annotations.Add(holdeTrykLine);
+            PressurePlot.Annotations.Add(supplyPointLine);
 
-            var holdeTrykTxt = new TextAnnotation
+            var supplyPointTxt = new TextAnnotation
             {
-                Text = $"Min. holdetryk: {maxKoteTxt}  ",
+                Text = $"Forsyningskote: {startKoteTxt}  ",
                 TextHorizontalAlignment = HorizontalAlignment.Right,
-                TextVerticalAlignment = VerticalAlignment.Bottom,
-                TextPosition = new DataPoint(profile.Last().Length, maxKote),
+                TextVerticalAlignment = VerticalAlignment.Top,
+                TextPosition = new DataPoint(profile.Last().Length, startKote),
                 Stroke = OxyColors.Transparent,
                 Background = OxyColors.Transparent
             };
-            PressurePlot.Annotations.Add(holdeTrykTxt);
+            PressurePlot.Annotations.Add(supplyPointTxt);
+
+            if (minHoldeTryk > 0)
+            {
+                var minHoldeTrykLine = new LineAnnotation
+                {
+                    Type = LineAnnotationType.Horizontal,
+                    Y = maxKote,
+                    Color = OxyColor.FromRgb(40, 40, 100),
+                    LineStyle = LineStyle.Dash,
+                    StrokeThickness = 1
+                };
+                PressurePlot.Annotations.Add(minHoldeTrykLine);
+
+                var minHoldeTrykString = minHoldeTryk.ToString("0.##") + " mVS";
+                var minHoldeTrykTxt = new TextAnnotation
+                {
+                    Text = $"Min. holdetryk: {minHoldeTrykString}  ",
+                    TextHorizontalAlignment = HorizontalAlignment.Right,
+                    TextVerticalAlignment = VerticalAlignment.Bottom,
+                    TextPosition = new DataPoint(profile.Last().Length, maxKote),
+                    Stroke = OxyColors.Transparent,
+                    Background = OxyColors.Transparent
+                };
+                PressurePlot.Annotations.Add(minHoldeTrykTxt);
+            }            
 
             var tillægTilHoldetryk = profile.First().RPmVS;
             if (Math.Abs(tillægTilHoldetryk - maxKote) > 0.1)
@@ -143,7 +175,7 @@ namespace DimensioneringV2.UI
                 PressurePlot.Annotations.Add(tillægTxt);
             }
             //Supply dp
-            var fp = profile.First();
+            fp = profile.First();
             var supplyDp = fp.SPmVS - fp.RPmVS;
             var supplyDpString = supplyDp.ToString("0.##") + " mVS";
 

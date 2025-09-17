@@ -197,11 +197,17 @@ namespace DimensioneringV2.GraphFeatures
         /// Dimension
         /// </summary>
         [MapPropertyAttribute(MapPropertyEnum.Pipe)]
-        public Dim PipeDim
+        public Dim Dim
         {
             get => GetAttributeValue<Dim>(MapPropertyEnum.Pipe);
             set => SetAttributeValue(MapPropertyEnum.Pipe, value);
         }
+
+        /// <summary>
+        /// Used for storing the previous dimension before a change
+        /// In use specifically for set/reset dim manual setting
+        /// </summary>
+        internal Dim PreviousDim { get; set; }
 
         /// <summary>
         /// Reynolds number for supply
@@ -346,12 +352,23 @@ namespace DimensioneringV2.GraphFeatures
             set => SetAttributeValue(MapPropertyEnum.CriticalPath, value);
         }
 
+        /// <summary>
+        /// Marks the segment as manually assigned dimension.
+        /// It may not be overriden by automatic dimensioning.
+        /// </summary>
+        [MapProperty(MapPropertyEnum.ManualDim)]
+        public bool ManualDim
+        {
+            get => GetAttributeValue<bool>(MapPropertyEnum.ManualDim);
+            set => SetAttributeValue(MapPropertyEnum.ManualDim, value);
+        }        
+
         public void ResetHydraulicResults()
         {
             NumberOfBuildingsSupplied = 0;
             NumberOfUnitsSupplied = 0;
             HeatingDemandSupplied = 0;
-            PipeDim = Dim.NA;
+            Dim = Dim.NA;
             ReynoldsSupply = 0;
             ReynoldsReturn = 0;
             FlowSupply = 0;

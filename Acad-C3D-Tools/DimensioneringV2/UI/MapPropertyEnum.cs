@@ -39,5 +39,7 @@ namespace DimensioneringV2.UI
         SubGraphId,
         [Description("Vis kritisk kunde")]
         CriticalPath,
+        [Description("Manuel dimension")]
+        ManualDim
     }
 }

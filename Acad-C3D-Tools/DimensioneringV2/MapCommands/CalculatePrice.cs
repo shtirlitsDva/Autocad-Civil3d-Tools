@@ -18,15 +18,15 @@ namespace DimensioneringV2.MapCommands
             var afs = features.Cast<AnalysisFeature>();
             // Calculate data for service lines (stik)
             var stikTable = afs
-                .Where(x => !x.PipeDim.Equals(default) && x.NumberOfBuildingsConnected == 1)
-                .GroupBy(x => x.PipeDim.DimName)
+                .Where(x => !x.Dim.Equals(default) && x.NumberOfBuildingsConnected == 1)
+                .GroupBy(x => x.Dim.DimName)
                 .Select(g => new
                 {
                     DimName = g.Key,
                     TotalLength = g.Sum(x => x.Length),
-                    Price = g.Sum(x => x.Length * x.PipeDim.Price_m),
+                    Price = g.Sum(x => x.Length * x.Dim.Price_m),
                     ServiceCount = g.Count(),
-                    ServicePrice = g.Count() * g.First().PipeDim.Price_stk(NorsynHydraulicCalc.SegmentType.Stikledning)
+                    ServicePrice = g.Count() * g.First().Dim.Price_stk(NorsynHydraulicCalc.SegmentType.Stikledning)
                 })
                 .ToList();
 
@@ -38,13 +38,13 @@ namespace DimensioneringV2.MapCommands
 
             // Calculate data for supply lines (fls)
             var flsTable = afs
-                .Where(x => !x.PipeDim.Equals(default) && x.NumberOfBuildingsConnected == 0)
-                .GroupBy(x => x.PipeDim.DimName)
+                .Where(x => !x.Dim.Equals(default) && x.NumberOfBuildingsConnected == 0)
+                .GroupBy(x => x.Dim.DimName)
                 .Select(g => new
                 {
                     DimName = g.Key,
                     TotalLength = g.Sum(x => x.Length),
-                    Price = g.Sum(x => x.Length * x.PipeDim.Price_m)
+                    Price = g.Sum(x => x.Length * x.Dim.Price_m)
                 })
                 .ToList();
 

@@ -9,7 +9,10 @@ using DimensioneringV2.GraphFeatures;
 using DimensioneringV2.Legend;
 using DimensioneringV2.MapCommands;
 using DimensioneringV2.Services;
+using DimensioneringV2.Services.SubGraphs;
 using DimensioneringV2.Themes;
+using DimensioneringV2.UI.ApplyDim;
+using DimensioneringV2.UI.MapOverlay;
 
 using IntersectUtilities.UtilsCommon;
 
@@ -26,7 +29,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Threading.Tasks;
 
 using AcAp = Autodesk.AutoCAD.ApplicationServices.Application;
 
@@ -63,6 +65,7 @@ namespace DimensioneringV2.UI
             UpdateMap();
         }
 
+        #region MapCommands
         public RelayCommand CollectFeaturesCommand => new RelayCommand(CollectFeatures.Execute);
         public RelayCommand LoadElevationsCommand => new RelayCommand(LoadElevations.Execute);
         public RelayCommand PerformCalculationsSPDCommand => new(async () => await new CalculateSPD().Execute());
@@ -76,6 +79,7 @@ namespace DimensioneringV2.UI
         public RelayCommand WriteStikOgVejklasserCommand => new RelayCommand(() => new WriteStikOgVejklasser().Execute());
         public AsyncRelayCommand TestElevationsCommand => new AsyncRelayCommand(new TestElevations().Execute);
         public AsyncRelayCommand TrykprofilCommand => new(async () => { await new Trykprofil().Execute(SelectedFeature); });
+        #endregion
 
         #region ZoomToExtents
         public RelayCommand PerformZoomToExtents => new RelayCommand(ZoomToExtents, () => true);
@@ -130,16 +134,7 @@ namespace DimensioneringV2.UI
             _showLabels = !_showLabels;
             UpdateMap();
         }
-        #endregion
-
-        #region Angiv dim command
-        public AsyncRelayCommand AngivDimCommand => new(AngivDim);
-
-        private async Task AngivDim()
-        {
-
-        }
-        #endregion
+        #endregion        
 
         [ObservableProperty]
         private Map _mymap = new() { CRS = "EPSG:3857" };
@@ -150,6 +145,7 @@ namespace DimensioneringV2.UI
         }
 
         private ThemeManager _themeManager;
+        private MapPropertyWrapper _prevSelectedProperty;
 
         public ObservableCollection<IFeature> Features { get; private set; }
 
@@ -305,6 +301,12 @@ namespace DimensioneringV2.UI
         //PopUp is defined inside the mainwindow.xaml
         public void OnMapInfo(object? sender, MapInfoEventArgs e)
         {
+            if (_angivDim != null || _resetDim != null)
+            {
+                // Suppress popup while in AngivDim mode
+                IsPopupOpen = false;
+                return;
+            }
             if (e.MapInfo?.Feature == null)
             {
                 IsPopupOpen = false;
@@ -371,6 +373,161 @@ namespace DimensioneringV2.UI
             if (_legendWidget == null) return;
             _legendWidget.Enabled = IsLegendVisible;
             _mymap.RefreshData();
+        }
+        #endregion
+
+        #region Angiv dim command
+        public RelayCommand AngivDimCommand => new(AngivDim);
+        private ApplyDimManager? _angivDim;
+        private ApplyDimOverlayManager _overlayManager;
+        private NorsynHydraulicCalc.Pipes.PipeTypes? _pipes;
+        private void AngivDim()
+        {
+            if (_angivDim != null)
+            {
+                // Toggle off if already active
+                _angivDim.Stop();
+                _angivDim = null;
+                SelectedMapPropertyWrapper = _prevSelectedProperty;
+                UpdateMap();
+                return;
+            }
+
+            if (_dataService?.Graphs == null || !_dataService.Graphs.Any()) return;
+
+            _pipes = new NorsynHydraulicCalc.Pipes.PipeTypes(HydraulicSettingsService.Instance.Settings);
+
+            _prevSelectedProperty = SelectedMapPropertyWrapper;
+            SelectedMapPropertyWrapper = new MapPropertyWrapper(MapPropertyEnum.Pipe, "Rørdimension");
+            UpdateMap();
+
+            _overlayManager ??= new ApplyDimOverlayManager(Mymap);
+            _angivDim = new ApplyDimManager(_mapControl, _dataService.Graphs, _overlayManager);
+            _angivDim.PathFinalized += OnAngivPathFinalized;
+            _angivDim.Stopped += OnAngivDimStopped;
+            _angivDim.Start();
+        }
+
+        #region AngivDim handlers
+        private void OnAngivDimStopped()
+        {
+            _pipes = null;
+            _angivDim = null;
+            SelectedMapPropertyWrapper = _prevSelectedProperty;
+
+            new HydraulicCalculationsService().CalculateGraphs(_dataService.Graphs);
+
+            foreach (var graph in DataService.Instance.Graphs)
+                PressureAnalysisService.CalculateDifferentialLossAtClient(graph);
+
+            UpdateMap();
+        }
+        private void OnAngivPathFinalized(IEnumerable<AnalysisFeature> features)
+        {
+            var dlg = new DimensioneringV2.UI.Dialogs.SelectPipeDimDialog();
+            dlg.Owner = System.Windows.Application.Current?.MainWindow;
+            var r = dlg.ShowDialog();
+
+            if (dlg.ResultReason == DimensioneringV2.UI.Dialogs.SelectPipeDimViewModel.CloseReason.Retry)
+            {
+                _angivDim?.RetryKeepFirst();
+                return;
+            }
+            if (dlg.ResultReason != DimensioneringV2.UI.Dialogs.SelectPipeDimViewModel.CloseReason.Ok)
+            {
+                // Cancel: exit mode and restore theme
+                _angivDim?.Stop();
+                _angivDim = null;
+                SelectedMapPropertyWrapper = _prevSelectedProperty;
+                UpdateMap();
+                return;
+            }
+
+            // Apply selected dim to features
+            var settings = Services.HydraulicSettingsService.Instance.Settings;
+            var types = new NorsynHydraulicCalc.Pipes.PipeTypes(settings);
+            var selectedType = dlg.ViewModel.SelectedPipeType;
+            var selectedNominal = dlg.ViewModel.SelectedNominal;
+
+            if (_pipes == null)
+                _pipes = new NorsynHydraulicCalc.Pipes.PipeTypes(settings);
+            var dim = _pipes.GetPipeType(selectedType).GetDim(selectedNominal);
+
+            foreach (var f in features)
+            {
+                if (f.ManualDim)
+                {//Case: ManualDim already set
+                    f.Dim = dim;
+                }
+                else
+                {//Case: first time setting manual dim
+                    f.PreviousDim = f.Dim;
+                    f.Dim = dim;
+                    f.ManualDim = true;
+                }
+            }
+
+            // Refresh theme and reset to first selection
+            _themeManager.SetTheme(MapPropertyEnum.Pipe);
+            UpdateMap();
+            _angivDim?.ResetToFirstSelection();
+        }
+        #endregion
+        #endregion
+
+        #region Reset dim command
+        public RelayCommand ResetDimCommand => new(ResetDim);
+        private ResetDimManager? _resetDim;
+        private void ResetDim()
+        {
+            if (_resetDim != null)
+            {
+                // Toggle off if already active
+                _resetDim.Stop();
+                _resetDim = null;
+                SelectedMapPropertyWrapper = _prevSelectedProperty;
+                UpdateMap();
+                return;
+            }
+
+            if (_dataService?.Graphs == null ||
+                !_dataService.Graphs.Any() ||
+                !_dataService.Graphs.SelectMany(x => x.Edges).Any(x => x.PipeSegment.ManualDim)) return;
+
+            _prevSelectedProperty = SelectedMapPropertyWrapper;
+            SelectedMapPropertyWrapper = new MapPropertyWrapper(MapPropertyEnum.ManualDim, "Manuel dimension");
+            UpdateMap();
+
+            _resetDim = new ResetDimManager(_mapControl);
+            _resetDim.Finalized += OnResetDimFinalized;
+            _resetDim.Stopped += OnResetDimStopped;
+            _resetDim.Start();
+        }
+
+        private void OnResetDimStopped()
+        {
+            _resetDim = null;
+            SelectedMapPropertyWrapper = _prevSelectedProperty;
+
+            new HydraulicCalculationsService().CalculateGraphs(_dataService.Graphs);
+
+            foreach (var graph in DataService.Instance.Graphs)
+                PressureAnalysisService.CalculateDifferentialLossAtClient(graph);
+
+            UpdateMap();
+        }
+        private void OnResetDimFinalized(AnalysisFeature feature)
+        {
+            if (!feature.ManualDim) return;
+            feature.ManualDim = false;
+            feature.Dim = feature.PreviousDim;
+            UpdateMap();
+
+            //Handle none manual dims left
+            if (!_dataService.Graphs.SelectMany(x => x.Edges).Any(x => x.PipeSegment.ManualDim))
+            {
+                _resetDim?.Stop();
+            }
         }
         #endregion
     }
