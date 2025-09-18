@@ -12,7 +12,7 @@ using DimensioneringV2.GraphFeatures;
 using DimensioneringV2.GraphModelRoads;
 using DimensioneringV2.Serialization;
 using DimensioneringV2.Services;
-using DimensioneringV2.Services.Elevations;
+using DimensioneringV2.Services.GDALClient;
 using DimensioneringV2.UI;
 using DimensioneringV2.Vejklasser.Interfaces;
 using DimensioneringV2.Vejklasser.Models;
@@ -681,7 +681,7 @@ namespace DimensioneringV2
                     Math.Max(pls.Select(x => maxY(x)).Max(), brs.Select(x => maxY(x)).Max()) + 2, 0));
                 #endregion
 
-                ElevationService.Instance.DownloadElevationData(extents, localDb.Filename);
+                GdalRpcTransport.Instance.DownloadElevationData(extents, localDb.Filename);
             }
             catch (System.Exception ex)
             {

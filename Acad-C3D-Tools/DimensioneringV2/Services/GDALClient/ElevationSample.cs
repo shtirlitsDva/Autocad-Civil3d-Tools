@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DimensioneringV2.Services.Elevations
+namespace DimensioneringV2.Services.GDALClient
 {
     internal readonly record struct ElevationSample(
         double Station,

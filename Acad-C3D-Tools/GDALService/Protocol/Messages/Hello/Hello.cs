@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace GDALService.Protocol.Messages.Types
+namespace GDALService.Protocol.Messages.Hello
 {
     internal sealed class HelloReq { }
     internal sealed class HelloRes { public string Msg { get; set; } = "HELLO_ACK"; }

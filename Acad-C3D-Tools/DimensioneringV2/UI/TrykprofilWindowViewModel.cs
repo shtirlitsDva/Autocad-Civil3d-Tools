@@ -61,7 +61,10 @@ namespace DimensioneringV2.UI
             PressurePlot2.Axes.Add(new LinearAxis
             {
                 Position = AxisPosition.Left,
-                Title = "Tryk [bar]"
+                Title = "Tryk [bar]",
+                Minimum = 1,
+                AbsoluteMinimum = 0,
+                Maximum = Math.Ceiling(profile.First().SPbar)
             });
             var supplySeries2 = new LineSeries
             {

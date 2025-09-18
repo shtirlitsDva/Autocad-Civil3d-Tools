@@ -4,6 +4,7 @@ using Autodesk.AutoCAD.Geometry;
 using BitMiracle.LibTiff.Classic;
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -13,99 +14,57 @@ using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows.Xps;
 using System.Xml;
 
-namespace DimensioneringV2.Services.Elevations
+namespace DimensioneringV2.Services.GDALClient
 {
-    internal class ElevationService
+    internal class GdalRpcTransport : IRpcTransport
     {
-        private static readonly Lazy<ElevationService> _lazy = new(() => new ElevationService());
-        public static ElevationService Instance => _lazy.Value;
+        private static readonly Lazy<GdalRpcTransport> _lazy = new(() => new GdalRpcTransport());
+        public static GdalRpcTransport Instance => _lazy.Value;
         private static string? _token;
-        private ElevationService() { }
+        private GdalRpcTransport() { }
 
-        #region Elevation Sampler
-        private string ServiceFolder = 
+        #region Gdalservice
+        private string ServiceFolder =
             @"X:\AutoCAD DRI - 01 Civil 3D\NetloadV2\Dependencies\GdalService";
         private string ServiceExeName = "GDALService.exe";
 
+        private readonly object _procSync = new();
+        private readonly SemaphoreSlim _callLock = new(1, 1);
+
+        // Progress routing for the current (single-flight) call
+        private volatile string? _activeRpcId;
+        private volatile IProgress<(int done, int total)>? _activeProgress;
+
         // ---- process state ----
-        private readonly object _sync = new();
         private Process? _proc;
         private StreamWriter? _stdin;
         private StreamReader? _stdout;
         private Task? _stderrPump;
-
-        private int _nextReqId = 0;
+        private Task? _stdoutPump;
+        private int _nextReqId;
 
         // Simple request/response DTOs for NDJSON
-        private sealed record RpcReq(string id, string type, object payload);
-        private sealed record RpcResp(string id, int status, JsonElement? result, string? error);
+        internal sealed record RpcReq(string id, string type, object? payload);
+        internal sealed record RpcResp(string id, int status, JsonElement? result, string? error);
+        private sealed record ProgressMsg(string? id, string? type, int? done, int? total, double? pct, string? message);
 
-        internal async Task EnsureProjectAsync(string projectId, string basePath, CancellationToken ct = default)
+        private readonly JsonSerializerOptions _json = new()
         {
-            // HELLO
-            var hello = await SendAsync(new RpcReq(NewId(), "HELLO", new { }), ct).ConfigureAwait(false);
-            if (hello.status != 0) throw new InvalidOperationException("GDALService HELLO failed: " + hello.error);
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            DefaultIgnoreCondition = JsonIgnoreCondition.Never,
+            NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals |
+                         JsonNumberHandling.AllowReadingFromString
+        };
 
-            // SET_PROJECT
-            var set = await SendAsync(new RpcReq(NewId(), "SET_PROJECT",
-                new { projectId, basePath }), ct).ConfigureAwait(false);
-
-            if (set.status != 0)
-                throw new InvalidOperationException($"SET_PROJECT failed: {set.error}");
-        }
-
-        public async Task<IReadOnlyList<(long geomId, int seq, double s, double x, double y, double elev, string status)>>
-        SampleTaggedAsync(IEnumerable<(long geomId, int seq, double s, double x, double y)> points,
-                          int? threads, CancellationToken ct = default)
+        public async Task EnsureServerAsync(CancellationToken ct)
         {
-            var payload = new
-            {
-                threads = threads ?? 0,
-                points = points.Select(p => new {
-                    geomId = p.geomId,
-                    seq = p.seq,
-                    s = p.s,
-                    x = p.x,
-                    y = p.y
-                }).ToArray()
-            };
-
-            var resp = await SendAsync(new RpcReq(NewId(), "SAMPLE_POINTS", payload), ct).ConfigureAwait(false);
-            if (resp.status != 0)
-                throw new InvalidOperationException($"SAMPLE_POINTS failed: {resp.error}");
-
-            // Parse result.rows
-            var rowsProp = resp.result.GetValueOrDefault().GetProperty("rows");
-            var list = new List<(long, int, double, double, double, double, string)>(rowsProp.GetArrayLength());
-            foreach (var row in rowsProp.EnumerateArray())
-            {
-                long gid = row.GetProperty("geomId").GetInt32()!;                
-                int seq = row.GetProperty("seq").GetInt32();
-                double s = row.GetProperty("s").GetDouble();
-                double x = row.GetProperty("x").GetDouble();
-                double y = row.GetProperty("y").GetDouble();
-                string status = row.GetProperty("status").GetString()!;
-                double elev = row.GetProperty("elev").GetDouble(); // NaN comes as NaN
-
-                list.Add((gid, seq, s, x, y, elev, status));
-            }
-            return list;
-        }
-
-        public async Task<double?> SampleSingleAsync(double x, double y, CancellationToken ct = default)
-        {
-            var tagged = await SampleTaggedAsync(new[] { (geomId: 0L, seq: 0, s: 0.0, x, y) }, threads: 1, ct);
-            var r = tagged[0];
-            return r.status == "OK" ? r.elev : (double?)null;
-        }
-
-        internal async Task EnsureServerAsync(CancellationToken ct)
-        {
-            lock (_sync)
+            lock (_procSync)
             {
                 if (_proc is { HasExited: false } && _stdin != null && _stdout != null) return;
 
@@ -133,13 +92,42 @@ namespace DimensioneringV2.Services.Elevations
                 _stdin = _proc.StandardInput;
                 _stdout = _proc.StandardOutput;
 
-                // pump stderr to Debug/Trace (READY/PROGRESS messages)
-                var sr = _proc.StandardError;
+                // Pump stderr for logs / READY / PROGRESS
+                var srErr = _proc!.StandardError;
                 _stderrPump = Task.Run(async () =>
                 {
                     string? line;
-                    while ((line = await sr.ReadLineAsync().ConfigureAwait(false)) != null)
+                    while ((line = await srErr.ReadLineAsync().ConfigureAwait(false)) != null)
+                    {
+                        // Fast path: try parse JSON; ignore plain text logs
+                        if (line.Length > 1 && line[0] == '{')
+                        {
+                            try
+                            {
+                                var pm = JsonSerializer.Deserialize<ProgressMsg>(line);
+                                if (pm?.type?.Equals("PROGRESS", StringComparison.OrdinalIgnoreCase) == true)
+                                {
+                                    var id = pm.id;
+                                    var progress = _activeProgress;
+                                    // single-flight: just ensure it matches the current call
+                                    if (progress != null && _activeRpcId != null && id == _activeRpcId)
+                                    {
+                                        var done = pm.done ?? 0;
+                                        var total = pm.total ?? 0;
+                                        progress.Report((done, total));
+                                    }
+                                    continue;
+                                }
+                            }
+                            catch
+                            {
+                                // If it's not valid JSON or not a PROGRESS, just fall through to log
+                            }
+                        }
+
+                        // Non-progress stderr: keep logging for diagnostics
                         System.Diagnostics.Debug.WriteLine("[GDALService] " + line);
+                    }
                 });
             }
 
@@ -147,19 +135,117 @@ namespace DimensioneringV2.Services.Elevations
             await Task.Delay(50, ct).ConfigureAwait(false);
         }
 
-        private async Task<RpcResp> SendAsync(RpcReq req, CancellationToken ct)
+        public async Task<RpcResp> CallAsync(
+            string type,
+            object? payload, 
+            CancellationToken ct = default,
+            IProgress<(int done, int total)>? progress = null)
         {
-            string json = JsonSerializer.Serialize(req, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
-            lock (_sync) { _stdin!.WriteLine(json); _stdin.Flush(); }
+            await EnsureServerAsync(ct).ConfigureAwait(false);
 
-            // one response per line (same order)
-            var line = await _stdout!.ReadLineAsync().WaitAsync(ct).ConfigureAwait(false);
-            if (line == null) throw new EndOfStreamException("GDALService ended.");
-            var resp = JsonSerializer.Deserialize<RpcResp>(line, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })!;
-            return resp;
+            await _callLock.WaitAsync(ct).ConfigureAwait(false); // one call at a time
+            string? prevId = null;
+            IProgress<(int, int)>? prevProgress = null;
+
+            try
+            {
+                var id = Interlocked.Increment(ref _nextReqId).ToString();
+                var req = new RpcReq(id, type, payload);
+                var json = JsonSerializer.Serialize(req, _json);
+
+                // Register progress sink for THIS call
+                prevId = _activeRpcId;           // (should be null in single-flight)
+                prevProgress = _activeProgress;  // (should be null in single-flight)
+                _activeRpcId = id;
+                _activeProgress = progress;
+
+                // Optional: cancellation → send CANCEL control to service
+                using var ctr = ct.Register(() =>
+                {
+                    try
+                    {
+                        // Best-effort CANCEL message; ignore failures
+                        var cancel = JsonSerializer.Serialize(new RpcReq(id, "CANCEL", new { }));
+                        _stdin?.WriteLine(cancel);
+                        _stdin?.Flush();
+                    }
+                    catch { }
+                });
+
+                // Write the request
+                try
+                {
+                    _stdin!.WriteLine(json);
+                    _stdin.Flush();
+                }
+                catch
+                {
+                    SafeTearDownProcess();
+                    throw;
+                }
+
+                // Read the final response line
+                var line = await _stdout!.ReadLineAsync().WaitAsync(ct).ConfigureAwait(false);
+                if (line is null)
+                {
+                    SafeTearDownProcess();
+                    throw new EndOfStreamException("GDALService ended.");
+                }
+
+                var resp = JsonSerializer.Deserialize<RpcResp>(line, _json)!;
+                if (resp.id != id)
+                    throw new InvalidOperationException($"Mismatched RPC id. Expected {id}, got {resp.id}.");
+
+                return resp;
+            }
+            finally
+            {
+                // Clear progress routing
+                _activeRpcId = prevId;
+                _activeProgress = prevProgress;
+
+                _callLock.Release();
+            }
         }
-
-        private string NewId() => Interlocked.Increment(ref _nextReqId).ToString();
+        public async Task<T> CallAsync<T>(
+            string type,
+            object? payload,
+            CancellationToken ct = default,
+            IProgress<(int done, int total)>? progress = null)
+        {
+            var resp = await CallAsync(type, payload, ct, progress).ConfigureAwait(false);
+            if (resp.status != 0)
+                throw new RpcException(type, resp.id, resp.status, resp.error ?? "Unknown error");
+            if (resp.result is null)
+                throw new RpcException(type, resp.id, resp.status, "Missing result");
+            return resp.result.Value.Deserialize<T>(_json)!;
+        }
+        private void SafeTearDownProcess()
+        {
+            lock (_procSync)
+            {
+                try { _stdin?.Close(); } catch { }
+                try
+                {
+                    if (_proc is { HasExited: false })
+                        _proc.Kill(entireProcessTree: true);
+                }
+                catch { }
+                _proc?.Dispose();
+                _proc = null;
+                _stdin = null;
+                _stdout = null;
+            }
+        }
+        public async ValueTask DisposeAsync()
+        {
+            // Only call this when the app is shutting down
+            SafeTearDownProcess();
+            if (_stderrPump is not null)
+            {
+                try { await _stderrPump.ConfigureAwait(false); } catch { }
+            }
+        }
         #endregion
 
         #region Downloading of GeoTIFFs
@@ -214,7 +300,7 @@ namespace DimensioneringV2.Services.Elevations
 
             //Remember to persist
             string baseName = GenerateUniqueBaseName(elevationsDir);
-            
+
             var elevationSettings = new ElevationSettings();
             elevationSettings.BaseFileName = baseName;
             SettingsSerializer<ElevationSettings>.Save(

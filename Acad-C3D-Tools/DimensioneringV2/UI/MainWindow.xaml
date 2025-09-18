@@ -49,6 +49,8 @@
                         Margin="2" Command="{Binding ResetDimCommand}"/>
                 <Button x:Name="btnTestElevations" Content="Test koter" FontSize="10" Width="70" Height="20"
                         Margin="2" Command="{Binding TestElevationsCommand}"/>
+                <Button x:Name="btnSampleElevations" Content="Sample grid" FontSize="10" Width="70" Height="20"
+                        Margin="2" Command="{Binding SampleGridCommand}"/>
             </StackPanel>
 
             <!-- Main Content Area -->

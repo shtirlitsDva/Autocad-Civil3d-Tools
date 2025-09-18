@@ -3,7 +3,7 @@ using GDALService.Common;
 using GDALService.Configuration;
 using GDALService.Domain.Models;
 using GDALService.Infrastructure.Gdal;
-using GDALService.Protocol.Messages.Types;
+using GDALService.Protocol.Messages.SamplePoints;
 
 using System;
 using System.Collections.Generic;
@@ -17,10 +17,12 @@ namespace GDALService.Application.Handlers
     {
         private readonly ServiceOptions _options;
         private readonly VrtManager _vrt;
-        public SamplePointsHandler(VrtManager vrt, ServiceOptions options)
+        private readonly string _requestId;
+        public SamplePointsHandler(VrtManager vrt, ServiceOptions options, string requestId)
         { 
             _vrt = vrt;
             _options = options;
+            _requestId = requestId;
         }
 
         public Task<Result<SamplePointsRes>> HandleAsync(SamplePointsReq req, CancellationToken ct = default)
@@ -30,8 +32,8 @@ namespace GDALService.Application.Handlers
                 return Task.FromResult(Result<SamplePointsRes>.Fail(ctxRes.Status, ctxRes.Error));
 
             var ctx = ctxRes.Value!;
-            var reporter = new BatchProgressReporter(_options.ProgressEvery); // or inject via options
-            var (rows, sum) = Sampler.Sample(
+            var reporter = new JsonProgressReporter(_requestId, _options.ProgressEvery);
+            var (rows, sum) = Sampler.SamplePoints(
                 ds: ctx.Ds,
                 pts: req.Points.Select(q => new PointIn { GeomId = q.GeomId, Seq = q.Seq, S = q.S, X = q.X, Y = q.Y }),
                 threads: req.Threads,

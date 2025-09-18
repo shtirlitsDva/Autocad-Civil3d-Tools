@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace GDALService.Protocol.Messages.Types
+namespace GDALService.Protocol.Messages.SamplePoints
 {
     internal sealed class SamplePointsReq
     {

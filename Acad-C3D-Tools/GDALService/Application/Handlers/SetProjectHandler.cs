@@ -1,7 +1,7 @@
 ﻿using GDALService.Application.Abstractions;
 using GDALService.Common;
 using GDALService.Infrastructure.Gdal;
-using GDALService.Protocol.Messages.Types;
+using GDALService.Protocol.Messages.SetProject;
 
 using System;
 using System.Collections.Generic;

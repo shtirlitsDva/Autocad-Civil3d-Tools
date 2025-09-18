@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace GDALService.Protocol.Messages.Types
+namespace GDALService.Protocol.Messages.SetProject
 {
     internal sealed class SetProjectReq
     {

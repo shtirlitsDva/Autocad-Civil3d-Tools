@@ -9,6 +9,6 @@ namespace GDALService.Configuration
     internal class ServiceOptions
     {
         public int? Threads { get; init; } = null;
-        public int ProgressEvery { get; init; } = 50;
+        public int ProgressEvery { get; init; } = 100;
     }
 }

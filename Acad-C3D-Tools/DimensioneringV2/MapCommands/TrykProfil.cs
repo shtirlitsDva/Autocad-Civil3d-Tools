@@ -3,7 +3,7 @@ using DimensioneringV2.Common;
 using DimensioneringV2.GraphFeatures;
 using DimensioneringV2.Models.Trykprofil;
 using DimensioneringV2.Services;
-using DimensioneringV2.Services.Elevations;
+using DimensioneringV2.Services.GDALClient;
 using DimensioneringV2.UI;
 
 using QuikGraph;
