@@ -5,6 +5,7 @@ using GDALService.Configuration;
 using GDALService.Domain.Models;
 using GDALService.Infrastructure.Gdal;
 using GDALService.Protocol.Messages;
+using GDALService.Protocol.Messages.Hello;
 using GDALService.Protocol.Messages.SampleGrid;
 using GDALService.Protocol.Messages.SamplePoints;
 using GDALService.Protocol.Messages.SetProject;
@@ -77,7 +78,7 @@ namespace GDALService.Hosting
                             return new Response { Id = req.Id, Status = (int)r.Status, Result = r.Value, Error = r.Error };
                         }
 
-                        case "SAMPLE_GRID":
+                    case "SAMPLE_GRID":
                         {
                             var p = Protocol.Json.Extract<SampleGridReq>(req.Payload);
                             IRequestHandler<SampleGridReq, Result<SampleGridRes>> h

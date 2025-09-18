@@ -85,7 +85,7 @@ namespace GDALService.Infrastructure.Gdal
                         if (ix < 0 || iy < 0 || ix >= local.Ds.RasterXSize || iy >= local.Ds.RasterYSize)
                         {
                             Interlocked.Increment(ref sum.Outside);
-                            bag.Add(new PointOut { X = p.X, Y = p.Y, Elev = double.NaN, Status = "OUTSIDE" });
+                            //bag.Add(new PointOut { X = p.X, Y = p.Y, Elev = -99, Status = "OUTSIDE" });
                         }
                         else
                         {
@@ -99,7 +99,7 @@ namespace GDALService.Infrastructure.Gdal
                             catch
                             {
                                 Interlocked.Increment(ref sum.Err);
-                                bag.Add(new PointOut { X = p.X, Y = p.Y, Elev = double.NaN, Status = "ERR" });
+                                //bag.Add(new PointOut { X = p.X, Y = p.Y, Elev = -99, Status = "ERR" });
                                 goto REPORT;
                             }
 
@@ -118,7 +118,7 @@ namespace GDALService.Infrastructure.Gdal
                     catch
                     {
                         Interlocked.Increment(ref sum.Err);
-                        bag.Add(new PointOut { X = p.X, Y = p.Y, Elev = double.NaN, Status = "ERR" });
+                        //bag.Add(new PointOut { X = p.X, Y = p.Y, Elev = -99, Status = "ERR" });
                         var d = Interlocked.Increment(ref done);
                         progress.MaybeReport(d, total);
                         return local;
@@ -127,7 +127,7 @@ namespace GDALService.Infrastructure.Gdal
                 _ => { });
 
             var rows = bag.ToList();
-            rows.Sort((a, b) => a.Seq.CompareTo(b.Seq)); // row-major order
+            rows.Sort((a, b) => a.Y == b.Y ? a.X.CompareTo(b.X) : a.Y.CompareTo(b.Y));
             sum.Total = total;
             return (rows, sum);
         }        
