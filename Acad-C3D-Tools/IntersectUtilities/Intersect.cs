@@ -5322,8 +5322,8 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("BBRFROMPTS")]
-        public void bbrfrompts()
+        [CommandMethod("BBRFROMPTSDE")]
+        public void bbrfromptsde()
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
@@ -5351,6 +5351,93 @@ namespace IntersectUtilities
                     psm.WritePropertyString(br, bbr.Adresse, id.ToString());
                     psm.WritePropertyObject(br, bbr.EstimeretVarmeForbrug, last);
                 }
+            }
+            catch (System.Exception ex)
+            {
+                tx.Abort();
+                prdDbg(ex);
+                return;
+            }
+
+            tx.Commit();
+        }
+
+        [CommandMethod("BBRFROMPTS")]
+        public void bbrfrompts()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            using Transaction tx = localDb.TransactionManager.StartTransaction();
+
+            try
+            {
+                PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.BBR);
+                PSetDefs.BBR bbr = new PSetDefs.BBR();
+
+                var pts = localDb.HashSetOfType<DBPoint>(tx);
+
+                var plines = localDb.HashSetOfType<Polyline>(tx);
+
+                var ptsByDist = pts.SelectMany(p => plines.Select(y => new
+                {
+                    Pline = y,
+                    Point = p,
+                    Dist = y.GetDistToPoint(p.Position, false),
+                    Parameter = y.GetParameterAtPoint(
+                        y.GetClosestPointTo(p.Position, false))
+                }))
+                    .GroupBy(x => x.Point)
+                    .Select(x => x.MinBy(y => y.Dist)!);
+
+                var startNode = plines
+                    .Where(x => plines.Any(y => x.StartPoint.Equalz(y.StartPoint) ||
+                    x.StartPoint.Equalz(y.EndPoint)))
+                    .FirstOrDefault();
+
+                if (startNode == null) { prdDbg("No start node found!"); tx.Abort(); return; }
+
+                var stack = new Stack<Polyline>();
+                stack.Push(startNode);
+
+                int vidx = 1;
+                while (stack.Count > 0)
+                {
+                    var current = stack.Pop();
+                    var connected = plines
+                        .Where(x => x != current &&
+                        current.EndPoint.Equalz(x.StartPoint)); //tree structure assumed                            
+
+                    foreach (var conn in connected)
+                    {
+                        stack.Push(conn);
+                    }
+
+                    var closePts = ptsByDist
+                        .Where(x => x.Pline == current)
+                        .OrderBy(x => x.Parameter);
+
+                    int ndix = 1;
+                    foreach (var pt in closePts)
+                    {
+                        var br = localDb.CreateBlockWithAttributes("Naturgas", pt.Point.Position);
+                        psm.WritePropertyString(br, bbr.Adresse, $"STR{vidx.ToString("00")} {ndix.ToString("00")}");
+                        psm.WritePropertyString(br, bbr.Type, "Naturgas");
+                        psm.WritePropertyString(br, bbr.DistriktetsNavn, "Verificering");
+                        psm.WritePropertyString(br, bbr.id_lokalId, Guid.NewGuid().ToString());
+                        psm.WritePropertyObject(br, bbr.EstimeretVarmeForbrug, GetRandForbrug());
+                        
+                        ndix++;
+                    }
+
+                    double GetRandForbrug()
+                    {
+                        var rnd = new Random();
+                        return 15 + rnd.NextDouble() * (25 - 15);
+                    }
+
+                    vidx++;
+                }                
             }
             catch (System.Exception ex)
             {
@@ -5501,12 +5588,12 @@ namespace IntersectUtilities
         }
 
         /// <command>CENTERVIEWFRAMENUMBER</command>
-    /// <summary>
-    /// Centrerer tal-teksten i Civil 3D View Frame label-stilen "Basic".
-    /// Alle tekstkomponenter sættes til vedhæftning MiddleCenter med 0 i X/Y-offset.
-    /// Stilen hentes fra det aktive CivilDocument; geometri ændres ikke.
-    /// </summary>
-    /// <category>Utilities</category>
+        /// <summary>
+        /// Centrerer tal-teksten i Civil 3D View Frame label-stilen "Basic".
+        /// Alle tekstkomponenter sættes til vedhæftning MiddleCenter med 0 i X/Y-offset.
+        /// Stilen hentes fra det aktive CivilDocument; geometri ændres ikke.
+        /// </summary>
+        /// <category>Utilities</category>
         [CommandMethod("CENTERVIEWFRAMENUMBER")]
         public void CenterViewFrameNumber()
         {
