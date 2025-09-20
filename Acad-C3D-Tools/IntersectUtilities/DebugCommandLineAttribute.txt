@@ -1,1 +1,0 @@
-﻿"X:\117-1398 - VF - Program 2 (LY1 og GL1) - Dokumenter\01 Intern\02 Tegninger\01 Autocad\01 Views\LY1 7.26.7\01 FJV Fremtid\Dev\FJV fremtid_Dev.dwg" /ld "c:\Program Files\Autodesk\AutoCAD 2024\AecBase.dbx" /p "<<C3D_Metric>>" /product C3D /language en-US /nologo /nossm /b "X:\GitHub\shtirlitsDva\Autocad-Civil3d-Tools\Acad-C3D-Tools\IntersectUtilities\loadNet.scr"
