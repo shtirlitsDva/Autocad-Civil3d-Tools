@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>NorsynHydraulic</RootNamespace>
+    <AssemblyName>NorsynHydraulic</AssemblyName>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <Title>Norsyn hydraulic calculations library</Title>
+    <Authors>Norsyn</Authors>
+    <Company>Norsyn</Company>
+    <Product>NorsynHydraulic</Product>
+    <Description>NorsynHydraulic library contains tools to calculate hydraulic tasks.</Description>
+    <Copyright>Norsyn</Copyright>
+    <Platforms>x64</Platforms>
+  </PropertyGroup>
+
+  <Import Project="..\NorsynHydraulicShared\NorsynHydraulicShared.projitems" Label="Shared" />
+
+</Project>

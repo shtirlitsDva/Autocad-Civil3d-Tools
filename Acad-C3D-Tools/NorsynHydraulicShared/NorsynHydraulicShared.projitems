@@ -1,0 +1,48 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <MSBuildAllProjects Condition="'$(MSBuildVersion)' == '' Or '$(MSBuildVersion)' &lt; '16.0'">$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <HasSharedItems>true</HasSharedItems>
+    <SharedGUID>1356cf62-02fe-40e8-a35c-976077f7f8d7</SharedGUID>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <Import_RootNamespace>NorsynHydraulicShared</Import_RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Pipes\Sizes\PipeAluPexSizes.csv" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Pipes\Sizes\PipeCuSizes.csv" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Pipes\Sizes\PipePertFlextraSizes.csv" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Pipes\Sizes\PipeSteelSizes.csv" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)AsciiTableFormatter.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)CalculationResult.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Enums.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)HydraulicCalc.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)IHydraulicSettings.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)IHydraulicSegment.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ILog.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)LookupData\ILookupData.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)LookupData\LookupDataBase.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)LookupData\LookupDataFactory.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)LookupData\LookupDataWater.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)LookupData\LookupDataWater72Ipa28.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)MaxFlowCalc\IMaxFlowCalc.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)maxflowcalc\MaxFlowCalcBase.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)MaxFlowCalc\MaxFlowCalcFactory.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)MaxFlowCalc\MaxFlowCalcWater.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)MaxFlowCalc\MaxFlowCalcWater72Ipa28.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Pipes\Dim.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Pipes\IPipe.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Pipes\PipeAluPex.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Pipes\PipeBase.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Pipes\PipeCu.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Pipes\PipePe.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Pipes\PipePertFlextra.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Pipes\PipeSteel.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Pipes\PipeTypes.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Pipes\Sizes\PipePeSizes.csv" />
+  </ItemGroup>
+</Project>

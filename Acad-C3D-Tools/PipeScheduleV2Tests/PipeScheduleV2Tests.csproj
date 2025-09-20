@@ -1,0 +1,123 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<TargetFramework>net8.0-windows</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<TargetPlatformIdentifier>Windows</TargetPlatformIdentifier>
+		<TargetPlatformVersion>8.0</TargetPlatformVersion>
+		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
+		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+		<ImportWindowsDesktopTargets>true</ImportWindowsDesktopTargets>
+		<Nullable>enable</Nullable>
+		<Platforms>x64</Platforms>
+	</PropertyGroup>
+	<PropertyGroup>
+		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+		<AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+	</PropertyGroup>
+	<PropertyGroup>
+		<OutputType>Library</OutputType>
+	</PropertyGroup>
+	<PropertyGroup>
+		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+		<AssemblyName>PipeScheduleV2Tests</AssemblyName>
+	</PropertyGroup>
+	<PropertyGroup Condition=" '$(Platform)' == 'x64' ">
+		<DebugSymbols>true</DebugSymbols>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+		<OutputPath>bin\Debug\</OutputPath>
+		<DebugType>full</DebugType>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+		<OutputPath>bin\Release\</OutputPath>
+		<DebugType>full</DebugType>
+	</PropertyGroup>
+	<ItemGroup>
+		<Folder Include="Links\" />
+		<Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeScheduleV2.cs">
+			<Link>Links\PipeScheduleV2\PipeScheduleV2.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\PipeScheduleV2\MigrationStrategy.md">
+			<Link>Links\PipeScheduleV2\MigrationStrategy.md</Link>
+		</Compile>
+		<Compile Include="PipeScheduleV2TestsClass.Core.cs" />
+		<Compile Include="PipeScheduleV2Report.cs" />
+		<Compile Include="PipeScheduleV2EntityRegistry.cs" />
+	</ItemGroup>
+	<ItemGroup>
+		<Reference Include="accoremgd">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\accoremgd.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AcCui">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AcCui.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="acdbmgd">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\acdbmgd.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="acdbmgdbrep">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\acdbmgdbrep.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AcDx">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AcDx.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="acmgd">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\acmgd.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AcMPolygonMGD">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AcMPolygonMGD.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AcMr">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AcMr.DLL</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AcSeamless">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AcSeamless.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AcTcMgd">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AcTcMgd.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AcWindows">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AcWindows.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AdUiPalettes">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AdUiPalettes.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AdWindows">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AdWindows.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AecBaseMgd">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\ACA\AecBaseMgd.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AeccDataShortcutMgd">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\C3D\AeccDataShortcutMgd.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AeccDbMgd">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\C3D\AeccDbMgd.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AecPropDataMgd">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\ACA\AecPropDataMgd.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="ManagedMapApi">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\Map\ManagedMapApi.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+	</ItemGroup>
+	<Import Project="..\UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems" Label="Shared" />
+
+</Project>

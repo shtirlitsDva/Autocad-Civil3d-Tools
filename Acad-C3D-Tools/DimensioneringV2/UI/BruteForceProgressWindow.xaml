@@ -1,0 +1,38 @@
+﻿<Window x:Class="DimensioneringV2.UI.BruteForceProgressWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Optimization Progress" Height="250" Width="400"
+        Background="{DynamicResource Background}" Foreground="{DynamicResource Text}">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Theme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            <Style x:Key="RightAlignedTextBlockStyle" TargetType="TextBlock">
+                <Setter Property="HorizontalAlignment" Value="Right" />
+            </Style>
+        </ResourceDictionary>
+    </Window.Resources>
+    <Grid>
+        <StackPanel Margin="10">
+            <TextBlock Text="Optimization Progress" FontWeight="Bold" FontSize="18" Margin="0,0,0,10"/>
+            <StackPanel Orientation="Horizontal" Margin="0,5">
+                <TextBlock Text="Round of iterations: " />
+                <TextBlock Text="{Binding Round}" FontWeight="Bold" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,5">
+                <TextBlock Text="Bridges: " />
+                <TextBlock Text="{Binding Bridges}" FontWeight="Bold" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,5">
+                <TextBlock Text="Removal Candidates: " />
+                <TextBlock Text="{Binding RemovalCandidates}" FontWeight="Bold" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,5">
+                <TextBlock Text="Current Candidate: " />
+                <TextBlock Text="{Binding CurrentCandidate}" FontWeight="Bold" />
+            </StackPanel>
+            <Button Content="Stop" Click="StopButton_Click" HorizontalAlignment="Center" Margin="10,20,10,0" Width="80"/>
+        </StackPanel>
+    </Grid>
+</Window>

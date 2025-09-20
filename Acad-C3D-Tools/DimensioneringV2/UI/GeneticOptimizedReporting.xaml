@@ -1,0 +1,184 @@
+﻿<Window x:Class="DimensioneringV2.UI.GeneticOptimizedReporting"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:DimensioneringV2.UI"
+        xmlns:oxy="http://oxyplot.org/wpf"
+        mc:Ignorable="d"
+        Title="Genetic Optimized Reporting"
+        Height="600" Width="1000"
+        Background="{DynamicResource Background}" 
+        Foreground="{DynamicResource Text}">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Theme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <Style x:Key="RightAlignedTextBlockStyle" TargetType="TextBlock">
+                <Setter Property="HorizontalAlignment" Value="Right" />
+            </Style>
+
+            <!-- Brute Force card template -->
+            <DataTemplate DataType="{x:Type local:BruteForceGraphCalculationViewModel}">
+                <Border CornerRadius="5" BorderBrush="Gray" BorderThickness="1" Padding="10" Margin="5">
+                    <Grid>
+                        <Grid.Resources>
+                            <Style TargetType="StackPanel" x:Key="MainContentStyle">
+                                <Setter Property="Visibility" Value="Visible"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding ShowCountdownOverlay}" Value="True">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+
+                            <Style TargetType="Grid" x:Key="OverlayStyle">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding ShowCountdownOverlay}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Grid.Resources>
+
+                        <!-- Main content -->
+                        <StackPanel Style="{StaticResource MainContentStyle}">
+                            <TextBlock Text="Brute Force Graph" FontWeight="Bold" />
+                            <TextBlock Text="{Binding Title}" FontStyle="Italic"/>
+                            <Separator Margin="5"/>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Nodes: " FontWeight="Bold"/>
+                                <TextBlock Text="{Binding NodeCount}"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Edges: " FontWeight="Bold"/>
+                                <TextBlock Text="{Binding EdgeCount}"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Non bridges: " FontWeight="Bold"/>
+                                <TextBlock Text="{Binding NonBridgesCount}"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Steiner Trees found: " FontWeight="Bold"/>
+                                <TextBlock Text="{Binding SteinerTreesFound}"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Calculated Trees: " FontWeight="Bold"/>
+                                <TextBlock Text="{Binding CalculatedTrees}"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Cost: " FontWeight="Bold"/>
+                                <TextBlock Text="{Binding Cost, StringFormat={}{0:N0}, ConverterCulture=da-DK}"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Overlay countdown -->
+                        <Grid Background="#AA000000" Style="{StaticResource OverlayStyle}">
+                            <TextBlock Text="{Binding RemainingTime}"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           Foreground="White"
+                           FontWeight="Bold"
+                           FontSize="24"/>
+                        </Grid>
+                    </Grid>
+                </Border>
+            </DataTemplate>
+
+            <!-- Genetic Algorithm card template -->
+            <DataTemplate DataType="{x:Type local:GeneticAlgorithmCalculationViewModel}">
+                <Border CornerRadius="5" BorderBrush="Gray" BorderThickness="1" Padding="10" Margin="5">
+                    <StackPanel>
+                        <TextBlock Text="Genetic Algorithm Graph" FontWeight="Bold"/>
+                        <TextBlock Text="{Binding Title}" FontStyle="Italic"/>
+                        <Separator Margin="5"/>
+
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Nodes: " FontWeight="Bold"/>
+                            <TextBlock Text="{Binding NodeCount}"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Edges: " FontWeight="Bold"/>
+                            <TextBlock Text="{Binding EdgeCount}"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Finding seed: " FontWeight="Bold"/>
+                            <TextBlock Text="{Binding BruteForceCount}"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Generation: " FontWeight="Bold"/>
+                            <TextBlock Text="{Binding CurrentGeneration}"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="GSLU: " FontWeight="Bold"/>
+                            <TextBlock Text="{Binding GenerationsSinceLastUpdate}"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Cost: " FontWeight="Bold"/>
+                            <TextBlock Text="{Binding Cost, StringFormat={}{0:N0}, ConverterCulture=da-DK}"/>
+                        </StackPanel>
+
+                        <oxy:PlotView Height="150"
+                                      Margin="0,5,0,5"
+                                      Model="{Binding PlotModel}"/>
+
+                        <Button Content="Stop"
+                                HorizontalAlignment="Right"
+                                Command="{Binding StopCommand}"
+                                Margin="0,10,0,0"/>
+                    </StackPanel>
+                </Border>
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type local:PlaceholderGraphCalculationViewModel}">
+                <Border CornerRadius="5" BorderBrush="Gray" BorderThickness="1" Padding="10" Margin="5"
+            Background="#AA000000">
+                    <Grid>
+                        <TextBlock Text="{Binding RemainingTime}"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       Foreground="White"
+                       FontWeight="Bold"
+                       FontSize="24"/>
+                    </Grid>
+                </Border>
+            </DataTemplate>
+            
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <!-- 
+        Use a Grid with two rows: 
+         - Row 0: "Total cost" summary
+         - Row 1: ScrollViewer with the ItemsControl
+    -->
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Row 0: Display total cost (or any summary text). 
+             Bind "TotalCost" in your GeneticOptimizedReportingViewModel. -->
+        <Border Background="{DynamicResource Background}" HorizontalAlignment="Center" Padding="10" Grid.Row="0">
+            <TextBlock FontWeight="Bold" Background="{DynamicResource Background}" Foreground="{DynamicResource Text}"
+                       FontSize="16"
+                       Text="{Binding TotalCost, StringFormat='Total cost: {0:N0}', ConverterCulture=da-DK}" />
+        </Border>
+
+        <!-- Row 1: The existing scrollable list of cards -->
+        <ScrollViewer VerticalScrollBarVisibility="Auto" Grid.Row="1">
+            <ItemsControl ItemsSource="{Binding GraphCalculations}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+            </ItemsControl>
+        </ScrollViewer>
+    </Grid>
+</Window>

@@ -1,0 +1,178 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<TargetFramework>net8.0-windows</TargetFramework>
+		<TargetPlatformIdentifier>Windows</TargetPlatformIdentifier>
+		<TargetPlatformVersion>8.0</TargetPlatformVersion>
+		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
+		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+		<UseWindowsForms>true</UseWindowsForms>
+		<UseWPF>true</UseWPF>
+		<ImportWindowsDesktopTargets>true</ImportWindowsDesktopTargets>
+		<Nullable>enable</Nullable>
+		<Platforms>x64</Platforms>
+	</PropertyGroup>
+	<PropertyGroup>
+		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+		<AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+	</PropertyGroup>
+	<PropertyGroup>
+		<OutputType>Library</OutputType>
+	</PropertyGroup>
+	<PropertyGroup>
+		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+	</PropertyGroup>
+	<PropertyGroup Condition=" '$(Platform)' == 'x64' ">
+		<DebugSymbols>true</DebugSymbols>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+		<OutputPath>bin\Debug\</OutputPath>
+		<DebugType>full</DebugType>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+		<OutputPath>bin\Release\</OutputPath>
+		<DebugType>full</DebugType>
+	</PropertyGroup>
+	<ItemGroup>
+		<Reference Include="accoremgd">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\accoremgd.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AcCui">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AcCui.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="acdbmgdbrep">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\acdbmgdbrep.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AcDx">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AcDx.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="acmgd">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\acmgd.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AcMPolygonMGD">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AcMPolygonMGD.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AcMr">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AcMr.DLL</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AcSeamless">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AcSeamless.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AcTcMgd">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AcTcMgd.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AcWindows">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AcWindows.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AdUIMgd">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AdUIMgd.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AdUiPalettes">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AdUiPalettes.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AdWindows">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AdWindows.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AecBaseMgd">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\ACA\AecBaseMgd.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AeccDbMgd">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\C3D\AeccDbMgd.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AecPropDataMgd">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\ACA\AecPropDataMgd.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="ManagedMapApi">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\Map\ManagedMapApi.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+	</ItemGroup>
+	<ItemGroup>
+		<Compile Include="..\IntersectUtilities\PropertySetManager.cs">
+			<Link>Links\PropertySetManager.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\ComponentSchedule.cs">
+			<Link>Links\ComponentSchedule.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\CsvReader.cs">
+			<Link>Links\CsvReader.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\GroupByCluster.cs">
+			<Link>Links\GroupByCluster.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\Json.cs">
+			<Link>Links\Json.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\MoreLinq\DistinctBy.cs">
+			<Link>Links\MoreLinq\DistinctBy.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\MoreLinq\MoreLinq.cs">
+			<Link>Links\MoreLinq.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeScheduleV2.cs">
+			<Link>Links\PipeScheduleV2\PipeScheduleV2.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\Forms\StringGridFormCaller.cs">
+			<Link>Links\Forms\StringGridFormCaller.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\Forms\StringGridForm.cs">
+			<Link>Links\Forms\StringGridForm.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\Forms\StringGridForm.Designer.cs">
+			<Link>Links\Forms\StringGridForm.Designer.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\Forms\OverlayForm.cs">
+			<Link>Links\Forms\OverlayForm.cs</Link>
+		</Compile>
+	</ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="Mapsui.Wpf" Version="4.1.8" />
+		<PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
+		<PackageReference Include="NetTopologySuite" Version="2.5.0" />
+		<PackageReference Include="NetTopologySuite.Features" Version="2.2.0" />
+		<PackageReference Include="NetTopologySuite.IO.Esri.Shapefile" Version="1.2.0" />
+		<PackageReference Include="NetTopologySuite.IO.GeoJSON" Version="4.0.0" />
+		<PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0" />
+		<PackageReference Include="System.Data.DataSetExtensions" Version="4.5.0" />
+		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="9.0.0" />
+		<PackageReference Include="System.Text.Encodings.Web" Version="9.0.0" />
+		<PackageReference Include="System.Text.Json" Version="9.0.0" />
+		<PackageReference Include="QuikGraph" Version="2.5.0" />
+		<PackageReference Include="QuikGraph.Graphviz" Version="2.5.0" />
+	</ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\AutoCADCommands\AutoCADCommands.csproj" />
+	</ItemGroup>
+	<ItemGroup>
+		<Folder Include="Links\" />
+	</ItemGroup>
+	<ItemGroup>
+		<Compile Update="Properties\Settings.Designer.cs">
+			<DesignTimeSharedInput>True</DesignTimeSharedInput>
+			<AutoGen>True</AutoGen>
+			<DependentUpon>Settings.settings</DependentUpon>
+		</Compile>
+	</ItemGroup>
+	<ItemGroup>
+		<None Update="Properties\Settings.settings">
+			<Generator>SettingsSingleFileGenerator</Generator>
+			<LastGenOutput>Settings.Designer.cs</LastGenOutput>
+		</None>
+	</ItemGroup>
+	<Import Project="..\UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems" Label="Shared" />
+</Project>
