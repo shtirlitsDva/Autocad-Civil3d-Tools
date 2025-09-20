@@ -44,6 +44,7 @@ using ObjectId = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
+using Color = Autodesk.AutoCAD.Colors.Color;
 
 namespace IntersectUtilities.UtilsCommon
 {

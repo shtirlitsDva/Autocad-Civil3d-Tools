@@ -16,6 +16,9 @@ using System.Reflection;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 
+using Application = Autodesk.AutoCAD.ApplicationServices.Application;
+using DataTable = System.Data.DataTable;
+
 namespace PipeScheduleV2Tests
 {
     public partial class PipeScheduleV2TestsClass

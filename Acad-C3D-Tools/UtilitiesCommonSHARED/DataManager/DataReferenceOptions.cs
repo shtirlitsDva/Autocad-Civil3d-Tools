@@ -4,6 +4,8 @@ using Autodesk.AutoCAD.EditorInput;
 using System;
 using System.Linq;
 
+using Application = Autodesk.AutoCAD.ApplicationServices.Application;
+
 using static IntersectUtilities.UtilsCommon.DataManager.StierManager;
 
 namespace IntersectUtilities.UtilsCommon.DataManager

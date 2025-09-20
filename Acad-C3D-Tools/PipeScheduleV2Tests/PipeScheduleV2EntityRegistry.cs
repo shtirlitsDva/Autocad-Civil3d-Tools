@@ -6,6 +6,8 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 
+using Application = Autodesk.AutoCAD.ApplicationServices.Application;
+
 namespace PipeScheduleV2Tests
 {
     internal static class PipeScheduleV2EntityRegistry

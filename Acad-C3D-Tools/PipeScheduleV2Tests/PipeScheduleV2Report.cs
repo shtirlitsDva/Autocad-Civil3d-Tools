@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
+using Application = Autodesk.AutoCAD.ApplicationServices.Application;
+
 namespace PipeScheduleV2Tests
 {
     internal static class PipeScheduleV2Report

@@ -5,10 +5,14 @@ using System.Linq;
 using System.Reflection;
 using static IntersectUtilities.UtilsCommon.Utils;
 
+using Application = Autodesk.AutoCAD.ApplicationServices.Application;
+
 namespace PipeScheduleV2Tests
 {
     public partial class PipeScheduleV2TestsClass : IExtensionApplication
     {
+        private const string dwgDir = @"X:\AutoCAD - Civil\Schedule\Tests\Tests.dwg";
+
         [CommandMethod("RUNPS2TESTS")]
         public void runps2tests()
         {

@@ -488,7 +488,7 @@ namespace IntersectUtilities.PipeScheduleV2
         }
         public static double AskForBuerorMinRadius(Entity ent, int pipeLength = 12)
         {
-            Document doc = Application.DocumentManager.MdiActiveDocument;
+            Document doc = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
             Editor ed = doc.Editor;
 
             PromptKeywordOptions options = new PromptKeywordOptions("\nChoose an option [Isoplus/Logstor]: ")

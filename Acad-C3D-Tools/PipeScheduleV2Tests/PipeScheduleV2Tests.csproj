@@ -7,6 +7,7 @@
 		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
 		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
 		<ImportWindowsDesktopTargets>true</ImportWindowsDesktopTargets>
+		<UseWindowsForms>true</UseWindowsForms>
 		<Nullable>enable</Nullable>
 		<Platforms>x64</Platforms>
 	</PropertyGroup>
@@ -33,16 +34,23 @@
 		<DebugType>full</DebugType>
 	</PropertyGroup>
 	<ItemGroup>
-		<Folder Include="Links\" />
+	  <Compile Remove="Links\**" />
+	  <EmbeddedResource Remove="Links\**" />
+	  <None Remove="Links\**" />
+	</ItemGroup>
+	<ItemGroup>		
 		<Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeScheduleV2.cs">
-			<Link>Links\PipeScheduleV2\PipeScheduleV2.cs</Link>
+			<Link>Links\PipeScheduleV2.cs</Link>
 		</Compile>
-		<Compile Include="..\IntersectUtilities\PipeScheduleV2\MigrationStrategy.md">
-			<Link>Links\PipeScheduleV2\MigrationStrategy.md</Link>
+		<Compile Include="..\IntersectUtilities\MoreLinq\DistinctBy.cs">
+			<Link>Links\MoreLinq\DistinctBy.cs</Link>
 		</Compile>
-		<Compile Include="PipeScheduleV2TestsClass.Core.cs" />
-		<Compile Include="PipeScheduleV2Report.cs" />
-		<Compile Include="PipeScheduleV2EntityRegistry.cs" />
+		<Compile Include="..\IntersectUtilities\MoreLinq\MoreLinq.cs">
+			<Link>Links\MoreLinq\MoreLinq.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\CsvReader.cs">
+			<Link>Links\CsvReader.cs</Link>
+		</Compile>
 	</ItemGroup>
 	<ItemGroup>
 		<Reference Include="accoremgd">
@@ -117,7 +125,7 @@
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\Map\ManagedMapApi.dll</HintPath>
 			<Private>False</Private>
 		</Reference>
-	</ItemGroup>
+	</ItemGroup>	
 	<Import Project="..\UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems" Label="Shared" />
 
 </Project>

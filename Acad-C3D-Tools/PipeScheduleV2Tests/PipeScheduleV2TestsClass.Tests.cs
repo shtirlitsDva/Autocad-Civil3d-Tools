@@ -14,6 +14,7 @@ using IntersectUtilities.UtilsCommon;
 
 using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 using static IntersectUtilities.UtilsCommon.Utils;
+using Exception = System.Exception;
 
 namespace PipeScheduleV2Tests
 {
@@ -542,7 +543,7 @@ namespace PipeScheduleV2Tests
         {
             SkipIfDataUnavailable();
             RegisterCoverage(typeof(PipeRadiusData), nameof(IPipeRadiusData.GetBuerorMinRadius), typeof(int), typeof(int));
-            RegisterCoverage(typeof(PipeRadiusData), nameof(IPipeRadiusData.Initialize), typeof(DataTable), typeof(CompanyEnum));
+            RegisterCoverage(typeof(PipeRadiusData), nameof(IPipeRadiusData.Initialize), typeof(System.Data.DataTable), typeof(CompanyEnum));
             RegisterCoverage(typeof(PipeRadiusDataLoaderCSV), nameof(PipeRadiusDataLoaderCSV.Load), typeof(IEnumerable<string>));
 
             var loader = new PipeRadiusDataLoaderCSV();
