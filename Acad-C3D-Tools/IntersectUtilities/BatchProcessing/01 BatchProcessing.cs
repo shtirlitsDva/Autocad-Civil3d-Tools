@@ -1991,6 +1991,44 @@ namespace IntersectUtilities
             return new Result();
         }
         [MethodDescription(
+            "Change layer(s) linetype\n",
+            "Skift LineType på angivnet lag.\n" +
+            "LineType navn skal kendes på forhånd.\n" +
+            "Ved input af flere lag skal\n" +
+            "de enkelte lagnavne deles op med \";\".\n",
+            ["Layer name(s)", "Linetype name"])]
+        public static Result changelayerlinetype(Database xDb, string layerNames, string linetypename)
+        {
+            Transaction xTx = xDb.TransactionManager.TopTransaction;
+            LayerTable extLt = xDb.LayerTableId.Go<LayerTable>(xTx);
+            
+            LinetypeTable ltt = xDb.LinetypeTableId.Go<LinetypeTable>(xTx);
+            if (!ltt.Has(linetypename))
+                return new Result(
+                    ResultStatus.FatalError, 
+                    $"Linetype {linetypename} not found in drawing!");
+
+            Oid ltypeId = ltt[linetypename];
+
+            var split = layerNames.Split(';');
+
+            foreach (string layName in split)
+            {
+                foreach (Oid oid in extLt)
+                {
+                    LayerTableRecord ltr = oid.Go<LayerTableRecord>(xTx);
+
+                    if (ltr.Name == layName)
+                    {
+                        ltr.CheckOrOpenForWrite();
+                        ltr.LinetypeObjectId = ltypeId;
+                    }
+                }
+            }
+
+            return new Result();
+        }
+        [MethodDescription(
             "Change layer for an xref with partial name match",
             "Skifter laget til det angivne\n" +
             "for en xref, hvor navnet på xref'en\n" +
