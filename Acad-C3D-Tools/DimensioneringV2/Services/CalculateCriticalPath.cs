@@ -52,12 +52,8 @@ namespace DimensioneringV2.Services.SubGraphs
             foreach (var path in paths)
             {
                 path.stik.PressureLossAtClient =
-                    path.path.Sum(e =>
-                    (e.PressureGradientReturn +
-                    e.PressureGradientSupply) *
-                    e.Length) / 100000 +
-                    HydraulicSettingsService.Instance.Settings
-                    .MinDifferentialPressureOverHovedHaner;
+                    path.path.Sum(e => (e.PressureGradientReturn + e.PressureGradientSupply) * e.Length) / 100000 +
+                    HydraulicSettingsService.Instance.Settings.MinDifferentialPressureOverHovedHaner;
 
                 //Push the calculated values back to the original edge
                 path.stik.OriginalEdge.PipeSegment

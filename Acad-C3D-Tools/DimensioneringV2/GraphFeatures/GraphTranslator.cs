@@ -186,6 +186,7 @@ namespace DimensioneringV2.GraphFeatures
                             { "id_lokalId", "" },
                             { "Name", "" },
                             { "Adresse", "" },
+                            { "AdresseDuplikatNr", 0 },
                             { "BygningsAnvendelseNyTekst", "" },
                             { "Opførelsesår", 0 },
                             { "BeregningsAreal", 0.0 },
@@ -229,6 +230,7 @@ namespace DimensioneringV2.GraphFeatures
                             attributes["id_lokalId"] = bbr.id_lokalId;
                             attributes["Name"] = bbr.Name;
                             attributes["Adresse"] = bbr.Adresse;
+                            attributes["AdresseDuplikatNr"] = bbr.AdresseDuplikatNr;
                             attributes["BygningsAnvendelseNyTekst"] = bbr.BygningsAnvendelseNyTekst;
                             attributes["Opførelsesår"] = bbr.Opførelsesår;
                             attributes["BeregningsAreal"] = bbr.SamletBoligareal + bbr.SamletErhvervsareal;

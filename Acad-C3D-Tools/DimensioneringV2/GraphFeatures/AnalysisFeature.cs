@@ -361,7 +361,7 @@ namespace DimensioneringV2.GraphFeatures
         {
             get => GetAttributeValue<bool>(MapPropertyEnum.ManualDim);
             set => SetAttributeValue(MapPropertyEnum.ManualDim, value);
-        }        
+        }
 
         public void ResetHydraulicResults()
         {
@@ -418,6 +418,36 @@ namespace DimensioneringV2.GraphFeatures
         }
         #endregion
 
+        #endregion
+
+        #region Display properties
+        /// <summary>
+        /// The address of the feature.
+        /// </summary>
+        public string Adresse
+        {
+            get
+            {
+                if (this.SegmentType == SegmentType.Fordelingsledning) return string.Empty;
+                var duplicat = this["AdresseDuplikatNr"] as int? ?? 0;
+                var addresse = this["Adresse"] as string ?? string.Empty;
+                if (duplicat != 0) addresse += $" ({duplicat})";
+                return addresse;
+            }
+        }
+        /// <summary>
+        /// The pressure loss in this pipe segment.
+        /// </summary>
+        public double PressureLossBAR
+        {
+            get
+            {
+                var len = Length; // In meters
+                var pg1 = PressureGradientSupply; // In Pa/m
+                var pg2 = PressureGradientReturn; // In Pa/m
+                return (pg1 + pg2).PaToBar() * len;
+            }
+        }
         #endregion
 
         #region NTS IFeature for serialization of FeatureCollection

@@ -85,8 +85,11 @@ namespace DimensioneringV2
 
             return stp;
         }
-        public static double mVS(this double bar) => bar * 10.19716;
-        public static double Bar(this double mVS) => mVS / 10.19716;
+        public static double BarTomVS(this double bar) => bar * 10.19716;
+        public static double mVStoBar(this double mVS) => mVS / 10.19716;
+        public static double PaToBar(this double pa) => pa / 100000;
+        public static double BarToPa(this double bar) => bar * 100000;
+        public static double PaToMVS(this double pa) => pa.PaToBar().BarTomVS();
         #endregion
 
         #region Graph extensions

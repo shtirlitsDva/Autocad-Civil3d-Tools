@@ -341,7 +341,7 @@ namespace DimensioneringV2.UI
             var items = infoFeature.PropertiesToDataGrid();
 
             FeatureProperties.Clear();
-            foreach (var item in items)
+            foreach (var item in items.OrderBy(x => x.Name))
                 FeatureProperties.Add(item);
 
             PopupX = e.MapInfo?.ScreenPosition?.X ?? 0.0;

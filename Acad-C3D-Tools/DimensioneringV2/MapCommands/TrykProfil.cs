@@ -11,7 +11,6 @@ using QuikGraph;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace DimensioneringV2.MapCommands
@@ -25,6 +24,7 @@ namespace DimensioneringV2.MapCommands
 
             var settings = HydraulicSettingsService.Instance.Settings;
             List<PressureProfileEntry> entries = new();
+            PressureData pdata = default;
 
             try
             {
@@ -91,15 +91,13 @@ namespace DimensioneringV2.MapCommands
                     //Required overpressure
                     var neededSupplyPmVS = graph.Edges.Max(
                         x => x.OriginalEdge.PipeSegment.PressureLossAtClient)
-                    .mVS();
+                    .BarTomVS();
 
                     //Total pressure required at supply point
                     var maxPmVS = holdeTrykMVS + neededSupplyPmVS;
 
                     //Compute the elevation profile, this should be oriented in the path dir
                     var path = graph.OrientedProfiles(root, targetNode);
-
-                    double paToBar = 100_000.0;
 
                     double length = 0, elevation = 0,
                     spmvs = maxPmVS, rpmvs = holdeTrykMVS,
@@ -117,20 +115,22 @@ namespace DimensioneringV2.MapCommands
                             //Trykniveau
                             length += deltaL;
                             elevation = pp.Elevation;
-                            spmvs -= (deltaL * f.PressureGradientSupply / paToBar).mVS();
-                            rpmvs += (deltaL * f.PressureGradientReturn / paToBar).mVS();
+                            spmvs -= deltaL * f.PressureGradientSupply.PaToMVS();
+                            rpmvs += deltaL * f.PressureGradientReturn.PaToMVS();
 
                             //Tryk
-                            spbar = (spmvs - elevation).Bar();
-                            rpbar = (rpmvs - elevation).Bar();
+                            spbar = (spmvs - elevation).mVStoBar();
+                            rpbar = (rpmvs - elevation).mVStoBar();
 
                             entries.Add(
                                 new(length, elevation, spmvs, rpmvs, spbar, rpbar));
                         }
                     }
+
+                    pdata = new PressureData(maxKote, settings.TillægTilHoldetrykMVS);
                 });
 
-                var trykprofilWindow = new TrykprofilWindow(entries);
+                var trykprofilWindow = new TrykprofilWindow(entries, pdata);
                 trykprofilWindow.Show();
                 TrykprofilWindowContext.VM = (TrykprofilWindowViewModel)trykprofilWindow.DataContext;
                 TrykprofilWindowContext.VM.Dispatcher = trykprofilWindow.Dispatcher;

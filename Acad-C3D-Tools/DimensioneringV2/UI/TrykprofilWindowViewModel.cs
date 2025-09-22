@@ -20,7 +20,7 @@ namespace DimensioneringV2.UI
         public PlotModel? PressurePlot { get; private set; }
         public PlotModel? PressurePlot2 { get; private set; }
         public TrykprofilWindowViewModel() { }
-        public void LoadData(IEnumerable<PressureProfileEntry> profile)
+        public void LoadData(IEnumerable<PressureProfileEntry> profile, PressureData pdata)
         {
             PressurePlot = new PlotModel { Title = "Trykniveau" };
 
@@ -95,14 +95,14 @@ namespace DimensioneringV2.UI
             PressurePlot2.Series.Add(returnSeries2);
 
             //Annotate plots
-            var maxKote = profile.Max(x => x.Elevation);
+            var maxKote = pdata.MaxElevation;
             var maxKoteTxt = maxKote.ToString("0.##") + " mVS";
 
             var fp = profile.First();
             var startKote = fp.Elevation;
             var startKoteTxt = startKote.ToString("0.##") + " m";
 
-            var minHoldeTryk = Math.Max(0, maxKote - startKote);
+            var minHoldeTryk = pdata.MaxElevation;
 
             var supplyPointLine = new LineAnnotation
             {
@@ -150,16 +150,16 @@ namespace DimensioneringV2.UI
                 PressurePlot.Annotations.Add(minHoldeTrykTxt);
             }            
 
-            var tillægTilHoldetryk = profile.First().RPmVS;
-            if (Math.Abs(tillægTilHoldetryk - maxKote) > 0.1)
+            var tillægTilHoldetryk = pdata.TillægTilHoldetryk;
+            if (tillægTilHoldetryk != 0)
             {
-                var tillægString = (tillægTilHoldetryk - maxKote)
+                var tillægString = tillægTilHoldetryk
                     .ToString("0.##") + " mVS";
 
                 var tillægLine = new LineAnnotation
                 {
                     Type = LineAnnotationType.Horizontal,
-                    Y = tillægTilHoldetryk,
+                    Y = pdata.MaxElevation + tillægTilHoldetryk,
                     Color = OxyColor.FromRgb(40, 40, 100),
                     LineStyle = LineStyle.Dash,
                     StrokeThickness = 1
@@ -170,8 +170,9 @@ namespace DimensioneringV2.UI
                 {
                     Text = $"Tillæg til holdetryk: {tillægString}  ",
                     TextHorizontalAlignment = HorizontalAlignment.Right,
-                    TextVerticalAlignment = VerticalAlignment.Top,
-                    TextPosition = new DataPoint(profile.Last().Length, tillægTilHoldetryk),
+                    TextVerticalAlignment = VerticalAlignment.Bottom,
+                    TextPosition = new DataPoint(profile.Last().Length,
+                    pdata.MaxElevation + tillægTilHoldetryk),
                     Stroke = OxyColors.Transparent,
                     Background = OxyColors.Transparent
                 };

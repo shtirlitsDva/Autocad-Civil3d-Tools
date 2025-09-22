@@ -22,11 +22,11 @@ namespace DimensioneringV2.UI
     public partial class TrykprofilWindow : Window
     {
         private TrykprofilWindowViewModel vm = new();
-        public TrykprofilWindow(IEnumerable<PressureProfileEntry> entries)
+        public TrykprofilWindow(IEnumerable<PressureProfileEntry> entries, PressureData pdata)
         {
             InitializeComponent();
             DataContext = vm;
-            vm.LoadData(entries);
+            vm.LoadData(entries, pdata);
         }
     }
 }
