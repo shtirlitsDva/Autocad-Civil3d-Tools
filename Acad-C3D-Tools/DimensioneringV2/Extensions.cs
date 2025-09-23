@@ -85,11 +85,16 @@ namespace DimensioneringV2
 
             return stp;
         }
-        public static double BarTomVS(this double bar) => bar * 10.19716;
-        public static double mVStoBar(this double mVS) => mVS / 10.19716;
+        public const double g = 9.80665; // m/s^2
+        public static double BarToMVS(this double bar) => bar * 10.19716;
+        public static double BarToMVS(this double bar, double rho) => (bar * 100000) / (rho * g);
+        public static double MVStoBar(this double mVS) => mVS / 10.19716;
+        public static double MVStoBar(this double mVS, double rho) => (mVS * rho * g) / 100000;
         public static double PaToBar(this double pa) => pa / 100000;
         public static double BarToPa(this double bar) => bar * 100000;
-        public static double PaToMVS(this double pa) => pa.PaToBar().BarTomVS();
+        public static double PaToMVS(this double pa) => pa.PaToBar().BarToMVS();
+        public static double PaToMVS(this double pa, double rho) => pa / (rho * g);
+        public static double MVStoPa(this double mVS, double rho) => mVS * (rho * g);
         #endregion
 
         #region Graph extensions
@@ -165,7 +170,7 @@ namespace DimensioneringV2
         public static UndirectedGraph<BFNode, BFEdge> CopyWithNewEdges(this UndirectedGraph<BFNode, BFEdge> graph)
         {
             var graphCopy = new UndirectedGraph<BFNode, BFEdge>();
-            
+
             // Copy edges
             foreach (var edge in graph.Edges)
             {
@@ -257,7 +262,7 @@ namespace DimensioneringV2
                 foreach (var neighbor in graph.AdjacentVertices(node))
                     if (!visited.Contains(neighbor)) stack.Push(neighbor);
             }
-            
+
             return visited.IsSupersetOf(terminals);
         }
         private static void TraverseGraph<TVertex, TEdge>(this
@@ -434,7 +439,7 @@ namespace DimensioneringV2
                 list[k] = list[n];
                 list[n] = value;
             }
-        } 
+        }
         #endregion
     }
 }

@@ -29,6 +29,7 @@ namespace DimensioneringV2.UI
 
             AddVisual("MAP", new MainWindow());
             AddVisual("SETTINGS", new SettingsTab());
+            AddVisual("GRAPH", new GraphSettingsTab());
             Activate(0);
 
             //// automatically hide the palette while none document is active (no document state)

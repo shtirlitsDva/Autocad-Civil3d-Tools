@@ -6,6 +6,8 @@ using DimensioneringV2.Services;
 using DimensioneringV2.Services.GDALClient;
 using DimensioneringV2.UI;
 
+using NorsynHydraulicCalc.LookupData;
+
 using QuikGraph;
 
 using System;
@@ -85,13 +87,24 @@ namespace DimensioneringV2.MapCommands
                     caches = graph.Edges.Select(x => x.OriginalEdge.PipeSegment.Elevations);
                     var maxKote = caches.Max(x => x.GetDefaultProfile().Max(y => y.Elevation));
                     //Holdetryk
-                    var holdeTrykMVS = maxKote // - graph.RootElevation(root)
-                    + settings.TillægTilHoldetrykMVS;
+                    var holdeTrykMVS = maxKote + settings.TillægTilHoldetrykMVS;
+
+                    //Precise pressures for mVS
+                    var ld = LookupDataFactory.GetLookupData(settings.MedieType);
+                    int tf = settings.TempFremFL;
+                    int tr = settings.TempReturFL;
+                    var rhof = ld.rho(tf);
+                    var rhor = ld.rho(tr);
 
                     //Required overpressure
-                    var neededSupplyPmVS = graph.Edges.Max(
-                        x => x.OriginalEdge.PipeSegment.PressureLossAtClient)
-                    .BarTomVS();
+                    var cc = graph.Edges
+                        .MaxBy(x =>
+                        x.PressureLossAtClientSupply +
+                        x.PressureLossAtClientReturn)!;
+                    var neededSupplyPmVS =
+                        cc.PressureLossAtClientSupply.BarToMVS(rhof) +
+                        cc.PressureLossAtClientReturn.BarToMVS(rhor) +
+                        settings.MinDifferentialPressureOverHovedHaner.BarToMVS((rhof + rhor) / 2);
 
                     //Total pressure required at supply point
                     var maxPmVS = holdeTrykMVS + neededSupplyPmVS;
@@ -115,12 +128,12 @@ namespace DimensioneringV2.MapCommands
                             //Trykniveau
                             length += deltaL;
                             elevation = pp.Elevation;
-                            spmvs -= deltaL * f.PressureGradientSupply.PaToMVS();
-                            rpmvs += deltaL * f.PressureGradientReturn.PaToMVS();
+                            spmvs -= deltaL * f.PressureGradientSupply.PaToMVS(rhof);
+                            rpmvs += deltaL * f.PressureGradientReturn.PaToMVS(rhor);
 
                             //Tryk
-                            spbar = (spmvs - elevation).mVStoBar();
-                            rpbar = (rpmvs - elevation).mVStoBar();
+                            spbar = (spmvs - elevation).MVStoBar(rhof);
+                            rpbar = (rpmvs - elevation).MVStoBar(rhor);
 
                             entries.Add(
                                 new(length, elevation, spmvs, rpmvs, spbar, rpbar));

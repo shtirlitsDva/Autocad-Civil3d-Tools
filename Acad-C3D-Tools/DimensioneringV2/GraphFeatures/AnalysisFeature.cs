@@ -1,4 +1,5 @@
-﻿using DimensioneringV2.Services.GDALClient;
+﻿using DimensioneringV2.Services;
+using DimensioneringV2.Services.GDALClient;
 using DimensioneringV2.UI;
 
 using Mapsui.Nts;
@@ -253,9 +254,10 @@ namespace DimensioneringV2.GraphFeatures
         [MapPropertyAttribute(MapPropertyEnum.PressureGradientSupply)]
         public double PressureGradientSupply
         {
-            get => GetAttributeValue<double>(MapPropertyEnum.PressureGradientSupply);
+            get => GetAttributeValue<double>(MapPropertyEnum.PressureGradientSupply) * pct;            
             set => SetAttributeValue(MapPropertyEnum.PressureGradientSupply, value);
         }
+        private double pct => 1.0 + (double)HydraulicSettingsService.Instance.Settings.ProcentTillægTilTryktab / 100;
 
         /// <summary>
         /// Pressure gradient for return
@@ -263,7 +265,7 @@ namespace DimensioneringV2.GraphFeatures
         [MapPropertyAttribute(MapPropertyEnum.PressureGradientReturn)]
         public double PressureGradientReturn
         {
-            get => GetAttributeValue<double>(MapPropertyEnum.PressureGradientReturn);
+            get => GetAttributeValue<double>(MapPropertyEnum.PressureGradientReturn) * pct;
             set => SetAttributeValue(MapPropertyEnum.PressureGradientReturn, value);
         }
 
@@ -318,15 +320,27 @@ namespace DimensioneringV2.GraphFeatures
         }
 
         /// <summary>
-        /// Total pressure loss for the client.
+        /// Total pressure loss for the client in the supply pipe.
         /// This is intented only for clients' connections
         /// where the pressure loss is calculated for the whole path.
-        /// It should include the allowed client loss from HydraulicCalculationSettings
+        /// It should NOT include the allowed client loss from HydraulicCalculationSettings
         /// </summary>
-        public double PressureLossAtClient
+        public double PressureLossAtClientSupply
         {
-            get => this["PressureLossAtClient"] as double? ?? 0;
-            set => this["PressureLossAtClient"] = value;
+            get => this["PressureLossAtClientSupply"] as double? ?? 0;
+            set => this["PressureLossAtClientSupply"] = value;
+        }
+
+        /// <summary>
+        /// Total pressure loss for the client in the return pipe.
+        /// This is intented only for clients' connections
+        /// where the pressure loss is calculated for the whole path.
+        /// It should NOT include the allowed client loss from HydraulicCalculationSettings
+        /// </summary>
+        public double PressureLossAtClientReturn
+        {
+            get => this["PressureLossAtClientReturn"] as double? ?? 0;
+            set => this["PressureLossAtClientReturn"] = value;
         }
 
         /// <summary>
@@ -379,7 +393,8 @@ namespace DimensioneringV2.GraphFeatures
             VelocityReturn = 0;
             UtilizationRate = 0;
             IsCriticalPath = false;
-            PressureLossAtClient = 0;
+            PressureLossAtClientSupply = 0;
+            PressureLossAtClientReturn = 0;
             DifferentialPressureAtClient = 0;
             //SubGraphId = 0;
         }

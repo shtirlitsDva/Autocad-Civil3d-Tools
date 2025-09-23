@@ -40,7 +40,8 @@ namespace DimensioneringV2.BruteForceOptimization
         public double FlowReturn { get; set; }
         public double PressureGradientSupply { get; set; }
         public double PressureGradientReturn { get; set; }
-        public double PressureLossAtClient { get; set; } // Pressure loss at the client
+        public double PressureLossAtClientSupply { get; set; } // Pressure loss at the client
+        public double PressureLossAtClientReturn { get; set; } // Pressure loss at the client
         public double DifferentialPressureAtClient { get; set; }
         public bool IsCriticalPath { get; set; } = false;
         public double VelocitySupply { get; set; }
@@ -70,7 +71,8 @@ namespace DimensioneringV2.BruteForceOptimization
             OriginalEdge.PipeSegment.FlowReturn = FlowReturn;
             OriginalEdge.PipeSegment.PressureGradientSupply = PressureGradientSupply;
             OriginalEdge.PipeSegment.PressureGradientReturn = PressureGradientReturn;
-            OriginalEdge.PipeSegment.PressureLossAtClient = PressureLossAtClient;
+            OriginalEdge.PipeSegment.PressureLossAtClientSupply = PressureLossAtClientSupply;
+            OriginalEdge.PipeSegment.PressureLossAtClientReturn = PressureLossAtClientReturn;
             OriginalEdge.PipeSegment.DifferentialPressureAtClient = DifferentialPressureAtClient;
             OriginalEdge.PipeSegment.IsCriticalPath = IsCriticalPath;
             OriginalEdge.PipeSegment.VelocitySupply = VelocitySupply;
@@ -101,7 +103,8 @@ namespace DimensioneringV2.BruteForceOptimization
             FlowReturn = OriginalEdge.PipeSegment.FlowReturn;
             PressureGradientSupply = OriginalEdge.PipeSegment.PressureGradientSupply;
             PressureGradientReturn = OriginalEdge.PipeSegment.PressureGradientReturn;
-            PressureLossAtClient = OriginalEdge.PipeSegment.PressureLossAtClient;
+            PressureLossAtClientSupply = OriginalEdge.PipeSegment.PressureLossAtClientSupply;
+            PressureLossAtClientReturn = OriginalEdge.PipeSegment.PressureLossAtClientReturn;
             DifferentialPressureAtClient = OriginalEdge.PipeSegment.DifferentialPressureAtClient;
             IsCriticalPath = OriginalEdge.PipeSegment.IsCriticalPath;
             VelocitySupply = OriginalEdge.PipeSegment.VelocitySupply;

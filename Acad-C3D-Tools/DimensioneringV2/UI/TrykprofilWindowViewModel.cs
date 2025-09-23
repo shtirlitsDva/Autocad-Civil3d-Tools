@@ -125,7 +125,8 @@ namespace DimensioneringV2.UI
             };
             PressurePlot.Annotations.Add(supplyPointTxt);
 
-            if (minHoldeTryk > 0)
+            if (minHoldeTryk > 0 &&
+                Services.GraphSettingsService.Instance.Settings.ShowMinimumHoldetrykLineAndLabel)
             {
                 var minHoldeTrykLine = new LineAnnotation
                 {
@@ -151,7 +152,8 @@ namespace DimensioneringV2.UI
             }            
 
             var tillægTilHoldetryk = pdata.TillægTilHoldetryk;
-            if (tillægTilHoldetryk != 0)
+            if (tillægTilHoldetryk != 0 &&
+                Services.GraphSettingsService.Instance.Settings.ShowTillægTilHoldetrykLineAndLabel)
             {
                 var tillægString = tillægTilHoldetryk
                     .ToString("0.##") + " mVS";
@@ -178,6 +180,7 @@ namespace DimensioneringV2.UI
                 };
                 PressurePlot.Annotations.Add(tillægTxt);
             }
+
             //Supply dp
             fp = profile.First();
             var supplyDp = fp.SPmVS - fp.RPmVS;
