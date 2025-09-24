@@ -22,11 +22,11 @@ namespace DimensioneringV2.Genetic
     internal class GraphFitness : IFitness
     {
         private readonly List<(Func<BFEdge, dynamic> Getter, Action<BFEdge, dynamic> Setter)> _props;
-        private readonly CoherencyManagerOptimized _chm;
+        private readonly CoherencyManager _chm;
         private readonly HydraulicCalculationCache _cache;
 
         public GraphFitness(
-            CoherencyManagerOptimized coherencyManager,
+            CoherencyManager coherencyManager,
             List<(Func<BFEdge, dynamic> Getter, Action<BFEdge, dynamic> Setter)> props,
             HydraulicCalculationCache cache)
         { _props = props; _chm = coherencyManager; _cache = cache; }

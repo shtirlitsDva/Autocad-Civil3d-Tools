@@ -14,10 +14,10 @@ namespace DimensioneringV2.Genetic
     internal class UniqueCrossover : CrossoverBase
     {
 
-        private readonly CoherencyManagerOptimized _chm;
+        private readonly CoherencyManager _chm;
         private readonly float MixProbability;
 
-        public UniqueCrossover(CoherencyManagerOptimized coherencyManager, float mixProbability) : base(2,2)
+        public UniqueCrossover(CoherencyManager coherencyManager, float mixProbability) : base(2,2)
         {
             _chm = coherencyManager;
             this.MixProbability = mixProbability;

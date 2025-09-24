@@ -13,8 +13,8 @@ namespace DimensioneringV2.Genetic
 {
     internal class GraphMutation : MutationBase
     {
-        private readonly CoherencyManagerOptimized _chm;
-        public GraphMutation(CoherencyManagerOptimized coherencyManager)
+        private readonly CoherencyManager _chm;
+        public GraphMutation(CoherencyManager coherencyManager)
         {
             _chm = coherencyManager;
             m_rnd = RandomizationProvider.Current;

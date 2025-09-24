@@ -15,7 +15,7 @@ using System.Threading.Tasks;
 
 namespace DimensioneringV2.Genetic
 {
-    internal class CoherencyManagerOptimized
+    internal class CoherencyManager
     {
         //Graph managing
         private readonly Dictionary<int, BFEdge> _indexToNonBridge;
@@ -37,7 +37,7 @@ namespace DimensioneringV2.Genetic
         internal HashSet<BFNode> Terminals => _terminals;
         internal BFNode RootNode => _rootNode;
 
-        public CoherencyManagerOptimized(
+        public CoherencyManager(
             MetaGraph<UndirectedGraph<BFNode, BFEdge>> metaGraph,
             UndirectedGraph<BFNode, BFEdge> subGraph,
             UndirectedGraph<BFNode, BFEdge> seed)

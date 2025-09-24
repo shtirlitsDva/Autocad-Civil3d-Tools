@@ -25,13 +25,13 @@ namespace DimensioneringV2.Genetic
     {
         private UndirectedGraph<BFNode, BFEdge> _localGraph;
         private readonly HashSet<int> _removedEdges = new HashSet<int>();
-        private CoherencyManagerOptimized _chm;
+        private CoherencyManager _chm;
 
         public UndirectedGraph<BFNode, BFEdge> LocalGraph { get => _localGraph; set => _localGraph = value; }
         public HashSet<int> RemovedEdges => _removedEdges;
-        public CoherencyManagerOptimized CoherencyManager => _chm;
+        public CoherencyManager CoherencyManager => _chm;
 
-        public GraphChromosome(CoherencyManagerOptimized coherencyManager) : base(coherencyManager.ChromosomeLength)
+        public GraphChromosome(CoherencyManager coherencyManager) : base(coherencyManager.ChromosomeLength)
         {
             _chm = coherencyManager;
             _localGraph = _chm.OriginalGraph.CopyWithNewEdges();

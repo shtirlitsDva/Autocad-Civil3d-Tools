@@ -32,7 +32,7 @@ namespace DimensioneringV2.Services
             List<(Func<BFEdge, dynamic> Getter, Action<BFEdge, dynamic> Setter)> props,
             HydraulicCalculationCache cache)
         {
-            CoherencyManagerOptimized chm = new CoherencyManagerOptimized(metaGraph, subGraph, seed);
+            CoherencyManager chm = new CoherencyManager(metaGraph, subGraph, seed);
 
             var population = new Population(
                 50,
