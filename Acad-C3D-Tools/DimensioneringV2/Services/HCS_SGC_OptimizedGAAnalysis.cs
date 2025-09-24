@@ -62,7 +62,7 @@ namespace DimensioneringV2.Services
             //    ga.Stop();
             //}
 
-            var bestChromosome = ga.BestChromosome as GraphChromosomeOptimized;
+            var bestChromosome = ga.BestChromosome as GraphChromosome;
 
             if (bestChromosome == null)
             {

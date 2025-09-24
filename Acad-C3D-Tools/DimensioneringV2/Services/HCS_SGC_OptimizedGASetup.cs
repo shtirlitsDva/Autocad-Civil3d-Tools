@@ -37,12 +37,12 @@ namespace DimensioneringV2.Services
             var population = new Population(
                 50,
                 200,
-                new GraphChromosomeOptimized(chm));
+                new GraphChromosome(chm));
 
-            var fitness = new GraphFitnessOptimized(chm, props, cache);
+            var fitness = new GraphFitness(chm, props, cache);
             var selection = new EliteSelection();
-            var crossover = new UniqueCrossoverOptimized(chm, 0.5f);
-            var mutation = new GraphMutationOptimized(chm);
+            var crossover = new UniqueCrossover(chm, 0.5f);
+            var mutation = new GraphMutation(chm);
 
             var ga = new GeneticAlgorithm(population, fitness, selection, crossover, mutation)
             {

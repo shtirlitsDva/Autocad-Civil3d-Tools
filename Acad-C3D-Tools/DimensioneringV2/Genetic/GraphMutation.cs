@@ -11,10 +11,10 @@ using System.Threading.Tasks;
 
 namespace DimensioneringV2.Genetic
 {
-    internal class GraphMutationOptimized : MutationBase
+    internal class GraphMutation : MutationBase
     {
         private readonly CoherencyManagerOptimized _chm;
-        public GraphMutationOptimized(CoherencyManagerOptimized coherencyManager)
+        public GraphMutation(CoherencyManagerOptimized coherencyManager)
         {
             _chm = coherencyManager;
             m_rnd = RandomizationProvider.Current;
@@ -26,7 +26,7 @@ namespace DimensioneringV2.Genetic
 
         protected override void PerformMutate(IChromosome chromosome, float probability)
         {
-            var binaryChromosome = chromosome as GraphChromosomeOptimized;
+            var binaryChromosome = chromosome as GraphChromosome;
 
             if (binaryChromosome == null)
             {

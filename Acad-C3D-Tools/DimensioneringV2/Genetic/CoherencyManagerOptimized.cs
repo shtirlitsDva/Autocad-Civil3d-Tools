@@ -15,8 +15,17 @@ using System.Threading.Tasks;
 
 namespace DimensioneringV2.Genetic
 {
-    internal class CoherencyManagerOptimized : CoherencyManager
+    internal class CoherencyManagerOptimized
     {
+        //Graph managing
+        private readonly Dictionary<int, BFEdge> _indexToNonBridge;
+        private readonly UndirectedGraph<BFNode, BFEdge> _originalGraph;
+        private readonly HashSet<BFEdge> _bridges;
+        private readonly HashSet<BFEdge> _nonBridges;
+        public int ChromosomeLength => _nonBridges.Count;
+        public UndirectedGraph<BFNode, BFEdge> OriginalGraph => _originalGraph;
+
+        //Metagraph stuff
         private readonly MetaGraph<UndirectedGraph<BFNode, BFEdge>> _metaGraph;
         private readonly UndirectedGraph<BFNode, BFEdge> _seed;
         private readonly HashSet<BFNode> _terminals;
@@ -31,8 +40,19 @@ namespace DimensioneringV2.Genetic
         public CoherencyManagerOptimized(
             MetaGraph<UndirectedGraph<BFNode, BFEdge>> metaGraph,
             UndirectedGraph<BFNode, BFEdge> subGraph,
-            UndirectedGraph<BFNode, BFEdge> seed) : base(subGraph)
+            UndirectedGraph<BFNode, BFEdge> seed)
         {
+            _originalGraph = subGraph;
+            _indexToNonBridge = new Dictionary<int, BFEdge>();
+            _originalGraph.InitNonBridgeChromosomeIndex();
+            foreach (var item in subGraph.Edges.Where(x => x.NonBridgeChromosomeIndex != -1))
+            {
+                _indexToNonBridge.Add(item.NonBridgeChromosomeIndex, item);
+            }
+
+            _bridges = FindBridges.DoFindThem(subGraph);
+            _nonBridges = subGraph.Edges.Where(x => !_bridges.Contains(x)).ToHashSet();
+
             this._metaGraph = metaGraph;
             _seed = seed;
 
@@ -52,6 +72,11 @@ namespace DimensioneringV2.Genetic
 
             _terminals = metaGraph.GetTerminalsForSubgraph(subGraph).ToHashSet();
             _rootNode = metaGraph.GetRootForSubgraph(subGraph);
+        }
+
+        public BFEdge OriginalNonBridgeEdgeFromIndex(int index)
+        {
+            return _indexToNonBridge[index];
         }
     }
 }

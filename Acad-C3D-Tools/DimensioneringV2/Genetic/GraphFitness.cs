@@ -19,13 +19,13 @@ using System.Windows.Forms;
 
 namespace DimensioneringV2.Genetic
 {
-    internal class GraphFitnessOptimized : IFitness
+    internal class GraphFitness : IFitness
     {
         private readonly List<(Func<BFEdge, dynamic> Getter, Action<BFEdge, dynamic> Setter)> _props;
         private readonly CoherencyManagerOptimized _chm;
         private readonly HydraulicCalculationCache _cache;
 
-        public GraphFitnessOptimized(
+        public GraphFitness(
             CoherencyManagerOptimized coherencyManager,
             List<(Func<BFEdge, dynamic> Getter, Action<BFEdge, dynamic> Setter)> props,
             HydraulicCalculationCache cache)
@@ -33,7 +33,7 @@ namespace DimensioneringV2.Genetic
 
         public double Evaluate(IChromosome chromosome)
         {
-            if (chromosome is not GraphChromosomeOptimized graphChromosome)
+            if (chromosome is not GraphChromosome graphChromosome)
                 throw new ArgumentException("Chromosome is not of type GraphChromosomeOptimized!");
             
             if (!graphChromosome.LocalGraph.AreTerminalNodesConnected(

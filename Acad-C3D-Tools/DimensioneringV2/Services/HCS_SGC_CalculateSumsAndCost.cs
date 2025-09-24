@@ -20,7 +20,7 @@ namespace DimensioneringV2.Services
         /// <summary>
         /// Calculates the cost of the chromosome's graph
         /// </summary>
-        internal static double CalculateSumsAndCost(GraphChromosomeOptimized chr,
+        internal static double CalculateSumsAndCost(GraphChromosome chr,
             List<(
                 Func<BFEdge, dynamic> Getter,
                 Action<BFEdge, dynamic> Setter)> props,

@@ -11,13 +11,13 @@ using System.Threading.Tasks;
 
 namespace DimensioneringV2.Genetic
 {
-    internal class UniqueCrossoverOptimized : CrossoverBase
+    internal class UniqueCrossover : CrossoverBase
     {
 
         private readonly CoherencyManagerOptimized _chm;
         private readonly float MixProbability;
 
-        public UniqueCrossoverOptimized(CoherencyManagerOptimized coherencyManager, float mixProbability) : base(2,2)
+        public UniqueCrossover(CoherencyManagerOptimized coherencyManager, float mixProbability) : base(2,2)
         {
             _chm = coherencyManager;
             this.MixProbability = mixProbability;
@@ -30,8 +30,8 @@ namespace DimensioneringV2.Genetic
             var firstChild = firstParent.CreateNew();
             var secondChild = secondParent.CreateNew();
 
-            GraphChromosomeOptimized fc = (GraphChromosomeOptimized)firstChild;
-            GraphChromosomeOptimized sc = (GraphChromosomeOptimized)secondChild;
+            GraphChromosome fc = (GraphChromosome)firstChild;
+            GraphChromosome sc = (GraphChromosome)secondChild;
             //Replace graph chromosome works only when chromosoe is reset
             fc.ResetChromosome();
             sc.ResetChromosome();

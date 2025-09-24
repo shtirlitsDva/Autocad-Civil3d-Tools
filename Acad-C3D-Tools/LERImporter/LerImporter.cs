@@ -398,7 +398,7 @@ namespace LERImporter
                     using (Database ler3dDb = new Database(false, true))
                     {
                         ler3dDb.ReadDwgFile(
-                            @"X:\AutoCAD DRI - 01 Civil 3D\LerImport\Support\LerTemplate.dwt",
+                            @"X:\AutoCAD DRI - SETUP\Templates\NS_LerTemplate.dwt",
                             FileOpenMode.OpenForReadAndAllShare, false, null);
                         //Build the new future file name of the drawing
                         string new3dFilename = Path.Combine(
@@ -431,7 +431,7 @@ namespace LERImporter
                 #region Create database for 2D ler
                 using (Database ler2dDb = new Database(false, true))
                 {
-                    ler2dDb.ReadDwgFile(@"X:\AutoCAD DRI - 01 Civil 3D\LerImport\Support\LerTemplate.dwt",
+                    ler2dDb.ReadDwgFile(@"X:\AutoCAD DRI - SETUP\Templates\NS_LerTemplate.dwt",
                                 FileOpenMode.OpenForReadAndAllShare, false, null);
                     //Build the new future file name of the drawing
                     string new2dFilename = Path.Combine(pathToTopFolder, "2DLER.dwg");
