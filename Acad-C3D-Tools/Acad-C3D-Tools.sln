@@ -12,7 +12,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ReverseLayoutProfileLANDXML
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ExportBlocksToSvg", "ExportBlocksToSvg\ExportBlocksToSvg.csproj", "{33DBF6F7-DA92-496E-985F-ED3FA39165AE}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ExportShapeFiles", "ExportShapeFilesEasyGis\ExportShapeFiles.csproj", "{774D8C82-954D-40A1-993A-62C9385FDF12}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ExportShapeFiles", "ExportShapeFiles\ExportShapeFiles.csproj", "{774D8C82-954D-40A1-993A-62C9385FDF12}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SheetCreationAutomation", "SheetCreationAutomation\SheetCreationAutomation.csproj", "{96AE4F77-001B-4C48-8ED9-590009510DE5}"
 EndProject
