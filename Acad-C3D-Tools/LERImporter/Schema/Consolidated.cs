@@ -54,6 +54,7 @@ namespace LERImporter.Schema
         [XmlElement(typeof(UtilityPackageInfo), Namespace = "http://data.gov.dk/schemas/LER/2/gml", ElementName = "UtilityPackageInfo")]
         [XmlElement(typeof(UtilityOwner), Namespace = "http://data.gov.dk/schemas/LER/2/gml", ElementName = "UtilityOwner")]
         [XmlElement(typeof(Informationsressource), Namespace = "http://data.gov.dk/schemas/LER/2/gml", ElementName = "Informationsressource")]
+        [XmlElement(typeof(Ledningspakke), Namespace = "http://www.ler.dk/ler", ElementName = "Ledningspakke")]
         public AbstractGMLType item { get; set; }
     }
 
@@ -62,6 +63,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(Kontaktprofil))]
     [XmlInclude(typeof(UtilityPackageInfo))]
     [XmlInclude(typeof(UtilityOwner))]
+    [XmlInclude(typeof(Ledningspakke))]
     public abstract partial class AbstractGMLType
     {
         [XmlElement("objectType", Namespace = "")]
@@ -72,6 +74,55 @@ namespace LERImporter.Schema
         public string indberetningsNr { get; set; }
         [PsInclude]
         public string LedningsEjersNavn { get; set; }
+    }
+
+    [Serializable]
+    [DesignerCategory("code")]
+    [XmlType(AnonymousType = true, Namespace = "http://www.ler.dk/ler")]
+    [XmlRoot("Ledningspakke", Namespace = "http://www.ler.dk/ler", IsNullable = false)]
+    public partial class Ledningspakke : AbstractGMLType
+    {
+        // <oprettet_dato>2025-09-26T10:21:13.132</oprettet_dato>
+        [XmlElement(DataType = "dateTime")]
+        public DateTime oprettet_dato { get; set; }
+
+        // --- aendret_dato with safe empty-element handling ---
+        // Backing XML value (can be "", which XmlSerializer will accept as string)
+        [XmlElement("aendret_dato")]
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public string aendret_dato_Value
+        {
+            get => aendret_dato.HasValue
+                ? XmlConvert.ToString(aendret_dato.Value, XmlDateTimeSerializationMode.RoundtripKind)
+                : null;
+            set
+            {
+                if (string.IsNullOrWhiteSpace(value))
+                {
+                    aendret_dato = null;
+                }
+                else
+                {
+                    // Try to parse as XML dateTime
+                    try
+                    {
+                        aendret_dato = XmlConvert.ToDateTime(value, XmlDateTimeSerializationMode.RoundtripKind);
+                    }
+                    catch
+                    {
+                        // Fallback: best-effort parse without throwing
+                        if (DateTime.TryParse(value, out var dt))
+                            aendret_dato = dt;
+                        else
+                            aendret_dato = null;
+                    }
+                }
+            }
+        }
+
+        // Your convenient property to use in code
+        [XmlIgnore]
+        public DateTime? aendret_dato { get; set; }
     }
 
     /// <remarks/>
@@ -142,7 +193,7 @@ namespace LERImporter.Schema
     [System.Xml.Serialization.XmlRootAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml", IsNullable = false)]
     public partial class UtilityOwner : AbstractGMLType
     {
-        public uint cvr { get; set; }
+        public int cvr { get; set; }
         [System.Xml.Serialization.XmlElementAttribute(Namespace = "")]
         public string companyName { get; set; }
         [System.Xml.Serialization.XmlElementAttribute(Namespace = "")]

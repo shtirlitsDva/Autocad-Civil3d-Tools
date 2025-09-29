@@ -14,6 +14,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.IO;
 using System.Linq;
+using System.Xml;
 using System.Xml.Serialization;
 
 using static IntersectUtilities.UtilsCommon.Utils;
@@ -385,11 +386,30 @@ namespace LERImporter
                     modFiles.Add(modFile);
 
                     var serializer = new XmlSerializer(typeof(Schema.FeatureCollection));
-                    Schema.FeatureCollection gf;
-                    using (var fileStream = new FileStream(modFile, FileMode.Open))
+
+                    using var fs = File.OpenRead(modFile);
+
+                    var settings = new XmlReaderSettings
                     {
-                        gf = (Schema.FeatureCollection)serializer.Deserialize(fileStream);
-                    }
+                        IgnoreComments = true,
+                        IgnoreWhitespace = false
+                    };
+                    using var reader = XmlReader.Create(fs, settings);
+
+                    var events = new XmlDeserializationEvents
+                    {
+#if DEBUG
+                        //OnUnknownElement = (s, e) =>
+                        //                    Log.log($"Unknown element '{e.Element.Name}' at {e.LineNumber}:{e.LinePosition} while deserializing {e.ObjectBeingDeserialized?.GetType().Name ?? "root"}"),
+                        //OnUnknownNode = (s, e) =>
+                        //    Log.log($"Unknown node '{e.Name}' (type {e.NodeType}) at {e.LineNumber}:{e.LinePosition}"),
+                        //OnUnreferencedObject = (s, e) =>
+                        //    Log.log($"Unreferenced object id='{e.UnreferencedId}'")
+#endif
+                    };
+
+                    var gf = (Schema.FeatureCollection)serializer.Deserialize(reader, null, events);
+
 
                     //Gather combined file for Ler 2D
                     gfCombined.featureCollection.AddRange(gf.featureCollection);
@@ -467,7 +487,7 @@ namespace LERImporter
                 return;
             }
             Log.log("Finished importing LER data.");
-        }        
+        }
     }
 
     public static class SimpleLogger

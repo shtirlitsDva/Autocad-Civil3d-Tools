@@ -28,7 +28,7 @@ namespace LERImporter
 {
     internal class ConsolidatedCreator
     {
-        public static void CreateLerData(Database Db2d, Database Db3d, FeatureCollection fc)
+        public static void CreateLerData(Database? Db2d, Database? Db3d, FeatureCollection fc)
         {
             string pathLag = "X:\\AutoCAD DRI - 01 Civil 3D\\Lag-Ler2.0.csv";
             System.Data.DataTable dtLag = CsvReader.ReadCsvToDataTable(pathLag, "Lag");
@@ -55,6 +55,7 @@ namespace LERImporter
                     case Graveforesp gvfsp:
                         graveforesps.Add(gvfsp);
                         break;
+                    case Ledningspakke lp:
                     case UtilityPackageInfo upi:
                         break;
                     case Kontaktprofil kp:
