@@ -1,0 +1,107 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<TargetFramework>net8.0-windows10.0.26100.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
+		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+		<ImportWindowsDesktopTargets>true</ImportWindowsDesktopTargets>
+		<PlatformTarget>x64</PlatformTarget>
+		<Platforms>x64</Platforms>
+	</PropertyGroup>
+	<PropertyGroup>
+		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+		<AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+	</PropertyGroup>
+	<PropertyGroup>
+		<ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>
+			None
+		</ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>
+	</PropertyGroup>
+	<PropertyGroup>
+		<OutputType>Library</OutputType>
+		<Deterministic>false</Deterministic>
+		<AssemblyName>NTRExport</AssemblyName>
+	</PropertyGroup>
+	<PropertyGroup Condition=" '$(Platform)' == 'x64' ">
+		<DebugSymbols>true</DebugSymbols>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+		<OutputPath>bin\Debug\</OutputPath>
+		<DebugType>full</DebugType>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+		<OutputPath>bin\Release\</OutputPath>
+		<DebugType>full</DebugType>
+	</PropertyGroup>
+	<ItemGroup>
+		<Reference Include="accoremgd">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\accoremgd.dll</HintPath>
+			<Private>False</Private>
+		</Reference>		
+		<Reference Include="acdbmgd">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\acdbmgd.dll</HintPath>
+			<Private>False</Private>
+		</Reference>				
+		<Reference Include="acmgd">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\acmgd.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AcMPolygonMGD">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AcMPolygonMGD.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AecBaseMgd">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\ACA\AecBaseMgd.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AeccDataShortcutMgd">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\C3D\AeccDataShortcutMgd.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AeccDbMgd">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\C3D\AeccDbMgd.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AecPropDataMgd">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\ACA\AecPropDataMgd.dll</HintPath>
+			<Private>False</Private>
+		</Reference>		
+	</ItemGroup>
+	<PropertyGroup>
+		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+		<GenerateDocumentationFile>True</GenerateDocumentationFile>
+	</PropertyGroup>
+	<ItemGroup>
+		<Compile Include="..\IntersectUtilities\PropertySetManager.cs">
+			<Link>Links\PropertySetManager.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\ComponentSchedule.cs">
+			<Link>Links\ComponentSchedule.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\CsvReader.cs">
+			<Link>Links\CsvReader.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\GroupByCluster.cs">
+			<Link>Links\GroupByCluster.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\Json.cs">
+			<Link>Links\Json.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\MoreLinq\DistinctBy.cs">
+			<Link>Links\MoreLinq\DistinctBy.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\MoreLinq\MoreLinq.cs">
+			<Link>Links\MoreLinq.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\NetTopologySuite\NTSConversion.cs">
+			<Link>Links\NTSConversion.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeScheduleV2.cs">
+			<Link>Links\PipeScheduleV2\PipeScheduleV2.cs</Link>
+		</Compile>
+	</ItemGroup>
+	<Import Project="..\UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems" Label="Shared" />
+	<Import Project="..\AutoCADCommandsSHARED\AutoCADCommandsSHARED.projitems" Label="Shared" />
+	<Import Project="..\FormsSHARED\FormsSHARED.projitems" Label="Shared" />
+</Project>

@@ -61,6 +61,8 @@ Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "FormsSHARED", "FormsSHARED\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GDALService", "GDALService\GDALService.csproj", "{3766D21C-5944-4CE6-BE50-721DC127895B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NTRExport", "NTRExport\NTRExport.csproj", "{59EFB8F9-2016-4915-A115-D5F902E60EF3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -237,6 +239,14 @@ Global
 		{3766D21C-5944-4CE6-BE50-721DC127895B}.Release|Any CPU.Build.0 = Release|Any CPU
 		{3766D21C-5944-4CE6-BE50-721DC127895B}.Release|x64.ActiveCfg = Release|Any CPU
 		{3766D21C-5944-4CE6-BE50-721DC127895B}.Release|x64.Build.0 = Release|Any CPU
+		{59EFB8F9-2016-4915-A115-D5F902E60EF3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{59EFB8F9-2016-4915-A115-D5F902E60EF3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{59EFB8F9-2016-4915-A115-D5F902E60EF3}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{59EFB8F9-2016-4915-A115-D5F902E60EF3}.Debug|x64.Build.0 = Debug|Any CPU
+		{59EFB8F9-2016-4915-A115-D5F902E60EF3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{59EFB8F9-2016-4915-A115-D5F902E60EF3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{59EFB8F9-2016-4915-A115-D5F902E60EF3}.Release|x64.ActiveCfg = Release|Any CPU
+		{59EFB8F9-2016-4915-A115-D5F902E60EF3}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -255,6 +265,9 @@ Global
 		FormsSHARED\FormsSHARED.projitems*{3dbcde07-d2c7-45a3-9bd6-5b7873a85166}*SharedItemsImports = 5
 		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{3dbcde07-d2c7-45a3-9bd6-5b7873a85166}*SharedItemsImports = 5
 		FormsSHARED\FormsSHARED.projitems*{48b5495f-32d5-45f9-b9f8-2e133d33653f}*SharedItemsImports = 5
+		AutoCADCommandsSHARED\AutoCADCommandsSHARED.projitems*{59efb8f9-2016-4915-a115-d5f902e60ef3}*SharedItemsImports = 5
+		FormsSHARED\FormsSHARED.projitems*{59efb8f9-2016-4915-a115-d5f902e60ef3}*SharedItemsImports = 5
+		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{59efb8f9-2016-4915-a115-d5f902e60ef3}*SharedItemsImports = 5
 		AutoCADCommandsSHARED\AutoCADCommandsSHARED.projitems*{774d8c82-954d-40a1-993a-62c9385fdf12}*SharedItemsImports = 5
 		FormsSHARED\FormsSHARED.projitems*{774d8c82-954d-40a1-993a-62c9385fdf12}*SharedItemsImports = 5
 		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{774d8c82-954d-40a1-993a-62c9385fdf12}*SharedItemsImports = 5
