@@ -1902,24 +1902,7 @@ namespace IntersectUtilities
         public int DN { get; set; }
         public string System { get; set; }
         public string Serie { get; set; }
-    }
-
-    public class WeldPointData2
-    {
-        public Point3d WeldPoint { get; set; }
-        public string AlignmentName { get; set; }
-        public Oid SourceId { get; set; }
-        public double Rotation { get; set; }
-        public int DN { get; set; }
-        /// <summary>
-        /// Twin, Frem, Enkelt, Retur
-        /// </summary>
-        public PipeTypeEnum PipeType { get; set; }
-        public PipeSystemEnum PipeSystem { get; set; }
-        public bool IsPolylineWeld { get; set; } = false;
-        public WeldPointData2(Point3d wp, string alName, Oid id, double rotation, int dn, PipeTypeEnum pt, PipeSystemEnum ps)
-        { WeldPoint = wp; AlignmentName = alName; SourceId = id; Rotation = rotation; DN = dn; PipeType = pt; PipeSystem = ps; }
-    }
+    }    
 
     /// <summary>
     /// From here: https://www.theswamp.org/index.php?topic=42503.msg477118#msg477118

@@ -12,6 +12,8 @@ using Autodesk.AutoCAD.Runtime;
 using IntersectUtilities.UtilsCommon;
 using NetTopologySuite.Geometries;
 
+using Point = NetTopologySuite.Geometries.Point;
+
 namespace IntersectUtilities.NTS
 {
     public static class NTSConversion

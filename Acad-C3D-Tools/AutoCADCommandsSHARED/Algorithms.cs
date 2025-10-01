@@ -7,6 +7,8 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 
+using Region = Autodesk.AutoCAD.DatabaseServices.Region;
+
 namespace Dreambuild.AutoCAD
 {
     using IniData = Dictionary<string, Dictionary<string, string>>;

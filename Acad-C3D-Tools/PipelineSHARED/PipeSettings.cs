@@ -18,6 +18,7 @@ using IntersectUtilities.Forms.PipeSettingsWpf.Views;
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.Enums;
 using Autodesk.AutoCAD.Geometry;
+using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 
 namespace IntersectUtilities.PipelineNetworkSystem
 {

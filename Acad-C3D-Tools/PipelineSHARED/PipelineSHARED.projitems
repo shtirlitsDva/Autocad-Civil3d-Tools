@@ -1,0 +1,49 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <MSBuildAllProjects Condition="'$(MSBuildVersion)' == '' Or '$(MSBuildVersion)' &lt; '16.0'">$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <HasSharedItems>true</HasSharedItems>
+    <SharedGUID>7d7bf915-003d-4e69-b122-69dfd068e729</SharedGUID>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <Import_RootNamespace>PipelineSHARED</Import_RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)PipelineNetwork.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)PipelineSegment.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)PipelineSizeArray\PipelineSizeArrayV2.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)PipelineV2.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)PipeSettings.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)PipeSettingsForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="$(MSBuildThisFileDirectory)PipeSettingsForm.Designer.cs">
+      <DependentUpon>PipeSettingsForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="$(MSBuildThisFileDirectory)PipeSettingsWpf\ViewModels\OptionItemViewModel.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)PipeSettingsWpf\ViewModels\PipeSettingSizeViewModel.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)PipeSettingsWpf\ViewModels\PipeSettingsViewModel.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)PipeSettingsWpf\ViewModels\PipeSettingSystemViewModel.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)PipeSettingsWpf\ViewModels\PipeSettingTypeViewModel.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)PipeSettingsWpf\Views\PipeSettingsWindow.xaml.cs">
+      <DependentUpon>PipeSettingsWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="$(MSBuildThisFileDirectory)PipesLengthCorrectionHandler.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)QuikGraphClasses\EdgeBase.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)QuikGraphClasses\GraphBuilder.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)QuikGraphClasses\NodeBase.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)PipeSettingsForm.resx">
+      <DependentUpon>PipeSettingsForm.cs</DependentUpon>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Include="$(MSBuildThisFileDirectory)PipeSettingsWpf\Views\PipeSettingsWindow.xaml">
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="$(MSBuildThisFileDirectory)PipeSettingsWpf\Views\Styles\Styles.xaml">
+      <SubType>Designer</SubType>
+    </Page>
+  </ItemGroup>
+</Project>

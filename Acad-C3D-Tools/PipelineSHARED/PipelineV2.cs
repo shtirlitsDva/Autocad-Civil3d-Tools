@@ -874,6 +874,5 @@ namespace IntersectUtilities.PipelineNetworkSystem
         Start,
         End,
         Middle,
-    }
+    }    
 }
-

@@ -9,6 +9,8 @@
     <Import_RootNamespace>UtilitiesCommonSHARED</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)Collections.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ComponentSchedule.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)DataManager\DataManager.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)DataManager\DataReferenceOptions.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)DataManager\FileResolvers\FileResolverLer.cs" />
@@ -22,6 +24,8 @@
     <Compile Include="$(MSBuildThisFileDirectory)DouglasPeuckerReduction.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Enums.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Infrastructure.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)MyGraph.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)PropertySetManager.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)UtilsCommon.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Win32Cursor.cs" />
   </ItemGroup>

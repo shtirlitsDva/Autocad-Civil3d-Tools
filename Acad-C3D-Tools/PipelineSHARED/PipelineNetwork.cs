@@ -26,10 +26,10 @@ using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 
 using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 using System.Diagnostics;
-using IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol;
 using IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray;
 using IntersectUtilities.UtilsCommon.Enums;
 using System.Collections;
+using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 
 namespace IntersectUtilities.PipelineNetworkSystem
 {

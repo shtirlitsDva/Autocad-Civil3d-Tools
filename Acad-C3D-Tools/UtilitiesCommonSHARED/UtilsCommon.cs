@@ -4809,6 +4809,78 @@ namespace IntersectUtilities.UtilsCommon
         }
     }
 
+    public class Result
+    {
+        private ResultStatus _status = ResultStatus.OK;
+        internal ResultStatus Status { get { return _status; } set { if (_status != ResultStatus.FatalError) _status = value; } }
+        private List<string> _errorMsg = new List<string>();
+        internal void AddMsg(string msg)
+        {
+            if (msg.IsNotNoE()) _errorMsg.Add(msg);
+        }
+        internal List<string> GetMsg() { return _errorMsg; }
+        internal string ErrorMsg
+        {
+            get
+            {
+
+                return string.Join("\n", _errorMsg);
+            }
+            set { if (value.IsNotNoE()) _errorMsg.Add(value); }
+        }
+        internal Result() { }
+        internal Result(ResultStatus status, string errorMsg)
+        {
+            Status = status;
+            AddMsg(errorMsg);
+        }
+        internal void Combine(Result input)
+        {
+            if (input._status > this._status) this._status = input._status;
+            this.GetMsg().AddRange(input.GetMsg());
+        }
+        public override string ToString()
+        {
+            switch (this._status)
+            {
+                case ResultStatus.OK:
+                    if (this._errorMsg.Count == 0) return "Operation completed OK";
+                    else return "Operation completed OK with message: \n" + string.Join("\n", this._errorMsg);
+                case ResultStatus.SoftError:
+                    if (this._errorMsg.Count == 0) return "Operation completed with unknown Warnings.";
+                    else return "Operation completed with Warnings: \n" + string.Join("\n", this._errorMsg);
+                case ResultStatus.FatalError:
+                    if (this._errorMsg.Count == 0) return "Operation aborted with Fatal Error!.";
+                    else return "Operation aborted with Fatal Error! \n" + string.Join("\n", this._errorMsg);
+                default:
+                    throw new NotImplementedException($"ResultStatus {this._status} is not implemented!");
+            }
+        }
+    }
+    internal enum ResultStatus
+    {
+        OK,
+        SoftError, //Exection may continue, changes to current drawing aborted
+        FatalError, //Execution of processing must stop
+    }
+
+    public class WeldPointData2
+    {
+        public Point3d WeldPoint { get; set; }
+        public string AlignmentName { get; set; }
+        public Oid SourceId { get; set; }
+        public double Rotation { get; set; }
+        public int DN { get; set; }
+        /// <summary>
+        /// Twin, Frem, Enkelt, Retur
+        /// </summary>
+        public PipeTypeEnum PipeType { get; set; }
+        public PipeSystemEnum PipeSystem { get; set; }
+        public bool IsPolylineWeld { get; set; } = false;
+        public WeldPointData2(Point3d wp, string alName, Oid id, double rotation, int dn, PipeTypeEnum pt, PipeSystemEnum ps)
+        { WeldPoint = wp; AlignmentName = alName; SourceId = id; Rotation = rotation; DN = dn; PipeType = pt; PipeSystem = ps; }
+    }
+
     public class DebugException : System.Exception
     {
         public List<Entity> DebugEntities { get; }

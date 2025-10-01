@@ -820,4 +820,32 @@ namespace IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray
         LargeToSmallDescending, //Blocks preferred
         MiddleDescendingToEnds //When a pipe is supplied from the middle
     }
+    public class SizeEntryCollection : ICollection<SizeEntryV2>
+    {
+        private List<SizeEntryV2> _L = new List<SizeEntryV2>();
+        public SizeEntryV2 this[int index] { get => _L[index]; set => _L[index] = value; }
+        public SizeEntryCollection() { }
+        public SizeEntryCollection(IEnumerable<SizeEntryV2> sizes)
+        {
+            _L.AddRange(sizes);
+        }
+        public void Add(SizeEntryV2 item)
+        {
+            _L.Add(item);
+        }
+        public int Count => _L.Count;
+        public bool IsReadOnly => false;
+        public void Clear() => _L.Clear();
+        public bool Contains(SizeEntryV2 item) => _L.Contains(item);
+        public void CopyTo(SizeEntryV2[] array, int arrayIndex) => _L.CopyTo(array, arrayIndex);
+        public bool Remove(SizeEntryV2 item) => _L.Remove(item);
+        public bool RemoveAt(int index)
+        {
+            if (index < 0 || index >= _L.Count) return false;
+            _L.RemoveAt(index);
+            return true;
+        }
+        public IEnumerator<SizeEntryV2> GetEnumerator() => _L.GetEnumerator();
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    }
 }

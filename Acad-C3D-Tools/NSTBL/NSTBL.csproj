@@ -102,17 +102,11 @@
 		</Reference>
 	</ItemGroup>
 	<ItemGroup>
-		<Compile Include="..\IntersectUtilities\ComponentSchedule.cs">
-			<Link>ComponentSchedule.cs</Link>
-		</Compile>
 		<Compile Include="..\IntersectUtilities\CsvReader.cs">
 			<Link>CsvReader.cs</Link>
 		</Compile>
 		<Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeScheduleV2.cs">
 			<Link>PipeScheduleV2\PipeScheduleV2.cs</Link>
-		</Compile>
-		<Compile Include="..\IntersectUtilities\PropertySetManager.cs">
-			<Link>PropertySetManager.cs</Link>
 		</Compile>
 	</ItemGroup>
 	<PropertyGroup>
