@@ -643,6 +643,11 @@ namespace IntersectUtilities.PipeScheduleV2
             //Temporary solution to get cover depth from size entry
             return 0.6;
         }
+        public static string GetLayerName(int DN, PipeSystemEnum ps, PipeTypeEnum pt)
+        {
+            return string.Concat(
+                    "FJV-", pt.ToString(), "-", GetSystemString(ps), DN.ToString()).ToUpper();
+        }
         #endregion
     }
 

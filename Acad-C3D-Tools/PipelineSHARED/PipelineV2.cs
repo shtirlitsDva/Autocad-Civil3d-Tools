@@ -434,7 +434,18 @@ namespace IntersectUtilities.PipelineNetworkSystem
         public override Polyline GetTopologyPolyline()
         {
             var opl = UtilsCommon.Extensions.GetPolyline(al);
-            var pl = (Polyline)opl.Clone();
+            var pl = new Polyline(opl.NumberOfVertices);
+
+            for (int i = 0; i < opl.NumberOfVertices; i++)
+            {
+                pl.AddVertexAt(
+                    i, 
+                    opl.GetPoint2dAt(i),
+                    opl.GetBulgeAt(i),
+                    opl.GetStartWidthAt(i),
+                    opl.GetEndWidthAt(i));
+            }
+
             opl.CheckOrOpenForWrite();
             opl.Erase(true);                        
             return pl;
