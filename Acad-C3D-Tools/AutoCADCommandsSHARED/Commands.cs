@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Polyline = Autodesk.AutoCAD.DatabaseServices.Polyline;
+using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 
 namespace Dreambuild.AutoCAD
 {
@@ -490,7 +491,7 @@ namespace Dreambuild.AutoCAD
                     var region = Autodesk.AutoCAD.DatabaseServices.Region.CreateFromCurves(loop);
                     if (region.Count > 0)
                     {
-                        return Draw.AddToCurrentSpace(region[0] as Region);
+                        return Draw.AddToCurrentSpace(region[0] as Autodesk.AutoCAD.DatabaseServices.Region);
                     }
                 }
             }
@@ -511,7 +512,7 @@ namespace Dreambuild.AutoCAD
                 var region = Autodesk.AutoCAD.DatabaseServices.Region.CreateFromCurves(new DBObjectCollection { curve });
                 if (region.Count > 0)
                 {
-                    return Draw.AddToCurrentSpace(region[0] as Region);
+                    return Draw.AddToCurrentSpace(region[0] as Autodesk.AutoCAD.DatabaseServices.Region);
                 }
             }
 

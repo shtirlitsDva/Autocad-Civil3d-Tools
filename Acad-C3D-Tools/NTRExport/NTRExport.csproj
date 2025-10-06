@@ -91,12 +91,6 @@
 		<GenerateDocumentationFile>True</GenerateDocumentationFile>
 	</PropertyGroup>
 	<ItemGroup>
-		<Compile Include="..\IntersectUtilities\PropertySetManager.cs">
-			<Link>Links\PropertySetManager.cs</Link>
-		</Compile>
-		<Compile Include="..\IntersectUtilities\ComponentSchedule.cs">
-			<Link>Links\ComponentSchedule.cs</Link>
-		</Compile>
 		<Compile Include="..\IntersectUtilities\CsvReader.cs">
 			<Link>Links\CsvReader.cs</Link>
 		</Compile>

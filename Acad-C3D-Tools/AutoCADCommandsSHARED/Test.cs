@@ -8,6 +8,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
+using Application = Autodesk.AutoCAD.ApplicationServices.Application;
+
 using Dreambuild.AutoCAD;
 
 namespace IntersectUtilities

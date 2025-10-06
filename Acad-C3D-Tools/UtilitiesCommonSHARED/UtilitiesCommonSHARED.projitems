@@ -22,9 +22,11 @@
     <Compile Include="$(MSBuildThisFileDirectory)DataManager\StierManager.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)DataManager\StierRecord.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)DouglasPeuckerReduction.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)DynamicBlockPropertyReader.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Enums.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Infrastructure.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)MyGraph.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)MyGraphQA.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)PropertySetManager.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)UtilsCommon.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Win32Cursor.cs" />

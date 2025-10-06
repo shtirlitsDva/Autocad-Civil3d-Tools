@@ -9,6 +9,10 @@ using AcadApplication = Autodesk.AutoCAD.ApplicationServices.Application;
 using WinFormsPropertyGrid = System.Windows.Forms.PropertyGrid;
 using WpfWindow = System.Windows.Window;
 
+using ListBox = System.Windows.Controls.ListBox;
+using Button = System.Windows.Controls.Button;
+using CheckBox = System.Windows.Controls.CheckBox;
+
 namespace Dreambuild.AutoCAD
 {
     /// <summary>

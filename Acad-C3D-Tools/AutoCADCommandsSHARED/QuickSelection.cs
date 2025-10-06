@@ -5,6 +5,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
+using Application = Autodesk.AutoCAD.ApplicationServices.Application;
+
 namespace Dreambuild.AutoCAD
 {
     /// <summary>

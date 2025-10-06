@@ -1,60 +1,44 @@
-﻿using System;
-using System.Diagnostics;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Collections.Specialized;
-using System.IO;
-using System.Linq;
-using MoreLinq;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Data;
-using System.Globalization;
-using System.Threading.Tasks;
-using System.Runtime.CompilerServices;
-using System.Windows.Forms;
-using Autodesk.Aec.DatabaseServices;
+﻿using Autodesk.Aec.PropertyData.DatabaseServices;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
-using Autodesk.Civil;
 using Autodesk.Civil.ApplicationServices;
 using Autodesk.Civil.DatabaseServices;
 using Autodesk.Civil.DatabaseServices.Styles;
-using Autodesk.Gis.Map;
-using Autodesk.Gis.Map.ObjectData;
-using Autodesk.Gis.Map.Constants;
 using Autodesk.Gis.Map.Utilities;
-using Autodesk.Aec.PropertyData;
-using Autodesk.Aec.PropertyData.DatabaseServices;
-using Autodesk.AutoCAD.Colors;
+
+using Dreambuild.AutoCAD;
+
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.Enums;
-using IntersectUtilities.DynamicBlocks;
 
+using MoreLinq;
+
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Data;
+using System.IO;
+using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Text;
+using System.Text.RegularExpressions;
+
+using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 using static IntersectUtilities.UtilsCommon.Utils;
 using static IntersectUtilities.UtilsCommon.UtilsDataTables;
-using static IntersectUtilities.UtilsCommon.UtilsODData;
-using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 
-using AcRx = Autodesk.AutoCAD.Runtime;
-using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
-using static IntersectUtilities.HelperMethods;
-using static IntersectUtilities.DynamicBlocks.PropertyReader;
-using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
-using CivSurface = Autodesk.Civil.DatabaseServices.Surface;
-using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
-using ObjectId = Autodesk.AutoCAD.DatabaseServices.ObjectId;
-using DataType = Autodesk.Gis.Map.Constants.DataType;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
-using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
+using DataType = Autodesk.Gis.Map.Constants.DataType;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
-using ErrorStatus = Autodesk.AutoCAD.Runtime.ErrorStatus;
-using PsDataType = Autodesk.Aec.PropertyData.DataType;
-using Dreambuild.AutoCAD;
+using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
+using ObjectId = Autodesk.AutoCAD.DatabaseServices.ObjectId;
+using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
+using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
+using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 
 namespace IntersectUtilities
 {
@@ -1366,61 +1350,6 @@ namespace IntersectUtilities
             Partial,
             Full
         }
-        public static double GetTransitionLength(Transaction tx, BlockReference transition)
-        {
-            if (transition == null) return 0;
-            if (transition.GetPipelineType() != PipelineElementType.Reduktion)
-            {
-                throw new System.Exception(
-                    $"GetTransitionLength recieved non-transition block " +
-                    $"{transition.RealName()}, {transition.Handle}!");
-            }
-
-            BlockTableRecord btr = transition.BlockTableRecord.Go<BlockTableRecord>(tx);
-
-            var points = btr
-                .ToIEnumerable()
-                .Select(id => id.Go<BlockReference>(tx))
-                .Where(br => br != null && br.Name.Contains("MuffeIntern"))
-                .Select(br => br.Position)
-                .Take(2)
-                .ToArray();
-
-            if (points.Length != 2) throw new System.Exception(
-                $"Transition {transition.Handle} does not have EXACTLY two MuffeIntern blocks!");
-
-            return points[0].DistanceHorizontalTo(points[1]);
-        }
-        public static Vector3d GetDirectionVectorForReducerFromPoint(Transaction tx, BlockReference transition, Point3d basePoint)
-        {
-            if (transition == null) return default;
-            if (transition.GetPipelineType() != PipelineElementType.Reduktion)
-            {
-                throw new System.Exception(
-                    $"GetTransitionLength received non-transition block " +
-                    $"{transition.RealName()}, {transition.Handle}!");
-            }
-
-            BlockTableRecord btr = transition.BlockTableRecord.Go<BlockTableRecord>(tx);
-
-            var points = btr
-                .ToIEnumerable()
-                .Select(id => id.Go<BlockReference>(tx))
-                .Where(br => br != null && br.Name.Contains("MuffeIntern"))
-                .Select(br => br.Position.TransformBy(transition.BlockTransform))
-                .ToArray();
-
-            if (points.Length != 2) throw new System.Exception(
-                $"Transition {transition.Handle} does not have EXACTLY two MuffeIntern blocks!");
-
-            Point3d point1 = points[0];
-            Point3d point2 = points[1];
-
-            Point3d startPoint = point1.IsEqualTo(basePoint, new Tolerance(1e-3, 1e-3)) ? point1 : point2;
-            Point3d endPoint = startPoint == point1 ? point2 : point1;
-
-            return startPoint.GetVectorTo(endPoint);
-        }
     }
 
     public static class UtilsExtensions
@@ -1902,7 +1831,7 @@ namespace IntersectUtilities
         public int DN { get; set; }
         public string System { get; set; }
         public string Serie { get; set; }
-    }    
+    }
 
     /// <summary>
     /// From here: https://www.theswamp.org/index.php?topic=42503.msg477118#msg477118

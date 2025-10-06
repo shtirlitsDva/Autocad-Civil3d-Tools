@@ -1,59 +1,13 @@
 ﻿using System;
-using System.Diagnostics;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Collections.Specialized;
-using System.IO;
 using System.Linq;
 using MoreLinq;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Data;
-using System.Globalization;
-using System.Threading.Tasks;
-using System.Runtime.CompilerServices;
-using System.Windows.Forms;
-using Autodesk.Aec.DatabaseServices;
-using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
-using Autodesk.AutoCAD.EditorInput;
-using Autodesk.AutoCAD.Geometry;
-using Autodesk.AutoCAD.Runtime;
-using Autodesk.Civil;
-using Autodesk.Civil.ApplicationServices;
-using Autodesk.Civil.DatabaseServices;
-using Autodesk.Civil.DatabaseServices.Styles;
-using Autodesk.Gis.Map;
-using Autodesk.Gis.Map.ObjectData;
-using Autodesk.Gis.Map.Constants;
-using Autodesk.Gis.Map.Utilities;
-using Autodesk.Aec.PropertyData;
-using Autodesk.Aec.PropertyData.DatabaseServices;
-using Autodesk.AutoCAD.Colors;
 using IntersectUtilities.UtilsCommon;
-
-using static IntersectUtilities.UtilsCommon.Utils;
-using static IntersectUtilities.UtilsCommon.UtilsDataTables;
 using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 using static IntersectUtilities.ComponentSchedule;
-
-using AcRx = Autodesk.AutoCAD.Runtime;
-using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
-using static IntersectUtilities.HelperMethods;
-using static IntersectUtilities.DynamicBlocks.PropertyReader;
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
-using CivSurface = Autodesk.Civil.DatabaseServices.Surface;
-using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
-using ObjectId = Autodesk.AutoCAD.DatabaseServices.ObjectId;
-using DataType = Autodesk.Gis.Map.Constants.DataType;
-using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
-using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
-using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
-using ErrorStatus = Autodesk.AutoCAD.Runtime.ErrorStatus;
-using PsDataType = Autodesk.Aec.PropertyData.DataType;
-using Autodesk.Aec.Modeler;
-using static IntersectUtilities.Graph;
 using IntersectUtilities.UtilsCommon.Enums;
 
 namespace IntersectUtilities
@@ -101,13 +55,13 @@ namespace IntersectUtilities
                 else if (ent1 is BlockReference br)
                 {
                     type1 = (PipeTypeEnum)Enum.Parse(typeof(PipeTypeEnum),
-                        ReadComponentSystem(br, dt, edge.EndType1));
+                        DynamicBlocks.PropertyReader.ReadComponentSystem(br, dt, edge.EndType1));
                 }
                 if (ent2 is Polyline) type2 = GetPipeType(ent2);
                 else if (ent2 is BlockReference br)
                 {
                     type2 = (PipeTypeEnum)Enum.Parse(typeof(PipeTypeEnum),
-                        ReadComponentSystem(br, dt, edge.EndType2));
+                        DynamicBlocks.PropertyReader.ReadComponentSystem(br, dt, edge.EndType2));
                 }
 
                 if (type1 == PipeTypeEnum.Retur || type1 == PipeTypeEnum.Frem)
@@ -144,8 +98,10 @@ namespace IntersectUtilities
                 if (ent1 is Polyline) DN11 = GetPipeDN(ent1);
                 else if (ent1 is BlockReference br)
                 {
-                    DN11 = ReadComponentDN1Int(br, dt);
-                    DN12 = ReadComponentDN2Int(br, dt);
+                    DN11 = Convert.ToInt32(
+                        br.ReadDynamicCsvProperty(DynamicProperty.DN1));
+                    DN12 = Convert.ToInt32(
+                        br.ReadDynamicCsvProperty(DynamicProperty.DN2));
                 }
 
                 int DN21 = default;
@@ -153,8 +109,10 @@ namespace IntersectUtilities
                 if (ent2 is Polyline) DN21 = GetPipeDN(ent2);
                 else if (ent2 is BlockReference br)
                 {
-                    DN21 = ReadComponentDN1Int(br, dt);
-                    DN22 = ReadComponentDN2Int(br, dt);
+                    DN21 = Convert.ToInt32(
+                        br.ReadDynamicCsvProperty(DynamicProperty.DN1));
+                    DN22 = Convert.ToInt32(
+                        br.ReadDynamicCsvProperty(DynamicProperty.DN2));
                 }
 
                 HashSet<int> dnList1 = new HashSet<int>();

@@ -293,7 +293,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 try
                 {
                     //Now to correcting lengths
-                    double transitionLength = Utils.GetTransitionLength(tx, reducer);
+                    double transitionLength = UtilsCommon.Utils.GetTransitionLength(tx, reducer);
                     Point3d cachedTransitionLocation = reducer.Position;
                     double cachedPline1ConstantWidth = pline1.ConstantWidthSafe();
                     double cachedPline2ConstantWidth = pline2.ConstantWidthSafe();
@@ -461,7 +461,8 @@ namespace IntersectUtilities.PipelineNetworkSystem
                             //Now rotate the transition to match the new direction
                             //This is done by rotating the transition around the new endpoint
                             var v1 = pline1.EndPoint.GetVectorTo(pline1.StartPoint);
-                            var v2 = Utils.GetDirectionVectorForReducerFromPoint(tx, reducer, pline2.EndPoint);
+                            var v2 = GetDirectionVectorForReducerFromPoint(
+                                tx, reducer, pline2.EndPoint);
                             double angle = v2.GetAngleTo(v1);
                             //reducer.TransformBy(Matrix3d.Rotation(angle, Vector3d.ZAxis, pline1.EndPoint));
                             tx.Commit();

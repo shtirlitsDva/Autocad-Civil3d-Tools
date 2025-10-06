@@ -613,67 +613,67 @@ namespace IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray
         /// <summary>
         /// Assuming br is a SizeArray block. Currently NOT USED.
         /// </summary>
-        private (HashSet<Entity> One, HashSet<Entity> Two) GatherConnectedEntities(
-            BlockReference br, IPipelineV2 pipeline)
-        {
-            HashSet<Entity> one = new HashSet<Entity>();
-            HashSet<Entity> two = new HashSet<Entity>();
-            var res = (one, two);
+        //private (HashSet<Entity> One, HashSet<Entity> Two) GatherConnectedEntities(
+        //    BlockReference br, IPipelineV2 pipeline)
+        //{
+        //    HashSet<Entity> one = new HashSet<Entity>();
+        //    HashSet<Entity> two = new HashSet<Entity>();
+        //    var res = (one, two);
 
-            var ce = pipeline.PipelineEntities.GetConnectedEntitiesDelimited(br);
+        //    var ce = pipeline.PipelineEntities.GetConnectedEntitiesDelimited(br);
 
-            if (ce.Count > 3) { prdDbg($"Block {br.Handle} has more than 3 entities connected!"); return res; }
-            if (ce.Count < 1) { prdDbg($"Block {br.Handle} does not have any entities connected!"); return res; }
+        //    if (ce.Count > 3) { prdDbg($"Block {br.Handle} has more than 3 entities connected!"); return res; }
+        //    if (ce.Count < 1) { prdDbg($"Block {br.Handle} does not have any entities connected!"); return res; }
 
-            // If the block currently processed is an X-model
-            // we can potentially have three collections of entities.
-            // Determine if it is the case
-            string type = br.ReadDynamicCsvProperty(
-                DynamicProperty.Type, false);
-            if (type == "F-Model" || type == "Y-Model")
-            {
-                if (ce.Count == 3)
-                {
-                    var query1 = ce.Where(x => x.Any(y =>
-                    y.GetEntityPipeType(true) == PipeTypeEnum.Enkelt));
-                    foreach (var item in query1) one.UnionWith(item);
+        //    // If the block currently processed is an X-model
+        //    // we can potentially have three collections of entities.
+        //    // Determine if it is the case
+        //    string type = br.ReadDynamicCsvProperty(
+        //        DynamicProperty.Type, false);
+        //    if (type == "F-Model" || type == "Y-Model")
+        //    {
+        //        if (ce.Count == 3)
+        //        {
+        //            var query1 = ce.Where(x => x.Any(y =>
+        //            y.GetEntityPipeType(true) == PipeTypeEnum.Enkelt));
+        //            foreach (var item in query1) one.UnionWith(item);
 
-                    var query2 = ce.Where(x => x.Any(y =>
-                    y.GetEntityPipeType(true) == PipeTypeEnum.Twin));
-                    foreach (var item in query2) two.UnionWith(item);
+        //            var query2 = ce.Where(x => x.Any(y =>
+        //            y.GetEntityPipeType(true) == PipeTypeEnum.Twin));
+        //            foreach (var item in query2) two.UnionWith(item);
 
-                    return res;
-                }
-                else if (ce.Count == 2)
-                {
-                    res.one.UnionWith(ce.First());
-                    res.two.UnionWith(ce.Last());
-                    return res;
-                }
-                else if (ce.Count == 1)
-                {
-                    res.one.UnionWith(ce.First());
-                    return res;
-                }
-            }
-            else if (ce.Count == 3)
-            {
-                prdDbg($"Block {br.Handle} is not an X-model but has 3 entities connected!");
-                return res;
-            }
-            else if (ce.Count == 2)
-            {
-                res.one.UnionWith(ce.First());
-                res.two.UnionWith(ce.Last());
-                return res;
-            }
-            else if (ce.Count == 1)
-            {
-                res.one.UnionWith(ce.First());
-                return res;
-            }
-            throw new NotImplementedException("Hit code that shouldn't be hit.");
-        }
+        //            return res;
+        //        }
+        //        else if (ce.Count == 2)
+        //        {
+        //            res.one.UnionWith(ce.First());
+        //            res.two.UnionWith(ce.Last());
+        //            return res;
+        //        }
+        //        else if (ce.Count == 1)
+        //        {
+        //            res.one.UnionWith(ce.First());
+        //            return res;
+        //        }
+        //    }
+        //    else if (ce.Count == 3)
+        //    {
+        //        prdDbg($"Block {br.Handle} is not an X-model but has 3 entities connected!");
+        //        return res;
+        //    }
+        //    else if (ce.Count == 2)
+        //    {
+        //        res.one.UnionWith(ce.First());
+        //        res.two.UnionWith(ce.Last());
+        //        return res;
+        //    }
+        //    else if (ce.Count == 1)
+        //    {
+        //        res.one.UnionWith(ce.First());
+        //        return res;
+        //    }
+        //    throw new NotImplementedException("Hit code that shouldn't be hit.");
+        //}
     }
     /// <summary>
     /// This class assumes that there are no SizeArray blocks in the pipeline.

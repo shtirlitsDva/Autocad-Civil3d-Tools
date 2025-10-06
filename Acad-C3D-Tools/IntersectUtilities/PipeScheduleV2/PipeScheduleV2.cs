@@ -15,6 +15,7 @@ using static IntersectUtilities.UtilsCommon.Utils;
 
 using DataColumn = System.Data.DataColumn;
 using DataTable = System.Data.DataTable;
+using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 
 namespace IntersectUtilities.PipeScheduleV2
 {

@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using MoreLinq;
+//using MoreLinq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Data;
@@ -15,7 +15,6 @@ using static IntersectUtilities.UtilsCommon.Utils;
 using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 using static IntersectUtilities.ComponentSchedule;
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
-using static IntersectUtilities.DynamicBlocks.PropertyReader;
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
@@ -268,7 +267,9 @@ namespace IntersectUtilities
                     case Polyline pline:
                         return GetPipeDN(pline);
                     case BlockReference br:
-                        return Convert.ToInt32(ReadComponentDN1Str(br, componentTable));
+                        return Convert.ToInt32(
+                            br.ReadDynamicCsvProperty(
+                                DynamicProperty.DN1));
                 }
                 return 0;
             }
@@ -352,7 +353,7 @@ namespace IntersectUtilities
                 //Warning: this won't work if there's a connection to first pipe in system
                 //Warning: afgreningsstuds or stik pipe
                 //2022.09.08: Attempt to fix this by adding a new EndType: WeldOn
-                GraphEntity ge = GraphEntities
+                GraphEntity? ge = GraphEntities
                     .Where(x =>
                     //Exclude WeldOn and StikAfgrening EndTypes from count
                         (x.Cons.Count(y => y.OwnEndType != EndType.StikAfgrening && y.OwnEndType != EndType.WeldOn) == 1) ||
@@ -456,7 +457,8 @@ namespace IntersectUtilities
                     foreach (Con con in current.Cons)
                     {
                         //Find the child the con is referencing to
-                        GraphEntity child = GraphEntities.Where(x => x.OwnerHandle == con.ConHandle).FirstOrDefault();
+                        GraphEntity? child = GraphEntities.Where(
+                            x => x.OwnerHandle == con.ConHandle).FirstOrDefault();
                         //if it is the con refering back to the parent -> skip it
                         if (child == default || child.OwnerHandle == current.OwnerHandle) continue;
                         //Also skip if child has already been visited
@@ -464,7 +466,7 @@ namespace IntersectUtilities
                         //Comment next line out to test circular graphs
                         //if (visitedHandles.Contains(child.OwnerHandle)) continue; <-- First solution
                         //Solution with caching of previous handle, it I don't think it works when backtracking to a branch -> there will be a double arrow
-                        if (previousHandle != null && previousHandle == child.OwnerHandle) continue;
+                        if (previousHandle != default && previousHandle == child.OwnerHandle) continue;
                         //Try to control which cons get written by their type
                         //Build string
                         string ownEnd = con.OwnEndType.ToString();
@@ -530,7 +532,8 @@ namespace IntersectUtilities
                 //}
 
                 //Modify the GraphEntities to remove visited entities
-                GraphEntities = GraphEntities.ExceptWhere(x => visitedHandles.Contains(x.OwnerHandle)).ToHashSet();
+                GraphEntities = GraphEntities.Where(
+                    x => !visitedHandles.Contains(x.OwnerHandle)).ToHashSet();
             }
 
             //Closing brace of the main graph
@@ -577,8 +580,8 @@ namespace IntersectUtilities
                                 $" URL=\"ahk://ACCOMSelectByHandle/{handle}\"];");
                             break;
                         case BlockReference br:
-                            string dn1 = ReadComponentDN1Str(br, Table);
-                            string dn2 = ReadComponentDN2Str(br, Table);
+                            string dn1 = br.ReadDynamicCsvProperty(DynamicProperty.DN1);
+                            string dn2 = br.ReadDynamicCsvProperty(DynamicProperty.DN2);
                             string dnStr = dn2 == "0" ? dn1 : dn1 + "/" + dn2;
                             system = ComponentSchedule.ReadComponentSystem(br, Table);
                             string type = ComponentSchedule.ReadDynamicCsvProperty(br, DynamicProperty.Type);
