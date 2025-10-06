@@ -60,8 +60,18 @@ namespace NTRExport
                 pn.CreatePipelineGraph();
                 pn.CreateSizeArrays();
 
-                prdDbg(pn);
-
+                foreach (var graph in pn.PipelineGraphs)
+                {
+                    foreach (var node in graph)
+                    {
+                        IPipelineV2 pipeline = node.Value;
+                        var topo = pipeline.GetTopologyPolyline();
+                        topo.SetDatabaseDefaults(localDb);
+                        topo.ConstantWidth = 1;
+                        topo.Color = ColorByName("yellow");
+                        topo.AddEntityToDbModelSpace(localDb);                        
+                    }
+                }
             }
             catch (System.Exception ex)
             {

@@ -49,6 +49,11 @@ namespace IntersectUtilities.PipelineNetworkSystem
         IEnumerable<Polyline> GetPolylines();
         Point3d GetLocationForMaxDN();
         Result CorrectPipesToCutLengths(Point3d connectionLocation);
+        /// <summary>
+        /// Returns the pipelines' topology as polyline with
+        /// start point coinciding with start station.
+        /// </summary>
+        Polyline GetTopologyPolyline();
     }
     public abstract class PipelineV2Base : IPipelineV2
     {
@@ -242,6 +247,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
             GetClosestPointTo(pt, extend).DistanceHorizontalTo(pt);
         public IEnumerable<Polyline> GetPolylines() => pipelineEntities.GetPolylines();
         public abstract Vector3d GetFirstDerivative(Point3d pt);
+        public abstract Polyline GetTopologyPolyline();
     }
     public class PipelineV2Alignment : PipelineV2Base
     {
@@ -424,6 +430,14 @@ namespace IntersectUtilities.PipelineNetworkSystem
 
                 throw;
             }
+        }
+        public override Polyline GetTopologyPolyline()
+        {
+            var opl = UtilsCommon.Extensions.GetPolyline(al);
+            var pl = (Polyline)opl.Clone();
+            opl.CheckOrOpenForWrite();
+            opl.Erase(true);                        
+            return pl;
         }
     }
     public class PipelineV2Na : PipelineV2Base
@@ -786,6 +800,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
         }
         public override Vector3d GetFirstDerivative(Point3d pt) =>
             topology.GetFirstDerivative(GetClosestPointTo(pt, false));
+        public override Polyline GetTopologyPolyline() => (Polyline)topology.Clone();        
         private class Ent
         {
             public Entity Entity;
@@ -863,7 +878,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
     public static class PipelineV2Factory
     {
         public static IPipelineV2 Create(IEnumerable<Entity> ents, Alignment al)
-        {            
+        {
             if (al == null) return new PipelineV2Na(ents);
             else return new PipelineV2Alignment(ents, al);
         }
@@ -874,5 +889,5 @@ namespace IntersectUtilities.PipelineNetworkSystem
         Start,
         End,
         Middle,
-    }    
+    }
 }
