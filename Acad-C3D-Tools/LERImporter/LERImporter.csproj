@@ -83,9 +83,6 @@
 		<Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeScheduleV2.cs">
 			<Link>PipeScheduleV2\PipeScheduleV2.cs</Link>
 		</Compile>
-		<Compile Include="..\IntersectUtilities\PropertySetManager.cs">
-			<Link>PropertySetManager.cs</Link>
-		</Compile>
 	</ItemGroup>
 	<ItemGroup>
 		<None Update="Schema\1.0_annotations.xsd">
