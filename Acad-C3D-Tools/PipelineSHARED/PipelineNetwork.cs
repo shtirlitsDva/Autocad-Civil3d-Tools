@@ -184,42 +184,48 @@ namespace IntersectUtilities.PipelineNetworkSystem
             gw.CreateWeldBlocks(wps);
         }
     }
-    public interface INode
+    //public interface INode<T>
+    //{
+    //    INode<T>? Parent { get; set; }
+    //    IReadOnlyList<INode<T>> Children { get; }
+    //    void AddChild(INode<T> child);
+        
+    //    T Value { get; }
+    //    string Name { get; }
+    //    string Label { get; }
+    //    //string EdgesToDot();
+    //    //string NodesToDot();
+    //}
+    public abstract class Node
     {
-        INode Parent { get; set; }
-        List<INode> Children { get; }
-        void AddChild(INode child);
-        IEnumerable<T> GetChildrenOfType<T>() where T : INode;
-        IPipelineV2 Value { get; }
-        string Name { get; }
-        string Label { get; }
-        string EdgesToDot();
-        string NodesToDot();
-    }
-    public abstract class PipelineNodeBase : INode
-    {
-        public INode Parent { get; set; }
-        public List<INode> Children { get; private set; }
-        public virtual string Name { get; protected set; }
-        public virtual string Label { get; protected set; }
-        public abstract IPipelineV2 Value { get; }
-        protected PipelineNodeBase()
+        public Node? Parent { get; set; }
+        
+        private readonly List<Node> _children = new();
+        public IReadOnlyList<Node> Children => _children.AsReadOnly();
+        public string Name { get; protected set; }
+        public string Label { get; protected set; }
+        
+        protected Node(string name, string label)
         {
-            Children = new List<INode>();
+            Name = name; Label = label;
         }
-        public void AddChild(INode child)
+        public void AddChild(Node child)
         {
+            if (child is null) throw new ArgumentNullException(nameof(child));
+            if (ReferenceEquals(child, this)) throw new InvalidOperationException("A node cannot be its own child.");
+            if (child.Parent != null)
+                child.Parent._children.Remove(child);
+
             child.Parent = this;
-            Children.Add(child);
-        }
-        public IEnumerable<T> GetChildrenOfType<T>() where T : INode => Children.OfType<T>();
+            _children.Add(child);
+        }        
         public string EdgesToDot()
         {
             var edges = new StringBuilder();
             GatherEdges(this, edges);
             return edges.ToString();
         }
-        private void GatherEdges(INode node, StringBuilder edges)
+        private void GatherEdges(Node node, StringBuilder edges)
         {
             foreach (var child in node.Children)
             {
@@ -233,7 +239,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
             GatherNodes(this, nodes);
             return nodes.ToString();
         }
-        private void GatherNodes(INode node, StringBuilder nodes)
+        private void GatherNodes(Node node, StringBuilder nodes)
         {
             string color = "";
             if (node.Parent == null) color = " color = red";
@@ -244,7 +250,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
             }
         }
     }
-    public class PipelineNode : PipelineNodeBase
+    public class PipelineNode : Node
     {
         public override IPipelineV2 Value { get; }
         public PipelineNode(IPipelineV2 value) : base()
@@ -254,9 +260,9 @@ namespace IntersectUtilities.PipelineNetworkSystem
             Label = value.Label;
         }
     }
-    public class Graph : IReadOnlyCollection<INode>
+    public class Graph<T> : IReadOnlyCollection<INode<T>>
     {
-        public INode Root { get; private set; }
+        public INode<T> Root { get; private set; }
 
         public int Count => Dfs().Count();
 

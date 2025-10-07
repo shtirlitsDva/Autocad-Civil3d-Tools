@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace IntersectUtilities.LongitudinalProfiles.KoteReport
 {
-    internal class KRNode : NodeBase
+    internal class KRNode : PipelineNetworkSystem.QuikGraphClasses.NodeBase
     {
         public List<IConnection> Connections = new List<IConnection>();
         public KRNode(IPipelineV2 value) : base(value)

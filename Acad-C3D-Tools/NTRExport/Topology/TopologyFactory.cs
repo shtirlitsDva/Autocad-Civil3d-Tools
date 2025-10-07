@@ -6,9 +6,9 @@ namespace NTRExport.Topology
 {
     internal class TopologyFactory
     {
-        internal static IEnumerable<INtr> Create(IPipelineV2 pipeline)
-        {
+        //internal static IEnumerable<INtr> Create()
+        //{
 
-        }
+        //}
     }
 }
