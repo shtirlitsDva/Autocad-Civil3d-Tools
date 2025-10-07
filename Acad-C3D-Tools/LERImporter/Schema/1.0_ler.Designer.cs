@@ -6010,6 +6010,8 @@ namespace LERImporter.Schema
         /// </summary>
         [XmlEnumAttribute("splidsemuffer i jord")]
         splidsemufferijord,
+        [XmlEnumAttribute("other: rørstop")]
+        rørstop,
     }
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
