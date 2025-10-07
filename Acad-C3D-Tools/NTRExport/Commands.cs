@@ -1,12 +1,9 @@
 ﻿using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
-using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
 using Autodesk.Civil.DatabaseServices;
 
 using IntersectUtilities.PipelineNetworkSystem;
-using IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray;
-using IntersectUtilities.PipeScheduleV2;
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.DataManager;
 
@@ -84,46 +81,51 @@ namespace NTRExport
                         var topopl = ppl.GetTopologyPolyline();
                         var sizes = ppl.PipelineSizes;
 
-                        List<(Polyline pl, SizeEntryV2 size)> results = new();
-                        if (sizes.Length == 1)
-                            results.Add((topopl, sizes[0]));
-                        else
-                        {
-                            DoubleCollection dc = new DoubleCollection();
+                        ppl.PipelineEntities.has
 
-                            //Skip first as Start Station is zero
-                            for (int i = 1; i < sizes.Length; i++)
-                            {
-                                var l = sizes[i].StartStation;
-                                dc.Add(topopl.GetParameterAtDistance(l));
-                            }
+                        #region First try
+                        //List<(Polyline pl, SizeEntryV2 size)> results = new();
+                        //if (sizes.Length == 1)
+                        //    results.Add((topopl, sizes[0]));
+                        //else
+                        //{
+                        //    DoubleCollection dc = new DoubleCollection();
 
-                            using var objs = topopl.GetSplitCurves(dc);
+                        //    //Skip first as Start Station is zero
+                        //    for (int i = 1; i < sizes.Length; i++)
+                        //    {
+                        //        var l = sizes[i].StartStation;
+                        //        dc.Add(topopl.GetParameterAtDistance(l));
+                        //    }
 
-                            if (objs.Count != sizes.Length)
-                            {
-                                prdDbg($"Pipeline {ppl.Name} failed to split correctly!");
-                                prdDbg($"Sizes count: {sizes.Length}; Objs count: {objs.Count}");
-                                prdDbg(sizes);                                
-                                continue;
-                            }
+                        //    using var objs = topopl.GetSplitCurves(dc);
 
-                            for (int i = 0; i < sizes.Length; i++)
-                            {
-                                results.Add(((Polyline)objs[i], sizes[i]));
-                            }
-                        }
+                        //    if (objs.Count != sizes.Length)
+                        //    {
+                        //        prdDbg($"Pipeline {ppl.Name} failed to split correctly!");
+                        //        prdDbg($"Sizes count: {sizes.Length}; Objs count: {objs.Count}");
+                        //        prdDbg(sizes);
+                        //        continue;
+                        //    }
 
-                        foreach (var (pl, size) in results)
-                        {                            
-                            var layer = PipeScheduleV2.GetLayerName(
-                                size.DN, size.System, size.Type);
-                            localDb.CheckOrCreateLayer(
-                                layer, PipeScheduleV2.GetColorForDim(layer));
-                            pl.Layer = layer;
-                            pl.ConstantWidth = 0.5;
-                            pl.AddEntityToDbModelSpace(localDb);
-                        }                        
+                        //    for (int i = 0; i < sizes.Length; i++)
+                        //    {
+                        //        results.Add(((Polyline)objs[i], sizes[i]));
+                        //    }
+                        //}
+
+                        //foreach (var (pl, size) in results)
+                        //{
+                        //    var layer = PipeScheduleV2.GetLayerName(
+                        //        size.DN, size.System, size.Type);
+                        //    localDb.CheckOrCreateLayer(
+                        //        layer, PipeScheduleV2.GetColorForDim(layer));
+                        //    pl.Layer = layer;
+                        //    pl.ConstantWidth = PipeScheduleV2.GetPipeKOd(
+                        //        size.System, size.DN, size.Type, size.Series) / 1000;
+                        //    pl.AddEntityToDbModelSpace(localDb);
+                        //} 
+                        #endregion
                     }
                 }
             }
