@@ -20,6 +20,8 @@ using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.DataManager;
 using IntersectUtilities.UtilsCommon.Enums;
 
+using IntersectUtilities.UtilsCommon.Graphs;
+
 using MoreLinq;
 
 using System;
@@ -28,7 +30,6 @@ using System.Data;
 using System.IO;
 using System.Linq;
 
-using static IntersectUtilities.Graph;
 using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 using static IntersectUtilities.UtilsCommon.Utils;
 using static IntersectUtilities.UtilsCommon.UtilsDataTables;
@@ -490,7 +491,7 @@ namespace IntersectUtilities
                             if (conString.IsNoE())
                                 throw new System.Exception(
                                     $"Malformend constring: {conString}, entity: {entity.Handle}.");
-                            Con[] cons = GraphEntity.parseConString(conString);
+                            Con[] cons = Con.ParseConString(conString);
 
                             foreach (var con in cons)
                                 if (entities.ContainsKey(con.ConHandle))
@@ -535,7 +536,7 @@ namespace IntersectUtilities
                                 throw new System.Exception(
                                     $"Malformend constring: {conString}, entity: {entity.Handle}.");
 
-                            Con[] cons = GraphEntity.parseConString(conString);
+                            Con[] cons = Con.ParseConString(conString);
                             return cons.Select(con => con.ConHandle).Where(entities.ContainsKey).ToList();
                         }
                         List<Handle> GetAllNeighbours(Entity entity)
@@ -545,7 +546,7 @@ namespace IntersectUtilities
                                 throw new System.Exception(
                                     $"Malformend constring: {conString}, entity: {entity.Handle}.");
 
-                            Con[] cons = GraphEntity.parseConString(conString);
+                            Con[] cons = Con.ParseConString(conString);
                             return cons.Select(con => con.ConHandle).ToList();
                         }
 

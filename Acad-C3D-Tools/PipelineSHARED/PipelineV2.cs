@@ -3,18 +3,18 @@ using Autodesk.AutoCAD.Geometry;
 using Autodesk.Civil.DatabaseServices;
 
 using IntersectUtilities.Collections;
+using IntersectUtilities.UtilsCommon.Graphs;
 using IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray;
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.Enums;
+
+using static IntersectUtilities.UtilsCommon.Utils;
 
 using MoreLinq;
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
-
-using static IntersectUtilities.Graph;
-using static IntersectUtilities.UtilsCommon.Utils;
 
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
@@ -827,7 +827,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 if (conString.IsNoE())
                     throw new System.Exception(
                         $"Malformend constring: {conString}, entity: {entity.Handle}.");
-                Cons = GraphEntity.parseConString(conString);
+                Cons = Con.ParseConString(conString);
 
                 switch (entity)
                 {

@@ -1,16 +1,20 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using MoreLinq;
-using Autodesk.AutoCAD.DatabaseServices;
+﻿using Autodesk.AutoCAD.DatabaseServices;
+
 using IntersectUtilities.UtilsCommon;
-using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
-using static IntersectUtilities.ComponentSchedule;
-using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
-using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
 using IntersectUtilities.UtilsCommon.Enums;
 
-namespace IntersectUtilities
+using MoreLinq;
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
+
+using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
+using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
+
+namespace IntersectUtilities.GraphWrite
 {
     public partial class Graph
     {

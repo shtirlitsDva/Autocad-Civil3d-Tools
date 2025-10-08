@@ -1,31 +1,31 @@
-﻿using System;
+﻿using Autodesk.AutoCAD.DatabaseServices;
+using Autodesk.AutoCAD.Geometry;
+
+using IntersectUtilities.UtilsCommon;
+using IntersectUtilities.UtilsCommon.Enums;
+using IntersectUtilities.UtilsCommon.Graphs;
+
+using System;
 using System.Collections.Generic;
+using System.Data;
 using System.IO;
 using System.Linq;
 //using MoreLinq;
 using System.Text;
-using System.Text.RegularExpressions;
-using System.Data;
-using Autodesk.AutoCAD.DatabaseServices;
-using Autodesk.AutoCAD.Geometry;
-using IntersectUtilities.UtilsCommon;
-using IntersectUtilities.UtilsCommon.Enums;
 
-using static IntersectUtilities.UtilsCommon.Utils;
-using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 using static IntersectUtilities.ComponentSchedule;
-using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
-using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
+using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
+using static IntersectUtilities.UtilsCommon.Utils;
+
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
-using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
+using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
+using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 
-namespace IntersectUtilities
+namespace IntersectUtilities.GraphWrite
 {
     public partial class Graph
     {
-        private static Regex regex = new Regex(@"(?<OwnEndType>\d):(?<ConEndType>\d):(?<Handle>\w*);");
-
         public HashSet<POI> POIs = new HashSet<POI>();
         public static PSetDefs.DriGraph DriGraph { get; } = new PSetDefs.DriGraph();
         public static PropertySetManager PSM { get; set; }
@@ -38,35 +38,6 @@ namespace IntersectUtilities
             ComponentTable = componentTable;
             dB = database;
             allPipes = dB.GetFjvPipes(dB.TransactionManager.TopTransaction);
-        }
-        public class POI
-        {
-            public Entity Owner { get; }
-            public Point2d Point { get; }
-            public EndType EndType { get; }
-            private PropertySetManager PSM { get; }
-            private PSetDefs.DriGraph DriGraph { get; }
-            public POI(Entity owner, Point2d point, EndType endType, PropertySetManager psm, PSetDefs.DriGraph driGraph)
-            { Owner = owner; Point = point; EndType = endType; PSM = psm; DriGraph = driGraph; }
-            public bool IsSameOwner(POI toCompare) => Owner.Id == toCompare.Owner.Id;
-            internal void AddReference(POI connectedEntity)
-            {
-                string value = PSM.ReadPropertyString(Owner, DriGraph.ConnectedEntities);
-
-                //Avoid duplicate connections on con strings
-                //Or filter the connections by their type
-                //if (regex.IsMatch(value))
-                //{
-                //    var matches = regex.Matches(value);
-                //    foreach (Match match in matches)
-                //        if (match.Groups["Handle"].Value == connectedEntity.Owner.Handle.ToString())
-                //            //Do not add a reference if it already exists in the connection string
-                //            return;
-                //}
-
-                value += $"{(int)EndType}:{(int)connectedEntity.EndType}:{connectedEntity.Owner.Handle};";
-                PSM.WritePropertyString(Owner, DriGraph.ConnectedEntities, value);
-            }
         }
         public void AddEntityToPOIs(Entity ent)
         {
@@ -90,7 +61,7 @@ namespace IntersectUtilities
                             if (query.FirstOrDefault() != default)
                             {
                                 Polyline parent = query.FirstOrDefault();
-                                POIs.Add(new POI(parent, parent.GetClosestPointTo(pt, false).To2d(), EndType.StikAfgrening, PSM, DriGraph));
+                                POIs.Add(new POI(parent, parent.GetClosestPointTo(pt, false).To2d(), EndType.StikAfgrening, PSM));
                             }
 
                             pt = pline.EndPoint;
@@ -99,18 +70,18 @@ namespace IntersectUtilities
                                 //This shouldn't happen now, because AssignPlinesAndBlocksToAlignments
                                 //guarantees that the end point is never on a supply pipe
                                 Polyline parent = query.FirstOrDefault();
-                                POIs.Add(new POI(parent, parent.GetClosestPointTo(pt, false).To2d(), EndType.StikAfgrening, PSM, DriGraph));
+                                POIs.Add(new POI(parent, parent.GetClosestPointTo(pt, false).To2d(), EndType.StikAfgrening, PSM));
                             }
                             #endregion
 
                             //Tilføj almindelige ender til POIs
                             //Bruger ikke længere det gamle stiksystem, så derfor er stikstart ændret til start og end til end
-                            POIs.Add(new POI(pline, pline.StartPoint.To2d(), EndType.Start, PSM, DriGraph));
-                            POIs.Add(new POI(pline, pline.EndPoint.To2d(), EndType.End, PSM, DriGraph));
+                            POIs.Add(new POI(pline, pline.StartPoint.To2d(), EndType.Start, PSM));
+                            POIs.Add(new POI(pline, pline.EndPoint.To2d(), EndType.End, PSM));
                             break;
                         default:
-                            POIs.Add(new POI(pline, pline.StartPoint.To2d(), EndType.Start, PSM, DriGraph));
-                            POIs.Add(new POI(pline, pline.EndPoint.To2d(), EndType.End, PSM, DriGraph));
+                            POIs.Add(new POI(pline, pline.StartPoint.To2d(), EndType.Start, PSM));
+                            POIs.Add(new POI(pline, pline.EndPoint.To2d(), EndType.End, PSM));
                             break;
 
                     }
@@ -175,13 +146,13 @@ namespace IntersectUtilities
                                     Point3d nearest = polyline.GetClosestPointTo(wPt, false);
                                     if (nearest.DistanceHorizontalTo(wPt) < 0.01)
                                     {
-                                        POIs.Add(new POI(polyline, nearest.To2d(), EndType.WeldOn, PSM, DriGraph));
+                                        POIs.Add(new POI(polyline, nearest.To2d(), EndType.WeldOn, PSM));
                                         break;
                                     }
                                 }
                             }
                         }
-                        POIs.Add(new POI(br, wPt.To2d(), endType, PSM, DriGraph));
+                        POIs.Add(new POI(br, wPt.To2d(), endType, PSM));
                     }
                     break;
                 default:
@@ -244,80 +215,10 @@ namespace IntersectUtilities
                 { "WeldOn-Main", true },
                 { "Main-WeldOn", true }
             };
-        public class GraphEntity
-        {
-            public Entity Owner { get; }
-            public Handle OwnerHandle { get; }
-            public Con[] Cons { get; }
-            private System.Data.DataTable componentTable;
-            public GraphEntity(Entity entity, System.Data.DataTable ComponentTable,
-                               PropertySetManager psm, PSetDefs.DriGraph driGraph)
-            {
-                Owner = entity;
-                OwnerHandle = Owner.Handle;
-                componentTable = ComponentTable;
-                string conString = psm.ReadPropertyString(entity, driGraph.ConnectedEntities);
-                if (conString.IsNoE()) throw new System.Exception($"Malformend constring: {conString}, entity: {Owner.Handle}.");
-                Cons = parseConString(conString);
-            }
-            public int LargestDn()
-            {
-                switch (Owner)
-                {
-                    case Polyline pline:
-                        return GetPipeDN(pline);
-                    case BlockReference br:
-                        return Convert.ToInt32(
-                            br.ReadDynamicCsvProperty(
-                                DynamicProperty.DN1));
-                }
-                return 0;
-            }
-
-            internal static Con[] parseConString(string conString)
-            {
-                Con[] cons;
-                if (regex.IsMatch(conString))
-                {
-                    var matches = regex.Matches(conString);
-                    cons = new Con[matches.Count];
-                    int i = 0;
-                    foreach (Match match in matches)
-                    {
-                        string ownEndTypeString = match.Groups["OwnEndType"].Value;
-                        string conEndTypeString = match.Groups["ConEndType"].Value;
-                        string handleString = match.Groups["Handle"].Value;
-                        cons[i] = new Con(ownEndTypeString, conEndTypeString, handleString);
-                        i++;
-                    }
-                }
-                else
-                {
-                    throw new System.Exception($"Malforfmed string: {conString}!");
-                }
-
-                return cons;
-            }
-        }
-        public class Con
-        {
-            public EndType OwnEndType { get; }
-            public EndType ConEndType { get; }
-            public Handle ConHandle { get; }
-            public Handle OwnHandle { get; set; }
-            public Con(string ownEndType, string conEndType, string handle)
-            {
-                int ownEndTypeInt = Convert.ToInt32(ownEndType);
-                OwnEndType = (EndType)ownEndTypeInt;
-                int conEndTypeInt = Convert.ToInt32(conEndType);
-                ConEndType = (EndType)conEndTypeInt;
-                ConHandle = new Handle(Convert.ToInt64(handle, 16));
-            }
-        }
         private HashSet<GraphEntity> GraphEntities { get; set; } = new HashSet<GraphEntity>();
         public void AddEntityToGraphEntities(Entity entity)
         {
-            GraphEntities.Add(new GraphEntity(entity, ComponentTable, PSM, DriGraph));
+            GraphEntities.Add(new GraphEntity(entity, PSM));
         }
         public void CreateAndWriteGraph()
         {
@@ -547,91 +448,6 @@ namespace IntersectUtilities
             using (System.IO.StreamWriter file = new System.IO.StreamWriter($"C:\\Temp\\MyGraph.dot"))
             {
                 file.WriteLine(sbAll.ToString()); // "sb" is the StringBuilder
-            }
-        }
-        internal class Subgraph
-        {
-            private Database Database { get; }
-            private System.Data.DataTable Table { get; }
-            internal string Alignment { get; }
-            internal bool isEntryPoint { get; set; } = false;
-            internal HashSet<Handle> Nodes { get; } = new HashSet<Handle>();
-            internal Subgraph(Database database, System.Data.DataTable table, string alignment)
-            { Alignment = alignment; Database = database; Table = table; }
-            internal string WriteSubgraph(int subgraphIndex, bool subGraphsOn = true)
-            {
-                StringBuilder sb = new StringBuilder();
-                if (subGraphsOn) sb.AppendLine($"subgraph cluster_{subgraphIndex} {{");
-                foreach (Handle handle in Nodes)
-                {
-                    //Gather information about element
-                    DBObject obj = handle.Go<DBObject>(Database);
-                    if (obj == null) continue;
-                    //Write the reference to the node
-                    sb.Append($"\"{handle}\" ");
-
-                    switch (obj)
-                    {
-                        case Polyline pline:
-                            int dn = GetPipeDN(pline);
-                            string system = GetPipeType(pline).ToString();
-                            var psys = GetPipeSystem(pline).ToString();
-                            sb.AppendLine($"[label=\"{{{handle}|Rør L{pline.Length.ToString("0.##")}}}|{psys} {system}\\n{dn}\"" +
-                                $" URL=\"ahk://ACCOMSelectByHandle/{handle}\"];");
-                            break;
-                        case BlockReference br:
-                            string dn1 = br.ReadDynamicCsvProperty(DynamicProperty.DN1);
-                            string dn2 = br.ReadDynamicCsvProperty(DynamicProperty.DN2);
-                            string dnStr = dn2 == "0" ? dn1 : dn1 + "/" + dn2;
-                            system = ComponentSchedule.ReadComponentSystem(br, Table);
-                            string type = ComponentSchedule.ReadDynamicCsvProperty(br, DynamicProperty.Type);
-                            string color = "";
-                            if (type == "Reduktion") color = " color=\"red\"";
-                            sb.AppendLine($"[label=\"{{{handle}|{type}}}|{system}\\n{dnStr}\"{color}" +
-                                $" URL=\"ahk://ACCOMSelectByHandle/{handle}\"];");
-
-                            break;
-                        default:
-                            continue;
-                    }
-                }
-                //sb.AppendLine(string.Join(" ", Nodes) + ";");
-                if (subGraphsOn)
-                {
-                    sb.AppendLine($"label = \"{Alignment}\";");
-                    sb.AppendLine("color=red;");
-                    if (isEntryPoint) sb.AppendLine("penwidth=2.5;");
-                    sb.AppendLine("}");
-                }
-                return sb.ToString();
-            }
-        }
-        internal class Edge
-        {
-            internal Handle Id1 { get; }
-            internal EndType EndType1 { get; }
-            internal Handle Id2 { get; }
-            internal EndType EndType2 { get; }
-            internal string Label { get; set; }
-            internal Edge(Handle id1, Handle id2)
-            {
-                Id1 = id1; Id2 = id2;
-            }
-            internal Edge(
-                Handle id1, EndType endType1,
-                Handle id2, EndType endType2)
-            {
-                Id1 = id1; Id2 = id2;
-                EndType1 = endType1; EndType2 = endType2;
-            }
-            internal Edge(Handle id1, Handle id2, string label)
-            {
-                Id1 = id1; Id2 = id2; Label = label;
-            }
-            internal string ToString(string edgeSymbol)
-            {
-                if (Label.IsNoE()) return $"\"{Id1}\" {edgeSymbol} \"{Id2}\"";
-                else return $"\"{Id1}\" {edgeSymbol} \"{Id2}\"{Label}";
             }
         }
     }

@@ -10,15 +10,15 @@ using IntersectUtilities.UtilsCommon.Enums;
 
 namespace IntersectUtilities.GraphClasses
 {
-    public class POI
+    public class POI2
     {
         public Entity Source { get; }
-        public Entity Target { get; private set; }
+        public Entity? Target { get; private set; }
         public Point2d Point { get; }
         public EndType EndType { get; }
-        public POI(Entity owner, Point2d point, EndType endType)
+        public POI2(Entity owner, Point2d point, EndType endType)
         { Source = owner; Point = point; EndType = endType; Target = null; }
-        public bool IsSameSource(POI toCompare) => Source.Handle == toCompare.Source.Handle;
-        internal void AddReference(POI connectedEntity) => Target = connectedEntity.Source;
+        public bool IsSameSource(POI2 toCompare) => Source.Handle == toCompare.Source.Handle;
+        internal void AddReference(POI2 connectedEntity) => Target = connectedEntity.Source;
     }
 }

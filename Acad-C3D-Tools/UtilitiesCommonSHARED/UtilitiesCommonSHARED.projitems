@@ -24,9 +24,13 @@
     <Compile Include="$(MSBuildThisFileDirectory)DouglasPeuckerReduction.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)DynamicBlockPropertyReader.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Enums.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Graphs\ConClass.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Graphs\GraphCollection.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Graphs\GraphEntity.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Graphs\Node.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Graphs\Graph.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Graphs\POI.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Infrastructure.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)MyGraph.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)MyGraphQA.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)PropertySetManager.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)UtilsCommon.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Win32Cursor.cs" />

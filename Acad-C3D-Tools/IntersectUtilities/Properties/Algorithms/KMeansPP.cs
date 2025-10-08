@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace IntersectUtilities.NSAlgorithms
+namespace IntersectUtilities.Properties.Algorithms
 {
     public class KMeans
     {
@@ -27,17 +27,17 @@ namespace IntersectUtilities.NSAlgorithms
             this.initMethod = initMethod;
             this.maxIter = maxIter;
 
-            this.N = data.Length;
-            this.dim = data[0].Length;
+            N = data.Length;
+            dim = data[0].Length;
 
-            this.means = new double[K][];  // one mean per cluster
+            means = new double[K][];  // one mean per cluster
             for (int k = 0; k < K; ++k)
-                this.means[k] = new double[this.dim];
-            this.clustering = new int[N];  // cell val is cluster ID, index is data item
-            this.counts = new int[K];  // one cell per cluster
-            this.wcss = double.MaxValue;  // smaller is better
+                means[k] = new double[dim];
+            clustering = new int[N];  // cell val is cluster ID, index is data item
+            counts = new int[K];  // one cell per cluster
+            wcss = double.MaxValue;  // smaller is better
 
-            this.rnd = new Random(seed);
+            rnd = new Random(seed);
         } // ctor
 
         public void Cluster(int trials)
@@ -55,43 +55,43 @@ namespace IntersectUtilities.NSAlgorithms
             // end-loop
             // if clustering is new best, update clustering, means, counts, wcss
 
-            int[] currClustering = new int[this.N];  // [0, 0, 0, 0, .. ]
+            int[] currClustering = new int[N];  // [0, 0, 0, 0, .. ]
 
-            double[][] currMeans = new double[this.K][];
-            for (int k = 0; k < this.K; ++k)
-                currMeans[k] = new double[this.dim];
+            double[][] currMeans = new double[K][];
+            for (int k = 0; k < K; ++k)
+                currMeans[k] = new double[dim];
 
-            if (this.initMethod == "plusplus")
-                InitPlusPlus(this.data, currClustering, currMeans, this.rnd);
+            if (initMethod == "plusplus")
+                InitPlusPlus(data, currClustering, currMeans, rnd);
             else
                 throw new Exception("not supported");
 
             bool changed;  //  result from UpdateClustering (to exit loop)
             int iter = 0;
-            while (iter < this.maxIter)
+            while (iter < maxIter)
             {
-                UpdateMeans(currMeans, this.data, currClustering);
+                UpdateMeans(currMeans, data, currClustering);
                 changed = UpdateClustering(currClustering,
-                  this.data, currMeans);
+                  data, currMeans);
                 if (changed == false)
                     break;  // need to stop iterating
                 ++iter;
             }
 
-            double currWCSS = ComputeWithinClusterSS(this.data,
+            double currWCSS = ComputeWithinClusterSS(data,
               currMeans, currClustering);
-            if (currWCSS < this.wcss)  // new best clustering found
+            if (currWCSS < wcss)  // new best clustering found
             {
                 // copy the clustering, means; compute counts; store WCSS
-                for (int i = 0; i < this.N; ++i)
-                    this.clustering[i] = currClustering[i];
+                for (int i = 0; i < N; ++i)
+                    clustering[i] = currClustering[i];
 
-                for (int k = 0; k < this.K; ++k)
-                    for (int j = 0; j < this.dim; ++j)
-                        this.means[k][j] = currMeans[k][j];
+                for (int k = 0; k < K; ++k)
+                    for (int j = 0; j < dim; ++j)
+                        means[k][j] = currMeans[k][j];
 
-                this.counts = ComputeCounts(this.K, currClustering);
-                this.wcss = currWCSS;
+                counts = ComputeCounts(K, currClustering);
+                wcss = currWCSS;
             }
 
         } // Cluster()
@@ -159,7 +159,7 @@ namespace IntersectUtilities.NSAlgorithms
 
             for (int i = 0; i < n; ++i)
             {
-                cumP += (vals[i] / sum);
+                cumP += vals[i] / sum;
                 if (cumP > p) return i;
             }
             return n - 1;  // last index

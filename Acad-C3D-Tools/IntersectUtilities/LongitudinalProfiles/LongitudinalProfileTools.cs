@@ -23,6 +23,7 @@ using IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray;
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.DataManager;
 using IntersectUtilities.UtilsCommon.Enums;
+using IntersectUtilities.UtilsCommon.Graphs;
 
 using MoreLinq;
 
@@ -6022,7 +6023,7 @@ namespace IntersectUtilities
                                     }
                                     else
                                     {
-                                        
+
                                     }
 
                                     if (nextType == SegmentType.Point)
@@ -6057,7 +6058,7 @@ namespace IntersectUtilities
                         {
                             profile.Entities.AddFreeCircularCurveByPVIAndRadius(pvi, radius);
                         }
-                        catch {  }
+                        catch { }
                     }
                 }
                 catch (System.Exception ex)
@@ -7452,7 +7453,7 @@ namespace IntersectUtilities
                 pn.CreatePipelineGraph();
 
                 //Find the MIDT profiles for pipelines
-                var midtProfiles = new Dictionary<INode, (Database db, Oid pid)>();
+                var midtProfiles = new Dictionary<Node<IPipelineV2>, (Database db, Oid pid)>();
 
                 var rgx = new Regex(@"(?<number>\d{2,3}).+");
                 var rawMidtProfiles = new Dictionary<string, Oid>();
@@ -7478,7 +7479,7 @@ namespace IntersectUtilities
                 {
                     foreach (var node in graph.Dfs())
                     {
-                        var match = rgx.Match(node.Name);
+                        var match = rgx.Match(node.Value.Name);
                         var name = match.Groups["number"].Value;
                         if (rawMidtProfiles.TryGetValue(name, out var midtProfileId))
                         {
@@ -7493,8 +7494,8 @@ namespace IntersectUtilities
                     .SelectMany(x => x.Select(y => y))
                     .Where(x => x.Parent != null)
                     .Where(x => midtProfiles.ContainsKey(x.Parent))
-                    .Where(x => localPvs.Any(y => y.Name.StartsWith(x.Name)))
-                    .ToLookup(x => x.Name, x => x);
+                    .Where(x => localPvs.Any(y => y.Name.StartsWith(x.Value.Name)))
+                    .ToLookup(x => x.Value.Name, x => x);
 
                 var selection = StringGridFormCaller.Call(
                     eligibleNodes.Select(x => x.Key)
@@ -7515,7 +7516,7 @@ namespace IntersectUtilities
                     var lst = curPipeline.GetStationAtPoint(pt);
 
                     //Place pipeline elevation label
-                    var pv = localPvs.Where(x => x.Name.StartsWith(node.Name)).First();
+                    var pv = localPvs.Where(x => x.Name.StartsWith(node.Value.Name)).First();
                     var colsels = cdoc.Styles.LabelStyles.ProfileViewLabelStyles.StationElevationLabelStyles;
                     var styleId = colsels["Station and Elevation"];
                     var colmark = cdoc.Styles.MarkerStyles;
@@ -7528,7 +7529,7 @@ namespace IntersectUtilities
                     label.LabelLocation = new Point3d(p.X + dx, p.Y + dy, p.Z);
 
                     //Place parent label
-                    var parentPvs = localPvs.Where(x => x.Name.StartsWith(parent.Name)).FirstOrDefault();
+                    var parentPvs = localPvs.Where(x => x.Name.StartsWith(parent.Value.Name)).FirstOrDefault();
                     if (parentPvs != null)
                     {
                         var parentLabelId = StationElevationLabel.Create(
@@ -7557,8 +7558,8 @@ namespace IntersectUtilities
                         parentLabel.LabelLocation = new Point3d(pp.X + dx, pp.Y + dy, pp.Z);
                     }
 
-                    prdDbg($"Pipeline: {node.Name}, ST: {lst.ToString("0.##")}, " +
-                        $"Parent: {parent.Name}, Parent ST: {st.ToString("0.##")}, " +
+                    prdDbg($"Pipeline: {node.Value.Name}, ST: {lst.ToString("0.##")}, " +
+                        $"Parent: {parent.Value.Name}, Parent ST: {st.ToString("0.##")}, " +
                         $"Elevation: {elev.ToString("0.##")}");
                 }
             }

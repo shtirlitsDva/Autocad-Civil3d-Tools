@@ -21,6 +21,7 @@ using IntersectUtilities.GraphClasses;
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.DataManager;
 using IntersectUtilities.UtilsCommon.Enums;
+using IntersectUtilities.UtilsCommon.Graphs;
 
 using Microsoft.Win32;
 
@@ -2061,14 +2062,14 @@ namespace IntersectUtilities
                     System.Data.DataTable komponenter = CsvData.FK;
                     HashSet<Entity> allEnts = localDb.GetFjvEntities(tx, true, false);
                     PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriGraph);
-                    Graph graph = new Graph(localDb, psm, komponenter);
+                    var graph = new GraphWrite.Graph(localDb, psm, komponenter);
                     foreach (Entity entity in allEnts) graph.AddEntityToPOIs(entity);
                     //Create clusters of POIs based on a maximum distance
                     //Distance is reduced, because was having a bad day
-                    IEnumerable<IGrouping<Graph.POI, Graph.POI>> clusters
+                    IEnumerable<IGrouping<POI, POI>> clusters
                         = graph.POIs.GroupByCluster((x, y) => x.Point.GetDistanceTo(y.Point), 0.003);
                     //Iterate over clusters
-                    foreach (IGrouping<Graph.POI, Graph.POI> cluster in clusters)
+                    foreach (IGrouping<POI, POI> cluster in clusters)
                     {
                         //SPECIAL CASE
                         #region SPECIAL CASE: Stikafgreninger
@@ -2089,7 +2090,7 @@ namespace IntersectUtilities
                                     "StikafgreningsPOI har ikke 3 elementer!\n" +
                                     $"{string.Join(", ", cluster.Select(x => x.Owner.Handle.ToString()))}");
                             //Chain references from steel->stikafgrening->stik
-                            Graph.POI stikAfgrening =
+                            POI? stikAfgrening =
                                 cluster.Where(x =>
                                 {
                                     BlockReference br = x.Owner as BlockReference;
@@ -2098,12 +2099,12 @@ namespace IntersectUtilities
                                     return false;
                                 })
                                 .FirstOrDefault();
-                            Graph.POI steelPipe =
+                            POI? steelPipe =
                                 cluster.Where(x => GetPipeSystem(x.Owner) == PipeSystemEnum.Stål)
                                 .FirstOrDefault();
                             if (steelPipe == null) throw new System.Exception(
                                 $"Stikafgrening {stikAfgrening.Owner.Handle} har ikke forbindelse til Stål!");
-                            Graph.POI stikPipe =
+                            POI? stikPipe =
                                 cluster.Where(x => x.Owner is Polyline && GetPipeSystem(x.Owner) != PipeSystemEnum.Stål)
                                 .FirstOrDefault();
                             if (stikPipe == null) throw new System.Exception(
@@ -2168,7 +2169,7 @@ namespace IntersectUtilities
                         return true;
                     }).ToHashSet();
                     PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriGraph);
-                    Graph graph = new Graph(localDb, psm, komponenter);
+                    var graph = new GraphWrite.Graph(localDb, psm, komponenter);
                     foreach (Entity entity in allEnts)
                     {
                         graph.AddEntityToGraphEntities(entity);
@@ -4151,12 +4152,12 @@ namespace IntersectUtilities
                         new PSetDefs.DriPipelineData();
                     var ents = localDb.GetFjvEntities(tx, true, true, true);
                     #region Create graph
-                    HashSet<POI> POIs = new HashSet<POI>();
+                    HashSet<POI2> POIs = new HashSet<POI2>();
                     foreach (Entity ent in ents) AddEntityToPOIs(ent, POIs,
                         ents.Where(x => x is Polyline).Cast<Polyline>());
-                    IEnumerable<IGrouping<POI, POI>> clusters
+                    IEnumerable<IGrouping<POI2, POI2>> clusters
                         = POIs.GroupByCluster((x, y) => x.Point.GetDistanceTo(y.Point), 0.01);
-                    foreach (IGrouping<POI, POI> cluster in clusters)
+                    foreach (IGrouping<POI2, POI2> cluster in clusters)
                     {
                         //Create unique pairs
                         var pairs = cluster.SelectMany((value, index) => cluster.Skip(index + 1),
@@ -4315,7 +4316,7 @@ namespace IntersectUtilities
             }
             else throw new System.Exception("Invalid entity type");
         }
-        public void AddEntityToPOIs(Entity ent, HashSet<POI> POIs, IEnumerable<Polyline> allPipes)
+        public void AddEntityToPOIs(Entity ent, HashSet<POI2> POIs, IEnumerable<Polyline> allPipes)
         {
             switch (ent)
             {
@@ -4336,7 +4337,7 @@ namespace IntersectUtilities
                             if (query.FirstOrDefault() != default)
                             {
                                 Polyline parent = query.FirstOrDefault();
-                                POIs.Add(new POI(parent, parent.GetClosestPointTo(pt, false).To2d(), EndType.StikAfgrening));
+                                POIs.Add(new POI2(parent, parent.GetClosestPointTo(pt, false).To2d(), EndType.StikAfgrening));
                             }
                             pt = pline.EndPoint;
                             if (query.FirstOrDefault() != default)
@@ -4344,16 +4345,16 @@ namespace IntersectUtilities
                                 //This shouldn't happen now, because AssignPlinesAndBlocksToAlignments
                                 //guarantees that the end point is never on a supply pipe
                                 Polyline parent = query.FirstOrDefault();
-                                POIs.Add(new POI(parent, parent.GetClosestPointTo(pt, false).To2d(), EndType.StikAfgrening));
+                                POIs.Add(new POI2(parent, parent.GetClosestPointTo(pt, false).To2d(), EndType.StikAfgrening));
                             }
                             #endregion
                             //Tilføj almindelige ender til POIs
-                            POIs.Add(new POI(pline, pline.StartPoint.To2d(), EndType.StikStart));
-                            POIs.Add(new POI(pline, pline.EndPoint.To2d(), EndType.StikEnd));
+                            POIs.Add(new POI2(pline, pline.StartPoint.To2d(), EndType.StikStart));
+                            POIs.Add(new POI2(pline, pline.EndPoint.To2d(), EndType.StikEnd));
                             break;
                         default:
-                            POIs.Add(new POI(pline, pline.StartPoint.To2d(), EndType.Start));
-                            POIs.Add(new POI(pline, pline.EndPoint.To2d(), EndType.End));
+                            POIs.Add(new POI2(pline, pline.StartPoint.To2d(), EndType.Start));
+                            POIs.Add(new POI2(pline, pline.EndPoint.To2d(), EndType.End));
                             break;
                     }
                     break;
@@ -4411,13 +4412,13 @@ namespace IntersectUtilities
                                     Point3d nearest = polyline.GetClosestPointTo(wPt, false);
                                     if (nearest.DistanceHorizontalTo(wPt) < 0.01)
                                     {
-                                        POIs.Add(new POI(polyline, nearest.To2d(), EndType.WeldOn));
+                                        POIs.Add(new POI2(polyline, nearest.To2d(), EndType.WeldOn));
                                         break;
                                     }
                                 }
                             }
                         }
-                        POIs.Add(new POI(br, wPt.To2d(), endType));
+                        POIs.Add(new POI2(br, wPt.To2d(), endType));
                     }
                     break;
                 default:

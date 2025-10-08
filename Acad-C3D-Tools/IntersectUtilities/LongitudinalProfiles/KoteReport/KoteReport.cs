@@ -16,6 +16,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Autodesk.AutoCAD.Geometry;
 using System.IO;
+using IntersectUtilities.UtilsCommon.Graphs;
 
 namespace IntersectUtilities.LongitudinalProfiles.KoteReport
 {
@@ -23,9 +24,9 @@ namespace IntersectUtilities.LongitudinalProfiles.KoteReport
     {
         private static HashSet<AdjacencyGraph<KRNode, KREdge>>? _graphs;
 
-        public static void BuildGraphs(GraphCollection ographs)
+        public static void BuildGraphs<IPipelineV2>(GraphCollection<IPipelineV2> ographs)
         {
-            _graphs = GraphBuilder.BuildGraphs<KRNode, KREdge>(ographs);
+            _graphs = GraphBuilder.BuildGraphs<IPipelineV2, KRNode, KREdge>(ographs);
         }
 
         public static void GenerateKoteReport(HashSet<Database> ldbs, double epsilon)

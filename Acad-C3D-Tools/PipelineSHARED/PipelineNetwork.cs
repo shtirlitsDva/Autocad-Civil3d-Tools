@@ -8,11 +8,11 @@ using GroupByCluster;
 using IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray;
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.Enums;
+using IntersectUtilities.UtilsCommon.Graphs;
 
 using MoreLinq;
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
@@ -32,10 +32,10 @@ namespace IntersectUtilities.PipelineNetworkSystem
 {
     public class PipelineNetwork
     {
-        private HashSet<IPipelineV2> pipelines;
-        private GraphCollection pipelineGraphs;
-        private PropertySetHelper psh;
-        public GraphCollection PipelineGraphs => pipelineGraphs;
+        private HashSet<IPipelineV2>? pipelines;
+        private GraphCollection<IPipelineV2>? pipelineGraphs;
+        private PropertySetHelper? psh;
+        public GraphCollection<IPipelineV2>? PipelineGraphs => pipelineGraphs;
 
         public void CreatePipelineNetwork(IEnumerable<Entity> ents, IEnumerable<Alignment> als)
         {
@@ -77,13 +77,6 @@ namespace IntersectUtilities.PipelineNetworkSystem
         public IPipelineV2 GetPipeline(string name)
         {
             return pipelines.FirstOrDefault(x => x.Name == name);
-        }
-        public void PrintPipelineGraphs()
-        {
-            foreach (var graph in pipelineGraphs)
-            {
-                PrintNode(graph.Root, 0);
-            }
         }
         public void PipelineGraphsToDot()
         {
@@ -130,15 +123,6 @@ namespace IntersectUtilities.PipelineNetworkSystem
             PipelineGraphWorker gw = new PipelineGraphWorker();
             gw.CorrectPipesToCutLengths(pipelineGraphs);
         }
-        private void PrintNode(INode node, int depth)
-        {
-            prdDbg(new string(' ', depth * 2) + node.Name); // Indent based on depth
-
-            foreach (var child in node.Children)
-            {
-                PrintNode(child, depth + 1);
-            }
-        }
         public void CreateSizeArrays()
         {
             foreach (var pipeline in pipelines)
@@ -180,151 +164,8 @@ namespace IntersectUtilities.PipelineNetworkSystem
             PipelineGraphWorker gw = new PipelineGraphWorker();
             gw.CreateWeldBlocks(wps);
         }
-    }    
+    }
     
-    public class Node<T>
-    {
-        private readonly List<Node<T>> _children = new();
-        public IReadOnlyList<Node<T>> Children => _children;
-
-        public Node<T>? Parent { get; private set; }
-        public T Value { get; }
-        public Node(T value)
-        {
-            Value = value;
-        }
-
-        public void AddChild(Node<T> child)
-        {
-            if (child is null) throw new ArgumentNullException(nameof(child));
-            if (ReferenceEquals(child, this)) throw new InvalidOperationException("A node cannot be its own child.");
-            if (child.Parent != null) child.Parent._children.Remove(child);
-            child.Parent = this;
-            _children.Add(child);
-        }
-
-        public bool RemoveChild(Node<T> child)
-        {
-            if (child is null) return false;
-            if (_children.Remove(child))
-            {
-                child.Parent = null;
-                return true;
-            }
-            return false;
-        }        
-    }
-    public class Graph<T> : IReadOnlyCollection<Node<T>>
-    {
-        public Node<T> Root { get; private set; }      
-        private Func<T, string> _nameSelector;
-        private Func<T, string> _labelSelector;
-        public Graph(Node<T> root, Func<T, string> nameSelector, Func<T, string> labelSelector)
-        {
-            Root = root;
-            _nameSelector = nameSelector;
-            _labelSelector = labelSelector;
-        }
-        public int Count => Dfs().Count();        
-
-        public string EdgesToDot()
-        {
-            var edges = new StringBuilder();
-            GatherEdges(Root, edges);
-            return edges.ToString();
-        }
-        private void GatherEdges(Node<T> node, StringBuilder edges)
-        {
-            foreach (var child in node.Children)
-            {
-                edges.AppendLine($"\"{_nameSelector(node.Value)}\" -> \"{_nameSelector(child.Value)}\"");
-                GatherEdges(child, edges);  // Recursive call to gather edges of children
-            }
-        }
-        public string NodesToDot()
-        {
-            var nodes = new StringBuilder();
-            GatherNodes(Root, nodes);
-            return nodes.ToString();
-        }
-        private void GatherNodes(Node<T> node, StringBuilder nodes)
-        {
-            string color = "";
-            if (node.Parent == null) color = " color = red";
-            nodes.AppendLine($"\"{_nameSelector(node.Value)}\" [label={_labelSelector(node.Value)}{color}]");
-            foreach (var child in node.Children)
-            {
-                GatherNodes(child, nodes);  // Recursive call to gather nodes of children
-            }
-        }
-
-        /// <summary>
-        /// Breadth-first traversal starting at Root (or an optional start node).
-        /// </summary>
-        public IEnumerable<Node<T>> Bfs(Node<T>? start = null)
-        {
-            var root = start ?? Root;
-            if (root is null) yield break;
-
-            var q = new Queue<Node<T>>();
-            var seen = new HashSet<Node<T>>();
-
-            q.Enqueue(root);
-            seen.Add(root);
-
-            while (q.Count > 0)
-            {
-                var n = q.Dequeue();
-                yield return n;
-
-                foreach (var c in n.Children)
-                {
-                    if (c is not null && seen.Add(c))
-                        q.Enqueue(c);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Depth-first (pre-order) traversal starting at Root (or an optional start node).
-        /// </summary>
-        public IEnumerable<Node<T>> Dfs(Node<T>? start = null)
-        {
-            var st = new Stack<Node<T>>();
-            var seen = new HashSet<Node<T>>();
-            var root = start ?? Root;
-            st.Push(root); seen.Add(root);
-
-            while (st.Count > 0)
-            {
-                var n = st.Pop();
-                yield return n;
-
-                for (int i = n.Children.Count() - 1; i >= 0; i--)
-                {
-                    var c = n.Children[i];
-                    if (seen.Add(c)) st.Push(c);
-                }
-            }
-        }
-
-        public IEnumerator<Node<T>> GetEnumerator()
-        {
-            return Dfs().GetEnumerator();
-        }
-
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            return GetEnumerator();
-        }
-    }
-    public class GraphCollection<T> : List<Graph<T>>
-    {
-        public GraphCollection(IEnumerable<Graph<T>> graphs) : base(graphs)
-        {
-
-        }
-    }
     public class PipelineGraphBuilder
     {
         public GraphCollection<IPipelineV2> BuildPipelineGraphs(IEnumerable<IPipelineV2> pipelines)
@@ -417,24 +258,22 @@ namespace IntersectUtilities.PipelineNetworkSystem
             {
                 var root = graph.Root;
                 prdDbg("Root node: " + root.Value.Name);
-                if (!(root is PipelineNode)) throw new System.Exception("PipelineNodes expected!");
-                var stack = new Stack<PipelineNode>();
-                stack.Push(root as PipelineNode);
+                var stack = new Stack<Node<IPipelineV2>>();
+                stack.Push(root);
 
                 while (stack.Count > 0)
                 {
-                    PipelineNode currentNode = stack.Pop();
+                    var currentNode = stack.Pop();
                     foreach (var child in currentNode.Children)
                     {
-                        if (!(child is PipelineNode)) throw new System.Exception("PipelineNodes expected!");
-                        stack.Push(child as PipelineNode);
+                        stack.Push(child);
                     }
                     IPipelineV2 currentPipeline = currentNode.Value;
 
                     // General case
                     if (currentNode.Parent != null)
                     {
-                        PipelineNode parentNode = currentNode.Parent as PipelineNode;
+                        var parentNode = currentNode.Parent;
                         if (parentNode == null) throw new Exception("PipelineNodes expected!");
                         Point3d connectionLocation = currentPipeline.GetConnectionLocationToParent(
                             parentNode.Value, 0.05);
@@ -452,7 +291,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                         {
                             if (currentNode.Children.Any(
                                 x => currentPipeline.DetermineUnconnectedEndPoint(
-                                    ((PipelineNode)x).Value, 0.05, out connectionLocation)))
+                                    x.Value, 0.05, out connectionLocation)))
                             {
                                 currentPipeline.AutoReversePolylines(connectionLocation);
                             }
@@ -466,33 +305,30 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 }
             }
         }
-        public Result CorrectPipesToCutLengths(GraphCollection graphs)
+        public Result CorrectPipesToCutLengths(GraphCollection<IPipelineV2> graphs)
         {
             Result result = new Result();
             foreach (var graph in graphs)
             {
                 var root = graph.Root;
-                prdDbg("Root node: " + ((PipelineNode)root).Value.Name);
-                if (!(root is PipelineNode)) throw new Exception("PipelineNodes expected!");
-                var stack = new Stack<PipelineNode>();
-                stack.Push(root as PipelineNode);
+                prdDbg("Root node: " + root.Value.Name);
+                var stack = new Stack<Node<IPipelineV2>>();
+                stack.Push(root);
 
                 while (stack.Count > 0)
                 {
-                    PipelineNode currentNode = stack.Pop();
+                    var currentNode = stack.Pop();
                     foreach (var child in currentNode.Children)
                     {
-                        if (!(child is PipelineNode)) throw new Exception("PipelineNodes expected!");
-                        stack.Push(child as PipelineNode);
+                        stack.Push(child);
                     }
-                    IPipelineV2 currentPipeline = currentNode.Value;
+                    var currentPipeline = currentNode.Value;
 
                     Point3d connectionLocation = Point3d.Origin;
                     // General case
                     if (currentNode.Parent != null)
                     {
-                        PipelineNode parentNode = currentNode.Parent as PipelineNode;
-                        if (parentNode == null) throw new Exception("PipelineNodes expected!");
+                        var parentNode = currentNode.Parent;
                         connectionLocation = currentPipeline
                             .GetConnectionLocationToParent(parentNode.Value, 0.05);
                     }
@@ -504,7 +340,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                         {
                             if (currentNode.Children.Any(
                                 x => currentPipeline.DetermineUnconnectedEndPoint(
-                                    ((PipelineNode)x).Value, 0.05, out connectionLocation)))
+                                    x.Value, 0.05, out connectionLocation)))
                             { }
                             else
                             {
@@ -557,7 +393,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
         private double tolerance = 0.005;
         //////////////////////////////////////
 
-        internal void CreateWeldPoints(GraphCollection graphs, List<WeldPointData2> wps)
+        internal void CreateWeldPoints(GraphCollection<IPipelineV2> graphs, List<WeldPointData2> wps)
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
@@ -575,21 +411,19 @@ namespace IntersectUtilities.PipelineNetworkSystem
                     HashSet<IPipelineV2> allPipelines = new HashSet<IPipelineV2>();
 
                     #region Get all participating entities
-                    foreach (Graph graph in graphs)
+                    foreach (var graph in graphs)
                     {
                         var root = graph.Root;
-                        prdDbg("Root node: " + ((PipelineNode)root).Value.Name);
-                        if (!(root is PipelineNode)) throw new Exception("PipelineNodes expected!");
-                        var stack = new Stack<PipelineNode>();
-                        stack.Push(root as PipelineNode);
+                        prdDbg("Root node: " + root.Value.Name);
+                        var stack = new Stack<Node<IPipelineV2>>();
+                        stack.Push(root);
 
                         while (stack.Count > 0)
                         {
-                            PipelineNode currentNode = stack.Pop();
+                            var currentNode = stack.Pop();
                             foreach (var child in currentNode.Children)
                             {
-                                if (!(child is PipelineNode)) throw new Exception("PipelineNodes expected!");
-                                stack.Push(child as PipelineNode);
+                                stack.Push(child);
                             }
                             IPipelineV2 currentPipeline = currentNode.Value;
                             allPipelines.Add(currentPipeline);
