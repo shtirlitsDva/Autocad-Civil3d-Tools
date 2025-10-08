@@ -3,18 +3,18 @@ using Autodesk.AutoCAD.Geometry;
 using Autodesk.Civil.DatabaseServices;
 
 using IntersectUtilities.Collections;
-using IntersectUtilities.UtilsCommon.Graphs;
 using IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray;
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.Enums;
-
-using static IntersectUtilities.UtilsCommon.Utils;
+using IntersectUtilities.UtilsCommon.Graphs;
 
 using MoreLinq;
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
+using static IntersectUtilities.UtilsCommon.Utils;
 
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
@@ -54,36 +54,37 @@ namespace IntersectUtilities.PipelineNetworkSystem
         /// start point coinciding with start station.
         /// </summary>
         Polyline GetTopologyPolyline();
+        void PopulateSegments(IPipelineV2? parent);
     }
     public abstract class PipelineV2Base : IPipelineV2
     {
-        protected EntityCollection pipelineEntities;
-        protected EntityCollection pipelineWelds;
-        protected IPipelineSizeArrayV2 pipelineSizes;
-        protected PropertySetHelper psh;
-        public EntityCollection PipelineEntities { get => pipelineEntities; }
-        public EntityCollection PipelineWelds { get => pipelineWelds; }
+        protected EntityCollection _pipelineEntities;
+        protected EntityCollection _pipelineWelds;
+        protected IPipelineSizeArrayV2 _pipelineSizes;
+        protected PropertySetHelper _psh;
+        public EntityCollection PipelineEntities { get => _pipelineEntities; }
+        public EntityCollection PipelineWelds { get => _pipelineWelds; }
         public abstract string Name { get; }
         public virtual string Label { get => $"\"{Name}\""; }
         public abstract double EndStation { get; }
-        public IPipelineSizeArrayV2 PipelineSizes => pipelineSizes;
+        public IPipelineSizeArrayV2 PipelineSizes => _pipelineSizes;
         public abstract Point3d StartPoint { get; }
         public abstract Point3d EndPoint { get; }
         public PipelineV2Base(IEnumerable<Entity> source)
         {
-            source.Partition(IsNotWeld, out this.pipelineEntities, out this.pipelineWelds);
+            source.Partition(IsNotWeld, out this._pipelineEntities, out this._pipelineWelds);
 
             try
             {
 
-                if (psh == null)
-                    psh = new PropertySetHelper(pipelineEntities?.FirstOrDefault()?.Database);
+                if (_psh == null)
+                    _psh = new PropertySetHelper(_pipelineEntities?.FirstOrDefault()?.Database);
             }
             catch (Exception)
             {
-                if (pipelineEntities == null)
+                if (_pipelineEntities == null)
                     prdDbg(@"pipelineEntities is null!");
-                else foreach (var entity in pipelineEntities) { prdDbg(entity.Handle); }
+                else foreach (var entity in _pipelineEntities) { prdDbg(entity.Handle); }
                 throw;
             }
 
@@ -93,7 +94,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                     DynamicProperty.Type, false) != "Svejsning") ||
                     e is Polyline; //<-- this is the culprit!!!!!!!!!!!!!!!!!!!!
         }
-        public int GetMaxDN() => pipelineEntities.GetMaxDN();
+        public int GetMaxDN() => _pipelineEntities.GetMaxDN();
         public abstract bool IsConnectedTo(IPipelineV2 other, double tol);
         public abstract double GetPolylineStartStation(Polyline pl);
         public abstract double GetPolylineMiddleStation(Polyline pl);
@@ -104,7 +105,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
         public abstract IEnumerable<Entity> GetEntitiesWithinStations(double start, double end);
         public void CreateSizeArray()
         {
-            pipelineSizes = PipelineSizeArrayFactory.CreateSizeArray(this);
+            _pipelineSizes = PipelineSizeArrayFactory.CreateSizeArray(this);
         }
         public void AutoReversePolylines(Point3d connectionLocation)
         {
@@ -165,22 +166,22 @@ namespace IntersectUtilities.PipelineNetworkSystem
         /// </summary>
         public Point3d GetLocationForMaxDN()
         {
-            if (pipelineSizes == null) CreateSizeArray();
+            if (_pipelineSizes == null) CreateSizeArray();
 
             //Case one size -> return start point
-            if (pipelineSizes.Length == 1) return this.StartPoint;
+            if (_pipelineSizes.Length == 1) return this.StartPoint;
 
-            if (pipelineSizes.Sizes.First().System == PipeSystemEnum.Stål &&
-                pipelineSizes.Sizes.Last().System == PipeSystemEnum.Stål)
+            if (_pipelineSizes.Sizes.First().System == PipeSystemEnum.Stål &&
+                _pipelineSizes.Sizes.Last().System == PipeSystemEnum.Stål)
             {
-                if (pipelineSizes.Sizes.First().DN > pipelineSizes.Sizes.Last().DN) return this.StartPoint;
+                if (_pipelineSizes.Sizes.First().DN > _pipelineSizes.Sizes.Last().DN) return this.StartPoint;
                 else return this.EndPoint;
             }
-            else if (pipelineSizes.Sizes.First().System == PipeSystemEnum.Stål) return this.StartPoint;
-            else if (pipelineSizes.Sizes.Last().System == PipeSystemEnum.Stål) return this.EndPoint;
+            else if (_pipelineSizes.Sizes.First().System == PipeSystemEnum.Stål) return this.StartPoint;
+            else if (_pipelineSizes.Sizes.Last().System == PipeSystemEnum.Stål) return this.EndPoint;
             else
             {
-                if (pipelineSizes.Sizes.First().DN > pipelineSizes.Sizes.Last().DN) return this.StartPoint;
+                if (_pipelineSizes.Sizes.First().DN > _pipelineSizes.Sizes.Last().DN) return this.StartPoint;
                 else return this.EndPoint;
             }
 
@@ -215,9 +216,9 @@ namespace IntersectUtilities.PipelineNetworkSystem
         /// </summary>
         public Result CorrectPipesToCutLengths(Point3d connectionLocation)
         {
-            Database? localDb = pipelineEntities.FirstOrDefault()?.Database;
+            Database? localDb = _pipelineEntities.FirstOrDefault()?.Database;
             if (localDb == null) throw new Exception($"Could not determine database for pipeline {this.Name}!");
-            if (psh == null) psh = new PropertySetHelper(localDb);
+            if (_psh == null) _psh = new PropertySetHelper(localDb);
             PipeSettingsCollection psc = PipeSettingsCollection.LoadWithValidation(localDb);
 
             PipesLengthCorrectionHandler plch;
@@ -245,9 +246,41 @@ namespace IntersectUtilities.PipelineNetworkSystem
         }
         public double GetDistanceToPoint(Point3d pt, bool extend = false) =>
             GetClosestPointTo(pt, extend).DistanceHorizontalTo(pt);
-        public IEnumerable<Polyline> GetPolylines() => pipelineEntities.GetPolylines();
+        public IEnumerable<Polyline> GetPolylines() => _pipelineEntities.GetPolylines();
         public abstract Vector3d GetFirstDerivative(Point3d pt);
         public abstract Polyline GetTopologyPolyline();
+        private Graph<IPipelineSegmentV2> _segmentsGraph;
+        public void PopulateSegments(IPipelineV2? parent)
+        {
+            if (_pipelineSizes == null) CreateSizeArray();
+            if (_pipelineSizes == null) return;
+
+            var sizeBrs = _pipelineEntities
+                .Where(x => x is BlockReference)
+                .Cast<BlockReference>()
+                .Where(x => x.ReadDynamicCsvProperty(
+                    DynamicProperty.Function) == "SizeArray")
+                .ToList();
+
+            var entGroups = new List<(double station, List<Entity> ents)>();
+            for (int i = 0; i < _pipelineSizes.Length; i++)
+            {
+                var curSize = _pipelineSizes[i];
+                var ents = GetEntitiesWithinStations(
+                    curSize.StartStation, curSize.EndStation)
+                    .Where(x => sizeBrs.All(y => y.Handle != x.Handle))
+                    .ToList();
+                entGroups.Add(((curSize.StartStation + curSize.EndStation) / 2, ents));
+            }
+            foreach (var br in sizeBrs) entGroups.Add(
+                (GetStationAtPoint(br.Position), [br]));
+
+            var orderedGroups = entGroups.OrderBy(x => x.station);
+
+            List<IPipelineSegmentV2> segs = new List<IPipelineSegmentV2>();
+            foreach (var part in orderedGroups)
+                PipelineSegmentFactoryV2.Create(part);
+        }
     }
     public class PipelineV2Alignment : PipelineV2Base
     {
@@ -298,11 +331,18 @@ namespace IntersectUtilities.PipelineNetworkSystem
         }
         /// <summary>
         /// The entities are ordered by station (from start to end).
-        /// Assuming start is always less than end.
+        /// Stations are auto normalized, ie. if start > end, they are swapped.
         /// </summary>
         public override IEnumerable<Entity> GetEntitiesWithinStations(double start, double end)
         {
-            return this.pipelineEntities
+            if (start > end)
+            {
+                var temp = end;
+                end = start;
+                start = temp;
+            }
+
+            return this._pipelineEntities
                 .Select(ent =>
                 {
                     double station = double.NaN;
@@ -439,7 +479,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
             for (int i = 0; i < opl.NumberOfVertices; i++)
             {
                 pl.AddVertexAt(
-                    i, 
+                    i,
                     opl.GetPoint2dAt(i),
                     opl.GetBulgeAt(i),
                     opl.GetStartWidthAt(i),
@@ -447,7 +487,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
             }
 
             opl.CheckOrOpenForWrite();
-            opl.Erase(true);                        
+            opl.Erase(true);
             return pl;
         }
     }
@@ -462,21 +502,21 @@ namespace IntersectUtilities.PipelineNetworkSystem
             //Access ALL objects in database because we don't know our parent
             //Filter out the objects of the pipeline in question
 
-            if (pipelineEntities == null || pipelineEntities.Count == 0)
+            if (_pipelineEntities == null || _pipelineEntities.Count == 0)
                 throw new Exception("PipelineV2Na cannot be created without entities!");
 
             //prdDbg($"Creating NA pipeline {Name}...");
 
-            Database db = pipelineEntities.FirstOrDefault()?.Database;
+            Database db = _pipelineEntities.FirstOrDefault()?.Database;
             Transaction tx = db.TransactionManager.TopTransaction;
             var query =
                 db.GetFjvEntities(tx, true, false)
-                .Where(x => pipelineEntities.All(y => x.Handle != y.Handle));
+                .Where(x => _pipelineEntities.All(y => x.Handle != y.Handle));
 
             Dictionary<Handle, Ent> externalEntities =
-                query.ToDictionary(x => x.Handle, x => new Ent(x, psh));
+                query.ToDictionary(x => x.Handle, x => new Ent(x, _psh));
             Dictionary<Handle, Ent> localEntities =
-                pipelineEntities.ToDictionary(x => x.Handle, x => new Ent(x, psh));
+                _pipelineEntities.ToDictionary(x => x.Handle, x => new Ent(x, _psh));
 
             var connectedExternalEntities = localEntities
                 .SelectMany(ent => ent.Value.Cons
@@ -526,8 +566,8 @@ namespace IntersectUtilities.PipelineNetworkSystem
                     visited.Add(currentNode);
 
                     // Read assigned alignment
-                    string alignment = psh.Pipeline.ReadPropertyString(
-                        currentNode.Entity, psh.PipelineDef.BelongsToAlignment);
+                    string alignment = _psh.Pipeline.ReadPropertyString(
+                        currentNode.Entity, _psh.PipelineDef.BelongsToAlignment);
 
                     // Check if the alignment is not "NA"
                     if (!alignment.StartsWith("NA", StringComparison.OrdinalIgnoreCase))
@@ -671,8 +711,8 @@ namespace IntersectUtilities.PipelineNetworkSystem
             #endregion
         }
         public override string Name =>
-            psh.Pipeline.ReadPropertyString(
-                this.PipelineEntities.First(), psh.PipelineDef.BelongsToAlignment);
+            _psh.Pipeline.ReadPropertyString(
+                this.PipelineEntities.First(), _psh.PipelineDef.BelongsToAlignment);
         public override double EndStation => topology.Length;
         public override Point3d StartPoint => topology.StartPoint;
         public override Point3d EndPoint => topology.EndPoint;
@@ -690,7 +730,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
             this.PipelineEntities.IsConnectedTo(other.PipelineEntities);
         public override IEnumerable<Entity> GetEntitiesWithinStations(double start, double end)
         {
-            return this.pipelineEntities
+            return this._pipelineEntities
                 .Select(ent =>
                 {
                     double station = double.NaN;
@@ -784,7 +824,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                     ];
                     if (ent is BlockReference br && names.Contains(br.ReadDynamicCsvProperty(DynamicProperty.Type)))
                     {
-                        psh.Pipeline.WritePropertyString(ent, psh.PipelineDef.BranchesOffToAlignment, this.Name);
+                        _psh.Pipeline.WritePropertyString(ent, _psh.PipelineDef.BranchesOffToAlignment, this.Name);
                     }
 
                     return con;
@@ -811,7 +851,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
         }
         public override Vector3d GetFirstDerivative(Point3d pt) =>
             topology.GetFirstDerivative(GetClosestPointTo(pt, false));
-        public override Polyline GetTopologyPolyline() => (Polyline)topology.Clone();        
+        public override Polyline GetTopologyPolyline() => (Polyline)topology.Clone();
         private class Ent
         {
             public Entity Entity;

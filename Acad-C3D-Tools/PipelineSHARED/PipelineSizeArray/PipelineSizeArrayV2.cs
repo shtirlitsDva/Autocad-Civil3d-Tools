@@ -227,7 +227,7 @@ namespace IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray
     }
     public class PipelineSizeArrayV2Partial : PipelineSizeArrayV2Base
     {
-        public PipelineSizeArrayV2Partial(SizeEntryV2[] partial) { sizes = new SizeEntryCollection(partial); }
+        public PipelineSizeArrayV2Partial(SizeEntryV2[] partial) { sizes = [.. partial]; }
     }
     public class PipelineSizeArrayV2OnePolyline : PipelineSizeArrayV2Base
     {

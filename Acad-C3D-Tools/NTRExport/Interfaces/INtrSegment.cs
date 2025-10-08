@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace NTRExport.Interfaces
 {
-    internal interface INtr
+    internal interface INtrSegment
     {
     }
 }

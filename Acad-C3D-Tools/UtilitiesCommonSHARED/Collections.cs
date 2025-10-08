@@ -19,14 +19,16 @@ namespace IntersectUtilities.Collections
     #region EntityCollection
     public class EntityCollection : ICollection<Entity>
     {
-        public Entity this[int index] { get => _L[index]; set => _L[index] = value; }
-        private static Regex conRgx = new Regex(@"(?<OwnEndType>\d):(?<ConEndType>\d):(?<Handle>\w*)");
+        public Entity this[int index] { get => _L[index]; } //set => _L[index] = value; }
+        private static readonly Regex _conRgx = new Regex(
+            @"(?<OwnEndType>\d):(?<ConEndType>\d):(?<Handle>\w*)");
         private List<Entity> _L = new List<Entity>();
-        private Dictionary<Handle, HashSet<Handle>> _C = new Dictionary<Handle, HashSet<Handle>>();
+        private Dictionary<Handle, HashSet<Handle>> _C = new();
         private PropertySetHelper psh;
         public IEnumerable<Handle> ExternalHandles
         {
-            get => _L.SelectMany(x => GetOtherHandles(ReadConnection(x))).Where(x => _L.All(y => y.Handle != x)).Distinct();
+            get => _L.SelectMany(x => GetOtherHandles(ReadConnection(x)))
+                .Where(x => _L.All(y => y.Handle != x)).Distinct();
         }
         public EntityCollection() { }
         public EntityCollection(IEnumerable<Entity> ents)
@@ -36,7 +38,7 @@ namespace IntersectUtilities.Collections
 
             _L.AddRange(ents);
             foreach (var ent in ents)
-                _C.Add(ent.Handle, new HashSet<Handle>(GetOtherHandles(ReadConnection(ent))));
+                _C.Add(ent.Handle, [.. GetOtherHandles(ReadConnection(ent))]);
         }
         public void Add(Entity item)
         {
@@ -44,7 +46,7 @@ namespace IntersectUtilities.Collections
                     new PropertySetHelper(item.Database);
 
             _L.Add(item);
-            _C.Add(item.Handle, new HashSet<Handle>(GetOtherHandles(ReadConnection(item))));
+            _C.Add(item.Handle, [.. GetOtherHandles(ReadConnection(item))]);
         }
         #region Custom logic
         public IEnumerable<Polyline> GetPolylines() => _L.Where(x => x is Polyline).Cast<Polyline>();
@@ -89,9 +91,9 @@ namespace IntersectUtilities.Collections
         {
             string[] conns = connectionString.Split(';');
             foreach (var item in conns)
-                if (conRgx.IsMatch(item))
+                if (_conRgx.IsMatch(item))
                     yield return new Handle(
-                        Convert.ToInt64(conRgx.Match(item).Groups["Handle"].Value, 16));
+                        Convert.ToInt64(_conRgx.Match(item).Groups["Handle"].Value, 16));
         }
         public int GetMaxDN()
         {

@@ -177,17 +177,7 @@ namespace NTRExport
                 pn.CreatePipelineGraph();
                 pn.CreateSizeArrays();
 
-                foreach (var graph in pn.PipelineGraphs)
-                {
-                    foreach (var node in graph)
-                    {
-                        IPipelineV2 ppl = node.Value;
-                        var topopl = ppl.GetTopologyPolyline();
-                        var sizes = ppl.PipelineSizes;
-
-                        
-                    }
-                }
+                Topology.TopologyFactory.Create(pn);
             }
             catch (System.Exception ex)
             {

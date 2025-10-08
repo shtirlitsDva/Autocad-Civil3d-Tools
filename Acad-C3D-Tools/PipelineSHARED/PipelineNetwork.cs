@@ -32,33 +32,33 @@ namespace IntersectUtilities.PipelineNetworkSystem
 {
     public class PipelineNetwork
     {
-        private HashSet<IPipelineV2>? pipelines;
-        private GraphCollection<IPipelineV2>? pipelineGraphs;
-        private PropertySetHelper? psh;
-        public GraphCollection<IPipelineV2>? PipelineGraphs => pipelineGraphs;
+        private HashSet<IPipelineV2>? _pipelines;
+        private GraphCollection<IPipelineV2>? _pipelineGraphs;
+        private PropertySetHelper? _psh;
+        public GraphCollection<IPipelineV2>? PipelineGraphs => _pipelineGraphs;
 
         public void CreatePipelineNetwork(IEnumerable<Entity> ents, IEnumerable<Alignment> als)
         {
-            pipelines = new HashSet<IPipelineV2>();
+            _pipelines = new HashSet<IPipelineV2>();
 
-            if (psh == null)
-                psh = new PropertySetHelper(ents?.FirstOrDefault()?.Database);
+            if (_psh == null)
+                _psh = new PropertySetHelper(ents?.FirstOrDefault()?.Database);
 
             // Get all the names of the pipelines
             // because we need to create a network for each of them
             // we also need to get the names of parts that do not belong to any pipeline
             // ie. NA XX parts
             var pplNames = ents.Select(
-                e => psh.Pipeline.ReadPropertyString(
-                    e, psh.PipelineDef.BelongsToAlignment)).Distinct();
+                e => _psh.Pipeline.ReadPropertyString(
+                    e, _psh.PipelineDef.BelongsToAlignment)).Distinct();
 
             // Create a network to be able to analyze our piping system
             foreach (var pplName in pplNames)
             {
                 // Get all the parts that belong to the pipeline
                 var pplEnts = ents.Where(
-                    e => psh.Pipeline.ReadPropertyString(
-                        e, psh.PipelineDef.BelongsToAlignment) == pplName);
+                    e => _psh.Pipeline.ReadPropertyString(
+                        e, _psh.PipelineDef.BelongsToAlignment) == pplName);
 
                 // Get the alignment that the pipeline belongs to
                 var al = als.FirstOrDefault(a => a.Name == pplName);
@@ -66,17 +66,17 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 //prdDbg($"{pplEnts.Where(x => x is Polyline).Count()} - {pplEnts.Where(x => x is BlockReference).Count()}");
 
                 // Create a pipeline network
-                pipelines.Add(PipelineV2Factory.Create(pplEnts, al));
+                _pipelines.Add(PipelineV2Factory.Create(pplEnts, al));
             }
         }
         public void CreatePipelineGraph()
         {
             var builder = new PipelineGraphBuilder();
-            pipelineGraphs = builder.BuildPipelineGraphs(pipelines);
+            _pipelineGraphs = builder.BuildPipelineGraphs(_pipelines);
         }
         public IPipelineV2 GetPipeline(string name)
         {
-            return pipelines.FirstOrDefault(x => x.Name == name);
+            return _pipelines.FirstOrDefault(x => x.Name == name);
         }
         public void PipelineGraphsToDot()
         {
@@ -84,7 +84,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
             sb.AppendLine("digraph G {");
 
             int graphCount = 0;
-            foreach (var graph in pipelineGraphs)
+            foreach (var graph in _pipelineGraphs)
             {
                 graphCount++;
                 sb.AppendLine($"subgraph G_{graphCount} {{");
@@ -116,16 +116,16 @@ namespace IntersectUtilities.PipelineNetworkSystem
         public void AutoReversePolylines()
         {
             PipelineGraphWorker gw = new PipelineGraphWorker();
-            gw.AutoReversePolylines(pipelineGraphs);
+            gw.AutoReversePolylines(_pipelineGraphs);
         }
         public void AutoCorrectLengths()
         {
             PipelineGraphWorker gw = new PipelineGraphWorker();
-            gw.CorrectPipesToCutLengths(pipelineGraphs);
+            gw.CorrectPipesToCutLengths(_pipelineGraphs);
         }
         public void CreateSizeArrays()
         {
-            foreach (var pipeline in pipelines)
+            foreach (var pipeline in _pipelines)
             {
                 pipeline.CreateSizeArray();
             }
@@ -133,7 +133,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
         public List<(string Name, IPipelineSizeArrayV2 SizeArray)> GetAllSizeArrays(bool includeNas = true)
         {
             List<(string, IPipelineSizeArrayV2)> data = new();
-            foreach (var pipeline in pipelines)
+            foreach (var pipeline in _pipelines)
             {
                 if (!includeNas && pipeline is PipelineV2Na) continue;
                 data.Add((pipeline.Name, pipeline.PipelineSizes));
@@ -143,7 +143,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
         public StringBuilder PrintSizeArrays()
         {
             StringBuilder sb = new StringBuilder();
-            foreach (var pipeline in pipelines.OrderBy(x => x.Name))
+            foreach (var pipeline in _pipelines.OrderBy(x => x.Name))
             {
                 prdDbg("Pipeline: " + pipeline.Name);
                 sb.AppendLine("Alignment: " + pipeline.Name);
@@ -156,13 +156,38 @@ namespace IntersectUtilities.PipelineNetworkSystem
         internal void GatherWeldPoints(List<WeldPointData2> wps)
         {
             PipelineGraphWorker gw = new PipelineGraphWorker();
-            gw.CreateWeldPoints(pipelineGraphs, wps);
+            gw.CreateWeldPoints(_pipelineGraphs, wps);
         }
         internal void CreateWeldBlocks(List<WeldPointData2> wps)
         {
             //Create weld blocks
             PipelineGraphWorker gw = new PipelineGraphWorker();
             gw.CreateWeldBlocks(wps);
+        }
+        internal void CreateSegmentsGraph()
+        {            
+            if (_pipelineGraphs == null) return;
+
+            foreach (var pplGraph in _pipelineGraphs)
+            {
+                foreach (var node in pplGraph.Bfs())
+                {
+                    node.Value.PopulateSegments(node.Parent?.Value);
+                }
+            }
+
+            foreach (var pplGraph in _pipelineGraphs)
+            {
+                var queue = new Queue<Node<IPipelineV2>>();
+                queue.Enqueue(pplGraph.Root);                
+
+                while (queue.Count > 0)
+                {
+                    var node = queue.Dequeue();
+                }
+            }
+
+            return;
         }
     }
     

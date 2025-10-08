@@ -2,9 +2,11 @@
 
 using IntersectUtilities.UtilsCommon.Enums;
 
+using NTRExport.Interfaces;
+
 namespace NTRExport.Topology
 {
-    internal class Segment
+    internal abstract class NtrSegmentBase : INtrSegment
     {
         private PipeSystemEnum _pipeSystem;
         private PipeTypeEnum _pipeType;
@@ -13,7 +15,7 @@ namespace NTRExport.Topology
         private HashSet<Entity> _entities;
         private Polyline _topology;
 
-        public Segment(
+        public NtrSegmentBase(
             PipeSystemEnum pipeSystem,
             PipeTypeEnum pipeType,
             PipeSeriesEnum pipeSeries,

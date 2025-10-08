@@ -11,6 +11,11 @@
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)PipelineNetwork.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)PipelineSegment.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)PipelineSegmentV2\IPipelineSegmentV2.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)PipelineSegmentV2\PipelineSegmentFactoryV2.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)PipelineSegmentV2\PipelineSegmentV2.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)PipelineSegmentV2\PipelineTransitionV2.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)PipelineSegmentV2\SegmentBaseV2.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)PipelineSizeArray\PipelineSizeArrayV2.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)PipelineV2.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)PipeSettings.cs" />
