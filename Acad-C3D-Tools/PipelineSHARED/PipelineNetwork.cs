@@ -113,6 +113,41 @@ namespace IntersectUtilities.PipelineNetworkSystem
             cmd.StartInfo.Arguments = @"/c ""dot -Tpdf MyTPN.dot > MyTPN.pdf""";
             cmd.Start();
         }
+        public void SegmentGraphsToDot()
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine("digraph G {");
+
+            int graphCount = 0;
+            foreach (var graph in _pipelineGraphs)
+            {
+                graphCount++;
+                sb.AppendLine($"subgraph G_{graphCount} {{");
+                sb.AppendLine("node [shape=record];");
+                sb.AppendLine(graph.Root.Value.SegmentsGraph.EdgesToDot());
+                sb.AppendLine(graph.Root.Value.SegmentsGraph.NodesToDot());
+                sb.AppendLine("}");
+            }
+
+            sb.AppendLine("}");
+
+            //Check or create directory
+            if (!Directory.Exists(@"C:\Temp\"))
+                Directory.CreateDirectory(@"C:\Temp\");
+
+            //Write the collected graphs to one file
+            using (System.IO.StreamWriter file = new System.IO.StreamWriter($"C:\\Temp\\SegmentsGraph.dot"))
+            {
+                file.WriteLine(sb.ToString()); // "sb" is the StringBuilder
+            }
+
+            //Start the dot engine to create the graph
+            System.Diagnostics.Process cmd = new System.Diagnostics.Process();
+            cmd.StartInfo.FileName = "cmd.exe";
+            cmd.StartInfo.WorkingDirectory = @"C:\Temp\";
+            cmd.StartInfo.Arguments = @"/c ""dot -Tpdf SegmentsGraph.dot > SegmentsGraph.pdf""";
+            cmd.Start();
+        }
         public void AutoReversePolylines()
         {
             PipelineGraphWorker gw = new PipelineGraphWorker();
@@ -164,7 +199,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
             PipelineGraphWorker gw = new PipelineGraphWorker();
             gw.CreateWeldBlocks(wps);
         }
-        internal void CreateSegmentsGraph()
+        internal void CreateSegmentGraphs()
         {            
             if (_pipelineGraphs == null) return;
 
@@ -172,20 +207,10 @@ namespace IntersectUtilities.PipelineNetworkSystem
             {
                 foreach (var node in pplGraph.Bfs())
                 {
-                    node.Value.PopulateSegments(node.Parent?.Value);
+                    node.Value.PopulateSegments(
+                        node.Parent?.Value, node.Children.Select(x => x.Value));
                 }
-            }
-
-            foreach (var pplGraph in _pipelineGraphs)
-            {
-                var queue = new Queue<Node<IPipelineV2>>();
-                queue.Enqueue(pplGraph.Root);                
-
-                while (queue.Count > 0)
-                {
-                    var node = queue.Dequeue();
-                }
-            }
+            }            
 
             return;
         }

@@ -176,14 +176,27 @@ namespace NTRExport
                 pn.CreatePipelineNetwork(ents, als);
                 pn.CreatePipelineGraph();
                 pn.CreateSizeArrays();
+                pn.CreateSegmentGraphs();
+                
+            }
+            catch (DebugPointException dbex)
+            {
+                prdDbg(dbex);
+                tx.Abort();
 
-                Topology.TopologyFactory.Create(pn);
+                using var dtx = localDb.TransactionManager.StartTransaction();
+                foreach (var p in dbex.PointsToMark)
+                {
+                    DebugHelper.CreateDebugLine(p, ColorByName("red"));
+                }
+                dtx.Commit();
+                return;
             }
             catch (System.Exception ex)
             {
                 prdDbg(ex);
                 tx.Abort();
-                throw;
+                return;
             }
             tx.Commit();
         }

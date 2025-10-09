@@ -466,7 +466,7 @@ namespace IntersectUtilities
                     #endregion                    
                 }                
             }
-            catch (DebugException dex)
+            catch (DebugEntityException dex)
             {
                 tx.Abort();
                 prdDbg(dex);
@@ -605,7 +605,7 @@ namespace IntersectUtilities
                 System.IO.File.WriteAllText(@"C:\Temp\pline.json", json);
 
             }
-            catch (DebugException dex)
+            catch (DebugEntityException dex)
             {
                 tx.Abort();
                 prdDbg(dex);

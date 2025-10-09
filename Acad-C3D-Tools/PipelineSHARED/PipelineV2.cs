@@ -1,16 +1,21 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using Autodesk.AutoCAD.DatabaseServices;
+﻿using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 using Autodesk.Civil.DatabaseServices;
+
 using IntersectUtilities.Collections;
 using IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray;
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.Enums;
 using IntersectUtilities.UtilsCommon.Graphs;
+
 using MoreLinq;
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
 using static IntersectUtilities.UtilsCommon.Utils;
+
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 
@@ -26,6 +31,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
         EntityCollection PipelineEntities { get; }
         EntityCollection PipelineWelds { get; }
         IPipelineSizeArrayV2 PipelineSizes { get; }
+        Graph<IPipelineSegmentV2> SegmentsGraph { get; }
         void CreateSizeArray();
         int GetMaxDN();
         double GetPolylineStartStation(Polyline pl);
@@ -44,13 +50,12 @@ namespace IntersectUtilities.PipelineNetworkSystem
         IEnumerable<Polyline> GetPolylines();
         Point3d GetLocationForMaxDN();
         Result CorrectPipesToCutLengths(Point3d connectionLocation);
-
         /// <summary>
         /// Returns the pipelines' topology as polyline with
         /// start point coinciding with start station.
         /// </summary>
         Polyline GetTopologyPolyline();
-        void PopulateSegments(IPipelineV2? parent);
+        void PopulateSegments(IPipelineV2? parent, IEnumerable<IPipelineV2> children);
     }
 
     public abstract class PipelineV2Base : IPipelineV2
@@ -74,9 +79,9 @@ namespace IntersectUtilities.PipelineNetworkSystem
         }
         public abstract double EndStation { get; }
         public IPipelineSizeArrayV2 PipelineSizes => _pipelineSizes;
+        public Graph<IPipelineSegmentV2> SegmentsGraph => _segmentsGraph;
         public abstract Point3d StartPoint { get; }
         public abstract Point3d EndPoint { get; }
-
         public PipelineV2Base(IEnumerable<Entity> source)
         {
             source.Partition(IsNotWeld, out this._pipelineEntities, out this._pipelineWelds);
@@ -105,9 +110,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 )
                 || e is Polyline; //<-- this is the culprit!!!!!!!!!!!!!!!!!!!!
         }
-
         public int GetMaxDN() => _pipelineEntities.GetMaxDN();
-
         public abstract bool IsConnectedTo(IPipelineV2 other, double tol);
         public abstract double GetPolylineStartStation(Polyline pl);
         public abstract double GetPolylineMiddleStation(Polyline pl);
@@ -289,47 +292,96 @@ namespace IntersectUtilities.PipelineNetworkSystem
 
         public double GetDistanceToPoint(Point3d pt, bool extend = false) =>
             GetClosestPointTo(pt, extend).DistanceHorizontalTo(pt);
-
         public IEnumerable<Polyline> GetPolylines() => _pipelineEntities.GetPolylines();
-
         public abstract Vector3d GetFirstDerivative(Point3d pt);
         public abstract Polyline GetTopologyPolyline();
         private Graph<IPipelineSegmentV2> _segmentsGraph;
-
-        public void PopulateSegments(IPipelineV2? parent)
+        public void PopulateSegments(IPipelineV2? parent, IEnumerable<IPipelineV2> children)
         {
-            if (_pipelineSizes == null)
-                CreateSizeArray();
-            if (_pipelineSizes == null)
-                return;
-            _segmentsGraph = null;
+            if (_pipelineSizes == null) CreateSizeArray();
+            if (_pipelineSizes == null) return;
+
             var sizeBrs = _pipelineEntities
                 .Where(x => x is BlockReference)
                 .Cast<BlockReference>()
                 .Where(x => x.ReadDynamicCsvProperty(DynamicProperty.Function) == "SizeArray")
                 .ToList();
-            var entGroups = new List<(double station, List<Entity> ents)>();
+
+            List<IPipelineSegmentV2> segs = new List<IPipelineSegmentV2>();
+            //Create segments between transitions
             for (int i = 0; i < _pipelineSizes.Length; i++)
             {
                 var curSize = _pipelineSizes[i];
                 var ents = GetEntitiesWithinStations(curSize.StartStation, curSize.EndStation)
                     .Where(x => sizeBrs.All(y => y.Handle != x.Handle))
                     .ToList();
-                entGroups.Add(((curSize.StartStation + curSize.EndStation) / 2, ents));
+                if (ents.Count == 0) continue; //Skip empty segments (fx when reducer at end of pipeline)
+                segs.Add(new PipelineSegmentV2(curSize, ents));
             }
+            //Create segments for transitions
             foreach (var br in sizeBrs)
-                entGroups.Add((GetStationAtPoint(br.Position), [br]));
-            var orderedGroups = entGroups.OrderBy(x => x.station);
-            List<IPipelineSegmentV2> segs = new List<IPipelineSegmentV2>();
-            foreach (var part in orderedGroups)
-                segs.Add(PipelineSegmentFactoryV2.Create(part));
-            if (segs.Count == 0)
-                return;
-            var rootSegment = GetSegmentConnectedToParent(parent, segs) ?? segs.First();
+                segs.Add(new PipelineTransitionV2(GetStationAtPoint(br.Position), br));
+
+            var orderedSegs = segs.OrderBy(x => x.MidStation);
+
+            //Build the graph
+            IPipelineSegmentV2 rootSegment;
+            if (parent == null) //Parent = null means we are working with the first pipeline
+            {
+                if (_pipelineSizes.Length == 1) //Only one size, need to look at ends
+                {
+                    //If there's only one entity in the segment it doesn't matter if ends are connected
+                    if (orderedSegs.Count() == 1) { rootSegment = orderedSegs.First(); }
+                    else //Now check if ends are connected, to determine unconnected end
+                    {
+                        var firstSeg = orderedSegs.First();
+                        bool firstConnected = children.Any(ch => IsConnectedToPipeline(firstSeg, ch));
+
+                        var lastSeg = orderedSegs.Last();
+                        bool lastConnected = children.Any(ch => IsConnectedToPipeline(lastSeg, ch));
+
+                        bool IsConnectedToPipeline(IPipelineSegmentV2 seg, IPipelineV2 ppl)
+                        {
+                            return seg.Handles.Any(ppl.PipelineEntities.ExternalHandles.Contains);
+                        }
+
+                        if (firstConnected && !lastConnected) rootSegment = lastSeg;
+                        else if (!firstConnected && lastConnected) rootSegment = firstSeg;
+                        else
+                        {
+                            //Doesn't matter which segment is root here then
+                            rootSegment = segs.First();
+                        }
+                    }
+                }
+                else
+                {//Case 2: Choose by SIZE because multiple sizes
+                    var maxSize = _pipelineSizes.Sizes.MaxBy(x => x.DN);
+                    if (maxSize.StartStation < 1)
+                    {
+                        rootSegment = orderedSegs.First();
+                    }
+                    else if (Math.Abs(maxSize.EndStation - this.EndStation) < 0.01)
+                    {
+                        rootSegment = orderedSegs.Last();
+                    }
+                    else
+                    {
+                        var midstation = (maxSize.StartStation + maxSize.EndStation) / 2;
+                        rootSegment = orderedSegs
+                            .OrderBy(x => Math.Abs(x.MidStation - midstation))
+                            .First();
+                    }
+                }
+            }
+            else
+            {
+                rootSegment = GetSegmentConnectedToParent(parent, segs);
+            }
+
             var nodes = segs.Select(seg => new Node<IPipelineSegmentV2>(seg)).ToList();
             var rootIndex = segs.IndexOf(rootSegment);
-            if (rootIndex < 0)
-                rootIndex = 0;
+            if (rootIndex < 0) rootIndex = 0;
             var rootNode = nodes[rootIndex];
             if (rootIndex == 0)
             {
@@ -361,15 +413,41 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 seg => $"{Name}-Segment-{seg.MidStation:F3}",
                 seg => $"\"{seg.MidStation:F3}\""
             );
+
+            if (parent != null)
+                ConnectChildToParent(parent, rootNode);
         }
 
-        private IPipelineSegmentV2? GetSegmentConnectedToParent(
-            IPipelineV2? parent,
-            IReadOnlyList<IPipelineSegmentV2> segments
-        )
+        private IPipelineSegmentV2 GetSegmentConnectedToParent(
+            IPipelineV2 parent,
+            IReadOnlyList<IPipelineSegmentV2> segments)
         {
-            // Placeholder: implement logic to locate the segment that connects to the parent pipeline.
-            return null;
+            var query = segments.Where(
+                x => x.Handles.Any(parent.PipelineEntities.ExternalHandles.Contains));
+
+            var count = query.Count();
+            if (count == 0)
+                throw new Exception(
+                    $"Could NOT FIND segment in pipeline {this.Name} that connects to parent {parent.Name}!");
+            if (count > 1)
+                throw new Exception(
+                    $"Found MULTIPLE segments in pipeline {this.Name} that connects to parent {parent.Name}!");
+
+            return query.First();
+        }
+        private void ConnectChildToParent(IPipelineV2 parent, Node<IPipelineSegmentV2> child)
+        {
+            var query = parent.SegmentsGraph.Dfs()
+                .Where(x => x.Value.IsConnectedTo(child.Value));
+                
+            var parentSeg = query.FirstOrDefault();
+            if (parentSeg == null)
+                throw new Exception(
+                    $"Could NOT FIND segment in pipeline {parent.Name} " +
+                    $"that connects to child segment at {child.Value.MidStation:F3} " +
+                    $"in pipeline {this.Name}!");
+
+            parentSeg.AddChild(child);
         }
     }
 

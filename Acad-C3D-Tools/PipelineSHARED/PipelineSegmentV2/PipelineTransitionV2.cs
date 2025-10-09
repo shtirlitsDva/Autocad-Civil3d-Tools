@@ -10,9 +10,12 @@ namespace IntersectUtilities.PipelineNetworkSystem
 {
     internal class PipelineTransitionV2 : SegmentBaseV2
     {
-        internal override double MidStation => _midStation;
+        public override double MidStation => _midStation;
+        public override IEnumerable<Handle> Handles => [_br.Handle];
+
         private double _midStation;
         private BlockReference _br;
+
         internal PipelineTransitionV2(double midStation, BlockReference br) 
         {  
             _midStation = midStation;

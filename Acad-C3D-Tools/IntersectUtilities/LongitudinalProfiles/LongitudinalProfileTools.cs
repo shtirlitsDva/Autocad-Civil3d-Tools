@@ -4345,7 +4345,7 @@ namespace IntersectUtilities
                     #endregion
                 }
 
-                catch (DebugException dbex)
+                catch (DebugEntityException dbex)
                 {
                     fremTx.Abort();
                     fremTx.Dispose();
