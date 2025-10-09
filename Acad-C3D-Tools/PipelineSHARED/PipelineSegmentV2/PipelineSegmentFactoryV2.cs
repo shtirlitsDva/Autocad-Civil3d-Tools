@@ -12,32 +12,31 @@ namespace IntersectUtilities.PipelineNetworkSystem
 {
     internal static class PipelineSegmentFactoryV2
     {
-        internal static List<IPipelineSegmentV2> Create(
+        internal static IPipelineSegmentV2 Create(
             (double midStation, List<Entity> ents) group)
         {
-            List<IPipelineSegmentV2> list = new();
+            var (midStation, ents) = group;
+
             //First single component case
-            if (group.ents.Count == 1 && group.ents.First() is BlockReference)
+            if (ents.Count == 1 && ents.First() is BlockReference)
             {
-                var br = (BlockReference)group.ents.First();
+                var br = (BlockReference)ents.First();
                 var type = br.ReadDynamicCsvProperty(DynamicProperty.Function);
 
                 switch (type)
                 {
                     case "SizeArray":
-                        list.Add(new PipelineTransitionV2(br));
-                        break;
+                        return new PipelineTransitionV2(midStation, br);
                     default:
-                        break;
+                        throw new Exception(
+                            $"Unknown single entity type '{type}' in PipelineSegmentFactoryV2!" );
                 }
             }
             //Pipeline segment case
             else
             {
-                list.Add(new PipelineSegmentV2(group.ents));
-            }
-
-            return list;
+                return new PipelineSegmentV2(midStation, group.ents);
+            }            
         }
     }
 }

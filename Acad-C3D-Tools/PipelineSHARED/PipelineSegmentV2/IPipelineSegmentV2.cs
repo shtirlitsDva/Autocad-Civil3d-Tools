@@ -8,5 +8,6 @@ namespace IntersectUtilities.PipelineNetworkSystem
 {
     internal interface IPipelineSegmentV2
     {
+        internal double MidStation { get; }
     }
 }
