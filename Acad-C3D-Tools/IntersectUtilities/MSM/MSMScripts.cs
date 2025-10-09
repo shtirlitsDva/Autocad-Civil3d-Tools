@@ -1,24 +1,16 @@
 ﻿using Autodesk.AutoCAD.ApplicationServices;
-using Autodesk.AutoCAD.DatabaseServices;
-using Autodesk.AutoCAD.Runtime;
-using Autodesk.Civil;
-using Autodesk.Civil.ApplicationServices;
-using Autodesk.Civil.DatabaseServices; // Added for ProfileView access
-using Autodesk.Civil.DatabaseServices.Styles;
-using IntersectUtilities.UtilsCommon;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Autodesk.AutoCAD.Colors; // For color
+using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry; // For Point3d
-
+using Autodesk.AutoCAD.Runtime;
+using Autodesk.Civil.DatabaseServices; // Added for ProfileView access
+using IntersectUtilities.UtilsCommon;
+using System.Linq;
 using static IntersectUtilities.UtilsCommon.Utils;
 
 namespace IntersectUtilities
 {
-    public partial class  Intersect
+    public partial class Intersect
     {
         /// <command>LABELPROFILEVIEWS</command>
         /// <summary>
@@ -40,7 +32,7 @@ namespace IntersectUtilities
                 //Code starts here
                 var profileViews = localDb.HashSetOfType<ProfileView>(tx);
                 prdDbg($"Antal ProfileViews fundet: {profileViews.Count}");
-                
+
                 // Prepare current space for adding text
                 var btr = (BlockTableRecord)tx.GetObject(localDb.CurrentSpaceId, OpenMode.ForWrite);
 
@@ -76,7 +68,7 @@ namespace IntersectUtilities
                     DBText txt = new DBText
                     {
                         Position = insPt,
-                        TextString = pv.Name.Replace("_PV",""),
+                        TextString = pv.Name.Replace("_PV", ""),
                         Height = 10,
                         Layer = "0"
                     };
