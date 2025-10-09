@@ -22,7 +22,9 @@ namespace IntersectUtilities
     {
         /// <command>LABELPROFILEVIEWS</command>
         /// <summary>
-        /// This command is numbering each Profile View with a label on the left side of each Profile View. The color of the label should be yellow when the Profile View is not yet drawn with profiles or when the profiles needs to be edited. The drawer should manually change the color to green when a Profile View is ready with updated profiles.
+        /// This command is numbering each Profile View with a label on the left side of each Profile View. 
+        /// The color of the label should be yellow when the Profile View is not yet drawn with profiles or when the profiles needs to be edited. 
+        /// The drawer should manually change the color to green when a Profile View is ready with updated profiles.
         /// </summary>
         /// <category>Utilities</category>
         [CommandMethod("LABELPROFILEVIEWS")]
