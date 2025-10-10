@@ -9,6 +9,10 @@ using IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray;
 using IntersectUtilities.PipeScheduleV2;
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.DataManager;
+using IntersectUtilities.UtilsCommon.Graphs;
+
+using NTRExport.Interfaces;
+using NTRExport.Topology;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 
@@ -177,7 +181,57 @@ namespace NTRExport
                 pn.CreatePipelineGraph();
                 pn.CreateSizeArrays();
                 pn.CreateSegmentGraphs();
-                
+
+                var ntrgraphs = new List<Graph<INtrSegment>>();
+
+                if (pn.PipelineGraphs == null) return;
+
+                foreach (var pgraph in pn.PipelineGraphs)
+                {
+                    var sgraph = pgraph.Root.Value.SegmentsGraph;
+                    if (sgraph == null)
+                    {
+                        prdDbg($"WARNING: Segments graph for " +
+                        $"{pgraph.Root.Value.Name} is null!"); continue;
+                    }
+
+                    Queue<Node<IPipelineSegmentV2>> queue = new();
+                    queue.Enqueue(sgraph.Root);
+
+                    Node<INtrSegment>? parent = null;
+
+                    while (queue.Count > 0)
+                    {
+                        var curNode = queue.Dequeue();
+
+                        INtrSegment curNtrSegment;
+                        switch (curNode.Value)
+                        {
+                            case PipelineSegmentV2 pseg:
+                                switch (pseg.Size.Type)
+                                {                                    
+                                    case IntersectUtilities.UtilsCommon.Enums.PipeTypeEnum.Twin:
+                                        curNtrSegment = new NtrSegmentTwin();
+                                        break;
+                                    case IntersectUtilities.UtilsCommon.Enums.PipeTypeEnum.Frem:
+                                    case IntersectUtilities.UtilsCommon.Enums.PipeTypeEnum.Retur:
+                                    case IntersectUtilities.UtilsCommon.Enums.PipeTypeEnum.Enkelt:
+
+                                        break;
+                                    case IntersectUtilities.UtilsCommon.Enums.PipeTypeEnum.Ukendt:
+                                    default:
+                                        throw new NotImplementedException();
+                                }                                
+                                break;
+                            case PipelineTransitionV2 tseg:
+                                break;
+                            default:
+                                throw new System.Exception(
+                                    $"ERR8736: Encountered unknown type: " +
+                                    $"{curNode.Value.GetType()}");
+                        }
+                    }
+                }
             }
             catch (DebugPointException dbex)
             {

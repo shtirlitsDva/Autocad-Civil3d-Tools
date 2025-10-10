@@ -14,6 +14,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
             ($"{_size.Type} {_size.SizePrefix} {_size.DN}", "red"),]);
         public override double MidStation => (_size.StartStation + _size.EndStation) / 2;
         public override IEnumerable<Handle> Handles => _ents.Select(e => e.Handle);
+        public SizeEntryV2 Size => _size;
 
         private SizeEntryV2 _size;
         protected override List<Entity> _ents { get; }
