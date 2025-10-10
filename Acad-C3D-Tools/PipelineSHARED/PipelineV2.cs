@@ -702,7 +702,6 @@ namespace IntersectUtilities.PipelineNetworkSystem
             return pl;
         }
     }
-
     public class PipelineV2Na : PipelineV2Base
     {
         // This is a pipeline that does not belong to any alignment
@@ -1247,7 +1246,6 @@ namespace IntersectUtilities.PipelineNetworkSystem
             }
         }
     }
-
     public static class PipelineV2Factory
     {
         public static IPipelineV2 Create(IEnumerable<Entity> ents, Alignment al)
@@ -1258,7 +1256,6 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 return new PipelineV2Alignment(ents, al);
         }
     }
-
     public enum ConnectionType
     {
         Unknown,

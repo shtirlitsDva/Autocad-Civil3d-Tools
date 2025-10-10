@@ -807,8 +807,23 @@ namespace IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray
                 VerticalMinRadius.ToString("F2")
             };
         }
-        public override bool Equals(object? obj) => obj is SizeEntryV2 other && Equals(other);
-
+        public bool Equals(SizeEntryV2 other) =>
+        DN == other.DN &&
+        StartStation == other.StartStation &&
+        EndStation == other.EndStation &&
+        Kod == other.Kod &&
+        System == other.System &&
+        Type == other.Type &&
+        Series == other.Series;
+        public override bool Equals(object? obj) =>
+            obj is SizeEntryV2 other &&
+            DN == other.DN &&
+            StartStation == other.StartStation &&
+            EndStation == other.EndStation &&
+            Kod == other.Kod &&
+            System == other.System &&
+            Type == other.Type &&
+            Series == other.Series;
         public override int GetHashCode() =>
             HashCode.Combine(DN, StartStation, EndStation, Kod, System, Type, Series);
 
