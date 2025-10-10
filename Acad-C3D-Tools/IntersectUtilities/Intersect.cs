@@ -2793,7 +2793,7 @@ namespace IntersectUtilities
                     {
                         sb.Append(item.Name + ";");
                     }
-                    sb.Append("X;Y;");
+                    sb.Append("X;Y;Lat;Long");
                     sb.AppendLine();
                     foreach (var br in brs)
                     {
@@ -2803,6 +2803,11 @@ namespace IntersectUtilities
                         }
                         sb.Append(br.Position.X.ToString() + ";");
                         sb.Append(br.Position.Y.ToString() + ";");
+
+                        var ll = ToWGS84FromUtm32N(br.Position.X, br.Position.Y);
+                        sb.Append(ll[0] + ";");
+                        sb.Append(ll[1]);
+
                         sb.AppendLine();
                     }
                     string dbFilename = localDb.OriginalFileName;
@@ -5365,7 +5370,7 @@ namespace IntersectUtilities
                         psm.WritePropertyString(br, bbr.DistriktetsNavn, "Verificering");
                         psm.WritePropertyString(br, bbr.id_lokalId, Guid.NewGuid().ToString());
                         psm.WritePropertyObject(br, bbr.EstimeretVarmeForbrug, GetRandForbrug());
-                        
+
                         ndix++;
                     }
 
@@ -5376,7 +5381,7 @@ namespace IntersectUtilities
                     }
 
                     vidx++;
-                }                
+                }
             }
             catch (System.Exception ex)
             {
