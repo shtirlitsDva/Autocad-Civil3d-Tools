@@ -22,7 +22,8 @@ namespace IntersectUtilities.PipelineNetworkSystem
             get => _ents.SelectMany(x => GetOtherHandles(ReadConnection(x)))
                 .Where(x => _ents.All(y => y.Handle != x)).Distinct();
         }
-        
+        public abstract string Label { get; }
+
 
         public bool IsConnectedTo(IPipelineSegmentV2 other)
         {
@@ -42,6 +43,25 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 if (_conRgx.IsMatch(item))
                     yield return new Handle(
                         Convert.ToInt64(_conRgx.Match(item).Groups["Handle"].Value, 16));
+        }
+
+        protected static string HtmlLabel(IEnumerable<(string Text, string Color)> rows)
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.Append("<<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">");
+
+            foreach (var (text, color) in rows)
+            {
+                var safeText = System.Net.WebUtility.HtmlEncode(text);
+                var safeColor = string.IsNullOrWhiteSpace(color) ? "black" : System.Net.WebUtility.HtmlEncode(color);
+
+                sb.Append("<TR><TD>");
+                sb.Append($"<FONT COLOR=\"{safeColor}\">{safeText}</FONT>");
+                sb.Append("</TD></TR>");
+            }
+
+            sb.Append("</TABLE>>");
+            return sb.ToString();
         }
     }
 }

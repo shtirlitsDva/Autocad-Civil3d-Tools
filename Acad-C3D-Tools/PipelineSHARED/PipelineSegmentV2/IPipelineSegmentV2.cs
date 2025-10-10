@@ -11,5 +11,6 @@ namespace IntersectUtilities.PipelineNetworkSystem
         internal IEnumerable<Handle> Handles { get; }
         internal IEnumerable<Handle> ExternalHandles { get; }
         internal bool IsConnectedTo(IPipelineSegmentV2 other);
+        internal string Label { get; }
     }
 }

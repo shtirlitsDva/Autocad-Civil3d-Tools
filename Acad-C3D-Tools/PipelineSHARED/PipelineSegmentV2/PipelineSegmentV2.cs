@@ -9,6 +9,10 @@ namespace IntersectUtilities.PipelineNetworkSystem
 {
     internal class PipelineSegmentV2 : SegmentBaseV2
     {
+        public override string Label => HtmlLabel([
+            ($"{Owner.Name}", ""),            
+            ($"{_size.StartStation:F2}-{_size.EndStation:F2}","blue"),
+            ($"{_size.SizePrefix} {_size.DN}", "red"),]);
         public override double MidStation => (_size.StartStation + _size.EndStation) / 2;
         public override IEnumerable<Handle> Handles => _ents.Select(e => e.Handle);
 

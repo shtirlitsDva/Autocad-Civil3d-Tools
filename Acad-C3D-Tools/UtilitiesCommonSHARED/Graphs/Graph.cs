@@ -42,9 +42,8 @@ namespace IntersectUtilities.UtilsCommon.Graphs
         }
         private void GatherNodes(Node<T> node, StringBuilder nodes)
         {
-            string color = "";
-            if (node.Parent == null) color = " color = red";
-            nodes.AppendLine($"\"{_nameSelector(node.Value)}\" [label={_labelSelector(node.Value)}{color}]");
+            var color = node.Parent == null ? " color = red" : "";
+            nodes.AppendLine($"\"{_nameSelector(node.Value)}\" [label={_labelSelector(node.Value)} {color}]");
             foreach (var child in node.Children)
             {
                 GatherNodes(child, nodes);  // Recursive call to gather nodes of children

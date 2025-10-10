@@ -411,7 +411,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
             _segmentsGraph = new Graph<IPipelineSegmentV2>(
                 rootNode,
                 seg => $"{seg.Owner.Name}-Segment-{seg.MidStation:F3}",
-                seg => $"\"{seg.Owner.Name}:{seg.MidStation:F3}\""
+                seg => $"{seg.Label}"
             );
 
             if (parent != null)
