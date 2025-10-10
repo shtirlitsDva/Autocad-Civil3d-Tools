@@ -125,7 +125,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 sb.AppendLine($"subgraph G_{graphCount} {{");
                 sb.AppendLine("node [shape=plaintext, fontname=\"monospace bold\"];");
                 sb.AppendLine(graph.Root.Value.SegmentsGraph.EdgesToDot());
-                sb.AppendLine(graph.Root.Value.SegmentsGraph.NodesToDot());
+                sb.AppendLine(graph.Root.Value.SegmentsGraph.NodesToDot(seg => seg.Owner.Name));
                 sb.AppendLine("}");
             }
 
