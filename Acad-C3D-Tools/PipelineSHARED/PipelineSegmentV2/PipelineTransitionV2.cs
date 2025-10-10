@@ -13,9 +13,8 @@ namespace IntersectUtilities.PipelineNetworkSystem
     internal class PipelineTransitionV2 : SegmentBaseV2
     {
         public override string Label => HtmlLabel(
-        [
-            (Owner.Name, ""),
-            ($"Transition {_br.ReadDynamicCsvProperty(DynamicProperty.System)} {MidStation:F2}", "blue"),
+        [            
+            ($"{_br.ReadDynamicCsvProperty(DynamicProperty.Type)} {_br.ReadDynamicCsvProperty(DynamicProperty.System)} {MidStation:F2}", "blue"),
             ($"{_br.ReadDynamicCsvProperty(DynamicProperty.DN1)} / {_br.ReadDynamicCsvProperty(DynamicProperty.DN2)}", "red")
         ]);
         public override double MidStation => _midStation;

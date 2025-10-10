@@ -417,7 +417,6 @@ namespace IntersectUtilities.PipelineNetworkSystem
             if (parent != null)
                 ConnectChildToParent(parent, rootNode);
         }
-
         private IPipelineSegmentV2 GetSegmentConnectedToParent(
             IPipelineV2 parent,
             IReadOnlyList<IPipelineSegmentV2> segments)
