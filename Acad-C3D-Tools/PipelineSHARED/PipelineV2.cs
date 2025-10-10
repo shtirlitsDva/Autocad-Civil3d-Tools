@@ -119,12 +119,10 @@ namespace IntersectUtilities.PipelineNetworkSystem
         public abstract double GetStationAtPoint(Point3d pt);
         public abstract Point3d GetClosestPointTo(Point3d pt, bool extend = false);
         public abstract IEnumerable<Entity> GetEntitiesWithinStations(double start, double end);
-
         public void CreateSizeArray()
         {
             _pipelineSizes = PipelineSizeArrayFactory.CreateSizeArray(this);
         }
-
         public void AutoReversePolylines(Point3d connectionLocation)
         {
             double st = GetStationAtPoint(connectionLocation);
@@ -169,7 +167,6 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 }
             }
         }
-
         protected bool isPolylineOrientedCorrectly(Polyline pl, bool withFlow)
         {
             double ss = GetPolylineStartStation(pl);
@@ -180,9 +177,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
             else
                 return ss > es;
         }
-
         public abstract Point3d GetConnectionLocationToParent(IPipelineV2 parent, double tol);
-
         /// <summary>
         /// Determines start or end point for max DN.
         /// Cannot be used for pipelines supplied from the middle.
@@ -222,7 +217,6 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 $"Could not determine location for max DN for pipeline {this.Name}!"
             );
         }
-
         public bool DetermineUnconnectedEndPoint(IPipelineV2 other, double tol, out Point3d freeEnd)
         {
             freeEnd = Point3d.Origin;
@@ -246,7 +240,6 @@ namespace IntersectUtilities.PipelineNetworkSystem
             }
             return false;
         }
-
         /// <summary>
         /// This method assumes that AutoReversePolylines has been called first
         /// And all polylines are oriented correctly with supply flow
@@ -289,7 +282,6 @@ namespace IntersectUtilities.PipelineNetworkSystem
 
             return result;
         }
-
         public double GetDistanceToPoint(Point3d pt, bool extend = false) =>
             GetClosestPointTo(pt, extend).DistanceHorizontalTo(pt);
         public IEnumerable<Polyline> GetPolylines() => _pipelineEntities.GetPolylines();
@@ -356,21 +348,26 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 }
                 else
                 {//Case 2: Choose by SIZE because multiple sizes
-                    var maxSize = _pipelineSizes.Sizes.MaxBy(x => x.DN);
-                    if (maxSize.StartStation < 1)
-                    {
-                        rootSegment = orderedSegs.First();
-                    }
-                    else if (Math.Abs(maxSize.EndStation - this.EndStation) < 0.01)
+                    var maxSizeGroup = _pipelineSizes.Sizes
+                        .GroupBy(x => x.DN)
+                        .MaxBy(x => x.Key);
+
+                    var qMax = maxSizeGroup.MaxBy(x => x.EndStation);
+                    var qMin = maxSizeGroup.MinBy(x => x.StartStation);
+
+                    if (qMax == _pipelineSizes.Sizes.MaxBy(x => x.EndStation))
                     {
                         rootSegment = orderedSegs.Last();
                     }
+                    else if (qMin == _pipelineSizes.Sizes.MinBy(x => x.StartStation))
+                    {
+                        rootSegment = orderedSegs.First();
+                    }
                     else
                     {
-                        var midstation = (maxSize.StartStation + maxSize.EndStation) / 2;
-                        rootSegment = orderedSegs
-                            .OrderBy(x => Math.Abs(x.MidStation - midstation))
-                            .First();
+                        rootSegment = orderedSegs.Where(x =>
+                        x.MidStation > qMax.StartStation &&
+                        x.MidStation < qMax.EndStation).First();
                     }
                 }
             }
@@ -438,7 +435,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
         {
             var query = parent.SegmentsGraph.Dfs()
                 .Where(x => x.Value.IsConnectedTo(child.Value));
-                
+
             var parentSeg = query.FirstOrDefault();
             if (parentSeg == null)
                 throw new Exception(
