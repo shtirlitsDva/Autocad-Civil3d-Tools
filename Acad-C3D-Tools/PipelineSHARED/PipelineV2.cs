@@ -322,7 +322,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
             foreach (var br in sizeBrs)
                 segs.Add(new PipelineTransitionV2(GetStationAtPoint(br.Position), br, this, _psh));
 
-            var orderedSegs = segs.OrderBy(x => x.MidStation);
+            var orderedSegs = segs.OrderBy(x => x.MidStation).ToList();
 
             //Build the graph
             IPipelineSegmentV2 rootSegment;
@@ -379,8 +379,8 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 rootSegment = GetSegmentConnectedToParent(parent, segs);
             }
 
-            var nodes = segs.Select(seg => new Node<IPipelineSegmentV2>(seg)).ToList();
-            var rootIndex = segs.IndexOf(rootSegment);
+            var nodes = orderedSegs.Select(seg => new Node<IPipelineSegmentV2>(seg)).ToList();
+            var rootIndex = orderedSegs.IndexOf(rootSegment);
             if (rootIndex < 0) rootIndex = 0;
             var rootNode = nodes[rootIndex];
             if (rootIndex == 0)
@@ -410,7 +410,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
             }
             _segmentsGraph = new Graph<IPipelineSegmentV2>(
                 rootNode,
-                seg => $"{seg.Owner.Name}-Segment-{seg.MidStation:F3}",
+                seg => $"{seg.Owner.Name}-{seg.MidStation:F3}",
                 seg => $"{seg.Label}"
             );
 
