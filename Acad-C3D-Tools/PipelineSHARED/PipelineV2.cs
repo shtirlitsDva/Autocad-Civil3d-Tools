@@ -316,11 +316,11 @@ namespace IntersectUtilities.PipelineNetworkSystem
                     .Where(x => sizeBrs.All(y => y.Handle != x.Handle))
                     .ToList();
                 if (ents.Count == 0) continue; //Skip empty segments (fx when reducer at end of pipeline)
-                segs.Add(new PipelineSegmentV2(curSize, ents));
+                segs.Add(new PipelineSegmentV2(curSize, ents, this, _psh));
             }
             //Create segments for transitions
             foreach (var br in sizeBrs)
-                segs.Add(new PipelineTransitionV2(GetStationAtPoint(br.Position), br));
+                segs.Add(new PipelineTransitionV2(GetStationAtPoint(br.Position), br, this, _psh));
 
             var orderedSegs = segs.OrderBy(x => x.MidStation);
 
@@ -410,8 +410,8 @@ namespace IntersectUtilities.PipelineNetworkSystem
             }
             _segmentsGraph = new Graph<IPipelineSegmentV2>(
                 rootNode,
-                seg => $"{Name}-Segment-{seg.MidStation:F3}",
-                seg => $"\"{seg.MidStation:F3}\""
+                seg => $"{seg.Owner.Name}-Segment-{seg.MidStation:F3}",
+                seg => $"\"{seg.Owner.Name}:{seg.MidStation:F3}\""
             );
 
             if (parent != null)

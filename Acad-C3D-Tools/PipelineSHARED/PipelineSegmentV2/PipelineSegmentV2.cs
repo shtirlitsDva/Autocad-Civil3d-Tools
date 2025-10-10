@@ -1,11 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Autodesk.AutoCAD.DatabaseServices;
+﻿using Autodesk.AutoCAD.DatabaseServices;
 
 using IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray;
+
+using System.Collections.Generic;
+using System.Linq;
 
 namespace IntersectUtilities.PipelineNetworkSystem
 {
@@ -13,15 +11,18 @@ namespace IntersectUtilities.PipelineNetworkSystem
     {
         public override double MidStation => (_size.StartStation + _size.EndStation) / 2;
         public override IEnumerable<Handle> Handles => _ents.Select(e => e.Handle);
-        public override IEnumerable<Handle> ExternalHandles => throw new NotImplementedException();
 
         private SizeEntryV2 _size;
-        private List<Entity> _ents;        
+        protected override List<Entity> _ents { get; }
 
-        internal PipelineSegmentV2(SizeEntryV2 sizeEntry, List<Entity> ents)
+        internal PipelineSegmentV2(
+            SizeEntryV2 sizeEntry,
+            List<Entity> ents,
+            IPipelineV2 owner,
+            PropertySetHelper psh) : base(owner, psh)
         {
             _size = sizeEntry;
-            _ents = ents;
+            _ents = ents.ToList();
         }
     }
 }

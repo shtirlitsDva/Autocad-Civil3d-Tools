@@ -12,11 +12,16 @@ namespace IntersectUtilities.PipelineNetworkSystem
     {
         public override double MidStation => _midStation;
         public override IEnumerable<Handle> Handles => [_br.Handle];
+        protected override List<Entity> _ents => [_br];
 
         private double _midStation;
         private BlockReference _br;
 
-        internal PipelineTransitionV2(double midStation, BlockReference br) 
+        internal PipelineTransitionV2(
+            double midStation, 
+            BlockReference br,
+            IPipelineV2 owner,
+            PropertySetHelper psh) : base(owner, psh)
         {  
             _midStation = midStation;
             _br = br; 
