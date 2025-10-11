@@ -1,5 +1,6 @@
 ﻿using Autodesk.AutoCAD.DatabaseServices;
 
+using IntersectUtilities.PipelineNetworkSystem;
 using IntersectUtilities.UtilsCommon.Enums;
 
 using NTRExport.Interfaces;
@@ -8,27 +9,12 @@ namespace NTRExport.Topology
 {
     internal abstract class NtrSegmentBase : INtrSegment
     {
-        private PipeSystemEnum _pipeSystem;
-        private PipeTypeEnum _pipeType;
-        private PipeSeriesEnum _pipeSeries;
-        private int _dn;
-        private HashSet<Entity> _entities;
-        private Polyline _topology;
+        public IPipelineSegmentV2 PipelineSegment => _segment;
+        protected IPipelineSegmentV2 _segment;
 
-        public NtrSegmentBase(
-            PipeSystemEnum pipeSystem,
-            PipeTypeEnum pipeType,
-            PipeSeriesEnum pipeSeries,
-            int dn,
-            IEnumerable<Entity> entities,
-            Polyline topology)
+        public NtrSegmentBase(IPipelineSegmentV2 pseg)
         {
-            _pipeSystem = pipeSystem;
-            _pipeType = pipeType;
-            _pipeSeries = pipeSeries;
-            _dn = dn;
-            _entities = [.. entities];
-            _topology = topology;
+            _segment = pseg;
         }
     }
 }

@@ -195,43 +195,57 @@ namespace NTRExport
                         $"{pgraph.Root.Value.Name} is null!"); continue;
                     }
 
-                    Queue<Node<IPipelineSegmentV2>> queue = new();
-                    queue.Enqueue(sgraph.Root);
-
-                    Node<INtrSegment>? parent = null;
-
-                    while (queue.Count > 0)
+                    Node<INtrSegment> TranslateGraph(Node<IPipelineSegmentV2> proot)
                     {
-                        var curNode = queue.Dequeue();
-
-                        INtrSegment curNtrSegment;
-                        switch (curNode.Value)
+                        INtrSegment ntrSegment;
+                        switch (proot.Value)
                         {
                             case PipelineSegmentV2 pseg:
                                 switch (pseg.Size.Type)
-                                {                                    
+                                {
                                     case IntersectUtilities.UtilsCommon.Enums.PipeTypeEnum.Twin:
-                                        curNtrSegment = new NtrSegmentTwin();
+                                        ntrSegment = new NtrSegmentTwin(pseg);
                                         break;
                                     case IntersectUtilities.UtilsCommon.Enums.PipeTypeEnum.Frem:
                                     case IntersectUtilities.UtilsCommon.Enums.PipeTypeEnum.Retur:
                                     case IntersectUtilities.UtilsCommon.Enums.PipeTypeEnum.Enkelt:
-
+                                        ntrSegment = new NtrSegmentEnkelt(pseg);
                                         break;
                                     case IntersectUtilities.UtilsCommon.Enums.PipeTypeEnum.Ukendt:
                                     default:
                                         throw new NotImplementedException();
-                                }                                
+                                }
                                 break;
                             case PipelineTransitionV2 tseg:
+                                ntrSegment = new NtrSegmentTransition(tseg);
                                 break;
                             default:
                                 throw new System.Exception(
                                     $"ERR8736: Encountered unknown type: " +
-                                    $"{curNode.Value.GetType()}");
+                                    $"{proot.Value.GetType()}");
                         }
+
+                        var node = new Node<INtrSegment>(ntrSegment);
+
+                        foreach (var child in proot.Children)
+                        {
+                            var cnode = TranslateGraph(child);
+                            cnode.Parent = node;
+                            node.AddChild(cnode);
+                        }
+
+                        return node;
                     }
+                    var root = TranslateGraph(sgraph.Root);
+                    var ntrgraph = new Graph<INtrSegment>(
+                        root,
+                        ntr => $"{ntr.PipelineSegment.Owner.Name}-{ntr.PipelineSegment.MidStation}",
+                        ntr => $"{ntr.PipelineSegment.Label}"
+                        );
+                    ntrgraphs.Add(ntrgraph);
                 }
+
+
             }
             catch (DebugPointException dbex)
             {

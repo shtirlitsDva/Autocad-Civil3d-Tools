@@ -1,19 +1,13 @@
 ﻿using Autodesk.AutoCAD.DatabaseServices;
 
+using IntersectUtilities.PipelineNetworkSystem;
 using IntersectUtilities.UtilsCommon.Enums;
 
 namespace NTRExport.Topology
 {
     internal class NtrSegmentTransition : NtrSegmentBase
     {
-        public NtrSegmentTransition(
-            PipeSystemEnum pipeSystem,
-            PipeTypeEnum pipeType,
-            PipeSeriesEnum pipeSeries,
-            int dn,
-            IEnumerable<Entity> entities,
-            Polyline topology) :
-            base(pipeSystem, pipeType, pipeSeries, dn, entities, topology)
+        public NtrSegmentTransition(IPipelineSegmentV2 pseg) : base(pseg)
         {
 
         }

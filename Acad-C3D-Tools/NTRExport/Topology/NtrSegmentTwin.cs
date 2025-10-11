@@ -1,5 +1,6 @@
 ﻿using Autodesk.AutoCAD.DatabaseServices;
 
+using IntersectUtilities.PipelineNetworkSystem;
 using IntersectUtilities.UtilsCommon.Enums;
 
 using System;
@@ -12,14 +13,7 @@ namespace NTRExport.Topology
 {
     internal class NtrSegmentTwin : NtrSegmentBase
     {
-        public NtrSegmentTwin(
-            PipeSystemEnum pipeSystem,
-            PipeTypeEnum pipeType,
-            PipeSeriesEnum pipeSeries,
-            int dn,
-            IEnumerable<Entity> entities,
-            Polyline topology) :
-            base(pipeSystem, pipeType, pipeSeries, dn, entities, topology)
+        public NtrSegmentTwin(IPipelineSegmentV2 pseg) : base(pseg)
         {
 
         }
