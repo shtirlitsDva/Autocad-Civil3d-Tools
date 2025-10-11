@@ -13,9 +13,12 @@ namespace NTRExport.Topology
 {
     internal class NtrSegmentTwin : NtrSegmentBase
     {
-        public NtrSegmentTwin(IPipelineSegmentV2 pseg) : base(pseg)
+        private PipelineSegmentV2 _pseg;
+        public NtrSegmentTwin(
+            IPipelineSegmentV2 pseg,
+            Dictionary<Entity, double> rdict) : base(pseg, rdict)
         {
-
+            _pseg = (PipelineSegmentV2)pseg;
         }
     }
 }

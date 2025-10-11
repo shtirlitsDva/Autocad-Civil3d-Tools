@@ -1167,6 +1167,7 @@ namespace IntersectUtilities
             FJV_fremtid,
             FJV_område,
             BBR,
+            NtrData,
         }
 
         public class FJV_område : PSetDef
@@ -1317,37 +1318,6 @@ namespace IntersectUtilities
                 new StringCollection() { RXClass.GetClass(typeof(Polyline)).Name };
         }
 
-        public class DriComponentsGisData : PSetDef
-        {
-            public DefinedSets SetName { get; } = DefinedSets.DriComponentsGisData;
-            public Property BlockName { get; } =
-                new Property("BlockName", "Name of source block", PsDataType.Text, "");
-            public Property DN1 { get; } =
-                new Property("DN1", "Main run dimension", PsDataType.Integer, 0);
-            public Property DN2 { get; } =
-                new Property("DN2", "Secondary run dimension", PsDataType.Integer, 0);
-            public Property Flip { get; } =
-                new Property("Flip", "Describes block's mirror state", PsDataType.Text, "");
-            public Property Height { get; } =
-                new Property("Height", "Height of symbol", PsDataType.Real, 0);
-            public Property OffsetX { get; } =
-                new Property("OffsetX", "X offset from Origo to CL", PsDataType.Real, 0);
-            public Property OffsetY { get; } =
-                new Property("OffsetY", "Y offset from Origo to CL", PsDataType.Real, 0);
-            public Property Rotation { get; } =
-                new Property("Rotation", "Rotation of the symbol", PsDataType.Real, 0);
-            public Property Serie { get; } =
-                new Property("Serie", "Insulation series of pipes", PsDataType.Text, "");
-            public Property System { get; } =
-                new Property("System", "Twin or single", PsDataType.Text, "");
-            public Property Type { get; } =
-                new Property("Type", "Type of the component", PsDataType.Text, "");
-            public Property Width { get; } =
-                new Property("Width", "Width of symbol", PsDataType.Real, 0);
-            public StringCollection AppliesTo { get; } =
-                new StringCollection() { RXClass.GetClass(typeof(BlockReference)).Name };
-        }
-
         public class DriGraph : PSetDef
         {
             public DefinedSets SetName { get; } = DefinedSets.DriGraph;
@@ -1469,6 +1439,22 @@ namespace IntersectUtilities
                 new Property("AntalEnheder", "AntalEnheder", PsDataType.Integer, 1);
             public StringCollection AppliesTo { get; } =
                 new StringCollection() { RXClass.GetClass(typeof(BlockReference)).Name };
+        }
+
+        public class NtrData : PSetDef
+        {
+            public DefinedSets SetName { get; } = DefinedSets.NtrData;
+            public Property ElementRotation { get; } =
+                new Property(
+                    "ElementRotation", 
+                    "Rotation of the pipe element around x-axis of the main run.", 
+                    PsDataType.Real, 0);
+            public StringCollection AppliesTo { get; } =
+                new StringCollection()
+                {
+                    RXClass.GetClass(typeof(Polyline)).Name,
+                    RXClass.GetClass(typeof(BlockReference)).Name,
+                };
         }
 
         public class PSetDef

@@ -13,7 +13,15 @@ namespace NTRExport.Topology
 {
     internal class NtrSegmentEnkelt : NtrSegmentBase
     {
-        public NtrSegmentEnkelt(IPipelineSegmentV2 pseg) : base(pseg)
+        private PipelineSegmentV2 _pseg;
+        public NtrSegmentEnkelt(
+            IPipelineSegmentV2 pseg,
+            Dictionary<Entity, double> rdict) : base(pseg, rdict)
+        {
+            _pseg = (PipelineSegmentV2)pseg;
+        }
+
+        public override void BuildTopology()
         {
 
         }

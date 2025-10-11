@@ -11,5 +11,6 @@ namespace NTRExport.Interfaces
     internal interface INtrSegment
     {
         public IPipelineSegmentV2 PipelineSegment { get; }
+        void BuildTopology();
     }
 }

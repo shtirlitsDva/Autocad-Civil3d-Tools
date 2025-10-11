@@ -10,11 +10,17 @@ namespace NTRExport.Topology
     internal abstract class NtrSegmentBase : INtrSegment
     {
         public IPipelineSegmentV2 PipelineSegment => _segment;
-        protected IPipelineSegmentV2 _segment;
+        public abstract void BuildTopology();
 
-        public NtrSegmentBase(IPipelineSegmentV2 pseg)
+        protected IPipelineSegmentV2 _segment;
+        protected Dictionary<Entity, double> _rotationDict;
+
+        public NtrSegmentBase(
+            IPipelineSegmentV2 pseg,
+            Dictionary<Entity, double> rdict)
         {
             _segment = pseg;
+            _rotationDict = rdict;
         }
     }
 }

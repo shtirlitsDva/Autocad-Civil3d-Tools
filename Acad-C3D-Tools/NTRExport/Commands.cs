@@ -4,6 +4,7 @@ using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
 using Autodesk.Civil.DatabaseServices;
 
+using IntersectUtilities;
 using IntersectUtilities.PipelineNetworkSystem;
 using IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray;
 using IntersectUtilities.PipeScheduleV2;
@@ -17,6 +18,7 @@ using NTRExport.Topology;
 using static IntersectUtilities.UtilsCommon.Utils;
 
 using AcApp = Autodesk.AutoCAD.ApplicationServices.Application;
+using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 
 [assembly: CommandClass(typeof(NTRExport.Commands))]
 
@@ -176,6 +178,23 @@ namespace NTRExport
                 var ents = fDb.GetFjvEntities(fTx);
                 var als = aDb.HashSetOfType<Alignment>(aTx);
 
+                #region Basic implementation of rotation
+                //Read any NtrData from fremtidig
+                var ntrPsm = new PropertySetManager(
+                    fDb, PSetDefs.DefinedSets.NtrData);
+                var ntrDef = new PSetDefs.NtrData();
+                
+                Dictionary<Entity, double> rotationDict = new();
+
+                foreach (var ent in ents)
+                {
+                    var rotation = ntrPsm.ReadPropertyDouble(
+                        ent, ntrDef.ElementRotation);
+                    if (rotation == 0) continue;
+                    rotationDict[ent] = rotation;
+                }
+                #endregion
+
                 PipelineNetwork pn = new PipelineNetwork();
                 pn.CreatePipelineNetwork(ents, als);
                 pn.CreatePipelineGraph();
@@ -195,7 +214,9 @@ namespace NTRExport
                         $"{pgraph.Root.Value.Name} is null!"); continue;
                     }
 
-                    Node<INtrSegment> TranslateGraph(Node<IPipelineSegmentV2> proot)
+                    Node<INtrSegment> TranslateGraph(
+                        Node<IPipelineSegmentV2> proot,
+                        Dictionary<Entity, double> rdict)
                     {
                         INtrSegment ntrSegment;
                         switch (proot.Value)
@@ -204,12 +225,12 @@ namespace NTRExport
                                 switch (pseg.Size.Type)
                                 {
                                     case IntersectUtilities.UtilsCommon.Enums.PipeTypeEnum.Twin:
-                                        ntrSegment = new NtrSegmentTwin(pseg);
+                                        ntrSegment = new NtrSegmentTwin(pseg, rdict);
                                         break;
                                     case IntersectUtilities.UtilsCommon.Enums.PipeTypeEnum.Frem:
                                     case IntersectUtilities.UtilsCommon.Enums.PipeTypeEnum.Retur:
                                     case IntersectUtilities.UtilsCommon.Enums.PipeTypeEnum.Enkelt:
-                                        ntrSegment = new NtrSegmentEnkelt(pseg);
+                                        ntrSegment = new NtrSegmentEnkelt(pseg, rdict);
                                         break;
                                     case IntersectUtilities.UtilsCommon.Enums.PipeTypeEnum.Ukendt:
                                     default:
@@ -217,7 +238,7 @@ namespace NTRExport
                                 }
                                 break;
                             case PipelineTransitionV2 tseg:
-                                ntrSegment = new NtrSegmentTransition(tseg);
+                                ntrSegment = new NtrSegmentTransition(tseg, rdict);
                                 break;
                             default:
                                 throw new System.Exception(
@@ -229,14 +250,14 @@ namespace NTRExport
 
                         foreach (var child in proot.Children)
                         {
-                            var cnode = TranslateGraph(child);
+                            var cnode = TranslateGraph(child, rdict);
                             cnode.Parent = node;
                             node.AddChild(cnode);
                         }
 
                         return node;
                     }
-                    var root = TranslateGraph(sgraph.Root);
+                    var root = TranslateGraph(sgraph.Root, rotationDict);
                     var ntrgraph = new Graph<INtrSegment>(
                         root,
                         ntr => $"{ntr.PipelineSegment.Owner.Name}-{ntr.PipelineSegment.MidStation}",
