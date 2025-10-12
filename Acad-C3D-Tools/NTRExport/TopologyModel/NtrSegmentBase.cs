@@ -5,7 +5,7 @@ using IntersectUtilities.UtilsCommon.Enums;
 
 using NTRExport.Interfaces;
 
-namespace NTRExport.Topology
+namespace NTRExport.TopologyModel
 {
     internal abstract class NtrSegmentBase : INtrSegment
     {

@@ -9,7 +9,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace NTRExport.Topology
+namespace NTRExport.TopologyModel
 {
     internal class NtrSegmentEnkelt : NtrSegmentBase
     {

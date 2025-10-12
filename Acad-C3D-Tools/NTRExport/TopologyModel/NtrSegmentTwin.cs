@@ -9,7 +9,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace NTRExport.Topology
+namespace NTRExport.TopologyModel
 {
     internal class NtrSegmentTwin : NtrSegmentBase
     {
@@ -19,6 +19,11 @@ namespace NTRExport.Topology
             Dictionary<Entity, double> rdict) : base(pseg, rdict)
         {
             _pseg = (PipelineSegmentV2)pseg;
+        }
+
+        public override void BuildTopology()
+        {
+            throw new NotImplementedException();
         }
     }
 }
