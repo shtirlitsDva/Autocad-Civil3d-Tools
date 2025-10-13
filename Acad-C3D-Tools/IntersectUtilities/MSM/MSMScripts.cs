@@ -69,7 +69,7 @@ namespace IntersectUtilities
                     {
                         Position = insPt,
                         TextString = pv.Name.Replace("_PV", ""),
-                        Height = 20,
+                        Height = 15,
                         Layer = "0"
                     };
 
