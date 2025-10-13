@@ -1,24 +1,20 @@
 ﻿using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Runtime;
 
+using IntersectUtilities;
 using IntersectUtilities.PipeScheduleV2;
 using IntersectUtilities.UtilsCommon;
+using IntersectUtilities.UtilsCommon.Enums;
 
 using NTRExport.Enums;
 using NTRExport.Geometry;
-
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace NTRExport.CadExtraction
 {
     internal interface ICadPipe
     {
-        Handle Handle {  get; }
-        Pt2 Start {  get; }
+        Handle Handle { get; }
+        Pt2 Start { get; }
         Pt2 End { get; }
         int Dn { get; }
         string Material { get; }
@@ -35,10 +31,10 @@ namespace NTRExport.CadExtraction
     internal interface ICadFitting
     {
         Handle Handle { get; }
-        ElementKind Kind { get; }    // classify from RealName()
-        string RealName();           // stub -> your ext
-        string? ReadMaterial();      // stub
-        IReadOnlyList<CadPort> GetPorts(); // stub -> your MuffeIntern scan
+        PipelineElementType Kind { get; }
+        string RealName();
+        string? ReadMaterial();
+        IReadOnlyList<CadPort> GetPorts();
     }
 
     internal sealed class CadModel
@@ -59,7 +55,7 @@ namespace NTRExport.CadExtraction
             public Pt2 Start => new(_pl.StartPoint.X, _pl.StartPoint.Y);
             public Pt2 End => new(_pl.EndPoint.X, _pl.EndPoint.Y);
             public int Dn => PipeScheduleV2.GetPipeDN(_pl);
-            public string Material => "P235GH";            
+            public string Material => "P235GH";
         }
     }
 
@@ -72,39 +68,19 @@ namespace NTRExport.CadExtraction
             private readonly BlockReference _br;
             public BlockRefAdapter(BlockReference br) { _br = br; }
             public Handle Handle => _br.Handle;
-
-            public ElementKind Kind
-            {
-                get
-                {
-                    var n = RealName().ToUpperInvariant();
-                    if (n.Contains("TEE") || n.Contains("AFGRSTUDS")) return ElementKind.Tee;
-                    if (n.Contains("RED")) return ElementKind.Reducer;
-                    if (n.Contains("BOG") || n.Contains("ELBOW") || n.Contains("BEND")) return ElementKind.Bend;
-                    return ElementKind.Cap;
-                }
-            }
-
+            public PipelineElementType Kind => _br.GetPipelineType();
             public string RealName()
             {
-                try { return _br.RealName(); } // your extension
+                try { return _br.RealName(); }
                 catch { return _br.Name; }
             }
-
-            public string? ReadMaterial() => PipeScheduleV2Stub.ReadMaterial(_br); // stub: replace
-
-            public IReadOnlyList<CadPort> GetPorts() => MuffeInternReaderStub.ReadPorts(_br);
+            public string? ReadMaterial() => "P235GH";
+            public IReadOnlyList<CadPort> GetPorts() => MuffeInternReader.ReadPorts(_br);
         }
     }
 
-    static class PipeScheduleV2Stub
-    {
-        public static string ReadDn(Entity e) => "DN200";     // replace with your PipeScheduleV2
-        public static string? ReadMaterial(Entity e) => null; // replace if needed
-    }
-
     // Finds nested MuffeIntern* blocks and returns world coordinates
-    static class MuffeInternReaderStub
+    static class MuffeInternReader
     {
         public static List<CadPort> ReadPorts(BlockReference owner)
         {
