@@ -4181,7 +4181,7 @@ namespace IntersectUtilities
                             {
                                 if (col.Count == 0)
                                 {
-                                    throw new DebugException("Offseting pline failed!", [pline]);
+                                    throw new DebugEntityException("Offseting pline failed!", [pline]);
                                     //throw new System.Exception("Offsetting pline failed!");
                                 }
 
@@ -4345,7 +4345,7 @@ namespace IntersectUtilities
                     #endregion
                 }
 
-                catch (DebugException dbex)
+                catch (DebugEntityException dbex)
                 {
                     fremTx.Abort();
                     fremTx.Dispose();

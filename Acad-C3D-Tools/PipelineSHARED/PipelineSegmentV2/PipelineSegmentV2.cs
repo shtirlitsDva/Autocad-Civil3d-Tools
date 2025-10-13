@@ -1,19 +1,32 @@
 ﻿using Autodesk.AutoCAD.DatabaseServices;
 
-using System;
+using IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray;
+
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace IntersectUtilities.PipelineNetworkSystem
 {
     internal class PipelineSegmentV2 : SegmentBaseV2
     {
-        private List<Entity> _ents;
-        internal PipelineSegmentV2(List<Entity> ents)
+        public override string Label => HtmlLabel([            
+            ($"{_size.StartStation:F2}-{_size.EndStation:F2}","blue"),
+            ($"{_size.Type} {_size.SizePrefix} {_size.DN}", "red"),]);
+        public override double MidStation => (_size.StartStation + _size.EndStation) / 2;
+        public override IEnumerable<Handle> Handles => _ents.Select(e => e.Handle);
+        public SizeEntryV2 Size => _size;
+
+        private SizeEntryV2 _size;
+        protected override List<Entity> _ents { get; }
+
+        internal PipelineSegmentV2(
+            SizeEntryV2 sizeEntry,
+            List<Entity> ents,
+            IPipelineV2 owner,
+            PropertySetHelper psh) : base(owner, psh)
         {
-            _ents = ents;
+            _size = sizeEntry;
+            _ents = ents.ToList();
         }
     }
 }

@@ -48,6 +48,7 @@ namespace IntersectUtilities.Collections
             _L.Add(item);
             _C.Add(item.Handle, [.. GetOtherHandles(ReadConnection(item))]);
         }
+
         #region Custom logic
         public IEnumerable<Polyline> GetPolylines() => _L.Where(x => x is Polyline).Cast<Polyline>();
         public IEnumerable<BlockReference> GetBlockReferences() => _L.Where(x => x is BlockReference).Cast<BlockReference>();
@@ -194,6 +195,7 @@ namespace IntersectUtilities.Collections
             return res;
         }
         #endregion
+
         // Implement other members of ICollection<T>
         public void Clear() { _L.Clear(); _C.Clear(); }
         public bool Contains(Entity item) => _L.Contains(item);

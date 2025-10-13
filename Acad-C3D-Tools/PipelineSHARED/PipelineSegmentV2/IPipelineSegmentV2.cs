@@ -1,12 +1,16 @@
-﻿using System;
+﻿using Autodesk.AutoCAD.DatabaseServices;
+
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace IntersectUtilities.PipelineNetworkSystem
 {
-    internal interface IPipelineSegmentV2
+    public interface IPipelineSegmentV2
     {
+        internal IPipelineV2 Owner { get; }
+        internal double MidStation { get; }
+        internal IEnumerable<Handle> Handles { get; }
+        internal IEnumerable<Handle> ExternalHandles { get; }
+        internal bool IsConnectedTo(IPipelineSegmentV2 other);
+        internal string Label { get; }
     }
 }

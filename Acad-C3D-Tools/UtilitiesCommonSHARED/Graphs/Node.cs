@@ -12,7 +12,7 @@ namespace IntersectUtilities.UtilsCommon.Graphs
         private readonly List<Node<T>> _children = new();
         public IReadOnlyList<Node<T>> Children => _children;
 
-        public Node<T>? Parent { get; private set; }
+        public Node<T>? Parent { get; set; }
         public T Value { get; }
         public Node(T value)
         {

@@ -23,8 +23,7 @@ namespace IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray
         int Length { get; }
         IEnumerable<SizeEntryV2> Sizes { get; }
         IPipelineSizeArrayV2 GetPartialSizeArrayForPV(ProfileView pv);
-        SizeEntryV2 GetSizeAtStation(double station);
-        PipelineSizesArrangement Arrangement { get; }
+        SizeEntryV2 GetSizeAtStation(double station);        
         string ToString();
     }
     public abstract class PipelineSizeArrayV2Base : IPipelineSizeArrayV2
@@ -33,8 +32,7 @@ namespace IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray
         public IEnumerable<SizeEntryV2> Sizes { get => sizes; }
         protected BlockReference[] orderedSizeBrs;
         public SizeEntryV2 this[int index] { get => sizes[index]; set => sizes[index] = value; }
-        public int Length { get => sizes.Count; }
-        public PipelineSizesArrangement Arrangement { get; protected set; }
+        public int Length { get => sizes.Count; }        
         #region Methods for partial arrays
         public SizeEntryV2 GetSizeAtStation(double station)
         {
@@ -233,8 +231,6 @@ namespace IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray
     {
         public PipelineSizeArrayV2OnePolyline(IPipelineV2 pipeline)
         {
-            Arrangement = PipelineSizesArrangement.OneSize;
-
             Polyline pline = pipeline.PipelineEntities.GetPolylines().First();
 
             sizes.Add(new SizeEntryV2(
@@ -811,6 +807,29 @@ namespace IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray
                 VerticalMinRadius.ToString("F2")
             };
         }
+        public bool Equals(SizeEntryV2 other) =>
+        DN == other.DN &&
+        StartStation == other.StartStation &&
+        EndStation == other.EndStation &&
+        Kod == other.Kod &&
+        System == other.System &&
+        Type == other.Type &&
+        Series == other.Series;
+        public override bool Equals(object? obj) =>
+            obj is SizeEntryV2 other &&
+            DN == other.DN &&
+            StartStation == other.StartStation &&
+            EndStation == other.EndStation &&
+            Kod == other.Kod &&
+            System == other.System &&
+            Type == other.Type &&
+            Series == other.Series;
+        public override int GetHashCode() =>
+            HashCode.Combine(DN, StartStation, EndStation, Kod, System, Type, Series);
+
+        public static bool operator ==(SizeEntryV2 left, SizeEntryV2 right) => left.Equals(right);
+        public static bool operator !=(SizeEntryV2 left, SizeEntryV2 right) => !left.Equals(right);
+
     }
     public enum PipelineSizesArrangement
     {

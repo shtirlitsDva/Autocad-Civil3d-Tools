@@ -110,6 +110,58 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("GRAPHSEGMENTS")]
+        public void graphsegments()
+        {
+            prdDbg("Dette skal køres i FJV Fremtid!");
+
+            graphclear();
+            graphpopulate();
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            DataManager dm = new DataManager(new DataReferencesOptions());
+            using Database alDb = dm.Alignments();
+            using Transaction alTx = alDb.TransactionManager.StartTransaction();
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var ents = localDb.GetFjvEntities(tx, false, false);
+                    var als = alDb.HashSetOfType<Alignment>(alTx);
+
+                    PipelineNetwork pn = new PipelineNetwork();
+                    prdDbg("Creating pipeline network...");
+                    System.Windows.Forms.Application.DoEvents();
+                    pn.CreatePipelineNetwork(ents, als);
+                    prdDbg("Creating pipeline graph...");
+                    System.Windows.Forms.Application.DoEvents();
+                    pn.CreatePipelineGraph();
+                    prdDbg("Creating segment graphs...");
+                    System.Windows.Forms.Application.DoEvents();
+                    pn.CreateSegmentGraphs();
+                    prdDbg("Writing segment graph to dot...");
+                    System.Windows.Forms.Application.DoEvents();
+                    pn.SegmentGraphsToDot();
+                    prdDbg("Finshed!");
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                finally
+                {
+                    alTx.Abort();
+                    alTx.Dispose();
+                    alDb.Dispose();
+                }
+                tx.Commit();
+            }
+        }
+
         /// <command>AUTOREVERSPLINESV2</command>
         /// <summary>
         /// Automatically reverses the direction of polylines in the pipeline network.

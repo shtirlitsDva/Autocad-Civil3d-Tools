@@ -4939,17 +4939,31 @@ namespace IntersectUtilities.UtilsCommon
         { WeldPoint = wp; AlignmentName = alName; SourceId = id; Rotation = rotation; DN = dn; PipeType = pt; PipeSystem = ps; }
     }
 
-    public class DebugException : System.Exception
+    public class DebugEntityException : System.Exception
     {
         public List<Entity> DebugEntities { get; }
 
-        public DebugException(string message, List<Entity>? debugEntities = null)
+        public DebugEntityException(string message, List<Entity>? debugEntities = null)
             : base(message)
         {
             DebugEntities = debugEntities ?? new List<Entity>();
             if (DebugEntities.Count > 0)
             {
                 this.Data[nameof(DebugEntities)] = DebugEntities;
+            }
+        }
+    }
+    public class DebugPointException : System.Exception
+    {
+        public List<Point3d> PointsToMark { get; }
+
+        public DebugPointException(string message, List<Point3d>? debugEntities = null)
+            : base(message)
+        {
+            PointsToMark = debugEntities ?? new List<Point3d>();
+            if (PointsToMark.Count > 0)
+            {
+                this.Data[nameof(PointsToMark)] = PointsToMark;
             }
         }
     }

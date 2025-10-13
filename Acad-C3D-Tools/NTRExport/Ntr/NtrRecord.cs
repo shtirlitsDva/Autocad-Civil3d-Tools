@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace IntersectUtilities.PipelineNetworkSystem
+namespace NTRExport.Ntr
 {
-    internal abstract class SegmentBaseV2 : IPipelineSegmentV2
+    internal class NtrRecord
     {
     }
 }
