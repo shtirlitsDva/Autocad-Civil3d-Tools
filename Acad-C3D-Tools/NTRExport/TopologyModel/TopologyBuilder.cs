@@ -14,7 +14,6 @@ namespace NTRExport.TopologyModel
     {
         private readonly CadModel _cad;
         public TopologyBuilder(CadModel cad) { _cad = cad; }
-
         public Topology Build()
         {
             var g = new Topology();

@@ -1,5 +1,7 @@
 ﻿using Autodesk.AutoCAD.DatabaseServices;
 
+using IntersectUtilities.UtilsCommon.Enums;
+
 using NTRExport.Enums;
 using NTRExport.Geometry;
 
@@ -47,9 +49,9 @@ namespace NTRExport.TopologyModel
 
     internal class TFitting : TElement
     {
-        public ElementKind Kind { get; }
+        public PipelineElementType Kind { get; }
         private readonly List<TPort> _ports = new();
-        public TFitting(Handle h, ElementKind k) : base(h) { Kind = k; }
+        public TFitting(Handle h, PipelineElementType k) : base(h) { Kind = k; }
         public void AddPort(TPort p) => _ports.Add(p);
         public override IReadOnlyList<TPort> Ports => _ports;
     }

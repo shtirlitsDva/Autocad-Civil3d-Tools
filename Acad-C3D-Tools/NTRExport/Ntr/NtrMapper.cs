@@ -1,4 +1,6 @@
-﻿using NTRExport.Enums;
+﻿using IntersectUtilities.UtilsCommon.Enums;
+
+using NTRExport.Enums;
 using NTRExport.Geometry;
 using NTRExport.TopologyModel;
 
@@ -27,18 +29,18 @@ namespace NTRExport.Ntr
                             B = p.B.Node.Pos,
                             Dn = p.Dn,
                             Material = p.Material,
-                            Provenance = new[] { p.Source }
+                            Provenance = [p.Source]
                         });
                         break;
 
-                    case TFitting f when f.Kind == ElementKind.Bend:
+                    case TFitting f when f.Kind == PipelineElementType.Bend:
                         var ends = f.Ports.Take(2).ToArray();
                         var a = ends[0].Node.Pos; var b = ends[1].Node.Pos;
                         var t = new Pt2((a.X + b.X) / 2, (a.Y + b.Y) / 2); // stub; replace with true elbow point
                         g.Members.Add(new NtrBend { A = a, B = b, T = t, Dn = InferMainDn(topo, f), Provenance = new[] { f.Source } });
                         break;
 
-                    case TFitting f when f.Kind == ElementKind.Tee:
+                    case TFitting f when f.Kind == PipelineElementType.Tee:
                         var mains = f.Ports.Where(x => x.Role == PortRole.Main).Take(2).ToArray();
                         var br = f.Ports.First(x => x.Role == PortRole.Branch);
                         g.Members.Add(new NtrTee
