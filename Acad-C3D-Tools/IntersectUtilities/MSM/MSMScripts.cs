@@ -102,7 +102,7 @@ namespace IntersectUtilities
         /// Blocks available: T-TWIN-S2-ISOPLUS, T-TWIN-S3-ISOPLUS, T-TWIN-S2-LOGSTOR, T-TWIN-S3-LOGSTOR.
         /// </summary>
         /// <category>Utilities</category>
-        [CommandMethod("PAF")]
+        [CommandMethod("PLACEAFGRENING")]
         public void placeafgrening()
         {
             DocumentCollection docCol = Application.DocumentManager;
