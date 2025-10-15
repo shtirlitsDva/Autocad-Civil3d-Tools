@@ -12,10 +12,10 @@ namespace NTRExport.Ntr
     {
         public IEnumerable<string> Define(SoilProfile p)
         {
-            // emit your soil model definition lines as needed
-            yield return $"UMG NAME={p.Name} CUSHION={p.CushionThk}";
+            // Using SOIL_* parameters per element; no global soil definitions needed.
+            yield break;
         }
-        public string? RefToken(SoilProfile p) => $"UMG={p.Name}";
+        public string? RefToken(SoilProfile p) => null;
     }
 
     internal class NtrWriter
@@ -26,10 +26,16 @@ namespace NTRExport.Ntr
         public string Build(NtrGraph g)
         {
             var sb = new StringBuilder();
-            // 1) unique soil defs
+            // Header: units in millimeters
+            sb.AppendLine("GEN TMONT=20 EB=-Z UNITKT=MM");
+
+            // Optional: project/text lines can be added here if needed
+
+            // 1) unique soil defs (none currently)
             foreach (var s in g.Members.OfType<NtrPipe>().Select(x => x.Soil).Distinct())
                 foreach (var line in _soil.Define(s)) sb.AppendLine(line);
-            // 2) geometry
+
+            // 2) geometry with per-element SOIL_* tokens already appended
             foreach (var m in g.Members)
                 foreach (var line in m.ToNtr(_soil)) sb.AppendLine(line);
             return sb.ToString();

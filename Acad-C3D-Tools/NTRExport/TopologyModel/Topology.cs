@@ -56,6 +56,12 @@ namespace NTRExport.TopologyModel
         public override IReadOnlyList<TPort> Ports => _ports;
     }
 
+    internal sealed class TBendFitting : TFitting
+    {
+        public Pt2 TangentPoint { get; }
+        public TBendFitting(Handle h, PipelineElementType k, Pt2 t) : base(h, k) { TangentPoint = t; }
+    }
+
     internal class Topology
     {
         public List<TNode> Nodes { get; } = new();

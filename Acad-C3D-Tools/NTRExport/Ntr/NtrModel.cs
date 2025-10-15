@@ -11,6 +11,29 @@ using System.Threading.Tasks;
 
 namespace NTRExport.Ntr
 {
+    internal static class NtrFormat
+    {
+        public const double MetersToMillimeters = 1000.0;
+        public const double DefaultSoilCoverM = 0.6;      // SOIL_H
+        public const double CushionThkM = 0.08;           // SOIL_CUSH_THK
+
+        public static string Pt(Pt2 p)
+        {
+            var x = p.X * MetersToMillimeters;
+            var y = p.Y * MetersToMillimeters;
+            return $"'" + $"{x:0.###},{y:0.###},0" + "'";
+        }
+
+        public static string SoilTokens(SoilProfile? soil)
+        {
+            // Always include cover; add cushion tokens when present
+            var baseTok = $" SOIL_H={DefaultSoilCoverM:0.###}";
+            if (soil != null && soil.CushionThk > 0)
+                return baseTok + $" SOIL_CUSH_TYPE=2 SOIL_CUSH_THK={CushionThkM:0.###}";
+            return baseTok;
+        }
+    }
+
     internal abstract class NtrMember
     {
         public int Dn { get; set; } = 0;
@@ -28,9 +51,9 @@ namespace NTRExport.Ntr
 
         public override IEnumerable<string> ToNtr(INtrSoilAdapter soil)
         {
-            var soilRef = soil.RefToken(Soil);
-            yield return $"RO P1=({A.X},{A.Y}) P2=({B.X},{B.Y}) DN={Dn}" +
-                (Material != null ? $" MAT={Material}" : "") + (soilRef != null ? $" {soilRef}" : "");
+            yield return $"RO P1={NtrFormat.Pt(A)} P2={NtrFormat.Pt(B)} DN=DN{Dn}" +
+                (Material != null ? $" MAT={Material}" : "") +
+                NtrFormat.SoilTokens(Soil);
         }
 
         public NtrPipe With(Pt2 a, Pt2 b, SoilProfile s) => new()
@@ -51,8 +74,9 @@ namespace NTRExport.Ntr
         public Pt2 T { get; init; }     // tangency/angle point
         public override IEnumerable<string> ToNtr(INtrSoilAdapter soil)
         {
-            yield return $"BOG P1=({A.X},{A.Y}) P2=({B.X},{B.Y}) PT=({T.X},{T.Y}) DN={Dn}" +
-                         (Material != null ? $" MAT={Material}" : "");
+            yield return $"BOG P1={NtrFormat.Pt(A)} P2={NtrFormat.Pt(B)} PT={NtrFormat.Pt(T)} DN=DN{Dn}" +
+                         (Material != null ? $" MAT={Material}" : "") +
+                         NtrFormat.SoilTokens(null);
         }
     }
 
@@ -65,22 +89,46 @@ namespace NTRExport.Ntr
         public int DnBranch { get; init; } = 0;
         public override IEnumerable<string> ToNtr(INtrSoilAdapter soil)
         {
-            yield return $"TEE PH1=({Ph1.X},{Ph1.Y}) PH2=({Ph2.X},{Ph2.Y}) PA1=({Pa1.X},{Pa1.Y}) PA2=({Pa2.X},{Pa2.Y}) " +
-                         $"DNH={Dn} DNA={DnBranch}" + (Material != null ? $" MAT={Material}" : "");
+            yield return $"TEE PH1={NtrFormat.Pt(Ph1)} PH2={NtrFormat.Pt(Ph2)} PA1={NtrFormat.Pt(Pa1)} PA2={NtrFormat.Pt(Pa2)} " +
+                         $"DNH=DN{Dn} DNA=DN{DnBranch}" + (Material != null ? $" MAT={Material}" : "") +
+                         NtrFormat.SoilTokens(null);
         }
     }
 
     internal class NtrReducer : NtrMember
     {
-        public Pt2 Ph1 { get; init; }
-        public Pt2 Ph2 { get; init; }
-        public Pt2 Pa1 { get; init; }
-        public Pt2 Pa2 { get; init; }
-        public int DnBranch { get; init; } = 0;
+        public Pt2 P1 { get; init; }
+        public Pt2 P2 { get; init; }
+        public int Dn1 { get; init; }
+        public int Dn2 { get; init; }
         public override IEnumerable<string> ToNtr(INtrSoilAdapter soil)
         {
-            yield return $"TEE PH1=({Ph1.X},{Ph1.Y}) PH2=({Ph2.X},{Ph2.Y}) PA1=({Pa1.X},{Pa1.Y}) PA2=({Pa2.X},{Pa2.Y}) " +
-                         $"DNH={Dn} DNA={DnBranch}" + (Material != null ? $" MAT={Material}" : "");
+            yield return $"RED P1={NtrFormat.Pt(P1)} P2={NtrFormat.Pt(P2)} DN1=DN{Dn1} DN2=DN{Dn2}" +
+                         (Material != null ? $" MAT={Material}" : "") +
+                         NtrFormat.SoilTokens(null);
+        }
+    }
+
+    internal class NtrInstrument : NtrMember
+    {
+        public Pt2 P1 { get; init; }
+        public Pt2 P2 { get; init; }
+        public Pt2 Pm { get; init; }
+        public int Dn1 { get; init; }
+        public int Dn2 { get; init; }
+        public override IEnumerable<string> ToNtr(INtrSoilAdapter soil)
+        {
+            yield return $"ARM P1={NtrFormat.Pt(P1)} P2={NtrFormat.Pt(P2)} PM={NtrFormat.Pt(Pm)} DN1=DN{Dn1} DN2=DN{Dn2}" +
+                         (Material != null ? $" MAT={Material}" : "") +
+                         NtrFormat.SoilTokens(null);
+        }
+    }
+
+    internal class NtrStub : NtrMember
+    {
+        public override IEnumerable<string> ToNtr(INtrSoilAdapter soil)
+        {
+            yield break; // placeholder for F/Y models or unsupported types
         }
     }
 

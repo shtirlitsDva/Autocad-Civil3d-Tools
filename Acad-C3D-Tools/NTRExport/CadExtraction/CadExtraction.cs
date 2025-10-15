@@ -18,6 +18,13 @@ namespace NTRExport.CadExtraction
         Pt2 End { get; }
         int Dn { get; }
         string Material { get; }
+        PipeSystemEnum System { get; }
+        PipeTypeEnum Type { get; }
+        PipeSeriesEnum Series { get; }
+        double PipeOd { get; }      // mm
+        double PipeId { get; }      // mm
+        double PipeWallThk { get; } // mm
+        double JacketOd { get; }    // mm
     }
 
     internal class CadPort
@@ -56,6 +63,13 @@ namespace NTRExport.CadExtraction
             public Pt2 End => new(_pl.EndPoint.X, _pl.EndPoint.Y);
             public int Dn => PipeScheduleV2.GetPipeDN(_pl);
             public string Material => "P235GH";
+            public PipeSystemEnum System => PipeScheduleV2.GetPipeSystem(_pl);
+            public PipeTypeEnum Type => PipeScheduleV2.GetPipeType(_pl, true);
+            public PipeSeriesEnum Series => PipeScheduleV2.GetPipeSeriesV2(_pl);
+            public double PipeOd => PipeScheduleV2.GetPipeOd(_pl);
+            public double PipeId => PipeScheduleV2.GetPipeId(_pl);
+            public double PipeWallThk => Math.Max(0.0, (PipeOd - PipeId) / 2.0);
+            public double JacketOd => PipeScheduleV2.GetPipeKOd(_pl);
         }
     }
 
