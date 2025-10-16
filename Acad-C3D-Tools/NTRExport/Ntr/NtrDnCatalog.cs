@@ -31,13 +31,16 @@ namespace NTRExport.Ntr
                 if (emittedIs.Add(dn))
                 {
                     // Defaults per example
-                    var gam = 61; var gambl = 944; double dickebl = 5.2;
+                    var gam = 61; 
+                    var gambl = 944; 
+                    double dickebl = PipeScheduleV2.GetPipekThk(
+                        _system, dn, _type, _series);
                     yield return $"IS NAME={isName} GAM={gam} DICKEBL={dickebl:0.###} GAMBL={gambl}";
                 }
 
                 // Base dimensions
                 var da = PipeScheduleV2.GetPipeOd(_system, dn);                
-                var s = GetWallThk(_system, dn);
+                var s = PipeScheduleV2.GetPipeThk(_system, dn);
                 var kod = PipeScheduleV2.GetPipeKOd(_system, dn, _type, _series);
 
                 // Single/bonded vs Twin
@@ -55,19 +58,6 @@ namespace NTRExport.Ntr
                     yield return $"DN NAME=DN{dn}.t DA={da:0.###} S={s:0.###} ISOTYP={isName} ISODICKE={isodickeT:0.###} NORM='{Norm}'";
                 }
             }
-        }
-        
-        private static double GetWallThk(PipeSystemEnum system, int dn)
-        {
-            var types = PipeScheduleV2.GetPipeTypes();
-            var sysName = PipeScheduleV2.GetSystemString(system);
-            var t = types.FirstOrDefault(x => x.Name.Equals(sysName, StringComparison.OrdinalIgnoreCase));
-            if (t == null) return 0.0;
-            var od = t.GetPipeOd(dn);
-            var id = t.GetPipeId(dn);
-            return Math.Max(0.0, (od - id) / 2.0);
-        }
+        }        
     }
 }
-
-

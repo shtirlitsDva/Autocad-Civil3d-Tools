@@ -178,6 +178,7 @@ namespace IntersectUtilities.PipeScheduleV2
             {"pOd", typeof(double)},
             {"pThk", typeof(double)},
             {"kOd", typeof(double)},
+            {"kThk", typeof(double)},
             {"tWdth", typeof(double)},
             {"minElasticRadii", typeof(double)},
             {"VertFactor", typeof(double)},
@@ -292,6 +293,12 @@ namespace IntersectUtilities.PipeScheduleV2
             var pipeType = _repository.GetPipeType(systemDictReversed[system]);
             return pipeType.GetPipeId(dn);
         }
+        public static double GetPipeThk(PipeSystemEnum system, int dn)
+        {
+            if (!systemDictReversed.ContainsKey(system)) return 0;
+            var pipeType = _repository.GetPipeType(systemDictReversed[system]);
+            return pipeType.GetPipeThk(dn);
+        }
         public static double GetPipeKOd(Entity ent, PipeSeriesEnum pipeSeries)
         {
             PipeTypeEnum type = GetPipeType(ent, true);
@@ -317,6 +324,13 @@ namespace IntersectUtilities.PipeScheduleV2
             var pipeType = _repository.GetPipeType(systemDictReversed[system]);
 
             return pipeType.GetPipeKOd(dn, type, pipeSeries);
+        }
+        public static double GetPipekThk(PipeSystemEnum system, int dn, PipeTypeEnum type, PipeSeriesEnum pipeSeries)
+        {
+            if (!systemDictReversed.ContainsKey(system)) return 0;
+            var pipeType = _repository.GetPipeType(systemDictReversed[system]);
+
+            return pipeType.GetPipekThk(dn, type, pipeSeries);
         }
         public static PipeSeriesEnum GetPipeSeriesV2(Entity ent, bool hardFail = false)
         {
@@ -666,10 +680,12 @@ namespace IntersectUtilities.PipeScheduleV2
         PipeSystemEnum System { get; }
         void Initialize(DataTable table, PipeSystemEnum pipeSystemEnum);
         double GetPipeOd(int dn);
+        double GetPipeThk(int dn);
         double GetPipeId(int dn);
         PipeSeriesEnum GetPipeSeries(
             int dn, PipeTypeEnum type, double realKod);
         double GetPipeKOd(int dn, PipeTypeEnum type, PipeSeriesEnum pipeSeries);
+        double GetPipekThk(int dn, PipeTypeEnum type, PipeSeriesEnum pipeSeries);
         double GetMinElasticRadius(int dn, PipeTypeEnum type);
         double GetFactorForVerticalElasticBending(int dn, PipeTypeEnum type);
         double GetPipeStdLength(int dn, PipeTypeEnum type);
@@ -696,6 +712,13 @@ namespace IntersectUtilities.PipeScheduleV2
             DataRow[] results = _data.Select($"DN = {dn}");
             if (results != null && results.Length > 0)
                 return (double)results[0]["pOd"];
+            return 0;
+        }
+        public virtual double GetPipeThk(int dn)
+        {
+            DataRow[] results = _data.Select($"DN = {dn}");
+            if (results != null && results.Length > 0)
+                return (double)results[0]["pThk"];
             return 0;
         }
         public virtual double GetPipeId(int dn)
@@ -760,6 +783,15 @@ namespace IntersectUtilities.PipeScheduleV2
                 type = PipeTypeEnum.Enkelt;
             DataRow[] results = _data.Select($"DN = {dn} AND PipeType = '{type}' AND PipeSeries = '{series}'");
             if (results != null && results.Length > 0) return (double)results[0]["kOd"];
+            return 0;
+        }
+        public virtual double GetPipekThk(int dn, PipeTypeEnum type, PipeSeriesEnum series)
+        {
+            if (type == PipeTypeEnum.Retur ||
+                type == PipeTypeEnum.Frem)
+                type = PipeTypeEnum.Enkelt;
+            DataRow[] results = _data.Select($"DN = {dn} AND PipeType = '{type}' AND PipeSeries = '{series}'");
+            if (results != null && results.Length > 0) return (double)results[0]["kThk"];
             return 0;
         }
         public virtual double GetMinElasticRadius(int dn, PipeTypeEnum type)
