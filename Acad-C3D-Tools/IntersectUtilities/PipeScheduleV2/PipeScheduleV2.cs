@@ -278,6 +278,12 @@ namespace IntersectUtilities.PipeScheduleV2
             var pipeType = _repository.GetPipeType(systemDictReversed[system]);
             return pipeType.GetPipeOd(dn);
         }
+        public static double GetPipeOd(PipeSystemEnum system, int dn)
+        {
+            if (!systemDictReversed.ContainsKey(system)) return 0;
+            var pipeType = _repository.GetPipeType(systemDictReversed[system]);
+            return pipeType.GetPipeOd(dn);
+        }
         public static double GetPipeId(Entity ent)
         {
             int dn = GetPipeDN(ent);

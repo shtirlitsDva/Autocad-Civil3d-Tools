@@ -18,30 +18,7 @@ namespace NTRExport.Ntr
         public NtrDnCatalog(PipeSystemEnum system, PipeTypeEnum type, PipeSeriesEnum series, bool isTwin)
         {
             _system = system; _type = type; _series = series; _isTwin = isTwin;
-        }
-
-        public IEnumerable<string> Build(IEnumerable<int> dns)
-        {
-            foreach (var dn in dns.Distinct().OrderBy(x => x))
-            {
-                var da = GetPipeOd(_system, dn); // mm
-                var s = GetWallThk(_system, dn); // mm
-                var kod = PipeScheduleV2.GetPipeKOd(_system, dn, _type, _series); // mm
-                double isodicke;
-                if (_isTwin)
-                {
-                    var cTwin = Math.PI * kod;               // mm
-                    var cSingle = cTwin / 2.0;               // mm
-                    var odSingle = cSingle / Math.PI;        // mm
-                    isodicke = Math.Max(0.0, (odSingle - da) / 2.0);
-                }
-                else
-                {
-                    isodicke = Math.Max(0.0, (kod - da) / 2.0);
-                }
-                yield return $"DN NAME=DN{dn} DA={da:0.###} S={s:0.###} ISODICKE={isodicke:0.###} NORM='{Norm}'";
-            }
-        }
+        }        
 
         // Builds IS and DN lines with naming: DN{dn}.{x} (x = s for bonded, t for twin) and ISOTYP=FJV{dn}
         public IEnumerable<string> BuildRecords(IEnumerable<int> dns)
@@ -59,7 +36,7 @@ namespace NTRExport.Ntr
                 }
 
                 // Base dimensions
-                var da = GetPipeOd(_system, dn);
+                var da = PipeScheduleV2.GetPipeOd(_system, dn);                
                 var s = GetWallThk(_system, dn);
                 var kod = PipeScheduleV2.GetPipeKOd(_system, dn, _type, _series);
 
@@ -79,15 +56,7 @@ namespace NTRExport.Ntr
                 }
             }
         }
-
-        private static double GetPipeOd(PipeSystemEnum system, int dn)
-        {
-            var types = PipeScheduleV2.GetPipeTypes();
-            var sysName = PipeScheduleV2.GetSystemString(system);
-            var t = types.FirstOrDefault(x => x.Name.Equals(sysName, StringComparison.OrdinalIgnoreCase));
-            if (t == null) return 0.0;
-            return t.GetPipeOd(dn);
-        }
+        
         private static double GetWallThk(PipeSystemEnum system, int dn)
         {
             var types = PipeScheduleV2.GetPipeTypes();
