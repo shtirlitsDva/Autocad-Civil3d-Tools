@@ -1,4 +1,6 @@
-﻿using NTRExport.CadExtraction;
+﻿using IntersectUtilities.UtilsCommon.Enums;
+
+using NTRExport.CadExtraction;
 using NTRExport.Enums;
 using NTRExport.Geometry;
 
@@ -37,20 +39,46 @@ namespace NTRExport.TopologyModel
                 g.Elements.Add(tf);
             }
 
-            // 3) Pipes snap to nearest existing nodes (ends) or create free-end nodes
+            // 3) Pipes: split polyline into line and arc segments
             foreach (var p in _cad.Pipes)
             {
-                var a = NodeAt(p.Start);
-                var b = NodeAt(p.End);
-                var tp = new TPipe(
-                    p.Handle,
-                    self => new TPort(PortRole.Neutral, a, self), // owner filled next line
-                    self => new TPort(PortRole.Neutral, b, self))
+                var segs = p.GetSegments().ToList();
+                if (segs.Count == 0)
                 {
-                    Dn = p.Dn, 
-                    Material = p.Material 
-                };                
-                g.Elements.Add(tp);
+                    var a = NodeAt(p.Start);
+                    var b = NodeAt(p.End);
+                    var tp = new TPipe(
+                        p.Handle,
+                        self => new TPort(PortRole.Neutral, a, self),
+                        self => new TPort(PortRole.Neutral, b, self))
+                    { Dn = p.Dn, Material = p.Material, Variant = (p.Type == PipeTypeEnum.Twin ? new TwinVariant() : new SingleVariant()) };
+                    g.Elements.Add(tp);
+                    continue;
+                }
+
+                foreach (var s in segs)
+                {
+                    if (s.Kind == CadExtraction.CadSegmentKind.Line)
+                    {
+                        var a = NodeAt(s.Start);
+                        var b = NodeAt(s.End);
+                        var tp = new TPipe(
+                            p.Handle,
+                            self => new TPort(PortRole.Neutral, a, self),
+                            self => new TPort(PortRole.Neutral, b, self))
+                        { Dn = p.Dn, Material = p.Material, Variant = (p.Type == PipeTypeEnum.Twin ? new TwinVariant() : new SingleVariant()) };
+                        g.Elements.Add(tp);
+                    }
+                    else
+                    {
+                        var a = NodeAt(s.Start);
+                        var b = NodeAt(s.End);
+                        var tf = new TFitting(p.Handle, PipelineElementType.Kedelrørsbøjning);
+                        tf.AddPort(new TPort(PortRole.Main, a, tf));
+                        tf.AddPort(new TPort(PortRole.Main, b, tf));
+                        g.Elements.Add(tf);
+                    }
+                }
             }
 
             // 4) Name nodes compactly for later mapping

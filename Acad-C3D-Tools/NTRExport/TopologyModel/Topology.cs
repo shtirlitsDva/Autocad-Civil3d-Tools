@@ -41,10 +41,38 @@ namespace NTRExport.TopologyModel
         public TPort B { get; }
         public int Dn { get; set; } = 0;
         public string? Material { get; set; }
+        public IPipeVariant Variant { get; set; } = new SingleVariant();
+        // Cushion spans along this pipe in meters (s0,s1) from A→B
+        public List<(double s0, double s1)> CushionSpans { get; } = new();
+        public double Length
+        {
+            get
+            {
+                var dx = B.Node.Pos.X - A.Node.Pos.X;
+                var dy = B.Node.Pos.Y - A.Node.Pos.Y;
+                return Math.Sqrt(dx * dx + dy * dy);
+            }
+        }
         public TPipe(Handle h,
             Func<TPipe, TPort> makeA,
             Func<TPipe, TPort> makeB) : base(h) { A = makeA(this); B = makeB(this); }
         public override IReadOnlyList<TPort> Ports => [A, B];
+    }
+
+    internal interface IPipeVariant
+    {
+        string DnSuffix { get; }
+        bool IsTwin { get; }
+    }
+    internal sealed class SingleVariant : IPipeVariant
+    {
+        public string DnSuffix => "s";
+        public bool IsTwin => false;
+    }
+    internal sealed class TwinVariant : IPipeVariant
+    {
+        public string DnSuffix => "t";
+        public bool IsTwin => true;
     }
 
     internal class TFitting : TElement

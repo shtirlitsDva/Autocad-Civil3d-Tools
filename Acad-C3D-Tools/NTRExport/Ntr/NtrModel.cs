@@ -19,8 +19,8 @@ namespace NTRExport.Ntr
 
         public static string Pt(Pt2 p)
         {
-            var x = p.X * MetersToMillimeters;
-            var y = p.Y * MetersToMillimeters;
+            var x = (p.X - NtrCoord.OffsetX) * MetersToMillimeters;
+            var y = (p.Y - NtrCoord.OffsetY) * MetersToMillimeters;
             return $"'" + $"{x:0.###},{y:0.###},0" + "'";
         }
 
@@ -47,11 +47,12 @@ namespace NTRExport.Ntr
         public Pt2 A { get; init; }
         public Pt2 B { get; init; }
         public SoilProfile Soil { get; set; } = SoilProfile.Default;
+        public string DnSuffix { get; init; } = "s"; // "s" or "t" from variant
         public double Length => Math.Sqrt(Math.Pow(B.X - A.X, 2) + Math.Pow(B.Y - A.Y, 2));
 
         public override IEnumerable<string> ToNtr(INtrSoilAdapter soil)
         {
-            yield return $"RO P1={NtrFormat.Pt(A)} P2={NtrFormat.Pt(B)} DN=DN{Dn}" +
+            yield return $"RO P1={NtrFormat.Pt(A)} P2={NtrFormat.Pt(B)} DN=DN{Dn}.{DnSuffix}" +
                 (Material != null ? $" MAT={Material}" : "") +
                 NtrFormat.SoilTokens(Soil);
         }
@@ -72,9 +73,10 @@ namespace NTRExport.Ntr
         public Pt2 A { get; init; }     // end 1
         public Pt2 B { get; init; }     // end 2
         public Pt2 T { get; init; }     // tangency/angle point
+        public string DnSuffix { get; init; } = "s";
         public override IEnumerable<string> ToNtr(INtrSoilAdapter soil)
         {
-            yield return $"BOG P1={NtrFormat.Pt(A)} P2={NtrFormat.Pt(B)} PT={NtrFormat.Pt(T)} DN=DN{Dn}" +
+            yield return $"BOG P1={NtrFormat.Pt(A)} P2={NtrFormat.Pt(B)} PT={NtrFormat.Pt(T)} DN=DN{Dn}.{DnSuffix}" +
                          (Material != null ? $" MAT={Material}" : "") +
                          NtrFormat.SoilTokens(null);
         }
@@ -87,10 +89,12 @@ namespace NTRExport.Ntr
         public Pt2 Pa1 { get; init; }
         public Pt2 Pa2 { get; init; }
         public int DnBranch { get; init; } = 0;
+        public string DnMainSuffix { get; init; } = "s";
+        public string DnBranchSuffix { get; init; } = "s";
         public override IEnumerable<string> ToNtr(INtrSoilAdapter soil)
         {
             yield return $"TEE PH1={NtrFormat.Pt(Ph1)} PH2={NtrFormat.Pt(Ph2)} PA1={NtrFormat.Pt(Pa1)} PA2={NtrFormat.Pt(Pa2)} " +
-                         $"DNH=DN{Dn} DNA=DN{DnBranch}" + (Material != null ? $" MAT={Material}" : "") +
+                         $"DNH=DN{Dn}.{DnMainSuffix} DNA=DN{DnBranch}.{DnBranchSuffix}" + (Material != null ? $" MAT={Material}" : "") +
                          NtrFormat.SoilTokens(null);
         }
     }
@@ -101,9 +105,11 @@ namespace NTRExport.Ntr
         public Pt2 P2 { get; init; }
         public int Dn1 { get; init; }
         public int Dn2 { get; init; }
+        public string Dn1Suffix { get; init; } = "s";
+        public string Dn2Suffix { get; init; } = "s";
         public override IEnumerable<string> ToNtr(INtrSoilAdapter soil)
         {
-            yield return $"RED P1={NtrFormat.Pt(P1)} P2={NtrFormat.Pt(P2)} DN1=DN{Dn1} DN2=DN{Dn2}" +
+            yield return $"RED P1={NtrFormat.Pt(P1)} P2={NtrFormat.Pt(P2)} DN1=DN{Dn1}.{Dn1Suffix} DN2=DN{Dn2}.{Dn2Suffix}" +
                          (Material != null ? $" MAT={Material}" : "") +
                          NtrFormat.SoilTokens(null);
         }
@@ -116,9 +122,11 @@ namespace NTRExport.Ntr
         public Pt2 Pm { get; init; }
         public int Dn1 { get; init; }
         public int Dn2 { get; init; }
+        public string Dn1Suffix { get; init; } = "s";
+        public string Dn2Suffix { get; init; } = "s";
         public override IEnumerable<string> ToNtr(INtrSoilAdapter soil)
         {
-            yield return $"ARM P1={NtrFormat.Pt(P1)} P2={NtrFormat.Pt(P2)} PM={NtrFormat.Pt(Pm)} DN1=DN{Dn1} DN2=DN{Dn2}" +
+            yield return $"ARM P1={NtrFormat.Pt(P1)} P2={NtrFormat.Pt(P2)} PM={NtrFormat.Pt(Pm)} DN1=DN{Dn1}.{Dn1Suffix} DN2=DN{Dn2}.{Dn2Suffix}" +
                          (Material != null ? $" MAT={Material}" : "") +
                          NtrFormat.SoilTokens(null);
         }
@@ -135,5 +143,26 @@ namespace NTRExport.Ntr
     internal class NtrGraph
     {
         public List<NtrMember> Members { get; } = new();
+
+        // Collect DN usages for catalog production
+        public IEnumerable<int> EnumerateDns()
+        {
+            foreach (var m in Members)
+            {
+                switch (m)
+                {
+                    case NtrPipe p:
+                        if (p.Dn > 0) yield return p.Dn; break;
+                    case NtrBend b:
+                        if (b.Dn > 0) yield return b.Dn; break;
+                    case NtrTee t:
+                        if (t.Dn > 0) yield return t.Dn; if (t.DnBranch > 0) yield return t.DnBranch; break;
+                    case NtrReducer r:
+                        if (r.Dn1 > 0) yield return r.Dn1; if (r.Dn2 > 0) yield return r.Dn2; break;
+                    case NtrInstrument i:
+                        if (i.Dn1 > 0) yield return i.Dn1; if (i.Dn2 > 0) yield return i.Dn2; break;
+                }
+            }
+        }
     }
 }

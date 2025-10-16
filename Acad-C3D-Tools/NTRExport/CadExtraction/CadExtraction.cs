@@ -1,4 +1,5 @@
 ﻿using Autodesk.AutoCAD.DatabaseServices;
+using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
 
 using IntersectUtilities;
@@ -25,6 +26,17 @@ namespace NTRExport.CadExtraction
         double PipeId { get; }      // mm
         double PipeWallThk { get; } // mm
         double JacketOd { get; }    // mm
+        IEnumerable<CadPipeSegment> GetSegments();
+    }
+
+    internal enum CadSegmentKind { Line, Arc }
+
+    internal struct CadPipeSegment
+    {
+        public CadSegmentKind Kind { get; init; }
+        public Pt2 Start { get; init; }
+        public Pt2 End { get; init; }
+        public Pt2 Center { get; init; } // only for Arc
     }
 
     internal class CadPort
@@ -64,12 +76,43 @@ namespace NTRExport.CadExtraction
             public int Dn => PipeScheduleV2.GetPipeDN(_pl);
             public string Material => "P235GH";
             public PipeSystemEnum System => PipeScheduleV2.GetPipeSystem(_pl);
-            public PipeTypeEnum Type => PipeScheduleV2.GetPipeType(_pl, true);
+            public PipeTypeEnum Type => PipeScheduleV2.GetPipeType(_pl);
             public PipeSeriesEnum Series => PipeScheduleV2.GetPipeSeriesV2(_pl);
             public double PipeOd => PipeScheduleV2.GetPipeOd(_pl);
             public double PipeId => PipeScheduleV2.GetPipeId(_pl);
             public double PipeWallThk => Math.Max(0.0, (PipeOd - PipeId) / 2.0);
             public double JacketOd => PipeScheduleV2.GetPipeKOd(_pl);
+
+            public IEnumerable<CadPipeSegment> GetSegments()
+            {
+                // Iterate segments between vertices; ignore closing segment
+                int n = _pl.NumberOfVertices;
+                for (int i = 0; i < n - 1; i++)
+                {
+                    switch (_pl.GetSegmentType(i))
+                    {
+                        case SegmentType.Line:
+                            var ls = _pl.GetLineSegment2dAt(i);
+                            yield return new CadPipeSegment
+                            {
+                                Kind = CadSegmentKind.Line,
+                                Start = new Pt2(ls.StartPoint.X, ls.StartPoint.Y),
+                                End = new Pt2(ls.EndPoint.X, ls.EndPoint.Y),
+                            };
+                            break;
+                        case SegmentType.Arc:
+                            var ar = _pl.GetArcSegment2dAt(i);
+                            yield return new CadPipeSegment
+                            {
+                                Kind = CadSegmentKind.Arc,
+                                Start = new Pt2(ar.StartPoint.X, ar.StartPoint.Y),
+                                End = new Pt2(ar.EndPoint.X, ar.EndPoint.Y),
+                                Center = new Pt2(ar.Center.X, ar.Center.Y)
+                            };
+                            break;
+                    }
+                }
+            }
         }
     }
 

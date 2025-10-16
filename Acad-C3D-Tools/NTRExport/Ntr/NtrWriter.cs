@@ -21,21 +21,30 @@ namespace NTRExport.Ntr
     internal class NtrWriter
     {
         private readonly INtrSoilAdapter _soil;
-        public NtrWriter(INtrSoilAdapter soil) { _soil = soil; }
+        public NtrWriter(INtrSoilAdapter soil) { _soil = soil; }        
 
-        public string Build(NtrGraph g)
+        public string Build(NtrGraph g, IEnumerable<string> headerRecords, NtrConfiguration.ConfigurationData conf)
         {
             var sb = new StringBuilder();
             // Header: units in millimeters
-            sb.AppendLine("GEN TMONT=20 EB=-Z UNITKT=MM");
+            sb.AppendLine("C General settings");
+            sb.AppendLine("GEN TMONT=10 EB=-Z UNITKT=MM CODE=EN13941");
 
-            // Optional: project/text lines can be added here if needed
+            sb.AppendLine("C Loads definition");
+            foreach (var last in conf.Last) sb.AppendLine(last.ToString());            
 
-            // 1) unique soil defs (none currently)
-            foreach (var s in g.Members.OfType<NtrPipe>().Select(x => x.Soil).Distinct())
-                foreach (var line in _soil.Define(s)) sb.AppendLine(line);
+            // DN and IS sections from headerRecords
+            var dnLines = headerRecords.Where(l => l.StartsWith("DN ", StringComparison.OrdinalIgnoreCase)).ToList();
+            var isLines = headerRecords.Where(l => l.StartsWith("IS ", StringComparison.OrdinalIgnoreCase)).ToList();
 
-            // 2) geometry with per-element SOIL_* tokens already appended
+            sb.AppendLine("C Definition of pipe dimensions");
+            foreach (var dn in dnLines) sb.AppendLine(dn);
+
+            sb.AppendLine("C Definition of insulation type");
+            foreach (var isl in isLines) sb.AppendLine(isl);
+
+            // Geometry
+            sb.AppendLine("C Element definitions");
             foreach (var m in g.Members)
                 foreach (var line in m.ToNtr(_soil)) sb.AppendLine(line);
             return sb.ToString();
