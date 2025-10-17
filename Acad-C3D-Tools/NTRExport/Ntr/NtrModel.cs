@@ -21,7 +21,7 @@ namespace NTRExport.Ntr
         {
             var x = (p.X - NtrCoord.OffsetX) * MetersToMillimeters;
             var y = (p.Y - NtrCoord.OffsetY) * MetersToMillimeters;
-            return $"'" + $"{x:0.###},{y:0.###},0" + "'";
+            return $"'" + $"{x:0.#}, {y:0.#}, 0" + "'";
         }
 
         public static string SoilTokens(SoilProfile? soil)

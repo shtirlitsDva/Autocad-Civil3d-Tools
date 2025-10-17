@@ -27,7 +27,8 @@ namespace NTRExport.Ntr
             foreach (var dn in dns.Distinct().OrderBy(x => x))
             {
                 // IS type per DN
-                var isName = $"FJV{dn}";
+                var suffix = _type == PipeTypeEnum.Enkelt ? "s" : "t";
+                var isName = $"FJV{dn}.{suffix}";
                 if (emittedIs.Add(dn))
                 {
                     // Defaults per example
@@ -47,7 +48,7 @@ namespace NTRExport.Ntr
                 if (!_isTwin)
                 {
                     var isodickeS = Math.Max(0.0, (kod - da) / 2.0);
-                    yield return $"DN NAME=DN{dn}.s DA={da:0.###} S={s:0.###} ISOTYP={isName} ISODICKE={isodickeS:0.###} NORM='{Norm}'";
+                    yield return $"DN NAME=DN{dn}.{suffix} DA={da:0.###} S={s:0.###} ISOTYP={isName} ISODICKE={isodickeS:0.###} NORM='{Norm}'";
                 }
                 else
                 {
@@ -55,7 +56,7 @@ namespace NTRExport.Ntr
                     var cSingle = cTwin / 2.0;
                     var odSingle = cSingle / Math.PI;
                     var isodickeT = Math.Max(0.0, (odSingle - da) / 2.0);
-                    yield return $"DN NAME=DN{dn}.t DA={da:0.###} S={s:0.###} ISOTYP={isName} ISODICKE={isodickeT:0.###} NORM='{Norm}'";
+                    yield return $"DN NAME=DN{dn}.{suffix} DA={da:0.###} S={s:0.###} ISOTYP={isName} ISODICKE={isodickeT:0.###} NORM='{Norm}'";
                 }
             }
         }        

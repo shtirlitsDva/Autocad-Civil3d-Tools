@@ -14,7 +14,6 @@ using IntersectUtilities.UtilsCommon.Enums;
 using IntersectUtilities.UtilsCommon.Graphs;
 
 using NTRExport.CadExtraction;
-using NTRExport.Geometry;
 using NTRExport.Interfaces;
 using NTRExport.Ntr;
 using NTRExport.NtrConfiguration;
@@ -189,7 +188,7 @@ namespace NTRExport
                 var ntrPsm = new PropertySetManager(
                     fDb, PSetDefs.DefinedSets.NtrData);
                 var ntrDef = new PSetDefs.NtrData();
-                
+
                 Dictionary<Entity, double> rotationDict = new();
 
                 foreach (var ent in ents)
@@ -307,40 +306,74 @@ namespace NTRExport
             using var fDb = dm.Fremtid();
             using var fTx = fDb.TransactionManager.StartTransaction();
 
-            using var tx = localDb.TransactionManager.StartTransaction();            
+            using var tx = localDb.TransactionManager.StartTransaction();
 
             try
             {
                 var ents = fDb.GetFjvEntities(fTx);
 
-                // ------------- CONFIG -------------
+                #region ------------- FILTER -------------
+                var acceptedSystems = new HashSet<PipeSystemEnum>() { PipeSystemEnum.Stål };
+
+                bool isAccepted(Entity ent)
+                {
+#if DEBUG
+                    prdDbg("DEBUG filtering active! Polylines only.");
+                    if (ent is BlockReference) return false;
+#endif
+
+                    switch (ent)
+                    {
+                        case Polyline _:
+                            return acceptedSystems.Contains(
+                                PipeScheduleV2.GetPipeSystem(ent));
+                        case BlockReference br:
+                            return acceptedSystems.Contains(
+                                br.GetPipeSystemEnum());                            
+                        default:
+                            return false;
+                    }
+                }
+
+                ents = ents.Where(x => isAccepted(x)).ToHashSet();
+                #endregion
+
+                #region ------------- CONFIG -------------
                 const double CushionReach = 2.0;       // m
                 var soilDefault = new SoilProfile("Soil_Default", 0.00);
                 var soilC80 = new SoilProfile("Soil_C80", 0.08);
+                #endregion
 
-                // ------------- CAD ➜ Port topology -------------
+                #region ------------- CAD ➜ Port topology -------------
                 var cad = new CadModel();
                 foreach (var e in ents)
                 {
-                    if (e is Polyline pl) cad.Pipes.Add(PolylineAdapterFactory.Create(pl));
-                    else if (e is BlockReference br) cad.Fittings.Add(BlockRefAdapterFactory.Create(br));
+                    if (e is Polyline pl) 
+                        cad.Pipes.Add(PolylineAdapterFactory.Create(pl));
+                    else if (e is BlockReference br)
+                        cad.Fittings.Add(BlockRefAdapterFactory.Create(br));
                 }
                 var topo = new TopologyBuilder(cad).Build();
+                #endregion
 
-                // ------------- Topology-level soil planning -------------
+                #region ------------- Topology-level soil planning -------------
                 new TopologySoilPlanner(topo, 2.0, soilDefault, soilC80).Apply();
+                #endregion
 
-                // ------------- Read NTR configuration from Excel -------------
+                #region ------------- Read NTR configuration from Excel -------------
                 var conf = new ConfigurationData();
                 //foreach (var l in conf.Last) prdDbg(l);
+                #endregion
 
-                // ------------- Initialize NTR coordinate normalization -------------
+                #region ------------- Initialize NTR coordinate normalization -------------
                 NtrCoord.InitFromTopology(topo, marginMeters: 0.0);
+                #endregion
 
-                // ------------- Topology ➜ NTR skeleton -------------
+                #region ------------- Topology ➜ NTR skeleton -------------
                 var ntr = new NtrMapper().Map(topo);
+                #endregion
 
-                // ------------- Emit NTR -------------
+                #region ------------- Emit NTR -------------
                 var writer = new NtrWriter(new Rohr2SoilAdapter());
                 // Build IS and DN records across all distinct pipe groups found in the drawing
                 var headerLines = new List<string>();
@@ -376,6 +409,7 @@ namespace NTRExport
                     string.IsNullOrEmpty(dwgPath) ? "export" : dwgPath, ".ntr");
                 System.IO.File.WriteAllText(outPath, ntrText, System.Text.Encoding.UTF8);
                 prdDbg($"NTR written: {outPath}");
+                #endregion
             }
             catch (DebugPointException dbex)
             {
