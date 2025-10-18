@@ -60,7 +60,7 @@ namespace NTRExport.TopologyModel
                         p.Handle,
                         self => new TPort(PortRole.Neutral, a, self),
                         self => new TPort(PortRole.Neutral, b, self))
-                    { Dn = p.Dn, Material = p.Material, Variant = (p.Type == PipeTypeEnum.Twin ? new TwinVariant() : new SingleVariant()), Flow = FlowFromType(p.Type) };
+                    { Dn = p.Dn, Material = p.Material, Variant = (p.Type == PipeTypeEnum.Twin ? new TwinVariant() : new SingleVariant()), Flow = FlowFromType(p.Type), System = p.System, Type = p.Type, Series = p.Series };
                     g.Elements.Add(tp);
                     continue;
                 }
@@ -75,7 +75,7 @@ namespace NTRExport.TopologyModel
                             p.Handle,
                             self => new TPort(PortRole.Neutral, a, self),
                             self => new TPort(PortRole.Neutral, b, self))
-                        { Dn = p.Dn, Material = p.Material, Variant = (p.Type == PipeTypeEnum.Twin ? new TwinVariant() : new SingleVariant()), Flow = FlowFromType(p.Type) };
+                        { Dn = p.Dn, Material = p.Material, Variant = (p.Type == PipeTypeEnum.Twin ? new TwinVariant() : new SingleVariant()), Flow = FlowFromType(p.Type), System = p.System, Type = p.Type, Series = p.Series };
                         g.Elements.Add(tp);
                     }
                     else

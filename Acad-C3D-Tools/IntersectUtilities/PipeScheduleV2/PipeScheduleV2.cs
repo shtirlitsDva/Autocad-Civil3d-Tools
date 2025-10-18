@@ -179,6 +179,7 @@ namespace IntersectUtilities.PipeScheduleV2
             {"pThk", typeof(double)},
             {"kOd", typeof(double)},
             {"kThk", typeof(double)},
+            {"pDst", typeof(double)},
             {"tWdth", typeof(double)},
             {"minElasticRadii", typeof(double)},
             {"VertFactor", typeof(double)},
@@ -331,6 +332,13 @@ namespace IntersectUtilities.PipeScheduleV2
             var pipeType = _repository.GetPipeType(systemDictReversed[system]);
 
             return pipeType.GetPipekThk(dn, type, pipeSeries);
+        }
+        public static double GetPipeDistanceForTwin(PipeSystemEnum system, int dn, PipeTypeEnum type)
+        {
+            if (!systemDictReversed.ContainsKey(system)) return 0;
+            var pipeType = _repository.GetPipeType(systemDictReversed[system]);
+
+            return pipeType.GetPipeDistanceForTwin(dn, type);
         }
         public static PipeSeriesEnum GetPipeSeriesV2(Entity ent, bool hardFail = false)
         {
@@ -686,6 +694,7 @@ namespace IntersectUtilities.PipeScheduleV2
             int dn, PipeTypeEnum type, double realKod);
         double GetPipeKOd(int dn, PipeTypeEnum type, PipeSeriesEnum pipeSeries);
         double GetPipekThk(int dn, PipeTypeEnum type, PipeSeriesEnum pipeSeries);
+        double GetPipeDistanceForTwin(int dn, PipeTypeEnum type);
         double GetMinElasticRadius(int dn, PipeTypeEnum type);
         double GetFactorForVerticalElasticBending(int dn, PipeTypeEnum type);
         double GetPipeStdLength(int dn, PipeTypeEnum type);
@@ -792,6 +801,16 @@ namespace IntersectUtilities.PipeScheduleV2
                 type = PipeTypeEnum.Enkelt;
             DataRow[] results = _data.Select($"DN = {dn} AND PipeType = '{type}' AND PipeSeries = '{series}'");
             if (results != null && results.Length > 0) return (double)results[0]["kThk"];
+            return 0;
+        }
+        public virtual double GetPipeDistanceForTwin(int dn, PipeTypeEnum type)
+        {
+            if (type == PipeTypeEnum.Enkelt ||
+                type == PipeTypeEnum.Frem ||
+                type == PipeTypeEnum.Retur) return 0;
+
+            DataRow[] results = _data.Select($"DN = {dn} AND PipeType = '{type}'");
+            if (results != null && results.Length > 0) return (double)results[0]["pDst"];
             return 0;
         }
         public virtual double GetMinElasticRadius(int dn, PipeTypeEnum type)

@@ -43,6 +43,7 @@ namespace NTRExport.Ntr
         public string? Material { get; set; }
         public IReadOnlyList<Handle> Provenance { get; init; } = Array.Empty<Handle>();
         public FlowRole Flow { get; set; } = FlowRole.Unknown;
+        public double ZOffsetMeters { get; set; } = 0.0;
         public abstract IEnumerable<string> ToNtr(INtrSoilAdapter soil);
     }
 
@@ -56,7 +57,7 @@ namespace NTRExport.Ntr
 
         public override IEnumerable<string> ToNtr(INtrSoilAdapter soil)
         {
-            yield return $"RO P1={NtrFormat.Pt(A)} P2={NtrFormat.Pt(B)} DN=DN{Dn}.{DnSuffix}" +
+            yield return $"RO P1={NtrFormat.Pt(A, ZOffsetMeters)} P2={NtrFormat.Pt(B, ZOffsetMeters)} DN=DN{Dn}.{DnSuffix}" +
                 (Material != null ? $" MAT={Material}" : "") +
                 NtrFormat.SoilTokens(Soil);
         }
@@ -80,7 +81,7 @@ namespace NTRExport.Ntr
         public string DnSuffix { get; init; } = "s";
         public override IEnumerable<string> ToNtr(INtrSoilAdapter soil)
         {
-            yield return $"BOG P1={NtrFormat.Pt(A)} P2={NtrFormat.Pt(B)} PT={NtrFormat.Pt(T)} DN=DN{Dn}.{DnSuffix}" +
+            yield return $"BOG P1={NtrFormat.Pt(A, ZOffsetMeters)} P2={NtrFormat.Pt(B, ZOffsetMeters)} PT={NtrFormat.Pt(T, ZOffsetMeters)} DN=DN{Dn}.{DnSuffix}" +
                          (Material != null ? $" MAT={Material}" : "") +
                          NtrFormat.SoilTokens(null);
         }
@@ -97,7 +98,7 @@ namespace NTRExport.Ntr
         public string DnBranchSuffix { get; init; } = "s";
         public override IEnumerable<string> ToNtr(INtrSoilAdapter soil)
         {
-            yield return $"TEE PH1={NtrFormat.Pt(Ph1)} PH2={NtrFormat.Pt(Ph2)} PA1={NtrFormat.Pt(Pa1)} PA2={NtrFormat.Pt(Pa2)} " +
+            yield return $"TEE PH1={NtrFormat.Pt(Ph1, ZOffsetMeters)} PH2={NtrFormat.Pt(Ph2, ZOffsetMeters)} PA1={NtrFormat.Pt(Pa1, ZOffsetMeters)} PA2={NtrFormat.Pt(Pa2, ZOffsetMeters)} " +
                          $"DNH=DN{Dn}.{DnMainSuffix} DNA=DN{DnBranch}.{DnBranchSuffix}" + (Material != null ? $" MAT={Material}" : "") +
                          NtrFormat.SoilTokens(null);
         }
@@ -113,7 +114,7 @@ namespace NTRExport.Ntr
         public string Dn2Suffix { get; init; } = "s";
         public override IEnumerable<string> ToNtr(INtrSoilAdapter soil)
         {
-            yield return $"RED P1={NtrFormat.Pt(P1)} P2={NtrFormat.Pt(P2)} DN1=DN{Dn1}.{Dn1Suffix} DN2=DN{Dn2}.{Dn2Suffix}" +
+            yield return $"RED P1={NtrFormat.Pt(P1, ZOffsetMeters)} P2={NtrFormat.Pt(P2, ZOffsetMeters)} DN1=DN{Dn1}.{Dn1Suffix} DN2=DN{Dn2}.{Dn2Suffix}" +
                          (Material != null ? $" MAT={Material}" : "") +
                          NtrFormat.SoilTokens(null);
         }
@@ -130,7 +131,7 @@ namespace NTRExport.Ntr
         public string Dn2Suffix { get; init; } = "s";
         public override IEnumerable<string> ToNtr(INtrSoilAdapter soil)
         {
-            yield return $"ARM P1={NtrFormat.Pt(P1)} P2={NtrFormat.Pt(P2)} PM={NtrFormat.Pt(Pm)} DN1=DN{Dn1}.{Dn1Suffix} DN2=DN{Dn2}.{Dn2Suffix}" +
+            yield return $"ARM P1={NtrFormat.Pt(P1, ZOffsetMeters)} P2={NtrFormat.Pt(P2, ZOffsetMeters)} PM={NtrFormat.Pt(Pm, ZOffsetMeters)} DN1=DN{Dn1}.{Dn1Suffix} DN2=DN{Dn2}.{Dn2Suffix}" +
                          (Material != null ? $" MAT={Material}" : "") +
                          NtrFormat.SoilTokens(null);
         }

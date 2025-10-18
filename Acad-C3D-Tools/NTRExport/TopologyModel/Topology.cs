@@ -44,6 +44,9 @@ namespace NTRExport.TopologyModel
         public string? Material { get; set; }
         public IPipeVariant Variant { get; set; } = new SingleVariant();
         public TFlowRole Flow { get; set; } = TFlowRole.Unknown;
+        public IntersectUtilities.UtilsCommon.Enums.PipeSystemEnum System { get; set; }
+        public IntersectUtilities.UtilsCommon.Enums.PipeTypeEnum Type { get; set; }
+        public IntersectUtilities.UtilsCommon.Enums.PipeSeriesEnum Series { get; set; }
         // Cushion spans along this pipe in meters (s0,s1) from A→B
         public List<(double s0, double s1)> CushionSpans { get; } = new();
         public double Length
