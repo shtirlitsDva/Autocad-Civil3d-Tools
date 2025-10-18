@@ -17,11 +17,12 @@ namespace NTRExport.Ntr
         public const double DefaultSoilCoverM = 0.6;      // SOIL_H
         public const double CushionThkM = 0.08;           // SOIL_CUSH_THK
 
-        public static string Pt(Pt2 p)
+        public static string Pt(Pt2 p, double zMeters = 0.0)
         {
             var x = (p.X - NtrCoord.OffsetX) * MetersToMillimeters;
             var y = (p.Y - NtrCoord.OffsetY) * MetersToMillimeters;
-            return $"'" + $"{x:0.#}, {y:0.#}, 0" + "'";
+            var z = zMeters * MetersToMillimeters;
+            return $"'" + $"{x:0.#}, {y:0.#}, {z:0.#}" + "'";
         }
 
         public static string SoilTokens(SoilProfile? soil)
@@ -34,11 +35,14 @@ namespace NTRExport.Ntr
         }
     }
 
+    internal enum FlowRole { Unknown, Supply, Return }
+
     internal abstract class NtrMember
     {
         public int Dn { get; set; } = 0;
         public string? Material { get; set; }
         public IReadOnlyList<Handle> Provenance { get; init; } = Array.Empty<Handle>();
+        public FlowRole Flow { get; set; } = FlowRole.Unknown;
         public abstract IEnumerable<string> ToNtr(INtrSoilAdapter soil);
     }
 

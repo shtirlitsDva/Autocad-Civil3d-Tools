@@ -16,6 +16,15 @@ namespace NTRExport.TopologyModel
     {
         private readonly CadModel _cad;
         public TopologyBuilder(CadModel cad) { _cad = cad; }
+        private static TFlowRole FlowFromType(PipeTypeEnum type)
+        {
+            return type switch
+            {
+                PipeTypeEnum.Frem => TFlowRole.Supply,
+                PipeTypeEnum.Retur => TFlowRole.Return,
+                _ => TFlowRole.Unknown
+            };
+        }
         public Topology Build()
         {
             var g = new Topology();
@@ -51,7 +60,7 @@ namespace NTRExport.TopologyModel
                         p.Handle,
                         self => new TPort(PortRole.Neutral, a, self),
                         self => new TPort(PortRole.Neutral, b, self))
-                    { Dn = p.Dn, Material = p.Material, Variant = (p.Type == PipeTypeEnum.Twin ? new TwinVariant() : new SingleVariant()) };
+                    { Dn = p.Dn, Material = p.Material, Variant = (p.Type == PipeTypeEnum.Twin ? new TwinVariant() : new SingleVariant()), Flow = FlowFromType(p.Type) };
                     g.Elements.Add(tp);
                     continue;
                 }
@@ -66,7 +75,7 @@ namespace NTRExport.TopologyModel
                             p.Handle,
                             self => new TPort(PortRole.Neutral, a, self),
                             self => new TPort(PortRole.Neutral, b, self))
-                        { Dn = p.Dn, Material = p.Material, Variant = (p.Type == PipeTypeEnum.Twin ? new TwinVariant() : new SingleVariant()) };
+                        { Dn = p.Dn, Material = p.Material, Variant = (p.Type == PipeTypeEnum.Twin ? new TwinVariant() : new SingleVariant()), Flow = FlowFromType(p.Type) };
                         g.Elements.Add(tp);
                     }
                     else

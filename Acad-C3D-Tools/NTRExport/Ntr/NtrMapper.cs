@@ -28,6 +28,7 @@ namespace NTRExport.Ntr
                                 Dn = p.Dn,
                                 Material = p.Material,
                                 DnSuffix = suffix,
+                                Flow = MapFlow(p.Flow),
                                 Provenance = [p.Source]
                             });
                         }
@@ -42,7 +43,7 @@ namespace NTRExport.Ntr
                                 var pa = Lerp(p.A.Node.Pos, p.B.Node.Pos, t: p.Length <= 1e-9 ? 0.0 : a / p.Length);
                                 var pb = Lerp(p.A.Node.Pos, p.B.Node.Pos, t: p.Length <= 1e-9 ? 0.0 : b / p.Length);
                                 var soil = Covered(p.CushionSpans, a, b) ? new NTRExport.SoilModel.SoilProfile("Soil_C80", 0.08) : NTRExport.SoilModel.SoilProfile.Default;
-                                g.Members.Add(new NtrPipe { A = pa, B = pb, Dn = p.Dn, Material = p.Material, DnSuffix = suffix, Provenance = [p.Source], Soil = soil });
+                                g.Members.Add(new NtrPipe { A = pa, B = pb, Dn = p.Dn, Material = p.Material, DnSuffix = suffix, Flow = MapFlow(p.Flow), Provenance = [p.Source], Soil = soil });
                             }
                         }
                         break;
@@ -61,7 +62,7 @@ namespace NTRExport.Ntr
                             var t = new Pt2((a.X + b.X) / 2, (a.Y + b.Y) / 2);
                             var near = topo.Elements.OfType<TPipe>().FirstOrDefault(p => p.A.Node == ends[0].Node || p.B.Node == ends[0].Node || p.A.Node == ends[1].Node || p.B.Node == ends[1].Node);
                             var suffixB = near?.Variant.DnSuffix ?? "s";
-                            g.Members.Add(new NtrBend { A = a, B = b, T = t, Dn = InferMainDn(topo, f), Provenance = new[] { f.Source }, DnSuffix = suffixB });
+                            g.Members.Add(new NtrBend { A = a, B = b, T = t, Dn = InferMainDn(topo, f), Provenance = new[] { f.Source }, DnSuffix = suffixB, Flow = MapFlow(near?.Flow ?? TFlowRole.Unknown) });
                         }
                         break;
 
@@ -89,6 +90,7 @@ namespace NTRExport.Ntr
                             DnBranch = InferBranchDn(topo, f),
                             DnMainSuffix = suffixMain,
                             DnBranchSuffix = suffixBr,
+                            Flow = MapFlow(nearMain?.Flow ?? TFlowRole.Unknown),
                             Provenance = [f.Source]
                         });
                         break;
@@ -106,6 +108,7 @@ namespace NTRExport.Ntr
                             Dn2 = InferDn2(topo, f),
                             Dn1Suffix = rnear1?.Variant.DnSuffix ?? "s",
                             Dn2Suffix = rnear2?.Variant.DnSuffix ?? (rnear1?.Variant.DnSuffix ?? "s"),
+                            Flow = MapFlow((rnear1 ?? rnear2)?.Flow ?? TFlowRole.Unknown),
                             Material = null,
                             Provenance = [f.Source]
                         });
@@ -127,6 +130,7 @@ namespace NTRExport.Ntr
                             Pm = pm,
                             Dn1 = InferMainDn(topo, f),
                             Dn2 = InferMainDn(topo, f),
+                            Flow = MapFlow((vnear1 ?? vnear2)?.Flow ?? TFlowRole.Unknown),
                             Dn1Suffix = vnear1?.Variant.DnSuffix ?? "s",
                             Dn2Suffix = vnear2?.Variant.DnSuffix ?? (vnear1?.Variant.DnSuffix ?? "s"),
                             Provenance = [f.Source]
@@ -215,5 +219,12 @@ namespace NTRExport.Ntr
                     if (e is TPipe p && (p.A.Node == n || p.B.Node == n)) dns.Add(p.Dn);
             return dns.Count > 1 ? dns.Min() : 100;
         }
+
+        private static FlowRole MapFlow(TFlowRole f) => f switch
+        {
+            TFlowRole.Supply => FlowRole.Supply,
+            TFlowRole.Return => FlowRole.Return,
+            _ => FlowRole.Unknown
+        };
     }
 }

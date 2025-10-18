@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 
 namespace NTRExport.TopologyModel
 {
+    internal enum TFlowRole { Unknown, Supply, Return }
     internal class TNode
     {
         public Pt2 Pos { get; init; }
@@ -42,6 +43,7 @@ namespace NTRExport.TopologyModel
         public int Dn { get; set; } = 0;
         public string? Material { get; set; }
         public IPipeVariant Variant { get; set; } = new SingleVariant();
+        public TFlowRole Flow { get; set; } = TFlowRole.Unknown;
         // Cushion spans along this pipe in meters (s0,s1) from A→B
         public List<(double s0, double s1)> CushionSpans { get; } = new();
         public double Length
