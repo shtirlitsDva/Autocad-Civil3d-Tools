@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Reflection;
 using System.Globalization;
+using IntersectUtilities;
 
 namespace NTRExport.NtrConfiguration
 {
@@ -16,6 +17,8 @@ namespace NTRExport.NtrConfiguration
     {
         private static readonly string ExcelPath = @"X:\AC - NTR\NTR_CONFIG.xlsx";
         internal List<NtrLast> Last { get; }
+        internal NtrLast SupplyLast { get; private set; }
+        internal NtrLast ReturnLast { get; private set; }
         internal DataTable Pipelines { get; }        
         internal DataTable Profiles { get; }
         
@@ -33,6 +36,22 @@ namespace NTRExport.NtrConfiguration
             DataTable lastTable = ReadDataTable(dataTableCollection, "LAST");
             Last = lastTable != null ? MapPairedHeaderValueRowsTo<NtrLast>(lastTable) : new List<NtrLast>();
             Last = Last.Where(x => x.Name.StartsWith("FJV")).ToList();
+
+            var chosenSupplyLast =
+                TGridFormCaller.Call(
+                    Last.Where(x => x.Name.Contains("FREM")),
+                    x => x.Name,
+                    "Select LAST for *SUPPLY*: ");
+            if (chosenSupplyLast == null) throw new Exception("Cancelled!");
+            SupplyLast = chosenSupplyLast;
+            
+            var chosenReturnLast =
+                TGridFormCaller.Call(
+                    Last.Where(x => x.Name.Contains("RETUR")),
+                    x => x.Name,
+                    "Select LAST for *RETURN*: ");
+            if (chosenReturnLast == null) throw new Exception("Cancelled!");
+            ReturnLast = chosenReturnLast;
 
             // Assign other known sheets if present
             Pipelines = ReadDataTable(dataTableCollection, "PIPELINES");

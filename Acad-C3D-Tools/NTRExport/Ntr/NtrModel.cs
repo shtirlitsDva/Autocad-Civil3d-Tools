@@ -142,27 +142,6 @@ namespace NTRExport.Ntr
 
     internal class NtrGraph
     {
-        public List<NtrMember> Members { get; } = new();
-
-        // Collect DN usages for catalog production
-        public IEnumerable<int> EnumerateDns()
-        {
-            foreach (var m in Members)
-            {
-                switch (m)
-                {
-                    case NtrPipe p:
-                        if (p.Dn > 0) yield return p.Dn; break;
-                    case NtrBend b:
-                        if (b.Dn > 0) yield return b.Dn; break;
-                    case NtrTee t:
-                        if (t.Dn > 0) yield return t.Dn; if (t.DnBranch > 0) yield return t.DnBranch; break;
-                    case NtrReducer r:
-                        if (r.Dn1 > 0) yield return r.Dn1; if (r.Dn2 > 0) yield return r.Dn2; break;
-                    case NtrInstrument i:
-                        if (i.Dn1 > 0) yield return i.Dn1; if (i.Dn2 > 0) yield return i.Dn2; break;
-                }
-            }
-        }
+        public List<NtrMember> Members { get; } = new();        
     }
 }
