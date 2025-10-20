@@ -150,8 +150,8 @@ namespace NTRExport
             tx.Commit();
         }
 
-        [CommandMethod("NTREXPORT")]
-        public void ntrexport()
+        //[CommandMethod("NTREXPORTV2")]
+        public void ntrexportv2()
         {
             DocumentCollection docCol = AcApp.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
@@ -295,22 +295,17 @@ namespace NTRExport
             tx.Commit();
         }
 
-        [CommandMethod("NTREXPORTV2")]
-        public void ntrexportv2()
+        [CommandMethod("NTREXPORT")]
+        public void ntrexport()
         {
             DocumentCollection docCol = AcApp.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-
-            DataManager dm = new(new DataReferencesOptions());
-
-            using var fDb = dm.Fremtid();
-            using var fTx = fDb.TransactionManager.StartTransaction();
+            Database localDb = docCol.MdiActiveDocument.Database;            
 
             using var tx = localDb.TransactionManager.StartTransaction();
 
             try
             {
-                var ents = fDb.GetFjvEntities(fTx);
+                var ents = localDb.GetFjvEntities(tx);
 
                 #region ------------- FILTER -------------
                 var acceptedSystems = new HashSet<PipeSystemEnum>() { PipeSystemEnum.Stål };
