@@ -21,26 +21,27 @@ namespace NTRExport.Ntr
                         {
                             var suffix = p.Variant.DnSuffix;
                             // If the pipe has cushion spans, split into children with soilC80; else default soil
-                            // Twin emits upper (return) at Z=0 and lower (supply) at negative Z offset
+                            // Twin: symmetric about Z=0. Upper (return) at +((OD+gap)/2), lower (supply) at -((OD+gap)/2)
                             var isTwin = p.Variant.IsTwin;
-                            var zLower = 0.0;
+                            var zUp = 0.0; var zLow = 0.0;
                             if (isTwin)
                             {
-                                // Compute Z offset in meters: (OD + gap) in mm → m
+                                // Compute symmetric Z offsets in meters from mm inputs
                                 var odMm = PipeScheduleV2.GetPipeOd(p.System, p.Dn);
                                 var gapMm = PipeScheduleV2.GetPipeDistanceForTwin(p.System, p.Dn, p.Type);
-                                zLower = -Math.Max(0.0, (odMm + gapMm)) / 1000.0;
+                                var z = Math.Max(0.0, (odMm + gapMm)) / 2000.0;
+                                zUp = +z; zLow = -z;
                             }
 
                             void EmitSegment(NtrGraph g0, Pt2 a0, Pt2 b0, double s0, double s1)
                             {
                                 var soil = Covered(p.CushionSpans, s0, s1) ? new SoilModel.SoilProfile("Soil_C80", 0.08) : NTRExport.SoilModel.SoilProfile.Default;
                                 // upper (return)
-                                g0.Members.Add(new NtrPipe { A = a0, B = b0, Dn = p.Dn, Material = p.Material, DnSuffix = suffix, Flow = FlowRole.Return, ZOffsetMeters = 0.0, Provenance = [p.Source], Soil = soil });
+                                g0.Members.Add(new NtrPipe { A = a0, B = b0, Dn = p.Dn, Material = p.Material, DnSuffix = suffix, Flow = FlowRole.Return, ZOffsetMeters = zUp, Provenance = [p.Source], Soil = soil });
                                 if (isTwin)
                                 {
                                     // lower (supply)
-                                    g0.Members.Add(new NtrPipe { A = a0, B = b0, Dn = p.Dn, Material = p.Material, DnSuffix = suffix, Flow = FlowRole.Supply, ZOffsetMeters = zLower, Provenance = [p.Source], Soil = soil });
+                                    g0.Members.Add(new NtrPipe { A = a0, B = b0, Dn = p.Dn, Material = p.Material, DnSuffix = suffix, Flow = FlowRole.Supply, ZOffsetMeters = zLow, Provenance = [p.Source], Soil = soil });
                                 }
                             }
 
@@ -83,8 +84,8 @@ namespace NTRExport.Ntr
                             var zLower = 0.0;
                             if (isTwin && near != null)
                             {
-                                var odMm = IntersectUtilities.PipeScheduleV2.PipeScheduleV2.GetPipeOd(near.System, near.Dn);
-                                var gapMm = IntersectUtilities.PipeScheduleV2.PipeScheduleV2.GetPipeDistanceForTwin(near.System, near.Dn, near.Type);
+                                var odMm = PipeScheduleV2.GetPipeOd(near.System, near.Dn);
+                                var gapMm = PipeScheduleV2.GetPipeDistanceForTwin(near.System, near.Dn, near.Type);
                                 zLower = -Math.Max(0.0, (odMm + gapMm)) / 1000.0;
                             }
                             // upper (return)
@@ -116,8 +117,8 @@ namespace NTRExport.Ntr
                             var zLower = 0.0;
                             if (isTwin && nearMain != null)
                             {
-                                var odMm = IntersectUtilities.PipeScheduleV2.PipeScheduleV2.GetPipeOd(nearMain.System, nearMain.Dn);
-                                var gapMm = IntersectUtilities.PipeScheduleV2.PipeScheduleV2.GetPipeDistanceForTwin(nearMain.System, nearMain.Dn, nearMain.Type);
+                                var odMm = PipeScheduleV2.GetPipeOd(nearMain.System, nearMain.Dn);
+                                var gapMm = PipeScheduleV2.GetPipeDistanceForTwin(nearMain.System, nearMain.Dn, nearMain.Type);
                                 zLower = -Math.Max(0.0, (odMm + gapMm)) / 1000.0;
                             }
                             // upper (return)
@@ -169,8 +170,8 @@ namespace NTRExport.Ntr
                             var zLower = 0.0;
                             if (isTwin && basis != null)
                             {
-                                var odMm = IntersectUtilities.PipeScheduleV2.PipeScheduleV2.GetPipeOd(basis.System, basis.Dn);
-                                var gapMm = IntersectUtilities.PipeScheduleV2.PipeScheduleV2.GetPipeDistanceForTwin(basis.System, basis.Dn, basis.Type);
+                                var odMm = PipeScheduleV2.GetPipeOd(basis.System, basis.Dn);
+                                var gapMm = PipeScheduleV2.GetPipeDistanceForTwin(basis.System, basis.Dn, basis.Type);
                                 zLower = -Math.Max(0.0, (odMm + gapMm)) / 1000.0;
                             }
                             // upper
@@ -224,8 +225,8 @@ namespace NTRExport.Ntr
                             var zLower = 0.0;
                             if (isTwin && basis != null)
                             {
-                                var odMm = IntersectUtilities.PipeScheduleV2.PipeScheduleV2.GetPipeOd(basis.System, basis.Dn);
-                                var gapMm = IntersectUtilities.PipeScheduleV2.PipeScheduleV2.GetPipeDistanceForTwin(basis.System, basis.Dn, basis.Type);
+                                var odMm = PipeScheduleV2.GetPipeOd(basis.System, basis.Dn);
+                                var gapMm = PipeScheduleV2.GetPipeDistanceForTwin(basis.System, basis.Dn, basis.Type);
                                 zLower = -Math.Max(0.0, (odMm + gapMm)) / 1000.0;
                             }
                             // upper
