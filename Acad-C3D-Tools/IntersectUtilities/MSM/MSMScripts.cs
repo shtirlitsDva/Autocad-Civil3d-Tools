@@ -10,6 +10,8 @@ using System.Linq;
 using static IntersectUtilities.UtilsCommon.Utils;
 using System; // For Math
 using System.IO; // For path checks
+using System.Collections.Generic; // Added for list/dict helpers
+using AcadApp = Autodesk.AutoCAD.ApplicationServices.Application;
 
 namespace IntersectUtilities
 {
@@ -25,7 +27,7 @@ namespace IntersectUtilities
         [CommandMethod("LABELPROFILEVIEWS")]
         public void labelprofileviews()
         {
-            DocumentCollection docCol = Application.DocumentManager;
+            DocumentCollection docCol = AcadApp.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
 
             using Transaction tx = localDb.TransactionManager.StartTransaction();
@@ -96,129 +98,228 @@ namespace IntersectUtilities
             tx.Commit();
         }
 
-        /// <command>PLACEAFGRENING</command>
+        /// <command>PLACEAFGRENING, PAF</command>
         /// <summary>
-        /// Places and aligns a predefined block from Symboler.dwg on a selected polyline.
-        /// Blocks available: T-TWIN-S2-ISOPLUS, T-TWIN-S3-ISOPLUS, T-TWIN-S2-LOGSTOR, T-TWIN-S3-LOGSTOR.
+        /// Indsætter valgte T-blok(ke) orienteret efter tangent på en polyline.
+        /// Sekvens: 1) Vælg bloknavn 2) Vælg polyline 3) Vælg punkt.
         /// </summary>
         /// <category>Utilities</category>
         [CommandMethod("PLACEAFGRENING")]
-        public void placeafgrening()
+        [CommandMethod("PAF")]
+        public void placeAfgrening()
         {
-            DocumentCollection docCol = Application.DocumentManager;
-            Document doc = docCol.MdiActiveDocument;
-            Database db = doc.Database;
-            Editor ed = doc.Editor;
+            var doc = AcadApp.DocumentManager.MdiActiveDocument;
+            var ed = doc.Editor;
+            var db = doc.Database;
 
-            string symbolLibPath = @"X:\AutoCAD DRI - 01 Civil 3D\DynBlokke\Symboler.dwg";
-            if (!File.Exists(symbolLibPath))
+            string[] blockNames = new string[]
             {
-                prdDbg($"Block library not found: {symbolLibPath}");
-                return;
-            }
-
-            string[] blockNames =
-            {
-                "T-TWIN-S2-ISOPLUS",
-                "T-TWIN-S3-ISOPLUS",
-                "T-TWIN-S2-LOGSTOR",
-                "T-TWIN-S3-LOGSTOR"
+                "TEE KDLR","T-TWIN-S2-ISOPLUS","T-TWIN-S3-ISOPLUS","T-TWIN-S2-LOGSTOR","T-TWIN-S3-LOGSTOR",
+                "T ENKELT S2","T ENKELT S3","T PARALLEL S3 E","T PARALLEL S3 E VARIABEL"
             };
 
-            // Prompt for block choice
-            PromptKeywordOptions pko = new PromptKeywordOptions("\nChoose block type:");
-            foreach (var bn in blockNames) pko.Keywords.Add(bn);
-            pko.AllowNone = false;
-            var pkRes = ed.GetKeywords(pko);
-            if (pkRes.Status != PromptStatus.OK) return;
-            string chosenBlockName = pkRes.StringResult;
-
-            using var tx = db.TransactionManager.StartTransaction();
-            try
+            // 1) Vælg blok (NUMMERERING i stedet for keywords – undgår mellemrum problem)
+            ed.WriteMessage("\nTilgængelige blokke:");
+            for (int i = 0; i < blockNames.Length; i++)
+                ed.WriteMessage($"\n  {i + 1}. {blockNames[i]}");
+            int index = -1;
+            while (true)
             {
-                // Ensure block definition exists locally; import if missing
-                BlockTable bt = (BlockTable)tx.GetObject(db.BlockTableId, OpenMode.ForRead);
-                if (!bt.Has(chosenBlockName))
+                var intOpts = new PromptIntegerOptions($"\nIndtast tal (1-{blockNames.Length}) for blok: ")
+                { AllowNegative = false, AllowZero = false, LowerLimit = 1, UpperLimit = blockNames.Length };
+                var intRes = ed.GetInteger(intOpts);
+                if (intRes.Status != PromptStatus.OK) return;
+                index = intRes.Value - 1;
+                if (index >= 0 && index < blockNames.Length) break;
+            }
+            string selectedBlock = blockNames[index];
+
+            string libPath = @"X:\\AutoCAD DRI - 01 Civil 3D\\DynBlokke\\Symboler.dwg";
+            if (!File.Exists(libPath)) { prdDbg("Bibliotek ikke fundet: " + libPath); return; }
+
+            // Import block definition upfront to read dynamic properties
+            using (var preTx = db.TransactionManager.StartTransaction())
+            {
+                try
                 {
-                    using Database srcDb = new Database(false, true);
-                    srcDb.ReadDwgFile(symbolLibPath, FileOpenMode.OpenForReadAndAllShare, false, null);
-                    using Transaction srcTx = srcDb.TransactionManager.StartTransaction();
-                    BlockTable srcBt = (BlockTable)srcTx.GetObject(srcDb.BlockTableId, OpenMode.ForRead);
-                    if (!srcBt.Has(chosenBlockName))
+                    db.CheckOrImportBlockRecord(libPath, selectedBlock);
+                    preTx.Commit();
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg("Kunne ikke importere blokdefinition: " + ex.Message);
+                    preTx.Abort();
+                    return;
+                }
+            }
+
+            // 2) Vælg Type parameter (hvis dynamisk property eller attribut findes)
+            string chosenType = string.Empty;
+            List<string> allowedTypes = new List<string>();
+            using (var txTypes = db.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    BlockTable bt = (BlockTable)txTypes.GetObject(db.BlockTableId, OpenMode.ForRead);
+                    if (bt.Has(selectedBlock))
                     {
-                        prdDbg($"Block '{chosenBlockName}' not found in library.");
-                        srcTx.Commit();
-                        tx.Abort();
-                        return;
+                        var btr = (BlockTableRecord)txTypes.GetObject(bt[selectedBlock], OpenMode.ForRead);
+                        using (var tempBr = new BlockReference(Point3d.Origin, btr.ObjectId))
+                        {
+                            var dynProps = tempBr.DynamicBlockReferencePropertyCollection;
+                            foreach (DynamicBlockReferenceProperty prop in dynProps)
+                            {
+                                if (prop.PropertyName.Equals("Type", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    var vals = prop.GetAllowedValues();
+                                    if (vals != null && vals.Length > 0)
+                                        allowedTypes.AddRange(vals.Select(v => v.ToString()));
+                                }
+                            }
+                        }
+                        if (allowedTypes.Count == 0)
+                        {
+                            foreach (ObjectId id in btr)
+                            {
+                                if (id.ObjectClass.DxfName == "ATTDEF")
+                                {
+                                    var attDef = (AttributeDefinition)txTypes.GetObject(id, OpenMode.ForRead);
+                                    if (attDef.Tag.Equals("TYPE", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(attDef.TextString))
+                                        allowedTypes.Add(attDef.TextString);
+                                }
+                            }
+                        }
                     }
-                    ObjectIdCollection idsToClone = new ObjectIdCollection { srcBt[chosenBlockName] };
-                    IdMapping mapping = new IdMapping();
-                    srcDb.WblockCloneObjects(idsToClone, db.BlockTableId, mapping, DuplicateRecordCloning.Ignore, false);
-                    srcTx.Commit();
-                    // Refresh local block table handle
-                    bt = (BlockTable)tx.GetObject(db.BlockTableId, OpenMode.ForRead);
+                    txTypes.Commit();
                 }
-
-                // Select polyline
-                PromptEntityOptions peoPl = new PromptEntityOptions("\nSelect polyline to align on: ");
-                peoPl.SetRejectMessage("\nNot a polyline.");
-                peoPl.AddAllowedClass(typeof(Polyline), true);
-                var perPl = ed.GetEntity(peoPl);
-                if (perPl.Status != PromptStatus.OK) { tx.Abort(); return; }
-                var pline = (Polyline)tx.GetObject(perPl.ObjectId, OpenMode.ForRead);
-
-                // Pick point roughly where to place
-                PromptPointOptions ppo = new PromptPointOptions("\nPick point near desired placement along polyline: ");
-                var ppr = ed.GetPoint(ppo);
-                if (ppr.Status != PromptStatus.OK) { tx.Abort(); return; }
-                Point3d picked = ppr.Value;
-
-                // Find closest point and tangent
-                Point3d closest = pline.GetClosestPointTo(picked, false);
-                double param = pline.GetParameterAtPoint(closest);
-                Vector3d deriv = pline.GetFirstDerivative(param);
-                if (deriv.Length < 1e-9) deriv = Vector3d.XAxis; // fallback
-                double angle = Math.Atan2(deriv.Y, deriv.X);
-
-                // Insert block reference
-                bt.UpgradeOpen();
-                ObjectId btrId = bt[chosenBlockName];
-                BlockTableRecord btrDef = (BlockTableRecord)tx.GetObject(btrId, OpenMode.ForRead);
-                BlockTableRecord curSpace = (BlockTableRecord)tx.GetObject(db.CurrentSpaceId, OpenMode.ForWrite);
-                BlockReference newBr = new BlockReference(closest, btrId)
-                {
-                    Layer = "0",
-                    Rotation = angle,
-                    ScaleFactors = new Scale3d(1.0)
-                };
-                curSpace.AppendEntity(newBr);
-                tx.AddNewlyCreatedDBObject(newBr, true);
-
-                // Add attribute references (if any)
-                foreach (ObjectId id in btrDef)
-                {
-                    if (!id.IsValid) continue;
-                    if (!id.ObjectClass.IsDerivedFrom(RXObject.GetClass(typeof(AttributeDefinition)))) continue;
-                    var attDef = (AttributeDefinition)tx.GetObject(id, OpenMode.ForRead);
-                    if (attDef == null || attDef.Constant) continue;
-                    AttributeReference ar = new AttributeReference();
-                    ar.SetAttributeFromBlock(attDef, newBr.BlockTransform);
-                    ar.Position = attDef.Position.TransformBy(newBr.BlockTransform);
-                    ar.Layer = newBr.Layer;
-                    ar.Rotation = angle;
-                    curSpace.AppendEntity(ar);
-                    tx.AddNewlyCreatedDBObject(ar, true);
-                }
-
-                prdDbg($"Inserted '{chosenBlockName}' at ({closest.X:0.###},{closest.Y:0.###}) with rotation {angle * 180.0 / Math.PI:0.##}°");
+                catch { txTypes.Abort(); }
             }
-            catch (System.Exception ex)
+
+            if (allowedTypes.Count > 0)
             {
-                prdDbg(ex);
-                tx.Abort();
-                return;
+                string defaultType = allowedTypes.First();
+                ed.WriteMessage("\nTilgængelige Type værdier:");
+                for (int i = 0; i < allowedTypes.Count; i++) ed.WriteMessage($"\n  {i + 1}. {allowedTypes[i]}");
+                int typeIdx = -1;
+                while (true)
+                {
+                    var typeInt = new PromptIntegerOptions($"\nIndtast tal (1-{allowedTypes.Count}) for Type (Enter={defaultType}): ")
+                    { AllowNone = true, AllowNegative = false, AllowZero = false, LowerLimit = 1, UpperLimit = allowedTypes.Count };
+                    var tRes = ed.GetInteger(typeInt);
+                    if (tRes.Status == PromptStatus.None) { chosenType = defaultType; break; }
+                    if (tRes.Status != PromptStatus.OK) { chosenType = defaultType; break; }
+                    typeIdx = tRes.Value - 1;
+                    if (typeIdx >= 0 && typeIdx < allowedTypes.Count) { chosenType = allowedTypes[typeIdx]; break; }
+                }
             }
-            tx.Commit();
+            else
+            {
+                var strOpt = new PromptStringOptions("\nIndtast Type (Enter springer over): ") { AllowSpaces = true };
+                var strRes = ed.GetString(strOpt);
+                if (strRes.Status == PromptStatus.OK && strRes.StringResult.IsNotNoE()) chosenType = strRes.StringResult;
+            }
+
+            // 3) Vælg polyline
+            var peo = new PromptEntityOptions("\nVælg polyline: ");
+            peo.SetRejectMessage("\nObjekt er ikke en polyline.");
+            peo.AddAllowedClass(typeof(Polyline), true);
+            var per = ed.GetEntity(peo);
+            if (per.Status != PromptStatus.OK) return;
+            ObjectId plId = per.ObjectId;
+
+            // 4) Vælg punkt(er) og placer blok(ke)
+            while (true)
+            {
+                var ppo = new PromptPointOptions("\nVælg punkt (ESC stopper): ");
+                var ppr = ed.GetPoint(ppo);
+                if (ppr.Status != PromptStatus.OK) break;
+                Point3d picked = ppr.Value;
+                using (var tx = db.TransactionManager.StartTransaction())
+                {
+                    try
+                    {
+                        db.CheckOrImportBlockRecord(libPath, selectedBlock);
+                        Polyline pline = plId.Go<Polyline>(tx);
+                        Point3d onPl = pline.GetClosestPointTo(picked, false);
+                        double param = pline.GetParameterAtPoint(onPl);
+                        Vector3d deriv = pline.GetFirstDerivative(param);
+                        if (deriv.Length < 1e-9)
+                        {
+                            double adjParam = Math.Min(param + 1e-3, pline.EndParam);
+                            deriv = pline.GetFirstDerivative(adjParam);
+                        }
+                        if (deriv.Length < 1e-9) { prdDbg("Kan ikke bestemme tangent – springer."); tx.Abort(); continue; }
+                        double rotation = Vector3d.XAxis.GetAngleTo(deriv, Vector3d.ZAxis);
+                        var brOid = db.CreateBlockWithAttributes(selectedBlock, onPl, rotation);
+                        BlockReference br = brOid;
+                        try
+                        {
+                            var dynProps = br.DynamicBlockReferencePropertyCollection;
+                            foreach (DynamicBlockReferenceProperty prop in dynProps)
+                            {
+                                if (prop.PropertyName.Equals("Type", StringComparison.OrdinalIgnoreCase) && chosenType.IsNotNoE())
+                                {
+                                    var allowed = prop.GetAllowedValues();
+                                    if (allowed == null || allowed.Length == 0 || allowed.Any(v => v.ToString().Equals(chosenType, StringComparison.OrdinalIgnoreCase)))
+                                        prop.Value = chosenType;
+                                }
+                            }
+                        }
+                        catch { }
+                        try { SafeSetAttr(br, "TYPE", chosenType); } catch { }
+                        prdDbg($"Indsat {selectedBlock} (Type={chosenType}) @ {onPl.X:0.###},{onPl.Y:0.###} rot {rotation.ToDeg():0.##}°");
+                        tx.Commit();
+                    }
+                    catch (System.Exception ex) { prdDbg(ex.Message); tx.Abort(); }
+                }
+            }
+        }
+
+        // Normaliserer navn (fjerner mellemrum, bindestreger og underscores, gør uppercase)
+        private string NormalizeName(string name) => new string(name.Where(c => !char.IsWhiteSpace(c) && c != '-' && c != '_').ToArray()).ToUpperInvariant();
+        private string ResolveLibraryBlockName(string userName, List<string> libraryNames)
+        {
+            // Eksakt
+            if (libraryNames.Contains(userName)) return userName;
+            // Case-insensitive
+            var ci = libraryNames.FirstOrDefault(x => x.Equals(userName, StringComparison.OrdinalIgnoreCase));
+            if (ci != null) return ci;
+            // Normaliseret
+            string norm = NormalizeName(userName);
+            var normMatch = libraryNames.FirstOrDefault(x => NormalizeName(x) == norm);
+            if (normMatch != null) return normMatch;
+            // Token baseret (alle tokens skal forekomme)
+            var tokens = userName.Split(' ', '-', '_');
+            var tokenMatch = libraryNames.FirstOrDefault(x => tokens.All(t => x.IndexOf(t, StringComparison.OrdinalIgnoreCase) >= 0));
+            return tokenMatch;
+        }
+
+        // Loader alle bloknavne fra bibliotek (engang pr. kommando-kørsel)
+        private List<string> GetLibraryBlockNames(string libPath)
+        {
+            List<string> names = new();
+            using (Database libDb = new Database(false, true))
+            {
+                libDb.ReadDwgFile(libPath, FileOpenMode.OpenForReadAndAllShare, false, null);
+                using (var tx = libDb.TransactionManager.StartTransaction())
+                {
+                    BlockTable bt = (BlockTable)tx.GetObject(libDb.BlockTableId, OpenMode.ForRead);
+                    foreach (ObjectId id in bt)
+                    {
+                        var btr = (BlockTableRecord)tx.GetObject(id, OpenMode.ForRead);
+                        if (btr.IsLayout) continue; // spring model/paper space
+                        if (btr.Name.StartsWith("*")) continue; // anonyme/dynamiske symboler
+                        names.Add(btr.Name);
+                    }
+                    tx.Commit();
+                }
+            }
+            return names;
+        }
+
+        private void SafeSetAttr(BlockReference br, string tag, string value)
+        {
+            try { br.SetAttributeStringValue(tag, value); } catch { }
         }
     }
 }

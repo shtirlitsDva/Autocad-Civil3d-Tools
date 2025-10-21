@@ -134,7 +134,7 @@
 	</ItemGroup>
 	<PropertyGroup>
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-		<GenerateDocumentationFile>True</GenerateDocumentationFile>
+		<GenerateDocumentationFile>True</GenerateDocumentationFile>		
 	</PropertyGroup>
 	<ItemGroup>
 		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
