@@ -215,7 +215,7 @@ namespace IntersectUtilities
         /// Converts all lines in the drawing to polylines.
         /// </summary>
         /// <category>Miscellaneous</category>
-        [CommandMethod("CONVERTLINESTOPOLIES")]
+        [CommandMethod("CONVERTLINESTOPOLIESPSS")]
         public void convertlinestopoliespss()
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -239,6 +239,8 @@ namespace IntersectUtilities
 
                         pline.Layer = line.Layer;
                         pline.Color = line.Color;
+
+                        PropertySetManager.CopyAllProperties(line, pline);
                     }
 
                     foreach (Line line in lines)

@@ -1,4 +1,5 @@
 ﻿using NTRExport.Excel;
+using NTRExport.Ntr;
 
 using System;
 using System.Collections.Generic;
@@ -6,102 +7,146 @@ using System.Data;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Reflection;
+using System.Globalization;
+using IntersectUtilities;
 
 namespace NTRExport.NtrConfiguration
 {
-    public class ConfigurationData
+    internal class ConfigurationData
     {
         private static readonly string ExcelPath = @"X:\AC - NTR\NTR_CONFIG.xlsx";
-        public StringBuilder _01_GEN { get; }
-        public StringBuilder _02_AUFT { get; }
-        public StringBuilder _03_TEXT { get; }
-        public StringBuilder _04_LAST { get; }
-        public StringBuilder _05_DN { get; }
-        public StringBuilder _06_ISO { get; }
-        public DataTable Pipelines { get; }
-        //public DataTable Elements { get; }
-        //public DataTable Supports { get; }
-        public DataTable Profiles { get; }
-        //public DataTable Flexjoints { get; }
+        internal List<NtrLast> Last { get; }
+        internal NtrLast SupplyLast { get; private set; }
+        internal NtrLast ReturnLast { get; private set; }
+        internal DataTable Pipelines { get; }        
+        internal DataTable Profiles { get; }
+        
 
-        public ConfigurationData()
+        internal ConfigurationData()
         {
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+
             DataSet dataSet = ExcelReader.ReadExcelToDataSet(ExcelPath, false);
             dataSet = ExcelReader.ConvertToDataSetOfStrings(dataSet);
 
             DataTableCollection dataTableCollection = dataSet.Tables;
 
-            _01_GEN = ReadNtrConfigurationData(dataTableCollection, "GEN", "C General settings");
-            _02_AUFT = ReadNtrConfigurationData(dataTableCollection, "AUFT", "C Project description");
-            _03_TEXT = ReadNtrConfigurationData(dataTableCollection, "TEXT", "C User text");
-            _04_LAST = ReadNtrConfigurationData(dataTableCollection, "LAST", "C Loads definition");
-            _05_DN = ReadNtrConfigurationData(dataTableCollection, "DN", "C Definition of pipe dimensions");
-            _06_ISO = ReadNtrConfigurationData(dataTableCollection, "IS", "C Definition of insulation type");
+            //Read LAST records here
+            DataTable lastTable = ReadDataTable(dataTableCollection, "LAST");
+            Last = lastTable != null ? MapPairedHeaderValueRowsTo<NtrLast>(lastTable) : new List<NtrLast>();
+            Last = Last.Where(x => x.Name.StartsWith("FJV")).ToList();
 
-            DataSet dataSetWithHeaders = ExcelReader.ReadExcelToDataSet(ExcelPath, true);
-            dataSetWithHeaders = ExcelReader.ConvertToDataSetOfStrings(dataSetWithHeaders);
+            var chosenSupplyLast =
+                TGridFormCaller.Call(
+                    Last.Where(x => x.Name.Contains("FREM")),
+                    x => x.Name,
+                    "Select LAST for *SUPPLY*: ");
+            if (chosenSupplyLast == null) throw new Exception("Cancelled!");
+            SupplyLast = chosenSupplyLast;
+            
+            var chosenReturnLast =
+                TGridFormCaller.Call(
+                    Last.Where(x => x.Name.Contains("RETUR")),
+                    x => x.Name,
+                    "Select LAST for *RETURN*: ");
+            if (chosenReturnLast == null) throw new Exception("Cancelled!");
+            ReturnLast = chosenReturnLast;
 
-            Pipelines = ReadDataTable(dataSetWithHeaders.Tables, "PIPELINES");
-            //Elements = ReadDataTable(dataSetWithHeaders.Tables, "ELEMENTS");
-            //Supports = ReadDataTable(dataSetWithHeaders.Tables, "SUPPORTS");
-            Profiles = ReadDataTable(dataSetWithHeaders.Tables, "PROFILES");
-            //Flexjoints = ReadDataTable(dataSetWithHeaders.Tables, "FLEXJOINTS");
+            // Assign other known sheets if present
+            Pipelines = ReadDataTable(dataTableCollection, "PIPELINES");
+            Profiles = ReadDataTable(dataTableCollection, "PROFILES");
+        }
 
-            //http://stackoverflow.com/questions/10855/linq-query-on-a-datatable?rq=1
+        internal static DataTable ReadDataTable(DataTableCollection dataTableCollection, string tableName)
+        {
+            return (from DataTable dtbl in dataTableCollection where dtbl.TableName == tableName select dtbl).FirstOrDefault();
         }
 
         /// <summary>
-        /// Selects a DataTable by name and creates a StringBuilder output to NTR format based on the data in table.
+        /// Convert a worksheet arranged as pairs of rows (header row then value row)
+        /// into a list of instances of T. Constructor parameter names are matched
+        /// to headers case-insensitively; if no matching ctor is found, writable
+        /// properties are set as a fallback.
         /// </summary>
-        /// <param name="dataTableCollection">A collection of datatables.</param>
-        /// <param name="tableName">The name of the DataTable to process.</param>
-        /// <returns>StringBuilder containing the output NTR data.</returns>
-        private static StringBuilder ReadNtrConfigurationData(DataTableCollection dataTableCollection, string tableName, string description)
+        private static List<T> MapPairedHeaderValueRowsTo<T>(DataTable table) where T : class
         {
-            StringBuilder sb = new StringBuilder();
-            sb.AppendLine(description);
-
-            var table = ReadDataTable(dataTableCollection, tableName);
-            if (table == null)
+            var results = new List<T>();
+            if (table == null || table.Rows.Count == 0)
             {
-                sb.AppendLine("C " + tableName + " does not exist!");
-                return sb;
+                return results;
             }
 
-            int numberOfRows = table.Rows.Count;
-            if (numberOfRows % 2 != 0)
+            for (int r = 0; r + 1 < table.Rows.Count; r += 2)
             {
-                sb.AppendLine("C " + tableName + " is malformed, contains odd number of rows, must be even");
-                return sb;
-            }
+                DataRow headerRow = table.Rows[r];
+                DataRow valueRow = table.Rows[r + 1];
 
-            for (int i = 0; i < numberOfRows / 2; i++)
-            {
-                DataRow headerRow = table.Rows[i * 2];
-                DataRow dataRow = table.Rows[i * 2 + 1];
-                if (headerRow == null || dataRow == null)
-                    throw new NullReferenceException(
-                        tableName + " does not have two rows, check EXCEL configuration sheet!");
-
-                sb.Append(tableName);
-
-                for (int j = 0; j < headerRow.ItemArray.Length; j++)
+                var headerToValue = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                for (int c = 0; c < table.Columns.Count; c++)
                 {
-                    sb.Append(' ');
-                    sb.Append(headerRow.Field<string>(j));
-                    sb.Append('=');
-                    sb.Append(dataRow.Field<string>(j));
+                    string header = headerRow[c]?.ToString()?.Trim();
+                    if (string.IsNullOrWhiteSpace(header))
+                    {
+                        continue;
+                    }
+                    string value = valueRow[c]?.ToString()?.Trim() ?? string.Empty;
+                    headerToValue[header] = value;
                 }
 
-                sb.AppendLine();
+                ConstructorInfo ctor = typeof(T)
+                    .GetConstructors(BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic)
+                    .OrderByDescending(ci => ci.GetParameters().Length)
+                    .FirstOrDefault(ci => ci.GetParameters().All(p => headerToValue.ContainsKey(p.Name)));
+
+                if (ctor != null)
+                {
+                    object[] args = ctor.GetParameters()
+                        .Select(p => ConvertStringToType(headerToValue[p.Name], p.ParameterType))
+                        .ToArray();
+                    results.Add((T)ctor.Invoke(args));
+                    continue;
+                }
+
+                var instance = Activator.CreateInstance<T>();
+                foreach (PropertyInfo prop in typeof(T).GetProperties(BindingFlags.Public | BindingFlags.Instance))
+                {
+                    if (!prop.CanWrite)
+                    {
+                        continue;
+                    }
+                    if (!headerToValue.TryGetValue(prop.Name, out string strValue))
+                    {
+                        continue;
+                    }
+                    object converted = ConvertStringToType(strValue, prop.PropertyType);
+                    prop.SetValue(instance, converted);
+                }
+                results.Add(instance);
             }
 
-            return sb;
+            return results;
         }
 
-        public static DataTable ReadDataTable(DataTableCollection dataTableCollection, string tableName)
+        private static object ConvertStringToType(string input, Type targetType)
         {
-            return (from DataTable dtbl in dataTableCollection where dtbl.TableName == tableName select dtbl).FirstOrDefault();
+            Type effective = Nullable.GetUnderlyingType(targetType) ?? targetType;
+            if (effective == typeof(string))
+            {
+                return input;
+            }
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                return effective.IsValueType ? Activator.CreateInstance(effective) : null;
+            }
+            try
+            {
+                return Convert.ChangeType(input, effective, CultureInfo.InvariantCulture);
+            }
+            catch
+            {
+                return effective.IsValueType ? Activator.CreateInstance(effective) : null;
+            }
         }
     }
 }

@@ -1,23 +1,18 @@
 ﻿using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
-using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
 using Autodesk.Civil.ApplicationServices;
-using Autodesk.Civil.DatabaseServices;
-
-using Dreambuild.AutoCAD;
 
 using IntersectUtilities.UtilsCommon;
+using IntersectUtilities.UtilsCommon.Enums;
 
+using System;
 using System.Collections.Generic;
-using System.Linq;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
-using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
-using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 
 namespace IntersectUtilities
 {
@@ -42,6 +37,26 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Test transform LHN dim
+                    //var pls = localDb.HashSetOfType<Polyline>(tx, true);
+                    //foreach (var pl in pls)
+                    //{
+                    //    var str = PropertySetManager.ReadNonDefinedPropertySetString(
+                    //        pl, "FJV_dimensionering_VERIFI", "PipeType");
+
+                    //    str = str.Replace("DN", "");
+
+                    //    var dn = Convert.ToInt32(str);
+
+                    //    var layer = PipeScheduleV2.PipeScheduleV2.GetLayerName(
+                    //        dn, PipeSystemEnum.Stål, PipeTypeEnum.Twin);
+
+                    //    localDb.CheckOrCreateLayer(layer);
+
+                    //    pl.CheckOrOpenForWrite();
+                    //    pl.Layer = layer;
+                    //}                    
+                    #endregion
                     #region Test PVI grades
                     //var id = Interaction.GetEntity("Select profile: ", typeof(Profile));
                     //if (id == Oid.Null) { tx.Abort(); return; }

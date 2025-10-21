@@ -12,24 +12,39 @@ namespace NTRExport.Ntr
     {
         public IEnumerable<string> Define(SoilProfile p)
         {
-            // emit your soil model definition lines as needed
-            yield return $"UMG NAME={p.Name} CUSHION={p.CushionThk}";
+            // Using SOIL_* parameters per element; no global soil definitions needed.
+            yield break;
         }
-        public string? RefToken(SoilProfile p) => $"UMG={p.Name}";
+        public string? RefToken(SoilProfile p) => null;
     }
 
     internal class NtrWriter
     {
         private readonly INtrSoilAdapter _soil;
-        public NtrWriter(INtrSoilAdapter soil) { _soil = soil; }
+        public NtrWriter(INtrSoilAdapter soil) { _soil = soil; }        
 
-        public string Build(NtrGraph g)
+        public string Build(NtrGraph g, IEnumerable<string> headerRecords, NtrConfiguration.ConfigurationData conf)
         {
             var sb = new StringBuilder();
-            // 1) unique soil defs
-            foreach (var s in g.Members.OfType<NtrPipe>().Select(x => x.Soil).Distinct())
-                foreach (var line in _soil.Define(s)) sb.AppendLine(line);
-            // 2) geometry
+            // Header: units in millimeters
+            sb.AppendLine("C General settings");
+            sb.AppendLine("GEN TMONT=10 EB=-Z UNITKT=MM CODE=EN13941");
+
+            sb.AppendLine("C Loads definition");
+            foreach (var last in conf.Last) sb.AppendLine(last.ToString());            
+
+            // DN and IS sections from headerRecords
+            var dnLines = headerRecords.Where(l => l.StartsWith("DN ", StringComparison.OrdinalIgnoreCase)).ToList();
+            var isLines = headerRecords.Where(l => l.StartsWith("IS ", StringComparison.OrdinalIgnoreCase)).ToList();
+
+            sb.AppendLine("C Definition of pipe dimensions");
+            foreach (var dn in dnLines) sb.AppendLine(dn);
+
+            sb.AppendLine("C Definition of insulation type");
+            foreach (var isl in isLines) sb.AppendLine(isl);
+
+            // Geometry
+            sb.AppendLine("C Element definitions");
             foreach (var m in g.Members)
                 foreach (var line in m.ToNtr(_soil)) sb.AppendLine(line);
             return sb.ToString();

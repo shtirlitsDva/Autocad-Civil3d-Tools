@@ -742,7 +742,7 @@ namespace IntersectUtilities
                     int endIdx = vertices.Length - 1;
 
                     double startElevation = vertices[0].Position.Z;
-                    double endElevation = vertices[endIdx].Position.Z; ;
+                    double endElevation = vertices[endIdx].Position.Z;
 
                     if (startElevation.is3D() && endElevation.is3D())
                     {
