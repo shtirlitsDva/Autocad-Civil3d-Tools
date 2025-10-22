@@ -313,8 +313,8 @@ namespace NTRExport
                 bool isAccepted(Entity ent)
                 {
 #if DEBUG
-                    prdDbg("DEBUG filtering active! Polylines only.");
-                    if (ent is BlockReference) return false;
+                    //prdDbg("DEBUG filtering active! Polylines only.");
+                    //if (ent is BlockReference) return false;
 #endif
 
                     switch (ent)

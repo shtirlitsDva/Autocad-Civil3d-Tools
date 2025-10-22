@@ -37,11 +37,17 @@ namespace NTRExport.Ntr
                             {
                                 var soil = Covered(p.CushionSpans, s0, s1) ? new SoilModel.SoilProfile("Soil_C80", 0.08) : NTRExport.SoilModel.SoilProfile.Default;
                                 // upper (return)
-                                g0.Members.Add(new NtrPipe { A = a0, B = b0, Dn = p.Dn, Material = p.Material, DnSuffix = suffix, Flow = FlowRole.Return, ZOffsetMeters = zUp, Provenance = [p.Source], Soil = soil });
+                                g0.Members.Add(new NtrPipe { 
+                                    A = a0, B = b0, Dn = p.Dn, Material = p.Material, 
+                                    DnSuffix = suffix, Flow = FlowRole.Return, ZOffsetMeters = zUp, 
+                                    Provenance = [p.Source], Soil = soil });
                                 if (isTwin)
                                 {
                                     // lower (supply)
-                                    g0.Members.Add(new NtrPipe { A = a0, B = b0, Dn = p.Dn, Material = p.Material, DnSuffix = suffix, Flow = FlowRole.Supply, ZOffsetMeters = zLow, Provenance = [p.Source], Soil = soil });
+                                    g0.Members.Add(new NtrPipe {
+                                        A = a0, B = b0, Dn = p.Dn, Material = p.Material, 
+                                        DnSuffix = suffix, Flow = FlowRole.Supply, ZOffsetMeters = zLow, 
+                                        Provenance = [p.Source], Soil = soil });
                                 }
                             }
 
