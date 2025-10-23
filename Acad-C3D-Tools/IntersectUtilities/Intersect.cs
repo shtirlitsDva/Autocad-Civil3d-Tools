@@ -1512,6 +1512,21 @@ namespace IntersectUtilities
             createcomplexlinetypemethod(lineTypeName, text, textStyleName);
         }
 
+        /// <command>CCL</command>
+        /// <summary>
+        /// Creates complex linetype with text. User must type the name of the linetype and the text to be displayed.
+        /// </summary>
+        /// <category>LineTypes</category>
+        [CommandMethod("CCLX")]
+        public void createcomplexlinetypex()
+        {
+            string lineTypeName = Interaction.GetString("Enter LineType name: (ex: BIPS_TEXT_N2X) \n");
+            if (lineTypeName.IsNoE()) return;
+            string text = Interaction.GetString("Enter text to be displayed by line: (ex: 10kV) NO SPACES!!! \n", true);
+            string textStyleName = "Standard";
+            createcomplexlinetypexmethod(lineTypeName, text, textStyleName);
+        }
+
         /// <command>UELT</command>
         /// <summary>
         /// Update existing linetype. User must select object with linetype to be updated and type the text to be displayed.

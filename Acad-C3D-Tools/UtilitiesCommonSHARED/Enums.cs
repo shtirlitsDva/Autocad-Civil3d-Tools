@@ -95,32 +95,33 @@ namespace IntersectUtilities.UtilsCommon.Enums
 
     public enum PipelineElementType
     {
-        Pipe,
-        AfgreningMedSpring,
-        AfgreningParallel,
-        Afgreningsstuds,
+        Pipe, //TPipe
+        AfgreningMedSpring, //AfgreningMedSpring
+        AfgreningParallel, //AfgreningParallel
+        Afgreningsstuds, //Afgreningsstuds
         Endebund,
-        Engangsventil,
-        F_Model,
-        Kedelrørsbøjning,
-        LigeAfgrening,
-        PreskoblingTee,
-        PræisoleretBøjning90gr,
-        Bøjning45gr,
-        Bøjning30gr,
-        Bøjning15gr,
-        PræisoleretBøjningVariabel,
-        PræisoleretVentil,
-        PræventilMedUdluftning,
-        Reduktion,
-        Svanehals,
-        Svejsetee,
+        Engangsventil, //Valve
+        F_Model, //FModel
+        Kedelrørsbøjning, //ElbowFormstykke
+        LigeAfgrening, //LigeAfgrening
+        PreskoblingTee, //TeeFormstykke
+        PræisoleretBøjning90gr, //PreinsulatedElbow
+        PræisoleretBøjning45gr, //PreinsulatedElbow
+        Bøjning45gr, //ElbowFormstykke
+        Bøjning30gr, //ElbowFormstykke
+        Bøjning15gr, //ElbowFormstykke
+        PræisoleretBøjningVariabel, //PreinsulatedElbowSteel
+        PræisoleretVentil, //Valve
+        PræventilMedUdluftning, //Valve
+        Reduktion, //Reducer
+        Svanehals, //Svanehals
+        Svejsetee, //TeeFormstykke
         Svejsning,
-        Y_Model,
-        Buerør,
-        Stikafgrening,
-        Muffetee,
-        Materialeskift,
+        Y_Model, //YModel
+        Buerør, //Bueror
+        Stikafgrening, 
+        Muffetee, //TeeFormstykke
+        Materialeskift, //Materialeskift
     }
     #endregion
 

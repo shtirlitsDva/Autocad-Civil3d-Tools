@@ -500,14 +500,14 @@ namespace IntersectUtilities.UtilsCommon
             return startPoint.GetVectorTo(endPoint);
         }
 
-        public static void createcomplexlinetypemethod(
+        public static void createcomplexlinetypexmethod(
             string lineTypeName,
             string text,
             string textStyleName,
-            Database db = null
+            Database? db = null
         )
         {
-            if (text.Contains(" "))
+            if (text.Contains(' '))
                 throw new System.Exception("Text must not contain spaces!");
 
             db ??= Application.DocumentManager.MdiActiveDocument.Database;
@@ -575,16 +575,49 @@ namespace IntersectUtilities.UtilsCommon
                     // A small horizontal buffer on each side of each character
                     double textBuffer = 0.05;
 
-                    // Convert your text into individual characters
-                    char[] chars = text.ToCharArray();
+                    // Convert your text into segments that keep the total dash count within AutoCAD's
+                    // 12-dash limitation. Pattern layout:
+                    //   line dash | forward segments | half line | X | half line | reversed segments | X
+                    const int maxDashCapacity = 12;
+                    const int baseDashUsage = 5; // line dash + split line (2) + X between + trailing X
+                    int maxTextSegments = Math.Max(1, Math.Min(text.Length, (maxDashCapacity - baseDashUsage) / 2));
+                    List<string> forwardSegments;
+                    if (text.Length <= maxTextSegments)
+                    {
+                        forwardSegments = text.Select(c => c.ToString()).ToList();
+                    }
+                    else
+                    {
+                        forwardSegments = new List<string>();
+                        int baseLength = text.Length / maxTextSegments;
+                        int remainder = text.Length % maxTextSegments;
+                        int cursor = 0;
+                        for (int i = 0; i < maxTextSegments; i++)
+                        {
+                            int segmentLength = baseLength + (i < remainder ? 1 : 0);
+                            if (segmentLength <= 0)
+                                continue;
+                            forwardSegments.Add(text.Substring(cursor, segmentLength));
+                            cursor += segmentLength;
+                        }
+                        if (cursor < text.Length && forwardSegments.Count > 0)
+                        {
+                            int lastIndex = forwardSegments.Count - 1;
+                            forwardSegments[lastIndex] += text.Substring(cursor);
+                        }
+                    }
 
-                    // We want:
-                    //   1) One line dash
-                    //   2) A dash per character (forward)
-                    //   3) Another line dash
-                    //   4) A dash per character (reversed)
-                    int dashCount = 2 + 2 * chars.Length;
+                    int segmentCount = forwardSegments.Count;
+                    if (segmentCount == 0)
+                        throw new System.Exception("Unable to generate text segments for linetype pattern.");
+
+                    int dashCount = (2 * segmentCount) + baseDashUsage;
                     lttr.NumDashes = dashCount;
+
+                    List<string> reverseSegments = forwardSegments
+                        .Select(segment => new string(segment.Reverse().ToArray()))
+                        .Reverse()
+                        .ToList();
 
                     // We need to measure each character to set dash lengths properly.
                     Oid textStyleId = tt[textStyleName];
@@ -604,20 +637,21 @@ namespace IntersectUtilities.UtilsCommon
                     // -----------------------------
                     // FORWARD CHARACTERS (DASH #1+)
                     // -----------------------------
-                    for (int i = 0; i < chars.Length; i++)
+                    for (int i = 0; i < segmentCount; i++)
                     {
                         // This dash index is consecutive after dash 0
                         int dashIndex = i + 1;
 
-                        // Measure the single character’s width
-                        string c = chars[i].ToString();
-                        var extBox = ts.ExtentsBox(c, true, false, null);
-                        double charWidth = (extBox.MaxPoint.X - extBox.MinPoint.X) + 0.1;
+                        string segment = forwardSegments[i];
+                        var extBox = ts.ExtentsBox(segment, true, false, null);
+                        double segmentWidth = (extBox.MaxPoint.X - extBox.MinPoint.X) + 0.1;
                         // +0.1 just like your original code
 
-                        // Dash length is negative for text (shape) dash
-                        // We'll add 2*textBuffer horizontally so the dash has some padding
-                        double dashLen = -(charWidth + (2 * textBuffer));
+                        double leftBuffer = i == 0 ? textBuffer : 0;
+                        double rightBuffer = i == segmentCount - 1 ? textBuffer : 0;
+
+                        // Dash length is negative for text (shape) dash with buffers only at ends
+                        double dashLen = -(segmentWidth + leftBuffer + rightBuffer);
                         lttr.SetDashLengthAt(dashIndex, dashLen);
 
                         // For shape-based text, you must set these:
@@ -626,41 +660,73 @@ namespace IntersectUtilities.UtilsCommon
                         lttr.SetShapeScaleAt(dashIndex, 0.9);
                         lttr.SetShapeIsUcsOrientedAt(dashIndex, false);
                         lttr.SetShapeRotationAt(dashIndex, 0);
-                        lttr.SetTextAt(dashIndex, c);
+                        lttr.SetTextAt(dashIndex, segment);
 
                         // The shape offset must be local within the dash,
                         // not relative to the entire pattern.
-                        // We place it near the left side: -(charWidth - textBuffer)
+                        // We place it near the left side, preserving right-side buffer when needed
                         lttr.SetShapeOffsetAt(
                             dashIndex,
-                            new Vector2d(-(charWidth - textBuffer), -0.45)
+                            new Vector2d(-(segmentWidth - rightBuffer), -0.45)
                         );
 
                         // Accumulate pattern length (absolute value of dashLen)
-                        totalPatternLen += (charWidth + 2 * textBuffer);
+                        totalPatternLen += (segmentWidth + leftBuffer + rightBuffer);
                     }
 
                     // -----------------------
-                    // Next line dash
+                    // Split middle dash and insert centered X
                     // -----------------------
-                    int lineDashIndex2 = 1 + chars.Length;
-                    lttr.SetDashLengthAt(lineDashIndex2, dL);
-                    totalPatternLen += dL;
+                    int firstHalfLineIndex = 1 + segmentCount;
+                    string xText = "X";
+                    var xExt = ts.ExtentsBox(xText, true, false, null);
+                    double xCharWidth = (xExt.MaxPoint.X - xExt.MinPoint.X) + 0.1;
+                    double xDashLength = -xCharWidth;
+                    double availableLineLength = dL - Math.Abs(xDashLength);
+                    if (availableLineLength <= 0)
+                    {
+                        xDashLength = -Math.Min(0.8 * dL, dL - 0.2);
+                        availableLineLength = Math.Max(dL - Math.Abs(xDashLength), 0.2);
+                    }
+                    double halfLineLength = availableLineLength / 2.0;
+
+                    lttr.SetDashLengthAt(firstHalfLineIndex, halfLineLength);
+                    totalPatternLen += halfLineLength;
+
+                    int xBetweenIndex = firstHalfLineIndex + 1;
+                    lttr.SetDashLengthAt(xBetweenIndex, xDashLength);
+                    lttr.SetShapeStyleAt(xBetweenIndex, textStyleId);
+                    lttr.SetShapeNumberAt(xBetweenIndex, 0);
+                    lttr.SetShapeScaleAt(xBetweenIndex, 0.9);
+                    lttr.SetShapeIsUcsOrientedAt(xBetweenIndex, false);
+                    lttr.SetShapeRotationAt(xBetweenIndex, 0);
+                    lttr.SetTextAt(xBetweenIndex, xText);
+                    lttr.SetShapeOffsetAt(
+                        xBetweenIndex,
+                        new Vector2d(-(Math.Abs(xDashLength) / 2.0), -0.45)
+                    );
+                    totalPatternLen += Math.Abs(xDashLength);
+
+                    int secondHalfLineIndex = xBetweenIndex + 1;
+                    lttr.SetDashLengthAt(secondHalfLineIndex, halfLineLength);
+                    totalPatternLen += halfLineLength;
 
                     // ------------------------------------
                     // ROTATED CHARACTERS (DASH #...)
                     // ------------------------------------
-                    int reverseStartIndex = lineDashIndex2 + 1;
-                    for (int i = 0; i < chars.Length; i++)
+                    int reverseStartIndex = secondHalfLineIndex + 1;
+                    for (int i = 0; i < segmentCount; i++)
                     {
                         int dashIndex = reverseStartIndex + i;
 
-                        // Same character measurement
-                        string c = chars[chars.Length - 1 - i].ToString();
-                        var extBox = ts.ExtentsBox(c, true, false, null);
-                        double charWidth = (extBox.MaxPoint.X - extBox.MinPoint.X) + 0.1;
+                        string segment = reverseSegments[i];
+                        var extBox = ts.ExtentsBox(segment, true, false, null);
+                        double segmentWidth = (extBox.MaxPoint.X - extBox.MinPoint.X) + 0.1;
 
-                        double dashLen = -(charWidth + (2 * textBuffer));
+                        double leftBuffer = i == 0 ? textBuffer : 0;
+                        double rightBuffer = i == segmentCount - 1 ? textBuffer : 0;
+
+                        double dashLen = -(segmentWidth + leftBuffer + rightBuffer);
                         lttr.SetDashLengthAt(dashIndex, dashLen);
 
                         lttr.SetShapeStyleAt(dashIndex, textStyleId);
@@ -670,13 +736,269 @@ namespace IntersectUtilities.UtilsCommon
 
                         // Rotation 180° for reversed text
                         lttr.SetShapeRotationAt(dashIndex, Math.PI);
-                        lttr.SetTextAt(dashIndex, c);
+                        lttr.SetTextAt(dashIndex, segment);
 
                         // Offset is local to the dash. We'll place it near the
                         // “other end” of the dash: -textBuffer in X, etc.
                         lttr.SetShapeOffsetAt(dashIndex, new Vector2d(-textBuffer, 0.45));
 
-                        totalPatternLen += (charWidth + 2 * textBuffer);
+                        totalPatternLen += (segmentWidth + leftBuffer + rightBuffer);
+                    }
+
+                    // ------------------------------------
+                    // Trailing X for repeating pattern
+                    // ------------------------------------
+                    int finalXIndex = reverseStartIndex + segmentCount;
+                    lttr.SetDashLengthAt(finalXIndex, xDashLength);
+                    lttr.SetShapeStyleAt(finalXIndex, textStyleId);
+                    lttr.SetShapeNumberAt(finalXIndex, 0);
+                    lttr.SetShapeScaleAt(finalXIndex, 0.9);
+                    lttr.SetShapeIsUcsOrientedAt(finalXIndex, false);
+                    lttr.SetShapeRotationAt(finalXIndex, 0);
+                    lttr.SetTextAt(finalXIndex, xText);
+                    lttr.SetShapeOffsetAt(
+                        finalXIndex,
+                        new Vector2d(-(Math.Abs(xDashLength) / 2.0), -0.45)
+                    );
+                    totalPatternLen += Math.Abs(xDashLength);
+
+                    // Finalize overall pattern length
+                    lttr.PatternLength = totalPatternLen;
+
+                    // Add the new linetype to the linetype table
+                    Oid ltId = ltt.Add(lttr);
+                    tx.AddNewlyCreatedDBObject(lttr, true);
+                    foreach (string name in layersToChange)
+                    {
+                        Oid ltrId = lt[name];
+                        LayerTableRecord ltr = ltrId.Go<LayerTableRecord>(tx, OpenMode.ForWrite);
+                        ltr.LinetypeObjectId = ltId;
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                }
+                tx.Commit();
+            }
+        }
+        
+        public static void createcomplexlinetypemethod(
+            string lineTypeName,
+            string text,
+            string textStyleName,
+            Database? db = null
+        )
+        {
+            if (text.Contains(' '))
+                throw new System.Exception("Text must not contain spaces!");
+
+            db ??= Application.DocumentManager.MdiActiveDocument.Database;
+            Transaction tx = db.TransactionManager.StartTransaction();
+            using (tx)
+            {
+                try
+                {
+                    // We'll use the textstyle table to access
+                    // the "Standard" textstyle for our text segment
+                    TextStyleTable tt = (TextStyleTable)
+                        tx.GetObject(db.TextStyleTableId, OpenMode.ForRead);
+                    // Get the linetype table from the drawing
+                    LinetypeTable ltt = (LinetypeTable)
+                        tx.GetObject(db.LinetypeTableId, OpenMode.ForWrite);
+                    // Get layer table
+                    LayerTable lt = tx.GetObject(db.LayerTableId, OpenMode.ForRead) as LayerTable;
+                    //**************************************
+                    //Change name of line type to create new and text value
+                    //**************************************
+                    prdDbg($"Remember to create text style: {textStyleName}!!!");
+                    if (tt.Has(textStyleName))
+                    {
+                        prdDbg("Text style exists!");
+                    }
+                    else
+                    {
+                        prdDbg($"Text style {textStyleName} DOES NOT exist!");
+                        tx.Abort();
+                        return;
+                    }
+                    List<string> layersToChange = new List<string>();
+                    if (ltt.Has(lineTypeName))
+                    {
+                        Oid existingId = ltt[lineTypeName];
+                        Oid placeHolderId = ltt["Continuous"];
+                        foreach (Oid oid in lt)
+                        {
+                            LayerTableRecord ltr = oid.Go<LayerTableRecord>(tx);
+                            if (ltr.LinetypeObjectId == existingId)
+                            {
+                                ltr.CheckOrOpenForWrite();
+                                ltr.LinetypeObjectId = placeHolderId;
+                                layersToChange.Add(ltr.Name);
+                            }
+                        }
+                        LinetypeTableRecord exLtr = existingId.Go<LinetypeTableRecord>(
+                            tx,
+                            OpenMode.ForWrite
+                        );
+                        exLtr.Erase(true);
+                    }
+                    // Create our new linetype table record...
+                    LinetypeTableRecord lttr = new LinetypeTableRecord();
+                    // ... and set its properties
+                    lttr.Name = lineTypeName;
+                    lttr.AsciiDescription = $"{text} ---- {text} ---- {text} ----";
+                    lttr.PatternLength = 0.9;
+                    //IsScaledToFit unsure what it does, can't see any difference
+                    lttr.IsScaledToFit = true;
+
+                    // A single line dash length
+                    double dL = 5;
+
+                    // A small horizontal buffer on each side of each character
+                    double textBuffer = 0.05;
+
+                    // Convert your text into segments that keep the total dash count within AutoCAD's
+                    // 12-dash limitation (two line dashes + forward text + reversed text).
+                    const int maxTextSegments = 5;
+                    List<string> forwardSegments;
+                    if (text.Length <= maxTextSegments)
+                    {
+                        forwardSegments = text.Select(c => c.ToString()).ToList();
+                    }
+                    else
+                    {
+                        forwardSegments = new List<string>();
+                        int baseLength = text.Length / maxTextSegments;
+                        int remainder = text.Length % maxTextSegments;
+                        int cursor = 0;
+                        for (int i = 0; i < maxTextSegments; i++)
+                        {
+                            int segmentLength = baseLength + (i < remainder ? 1 : 0);
+                            if (segmentLength <= 0)
+                                continue;
+                            forwardSegments.Add(text.Substring(cursor, segmentLength));
+                            cursor += segmentLength;
+                        }
+                        if (cursor < text.Length)
+                        {
+                            int lastIndex = forwardSegments.Count - 1;
+                            forwardSegments[lastIndex] += text.Substring(cursor);
+                        }
+                    }
+
+                    int segmentCount = forwardSegments.Count;
+                    if (segmentCount == 0)
+                        throw new System.Exception("Unable to generate text segments for linetype pattern.");
+
+                    // We want:
+                    //   1) One line dash
+                    //   2) A dash per text segment (forward)
+                    //   3) Another line dash
+                    //   4) A dash per text segment (reversed)
+                    int dashCount = 2 + 2 * segmentCount;
+                    lttr.NumDashes = dashCount;
+
+                    List<string> reverseSegments = forwardSegments
+                        .Select(segment => new string(segment.Reverse().ToArray()))
+                        .Reverse()
+                        .ToList();
+
+                    // We need to measure each character to set dash lengths properly.
+                    Oid textStyleId = tt[textStyleName];
+                    var ts = new Autodesk.AutoCAD.GraphicsInterface.TextStyle();
+                    ts.FromTextStyleTableRecord(textStyleId);
+                    ts.TextSize = 0.9; // same size you used before
+
+                    // We'll track total pattern length to finalize lttr.PatternLength
+                    double totalPatternLen = 0;
+
+                    // -------------------------
+                    // DASH #0 : The first line
+                    // -------------------------
+                    lttr.SetDashLengthAt(0, dL);
+                    totalPatternLen += dL;
+
+                    // -----------------------------
+                    // FORWARD CHARACTERS (DASH #1+)
+                    // -----------------------------
+                    for (int i = 0; i < segmentCount; i++)
+                    {
+                        // This dash index is consecutive after dash 0
+                        int dashIndex = i + 1;
+
+                        string segment = forwardSegments[i];
+                        var extBox = ts.ExtentsBox(segment, true, false, null);
+                        double segmentWidth = (extBox.MaxPoint.X - extBox.MinPoint.X) + 0.1;
+                        // +0.1 just like your original code
+
+                        double leftBuffer = i == 0 ? textBuffer : 0;
+                        double rightBuffer = i == segmentCount - 1 ? textBuffer : 0;
+
+                        // Dash length is negative for text (shape) dash with buffers only at ends
+                        double dashLen = -(segmentWidth + leftBuffer + rightBuffer);
+                        lttr.SetDashLengthAt(dashIndex, dashLen);
+
+                        // For shape-based text, you must set these:
+                        lttr.SetShapeStyleAt(dashIndex, textStyleId);
+                        lttr.SetShapeNumberAt(dashIndex, 0);
+                        lttr.SetShapeScaleAt(dashIndex, 0.9);
+                        lttr.SetShapeIsUcsOrientedAt(dashIndex, false);
+                        lttr.SetShapeRotationAt(dashIndex, 0);
+                        lttr.SetTextAt(dashIndex, segment);
+
+                        // The shape offset must be local within the dash,
+                        // not relative to the entire pattern.
+                        // We place it near the left side, preserving right-side buffer when needed
+                        lttr.SetShapeOffsetAt(
+                            dashIndex,
+                            new Vector2d(-(segmentWidth - rightBuffer), -0.45)
+                        );
+
+                        // Accumulate pattern length (absolute value of dashLen)
+                        totalPatternLen += (segmentWidth + leftBuffer + rightBuffer);
+                    }
+
+                    // -----------------------
+                    // Next line dash
+                    // -----------------------
+                    int lineDashIndex2 = 1 + segmentCount;
+                    lttr.SetDashLengthAt(lineDashIndex2, dL);
+                    totalPatternLen += dL;
+
+                    // ------------------------------------
+                    // ROTATED CHARACTERS (DASH #...)
+                    // ------------------------------------
+                    int reverseStartIndex = lineDashIndex2 + 1;
+                    for (int i = 0; i < segmentCount; i++)
+                    {
+                        int dashIndex = reverseStartIndex + i;
+
+                        string segment = reverseSegments[i];
+                        var extBox = ts.ExtentsBox(segment, true, false, null);
+                        double segmentWidth = (extBox.MaxPoint.X - extBox.MinPoint.X) + 0.1;
+
+                        double leftBuffer = i == 0 ? textBuffer : 0;
+                        double rightBuffer = i == segmentCount - 1 ? textBuffer : 0;
+
+                        double dashLen = -(segmentWidth + leftBuffer + rightBuffer);
+                        lttr.SetDashLengthAt(dashIndex, dashLen);
+
+                        lttr.SetShapeStyleAt(dashIndex, textStyleId);
+                        lttr.SetShapeNumberAt(dashIndex, 0);
+                        lttr.SetShapeScaleAt(dashIndex, 0.9);
+                        lttr.SetShapeIsUcsOrientedAt(dashIndex, false);
+
+                        // Rotation 180° for reversed text
+                        lttr.SetShapeRotationAt(dashIndex, Math.PI);
+                        lttr.SetTextAt(dashIndex, segment);
+
+                        // Offset is local to the dash. We'll place it near the
+                        // “other end” of the dash: -textBuffer in X, etc.
+                        lttr.SetShapeOffsetAt(dashIndex, new Vector2d(-textBuffer, 0.45));
+
+                        totalPatternLen += (segmentWidth + leftBuffer + rightBuffer);
                     }
 
                     // Finalize overall pattern length
@@ -775,6 +1097,7 @@ namespace IntersectUtilities.UtilsCommon
                 { "Lige afgrening", PipelineElementType.LigeAfgrening },
                 { "Parallelafgrening", PipelineElementType.AfgreningParallel },
                 { "Præisoleret bøjning, 90gr", PipelineElementType.PræisoleretBøjning90gr },
+                { "Præisoleret bøjning, 45gr", PipelineElementType.PræisoleretBøjning45gr },
                 { "Bøjning, 45gr", PipelineElementType.Bøjning45gr },
                 { "Bøjning, 30gr", PipelineElementType.Bøjning30gr },
                 { "Bøjning, 15gr", PipelineElementType.Bøjning15gr },
