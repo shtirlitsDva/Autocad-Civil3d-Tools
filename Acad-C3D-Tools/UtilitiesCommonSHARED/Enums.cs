@@ -37,7 +37,7 @@ namespace IntersectUtilities.UtilsCommon.Enums
     public enum PipeSystemEnum
     {
         Ukendt,
-        Stål,
+        StÃ¥l,
         Kobberflex,
         AluPex,
         PertFlextra,
@@ -48,7 +48,7 @@ namespace IntersectUtilities.UtilsCommon.Enums
     public enum LerTypeEnum
     {
         Ukendt,
-        Afløb,
+        AflÃ¸b,
         Damp,
         EL_LS, // Low Supply (EL_04)
         EL_HS, // High Supply (EL_10, EL_30, EL_50, EL_132)
@@ -102,23 +102,23 @@ namespace IntersectUtilities.UtilsCommon.Enums
         Endebund,
         Engangsventil, //Valve
         F_Model, //FModel
-        Kedelrørsbøjning, //ElbowFormstykke
+        KedelrÃ¸rsbÃ¸jning, //ElbowFormstykke
         LigeAfgrening, //LigeAfgrening
         PreskoblingTee, //TeeFormstykke
-        PræisoleretBøjning90gr, //PreinsulatedElbow
-        PræisoleretBøjning45gr, //PreinsulatedElbow
-        Bøjning45gr, //ElbowFormstykke
-        Bøjning30gr, //ElbowFormstykke
-        Bøjning15gr, //ElbowFormstykke
-        PræisoleretBøjningVariabel, //PreinsulatedElbowSteel
-        PræisoleretVentil, //Valve
-        PræventilMedUdluftning, //Valve
+        PrÃ¦isoleretBÃ¸jning90gr, //PreinsulatedElbow
+        PrÃ¦isoleretBÃ¸jning45gr, //PreinsulatedElbow
+        BÃ¸jning45gr, //ElbowFormstykke
+        BÃ¸jning30gr, //ElbowFormstykke
+        BÃ¸jning15gr, //ElbowFormstykke
+        PrÃ¦isoleretBÃ¸jningVariabel, //PreinsulatedElbowSteel
+        PrÃ¦isoleretVentil, //Valve
+        PrÃ¦ventilMedUdluftning, //Valve
         Reduktion, //Reducer
         Svanehals, //Svanehals
         Svejsetee, //TeeFormstykke
         Svejsning,
         Y_Model, //YModel
-        Buerør, //Bueror
+        BuerÃ¸r, //Bueror
         Stikafgrening, 
         Muffetee, //TeeFormstykke
         Materialeskift, //Materialeskift

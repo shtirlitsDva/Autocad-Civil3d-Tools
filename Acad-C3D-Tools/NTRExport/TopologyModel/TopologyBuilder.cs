@@ -16,15 +16,7 @@ namespace NTRExport.TopologyModel
     {
         private readonly CadModel _cad;
         public TopologyBuilder(CadModel cad) { _cad = cad; }
-        private static TFlowRole FlowFromType(PipeTypeEnum type)
-        {
-            return type switch
-            {
-                PipeTypeEnum.Frem => TFlowRole.Supply,
-                PipeTypeEnum.Retur => TFlowRole.Return,
-                _ => TFlowRole.Unknown
-            };
-        }
+        
         public Topology Build()
         {
             var g = new Topology();
@@ -40,11 +32,16 @@ namespace NTRExport.TopologyModel
             }
 
             // 2) Fittings with traversable ports
-            foreach (var f in _cad.Fittings)
+            foreach (var fitting in _cad.Fittings)
             {
-                var tf = new TFitting(f.Handle, f.Kind);
-                foreach (var cp in f.GetPorts())
-                    tf.AddPort(new TPort(cp.Role, NodeAt(cp.Position), tf));
+                var ports = fitting.GetPorts();
+                var tf = CreateFitting(fitting, ports);
+
+                foreach (var cadPort in ports)
+                {
+                    tf.AddPort(new TPort(cadPort.Role, NodeAt(cadPort.Position), tf));
+                }
+
                 g.Elements.Add(tf);
             }
 
@@ -59,8 +56,7 @@ namespace NTRExport.TopologyModel
                     var tp = new TPipe(
                         p.Handle,
                         self => new TPort(PortRole.Neutral, a, self),
-                        self => new TPort(PortRole.Neutral, b, self))
-                    { Dn = p.Dn, Material = p.Material, Variant = (p.Type == PipeTypeEnum.Twin ? new TwinVariant() : new SingleVariant()), Flow = FlowFromType(p.Type), System = p.System, Type = p.Type, Series = p.Series };
+                        self => new TPort(PortRole.Neutral, b, self));
                     g.Elements.Add(tp);
                     continue;
                 }
@@ -74,18 +70,17 @@ namespace NTRExport.TopologyModel
                         var tp = new TPipe(
                             p.Handle,
                             self => new TPort(PortRole.Neutral, a, self),
-                            self => new TPort(PortRole.Neutral, b, self))
-                        { Dn = p.Dn, Material = p.Material, Variant = (p.Type == PipeTypeEnum.Twin ? new TwinVariant() : new SingleVariant()), Flow = FlowFromType(p.Type), System = p.System, Type = p.Type, Series = p.Series };
+                            self => new TPort(PortRole.Neutral, b, self));
                         g.Elements.Add(tp);
                     }
                     else
                     {
                         var a = NodeAt(s.Start);
                         var b = NodeAt(s.End);
-                        var tf = new TFitting(p.Handle, PipelineElementType.Kedelrørsbøjning);
-                        tf.AddPort(new TPort(PortRole.Main, a, tf));
-                        tf.AddPort(new TPort(PortRole.Main, b, tf));
-                        g.Elements.Add(tf);
+                        var elbow = new ElbowFormstykke(p.Handle, PipelineElementType.Kedelrørsbøjning, TangentFromArc(s));
+                        elbow.AddPort(new TPort(PortRole.Main, a, elbow));
+                        elbow.AddPort(new TPort(PortRole.Main, b, elbow));
+                        g.Elements.Add(elbow);
                     }
                 }
             }
@@ -96,5 +91,117 @@ namespace NTRExport.TopologyModel
         }
 
         private static double Dist(Pt2 a, Pt2 b) => Math.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y));
+
+        private static TFitting CreateFitting(ICadFitting fitting, IReadOnlyList<CadPort> ports)
+        {
+            var tangent = EstimateTangent(ports);
+            return fitting.Kind switch
+            {
+                PipelineElementType.Kedelrørsbøjning
+                or PipelineElementType.Bøjning45gr
+                or PipelineElementType.Bøjning30gr
+                or PipelineElementType.Bøjning15gr
+                    => new ElbowFormstykke(fitting.Handle, fitting.Kind, tangent),
+
+                PipelineElementType.Buerør
+                    => new Bueror(fitting.Handle, tangent),
+
+                PipelineElementType.PræisoleretBøjning90gr
+                or PipelineElementType.PræisoleretBøjning45gr
+                or PipelineElementType.PræisoleretBøjningVariabel
+                    => new PreinsulatedElbow(fitting.Handle, fitting.Kind, tangent),
+
+                PipelineElementType.Svejsetee
+                or PipelineElementType.PreskoblingTee
+                or PipelineElementType.Muffetee
+                    => new TeeFormstykke(fitting.Handle, fitting.Kind),
+
+                PipelineElementType.AfgreningMedSpring
+                    => new AfgreningMedSpring(fitting.Handle),
+
+                PipelineElementType.AfgreningParallel
+                    => new AfgreningParallel(fitting.Handle),
+
+                PipelineElementType.LigeAfgrening
+                    => new LigeAfgrening(fitting.Handle),
+
+                PipelineElementType.Stikafgrening
+                    => new Stikafgrening(fitting.Handle),
+
+                PipelineElementType.Afgreningsstuds
+                    => new AfgreningsStuds(fitting.Handle),
+
+                PipelineElementType.F_Model
+                    => new FModel(fitting.Handle),
+
+                PipelineElementType.Y_Model
+                    => new YModel(fitting.Handle),
+
+                PipelineElementType.Engangsventil
+                or PipelineElementType.PræisoleretVentil
+                or PipelineElementType.PræventilMedUdluftning
+                    => new Valve(fitting.Handle, fitting.Kind),
+
+                PipelineElementType.Reduktion
+                    => new Reducer(fitting.Handle),
+
+                PipelineElementType.Svanehals
+                    => new Svanehals(fitting.Handle),
+
+                PipelineElementType.Materialeskift
+                    => new Materialeskift(fitting.Handle),
+
+                PipelineElementType.Endebund
+                    => new Endebund(fitting.Handle),
+
+                PipelineElementType.Svejsning
+                    => new GenericFitting(fitting.Handle, fitting.Kind),
+
+                _ => new GenericFitting(fitting.Handle, fitting.Kind)
+            };
+        }
+
+        private static Pt2 EstimateTangent(IReadOnlyList<CadPort> ports)
+        {
+            if (ports == null || ports.Count == 0)
+            {
+                return new Pt2(0.0, 0.0);
+            }
+
+            double sumX = 0.0;
+            double sumY = 0.0;
+            foreach (var port in ports)
+            {
+                sumX += port.Position.X;
+                sumY += port.Position.Y;
+            }
+
+            var inv = 1.0 / ports.Count;
+            return new Pt2(sumX * inv, sumY * inv);
+        }
+
+        private static Pt2 TangentFromArc(CadPipeSegment segment)
+        {
+            var center = segment.Center;
+            var start = segment.Start;
+            var end = segment.End;
+
+            var radius = Dist(start, center);
+            if (radius <= 1e-9)
+            {
+                return new Pt2((start.X + end.X) * 0.5, (start.Y + end.Y) * 0.5);
+            }
+
+            var startAngle = Math.Atan2(start.Y - center.Y, start.X - center.X);
+            var endAngle = Math.Atan2(end.Y - center.Y, end.X - center.X);
+            var delta = endAngle - startAngle;
+            if (delta > Math.PI) delta -= 2 * Math.PI;
+            if (delta < -Math.PI) delta += 2 * Math.PI;
+            var midAngle = startAngle + delta / 2.0;
+
+            return new Pt2(
+                center.X + radius * Math.Cos(midAngle),
+                center.Y + radius * Math.Sin(midAngle));
+        }
     }
 }
