@@ -1499,7 +1499,7 @@ namespace IntersectUtilities
         /// <summary>
         /// Creates complex linetype with text. User must type the name of the linetype and the text to be displayed.
         /// </summary>
-        /// <category>Miscellaneous</category>
+        /// <category>LineTypes</category>
         [CommandMethod("CCL")]
         public void createcomplexlinetype()
         {
@@ -1516,7 +1516,7 @@ namespace IntersectUtilities
         /// <summary>
         /// Update existing linetype. User must select object with linetype to be updated and type the text to be displayed.
         /// </summary>
-        /// <category>Miscellaneous</category>
+        /// <category>LineTypes</category>
         [CommandMethod("UELT")]
         public void updateexistinglinetype()
         {
@@ -1549,7 +1549,7 @@ namespace IntersectUtilities
         /// Arranges the polylines in a table-like fashion.
         /// Useful for visualizing linetypes.
         /// </summary>
-        /// <category>Miscellaneous</category>
+        /// <category>LineTypes</category>
         [CommandMethod("CREATEALLLINETYPESLAYERS")]
         public void createcalllinetypeslayers()
         {
