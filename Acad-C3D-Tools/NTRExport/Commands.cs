@@ -13,7 +13,6 @@ using IntersectUtilities.UtilsCommon.DataManager;
 using IntersectUtilities.UtilsCommon.Enums;
 using IntersectUtilities.UtilsCommon.Graphs;
 
-using NTRExport.CadExtraction;
 using NTRExport.Interfaces;
 using NTRExport.Ntr;
 using NTRExport.NtrConfiguration;
@@ -229,15 +228,15 @@ namespace NTRExport
                             case PipelineSegmentV2 pseg:
                                 switch (pseg.Size.Type)
                                 {
-                                    case IntersectUtilities.UtilsCommon.Enums.PipeTypeEnum.Twin:
+                                    case PipeTypeEnum.Twin:
                                         ntrSegment = new NtrSegmentTwin(pseg, rdict);
                                         break;
-                                    case IntersectUtilities.UtilsCommon.Enums.PipeTypeEnum.Frem:
-                                    case IntersectUtilities.UtilsCommon.Enums.PipeTypeEnum.Retur:
-                                    case IntersectUtilities.UtilsCommon.Enums.PipeTypeEnum.Enkelt:
+                                    case PipeTypeEnum.Frem:
+                                    case PipeTypeEnum.Retur:
+                                    case PipeTypeEnum.Enkelt:
                                         ntrSegment = new NtrSegmentEnkelt(pseg, rdict);
                                         break;
-                                    case IntersectUtilities.UtilsCommon.Enums.PipeTypeEnum.Ukendt:
+                                    case PipeTypeEnum.Ukendt:
                                     default:
                                         throw new NotImplementedException();
                                 }
@@ -340,15 +339,9 @@ namespace NTRExport
                 #endregion
 
                 #region ------------- CAD ➜ Port topology -------------
-                var cad = new CadModel();
-                foreach (var e in ents)
-                {
-                    if (e is Polyline pl) 
-                        cad.Pipes.Add(PolylineAdapterFactory.Create(pl));
-                    else if (e is BlockReference br)
-                        cad.Fittings.Add(BlockRefAdapterFactory.Create(br));
-                }
-                var topo = new TopologyBuilder(cad).Build();
+                var polylines = ents.OfType<Polyline>().ToList();
+                var fittings = ents.OfType<BlockReference>().ToList();
+                var topo = TopologyBuilder.Build(polylines, fittings);
                 #endregion
 
                 #region ------------- Topology-level soil planning -------------

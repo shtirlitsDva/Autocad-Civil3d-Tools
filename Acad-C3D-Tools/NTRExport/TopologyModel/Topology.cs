@@ -1,12 +1,13 @@
 ﻿using Autodesk.AutoCAD.DatabaseServices;
+using Autodesk.AutoCAD.Geometry;
 
 using IntersectUtilities;
 using IntersectUtilities.PipeScheduleV2;
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.Enums;
+using static IntersectUtilities.UtilsCommon.Utils;
 
 using NTRExport.Enums;
-using NTRExport.Geometry;
 using NTRExport.Ntr;
 using NTRExport.SoilModel;
 
@@ -20,7 +21,7 @@ namespace NTRExport.TopologyModel
 {    
     internal class TNode
     {
-        public Pt2 Pos { get; init; }
+        public Point2d Pos { get; init; }
         public string Name { get; set; } = ""; // assigned later
         public List<TPort> Ports { get; } = new();
     }
@@ -104,9 +105,7 @@ namespace NTRExport.TopologyModel
         public TPort B { get; }
         public int Dn => PipeScheduleV2.GetPipeDN(_entity);        
         public IPipeVariant Variant => 
-            Type == PipeTypeEnum.Enkelt ? new SingleVariant() : new TwinVariant();
-        public TFlowRole Flow { get; set; }
-        
+            Type == PipeTypeEnum.Enkelt ? new SingleVariant() : new TwinVariant();        
 
         // Cushion spans along this pipe in meters (s0,s1) from A→B
         public List<(double s0, double s1)> CushionSpans { get; } = new();
@@ -120,17 +119,12 @@ namespace NTRExport.TopologyModel
             }
         }
         public TPipe(Handle h,
+            Curve2d s,
             Func<TPipe, TPort> makeA,
             Func<TPipe, TPort> makeB) : base(h) 
         { 
             A = makeA(this); 
-            B = makeB(this);
-            Flow = Type switch
-            {
-                PipeTypeEnum.Retur => TFlowRole.Return,
-                PipeTypeEnum.Frem => TFlowRole.Supply,
-                _ => TFlowRole.Unknown
-            };
+            B = makeB(this);            
         }
         public override IReadOnlyList<TPort> Ports => [A, B];
 
@@ -144,20 +138,20 @@ namespace NTRExport.TopologyModel
             var (zUp, zLow) = ComputeTwinOffsets();
             var suffix = Variant.DnSuffix;
             var isTwin = Variant.IsTwin;
-            var flow = MapFlowRole(Flow);
 
-            void EmitSegment(Pt2 a0, Pt2 b0, double s0, double s1)
+            void EmitSegment(Point2d a0, Point2d b0, double s0, double s1)
             {
                 var soil = IsCovered(CushionSpans, s0, s1) ? new SoilProfile("Soil_C80", 0.08) : SoilProfile.Default;
 
-                graph.Members.Add(new NtrPipe
+                graph.Members.Add(new NtrPipe(Source)
                 {
                     A = a0,
                     B = b0,
                     Dn = Dn,
                     Material = Material,
                     DnSuffix = suffix,
-                    Flow = flow,
+                    Flow = isTwin ? FlowRole.Return : 
+                        Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return,
                     ZOffsetMeters = zUp,
                     Provenance = [Source],
                     Soil = soil
@@ -165,14 +159,14 @@ namespace NTRExport.TopologyModel
 
                 if (isTwin)
                 {
-                    graph.Members.Add(new NtrPipe
+                    graph.Members.Add(new NtrPipe(Source)
                     {
                         A = a0,
                         B = b0,
                         Dn = Dn,
                         Material = Material,
                         DnSuffix = suffix,
-                        Flow = flow == FlowRole.Supply ? FlowRole.Return : FlowRole.Supply,
+                        Flow = FlowRole.Supply,
                         ZOffsetMeters = zLow,
                         Provenance = [Source],
                         Soil = soil
@@ -222,7 +216,7 @@ namespace NTRExport.TopologyModel
             return spans.Any(z => mid >= z.s0 - 1e-9 && mid <= z.s1 + 1e-9);
         }
 
-        private static Pt2 Lerp(Pt2 a, Pt2 b, double t) => new(a.X + t * (b.X - a.X), a.Y + t * (b.Y - a.Y));
+        private static Point2d Lerp(Point2d a, Point2d b, double t) => new(a.X + t * (b.X - a.X), a.Y + t * (b.Y - a.Y));
     }
 
     #region PipeVariant
@@ -290,7 +284,7 @@ namespace NTRExport.TopologyModel
 
         protected void EmitStub(NtrGraph graph)
         {
-            graph.Members.Add(new NtrStub
+            graph.Members.Add(new NtrStub(Source)
             {
                 Provenance = [Source]
             });
@@ -298,13 +292,25 @@ namespace NTRExport.TopologyModel
     }
 
     internal class ElbowFormstykke : TFitting
-    {
-        public Pt2 TangentPoint { get; }
+    {        
+        public Point2d TangentPoint { get; }        
 
-        public ElbowFormstykke(Handle source, PipelineElementType kind, Pt2 tangentPoint)
+        public ElbowFormstykke(Handle source, Point2d tangentPoint, PipelineElementType kind)
             : base(source, kind)
         {
             TangentPoint = tangentPoint;
+        }
+
+        public ElbowFormstykke(Handle source, PipelineElementType kind) 
+            : base(source, kind)
+        {
+            var db = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager
+                .MdiActiveDocument.Database;
+
+            var br = source.Go<BlockReference>(db);
+            if (br == null) throw new Exception($"Received {source} for ElbowFormstykke!");
+
+            TangentPoint = br.Position.To2d();
         }
 
         protected override void ConfigureAllowedKinds(HashSet<PipelineElementType> allowed)
@@ -324,8 +330,8 @@ namespace NTRExport.TopologyModel
 
     internal sealed class Bueror : ElbowFormstykke
     {
-        public Bueror(Handle source, Pt2 tangentPoint)
-            : base(source, PipelineElementType.Buerør, tangentPoint)
+        public Bueror(Handle source, PipelineElementType kind)
+            : base(source, PipelineElementType.Buerør)
         {
         }
 
@@ -338,8 +344,8 @@ namespace NTRExport.TopologyModel
 
     internal sealed class PreinsulatedElbow : ElbowFormstykke
     {
-        public PreinsulatedElbow(Handle source, PipelineElementType kind, Pt2 tangentPoint)
-            : base(source, kind, tangentPoint)
+        public PreinsulatedElbow(Handle source, PipelineElementType kind)
+            : base(source, kind)
         {
         }
 

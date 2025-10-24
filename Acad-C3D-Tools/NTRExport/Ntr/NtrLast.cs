@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace NTRExport.Ntr
+﻿namespace NTRExport.Ntr
 {
     internal class NtrLast
     {
@@ -13,8 +7,8 @@ namespace NTRExport.Ntr
         internal string TB { get; init; }
         internal string Gammed { get; init; }
 
-        public NtrLast(string name, string pb, string tb, string gammed) 
-        { 
+        public NtrLast(string name, string pb, string tb, string gammed)
+        {
             Name = name;
             PB = pb;
             TB = tb;
@@ -22,6 +16,8 @@ namespace NTRExport.Ntr
         }
 
         public override string ToString() =>
-            $"LAST NAME={Name} PB={PB} TB={TB} GAMMED={Gammed}";        
+            $"LAST NAME={Name} PB={PB} TB={TB} GAMMED={Gammed}";
+
+        public string EmitRecord() => $"LAST={Name}";
     }
 }

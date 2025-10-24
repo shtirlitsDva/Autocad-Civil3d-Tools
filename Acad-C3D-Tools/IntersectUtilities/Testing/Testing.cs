@@ -1,6 +1,7 @@
 ﻿using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
+using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
 using Autodesk.Civil.ApplicationServices;
 
@@ -37,6 +38,47 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Test intersection points of vectors
+                    //var pls = localDb.HashSetOfType<Polyline>(tx);
+                    //foreach (var p in pls)
+                    //{
+                    //    for (int i = 0; i < p.NumberOfVertices; i++)
+                    //    {
+                    //        if (p.GetSegmentType(i) != SegmentType.Arc) continue;
+
+                    //        var arc = p.GetArcSegment2dAt(i);
+
+                    //        var s = arc.StartPoint;
+                    //        var e = arc.EndPoint;
+                    //        var c = arc.Center;
+
+                    //        var rs = s - c;
+                    //        var re = e - c;
+
+                    //        var ts = new Vector2d(-rs.Y, rs.X);
+                    //        var te = new Vector2d(-re.Y, re.X);
+
+                    //        var denom = ts.X * te.Y - ts.Y * te.X;
+
+                    //        if (Math.Abs(denom) < 1e-9) 
+                    //        {
+                    //            prdDbg($"Parallel tangents! {denom} {ts} {te}");
+                    //            continue;
+                    //        }
+
+                    //        var es = e - s;
+                    //        var l = (es.X * te.Y - es.Y * te.X) / denom;
+
+                    //        var inter = s + ts.MultiplyBy(l);
+
+                    //        var dp = new DBPoint(inter.To3d());
+                    //        dp.AddEntityToDbModelSpace(localDb);
+
+                    //        DebugHelper.CreateDebugLine(s.To3d(), inter.To3d());
+                    //        DebugHelper.CreateDebugLine(e.To3d(), inter.To3d());
+                    //    }
+                    //}
+                    #endregion
                     #region Test transform LHN dim
                     //var pls = localDb.HashSetOfType<Polyline>(tx, true);
                     //foreach (var pl in pls)

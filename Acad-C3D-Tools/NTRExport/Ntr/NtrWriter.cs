@@ -1,4 +1,6 @@
-﻿using NTRExport.SoilModel;
+﻿using Autodesk.AutoCAD.DatabaseServices;
+
+using NTRExport.SoilModel;
 
 using System;
 using System.Collections.Generic;
@@ -45,8 +47,38 @@ namespace NTRExport.Ntr
 
             // Geometry
             sb.AppendLine("C Element definitions");
-            foreach (var m in g.Members)
-                foreach (var line in m.ToNtr(_soil)) sb.AppendLine(line);
+
+            var totalByHandle = new Dictionary<Handle, int>();
+            foreach (var member in g.Members)
+            {
+                if (totalByHandle.TryGetValue(member.Source, out var count))
+                {
+                    totalByHandle[member.Source] = count + 1;
+                }
+                else
+                {
+                    totalByHandle[member.Source] = 1;
+                }
+            }
+
+            var nextOrdinal = new Dictionary<Handle, int>();
+
+            foreach (var member in g.Members)
+            {
+                var handle = member.Source;
+                var refValue = handle.ToString();
+                if (totalByHandle.TryGetValue(member.Source, out var total) && total > 1)
+                {
+                    var next = nextOrdinal.TryGetValue(member.Source, out var ordinal) ? ordinal + 1 : 1;
+                    nextOrdinal[member.Source] = next;
+                    refValue = $"{handle}-{next}";
+                }
+
+                foreach (var line in member.ToNtr(_soil, conf))
+                {
+                    sb.AppendLine($"{line} REF={refValue}");
+                }
+            }
             return sb.ToString();
         }
     }

@@ -1,120 +1,133 @@
-﻿using IntersectUtilities.UtilsCommon.Enums;
+﻿using Autodesk.AutoCAD.DatabaseServices;
+using Autodesk.AutoCAD.Geometry;
 
-using NTRExport.CadExtraction;
+using IntersectUtilities.UtilsCommon.Enums;
+
 using NTRExport.Enums;
-using NTRExport.Geometry;
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using static IntersectUtilities.UtilsCommon.Utils;
 
 namespace NTRExport.TopologyModel
 {
     internal class TopologyBuilder
     {
-        private readonly CadModel _cad;
-        public TopologyBuilder(CadModel cad) { _cad = cad; }
-        
-        public Topology Build()
+        private readonly IReadOnlyList<Polyline> _pipes;
+        private readonly IReadOnlyList<BlockReference> _fittings;
+
+        private TopologyBuilder(IEnumerable<Polyline> pipes, IEnumerable<BlockReference> fittings)
+        {
+            _pipes = pipes as IReadOnlyList<Polyline> ?? pipes.ToList();
+            _fittings = fittings as IReadOnlyList<BlockReference> ?? fittings.ToList();
+        }
+
+        public static Topology Build(IEnumerable<Polyline> pipes, IEnumerable<BlockReference> fittings)
+            => new TopologyBuilder(pipes, fittings).BuildInternal();
+
+        private Topology BuildInternal()
         {
             var g = new Topology();
-            // 1) Create nodes at every MuffeIntern port
             var nodeIndex = new List<TNode>();
-            TNode NodeAt(Pt2 p)
+
+            TNode NodeAt(Point2d p)
             {
-                var n = nodeIndex.FirstOrDefault(x => Dist(x.Pos, p) < Tolerance.Tol);
+                var n = nodeIndex.FirstOrDefault(x => Dist(x.Pos, p) < CadTolerance.Node);
                 if (n != null) return n;
                 n = new TNode { Pos = p };
                 g.Nodes.Add(n); nodeIndex.Add(n);
                 return n;
             }
 
-            // 2) Fittings with traversable ports
-            foreach (var fitting in _cad.Fittings)
+            foreach (var fitting in _fittings)
             {
-                var ports = fitting.GetPorts();
-                var tf = CreateFitting(fitting, ports);
-
+                var ports = MuffeInternReader.ReadPorts(fitting);
+                var tf = CreateFitting(fitting);
                 foreach (var cadPort in ports)
-                {
                     tf.AddPort(new TPort(cadPort.Role, NodeAt(cadPort.Position), tf));
-                }
-
                 g.Elements.Add(tf);
             }
 
-            // 3) Pipes: split polyline into line and arc segments
-            foreach (var p in _cad.Pipes)
+            foreach (var pl in _pipes)
             {
-                var segs = p.GetSegments().ToList();
+                var segs = GetSegments(pl).ToList();
                 if (segs.Count == 0)
                 {
-                    var a = NodeAt(p.Start);
-                    var b = NodeAt(p.End);
-                    var tp = new TPipe(
-                        p.Handle,
-                        self => new TPort(PortRole.Neutral, a, self),
-                        self => new TPort(PortRole.Neutral, b, self));
-                    g.Elements.Add(tp);
+                    prdDbg($"Encountered polyline with no segments: {pl.Handle}");
                     continue;
                 }
 
                 foreach (var s in segs)
                 {
-                    if (s.Kind == CadExtraction.CadSegmentKind.Line)
+                    if (s is LineSegment2d ls)
                     {
-                        var a = NodeAt(s.Start);
-                        var b = NodeAt(s.End);
+                        var a = NodeAt(ls.StartPoint);
+                        var b = NodeAt(ls.EndPoint);
                         var tp = new TPipe(
-                            p.Handle,
+                            pl.Handle,
+                            s,
                             self => new TPort(PortRole.Neutral, a, self),
                             self => new TPort(PortRole.Neutral, b, self));
                         g.Elements.Add(tp);
                     }
-                    else
+                    else if (s is CircularArc2d arc)
                     {
-                        var a = NodeAt(s.Start);
-                        var b = NodeAt(s.End);
-                        var elbow = new ElbowFormstykke(p.Handle, PipelineElementType.Kedelrørsbøjning, TangentFromArc(s));
-                        elbow.AddPort(new TPort(PortRole.Main, a, elbow));
-                        elbow.AddPort(new TPort(PortRole.Main, b, elbow));
+                        var a = NodeAt(s.StartPoint);
+                        var b = NodeAt(s.EndPoint);
+                        var elbow = new ElbowFormstykke(
+                            pl.Handle,
+                            GetTangentPoint(arc),
+                            PipelineElementType.Kedelrørsbøjning);
+                        elbow.AddPort(new TPort(PortRole.Neutral, a, elbow));
+                        elbow.AddPort(new TPort(PortRole.Neutral, b, elbow));
                         g.Elements.Add(elbow);
                     }
                 }
             }
 
-            // 4) Name nodes compactly for later mapping
-            int i = 1; foreach (var n in g.Nodes) n.Name = $"N{i++:000}";
+            int i = 1;
+            foreach (var n in g.Nodes) n.Name = $"N{i++:000}";
             return g;
         }
 
-        private static double Dist(Pt2 a, Pt2 b) => Math.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y));
-
-        private static TFitting CreateFitting(ICadFitting fitting, IReadOnlyList<CadPort> ports)
+        private static IEnumerable<Curve2d> GetSegments(Polyline pl)
         {
-            var tangent = EstimateTangent(ports);
-            return fitting.Kind switch
+            int n = pl.NumberOfVertices;
+            for (int i = 0; i < n; i++)
+            {
+                switch (pl.GetSegmentType(i))
+                {
+                    case SegmentType.Line:
+                        yield return pl.GetLineSegment2dAt(i);
+                        break;
+                    case SegmentType.Arc:
+                        yield return pl.GetArcSegment2dAt(i);
+                        break;
+                }
+            }
+        }
+
+        private static TFitting CreateFitting(BlockReference fitting)
+        {
+            var kind = fitting.GetPipelineType();
+            return kind switch
             {
                 PipelineElementType.Kedelrørsbøjning
                 or PipelineElementType.Bøjning45gr
                 or PipelineElementType.Bøjning30gr
                 or PipelineElementType.Bøjning15gr
-                    => new ElbowFormstykke(fitting.Handle, fitting.Kind, tangent),
+                    => new ElbowFormstykke(fitting.Handle, kind),
 
                 PipelineElementType.Buerør
-                    => new Bueror(fitting.Handle, tangent),
+                    => new Bueror(fitting.Handle, kind),
 
                 PipelineElementType.PræisoleretBøjning90gr
                 or PipelineElementType.PræisoleretBøjning45gr
                 or PipelineElementType.PræisoleretBøjningVariabel
-                    => new PreinsulatedElbow(fitting.Handle, fitting.Kind, tangent),
+                    => new PreinsulatedElbow(fitting.Handle, kind),
 
                 PipelineElementType.Svejsetee
                 or PipelineElementType.PreskoblingTee
                 or PipelineElementType.Muffetee
-                    => new TeeFormstykke(fitting.Handle, fitting.Kind),
+                    => new TeeFormstykke(fitting.Handle, kind),
 
                 PipelineElementType.AfgreningMedSpring
                     => new AfgreningMedSpring(fitting.Handle),
@@ -129,7 +142,7 @@ namespace NTRExport.TopologyModel
                     => new Stikafgrening(fitting.Handle),
 
                 PipelineElementType.Afgreningsstuds
-                    => new AfgreningsStuds(fitting.Handle),
+                    => new AfgreningStuds(fitting.Handle),
 
                 PipelineElementType.F_Model
                     => new FModel(fitting.Handle),
@@ -140,7 +153,7 @@ namespace NTRExport.TopologyModel
                 PipelineElementType.Engangsventil
                 or PipelineElementType.PræisoleretVentil
                 or PipelineElementType.PræventilMedUdluftning
-                    => new Valve(fitting.Handle, fitting.Kind),
+                    => new Valve(fitting.Handle, kind),
 
                 PipelineElementType.Reduktion
                     => new Reducer(fitting.Handle),
@@ -155,53 +168,40 @@ namespace NTRExport.TopologyModel
                     => new Endebund(fitting.Handle),
 
                 PipelineElementType.Svejsning
-                    => new GenericFitting(fitting.Handle, fitting.Kind),
+                    => new GenericFitting(fitting.Handle, kind),
 
-                _ => new GenericFitting(fitting.Handle, fitting.Kind)
+                _ => new GenericFitting(fitting.Handle, kind)
             };
         }
 
-        private static Pt2 EstimateTangent(IReadOnlyList<CadPort> ports)
+        private static Point2d GetTangentPoint(CircularArc2d arc)
         {
-            if (ports == null || ports.Count == 0)
+            var s = arc.StartPoint;
+            var e = arc.EndPoint;
+            var c = arc.Center;
+
+            var rs = s - c;
+            var re = e - c;
+
+            var ts = new Vector2d(-rs.Y, rs.X);
+            var te = new Vector2d(-re.Y, re.X);
+
+            var denom = ts.X * te.Y - ts.Y * te.X;
+
+            if (Math.Abs(denom) < 1e-9)
             {
-                return new Pt2(0.0, 0.0);
+                prdDbg($"Parallel tangents! {denom} {ts} {te}");
+                return default;
             }
 
-            double sumX = 0.0;
-            double sumY = 0.0;
-            foreach (var port in ports)
-            {
-                sumX += port.Position.X;
-                sumY += port.Position.Y;
-            }
+            var es = e - s;
+            var l = (es.X * te.Y - es.Y * te.X) / denom;
 
-            var inv = 1.0 / ports.Count;
-            return new Pt2(sumX * inv, sumY * inv);
+            var inter = s + ts.MultiplyBy(l);
+
+            return inter;
         }
 
-        private static Pt2 TangentFromArc(CadPipeSegment segment)
-        {
-            var center = segment.Center;
-            var start = segment.Start;
-            var end = segment.End;
-
-            var radius = Dist(start, center);
-            if (radius <= 1e-9)
-            {
-                return new Pt2((start.X + end.X) * 0.5, (start.Y + end.Y) * 0.5);
-            }
-
-            var startAngle = Math.Atan2(start.Y - center.Y, start.X - center.X);
-            var endAngle = Math.Atan2(end.Y - center.Y, end.X - center.X);
-            var delta = endAngle - startAngle;
-            if (delta > Math.PI) delta -= 2 * Math.PI;
-            if (delta < -Math.PI) delta += 2 * Math.PI;
-            var midAngle = startAngle + delta / 2.0;
-
-            return new Pt2(
-                center.X + radius * Math.Cos(midAngle),
-                center.Y + radius * Math.Sin(midAngle));
-        }
+        private static double Dist(Point2d a, Point2d b) => Math.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y));
     }
 }

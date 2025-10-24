@@ -2,7 +2,6 @@
 using IntersectUtilities.UtilsCommon.Enums;
 
 using NTRExport.Enums;
-using NTRExport.Geometry;
 using NTRExport.TopologyModel;
 
 namespace NTRExport.Ntr

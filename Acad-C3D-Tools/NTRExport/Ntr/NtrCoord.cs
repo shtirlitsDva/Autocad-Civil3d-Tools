@@ -1,4 +1,3 @@
-using NTRExport.Geometry;
 using NTRExport.TopologyModel;
 
 using System;
