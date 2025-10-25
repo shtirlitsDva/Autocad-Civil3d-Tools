@@ -1,14 +1,11 @@
 ﻿using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 
+using IntersectUtilities;
+using IntersectUtilities.UtilsCommon;
+
 using NTRExport.NtrConfiguration;
 using NTRExport.SoilModel;
-
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace NTRExport.Ntr
 {
@@ -51,6 +48,18 @@ namespace NTRExport.Ntr
         public IReadOnlyList<Handle> Provenance { get; init; } = Array.Empty<Handle>();
         public FlowRole Flow { get; set; } = FlowRole.Unknown;
         public double ZOffsetMeters { get; set; } = 0.0;
+        protected string GetPipelinename()
+        {
+            var db = Autodesk.AutoCAD.ApplicationServices.Application
+                .DocumentManager.MdiActiveDocument.Database;
+
+            Entity ent = Source.Go<Entity>(db);
+
+            var pipeline = PropertySetManager.ReadNonDefinedPropertySetString(
+                ent, "DriPipelineData", "BelongsToAlignment");
+
+            return pipeline;
+        }
         public abstract IEnumerable<string> ToNtr(INtrSoilAdapter soil, ConfigurationData conf);
     }
 
@@ -69,6 +78,7 @@ namespace NTRExport.Ntr
 
         public override IEnumerable<string> ToNtr(INtrSoilAdapter soil, ConfigurationData conf)
         {
+            #region LAST
             string last = "";
             if (conf != null)
             {
@@ -81,13 +91,20 @@ namespace NTRExport.Ntr
 
                 if (Last != null)
                 {
-                    last = " " + Last.EmitRecord() + " ";
+                    last = " " + Last.EmitRecord();
                 }
             }
+            #endregion
+
+            #region Pipeline
+            string pipeline = GetPipelinename();
+            if (pipeline.IsNotNoE()) pipeline = " " + "LTG=" + pipeline;
+            #endregion
 
             yield return $"RO P1={NtrFormat.Pt(A, ZOffsetMeters)} P2={NtrFormat.Pt(B, ZOffsetMeters)} DN=DN{Dn}.{DnSuffix}" +
                 (Material != null ? $" MAT={Material}" : "") +
                 last +
+                pipeline +
                 NtrFormat.SoilTokens(Soil);
         }
 
@@ -196,6 +213,6 @@ namespace NTRExport.Ntr
 
     internal class NtrGraph
     {
-        public List<NtrMember> Members { get; } = new();        
+        public List<NtrMember> Members { get; } = new();
     }
 }

@@ -5,20 +5,13 @@ using IntersectUtilities;
 using IntersectUtilities.PipeScheduleV2;
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.Enums;
-using static IntersectUtilities.UtilsCommon.Utils;
 
 using NTRExport.Enums;
 using NTRExport.Ntr;
 using NTRExport.SoilModel;
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
 namespace NTRExport.TopologyModel
-{    
+{
     internal class TNode
     {
         public Point2d Pos { get; init; }
@@ -77,6 +70,7 @@ namespace NTRExport.TopologyModel
                 _ => PipeSeriesEnum.Undefined
             };
         }
+        public abstract int Dn { get; }
         public virtual string Material
         {
             get
@@ -88,7 +82,8 @@ namespace NTRExport.TopologyModel
                 };
             }
         }
-
+        public IPipeVariant Variant =>
+            Type == PipeTypeEnum.Enkelt ? new SingleVariant() : new TwinVariant();
         public abstract void Emit(NtrGraph graph, Topology topo);
 
         protected static FlowRole MapFlowRole(TFlowRole flow) => flow switch
@@ -103,10 +98,7 @@ namespace NTRExport.TopologyModel
     {
         public TPort A { get; }
         public TPort B { get; }
-        public int Dn => PipeScheduleV2.GetPipeDN(_entity);        
-        public IPipeVariant Variant => 
-            Type == PipeTypeEnum.Enkelt ? new SingleVariant() : new TwinVariant();        
-
+        public override int Dn => PipeScheduleV2.GetPipeDN(_entity);
         // Cushion spans along this pipe in meters (s0,s1) from A→B
         public List<(double s0, double s1)> CushionSpans { get; } = new();
         public double Length
@@ -121,10 +113,10 @@ namespace NTRExport.TopologyModel
         public TPipe(Handle h,
             Curve2d s,
             Func<TPipe, TPort> makeA,
-            Func<TPipe, TPort> makeB) : base(h) 
-        { 
-            A = makeA(this); 
-            B = makeB(this);            
+            Func<TPipe, TPort> makeB) : base(h)
+        {
+            A = makeA(this);
+            B = makeB(this);
         }
         public override IReadOnlyList<TPort> Ports => [A, B];
 
@@ -150,7 +142,7 @@ namespace NTRExport.TopologyModel
                     Dn = Dn,
                     Material = Material,
                     DnSuffix = suffix,
-                    Flow = isTwin ? FlowRole.Return : 
+                    Flow = isTwin ? FlowRole.Return :
                         Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return,
                     ZOffsetMeters = zUp,
                     Provenance = [Source],
@@ -234,13 +226,13 @@ namespace NTRExport.TopologyModel
     {
         public string DnSuffix => "t";
         public bool IsTwin => true;
-    } 
+    }
     #endregion
 
     internal abstract class TFitting : ElementBase
     {
         private readonly List<TPort> _ports = new();
-        private readonly HashSet<PipelineElementType> _allowedKinds = new();        
+        private readonly HashSet<PipelineElementType> _allowedKinds = new();
         protected TFitting(Handle source, PipelineElementType kind) : base(source)
         {
             ConfigureAllowedKinds(_allowedKinds);
@@ -250,7 +242,7 @@ namespace NTRExport.TopologyModel
                 throw new ArgumentOutOfRangeException(nameof(kind), kind, $"Kind {kind} is not permitted. Allowed kinds: {allowedNames}.");
             }
             Kind = kind;
-        }        
+        }
         public PipelineElementType Kind { get; }
         public override IReadOnlyList<TPort> Ports => _ports;
 
@@ -282,7 +274,7 @@ namespace NTRExport.TopologyModel
             EmitStub(graph);
         }
 
-        protected void EmitStub(NtrGraph graph)
+        protected virtual void EmitStub(NtrGraph graph)
         {
             graph.Members.Add(new NtrStub(Source)
             {
@@ -292,8 +284,8 @@ namespace NTRExport.TopologyModel
     }
 
     internal class ElbowFormstykke : TFitting
-    {        
-        public Point2d TangentPoint { get; }        
+    {
+        public Point2d TangentPoint { get; }
 
         public ElbowFormstykke(Handle source, Point2d tangentPoint, PipelineElementType kind)
             : base(source, kind)
@@ -301,7 +293,7 @@ namespace NTRExport.TopologyModel
             TangentPoint = tangentPoint;
         }
 
-        public ElbowFormstykke(Handle source, PipelineElementType kind) 
+        public ElbowFormstykke(Handle source, PipelineElementType kind)
             : base(source, kind)
         {
             var db = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager
@@ -324,7 +316,14 @@ namespace NTRExport.TopologyModel
 
         public override void Emit(NtrGraph graph, Topology topo)
         {
-            EmitStub(graph);
+            EmitElbowFormstykke(graph);
+        }
+
+        private void EmitElbowFormstykke(NtrGraph graph)
+        {
+            var (zUp, zLow) = ComputeTwinOffsets();
+            var suffix = Variant.DnSuffix;
+            var isTwin = Variant.IsTwin;
         }
     }
 

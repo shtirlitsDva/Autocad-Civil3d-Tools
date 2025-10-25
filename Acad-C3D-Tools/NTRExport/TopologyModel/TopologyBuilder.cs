@@ -1,6 +1,7 @@
 ﻿using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 
+using IntersectUtilities;
 using IntersectUtilities.UtilsCommon.Enums;
 
 using NTRExport.Enums;
@@ -142,7 +143,7 @@ namespace NTRExport.TopologyModel
                     => new Stikafgrening(fitting.Handle),
 
                 PipelineElementType.Afgreningsstuds
-                    => new AfgreningStuds(fitting.Handle),
+                    => new AfgreningsStuds(fitting.Handle),
 
                 PipelineElementType.F_Model
                     => new FModel(fitting.Handle),
