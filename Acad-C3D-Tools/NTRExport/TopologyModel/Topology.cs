@@ -6,6 +6,8 @@ using IntersectUtilities.PipeScheduleV2;
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.Enums;
 
+using NetTopologySuite.Algorithm;
+
 using NTRExport.Enums;
 using NTRExport.Ntr;
 using NTRExport.SoilModel;
@@ -84,12 +86,21 @@ namespace NTRExport.TopologyModel
         }
         public IPipeVariant Variant =>
             Type == PipeTypeEnum.Enkelt ? new SingleVariant() : new TwinVariant();
+        protected virtual (double zUp, double zLow) ComputeTwinOffsets()
+        {            
+            if (!Variant.IsTwin) return (0.0, 0.0);
+
+            var odMm = PipeScheduleV2.GetPipeOd(System, Dn);
+            var gapMm = PipeScheduleV2.GetPipeDistanceForTwin(System, Dn, Type);
+            var z = Math.Max(0.0, odMm + gapMm) / 2000.0;
+            return (z, -z);        
+        }
         public abstract void Emit(NtrGraph graph, Topology topo);
 
-        protected static FlowRole MapFlowRole(TFlowRole flow) => flow switch
+        protected static FlowRole MapFlowRole(FlowRole flow) => flow switch
         {
-            TFlowRole.Supply => FlowRole.Supply,
-            TFlowRole.Return => FlowRole.Return,
+            FlowRole.Supply => FlowRole.Supply,
+            FlowRole.Return => FlowRole.Return,
             _ => FlowRole.Unknown
         };
     }
@@ -190,17 +201,7 @@ namespace NTRExport.TopologyModel
                 var pb = Lerp(A.Node.Pos, B.Node.Pos, Length <= 1e-9 ? 0.0 : s1 / Length);
                 EmitSegment(pa, pb, s0, s1);
             }
-        }
-
-        private (double zUp, double zLow) ComputeTwinOffsets()
-        {
-            if (!Variant.IsTwin) return (0.0, 0.0);
-
-            var odMm = PipeScheduleV2.GetPipeOd(System, Dn);
-            var gapMm = PipeScheduleV2.GetPipeDistanceForTwin(System, Dn, Type);
-            var z = Math.Max(0.0, odMm + gapMm) / 2000.0;
-            return (z, -z);
-        }
+        }        
 
         private static bool IsCovered(List<(double s0, double s1)> spans, double a, double b)
         {
@@ -245,7 +246,14 @@ namespace NTRExport.TopologyModel
         }
         public PipelineElementType Kind { get; }
         public override IReadOnlyList<TPort> Ports => _ports;
-
+        public override int Dn => GetDn();
+        private int GetDn()
+        {
+            var br = _entity as BlockReference;
+            if (br == null) throw new InvalidOperationException(
+                $"Entity {Source} is not {this}!");
+            return Convert.ToInt32(br.ReadDynamicCsvProperty(DynamicProperty.DN1));
+        }
         public void AddPort(TPort port)
         {
             if (!ReferenceEquals(port.Owner, this))
@@ -285,7 +293,7 @@ namespace NTRExport.TopologyModel
 
     internal class ElbowFormstykke : TFitting
     {
-        public Point2d TangentPoint { get; }
+        public Point2d TangentPoint { get; }        
 
         public ElbowFormstykke(Handle source, Point2d tangentPoint, PipelineElementType kind)
             : base(source, kind)
@@ -324,6 +332,64 @@ namespace NTRExport.TopologyModel
             var (zUp, zLow) = ComputeTwinOffsets();
             var suffix = Variant.DnSuffix;
             var isTwin = Variant.IsTwin;
+
+            void EmitSegment(Point2d a0, Point2d b0, double s0, double s1)
+            {
+                graph.Members.Add(new NtrBend(Source)
+                {
+                    A = a0,
+                    B = b0,
+                    Dn = Dn,
+                    Material = Material,
+                    DnSuffix = suffix,
+                    Flow = isTwin ? FlowRole.Return :
+                        Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return,
+                    ZOffsetMeters = zUp,
+                    Provenance = [Source],
+                    Soil = new SoilProfile("Soil_C80", 0.08)
+                });
+
+                if (isTwin)
+                {
+                    graph.Members.Add(new NtrPipe(Source)
+                    {
+                        A = a0,
+                        B = b0,
+                        Dn = Dn,
+                        Material = Material,
+                        DnSuffix = suffix,
+                        Flow = FlowRole.Supply,
+                        ZOffsetMeters = zLow,
+                        Provenance = [Source],
+                        Soil = new SoilProfile("Soil_C80", 0.08)
+                    });
+                }
+            }
+
+            if (CushionSpans.Count == 0)
+            {
+                EmitSegment(A.Node.Pos, B.Node.Pos, 0.0, Length);
+                return;
+            }
+
+            var cuts = new SortedSet<double> { 0.0, Length };
+            foreach (var (s0, s1) in CushionSpans)
+            {
+                cuts.Add(Math.Max(0.0, Math.Min(Length, s0)));
+                cuts.Add(Math.Max(0.0, Math.Min(Length, s1)));
+            }
+
+            var list = cuts.ToList();
+            for (int i = 0; i < list.Count - 1; i++)
+            {
+                var s0 = list[i];
+                var s1 = list[i + 1];
+                if (s1 - s0 < 1e-6) continue;
+
+                var pa = Lerp(A.Node.Pos, B.Node.Pos, Length <= 1e-9 ? 0.0 : s0 / Length);
+                var pb = Lerp(A.Node.Pos, B.Node.Pos, Length <= 1e-9 ? 0.0 : s1 / Length);
+                EmitSegment(pa, pb, s0, s1);
+            }
         }
     }
 

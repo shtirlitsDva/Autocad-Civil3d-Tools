@@ -4,6 +4,7 @@ using Autodesk.AutoCAD.Geometry;
 using IntersectUtilities;
 using IntersectUtilities.UtilsCommon;
 
+using NTRExport.Enums;
 using NTRExport.NtrConfiguration;
 using NTRExport.SoilModel;
 
@@ -32,9 +33,6 @@ namespace NTRExport.Ntr
             return baseTok;
         }
     }
-
-    internal enum FlowRole { Unknown, Supply, Return }
-
     internal abstract class NtrMember
     {
         protected NtrMember(Handle source)
@@ -48,6 +46,7 @@ namespace NTRExport.Ntr
         public IReadOnlyList<Handle> Provenance { get; init; } = Array.Empty<Handle>();
         public FlowRole Flow { get; set; } = FlowRole.Unknown;
         public double ZOffsetMeters { get; set; } = 0.0;
+        public string DnSuffix { get; init; } = "s";
         protected string GetPipelinename()
         {
             var db = Autodesk.AutoCAD.ApplicationServices.Application
@@ -71,11 +70,8 @@ namespace NTRExport.Ntr
 
         public Point2d A { get; init; }
         public Point2d B { get; init; }
-        public SoilProfile Soil { get; set; } = SoilProfile.Default;
-        public string DnSuffix { get; init; } = "s"; // "s" or "t" from variant
+        public SoilProfile Soil { get; set; } = SoilProfile.Default;        
         public double Length => A.GetDistanceTo(B);
-
-
         public override IEnumerable<string> ToNtr(INtrSoilAdapter soil, ConfigurationData conf)
         {
             #region LAST
@@ -101,7 +97,10 @@ namespace NTRExport.Ntr
             if (pipeline.IsNotNoE()) pipeline = " " + "LTG=" + pipeline;
             #endregion
 
-            yield return $"RO P1={NtrFormat.Pt(A, ZOffsetMeters)} P2={NtrFormat.Pt(B, ZOffsetMeters)} DN=DN{Dn}.{DnSuffix}" +
+            yield return $"RO " +
+                $"P1={NtrFormat.Pt(A, ZOffsetMeters)} " +
+                $"P2={NtrFormat.Pt(B, ZOffsetMeters)} " +
+                $"DN=DN{Dn}.{DnSuffix}" +
                 (Material != null ? $" MAT={Material}" : "") +
                 last +
                 pipeline +
@@ -128,12 +127,16 @@ namespace NTRExport.Ntr
         public Point2d A { get; init; }     // end 1
         public Point2d B { get; init; }     // end 2
         public Point2d T { get; init; }     // tangency/angle point
-        public string DnSuffix { get; init; } = "s";
+        public SoilProfile Soil { get; set; } = new SoilProfile("Soil_C80", 0.08);
         public override IEnumerable<string> ToNtr(INtrSoilAdapter soil, ConfigurationData conf)
         {
-            yield return $"BOG P1={NtrFormat.Pt(A, ZOffsetMeters)} P2={NtrFormat.Pt(B, ZOffsetMeters)} PT={NtrFormat.Pt(T, ZOffsetMeters)} DN=DN{Dn}.{DnSuffix}" +
-                         (Material != null ? $" MAT={Material}" : "") +
-                         NtrFormat.SoilTokens(null);
+            yield return $"BOG " +
+                $"P1={NtrFormat.Pt(A, ZOffsetMeters)} " +
+                $"P2={NtrFormat.Pt(B, ZOffsetMeters)} " +
+                $"PT={NtrFormat.Pt(T, ZOffsetMeters)} " +
+                $"DN=DN{Dn}.{DnSuffix}" +
+                (Material != null ? $" MAT={Material}" : "") +
+                NtrFormat.SoilTokens(null);
         }
     }
 
