@@ -133,11 +133,6 @@ namespace NTRExport.TopologyModel
 
         public override void Emit(NtrGraph graph, Topology topo)
         {
-            EmitPipe(graph);
-        }
-
-        private void EmitPipe(NtrGraph graph)
-        {
             var (zUp, zLow) = ComputeTwinOffsets();
             var suffix = Variant.DnSuffix;
             var isTwin = Variant.IsTwin;
@@ -329,66 +324,48 @@ namespace NTRExport.TopologyModel
 
         private void EmitElbowFormstykke(NtrGraph graph)
         {
+            var portEnds = Ports.Take(2).ToList();
+            if (portEnds.Count < 2) return;
+
+            var aPos = portEnds[0].Node.Pos;
+            var bPos = portEnds[1].Node.Pos;
+
             var (zUp, zLow) = ComputeTwinOffsets();
             var suffix = Variant.DnSuffix;
             var isTwin = Variant.IsTwin;
 
-            void EmitSegment(Point2d a0, Point2d b0, double s0, double s1)
+            FlowRole flowForMain = isTwin ? FlowRole.Return :
+                Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return;
+
+            graph.Members.Add(new NtrBend(Source)
+            {
+                A = aPos,
+                B = bPos,
+                T = TangentPoint,
+                Dn = Dn,
+                Material = Material,
+                DnSuffix = suffix,
+                Flow = flowForMain,
+                ZOffsetMeters = zUp,
+                Provenance = [Source],
+                Soil = new SoilProfile("Soil_C80", 0.08)
+            });
+
+            if (isTwin)
             {
                 graph.Members.Add(new NtrBend(Source)
                 {
-                    A = a0,
-                    B = b0,
+                    A = aPos,
+                    B = bPos,
+                    T = TangentPoint,
                     Dn = Dn,
                     Material = Material,
                     DnSuffix = suffix,
-                    Flow = isTwin ? FlowRole.Return :
-                        Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return,
-                    ZOffsetMeters = zUp,
+                    Flow = FlowRole.Supply,
+                    ZOffsetMeters = zLow,
                     Provenance = [Source],
                     Soil = new SoilProfile("Soil_C80", 0.08)
                 });
-
-                if (isTwin)
-                {
-                    graph.Members.Add(new NtrPipe(Source)
-                    {
-                        A = a0,
-                        B = b0,
-                        Dn = Dn,
-                        Material = Material,
-                        DnSuffix = suffix,
-                        Flow = FlowRole.Supply,
-                        ZOffsetMeters = zLow,
-                        Provenance = [Source],
-                        Soil = new SoilProfile("Soil_C80", 0.08)
-                    });
-                }
-            }
-
-            if (CushionSpans.Count == 0)
-            {
-                EmitSegment(A.Node.Pos, B.Node.Pos, 0.0, Length);
-                return;
-            }
-
-            var cuts = new SortedSet<double> { 0.0, Length };
-            foreach (var (s0, s1) in CushionSpans)
-            {
-                cuts.Add(Math.Max(0.0, Math.Min(Length, s0)));
-                cuts.Add(Math.Max(0.0, Math.Min(Length, s1)));
-            }
-
-            var list = cuts.ToList();
-            for (int i = 0; i < list.Count - 1; i++)
-            {
-                var s0 = list[i];
-                var s1 = list[i + 1];
-                if (s1 - s0 < 1e-6) continue;
-
-                var pa = Lerp(A.Node.Pos, B.Node.Pos, Length <= 1e-9 ? 0.0 : s0 / Length);
-                var pb = Lerp(A.Node.Pos, B.Node.Pos, Length <= 1e-9 ? 0.0 : s1 / Length);
-                EmitSegment(pa, pb, s0, s1);
             }
         }
     }

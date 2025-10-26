@@ -297,6 +297,19 @@ namespace NTRExport
         [CommandMethod("NTREXPORT")]
         public void ntrexport()
         {
+            ntrexportmethod();
+        }
+#if DEBUG
+        [CommandMethod("NTRTEST")]
+        public void ntrtest()
+        {
+            ntrexportmethod(new ConfigurationData(
+                new NtrLast("FJV_FREM_P10_T80", "10", "80", "1000"),
+                new NtrLast("FJV_RETUR_P10_T45", "10", "45", "1000")));
+        }
+#endif
+        internal void ntrexportmethod(ConfigurationData? ntrConf = null)
+        {
             DocumentCollection docCol = AcApp.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;            
 
@@ -349,7 +362,7 @@ namespace NTRExport
                 #endregion
 
                 #region ------------- Read NTR configuration from Excel -------------
-                var conf = new ConfigurationData();
+                var conf = ntrConf ?? new ConfigurationData();
                 //foreach (var l in conf.Last) prdDbg(l);
                 #endregion
 

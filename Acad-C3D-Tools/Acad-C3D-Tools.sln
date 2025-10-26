@@ -65,6 +65,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NTRExport", "NTRExport\NTRE
 EndProject
 Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "PipelineSHARED", "PipelineSHARED\PipelineSHARED.shproj", "{7D7BF915-003D-4E69-B122-69DFD068E729}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NTRExport.ConsoleTests", "NTRExport.ConsoleTests\NTRExport.ConsoleTests.csproj", "{FF461586-D799-1BFA-EB63-2D01AC25672D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -167,6 +169,10 @@ Global
 		{59EFB8F9-2016-4915-A115-D5F902E60EF3}.Debug|x64.Build.0 = Debug|x64
 		{59EFB8F9-2016-4915-A115-D5F902E60EF3}.Release|x64.ActiveCfg = Release|x64
 		{59EFB8F9-2016-4915-A115-D5F902E60EF3}.Release|x64.Build.0 = Release|x64
+		{FF461586-D799-1BFA-EB63-2D01AC25672D}.Debug|x64.ActiveCfg = Debug|x64
+		{FF461586-D799-1BFA-EB63-2D01AC25672D}.Debug|x64.Build.0 = Debug|x64
+		{FF461586-D799-1BFA-EB63-2D01AC25672D}.Release|x64.ActiveCfg = Release|x64
+		{FF461586-D799-1BFA-EB63-2D01AC25672D}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
