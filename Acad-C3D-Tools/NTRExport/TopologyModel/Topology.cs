@@ -85,7 +85,7 @@ namespace NTRExport.TopologyModel
             }
         }
         public IPipeVariant Variant =>
-            Type == PipeTypeEnum.Enkelt ? new SingleVariant() : new TwinVariant();
+            Type == PipeTypeEnum.Twin ? new TwinVariant() : new SingleVariant();
         protected virtual (double zUp, double zLow) ComputeTwinOffsets()
         {            
             if (!Variant.IsTwin) return (0.0, 0.0);
