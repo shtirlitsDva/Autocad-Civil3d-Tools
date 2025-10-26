@@ -357,8 +357,9 @@ namespace NTRExport
                 NtrCoord.InitFromTopology(topo, marginMeters: 0.0);
                 #endregion
 
-                #region ------------- Topology ➜ NTR skeleton -------------
-                var ntr = new NtrMapper().Map(topo);
+                #region ------------- Topology ➜ Routed ➜ NTR skeleton -------------
+                var routed = new Routing.Router(topo, new Routing.RoutingConfig()).Route();
+                var ntr = new NtrMapper().MapRouted(routed);
                 #endregion
 
                 #region ------------- Emit NTR -------------
