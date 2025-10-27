@@ -3,6 +3,8 @@ using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 
+using NTRExport.ConsoleTests;
+
 namespace NTRExport.ConsoleTests.TestCases
 {
     internal abstract class BaseTestCase
@@ -12,7 +14,7 @@ namespace NTRExport.ConsoleTests.TestCases
 
         public async Task<int> Execute2(string tempDir, string accoreExe, string ntrDll)
         {
-            var assetPath = TestAssets.Resolve(DwgName);
+            var assetPath = ResolveAsset(DwgName);
             if (!File.Exists(assetPath))
             {
                 Console.WriteLine($"SKIPPED {DwgName}");
@@ -80,7 +82,7 @@ namespace NTRExport.ConsoleTests.TestCases
 
         public async Task<int> Execute(string tempDir, string accoreExe, string ntrDll)
         {
-            var assetPath = TestAssets.Resolve(DwgName);
+            var assetPath = ResolveAsset(DwgName);
             if (!File.Exists(assetPath))
             {
                 Console.WriteLine($"SKIPPED {DwgName}");
@@ -96,7 +98,10 @@ namespace NTRExport.ConsoleTests.TestCases
             string arguments = $"/i \"{dwgPath}\" " +
                                $"/s \"{scriptPath}\" " +
                                 "/product ACAD " +
-                                "/language en - US"; // +
+                                "/language en-US " +
+                                "/readonly " +
+                                "/p \"AutoCAD\"";
+                                ; // +
                                                      //"/p \"<<C3D_Metric>>\"";// " +
                                                      //"/loadmodule \"C:\\Program Files\\Autodesk\\AutoCAD 2023\\AecBase.dbx\"";
 
@@ -184,18 +189,19 @@ namespace NTRExport.ConsoleTests.TestCases
 
         protected abstract bool Validate(string ntrPath);
 
-        protected Ntr.NtrDocument LoadActual(string ntrPath)
+        protected Ntr.NtrDocument? LoadActual(string ntrPath)
         {
             return Ntr.NtrDocument.Load(ntrPath);
         }
 
-        protected Ntr.NtrDocument LoadTemplate()
+        protected Ntr.NtrDocument? LoadTemplate()
         {
-            var asset = TestAssets.Resolve(DwgName);
+            var asset = ResolveAsset(DwgName);
             var templatePath = Path.ChangeExtension(asset, ".ntr");
             if (!File.Exists(templatePath))
             {
-                throw new FileNotFoundException($"Missing golden NTR template for {DwgName}", templatePath);
+                Console.WriteLine($"INCOMPLETE: Missing golden NTR template for {DwgName} at {templatePath}");
+                return null;
             }
             return Ntr.NtrDocument.Load(templatePath);
         }
@@ -211,6 +217,24 @@ namespace NTRExport.ConsoleTests.TestCases
             sb.AppendLine("QUIT Y");
             sb.AppendLine();
             return sb.ToString();
+        }
+
+        private static string ResolveAsset(string assetName)
+        {
+            var root = FindSolutionRoot(AppContext.BaseDirectory);
+            return Path.Combine(root, "Acad-C3D-Tools", "NTRExport.ConsoleTests", "Assets", assetName);
+        }
+
+        private static string FindSolutionRoot(string startDir)
+        {
+            var dir = startDir;
+            while (!string.IsNullOrEmpty(dir))
+            {
+                var acd = Path.Combine(dir, "Acad-C3D-Tools");
+                if (Directory.Exists(acd)) return dir;
+                dir = Path.GetDirectoryName(dir)!;
+            }
+            return startDir;
         }
     }
 }

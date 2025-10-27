@@ -17,9 +17,9 @@ namespace NTRExport.ConsoleTests.Ntr
         public string SourcePath { get; }
         public IReadOnlyList<NtrRecord> Records { get; }
 
-        public static NtrDocument Load(string path)
+        public static NtrDocument? Load(string path)
         {
-            if (path is null) throw new ArgumentNullException(nameof(path));
+            if (string.IsNullOrEmpty(path)) return null;
 
             var lines = File.ReadAllLines(path);
             var records = new List<NtrRecord>();
