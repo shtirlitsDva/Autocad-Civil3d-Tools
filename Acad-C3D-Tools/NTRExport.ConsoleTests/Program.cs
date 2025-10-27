@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Linq;
 using System.Threading.Tasks;
 
 using NTRExport.ConsoleTests.TestCases;
@@ -21,15 +22,51 @@ namespace NTRExport.ConsoleTests
 
             var root = FindSolutionRoot();
             var ntrDll = Path.Combine(root, "Acad-C3D-Tools", "NTRExport", "bin", "Debug", "NTRExport.dll");
-            if (!File.Exists(ntrDll))
-            {
-                Console.Error.WriteLine($"ERROR: Could not find NTRExport.dll under path:\n{ntrDll}");
-                return 2;
-            }
+			if (!File.Exists(ntrDll))
+			{
+				Console.WriteLine("NTRExport.dll not found. Attempting to build (build-ntrexport-debug.bat)...");
+				var buildScript = Path.Combine(root, "build-ntrexport-debug.bat");
+				try
+				{
+					var psi = new ProcessStartInfo
+					{
+						FileName = "cmd.exe",
+						Arguments = "/c \"" + buildScript + "\"",
+						UseShellExecute = false,
+						RedirectStandardOutput = true,
+						RedirectStandardError = true,
+						CreateNoWindow = true,
+						WorkingDirectory = root,
+					};
+					using var p = Process.Start(psi);
+					if (p is not null)
+					{
+						var stdoutTask = p.StandardOutput.ReadToEndAsync();
+						var stderrTask = p.StandardError.ReadToEndAsync();
+						await Task.WhenAll(stdoutTask, stderrTask, p.WaitForExitAsync());
+						var stdout = stdoutTask.Result;
+						var stderr = stderrTask.Result;
+						if (!string.IsNullOrWhiteSpace(stdout)) Console.WriteLine(stdout);
+						if (!string.IsNullOrWhiteSpace(stderr)) Console.Error.WriteLine(stderr);
+					}
+				}
+				catch (Exception ex)
+				{
+					Console.Error.WriteLine(ex);
+				}
+
+				// Re-check for the DLL after build attempt
+				if (!File.Exists(ntrDll))
+				{
+					Console.Error.WriteLine($"ERROR: Could not find NTRExport.dll under path:\n{ntrDll}");
+					return 2;
+				}
+			}
 
             var cases = new BaseTestCase[]
             {
                 new StandalonePipesTest(),
+                new StandaloneBlockTest(),
                 new PreinsulatedTeeTwinTest(),
             };
 
