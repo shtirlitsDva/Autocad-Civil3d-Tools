@@ -19,9 +19,11 @@ using NTRExport.NtrConfiguration;
 using NTRExport.SoilModel;
 using NTRExport.TopologyModel;
 
+using System.IO;
+
 using static IntersectUtilities.UtilsCommon.Utils;
 
-using AcApp = Autodesk.AutoCAD.ApplicationServices.Application;
+using AcApp = Autodesk.AutoCAD.ApplicationServices.Core.Application;
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 
 [assembly: CommandClass(typeof(NTRExport.Commands))]
@@ -34,8 +36,7 @@ namespace NTRExport
         public void Initialize()
         {
             Document doc = AcApp.DocumentManager.MdiActiveDocument;
-            doc.Editor.WriteMessage("\nVelkommen til NTR Export!\n");
-
+            doc.Editor.WriteMessage("\nVelkommen til NTR Export!\n");            
 #if DEBUG
             AppDomain.CurrentDomain.AssemblyResolve +=
         new ResolveEventHandler(MissingAssemblyLoader.Debug_AssemblyResolve);
@@ -315,6 +316,12 @@ namespace NTRExport
 
             using var tx = localDb.TransactionManager.StartTransaction();
 
+            var dwgPath = localDb.Filename;
+            var outNtrPath = Path.ChangeExtension(
+                string.IsNullOrEmpty(dwgPath) ? "export" : dwgPath, ".ntr");
+            var outExceptionPath = Path.ChangeExtension(
+                string.IsNullOrEmpty(dwgPath) ? "export" : dwgPath, ".exception.log");
+
             try
             {
                 var ents = localDb.GetFjvEntities(tx);
@@ -371,7 +378,7 @@ namespace NTRExport
                 #endregion
 
                 #region ------------- Topology ➜ Routed ➜ NTR skeleton -------------
-                var routed = new Routing.Router(topo, new Routing.RoutingConfig()).Route();
+                var routed = new Routing.Router(topo).Route();
                 var ntr = new NtrMapper().MapRouted(routed);
                 #endregion
 
@@ -405,17 +412,19 @@ namespace NTRExport
 
                 var ntrText = writer.Build(ntr, headerLines, conf);
 
-                // Save next to DWG
-                var dwgPath = localDb.Filename;
-                var outPath = System.IO.Path.ChangeExtension(
-                    string.IsNullOrEmpty(dwgPath) ? "export" : dwgPath, ".ntr");
-                System.IO.File.WriteAllText(outPath, ntrText, System.Text.Encoding.UTF8);
-                prdDbg($"NTR written: {outPath}");
+                // Save next to DWG                
+                File.WriteAllText(outNtrPath, ntrText, System.Text.Encoding.UTF8);
+                prdDbg($"NTR written: {outNtrPath}");
                 #endregion
             }
             catch (DebugPointException dbex)
             {
                 prdDbg(dbex);
+
+                File.WriteAllText(outExceptionPath,
+                    dbex.ToString(),
+                    System.Text.Encoding.UTF8);
+
                 tx.Abort();
 
                 using var dtx = localDb.TransactionManager.StartTransaction();
@@ -429,6 +438,11 @@ namespace NTRExport
             catch (System.Exception ex)
             {
                 prdDbg(ex);
+
+                File.WriteAllText(outExceptionPath,
+                    ex.ToString(),
+                    System.Text.Encoding.UTF8);
+
                 tx.Abort();
                 return;
             }

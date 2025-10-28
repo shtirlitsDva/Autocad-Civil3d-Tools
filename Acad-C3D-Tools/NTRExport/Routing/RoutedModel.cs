@@ -24,6 +24,8 @@ namespace NTRExport.Routing
         public Point2d A { get; set; }
         public Point2d B { get; set; }
         public SoilProfile Soil { get; set; } = SoilProfile.Default;
+        public double? ZA { get; set; }
+        public double? ZB { get; set; }
     }
 
     internal sealed class RoutedBend : RoutedMember
@@ -32,6 +34,10 @@ namespace NTRExport.Routing
         public Point2d A { get; set; }
         public Point2d B { get; set; }
         public Point2d T { get; set; }
+        // Optional distinct Z values per bend point; when null, ZOffsetMeters is used for all
+        public double? Z1 { get; set; }
+        public double? Z2 { get; set; }
+        public double? Zt { get; set; }
     }
 
     internal sealed class RoutedGraph

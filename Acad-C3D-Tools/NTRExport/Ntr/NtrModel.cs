@@ -49,7 +49,7 @@ namespace NTRExport.Ntr
         public string DnSuffix { get; init; } = "s";
         protected string GetPipelinename()
         {
-            var db = Autodesk.AutoCAD.ApplicationServices.Application
+            var db = Autodesk.AutoCAD.ApplicationServices.Core.Application
                 .DocumentManager.MdiActiveDocument.Database;
 
             Entity ent = Source.Go<Entity>(db);
@@ -71,6 +71,8 @@ namespace NTRExport.Ntr
         public Point2d A { get; init; }
         public Point2d B { get; init; }
         public SoilProfile Soil { get; set; } = SoilProfile.Default;        
+        public double? ZA { get; set; }
+        public double? ZB { get; set; }
         public double Length => A.GetDistanceTo(B);
         public override IEnumerable<string> ToNtr(INtrSoilAdapter soil, ConfigurationData conf)
         {
@@ -97,9 +99,11 @@ namespace NTRExport.Ntr
             if (pipeline.IsNotNoE()) pipeline = " " + "LTG=" + pipeline;
             #endregion
 
+            var z1 = ZA ?? ZOffsetMeters;
+            var z2 = ZB ?? ZOffsetMeters;
             yield return $"RO " +
-                $"P1={NtrFormat.Pt(A, ZOffsetMeters)} " +
-                $"P2={NtrFormat.Pt(B, ZOffsetMeters)} " +
+                $"P1={NtrFormat.Pt(A, z1)} " +
+                $"P2={NtrFormat.Pt(B, z2)} " +
                 $"DN=DN{Dn}.{DnSuffix}" +
                 (Material != null ? $" MAT={Material}" : "") +
                 last +
@@ -128,12 +132,18 @@ namespace NTRExport.Ntr
         public Point2d B { get; init; }     // end 2
         public Point2d T { get; init; }     // tangency/angle point
         public SoilProfile Soil { get; set; } = new SoilProfile("Soil_C80", 0.08);
+        public double? ZA { get; set; }
+        public double? ZB { get; set; }
+        public double? ZT { get; set; }
         public override IEnumerable<string> ToNtr(INtrSoilAdapter soil, ConfigurationData conf)
         {
+            var z1 = ZA ?? ZOffsetMeters;
+            var z2 = ZB ?? ZOffsetMeters;
+            var zt = ZT ?? z1;
             yield return $"BOG " +
-                $"P1={NtrFormat.Pt(A, ZOffsetMeters)} " +
-                $"P2={NtrFormat.Pt(B, ZOffsetMeters)} " +
-                $"PT={NtrFormat.Pt(T, ZOffsetMeters)} " +
+                $"P1={NtrFormat.Pt(A, z1)} " +
+                $"P2={NtrFormat.Pt(B, z2)} " +
+                $"PT={NtrFormat.Pt(T, zt)} " +
                 $"DN=DN{Dn}.{DnSuffix}" +
                 (Material != null ? $" MAT={Material}" : "") +
                 NtrFormat.SoilTokens(null);

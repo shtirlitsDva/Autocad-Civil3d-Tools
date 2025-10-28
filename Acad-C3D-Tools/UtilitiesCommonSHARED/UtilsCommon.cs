@@ -34,7 +34,7 @@ using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 using static IntersectUtilities.UtilsCommon.Utils;
 
 using AcRx = Autodesk.AutoCAD.Runtime;
-using Application = Autodesk.AutoCAD.ApplicationServices.Application;
+using Application = Autodesk.AutoCAD.ApplicationServices.Core.Application;
 using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
 using DataTable = System.Data.DataTable;
 using DataType = Autodesk.Gis.Map.Constants.DataType;

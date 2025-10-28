@@ -5,25 +5,19 @@ using IntersectUtilities.PipeScheduleV2;
 using IntersectUtilities.UtilsCommon.Enums;
 
 using NTRExport.TopologyModel;
+using NTRExport.Enums;
+using IntersectUtilities;
+using IntersectUtilities.UtilsCommon;
 
 namespace NTRExport.Routing
 {
     internal sealed class Router
     {
         private readonly Topology _topo;
-        private readonly RoutingConfig _cfg;
-
-        private static readonly Dictionary<int, double> CenterToEndLookupMm = new()
+        
+        public Router(Topology topo)
         {
-            { 15, 28 }, { 20, 29 }, { 25, 38 }, { 32, 48 }, { 40, 57 },
-            { 50, 76 }, { 65, 95 }, { 80, 114 }, { 100, 152 }, { 125, 190 },
-            { 150, 229 }, { 200, 305 }, { 250, 381 }, { 300, 457 }, { 350, 533 },
-            { 400, 610 }, { 450, 686 }, { 500, 762 }, { 550, 1000 }, { 600, 914 }
-        };
-
-        public Router(Topology topo, RoutingConfig cfg)
-        {
-            _topo = topo; _cfg = cfg;
+            _topo = topo;
         }
 
         public RoutedGraph Route()
@@ -122,38 +116,125 @@ namespace NTRExport.Routing
 
             var center = branchPort.Node.Pos;
             var dirMain = DirectionFrom(mainPipe1, mains[0].Node);
-            var dirBranch = DirectionFrom(branchPipe, branchPort.Node).GetNormal();
+            var dirBranch = DirectionFrom(branchPipe, branchPort.Node); // branch is 90° in plan relative to main
             var farBranch = OtherEnd(branchPipe, branchPort.Node).Pos;
 
-            // Branch geometry: short straight along main to offset, then bend into branch
-            var ctEMeters = LookupCenterToEndMeters(branchPipe.Dn, _cfg.PreinsulatedLegMeters);
-            var offset = Math.Max(_cfg.TeeOffsetMeters, ctEMeters);
-            var p1 = center + dirMain * offset;
-            var bendLeg = ctEMeters;
-            var p2 = p1 + dirBranch * bendLeg;
-            EmitBranchTwin(g, branchPipe, center, p1, p2, farBranch, dirBranch);
-
-            g.Members.Add(new RoutedTee(tee.Source)
+            // Preinsulated twin tee: fabricate as RO + BOG + RO only (no TEE record)
+            if (branchPipe.Variant.IsTwin)
             {
-                Ph1 = center - dirMain * offset,
-                Ph2 = center + dirMain * offset,
-                Pa1 = p1,
-                Pa2 = p2,
-                Dn = _topo.InferMainDn(tee),
-                DnBranch = branchPipe.Dn,
-                DnMainSuffix = mainPipe1.Variant.DnSuffix,
-                DnBranchSuffix = branchPipe.Variant.DnSuffix,
-                Flow = RoutedFlow.Return
-            });
+                // Read legs (meters) using ports and block insertion
+                var Lb = GetLegMeters(tee, PortRole.Branch, dirBranch); // BRANCH leg length (horizontal)
+                var Lm = GetLegMeters(tee, PortRole.Main, dirMain);    // MAIN leg length (may be adjusted)
+                var R = LookupCenterToEndMeters(branchPipe.Dn, 0.0); // 5D CtE = radius in meters
+                if (Lb <= 0) Lb = R;
+                if (Lm <= 0) Lm = R;
+
+                // Z offsets for twin
+                var (zMainUp, zMainLow) = TwinOffsetsMeters(mainPipe1, true);
+                var (zBrUp, zBrLow) = TwinOffsetsMeters(branchPipe, true);
+
+                void EmitFor(RoutedFlow flow, double zMain, double zBranch)
+                {
+                    var dz = zBranch - zMain;
+
+                    // Unit vectors in plan
+                    var u = dirMain; var v = dirBranch;
+
+                    // Place PT along main at distance Lm from center; P1,P2 offset by R from PT
+                    var pt = center + u * (Lm + R);
+                    var p1 = pt - u * R;         // bend start on main stub
+                    var p2 = pt + v * R;         // bend end on branch leg
+
+                    // Emit with distinct Z per end: main stub slopes up to zBranch; branch stays at zBranch
+                    g.Members.Add(new RoutedStraight(branchPipe.Source)
+                    {
+                        A = center,
+                        B = p1,
+                        Dn = branchPipe.Dn,
+                        DnSuffix = branchPipe.Variant.DnSuffix,
+                        Flow = flow,
+                        ZA = zMain,
+                        ZB = zMain + dz,
+                    });
+
+                    g.Members.Add(new RoutedBend(branchPipe.Source)
+                    {
+                        A = p1,
+                        B = p2,
+                        T = pt,
+                        Dn = branchPipe.Dn,
+                        DnSuffix = branchPipe.Variant.DnSuffix,
+                        Flow = flow,
+                        Z1 = zMain + dz,
+                        Z2 = zBranch,
+                        Zt = zBranch, // set PT at branch Z to ensure quarter plane tilt; acceptable for ROHR2
+                    });
+
+                    g.Members.Add(new RoutedStraight(branchPipe.Source)
+                    {
+                        A = p2,
+                        B = farBranch,
+                        Dn = branchPipe.Dn,
+                        DnSuffix = branchPipe.Variant.DnSuffix,
+                        Flow = flow,
+                        ZA = zBranch,
+                        ZB = zBranch,
+                    });
+                }
+
+                EmitFor(RoutedFlow.Return, zMainUp, zBrUp);
+                EmitFor(RoutedFlow.Supply, zMainLow, zBrLow);
+                return; // skip RoutedTee
+            }
+
+            // Bonded/single: simple perpendicular branch without bend duplication
+            {
+                // Bonded: just connect branch straight to farBranch; no BOG, no TEE
+                var p2 = center + dirBranch * GetLegMeters(tee, PortRole.Branch, dirBranch);
+                var (zUp, zLow) = TwinOffsetsMeters(branchPipe, branchPipe.Variant.IsTwin);
+                if (branchPipe.Variant.IsTwin)
+                {
+                    g.Members.Add(new RoutedStraight(branchPipe.Source)
+                    {
+                        A = p2,
+                        B = farBranch,
+                        Dn = branchPipe.Dn,
+                        DnSuffix = branchPipe.Variant.DnSuffix,
+                        Flow = RoutedFlow.Return,
+                        ZA = zUp,
+                        ZB = zUp,
+                    });
+                    g.Members.Add(new RoutedStraight(branchPipe.Source)
+                    {
+                        A = p2,
+                        B = farBranch,
+                        Dn = branchPipe.Dn,
+                        DnSuffix = branchPipe.Variant.DnSuffix,
+                        Flow = RoutedFlow.Supply,
+                        ZA = zLow,
+                        ZB = zLow,
+                    });
+                }
+                else
+                {
+                    g.Members.Add(new RoutedStraight(branchPipe.Source)
+                    {
+                        A = p2,
+                        B = farBranch,
+                        Dn = branchPipe.Dn,
+                        DnSuffix = branchPipe.Variant.DnSuffix,
+                        Flow = branchPipe.Type == PipeTypeEnum.Frem ? RoutedFlow.Supply : RoutedFlow.Return,
+                        ZA = 0.0,
+                        ZB = 0.0,
+                    });
+                }
+            }
         }
 
         private static double LookupCenterToEndMeters(int dn, double defaultMeters)
         {
-            if (CenterToEndLookupMm.TryGetValue(dn, out var mm))
-            {
-                return mm / 1000.0;
-            }
-            return defaultMeters;
+            var mm = Geometry.GetBogRadius5D(dn);            
+            return mm / 1000.0;            
         }
 
         private void EmitBranchTwin(RoutedGraph g, TPipe branch, Point2d center, Point2d offsetPoint, Point2d bendPoint, Point2d farPoint, Vector2d dirBranch)
@@ -266,7 +347,7 @@ namespace NTRExport.Routing
 
         private void ExpandPreinsulatedElbow(RoutedGraph g, Handle src, Point2d a, Point2d b, Point2d t, int dn)
         {
-            var leg = _cfg.PreinsulatedLegMeters;
+            var leg = LookupCenterToEndMeters(dn, 0.0);
             var dirAB = new Vector2d(b.X - a.X, b.Y - a.Y);
             var len = dirAB.Length;
             if (len <= 1e-9) return;
@@ -311,6 +392,56 @@ namespace NTRExport.Routing
         private static TNode OtherEnd(TPipe pipe, TNode node)
         {
             return pipe.A.Node == node ? pipe.B.Node : pipe.A.Node;
+        }
+
+        private static double GetBranchLegMeters(TeeMainRun tee, int branchDn)
+        {
+            // Stub: will be implemented to read nested BRANCH reference and measure distance to insertion
+            // Fallback to 5D center-to-end to keep geometry reasonable until implemented
+            var mm = Geometry.GetBogRadius5D(branchDn);
+            return mm / 1000.0;
+        }
+
+        private static double GetLegMeters(TeeMainRun tee, PortRole role, Vector2d alongDir)
+        {
+            try
+            {
+                var db = Autodesk.AutoCAD.ApplicationServices.Core.Application
+                    .DocumentManager.MdiActiveDocument.Database;
+                var br = teeBlock(tee, db);
+                if (br == null) return 0.0;
+                var ins = new Point2d(br.Position.X, br.Position.Y);
+
+                var candidates = tee.Ports.Where(p => p.Role == role).ToList();
+                if (candidates.Count == 0) return 0.0;
+
+                double bestDot = double.NegativeInfinity;
+                double bestLen = 0.0;
+                foreach (var p in candidates)
+                {
+                    var w = new Vector2d(p.Node.Pos.X - ins.X, p.Node.Pos.Y - ins.Y);
+                    var dot = w.X * alongDir.X + w.Y * alongDir.Y;
+                    if (dot > bestDot)
+                    {
+                        bestDot = dot;
+                        bestLen = Math.Sqrt(w.X * w.X + w.Y * w.Y);
+                    }
+                }
+                return bestLen;
+            }
+            catch
+            {
+                return 0.0;
+            }
+        }
+
+        private static BlockReference? teeBlock(TeeMainRun tee, Database db)
+        {
+            try
+            {
+                return tee.Source.Go<BlockReference>(db);
+            }
+            catch { return null; }
         }
     }
 }

@@ -37,6 +37,8 @@ namespace NTRExport.Ntr
                             DnSuffix = s.DnSuffix,
                             Flow = s.Flow == Routing.RoutedFlow.Supply ? FlowRole.Supply : s.Flow == Routing.RoutedFlow.Return ? FlowRole.Return : FlowRole.Unknown,
                             ZOffsetMeters = s.ZOffsetMeters,
+                            ZA = s.ZA,
+                            ZB = s.ZB,
                             Provenance = new[] { s.Source },
                             Soil = s.Soil,
                         });
@@ -50,6 +52,9 @@ namespace NTRExport.Ntr
                             Dn = b.Dn,
                             Material = b.Material,
                             ZOffsetMeters = b.ZOffsetMeters,
+                            ZA = b.Z1,
+                            ZB = b.Z2,
+                            ZT = b.Zt,
                             DnSuffix = b.DnSuffix,
                             Flow = b.Flow == Routing.RoutedFlow.Supply ? FlowRole.Supply : b.Flow == Routing.RoutedFlow.Return ? FlowRole.Return : FlowRole.Unknown,
                             Provenance = new[] { b.Source },

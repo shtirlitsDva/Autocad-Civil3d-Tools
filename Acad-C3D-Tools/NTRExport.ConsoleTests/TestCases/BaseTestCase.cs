@@ -3,83 +3,12 @@ using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 
-using NTRExport.ConsoleTests;
-
 namespace NTRExport.ConsoleTests.TestCases
 {
     internal abstract class BaseTestCase
     {
         protected abstract string DwgName { get; }
         public abstract string DisplayName { get; }
-
-        public async Task<int> Execute2(string tempDir, string accoreExe, string ntrDll)
-        {
-            var assetPath = ResolveAsset(DwgName);
-            if (!File.Exists(assetPath))
-            {
-                Console.WriteLine($"SKIPPED {DwgName}");
-                return 0;
-            }
-
-            var dwgPath = Path.Combine(tempDir, Path.GetFileName(assetPath));
-            File.Copy(assetPath, dwgPath, overwrite: true);
-
-            var scriptPath = Path.Combine(tempDir, "run.scr");
-            File.WriteAllText(scriptPath, BuildScript(ntrDll));
-
-            string arguments = $"/i \"{dwgPath}\" " +
-                               $"/s \"{scriptPath}\" " +
-                                "/product ACAD " +
-                                "/language en - US"; // +
-                                //"/p \"<<C3D_Metric>>\"";// " +
-                                //"/loadmodule \"C:\\Program Files\\Autodesk\\AutoCAD 2023\\AecBase.dbx\"";
-
-            var psi = new ProcessStartInfo
-            {
-                FileName = accoreExe,
-                Arguments = arguments,
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,                
-                CreateNoWindow = true,
-                WorkingDirectory = tempDir,
-            };
-            var p = new Process { StartInfo = psi };
-            p.Start();
-
-            // read both streams concurrently to avoid deadlocks
-            var outTask = p.StandardOutput.ReadToEndAsync();
-            var errTask = p.StandardError.ReadToEndAsync();
-
-            p.WaitForExit();
-            var stdout = await outTask;
-            var stderr = await errTask;
-            
-            p.WaitForExit();
-
-            // filter once
-            Console.Write(Filter(stdout));
-            if (!string.IsNullOrWhiteSpace(stderr))
-                Console.Error.Write(Filter(stderr));
-
-            string uri = new Uri(tempDir).AbsoluteUri;
-            Console.WriteLine($"\u001b]8;;{uri}\u001b\\{tempDir}\u001b]8;;\u001b\\");
-
-            if (p.ExitCode != 0)
-            {
-                Console.Error.WriteLine("accoreconsole failed:");
-                return 1;
-            }
-
-            string ntrPath = Path.ChangeExtension(dwgPath, ".ntr");
-            if (!File.Exists(ntrPath))
-            {
-                Console.Error.WriteLine("Expected NTR file not found: " + ntrPath);
-                return 1;
-            }
-            return Validate(ntrPath) ? 0 : 1;
-        }
-
         public async Task<int> Execute(string tempDir, string accoreExe, string ntrDll)
         {
             var assetPath = ResolveAsset(DwgName);
@@ -97,13 +26,11 @@ namespace NTRExport.ConsoleTests.TestCases
 
             string arguments = $"/i \"{dwgPath}\" " +
                                $"/s \"{scriptPath}\" " +
-                                "/product ACAD " +
+                                "/product C3D " +
                                 "/language en-US " +
                                 "/readonly " +
-                                "/p \"AutoCAD\"";
-                                ; // +
-                                                     //"/p \"<<C3D_Metric>>\"";// " +
-                                                     //"/loadmodule \"C:\\Program Files\\Autodesk\\AutoCAD 2023\\AecBase.dbx\"";
+                                "/p \"<<C3D_Metric\" " +
+                                "/loadmodule \"C:\\Program Files\\Autodesk\\AutoCAD 2023\\AecBase.dbx\"";
 
             var psi = new ProcessStartInfo
             {
@@ -129,7 +56,7 @@ namespace NTRExport.ConsoleTests.TestCases
             var stderr = stderrTask.Result;
 
             // now your existing Filter(...) will work
-            Console.Write(Filter(stdout));
+            //Console.Write(Filter(stdout));
             if (!string.IsNullOrWhiteSpace(stderr))
                 Console.Error.Write(Filter(stderr));
 
@@ -141,6 +68,16 @@ namespace NTRExport.ConsoleTests.TestCases
             if (p.ExitCode != 0)
             {
                 Console.Error.WriteLine("accoreconsole failed:");
+                return 1;
+            }
+
+            string exceptionPath = Path.ChangeExtension(dwgPath, ".exception.log");
+            if (File.Exists(exceptionPath))
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.Error.WriteLine("Exception detected!");
+                Console.ResetColor();
+                Console.Error.WriteLine(File.ReadAllText(exceptionPath));
                 return 1;
             }
 
@@ -187,8 +124,6 @@ namespace NTRExport.ConsoleTests.TestCases
             return sb.ToString();
         }
 
-        protected abstract bool Validate(string ntrPath);
-
         protected Ntr.NtrDocument? LoadActual(string ntrPath)
         {
             return Ntr.NtrDocument.Load(ntrPath);
@@ -212,11 +147,48 @@ namespace NTRExport.ConsoleTests.TestCases
             sb.AppendLine("SECURELOAD");
             sb.AppendLine("0");
             sb.AppendLine("NETLOAD");
-            sb.AppendLine(ntrDll);
+            sb.AppendLine(ResolveSubstPath(ntrDll));
             sb.AppendLine("NTRTEST");
             sb.AppendLine("QUIT Y");
             sb.AppendLine();
             return sb.ToString();
+        }
+
+        private static string ResolveSubstPath(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path)) return path;
+            var root = Path.GetPathRoot(path);
+            if (string.IsNullOrEmpty(root)) return path;
+            var drive = root.TrimEnd('\\', '/');
+            if (drive.Length < 2 || drive[1] != ':') return path;
+
+            var target = QueryDosDeviceTarget(drive);
+            const string substPrefix = "\\\\??\\";
+            if (string.IsNullOrEmpty(target) || !target.StartsWith(substPrefix, StringComparison.OrdinalIgnoreCase)) return path;
+
+            var physicalRoot = target.Substring(substPrefix.Length);
+            var rest = path.Substring(root.Length);
+            return Path.Combine(physicalRoot, rest);
+        }
+
+        [System.Runtime.InteropServices.DllImport("kernel32.dll", CharSet = System.Runtime.InteropServices.CharSet.Auto, SetLastError = true)]
+        private static extern uint QueryDosDevice(string lpDeviceName, StringBuilder lpTargetPath, int ucchMax);
+
+        private static string QueryDosDeviceTarget(string drive)
+        {
+            var sb = new StringBuilder(1024);
+            try
+            {
+                var result = QueryDosDevice(drive, sb, sb.Capacity);
+                if (result == 0) return string.Empty;
+                var s = sb.ToString();
+                var idx = s.IndexOf('\0');
+                return idx >= 0 ? s.Substring(0, idx) : s;
+            }
+            catch
+            {
+                return string.Empty;
+            }
         }
 
         private static string ResolveAsset(string assetName)
@@ -235,6 +207,26 @@ namespace NTRExport.ConsoleTests.TestCases
                 dir = Path.GetDirectoryName(dir)!;
             }
             return startDir;
+        }
+
+        protected bool Validate(string ntrPath)
+        {
+            var template = LoadTemplate();
+            var actual = LoadActual(ntrPath);
+
+            if (template is null)
+            {
+                Console.WriteLine("INCOMPLETE: golden NTR is missing; skipping comparison.");
+                return true;
+            }
+
+            if (Ntr.NtrDocumentComparer.AreEquivalent(template, actual!, out var message))
+            {
+                return true;
+            }
+
+            Console.Error.WriteLine(message);
+            return false;
         }
     }
 }

@@ -36,7 +36,7 @@ namespace NTRExport.TopologyModel
         protected ElementBase(Handle src)
         {
             Source = src;
-            var db = Autodesk.AutoCAD.ApplicationServices
+            var db = Autodesk.AutoCAD.ApplicationServices.Core
                 .Application.DocumentManager.MdiActiveDocument.Database;
             var tx = db.TransactionManager.TopTransaction;
             _entity = src.Go<Entity>(db);
@@ -299,7 +299,7 @@ namespace NTRExport.TopologyModel
         public ElbowFormstykke(Handle source, PipelineElementType kind)
             : base(source, kind)
         {
-            var db = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager
+            var db = Autodesk.AutoCAD.ApplicationServices.Core.Application.DocumentManager
                 .MdiActiveDocument.Database;
 
             var br = source.Go<BlockReference>(db);

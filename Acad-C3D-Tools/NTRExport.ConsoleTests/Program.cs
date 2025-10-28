@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Runtime.InteropServices;
 
 using NTRExport.ConsoleTests.TestCases;
 
@@ -22,7 +23,8 @@ namespace NTRExport.ConsoleTests
 
             var root = FindSolutionRoot();
             var ntrDll = Path.Combine(root, "Acad-C3D-Tools", "NTRExport", "bin", "Debug", "NTRExport.dll");
-			if (!File.Exists(ntrDll))
+            var ntrDllResolved = ResolveSubstPath(ntrDll);
+            if (!File.Exists(ntrDllResolved))
 			{
 				Console.WriteLine("NTRExport.dll not found. Attempting to build (build-ntrexport-debug.bat)...");
 				var buildScript = Path.Combine(root, "build-ntrexport-debug.bat");
@@ -55,10 +57,10 @@ namespace NTRExport.ConsoleTests
 					Console.Error.WriteLine(ex);
 				}
 
-				// Re-check for the DLL after build attempt
-				if (!File.Exists(ntrDll))
+                // Re-check for the DLL after build attempt
+                if (!File.Exists(ntrDllResolved))
 				{
-					Console.Error.WriteLine($"ERROR: Could not find NTRExport.dll under path:\n{ntrDll}");
+                    Console.Error.WriteLine($"ERROR: Could not find NTRExport.dll under path:\n{ntrDllResolved}");
 					return 2;
 				}
 			}
@@ -73,7 +75,7 @@ namespace NTRExport.ConsoleTests
             var failures = 0;
             foreach (var testCase in cases)
             {
-                failures += await RunCase(accore, ntrDll, testCase);
+                failures += await RunCase(accore, ntrDllResolved, testCase);
             }
 
             Console.WriteLine(failures == 0 ? "ALL TESTS PASSED" : $"FAILURES: {failures}");
@@ -106,6 +108,48 @@ namespace NTRExport.ConsoleTests
             }
             return AppContext.BaseDirectory;
         }
+
+        private static string ResolveSubstPath(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path)) return path;
+
+            var root = Path.GetPathRoot(path);
+            if (string.IsNullOrEmpty(root)) return path;
+
+            var drive = root.TrimEnd('\\', '/'); // e.g. "X:"
+            if (drive.Length < 2 || drive[1] != ':') return path;
+
+            var target = QueryDosDeviceTarget(drive);
+            if (string.IsNullOrEmpty(target)) return path;
+
+            // SUBST maps like "\\??\\C:\\...". Only rewrite those
+            const string substPrefix = @"\??\"; // "\\??\\" 
+            if (!target.StartsWith(substPrefix, StringComparison.OrdinalIgnoreCase)) return path;
+
+            var physicalRoot = target.Substring(substPrefix.Length); // e.g. "C:\..."
+            var rest = path.Substring(root.Length);
+            return Path.Combine(physicalRoot, rest);
+        }
+
+        private static string QueryDosDeviceTarget(string drive)
+        {
+            var sb = new StringBuilder(1024);
+            try
+            {
+                var result = QueryDosDevice(drive, sb, sb.Capacity);
+                if (result == 0) return string.Empty;
+                var s = sb.ToString();
+                var idx = s.IndexOf('\0');
+                return idx >= 0 ? s.Substring(0, idx) : s;
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        private static extern uint QueryDosDevice(string lpDeviceName, StringBuilder lpTargetPath, int ucchMax);
     }
 }
 

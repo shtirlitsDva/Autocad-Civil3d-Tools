@@ -38,6 +38,188 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Test fillet
+                    // 1) Select the Line (must lie on x-axis in WCS)
+                    var peoLine = new PromptEntityOptions("\nSelect line AB on the x-axis (WCS): ");
+                    peoLine.SetRejectMessage("\nOnly Line.");
+                    peoLine.AddAllowedClass(typeof(Line), exactMatch: true);
+                    var perLine = ed.GetEntity(peoLine);
+                    if (perLine.Status != PromptStatus.OK) return;
+
+                    // 2) Select the DBPoint (point D)
+                    var peoPt = new PromptPointOptions("\nSelect Point D (Y>0): ");
+                    var perPt = ed.GetPoint(peoPt);
+                    if (perPt.Status != PromptStatus.OK) return;
+
+                    // 3) Radius R
+                    var pdo = new PromptDoubleOptions("\nEnter radius R (>0): ")
+                    {
+                        AllowNegative = false,
+                        AllowZero = false
+                    };
+                    var pr = ed.GetDouble(pdo);
+                    if (pr.Status != PromptStatus.OK) return;
+                    double R = pr.Value;
+
+                    // 4) Choose center side on y=R relative to D
+                    var pko = new PromptKeywordOptions("\nCenter side relative to D on y=R [Left/Right] ", "Left Right");
+                    pko.AllowNone = true;
+                    var pk = ed.GetKeywords(pko);
+                    if (pk.Status != PromptStatus.OK) return;
+                    bool preferLeftCenter = (pk.StringResult ?? "Right").Equals("Left", StringComparison.OrdinalIgnoreCase);
+
+                    const double tol = 1e-8;
+
+                    using (var tr = localDb.TransactionManager.StartTransaction())
+                    {
+                        var ln = (Line)tr.GetObject(perLine.ObjectId, OpenMode.ForRead);                        
+                        var dp = perPt.Value;
+
+                        // Validate line is on x-axis (both endpoints Y≈0 and Z=0) and horizontal
+                        var p1 = ln.StartPoint; var p2 = ln.EndPoint;
+                        if (Math.Abs(p1.Z) > tol || Math.Abs(p2.Z) > tol ||
+                            Math.Abs(p1.Y) > tol || Math.Abs(p2.Y) > tol)
+                        {
+                            ed.WriteMessage("\nError: The selected line must lie on y=0 in WCS.");
+                            return;
+                        }
+                        if (Math.Abs(p2.Y - p1.Y) > tol)
+                        {
+                            ed.WriteMessage("\nError: The selected line must be horizontal on y=0.");
+                            return;
+                        }
+
+                        // D from DBPoint
+                        var D = dp;
+                        if (D.Y <= 0.0)
+                        {
+                            ed.WriteMessage("\nError: D must satisfy Y>0.");
+                            return;
+                        }
+                        if (Math.Abs(D.Z) > tol)
+                        {
+                            ed.WriteMessage("\nError: D.Z must be 0 in WCS.");
+                            return;
+                        }
+
+                        // 5) Compute center O=(e,R) on y=R (WCS). Deterministic nearest-feasible rule.
+                        double xd = D.X, yd = D.Y;
+                        double Delta = yd - R;
+                        double m = R * R - Delta * Delta;
+                        const double eps = 1e-9;
+
+                        double e;
+                        if (m <= 0.0)
+                        {
+                            e = xd;
+                            double d0 = Math.Sqrt((xd - e) * (xd - e) + (yd - R) * (yd - R));
+                            if (d0 <= R) e = xd + (preferLeftCenter ? -eps : eps);
+                        }
+                        else
+                        {
+                            double root = Math.Sqrt(m);
+                            e = preferLeftCenter ? xd - root - eps : xd + root + eps;
+                        }
+
+                        // 6) Geometry
+                        double ox = e, oy = R;
+                        double ux = xd - ox, uy = yd - oy;
+                        double d = Math.Sqrt(ux * ux + uy * uy);
+                        if (d <= R)
+                        {
+                            ed.WriteMessage("\nNo valid tangent with the chosen center.");
+                            return;
+                        }
+
+                        double rx = ux / d, ry = uy / d;
+                        double nx = -ry, ny = rx;
+                        double sinA = R / d;
+                        double cosA = Math.Sqrt(d * d - R * R) / d;
+
+                        (Point3d C, Vector2d t, double xAxisCross) Branch(int s)
+                        {
+                            double cx = ox + R * (cosA * rx + s * sinA * nx);
+                            double cy = oy + R * (cosA * ry + s * sinA * ny);
+                            double tx = s * cosA * nx - sinA * rx;
+                            double ty = s * cosA * ny - sinA * ry;
+
+                            double xcross = double.NaN;
+                            if (Math.Abs(ty) > 1e-12)
+                            {
+                                double lambda = -yd / ty; // y=0 crossing from D along t
+                                xcross = xd + lambda * tx;
+                            }
+                            return (new Point3d(cx, cy, 0.0), new Vector2d(tx, ty), xcross);
+                        }
+
+                        var minus = Branch(-1);
+                        var plus = Branch(+1);
+
+                        // Prefer branch whose x-axis crossing is to the right of E
+                        double ex = e;
+                        (Point3d C, Vector2d t, double xCross) chosen = plus;
+                        bool mOk = !double.IsNaN(minus.xAxisCross);
+                        bool pOk = !double.IsNaN(plus.xAxisCross);
+
+                        if (mOk && pOk)
+                        {
+                            bool mRight = minus.xAxisCross >= ex;
+                            bool pRight = plus.xAxisCross >= ex;
+                            if (mRight && !pRight) chosen = minus;
+                            else if (!mRight && pRight) chosen = plus;
+                            else chosen = (minus.xAxisCross > plus.xAxisCross) ? minus : plus;
+                        }
+                        else if (mOk) chosen = minus;
+
+                        // 7) Build entities in WCS: helper circle, tangent line, fillet arc from E to C (minor CCW)
+                        var O = new Point3d(ox, oy, 0.0);
+                        var Ept = new Point3d(e, 0.0, 0.0);
+                        var Cpt = chosen.C;
+
+                        double Ang(Point3d P) => Math.Atan2(P.Y - oy, P.X - ox);
+                        double aE = Ang(Ept);
+                        double aC = Ang(Cpt);
+
+                        double Normalize(double a)
+                        {
+                            double tp = 2 * Math.PI;
+                            a %= tp;
+                            if (a < 0) a += tp;
+                            return a;
+                        }
+                        double dtheta = Normalize(aC - aE);
+                        if (dtheta > Math.PI) dtheta -= 2.0 * Math.PI; // minor sweep
+
+                        var bt = (BlockTable)tr.GetObject(localDb.BlockTableId, OpenMode.ForRead);
+                        var btr = (BlockTableRecord)tr.GetObject(localDb.CurrentSpaceId, OpenMode.ForWrite);
+
+                        // Helper: full circle (optional)
+                        var circ = new Circle(O, Vector3d.ZAxis, R);
+                        btr.AppendEntity(circ); tr.AddNewlyCreatedDBObject(circ, true);
+
+                        // Helper: tangent line through D
+                        {
+                            var dir = new Vector3d(chosen.t.X, chosen.t.Y, 0.0).GetNormal();
+                            double L = Math.Max(50.0 * R, 100.0);
+                            var tanLine = new Line(new Point3d(xd, yd, 0.0) - dir * L,
+                                                   new Point3d(xd, yd, 0.0) + dir * L);
+                            btr.AppendEntity(tanLine); tr.AddNewlyCreatedDBObject(tanLine, true);
+                        }
+
+                        // Fillet arc
+                        var arc = new Arc(O, R, aE, aE + dtheta);
+                        btr.AppendEntity(arc); tr.AddNewlyCreatedDBObject(arc, true);
+
+                        // Markers at E and C
+                        var pe = new DBPoint(Ept); var pc = new DBPoint(Cpt);
+                        btr.AppendEntity(pe); tr.AddNewlyCreatedDBObject(pe, true);
+                        btr.AppendEntity(pc); tr.AddNewlyCreatedDBObject(pc, true);
+
+                        tr.Commit();
+
+                        ed.WriteMessage($"\nO=({ox:F6},{oy:F6}), E=({Ept.X:F6},0), C=({Cpt.X:F6},{Cpt.Y:F6}).");
+                    }
+                    #endregion
                     #region Test intersection points of vectors
                     //var pls = localDb.HashSetOfType<Polyline>(tx);
                     //foreach (var p in pls)
