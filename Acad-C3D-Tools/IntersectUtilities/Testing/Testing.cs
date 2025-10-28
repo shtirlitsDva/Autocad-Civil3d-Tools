@@ -38,187 +38,310 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    #region Test fillet
-                    // 1) Select the Line (must lie on x-axis in WCS)
-                    var peoLine = new PromptEntityOptions("\nSelect line AB on the x-axis (WCS): ");
-                    peoLine.SetRejectMessage("\nOnly Line.");
-                    peoLine.AddAllowedClass(typeof(Line), exactMatch: true);
-                    var perLine = ed.GetEntity(peoLine);
-                    if (perLine.Status != PromptStatus.OK) return;
+                    #region Test fillet #2
+                    // 1) Select branch centerline (any WCS line)
+                    var peBranch = new PromptEntityOptions("\nSelect branch centerline (Line): ");
+                    peBranch.SetRejectMessage("\nOnly Line.");
+                    peBranch.AddAllowedClass(typeof(Line), true);
+                    var brSel = ed.GetEntity(peBranch);
+                    if (brSel.Status != PromptStatus.OK) return;
 
-                    // 2) Select the DBPoint (point D)
-                    var peoPt = new PromptPointOptions("\nSelect Point D (Y>0): ");
-                    var perPt = ed.GetPoint(peoPt);
-                    if (perPt.Status != PromptStatus.OK) return;
+                    // 2) Select main center point M (DBPoint)
+                    var peMain = new PromptEntityOptions("\nSelect main center (DBPoint): ");
+                    peMain.SetRejectMessage("\nOnly DBPoint.");
+                    peMain.AddAllowedClass(typeof(DBPoint), true);
+                    var mSel = ed.GetEntity(peMain);
+                    if (mSel.Status != PromptStatus.OK) return;
 
-                    // 3) Radius R
-                    var pdo = new PromptDoubleOptions("\nEnter radius R (>0): ")
-                    {
-                        AllowNegative = false,
-                        AllowZero = false
-                    };
-                    var pr = ed.GetDouble(pdo);
-                    if (pr.Status != PromptStatus.OK) return;
-                    double R = pr.Value;
+                    // 3) Radius R and stub length L
+                    var pR = ed.GetDouble(new PromptDoubleOptions("\nEnter fillet radius R (>0): ") { AllowNegative = false, AllowZero = false });
+                    if (pR.Status != PromptStatus.OK) return;
+                    var pL = ed.GetDouble(new PromptDoubleOptions("\nEnter stub length L (>0): ") { AllowNegative = false, AllowZero = false });
+                    if (pL.Status != PromptStatus.OK) return;
+                    double R = pR.Value, L = pL.Value;
 
-                    // 4) Choose center side on y=R relative to D
-                    var pko = new PromptKeywordOptions("\nCenter side relative to D on y=R [Left/Right] ", "Left Right");
-                    pko.AllowNone = true;
-                    var pk = ed.GetKeywords(pko);
-                    if (pk.Status != PromptStatus.OK) return;
-                    bool preferLeftCenter = (pk.StringResult ?? "Right").Equals("Left", StringComparison.OrdinalIgnoreCase);
-
-                    const double tol = 1e-8;
+                    const double tol = 1e-9;
 
                     using (var tr = localDb.TransactionManager.StartTransaction())
                     {
-                        var ln = (Line)tr.GetObject(perLine.ObjectId, OpenMode.ForRead);                        
-                        var dp = perPt.Value;
+                        var br = (Line)tr.GetObject(brSel.ObjectId, OpenMode.ForRead);
+                        var mp = (DBPoint)tr.GetObject(mSel.ObjectId, OpenMode.ForRead);
 
-                        // Validate line is on x-axis (both endpoints Y≈0 and Z=0) and horizontal
-                        var p1 = ln.StartPoint; var p2 = ln.EndPoint;
-                        if (Math.Abs(p1.Z) > tol || Math.Abs(p2.Z) > tol ||
-                            Math.Abs(p1.Y) > tol || Math.Abs(p2.Y) > tol)
-                        {
-                            ed.WriteMessage("\nError: The selected line must lie on y=0 in WCS.");
-                            return;
-                        }
-                        if (Math.Abs(p2.Y - p1.Y) > tol)
-                        {
-                            ed.WriteMessage("\nError: The selected line must be horizontal on y=0.");
-                            return;
-                        }
+                        // 4) Geometry setup
+                        var A0 = br.StartPoint; var A1 = br.EndPoint; var Mpt = mp.Position;
+                        if ((A1 - A0).Length < tol) { ed.WriteMessage("\nInvalid branch line."); return; }
+                        if (Math.Abs(A0.Z - A1.Z) > 1e-6 || Math.Abs(Mpt.Z - A0.Z) > 1e-6)
+                        { ed.WriteMessage("\nAll inputs must lie in the same WCS Z plane."); return; }
 
-                        // D from DBPoint
-                        var D = dp;
-                        if (D.Y <= 0.0)
-                        {
-                            ed.WriteMessage("\nError: D must satisfy Y>0.");
-                            return;
-                        }
-                        if (Math.Abs(D.Z) > tol)
-                        {
-                            ed.WriteMessage("\nError: D.Z must be 0 in WCS.");
-                            return;
-                        }
+                        Vector2d To2D(Point3d p) => new Vector2d(p.X, p.Y);
+                        var A0v = To2D(A0);
+                        var A1v = To2D(A1);
+                        var Mv = To2D(Mpt);
 
-                        // 5) Compute center O=(e,R) on y=R (WCS). Deterministic nearest-feasible rule.
-                        double xd = D.X, yd = D.Y;
-                        double Delta = yd - R;
-                        double m = R * R - Delta * Delta;
-                        const double eps = 1e-9;
+                        // Unit direction along branch
+                        var u3 = (A1 - A0).GetNormal();
+                        var u = new Vector2d(u3.X, u3.Y).GetNormal();
+                        if (u.Length < 0.5) u = (A1v - A0v).GetNormal();
 
-                        double e;
-                        if (m <= 0.0)
+                        // Projection-based side selection (orientation-free)
+                        double s = (Mv - A0v).DotProduct(u);
+                        var P = A0v + s * u;                 // foot of perpendicular from M to branch
+                        var w = Mv - P;
+                        double dLineToM = w.Length;
+                        if (dLineToM < 1e-12) { ed.WriteMessage("\nAmbiguous: main center lies on the branch line."); return; }
+                        var n = w / dLineToM;                // unit normal from branch toward M
+
+                        // Along-branch side of M (independent of endpoint order)
+                        double signU = Math.Sign((Mv - A0v).DotProduct(u));
+                        if (signU == 0) signU = Math.Sign((Mv - A1v).DotProduct(u));
+                        if (signU == 0) signU = 1;           // fallback
+
+                        // 6) Offset branch by R toward M side: centers lie on this line
+                        var OR0 = A0v + R * n;               // a point on the offset line parallel to branch
+
+                        // Required |MO| for stub length: A = sqrt(R^2 + L^2)
+                        double A = Math.Sqrt(R * R + L * L);
+
+                        // 7) Projection of M onto the offset line L_R = OR0 + t*u
+                        double sProj = (Mv - OR0).DotProduct(u);
+                        var Q = OR0 + sProj * u;
+                        double dPerp = Math.Abs((Mv - OR0).DotProduct(n)); // distance from M to L_R
+                        if (dPerp > A + 1e-9) { ed.WriteMessage("\nNo solution: dist(M, offset line) > sqrt(R^2+L^2)."); return; }
+
+                        // 8) Two center candidates along L_R at distance h from Q
+                        double h = Math.Sqrt(Math.Max(0.0, A * A - dPerp * dPerp));
+                        var O2D_1 = Q + h * u;
+                        var O2D_2 = Q - h * u;
+
+                        // Order centers so the first matches along-branch side w.r.t Q
+                        Vector2d first = (Math.Sign((O2D_1 - Q).DotProduct(u)) == signU) ? O2D_1 : O2D_2;
+                        Vector2d second = (first == O2D_1) ? O2D_2 : O2D_1;
+
+                        // Try a center and return deterministic pick
+                        (bool ok, Point3d O, Point3d Bp, Point3d C, Line stub, Arc arc) Build(Vector2d O2D)
                         {
-                            e = xd;
-                            double d0 = Math.Sqrt((xd - e) * (xd - e) + (yd - R) * (yd - R));
-                            if (d0 <= R) e = xd + (preferLeftCenter ? -eps : eps);
-                        }
-                        else
-                        {
-                            double root = Math.Sqrt(m);
-                            e = preferLeftCenter ? xd - root - eps : xd + root + eps;
-                        }
+                            var O = new Point3d(O2D.X, O2D.Y, A0.Z);
+                            // B' = O - R*n (perpendicular foot to branch)
+                            var Bp = new Point3d(O.X - R * n.X, O.Y - R * n.Y, O.Z);
 
-                        // 6) Geometry
-                        double ox = e, oy = R;
-                        double ux = xd - ox, uy = yd - oy;
-                        double d = Math.Sqrt(ux * ux + uy * uy);
-                        if (d <= R)
-                        {
-                            ed.WriteMessage("\nNo valid tangent with the chosen center.");
-                            return;
-                        }
+                            // Tangent points from M to circle (O,R) using power-of-a-point
+                            Vector2d OM = new Vector2d(Mpt.X - O.X, Mpt.Y - O.Y);
+                            double d = OM.Length; if (d <= R + 1e-9) return (false, default, default, default, null, null);
 
-                        double rx = ux / d, ry = uy / d;
-                        double nx = -ry, ny = rx;
-                        double sinA = R / d;
-                        double cosA = Math.Sqrt(d * d - R * R) / d;
+                            Vector2d rhat = OM / d;
+                            Vector2d nhat = new Vector2d(-rhat.Y, rhat.X);
+                            var Ptan = new Point3d(
+                                O.X + (R * R / (d * d)) * (Mpt.X - O.X),
+                                O.Y + (R * R / (d * d)) * (Mpt.Y - O.Y),
+                                O.Z);
+                            double k = (R / d) * Math.Sqrt(d * d - R * R);
 
-                        (Point3d C, Vector2d t, double xAxisCross) Branch(int s)
-                        {
-                            double cx = ox + R * (cosA * rx + s * sinA * nx);
-                            double cy = oy + R * (cosA * ry + s * sinA * ny);
-                            double tx = s * cosA * nx - sinA * rx;
-                            double ty = s * cosA * ny - sinA * ry;
+                            var C1 = new Point3d(Ptan.X + k * nhat.X, Ptan.Y + k * nhat.Y, O.Z);
+                            var C2 = new Point3d(Ptan.X - k * nhat.X, Ptan.Y - k * nhat.Y, O.Z);
 
-                            double xcross = double.NaN;
-                            if (Math.Abs(ty) > 1e-12)
+                            (Point3d C, Line stub, Arc arc)? TryC(Point3d Ccand)
                             {
-                                double lambda = -yd / ty; // y=0 crossing from D along t
-                                xcross = xd + lambda * tx;
+                                var t = new Vector2d(Mpt.X - Ccand.X, Mpt.Y - Ccand.Y);
+                                if (Math.Abs(t.Length - L) > 1e-6 || t.Length < 1e-12) return null; // exact stub length
+                                if (t.DotProduct(n) <= 0) return null;                               // correct side across normal
+                                double tu = t.DotProduct(u);
+                                if (Math.Sign(tu) != signU) return null;                              // correct along-branch direction
+
+                                // Minor arc from B' to C
+                                double Ang(Point3d Pn) => Math.Atan2(Pn.Y - O.Y, Pn.X - O.X);
+                                double aB = Ang(Bp), aC = Ang(Ccand);
+                                double Norm(double a) { a %= 2 * Math.PI; if (a < 0) a += 2 * Math.PI; return a; }
+                                double sweep = Norm(aC - aB);
+                                if (sweep > Math.PI) { var tmp = aB; aB = aC; aC = tmp; }
+
+                                var arc = new Arc(O, R, aB, aC);
+                                var stub = new Line(Ccand, Mpt);
+                                return (Ccand, stub, arc);
                             }
-                            return (new Point3d(cx, cy, 0.0), new Vector2d(tx, ty), xcross);
+
+                            var s1 = TryC(C1);
+                            var s2 = TryC(C2);
+                            if (s1 == null && s2 == null) return (false, default, default, default, null, null);
+
+                            // If both valid, pick the one with smaller |sweep| deterministically
+                            (Point3d C, Line stub, Arc arc)? pick = s1 ?? s2;
+                            if (s1 != null && s2 != null)
+                            {
+                                double abs1 = Math.Abs(s1.Value.arc.EndAngle - s1.Value.arc.StartAngle);
+                                double abs2 = Math.Abs(s2.Value.arc.EndAngle - s2.Value.arc.StartAngle);
+                                if (abs2 < abs1) pick = s2.Value;
+                            }
+                            return (true, O, Bp, pick.Value.C, pick.Value.stub, pick.Value.arc);
                         }
 
-                        var minus = Branch(-1);
-                        var plus = Branch(+1);
+                        var got = Build(first);
+                        if (!got.ok) got = Build(second);
+                        if (!got.ok) { ed.WriteMessage("\nNo admissible solution for given inputs."); return; }
 
-                        // Prefer branch whose x-axis crossing is to the right of E
-                        double ex = e;
-                        (Point3d C, Vector2d t, double xCross) chosen = plus;
-                        bool mOk = !double.IsNaN(minus.xAxisCross);
-                        bool pOk = !double.IsNaN(plus.xAxisCross);
-
-                        if (mOk && pOk)
-                        {
-                            bool mRight = minus.xAxisCross >= ex;
-                            bool pRight = plus.xAxisCross >= ex;
-                            if (mRight && !pRight) chosen = minus;
-                            else if (!mRight && pRight) chosen = plus;
-                            else chosen = (minus.xAxisCross > plus.xAxisCross) ? minus : plus;
-                        }
-                        else if (mOk) chosen = minus;
-
-                        // 7) Build entities in WCS: helper circle, tangent line, fillet arc from E to C (minor CCW)
-                        var O = new Point3d(ox, oy, 0.0);
-                        var Ept = new Point3d(e, 0.0, 0.0);
-                        var Cpt = chosen.C;
-
-                        double Ang(Point3d P) => Math.Atan2(P.Y - oy, P.X - ox);
-                        double aE = Ang(Ept);
-                        double aC = Ang(Cpt);
-
-                        double Normalize(double a)
-                        {
-                            double tp = 2 * Math.PI;
-                            a %= tp;
-                            if (a < 0) a += tp;
-                            return a;
-                        }
-                        double dtheta = Normalize(aC - aE);
-                        if (dtheta > Math.PI) dtheta -= 2.0 * Math.PI; // minor sweep
-
+                        // 10) Create entities
                         var bt = (BlockTable)tr.GetObject(localDb.BlockTableId, OpenMode.ForRead);
                         var btr = (BlockTableRecord)tr.GetObject(localDb.CurrentSpaceId, OpenMode.ForWrite);
 
-                        // Helper: full circle (optional)
-                        var circ = new Circle(O, Vector3d.ZAxis, R);
-                        btr.AppendEntity(circ); tr.AddNewlyCreatedDBObject(circ, true);
-
-                        // Helper: tangent line through D
-                        {
-                            var dir = new Vector3d(chosen.t.X, chosen.t.Y, 0.0).GetNormal();
-                            double L = Math.Max(50.0 * R, 100.0);
-                            var tanLine = new Line(new Point3d(xd, yd, 0.0) - dir * L,
-                                                   new Point3d(xd, yd, 0.0) + dir * L);
-                            btr.AppendEntity(tanLine); tr.AddNewlyCreatedDBObject(tanLine, true);
-                        }
-
-                        // Fillet arc
-                        var arc = new Arc(O, R, aE, aE + dtheta);
-                        btr.AppendEntity(arc); tr.AddNewlyCreatedDBObject(arc, true);
-
-                        // Markers at E and C
-                        var pe = new DBPoint(Ept); var pc = new DBPoint(Cpt);
-                        btr.AppendEntity(pe); tr.AddNewlyCreatedDBObject(pe, true);
-                        btr.AppendEntity(pc); tr.AddNewlyCreatedDBObject(pc, true);
+                        btr.AppendEntity(got.arc); tr.AddNewlyCreatedDBObject(got.arc, true);
+                        btr.AppendEntity(got.stub); tr.AddNewlyCreatedDBObject(got.stub, true);
 
                         tr.Commit();
 
-                        ed.WriteMessage($"\nO=({ox:F6},{oy:F6}), E=({Ept.X:F6},0), C=({Cpt.X:F6},{Cpt.Y:F6}).");
+                        ed.WriteMessage($"\nO=({got.O.X:F6},{got.O.Y:F6})  B'=({got.Bp.X:F6},{got.Bp.Y:F6})  C=({got.C.X:F6},{got.C.Y:F6})");
                     }
+                    #endregion
+                    #region Test fillet #1
+                    //// --- INPUTS (hard-coded for your test) --------------------------------------------
+                    //// R=20, L=5, M=(40,15). Branch line lies on x-axis through origin.
+                    //// We'll still ask you to select the branch line, but we verify it is y=0 and passes near (0,0).
+                    //const double R = 20.0;           // expected
+                    //const double L = 5.0;            // expected
+                    //var M = new Point3d(40.0, 15.0, 0.0); // expected
+
+                    //prdDbg($"Inputs: R={R}, L={L}, M=({M.X},{M.Y})  [expected R=20, L=5, M=(40,15)]");
+
+                    //// --- 1) Select branch centerline --------------------------------------------------
+                    //var peBranch = new PromptEntityOptions("\nSelect branch centerline (Line on x-axis through origin): ");
+                    //peBranch.SetRejectMessage("\nOnly Line.");
+                    //peBranch.AddAllowedClass(typeof(Line), true);
+                    //var brSel = ed.GetEntity(peBranch);
+                    //if (brSel.Status != PromptStatus.OK) return;
+
+                    //using (var tr = localDb.TransactionManager.StartTransaction())
+                    //{
+                    //    var br = (Line)tr.GetObject(brSel.ObjectId, OpenMode.ForRead);
+
+                    //    // --- 2) Validate branch lies on y=0 -------------------------------------------
+                    //    var A0 = br.StartPoint; var A1 = br.EndPoint;
+                    //    prdDbg($"Branch endpoints A0=({A0.X},{A0.Y})  A1=({A1.X},{A1.Y})  [expected Y≈0]");
+
+                    //    const double tol = 1e-9;
+                    //    if (Math.Abs(A0.Y) > 1e-6 || Math.Abs(A1.Y) > 1e-6)
+                    //    { prdDbg("Error: branch not on y=0."); return; }
+
+                    //    // --- 3) Unit direction along branch and its left normal -----------------------
+                    //    var u3 = (A1 - A0).GetNormal();
+                    //    var u = new Vector2d(u3.X, u3.Y).GetNormal();         // expected ~ (1,0)
+                    //    var nL = new Vector2d(-u.Y, u.X);                      // expected left normal ~ (0,1)
+                    //    prdDbg($"u=({u.X:F6},{u.Y:F6})  nL=({nL.X:F6},{nL.Y:F6})  [expected u≈(1,0), nL≈(0,1)]");
+
+                    //    // --- 4) Decide side automatically: where M lies relative to branch direction --
+                    //    // cross(u, M - A0) > 0 => M is to the "left" of u -> choose left normal
+                    //    var MA0 = new Vector2d(M.X - A0.X, M.Y - A0.Y);
+                    //    double cross = u.X * MA0.Y - u.Y * MA0.X;
+                    //    prdDbg($"cross = {cross:F6}  [expected >0 since M.y=15 above branch]");
+                    //    if (Math.Abs(cross) < 1e-12) { prdDbg("Ambiguous side: M collinear with branch."); return; }
+                    //    var n = cross > 0 ? nL : -nL;                           // expected n=(0,1)
+                    //    prdDbg($"Chosen normal n=({n.X:F6},{n.Y:F6})  [expected (0,1)]");
+
+                    //    // --- 5) Build offset branch line L_R (centers lie on it) ----------------------
+                    //    // Any point on L_R: OR0 = A0 + R*n  -> expected y=R = 20
+                    //    var A0v = new Vector2d(A0.X, A0.Y);
+                    //    var OR0 = A0v + R * n;                                  // expected (A0.x, 20)
+                    //    prdDbg($"OR0 on offset line = ({OR0.X:F6},{OR0.Y:F6})  [expected y=20]");
+
+                    //    // --- 6) Required |MO| from stub length: A = sqrt(R^2 + L^2) -------------------
+                    //    double A = Math.Sqrt(R * R + L * L);                    // expected sqrt(425)=20.615528...
+                    //    prdDbg($"A = sqrt(R^2+L^2) = {A:F9}  [expected 20.615528128]");
+
+                    //    // --- 7) Project M to offset line to get foot Q and perpendicular distance -----
+                    //    var Mv = new Vector2d(M.X, M.Y);
+                    //    double sProj = (Mv - OR0).DotProduct(u);
+                    //    var Q = OR0 + sProj * u;                                 // expected Q=(40,20)
+                    //    double dPerp = (Mv - Q).Length;                          // expected 5
+                    //    prdDbg($"Q=({Q.X:F6},{Q.Y:F6}), dPerp={dPerp:F9}  [expected Q=(40,20), dPerp=5]");
+
+                    //    if (dPerp > A + 1e-9) { prdDbg("No solution: dist(M, L_R) > A."); return; }
+
+                    //    // --- 8) Centers are at distance h along L_R from Q ----------------------------
+                    //    double h = Math.Sqrt(Math.Max(0.0, A * A - dPerp * dPerp)); // expected sqrt(425-25)=20
+                    //    var O2D_1 = Q + h * u;                                     // expected (60,20)
+                    //    var O2D_2 = Q - h * u;                                     // expected (20,20)
+                    //    prdDbg($"h={h:F9}  O1=({O2D_1.X:F6},{O2D_1.Y:F6})  O2=({O2D_2.X:F6},{O2D_2.Y:F6})  [expected O1=(60,20), O2=(20,20)]");
+
+                    //    // --- 9) Prefer the center on the same x-side as the branch "to the left of M" -
+                    //    // For this test we expect LEFT of M, so pick O with X <= M.X i.e., O2=(20,20)
+                    //    Vector2d O2D = (O2D_2.X <= M.X) ? O2D_2 : O2D_1;
+                    //    var O = new Point3d(O2D.X, O2D.Y, 0.0);
+                    //    prdDbg($"Chosen O=({O.X:F6},{O.Y:F6})  [expected (20,20)]");
+
+                    //    // --- 10) B' is perpendicular foot from O to branch (shift back by R along n) --
+                    //    var Bp = new Point3d(O.X - R * n.X, O.Y - R * n.Y, 0.0);   // expected (20,0)
+                    //    prdDbg($"B' (branch tangency) = ({Bp.X:F6},{Bp.Y:F6})  [expected (20,0)]");
+
+                    //    // --- 11) Compute tangent point(s) from M to circle (O,R)  ---------------------
+                    //    // CORRECT FORMULA (fixes earlier bug):
+                    //    // Let d=|OM|, rhat=(M-O)/d, nhat=left_perp(rhat).
+                    //    // P = O + (R^2/d^2)*(M-O) is the projection of O onto the tangent chord.
+                    //    // k = (R/d)*sqrt(d^2 - R^2).
+                    //    // C± = P ± k * nhat.
+                    //    Vector2d OM = new Vector2d(M.X - O.X, M.Y - O.Y);
+                    //    double d = OM.Length;                                     // expected d=A=20.6155
+                    //    prdDbg($"d=|OM| = {d:F9}  [expected 20.615528128]");
+
+                    //    if (d <= R + 1e-9) { prdDbg("No external tangents: d <= R."); return; }
+
+                    //    Vector2d rhat = OM / d;
+                    //    Vector2d nhat = new Vector2d(-rhat.Y, rhat.X);
+                    //    var P = new Point3d(
+                    //        O.X + (R * R / (d * d)) * (M.X - O.X),
+                    //        O.Y + (R * R / (d * d)) * (M.Y - O.Y), 0.0);          // expected P lies on line OM
+                    //    double k = (R / d) * Math.Sqrt(d * d - R * R);            // expected k=(R/d)*L
+                    //    var C1 = new Point3d(P.X + k * nhat.X, P.Y + k * nhat.Y, 0.0);
+                    //    var C2 = new Point3d(P.X - k * nhat.X, P.Y - k * nhat.Y, 0.0);
+
+                    //    // Distances to M should be exactly L
+                    //    double CM1 = Math.Sqrt(Math.Pow(M.X - C1.X, 2) + Math.Pow(M.Y - C1.Y, 2));
+                    //    double CM2 = Math.Sqrt(Math.Pow(M.X - C2.X, 2) + Math.Pow(M.Y - C2.Y, 2));
+
+                    //    prdDbg($"P=({P.X:F9},{P.Y:F9}), k={k:F9}");
+                    //    prdDbg($"C1=({C1.X:F9},{C1.Y:F9}), |C1M|={CM1:F9}  [expected |C1M|=5]");
+                    //    prdDbg($"C2=({C2.X:F9},{C2.Y:F9}), |C2M|={CM2:F9}  [expected |C2M|=5]");
+                    //    // For this test with O=(20,20), expected tangency points are ~ (40,20) and (37.64705882, 10.58823529)
+
+                    //    // --- 12) Pick the tangency on the "toward M" side of the branch ----------------
+                    //    // Use projection of stub vector on the chosen normal n (should be >0).
+                    //    Vector2d t1 = new Vector2d(M.X - C1.X, M.Y - C1.Y);
+                    //    Vector2d t2 = new Vector2d(M.X - C2.X, M.Y - C2.Y);
+                    //    double p1 = t1.DotProduct(n);
+                    //    double p2 = t2.DotProduct(n);
+                    //    prdDbg($"Projections: t1·n={p1:F9}, t2·n={p2:F9}  [expect >0 for the correct one]");
+
+                    //    Point3d C;
+                    //    if (p1 > 0 && Math.Abs(CM1 - L) < 1e-6) C = C1;
+                    //    else if (p2 > 0 && Math.Abs(CM2 - L) < 1e-6) C = C2;
+                    //    else { prdDbg("No admissible tangent point meets side and length."); return; }
+
+                    //    prdDbg($"Chosen C=({C.X:F9},{C.Y:F9})  [expected one of (40,20) or (37.64705882,10.58823529)]");
+
+                    //    // --- 13) Build entities: arc from B' to C, and stub C->M -----------------------
+                    //    double Ang(Point3d Pnt) => Math.Atan2(Pnt.Y - O.Y, Pnt.X - O.X);
+                    //    double aB = Ang(Bp);                     // start at B'
+                    //    double aC = Ang(C);                      // end at C
+
+                    //    // Make minor arc
+                    //    double Norm(double a) { a %= 2 * Math.PI; if (a < 0) a += 2 * Math.PI; return a; }
+                    //    double sweep = Norm(aC - aB);
+                    //    if (sweep > Math.PI) { var tmp = aB; aB = aC; aC = tmp; }
+
+                    //    var arc = new Arc(O, R, aB, aC);
+                    //    var stub = new Line(C, M);
+
+                    //    var bt = (BlockTable)tr.GetObject(localDb.BlockTableId, OpenMode.ForRead);
+                    //    var btr = (BlockTableRecord)tr.GetObject(localDb.CurrentSpaceId, OpenMode.ForWrite);
+                    //    btr.AppendEntity(arc); tr.AddNewlyCreatedDBObject(arc, true);
+                    //    btr.AppendEntity(stub); tr.AddNewlyCreatedDBObject(stub, true);
+
+                    //    // Optional markers:
+                    //    // btr.AppendEntity(new DBPoint(Bp)); tr.AddNewlyCreatedDBObject(Bp, true);
+                    //    // btr.AppendEntity(new DBPoint(O));  tr.AddNewlyCreatedDBObject(O,  true);
+                    //    // btr.AppendEntity(new DBPoint(C));  tr.AddNewlyCreatedDBObject(C,  true);
+
+                    //    tr.Commit();
+
+                    //    prdDbg($"RESULT  O=({O.X:F6},{O.Y:F6})  B'=({Bp.X:F6},{Bp.Y:F6})  C=({C.X:F6},{C.Y:F6})");
+                    //    prdDbg("Done.");
+                    //}
                     #endregion
                     #region Test intersection points of vectors
                     //var pls = localDb.HashSetOfType<Polyline>(tx);

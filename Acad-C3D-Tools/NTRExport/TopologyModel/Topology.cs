@@ -11,6 +11,7 @@ using NetTopologySuite.Algorithm;
 using NTRExport.Enums;
 using NTRExport.Ntr;
 using NTRExport.SoilModel;
+using NTRExport.Routing;
 
 namespace NTRExport.TopologyModel
 {
@@ -96,6 +97,7 @@ namespace NTRExport.TopologyModel
             return (z, -z);        
         }
         public abstract void Emit(NtrGraph graph, Topology topo);
+        public virtual void Route(RoutedGraph g, Topology topo, RouterContext ctx) { }
 
         protected static FlowRole MapFlowRole(FlowRole flow) => flow switch
         {
@@ -198,6 +200,56 @@ namespace NTRExport.TopologyModel
             }
         }        
 
+        public override void Route(RoutedGraph g, Topology topo, RouterContext ctx)
+        {
+            if (ctx.IsSkipped(this)) return;
+
+            var isTwin = Variant.IsTwin;
+            var suffix = Variant.DnSuffix;
+            var (zUp, zLow) = ComputeTwinOffsets();
+
+            if (isTwin)
+            {
+                g.Members.Add(new Routing.RoutedStraight(Source)
+                {
+                    A = new Point3d(A.Node.Pos.X, A.Node.Pos.Y, zUp),
+                    B = new Point3d(B.Node.Pos.X, B.Node.Pos.Y, zUp),
+                    Dn = Dn,
+                    Material = Material,
+                    DnSuffix = suffix,
+                    Flow = RoutedFlow.Return,
+                    ZA = zUp,
+                    ZB = zUp,
+                });
+                g.Members.Add(new Routing.RoutedStraight(Source)
+                {
+                    A = new Point3d(A.Node.Pos.X, A.Node.Pos.Y, zLow),
+                    B = new Point3d(B.Node.Pos.X, B.Node.Pos.Y, zLow),
+                    Dn = Dn,
+                    Material = Material,
+                    DnSuffix = suffix,
+                    Flow = RoutedFlow.Supply,
+                    ZA = zLow,
+                    ZB = zLow,
+                });
+            }
+            else
+            {
+                var flow = Type == PipeTypeEnum.Frem ? RoutedFlow.Supply : RoutedFlow.Return;
+                g.Members.Add(new Routing.RoutedStraight(Source)
+                {
+                    A = new Point3d(A.Node.Pos.X, A.Node.Pos.Y, 0.0),
+                    B = new Point3d(B.Node.Pos.X, B.Node.Pos.Y, 0.0),
+                    Dn = Dn,
+                    Material = Material,
+                    DnSuffix = suffix,
+                    Flow = flow,
+                    ZA = 0.0,
+                    ZB = 0.0,
+                });
+            }
+        }
+
         private static bool IsCovered(List<(double s0, double s1)> spans, double a, double b)
         {
             var mid = 0.5 * (a + b);
@@ -277,6 +329,11 @@ namespace NTRExport.TopologyModel
             EmitStub(graph);
         }
 
+        public override void Route(RoutedGraph g, Topology topo, RouterContext ctx)
+        {
+            // Default no-op; derived classes route if supported
+        }
+
         protected virtual void EmitStub(NtrGraph graph)
         {
             graph.Members.Add(new NtrStub(Source)
@@ -320,6 +377,47 @@ namespace NTRExport.TopologyModel
         public override void Emit(NtrGraph graph, Topology topo)
         {
             EmitElbowFormstykke(graph);
+        }
+
+        public override void Route(RoutedGraph g, Topology topo, RouterContext ctx)
+        {
+            var ends = Ports.Take(2).ToArray();
+            if (ends.Length < 2) return;
+            var a = ends[0].Node.Pos; var b = ends[1].Node.Pos; var t = TangentPoint;
+            var (zUp, zLow) = ComputeTwinOffsets();
+
+            var flowMain = Variant.IsTwin ? RoutedFlow.Return : (Type == PipeTypeEnum.Frem ? RoutedFlow.Supply : RoutedFlow.Return);
+
+            g.Members.Add(new Routing.RoutedBend(Source)
+            {
+                A = new Point3d(a.X, a.Y, zUp),
+                B = new Point3d(b.X, b.Y, zUp),
+                T = new Point3d(t.X, t.Y, zUp),
+                Dn = Dn,
+                Material = Material,
+                DnSuffix = Variant.DnSuffix,
+                Flow = flowMain,
+                Z1 = zUp,
+                Z2 = zUp,
+                Zt = zUp,
+            });
+
+            if (Variant.IsTwin)
+            {
+                g.Members.Add(new Routing.RoutedBend(Source)
+                {
+                    A = new Point3d(a.X, a.Y, zLow),
+                    B = new Point3d(b.X, b.Y, zLow),
+                    T = new Point3d(t.X, t.Y, zLow),
+                    Dn = Dn,
+                    Material = Material,
+                    DnSuffix = Variant.DnSuffix,
+                    Flow = RoutedFlow.Supply,
+                    Z1 = zLow,
+                    Z2 = zLow,
+                    Zt = zLow,
+                });
+            }
         }
 
         private void EmitElbowFormstykke(NtrGraph graph)
@@ -398,6 +496,53 @@ namespace NTRExport.TopologyModel
             allowed.Add(PipelineElementType.PræisoleretBøjning45gr);
             allowed.Add(PipelineElementType.PræisoleretBøjningVariabel);
         }
+
+        public override void Route(RoutedGraph g, Topology topo, RouterContext ctx)
+        {
+            var ends = Ports.Take(2).ToArray();
+            if (ends.Length < 2) return;
+            var a = ends[0].Node.Pos; var b = ends[1].Node.Pos;
+            var t = TangentPoint;
+            var leg = Routing.Geometry.GetBogRadius5D(Dn) / 1000.0;
+            var dir = new Vector2d(b.X - a.X, b.Y - a.Y);
+            var len = dir.Length; if (len <= 1e-9) return;
+            var uv = dir / len;
+            var aLegEnd = new Point2d(a.X + uv.X * leg, a.Y + uv.Y * leg);
+            var bLegStart = new Point2d(b.X - uv.X * leg, b.Y - uv.Y * leg);
+
+            g.Members.Add(new Routing.RoutedStraight(Source)
+            {
+                A = new Point3d(a.X, a.Y, 0.0),
+                B = new Point3d(aLegEnd.X, aLegEnd.Y, 0.0),
+                Dn = Dn,
+                DnSuffix = Variant.DnSuffix,
+                Flow = RoutedFlow.Return,
+                ZA = 0.0,
+                ZB = 0.0,
+            });
+            g.Members.Add(new Routing.RoutedBend(Source)
+            {
+                A = new Point3d(aLegEnd.X, aLegEnd.Y, 0.0),
+                B = new Point3d(bLegStart.X, bLegStart.Y, 0.0),
+                T = new Point3d(t.X, t.Y, 0.0),
+                Dn = Dn,
+                DnSuffix = Variant.DnSuffix,
+                Flow = RoutedFlow.Return,
+                Z1 = 0.0,
+                Z2 = 0.0,
+                Zt = 0.0,
+            });
+            g.Members.Add(new Routing.RoutedStraight(Source)
+            {
+                A = new Point3d(bLegStart.X, bLegStart.Y, 0.0),
+                B = new Point3d(b.X, b.Y, 0.0),
+                Dn = Dn,
+                DnSuffix = Variant.DnSuffix,
+                Flow = RoutedFlow.Return,
+                ZA = 0.0,
+                ZB = 0.0,
+            });
+        }
     }
 
     internal abstract class TeeMainRun : TFitting
@@ -438,6 +583,11 @@ namespace NTRExport.TopologyModel
             allowed.Clear();
             allowed.Add(PipelineElementType.AfgreningMedSpring);
         }
+
+        public override void Route(RoutedGraph g, Topology topo, RouterContext ctx)
+        {
+            // TODO: implement macro; placeholder no-op
+        }
     }
 
     internal sealed class AfgreningParallel : TeeMainRun
@@ -451,6 +601,11 @@ namespace NTRExport.TopologyModel
         {
             allowed.Clear();
             allowed.Add(PipelineElementType.AfgreningParallel);
+        }
+
+        public override void Route(RoutedGraph g, Topology topo, RouterContext ctx)
+        {
+            // TODO: implement macro; placeholder no-op
         }
     }
 
@@ -466,6 +621,122 @@ namespace NTRExport.TopologyModel
             allowed.Clear();
             allowed.Add(PipelineElementType.LigeAfgrening);
         }
+
+        public override void Route(RoutedGraph g, Topology topo, RouterContext ctx)
+        {
+            var mains = MainPorts.Take(2).ToArray();
+            if (mains.Length < 2) return;
+            var branch = BranchPorts.FirstOrDefault();
+            if (branch == null) return;
+
+            var mainPipe1 = topo.FindPipeAtNodes(mains[0].Node);
+            var mainPipe2 = topo.FindPipeAtNodes(mains[1].Node);
+            var branchPipe = topo.FindPipeAtNodes(branch.Node);
+            if (mainPipe1 == null || mainPipe2 == null || branchPipe == null) return;
+
+            ctx.SkipPipe(branchPipe);
+
+            var pMain1 = mains[0].Node.Pos;
+            var pMain2 = mains[1].Node.Pos;
+            var midMain = new Point2d((pMain1.X + pMain2.X) * 0.5, (pMain1.Y + pMain2.Y) * 0.5);
+            var pBranch = branch.Node.Pos;
+
+            // Bonded/simple: main RO (Main->Main), branch RO (Branch->midMain)
+            if (!mainPipe1.Variant.IsTwin && !branchPipe.Variant.IsTwin)
+            {
+                g.Members.Add(new Routing.RoutedStraight(Source)
+                {
+                    A = new Point3d(pMain1.X, pMain1.Y, 0.0),
+                    B = new Point3d(pMain2.X, pMain2.Y, 0.0),
+                    Dn = mainPipe1.Dn,
+                    DnSuffix = mainPipe1.Variant.DnSuffix,
+                    Material = mainPipe1.Material,
+                    Flow = mainPipe1.Type == PipeTypeEnum.Frem ? RoutedFlow.Supply : RoutedFlow.Return,
+                    ZA = 0.0, ZB = 0.0,
+                });
+
+                g.Members.Add(new Routing.RoutedStraight(Source)
+                {
+                    A = new Point3d(pBranch.X, pBranch.Y, 0.0),
+                    B = new Point3d(midMain.X, midMain.Y, 0.0),
+                    Dn = branchPipe.Dn,
+                    DnSuffix = branchPipe.Variant.DnSuffix,
+                    Material = branchPipe.Material,
+                    Flow = branchPipe.Type == PipeTypeEnum.Frem ? RoutedFlow.Supply : RoutedFlow.Return,
+                    ZA = 0.0, ZB = 0.0,
+                });
+                return;
+            }
+
+            // Twin branch/main scaffolding: introduce a small bend so branch meets main centreline
+            var (zMainUp, zMainLow) = mainPipe1.ComputeTwinOffsets();
+            var (zBrUp, zBrLow) = branchPipe.ComputeTwinOffsets();
+            var radius = Routing.Geometry.GetBogRadius5D(branchPipe.Dn) / 1000.0;
+
+            // Directions
+            var dirMain = new Vector2d(pMain2.X - pMain1.X, pMain2.Y - pMain1.Y);
+            var lenMain = dirMain.Length; if (lenMain <= 1e-9) return; dirMain = dirMain / lenMain;
+            var dirBranch = new Vector2d(midMain.X - pBranch.X, midMain.Y - pBranch.Y);
+            var lenBr = dirBranch.Length; if (lenBr <= 1e-9) return; dirBranch = dirBranch / lenBr;
+
+            var pt2d = new Point2d(pBranch.X + dirBranch.X * radius, pBranch.Y + dirBranch.Y * radius);
+            var p1_2d = new Point2d(pt2d.X - dirBranch.X * radius, pt2d.Y - dirBranch.Y * radius);
+            var p2_2d = new Point2d(pt2d.X + dirMain.X * radius, pt2d.Y + dirMain.Y * radius);
+
+            void EmitFor(RoutedFlow flow, double zMain, double zBranch)
+            {
+                g.Members.Add(new Routing.RoutedStraight(Source)
+                {
+                    A = new Point3d(pBranch.X, pBranch.Y, zBranch),
+                    B = new Point3d(p1_2d.X, p1_2d.Y, zBranch),
+                    Dn = branchPipe.Dn,
+                    DnSuffix = branchPipe.Variant.DnSuffix,
+                    Material = branchPipe.Material,
+                    Flow = flow,
+                    ZA = zBranch, ZB = zBranch,
+                });
+                g.Members.Add(new Routing.RoutedBend(Source)
+                {
+                    A = new Point3d(p1_2d.X, p1_2d.Y, zBranch),
+                    B = new Point3d(p2_2d.X, p2_2d.Y, zMain),
+                    T = new Point3d(pt2d.X, pt2d.Y, zMain),
+                    Dn = branchPipe.Dn,
+                    DnSuffix = branchPipe.Variant.DnSuffix,
+                    Material = branchPipe.Material,
+                    Flow = flow,
+                    Z1 = zBranch,
+                    Z2 = zMain,
+                    Zt = zMain,
+                });
+                g.Members.Add(new Routing.RoutedStraight(Source)
+                {
+                    A = new Point3d(p2_2d.X, p2_2d.Y, zMain),
+                    B = new Point3d(midMain.X, midMain.Y, zMain),
+                    Dn = branchPipe.Dn,
+                    DnSuffix = branchPipe.Variant.DnSuffix,
+                    Material = branchPipe.Material,
+                    Flow = flow,
+                    ZA = zMain, ZB = zMain,
+                });
+            }
+
+            if (branchPipe.Variant.IsTwin)
+            {
+                EmitFor(RoutedFlow.Return, zMainUp, zBrUp);
+                EmitFor(RoutedFlow.Supply, zMainLow, zBrLow);
+            }
+            else
+            {
+                // Main twin, branch single
+                EmitFor(branchPipe.Type == PipeTypeEnum.Frem ? RoutedFlow.Supply : RoutedFlow.Return, zMainUp, 0.0);
+            }
+        }
+
+        private static (Point2d p1, Point2d p2, Point2d pt) ComputeBranchFillet(Point2d from, Point2d to, double radiusM)
+        {
+            var mid = new Point2d((from.X + to.X) * 0.5, (from.Y + to.Y) * 0.5);
+            return (mid, mid, mid);
+        }
     }
 
     internal sealed class Stikafgrening : TeeMainRun
@@ -479,6 +750,11 @@ namespace NTRExport.TopologyModel
         {
             allowed.Clear();
             allowed.Add(PipelineElementType.Stikafgrening);
+        }
+
+        public override void Route(RoutedGraph g, Topology topo, RouterContext ctx)
+        {
+            // TODO: implement macro; placeholder no-op
         }
     }
 
@@ -494,6 +770,11 @@ namespace NTRExport.TopologyModel
             allowed.Clear();
             allowed.Add(PipelineElementType.F_Model);
         }
+
+        public override void Route(RoutedGraph g, Topology topo, RouterContext ctx)
+        {
+            // Complex; handle later
+        }
     }
 
     internal sealed class YModel : TFitting
@@ -508,6 +789,11 @@ namespace NTRExport.TopologyModel
             allowed.Clear();
             allowed.Add(PipelineElementType.Y_Model);
         }
+
+        public override void Route(RoutedGraph g, Topology topo, RouterContext ctx)
+        {
+            // Complex; handle later
+        }
     }
 
     internal sealed class AfgreningsStuds : TFitting
@@ -520,7 +806,12 @@ namespace NTRExport.TopologyModel
         protected override void ConfigureAllowedKinds(HashSet<PipelineElementType> allowed)
         {
             allowed.Clear();
-            allowed.Add(PipelineElementType.Afgreningsstuds);
+            allowed.Add(PipelineElementType.Afgreningstuds);
+        }
+
+        public override void Route(RoutedGraph g, Topology topo, RouterContext ctx)
+        {
+            // Placeholder no-op
         }
     }
 
@@ -538,6 +829,26 @@ namespace NTRExport.TopologyModel
             allowed.Add(PipelineElementType.PræisoleretVentil);
             allowed.Add(PipelineElementType.PræventilMedUdluftning);
         }
+
+        public override void Route(RoutedGraph g, Topology topo, RouterContext ctx)
+        {
+            var pr = Ports.Take(2).ToArray();
+            if (pr.Length < 2) return;
+            var p1 = pr[0].Node.Pos; var p2 = pr[1].Node.Pos;
+            var pm = new Point2d((p1.X + p2.X) * 0.5, (p1.Y + p2.Y) * 0.5);
+            var dn = topo.InferMainDn(this);
+            g.Members.Add(new Routing.RoutedInstrument(Source)
+            {
+                P1 = new Point3d(p1.X, p1.Y, 0.0),
+                P2 = new Point3d(p2.X, p2.Y, 0.0),
+                Pm = new Point3d(pm.X, pm.Y, 0.0),
+                Dn1 = dn,
+                Dn2 = dn,
+                Dn1Suffix = "s",
+                Dn2Suffix = "s",
+                Material = Material,
+            });
+        }
     }
 
     internal sealed class Reducer : TFitting
@@ -551,6 +862,29 @@ namespace NTRExport.TopologyModel
         {
             allowed.Clear();
             allowed.Add(PipelineElementType.Reduktion);
+        }
+
+        public override void Route(RoutedGraph g, Topology topo, RouterContext ctx)
+        {
+            var pr = Ports.Take(2).ToArray();
+            if (pr.Length < 2) return;
+            var p1 = pr[0].Node.Pos; var p2 = pr[1].Node.Pos;
+            var dn1 = topo.InferDn1(this);
+            var dn2 = topo.InferDn2(this);
+            var near1 = topo.FindPipeAtNodes(pr[0].Node);
+            var near2 = topo.FindPipeAtNodes(pr[1].Node);
+            var s1 = near1?.Variant.DnSuffix ?? "s";
+            var s2 = near2?.Variant.DnSuffix ?? s1;
+            g.Members.Add(new Routing.RoutedReducer(Source)
+            {
+                P1 = new Point3d(p1.X, p1.Y, 0.0),
+                P2 = new Point3d(p2.X, p2.Y, 0.0),
+                Dn1 = dn1,
+                Dn2 = dn2,
+                Dn1Suffix = s1,
+                Dn2Suffix = s2,
+                Flow = RoutedFlow.Return,
+            });
         }
     }
 
@@ -566,6 +900,11 @@ namespace NTRExport.TopologyModel
             allowed.Clear();
             allowed.Add(PipelineElementType.Svanehals);
         }
+
+        public override void Route(RoutedGraph g, Topology topo, RouterContext ctx)
+        {
+            // For later
+        }
     }
 
     internal sealed class Materialeskift : TFitting
@@ -579,6 +918,24 @@ namespace NTRExport.TopologyModel
         {
             allowed.Clear();
             allowed.Add(PipelineElementType.Materialeskift);
+        }
+
+        public override void Route(RoutedGraph g, Topology topo, RouterContext ctx)
+        {
+            var pr = Ports.Take(2).ToArray();
+            if (pr.Length < 2) return;
+            var p1 = pr[0].Node.Pos; var p2 = pr[1].Node.Pos;
+            var dn = topo.InferMainDn(this);
+            g.Members.Add(new Routing.RoutedStraight(Source)
+            {
+                A = new Point3d(p1.X, p1.Y, 0.0),
+                B = new Point3d(p2.X, p2.Y, 0.0),
+                Dn = dn,
+                DnSuffix = "s",
+                Material = Material,
+                Flow = RoutedFlow.Unknown,
+                ZA = 0.0, ZB = 0.0,
+            });
         }
     }
 
@@ -594,6 +951,11 @@ namespace NTRExport.TopologyModel
             allowed.Clear();
             allowed.Add(PipelineElementType.Endebund);
         }
+
+        public override void Route(RoutedGraph g, Topology topo, RouterContext ctx)
+        {
+            // ignore for now
+        }
     }
 
     //internal sealed class SvejsningFitting : TFitting
@@ -602,7 +964,7 @@ namespace NTRExport.TopologyModel
     //        : base(source, PipelineElementType.Svejsning)
     //    {
     //    }
-
+    //
     //    protected override void ConfigureAllowedKinds(HashSet<PipelineElementType> allowed)
     //    {
     //        allowed.Clear();

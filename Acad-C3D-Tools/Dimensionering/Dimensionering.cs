@@ -31,6 +31,7 @@ using IntersectUtilities.UtilsCommon;
 using Microsoft.Office.Interop.Excel;
 
 using IntersectUtilities.UtilsCommon.Enums;
+using IntersectUtilities.PlanDetailing;
 
 using static IntersectUtilities.Enums;
 using static IntersectUtilities.HelperMethods;
@@ -4461,7 +4462,8 @@ namespace IntersectUtilities.Dimensionering
                             string lineTypeName = "LT-" + lineTypeText;
 
                             if (!ltt.Has(lineTypeName))
-                                createcomplexlinetypemethod(lineTypeName, lineTypeText, "Standard", dimDb);
+                                PlanDetailing.LineTypes.LineTypes.createltmethod(
+                                    lineTypeName, lineTypeText, "Standard", dimDb);
 
                             newPipe.LinetypeId = ltt[lineTypeName];
                             newPipe.Plinegen = true;
@@ -4509,7 +4511,8 @@ namespace IntersectUtilities.Dimensionering
                                     string lineTypeName = "LT-" + lineTypeText;
 
                                     if (!ltt.Has(lineTypeName))
-                                        createcomplexlinetypemethod(lineTypeName, lineTypeText, "Standard", dimDb);
+                                        PlanDetailing.LineTypes.LineTypes.createltmethod(
+                                            lineTypeName, lineTypeText, "Standard", dimDb);
 
                                     newPipe.LinetypeId = ltt[lineTypeName];
                                     newPipe.Plinegen = true;

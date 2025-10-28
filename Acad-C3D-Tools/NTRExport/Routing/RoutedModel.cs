@@ -21,8 +21,8 @@ namespace NTRExport.Routing
     internal sealed class RoutedStraight : RoutedMember
     {
         public RoutedStraight(Handle src) : base(src) { }
-        public Point2d A { get; set; }
-        public Point2d B { get; set; }
+        public Point3d A { get; set; }
+        public Point3d B { get; set; }
         public SoilProfile Soil { get; set; } = SoilProfile.Default;
         public double? ZA { get; set; }
         public double? ZB { get; set; }
@@ -31,9 +31,9 @@ namespace NTRExport.Routing
     internal sealed class RoutedBend : RoutedMember
     {
         public RoutedBend(Handle src) : base(src) { }
-        public Point2d A { get; set; }
-        public Point2d B { get; set; }
-        public Point2d T { get; set; }
+        public Point3d A { get; set; }
+        public Point3d B { get; set; }
+        public Point3d T { get; set; }
         // Optional distinct Z values per bend point; when null, ZOffsetMeters is used for all
         public double? Z1 { get; set; }
         public double? Z2 { get; set; }
@@ -48,8 +48,8 @@ namespace NTRExport.Routing
     internal sealed class RoutedReducer : RoutedMember
     {
         public RoutedReducer(Handle src) : base(src) { }
-        public Point2d P1 { get; set; }
-        public Point2d P2 { get; set; }
+        public Point3d P1 { get; set; }
+        public Point3d P2 { get; set; }
         public int Dn1 { get; set; }
         public int Dn2 { get; set; }
         public string Dn1Suffix { get; set; } = "s";
@@ -59,13 +59,25 @@ namespace NTRExport.Routing
     internal sealed class RoutedTee : RoutedMember
     {
         public RoutedTee(Handle src) : base(src) { }
-        public Point2d Ph1 { get; set; }
-        public Point2d Ph2 { get; set; }
-        public Point2d Pa1 { get; set; }
-        public Point2d Pa2 { get; set; }
+        public Point3d Ph1 { get; set; }
+        public Point3d Ph2 { get; set; }
+        public Point3d Pa1 { get; set; }
+        public Point3d Pa2 { get; set; }
         public int DnBranch { get; set; }
         public string DnMainSuffix { get; set; } = "s";
         public string DnBranchSuffix { get; set; } = "s";
+    }
+
+    internal sealed class RoutedInstrument : RoutedMember
+    {
+        public RoutedInstrument(Handle src) : base(src) { }
+        public Point3d P1 { get; set; }
+        public Point3d P2 { get; set; }
+        public Point3d Pm { get; set; }
+        public int Dn1 { get; set; }
+        public int Dn2 { get; set; }
+        public string Dn1Suffix { get; set; } = "s";
+        public string Dn2Suffix { get; set; } = "s";
     }
 }
 

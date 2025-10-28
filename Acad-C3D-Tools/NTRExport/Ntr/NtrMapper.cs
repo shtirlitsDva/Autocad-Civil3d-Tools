@@ -30,15 +30,15 @@ namespace NTRExport.Ntr
                     case Routing.RoutedStraight s:
                         g.Members.Add(new NtrPipe(s.Source)
                         {
-                            A = s.A,
-                            B = s.B,
+                            A = new Autodesk.AutoCAD.Geometry.Point2d(s.A.X, s.A.Y),
+                            B = new Autodesk.AutoCAD.Geometry.Point2d(s.B.X, s.B.Y),
                             Dn = s.Dn,
                             Material = s.Material,
                             DnSuffix = s.DnSuffix,
                             Flow = s.Flow == Routing.RoutedFlow.Supply ? FlowRole.Supply : s.Flow == Routing.RoutedFlow.Return ? FlowRole.Return : FlowRole.Unknown,
                             ZOffsetMeters = s.ZOffsetMeters,
-                            ZA = s.ZA,
-                            ZB = s.ZB,
+                            ZA = s.ZA ?? s.A.Z,
+                            ZB = s.ZB ?? s.B.Z,
                             Provenance = new[] { s.Source },
                             Soil = s.Soil,
                         });
@@ -46,15 +46,15 @@ namespace NTRExport.Ntr
                     case Routing.RoutedBend b:
                         g.Members.Add(new NtrBend(b.Source)
                         {
-                            A = b.A,
-                            B = b.B,
-                            T = b.T,
+                            A = new Autodesk.AutoCAD.Geometry.Point2d(b.A.X, b.A.Y),
+                            B = new Autodesk.AutoCAD.Geometry.Point2d(b.B.X, b.B.Y),
+                            T = new Autodesk.AutoCAD.Geometry.Point2d(b.T.X, b.T.Y),
                             Dn = b.Dn,
                             Material = b.Material,
                             ZOffsetMeters = b.ZOffsetMeters,
-                            ZA = b.Z1,
-                            ZB = b.Z2,
-                            ZT = b.Zt,
+                            ZA = b.Z1 ?? b.A.Z,
+                            ZB = b.Z2 ?? b.B.Z,
+                            ZT = b.Zt ?? b.T.Z,
                             DnSuffix = b.DnSuffix,
                             Flow = b.Flow == Routing.RoutedFlow.Supply ? FlowRole.Supply : b.Flow == Routing.RoutedFlow.Return ? FlowRole.Return : FlowRole.Unknown,
                             Provenance = new[] { b.Source },
@@ -63,8 +63,8 @@ namespace NTRExport.Ntr
                     case Routing.RoutedReducer rr:
                         g.Members.Add(new NtrReducer(rr.Source)
                         {
-                            P1 = rr.P1,
-                            P2 = rr.P2,
+                            P1 = new Autodesk.AutoCAD.Geometry.Point2d(rr.P1.X, rr.P1.Y),
+                            P2 = new Autodesk.AutoCAD.Geometry.Point2d(rr.P2.X, rr.P2.Y),
                             Dn1 = rr.Dn1,
                             Dn2 = rr.Dn2,
                             Dn1Suffix = rr.Dn1Suffix,
@@ -78,10 +78,10 @@ namespace NTRExport.Ntr
                     case Routing.RoutedTee rt:
                         g.Members.Add(new NtrTee(rt.Source)
                         {
-                            Ph1 = rt.Ph1,
-                            Ph2 = rt.Ph2,
-                            Pa1 = rt.Pa1,
-                            Pa2 = rt.Pa2,
+                            Ph1 = new Autodesk.AutoCAD.Geometry.Point2d(rt.Ph1.X, rt.Ph1.Y),
+                            Ph2 = new Autodesk.AutoCAD.Geometry.Point2d(rt.Ph2.X, rt.Ph2.Y),
+                            Pa1 = new Autodesk.AutoCAD.Geometry.Point2d(rt.Pa1.X, rt.Pa1.Y),
+                            Pa2 = new Autodesk.AutoCAD.Geometry.Point2d(rt.Pa2.X, rt.Pa2.Y),
                             Dn = rt.Dn,
                             DnBranch = rt.DnBranch,
                             DnMainSuffix = rt.DnMainSuffix,
@@ -89,6 +89,21 @@ namespace NTRExport.Ntr
                             Flow = FlowRole.Return,
                             ZOffsetMeters = 0.0,
                             Provenance = new[] { rt.Source }
+                        });
+                        break;
+                    case Routing.RoutedInstrument rin:
+                        g.Members.Add(new NtrInstrument(rin.Source)
+                        {
+                            P1 = new Autodesk.AutoCAD.Geometry.Point2d(rin.P1.X, rin.P1.Y),
+                            P2 = new Autodesk.AutoCAD.Geometry.Point2d(rin.P2.X, rin.P2.Y),
+                            Pm = new Autodesk.AutoCAD.Geometry.Point2d(rin.Pm.X, rin.Pm.Y),
+                            Dn1 = rin.Dn1,
+                            Dn2 = rin.Dn2,
+                            Dn1Suffix = rin.Dn1Suffix,
+                            Dn2Suffix = rin.Dn2Suffix,
+                            Material = rin.Material,
+                            ZOffsetMeters = rin.ZOffsetMeters,
+                            Provenance = new[] { rin.Source }
                         });
                         break;
                 }
