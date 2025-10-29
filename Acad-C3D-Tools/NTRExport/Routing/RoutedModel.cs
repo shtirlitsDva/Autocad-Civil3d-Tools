@@ -7,19 +7,26 @@ using NTRExport.Enums;
 using NTRExport.Ntr;
 using NTRExport.NtrConfiguration;
 using NTRExport.SoilModel;
+using NTRExport.TopologyModel;
+using IntersectUtilities.UtilsCommon.Enums;
 
 namespace NTRExport.Routing
 {
     internal abstract class RoutedMember
     {
-        protected RoutedMember(Handle source) { Source = source; }
+        protected RoutedMember(Handle source, ElementBase elementBase)
+        { Source = source; Emitter = elementBase; }
         public Handle Source { get; }
+        public ElementBase Emitter { get; } 
         public int Dn { get; set; }
         public string? Material { get; set; }
         public FlowRole FlowRole { get; set; } = FlowRole.Unknown;
         public double ZOffsetMeters { get; set; } = 0.0;
         public string DnSuffix { get; set; } = "s";
         public string LTG { get; init; } = "STD";
+        public PipeSystemEnum System => Emitter.System;
+        public PipeTypeEnum Type => Emitter.Type;
+        public PipeSeriesEnum Series => Emitter.Series;
 
         public abstract IEnumerable<string> ToNtr(INtrSoilAdapter soil, ConfigurationData conf);
 
@@ -42,13 +49,13 @@ namespace NTRExport.Routing
 
     internal sealed class RoutedStraight : RoutedMember
     {
-        public RoutedStraight(Handle src) : base(src) { }
+        public RoutedStraight(Handle src, ElementBase elementBase) : base(src, elementBase) { }
         public Point3d A { get; set; }
         public Point3d B { get; set; }
         public SoilProfile Soil { get; set; } = SoilProfile.Default;
         public double Length => A.DistanceTo(B);
 
-        public RoutedStraight WithSegment(Point3d a, Point3d b, SoilProfile soil) => new(Source)
+        public RoutedStraight WithSegment(Point3d a, Point3d b, SoilProfile soil) => new(Source, Emitter)
         {
             A = a,
             B = b,
@@ -76,7 +83,7 @@ namespace NTRExport.Routing
 
     internal sealed class RoutedBend : RoutedMember
     {
-        public RoutedBend(Handle src) : base(src) { }
+        public RoutedBend(Handle src, ElementBase elementBase) : base(src, elementBase) { }
         public Point3d A { get; set; }
         public Point3d B { get; set; }
         public Point3d T { get; set; }
@@ -102,7 +109,7 @@ namespace NTRExport.Routing
 
     internal sealed class RoutedReducer : RoutedMember
     {
-        public RoutedReducer(Handle src) : base(src) { }
+        public RoutedReducer(Handle src, ElementBase elementBase) : base(src, elementBase) { }
         public Point3d P1 { get; set; }
         public Point3d P2 { get; set; }
         public int Dn1 { get; set; }
@@ -126,7 +133,7 @@ namespace NTRExport.Routing
 
     internal sealed class RoutedTee : RoutedMember
     {
-        public RoutedTee(Handle src) : base(src) { }
+        public RoutedTee(Handle src, ElementBase elementBase) : base(src, elementBase) { }
         public Point3d Ph1 { get; set; }
         public Point3d Ph2 { get; set; }
         public Point3d Pa1 { get; set; }
@@ -151,14 +158,14 @@ namespace NTRExport.Routing
         }
     }
 
-    internal sealed class RoutedInstrument : RoutedMember
+    internal sealed class RoutedValve : RoutedMember
     {
-        public RoutedInstrument(Handle src) : base(src) { }
+        public RoutedValve(Handle src, ElementBase elementBase) : base(src, elementBase) { }
         public Point3d P1 { get; set; }
         public Point3d P2 { get; set; }
         public Point3d Pm { get; set; }
         public int Dn1 { get; set; }
-        public int Dn2 { get; set; }
+        public int Dn2 => Dn1; //Only one size allowed for valves
         public string Dn1Suffix { get; set; } = "s";
         public string Dn2Suffix { get; set; } = "s";
 

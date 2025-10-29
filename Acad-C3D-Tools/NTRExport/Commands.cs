@@ -18,6 +18,7 @@ using NTRExport.Ntr;
 using NTRExport.NtrConfiguration;
 using NTRExport.SoilModel;
 using NTRExport.TopologyModel;
+using NTRExport.Routing;
 
 using System.IO;
 
@@ -383,27 +384,46 @@ namespace NTRExport
 
                 #region ------------- Emit NTR -------------
                 var writer = new NtrWriter(new Rohr2SoilAdapter(), conf);
-                // Build IS and DN records across all distinct pipe groups found in the drawing
+                // Build IS and DN records across all distinct pipe groups found in the routed model
                 var headerLines = new List<string>();
                 var headerDedup = new HashSet<string>();
-                
-                var plines = ents.OfType<Polyline>().ToList();
-                var groups = plines.GroupBy(pl => (
-                    sys: PipeScheduleV2.GetPipeSystem(pl),
-                    typ: PipeScheduleV2.GetPipeType(pl, true),
-                    ser: PipeScheduleV2.GetPipeSeriesV2(pl),
-                    twin: PipeScheduleV2.GetPipeType(pl, true) == PipeTypeEnum.Twin
+
+                // Group routed members by System, normalized Type (Enkelt/Twin), Series, and Twin flag
+                var routedGroups = routed.Members.GroupBy(m => (
+                    sys: m.System,
+                    typ: (m.Type == PipeTypeEnum.Twin ? PipeTypeEnum.Twin : PipeTypeEnum.Enkelt),
+                    ser: m.Series,
+                    twin: m.Type == PipeTypeEnum.Twin
                 ));
 
-                foreach (var ggrp in groups)
+                foreach (var rgrp in routedGroups)
                 {
-                    var dnsInGroup = ggrp.Select(PipeScheduleV2.GetPipeDN)
-                        .Where(d => d > 0)
-                        .Distinct()
-                        .ToList();
+                    var dnsInGroup = new HashSet<int>();
+
+                    foreach (var member in rgrp)
+                    {
+                        switch (member)
+                        {
+                            case RoutedReducer red:
+                                if (red.Dn1 > 0) dnsInGroup.Add(red.Dn1);
+                                if (red.Dn2 > 0) dnsInGroup.Add(red.Dn2);
+                                break;
+                            case RoutedTee tee:
+                                if (tee.Dn > 0) dnsInGroup.Add(tee.Dn);
+                                if (tee.DnBranch > 0) dnsInGroup.Add(tee.DnBranch);
+                                break;
+                            case RoutedValve valve:
+                                if (valve.Dn1 > 0) dnsInGroup.Add(valve.Dn1);
+                                break;
+                            default:
+                                if (member.Dn > 0) dnsInGroup.Add(member.Dn);
+                                break;
+                        }
+                    }
+
                     if (dnsInGroup.Count == 0) continue;
 
-                    var catalog = new NtrDnCatalog(ggrp.Key.sys, ggrp.Key.typ, ggrp.Key.ser, ggrp.Key.twin);
+                    var catalog = new NtrDnCatalog(rgrp.Key.sys, rgrp.Key.typ, rgrp.Key.ser, rgrp.Key.twin);
                     foreach (var line in catalog.BuildRecords(dnsInGroup))
                     {
                         if (headerDedup.Add(line)) headerLines.Add(line);

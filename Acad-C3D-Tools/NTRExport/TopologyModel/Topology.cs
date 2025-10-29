@@ -48,14 +48,8 @@ namespace NTRExport.TopologyModel
         protected ElementBase(Handle src)
         {
             Source = src;
-            var db = Autodesk
-                .AutoCAD
-                .ApplicationServices
-                .Core
-                .Application
-                .DocumentManager
-                .MdiActiveDocument
-                .Database;
+            var db = Autodesk.AutoCAD.ApplicationServices.Core.Application
+                .DocumentManager.MdiActiveDocument.Database;
             var tx = db.TransactionManager.TopTransaction;
             _entity = src.Go<Entity>(db);
         }
@@ -158,9 +152,6 @@ namespace NTRExport.TopologyModel
 
         public override void Route(RoutedGraph g, Topology topo, RouterContext ctx)
         {
-            if (ctx.IsSkipped(this))
-                return;
-
             var isTwin = Variant.IsTwin;
             var suffix = Variant.DnSuffix;
             var (zUp, zLow) = ComputeTwinOffsets(System, Type, Dn);
@@ -192,7 +183,7 @@ namespace NTRExport.TopologyModel
                 if (isTwin)
                 {
                     g.Members.Add(
-                        new RoutedStraight(Source)
+                        new RoutedStraight(Source, this)
                         {
                             A = aPos.Z(zUp),
                             B = bPos.Z(zUp),
@@ -205,7 +196,7 @@ namespace NTRExport.TopologyModel
                         }
                     );
                     g.Members.Add(
-                        new RoutedStraight(Source)
+                        new RoutedStraight(Source, this)
                         {
                             A = aPos.Z(zLow),
                             B = bPos.Z(zLow),
@@ -221,7 +212,7 @@ namespace NTRExport.TopologyModel
                 else
                 {
                     g.Members.Add(
-                        new RoutedStraight(Source)
+                        new RoutedStraight(Source, this)
                         {
                             A = aPos,
                             B = bPos,
@@ -383,7 +374,7 @@ namespace NTRExport.TopologyModel
                 : (Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return);
 
             g.Members.Add(
-                new Routing.RoutedBend(Source)
+                new Routing.RoutedBend(Source, this)
                 {
                     A = a.Z(zUp),
                     B = b.Z(zUp),
@@ -399,7 +390,7 @@ namespace NTRExport.TopologyModel
             if (Variant.IsTwin)
             {
                 g.Members.Add(
-                    new Routing.RoutedBend(Source)
+                    new Routing.RoutedBend(Source, this)
                     {
                         A = a.Z(zLow),
                         B = b.Z(zLow),
@@ -460,7 +451,7 @@ namespace NTRExport.TopologyModel
             var bLegStart = new Point2d(b.X - uv.X * leg, b.Y - uv.Y * leg);
 
             g.Members.Add(
-                new Routing.RoutedStraight(Source)
+                new Routing.RoutedStraight(Source, this)
                 {
                     A = new Point3d(a.X, a.Y, 0.0),
                     B = new Point3d(aLegEnd.X, aLegEnd.Y, 0.0),
@@ -470,7 +461,7 @@ namespace NTRExport.TopologyModel
                 }
             );
             g.Members.Add(
-                new Routing.RoutedBend(Source)
+                new Routing.RoutedBend(Source, this)
                 {
                     A = new Point3d(aLegEnd.X, aLegEnd.Y, 0.0),
                     B = new Point3d(bLegStart.X, bLegStart.Y, 0.0),
@@ -481,7 +472,7 @@ namespace NTRExport.TopologyModel
                 }
             );
             g.Members.Add(
-                new Routing.RoutedStraight(Source)
+                new Routing.RoutedStraight(Source, this)
                 {
                     A = new Point3d(bLegStart.X, bLegStart.Y, 0.0),
                     B = new Point3d(b.X, b.Y, 0.0),
@@ -531,7 +522,7 @@ namespace NTRExport.TopologyModel
         public override void Route(RoutedGraph g, Topology topo, RouterContext ctx)
         {
             g.Members.Add(
-                new RoutedStraight(Source)
+                new RoutedStraight(Source, this)
                 {
                     A = MainPort1.Node.Pos.Z(OffsetMain.zUp),
                     B = MainPort2.Node.Pos.Z(OffsetMain.zUp),
@@ -548,7 +539,7 @@ namespace NTRExport.TopologyModel
             if (Variant.IsTwin)
             {
                 g.Members.Add(
-                    new RoutedStraight(Source)
+                    new RoutedStraight(Source, this)
                     {
                         A = MainPort1.Node.Pos.Z(OffsetMain.zLow),
                         B = MainPort2.Node.Pos.Z(OffsetMain.zLow),                        
@@ -631,7 +622,7 @@ namespace NTRExport.TopologyModel
             if (!Variant.IsTwin)
             {
                 g.Members.Add(
-                    new RoutedStraight(Source)
+                    new RoutedStraight(Source, this)
                     {
                         A = BranchPort.Node.Pos,
                         B = MidPoint.To3d(),
@@ -646,7 +637,7 @@ namespace NTRExport.TopologyModel
             else if (DnM == DnB)
             {
                 g.Members.Add(
-                    new RoutedStraight(Source)
+                    new RoutedStraight(Source, this)
                     {
                         A = BranchPort.Node.Pos.Z(OffsetMain.zUp),
                         B = MidPoint.To3d().Z(OffsetMain.zUp),
@@ -662,7 +653,7 @@ namespace NTRExport.TopologyModel
                 if (Variant.IsTwin)
                 {
                     g.Members.Add(
-                        new RoutedStraight(Source)
+                        new RoutedStraight(Source, this)
                         {
                             A = BranchPort.Node.Pos.Z(OffsetMain.zLow),
                             B = MidPoint.To3d().Z(OffsetMain.zLow),
@@ -748,7 +739,7 @@ namespace NTRExport.TopologyModel
                     var mainCentreWorld = ToWorld(mainCentreLocal);
 
                     g.Members.Add(
-                        new RoutedStraight(Source)
+                        new RoutedStraight(Source, this)
                         {
                             A = branchStartWorld,
                             B = branchTangentWorld,
@@ -761,7 +752,7 @@ namespace NTRExport.TopologyModel
                     );
 
                     g.Members.Add(
-                        new RoutedBend(Source)
+                        new RoutedBend(Source, this)
                         {
                             A = branchTangentWorld,
                             B = mainTangentWorld,
@@ -775,7 +766,7 @@ namespace NTRExport.TopologyModel
                     );
 
                     g.Members.Add(
-                        new RoutedStraight(Source)
+                        new RoutedStraight(Source, this)
                         {
                             A = mainTangentWorld,
                             B = mainCentreWorld,
@@ -885,13 +876,12 @@ namespace NTRExport.TopologyModel
             var pm = new Point2d((p1.X + p2.X) * 0.5, (p1.Y + p2.Y) * 0.5);
             var dn = topo.InferMainDn(this);
             g.Members.Add(
-                new Routing.RoutedInstrument(Source)
+                new Routing.RoutedValve(Source, this)
                 {
                     P1 = new Point3d(p1.X, p1.Y, 0.0),
                     P2 = new Point3d(p2.X, p2.Y, 0.0),
                     Pm = new Point3d(pm.X, pm.Y, 0.0),
-                    Dn1 = dn,
-                    Dn2 = dn,
+                    Dn1 = dn,                    
                     Dn1Suffix = "s",
                     Dn2Suffix = "s",
                     Material = Material,
@@ -925,7 +915,7 @@ namespace NTRExport.TopologyModel
             var s1 = near1?.Variant.DnSuffix ?? "s";
             var s2 = near2?.Variant.DnSuffix ?? s1;
             g.Members.Add(
-                new Routing.RoutedReducer(Source)
+                new Routing.RoutedReducer(Source, this)
                 {
                     P1 = new Point3d(p1.X, p1.Y, 0.0),
                     P2 = new Point3d(p2.X, p2.Y, 0.0),
@@ -976,7 +966,7 @@ namespace NTRExport.TopologyModel
             var p2 = pr[1].Node.Pos;
             var dn = topo.InferMainDn(this);
             g.Members.Add(
-                new Routing.RoutedStraight(Source)
+                new Routing.RoutedStraight(Source, this)
                 {
                     A = new Point3d(p1.X, p1.Y, 0.0),
                     B = new Point3d(p2.X, p2.Y, 0.0),
@@ -1005,20 +995,6 @@ namespace NTRExport.TopologyModel
             // ignore for now
         }
     }
-
-    //internal sealed class SvejsningFitting : TFitting
-    //{
-    //    public SvejsningFitting(Handle source)
-    //        : base(source, PipelineElementType.Svejsning)
-    //    {
-    //    }
-    //
-    //    protected override void ConfigureAllowedKinds(HashSet<PipelineElementType> allowed)
-    //    {
-    //        allowed.Clear();
-    //        allowed.Add(PipelineElementType.Svejsning);
-    //    }
-    //}
 
     internal sealed class GenericFitting : TFitting
     {

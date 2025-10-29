@@ -17,7 +17,7 @@ namespace NTRExport.Routing
                 RoutedBend bend => bend.ToNtrInternal(conf),
                 RoutedReducer reducer => reducer.ToNtrInternal(conf),
                 RoutedTee tee => tee.ToNtrInternal(conf),
-                RoutedInstrument instrument => instrument.ToNtrInternal(conf),
+                RoutedValve instrument => instrument.ToNtrInternal(conf),
                 _ => Array.Empty<string>(),
             };
 
@@ -82,7 +82,7 @@ namespace NTRExport.Routing
                 NtrFormat.SoilTokens(null);
         }
 
-        private static IEnumerable<string> ToNtrInternal(this RoutedInstrument instrument, ConfigurationData conf)
+        private static IEnumerable<string> ToNtrInternal(this RoutedValve instrument, ConfigurationData conf)
         {
             yield return
                 "ARM " +

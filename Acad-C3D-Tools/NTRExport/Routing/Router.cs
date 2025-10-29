@@ -26,11 +26,8 @@ namespace NTRExport.Routing
     }
 
     internal sealed class RouterContext
-    {
-        private readonly HashSet<TPipe> _skip = new();
+    {        
         public Topology Topology { get; }
-        public RouterContext(Topology topo) { Topology = topo; }
-        public void SkipPipe(TPipe p) => _skip.Add(p);
-        public bool IsSkipped(TPipe p) => _skip.Contains(p);
+        public RouterContext(Topology topo) { Topology = topo; }        
     }
 }
