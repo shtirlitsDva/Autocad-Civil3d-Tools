@@ -1,21 +1,50 @@
+using System;
+using System.Collections.Generic;
+
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 
+using IntersectUtilities;
+
 using NTRExport.Enums;
+using NTRExport.NtrConfiguration;
 using NTRExport.SoilModel;
 
 namespace NTRExport.Routing
 {
     internal abstract class RoutedMember
     {
-        protected RoutedMember(Handle source) { Source = source; }
+        protected RoutedMember(Handle source)
+        {
+            Source = source;
+            Provenance = new[] { source };
+        }
         public Handle Source { get; }
         public int Dn { get; set; }
         public string? Material { get; set; }
-        public FlowRole FlowRole { get; set; } = FlowRole.Unknown;
-        public double ZOffsetMeters { get; set; } = 0.0;
+        public FlowRole Flow { get; set; } = FlowRole.Unknown;
+        public IReadOnlyList<Handle> Provenance { get; init; }
+            = Array.Empty<Handle>();
         public string DnSuffix { get; set; } = "s";
         public string LTG { get; init; } = "STD";
+        public string Pipeline => LTG.IsNoE() ? string.Empty : " LTG=" + LTG;
+
+        public string Last(ConfigurationData conf)
+        {
+            if (conf == null)
+            {
+                return string.Empty;
+            }
+
+            var record = Flow switch
+            {
+                FlowRole.Supply => conf.SupplyLast,
+                FlowRole.Return => conf.ReturnLast,
+                _ => null,
+            };
+
+            return record != null ? " " + record.EmitRecord() : string.Empty;
+        }
     }
 
     internal sealed class RoutedStraight : RoutedMember
