@@ -34,8 +34,8 @@ namespace NTRExport.Ntr
                             Dn = s.Dn,
                             Material = s.Material,
                             DnSuffix = s.DnSuffix,
-                            Flow = s.FlowRole,                            
-                            Provenance = [s.Source],
+                            Flow = s.Flow,
+                            Provenance = s.Provenance,
                             Soil = s.Soil,
                             LTG = s.LTG,
                         });
@@ -47,10 +47,10 @@ namespace NTRExport.Ntr
                             B = b.B,
                             T = b.T,
                             Dn = b.Dn,
-                            Material = b.Material,                            
+                            Material = b.Material,
                             DnSuffix = b.DnSuffix,
-                            Flow = b.FlowRole,
-                            Provenance = [b.Source],
+                            Flow = b.Flow,
+                            Provenance = b.Provenance,
                             LTG = b.LTG,
                         });
                         break;
@@ -63,9 +63,9 @@ namespace NTRExport.Ntr
                             Dn2 = rr.Dn2,
                             Dn1Suffix = rr.Dn1Suffix,
                             Dn2Suffix = rr.Dn2Suffix,
-                            Flow = rr.FlowRole,                            
+                            Flow = rr.Flow,
                             Material = rr.Material,
-                            Provenance = [rr.Source],
+                            Provenance = rr.Provenance,
                             LTG = rr.LTG,
                         });
                         break;
@@ -80,8 +80,8 @@ namespace NTRExport.Ntr
                             DnBranch = rt.DnBranch,
                             DnMainSuffix = rt.DnMainSuffix,
                             DnBranchSuffix = rt.DnBranchSuffix,
-                            Flow = rt.FlowRole,
-                            Provenance = [rt.Source],
+                            Flow = rt.Flow,
+                            Provenance = rt.Provenance,
                             LTG = rt.LTG,
                         });
                         break;
@@ -95,8 +95,8 @@ namespace NTRExport.Ntr
                             Dn2 = rin.Dn2,
                             Dn1Suffix = rin.Dn1Suffix,
                             Dn2Suffix = rin.Dn2Suffix,
-                            Material = rin.Material,                            
-                            Provenance = [rin.Source],
+                            Material = rin.Material,
+                            Provenance = rin.Provenance,
                             LTG = rin.LTG,
                         });
                         break;

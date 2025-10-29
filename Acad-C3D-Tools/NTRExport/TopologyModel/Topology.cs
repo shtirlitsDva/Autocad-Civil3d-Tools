@@ -251,7 +251,7 @@ namespace NTRExport.TopologyModel
                         Dn = Dn,
                         Material = Material,
                         DnSuffix = suffix,
-                        FlowRole = FlowRole.Return,
+                        Flow = FlowRole.Return,
                         LTG = LTGMain(Source),
                     }
                 );
@@ -263,7 +263,7 @@ namespace NTRExport.TopologyModel
                         Dn = Dn,
                         Material = Material,
                         DnSuffix = suffix,
-                        FlowRole = FlowRole.Supply,
+                        Flow = FlowRole.Supply,
                         LTG = LTGMain(Source),
                     }
                 );
@@ -279,7 +279,7 @@ namespace NTRExport.TopologyModel
                         Dn = Dn,
                         Material = Material,
                         DnSuffix = suffix,
-                        FlowRole = flow,
+                        Flow = flow,
                         LTG = LTGMain(Source),
                     }
                 );
@@ -453,7 +453,7 @@ namespace NTRExport.TopologyModel
                     Dn = Dn,
                     Material = Material,
                     DnSuffix = Variant.DnSuffix,
-                    FlowRole = flowMain,                    
+                    Flow = flowMain,                    
                     LTG = LTGMain(Source),
                 }
             );
@@ -469,7 +469,7 @@ namespace NTRExport.TopologyModel
                         Dn = Dn,
                         Material = Material,
                         DnSuffix = Variant.DnSuffix,
-                        FlowRole = FlowRole.Supply,
+                        Flow = FlowRole.Supply,
                         LTG = LTGMain(Source),
                     }
                 );
@@ -580,7 +580,7 @@ namespace NTRExport.TopologyModel
                     B = new Point3d(aLegEnd.X, aLegEnd.Y, 0.0),
                     Dn = Dn,
                     DnSuffix = Variant.DnSuffix,
-                    FlowRole = FlowRole.Return,
+                    Flow = FlowRole.Return,
                 }
             );
             g.Members.Add(
@@ -591,7 +591,7 @@ namespace NTRExport.TopologyModel
                     T = new Point3d(t.X, t.Y, 0.0),
                     Dn = Dn,
                     DnSuffix = Variant.DnSuffix,
-                    FlowRole = FlowRole.Return,
+                    Flow = FlowRole.Return,
                 }
             );
             g.Members.Add(
@@ -601,7 +601,7 @@ namespace NTRExport.TopologyModel
                     B = new Point3d(b.X, b.Y, 0.0),
                     Dn = Dn,
                     DnSuffix = Variant.DnSuffix,
-                    FlowRole = FlowRole.Return,
+                    Flow = FlowRole.Return,
                 }
             );
         }
@@ -652,7 +652,7 @@ namespace NTRExport.TopologyModel
                     Dn = DnM,
                     Material = Material,
                     DnSuffix = Variant.DnSuffix,
-                    FlowRole = Variant.IsTwin
+                    Flow = Variant.IsTwin
                         ? FlowRole.Return
                         : (Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return),
                     LTG = LTGMain(Source),
@@ -669,7 +669,7 @@ namespace NTRExport.TopologyModel
                         Dn = DnM,
                         Material = Material,
                         DnSuffix = Variant.DnSuffix,
-                        FlowRole = FlowRole.Supply,
+                        Flow = FlowRole.Supply,
                         LTG = LTGMain(Source),
                     }
                 );
@@ -752,7 +752,7 @@ namespace NTRExport.TopologyModel
                         Dn = DnB,
                         Material = Material,
                         DnSuffix = Variant.DnSuffix,
-                        FlowRole = Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return,
+                        Flow = Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return,
                         LTG = LTGBranch(Source),
                     }
                 );
@@ -767,7 +767,7 @@ namespace NTRExport.TopologyModel
                         Dn = DnB,
                         Material = Material,
                         DnSuffix = Variant.DnSuffix,
-                        FlowRole = Variant.IsTwin
+                        Flow = Variant.IsTwin
                             ? FlowRole.Return
                             : (Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return),                        
                         LTG = LTGMain(Source),
@@ -783,7 +783,7 @@ namespace NTRExport.TopologyModel
                             Dn = DnB,
                             Material = Material,
                             DnSuffix = Variant.DnSuffix,
-                            FlowRole = FlowRole.Supply,
+                            Flow = FlowRole.Supply,
                             LTG = LTGMain(Source),
                         });
                 }
@@ -869,7 +869,7 @@ namespace NTRExport.TopologyModel
                             Dn = DnB,
                             Material = Material,
                             DnSuffix = Variant.DnSuffix,
-                            FlowRole = flowRole,
+                            Flow = flowRole,
                             LTG = LTGBranch(Source),
                         }
                     );
@@ -883,7 +883,7 @@ namespace NTRExport.TopologyModel
                             Dn = DnB,
                             Material = Material,
                             DnSuffix = Variant.DnSuffix,
-                            FlowRole = flowRole,
+                            Flow = flowRole,
                             LTG = LTGBranch(Source),
                         }
                     );
@@ -896,7 +896,7 @@ namespace NTRExport.TopologyModel
                             Dn = DnB,
                             Material = Material,
                             DnSuffix = Variant.DnSuffix,
-                            FlowRole = flowRole,
+                            Flow = flowRole,
                             LTG = LTGBranch(Source),
                         }
                     );
@@ -1047,7 +1047,7 @@ namespace NTRExport.TopologyModel
                     Dn2 = dn2,
                     Dn1Suffix = s1,
                     Dn2Suffix = s2,
-                    FlowRole = FlowRole.Return,
+                    Flow = FlowRole.Return,
                 }
             );
         }
@@ -1097,7 +1097,7 @@ namespace NTRExport.TopologyModel
                     Dn = dn,
                     DnSuffix = "s",
                     Material = Material,
-                    FlowRole = FlowRole.Unknown,
+                    Flow = FlowRole.Unknown,
                 }
             );
         }
