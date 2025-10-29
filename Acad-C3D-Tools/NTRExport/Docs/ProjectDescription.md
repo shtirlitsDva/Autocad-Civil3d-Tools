@@ -15,8 +15,8 @@
 ## Processing Pipeline
 1. `NTREXPORT` command filters Civil 3D entities (currently `Stål` system) and collects the relevant polylines/fittings.
 2. `TopologyBuilder` converts CAD geometry into a canonical graph of nodes (`TNode`) and elements (`TPipe`, `TFitting`). Ports come from `MuffeIntern` weld markers, guaranteeing clean graph connectivity.
-3. The topology is routed through `Routing.Router`, which expands fittings into geometric macros (straights, bends, reducers, tees) and resolves spacing/offset requirements before mapping to NTR members (`NtrMapper`).
-4. `NtrWriter` assembles header DN/IS records and element records (RO, BOG, RED, TEE, etc.), writing the final `.ntr` file adjacent to the DWG.
+3. The topology is routed through `Routing.Router`, which expands fittings into geometric macros (straights, bends, reducers, tees) and resolves spacing/offset requirements before the routed members emit their own NTR records.
+4. `NtrWriter` assembles header DN/IS records and element records (RO, BOG, RED, TEE, etc.) from the routed graph, writing the final `.ntr` file adjacent to the DWG.
 
 ## Routing & Geometry Logic
 - **Twin duplication**: Every routed straight/bend can emit two NTR members (supply/return) with Z-offsets set to ±(OD + gap)/2, converting the 2D plan into a 3D-neutral representation.
@@ -26,13 +26,13 @@
 - **Routing roadmap**:
   - Implement spacing S-bend macros for reducers and tees (twin spacing changes).
   - Support bonded ↔ twin transitions (F/Y) using bend/straight macro footprints.
-  - Port soil planning to routed straights and cache cushion spans per segment.
+  - Refine soil planning on routed straights (rule overlaps, topology-driven propagation).
   - Introduce push/propagation logic to satisfy macro footprints while staying within reasonable bounds.
 
 ## Geometry Considerations
 - Input geometry is primarily 2D plan-view. During export, coordinates are normalized in meters and scaled to millimeters (`NtrCoord`, `NtrFormat`).
 - Twin pipes are emitted as separate RO records with Z-offsets calculated from pipe spacing, providing the 3D separation required by ROHR2.
-- Soil cover depth (`SOIL_H`) and optional cushion parameters are added per element to satisfy buried pipe requirements. (Soil planner migration to routed straights is pending.)
+- Soil cover depth (`SOIL_H`) and optional cushion parameters are added per element to satisfy buried pipe requirements, with routed straights split wherever cushion spans apply.
 
 ## Automated Console Tests
 - `NTRExport.ConsoleTests` launches `AcCoreConsole.exe`, `NETLOAD`s `NTRExport.dll`, and runs `NTREXPORT` against curated DWG assets (`preinsulated_elbow_90.dwg`, `twin_reducer_basic.dwg`, `tee_branch_basic.dwg`, `T1-Preinsulated tee, twin to twin.dwg`).

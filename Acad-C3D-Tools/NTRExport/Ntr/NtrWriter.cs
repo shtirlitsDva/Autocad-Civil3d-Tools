@@ -1,6 +1,9 @@
 ﻿using Autodesk.AutoCAD.DatabaseServices;
 
+using System.Collections.Generic;
+using System.Linq;
 using NTRExport.NtrConfiguration;
+using NTRExport.Routing;
 using NTRExport.SoilModel;
 
 using System.Text;
@@ -23,7 +26,7 @@ namespace NTRExport.Ntr
         private readonly ConfigurationData _conf;
         public NtrWriter(INtrSoilAdapter soil, ConfigurationData conf) { _soil = soil; _conf = conf; }
 
-        public string Build(NtrGraph g, IEnumerable<string> headerRecords)
+        public string Build(RoutedGraph g, IEnumerable<string> headerRecords)
         {
             var sb = new StringBuilder();
             // Header: units in millimeters
