@@ -33,7 +33,7 @@ namespace NTRExport.TopologyModel
                     name.Contains("MAIN", StringComparison.OrdinalIgnoreCase) ? PortRole.Main :
                     PortRole.Neutral;
 
-                result.Add(new CadPort(new Point2d(wpt.X, wpt.Y), role));
+                result.Add(new CadPort(wpt, role));
             }
 
             tr.Commit();
@@ -43,13 +43,13 @@ namespace NTRExport.TopologyModel
 
     internal readonly struct CadPort
     {
-        public CadPort(Point2d position, PortRole role)
+        public CadPort(Point3d position, PortRole role)
         {
             Position = position;
             Role = role;
         }
 
-        public Point2d Position { get; }
+        public Point3d Position { get; }
         public PortRole Role { get; }
     }
 }

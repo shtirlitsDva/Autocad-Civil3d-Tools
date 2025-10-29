@@ -69,7 +69,10 @@ namespace IntersectUtilities
                 SystemObjects.DynamicLinker.LoadModule(
                     "AcMPolygonObj" + Application.Version.Major + ".dbx", false, false);
             }
-            prdDbg("IntersectUtilites loaded!\n");
+            prdDbg("(❁´◡`❁) (っ °Д °;)っ (●'◡'●)");
+            prdDbg($" IntersectUtilites loaded!");
+            prdDbg("(❁´◡`❁) (っ °Д °;)っ (●'◡'●)");
+            prdDbg();
 #if DEBUG
             AppDomain.CurrentDomain.AssemblyResolve +=
                 new ResolveEventHandler(EventHandlers.Debug_AssemblyResolve);
@@ -1503,28 +1506,70 @@ namespace IntersectUtilities
         [CommandMethod("CCL")]
         public void createcomplexlinetype()
         {
-            //string lineTypeName = "BIPS_TEXT_N2";
-            string lineTypeName = Interaction.GetString("Enter LineType name: (ex: BIPS_TEXT_N2) \n");
-            if (lineTypeName.IsNoE()) return;
-            //string text = "N2";
-            string text = Interaction.GetString("Enter text to be displayed by line: (ex: 10kV) NO SPACES!!! \n", true);
+            string? lineTypeName = PlanDetailing.LineTypes.LineTypes.PromptForString(
+                "Line type name", "Enter LineType name: (ex: BIPS_TEXT_N2X) \n");
+            if (string.IsNullOrEmpty(lineTypeName)) return;
+            string? text = PlanDetailing.LineTypes.LineTypes.PromptForString(
+                "Text", "Enter text to be displayed by line: (ex: 10kV)\n");
+            if (string.IsNullOrEmpty(text)) return;
             string textStyleName = "Standard";
-            createcomplexlinetypemethod(lineTypeName, text, textStyleName);
+            PlanDetailing.LineTypes.LineTypes.createltmethod(lineTypeName, text, textStyleName);
         }
 
-        /// <command>CCL</command>
+        /// <command>CCLS</command>
         /// <summary>
         /// Creates complex linetype with text. User must type the name of the linetype and the text to be displayed.
+        /// Uses single linetype dash for the text.
+        /// </summary>
+        /// <category>LineTypes</category>
+        [CommandMethod("CCLS")]
+        public void createcomplexlinetypesingle()
+        {
+            string? lineTypeName = PlanDetailing.LineTypes.LineTypes.PromptForString(
+                "Line type name", "Enter LineType name: (ex: BIPS_TEXT_N2X) \n");
+            if (string.IsNullOrEmpty(lineTypeName)) return;
+            string? text = PlanDetailing.LineTypes.LineTypes.PromptForString(
+                "Text", "Enter text to be displayed by line: (ex: 10kV)\n");
+            if (string.IsNullOrEmpty(text)) return;
+            string textStyleName = "Standard";
+            PlanDetailing.LineTypes.LineTypes.createltmethodsingle(lineTypeName, text, textStyleName);
+        }
+
+        /// <command>CCLX</command>
+        /// <summary>
+        /// Creates complex linetype with text and an X. User must type the name of the linetype and the text to be displayed.
         /// </summary>
         /// <category>LineTypes</category>
         [CommandMethod("CCLX")]
         public void createcomplexlinetypex()
         {
-            string lineTypeName = Interaction.GetString("Enter LineType name: (ex: BIPS_TEXT_N2X) \n");
-            if (lineTypeName.IsNoE()) return;
-            string text = Interaction.GetString("Enter text to be displayed by line: (ex: 10kV) NO SPACES!!! \n", true);
+            string? lineTypeName = PlanDetailing.LineTypes.LineTypes.PromptForString(
+                "Line type name", "Enter LineType name: (ex: BIPS_TEXT_N2X) \n");
+            if (string.IsNullOrEmpty(lineTypeName)) return;
+            string? text = PlanDetailing.LineTypes.LineTypes.PromptForString(
+                "Text", "Enter text to be displayed by line: (ex: 10kV)\n");
+            if (string.IsNullOrEmpty(text)) return;
             string textStyleName = "Standard";
-            createcomplexlinetypexmethod(lineTypeName, text, textStyleName);
+            PlanDetailing.LineTypes.LineTypes.linetypeX(lineTypeName, text, textStyleName);
+        }
+
+        /// <command>CCLXS</command>
+        /// <summary>
+        /// Creates complex linetype with text and an X. User must type the name of the linetype and the text to be displayed.
+        /// Uses single linetype dash for the text.
+        /// </summary>
+        /// <category>LineTypes</category>
+        [CommandMethod("CCLXS")]
+        public void createcomplexlinetypexsingle()
+        {
+            string? lineTypeName = PlanDetailing.LineTypes.LineTypes.PromptForString(
+                "Line type name", "Enter LineType name: (ex: BIPS_TEXT_N2X) \n");
+            if (string.IsNullOrEmpty(lineTypeName)) return;
+            string? text = PlanDetailing.LineTypes.LineTypes.PromptForString(
+                "Text", "Enter text to be displayed by line: (ex: 10kV)\n");
+            if (string.IsNullOrEmpty(text)) return;
+            string textStyleName = "Standard";
+            PlanDetailing.LineTypes.LineTypes.linetypeXsingle(lineTypeName, text, textStyleName);
         }
 
         /// <command>UELT</command>
@@ -1547,7 +1592,7 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    createcomplexlinetypemethod(
+                    PlanDetailing.LineTypes.LineTypes.createltmethod(
                         id.Layer().Replace("00LT-", ""), text, "Standard");
                 }
                 catch (System.Exception ex)
