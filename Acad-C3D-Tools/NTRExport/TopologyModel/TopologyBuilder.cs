@@ -2,6 +2,7 @@
 using Autodesk.AutoCAD.Geometry;
 
 using IntersectUtilities;
+using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.Enums;
 
 using NTRExport.Enums;
@@ -29,9 +30,9 @@ namespace NTRExport.TopologyModel
             var g = new Topology();
             var nodeIndex = new List<TNode>();
 
-            TNode NodeAt(Point2d p)
+            TNode NodeAt(Point3d p)
             {
-                var n = nodeIndex.FirstOrDefault(x => Dist(x.Pos, p) < CadTolerance.Node);
+                var n = nodeIndex.FirstOrDefault(x => x.Pos.DistanceTo(p) < CadTolerance.Node);
                 if (n != null) return n;
                 n = new TNode { Pos = p };
                 g.Nodes.Add(n); nodeIndex.Add(n);
@@ -60,8 +61,8 @@ namespace NTRExport.TopologyModel
                 {
                     if (s is LineSegment2d ls)
                     {
-                        var a = NodeAt(ls.StartPoint);
-                        var b = NodeAt(ls.EndPoint);
+                        var a = NodeAt(ls.StartPoint.To3d());
+                        var b = NodeAt(ls.EndPoint.To3d());
                         var tp = new TPipe(
                             pl.Handle,
                             s,
@@ -71,8 +72,8 @@ namespace NTRExport.TopologyModel
                     }
                     else if (s is CircularArc2d arc)
                     {
-                        var a = NodeAt(s.StartPoint);
-                        var b = NodeAt(s.EndPoint);
+                        var a = NodeAt(s.StartPoint.To3d());
+                        var b = NodeAt(s.EndPoint.To3d());
                         var elbow = new ElbowFormstykke(
                             pl.Handle,
                             GetTangentPoint(arc),
@@ -175,7 +176,7 @@ namespace NTRExport.TopologyModel
             };
         }
 
-        private static Point2d GetTangentPoint(CircularArc2d arc)
+        private static Point3d GetTangentPoint(CircularArc2d arc)
         {
             var s = arc.StartPoint;
             var e = arc.EndPoint;
@@ -200,9 +201,7 @@ namespace NTRExport.TopologyModel
 
             var inter = s + ts.MultiplyBy(l);
 
-            return inter;
-        }
-
-        private static double Dist(Point2d a, Point2d b) => Math.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y));
+            return inter.To3d();
+        }        
     }
 }

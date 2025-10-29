@@ -114,7 +114,7 @@ namespace NTRExport.SoilModel
             }
         }
 
-        private static bool Equal(Point2d a, Point2d b) => Math.Abs(a.X - b.X) <= Tol && Math.Abs(a.Y - b.Y) <= Tol;
+        private static bool Equal(Point3d a, Point3d b) => Math.Abs(a.X - b.X) <= Tol && Math.Abs(a.Y - b.Y) <= Tol;
 
         // Decide soil per segment [s0,s1] from overlapping rules; thicker cushion wins.
         private Func<double, double, SoilProfile> SegmentSoilResolver(NtrPipe basis) => (s0, s1) =>
@@ -140,12 +140,12 @@ namespace NTRExport.SoilModel
             }
         }
 
-        private static (Point2d, Point2d) Interpolate(NtrPipe p, double s)
+        private static (Point3d, Point3d) Interpolate(NtrPipe p, double s)
         {
             var t = (p.Length <= 1e-9) ? 0.0 : s / p.Length;
             var x = p.A.X + t * (p.B.X - p.A.X);
             var y = p.A.Y + t * (p.B.Y - p.A.Y);
-            return (new Point2d(x, y), new Point2d(x, y));
+            return (new Point3d(x, y, 0), new Point3d(x, y, 0));
         }
     }
 }

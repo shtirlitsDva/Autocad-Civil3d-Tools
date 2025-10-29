@@ -1,12 +1,9 @@
 ﻿using Autodesk.AutoCAD.DatabaseServices;
 
+using NTRExport.NtrConfiguration;
 using NTRExport.SoilModel;
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace NTRExport.Ntr
 {
@@ -23,9 +20,10 @@ namespace NTRExport.Ntr
     internal class NtrWriter
     {
         private readonly INtrSoilAdapter _soil;
-        public NtrWriter(INtrSoilAdapter soil) { _soil = soil; }        
+        private readonly ConfigurationData _conf;
+        public NtrWriter(INtrSoilAdapter soil, ConfigurationData conf) { _soil = soil; _conf = conf; }
 
-        public string Build(NtrGraph g, IEnumerable<string> headerRecords, NtrConfiguration.ConfigurationData conf)
+        public string Build(NtrGraph g, IEnumerable<string> headerRecords)
         {
             var sb = new StringBuilder();
             // Header: units in millimeters
@@ -33,7 +31,7 @@ namespace NTRExport.Ntr
             sb.AppendLine("GEN TMONT=10 EB=-Z UNITKT=MM CODE=EN13941");
 
             sb.AppendLine("C Loads definition");
-            foreach (var last in conf.Last) sb.AppendLine(last.ToString());            
+            foreach (var last in _conf.Last) sb.AppendLine(last.ToString());
 
             // DN and IS sections from headerRecords
             var dnLines = headerRecords.Where(l => l.StartsWith("DN ", StringComparison.OrdinalIgnoreCase)).ToList();
@@ -74,7 +72,7 @@ namespace NTRExport.Ntr
                     refValue = $"{handle}-{next}";
                 }
 
-                foreach (var line in member.ToNtr(_soil, conf))
+                foreach (var line in member.ToNtr(_soil, _conf))
                 {
                     sb.AppendLine($"{line} REF={refValue}");
                 }
