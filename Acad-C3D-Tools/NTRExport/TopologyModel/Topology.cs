@@ -1,6 +1,9 @@
 ﻿using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 
+using System.Collections.Generic;
+using System.Linq;
+
 using IntersectUtilities;
 using IntersectUtilities.PipeScheduleV2;
 using IntersectUtilities.UtilsCommon;
@@ -8,6 +11,7 @@ using IntersectUtilities.UtilsCommon.Enums;
 
 using NTRExport.Enums;
 using NTRExport.Routing;
+using NTRExport.SoilModel;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 using static NTRExport.Utils.Utils;
@@ -160,52 +164,88 @@ namespace NTRExport.TopologyModel
             var isTwin = Variant.IsTwin;
             var suffix = Variant.DnSuffix;
             var (zUp, zLow) = ComputeTwinOffsets(System, Type, Dn);
+            var flow = Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return;
+            var ltg = LTGMain(Source);
 
-            if (isTwin)
+            var cuts = new SortedSet<double> { 0.0, Length };
+            foreach (var (s0, s1) in CushionSpans)
             {
-                g.Members.Add(
-                    new Routing.RoutedStraight(Source)
-                    {
-                        A = A.Node.Pos.Z(zUp),
-                        B = B.Node.Pos.Z(zUp),
-                        Dn = Dn,
-                        Material = Material,
-                        DnSuffix = suffix,
-                        FlowRole = FlowRole.Return,
-                        LTG = LTGMain(Source),
-                    }
-                );
-                g.Members.Add(
-                    new Routing.RoutedStraight(Source)
-                    {
-                        A = A.Node.Pos.Z(zLow),
-                        B = B.Node.Pos.Z(zLow),
-                        Dn = Dn,
-                        Material = Material,
-                        DnSuffix = suffix,
-                        FlowRole = FlowRole.Supply,
-                        LTG = LTGMain(Source),
-                    }
-                );
+                cuts.Add(Math.Max(0.0, Math.Min(Length, s0)));
+                cuts.Add(Math.Max(0.0, Math.Min(Length, s1)));
             }
-            else
+
+            var segments = cuts.ToList();
+            for (int i = 0; i < segments.Count - 1; i++)
             {
-                var flow = Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return;
-                g.Members.Add(
-                    new Routing.RoutedStraight(Source)
-                    {
-                        A = A.Node.Pos,
-                        B = B.Node.Pos,
-                        Dn = Dn,
-                        Material = Material,
-                        DnSuffix = suffix,
-                        FlowRole = flow,
-                        LTG = LTGMain(Source),
-                    }
-                );
+                var s0 = segments[i];
+                var s1 = segments[i + 1];
+                if (s1 - s0 < 1e-6)
+                    continue;
+
+                var soil = IsCovered(CushionSpans, s0, s1)
+                    ? new SoilProfile("Soil_C80", 0.08)
+                    : SoilProfile.Default;
+
+                var aPos = Lerp(A.Node.Pos, B.Node.Pos, Length <= 1e-9 ? 0.0 : s0 / Length);
+                var bPos = Lerp(A.Node.Pos, B.Node.Pos, Length <= 1e-9 ? 0.0 : s1 / Length);
+
+                if (isTwin)
+                {
+                    g.Members.Add(
+                        new RoutedStraight(Source)
+                        {
+                            A = aPos.Z(zUp),
+                            B = bPos.Z(zUp),
+                            Dn = Dn,
+                            Material = Material,
+                            DnSuffix = suffix,
+                            FlowRole = FlowRole.Return,
+                            Soil = soil,
+                            LTG = ltg,
+                        }
+                    );
+                    g.Members.Add(
+                        new RoutedStraight(Source)
+                        {
+                            A = aPos.Z(zLow),
+                            B = bPos.Z(zLow),
+                            Dn = Dn,
+                            Material = Material,
+                            DnSuffix = suffix,
+                            FlowRole = FlowRole.Supply,
+                            Soil = soil,
+                            LTG = ltg,
+                        }
+                    );
+                }
+                else
+                {
+                    g.Members.Add(
+                        new RoutedStraight(Source)
+                        {
+                            A = aPos,
+                            B = bPos,
+                            Dn = Dn,
+                            Material = Material,
+                            DnSuffix = suffix,
+                            FlowRole = flow,
+                            Soil = soil,
+                            LTG = ltg,
+                        }
+                    );
+                }
             }
         }
 
+
+        private static bool IsCovered(List<(double s0, double s1)> spans, double a, double b)
+        {
+            var mid = 0.5 * (a + b);
+            return spans.Any(z => mid >= z.s0 - 1e-9 && mid <= z.s1 + 1e-9);
+        }
+
+        private static Point3d Lerp(Point3d a, Point3d b, double t) =>
+            new(a.X + t * (b.X - a.X), a.Y + t * (b.Y - a.Y), a.Z + t * (b.Z - a.Z));
     }
 
     #region PipeVariant
@@ -293,6 +333,7 @@ namespace NTRExport.TopologyModel
         {
             // Default no-op; derived classes route if supported
         }
+
     }
 
     internal class ElbowFormstykke : TFitting
@@ -372,6 +413,14 @@ namespace NTRExport.TopologyModel
                 );
             }
         }
+
+
+    }
+
+    internal sealed class Bueror : ElbowFormstykke
+    {
+        public Bueror(Handle source, PipelineElementType kind)
+            : base(source, PipelineElementType.Buerør) { }
 
         protected override void ConfigureAllowedKinds(HashSet<PipelineElementType> allowed)
         {

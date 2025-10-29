@@ -386,6 +386,7 @@ namespace NTRExport
                 // Build IS and DN records across all distinct pipe groups found in the drawing
                 var headerLines = new List<string>();
                 var headerDedup = new HashSet<string>();
+                
                 var plines = ents.OfType<Polyline>().ToList();
                 var groups = plines.GroupBy(pl => (
                     sys: PipeScheduleV2.GetPipeSystem(pl),

@@ -23,10 +23,7 @@ namespace NTRExport.Ntr
             // Always include cover; add cushion tokens when present
             var baseTok = $" SOIL_H={DefaultSoilCoverM:0.###}";
             if (soil != null && soil.CushionThk > 0)
-            {
                 return baseTok + $" SOIL_CUSH_TYPE=2 SOIL_CUSH_THK={CushionThkM:0.###}";
-            }
-
             return baseTok;
         }
     }

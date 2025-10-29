@@ -1,5 +1,7 @@
 ﻿using Autodesk.AutoCAD.DatabaseServices;
 
+using System.Collections.Generic;
+using System.Linq;
 using NTRExport.NtrConfiguration;
 using NTRExport.Routing;
 using NTRExport.SoilModel;
@@ -24,7 +26,7 @@ namespace NTRExport.Ntr
         private readonly ConfigurationData _conf;
         public NtrWriter(INtrSoilAdapter soil, ConfigurationData conf) { _soil = soil; _conf = conf; }
 
-        public string Build(RoutedGraph routed, IEnumerable<string> headerRecords)
+        public string Build(RoutedGraph g, IEnumerable<string> headerRecords)
         {
             var sb = new StringBuilder();
             // Header: units in millimeters
@@ -48,7 +50,7 @@ namespace NTRExport.Ntr
             sb.AppendLine("C Element definitions");
 
             var totalByHandle = new Dictionary<Handle, int>();
-            foreach (var member in routed.Members)
+            foreach (var member in g.Members)
             {
                 if (totalByHandle.TryGetValue(member.Source, out var count))
                 {
@@ -62,7 +64,7 @@ namespace NTRExport.Ntr
 
             var nextOrdinal = new Dictionary<Handle, int>();
 
-            foreach (var member in routed.Members)
+            foreach (var member in g.Members)
             {
                 var handle = member.Source;
                 var refValue = handle.ToString();
