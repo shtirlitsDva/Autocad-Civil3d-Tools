@@ -23,7 +23,24 @@ namespace NTRExport.Routing
         public RoutedStraight(Handle src) : base(src) { }
         public Point3d A { get; set; }
         public Point3d B { get; set; }
-        public SoilProfile Soil { get; set; } = SoilProfile.Default;        
+        public SoilProfile Soil { get; set; } = SoilProfile.Default;
+        public double Length => A.DistanceTo(B);
+
+        public RoutedStraight With(Point3d a, Point3d b, SoilProfile soil)
+        {
+            return new RoutedStraight(Source)
+            {
+                A = a,
+                B = b,
+                Dn = Dn,
+                Material = Material,
+                FlowRole = FlowRole,
+                DnSuffix = DnSuffix,
+                LTG = LTG,
+                Soil = soil,
+                ZOffsetMeters = ZOffsetMeters,
+            };
+        }
     }
 
     internal sealed class RoutedBend : RoutedMember
