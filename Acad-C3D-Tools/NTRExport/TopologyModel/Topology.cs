@@ -7,9 +7,7 @@ using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.Enums;
 
 using NTRExport.Enums;
-using NTRExport.Ntr;
 using NTRExport.Routing;
-using NTRExport.SoilModel;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 using static NTRExport.Utils.Utils;
@@ -125,22 +123,7 @@ namespace NTRExport.TopologyModel
             return (z, -z);
         }
 
-        public abstract void Emit(NtrGraph graph, Topology topo);
-
         public virtual void Route(RoutedGraph g, Topology topo, RouterContext ctx) { }
-
-        protected void EmitRoutedMembers(NtrGraph graph, Topology topo)
-        {
-            var routed = new RoutedGraph();
-            var ctx = new RouterContext(topo);
-            Route(routed, topo, ctx);
-
-            var mapper = new NtrMapper();
-            foreach (var member in mapper.MapMembers(routed.Members))
-            {
-                graph.Members.Add(member);
-            }
-        }
     }
 
     internal class TPipe : ElementBase
@@ -169,130 +152,6 @@ namespace NTRExport.TopologyModel
 
         public override IReadOnlyList<TPort> Ports => [A, B];
 
-        public override void Emit(NtrGraph graph, Topology topo)
-        {
-            EmitRoutedMembers(graph, topo);
-        }
-
-        public override void Route(RoutedGraph g, Topology topo, RouterContext ctx)
-        {
-            if (ctx.IsSkipped(this))
-                return;
-
-            var isTwin = Variant.IsTwin;
-            var suffix = Variant.DnSuffix;
-            var (zUp, zLow) = ComputeTwinOffsets(System, Type, Dn);
-            var flowMain = Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return;
-
-            IEnumerable<(double s0, double s1)> Segments()
-            {
-                if (CushionSpans.Count == 0)
-                {
-                    yield return (0.0, Length);
-                    yield break;
-                }
-
-                var cuts = new SortedSet<double> { 0.0, Length };
-                foreach (var (s0, s1) in CushionSpans)
-                {
-                    cuts.Add(Math.Max(0.0, Math.Min(Length, s0)));
-                    cuts.Add(Math.Max(0.0, Math.Min(Length, s1)));
-                }
-
-                var list = cuts.ToList();
-                for (int i = 0; i < list.Count - 1; i++)
-                {
-                    var s0 = list[i];
-                    var s1 = list[i + 1];
-                    if (s1 - s0 < 1e-6)
-                        continue;
-                    yield return (s0, s1);
-                }
-            }
-
-            foreach (var (s0, s1) in Segments())
-            {
-                var pa = Lerp(A.Node.Pos, B.Node.Pos, Length <= 1e-9 ? 0.0 : s0 / Length);
-                var pb = Lerp(A.Node.Pos, B.Node.Pos, Length <= 1e-9 ? 0.0 : s1 / Length);
-                var soil = IsCovered(CushionSpans, s0, s1)
-                    ? new SoilProfile("Soil_C80", 0.08)
-                    : SoilProfile.Default;
-
-                if (isTwin)
-                {
-                    g.Members.Add(
-                        new Routing.RoutedStraight(Source)
-                        {
-                            A = pa.Z(zUp),
-                            B = pb.Z(zUp),
-                            Dn = Dn,
-                            Material = Material,
-                            DnSuffix = suffix,
-                            FlowRole = FlowRole.Return,
-                            LTG = LTGMain(Source),
-                            Soil = soil,
-                        }
-                    );
-
-                    g.Members.Add(
-                        new Routing.RoutedStraight(Source)
-                        {
-                            A = pa.Z(zLow),
-                            B = pb.Z(zLow),
-                            Dn = Dn,
-                            Material = Material,
-                            DnSuffix = suffix,
-                            FlowRole = FlowRole.Supply,
-                            LTG = LTGMain(Source),
-                            Soil = soil,
-                        }
-                    );
-                }
-                else
-                {
-                    g.Members.Add(
-                        new Routing.RoutedStraight(Source)
-                        {
-                            A = pa,
-                            B = pb,
-                            Dn = Dn,
-                            Material = Material,
-                            DnSuffix = suffix,
-                            FlowRole = flowMain,
-                            LTG = LTGMain(Source),
-                            Soil = soil,
-                        }
-                    );
-                }
-            }
-
-            if (CushionSpans.Count == 0)
-            {
-                EmitSegment(A.Node.Pos, B.Node.Pos, 0.0, Length);
-                return;
-            }
-
-            var cuts = new SortedSet<double> { 0.0, Length };
-            foreach (var (s0, s1) in CushionSpans)
-            {
-                cuts.Add(Math.Max(0.0, Math.Min(Length, s0)));
-                cuts.Add(Math.Max(0.0, Math.Min(Length, s1)));
-            }
-
-            var list = cuts.ToList();
-            for (int i = 0; i < list.Count - 1; i++)
-            {
-                var s0 = list[i];
-                var s1 = list[i + 1];
-                if (s1 - s0 < 1e-6)
-                    continue;
-
-                var pa = Lerp(A.Node.Pos, B.Node.Pos, Length <= 1e-9 ? 0.0 : s0 / Length);
-                var pb = Lerp(A.Node.Pos, B.Node.Pos, Length <= 1e-9 ? 0.0 : s1 / Length);
-                EmitSegment(pa, pb, s0, s1);
-            }
-        }
-
         public override void Route(RoutedGraph g, Topology topo, RouterContext ctx)
         {
             if (ctx.IsSkipped(this))
@@ -312,7 +171,7 @@ namespace NTRExport.TopologyModel
                         Dn = Dn,
                         Material = Material,
                         DnSuffix = suffix,
-                        Flow = FlowRole.Return,
+                        FlowRole = FlowRole.Return,
                         LTG = LTGMain(Source),
                     }
                 );
@@ -324,7 +183,7 @@ namespace NTRExport.TopologyModel
                         Dn = Dn,
                         Material = Material,
                         DnSuffix = suffix,
-                        Flow = FlowRole.Supply,
+                        FlowRole = FlowRole.Supply,
                         LTG = LTGMain(Source),
                     }
                 );
@@ -340,21 +199,13 @@ namespace NTRExport.TopologyModel
                         Dn = Dn,
                         Material = Material,
                         DnSuffix = suffix,
-                        Flow = flow,
+                        FlowRole = flow,
                         LTG = LTGMain(Source),
                     }
                 );
             }
         }
 
-        private static bool IsCovered(List<(double s0, double s1)> spans, double a, double b)
-        {
-            var mid = 0.5 * (a + b);
-            return spans.Any(z => mid >= z.s0 - 1e-9 && mid <= z.s1 + 1e-9);
-        }
-
-        private static Point3d Lerp(Point3d a, Point3d b, double t) =>
-            new(a.X + t * (b.X - a.X), a.Y + t * (b.Y - a.Y), a.Z + t * (b.Z - a.Z));
     }
 
     #region PipeVariant
@@ -438,19 +289,9 @@ namespace NTRExport.TopologyModel
             allowed.Clear();
         }
 
-        public override void Emit(NtrGraph graph, Topology topo)
-        {
-            EmitStub(graph);
-        }
-
         public override void Route(RoutedGraph g, Topology topo, RouterContext ctx)
         {
             // Default no-op; derived classes route if supported
-        }
-
-        protected virtual void EmitStub(NtrGraph graph)
-        {
-            graph.Members.Add(new NtrStub(Source) { Provenance = [Source] });
         }
     }
 
@@ -486,11 +327,6 @@ namespace NTRExport.TopologyModel
             allowed.Add(PipelineElementType.Bøjning15gr);
         }
 
-        public override void Emit(NtrGraph graph, Topology topo)
-        {
-            EmitRoutedMembers(graph, topo);
-        }
-
         public override void Route(RoutedGraph g, Topology topo, RouterContext ctx)
         {
             var ends = Ports.Take(2).ToArray();
@@ -514,7 +350,7 @@ namespace NTRExport.TopologyModel
                     Dn = Dn,
                     Material = Material,
                     DnSuffix = Variant.DnSuffix,
-                    Flow = flowMain,                    
+                    FlowRole = flowMain,                    
                     LTG = LTGMain(Source),
                 }
             );
@@ -530,19 +366,12 @@ namespace NTRExport.TopologyModel
                         Dn = Dn,
                         Material = Material,
                         DnSuffix = Variant.DnSuffix,
-                        Flow = FlowRole.Supply,
+                        FlowRole = FlowRole.Supply,
                         LTG = LTGMain(Source),
                     }
                 );
             }
         }
-
-    }
-
-    internal sealed class Bueror : ElbowFormstykke
-    {
-        public Bueror(Handle source, PipelineElementType kind)
-            : base(source, PipelineElementType.Buerør) { }
 
         protected override void ConfigureAllowedKinds(HashSet<PipelineElementType> allowed)
         {
@@ -588,7 +417,7 @@ namespace NTRExport.TopologyModel
                     B = new Point3d(aLegEnd.X, aLegEnd.Y, 0.0),
                     Dn = Dn,
                     DnSuffix = Variant.DnSuffix,
-                    Flow = FlowRole.Return,
+                    FlowRole = FlowRole.Return,
                 }
             );
             g.Members.Add(
@@ -599,7 +428,7 @@ namespace NTRExport.TopologyModel
                     T = new Point3d(t.X, t.Y, 0.0),
                     Dn = Dn,
                     DnSuffix = Variant.DnSuffix,
-                    Flow = FlowRole.Return,
+                    FlowRole = FlowRole.Return,
                 }
             );
             g.Members.Add(
@@ -609,7 +438,7 @@ namespace NTRExport.TopologyModel
                     B = new Point3d(b.X, b.Y, 0.0),
                     Dn = Dn,
                     DnSuffix = Variant.DnSuffix,
-                    Flow = FlowRole.Return,
+                    FlowRole = FlowRole.Return,
                 }
             );
         }
@@ -660,7 +489,7 @@ namespace NTRExport.TopologyModel
                     Dn = DnM,
                     Material = Material,
                     DnSuffix = Variant.DnSuffix,
-                    Flow = Variant.IsTwin
+                    FlowRole = Variant.IsTwin
                         ? FlowRole.Return
                         : (Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return),
                     LTG = LTGMain(Source),
@@ -677,7 +506,7 @@ namespace NTRExport.TopologyModel
                         Dn = DnM,
                         Material = Material,
                         DnSuffix = Variant.DnSuffix,
-                        Flow = FlowRole.Supply,
+                        FlowRole = FlowRole.Supply,
                         LTG = LTGMain(Source),
                     }
                 );
@@ -760,7 +589,7 @@ namespace NTRExport.TopologyModel
                         Dn = DnB,
                         Material = Material,
                         DnSuffix = Variant.DnSuffix,
-                        Flow = Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return,
+                        FlowRole = Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return,
                         LTG = LTGBranch(Source),
                     }
                 );
@@ -775,7 +604,7 @@ namespace NTRExport.TopologyModel
                         Dn = DnB,
                         Material = Material,
                         DnSuffix = Variant.DnSuffix,
-                        Flow = Variant.IsTwin
+                        FlowRole = Variant.IsTwin
                             ? FlowRole.Return
                             : (Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return),                        
                         LTG = LTGMain(Source),
@@ -791,7 +620,7 @@ namespace NTRExport.TopologyModel
                             Dn = DnB,
                             Material = Material,
                             DnSuffix = Variant.DnSuffix,
-                            Flow = FlowRole.Supply,
+                            FlowRole = FlowRole.Supply,
                             LTG = LTGMain(Source),
                         });
                 }
@@ -877,7 +706,7 @@ namespace NTRExport.TopologyModel
                             Dn = DnB,
                             Material = Material,
                             DnSuffix = Variant.DnSuffix,
-                            Flow = flowRole,
+                            FlowRole = flowRole,
                             LTG = LTGBranch(Source),
                         }
                     );
@@ -891,7 +720,7 @@ namespace NTRExport.TopologyModel
                             Dn = DnB,
                             Material = Material,
                             DnSuffix = Variant.DnSuffix,
-                            Flow = flowRole,
+                            FlowRole = flowRole,
                             LTG = LTGBranch(Source),
                         }
                     );
@@ -904,7 +733,7 @@ namespace NTRExport.TopologyModel
                             Dn = DnB,
                             Material = Material,
                             DnSuffix = Variant.DnSuffix,
-                            Flow = flowRole,
+                            FlowRole = flowRole,
                             LTG = LTGBranch(Source),
                         }
                     );
@@ -1055,7 +884,7 @@ namespace NTRExport.TopologyModel
                     Dn2 = dn2,
                     Dn1Suffix = s1,
                     Dn2Suffix = s2,
-                    Flow = FlowRole.Return,
+                    FlowRole = FlowRole.Return,
                 }
             );
         }
@@ -1105,7 +934,7 @@ namespace NTRExport.TopologyModel
                     Dn = dn,
                     DnSuffix = "s",
                     Material = Material,
-                    Flow = FlowRole.Unknown,
+                    FlowRole = FlowRole.Unknown,
                 }
             );
         }

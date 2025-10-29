@@ -379,7 +379,6 @@ namespace NTRExport
 
                 #region ------------- Topology ➜ Routed ➜ NTR skeleton -------------
                 var routed = new Routing.Router(topo).Route();
-                var ntr = new NtrMapper().MapRouted(routed);
                 #endregion
 
                 #region ------------- Emit NTR -------------
@@ -387,9 +386,6 @@ namespace NTRExport
                 // Build IS and DN records across all distinct pipe groups found in the drawing
                 var headerLines = new List<string>();
                 var headerDedup = new HashSet<string>();
-                
-                ntr.Members
-
                 var plines = ents.OfType<Polyline>().ToList();
                 var groups = plines.GroupBy(pl => (
                     sys: PipeScheduleV2.GetPipeSystem(pl),
@@ -413,7 +409,7 @@ namespace NTRExport
                     }
                 }
 
-                var ntrText = writer.Build(ntr, headerLines);
+                var ntrText = writer.Build(routed, headerLines);
 
                 // Save next to DWG                
                 File.WriteAllText(outNtrPath, ntrText, System.Text.Encoding.UTF8);
