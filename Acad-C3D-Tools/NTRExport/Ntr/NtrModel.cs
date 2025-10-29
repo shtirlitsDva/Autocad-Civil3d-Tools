@@ -8,6 +8,8 @@ using NTRExport.Enums;
 using NTRExport.NtrConfiguration;
 using NTRExport.SoilModel;
 
+using System.Windows.Media.Animation;
+
 namespace NTRExport.Ntr
 {
     internal static class NtrFormat
@@ -16,11 +18,11 @@ namespace NTRExport.Ntr
         public const double DefaultSoilCoverM = 0.6;      // SOIL_H
         public const double CushionThkM = 0.08;           // SOIL_CUSH_THK
 
-        public static string Pt(Point2d p, double zMeters = 0.0)
+        public static string Pt(Point3d p)
         {
             var x = (p.X - NtrCoord.OffsetX) * MetersToMillimeters;
             var y = (p.Y - NtrCoord.OffsetY) * MetersToMillimeters;
-            var z = zMeters * MetersToMillimeters;
+            var z = p.Z * MetersToMillimeters;
             return $"'" + $"{x:0.#}, {y:0.#}, {z:0.#}" + "'";
         }
 
@@ -44,40 +46,14 @@ namespace NTRExport.Ntr
         public int Dn { get; set; } = 0;
         public string? Material { get; set; }
         public IReadOnlyList<Handle> Provenance { get; init; } = Array.Empty<Handle>();
-        public FlowRole Flow { get; set; } = FlowRole.Unknown;
-        public double ZOffsetMeters { get; set; } = 0.0;
+        public FlowRole Flow { get; set; } = FlowRole.Unknown;        
         public string DnSuffix { get; init; } = "s";
-        protected string GetPipelinename()
+        public string LTG { get; init; } = "STD";
+        public string Pipeline => LTG.IsNoE() ? "" : " LTG=" + LTG;
+        public string Last(ConfigurationData conf)
         {
-            var db = Autodesk.AutoCAD.ApplicationServices.Core.Application
-                .DocumentManager.MdiActiveDocument.Database;
-
-            Entity ent = Source.Go<Entity>(db);
-
-            var pipeline = PropertySetManager.ReadNonDefinedPropertySetString(
-                ent, "DriPipelineData", "BelongsToAlignment");
-
-            return pipeline;
-        }
-        public abstract IEnumerable<string> ToNtr(INtrSoilAdapter soil, ConfigurationData conf);
-    }
-
-    internal class NtrPipe : NtrMember
-    {
-        public NtrPipe(Handle source) : base(source)
-        {
-        }
-
-        public Point2d A { get; init; }
-        public Point2d B { get; init; }
-        public SoilProfile Soil { get; set; } = SoilProfile.Default;        
-        public double? ZA { get; set; }
-        public double? ZB { get; set; }
-        public double Length => A.GetDistanceTo(B);
-        public override IEnumerable<string> ToNtr(INtrSoilAdapter soil, ConfigurationData conf)
-        {
-            #region LAST
             string last = "";
+
             if (conf != null)
             {
                 var Last = Flow switch
@@ -92,26 +68,34 @@ namespace NTRExport.Ntr
                     last = " " + Last.EmitRecord();
                 }
             }
-            #endregion
+            return last;
+        }
+        public abstract IEnumerable<string> ToNtr(INtrSoilAdapter soil, ConfigurationData conf);
+    }
 
-            #region Pipeline
-            string pipeline = GetPipelinename();
-            if (pipeline.IsNotNoE()) pipeline = " " + "LTG=" + pipeline;
-            #endregion
+    internal class NtrPipe : NtrMember
+    {
+        public NtrPipe(Handle source) : base(source)
+        {
+        }
 
-            var z1 = ZA ?? ZOffsetMeters;
-            var z2 = ZB ?? ZOffsetMeters;
+        public Point3d A { get; init; }
+        public Point3d B { get; init; }
+        public SoilProfile Soil { get; set; } = SoilProfile.Default;        
+        public double Length => A.DistanceTo(B);
+        public override IEnumerable<string> ToNtr(INtrSoilAdapter soil, ConfigurationData conf)
+        {            
             yield return $"RO " +
-                $"P1={NtrFormat.Pt(A, z1)} " +
-                $"P2={NtrFormat.Pt(B, z2)} " +
+                $"P1={NtrFormat.Pt(A)} " +
+                $"P2={NtrFormat.Pt(B)} " +
                 $"DN=DN{Dn}.{DnSuffix}" +
                 (Material != null ? $" MAT={Material}" : "") +
-                last +
-                pipeline +
+                Last(conf) +
+                Pipeline +
                 NtrFormat.SoilTokens(Soil);
         }
 
-        public NtrPipe With(Point2d a, Point2d b, SoilProfile s) => new(Source)
+        public NtrPipe With(Point3d a, Point3d b, SoilProfile s) => new(Source)
         {
             A = a,
             B = b,
@@ -128,24 +112,20 @@ namespace NTRExport.Ntr
         {
         }
 
-        public Point2d A { get; init; }     // end 1
-        public Point2d B { get; init; }     // end 2
-        public Point2d T { get; init; }     // tangency/angle point
-        public SoilProfile Soil { get; set; } = new SoilProfile("Soil_C80", 0.08);
-        public double? ZA { get; set; }
-        public double? ZB { get; set; }
-        public double? ZT { get; set; }
+        public Point3d A { get; init; }     // end 1
+        public Point3d B { get; init; }     // end 2
+        public Point3d T { get; init; }     // tangency/angle point
+        public SoilProfile Soil { get; set; } = new SoilProfile("Soil_C80", 0.08);        
         public override IEnumerable<string> ToNtr(INtrSoilAdapter soil, ConfigurationData conf)
-        {
-            var z1 = ZA ?? ZOffsetMeters;
-            var z2 = ZB ?? ZOffsetMeters;
-            var zt = ZT ?? z1;
+        {            
             yield return $"BOG " +
-                $"P1={NtrFormat.Pt(A, z1)} " +
-                $"P2={NtrFormat.Pt(B, z2)} " +
-                $"PT={NtrFormat.Pt(T, zt)} " +
+                $"P1={NtrFormat.Pt(A)} " +
+                $"P2={NtrFormat.Pt(B)} " +
+                $"PT={NtrFormat.Pt(T)} " +
                 $"DN=DN{Dn}.{DnSuffix}" +
                 (Material != null ? $" MAT={Material}" : "") +
+                Last(conf) +
+                Pipeline +
                 NtrFormat.SoilTokens(null);
         }
     }
@@ -156,18 +136,26 @@ namespace NTRExport.Ntr
         {
         }
 
-        public Point2d Ph1 { get; init; }
-        public Point2d Ph2 { get; init; }
-        public Point2d Pa1 { get; init; }
-        public Point2d Pa2 { get; init; }
+        public Point3d Ph1 { get; init; }
+        public Point3d Ph2 { get; init; }
+        public Point3d Pa1 { get; init; }
+        public Point3d Pa2 { get; init; }
         public int DnBranch { get; init; } = 0;
         public string DnMainSuffix { get; init; } = "s";
         public string DnBranchSuffix { get; init; } = "s";
         public override IEnumerable<string> ToNtr(INtrSoilAdapter soil, ConfigurationData conf)
         {
-            yield return $"TEE PH1={NtrFormat.Pt(Ph1, ZOffsetMeters)} PH2={NtrFormat.Pt(Ph2, ZOffsetMeters)} PA1={NtrFormat.Pt(Pa1, ZOffsetMeters)} PA2={NtrFormat.Pt(Pa2, ZOffsetMeters)} " +
-                         $"DNH=DN{Dn}.{DnMainSuffix} DNA=DN{DnBranch}.{DnBranchSuffix}" + (Material != null ? $" MAT={Material}" : "") +
-                         NtrFormat.SoilTokens(null);
+            yield return
+                $"TEE PH1={NtrFormat.Pt(Ph1)} " +
+                $"PH2={NtrFormat.Pt(Ph2)} " +
+                $"PA1={NtrFormat.Pt(Pa1)} " +
+                $"PA2={NtrFormat.Pt(Pa2)} " +
+                $"DNH=DN{Dn}.{DnMainSuffix} " +
+                $"DNA=DN{DnBranch}.{DnBranchSuffix}" +
+                (Material != null ? $" MAT={Material}" : "") +
+                Last(conf) +
+                Pipeline +
+                NtrFormat.SoilTokens(null);
         }
     }
 
@@ -177,17 +165,24 @@ namespace NTRExport.Ntr
         {
         }
 
-        public Point2d P1 { get; init; }
-        public Point2d P2 { get; init; }
+        public Point3d P1 { get; init; }
+        public Point3d P2 { get; init; }
         public int Dn1 { get; init; }
         public int Dn2 { get; init; }
         public string Dn1Suffix { get; init; } = "s";
         public string Dn2Suffix { get; init; } = "s";
         public override IEnumerable<string> ToNtr(INtrSoilAdapter soil, ConfigurationData conf)
         {
-            yield return $"RED P1={NtrFormat.Pt(P1, ZOffsetMeters)} P2={NtrFormat.Pt(P2, ZOffsetMeters)} DN1=DN{Dn1}.{Dn1Suffix} DN2=DN{Dn2}.{Dn2Suffix}" +
-                         (Material != null ? $" MAT={Material}" : "") +
-                         NtrFormat.SoilTokens(null);
+            yield return 
+                $"RED " +
+                $"P1={NtrFormat.Pt(P1)} " +
+                $"P2={NtrFormat.Pt(P2)} " +
+                $"DN1=DN{Dn1}.{Dn1Suffix} " +
+                $"DN2=DN{Dn2}.{Dn2Suffix}" +
+                (Material != null ? $" MAT={Material}" : "") +
+                Last(conf) +
+                Pipeline +
+                NtrFormat.SoilTokens(null);
         }
     }
 
@@ -197,18 +192,26 @@ namespace NTRExport.Ntr
         {
         }
 
-        public Point2d P1 { get; init; }
-        public Point2d P2 { get; init; }
-        public Point2d Pm { get; init; }
+        public Point3d P1 { get; init; }
+        public Point3d P2 { get; init; }
+        public Point3d Pm { get; init; }
         public int Dn1 { get; init; }
         public int Dn2 { get; init; }
         public string Dn1Suffix { get; init; } = "s";
         public string Dn2Suffix { get; init; } = "s";
         public override IEnumerable<string> ToNtr(INtrSoilAdapter soil, ConfigurationData conf)
         {
-            yield return $"ARM P1={NtrFormat.Pt(P1, ZOffsetMeters)} P2={NtrFormat.Pt(P2, ZOffsetMeters)} PM={NtrFormat.Pt(Pm, ZOffsetMeters)} DN1=DN{Dn1}.{Dn1Suffix} DN2=DN{Dn2}.{Dn2Suffix}" +
-                         (Material != null ? $" MAT={Material}" : "") +
-                         NtrFormat.SoilTokens(null);
+            yield return 
+                $"ARM " +
+                $"P1={NtrFormat.Pt(P1)} " +
+                $"P2={NtrFormat.Pt(P2)} " +
+                $"PM={NtrFormat.Pt(Pm)} " +
+                $"DN1=DN{Dn1}.{Dn1Suffix} " +
+                $"DN2=DN{Dn2}.{Dn2Suffix}" +
+                (Material != null ? $" MAT={Material}" : "") +
+                Last(conf) +
+                Pipeline +
+                NtrFormat.SoilTokens(null);
         }
     }
 

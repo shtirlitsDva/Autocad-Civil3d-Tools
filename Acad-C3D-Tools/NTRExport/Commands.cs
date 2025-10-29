@@ -383,10 +383,13 @@ namespace NTRExport
                 #endregion
 
                 #region ------------- Emit NTR -------------
-                var writer = new NtrWriter(new Rohr2SoilAdapter());
+                var writer = new NtrWriter(new Rohr2SoilAdapter(), conf);
                 // Build IS and DN records across all distinct pipe groups found in the drawing
                 var headerLines = new List<string>();
                 var headerDedup = new HashSet<string>();
+                
+                ntr.Members
+
                 var plines = ents.OfType<Polyline>().ToList();
                 var groups = plines.GroupBy(pl => (
                     sys: PipeScheduleV2.GetPipeSystem(pl),
@@ -410,7 +413,7 @@ namespace NTRExport
                     }
                 }
 
-                var ntrText = writer.Build(ntr, headerLines, conf);
+                var ntrText = writer.Build(ntr, headerLines);
 
                 // Save next to DWG                
                 File.WriteAllText(outNtrPath, ntrText, System.Text.Encoding.UTF8);

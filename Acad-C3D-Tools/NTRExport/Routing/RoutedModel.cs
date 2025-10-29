@@ -1,21 +1,21 @@
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 
+using NTRExport.Enums;
 using NTRExport.SoilModel;
 
 namespace NTRExport.Routing
 {
-    internal enum RoutedFlow { Unknown, Supply, Return }
-
     internal abstract class RoutedMember
     {
         protected RoutedMember(Handle source) { Source = source; }
         public Handle Source { get; }
         public int Dn { get; set; }
         public string? Material { get; set; }
-        public RoutedFlow Flow { get; set; } = RoutedFlow.Unknown;
+        public FlowRole FlowRole { get; set; } = FlowRole.Unknown;
         public double ZOffsetMeters { get; set; } = 0.0;
         public string DnSuffix { get; set; } = "s";
+        public string LTG { get; init; } = "STD";
     }
 
     internal sealed class RoutedStraight : RoutedMember
@@ -23,9 +23,7 @@ namespace NTRExport.Routing
         public RoutedStraight(Handle src) : base(src) { }
         public Point3d A { get; set; }
         public Point3d B { get; set; }
-        public SoilProfile Soil { get; set; } = SoilProfile.Default;
-        public double? ZA { get; set; }
-        public double? ZB { get; set; }
+        public SoilProfile Soil { get; set; } = SoilProfile.Default;        
     }
 
     internal sealed class RoutedBend : RoutedMember
@@ -34,10 +32,6 @@ namespace NTRExport.Routing
         public Point3d A { get; set; }
         public Point3d B { get; set; }
         public Point3d T { get; set; }
-        // Optional distinct Z values per bend point; when null, ZOffsetMeters is used for all
-        public double? Z1 { get; set; }
-        public double? Z2 { get; set; }
-        public double? Zt { get; set; }
     }
 
     internal sealed class RoutedGraph

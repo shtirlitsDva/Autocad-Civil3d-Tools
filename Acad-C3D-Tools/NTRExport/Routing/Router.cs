@@ -1,6 +1,3 @@
-using Autodesk.AutoCAD.DatabaseServices;
-using Autodesk.AutoCAD.Geometry;
-
 using NTRExport.TopologyModel;
 
 namespace NTRExport.Routing
@@ -8,7 +5,7 @@ namespace NTRExport.Routing
     internal sealed class Router
     {
         private readonly Topology _topo;
-        
+
         public Router(Topology topo)
         {
             _topo = topo;
@@ -37,6 +34,3 @@ namespace NTRExport.Routing
         public bool IsSkipped(TPipe p) => _skip.Contains(p);
     }
 }
-
-
-

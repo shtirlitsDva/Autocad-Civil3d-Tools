@@ -2896,6 +2896,7 @@ namespace IntersectUtilities.UtilsCommon
 
         public static Point3d MidPoint(this Point3d p1, Point3d p2) =>
             new Point3d((p1.X + p2.X) / 2, (p1.Y + p2.Y) / 2, (p1.Z + p2.Z) / 2);
+        public static Point3d Z(this Point3d p, double z) => new Point3d(p.X, p.Y, z);
 
         /// <summary>
         /// 2D key for use in dictionaries for faster points lookup.

@@ -15,7 +15,7 @@ using System.Windows.Forms;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
-using Application = Autodesk.AutoCAD.ApplicationServices.Application;
+using Application = Autodesk.AutoCAD.ApplicationServices.Core.Application;
 
 namespace IntersectUtilities.PlanDetailing.LineTypes
 {

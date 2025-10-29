@@ -48,7 +48,13 @@ namespace NTRExport.Ntr
                 if (!_isTwin)
                 {
                     var isodickeS = Math.Max(0.0, (kod - da) / 2.0);
-                    yield return $"DN NAME=DN{dn}.{suffix} DA={da:0.###} S={s:0.###} ISOTYP={isName} ISODICKE={isodickeS:0.###} NORM='{Norm}'";
+                    yield return 
+                        $"DN " +
+                        $"NAME=DN{dn}.{suffix} " +
+                        $"DA={da:0.###} " +
+                        $"S={s:0.###} " +
+                        $"ISOTYP={isName} " +
+                        $"ISODICKE={isodickeS:0.###} NORM='{Norm}'";
                 }
                 else
                 {
