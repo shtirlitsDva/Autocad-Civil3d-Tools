@@ -18,8 +18,10 @@ namespace NTRExport.Routing
         { Source = source; Emitter = elementBase; }
         public Handle Source { get; }
         public ElementBase Emitter { get; } 
-        public int Dn { get; set; }
+        public int DN { get; set; }
         public string? Material { get; set; }
+        public string Norm { get; init; } = "";
+        protected string NormField => string.IsNullOrEmpty(Norm) ? string.Empty : $" NORM=\'{Norm}\'";
         public FlowRole FlowRole { get; set; } = FlowRole.Unknown;
         public double ZOffsetMeters { get; set; } = 0.0;
         public string DnSuffix { get; set; } = "s";
@@ -27,6 +29,18 @@ namespace NTRExport.Routing
         public PipeSystemEnum System => Emitter.System;
         public PipeTypeEnum Type => Emitter.Type;
         public PipeSeriesEnum Series => Emitter.Series;
+
+        protected string FormatDnSuffix(string baseSuffix)
+        {
+            var seriesSuffix = Series switch
+            {
+                PipeSeriesEnum.S1 => "s1",
+                PipeSeriesEnum.S2 => "s2",
+                PipeSeriesEnum.S3 => "s3",
+                _ => string.Empty
+            };
+            return baseSuffix + seriesSuffix;
+        }
 
         public abstract IEnumerable<string> ToNtr(INtrSoilAdapter soil, ConfigurationData conf);
 
@@ -60,7 +74,7 @@ namespace NTRExport.Routing
             A = a,
             B = b,
             Soil = soil,
-            Dn = this.Dn,
+            DN = this.DN,
             Material = this.Material,
             FlowRole = this.FlowRole,
             ZOffsetMeters = this.ZOffsetMeters,
@@ -73,7 +87,7 @@ namespace NTRExport.Routing
             yield return "RO " +
                 $"P1={NtrFormat.Pt(A)} " +
                 $"P2={NtrFormat.Pt(B)} " +
-                $"DN=DN{Dn}.{DnSuffix}" +
+                $"DN=DN{DN}.{FormatDnSuffix(DnSuffix)}" +
                 (Material != null ? $" MAT={Material}" : string.Empty) +
                 Last(conf) +
                 PipelineToken +
@@ -86,7 +100,7 @@ namespace NTRExport.Routing
         public RoutedBend(Handle src, ElementBase elementBase) : base(src, elementBase) { }
         public Point3d A { get; set; }
         public Point3d B { get; set; }
-        public Point3d T { get; set; }
+        public Point3d T { get; set; }        
 
         public override IEnumerable<string> ToNtr(INtrSoilAdapter soil, ConfigurationData conf)
         {
@@ -94,9 +108,10 @@ namespace NTRExport.Routing
                 $"P1={NtrFormat.Pt(A)} " +
                 $"P2={NtrFormat.Pt(B)} " +
                 $"PT={NtrFormat.Pt(T)} " +
-                $"DN=DN{Dn}.{DnSuffix}" +
+                $"DN=DN{DN}.{FormatDnSuffix(DnSuffix)}" +
                 (Material != null ? $" MAT={Material}" : string.Empty) +
                 Last(conf) +
+                NormField +
                 PipelineToken +
                 NtrFormat.SoilTokens(null);
         }
@@ -115,17 +130,18 @@ namespace NTRExport.Routing
         public int Dn1 { get; set; }
         public int Dn2 { get; set; }
         public string Dn1Suffix { get; set; } = "s";
-        public string Dn2Suffix { get; set; } = "s";
+        public string Dn2Suffix { get; set; } = "s";        
 
         public override IEnumerable<string> ToNtr(INtrSoilAdapter soil, ConfigurationData conf)
         {
             yield return "RED " +
                 $"P1={NtrFormat.Pt(P1)} " +
                 $"P2={NtrFormat.Pt(P2)} " +
-                $"DN1=DN{Dn1}.{Dn1Suffix} " +
-                $"DN2=DN{Dn2}.{Dn2Suffix}" +
+                $"DN1=DN{Dn1}.{FormatDnSuffix(Dn1Suffix)} " +
+                $"DN2=DN{Dn2}.{FormatDnSuffix(Dn2Suffix)}" +
                 (Material != null ? $" MAT={Material}" : string.Empty) +
                 Last(conf) +
+                NormField +
                 PipelineToken +
                 NtrFormat.SoilTokens(null);
         }
@@ -149,10 +165,11 @@ namespace NTRExport.Routing
                 $"PH2={NtrFormat.Pt(Ph2)} " +
                 $"PA1={NtrFormat.Pt(Pa1)} " +
                 $"PA2={NtrFormat.Pt(Pa2)} " +
-                $"DNH=DN{Dn}.{DnMainSuffix} " +
-                $"DNA=DN{DnBranch}.{DnBranchSuffix}" +
+                $"DNH=DN{DN}.{FormatDnSuffix(DnMainSuffix)} " +
+                $"DNA=DN{DnBranch}.{FormatDnSuffix(DnBranchSuffix)}" +
                 (Material != null ? $" MAT={Material}" : string.Empty) +
                 Last(conf) +
+                NormField +
                 PipelineToken +
                 NtrFormat.SoilTokens(null);
         }
@@ -175,8 +192,8 @@ namespace NTRExport.Routing
                 $"P1={NtrFormat.Pt(P1)} " +
                 $"P2={NtrFormat.Pt(P2)} " +
                 $"PM={NtrFormat.Pt(Pm)} " +
-                $"DN1=DN{Dn1}.{Dn1Suffix} " +
-                $"DN2=DN{Dn2}.{Dn2Suffix}" +
+                $"DN1=DN{Dn1}.{FormatDnSuffix(Dn1Suffix)} " +
+                $"DN2=DN{Dn2}.{FormatDnSuffix(Dn2Suffix)}" +
                 (Material != null ? $" MAT={Material}" : string.Empty) +
                 Last(conf) +
                 PipelineToken +

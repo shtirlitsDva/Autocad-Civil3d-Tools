@@ -21,14 +21,25 @@ namespace NTRExport.Ntr
         }        
 
         // Builds IS and DN lines with naming: DN{dn}.{x} (x = s for bonded, t for twin) and ISOTYP=FJV{dn}
+        // Series suffix added: DN{dn}.{s/t}s{1/2/3} for S1/S2/S3, DN{dn}.{s/t} for Undefined
         public IEnumerable<string> BuildRecords(IEnumerable<int> dns)
         {
             var emittedIs = new HashSet<int>();
+            var seriesSuffix = _series switch
+            {
+                PipeSeriesEnum.S1 => "s1",
+                PipeSeriesEnum.S2 => "s2",
+                PipeSeriesEnum.S3 => "s3",
+                _ => string.Empty
+            };
+            
             foreach (var dn in dns.Distinct().OrderBy(x => x))
             {
                 // IS type per DN
                 var suffix = _type == PipeTypeEnum.Enkelt ? "s" : "t";
                 var isName = $"FJV{dn}.{suffix}";
+                var dnName = $"DN{dn}.{suffix}{seriesSuffix}";
+                
                 if (emittedIs.Add(dn))
                 {
                     // Defaults per example
@@ -50,7 +61,7 @@ namespace NTRExport.Ntr
                     var isodickeS = Math.Max(0.0, (kod - da) / 2.0);
                     yield return 
                         $"DN " +
-                        $"NAME=DN{dn}.{suffix} " +
+                        $"NAME={dnName} " +
                         $"DA={da:0.###} " +
                         $"S={s:0.###} " +
                         $"ISOTYP={isName} " +
@@ -62,7 +73,7 @@ namespace NTRExport.Ntr
                     var cSingle = cTwin / 2.0;
                     var odSingle = cSingle / Math.PI;
                     var isodickeT = Math.Max(0.0, (odSingle - da) / 2.0);
-                    yield return $"DN NAME=DN{dn}.{suffix} DA={da:0.###} S={s:0.###} ISOTYP={isName} ISODICKE={isodickeT:0.###} NORM='{Norm}'";
+                    yield return $"DN NAME={dnName} DA={da:0.###} S={s:0.###} ISOTYP={isName} ISODICKE={isodickeT:0.###} NORM='{Norm}'";
                 }
             }
         }        

@@ -5,6 +5,7 @@ using NTRExport.Enums;
 using NTRExport.Ntr;
 using NTRExport.NtrConfiguration;
 using NTRExport.SoilModel;
+using IntersectUtilities.UtilsCommon.Enums;
 
 namespace NTRExport.Routing
 {
@@ -27,11 +28,19 @@ namespace NTRExport.Routing
             var soilRef = soil.RefToken(straight.Soil);
             if (!string.IsNullOrWhiteSpace(soilRef)) soilTokens += $" {soilRef}";
 
+            var seriesSuffix = straight.Series switch
+            {
+                PipeSeriesEnum.S1 => "s1",
+                PipeSeriesEnum.S2 => "s2",
+                PipeSeriesEnum.S3 => "s3",
+                _ => string.Empty
+            };
+
             yield return
                 "RO " +
                 $"P1={NtrFormat.Pt(straight.A)} " +
                 $"P2={NtrFormat.Pt(straight.B)} " +
-                $"DN=DN{straight.Dn}.{straight.DnSuffix}" +
+                $"DN=DN{straight.DN}.{straight.DnSuffix}{seriesSuffix}" +
                 FormatMaterial(straight.Material) +
                 LastToken(conf, straight.FlowRole) +
                 straight.PipelineToken() +
@@ -40,12 +49,20 @@ namespace NTRExport.Routing
 
         private static IEnumerable<string> ToNtrInternal(this RoutedBend bend, ConfigurationData conf)
         {
+            var seriesSuffix = bend.Series switch
+            {
+                PipeSeriesEnum.S1 => "s1",
+                PipeSeriesEnum.S2 => "s2",
+                PipeSeriesEnum.S3 => "s3",
+                _ => string.Empty
+            };
+
             yield return
                 "BOG " +
                 $"P1={NtrFormat.Pt(bend.A)} " +
                 $"P2={NtrFormat.Pt(bend.B)} " +
                 $"PT={NtrFormat.Pt(bend.T)} " +
-                $"DN=DN{bend.Dn}.{bend.DnSuffix}" +
+                $"DN=DN{bend.DN}.{bend.DnSuffix}{seriesSuffix}" +
                 FormatMaterial(bend.Material) +
                 LastToken(conf, bend.FlowRole) +
                 bend.PipelineToken() +
@@ -54,12 +71,20 @@ namespace NTRExport.Routing
 
         private static IEnumerable<string> ToNtrInternal(this RoutedReducer reducer, ConfigurationData conf)
         {
+            var seriesSuffix = reducer.Series switch
+            {
+                PipeSeriesEnum.S1 => "s1",
+                PipeSeriesEnum.S2 => "s2",
+                PipeSeriesEnum.S3 => "s3",
+                _ => string.Empty
+            };
+
             yield return
                 "RED " +
                 $"P1={NtrFormat.Pt(reducer.P1)} " +
                 $"P2={NtrFormat.Pt(reducer.P2)} " +
-                $"DN1=DN{reducer.Dn1}.{reducer.Dn1Suffix} " +
-                $"DN2=DN{reducer.Dn2}.{reducer.Dn2Suffix}" +
+                $"DN1=DN{reducer.Dn1}.{reducer.Dn1Suffix}{seriesSuffix} " +
+                $"DN2=DN{reducer.Dn2}.{reducer.Dn2Suffix}{seriesSuffix}" +
                 FormatMaterial(reducer.Material) +
                 LastToken(conf, reducer.FlowRole) +
                 reducer.PipelineToken() +
@@ -68,14 +93,22 @@ namespace NTRExport.Routing
 
         private static IEnumerable<string> ToNtrInternal(this RoutedTee tee, ConfigurationData conf)
         {
+            var seriesSuffix = tee.Series switch
+            {
+                PipeSeriesEnum.S1 => "s1",
+                PipeSeriesEnum.S2 => "s2",
+                PipeSeriesEnum.S3 => "s3",
+                _ => string.Empty
+            };
+
             yield return
                 "TEE " +
                 $"PH1={NtrFormat.Pt(tee.Ph1)} " +
                 $"PH2={NtrFormat.Pt(tee.Ph2)} " +
                 $"PA1={NtrFormat.Pt(tee.Pa1)} " +
                 $"PA2={NtrFormat.Pt(tee.Pa2)} " +
-                $"DNH=DN{tee.Dn}.{tee.DnMainSuffix} " +
-                $"DNA=DN{tee.DnBranch}.{tee.DnBranchSuffix}" +
+                $"DNH=DN{tee.DN}.{tee.DnMainSuffix}{seriesSuffix} " +
+                $"DNA=DN{tee.DnBranch}.{tee.DnBranchSuffix}{seriesSuffix}" +
                 FormatMaterial(tee.Material) +
                 LastToken(conf, tee.FlowRole) +
                 tee.PipelineToken() +
@@ -84,13 +117,21 @@ namespace NTRExport.Routing
 
         private static IEnumerable<string> ToNtrInternal(this RoutedValve instrument, ConfigurationData conf)
         {
+            var seriesSuffix = instrument.Series switch
+            {
+                PipeSeriesEnum.S1 => "s1",
+                PipeSeriesEnum.S2 => "s2",
+                PipeSeriesEnum.S3 => "s3",
+                _ => string.Empty
+            };
+
             yield return
                 "ARM " +
                 $"P1={NtrFormat.Pt(instrument.P1)} " +
                 $"P2={NtrFormat.Pt(instrument.P2)} " +
                 $"PM={NtrFormat.Pt(instrument.Pm)} " +
-                $"DN1=DN{instrument.Dn1}.{instrument.Dn1Suffix} " +
-                $"DN2=DN{instrument.Dn2}.{instrument.Dn2Suffix}" +
+                $"DN1=DN{instrument.Dn1}.{instrument.Dn1Suffix}{seriesSuffix} " +
+                $"DN2=DN{instrument.Dn2}.{instrument.Dn2Suffix}{seriesSuffix}" +
                 FormatMaterial(instrument.Material) +
                 LastToken(conf, instrument.FlowRole) +
                 instrument.PipelineToken() +

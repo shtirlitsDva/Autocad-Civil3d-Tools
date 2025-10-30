@@ -1,9 +1,6 @@
 ﻿using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 
-using System.Collections.Generic;
-using System.Linq;
-
 using IntersectUtilities;
 using IntersectUtilities.PipeScheduleV2;
 using IntersectUtilities.UtilsCommon;
@@ -91,7 +88,7 @@ namespace NTRExport.TopologyModel
             };
         }
 
-        public abstract int Dn { get; }
+        public abstract int DN { get; }
         public virtual string Material
         {
             get
@@ -128,7 +125,7 @@ namespace NTRExport.TopologyModel
     {
         public TPort A { get; }
         public TPort B { get; }
-        public override int Dn => PipeScheduleV2.GetPipeDN(_entity);
+        public override int DN => PipeScheduleV2.GetPipeDN(_entity);
 
         // Cushion spans along this pipe in meters (s0,s1) from A→B
         public List<(double s0, double s1)> CushionSpans { get; } = new();
@@ -154,7 +151,7 @@ namespace NTRExport.TopologyModel
         {
             var isTwin = Variant.IsTwin;
             var suffix = Variant.DnSuffix;
-            var (zUp, zLow) = ComputeTwinOffsets(System, Type, Dn);
+            var (zUp, zLow) = ComputeTwinOffsets(System, Type, DN);
             var flow = Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return;
             var ltg = LTGMain(Source);
 
@@ -187,7 +184,7 @@ namespace NTRExport.TopologyModel
                         {
                             A = aPos.Z(zUp),
                             B = bPos.Z(zUp),
-                            Dn = Dn,
+                            DN = DN,
                             Material = Material,
                             DnSuffix = suffix,
                             FlowRole = FlowRole.Return,
@@ -200,7 +197,7 @@ namespace NTRExport.TopologyModel
                         {
                             A = aPos.Z(zLow),
                             B = bPos.Z(zLow),
-                            Dn = Dn,
+                            DN = DN,
                             Material = Material,
                             DnSuffix = suffix,
                             FlowRole = FlowRole.Supply,
@@ -216,7 +213,7 @@ namespace NTRExport.TopologyModel
                         {
                             A = aPos,
                             B = bPos,
-                            Dn = Dn,
+                            DN = DN,
                             Material = Material,
                             DnSuffix = suffix,
                             FlowRole = flow,
@@ -282,7 +279,7 @@ namespace NTRExport.TopologyModel
 
         public PipelineElementType Kind { get; }
         public override IReadOnlyList<TPort> Ports => _ports;
-        public override int Dn => GetDn();
+        public override int DN => GetDn();
 
         private int GetDn()
         {
@@ -345,7 +342,7 @@ namespace NTRExport.TopologyModel
 
             var br = source.Go<BlockReference>(db);
             if (br == null)
-                throw new Exception($"Received {source} for ElbowFormstykke!");
+                throw new System.Exception($"Received {source} for ElbowFormstykke!");
 
             TangentPoint = br.Position;
         }
@@ -367,7 +364,7 @@ namespace NTRExport.TopologyModel
             var a = ends[0].Node.Pos;
             var b = ends[1].Node.Pos;
             var t = TangentPoint;
-            var (zUp, zLow) = ComputeTwinOffsets(System, Type, Dn);
+            var (zUp, zLow) = ComputeTwinOffsets(System, Type, DN);
 
             var flowMain = Variant.IsTwin
                 ? FlowRole.Return
@@ -379,10 +376,10 @@ namespace NTRExport.TopologyModel
                     A = a.Z(zUp),
                     B = b.Z(zUp),
                     T = t.Z(zUp),
-                    Dn = Dn,
+                    DN = DN,
                     Material = Material,
                     DnSuffix = Variant.DnSuffix,
-                    FlowRole = flowMain,                    
+                    FlowRole = flowMain,
                     LTG = LTGMain(Source),
                 }
             );
@@ -395,7 +392,7 @@ namespace NTRExport.TopologyModel
                         A = a.Z(zLow),
                         B = b.Z(zLow),
                         T = t.Z(zLow),
-                        Dn = Dn,
+                        DN = DN,
                         Material = Material,
                         DnSuffix = Variant.DnSuffix,
                         FlowRole = FlowRole.Supply,
@@ -411,18 +408,56 @@ namespace NTRExport.TopologyModel
     internal sealed class Bueror : ElbowFormstykke
     {
         public Bueror(Handle source, PipelineElementType kind)
-            : base(source, PipelineElementType.Buerør) { }
+            : base(source, CalculateTangentPoint(source), kind) { }
+
+        private static Point3d CalculateTangentPoint(Handle source)
+        {
+            var db = Autodesk.AutoCAD.ApplicationServices.Core.Application
+                .DocumentManager.MdiActiveDocument.Database;
+
+            var br = source.Go<BlockReference>(db);
+            if (br == null)
+                throw new System.Exception($"Received {source} for Buerør! Must be BlockReference!");
+
+            using var tx = db.TransactionManager.StartOpenCloseTransaction();
+            var btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
+
+            foreach (ObjectId id in btr)
+            {
+                if (!id.IsDerivedFrom<Arc>()) continue;
+
+                var arc = id.Go<Arc>(tx);
+
+                // Find tangent intersection using pure math (apply block transform)
+                var tangentPoint = GetTangentPoint(arc, br.BlockTransform);
+
+                if (tangentPoint != default)
+                {
+                    return tangentPoint;
+                }
+
+                break;
+            }
+
+            throw new System.Exception(
+                $"Buerør: Arc not found for buerør {source}!");
+        }
 
         protected override void ConfigureAllowedKinds(HashSet<PipelineElementType> allowed)
         {
             allowed.Clear();
             allowed.Add(PipelineElementType.Buerør);
         }
+
+        public override void Route(RoutedGraph g, Topology topo, RouterContext ctx)
+        {
+            base.Route(g, topo, ctx);
+        }
     }
 
-    internal sealed class PreinsulatedElbow : ElbowFormstykke
+    internal abstract class PreinsulatedElbowBase : ElbowFormstykke
     {
-        public PreinsulatedElbow(Handle source, PipelineElementType kind)
+        protected PreinsulatedElbowBase(Handle source, PipelineElementType kind)
             : base(source, kind) { }
 
         protected override void ConfigureAllowedKinds(HashSet<PipelineElementType> allowed)
@@ -433,55 +468,129 @@ namespace NTRExport.TopologyModel
             allowed.Add(PipelineElementType.PræisoleretBøjningVariabel);
         }
 
+        protected abstract int ThresholdDN { get; }
+
         public override void Route(RoutedGraph g, Topology topo, RouterContext ctx)
         {
             var ends = Ports.Take(2).ToArray();
-            if (ends.Length < 2)
-                return;
+            if (ends.Length < 2) return;
+
             var a = ends[0].Node.Pos;
             var b = ends[1].Node.Pos;
             var t = TangentPoint;
-            var leg = Routing.Geometry.GetBogRadius5D(Dn) / 1000.0;
-            var dir = new Vector2d(b.X - a.X, b.Y - a.Y);
-            var len = dir.Length;
-            if (len <= 1e-9)
-                return;
-            var uv = dir / len;
-            var aLegEnd = new Point2d(a.X + uv.X * leg, a.Y + uv.Y * leg);
-            var bLegStart = new Point2d(b.X - uv.X * leg, b.Y - uv.Y * leg);
+            var r = (DN <= ThresholdDN ? Geometry.GetBogRadius5D(DN) : Geometry.GetBogRadius3D(DN)) / 1000.0;
 
-            g.Members.Add(
-                new Routing.RoutedStraight(Source, this)
-                {
-                    A = new Point3d(a.X, a.Y, 0.0),
-                    B = new Point3d(aLegEnd.X, aLegEnd.Y, 0.0),
-                    Dn = Dn,
-                    DnSuffix = Variant.DnSuffix,
-                    FlowRole = FlowRole.Return,
-                }
-            );
-            g.Members.Add(
-                new Routing.RoutedBend(Source, this)
-                {
-                    A = new Point3d(aLegEnd.X, aLegEnd.Y, 0.0),
-                    B = new Point3d(bLegStart.X, bLegStart.Y, 0.0),
-                    T = new Point3d(t.X, t.Y, 0.0),
-                    Dn = Dn,
-                    DnSuffix = Variant.DnSuffix,
-                    FlowRole = FlowRole.Return,
-                }
-            );
-            g.Members.Add(
-                new Routing.RoutedStraight(Source, this)
-                {
-                    A = new Point3d(bLegStart.X, bLegStart.Y, 0.0),
-                    B = new Point3d(b.X, b.Y, 0.0),
-                    Dn = Dn,
-                    DnSuffix = Variant.DnSuffix,
-                    FlowRole = FlowRole.Return,
-                }
-            );
+            // Solve fillet points a' and b' for a radius r between lines (a↔t) and (b↔t)
+            Point2d a2 = a.To2d();
+            Point2d b2 = b.To2d();
+            Point2d t2 = t.To2d();
+
+            var va = a2 - t2; var vb = b2 - t2;
+            if (va.Length < 1e-9 || vb.Length < 1e-9) return;
+
+            var ua = va.GetNormal();
+            var ub = vb.GetNormal();
+            var dot = Math.Max(-1.0, Math.Min(1.0, ua.DotProduct(ub)));
+            var alpha = Math.Acos(dot);
+            var sinHalf = Math.Sin(alpha * 0.5);
+            var cosHalf = Math.Cos(alpha * 0.5);
+            if (sinHalf < 1e-9) return; // parallel/degenerate
+
+            var l = r * (cosHalf / sinHalf); // R * cot(alpha/2)
+
+            // Check feasibility: tangent points must lie between a↔t and b↔t
+            var lenAT = va.Length; var lenBT = vb.Length;
+            if (l > lenAT - 1e-9 || l > lenBT - 1e-9)
+            {
+                // radius too large for available leg length; clamp
+                l = Math.Max(0.0, Math.Min(lenAT, lenBT) * 0.5);
+            }
+
+            var aPrime2 = new Point2d(t2.X + ua.X * l, t2.Y + ua.Y * l);
+            var bPrime2 = new Point2d(t2.X + ub.X * l, t2.Y + ub.Y * l);
+
+            var (zUp, zLow) = ComputeTwinOffsets(System, Type, DN);
+            var mainFlow = Variant.IsTwin ? FlowRole.Return : (Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return);
+            var ltg = LTGMain(Source);
+
+            void EmitFor(double z, FlowRole flow)
+            {
+                var aPrime = aPrime2.To3d(z);
+                var bPrime = bPrime2.To3d(z);
+                var aZ = a.Z(z);
+                var bZ = b.Z(z);
+                var tZ = t.Z(z);
+
+                // a → a'
+                g.Members.Add(
+                    new Routing.RoutedStraight(Source, this)
+                    {
+                        A = aZ,
+                        B = aPrime,
+                        DN = DN,
+                        Material = Material,
+                        DnSuffix = Variant.DnSuffix,
+                        FlowRole = flow,
+                        LTG = ltg,
+                    }
+                );
+
+                // bend a' → b' with PT = t
+                g.Members.Add(
+                    new Routing.RoutedBend(Source, this)
+                    {
+                        A = aPrime,
+                        B = bPrime,
+                        T = tZ,
+                        DN = DN,
+                        Material = Material,
+                        DnSuffix = Variant.DnSuffix,
+                        FlowRole = flow,
+                        LTG = ltg,
+                        Norm = DN <= ThresholdDN ? "" : "EN 10253-2 - Type A"
+                    }
+                );
+
+                // b' → b
+                g.Members.Add(
+                    new Routing.RoutedStraight(Source, this)
+                    {
+                        A = bPrime,
+                        B = bZ,
+                        DN = DN,
+                        Material = Material,
+                        DnSuffix = Variant.DnSuffix,
+                        FlowRole = flow,
+                        LTG = ltg,
+                    }
+                );
+            }
+
+            // Emit main flow
+            EmitFor(Variant.IsTwin ? zUp : 0.0, mainFlow);
+
+            // Emit supply for twin
+            if (Variant.IsTwin)
+            {
+                EmitFor(zLow, FlowRole.Supply);
+            }
         }
+    }
+
+    internal sealed class PreinsulatedElbowAbove45deg : PreinsulatedElbowBase
+    {
+        public PreinsulatedElbowAbove45deg(Handle source, PipelineElementType kind)
+            : base(source, kind) { }
+
+        protected override int ThresholdDN => 400;
+    }
+
+    internal sealed class PreinsulatedElbowAtOrBelow45deg : PreinsulatedElbowBase
+    {
+        public PreinsulatedElbowAtOrBelow45deg(Handle source, PipelineElementType kind)
+            : base(source, kind) { }
+
+        protected override int ThresholdDN => 200;
     }
 
     internal abstract class TeeMainRun : TFitting
@@ -492,7 +601,7 @@ namespace NTRExport.TopologyModel
             OffsetMain = ComputeTwinOffsets(System, Type, DnM);
         }
 
-        public override int Dn => DnM;
+        public override int DN => DnM;
         protected int DnM =>
             _entity switch
             {
@@ -526,7 +635,7 @@ namespace NTRExport.TopologyModel
                 {
                     A = MainPort1.Node.Pos.Z(OffsetMain.zUp),
                     B = MainPort2.Node.Pos.Z(OffsetMain.zUp),
-                    Dn = DnM,
+                    DN = DnM,
                     Material = Material,
                     DnSuffix = Variant.DnSuffix,
                     FlowRole = Variant.IsTwin
@@ -542,8 +651,8 @@ namespace NTRExport.TopologyModel
                     new RoutedStraight(Source, this)
                     {
                         A = MainPort1.Node.Pos.Z(OffsetMain.zLow),
-                        B = MainPort2.Node.Pos.Z(OffsetMain.zLow),                        
-                        Dn = DnM,
+                        B = MainPort2.Node.Pos.Z(OffsetMain.zLow),
+                        DN = DnM,
                         Material = Material,
                         DnSuffix = Variant.DnSuffix,
                         FlowRole = FlowRole.Supply,
@@ -626,7 +735,7 @@ namespace NTRExport.TopologyModel
                     {
                         A = BranchPort.Node.Pos,
                         B = MidPoint.To3d(),
-                        Dn = DnB,
+                        DN = DnB,
                         Material = Material,
                         DnSuffix = Variant.DnSuffix,
                         FlowRole = Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return,
@@ -641,12 +750,12 @@ namespace NTRExport.TopologyModel
                     {
                         A = BranchPort.Node.Pos.Z(OffsetMain.zUp),
                         B = MidPoint.To3d().Z(OffsetMain.zUp),
-                        Dn = DnB,
+                        DN = DnB,
                         Material = Material,
                         DnSuffix = Variant.DnSuffix,
                         FlowRole = Variant.IsTwin
                             ? FlowRole.Return
-                            : (Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return),                        
+                            : (Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return),
                         LTG = LTGMain(Source),
                     });
 
@@ -657,7 +766,7 @@ namespace NTRExport.TopologyModel
                         {
                             A = BranchPort.Node.Pos.Z(OffsetMain.zLow),
                             B = MidPoint.To3d().Z(OffsetMain.zLow),
-                            Dn = DnB,
+                            DN = DnB,
                             Material = Material,
                             DnSuffix = Variant.DnSuffix,
                             FlowRole = FlowRole.Supply,
@@ -743,7 +852,7 @@ namespace NTRExport.TopologyModel
                         {
                             A = branchStartWorld,
                             B = branchTangentWorld,
-                            Dn = DnB,
+                            DN = DnB,
                             Material = Material,
                             DnSuffix = Variant.DnSuffix,
                             FlowRole = flowRole,
@@ -757,7 +866,7 @@ namespace NTRExport.TopologyModel
                             A = branchTangentWorld,
                             B = mainTangentWorld,
                             T = tangentIntersectionWorld,
-                            Dn = DnB,
+                            DN = DnB,
                             Material = Material,
                             DnSuffix = Variant.DnSuffix,
                             FlowRole = flowRole,
@@ -770,7 +879,7 @@ namespace NTRExport.TopologyModel
                         {
                             A = mainTangentWorld,
                             B = mainCentreWorld,
-                            Dn = DnB,
+                            DN = DnB,
                             Material = Material,
                             DnSuffix = Variant.DnSuffix,
                             FlowRole = flowRole,
@@ -881,7 +990,7 @@ namespace NTRExport.TopologyModel
                     P1 = new Point3d(p1.X, p1.Y, 0.0),
                     P2 = new Point3d(p2.X, p2.Y, 0.0),
                     Pm = new Point3d(pm.X, pm.Y, 0.0),
-                    Dn1 = dn,                    
+                    Dn1 = dn,
                     Dn1Suffix = "s",
                     Dn2Suffix = "s",
                     Material = Material,
@@ -970,7 +1079,7 @@ namespace NTRExport.TopologyModel
                 {
                     A = new Point3d(p1.X, p1.Y, 0.0),
                     B = new Point3d(p2.X, p2.Y, 0.0),
-                    Dn = dn,
+                    DN = dn,
                     DnSuffix = "s",
                     Material = Material,
                     FlowRole = FlowRole.Unknown,
@@ -1035,7 +1144,7 @@ namespace NTRExport.TopologyModel
                 {
                     if (pipe.A.Node == node || pipe.B.Node == node)
                     {
-                        dns.Add(pipe.Dn);
+                        dns.Add(pipe.DN);
                     }
                 }
             }
@@ -1051,7 +1160,7 @@ namespace NTRExport.TopologyModel
                 {
                     if (pipe.A.Node == node || pipe.B.Node == node)
                     {
-                        dns.Add(pipe.Dn);
+                        dns.Add(pipe.DN);
                     }
                 }
             }
@@ -1069,7 +1178,7 @@ namespace NTRExport.TopologyModel
                 {
                     if (pipe.A.Node == node || pipe.B.Node == node)
                     {
-                        dns.Add(pipe.Dn);
+                        dns.Add(pipe.DN);
                     }
                 }
             }

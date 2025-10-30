@@ -7,6 +7,8 @@ using IntersectUtilities.UtilsCommon.Enums;
 
 using NTRExport.Enums;
 
+using System.Globalization;
+
 using static IntersectUtilities.UtilsCommon.Utils;
 
 namespace NTRExport.TopologyModel
@@ -76,7 +78,7 @@ namespace NTRExport.TopologyModel
                         var b = NodeAt(s.EndPoint.To3d());
                         var elbow = new ElbowFormstykke(
                             pl.Handle,
-                            GetTangentPoint(arc),
+                            NTRExport.Utils.Utils.GetTangentPoint(arc),
                             PipelineElementType.Kedelrørsbøjning);
                         elbow.AddPort(new TPort(PortRole.Neutral, a, elbow));
                         elbow.AddPort(new TPort(PortRole.Neutral, b, elbow));
@@ -124,7 +126,7 @@ namespace NTRExport.TopologyModel
                 PipelineElementType.PræisoleretBøjning90gr
                 or PipelineElementType.PræisoleretBøjning45gr
                 or PipelineElementType.PræisoleretBøjningVariabel
-                    => new PreinsulatedElbow(fitting.Handle, kind),
+                    => DeterminePreinsulatedElbowAngle(fitting, kind),
 
                 PipelineElementType.Svejsetee
                 or PipelineElementType.PreskoblingTee
@@ -174,34 +176,18 @@ namespace NTRExport.TopologyModel
 
                 _ => new GenericFitting(fitting.Handle, kind)
             };
+
+            TFitting DeterminePreinsulatedElbowAngle(BlockReference fitting, PipelineElementType kind)
+            {
+                var angleDeg = Convert.ToDouble(
+                    fitting.ReadDynamicCsvProperty(DynamicProperty.Vinkel),
+                    CultureInfo.InvariantCulture);
+                if (angleDeg >= 46.0)
+                    return new PreinsulatedElbowAbove45deg(fitting.Handle, kind);
+                else
+                    return new PreinsulatedElbowAtOrBelow45deg(fitting.Handle, kind);
+            }
         }
 
-        private static Point3d GetTangentPoint(CircularArc2d arc)
-        {
-            var s = arc.StartPoint;
-            var e = arc.EndPoint;
-            var c = arc.Center;
-
-            var rs = s - c;
-            var re = e - c;
-
-            var ts = new Vector2d(-rs.Y, rs.X);
-            var te = new Vector2d(-re.Y, re.X);
-
-            var denom = ts.X * te.Y - ts.Y * te.X;
-
-            if (Math.Abs(denom) < 1e-9)
-            {
-                prdDbg($"Parallel tangents! {denom} {ts} {te}");
-                return default;
-            }
-
-            var es = e - s;
-            var l = (es.X * te.Y - es.Y * te.X) / denom;
-
-            var inter = s + ts.MultiplyBy(l);
-
-            return inter.To3d();
-        }        
     }
 }

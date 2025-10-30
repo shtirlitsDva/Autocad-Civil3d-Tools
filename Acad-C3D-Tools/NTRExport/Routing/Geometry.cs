@@ -61,6 +61,46 @@ namespace NTRExport.Routing
             { 1000, 2540 },
         };
 
+        internal static double GetBogRadius3D(int dn)
+        {
+            if (BogRadius3D.TryGetValue(dn, out double radius))
+            {
+                return radius;
+            }
+            else
+            {
+                throw new ArgumentException($"No BOG radius 3D defined for DN {dn}");
+            }
+        }
+
+        private static readonly Dictionary<int, double> BogRadius3D = new()
+        {
+            { 15, 28 },
+            { 20, 29 },
+            { 25, 38 },
+            { 32, 48 },
+            { 40, 57 },
+            { 50, 76 },
+            { 65, 95 },
+            { 80, 114 },
+            { 100, 152 },
+            { 125, 190 },
+            { 150, 229 },
+            { 200, 305 },
+            { 250, 381 },
+            { 300, 457 },
+            { 350, 533 },
+            { 400, 610 },
+            { 450, 686 },
+            { 500, 762 },
+            { 550, 1000 },
+            { 600, 914 },
+            { 700, 1067 },
+            { 800, 1219 },
+            { 900, 1372 },
+            { 1000, 1524 },
+        };
+
         internal static BranchFilletSolution? SolveBranchFillet(
             Point2d branchStart,
             Point2d branchEnd,

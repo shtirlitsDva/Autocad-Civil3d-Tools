@@ -391,7 +391,7 @@ namespace NTRExport
                 // Group routed members by System, normalized Type (Enkelt/Twin), Series, and Twin flag
                 var routedGroups = routed.Members.GroupBy(m => (
                     sys: m.System,
-                    typ: (m.Type == PipeTypeEnum.Twin ? PipeTypeEnum.Twin : PipeTypeEnum.Enkelt),
+                    typ: m.Type == PipeTypeEnum.Twin ? PipeTypeEnum.Twin : PipeTypeEnum.Enkelt,
                     ser: m.Series,
                     twin: m.Type == PipeTypeEnum.Twin
                 ));
@@ -409,14 +409,14 @@ namespace NTRExport
                                 if (red.Dn2 > 0) dnsInGroup.Add(red.Dn2);
                                 break;
                             case RoutedTee tee:
-                                if (tee.Dn > 0) dnsInGroup.Add(tee.Dn);
+                                if (tee.DN > 0) dnsInGroup.Add(tee.DN);
                                 if (tee.DnBranch > 0) dnsInGroup.Add(tee.DnBranch);
                                 break;
                             case RoutedValve valve:
                                 if (valve.Dn1 > 0) dnsInGroup.Add(valve.Dn1);
                                 break;
                             default:
-                                if (member.Dn > 0) dnsInGroup.Add(member.Dn);
+                                if (member.DN > 0) dnsInGroup.Add(member.DN);
                                 break;
                         }
                     }
