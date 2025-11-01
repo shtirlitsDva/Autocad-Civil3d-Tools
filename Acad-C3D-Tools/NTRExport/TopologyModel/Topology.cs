@@ -10,6 +10,8 @@ using NTRExport.Enums;
 using NTRExport.Routing;
 using NTRExport.SoilModel;
 
+using System.Net;
+
 using static IntersectUtilities.UtilsCommon.Utils;
 using static NTRExport.Utils.Utils;
 
@@ -947,8 +949,12 @@ namespace NTRExport.TopologyModel
 
     internal sealed class AfgreningsStuds : TFitting
     {
-        public AfgreningsStuds(Handle source)
-            : base(source, PipelineElementType.Afgreningsstuds) { }
+        public AfgreningsStuds(int parentDn, Handle source)
+            : base(source, PipelineElementType.Afgreningsstuds) 
+        { _parentDn = parentDn; }
+        private int _parentDn;
+        public TPort Main => Ports.First(x => x.Role == PortRole.Main);
+        public TPort Branch => Ports.First(x => x.Role == PortRole.Branch);
 
         protected override void ConfigureAllowedKinds(HashSet<PipelineElementType> allowed)
         {
@@ -958,7 +964,171 @@ namespace NTRExport.TopologyModel
 
         public override void Route(RoutedGraph g, Topology topo, RouterContext ctx)
         {
-            // Placeholder no-op
+            var offsetBranch = ComputeTwinOffsets(System, Type, DN);
+
+            if (!Variant.IsTwin)
+            {
+                g.Members.Add(
+                    new RoutedStraight(Source, this)
+                    {
+                        A = Main.Node.Pos,
+                        B = Branch.Node.Pos,
+                        DN = DN,
+                        Material = Material,
+                        DnSuffix = Variant.DnSuffix,
+                        FlowRole = Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return,
+                        LTG = LTGBranch(Source),
+                    }
+                );
+            }
+            else if (DN == DN)
+            {
+                //g.Members.Add(
+                //    new RoutedStraight(Source, this)
+                //    {
+                //        A = BranchPort.Node.Pos.Z(OffsetMain.zUp),
+                //        B = MidPoint.To3d().Z(OffsetMain.zUp),
+                //        DN = DnB,
+                //        Material = Material,
+                //        DnSuffix = Variant.DnSuffix,
+                //        FlowRole = Variant.IsTwin
+                //            ? FlowRole.Return
+                //            : (Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return),
+                //        LTG = LTGMain(Source),
+                //    });
+
+                //if (Variant.IsTwin)
+                //{
+                //    g.Members.Add(
+                //        new RoutedStraight(Source, this)
+                //        {
+                //            A = BranchPort.Node.Pos.Z(OffsetMain.zLow),
+                //            B = MidPoint.To3d().Z(OffsetMain.zLow),
+                //            DN = DnB,
+                //            Material = Material,
+                //            DnSuffix = Variant.DnSuffix,
+                //            FlowRole = FlowRole.Supply,
+                //            LTG = LTGMain(Source),
+                //        });
+                //}
+            }
+            else //Solve twin geometry with bends
+            {
+                ////Project system to 2D plane through branch port,
+                ////mid point and plane normal is main run
+                //var branchOrigin = BranchPort.Node.Pos.To2d();
+                //var toMid = MidPoint - branchOrigin;
+                //var branchDistance = toMid.Length;
+                //if (branchDistance < 1e-9)
+                //{
+                //    prdDbg($"LigeAfgrening.Route: branch and main coincide for {Source}.");
+                //    return;
+                //}
+
+                //var branchDirPlan = toMid.GetNormal();
+
+                //Point2d branchStartUp = new Point2d(0.0, offsetBranch.zUp);
+                //Point2d branchEndUp = new Point2d(branchDistance, offsetBranch.zUp);
+                //Point2d mainCentreUp = new Point2d(branchDistance, OffsetMain.zUp);
+
+                //Point2d branchStartLow = new Point2d(0.0, offsetBranch.zLow);
+                //Point2d branchEndLow = new Point2d(branchDistance, offsetBranch.zLow);
+                //Point2d mainCentreLow = new Point2d(branchDistance, OffsetMain.zLow);
+
+                //double mainStubLength = PipeScheduleV2.GetPipeOd(System, DnM) / 2000.0 + 0.01;
+                //double bendOd = Geometry.GetBogRadius5D(DnB) / 1000.0;
+
+                //var filletReturn = Geometry.SolveBranchFillet(
+                //    branchStartUp,
+                //    branchEndUp,
+                //    mainCentreUp,
+                //    bendOd,
+                //    mainStubLength
+                //);
+
+                //if (filletReturn is null)
+                //{
+                //    prdDbg($"LigeAfgrening.Route: unable to solve return branch fillet for {Source}.");
+                //    return;
+                //}
+
+                //var filletSupply = Geometry.SolveBranchFillet(
+                //    branchStartLow,
+                //    branchEndLow,
+                //    mainCentreLow,
+                //    bendOd,
+                //    mainStubLength
+                //);
+
+                //if (filletSupply is null)
+                //{
+                //    prdDbg($"LigeAfgrening.Route: unable to solve supply branch fillet for {Source}.");
+                //    return;
+                //}
+
+                //Point3d ToWorld(Point2d local)
+                //{
+                //    var plan = branchOrigin + branchDirPlan.MultiplyBy(local.X);
+                //    return new Point3d(plan.X, plan.Y, local.Y);
+                //}
+
+                //void EmitTwinBranch(
+                //    Geometry.BranchFilletSolution fillet,
+                //    Point2d branchStartLocal,
+                //    Point2d mainCentreLocal,
+                //    FlowRole flowRole
+                //)
+                //{
+                //    var branchStartWorld = ToWorld(branchStartLocal);
+                //    var branchTangentWorld = ToWorld(fillet.BranchTangent);
+                //    var mainTangentWorld = ToWorld(fillet.MainTangent);
+                //    var tangentIntersectionWorld = ToWorld(fillet.TangentIntersection);
+                //    var mainCentreWorld = ToWorld(mainCentreLocal);
+
+                //    g.Members.Add(
+                //        new RoutedStraight(Source, this)
+                //        {
+                //            A = branchStartWorld,
+                //            B = branchTangentWorld,
+                //            DN = DnB,
+                //            Material = Material,
+                //            DnSuffix = Variant.DnSuffix,
+                //            FlowRole = flowRole,
+                //            LTG = LTGBranch(Source),
+                //        }
+                //    );
+
+                //    g.Members.Add(
+                //        new RoutedBend(Source, this)
+                //        {
+                //            A = branchTangentWorld,
+                //            B = mainTangentWorld,
+                //            T = tangentIntersectionWorld,
+                //            DN = DnB,
+                //            Material = Material,
+                //            DnSuffix = Variant.DnSuffix,
+                //            FlowRole = flowRole,
+                //            LTG = LTGBranch(Source),
+                //        }
+                //    );
+
+                //    g.Members.Add(
+                //        new RoutedStraight(Source, this)
+                //        {
+                //            A = mainTangentWorld,
+                //            B = mainCentreWorld,
+                //            DN = DnB,
+                //            Material = Material,
+                //            DnSuffix = Variant.DnSuffix,
+                //            FlowRole = flowRole,
+                //            LTG = LTGBranch(Source),
+                //        }
+                //    );
+                //}
+
+                //EmitTwinBranch(filletReturn.Value, branchStartUp, mainCentreUp, FlowRole.Return);
+                //EmitTwinBranch(filletSupply.Value, branchStartLow, mainCentreLow, FlowRole.Supply);
+            }
         }
     }
 
