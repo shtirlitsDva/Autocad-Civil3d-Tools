@@ -411,10 +411,7 @@ namespace NTRExport
                             case RoutedTee tee:
                                 if (tee.DN > 0) dnsInGroup.Add(tee.DN);
                                 if (tee.DnBranch > 0) dnsInGroup.Add(tee.DnBranch);
-                                break;
-                            case RoutedValve valve:
-                                if (valve.Dn1 > 0) dnsInGroup.Add(valve.Dn1);
-                                break;
+                                break;                            
                             default:
                                 if (member.DN > 0) dnsInGroup.Add(member.DN);
                                 break;
