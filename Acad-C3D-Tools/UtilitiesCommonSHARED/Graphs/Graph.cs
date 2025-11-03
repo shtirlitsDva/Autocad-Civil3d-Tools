@@ -162,7 +162,7 @@ namespace IntersectUtilities.UtilsCommon.Graphs
                 var extra = clusterAttrsSelector?.Invoke(cluster.Key);
                 if (!string.IsNullOrWhiteSpace(extra))
                 {
-                    foreach (var line in extra.Split(new[] { '\\n' }, StringSplitOptions.RemoveEmptyEntries))
+                    foreach (var line in extra.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries))
                     {
                         nodes.AppendLine(line.EndsWith(";") ? line : line + ";");
                     }
