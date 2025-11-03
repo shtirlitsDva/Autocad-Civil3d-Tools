@@ -10,7 +10,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text;
 using IntersectUtilities.GraphWriteV2;
+using IntersectUtilities.UtilsCommon.Graphs;
 
 namespace IntersectUtilities
 {
@@ -46,40 +48,64 @@ namespace IntersectUtilities
 
                 // Build spanning forest
                 var builder = new GraphBuilderV2(localDb, komponenter);
-                var components = builder.BuildForest(allEnts);
+                var graphs = builder.BuildGraphs(allEnts);
 
                 // Attribute selectors
-                Func<NodeContext, string?> clusterSelector = nc => nc.Alignment;
-                Func<NodeContext, string?> nodeAttrSelector = nc => $"URL=\"ahk://ACCOMSelectByHandle/{nc.Handle}\"";
+                Func<GraphEntity, string?> clusterSelector = n => n.Alignment;
+                Func<GraphEntity, string?> nodeAttrSelector = n =>
+                $"URL=\"ahk://ACCOMSelectByHandle/{n.OwnerHandle}\"";
 
                 // Cluster styling: red; entrypoint cluster thicker
-                Func<ComponentTree, string, string?> clusterAttrsSelector =
+                Func<Graph<GraphEntity>, string, string?> clusterAttrsSelector =
                     (comp, key) =>
                     {
-                        if (string.Equals(key, comp.RootAlignment, StringComparison.Ordinal))
+                        if (string.Equals(key, comp.Root.Value.Alignment, StringComparison.Ordinal))
                             return "color=red;\npenwidth=2.5;";
                         return "color=red;";
                     };
 
-                // Edge QA
-                Func<GraphWriteV2.ComponentTree, GraphWriteV2.NodeContext, GraphWriteV2.NodeContext, string?> edgeAttrSelector =
-                    (comp, a, b) =>
-                    {
-                        var k = (a.Handle, b.Handle);
-                        if (!comp.EdgeEndTypes.TryGetValue(k, out var ends)) return null;
-                        return GraphWriteV2.EdgeQaAttributeProvider.GetAttributes(a.Owner, ends.fromEnd, b.Owner, ends.toEnd, komponenter);
-                    };
+                // Edge QA (derive end types from connectivity on GraphEntity)
+                string EdgeAttrsSelector(Node<GraphEntity> a, Node<GraphEntity> b)
+                {
+                    var con = a.Value.Cons.FirstOrDefault(c => c.ConHandle == b.Value.OwnerHandle);
+                    var attr = con == null
+                        ? null
+                        : GraphWriteV2.EdgeQaAttributeProvider.GetAttributes(
+                            a.Value.Owner, con.OwnEndType,
+                            b.Value.Owner, con.ConEndType,
+                            komponenter);
+                    return attr ?? string.Empty;
+                }
 
                 // Export DOT file
                 string dotPath = @"C:\Temp\MyGraph.dot";
-                GraphWriteV2.DotExporterV2.Export(
-                    components,
-                    clusterSelector,
-                    nodeAttrSelector,
-                    clusterAttrsSelector,
-                    edgeAttrSelector,
-                    dotPath,
-                    includeHeader: true);
+                var sbAll = new StringBuilder();
+                sbAll.AppendLine("digraph G {");
+
+                int idx = 0;
+                foreach (var g in graphs)
+                {
+                    idx++;
+                    sbAll.AppendLine($"subgraph G_{idx} {{");
+                    sbAll.AppendLine("node [shape=record];");
+
+                    // Nodes with clusters and attributes
+                    sbAll.Append(g.NodesToDot(
+                        clusterSelector,
+                        nodeAttrSelector,
+                        key => clusterAttrsSelector(g, key)));
+
+                    // Edges with QA attributes
+                    sbAll.Append(g.EdgesToDot(EdgeAttrsSelector));
+
+                    sbAll.AppendLine("}");
+                }
+
+                sbAll.AppendLine("}");
+
+                var dir = Path.GetDirectoryName(dotPath);
+                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir!);
+                File.WriteAllText(dotPath, sbAll.ToString());
 
                 // Run Graphviz (PDF)
                 var cmd = new Process();
@@ -104,7 +130,7 @@ namespace IntersectUtilities
 <html lang=""da"">
 <head>
     <meta charset=""UTF-8"">
-    <title>Rørsystem</title>
+    <title>RÃ¸rsystem</title>
     <style>
         body {{
             background-color: #121212;
@@ -136,6 +162,32 @@ namespace IntersectUtilities
                     };
                     Process.Start(psi);
                 }
+            }
+            catch (DebugEntityException dbex)
+            {
+                prdDbg(dbex);
+
+                tx.Abort();
+
+                using var dtx = localDb.TransactionManager.StartTransaction();
+                foreach (var e in dbex.DebugEntities)
+                {
+                    switch (e)
+                    {
+                        case Polyline pl:
+                            DebugHelper.CreateDebugLine(
+                                pl.GetPointAtDist(pl.Length / 2), ColorByName("red"));
+                            break;
+                        case BlockReference br:
+                            DebugHelper.CreateDebugLine(
+                                br.Position, ColorByName("red"));
+                            break;
+                        default:
+                            break;
+                    }
+                }
+                dtx.Commit();
+                return;
             }
             catch (System.Exception ex)
             {
