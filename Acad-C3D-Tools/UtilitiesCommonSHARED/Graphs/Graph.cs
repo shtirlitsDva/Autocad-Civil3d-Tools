@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -27,12 +27,33 @@ namespace IntersectUtilities.UtilsCommon.Graphs
             GatherEdges(Root, edges);
             return edges.ToString();
         }
+        public string EdgesToDot(Func<Node<T>, Node<T>, string?>? edgeAttrSelector)
+        {
+            var edges = new StringBuilder();
+            GatherEdgesWithAttributes(Root, edges, edgeAttrSelector);
+            return edges.ToString();
+        }
         private void GatherEdges(Node<T> node, StringBuilder edges)
         {
             foreach (var child in node.Children)
             {
                 edges.AppendLine($"\"{_nameSelector(node.Value)}\" -> \"{_nameSelector(child.Value)}\"");
                 GatherEdges(child, edges);  // Recursive call to gather edges of children
+            }
+        }
+        private void GatherEdgesWithAttributes(
+            Node<T> node,
+            StringBuilder edges,
+            Func<Node<T>, Node<T>, string?>? edgeAttrSelector)
+        {
+            foreach (var child in node.Children)
+            {
+                var attr = edgeAttrSelector?.Invoke(node, child);
+                if (!string.IsNullOrWhiteSpace(attr))
+                    edges.AppendLine($"\"{_nameSelector(node.Value)}\" -> \"{_nameSelector(child.Value)}\" {attr}");
+                else
+                    edges.AppendLine($"\"{_nameSelector(node.Value)}\" -> \"{_nameSelector(child.Value)}\"");
+                GatherEdgesWithAttributes(child, edges, edgeAttrSelector);
             }
         }
         public string NodesToDot(Func<T, string?>? clusterSelector = null)
@@ -90,10 +111,85 @@ namespace IntersectUtilities.UtilsCommon.Graphs
             return nodes.ToString();
         }
 
+        public string NodesToDot(
+            Func<T, string?>? clusterSelector,
+            Func<T, string?>? nodeAttrSelector,
+            Func<string, string?>? clusterAttrsSelector)
+        {
+            var nodes = new StringBuilder();
+            var allNodes = Dfs().ToList();
+
+            if (clusterSelector is null)
+            {
+                foreach (var node in allNodes)
+                {
+                    AppendNode(nodes, node, nodeAttrSelector);
+                }
+                return nodes.ToString();
+            }
+
+            var clusterMap = new Dictionary<string, List<Node<T>>>(StringComparer.Ordinal);
+            var unclustered = new List<Node<T>>();
+
+            foreach (var node in allNodes)
+            {
+                var clusterKey = clusterSelector(node.Value);
+                if (string.IsNullOrWhiteSpace(clusterKey))
+                {
+                    unclustered.Add(node);
+                    continue;
+                }
+
+                if (!clusterMap.TryGetValue(clusterKey, out var list))
+                {
+                    list = new List<Node<T>>();
+                    clusterMap.Add(clusterKey, list);
+                }
+
+                list.Add(node);
+            }
+
+            foreach (var node in unclustered)
+            {
+                AppendNode(nodes, node, nodeAttrSelector);
+            }
+
+            foreach (var cluster in clusterMap.OrderBy(x => x.Key, StringComparer.Ordinal))
+            {
+                var clusterId = SanitizeClusterId(cluster.Key);
+                nodes.AppendLine($"subgraph cluster_{clusterId} {{");
+                nodes.AppendLine($"label=\"{EscapeForLabel(cluster.Key)}\";");
+                var extra = clusterAttrsSelector?.Invoke(cluster.Key);
+                if (!string.IsNullOrWhiteSpace(extra))
+                {
+                    foreach (var line in extra.Split(new[] { '\\n' }, StringSplitOptions.RemoveEmptyEntries))
+                    {
+                        nodes.AppendLine(line.EndsWith(";") ? line : line + ";");
+                    }
+                }
+                foreach (var node in cluster.Value)
+                {
+                    AppendNode(nodes, node, nodeAttrSelector);
+                }
+                nodes.AppendLine("}");
+            }
+
+            return nodes.ToString();
+        }
+
         private void AppendNode(StringBuilder nodes, Node<T> node)
         {
             var color = node.Parent == null ? " color = red" : string.Empty;
             nodes.AppendLine($"\"{_nameSelector(node.Value)}\" [label={_labelSelector(node.Value)}{color}]");
+        }
+        private void AppendNode(StringBuilder nodes, Node<T> node, Func<T, string?>? nodeAttrSelector)
+        {
+            var color = node.Parent == null ? " color = red" : string.Empty;
+            var extra = nodeAttrSelector?.Invoke(node.Value);
+            if (!string.IsNullOrWhiteSpace(extra))
+                nodes.AppendLine($"\"{_nameSelector(node.Value)}\" [label={_labelSelector(node.Value)}{color} {extra}]");
+            else
+                nodes.AppendLine($"\"{_nameSelector(node.Value)}\" [label={_labelSelector(node.Value)}{color}]");
         }
 
         private static string SanitizeClusterId(string value)
