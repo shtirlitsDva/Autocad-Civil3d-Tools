@@ -24,13 +24,45 @@ namespace IntersectUtilities.UtilsCommon.Graphs
         public string EdgesToDot()
         {
             var edges = new StringBuilder();
-            GatherEdges(Root, edges);
+            if (Root == null) return string.Empty;
+
+            var q = new Queue<Node<T>>();
+            q.Enqueue(Root);
+
+            while (q.Count > 0)
+            {
+                var node = q.Dequeue();
+                foreach (var child in node.Children)
+                {
+                    edges.AppendLine($"\"{_nameSelector(node.Value)}\" -> \"{_nameSelector(child.Value)}\"");
+                    q.Enqueue(child);
+                }
+            }
+
             return edges.ToString();
         }
         public string EdgesToDot(Func<Node<T>, Node<T>, string?>? edgeAttrSelector)
         {
             var edges = new StringBuilder();
-            GatherEdgesWithAttributes(Root, edges, edgeAttrSelector);
+            if (Root == null) return string.Empty;
+
+            var q = new Queue<Node<T>>();
+            q.Enqueue(Root);
+
+            while (q.Count > 0)
+            {
+                var node = q.Dequeue();
+                foreach (var child in node.Children)
+                {
+                    var attr = edgeAttrSelector?.Invoke(node, child);
+                    if (!string.IsNullOrWhiteSpace(attr))
+                        edges.AppendLine($"\"{_nameSelector(node.Value)}\" -> \"{_nameSelector(child.Value)}\" {attr}");
+                    else
+                        edges.AppendLine($"\"{_nameSelector(node.Value)}\" -> \"{_nameSelector(child.Value)}\"");
+                    q.Enqueue(child);
+                }
+            }
+
             return edges.ToString();
         }
         private void GatherEdges(Node<T> node, StringBuilder edges)
@@ -98,7 +130,7 @@ namespace IntersectUtilities.UtilsCommon.Graphs
 
             foreach (var cluster in clusterMap.OrderBy(x => x.Key, StringComparer.Ordinal))
             {
-                var clusterId = SanitizeClusterId(cluster.Key);
+                var clusterId = cluster.Key;
                 nodes.AppendLine($"subgraph cluster_{clusterId} {{");
                 nodes.AppendLine($"label=\"{EscapeForLabel(cluster.Key)}\";");
                 foreach (var node in cluster.Value)
@@ -156,7 +188,7 @@ namespace IntersectUtilities.UtilsCommon.Graphs
 
             foreach (var cluster in clusterMap.OrderBy(x => x.Key, StringComparer.Ordinal))
             {
-                var clusterId = SanitizeClusterId(cluster.Key);
+                var clusterId = cluster.Key;
                 nodes.AppendLine($"subgraph cluster_{clusterId} {{");
                 nodes.AppendLine($"label=\"{EscapeForLabel(cluster.Key)}\";");
                 var extra = clusterAttrsSelector?.Invoke(cluster.Key);
@@ -190,17 +222,7 @@ namespace IntersectUtilities.UtilsCommon.Graphs
                 nodes.AppendLine($"\"{_nameSelector(node.Value)}\" [label={_labelSelector(node.Value)}{color} {extra}]");
             else
                 nodes.AppendLine($"\"{_nameSelector(node.Value)}\" [label={_labelSelector(node.Value)}{color}]");
-        }
-
-        private static string SanitizeClusterId(string value)
-        {
-            if (string.IsNullOrWhiteSpace(value)) return "ungrouped";
-            var sanitized = Regex.Replace(value, @"[^A-Za-z0-9_]+", "_");
-            sanitized = sanitized.Trim('_');
-            if (string.IsNullOrEmpty(sanitized)) sanitized = "cluster";
-            if (char.IsDigit(sanitized[0])) sanitized = "_" + sanitized;
-            return sanitized;
-        }
+        }        
 
         private static string EscapeForLabel(string value)
         {

@@ -13,12 +13,12 @@ namespace IntersectUtilities.GraphWriteV2
 {
     internal sealed class ComponentTree
     {
-        public Graph<NodeContext> Graph { get; }
+        public global::IntersectUtilities.UtilsCommon.Graphs.Graph<NodeContext> Graph { get; }
         public Dictionary<(Handle from, Handle to), (EndType fromEnd, EndType toEnd)> EdgeEndTypes { get; }
         public string RootAlignment { get; }
 
         public ComponentTree(
-            Graph<NodeContext> graph,
+            global::IntersectUtilities.UtilsCommon.Graphs.Graph<NodeContext> graph,
             Dictionary<(Handle from, Handle to), (EndType fromEnd, EndType toEnd)> edgeEndTypes,
             string rootAlignment)
         {
@@ -105,27 +105,30 @@ namespace IntersectUtilities.GraphWriteV2
             var result = new List<ComponentTree>();
             foreach (var comp in components)
             {
-                // Root selection: prefer leaf (deg==1 ignoring WeldOn) with max DN, else max DN
-                int DegreeIgnoringWeldOn(Handle h)
+                // Root selection (legacy semantics):
+                // - Structural leaf: degree == 1 when excluding StikAfgrening and WeldOn (by own end type)
+                // - Special case: nodes with only WeldOn connections but at least one WeldOn
+                // - Fallback: node with max DN in the component
+                int StructuralDegree(Handle h)
                 {
                     if (!adjacency.TryGetValue(h, out var lst)) return 0;
-                    return lst.Count(p => p.ownEnd != EndType.WeldOn);
+                    return lst.Count(p => comp.Contains(p.neighbor)
+                        && p.ownEnd != EndType.WeldOn
+                        && p.ownEnd != EndType.StikAfgrening);
+                }
+                bool HasOnlyWeldOnConnections(Handle h)
+                {
+                    if (!adjacency.TryGetValue(h, out var lst)) return false;
+                    int nonWeld = lst.Count(p => comp.Contains(p.neighbor) && p.ownEnd != EndType.WeldOn);
+                    int weld = lst.Count(p => comp.Contains(p.neighbor) && p.ownEnd == EndType.WeldOn);
+                    return nonWeld == 0 && weld > 0;
                 }
 
-                var candidates = comp.Where(h => DegreeIgnoringWeldOn(h) == 1);
-                Handle rootHandle;
-                if (candidates.Any())
-                {
-                    rootHandle = candidates
-                        .OrderByDescending(h => LargestDnOf(h, entities, graphEntities))
-                        .First();
-                }
-                else
-                {
-                    rootHandle = comp
-                        .OrderByDescending(h => LargestDnOf(h, entities, graphEntities))
-                        .First();
-                }
+                var candidates = comp.Where(h => StructuralDegree(h) == 1 || (StructuralDegree(h) == 0 && HasOnlyWeldOnConnections(h)));
+
+                Handle rootHandle = candidates.Any()
+                    ? candidates.OrderByDescending(h => LargestDnOf(h, entities, graphEntities)).First()
+                    : comp.OrderByDescending(h => LargestDnOf(h, entities, graphEntities)).First();
 
                 // BFS spanning tree construction
                 var handleToNode = new Dictionary<Handle, Node<NodeContext>>();
@@ -164,7 +167,7 @@ namespace IntersectUtilities.GraphWriteV2
                     // record-style, quoted
                     return $"\"{{{nc.Handle}|{nc.TypeLabel}}}|{nc.SystemLabel}\\n{nc.DnLabel}\"";
                 };
-                var graph = new Graph<NodeContext>(rootNode, nameSel, labelSel);
+                var graph = new global::IntersectUtilities.UtilsCommon.Graphs.Graph<NodeContext>(rootNode, nameSel, labelSel);
 
                 // Root alignment (cluster to emphasize)
                 var rootAlignment = rootContext.Alignment ?? string.Empty;
@@ -187,7 +190,7 @@ namespace IntersectUtilities.GraphWriteV2
             {
                 case Polyline pl:
                     {
-                        typeLabel = $"Rør L{pl.Length.ToString("0.##")}";
+                        typeLabel = $"RÃ¸r L{pl.Length.ToString("0.##")}";
                         var psys = PipeScheduleV2.PipeScheduleV2.GetPipeSystem(pl).ToString();
                         var ptype = PipeScheduleV2.PipeScheduleV2.GetPipeType(pl).ToString();
                         systemLabel = $"{psys} {ptype}";
@@ -198,7 +201,7 @@ namespace IntersectUtilities.GraphWriteV2
                     }
                 case BlockReference br:
                     {
-                        typeLabel = ComponentSchedule.ReadComponentType(br, _fjvTable);
+                        typeLabel = br.ReadDynamicCsvProperty(DynamicProperty.Type);
                         systemLabel = ComponentSchedule.ReadComponentSystem(br, _fjvTable);
                         var dn1 = ComponentSchedule.ReadComponentDN1(br, _fjvTable);
                         var dn2 = ComponentSchedule.ReadComponentDN2(br, _fjvTable);
