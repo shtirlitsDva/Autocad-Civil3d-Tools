@@ -17,8 +17,11 @@
 		<AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
 	</PropertyGroup>
 	<PropertyGroup>
+		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>		
+	</PropertyGroup>
+	<PropertyGroup>
 		<OutputType>Library</OutputType>
-		<RootNamespace>Net_Reload</RootNamespace>
+		<RootNamespace>NetReload</RootNamespace>
 		<AssemblyName>Net-Reload</AssemblyName>
 	</PropertyGroup>
 	<PropertyGroup Condition=" '$(Platform)' == 'x64' ">
