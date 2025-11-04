@@ -80,6 +80,7 @@ namespace IntersectUtilities.GraphWriteV2
                 // DFS stack carries the parent node to link
                 var stack = new Stack<(GraphEntity entity, Node<GraphEntity>? parent)>();
                 stack.Push((entry, null));
+                Graph<GraphEntity>? currentGraph = null;
 
                 while (stack.Count > 0)
                 {
@@ -112,7 +113,8 @@ namespace IntersectUtilities.GraphWriteV2
                         };
 
                         rootNode = currentNode;
-                        result.Add(new Graph<GraphEntity>(rootNode, nameSel, labelSel));
+                        currentGraph = new Graph<GraphEntity>(rootNode, nameSel, labelSel);
+                        result.Add(currentGraph);
                         isEntryPoint = false;
                     }
 
@@ -121,7 +123,18 @@ namespace IntersectUtilities.GraphWriteV2
                     {
                         if (!byHandle.TryGetValue(con.ConHandle, out var neighbor)) continue;
                         if (ReferenceEquals(neighbor, current)) continue;
-                        if (visited.Contains(neighbor)) continue;
+                        if (visited.Contains(neighbor))
+                        {
+                            // Record non-tree (cycle) edges: connect currentNode to an already-visited neighbor that isn't the parent
+                            if (currentGraph != null && handleToNode.TryGetValue(con.ConHandle, out var neighborNode))
+                            {
+                                if (!ReferenceEquals(neighborNode, currentNode.Parent))
+                                {
+                                    currentGraph.AddCycleEdge(currentNode, neighborNode);
+                                }
+                            }
+                            continue;
+                        }
                         stack.Push((neighbor, currentNode));
                     }
                 }

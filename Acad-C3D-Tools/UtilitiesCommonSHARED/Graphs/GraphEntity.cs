@@ -14,7 +14,21 @@ namespace IntersectUtilities.UtilsCommon.Graphs
         public Handle OwnerHandle { get; }
         public Con[] Cons { get; }
         private PSetDefs.DriGraph _driGraph = new();
-
+        public PipelineElementType ElementType
+        {
+            get
+            {
+                switch (Owner)
+                {
+                    case Polyline pl:
+                        return PipelineElementType.Pipe;
+                    case BlockReference br:
+                        return br.GetPipelineType();
+                    default:
+                        throw new NotImplementedException();
+                }
+            }
+        }
         private PropertySetManager _pplPsm;
         private PSetDefs.DriPipelineData _ppl = new();
         public GraphEntity(

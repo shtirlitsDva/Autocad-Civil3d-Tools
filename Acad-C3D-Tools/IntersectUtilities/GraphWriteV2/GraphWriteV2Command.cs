@@ -13,6 +13,7 @@ using System.Linq;
 using System.Text;
 using IntersectUtilities.GraphWriteV2;
 using IntersectUtilities.UtilsCommon.Graphs;
+using IntersectUtilities.GraphWriteV2.DotStyling;
 
 namespace IntersectUtilities
 {
@@ -64,18 +65,7 @@ namespace IntersectUtilities
                         return "color=red;";
                     };
 
-                // Edge QA (derive end types from connectivity on GraphEntity)
-                string EdgeAttrsSelector(Node<GraphEntity> a, Node<GraphEntity> b)
-                {
-                    var con = a.Value.Cons.FirstOrDefault(c => c.ConHandle == b.Value.OwnerHandle);
-                    var attr = con == null
-                        ? null
-                        : GraphWriteV2.EdgeQaAttributeProvider.GetAttributes(
-                            a.Value.Owner, con.OwnEndType,
-                            b.Value.Owner, con.ConEndType,
-                            komponenter);
-                    return attr ?? string.Empty;
-                }
+                // Edge QA using topology-aware analysis
 
                 // Export DOT file
                 string dotPath = @"C:\Temp\MyGraph.dot";
@@ -87,16 +77,32 @@ namespace IntersectUtilities
                 {
                     idx++;
                     sbAll.AppendLine($"subgraph G_{idx} {{");
-                    sbAll.AppendLine("node [shape=record];");
+                    // Global node defaults for HTML labels
+                    sbAll.AppendLine("node [shape=plaintext, fontname=\"monospace bold\", fontsize=13];");
 
                     // Nodes with clusters and attributes
+                    var styler = new UniformWidthHtmlStyler();
                     sbAll.Append(g.NodesToDot(
+                        styler,
                         clusterSelector,
-                        nodeAttrSelector,
                         key => clusterAttrsSelector(g, key)));
 
-                    // Edges with QA attributes
-                    sbAll.Append(g.EdgesToDot(EdgeAttrsSelector));
+                    // Pre-compute edge attributes per graph (directed parent->child)
+                    var edgeAttrs = EdgeQaAttributeProvider.BuildEdgeAttributes(g, komponenter);
+                    string EdgeAttrsSelectorV2(Node<GraphEntity> a, Node<GraphEntity> b)
+                    {
+                        var key = (a.Value.OwnerHandle.ToString(), b.Value.OwnerHandle.ToString());
+                        return edgeAttrs.TryGetValue(key, out var s) ? s : string.Empty;
+                    }
+                    // Edges with QA attributes (topology-aware)
+                    sbAll.Append(g.EdgesToDot(new UniformWidthHtmlStyler(), EdgeAttrsSelectorV2));
+                    // Also write cycle edges (non-tree) with dashed style and QA labels if any
+                    string CycleAttrsSelector(Node<GraphEntity> a, Node<GraphEntity> b)
+                    {
+                        var key = (a.Value.OwnerHandle.ToString(), b.Value.OwnerHandle.ToString());
+                        return edgeAttrs.TryGetValue(key, out var s) ? s : string.Empty;
+                    }
+                    sbAll.Append(g.ExtraEdgesToDot(CycleAttrsSelector));
 
                     sbAll.AppendLine("}");
                 }
