@@ -73,6 +73,73 @@ namespace IntersectUtilities
                 sbAll.AppendLine("digraph G {");
 
                 int idx = 0;
+                // Collect QA error records across all graphs for HTML report
+                var qaRecords = new List<(string Group, string Code, string Description, string A, string B)>();
+                var seenKeys = new HashSet<string>(StringComparer.Ordinal);
+
+                static string MapDescription(string code)
+                {
+                    switch (code)
+                    {
+                        case "T/E": return "Pipe type mismatch (T/E)";
+                        case "DN": return "DN mismatch";
+                        case "DN-RED": return "Reducer DN inconsistency";
+                        case "DN-TEE": return "Tee DN inconsistency";
+                        default: return code;
+                    }
+                }
+                static string ScaleSvg(string svg, double scale)
+                {
+                    if (string.IsNullOrEmpty(svg)) return svg;
+                    try
+                    {
+                        var doc = System.Xml.Linq.XDocument.Parse(svg);
+                        var ns = (System.Xml.Linq.XNamespace)"http://www.w3.org/2000/svg";
+                        var root = doc.Root;
+                        if (root == null) return svg;
+
+                        void ScaleDim(string name)
+                        {
+                            var a = root.Attribute(name);
+                            if (a == null) return;
+                            var s = a.Value;
+                            int i = 0;
+                            while (i < s.Length && (char.IsDigit(s[i]) || s[i] == '.')) i++;
+                            var num = s.Substring(0, i);
+                            var unit = s.Substring(i);
+                            if (double.TryParse(num, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v))
+                                a.Value = (v * scale).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + unit;
+                        }
+
+                        // Scale width/height if present
+                        ScaleDim("width");
+                        ScaleDim("height");
+
+                        // Wrap existing children in a scaling <g>
+                        var children = root.Elements().ToList();
+                        foreach (var c in children) c.Remove();
+                        var g = new System.Xml.Linq.XElement(ns + "g",
+                            new System.Xml.Linq.XAttribute("transform", $"scale({scale.ToString(System.Globalization.CultureInfo.InvariantCulture)})"));
+                        g.Add(children);
+                        root.Add(g);
+
+                        return doc.ToString(System.Xml.Linq.SaveOptions.DisableFormatting);
+                    }
+                    catch
+                    {
+                        return svg;
+                    }
+                }
+                void AddQaRecord(string code, string fromH, string toH)
+                {
+                    var group = string.Equals(code, "T/E", StringComparison.Ordinal) ? "T/E" : "DN";
+                    // de-duplicate by unordered pair and code+group
+                    var a = string.CompareOrdinal(fromH, toH) <= 0 ? fromH : toH;
+                    var b = string.CompareOrdinal(fromH, toH) <= 0 ? toH : fromH;
+                    var key = group + "|" + code + "|" + a + "|" + b;
+                    if (!seenKeys.Add(key)) return;
+                    qaRecords.Add((group, code, MapDescription(code), a, b));
+                }
                 foreach (var g in graphs)
                 {
                     idx++;
@@ -94,15 +161,37 @@ namespace IntersectUtilities
                         var key = (a.Value.OwnerHandle.ToString(), b.Value.OwnerHandle.ToString());
                         return edgeAttrs.TryGetValue(key, out var s) ? s : string.Empty;
                     }
+                    // Extract QA error codes for the HTML report
+                    foreach (var kv in edgeAttrs)
+                    {
+                        var attr = kv.Value;
+                        // Parse label content: [ label="...", color="red" ]
+                        int li = attr.IndexOf("label=\"", StringComparison.Ordinal);
+                        if (li >= 0)
+                        {
+                            li += 7;
+                            int lj = attr.IndexOf("\"", li, StringComparison.Ordinal);
+                            if (lj > li)
+                            {
+                                var label = attr.Substring(li, lj - li);
+                                foreach (var code in label.Split(','))
+                                {
+                                    var c = code.Trim();
+                                    if (c.Length == 0) continue;
+                                    AddQaRecord(c, kv.Key.fromHandle, kv.Key.toHandle);
+                                }
+                            }
+                        }
+                    }
                     // Edges with QA attributes (topology-aware)
-                    sbAll.Append(g.EdgesToDot(new UniformWidthHtmlStyler(), EdgeAttrsSelectorV2));
+                    sbAll.Append(g.EdgesToDot(styler, EdgeAttrsSelectorV2));
                     // Also write cycle edges (non-tree) with dashed style and QA labels if any
                     string CycleAttrsSelector(Node<GraphEntity> a, Node<GraphEntity> b)
                     {
                         var key = (a.Value.OwnerHandle.ToString(), b.Value.OwnerHandle.ToString());
                         return edgeAttrs.TryGetValue(key, out var s) ? s : string.Empty;
                     }
-                    sbAll.Append(g.ExtraEdgesToDot(CycleAttrsSelector));
+                    sbAll.Append(g.ExtraEdgesToDot(styler, CycleAttrsSelector));
 
                     sbAll.AppendLine("}");
                 }
@@ -131,6 +220,31 @@ namespace IntersectUtilities
 
                 // Build dark HTML wrapper
                 string svgContent = File.ReadAllText(@"C:\Temp\MyGraph.svg");
+                // Scale outer width/height and wrap content in a transform group
+                svgContent = ScaleSvg(svgContent, 0.5);
+                // Prepend QA report (simple tables with links) before the SVG
+                if (qaRecords.Count > 0)
+                {
+                    var reportSb = new StringBuilder();
+                    reportSb.AppendLine("<div id=\"qa-report\"><h2>QA Error Report</h2>");
+                    foreach (var grp in qaRecords
+                        .GroupBy(r => r.Group, StringComparer.Ordinal)
+                        .OrderBy(g => g.Key, StringComparer.Ordinal))
+                    {
+                        var title = grp.Key == "T/E" ? "Pipe Type mismatches" : "DN inconsistencies";
+                        reportSb.AppendLine($"<h3>{title} ({grp.Count()})</h3>");
+                        reportSb.AppendLine("<table><thead><tr><th>Description</th><th>Element A</th><th>Element B</th></tr></thead><tbody>");
+                        foreach (var r in grp.OrderBy(x => x.Code, StringComparer.Ordinal).ThenBy(x => x.A, StringComparer.Ordinal).ThenBy(x => x.B, StringComparer.Ordinal))
+                        {
+                            string aHref = $"ahk://ACCOMSelectByHandle/{r.A}";
+                            string bHref = $"ahk://ACCOMSelectByHandle/{r.B}";
+                            reportSb.AppendLine($"<tr><td>{System.Net.WebUtility.HtmlEncode(r.Description)}</td><td><a href=\"{aHref}\">{System.Net.WebUtility.HtmlEncode(r.A)}</a></td><td><a href=\"{bHref}\">{System.Net.WebUtility.HtmlEncode(r.B)}</a></td></tr>");
+                        }
+                        reportSb.AppendLine("</tbody></table>");
+                    }
+                    reportSb.AppendLine("</div>");
+                    svgContent = reportSb.ToString() + "\n" + svgContent;
+                }
                 string htmlContent = $@"
 <!DOCTYPE html>
 <html lang=""da"">

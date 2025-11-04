@@ -92,6 +92,18 @@ namespace IntersectUtilities.UtilsCommon.Graphs
             }
             return edges.ToString();
         }
+        public string ExtraEdgesToDot(IDotStyler<T> styler, Func<Node<T>, Node<T>, string?>? edgeAttrSelector)
+        {
+            var edges = new StringBuilder();
+            foreach (var (a, b) in _extraEdges)
+            {
+                var qa = edgeAttrSelector?.Invoke(a, b);
+                var style = styler.BuildEdgeAttrs(a.Value, b.Value);
+                var merged = MergeAttributes(null, null, qa, style);
+                edges.AppendLine($"\"{_nameSelector(a.Value)}\" -> \"{_nameSelector(b.Value)}\" {merged}");
+            }
+            return edges.ToString();
+        }
         private void GatherEdges(Node<T> node, StringBuilder edges)
         {
             foreach (var child in node.Children)
@@ -223,7 +235,7 @@ namespace IntersectUtilities.UtilsCommon.Graphs
             foreach (var cluster in clusterMap.OrderBy(x => x.Key, StringComparer.Ordinal))
             {
                 var clusterId = cluster.Key;
-                nodes.AppendLine($"subgraph cluster_{clusterId} {{");
+                nodes.AppendLine($"subgraph \"cluster_{clusterId}\" {{");
                 nodes.AppendLine($"label=\"{EscapeForLabel(cluster.Key)}\";");
                 var extra = clusterAttrsSelector?.Invoke(cluster.Key);
                 if (!string.IsNullOrWhiteSpace(extra))
@@ -287,7 +299,7 @@ namespace IntersectUtilities.UtilsCommon.Graphs
             foreach (var cluster in clusterMap.OrderBy(x => x.Key, StringComparer.Ordinal))
             {
                 var clusterId = cluster.Key;
-                nodes.AppendLine($"subgraph cluster_{clusterId} {{");
+                nodes.AppendLine($"subgraph \"cluster_{clusterId}\" {{");
                 nodes.AppendLine($"label=\"{EscapeForLabel(cluster.Key)}\";");
                 var extra = styler.BuildClusterAttrs(cluster.Key) ?? clusterAttrsSelector?.Invoke(cluster.Key);
                 if (!string.IsNullOrWhiteSpace(extra))
