@@ -598,6 +598,7 @@ namespace IntersectUtilities.UtilsCommon
                 { "Svejsning", PipelineElementType.Svejsning },
                 { "Y-Model", PipelineElementType.Y_Model },
                 { "$Buerør V{$Vinkel}° R{$R} L{$L}", PipelineElementType.Buerør },
+                { "Buerør V{$Vinkel}° R{$R} L{$L}", PipelineElementType.Buerør },
                 { "Stikafgrening", PipelineElementType.Stikafgrening },
                 { "Muffetee", PipelineElementType.Muffetee },
                 { "Preskobling tee", PipelineElementType.Muffetee },

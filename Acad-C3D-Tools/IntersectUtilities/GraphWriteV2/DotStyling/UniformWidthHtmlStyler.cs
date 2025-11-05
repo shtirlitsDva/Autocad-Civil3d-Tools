@@ -89,13 +89,13 @@ namespace IntersectUtilities.GraphWriteV2.DotStyling
         {
             // Make the entire node clickable via custom protocol
             var handle = value.OwnerHandle.ToString();
-            return $"URL=\"ahk://ACCOMSelectByHandle/{handle}\"";
+            return $"URL=\"ahk://ACCOMSelectByHandle/{handle}\", margin=\"0,0\"";
         }
 
         public string? BuildEdgeAttrs(GraphEntity from, GraphEntity to)
         {
-            // Neutral by default
-            return null;
+            // Thicker undirected edges without arrowheads, clipped to node borders
+            return "dir=none, penwidth=2.5, headclip=true, tailclip=true";
         }
 
         public string? BuildClusterAttrs(string key)
