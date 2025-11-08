@@ -7,109 +7,98 @@ namespace NTRExport.Elevation
     internal sealed class TraversalElevationProvider : IElevationProvider
     {
         private readonly Topology _topology;
-        // Map element -> node-pos (by reference) -> Z
-        private readonly Dictionary<ElementBase, Dictionary<TNode, double>> _elementNodeZ =
-            new(new ReferenceEqualityComparer<ElementBase>());
+        private readonly ElevationRegistry _registry = new();
+        private readonly Dictionary<Type, IElementElevationSolver> _solvers = new();
+        private readonly IElementElevationSolver _default = new DefaultElementElevationSolver();
 
         public TraversalElevationProvider(Topology topology)
         {
             _topology = topology;
+            RegisterSolvers();
             SolveFromRoot();
         }
 
         public double GetZ(ElementBase element, Point3d a, Point3d b, double t)
         {
-            // Try to resolve Z at endpoints via precomputed map, then interpolate
-            if (_elementNodeZ.TryGetValue(element, out var nodeZ))
+            if (_registry.TryGetEndpointZ(element, out var endpoints))
             {
-                var (na, nb) = GetEndpoints(element);
-                if (na != null && nb != null && nodeZ.TryGetValue(na, out var za) && nodeZ.TryGetValue(nb, out var zb))
+                var ports = element.Ports;
+                if (ports.Count >= 2 && endpoints.TryGetValue(ports[0], out var z0) && endpoints.TryGetValue(ports[1], out var z1))
                 {
-                    return za + t * (zb - za);
+                    return z0 + t * (z1 - z0);
                 }
             }
-            // Fallback: keep plan Z
-            var z0 = a.Z;
-            var z1 = b.Z;
-            return z0 + t * (z1 - z0);
+            // Fallback to geometry Z
+            var za = a.Z;
+            var zb = b.Z;
+            return za + t * (zb - za);
+        }
+
+        private void RegisterSolvers()
+        {
+            // Register element-specific solvers here (stubs for now).
+            // Example:
+            // _solvers[typeof(AfgreningMedSpring)] = new AfgreningMedSpringSolver();
+            // _solvers[typeof(PreinsulatedElbowAbove45deg)] = new VerticalElbowSolver();
+            // _solvers[typeof(PreinsulatedElbowAtOrBelow45deg)] = new VerticalElbowSolver();
+            // Plane elbows would also have a solver interpreting roll Near/Far.
         }
 
         private void SolveFromRoot()
         {
-            // Build adjacency: node -> (element, node)
-            var nodeAdj = new Dictionary<TNode, List<(ElementBase el, TNode node)>>(new ReferenceEqualityComparer<TNode>());
+            // Build adjacency by node to find neighbors
+            var nodeAdj = new Dictionary<TNode, List<(ElementBase el, TPort port)>>(new RefEq<TNode>());
             foreach (var el in _topology.Elements)
             {
                 foreach (var p in el.Ports)
                 {
                     if (!nodeAdj.TryGetValue(p.Node, out var list)) nodeAdj[p.Node] = list = new();
-                    list.Add((el, p.Node));
+                    list.Add((el, p));
                 }
             }
 
-            // Pick root: degree-1 supply pipe with largest DN (heuristic)
-            var root = PickRoot(_topology, nodeAdj, out ElementBase? rootElement, out TNode? rootNode);
-            if (root == null || rootElement == null || rootNode == null)
-                return;
+            var (rootEl, rootPort) = PickRoot(_topology, nodeAdj);
+            if (rootEl == null || rootPort == null) return;
 
-            var stack = new Stack<(ElementBase el, TNode entryNode, double entryZ)>();
-            stack.Push((rootElement, rootNode, 0.0));
+            var stack = new Stack<(ElementBase el, TPort entryPort, double entryZ)>();
+            stack.Push((rootEl, rootPort, 0.0));
 
-            var visited = new HashSet<(ElementBase el, TNode entry)>(new ElementNodePairComparer());
+            var visited = new HashSet<(ElementBase, TPort)>(new ElPortPairEq());
 
             while (stack.Count > 0)
             {
                 var (el, entry, entryZ) = stack.Pop();
                 if (!visited.Add((el, entry))) continue;
 
-                var exits = SolveElement(el, entry, entryZ);
-                foreach (var (exitNode, exitZ) in exits)
+                var solver = ResolveSolver(el);
+                var exits = solver.Solve(el, entry, entryZ, _registry);
+
+                // Continue from exits to connected neighbors
+                foreach (var (exitPort, exitZ) in exits)
                 {
-                    if (!nodeAdj.TryGetValue(exitNode, out var neighbors)) continue;
-                    foreach (var (nel, nnode) in neighbors)
+                    if (!nodeAdj.TryGetValue(exitPort.Node, out var neighbors)) continue;
+                    foreach (var (nel, nport) in neighbors)
                     {
                         if (ReferenceEquals(nel, el)) continue;
-                        stack.Push((nel, exitNode, exitZ));
+                        stack.Push((nel, nport, exitZ));
                     }
                 }
             }
         }
 
-        private List<(TNode exitNode, double exitZ)> SolveElement(ElementBase el, TNode entryNode, double entryZ)
+        private IElementElevationSolver ResolveSolver(ElementBase el)
         {
-            // Default: pass-through elevation to all ports; passives inherit Z
-            if (!_elementNodeZ.TryGetValue(el, out var nodeZ))
-            {
-                nodeZ = new Dictionary<TNode, double>(new ReferenceEqualityComparer<TNode>());
-                _elementNodeZ[el] = nodeZ;
-            }
-
-            nodeZ[entryNode] = entryZ;
-            var exits = new List<(TNode exitNode, double exitZ)>();
-
-            // Push the same Z to all connected ports by default
-            foreach (var p in el.Ports)
-            {
-                if (ReferenceEquals(p.Node, entryNode)) continue;
-                nodeZ[p.Node] = entryZ;
-                exits.Add((p.Node, entryZ));
-            }
-            return exits;
+            var t = el.GetType();
+            if (_solvers.TryGetValue(t, out var s)) return s;
+            return _default;
         }
 
-        private static (ElementBase? el, TNode? node) PickRoot(Topology topo,
-            Dictionary<TNode, List<(ElementBase el, TNode node)>> nodeAdj,
-            out ElementBase? rootElement, out TNode? rootNode)
+        private static (ElementBase? el, TPort? port) PickRoot(Topology topo, Dictionary<TNode, List<(ElementBase el, TPort port)>> nodeAdj)
         {
-            rootElement = null;
-            rootNode = null;
-
-            // Candidates: pipes with at least one leaf end (degree 1), prefer supply, largest DN
             ElementBase? bestEl = null;
-            TNode? bestNode = null;
+            TPort? bestPort = null;
             int bestDn = -1;
-            int bestScore = -1; // prefer supply
-
+            int bestScore = -1;
             foreach (var p in topo.Pipes)
             {
                 bool aLeaf = nodeAdj.TryGetValue(p.A.Node, out var la) && la.Count <= 1;
@@ -122,51 +111,33 @@ namespace NTRExport.Elevation
                     bestScore = score;
                     bestDn = dn;
                     bestEl = p;
-                    bestNode = aLeaf ? p.A.Node : p.B.Node;
+                    bestPort = aLeaf ? p.A : p.B;
                 }
             }
-
-            if (bestEl != null && bestNode != null)
-            {
-                rootElement = bestEl;
-                rootNode = bestNode;
-                return (bestEl, bestNode);
-            }
-
-            return (null, null);
+            return (bestEl, bestPort);
         }
 
-        private static (TNode? a, TNode? b) GetEndpoints(ElementBase el)
-        {
-            if (el is TPipe p) return (p.A.Node, p.B.Node);
-            // For fittings, return first two ports if present
-            var ends = el.Ports.Take(2).Select(pp => pp.Node).ToArray();
-            if (ends.Length == 2) return (ends[0], ends[1]);
-            return (null, null);
-        }
-
-        private sealed class ReferenceEqualityComparer<T> : IEqualityComparer<T>
-            where T : class
+        private sealed class RefEq<T> : IEqualityComparer<T> where T : class
         {
             public bool Equals(T? x, T? y) => ReferenceEquals(x, y);
             public int GetHashCode(T obj) => System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(obj);
         }
-
-        private sealed class ElementNodePairComparer : IEqualityComparer<(ElementBase el, TNode entry)>
+        private sealed class ElPortPairEq : IEqualityComparer<(ElementBase, TPort)>
         {
-            public bool Equals((ElementBase el, TNode entry) x, (ElementBase el, TNode entry) y) =>
-                ReferenceEquals(x.el, y.el) && ReferenceEquals(x.entry, y.entry);
-            public int GetHashCode((ElementBase el, TNode entry) obj)
+            public bool Equals((ElementBase, TPort) x, (ElementBase, TPort) y) =>
+                ReferenceEquals(x.Item1, y.Item1) && ReferenceEquals(x.Item2, y.Item2);
+            public int GetHashCode((ElementBase, TPort) obj)
             {
                 unchecked
                 {
-                    int h1 = System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(obj.el);
-                    int h2 = System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(obj.entry);
+                    int h1 = System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(obj.Item1);
+                    int h2 = System.Runtime.CompilerServices.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(obj.Item2);
                     return (h1 * 397) ^ h2;
                 }
             }
         }
     }
 }
+
 
 

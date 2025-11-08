@@ -1,92 +1,64 @@
-## Elevation Topology for NTR Export — Design Proposal
+## Elevation Topology for NTR Export — Design Proposal (Traversal-Only, Element-Centric)
 
 ### 1. Purpose
-- 1.1 Add a robust elevation (Z) solution layer on top of the existing 2D pipeline topology so exported NTR geometry reflects real-world slopes, vertical passes, and elevation steps.
-- 1.2 Keep the current DWG → Topology → Routing → NTR flow intact; insert elevation solving between topology build and routing.
+- 1.1 Add a robust elevation (Z) layer using traversal from a single anchored entry (supply) so exported NTR geometry reflects real-world slopes, vertical passes, and elevation steps.
+- 1.2 Keep DWG → Topology → Elevation (traversal) → Routing → NTR; elevation solving happens between topology and routing.
 
 ### 2. Scope (initial)
-- 2.1 Tree-like networks; loops may be flagged or handled with a solver in Phase 2.
-- 2.2 Node-based elevations for all `TNode`s; edge-based slope/ΔZ constraints applied across pipes/fittings.
-- 2.3 Support explicit “vertical 45°” segments (paired elbows, or annotated straight).
-- 2.4 Twin handling remains via existing Z-offset duplication; elevation applies to the centerline.
+- 2.1 Tree-like networks (loops detected and reported; later support).
+- 2.2 Elevation is not node-driven; it is resolved per element at ports and, where needed, per element internal intervals.
+- 2.3 Support explicit vertical elbows (Up/Down + angle) and spring tees (Up/Down) via element solvers; plain pipes/forged tees pass through Z.
+- 2.4 Twins/bonded still apply Z-offsets after centerline Z is known.
 
-### 3. High-Level Approach
-- 3.1 Represent each topology node `n ∈ Nodes` with a variable `Z(n)`.
-- 3.2 Represent constraints on edges `(u,v)` or nodes:
-  - 3.2.1 Keep-level: `Z(v) − Z(u) = 0`
-  - 3.2.2 Prescribed slope: `Z(v) − Z(u) = s · Luv` (s in m/m; Luv is plan length in meters)
-  - 3.2.3 Prescribed step: `Z(v) − Z(u) = ΔZ`
-  - 3.2.4 Vertical 45-section: `Z(v) − Z(u) = ± Luv` (slope = ±1.0 for 45°) or specific `ΔZ`
-  - 3.2.5 Optional min-cover/clearance constraints as inequalities (Phase 2)
-- 3.3 Solve Z before routing; routing and NTR emission use updated node Z.
+### 3. High-Level Approach (element-centric traversal)
+- 3.1 Start at a chosen entry element/port (largest-DN supply leaf), anchor entryZ = 0 (or known).
+- 3.2 Traverse connected elements via ports. For each step call `Solve(element, entryPort, entryZ)` in an element-specific solver.
+- 3.3 The solver writes resolved Z to the element’s ports (and internal intervals if needed) into an elevation registry, and returns exit ports + exitZ to continue traversal.
+- 3.4 Routing later queries a provider backed by the registry to obtain Z at endpoints (and internal points, if/when added).
 
 ### 4. Constraint Inputs (layered)
-- 4.1 Property set fields on CAD objects (preferred, non-invasive to UI):
-  - 4.1.1 On pipes (Polyline):
-    - 4.1.1.1 `ElevSlope` (double, m/m; positive = rising from start→end)
-    - 4.1.1.2 `ElevDeltaZ` (double, m)
-    - 4.1.1.3 `ElevKeepLevel` (bool)
-    - 4.1.1.4 `ElevZoneId` (string) for grouping sections
-  - 4.1.2 On fittings (BlockReference, elbows/tees/reducers):
-    - 4.1.2.1 `ElbowPlane` (enum: Horizontal | Vertical)
-    - 4.1.2.2 `VerticalPairId` (string) to pair elbows forming a vertical 45/“underpass”
-    - 4.1.2.3 `ElevDeltaZ` (double, optional)
-- 4.2 Optional CSV (fast batch control; friendly with Excel): each row defines a constraint for a node or edge by handle or pair id.
-- 4.3 Example CSV schema (UTF-8, header row required):
+- 4.1 Minimal annotations on fittings (blocks) that cause elevation change:
+  - 4.1.1 Vertical elbows: `Up/Down` + use block `Vinkel` (angle). Distinct block from plane elbows.
+  - 4.1.2 Plane elbows: `Roll` = “Near x” / “Far x” (degrees); “Near/Far” resolved from traversal entry direction.
+  - 4.1.3 Preinsulated tee with spring: `Up/Down` only; geometry is internal to class.
+- 4.2 Passive elements (pipes, forged tees) have no annotations; they inherit entryZ.
+- 4.3 Optional CSV for bulk overrides (same fields, referencing handles), lower priority than property sets.
+- 4.4 Defaults: if no annotations, pass-through (level) for element; later allow a configurable nominal slope if desired.
 
-```csv
-TargetType,TargetRefA,TargetRefB,Constraint,Value,Unit,Notes
-Node,NodeName=N001,,FixZ,12.300,m,Tie-in
-Edge,Handle=12AB,Handle=34CD,Slope,0.005,m/m,Longitudinal slope
-Edge,Handle=AA11,Handle=BB22,DeltaZ,-0.600,m,Drop to avoid crossing
-Edge,PairId=V123,,Vertical45Pair,,,
-```
+### 5. Core Components (implemented)
+- 5.1 `IElevationProvider` — routing queries Z via `GetZ(element, a, b, t)`.
+- 5.2 `ElevationRegistry` — stores resolved Z per element port (and later, internal intervals).
+- 5.3 `IElementElevationSolver` — per-element solver: `Solve(element, entryPort, entryZ, registry)` → exits.
+- 5.4 `DefaultElementElevationSolver` — pass-through Z to all other ports (pipes, forged tees).
+- 5.5 `TraversalElevationProvider` — orchestrates traversal:
+  - 5.5.1 Builds adjacency by ports (no public nodes are emitted in NTR; ports are internal glue only).
+  - 5.5.2 Picks root (largest-DN supply leaf), sets entryZ, runs DFS/BFS.
+  - 5.5.3 For each element, resolves Z via the appropriate solver and records results in the registry.
+  - 5.5.4 `GetZ(...)` reads registry; if both endpoints known, returns linear interpolation; otherwise falls back to geometry Z.
 
-- 4.4 Resolution priority (when multiple inputs present in the same segment):
-  - 4.4.1 Property-set on CAD
-  - 4.4.2 CSV
-  - 4.4.3 Heuristics (only as a last resort; Phase 2+)
-
-### 5. Solving Strategy
-
-#### 5.1 Phase 1: Rooted traversal (deterministic)
-- 5.1.1 Inputs: a root node (e.g., supply connection) with `FixZ` or default `Z=0`.
-- 5.1.2 Depth-first (or BFS) propagation:
-  - 5.1.2.1 Apply edge-local constraints in order of strength: FixZ at target node > DeltaZ > Slope > KeepLevel.
-  - 5.1.2.2 On conflicts (reaching a node with inconsistent Z), flag and stop; report path and conflicting constraints.
-- 5.1.3 Branch policy (default):
-  - 5.1.3.1 Inherit parent Z at the junction.
-  - 5.1.3.2 Default branch behavior: keep level unless annotated (configurable).
-
-- 5.1.4 Pros/Cons: simple, fast, works on trees; brittle with multiple anchors/loops.
-
-#### 5.2 Phase 2: Least-squares / QP (robust, optional)
-- 5.2.1 Build a sparse system over all `Z(n)`:
-  - 5.2.1.1 Hard equalities as high-weight rows (or exact constraints).
-  - 5.2.1.2 Soft constraints (preferences) with lower weights (e.g., smoothness, default-level).
-  - 5.2.1.3 Inequalities for min cover/clearance if enabled.
-- 5.2.2 Objective (examples):
-  - 5.2.2.1 Minimize sum of squared deviations from desired slopes/ΔZ.
-  - 5.2.2.2 Smoothing term to reduce slope variance along pipelines.
-- 5.2.3 Solve via standard LSQR/Cholesky (equalities) or QP (with inequalities) and produce diagnostics on infeasible sets.
+### 6. Solving Strategy (deterministic traversal)
+- 6.1 Inputs: root (element, port), entryZ = 0.
+- 6.2 For each element encountered:
+  - 6.2.1 Determine solver (element class → solver, default otherwise).
+  - 6.2.2 Call `Solve(...)` → record port Z, get exits (port, exitZ).
+  - 6.2.3 Enqueue connected neighbors from exit ports.
+- 6.3 Branching: each branch carries its own entryZ; independent propagation.
+- 6.4 Loops: ignore already-visited (element, entryPort) pairs; report if needed.
 
 ### 6. Vertical Passes and 45° Elbows
-- 6.1 In 2D, vertical intent is ambiguous; require annotation:
-  - 6.1.1 `ElbowPlane=Vertical` on the elbow blocks, with shared `VerticalPairId` to bind down/up elbows.
-  - 6.1.2 Optionally `ElevDeltaZ` on either elbow or on the connecting straight.
-- 6.2 Solver enforces:
-  - 6.2.1 For a vertical-45 straight: slope = ±1.0 or `ΔZ` if provided.
-  - 6.2.2 For paired elbows: distribute `ΔZ` across the intermediate path or constrain just the designated straight(s), per configuration.
+- 6.1 Distinct blocks remove ambiguity: vertical elbows ≠ plane elbows.
+- 6.2 Vertical elbow solver (later): reads `Up/Down` and block `Vinkel`; tilts along its plane to produce exitZ.
+- 6.3 Plane elbow solver (later): reads `Roll` (“Near/Far x”); resolves which leg is near (from entry direction) and rotates around that leg to set exitZ.
+- 6.4 Spring tee solver (later): reads `Up/Down`; class encodes internal 45° then level segment; computes branch exitZ based on entry.
 
 ### 7. Integration Points (architectural placement)
 - 7.1 After:
   - 7.1.1 `TopologyBuilder.Build(...)`
   - 7.1.2 `TopologySoilPlanner.Apply(...)`
 - 7.2 Do:
-  - 7.2.1 `ElevationSolver.Solve(topo, constraints)`
-  - 7.2.2 Write solved `Z` into each `TNode.Pos` (centerline).
+  - 7.2.1 Create `TraversalElevationProvider(topo)` which runs the traversal and fills the `ElevationRegistry`.
 - 7.3 Then:
-  - 7.3.1 `Router.Route(...)` uses new 3D endpoints.
+  - 7.3.1 `Router.Route(elevationProvider)`; routed elements query Z via provider.
   - 7.3.2 Existing `RoutedStraight`, `RoutedBend` use `Point3d` with Z.
   - 7.3.3 Existing twin offset logic adds ±Z offset after centerline elevation.
   - 7.3.4 `NtrFormat.Pt` scales to mm; unchanged.
@@ -117,9 +89,9 @@ Edge,PairId=V123,,Vertical45Pair,,,
 - 12.3 Loops → push to Phase 2 or cut at configured breaker nodes.
 
 ### 13. Staged Delivery
-- 13.1 Milestone 1: Property/CSV constraint intake; single-root traversal; level-by-default; vertical 45 with explicit annotations.
-- 13.2 Milestone 2: Multiple anchors; least-squares solver; smoothing objective; better diagnostics.
-- 13.3 Milestone 3: Inequalities for min cover/clearance (if surface/utility context is available); looped networks.
+- 13.1 Milestone 1 (now): Traversal-only framework; default pass-through solver; router integrated with provider.
+- 13.2 Milestone 2: Add element solvers: vertical elbow, plane elbow (roll), spring tee; branch continuation.
+- 13.3 Milestone 3: Diagnostics/reporting (conflicts, loops); optional defaults (nominal slopes); later: inequalities/loops if needed.
 
 ### 14. Acceptance Criteria
 - 14.1 Given a tree with a root FixZ and a mix of Slope/DeltaZ/KeepLevel: computed Z matches constraints; branches default level unless annotated (or per configured policy).

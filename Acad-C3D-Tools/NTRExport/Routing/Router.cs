@@ -1,4 +1,5 @@
 using NTRExport.TopologyModel;
+using NTRExport.Elevation;
 
 namespace NTRExport.Routing
 {
