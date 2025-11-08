@@ -177,13 +177,21 @@ namespace NTRExport.TopologyModel
                 var aPos = Lerp(A.Node.Pos, B.Node.Pos, Length <= 1e-9 ? 0.0 : s0 / Length);
                 var bPos = Lerp(A.Node.Pos, B.Node.Pos, Length <= 1e-9 ? 0.0 : s1 / Length);
 
+                // Query elevation provider for centerline Z at the segment endpoints
+                var tA = Length <= 1e-9 ? 0.0 : s0 / Length;
+                var tB = Length <= 1e-9 ? 0.0 : s1 / Length;
+                var zCenterA = ctx.Elevation.GetZ(this, A.Node.Pos, B.Node.Pos, tA);
+                var zCenterB = ctx.Elevation.GetZ(this, A.Node.Pos, B.Node.Pos, tB);
+                var aCenter = new Point3d(aPos.X, aPos.Y, zCenterA);
+                var bCenter = new Point3d(bPos.X, bPos.Y, zCenterB);
+
                 if (isTwin)
                 {
                     g.Members.Add(
                         new RoutedStraight(Source, this)
                         {
-                            A = aPos.Z(zUp),
-                            B = bPos.Z(zUp),
+                            A = aCenter.Z(zUp),
+                            B = bCenter.Z(zUp),
                             DN = DN,
                             Material = Material,
                             DnSuffix = suffix,
@@ -195,8 +203,8 @@ namespace NTRExport.TopologyModel
                     g.Members.Add(
                         new RoutedStraight(Source, this)
                         {
-                            A = aPos.Z(zLow),
-                            B = bPos.Z(zLow),
+                            A = aCenter.Z(zLow),
+                            B = bCenter.Z(zLow),
                             DN = DN,
                             Material = Material,
                             DnSuffix = suffix,
@@ -211,8 +219,8 @@ namespace NTRExport.TopologyModel
                     g.Members.Add(
                         new RoutedStraight(Source, this)
                         {
-                            A = aPos,
-                            B = bPos,
+                            A = aCenter,
+                            B = bCenter,
                             DN = DN,
                             Material = Material,
                             DnSuffix = suffix,

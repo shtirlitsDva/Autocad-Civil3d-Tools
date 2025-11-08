@@ -11,10 +11,10 @@ namespace NTRExport.Routing
             _topo = topo;
         }
 
-        public RoutedGraph Route()
+        public RoutedGraph Route(IElevationProvider elevation)
         {
             var g = new RoutedGraph();
-            var ctx = new RouterContext(_topo);
+            var ctx = new RouterContext(_topo, elevation);
 
             foreach (var e in _topo.Elements)
             {
@@ -28,6 +28,7 @@ namespace NTRExport.Routing
     internal sealed class RouterContext
     {        
         public Topology Topology { get; }
-        public RouterContext(Topology topo) { Topology = topo; }        
+        public IElevationProvider Elevation { get; }
+        public RouterContext(Topology topo, IElevationProvider elevation) { Topology = topo; Elevation = elevation; }        
     }
 }

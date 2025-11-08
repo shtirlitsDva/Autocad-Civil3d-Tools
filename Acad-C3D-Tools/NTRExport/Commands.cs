@@ -378,8 +378,11 @@ namespace NTRExport
                 NtrCoord.InitFromTopology(topo, marginMeters: 0.0);
                 #endregion
 
-                #region ------------- Topology ➜ Routed ➜ NTR skeleton -------------
-                var routed = new Routing.Router(topo).Route();
+                #region ------------- Topology ➜ Elevation ➜ Routed skeleton -------------
+                // Build 3D spines as the basis for elevation queries (can be upgraded later)
+                var spines = new NTRExport.Spines.SpineBuilder().Build(topo);
+                IElevationProvider elevation = new NTRExport.Elevation.SpineElevationProvider(spines);
+                var routed = new Routing.Router(topo).Route(elevation);
                 #endregion
 
                 #region ------------- Emit NTR -------------
