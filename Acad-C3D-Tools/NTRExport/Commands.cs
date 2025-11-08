@@ -379,9 +379,8 @@ namespace NTRExport
                 #endregion
 
                 #region ------------- Topology ➜ Elevation ➜ Routed skeleton -------------
-                // Build 3D spines as the basis for elevation queries (can be upgraded later)
-                var spines = new NTRExport.Spines.SpineBuilder().Build(topo);
-                IElevationProvider elevation = new NTRExport.Elevation.SpineElevationProvider(spines);
+                // Elevation provider based on traversal from a chosen root (largest-DN supply leaf)
+                IElevationProvider elevation = new NTRExport.Elevation.TraversalElevationProvider(topo);
                 var routed = new Routing.Router(topo).Route(elevation);
                 #endregion
 
