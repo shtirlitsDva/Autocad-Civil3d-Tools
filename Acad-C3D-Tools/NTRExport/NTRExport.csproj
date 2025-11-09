@@ -23,7 +23,7 @@
 	<PropertyGroup>
 		<OutputType>Library</OutputType>
 		<Deterministic>false</Deterministic>
-		<AssemblyName>wvzojgg2.00n</AssemblyName>
+		<AssemblyName>NTRExport</AssemblyName>
 	</PropertyGroup>
 	<PropertyGroup Condition=" '$(Platform)' == 'x64' ">
 		<DebugSymbols>true</DebugSymbols>

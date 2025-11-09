@@ -78,6 +78,11 @@ namespace NTRExport.Elevation
                 while (stack.Count > 0)
                 {
                     var (el, entry, entryZ) = stack.Pop();
+                    if (visitedElements.Contains(el))
+                    {
+                        prdDbg($"[TRAV] Skip element (already visited): {EId(el)}");
+                        continue;
+                    }
                     if (!visitedPairs.Add((el, entry))) continue;
                     visitedElements.Add(el);
                     prdDbg($"[TRAV] Visit element: {EId(el)} via node={NodeId(entry.Node)} entryZ={entryZ:0.###}");
@@ -94,6 +99,11 @@ namespace NTRExport.Elevation
                         foreach (var (nel, nport) in neighbors)
                         {
                             if (ReferenceEquals(nel, el)) continue;
+                            if (visitedElements.Contains(nel))
+                            {
+                                prdDbg($"[TRAV]     neighbor already visited, skip: {EId(nel)}");
+                                continue;
+                            }
                             prdDbg($"[TRAV]     neighbor: {EId(nel)} via node={NodeId(nport.Node)}");
                             stack.Push((nel, nport, exitZ));
                         }
@@ -111,26 +121,28 @@ namespace NTRExport.Elevation
 
         private static (ElementBase? el, TPort? port) PickRoot(Topology topo, Dictionary<TNode, List<(ElementBase el, TPort port)>> nodeAdj, HashSet<ElementBase> visitedElements)
         {
-            prdDbg("[ROOT] Begin selection (prefer supply leaf with largest DN among unvisited).");
+            prdDbg("[ROOT] Begin selection (prefer supply leaf element with largest DN among unvisited).");
             ElementBase? bestEl = null;
             TPort? bestPort = null;
             int bestDn = -1;
             int bestScore = -1;
-            foreach (var p in topo.Pipes)
+            foreach (var el in topo.Elements)
             {
-                if (visitedElements.Contains(p)) continue;
-                bool aLeaf = nodeAdj.TryGetValue(p.A.Node, out var la) && la.Count <= 1;
-                bool bLeaf = nodeAdj.TryGetValue(p.B.Node, out var lb) && lb.Count <= 1;
-                int score = p.Type == IntersectUtilities.UtilsCommon.Enums.PipeTypeEnum.Frem ? 1 : 0; // prefer supply
-                int dn = p.DN; // prefer larger DN
-                prdDbg($"[ROOT] Consider {EId(p)}: aLeaf={aLeaf} bLeaf={bLeaf} score={score} dn={dn} currentBestScore={bestScore} bestDn={bestDn}");
-                if ((aLeaf || bLeaf) && (score > bestScore || (score == bestScore && dn > bestDn)))
+                if (visitedElements.Contains(el)) continue;
+                int elemDeg = ElementDegree(el, nodeAdj);
+                bool isLeaf = elemDeg == 1;
+                int score = el.Type == IntersectUtilities.UtilsCommon.Enums.PipeTypeEnum.Frem ? 1 : 0; // prefer supply
+                int dn = 0;
+                try { dn = el.DN; } catch { dn = 0; }
+                prdDbg($"[ROOT] Consider {EId(el)}: elemDeg={elemDeg} score={score} dn={dn} currentBestScore={bestScore} bestDn={bestDn}");
+                if (isLeaf && (score > bestScore || (score == bestScore && dn > bestDn)))
                 {
                     bestScore = score;
                     bestDn = dn;
-                    bestEl = p;
-                    bestPort = aLeaf ? p.A : p.B;
-                    prdDbg($"[ROOT]  -> update best to {EId(p)} at node={NodeId(bestPort.Node)}");
+                    bestEl = el;
+                    bestPort = ChooseLeafPort(el, nodeAdj) ?? el.Ports.FirstOrDefault();
+                    if (bestPort != null)
+                        prdDbg($"[ROOT]  -> update best to {EId(el)} at node={NodeId(bestPort.Node)}");
                 }
             }
             if (bestEl != null && bestPort != null) return (bestEl, bestPort);
@@ -152,6 +164,46 @@ namespace NTRExport.Elevation
                 }
             }
             return (bestEl, bestPort);
+        }
+
+        private static int DegreeExcluding(List<(ElementBase el, TPort port)> items, ElementBase exclude)
+        {
+            var set = new HashSet<ElementBase>(new RefEq<ElementBase>());
+            foreach (var t in items)
+            {
+                if (ReferenceEquals(t.el, exclude)) continue;
+                set.Add(t.el);
+            }
+            return set.Count;
+        }
+
+        private static int ElementDegree(ElementBase el, Dictionary<TNode, List<(ElementBase el, TPort port)>> nodeAdj)
+        {
+            var set = new HashSet<ElementBase>(new RefEq<ElementBase>());
+            foreach (var port in el.Ports)
+            {
+                if (!nodeAdj.TryGetValue(port.Node, out var list)) continue;
+                foreach (var t in list)
+                {
+                    if (ReferenceEquals(t.el, el)) continue;
+                    set.Add(t.el);
+                }
+            }
+            return set.Count;
+        }
+
+        private static TPort? ChooseLeafPort(ElementBase el, Dictionary<TNode, List<(ElementBase el, TPort port)>> nodeAdj)
+        {
+            foreach (var port in el.Ports)
+            {
+                if (!nodeAdj.TryGetValue(port.Node, out var list)) continue;
+                foreach (var t in list)
+                {
+                    if (!ReferenceEquals(t.el, el))
+                        return port;
+                }
+            }
+            return el.Ports.FirstOrDefault();
         }
 
         private sealed class RefEq<T> : IEqualityComparer<T> where T : class

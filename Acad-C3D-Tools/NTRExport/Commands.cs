@@ -504,6 +504,10 @@ namespace NTRExport
                 var fittings = ents.OfType<BlockReference>().ToList();
                 var topo = TopologyBuilder.Build(polylines, fittings);
 
+                // Root selection debug (no traversal) - logs candidates and chosen roots per component
+                prdDbg("[NTRDOT] Root selection debug start...");
+                RootSelector.DebugPickRoots(topo);
+
                 // Build node -> (element, port) adjacency
                 var nodeAdj = new Dictionary<TNode, List<(ElementBase el, TPort port)>>(new RefEq<TNode>());
                 foreach (var el in topo.Elements)
@@ -569,7 +573,6 @@ namespace NTRExport
 
                 // Node labels and subgraphs
                 int clusterIdx = 0;
-                var edgeSet = new HashSet<string>(StringComparer.Ordinal);
                 foreach (var comp in components)
                 {
                     sb.AppendLine($"  subgraph cluster_{clusterIdx} {{");
@@ -584,20 +587,103 @@ namespace NTRExport
                         sb.AppendLine($"    \"{id}\" [label=\"{label}\"];");
                     }
 
-                    // Define edges inside component
-                    foreach (var a in comp)
+                    // DFS edges inside component, starting from chosen root
+                    ElementBase ChooseRootForComp(List<ElementBase> c)
                     {
-                        if (!elAdj.TryGetValue(a, out var nbrs)) continue;
-                        foreach (var b in nbrs)
+                        ElementBase? best = null;
+                        int bestScore = -1;
+                        int bestDn = -1;
+                        foreach (var e in c)
                         {
-                            // undirected edge; avoid dup by ordering
-                            var ida = a.Source.ToString();
-                            var idb = b.Source.ToString();
-                            var k = string.CompareOrdinal(ida, idb) <= 0 ? $"{ida}--{idb}" : $"{idb}--{ida}";
-                            if (edgeSet.Add(k))
-                                sb.AppendLine($"    \"{ida}\" -- \"{idb}\";");
+                            int deg = ElementDegree(e, nodeAdj);
+                            if (deg != 1) continue;
+                            int score = e.Type == PipeTypeEnum.Frem ? 1 : 0;
+                            int dn = 0;
+                            try { dn = e.DN; } catch { dn = 0; }
+                            if (score > bestScore || (score == bestScore && dn > bestDn))
+                            {
+                                bestScore = score;
+                                bestDn = dn;
+                                best = e;
+                            }
+                        }
+                        if (best != null) return best;
+                        // Fallback: element with largest DN in component
+                        best = c.OrderByDescending(x => { try { return x.DN; } catch { return 0; } }).First();
+                        return best;
+                    }
+
+                    int DegreeExcluding(List<(ElementBase el, TPort port)> items, ElementBase exclude)
+                    {
+                        var set = new HashSet<ElementBase>(new RefEq<ElementBase>());
+                        foreach (var t in items)
+                        {
+                            if (ReferenceEquals(t.el, exclude)) continue;
+                            set.Add(t.el);
+                        }
+                        return set.Count;
+                    }
+
+                    int ElementDegree(ElementBase el, Dictionary<TNode, List<(ElementBase el, TPort port)>> adj)
+                    {
+                        var set = new HashSet<ElementBase>(new RefEq<ElementBase>());
+                        foreach (var p in el.Ports)
+                        {
+                            if (!adj.TryGetValue(p.Node, out var list)) continue;
+                            foreach (var t in list)
+                            {
+                                if (ReferenceEquals(t.el, el)) continue;
+                                set.Add(t.el);
+                            }
+                        }
+                        return set.Count;
+                    }
+
+                    var root = ChooseRootForComp(comp);
+                    prdDbg($"[NTRDOT] Component {clusterIdx} DFS root: {root.Source} / {root.GetType().Name}");
+
+                    // Build DFS ordered edges
+                    var dfsVisited = new HashSet<ElementBase>(new RefEq<ElementBase>());
+                    var edgesOrdered = new List<(string a, string b)>();
+                    var edgeSeen = new HashSet<string>(StringComparer.Ordinal);
+
+                    void Dfs(ElementBase cur, ElementBase? parent)
+                    {
+                        dfsVisited.Add(cur);
+                        if (!elAdj.TryGetValue(cur, out var nbrs)) return;
+                        // stable order
+                        var ordered = nbrs.Where(n => comp.Contains(n))
+                                          .OrderBy(n => n.Source.ToString(), StringComparer.Ordinal)
+                                          .ToList();
+                        foreach (var n in ordered)
+                        {
+                            if (parent != null && ReferenceEquals(n, parent)) continue;
+                            if (!dfsVisited.Contains(n))
+                            {
+                                var ida = cur.Source.ToString();
+                                var idb = n.Source.ToString();
+                                if (!string.Equals(ida, idb, StringComparison.Ordinal))
+                                {
+                                    // dedupe undirected edge
+                                    var key = string.CompareOrdinal(ida, idb) <= 0 ? $"{ida}--{idb}" : $"{idb}--{ida}";
+                                    if (edgeSeen.Add(key))
+                                        edgesOrdered.Add((ida, idb));
+                                }
+                                Dfs(n, cur);
+                            }
                         }
                     }
+
+                    Dfs(root, null);
+                    // Cover any isolated or remaining nodes (safety)
+                    foreach (var e in comp)
+                    {
+                        if (!dfsVisited.Contains(e))
+                            Dfs(e, null);
+                    }
+
+                    foreach (var (a, b) in edgesOrdered)
+                        sb.AppendLine($"    \"{a}\" -- \"{b}\";");
 
                     sb.AppendLine("  }");
                     clusterIdx++;
