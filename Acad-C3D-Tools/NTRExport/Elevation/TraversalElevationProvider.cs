@@ -1,4 +1,6 @@
 using Autodesk.AutoCAD.Geometry;
+using System.Runtime.CompilerServices;
+using static IntersectUtilities.UtilsCommon.Utils;
 
 using NTRExport.TopologyModel;
 
@@ -56,6 +58,7 @@ namespace NTRExport.Elevation
                     list.Add((el, p));
                 }
             }
+            prdDbg($"[TRAV] Adjacency built: nodes={nodeAdj.Count}, elements={_topology.Elements.Count()}");
 
             // Handle disjoint networks: iterate until all elements are visited
             var visitedPairs = new HashSet<(ElementBase, TPort)>(new ElPortPairEq());
@@ -63,8 +66,10 @@ namespace NTRExport.Elevation
 
             while (true)
             {
+                prdDbg($"[TRAV] Root selection pass. visitedElements={visitedElements.Count}");
                 var (rootEl, rootPort) = PickRoot(_topology, nodeAdj, visitedElements);
                 if (rootEl == null || rootPort == null) break;
+                prdDbg($"[TRAV] Root chosen: {EId(rootEl)} at node={NodeId(rootPort.Node)}. entryZ=0.000");
 
                 // Start this component at entryZ = 0.0
                 var stack = new Stack<(ElementBase el, TPort entryPort, double entryZ)>();
@@ -75,17 +80,21 @@ namespace NTRExport.Elevation
                     var (el, entry, entryZ) = stack.Pop();
                     if (!visitedPairs.Add((el, entry))) continue;
                     visitedElements.Add(el);
+                    prdDbg($"[TRAV] Visit element: {EId(el)} via node={NodeId(entry.Node)} entryZ={entryZ:0.###}");
 
                     var solver = ResolveSolver(el);
                     var exits = solver.Solve(el, entry, entryZ, _registry);
+                    prdDbg($"[TRAV] Solver exits: count={exits.Count}");
 
                     // Continue from exits to connected neighbors
                     foreach (var (exitPort, exitZ) in exits)
                     {
+                        prdDbg($"[TRAV]  -> exit node={NodeId(exitPort.Node)} propagateZ={exitZ:0.###}");
                         if (!nodeAdj.TryGetValue(exitPort.Node, out var neighbors)) continue;
                         foreach (var (nel, nport) in neighbors)
                         {
                             if (ReferenceEquals(nel, el)) continue;
+                            prdDbg($"[TRAV]     neighbor: {EId(nel)} via node={NodeId(nport.Node)}");
                             stack.Push((nel, nport, exitZ));
                         }
                     }
@@ -102,6 +111,7 @@ namespace NTRExport.Elevation
 
         private static (ElementBase? el, TPort? port) PickRoot(Topology topo, Dictionary<TNode, List<(ElementBase el, TPort port)>> nodeAdj, HashSet<ElementBase> visitedElements)
         {
+            prdDbg("[ROOT] Begin selection (prefer supply leaf with largest DN among unvisited).");
             ElementBase? bestEl = null;
             TPort? bestPort = null;
             int bestDn = -1;
@@ -113,12 +123,14 @@ namespace NTRExport.Elevation
                 bool bLeaf = nodeAdj.TryGetValue(p.B.Node, out var lb) && lb.Count <= 1;
                 int score = p.Type == IntersectUtilities.UtilsCommon.Enums.PipeTypeEnum.Frem ? 1 : 0; // prefer supply
                 int dn = p.DN; // prefer larger DN
+                prdDbg($"[ROOT] Consider {EId(p)}: aLeaf={aLeaf} bLeaf={bLeaf} score={score} dn={dn} currentBestScore={bestScore} bestDn={bestDn}");
                 if ((aLeaf || bLeaf) && (score > bestScore || (score == bestScore && dn > bestDn)))
                 {
                     bestScore = score;
                     bestDn = dn;
                     bestEl = p;
                     bestPort = aLeaf ? p.A : p.B;
+                    prdDbg($"[ROOT]  -> update best to {EId(p)} at node={NodeId(bestPort.Node)}");
                 }
             }
             if (bestEl != null && bestPort != null) return (bestEl, bestPort);
@@ -127,6 +139,7 @@ namespace NTRExport.Elevation
             bestEl = null;
             bestPort = null;
             bestDn = -1;
+            prdDbg("[ROOT] Fallback: no supply leaf found, choose largest DN unvisited pipe.");
             foreach (var p in topo.Pipes)
             {
                 if (visitedElements.Contains(p)) continue;
@@ -135,6 +148,7 @@ namespace NTRExport.Elevation
                     bestDn = p.DN;
                     bestEl = p;
                     bestPort = p.A;
+                    prdDbg($"[ROOT]  -> fallback candidate {EId(p)} at node={NodeId(bestPort.Node)}");
                 }
             }
             return (bestEl, bestPort);
@@ -159,8 +173,21 @@ namespace NTRExport.Elevation
                 }
             }
         }
+
+        private static string EId(ElementBase el)
+        {
+            int dn = 0;
+            try { dn = el.DN; } catch { dn = 0; }
+            return $"{el.Source} / {el.GetType().Name} / DN={dn}";
+        }
+        private static string NodeId(TNode node)
+        {
+            var name = string.IsNullOrWhiteSpace(node.Name) ? null : node.Name;
+            return name ?? $"@{RuntimeHelpers.GetHashCode(node)}";
+        }
     }
 }
+
 
 
 

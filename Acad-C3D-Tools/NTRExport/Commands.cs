@@ -579,10 +579,8 @@ namespace NTRExport
                     // Define nodes
                     foreach (var e in comp)
                     {
-                        var id = e.Source.ToString();
-                        var dn = 0;
-                        try { dn = e.DN; } catch { dn = 0; }
-                        var label = dn > 0 ? $"{id}\\nDN={dn}" : id;
+                        var id = e.Source.ToString();                        
+                        var label = e.DotLabelForTest();
                         sb.AppendLine($"    \"{id}\" [label=\"{label}\"];");
                     }
 

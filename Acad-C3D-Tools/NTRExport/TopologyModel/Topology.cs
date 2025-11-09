@@ -10,6 +10,8 @@ using NTRExport.Enums;
 using NTRExport.Routing;
 using NTRExport.SoilModel;
 
+using System.Net;
+
 using static IntersectUtilities.UtilsCommon.Utils;
 using static NTRExport.Utils.Utils;
 
@@ -89,6 +91,11 @@ namespace NTRExport.TopologyModel
         }
 
         public abstract int DN { get; }
+        public virtual string DotLabelForTest()
+        {
+            return $"{Source.ToString()} / {this.GetType().Name}\n" +
+                $"{DN.ToString()}";
+        }
         public virtual string Material
         {
             get
@@ -617,6 +624,12 @@ namespace NTRExport.TopologyModel
             OffsetMain = ComputeTwinOffsets(System, Type, DnM);
         }
 
+        public override string DotLabelForTest()
+        {
+            return $"{Source.ToString()} / {this.GetType().Name}\n" +
+                $"{DnM.ToString()}/{DnB.ToString()}";
+        }
+
         public override int DN => DnM;
         protected int DnM =>
             _entity switch
@@ -642,7 +655,7 @@ namespace NTRExport.TopologyModel
         protected TPort MainPort2 => Ports.Last(p => p.Role == PortRole.Main);
         protected Point2d MidPoint => MainPort1.Node.Pos.To2d().MidPoint(MainPort2.Node.Pos.To2d());
         protected TPort BranchPort => Ports.First(p => p.Role == PortRole.Branch);
-        protected (double zUp, double zLow) OffsetMain;
+        protected (double zUp, double zLow) OffsetMain;        
 
         public override void Route(RoutedGraph g, Topology topo, RouterContext ctx)
         {
@@ -682,7 +695,7 @@ namespace NTRExport.TopologyModel
     internal sealed class TeeFormstykke : TeeMainRun
     {
         public TeeFormstykke(Handle source, PipelineElementType kind)
-            : base(source, kind) { }
+            : base(source, kind) { }        
 
         protected override void ConfigureAllowedKinds(HashSet<PipelineElementType> allowed)
         {
@@ -702,7 +715,7 @@ namespace NTRExport.TopologyModel
         {
             allowed.Clear();
             allowed.Add(PipelineElementType.AfgreningMedSpring);
-        }
+        }        
 
         public override void Route(RoutedGraph g, Topology topo, RouterContext ctx)
         {
@@ -961,7 +974,7 @@ namespace NTRExport.TopologyModel
         }
     }
 
-    internal sealed class AfgreningsStuds : TFitting
+    internal class AfgreningsStuds : TFitting
     {
         public AfgreningsStuds(Handle source)
             : base(source, PipelineElementType.Afgreningsstuds) { }
@@ -991,6 +1004,12 @@ namespace NTRExport.TopologyModel
         {
             allowed.Clear();
             allowed.Add(PipelineElementType.Afgreningsstuds);
+        }
+
+        public override string DotLabelForTest()
+        {
+            return $"{Source.ToString()} / {this.GetType().Name}\n" +
+                $"{DnM.ToString()}/{DnB.ToString()}";
         }
 
         public override void Route(RoutedGraph g, Topology topo, RouterContext ctx)
@@ -1164,7 +1183,7 @@ namespace NTRExport.TopologyModel
         }
     }
 
-    internal sealed class Valve : TFitting
+    internal class Valve : TFitting
     {
         public Valve(Handle source, PipelineElementType kind)
             : base(source, kind) { }
@@ -1196,7 +1215,7 @@ namespace NTRExport.TopologyModel
         }
     }
 
-    internal sealed class Reducer : TFitting
+    internal class Reducer : TFitting
     {
         public Reducer(Handle source)
             : base(source, PipelineElementType.Reduktion) { }
@@ -1205,6 +1224,24 @@ namespace NTRExport.TopologyModel
         {
             allowed.Clear();
             allowed.Add(PipelineElementType.Reduktion);
+        }
+
+        public override string DotLabelForTest()
+        {
+            var br = _entity as BlockReference;
+            if (br == null)
+            {
+                return "_entity is not BR!";
+            }
+
+            var dn1 = Convert.ToInt32(
+                br.ReadDynamicCsvProperty(DynamicProperty.DN1));
+
+            var dn2 = Convert.ToInt32(
+                br.ReadDynamicCsvProperty(DynamicProperty.DN2));
+
+            return $"{Source.ToString()} / {this.GetType().Name}\n" +
+                $"{dn1.ToString()}/{dn2.ToString()}";
         }
 
         public override void Route(RoutedGraph g, Topology topo, RouterContext ctx)
@@ -1273,6 +1310,24 @@ namespace NTRExport.TopologyModel
             allowed.Add(PipelineElementType.Svanehals);
         }
 
+        public override string DotLabelForTest()
+        {
+            var br = _entity as BlockReference;
+            if (br == null)
+            {
+                return "_entity is not BR!";
+            }
+
+            var dn1 = Convert.ToInt32(
+                br.ReadDynamicCsvProperty(DynamicProperty.DN1));
+
+            var dn2 = Convert.ToInt32(
+                br.ReadDynamicCsvProperty(DynamicProperty.DN2));
+
+            return $"{Source.ToString()} / {this.GetType().Name}\n" +
+                $"{dn1.ToString()}/{dn2.ToString()}";
+        }
+
         public override void Route(RoutedGraph g, Topology topo, RouterContext ctx)
         {
             // For later
@@ -1288,6 +1343,24 @@ namespace NTRExport.TopologyModel
         {
             allowed.Clear();
             allowed.Add(PipelineElementType.Materialeskift);
+        }
+
+        public override string DotLabelForTest()
+        {
+            var br = _entity as BlockReference;
+            if (br == null)
+            {
+                return "_entity is not BR!";
+            }
+
+            var dn1 = Convert.ToInt32(
+                br.ReadDynamicCsvProperty(DynamicProperty.DN1));
+
+            var dn2 = Convert.ToInt32(
+                br.ReadDynamicCsvProperty(DynamicProperty.DN2));
+
+            return $"{Source.ToString()} / {this.GetType().Name}\n" +
+                $"{dn1.ToString()}/{dn2.ToString()}";
         }
 
         public override void Route(RoutedGraph g, Topology topo, RouterContext ctx)

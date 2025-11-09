@@ -23,7 +23,7 @@
 	<PropertyGroup>
 		<OutputType>Library</OutputType>
 		<Deterministic>false</Deterministic>
-		<AssemblyName>pydc03ug.vpr</AssemblyName>
+		<AssemblyName>wvzojgg2.00n</AssemblyName>
 	</PropertyGroup>
 	<PropertyGroup Condition=" '$(Platform)' == 'x64' ">
 		<DebugSymbols>true</DebugSymbols>
