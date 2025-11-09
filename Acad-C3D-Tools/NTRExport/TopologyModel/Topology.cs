@@ -358,7 +358,7 @@ namespace NTRExport.TopologyModel
 
             var br = source.Go<BlockReference>(db);
             if (br == null)
-                throw new System.Exception($"Received {source} for ElbowFormstykke!");
+                throw new Exception($"Received {source} for ElbowFormstykke!");
 
             TangentPoint = br.Position;
         }
@@ -384,10 +384,10 @@ namespace NTRExport.TopologyModel
 
             var flowMain = Variant.IsTwin
                 ? FlowRole.Return
-                : (Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return);
+                : Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return;
 
             g.Members.Add(
-                new Routing.RoutedBend(Source, this)
+                new RoutedBend(Source, this)
                 {
                     A = a.Z(zUp),
                     B = b.Z(zUp),
@@ -403,7 +403,7 @@ namespace NTRExport.TopologyModel
             if (Variant.IsTwin)
             {
                 g.Members.Add(
-                    new Routing.RoutedBend(Source, this)
+                    new RoutedBend(Source, this)
                     {
                         A = a.Z(zLow),
                         B = b.Z(zLow),
@@ -433,7 +433,7 @@ namespace NTRExport.TopologyModel
 
             var br = source.Go<BlockReference>(db);
             if (br == null)
-                throw new System.Exception($"Received {source} for Buerør! Must be BlockReference!");
+                throw new Exception($"Received {source} for Buerør! Must be BlockReference!");
 
             using var tx = db.TransactionManager.StartOpenCloseTransaction();
             var btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
@@ -455,7 +455,7 @@ namespace NTRExport.TopologyModel
                 break;
             }
 
-            throw new System.Exception(
+            throw new Exception(
                 $"Buerør: Arc not found for buerør {source}!");
         }
 
@@ -526,7 +526,7 @@ namespace NTRExport.TopologyModel
             var bPrime2 = new Point2d(t2.X + ub.X * l, t2.Y + ub.Y * l);
 
             var (zUp, zLow) = ComputeTwinOffsets(System, Type, DN);
-            var mainFlow = Variant.IsTwin ? FlowRole.Return : (Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return);
+            var mainFlow = Variant.IsTwin ? FlowRole.Return : Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return;
             var ltg = LTGMain(Source);
 
             void EmitFor(double z, FlowRole flow)
@@ -539,7 +539,7 @@ namespace NTRExport.TopologyModel
 
                 // a → a'
                 g.Members.Add(
-                    new Routing.RoutedStraight(Source, this)
+                    new RoutedStraight(Source, this)
                     {
                         A = aZ,
                         B = aPrime,
@@ -553,7 +553,7 @@ namespace NTRExport.TopologyModel
 
                 // bend a' → b' with PT = t
                 g.Members.Add(
-                    new Routing.RoutedBend(Source, this)
+                    new RoutedBend(Source, this)
                     {
                         A = aPrime,
                         B = bPrime,
@@ -569,7 +569,7 @@ namespace NTRExport.TopologyModel
 
                 // b' → b
                 g.Members.Add(
-                    new Routing.RoutedStraight(Source, this)
+                    new RoutedStraight(Source, this)
                     {
                         A = bPrime,
                         B = bZ,
@@ -656,7 +656,7 @@ namespace NTRExport.TopologyModel
                     DnSuffix = Variant.DnSuffix,
                     FlowRole = Variant.IsTwin
                         ? FlowRole.Return
-                        : (Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return),
+                        : Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return,
                     LTG = LTGMain(Source),
                 }
             );
@@ -771,7 +771,7 @@ namespace NTRExport.TopologyModel
                         DnSuffix = Variant.DnSuffix,
                         FlowRole = Variant.IsTwin
                             ? FlowRole.Return
-                            : (Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return),
+                            : Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return,
                         LTG = LTGMain(Source),
                     });
 
@@ -1025,7 +1025,7 @@ namespace NTRExport.TopologyModel
                         DnSuffix = Variant.DnSuffix,
                         FlowRole = Variant.IsTwin
                             ? FlowRole.Return
-                            : (Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return),
+                            : Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return,
                         LTG = LTGMain(Source),
                     });
 
@@ -1299,7 +1299,7 @@ namespace NTRExport.TopologyModel
             var p2 = pr[1].Node.Pos;
             var dn = topo.InferMainDn(this);
             g.Members.Add(
-                new Routing.RoutedStraight(Source, this)
+                new RoutedStraight(Source, this)
                 {
                     A = new Point3d(p1.X, p1.Y, 0.0),
                     B = new Point3d(p2.X, p2.Y, 0.0),

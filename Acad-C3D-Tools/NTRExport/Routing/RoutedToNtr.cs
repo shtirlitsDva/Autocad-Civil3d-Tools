@@ -131,7 +131,7 @@ namespace NTRExport.Routing
                 $"P2={NtrFormat.Pt(instrument.P2)} " +
                 $"PM={NtrFormat.Pt(instrument.Pm)} " +
                 $"DN1=DN{instrument.DN}.{instrument.DnSuffix}{seriesSuffix} " +
-                $"DN2=DN{instrument.Dn2}.{instrument.Dn2Suffix}{seriesSuffix}" +
+                $"DN2=DN{instrument.DN}.{instrument.DnSuffix}{seriesSuffix}" +
                 FormatMaterial(instrument.Material) +
                 LastToken(conf, instrument.FlowRole) +
                 instrument.PipelineToken() +

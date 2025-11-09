@@ -13,14 +13,17 @@ using IntersectUtilities.UtilsCommon.DataManager;
 using IntersectUtilities.UtilsCommon.Enums;
 using IntersectUtilities.UtilsCommon.Graphs;
 
+using NTRExport.Elevation;
 using NTRExport.Interfaces;
 using NTRExport.Ntr;
 using NTRExport.NtrConfiguration;
+using NTRExport.Routing;
 using NTRExport.SoilModel;
 using NTRExport.TopologyModel;
-using NTRExport.Routing;
 
+using System.Diagnostics;
 using System.IO;
+using System.Text;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 
@@ -380,8 +383,8 @@ namespace NTRExport
 
                 #region ------------- Topology ➜ Elevation ➜ Routed skeleton -------------
                 // Elevation provider based on traversal from a chosen root (largest-DN supply leaf)
-                IElevationProvider elevation = new NTRExport.Elevation.TraversalElevationProvider(topo);
-                var routed = new Routing.Router(topo).Route(elevation);
+                IElevationProvider elevation = new TraversalElevationProvider(topo);
+                var routed = new Router(topo).Route(elevation);
                 #endregion
 
                 #region ------------- Emit NTR -------------
@@ -466,6 +469,170 @@ namespace NTRExport
                 return;
             }
             tx.Commit();
+        }
+
+        [CommandMethod("NTRDOT")]
+        public void ntrdot()
+        {
+            DocumentCollection docCol = AcApp.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            using var tx = localDb.TransactionManager.StartTransaction();
+            try
+            {
+                var dwgPath = localDb.Filename;
+                var outDotPath = @"C:\Temp\ntrdot.dot";
+
+                // Build topology (same filter as export)
+                var ents = localDb.GetFjvEntities(tx);
+                var acceptedSystems = new HashSet<PipeSystemEnum>() { PipeSystemEnum.Stål };
+                bool isAccepted(Entity ent)
+                {
+                    switch (ent)
+                    {
+                        case Polyline _:
+                            return acceptedSystems.Contains(PipeScheduleV2.GetPipeSystem(ent));
+                        case BlockReference br:
+                            return acceptedSystems.Contains(br.GetPipeSystemEnum());
+                        default:
+                            return false;
+                    }
+                }
+                ents = ents.Where(x => isAccepted(x)).ToHashSet();
+
+                var polylines = ents.OfType<Polyline>().ToList();
+                var fittings = ents.OfType<BlockReference>().ToList();
+                var topo = TopologyBuilder.Build(polylines, fittings);
+
+                // Build node -> (element, port) adjacency
+                var nodeAdj = new Dictionary<TNode, List<(ElementBase el, TPort port)>>(new RefEq<TNode>());
+                foreach (var el in topo.Elements)
+                {
+                    foreach (var p in el.Ports)
+                    {
+                        if (!nodeAdj.TryGetValue(p.Node, out var list)) nodeAdj[p.Node] = list = new();
+                        list.Add((el, p));
+                    }
+                }
+
+                // Build element adjacency (undirected)
+                var elAdj = new Dictionary<ElementBase, HashSet<ElementBase>>(new RefEq<ElementBase>());
+                foreach (var kv in nodeAdj)
+                {
+                    var items = kv.Value;
+                    for (int i = 0; i < items.Count; i++)
+                    {
+                        for (int j = i + 1; j < items.Count; j++)
+                        {
+                            var a = items[i].el;
+                            var b = items[j].el;
+                            if (ReferenceEquals(a, b)) continue;
+                            if (!elAdj.TryGetValue(a, out var setA)) elAdj[a] = setA = new(new RefEq<ElementBase>());
+                            if (!elAdj.TryGetValue(b, out var setB)) elAdj[b] = setB = new(new RefEq<ElementBase>());
+                            setA.Add(b);
+                            setB.Add(a);
+                        }
+                    }
+                }
+
+                // Find connected components of elements
+                var components = new List<List<ElementBase>>();
+                var visited = new HashSet<ElementBase>(new RefEq<ElementBase>());
+                foreach (var el in topo.Elements)
+                {
+                    if (!visited.Add(el))
+                        continue;
+                    var comp = new List<ElementBase>();
+                    var q = new Queue<ElementBase>();
+                    q.Enqueue(el);
+                    while (q.Count > 0)
+                    {
+                        var cur = q.Dequeue();
+                        comp.Add(cur);
+                        if (elAdj.TryGetValue(cur, out var nbrs))
+                        {
+                            foreach (var n in nbrs)
+                            {
+                                if (visited.Add(n))
+                                    q.Enqueue(n);
+                            }
+                        }
+                    }
+                    components.Add(comp);
+                }
+
+                // Emit DOT
+                var sb = new StringBuilder();
+                sb.AppendLine("graph G {");
+                sb.AppendLine("  graph [compound=true];");
+                sb.AppendLine("  node [shape=box, fontsize=10];");
+
+                // Node labels and subgraphs
+                int clusterIdx = 0;
+                var edgeSet = new HashSet<string>(StringComparer.Ordinal);
+                foreach (var comp in components)
+                {
+                    sb.AppendLine($"  subgraph cluster_{clusterIdx} {{");
+                    sb.AppendLine($"    label=\"component {clusterIdx}\";");
+                    sb.AppendLine("    color=lightgrey;");
+
+                    // Define nodes
+                    foreach (var e in comp)
+                    {
+                        var id = e.Source.ToString();
+                        var dn = 0;
+                        try { dn = e.DN; } catch { dn = 0; }
+                        var label = dn > 0 ? $"{id}\\nDN={dn}" : id;
+                        sb.AppendLine($"    \"{id}\" [label=\"{label}\"];");
+                    }
+
+                    // Define edges inside component
+                    foreach (var a in comp)
+                    {
+                        if (!elAdj.TryGetValue(a, out var nbrs)) continue;
+                        foreach (var b in nbrs)
+                        {
+                            // undirected edge; avoid dup by ordering
+                            var ida = a.Source.ToString();
+                            var idb = b.Source.ToString();
+                            var k = string.CompareOrdinal(ida, idb) <= 0 ? $"{ida}--{idb}" : $"{idb}--{ida}";
+                            if (edgeSet.Add(k))
+                                sb.AppendLine($"    \"{ida}\" -- \"{idb}\";");
+                        }
+                    }
+
+                    sb.AppendLine("  }");
+                    clusterIdx++;
+                }
+
+                sb.AppendLine("}");
+
+                var utf8NoBom = new UTF8Encoding(false);
+                File.WriteAllText(outDotPath, sb.ToString(), utf8NoBom);
+                prdDbg($"DOT written: {outDotPath}");
+
+                // Run Graphviz (PDF)
+                var cmd = new Process();
+                cmd.StartInfo.FileName = "dot";
+                cmd.StartInfo.WorkingDirectory = @"C:\Temp\";
+                cmd.StartInfo.Arguments = "-Tpdf ntrdot.dot -o ntrdot.pdf";
+                cmd.StartInfo.UseShellExecute = false;
+                cmd.Start();
+                cmd.WaitForExit();
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg(ex);
+                tx.Abort();
+                return;
+            }
+            tx.Commit();
+        }
+
+        private sealed class RefEq<T> : IEqualityComparer<T> where T : class
+        {
+            public bool Equals(T? x, T? y) => ReferenceEquals(x, y);
+            public int GetHashCode(T obj) => System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(obj);
         }
     }
 }

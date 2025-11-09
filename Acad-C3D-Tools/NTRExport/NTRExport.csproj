@@ -23,7 +23,7 @@
 	<PropertyGroup>
 		<OutputType>Library</OutputType>
 		<Deterministic>false</Deterministic>
-		<AssemblyName>NTRExport</AssemblyName>
+		<AssemblyName>pydc03ug.vpr</AssemblyName>
 	</PropertyGroup>
 	<PropertyGroup Condition=" '$(Platform)' == 'x64' ">
 		<DebugSymbols>true</DebugSymbols>

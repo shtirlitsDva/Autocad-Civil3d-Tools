@@ -57,30 +57,37 @@ namespace NTRExport.Elevation
                 }
             }
 
-            var (rootEl, rootPort) = PickRoot(_topology, nodeAdj);
-            if (rootEl == null || rootPort == null) return;
+            // Handle disjoint networks: iterate until all elements are visited
+            var visitedPairs = new HashSet<(ElementBase, TPort)>(new ElPortPairEq());
+            var visitedElements = new HashSet<ElementBase>(new RefEq<ElementBase>());
 
-            var stack = new Stack<(ElementBase el, TPort entryPort, double entryZ)>();
-            stack.Push((rootEl, rootPort, 0.0));
-
-            var visited = new HashSet<(ElementBase, TPort)>(new ElPortPairEq());
-
-            while (stack.Count > 0)
+            while (true)
             {
-                var (el, entry, entryZ) = stack.Pop();
-                if (!visited.Add((el, entry))) continue;
+                var (rootEl, rootPort) = PickRoot(_topology, nodeAdj, visitedElements);
+                if (rootEl == null || rootPort == null) break;
 
-                var solver = ResolveSolver(el);
-                var exits = solver.Solve(el, entry, entryZ, _registry);
+                // Start this component at entryZ = 0.0
+                var stack = new Stack<(ElementBase el, TPort entryPort, double entryZ)>();
+                stack.Push((rootEl, rootPort, 0.0));
 
-                // Continue from exits to connected neighbors
-                foreach (var (exitPort, exitZ) in exits)
+                while (stack.Count > 0)
                 {
-                    if (!nodeAdj.TryGetValue(exitPort.Node, out var neighbors)) continue;
-                    foreach (var (nel, nport) in neighbors)
+                    var (el, entry, entryZ) = stack.Pop();
+                    if (!visitedPairs.Add((el, entry))) continue;
+                    visitedElements.Add(el);
+
+                    var solver = ResolveSolver(el);
+                    var exits = solver.Solve(el, entry, entryZ, _registry);
+
+                    // Continue from exits to connected neighbors
+                    foreach (var (exitPort, exitZ) in exits)
                     {
-                        if (ReferenceEquals(nel, el)) continue;
-                        stack.Push((nel, nport, exitZ));
+                        if (!nodeAdj.TryGetValue(exitPort.Node, out var neighbors)) continue;
+                        foreach (var (nel, nport) in neighbors)
+                        {
+                            if (ReferenceEquals(nel, el)) continue;
+                            stack.Push((nel, nport, exitZ));
+                        }
                     }
                 }
             }
@@ -93,7 +100,7 @@ namespace NTRExport.Elevation
             return _default;
         }
 
-        private static (ElementBase? el, TPort? port) PickRoot(Topology topo, Dictionary<TNode, List<(ElementBase el, TPort port)>> nodeAdj)
+        private static (ElementBase? el, TPort? port) PickRoot(Topology topo, Dictionary<TNode, List<(ElementBase el, TPort port)>> nodeAdj, HashSet<ElementBase> visitedElements)
         {
             ElementBase? bestEl = null;
             TPort? bestPort = null;
@@ -101,17 +108,33 @@ namespace NTRExport.Elevation
             int bestScore = -1;
             foreach (var p in topo.Pipes)
             {
+                if (visitedElements.Contains(p)) continue;
                 bool aLeaf = nodeAdj.TryGetValue(p.A.Node, out var la) && la.Count <= 1;
                 bool bLeaf = nodeAdj.TryGetValue(p.B.Node, out var lb) && lb.Count <= 1;
-                if (!aLeaf && !bLeaf) continue;
-                int score = p.Type == IntersectUtilities.UtilsCommon.Enums.PipeTypeEnum.Frem ? 1 : 0;
-                int dn = p.DN;
-                if (score > bestScore || (score == bestScore && dn > bestDn))
+                int score = p.Type == IntersectUtilities.UtilsCommon.Enums.PipeTypeEnum.Frem ? 1 : 0; // prefer supply
+                int dn = p.DN; // prefer larger DN
+                if ((aLeaf || bLeaf) && (score > bestScore || (score == bestScore && dn > bestDn)))
                 {
                     bestScore = score;
                     bestDn = dn;
                     bestEl = p;
                     bestPort = aLeaf ? p.A : p.B;
+                }
+            }
+            if (bestEl != null && bestPort != null) return (bestEl, bestPort);
+
+            // Fallback: pick any unvisited pipe with largest DN (choose A port)
+            bestEl = null;
+            bestPort = null;
+            bestDn = -1;
+            foreach (var p in topo.Pipes)
+            {
+                if (visitedElements.Contains(p)) continue;
+                if (p.DN > bestDn)
+                {
+                    bestDn = p.DN;
+                    bestEl = p;
+                    bestPort = p.A;
                 }
             }
             return (bestEl, bestPort);
@@ -131,7 +154,7 @@ namespace NTRExport.Elevation
                 unchecked
                 {
                     int h1 = System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(obj.Item1);
-                    int h2 = System.Runtime.CompilerServices.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(obj.Item2);
+                    int h2 = System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(obj.Item2);
                     return (h1 * 397) ^ h2;
                 }
             }
