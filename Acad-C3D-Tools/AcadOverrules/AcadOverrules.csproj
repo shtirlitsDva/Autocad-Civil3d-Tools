@@ -81,6 +81,9 @@
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AdWindows.dll</HintPath>
 			<Private>False</Private>
 		</Reference>
+		<Reference Include="AecArchMgd">
+		  <HintPath>C:\Program Files\Autodesk\AutoCAD 2025\ACA\AecArchMgd.dll</HintPath>
+		</Reference>
 		<Reference Include="AecBaseMgd">
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\ACA\AecBaseMgd.dll</HintPath>
 			<Private>False</Private>
