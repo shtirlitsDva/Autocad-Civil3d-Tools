@@ -9,6 +9,7 @@ using IntersectUtilities.UtilsCommon.Enums;
 using NTRExport.Enums;
 using NTRExport.Routing;
 using NTRExport.SoilModel;
+using NTRExport.Elevation;
 
 using System.Net;
 
@@ -39,7 +40,7 @@ namespace NTRExport.TopologyModel
         }
     }
 
-    internal abstract class ElementBase
+    internal abstract class ElementBase : IElevationSolvable
     {
         public Handle Source { get; }
         protected Entity _entity;
@@ -94,8 +95,9 @@ namespace NTRExport.TopologyModel
         public virtual string DotLabelForTest()
         {
             return $"{Source.ToString()} / {this.GetType().Name}\n" +
-                $"{DN.ToString()}";
+                $"{DnLabel()}";
         }
+        public virtual string DnLabel() => DN.ToString();
         public virtual string Material
         {
             get
@@ -126,6 +128,20 @@ namespace NTRExport.TopologyModel
         }
 
         public virtual void Route(RoutedGraph g, Topology topo, RouterContext ctx) { }
+
+        // Default elevation behavior: pass-through entry Z to all other ports
+        public virtual List<(TPort exitPort, double exitZ)> SolveElevation(TPort entryPort, double entryZ, SolverContext ctx)
+        {
+            var exits = new List<(TPort exitPort, double exitZ)>();
+            ctx.Registry.Record(this, entryPort, entryZ);
+            foreach (var p in Ports)
+            {
+                if (ReferenceEquals(p, entryPort)) continue;
+                ctx.Registry.Record(this, p, entryZ);
+                exits.Add((p, entryZ));
+            }
+            return exits;
+        }
     }
 
     internal class TPipe : ElementBase
@@ -238,6 +254,25 @@ namespace NTRExport.TopologyModel
                     );
                 }
             }
+        }
+
+        public override List<(TPort exitPort, double exitZ)> SolveElevation(TPort entryPort, double entryZ, SolverContext ctx)
+        {
+            var exits = new List<(TPort exitPort, double exitZ)>();
+            ctx.Registry.Record(this, entryPort, entryZ);
+
+            var other = ReferenceEquals(entryPort, A) ? B : A;
+
+            double exitZ = entryZ;
+            if (ctx.Registry.TryGetSlopeHint(this, entryPort, out var slope))
+            {
+                exitZ = entryZ + slope * Length;
+                ctx.Registry.RecordSlopeHint(this, other, slope);
+            }
+
+            ctx.Registry.Record(this, other, exitZ);
+            exits.Add((other, exitZ));
+            return exits;
         }
 
 
@@ -423,6 +458,65 @@ namespace NTRExport.TopologyModel
                     }
                 );
             }
+        }
+
+        public override List<(TPort exitPort, double exitZ)> SolveElevation(TPort entryPort, double entryZ, SolverContext ctx)
+        {
+            var exits = new List<(TPort exitPort, double exitZ)>();
+            ctx.Registry.Record(this, entryPort, entryZ);
+
+            // Identify other ports
+            var others = Ports.Where(p => !ReferenceEquals(p, entryPort)).ToArray();
+            if (others.Length == 0) return exits;
+
+            if (!TryDetectVertical(out var slopeMag, out var isUp))
+            {
+                foreach (var p in others)
+                {
+                    ctx.Registry.Record(this, p, entryZ);
+                    exits.Add((p, entryZ));
+                }
+                return exits;
+            }
+
+            var signedSlope = isUp ? slopeMag : -slopeMag;
+            foreach (var p in others)
+            {
+                ctx.Registry.Record(this, p, entryZ);
+                ctx.Registry.RecordSlopeHint(this, p, signedSlope);
+                exits.Add((p, entryZ));
+            }
+            return exits;
+        }
+
+        private bool TryDetectVertical(out double slopeMag, out bool isUp)
+        {
+            slopeMag = 0.0; isUp = true;
+            try
+            {
+                var db = Autodesk.AutoCAD.ApplicationServices.Core.Application
+                    .DocumentManager.MdiActiveDocument.Database;
+                var br = Source.Go<BlockReference>(db);
+                if (br == null) return false;
+
+                var plane = br.ReadDynamicCsvProperty(DynamicProperty.Plan);
+                if (!string.IsNullOrWhiteSpace(plane) &&
+                    plane.Trim().Equals("Vertical", StringComparison.OrdinalIgnoreCase))
+                {
+                    var angStr = br.ReadDynamicCsvProperty(DynamicProperty.Vinkel);
+                    if (!double.TryParse(angStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var angDeg))
+                        angDeg = 45.0;
+                    var angRad = angDeg * Math.PI / 180.0;
+                    slopeMag = Math.Tan(angRad);
+
+                    var dir = br.ReadDynamicCsvProperty(DynamicProperty.Retning);
+                    if (!string.IsNullOrWhiteSpace(dir) && dir.Trim().Equals("Down", StringComparison.OrdinalIgnoreCase))
+                        isUp = false;
+                    return true;
+                }
+            }
+            catch { }
+            return false;
         }
 
 
@@ -626,9 +720,9 @@ namespace NTRExport.TopologyModel
 
         public override string DotLabelForTest()
         {
-            return $"{Source.ToString()} / {this.GetType().Name}\n" +
-                $"{DnM.ToString()}/{DnB.ToString()}";
+            return $"{Source.ToString()} / {this.GetType().Name}\n{DnLabel()}";
         }
+        public virtual string DnLabel() => $"{DnM.ToString()}/{DnB.ToString()}";
 
         public override int DN => DnM;
         protected int DnM =>
@@ -720,6 +814,88 @@ namespace NTRExport.TopologyModel
         public override void Route(RoutedGraph g, Topology topo, RouterContext ctx)
         {
             // TODO: implement macro; placeholder no-op
+        }
+
+        public override List<(TPort exitPort, double exitZ)> SolveElevation(TPort entryPort, double entryZ, SolverContext ctx)
+        {
+            var exits = new List<(TPort exitPort, double exitZ)>();
+            ctx.Registry.Record(this, entryPort, entryZ);
+
+            // Ports by role - AfgreningMedSpring must have exactly 2 Main ports and 1 Branch port
+            var mains = Ports.Where(p => p.Role == PortRole.Main).ToArray();
+            var branch = Ports.FirstOrDefault(p => p.Role == PortRole.Branch);
+            if (mains.Length != 2 || branch == null)
+            {
+                throw new System.Exception(
+                    $"AfgreningMedSpring {Source}: invalid port configuration. Expected 2 Main + 1 Branch, " +
+                    $"found {mains.Length} Main and {(branch == null ? "0" : "1")} Branch ports.");
+            }
+
+            // Read direction and ΔZ from DN table
+            var (isUp, hasDir) = TryReadSpringDirection();
+            if (!hasDir)
+            {
+                // Default to "Up" if direction is missing
+                isUp = true;
+            }
+
+            int dnBranch = ctx.Topology.InferBranchDn(this);
+            int dnMain = ctx.Topology.InferMainDn(this);
+            double dz = LookupSpringDeltaZ(dnBranch > 0 ? dnBranch : dnMain);
+            if (dz <= 0.0)
+                throw new System.Exception($"AfgreningMedSpring {Source}: no Spring ΔZ found for DN {dnBranch}/{dnMain}.");
+
+            double signedDz = isUp ? dz : -dz;
+
+            bool entryIsMain = mains.Contains(entryPort);
+            if (entryIsMain)
+            {
+                foreach (var m in mains)
+                {
+                    if (ReferenceEquals(m, entryPort)) continue;
+                    ctx.Registry.Record(this, m, entryZ);
+                    exits.Add((m, entryZ));
+                }
+                double zBranch = entryZ + signedDz;
+                ctx.Registry.Record(this, branch, zBranch);
+                exits.Add((branch, zBranch));
+            }
+            else
+            {
+                double zMain = entryZ - signedDz;
+                foreach (var m in mains)
+                {
+                    ctx.Registry.Record(this, m, zMain);
+                    exits.Add((m, zMain));
+                }
+            }
+
+            return exits;
+        }
+
+        private (bool isUp, bool ok) TryReadSpringDirection()
+        {
+            try
+            {
+                var db = Autodesk.AutoCAD.ApplicationServices.Core.Application
+                    .DocumentManager.MdiActiveDocument.Database;
+                var br = Source.Go<BlockReference>(db);
+                if (br == null) return (true, false);
+
+                
+
+                return (true, false);
+            }
+            catch
+            {
+                return (true, false);
+            }
+        }
+
+        private static double LookupSpringDeltaZ(int dn)
+        {
+            // TODO: integrate actual catalog; force error until bound
+            return 0.0;
         }
     }
 
@@ -1008,9 +1184,9 @@ namespace NTRExport.TopologyModel
 
         public override string DotLabelForTest()
         {
-            return $"{Source.ToString()} / {this.GetType().Name}\n" +
-                $"{DnM.ToString()}/{DnB.ToString()}";
+            return $"{Source.ToString()} / {this.GetType().Name}\n{DnLabel()}";
         }
+        public override string DnLabel() => $"{DnM.ToString()}/{DnB.ToString()}";
 
         public override void Route(RoutedGraph g, Topology topo, RouterContext ctx)
         {
@@ -1228,6 +1404,10 @@ namespace NTRExport.TopologyModel
 
         public override string DotLabelForTest()
         {
+            return $"{Source.ToString()} / {this.GetType().Name}\n{DnLabel()}";
+        }
+        public override string DnLabel()
+        {
             var br = _entity as BlockReference;
             if (br == null)
             {
@@ -1240,8 +1420,7 @@ namespace NTRExport.TopologyModel
             var dn2 = Convert.ToInt32(
                 br.ReadDynamicCsvProperty(DynamicProperty.DN2));
 
-            return $"{Source.ToString()} / {this.GetType().Name}\n" +
-                $"{dn1.ToString()}/{dn2.ToString()}";
+            return $"{dn1.ToString()}/{dn2.ToString()}";
         }
 
         public override void Route(RoutedGraph g, Topology topo, RouterContext ctx)
@@ -1312,6 +1491,10 @@ namespace NTRExport.TopologyModel
 
         public override string DotLabelForTest()
         {
+            return $"{Source.ToString()} / {this.GetType().Name}\n{DnLabel()}";
+        }
+        public override string DnLabel()
+        {
             var br = _entity as BlockReference;
             if (br == null)
             {
@@ -1324,8 +1507,7 @@ namespace NTRExport.TopologyModel
             var dn2 = Convert.ToInt32(
                 br.ReadDynamicCsvProperty(DynamicProperty.DN2));
 
-            return $"{Source.ToString()} / {this.GetType().Name}\n" +
-                $"{dn1.ToString()}/{dn2.ToString()}";
+            return $"{dn1.ToString()}/{dn2.ToString()}";
         }
 
         public override void Route(RoutedGraph g, Topology topo, RouterContext ctx)
@@ -1345,7 +1527,7 @@ namespace NTRExport.TopologyModel
             allowed.Add(PipelineElementType.Materialeskift);
         }
 
-        public override string DotLabelForTest()
+        public override string DnLabel()
         {
             var br = _entity as BlockReference;
             if (br == null)
@@ -1359,8 +1541,13 @@ namespace NTRExport.TopologyModel
             var dn2 = Convert.ToInt32(
                 br.ReadDynamicCsvProperty(DynamicProperty.DN2));
 
+            return $"{dn1.ToString()}/{dn2.ToString()}";
+        }
+
+        public override string DotLabelForTest()
+        {
             return $"{Source.ToString()} / {this.GetType().Name}\n" +
-                $"{dn1.ToString()}/{dn2.ToString()}";
+                $"{DnLabel()}";
         }
 
         public override void Route(RoutedGraph g, Topology topo, RouterContext ctx)

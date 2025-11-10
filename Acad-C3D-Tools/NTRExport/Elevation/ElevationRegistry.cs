@@ -7,6 +7,9 @@ namespace NTRExport.Elevation
         // Element -> (Port -> Z)
         private readonly Dictionary<ElementBase, Dictionary<TPort, double>> _map =
             new(new ReferenceEqualityComparer<ElementBase>());
+        // Element -> (Port -> slope m/m to be applied when traversing out of this port)
+        private readonly Dictionary<ElementBase, Dictionary<TPort, double>> _slopeHints =
+            new(new ReferenceEqualityComparer<ElementBase>());
 
         public void Record(ElementBase element, TPort port, double z)
         {
@@ -26,6 +29,27 @@ namespace NTRExport.Elevation
                 return true;
             }
             endpointZ = null;
+            return false;
+        }
+
+        public void RecordSlopeHint(ElementBase element, TPort port, double slope)
+        {
+            if (!_slopeHints.TryGetValue(element, out var portMap))
+            {
+                portMap = new Dictionary<TPort, double>(new ReferenceEqualityComparer<TPort>());
+                _slopeHints[element] = portMap;
+            }
+            portMap[port] = slope;
+        }
+
+        public bool TryGetSlopeHint(ElementBase element, TPort port, out double slope)
+        {
+            slope = 0.0;
+            if (_slopeHints.TryGetValue(element, out var map) && map.TryGetValue(port, out var s))
+            {
+                slope = s;
+                return true;
+            }
             return false;
         }
 

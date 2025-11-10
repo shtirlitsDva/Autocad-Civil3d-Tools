@@ -6,6 +6,8 @@ namespace NTRExport.Elevation
 {
     internal static class RootSelector
     {
+        private const bool Verbose = false;
+
         public static void DebugPickRoots(Topology topo)
         {
             // Build port-level adjacency (node -> (element, port))
@@ -19,7 +21,7 @@ namespace NTRExport.Elevation
                 }
             }
 
-            prdDbg($"[ROOTDBG] Adjacency built: nodes={nodeAdj.Count}, elements={topo.Elements.Count()}");
+            if (Verbose) prdDbg($"[ROOTDBG] Adjacency built: nodes={nodeAdj.Count}, elements={topo.Elements.Count()}");
 
             // Build element adjacency (undirected) by shared nodes
             var elAdj = new Dictionary<ElementBase, HashSet<ElementBase>>(new RefEq<ElementBase>());
@@ -42,19 +44,38 @@ namespace NTRExport.Elevation
             }
 
             var visitedElements = new HashSet<ElementBase>(new RefEq<ElementBase>());
-            int compIdx = 0;
+            int subnetIdx = 0;
+            int totalLeafConsidered = 0;
+            int totalFilteredOut = 0;
             while (true)
             {
-                prdDbg($"[ROOTDBG] Component {compIdx}: root selection pass. visitedElements={visitedElements.Count}");
+                if (Verbose) prdDbg($"[ROOTDBG] Subnet {subnetIdx}: root selection pass. visitedElements={visitedElements.Count}");
+
+                // Per-pass stats (unvisited only)
+                int passLeafs = 0, passFiltered = 0;
+                foreach (var el in topo.Elements)
+                {
+                    if (visitedElements.Contains(el)) continue;
+                    bool isLeafByPort = false;
+                    foreach (var port in el.Ports)
+                    {
+                        if (!nodeAdj.TryGetValue(port.Node, out var list)) { isLeafByPort = true; break; }
+                        if (DegreeExcluding(list, el) == 0) { isLeafByPort = true; break; }
+                    }
+                    if (isLeafByPort) passLeafs++; else passFiltered++;
+                }
+                totalLeafConsidered += passLeafs;
+                totalFilteredOut += passFiltered;
+
                 var (rootEl, rootPort) = PickRoot(topo, nodeAdj, visitedElements);
                 if (rootEl == null || rootPort == null)
                 {
-                    prdDbg("[ROOTDBG] No more roots found (all elements covered).");
+                    if (Verbose) prdDbg("[ROOTDBG] No more roots found (all elements covered).");
                     break;
                 }
-                prdDbg($"[ROOTDBG] Component {compIdx}: Root chosen: {EId(rootEl)} at node={NodeId(rootPort.Node)}");
+                if (Verbose) prdDbg($"[ROOTDBG] Subnet {subnetIdx}: Root chosen: {EId(rootEl)} at node={NodeId(rootPort.Node)}");
 
-                // Mark the entire connected component visited for the next passes
+                // Mark the entire connected subnet visited for the next passes
                 var compCount = 0;
                 var q = new Queue<ElementBase>();
                 if (visitedElements.Add(rootEl)) { compCount++; q.Enqueue(rootEl); }
@@ -67,56 +88,76 @@ namespace NTRExport.Elevation
                         if (visitedElements.Add(n)) { compCount++; q.Enqueue(n); }
                     }
                 }
-                prdDbg($"[ROOTDBG] Component {compIdx}: size={compCount} (elements).");
-                compIdx++;
+                if (Verbose) prdDbg($"[ROOTDBG] Subnet {subnetIdx}: size={compCount} (elements).");
+                subnetIdx++;
             }
+
+            // Summary (keep)
+            prdDbg($"[ROOTFIND] Summary: subnets={subnetIdx}, elements={topo.Elements.Count()}, leafsConsidered={totalLeafConsidered}, nonLeafFiltered={totalFilteredOut}");
         }
 
         private static (ElementBase? el, TPort? port) PickRoot(Topology topo,
             Dictionary<TNode, List<(ElementBase el, TPort port)>> nodeAdj,
             HashSet<ElementBase> visitedElements)
         {
-            prdDbg("[ROOTDBG] Begin selection (prefer supply leaf with largest DN among unvisited).");
+            if (Verbose) prdDbg("[ROOTDBG] Begin selection (LEAFS only; pick largest DN; tie-break by id).");
             ElementBase? bestEl = null;
             TPort? bestPort = null;
             int bestDn = -1;
-            int bestScore = -1;
 
+            int filteredOut = 0;
             foreach (var el in topo.Elements)
             {
                 if (visitedElements.Contains(el)) continue;
-                int elemDeg = ElementDegree(el, nodeAdj);
-                bool isLeaf = elemDeg == 1;
-                int score = el.Type == IntersectUtilities.UtilsCommon.Enums.PipeTypeEnum.Frem ? 1 : 0; // prefer supply when known
+                // Leaf by port: at least one port has no neighbor (excluding the element itself)
+                bool isLeafByPort = false;
+                foreach (var port in el.Ports)
+                {
+                    if (!nodeAdj.TryGetValue(port.Node, out var list)) { isLeafByPort = true; break; }
+                    if (DegreeExcluding(list, el) == 0) { isLeafByPort = true; break; }
+                }
                 int dn = 0;
                 try { dn = el.DN; } catch { dn = 0; }
-                prdDbg($"[ROOTDBG] Consider {EId(el)}: elemDeg={elemDeg} score={score} dn={dn} currentBestScore={bestScore} bestDn={bestDn}");
-                if (isLeaf && (score > bestScore || (score == bestScore && dn > bestDn)))
+                if (!isLeafByPort)
                 {
-                    bestScore = score;
+                    filteredOut++;
+                    continue;
+                }
+                if (Verbose) prdDbg($"[ROOTDBG] Consider {EId(el)}: leafByPort=True dn={dn} currentBestDn={bestDn}");
+                if (dn > bestDn || (dn == bestDn && bestEl != null && string.CompareOrdinal(el.Source.ToString(), bestEl.Source.ToString()) < 0))
+                {
                     bestDn = dn;
                     bestEl = el;
-                    bestPort = ChooseLeafPort(el, nodeAdj) ?? el.Ports.FirstOrDefault();
-                    if (bestPort != null)
+                    // Prefer a truly unconnected port as entry
+                    bestPort = el.Ports.FirstOrDefault(p =>
+                    {
+                        if (!nodeAdj.TryGetValue(p.Node, out var list)) return true;
+                        return DegreeExcluding(list, el) == 0;
+                    }) ?? el.Ports.FirstOrDefault();
+                    if (Verbose && bestPort != null)
                         prdDbg($"[ROOTDBG]  -> update best to {EId(el)} at node={NodeId(bestPort.Node)}");
                 }
             }
+            if (Verbose) prdDbg($"[ROOTDBG] {filteredOut} element(s) with leafByPort=False were not considered.");
             if (bestEl != null && bestPort != null) return (bestEl, bestPort);
 
-            // Fallback: pick any unvisited pipe with largest DN (choose A port)
+            // Fallback: pick any unvisited element with largest DN (choose first port)
             bestEl = null;
             bestPort = null;
             bestDn = -1;
-            prdDbg("[ROOTDBG] Fallback: no supply leaf found, choose largest DN unvisited pipe.");
-            foreach (var p in topo.Pipes)
+            if (Verbose) prdDbg("[ROOTDBG] Fallback: no leaf found, choose largest DN unvisited element.");
+            foreach (var e in topo.Elements)
             {
-                if (visitedElements.Contains(p)) continue;
-                if (p.DN > bestDn)
+                if (visitedElements.Contains(e)) continue;
+                int dn = 0;
+                try { dn = e.DN; } catch { dn = 0; }
+                if (dn > bestDn || (dn == bestDn && bestEl != null && string.CompareOrdinal(e.Source.ToString(), bestEl.Source.ToString()) < 0))
                 {
-                    bestDn = p.DN;
-                    bestEl = p;
-                    bestPort = p.A;
-                    prdDbg($"[ROOTDBG]  -> fallback candidate {EId(p)} at node={NodeId(bestPort.Node)}");
+                    bestDn = dn;
+                    bestEl = e;
+                    bestPort = e.Ports.FirstOrDefault();
+                    if (Verbose && bestPort != null)
+                        prdDbg($"[ROOTDBG]  -> fallback candidate {EId(e)} at node={NodeId(bestPort.Node)}");
                 }
             }
             return (bestEl, bestPort);

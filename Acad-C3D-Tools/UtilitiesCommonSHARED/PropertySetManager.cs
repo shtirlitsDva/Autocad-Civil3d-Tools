@@ -4,6 +4,7 @@ using System.Collections.Specialized;
 using System.Data;
 using System.Linq;
 
+using Autodesk.Aec.DatabaseServices;
 using Autodesk.Aec.PropertyData.DatabaseServices;
 using Autodesk.AutoCAD.ApplicationServices.Core;
 using Autodesk.AutoCAD.DatabaseServices;
@@ -1446,15 +1447,18 @@ namespace IntersectUtilities
             public DefinedSets SetName { get; } = DefinedSets.NtrData;
             public Property ElementRotation { get; } =
                 new Property(
-                    "ElementRotation", 
-                    "Rotation of the pipe element around x-axis of the main run.", 
-                    PsDataType.Real, 0);
+                    "AfgreningMedSpringDir", 
+                    "Direction of the element branch.", 
+                    PsDataType.List, );
             public StringCollection AppliesTo { get; } =
                 new StringCollection()
-                {
-                    RXClass.GetClass(typeof(Polyline)).Name,
+                {                    
                     RXClass.GetClass(typeof(BlockReference)).Name,
                 };
+
+            //https://forums.autodesk.com/t5/net-forum/modify-list-definition-for-a-manual-property-definition/td-p/12055826
+
+            ListDefinition
         }
 
         public class PSetDef

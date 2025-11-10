@@ -471,6 +471,7 @@ namespace NTRExport
             tx.Commit();
         }
 
+#if DEBUG
         [CommandMethod("NTRDOT")]
         public void ntrdot()
         {
@@ -504,7 +505,7 @@ namespace NTRExport
                 var fittings = ents.OfType<BlockReference>().ToList();
                 var topo = TopologyBuilder.Build(polylines, fittings);
 
-                // Root selection debug (no traversal) - logs candidates and chosen roots per component
+                // Root selection debug (no traversal) - logs candidates and chosen roots per subnet
                 prdDbg("[NTRDOT] Root selection debug start...");
                 RootSelector.DebugPickRoots(topo);
 
@@ -539,20 +540,20 @@ namespace NTRExport
                     }
                 }
 
-                // Find connected components of elements
-                var components = new List<List<ElementBase>>();
+                // Find connected subnets of elements
+                var subnets = new List<List<ElementBase>>();
                 var visited = new HashSet<ElementBase>(new RefEq<ElementBase>());
                 foreach (var el in topo.Elements)
                 {
                     if (!visited.Add(el))
                         continue;
-                    var comp = new List<ElementBase>();
+                    var subnet = new List<ElementBase>();
                     var q = new Queue<ElementBase>();
                     q.Enqueue(el);
                     while (q.Count > 0)
                     {
                         var cur = q.Dequeue();
-                        comp.Add(cur);
+                        subnet.Add(cur);
                         if (elAdj.TryGetValue(cur, out var nbrs))
                         {
                             foreach (var n in nbrs)
@@ -562,7 +563,7 @@ namespace NTRExport
                             }
                         }
                     }
-                    components.Add(comp);
+                    subnets.Add(subnet);
                 }
 
                 // Emit DOT
@@ -571,12 +572,12 @@ namespace NTRExport
                 sb.AppendLine("  graph [compound=true];");
                 sb.AppendLine("  node [shape=box, fontsize=10];");
 
-                // Node labels and subgraphs
-                int clusterIdx = 0;
-                foreach (var comp in components)
+                // Node labels and subnets
+                int subnetIdx = 0;
+                foreach (var comp in subnets)
                 {
-                    sb.AppendLine($"  subgraph cluster_{clusterIdx} {{");
-                    sb.AppendLine($"    label=\"component {clusterIdx}\";");
+                    sb.AppendLine($"  subgraph cluster_{subnetIdx} {{");
+                    sb.AppendLine($"    label=\"subnet {subnetIdx}\";");
                     sb.AppendLine("    color=lightgrey;");
 
                     // Define nodes
@@ -587,29 +588,40 @@ namespace NTRExport
                         sb.AppendLine($"    \"{id}\" [label=\"{label}\"];");
                     }
 
-                    // DFS edges inside component, starting from chosen root
+                    // DFS edges inside subnet, starting from chosen root
                     ElementBase ChooseRootForComp(List<ElementBase> c)
                     {
+                        // Leaf-by-port: at least one port has no neighbor
+                        bool IsLeafByPort(ElementBase el)
+                        {
+                            foreach (var p in el.Ports)
+                            {
+                                if (!nodeAdj.TryGetValue(p.Node, out var list)) return true;
+                                if (DegreeExcluding(list, el) == 0) return true;
+                            }
+                            return false;
+                        }
+
+                        int filtered = 0;
                         ElementBase? best = null;
-                        int bestScore = -1;
                         int bestDn = -1;
                         foreach (var e in c)
                         {
-                            int deg = ElementDegree(e, nodeAdj);
-                            if (deg != 1) continue;
-                            int score = e.Type == PipeTypeEnum.Frem ? 1 : 0;
+                            if (!IsLeafByPort(e)) { filtered++; continue; }
                             int dn = 0;
                             try { dn = e.DN; } catch { dn = 0; }
-                            if (score > bestScore || (score == bestScore && dn > bestDn))
+                            if (dn > bestDn || (dn == bestDn && best != null && string.CompareOrdinal(e.Source.ToString(), best.Source.ToString()) < 0))
                             {
-                                bestScore = score;
                                 bestDn = dn;
                                 best = e;
                             }
                         }
+                        prdDbg($"[NTRDOT] Subnet {subnetIdx}: {filtered} component(s) with leafByPort=False were not considered.");
                         if (best != null) return best;
-                        // Fallback: element with largest DN in component
-                        best = c.OrderByDescending(x => { try { return x.DN; } catch { return 0; } }).First();
+                        // Fallback: element with largest DN in subnet
+                        best = c.OrderByDescending(x => { try { return x.DN; } catch { return 0; } })
+                                .ThenBy(x => x.Source.ToString(), StringComparer.Ordinal)
+                                .First();
                         return best;
                     }
 
@@ -640,7 +652,7 @@ namespace NTRExport
                     }
 
                     var root = ChooseRootForComp(comp);
-                    prdDbg($"[NTRDOT] Component {clusterIdx} DFS root: {root.Source} / {root.GetType().Name}");
+                    prdDbg($"[NTRDOT] Subnet {subnetIdx} DFS root: {root.Source} / {root.GetType().Name}");
 
                     // Build DFS ordered edges
                     var dfsVisited = new HashSet<ElementBase>(new RefEq<ElementBase>());
@@ -686,7 +698,7 @@ namespace NTRExport
                         sb.AppendLine($"    \"{a}\" -- \"{b}\";");
 
                     sb.AppendLine("  }");
-                    clusterIdx++;
+                    subnetIdx++;
                 }
 
                 sb.AppendLine("}");
@@ -712,6 +724,7 @@ namespace NTRExport
             }
             tx.Commit();
         }
+#endif
 
         private sealed class RefEq<T> : IEqualityComparer<T> where T : class
         {
