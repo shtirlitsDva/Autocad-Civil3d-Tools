@@ -5442,7 +5442,7 @@ namespace IntersectUtilities
         private static double _lastTangentArcRadius = 2.5;
 
         [CommandMethod("TANGENTARCFROMLINE")]
-        public void tangentarcfromline()
+        public void TangentArcFromLine()
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
             Database db = doc.Database;
@@ -5502,12 +5502,6 @@ namespace IntersectUtilities
 
             Point3d directionPoint = directionPointResult.Value;
             Point3d midPoint = startPoint.MidPoint(endPoint);
-            Point3d basePoint;
-
-            if (directionPoint.DistanceTo(startPoint) < directionPoint.DistanceTo(endPoint))
-                basePoint = startPoint;
-            else
-                basePoint = endPoint;
 
             Vector3d baseLineVectorUnit = startPoint.GetVectorTo(endPoint).GetNormal();
             Vector3d perpendicularVectorUnit = baseLineVectorUnit.RotateBy(Math.PI / 2, Vector3d.ZAxis);
