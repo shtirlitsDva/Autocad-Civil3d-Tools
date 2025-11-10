@@ -181,19 +181,14 @@ namespace NTRExport.Routing
         public Point3d P1 { get; set; }
         public Point3d P2 { get; set; }
         public Point3d Pm { get; set; }
-        public int Dn1 { get; set; }
-        public int Dn2 => Dn1; //Only one size allowed for valves
-        public string Dn1Suffix { get; set; } = "s";
-        public string Dn2Suffix { get; set; } = "s";
-
         public override IEnumerable<string> ToNtr(INtrSoilAdapter soil, ConfigurationData conf)
         {
             yield return "ARM " +
                 $"P1={NtrFormat.Pt(P1)} " +
                 $"P2={NtrFormat.Pt(P2)} " +
                 $"PM={NtrFormat.Pt(Pm)} " +
-                $"DN1=DN{Dn1}.{FormatDnSuffix(Dn1Suffix)} " +
-                $"DN2=DN{Dn2}.{FormatDnSuffix(Dn2Suffix)}" +
+                $"DN1=DN{DN}.{FormatDnSuffix(DnSuffix)} " +
+                $"DN2=DN{DN}.{FormatDnSuffix(DnSuffix)} " +                
                 (Material != null ? $" MAT={Material}" : string.Empty) +
                 Last(conf) +
                 PipelineToken +
