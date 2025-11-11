@@ -995,25 +995,38 @@ namespace NTRExport.TopologyModel
 
             // CSV-backed maps (mainDN, branchDN) -> SpringData
             private static readonly object _csvLock = new object();
+            private static bool _serie1Loaded = false;
             private static bool _serie2Loaded = false;
             private static bool _serie3Loaded = false;
+            private static bool _allLoaded => _serie1Loaded && _serie2Loaded && _serie3Loaded;
+            private static readonly Dictionary<(int mainDN, int branchDN), SpringData> _serie1 =
+                new Dictionary<(int mainDN, int branchDN), SpringData>();
             private static readonly Dictionary<(int mainDN, int branchDN), SpringData> _serie2 =
                 new Dictionary<(int mainDN, int branchDN), SpringData>();
             private static readonly Dictionary<(int mainDN, int branchDN), SpringData> _serie3 =
                 new Dictionary<(int mainDN, int branchDN), SpringData>();
 
             private static Dictionary<(int mainDN, int branchDN), SpringData> GetMap(PipeSeriesEnum series) =>
-                series == PipeSeriesEnum.S2 ? _serie2 : _serie3;
+                series switch
+                {
+                    PipeSeriesEnum.S1 => _serie1,
+                    PipeSeriesEnum.S2 => _serie2,
+                    PipeSeriesEnum.S3 => _serie3,
+                    _ => throw new System.Exception($"SpringCatalogLookup: Unsupported series '{series}'")
+                };
 
             private static void EnsureLoaded(PipeSeriesEnum series)
             {
                 lock (_csvLock)
                 {
-                    if (series == PipeSeriesEnum.S2 && _serie2Loaded) return;
-                    if (series == PipeSeriesEnum.S3 && _serie3Loaded) return;
+                    if ((series == PipeSeriesEnum.S1 && _serie1Loaded) ||
+                        (series == PipeSeriesEnum.S2 && _serie2Loaded) ||
+                        (series == PipeSeriesEnum.S3 && _serie3Loaded) ||
+                        _allLoaded)
+                        return;
 
                     var assembly = System.Reflection.Assembly.GetExecutingAssembly();
-                    var file = series == PipeSeriesEnum.S2 ? "spring_serie2.csv" : "spring_serie3.csv";
+                    var file = "spring_tables.csv";
 
                     var resourceName =
                         assembly.GetManifestResourceNames()
@@ -1033,15 +1046,27 @@ namespace NTRExport.TopologyModel
                         throw new System.Exception($"SpringCatalogLookup: Embedded CSV empty: {resourceName}");
 
                     var sep = DetectSeparator(header);
-                    var map = GetMap(series);
-                    map.Clear();
+                    // We read a single file containing three blocks: S1, S2, S3 separated by empty lines
+                    _serie1.Clear();
+                    _serie2.Clear();
+                    _serie3.Clear();
 
                     string? line;
                     int lineIdx = 1; // already consumed header
+                    int currentSection = 1; // 1 => S1, 2 => S2, 3 => S3
+                    bool hasDataInCurrentSection = false;
                     while ((line = reader.ReadLine()) != null)
                     {
                         lineIdx++;
-                        if (string.IsNullOrWhiteSpace(line)) continue;
+                        if (string.IsNullOrWhiteSpace(line))
+                        {
+                            if (hasDataInCurrentSection)
+                            {
+                                currentSection++;
+                                hasDataInCurrentSection = false;
+                            }
+                            continue;
+                        }
                         var trimmed = line.Trim();
                         if (trimmed.StartsWith("#")) continue;
                         var parts = trimmed.Split(sep);
@@ -1057,13 +1082,27 @@ namespace NTRExport.TopologyModel
                         double L1 = ParseDouble(parts[6], "L1", lineIdx, resourceName);
 
                         var key = (mainDN, branchDN);
-                        if (map.ContainsKey(key))
-                            throw new System.Exception($"SpringCatalogLookup: duplicate key (mainDN={mainDN}, branchDN={branchDN}) in {resourceName} at line {lineIdx}.");
+                        var targetMap =
+                            currentSection switch
+                            {
+                                1 => _serie1,
+                                2 => _serie2,
+                                3 => _serie3,
+                                _ => null
+                            };
+                        if (targetMap == null)
+                            throw new System.Exception($"SpringCatalogLookup: Unexpected additional section (#{currentSection}) in {resourceName} at line {lineIdx}.");
 
-                        map[key] = new SpringData { D = D, D1 = D1, s = s, L = L, L1 = L1 };
+                        if (targetMap.ContainsKey(key))
+                            throw new System.Exception($"SpringCatalogLookup: duplicate key (mainDN={mainDN}, branchDN={branchDN}) in section {currentSection} at line {lineIdx} in {resourceName}.");
+
+                        targetMap[key] = new SpringData { D = D, D1 = D1, s = s, L = L, L1 = L1 };
+                        hasDataInCurrentSection = true;
                     }
 
-                    if (series == PipeSeriesEnum.S2) _serie2Loaded = true; else _serie3Loaded = true;
+                    _serie1Loaded = true;
+                    _serie2Loaded = true;
+                    _serie3Loaded = true;
                 }
             }
 

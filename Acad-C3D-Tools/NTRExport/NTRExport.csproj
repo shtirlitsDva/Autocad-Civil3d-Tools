@@ -37,8 +37,10 @@
 		<DebugType>full</DebugType>
 	</PropertyGroup>
 	<ItemGroup>
-	  <None Remove="TopologyModel\Data\spring_serie2.csv" />
-	  <None Remove="TopologyModel\Data\spring_serie3.csv" />
+	  <Compile Remove="TopologyModel\CadInterop.cs" />
+	</ItemGroup>
+	<ItemGroup>
+	  <None Remove="TopologyModel\Data\spring_tables.csv" />
 	</ItemGroup>
 	<ItemGroup>
 		<Reference Include="accoremgd">
@@ -121,8 +123,10 @@
 		</Compile>
 	</ItemGroup>
 	<ItemGroup>
-	  <EmbeddedResource Include="TopologyModel\Data\spring_serie2.csv" />
-	  <EmbeddedResource Include="TopologyModel\Data\spring_serie3.csv" />
+	  <EmbeddedResource Include="TopologyModel\CadInterop.cs" />
+	</ItemGroup>
+	<ItemGroup>
+	  <EmbeddedResource Include="TopologyModel\Data\spring_tables.csv" />
 	</ItemGroup>
 	<ItemGroup>
 		<Using Include="System.Collections.Generic" />
