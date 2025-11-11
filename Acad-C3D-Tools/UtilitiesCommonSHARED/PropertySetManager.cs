@@ -1,12 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Collections.Specialized;
-using System.Data;
-using System.Linq;
-
-using Autodesk.Aec.DatabaseServices;
+﻿using Autodesk.Aec.DatabaseServices;
 using Autodesk.Aec.PropertyData.DatabaseServices;
-using Autodesk.AutoCAD.ApplicationServices.Core;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Runtime;
 using Autodesk.Civil.DatabaseServices;
@@ -14,6 +7,12 @@ using Autodesk.Civil.DatabaseServices;
 using IntersectUtilities.UtilsCommon;
 
 using MoreLinq;
+
+using System;
+using System.Collections.Generic;
+using System.Collections.Specialized;
+using System.Data;
+using System.Linq;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 
@@ -64,8 +63,8 @@ namespace IntersectUtilities
             }
             //3
             PropertySetDefinition = PSetDefs.GetOrCreatePropertySetDefinition(
-                Db, 
-                DictionaryPropertySetDefinitions, 
+                Db,
+                DictionaryPropertySetDefinitions,
                 propertySetName);
         }
 
@@ -638,8 +637,7 @@ namespace IntersectUtilities
 
         public static void UpdatePropertySetDefinition(
             Database db,
-            PSetDefs.DefinedSets propertySetName
-        )
+            PSetDefs.DefinedSets propertySetName)
         {
             if (db.TransactionManager.TopTransaction != null)
             {
@@ -678,17 +676,7 @@ namespace IntersectUtilities
 
                 foreach (PSetDefs.Property property in missingProperties)
                 {
-                    var propDefManual = new PropertyDefinition();
-                    propDefManual.SetToStandard(db);
-                    propDefManual.SubSetDatabaseDefaults(db);
-
-                    propDefManual.Name = property.Name;
-                    propDefManual.Description = property.Description;
-                    propDefManual.DataType = property.DataType;
-                    propDefManual.DefaultData = property.DefaultValue;
-
-                    propSetDef.CheckOrOpenForWrite();
-                    propSetDef.Definitions.Add(propDefManual);
+                    property.AddToDefinition(db, propSetDef);
                 }
                 tx.Commit();
             }
@@ -1345,15 +1333,28 @@ namespace IntersectUtilities
             public override DefinedSets SetName { get; } = DefinedSets.NtrData;
             public Property AfgreningMedSpringDir { get; } =
                 new ListProperty.UpDown(
-                    "AfgreningMedSpringDir", 
+                    "AfgreningMedSpringDir",
                     "Direction of the element branch.");
+            public Property VertikalBøjningDir { get; } =
+                new ListProperty.UpDown(
+                    "VertikalBøjningDir",
+                    "Direction of the element vertical bend.");
+            public Property BøjningBenRotationAxis { get; } =
+                new ListProperty.NearFar(
+                    "BøjningBenRotationAxis",
+                    "Location of the bends' leg which is the axis of rotation.");
+            public Property BøjningRotationVinkel { get; } =
+                new Property(
+                    "BøjningRotationVinkel",
+                    "Rotation angle of the bend.",
+                    PsDataType.Real,
+                    0.0
+                );
             public override StringCollection AppliesTo { get; } =
                 new StringCollection()
-                {                    
+                {
                     RXClass.GetClass(typeof(BlockReference)).Name,
                 };
-
-            //https://forums.autodesk.com/t5/net-forum/modify-list-definition-for-a-manual-property-definition/td-p/12055826
         }
 
         public abstract class PSetDef
@@ -1463,7 +1464,7 @@ namespace IntersectUtilities
 
             public ListProperty(
                 string name,
-                string description,                
+                string description,
                 string listName,
                 StringCollection listAppliesTo,
                 StringCollection listItems)
@@ -1476,27 +1477,43 @@ namespace IntersectUtilities
 
             public override void AddToDefinition(Database database, PropertySetDefinition propSetDef)
             {
+                //https://forums.autodesk.com/t5/net-forum/modify-list-definition-for-a-manual-property-definition/td-p/12055826
+
+                if (database == null || database.TransactionManager.TopTransaction == null)
+                    throw new System.Exception(
+                        "ListProperty.AddToDefinition called outside of transaction!");
+
+                DictionaryListDefinition ldDict = new DictionaryListDefinition(database);
+
                 Oid listDefId = Oid.Null;
-                Oid firstItemId = Oid.Null;
 
-                using (Transaction tr = database.TransactionManager.StartTransaction())
+                if (!ldDict.Has(ListName, database.TransactionManager.TopTransaction))
                 {
-                    var ld = new ListDefinition();
-                    ld.SubSetDatabaseDefaults(database);
-                    ld.SetToStandard(database);
-
-                    foreach (string item in ListItems)
+                    using (Transaction tr = database.TransactionManager.StartTransaction())
                     {
-                        Oid itemId = ld.AddListItem(item);
-                        if (firstItemId == Oid.Null) firstItemId = itemId;
+                        var ld = new ListDefinition();
+                        ld.SubSetDatabaseDefaults(database);
+                        ld.SetToStandard(database);
+
+                        ldDict.AddNewRecord(ListName, ld);
+
+                        foreach (string item in ListItems)
+                        {
+                            Oid itemId = ld.AddListItem(item);
+                        }
+
+                        ld.Description = $"List for {propSetDef.Description}.{Name}";
+                        ld.AppliesToFilter = ListAppliesTo;
+
+                        tr.AddNewlyCreatedDBObject(ld, true);
+                        listDefId = ld.Id;
+                        tr.Commit();
                     }
-
-                    ld.Description = $"List for {propSetDef.Description}.{Name}";
-                    ld.AppliesToFilter = ListAppliesTo;
-
-                    tr.AddNewlyCreatedDBObject(ld, true);
-                    listDefId = ld.Id;
-                    tr.Commit();
+                }
+                else
+                {
+                    var ldOid = ldDict.GetAt(ListName);
+                    listDefId = ldOid;                    
                 }
 
                 var propDefManual = new PropertyDefinition();
@@ -1507,8 +1524,9 @@ namespace IntersectUtilities
                 propDefManual.Description = Description;
                 propDefManual.DataType = PsDataType.List;
                 propDefManual.ListDefinitionId = listDefId;
-                propDefManual.DefaultData = firstItemId;
+                propDefManual.DefaultData = ListItems[0];
 
+                propSetDef.CheckOrOpenForWrite();
                 propSetDef.Definitions.Add(propDefManual);
             }
 
@@ -1524,6 +1542,18 @@ namespace IntersectUtilities
                     )
                 { }
             }
+            public class NearFar : ListProperty
+            {
+                public NearFar(string name, string description)
+                    : base(
+                        name,
+                        description,
+                        "NearFar",
+                        new StringCollection() { "AecListUserManualPropertyDef" },
+                        new StringCollection() { "Near", "Far" }
+                    )
+                { }
+            }
         }
 
         public List<PSetDef> GetPSetClasses()
@@ -1531,8 +1561,8 @@ namespace IntersectUtilities
             var type = this.GetType();
             var types = type.Assembly.GetTypes();
             return types
-                .Where(x => 
-                    x.BaseType != null && 
+                .Where(x =>
+                    x.BaseType != null &&
                     !x.IsAbstract &&
                     typeof(PSetDef).IsAssignableFrom(x) &&
                     x != typeof(PSetDef))
@@ -1629,6 +1659,42 @@ namespace IntersectUtilities
             Pipeline = new PSM_Pipeline(db);
             PipelineDef = new PSetDefs.DriPipelineData();
         }
+    }
+
+    public class NtrData : PropertySetManager
+    {
+        private Entity _ent;
+        private PSetDefs.NtrData _def = new PSetDefs.NtrData();
+        public NtrData(Entity ent)
+            : base(ent.Database, PSetDefs.DefinedSets.NtrData)
+        {
+            _ent = ent;
+            GetOrAttachPropertySet(_ent);
+        }
+        public string AfgreningMedSpringDir
+        {
+            get => ReadPropertyString(_ent, _def.AfgreningMedSpringDir);
+            set => WritePropertyObject(_ent, _def.AfgreningMedSpringDir, value);
+        }
+
+        public string VertikalBøjningDir
+        {
+            get => ReadPropertyString(_ent, _def.VertikalBøjningDir);
+            set => WritePropertyObject(_ent, _def.VertikalBøjningDir, value);
+        }
+
+        public string BøjningBenRotationAxis
+        {
+            get => ReadPropertyString(_ent, _def.BøjningBenRotationAxis);
+            set => WritePropertyObject(_ent, _def.BøjningBenRotationAxis, value);
+        }
+
+        public double BøjningRotationVinkel
+        {
+            get => ReadPropertyDouble(_ent, _def.BøjningRotationVinkel);
+            set => WritePropertyObject(_ent, _def.BøjningRotationVinkel, value);
+        }
+
     }
 
     public class BBR : PropertySetManager

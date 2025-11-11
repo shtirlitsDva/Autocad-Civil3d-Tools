@@ -37,6 +37,10 @@
 		<DebugType>full</DebugType>
 	</PropertyGroup>
 	<ItemGroup>
+	  <None Remove="TopologyModel\Data\spring_serie2.csv" />
+	  <None Remove="TopologyModel\Data\spring_serie3.csv" />
+	</ItemGroup>
+	<ItemGroup>
 		<Reference Include="accoremgd">
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\accoremgd.dll</HintPath>
 			<Private>False</Private>
@@ -44,10 +48,16 @@
 		<Reference Include="acdbmgd">
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\acdbmgd.dll</HintPath>
 			<Private>False</Private>
+		</Reference>		
+		<Reference Include="Acmgd">
+		  <HintPath>C:\Program Files\Autodesk\AutoCAD 2025\acmgd.dll</HintPath>
 		</Reference>
 		<Reference Include="AcMPolygonMGD">
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AcMPolygonMGD.dll</HintPath>
 			<Private>False</Private>
+		</Reference>
+		<Reference Include="AdWindows">
+		  <HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AdWindows.dll</HintPath>
 		</Reference>
 		<Reference Include="AecArchMgd">
 		  <HintPath>C:\Program Files\Autodesk\AutoCAD 2025\ACA\AecArchMgd.dll</HintPath>
@@ -70,10 +80,6 @@
 		</Reference>
 		<Reference Include="ManagedMapApi">
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\Map\ManagedMapApi.dll</HintPath>
-			<Private>False</Private>
-		</Reference>
-		<Reference Include="AdWindows">
-			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AdWindows.dll</HintPath>
 			<Private>False</Private>
 		</Reference>
 		<Reference Include="DarkUI">
@@ -115,9 +121,14 @@
 		</Compile>
 	</ItemGroup>
 	<ItemGroup>
+	  <EmbeddedResource Include="TopologyModel\Data\spring_serie2.csv" />
+	  <EmbeddedResource Include="TopologyModel\Data\spring_serie3.csv" />
+	</ItemGroup>
+	<ItemGroup>
 		<Using Include="System.Collections.Generic" />
 	</ItemGroup>	
 	<Import Project="..\UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems" Label="Shared" />
 	<Import Project="..\FormsSHARED\FormsSHARED.projitems" Label="Shared" />
 	<Import Project="..\PipelineSHARED\PipelineSHARED.projitems" Label="Shared" />
+	<Import Project="..\AutoCADCommandsSHARED\AutoCADCommandsSHARED.projitems" Label="Shared" />
 </Project>

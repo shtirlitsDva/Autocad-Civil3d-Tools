@@ -175,35 +175,6 @@ namespace NTRExport.Elevation
             return set.Count;
         }
 
-        private static int ElementDegree(ElementBase el, Dictionary<TNode, List<(ElementBase el, TPort port)>> nodeAdj)
-        {
-            var set = new HashSet<ElementBase>(new RefEq<ElementBase>());
-            foreach (var port in el.Ports)
-            {
-                if (!nodeAdj.TryGetValue(port.Node, out var list)) continue;
-                foreach (var t in list)
-                {
-                    if (ReferenceEquals(t.el, el)) continue;
-                    set.Add(t.el);
-                }
-            }
-            return set.Count;
-        }
-
-        private static TPort? ChooseLeafPort(ElementBase el, Dictionary<TNode, List<(ElementBase el, TPort port)>> nodeAdj)
-        {
-            foreach (var port in el.Ports)
-            {
-                if (!nodeAdj.TryGetValue(port.Node, out var list)) continue;
-                foreach (var t in list)
-                {
-                    if (!ReferenceEquals(t.el, el))
-                        return port;
-                }
-            }
-            return el.Ports.FirstOrDefault();
-        }
-
         private sealed class RefEq<T> : IEqualityComparer<T> where T : class
         {
             public bool Equals(T? x, T? y) => ReferenceEquals(x, y);

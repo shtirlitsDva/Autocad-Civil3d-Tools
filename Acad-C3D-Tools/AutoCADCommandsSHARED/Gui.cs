@@ -5,7 +5,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
-using AcadApplication = Autodesk.AutoCAD.ApplicationServices.Application;
+using AcadApplication = Autodesk.AutoCAD.ApplicationServices.Core.Application;
 using WinFormsPropertyGrid = System.Windows.Forms.PropertyGrid;
 using WpfWindow = System.Windows.Window;
 

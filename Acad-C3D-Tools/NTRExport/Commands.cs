@@ -11,10 +11,8 @@ using IntersectUtilities.PipeScheduleV2;
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.DataManager;
 using IntersectUtilities.UtilsCommon.Enums;
-using IntersectUtilities.UtilsCommon.Graphs;
 
 using NTRExport.Elevation;
-using NTRExport.Interfaces;
 using NTRExport.Ntr;
 using NTRExport.NtrConfiguration;
 using NTRExport.Routing;
@@ -40,7 +38,7 @@ namespace NTRExport
         public void Initialize()
         {
             Document doc = AcApp.DocumentManager.MdiActiveDocument;
-            doc.Editor.WriteMessage("\nVelkommen til NTR Export!\n");            
+            doc.Editor.WriteMessage("\nVelkommen til NTR Export!\n");
 #if DEBUG
             AppDomain.CurrentDomain.AssemblyResolve +=
         new ResolveEventHandler(MissingAssemblyLoader.Debug_AssemblyResolve);
@@ -154,151 +152,6 @@ namespace NTRExport
             tx.Commit();
         }
 
-        //[CommandMethod("NTREXPORTV2")]
-        public void ntrexportv2()
-        {
-            DocumentCollection docCol = AcApp.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-
-            DataManager dm = new(new DataReferencesOptions());
-
-            using var fDb = dm.Fremtid();
-            using var fTx = fDb.TransactionManager.StartTransaction();
-
-            using var aDb = dm.Alignments();
-            using var aTx = aDb.TransactionManager.StartTransaction();
-
-            using var tx = localDb.TransactionManager.StartTransaction();
-
-            #region Clean previous entities
-            var toDelete = localDb.GetFjvPipes(tx);
-            if (toDelete.Count > 0)
-            {
-                foreach (var item in toDelete)
-                {
-                    item.CheckOrOpenForWrite();
-                    item.Erase(true);
-                }
-            }
-            #endregion
-
-            try
-            {
-                var ents = fDb.GetFjvEntities(fTx);
-                var als = aDb.HashSetOfType<Alignment>(aTx);
-
-                #region Basic implementation of rotation
-                //Read any NtrData from fremtidig
-                var ntrPsm = new PropertySetManager(
-                    fDb, PSetDefs.DefinedSets.NtrData);
-                var ntrDef = new PSetDefs.NtrData();
-
-                Dictionary<Entity, double> rotationDict = new();
-
-                foreach (var ent in ents)
-                {
-                    var rotation = ntrPsm.ReadPropertyDouble(
-                        ent, ntrDef.ElementRotation);
-                    if (rotation == 0) continue;
-                    rotationDict[ent] = rotation;
-                }
-                #endregion
-
-                PipelineNetwork pn = new PipelineNetwork();
-                pn.CreatePipelineNetwork(ents, als);
-                pn.CreatePipelineGraph();
-                pn.CreateSizeArrays();
-                pn.CreateSegmentGraphs();
-
-                var ntrgraphs = new List<Graph<INtrSegment>>();
-
-                if (pn.PipelineGraphs == null) return;
-
-                foreach (var pgraph in pn.PipelineGraphs)
-                {
-                    var sgraph = pgraph.Root.Value.SegmentsGraph;
-                    if (sgraph == null)
-                    {
-                        prdDbg($"WARNING: Segments graph for " +
-                        $"{pgraph.Root.Value.Name} is null!"); continue;
-                    }
-
-                    Node<INtrSegment> TranslateGraph(
-                        Node<IPipelineSegmentV2> proot,
-                        Dictionary<Entity, double> rdict)
-                    {
-                        INtrSegment ntrSegment;
-                        switch (proot.Value)
-                        {
-                            case PipelineSegmentV2 pseg:
-                                switch (pseg.Size.Type)
-                                {
-                                    case PipeTypeEnum.Twin:
-                                        ntrSegment = new NtrSegmentTwin(pseg, rdict);
-                                        break;
-                                    case PipeTypeEnum.Frem:
-                                    case PipeTypeEnum.Retur:
-                                    case PipeTypeEnum.Enkelt:
-                                        ntrSegment = new NtrSegmentEnkelt(pseg, rdict);
-                                        break;
-                                    case PipeTypeEnum.Ukendt:
-                                    default:
-                                        throw new NotImplementedException();
-                                }
-                                break;
-                            case PipelineTransitionV2 tseg:
-                                ntrSegment = new NtrSegmentTransition(tseg, rdict);
-                                break;
-                            default:
-                                throw new System.Exception(
-                                    $"ERR8736: Encountered unknown type: " +
-                                    $"{proot.Value.GetType()}");
-                        }
-
-                        var node = new Node<INtrSegment>(ntrSegment);
-
-                        foreach (var child in proot.Children)
-                        {
-                            var cnode = TranslateGraph(child, rdict);
-                            cnode.Parent = node;
-                            node.AddChild(cnode);
-                        }
-
-                        return node;
-                    }
-                    var root = TranslateGraph(sgraph.Root, rotationDict);
-                    var ntrgraph = new Graph<INtrSegment>(
-                        root,
-                        ntr => $"{ntr.PipelineSegment.Owner.Name}-{ntr.PipelineSegment.MidStation}",
-                        ntr => $"{ntr.PipelineSegment.Label}"
-                        );
-                    ntrgraphs.Add(ntrgraph);
-                }
-
-
-            }
-            catch (DebugPointException dbex)
-            {
-                prdDbg(dbex);
-                tx.Abort();
-
-                using var dtx = localDb.TransactionManager.StartTransaction();
-                foreach (var p in dbex.PointsToMark)
-                {
-                    DebugHelper.CreateDebugLine(p, ColorByName("red"));
-                }
-                dtx.Commit();
-                return;
-            }
-            catch (System.Exception ex)
-            {
-                prdDbg(ex);
-                tx.Abort();
-                return;
-            }
-            tx.Commit();
-        }
-
         [CommandMethod("NTREXPORT")]
         public void ntrexport()
         {
@@ -316,7 +169,7 @@ namespace NTRExport
         internal void ntrexportmethod(ConfigurationData? ntrConf = null)
         {
             DocumentCollection docCol = AcApp.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;            
+            Database localDb = docCol.MdiActiveDocument.Database;
 
             using var tx = localDb.TransactionManager.StartTransaction();
 
@@ -347,7 +200,7 @@ namespace NTRExport
                                 PipeScheduleV2.GetPipeSystem(ent));
                         case BlockReference br:
                             return acceptedSystems.Contains(
-                                br.GetPipeSystemEnum());                            
+                                br.GetPipeSystemEnum());
                         default:
                             return false;
                     }
@@ -381,10 +234,8 @@ namespace NTRExport
                 NtrCoord.InitFromTopology(topo, marginMeters: 0.0);
                 #endregion
 
-                #region ------------- Topology ➜ Elevation ➜ Routed skeleton -------------
-                // Elevation provider based on traversal from a chosen root (largest-DN supply leaf)
-                IElevationProvider elevation = new TraversalElevationProvider(topo);
-                var routed = new Router(topo).Route(elevation);
+                #region ------------- Topology ➜ Traversal ➜ Routed skeleton -------------
+                var routed = new Router(topo).Route();
                 #endregion
 
                 #region ------------- Emit NTR -------------
@@ -416,7 +267,7 @@ namespace NTRExport
                             case RoutedTee tee:
                                 if (tee.DN > 0) dnsInGroup.Add(tee.DN);
                                 if (tee.DnBranch > 0) dnsInGroup.Add(tee.DnBranch);
-                                break;                            
+                                break;
                             default:
                                 if (member.DN > 0) dnsInGroup.Add(member.DN);
                                 break;
@@ -583,7 +434,7 @@ namespace NTRExport
                     // Define nodes
                     foreach (var e in comp)
                     {
-                        var id = e.Source.ToString();                        
+                        var id = e.Source.ToString();
                         var label = e.DotLabelForTest();
                         sb.AppendLine($"    \"{id}\" [label=\"{label}\"];");
                     }
@@ -725,6 +576,81 @@ namespace NTRExport
             tx.Commit();
         }
 #endif
+
+        [CommandMethod("NTRCREATEPS")]
+        public void ntrcreateps()
+        {
+            DocumentCollection docCol = AcApp.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            PropertySetManager.UpdatePropertySetDefinition(localDb, PSetDefs.DefinedSets.NtrData);
+
+            using var tx = localDb.TransactionManager.StartTransaction();
+
+            try
+            {
+                var ents = localDb.GetFjvEntities(tx);
+
+                #region ------------- FILTER -------------
+                var acceptedSystems = new HashSet<PipeSystemEnum>() { PipeSystemEnum.Stål };
+
+                bool isAccepted(Entity ent)
+                {
+#if DEBUG
+                    //prdDbg("DEBUG filtering active! Polylines only.");
+                    //if (ent is BlockReference) return false;
+#endif
+
+                    switch (ent)
+                    {
+                        case Polyline _:
+                            return acceptedSystems.Contains(
+                                PipeScheduleV2.GetPipeSystem(ent));
+                        case BlockReference br:
+                            return acceptedSystems.Contains(
+                                br.GetPipeSystemEnum());
+                        default:
+                            return false;
+                    }
+                }
+
+                ents = ents.Where(x => isAccepted(x)).ToHashSet();
+                #endregion                
+
+                #region ------------- CAD ➜ Port topology -------------
+                var polylines = ents.OfType<Polyline>().ToList();
+                var fittings = ents.OfType<BlockReference>().ToList();
+                var topo = TopologyBuilder.Build(polylines, fittings);
+                #endregion                
+
+                foreach (var element in topo.Elements)
+                {
+                    element.AttachPropertySet();
+                }                
+            }
+            catch (DebugPointException dbex)
+            {
+                prdDbg(dbex);                
+
+                tx.Abort();
+
+                using var dtx = localDb.TransactionManager.StartTransaction();
+                foreach (var p in dbex.PointsToMark)
+                {
+                    DebugHelper.CreateDebugLine(p, ColorByName("red"));
+                }
+                dtx.Commit();
+                return;
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg(ex);                
+
+                tx.Abort();
+                return;
+            }
+            tx.Commit();
+        }
 
         private sealed class RefEq<T> : IEqualityComparer<T> where T : class
         {

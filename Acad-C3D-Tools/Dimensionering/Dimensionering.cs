@@ -779,9 +779,8 @@ namespace IntersectUtilities.Dimensionering
 
                         //used to get the line by comparing line's child to block's handle
                         Entity getFirstChild(Line line)
-                        {
-                            graphPsm.GetOrAttachPropertySet(line);
-                            string chStr = graphPsm.ReadPropertyString(graphDef.Children);
+                        {                            
+                            string chStr = graphPsm.ReadPropertyString(line, graphDef.Children);
                             string firstChild = chStr.Split(';')[0];
                             if (firstChild.IsNoE()) throw new System.Exception(
                                 $"Line {line.Handle} does not have a child specified!");
@@ -789,8 +788,7 @@ namespace IntersectUtilities.Dimensionering
                         }
 
                         //Get the original building block
-                        graphPsm.GetOrAttachPropertySet(husNrLine);
-                        string lineParentStr = graphPsm.ReadPropertyString(graphDef.Parent);
+                        string lineParentStr = graphPsm.ReadPropertyString(husNrLine, graphDef.Parent);
                         BlockReference buildingBlock = localDb.Go<BlockReference>(lineParentStr);
 
                         //Load the husnumre
@@ -806,7 +804,7 @@ namespace IntersectUtilities.Dimensionering
                         prdDbg($"Antal adresser fjernet: {removed}.");
 
                         //Remove the reference to the connection line object
-                        string childrenStr = graphPsm.ReadPropertyString(graphDef.Children);
+                        string childrenStr = graphPsm.ReadPropertyString(husNrLine, graphDef.Children);
                         var split = childrenStr.Split(';').ToList();
                         split.RemoveAll(x => x == husNrLine.Handle.ToString().ToUpper());
                         childrenStr = String.Join(";", split);
@@ -1332,10 +1330,8 @@ namespace IntersectUtilities.Dimensionering
 
                     foreach (BlockReference building in brs)
                     {
-                        bbrPsm.GetOrAttachPropertySet(building);
-                        string anvendelsesTekst = bbrPsm.ReadPropertyString(bbrDef.BygningsAnvendelseNyTekst);
-                        string anvendelsesKode = bbrPsm.ReadPropertyString(bbrDef.BygningsAnvendelseNyKode);
-                        anvendelsesKoder.Add((anvendelsesKode, anvendelsesTekst));
+                        var bbr = new BBR(building);
+                        anvendelsesKoder.Add((bbr.BygningsAnvendelseNyKode, bbr.BygningsAnvendelseNyTekst));
                     }
 
                     //Build file name
@@ -1399,8 +1395,8 @@ namespace IntersectUtilities.Dimensionering
 
                     foreach (BlockReference br in brs)
                     {
-                        bbrPsm.GetOrAttachPropertySet(br);
-                        string anvendelse = bbrPsm.ReadPropertyString(bbrDef.BygningsAnvendelseNyTekst);
+                        var bbr = new BBR(br);
+                        string anvendelse = bbr.BygningsAnvendelseNyTekst;
 
                         if (dict.ContainsKey(anvendelse))
                         {
@@ -2621,24 +2617,21 @@ namespace IntersectUtilities.Dimensionering
                         #region Write node data
                         foreach (Node nd in ordered)
                         {
-                            Polyline curPline = nd.Self;
+                            Polyline curPline = nd.Self;                            
 
-                            //Write parent data if it is not entry
-                            graphPsm.GetOrAttachPropertySet(curPline);
-
-                            if (graphPsm.ReadPropertyString(graphDef.Parent) != "Entry")
-                                graphPsm.WritePropertyString(
+                            if (graphPsm.ReadPropertyString(curPline, graphDef.Parent) != "Entry")
+                                graphPsm.WritePropertyString(curPline,
                                     graphDef.Parent, nd.Parent.Self.Handle.ToString());
 
                             //Write strækning id to property
                             fjvFremPsm.GetOrAttachPropertySet(curPline);
-                            fjvFremPsm.WritePropertyString(fjvFremDef.Bemærkninger,
+                            fjvFremPsm.WritePropertyString(curPline, fjvFremDef.Bemærkninger,
                                 $"Strækning {nd.GroupNumber}.{nd.PartNumber}");
 
                             //Write the children data
                             foreach (Node child in nd.ConnectionChildren)
                             {
-                                string curChildrenString = graphPsm.ReadPropertyString(graphDef.Children);
+                                string curChildrenString = graphPsm.ReadPropertyString(curPline, graphDef.Children);
                                 string childHandle = child.Self.Handle.ToString() + ";";
                                 if (!curChildrenString.Contains(childHandle)) curChildrenString += childHandle;
                                 graphPsm.WritePropertyString(graphDef.Children, curChildrenString);
@@ -2669,9 +2662,8 @@ namespace IntersectUtilities.Dimensionering
                                 fjvFremPsm.WritePropertyString(fjvFremDef.Distriktets_navn, curEtapeName);
                                 fjvFremPsm.WritePropertyString(fjvFremDef.Bemærkninger, "Stik");
 
-                                //Add connection to pline's children
-                                graphPsm.GetOrAttachPropertySet(curPline);
-                                string curChildrenString = graphPsm.ReadPropertyString(graphDef.Children);
+                                //Add connection to pline's children                                
+                                string curChildrenString = graphPsm.ReadPropertyString(curPline, graphDef.Children);
                                 string childHandle = connection.Handle.ToString() + ";";
                                 if (!curChildrenString.Contains(childHandle)) curChildrenString += childHandle;
                                 graphPsm.WritePropertyString(graphDef.Children, curChildrenString);
@@ -2762,9 +2754,8 @@ namespace IntersectUtilities.Dimensionering
 
                     foreach (Polyline entryElement in entryElements)
                     {
-                        //Write group number
-                        fjvFremPsm.GetOrAttachPropertySet(entryElement);
-                        string strNr = fjvFremPsm.ReadPropertyString(
+                        //Write group number                        
+                        string strNr = fjvFremPsm.ReadPropertyString(entryElement,
                             fjvFremDef.Bemærkninger).Replace("Strækning ", "");
 
                         sb.AppendLine($"****** Rørgruppe nr.: {strNr.Split('.')[0]} ******");
@@ -2778,8 +2769,7 @@ namespace IntersectUtilities.Dimensionering
                             Polyline curItem = stack.Pop();
 
                             //Write group and subgroup numbers
-                            fjvFremPsm.GetOrAttachPropertySet(curItem);
-                            string strNrString = fjvFremPsm.ReadPropertyString(fjvFremDef.Bemærkninger);
+                            string strNrString = fjvFremPsm.ReadPropertyString(curItem, fjvFremDef.Bemærkninger);
                             sb.AppendLine($"--> {strNrString} <--");
 
                             strNr = strNrString.Replace("Strækning ", "");
@@ -2795,8 +2785,7 @@ namespace IntersectUtilities.Dimensionering
                             strækning.PartNumber = Convert.ToInt32(strNr.Split('.')[1]);
                             strækning.Self = curItem;
 
-                            graphPsm.GetOrAttachPropertySet(curItem);
-                            string parentHandleString = graphPsm.ReadPropertyString(graphDef.Parent);
+                            string parentHandleString = graphPsm.ReadPropertyString(curItem, graphDef.Parent);
                             try
                             {
                                 if (parentHandleString != "Entry")
@@ -2814,9 +2803,9 @@ namespace IntersectUtilities.Dimensionering
                             foreach (Entity child in children)
                             {
                                 if (child is Polyline pline)
-                                {
-                                    fjvFremPsm.GetOrAttachPropertySet(pline);
-                                    string childStrNr = fjvFremPsm.ReadPropertyString(fjvFremDef.Bemærkninger).Replace("Strækning ", "");
+                                {                                    
+                                    string childStrNr = fjvFremPsm.ReadPropertyString(
+                                        pline, fjvFremDef.Bemærkninger).Replace("Strækning ", "");
                                     sb.AppendLine($"{strNr} -> {childStrNr}");
 
                                     //Push the polyline in to stack to continue iterating
@@ -2951,8 +2940,7 @@ namespace IntersectUtilities.Dimensionering
                         HashSet<Subgraph> subgraphs = new HashSet<Subgraph>();
 
                         //Write group number
-                        fjvFremPsm.GetOrAttachPropertySet(entryElement);
-                        string strNr = fjvFremPsm.ReadPropertyString(
+                        string strNr = fjvFremPsm.ReadPropertyString(entryElement,
                             fjvFremDef.Bemærkninger).Replace("Strækning ", "");
 
                         string subGraphNr = strNr.Split('.')[0];
@@ -2969,8 +2957,7 @@ namespace IntersectUtilities.Dimensionering
                             Polyline curItem = stack.Pop();
 
                             //Write group and subgroup numbers
-                            fjvFremPsm.GetOrAttachPropertySet(curItem);
-                            string strNrString = fjvFremPsm.ReadPropertyString(fjvFremDef.Bemærkninger);
+                            string strNrString = fjvFremPsm.ReadPropertyString(curItem, fjvFremDef.Bemærkninger);
                             strNr = strNrString.Replace("Strækning ", "");
 
                             string curNodeHandle = curItem.Handle.ToString();
@@ -3103,8 +3090,7 @@ namespace IntersectUtilities.Dimensionering
                         .ToHashSet();
                     foreach (Line line in linesToDelete)
                     {
-                        fjvFremPsm.GetOrAttachPropertySet(line);
-                        if (fjvFremPsm.ReadPropertyString(fjvFremDef.Distriktets_navn) == $"{curEtapeName}{HusnrSuffix}")
+                        if (fjvFremPsm.ReadPropertyString(line, fjvFremDef.Distriktets_navn) == $"{curEtapeName}{HusnrSuffix}")
                         {
                             line.CheckOrOpenForWrite();
                             line.Erase(true);
@@ -3223,8 +3209,7 @@ namespace IntersectUtilities.Dimensionering
 
                             //Populate graph values of objects
                             //Write values to parent block
-                            graphPsm.GetOrAttachPropertySet(buildingBlock);
-                            string children = graphPsm.ReadPropertyString(graphDef.Children);
+                            string children = graphPsm.ReadPropertyString(buildingBlock, graphDef.Children);
                             children += conLine.Handle.ToString() + ";";
                             graphPsm.WritePropertyString(graphDef.Children, children);
                             //Prepare values to write to husnr block
@@ -3543,10 +3528,9 @@ namespace IntersectUtilities.Dimensionering
                         #region Write PL children data
                         {
                             Polyline pline = nearest.ParentId.Go<Polyline>(tx);
-                            psManGraph.GetOrAttachPropertySet(pline);
-                            string currentChildren = psManGraph.ReadPropertyString(driDimGraphDef.Children);
+                            string currentChildren = psManGraph.ReadPropertyString(pline, driDimGraphDef.Children);
                             currentChildren += connection.Handle.ToString() + ";";
-                            psManGraph.WritePropertyString(driDimGraphDef.Children, currentChildren);
+                            psManGraph.WritePropertyString(pline, driDimGraphDef.Children, currentChildren);
                         }
                         #endregion
                     }
@@ -3758,8 +3742,7 @@ namespace IntersectUtilities.Dimensionering
                             nodes.Add(node);
 
                             //Write group and subgroup numbers
-                            fjvFremPsm.GetOrAttachPropertySet(node.Self);
-                            string strNrString = fjvFremPsm.ReadPropertyString(fjvFremDef.Bemærkninger);
+                            string strNrString = fjvFremPsm.ReadPropertyString(node.Self, fjvFremDef.Bemærkninger);
                             node.SetGroupAndPartNumbers(strNrString);
 
                             //Get the children

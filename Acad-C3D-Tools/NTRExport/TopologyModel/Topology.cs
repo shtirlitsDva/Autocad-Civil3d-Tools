@@ -9,9 +9,8 @@ using IntersectUtilities.UtilsCommon.Enums;
 using NTRExport.Enums;
 using NTRExport.Routing;
 using NTRExport.SoilModel;
-using NTRExport.Elevation;
 
-using System.Net;
+using System.Globalization;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 using static NTRExport.Utils.Utils;
@@ -40,7 +39,7 @@ namespace NTRExport.TopologyModel
         }
     }
 
-    internal abstract class ElementBase : IElevationSolvable
+    internal abstract class ElementBase
     {
         public Handle Source { get; }
         protected Entity _entity;
@@ -129,18 +128,22 @@ namespace NTRExport.TopologyModel
 
         public virtual void Route(RoutedGraph g, Topology topo, RouterContext ctx) { }
 
-        // Default elevation behavior: pass-through entry Z to all other ports
-        public virtual List<(TPort exitPort, double exitZ)> SolveElevation(TPort entryPort, double entryZ, SolverContext ctx)
+        // Combined traversal + routing default: pass-through elevation/slope, no emission
+        public virtual List<(TPort exitPort, double exitZ, double exitSlope)> TraverseAndRoute(
+            RoutedGraph g, Topology topo, RouterContext ctx, TPort entryPort, double entryZ, double entrySlope)
         {
-            var exits = new List<(TPort exitPort, double exitZ)>();
-            ctx.Registry.Record(this, entryPort, entryZ);
+            var exits = new List<(TPort exitPort, double exitZ, double exitSlope)>();
             foreach (var p in Ports)
             {
                 if (ReferenceEquals(p, entryPort)) continue;
-                ctx.Registry.Record(this, p, entryZ);
-                exits.Add((p, entryZ));
+                exits.Add((p, entryZ, entrySlope));
             }
             return exits;
+        }
+
+        internal virtual void AttachPropertySet()
+        {
+            //Defaults to no-op
         }
     }
 
@@ -203,8 +206,8 @@ namespace NTRExport.TopologyModel
                 // Query elevation provider for centerline Z at the segment endpoints
                 var tA = Length <= 1e-9 ? 0.0 : s0 / Length;
                 var tB = Length <= 1e-9 ? 0.0 : s1 / Length;
-                var zCenterA = ctx.Elevation.GetZ(this, A.Node.Pos, B.Node.Pos, tA);
-                var zCenterB = ctx.Elevation.GetZ(this, A.Node.Pos, B.Node.Pos, tB);
+                var zCenterA = ctx.GetZ(this, A.Node.Pos, B.Node.Pos, tA);
+                var zCenterB = ctx.GetZ(this, A.Node.Pos, B.Node.Pos, tB);
                 var aCenter = new Point3d(aPos.X, aPos.Y, zCenterA);
                 var bCenter = new Point3d(bPos.X, bPos.Y, zCenterB);
 
@@ -256,22 +259,92 @@ namespace NTRExport.TopologyModel
             }
         }
 
-        public override List<(TPort exitPort, double exitZ)> SolveElevation(TPort entryPort, double entryZ, SolverContext ctx)
+        public List<(TPort exitPort, double exitZ, double exitSlope)> TraverseAndRoute(RoutedGraph g, Topology topo, RouterContext ctx, TPort entryPort, double entryZ, double entrySlope)
         {
-            var exits = new List<(TPort exitPort, double exitZ)>();
-            ctx.Registry.Record(this, entryPort, entryZ);
-
+            var exits = new List<(TPort exitPort, double exitZ, double exitSlope)>();
             var other = ReferenceEquals(entryPort, A) ? B : A;
 
-            double exitZ = entryZ;
-            if (ctx.Registry.TryGetSlopeHint(this, entryPort, out var slope))
+            double ZAtParam(double t)
             {
-                exitZ = entryZ + slope * Length;
-                ctx.Registry.RecordSlopeHint(this, other, slope);
+                var s = ReferenceEquals(entryPort, A) ? t * Length : (1.0 - t) * Length;
+                return entryZ + entrySlope * s;
+            }
+            double exitZ = ZAtParam(1.0);
+            exits.Add((other, exitZ, entrySlope));
+
+            var isTwin = Variant.IsTwin;
+            var suffix = Variant.DnSuffix;
+            var (zUp, zLow) = ComputeTwinOffsets(System, Type, DN);
+            var flow = Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return;
+            var ltg = LTGMain(Source);
+
+            var cuts = new SortedSet<double> { 0.0, Length };
+            foreach (var (s0, s1) in CushionSpans)
+            {
+                cuts.Add(Math.Max(0.0, Math.Min(Length, s0)));
+                cuts.Add(Math.Max(0.0, Math.Min(Length, s1)));
+            }
+            var segments = cuts.ToList();
+            for (int i = 0; i < segments.Count - 1; i++)
+            {
+                var s0 = segments[i];
+                var s1 = segments[i + 1];
+                if (s1 - s0 < 1e-6) continue;
+
+                var soil = IsCovered(CushionSpans, s0, s1) ? new SoilProfile("Soil_C80", 0.08) : SoilProfile.Default;
+
+                var t0 = Length <= 1e-9 ? 0.0 : s0 / Length;
+                var t1 = Length <= 1e-9 ? 0.0 : s1 / Length;
+
+                var aPos = Lerp(A.Node.Pos, B.Node.Pos, t0);
+                var bPos = Lerp(A.Node.Pos, B.Node.Pos, t1);
+
+                var zCenterA = ZAtParam(t0);
+                var zCenterB = ZAtParam(t1);
+                var aCenter = new Point3d(aPos.X, aPos.Y, zCenterA);
+                var bCenter = new Point3d(bPos.X, bPos.Y, zCenterB);
+
+                if (isTwin)
+                {
+                    g.Members.Add(new RoutedStraight(Source, this)
+                    {
+                        A = aCenter.Z(zUp),
+                        B = bCenter.Z(zUp),
+                        DN = DN,
+                        Material = Material,
+                        DnSuffix = suffix,
+                        FlowRole = FlowRole.Return,
+                        Soil = soil,
+                        LTG = ltg,
+                    });
+                    g.Members.Add(new RoutedStraight(Source, this)
+                    {
+                        A = aCenter.Z(zLow),
+                        B = bCenter.Z(zLow),
+                        DN = DN,
+                        Material = Material,
+                        DnSuffix = suffix,
+                        FlowRole = FlowRole.Supply,
+                        Soil = soil,
+                        LTG = ltg,
+                    });
+                }
+                else
+                {
+                    g.Members.Add(new RoutedStraight(Source, this)
+                    {
+                        A = aCenter,
+                        B = bCenter,
+                        DN = DN,
+                        Material = Material,
+                        DnSuffix = suffix,
+                        FlowRole = flow,
+                        Soil = soil,
+                        LTG = ltg,
+                    });
+                }
             }
 
-            ctx.Registry.Record(this, other, exitZ);
-            exits.Add((other, exitZ));
             return exits;
         }
 
@@ -414,6 +487,12 @@ namespace NTRExport.TopologyModel
             allowed.Add(PipelineElementType.Bøjning15gr);
         }
 
+        internal override void AttachPropertySet()
+        {
+            if (Variant.IsTwin) return; // Only attach for single pipes as twin cannot be rotated
+            var ntr = new NtrData(_entity);
+        }
+
         public override void Route(RoutedGraph g, Topology topo, RouterContext ctx)
         {
             var ends = Ports.Take(2).ToArray();
@@ -460,66 +539,57 @@ namespace NTRExport.TopologyModel
             }
         }
 
-        public override List<(TPort exitPort, double exitZ)> SolveElevation(TPort entryPort, double entryZ, SolverContext ctx)
+        public List<(TPort exitPort, double exitZ, double exitSlope)> TraverseAndRoute(RoutedGraph g, Topology topo, RouterContext ctx, TPort entryPort, double entryZ, double entrySlope)
         {
-            var exits = new List<(TPort exitPort, double exitZ)>();
-            ctx.Registry.Record(this, entryPort, entryZ);
+            var exits = new List<(TPort exitPort, double exitZ, double exitSlope)>();
 
-            // Identify other ports
-            var others = Ports.Where(p => !ReferenceEquals(p, entryPort)).ToArray();
-            if (others.Length == 0) return exits;
-
-            if (!TryDetectVertical(out var slopeMag, out var isUp))
+            // Emit elbow with constant Z across this element; offsets applied as in Route()
+            var ends = Ports.Take(2).ToArray();
+            if (ends.Length >= 2)
             {
-                foreach (var p in others)
+                var a = ends[0].Node.Pos;
+                var b = ends[1].Node.Pos;
+                var t = TangentPoint;
+                var (zUp, zLow) = ComputeTwinOffsets(System, Type, DN);
+
+                var flowMain = Variant.IsTwin ? FlowRole.Return : Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return;
+
+                g.Members.Add(new RoutedBend(Source, this)
                 {
-                    ctx.Registry.Record(this, p, entryZ);
-                    exits.Add((p, entryZ));
+                    A = a.Z(zUp + entryZ),
+                    B = b.Z(zUp + entryZ),
+                    T = t.Z(zUp + entryZ),
+                    DN = DN,
+                    Material = Material,
+                    DnSuffix = Variant.DnSuffix,
+                    FlowRole = flowMain,
+                    LTG = LTGMain(Source),
+                });
+
+                if (Variant.IsTwin)
+                {
+                    g.Members.Add(new RoutedBend(Source, this)
+                    {
+                        A = a.Z(zLow + entryZ),
+                        B = b.Z(zLow + entryZ),
+                        T = t.Z(zLow + entryZ),
+                        DN = DN,
+                        Material = Material,
+                        DnSuffix = Variant.DnSuffix,
+                        FlowRole = FlowRole.Supply,
+                        LTG = LTGMain(Source),
+                    });
                 }
-                return exits;
             }
 
-            var signedSlope = isUp ? slopeMag : -slopeMag;
-            foreach (var p in others)
+            // Propagate same Z and slope to all other ports
+            foreach (var p in Ports)
             {
-                ctx.Registry.Record(this, p, entryZ);
-                ctx.Registry.RecordSlopeHint(this, p, signedSlope);
-                exits.Add((p, entryZ));
+                if (ReferenceEquals(p, entryPort)) continue;
+                exits.Add((p, entryZ, entrySlope));
             }
             return exits;
         }
-
-        private bool TryDetectVertical(out double slopeMag, out bool isUp)
-        {
-            slopeMag = 0.0; isUp = true;
-            try
-            {
-                var db = Autodesk.AutoCAD.ApplicationServices.Core.Application
-                    .DocumentManager.MdiActiveDocument.Database;
-                var br = Source.Go<BlockReference>(db);
-                if (br == null) return false;
-
-                var plane = br.ReadDynamicCsvProperty(DynamicProperty.Plan);
-                if (!string.IsNullOrWhiteSpace(plane) &&
-                    plane.Trim().Equals("Vertical", StringComparison.OrdinalIgnoreCase))
-                {
-                    var angStr = br.ReadDynamicCsvProperty(DynamicProperty.Vinkel);
-                    if (!double.TryParse(angStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var angDeg))
-                        angDeg = 45.0;
-                    var angRad = angDeg * Math.PI / 180.0;
-                    slopeMag = Math.Tan(angRad);
-
-                    var dir = br.ReadDynamicCsvProperty(DynamicProperty.Retning);
-                    if (!string.IsNullOrWhiteSpace(dir) && dir.Trim().Equals("Down", StringComparison.OrdinalIgnoreCase))
-                        isUp = false;
-                    return true;
-                }
-            }
-            catch { }
-            return false;
-        }
-
-
     }
 
     internal sealed class Bueror : ElbowFormstykke
@@ -564,6 +634,11 @@ namespace NTRExport.TopologyModel
         {
             allowed.Clear();
             allowed.Add(PipelineElementType.Buerør);
+        }
+
+        internal override void AttachPropertySet()
+        {
+            base.AttachPropertySet();
         }
 
         public override void Route(RoutedGraph g, Topology topo, RouterContext ctx)
@@ -722,7 +797,7 @@ namespace NTRExport.TopologyModel
         {
             return $"{Source.ToString()} / {this.GetType().Name}\n{DnLabel()}";
         }
-        public virtual string DnLabel() => $"{DnM.ToString()}/{DnB.ToString()}";
+        public override string DnLabel() => $"{DnM.ToString()}/{DnB.ToString()}";
 
         public override int DN => DnM;
         protected int DnM =>
@@ -749,7 +824,7 @@ namespace NTRExport.TopologyModel
         protected TPort MainPort2 => Ports.Last(p => p.Role == PortRole.Main);
         protected Point2d MidPoint => MainPort1.Node.Pos.To2d().MidPoint(MainPort2.Node.Pos.To2d());
         protected TPort BranchPort => Ports.First(p => p.Role == PortRole.Branch);
-        protected (double zUp, double zLow) OffsetMain;        
+        protected (double zUp, double zLow) OffsetMain;
 
         public override void Route(RoutedGraph g, Topology topo, RouterContext ctx)
         {
@@ -789,7 +864,7 @@ namespace NTRExport.TopologyModel
     internal sealed class TeeFormstykke : TeeMainRun
     {
         public TeeFormstykke(Handle source, PipelineElementType kind)
-            : base(source, kind) { }        
+            : base(source, kind) { }
 
         protected override void ConfigureAllowedKinds(HashSet<PipelineElementType> allowed)
         {
@@ -809,17 +884,22 @@ namespace NTRExport.TopologyModel
         {
             allowed.Clear();
             allowed.Add(PipelineElementType.AfgreningMedSpring);
-        }        
+        }
+
+        internal override void AttachPropertySet()
+        {
+            var ntr = new NtrData(_entity);
+        }
 
         public override void Route(RoutedGraph g, Topology topo, RouterContext ctx)
         {
             // TODO: implement macro; placeholder no-op
         }
 
-        public override List<(TPort exitPort, double exitZ)> SolveElevation(TPort entryPort, double entryZ, SolverContext ctx)
+        public List<(TPort exitPort, double exitZ, double exitSlope)> TraverseAndRoute(
+            RoutedGraph g, Topology topo, RouterContext ctx, TPort entryPort, double entryZ, double entrySlope)
         {
-            var exits = new List<(TPort exitPort, double exitZ)>();
-            ctx.Registry.Record(this, entryPort, entryZ);
+            var exits = new List<(TPort exitPort, double exitZ, double exitSlope)>();
 
             // Ports by role - AfgreningMedSpring must have exactly 2 Main ports and 1 Branch port
             var mains = Ports.Where(p => p.Role == PortRole.Main).ToArray();
@@ -832,16 +912,11 @@ namespace NTRExport.TopologyModel
             }
 
             // Read direction and ΔZ from DN table
-            var (isUp, hasDir) = TryReadSpringDirection();
-            if (!hasDir)
-            {
-                // Default to "Up" if direction is missing
-                isUp = true;
-            }
+            var isUp = IsUp();            
 
-            int dnBranch = ctx.Topology.InferBranchDn(this);
-            int dnMain = ctx.Topology.InferMainDn(this);
-            double dz = LookupSpringDeltaZ(dnBranch > 0 ? dnBranch : dnMain);
+            int dnBranch = topo.InferBranchDn(this);
+            int dnMain = topo.InferMainDn(this);
+            double dz = LookupSpringDeltaZ(Series, dnMain, dnBranch);
             if (dz <= 0.0)
                 throw new System.Exception($"AfgreningMedSpring {Source}: no Spring ΔZ found for DN {dnBranch}/{dnMain}.");
 
@@ -853,49 +928,174 @@ namespace NTRExport.TopologyModel
                 foreach (var m in mains)
                 {
                     if (ReferenceEquals(m, entryPort)) continue;
-                    ctx.Registry.Record(this, m, entryZ);
-                    exits.Add((m, entryZ));
+                    exits.Add((m, entryZ, entrySlope));
                 }
                 double zBranch = entryZ + signedDz;
-                ctx.Registry.Record(this, branch, zBranch);
-                exits.Add((branch, zBranch));
+                exits.Add((branch, zBranch, entrySlope));
             }
             else
             {
                 double zMain = entryZ - signedDz;
                 foreach (var m in mains)
                 {
-                    ctx.Registry.Record(this, m, zMain);
-                    exits.Add((m, zMain));
+                    exits.Add((m, zMain, entrySlope));
                 }
             }
 
             return exits;
         }
 
-        private (bool isUp, bool ok) TryReadSpringDirection()
+        private bool IsUp()
         {
-            try
-            {
-                var db = Autodesk.AutoCAD.ApplicationServices.Core.Application
-                    .DocumentManager.MdiActiveDocument.Database;
-                var br = Source.Go<BlockReference>(db);
-                if (br == null) return (true, false);
-
-                
-
-                return (true, false);
-            }
-            catch
-            {
-                return (true, false);
-            }
+            var ntr = new NtrData(_entity);
+            return ntr.AfgreningMedSpringDir == "Up";
         }
 
-        private static double LookupSpringDeltaZ(int dn)
+        private static double LookupSpringDeltaZ(PipeSeriesEnum series, int dnMain, int dnBranch)
         {
-            // TODO: integrate actual catalog; force error until bound
-            return 0.0;
+            var result = SpringCatalogLookup.Lookup(series, dnMain, dnBranch);
+            // L1 is horizontal projection of 45° branch, so vertical component = L1 (tan 45° = 1)
+            // s is vertical offset between jacket tangents
+            // Total ΔZ = L1 + s
+            var dz = result.L1 + result.s;
+            return dz / 1000.0; // Convert mm to meters
+        }
+
+        // Lookup service for Afgrening med spring catalog tables (serie 2 and serie 3)
+        private static class SpringCatalogLookup
+        {
+            public struct SpringData
+            {
+                /// <summary>
+                /// Main jacket diameter in millimeters.
+                /// </summary>
+                public double D;
+
+                /// <summary>
+                /// Branch jacket diameter in millimeters.
+                /// </summary>
+                public double D1;
+
+                /// <summary>
+                /// Distance between main jacket upper tangent and branch jacket lower tangent in millimeters.
+                /// Constant value: 70 mm.
+                /// </summary>
+                public double s;
+
+                /// <summary>
+                /// Length of main run part of tee in millimeters.
+                /// </summary>
+                public double L;
+
+                /// <summary>
+                /// Horizontal projection length of branch from pipe centre in millimeters.
+                /// </summary>
+                public double L1;
+            }
+
+            // CSV-backed maps (mainDN, branchDN) -> SpringData
+            private static readonly object _csvLock = new object();
+            private static bool _serie2Loaded = false;
+            private static bool _serie3Loaded = false;
+            private static readonly Dictionary<(int mainDN, int branchDN), SpringData> _serie2 =
+                new Dictionary<(int mainDN, int branchDN), SpringData>();
+            private static readonly Dictionary<(int mainDN, int branchDN), SpringData> _serie3 =
+                new Dictionary<(int mainDN, int branchDN), SpringData>();
+
+            private static Dictionary<(int mainDN, int branchDN), SpringData> GetMap(PipeSeriesEnum series) =>
+                series == PipeSeriesEnum.S2 ? _serie2 : _serie3;
+
+            private static void EnsureLoaded(PipeSeriesEnum series)
+            {
+                lock (_csvLock)
+                {
+                    if (series == PipeSeriesEnum.S2 && _serie2Loaded) return;
+                    if (series == PipeSeriesEnum.S3 && _serie3Loaded) return;
+
+                    var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+                    var file = series == PipeSeriesEnum.S2 ? "spring_serie2.csv" : "spring_serie3.csv";
+
+                    var resourceName =
+                        assembly.GetManifestResourceNames()
+                            .FirstOrDefault(n => n.EndsWith(file, StringComparison.OrdinalIgnoreCase));
+
+                    if (resourceName == null)
+                        throw new System.Exception($"SpringCatalogLookup: Embedded resource not found: '*{file}'");
+
+                    using var stream = assembly.GetManifestResourceStream(resourceName);
+                    if (stream == null)
+                        throw new System.Exception($"SpringCatalogLookup: Unable to open embedded resource stream: {resourceName}");
+
+                    using var reader = new System.IO.StreamReader(stream);
+
+                    string? header = reader.ReadLine();
+                    if (header == null)
+                        throw new System.Exception($"SpringCatalogLookup: Embedded CSV empty: {resourceName}");
+
+                    var sep = DetectSeparator(header);
+                    var map = GetMap(series);
+                    map.Clear();
+
+                    string? line;
+                    int lineIdx = 1; // already consumed header
+                    while ((line = reader.ReadLine()) != null)
+                    {
+                        lineIdx++;
+                        if (string.IsNullOrWhiteSpace(line)) continue;
+                        var trimmed = line.Trim();
+                        if (trimmed.StartsWith("#")) continue;
+                        var parts = trimmed.Split(sep);
+                        if (parts.Length < 7)
+                            throw new System.Exception($"SpringCatalogLookup: expected 7 columns, got {parts.Length} at line {lineIdx} in {resourceName}.");
+
+                        int mainDN = ParseInt(parts[0], "mainDN", lineIdx, resourceName);
+                        int branchDN = ParseInt(parts[1], "branchDN", lineIdx, resourceName);
+                        double D = ParseDouble(parts[2], "D", lineIdx, resourceName);
+                        double D1 = ParseDouble(parts[3], "D1", lineIdx, resourceName);
+                        double s = ParseDouble(parts[4], "s", lineIdx, resourceName);
+                        double L = ParseDouble(parts[5], "L", lineIdx, resourceName);
+                        double L1 = ParseDouble(parts[6], "L1", lineIdx, resourceName);
+
+                        var key = (mainDN, branchDN);
+                        if (map.ContainsKey(key))
+                            throw new System.Exception($"SpringCatalogLookup: duplicate key (mainDN={mainDN}, branchDN={branchDN}) in {resourceName} at line {lineIdx}.");
+
+                        map[key] = new SpringData { D = D, D1 = D1, s = s, L = L, L1 = L1 };
+                    }
+
+                    if (series == PipeSeriesEnum.S2) _serie2Loaded = true; else _serie3Loaded = true;
+                }
+            }
+
+            private static char DetectSeparator(string header)
+            {
+                if (header.Contains(';')) return ';';
+                return ',';
+            }
+
+            private static int ParseInt(string v, string name, int lineIdx, string file)
+            {
+                if (!int.TryParse(v.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var x))
+                    throw new System.Exception($"SpringCatalogLookup: cannot parse int {name}='{v}' at line {lineIdx + 1} in {file}.");
+                return x;
+            }
+            private static double ParseDouble(string v, string name, int lineIdx, string file)
+            {
+                if (!double.TryParse(v.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var x))
+                    throw new System.Exception($"SpringCatalogLookup: cannot parse double {name}='{v}' at line {lineIdx + 1} in {file}.");
+                return x;
+            }
+
+            public static SpringData Lookup(PipeSeriesEnum series, int dnMain, int dnBranch)
+            {
+                EnsureLoaded(series);
+                var map = GetMap(series);
+                var key = (dnMain, dnBranch);
+                if (!map.TryGetValue(key, out var data))
+                    throw new System.Exception(
+                        $"SpringCatalogLookup: No catalog row found for main DN {dnMain} / branch DN {dnBranch} in series {series}.");
+                return data;
+            }
         }
     }
 
@@ -1487,6 +1687,11 @@ namespace NTRExport.TopologyModel
         {
             allowed.Clear();
             allowed.Add(PipelineElementType.Svanehals);
+        }
+
+        internal override void AttachPropertySet()
+        {
+            var ntr = new NtrData(_entity);
         }
 
         public override string DotLabelForTest()
