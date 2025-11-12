@@ -1,4 +1,4 @@
-using Autodesk.AutoCAD.DatabaseServices;
+﻿using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 
 using IntersectUtilities;
@@ -14,17 +14,11 @@ using static NTRExport.Utils.Utils;
 
 namespace NTRExport.TopologyModel
 {
-    internal class ElbowFormstykke : TFitting
+    internal class ElbowVertical : TFitting
     {
-        public Point3d TangentPoint { get; }
+        BlockReference _br;
 
-        public ElbowFormstykke(Handle source, Point3d tangentPoint, PipelineElementType kind)
-            : base(source, kind)
-        {
-            TangentPoint = tangentPoint;
-        }
-
-        public ElbowFormstykke(Handle source, PipelineElementType kind)
+        public ElbowVertical(Handle source, PipelineElementType kind)
             : base(source, kind)
         {
             var db = Autodesk.AutoCAD.ApplicationServices.Core.Application
@@ -34,16 +28,13 @@ namespace NTRExport.TopologyModel
             if (br == null)
                 throw new Exception($"Received {source} for ElbowFormstykke!");
 
-            TangentPoint = br.Position;
+            _br = br;
         }
 
         protected override void ConfigureAllowedKinds(HashSet<PipelineElementType> allowed)
         {
             allowed.Clear();
-            allowed.Add(PipelineElementType.Kedelrørsbøjning);
-            allowed.Add(PipelineElementType.Bøjning45gr);
-            allowed.Add(PipelineElementType.Bøjning30gr);
-            allowed.Add(PipelineElementType.Bøjning15gr);
+            allowed.Add(PipelineElementType.Kedelrørsbøjning);            
         }
 
         internal override void AttachPropertySet()
@@ -59,10 +50,10 @@ namespace NTRExport.TopologyModel
             var ends = Ports.Take(2).ToArray();
             if (ends.Length >= 2)
             {
-            var a = ends[0].Node.Pos;
-            var b = ends[1].Node.Pos;
-            var t = TangentPoint;
-            var (zUp, zLow) = ComputeTwinOffsets(System, Type, DN);
+                var a = ends[0].Node.Pos;
+                var b = ends[1].Node.Pos;
+                var t = TangentPoint;
+                var (zUp, zLow) = ComputeTwinOffsets(System, Type, DN);
 
                 var flowMain = Variant.IsTwin ? FlowRole.Return : Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return;
 
@@ -78,8 +69,8 @@ namespace NTRExport.TopologyModel
                     LTG = LTGMain(Source),
                 });
 
-            if (Variant.IsTwin)
-            {
+                if (Variant.IsTwin)
+                {
                     g.Members.Add(new RoutedBend(Source, this)
                     {
                         A = a.Z(zLow + entryZ),
@@ -103,55 +94,4 @@ namespace NTRExport.TopologyModel
             return exits;
         }
     }
-
-    internal sealed class Bueror : ElbowFormstykke
-    {
-        public Bueror(Handle source, PipelineElementType kind)
-            : base(source, CalculateTangentPoint(source), kind) { }
-
-        private static Point3d CalculateTangentPoint(Handle source)
-        {
-            var db = Autodesk.AutoCAD.ApplicationServices.Core.Application
-                .DocumentManager.MdiActiveDocument.Database;
-
-            var br = source.Go<BlockReference>(db);
-            if (br == null)
-                throw new Exception($"Received {source} for Buerør! Must be BlockReference!");
-
-            using var tx = db.TransactionManager.StartOpenCloseTransaction();
-            var btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
-
-            foreach (ObjectId id in btr)
-            {
-                if (!id.IsDerivedFrom<Arc>()) continue;
-
-                var arc = id.Go<Arc>(tx);
-
-                // Find tangent intersection using pure math (apply block transform)
-                var tangentPoint = GetTangentPoint(arc, br.BlockTransform);
-
-                if (tangentPoint != default)
-                {
-                    return tangentPoint;
-                }
-
-                break;
-            }
-
-            throw new Exception(
-                $"Buerør: Arc not found for buerør {source}!");
-        }
-
-        protected override void ConfigureAllowedKinds(HashSet<PipelineElementType> allowed)
-        {
-            allowed.Clear();
-            allowed.Add(PipelineElementType.Buerør);
-        }
-
-        internal override void AttachPropertySet()
-        {
-            base.AttachPropertySet();
-        }
-    }
 }
-

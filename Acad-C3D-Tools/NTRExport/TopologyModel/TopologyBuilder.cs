@@ -348,7 +348,9 @@ namespace NTRExport.TopologyModel
             return kind switch
             {
                 PipelineElementType.Kedelrørsbøjning
-                or PipelineElementType.Bøjning45gr
+                  => DetectVerticalKdlrørsbøjninger(fitting, kind),
+
+                PipelineElementType.Bøjning45gr
                 or PipelineElementType.Bøjning30gr
                 or PipelineElementType.Bøjning15gr
                     => new ElbowFormstykke(fitting.Handle, kind),
@@ -406,6 +408,15 @@ namespace NTRExport.TopologyModel
 
                 _ => new GenericFitting(fitting.Handle, kind)
             };
+
+            TFitting DetectVerticalKdlrørsbøjninger(
+                BlockReference fitting, PipelineElementType kind)
+            {
+                var type = fitting.ReadDynamicCsvProperty(DynamicProperty.Type);
+                if (type == "Kedelrørsbøjning, vertikal")
+                    return new ElbowVertical(fitting.Handle, kind);
+                else return new ElbowFormstykke(fitting.Handle, kind);
+            }
 
             TFitting DeterminePreinsulatedElbowAngle(BlockReference fitting, PipelineElementType kind)
             {
