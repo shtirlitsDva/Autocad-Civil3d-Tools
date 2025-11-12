@@ -6795,6 +6795,7 @@ namespace IntersectUtilities
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
             Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = Application.DocumentManager.MdiActiveDocument;
 
             Oid pvId;
 
@@ -6818,6 +6819,41 @@ namespace IntersectUtilities
                 dro = new DataReferencesOptions();
                 if (dro.ProjectName.IsNoE() || dro.EtapeName.IsNoE())
                     return;
+            }
+
+            string activeLayer;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var ltr = (LayerTableRecord)tx.GetObject(localDb.Clayer, OpenMode.ForRead);
+                    activeLayer = ltr?.Name ?? "0";
+                    tx.Commit();
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex);
+                    tx.Abort();
+                    return;
+                }
+            }
+
+            using (doc.LockDocument())
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var lt = (LayerTable)tx.GetObject(localDb.LayerTableId, OpenMode.ForRead);
+                    localDb.Clayer = lt["0"];
+                    tx.Commit();
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex);
+                    tx.Abort();
+                    return;
+                }
             }
 
             PropertySetManager.UpdatePropertySetDefinition(
@@ -6973,6 +7009,23 @@ namespace IntersectUtilities
                     prdDbg(ex);
                 }
                 tx.Commit();
+            }
+
+            using (doc.LockDocument())
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var lt = (LayerTable)tx.GetObject(localDb.LayerTableId, OpenMode.ForRead);
+                    localDb.Clayer = lt[activeLayer];
+                    tx.Commit();
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex);
+                    tx.Abort();
+                    return;
+                }
             }
 
             prdDbg("Update finished! Run AUDIT (Y) to clean up drawing!");
