@@ -11,6 +11,7 @@ using NTRExport.Routing;
 using NTRExport.SoilModel;
 
 using System.Globalization;
+using System.Reflection;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 using static NTRExport.Utils.Utils;
@@ -893,7 +894,7 @@ namespace NTRExport.TopologyModel
 
         public override void Route(RoutedGraph g, Topology topo, RouterContext ctx)
         {
-            // TODO: implement macro; placeholder no-op
+            
         }
 
         public List<(TPort exitPort, double exitZ, double exitSlope)> TraverseAndRoute(
@@ -912,35 +913,20 @@ namespace NTRExport.TopologyModel
             }
 
             // Read direction and ΔZ from DN table
-            var isUp = IsUp();            
+            var isUp = IsUp();
 
-            int dnBranch = topo.InferBranchDn(this);
-            int dnMain = topo.InferMainDn(this);
-            double dz = LookupSpringDeltaZ(Series, dnMain, dnBranch);
-            if (dz <= 0.0)
-                throw new System.Exception($"AfgreningMedSpring {Source}: no Spring ΔZ found for DN {dnBranch}/{dnMain}.");
+            int dnBranch = DnB;
+            int dnMain = DnM;
 
-            double signedDz = isUp ? dz : -dz;
+            var sd = LookupSpringData(Series, dnMain, dnBranch);
+            
+            //Work here
 
-            bool entryIsMain = mains.Contains(entryPort);
-            if (entryIsMain)
-            {
-                foreach (var m in mains)
-                {
-                    if (ReferenceEquals(m, entryPort)) continue;
-                    exits.Add((m, entryZ, entrySlope));
-                }
-                double zBranch = entryZ + signedDz;
-                exits.Add((branch, zBranch, entrySlope));
-            }
-            else
-            {
-                double zMain = entryZ - signedDz;
-                foreach (var m in mains)
-                {
-                    exits.Add((m, zMain, entrySlope));
-                }
-            }
+
+            
+
+            
+            //End work here
 
             return exits;
         }
@@ -951,48 +937,42 @@ namespace NTRExport.TopologyModel
             return ntr.AfgreningMedSpringDir == "Up";
         }
 
-        private static double LookupSpringDeltaZ(PipeSeriesEnum series, int dnMain, int dnBranch)
+        private static SpringData LookupSpringData(PipeSeriesEnum series, int dnMain, int dnBranch)
         {
-            var result = SpringCatalogLookup.Lookup(series, dnMain, dnBranch);
-            // L1 is horizontal projection of 45° branch, so vertical component = L1 (tan 45° = 1)
-            // s is vertical offset between jacket tangents
-            // Total ΔZ = L1 + s
-            var dz = result.L1 + result.s;
-            return dz / 1000.0; // Convert mm to meters
+            return SpringCatalogLookup.Lookup(series, dnMain, dnBranch);            
         }
 
         // Lookup service for Afgrening med spring catalog tables (serie 2 and serie 3)
+        private struct SpringData
+        {
+            /// <summary>
+            /// Main jacket diameter in millimeters.
+            /// </summary>
+            public double D;
+
+            /// <summary>
+            /// Branch jacket diameter in millimeters.
+            /// </summary>
+            public double D1;
+
+            /// <summary>
+            /// Distance between main jacket upper tangent and branch jacket lower tangent in millimeters.
+            /// Constant value: 70 mm.
+            /// </summary>
+            public double s;
+
+            /// <summary>
+            /// Length of main run part of tee in millimeters.
+            /// </summary>
+            public double L;
+
+            /// <summary>
+            /// Horizontal projection length of branch from pipe centre in millimeters.
+            /// </summary>
+            public double L1;
+        }
         private static class SpringCatalogLookup
         {
-            public struct SpringData
-            {
-                /// <summary>
-                /// Main jacket diameter in millimeters.
-                /// </summary>
-                public double D;
-
-                /// <summary>
-                /// Branch jacket diameter in millimeters.
-                /// </summary>
-                public double D1;
-
-                /// <summary>
-                /// Distance between main jacket upper tangent and branch jacket lower tangent in millimeters.
-                /// Constant value: 70 mm.
-                /// </summary>
-                public double s;
-
-                /// <summary>
-                /// Length of main run part of tee in millimeters.
-                /// </summary>
-                public double L;
-
-                /// <summary>
-                /// Horizontal projection length of branch from pipe centre in millimeters.
-                /// </summary>
-                public double L1;
-            }
-
             // CSV-backed maps (mainDN, branchDN) -> SpringData
             private static readonly object _csvLock = new object();
             private static bool _serie1Loaded = false;
@@ -1025,7 +1005,7 @@ namespace NTRExport.TopologyModel
                         _allLoaded)
                         return;
 
-                    var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+                    var assembly = Assembly.GetExecutingAssembly();
                     var file = "spring_tables.csv";
 
                     var resourceName =
