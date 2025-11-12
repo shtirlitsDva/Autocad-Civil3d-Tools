@@ -1254,6 +1254,7 @@ namespace IntersectUtilities
         /// Serie - mulighed for at vælge en isoleringsserie.
         /// Bredde [m] - normalt vejens bredde, ellers afstand langs linjen for at søge
         /// dimensionsgivende segmenter.
+        /// Serie [1,2,3] - angiver rørenes isoleringsserie.
         /// Tillæg [m] - mulighed for at give afsætningen et tillæg.
         /// </summary>
         /// <category>Fjernvarme Fremtidig</category>

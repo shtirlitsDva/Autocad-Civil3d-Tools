@@ -4,6 +4,8 @@ using System.Runtime.CompilerServices;
 using System.Collections.Generic;
 using System.Linq;
 
+using static IntersectUtilities.UtilsCommon.Utils;
+
 namespace NTRExport.Routing
 {
     internal sealed class Router
@@ -47,17 +49,19 @@ namespace NTRExport.Routing
                 var (rootEl, rootPort) = PickRoot(_topo, nodeAdj, visitedElements);
                 if (rootEl == null || rootPort == null) break;
 
-                var stack = new Stack<(ElementBase el, TPort entryPort, double entryZ)>();
-                stack.Push((rootEl, rootPort, 0.0));
+                prdDbg($"Root found: {rootEl.DotLabelForTest()}");
+
+                var stack = new Stack<(ElementBase el, TPort entryPort, double entryZ, double entrySlope)>();
+                stack.Push((rootEl, rootPort, 0.0, 0.0));
 
                 while (stack.Count > 0)
                 {
-                    var (el, entry, entryZ) = stack.Pop();
+                    var (el, entry, entryZ, entrySlope) = stack.Pop();
                     if (visitedElements.Contains(el)) continue;
                     if (!visitedPairs.Add((el, entry))) continue;
                     visitedElements.Add(el);
 
-                    var exits = el.TraverseAndRoute(g, _topo, ctx, entry, entryZ, 0.0);
+                    var exits = el.Route(g, _topo, ctx, entry, entryZ, entrySlope);
 
                     foreach (var (exitPort, exitZ, exitSlope) in exits)
                     {
@@ -66,7 +70,7 @@ namespace NTRExport.Routing
                         {
                             if (ReferenceEquals(nel, el)) continue;
                             if (visitedElements.Contains(nel)) continue;
-                            stack.Push((nel, nport, exitZ));
+                            stack.Push((nel, nport, exitZ, exitSlope));
                         }
                     }
                 }

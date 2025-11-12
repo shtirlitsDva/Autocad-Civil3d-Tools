@@ -5,6 +5,7 @@ using IntersectUtilities;
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.Enums;
 
+using NTRExport.CadExtraction;
 using NTRExport.Enums;
 
 using System.Globalization;
@@ -52,7 +53,7 @@ namespace NTRExport.TopologyModel
                 foot = foot2.To3d();
                 // Distance from P to segment line in XY
                 var dist = p2.GetDistanceTo(foot2);
-                return dist <= CadTolerance.Node;
+                return dist <= CadTolerance.Tol;
             }
 
             static double OrientedAngle(Point2d center, Point2d from, Point2d to)
@@ -83,7 +84,7 @@ namespace NTRExport.TopologyModel
 
             TNode NodeAt(Point3d p)
             {
-                var n = nodeIndex.FirstOrDefault(x => x.Pos.DistanceTo(p) < CadTolerance.Node);
+                var n = nodeIndex.FirstOrDefault(x => x.Pos.DistanceTo(p) < CadTolerance.Tol);
                 if (n != null) return n;
                 n = new TNode { Pos = p };
                 g.Nodes.Add(n); nodeIndex.Add(n);
@@ -96,7 +97,7 @@ namespace NTRExport.TopologyModel
                 var tf = CreateFitting(fitting);
                 foreach (var cadPort in ports)
                 {
-                    var node = NodeAt(cadPort.Position);
+                    var node = NodeAt(cadPort.Position.To3d());
                     var port = new TPort(cadPort.Role, node, tf);
                     tf.AddPort(port);
                     if (cadPort.Role == PortRole.Main)
@@ -143,10 +144,10 @@ namespace NTRExport.TopologyModel
                                 var p2 = mn.Pos.To2d();
                                 var foot = arc.GetClosestPointTo(p2);
                                 var dist = foot.Point.GetDistanceTo(p2);
-                                if (dist > CadTolerance.Node) continue;
+                                if (dist > CadTolerance.Tol) continue;
                                 // Exclude endpoints
-                                if (foot.Point.GetDistanceTo(arc.StartPoint) <= CadTolerance.Node) continue;
-                                if (foot.Point.GetDistanceTo(arc.EndPoint) <= CadTolerance.Node) continue;
+                                if (foot.Point.GetDistanceTo(arc.StartPoint) <= CadTolerance.Tol) continue;
+                                if (foot.Point.GetDistanceTo(arc.EndPoint) <= CadTolerance.Tol) continue;
 
                                 var part = OrientedAngle(c, arc.StartPoint, foot.Point);
                                 // Inside arc interval in oriented sense
@@ -401,10 +402,7 @@ namespace NTRExport.TopologyModel
                     => new Materialeskift(fitting.Handle),
 
                 PipelineElementType.Endebund
-                    => new Endebund(fitting.Handle),
-
-                PipelineElementType.Svejsning
-                    => new GenericFitting(fitting.Handle, kind),
+                    => new Endebund(fitting.Handle),                
 
                 _ => new GenericFitting(fitting.Handle, kind)
             };
