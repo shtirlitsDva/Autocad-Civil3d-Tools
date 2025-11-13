@@ -5566,5 +5566,38 @@ namespace IntersectUtilities
                 }
             }
         }
+
+        [CommandMethod("SETMAPCS")]
+        public void SetMapCS()
+        {
+            MapApplication mapApp = HostMapApplicationServices.Application;
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+            Editor ed = doc.Editor;
+            Autodesk.Gis.Map.Project.ProjectModel projModel = mapApp.ActiveProject;
+
+            var coordinateSystemDictionary = new Dictionary<string, string>
+            {
+                {"UTM-32N", "ETRS89.UTM-32N"},
+                {"DKTM3",   "ETRF89.DKTM3"}
+            };
+
+            PromptKeywordOptions promptKeywordOptions = new PromptKeywordOptions("\nSelect coordinate system");
+            foreach (var key in coordinateSystemDictionary.Keys)
+                promptKeywordOptions.Keywords.Add(key);
+
+            PromptResult promptResult = ed.GetKeywords(promptKeywordOptions);
+            if (promptResult.Status != PromptStatus.OK)
+                return;
+
+            string selectedCoordinateSystemKey = promptResult.StringResult;
+
+            if (coordinateSystemDictionary.TryGetValue(selectedCoordinateSystemKey, out string selectedCoordinateSystemValue))
+            {
+                projModel.Projection = selectedCoordinateSystemValue;
+                prdDbg("\nCoordinate system has successfully been assigned to " + selectedCoordinateSystemKey);
+            }
+            else
+                prdDbg("\nCoordinate system is invalid");
+        }
     }
 }
