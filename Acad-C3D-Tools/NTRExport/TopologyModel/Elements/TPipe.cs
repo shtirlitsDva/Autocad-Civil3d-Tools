@@ -42,7 +42,8 @@ namespace NTRExport.TopologyModel
 
         public override IReadOnlyList<TPort> Ports => [A, B];
 
-        public override List<(TPort exitPort, double exitZ, double exitSlope)> Route(RoutedGraph g, Topology topo, RouterContext ctx, TPort entryPort, double entryZ, double entrySlope)
+        public override List<(TPort exitPort, double exitZ, double exitSlope)> Route(
+            RoutedGraph g, Topology topo, RouterContext ctx, TPort entryPort, double entryZ, double entrySlope)
         {
             var exits = new List<(TPort exitPort, double exitZ, double exitSlope)>();
             var other = ReferenceEquals(entryPort, A) ? B : A;
@@ -60,6 +61,17 @@ namespace NTRExport.TopologyModel
             var (zUp, zLow) = ComputeTwinOffsets(System, Type, DN);
             var flow = Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return;
             var ltg = LTGMain(Source);
+
+            // Build local normal to centerline (in vertical plane spanned by XY direction and Z)
+            var abXY = (B.Node.Pos.To2d() - A.Node.Pos.To2d());
+            var uHatAbs = abXY.Length < 1e-12 ? new Vector2d(1.0, 0.0) : abXY.GetNormal();
+            var signEntryToAB = ReferenceEquals(entryPort, A) ? 1.0 : -1.0;
+            var alphaAbs = Math.Atan(entrySlope) * signEntryToAB;
+            var upVec3 =
+                new Vector3d(uHatAbs.X, uHatAbs.Y, 0.0).MultiplyBy(-Math.Sin(alphaAbs)) +
+                Vector3d.ZAxis.MultiplyBy(Math.Cos(alphaAbs));
+            Point3d Off(Point3d p, double off) =>
+                new Point3d(p.X + upVec3.X * off, p.Y + upVec3.Y * off, p.Z + upVec3.Z * off);
 
             var cuts = new SortedSet<double> { 0.0, Length };
             foreach (var (s0, s1) in CushionSpans)
@@ -91,8 +103,8 @@ namespace NTRExport.TopologyModel
                 {
                     g.Members.Add(new RoutedStraight(Source, this)
                         {
-                            A = aCenter.Z(zUp),
-                            B = bCenter.Z(zUp),
+                            A = Off(aCenter, zUp),
+                            B = Off(bCenter, zUp),
                             DN = DN,
                             Material = Material,
                             DnSuffix = suffix,
@@ -102,8 +114,8 @@ namespace NTRExport.TopologyModel
                     });
                     g.Members.Add(new RoutedStraight(Source, this)
                         {
-                            A = aCenter.Z(zLow),
-                            B = bCenter.Z(zLow),
+                            A = Off(aCenter, zLow),
+                            B = Off(bCenter, zLow),
                             DN = DN,
                             Material = Material,
                             DnSuffix = suffix,
