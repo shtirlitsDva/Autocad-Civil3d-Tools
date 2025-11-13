@@ -23,12 +23,12 @@ namespace NTRExport.Routing
             var ctx = new RouterContext(_topo);
 
             // Traverse subnets from roots (entryZ = 0.0) and emit members inline
-            SolveElevations(g, ctx);
+            SolveElevationsAndGeometry(g, ctx);
 
             return g;
         }
 
-        private void SolveElevations(RoutedGraph g, RouterContext ctx)
+        private void SolveElevationsAndGeometry(RoutedGraph g, RouterContext ctx)
         {
             // Build port-level adjacency
             var nodeAdj = new Dictionary<TNode, List<(ElementBase el, TPort port)>>(new RefEq<TNode>());
