@@ -42,13 +42,18 @@ namespace NTRExport.TopologyModel
             var ntr = new NtrData(_entity);
         }
 
-        public override List<(TPort exitPort, double exitZ, double exitSlope)> Route(RoutedGraph g, Topology topo, RouterContext ctx, TPort entryPort, double entryZ, double entrySlope)
+        public override List<(TPort exitPort, double exitZ, double exitSlope)> Route(
+            RoutedGraph g, Topology topo, RouterContext ctx, TPort entryPort, double entryZ, double entrySlope)
         {
             double angleDeg = Convert.ToDouble(
                 _br.ReadDynamicCsvProperty(DynamicProperty.Vinkel));
 
             var ntr = new NtrData(_entity);
             var dirUp = ntr.VertikalBøjningDir == "Up";
+
+            var radius = Geometry.GetBogRadius3D(DN) / 1000.0; // m
+
+            var otherPort = GetOtherPort(entryPort);
 
             var exits = new List<(TPort exitPort, double exitZ, double exitSlope)>();
 
@@ -241,8 +246,7 @@ namespace NTRExport.TopologyModel
                     });
                 }
 
-                // Single exit: propagate computed Z at other end and same slope
-                var otherPort = entryIsA ? bPort : aPort;
+                // Single exit: propagate computed Z at other end and same slope                
                 var exitZVal = entryIsA ? zOther : zEntry;
                 var exitSlopeVal = Math.Tan(chosenAlphaO);
                 //prdDbg($"ElbowVertical {Source}: exitZ={exitZVal:0.###}, exitSlope={exitSlopeVal:0.####}");
@@ -258,6 +262,16 @@ namespace NTRExport.TopologyModel
                 exits.Add((p, entryZ, entrySlope));
             }
             return exits;
+        }
+
+        private TPort GetOtherPort(TPort port)
+        {
+            foreach (var p in Ports)
+            {
+                if (!ReferenceEquals(p, port))
+                    return p;
+            }
+            throw new Exception("ElbowVertical has less than 2 ports!");
         }
     }
 }
