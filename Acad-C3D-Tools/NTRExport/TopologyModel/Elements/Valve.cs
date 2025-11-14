@@ -30,20 +30,64 @@ namespace NTRExport.TopologyModel
             RoutedGraph g, Topology topo, RouterContext ctx, TPort entryPort, double entryZ, double entrySlope)
         {
             var exits = new List<(TPort exitPort, double exitZ, double exitSlope)>();
-            // TODO: Implement properly with elevation/slope propagation
             var (zUp, zLow) = ComputeTwinOffsets(System, Type, DN);
+            var ltg = LTGMain(Source);
 
-            g.Members.Add(
-                new RoutedValve(Source, this)
-                {
-                    P1 = P1.Node.Pos.Z(entryZ + zUp),
-                    P2 = P2.Node.Pos.Z(entryZ + zUp),
-                    Pm = P1.Node.Pos.Z(entryZ + zUp).MidPoint(P2.Node.Pos.Z(entryZ + zUp)),
-                    DN = DN,
-                    DnSuffix = Variant.DnSuffix,
-                    Material = Material,
-                }
-            );
+            if (!Variant.IsTwin)
+            {
+                var flow = ResolveBondedFlowRole(topo);
+                var p1 = P1.Node.Pos.Z(entryZ + zUp);
+                var p2 = P2.Node.Pos.Z(entryZ + zUp);
+
+                g.Members.Add(
+                    new RoutedValve(Source, this)
+                    {
+                        P1 = p1,
+                        P2 = p2,
+                        Pm = p1.MidPoint(p2),
+                        DN = DN,
+                        DnSuffix = Variant.DnSuffix,
+                        Material = Material,
+                        FlowRole = flow,
+                        LTG = ltg,
+                    }
+                );
+            }
+            else
+            {
+                var p1Return = P1.Node.Pos.Z(entryZ + zUp);
+                var p2Return = P2.Node.Pos.Z(entryZ + zUp);
+                g.Members.Add(
+                    new RoutedValve(Source, this)
+                    {
+                        P1 = p1Return,
+                        P2 = p2Return,
+                        Pm = p1Return.MidPoint(p2Return),
+                        DN = DN,
+                        DnSuffix = Variant.DnSuffix,
+                        Material = Material,
+                        FlowRole = FlowRole.Return,
+                        LTG = ltg,
+                    }
+                );
+
+                var p1Supply = P1.Node.Pos.Z(entryZ + zLow);
+                var p2Supply = P2.Node.Pos.Z(entryZ + zLow);
+                g.Members.Add(
+                    new RoutedValve(Source, this)
+                    {
+                        P1 = p1Supply,
+                        P2 = p2Supply,
+                        Pm = p1Supply.MidPoint(p2Supply),
+                        DN = DN,
+                        DnSuffix = Variant.DnSuffix,
+                        Material = Material,
+                        FlowRole = FlowRole.Supply,
+                        LTG = ltg,
+                    }
+                );
+            }
+
             // Propagate to other port
             var other = ReferenceEquals(entryPort, P1) ? P2 : P1;
             exits.Add((other, entryZ, entrySlope));

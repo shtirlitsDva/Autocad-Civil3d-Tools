@@ -28,3 +28,15 @@ Style: businesslike; no fluff, no stories, no metaphors.
 
 ## Coding Style & Naming Conventions
 Use four-space indentation and respect nullable reference types (`<Nullable>enable</Nullable>` is the default). Favor PascalCase for public types, camelCase for locals, and avoid abbreviations not already established nearby. Keep command class names aligned with their AutoCAD command keyword (for example `ApplyDimCommand`). `.editorconfig` disables XML documentation warnings; prefer concise inline comments only when the intent is non-obvious.
+
+## Domain knowledge
+### District heating pipe types
+District Heating steel piping systems currently have two general types:
+- Bonded pipes
+- Twin pipes
+
+#### Bonded pipes
+Bonded pipes exist in all pipe dimensions. There are two distinct steel pipes with each a plastic jacked and insulation. These are drawn using distinct polylines each.
+
+#### Twin pipes
+Twin pipes exist in sizes up to DN 200 (250 sometimes). There are two steel pipes in one plastic jacket. The return pipe is above the supply pipe. This system is drawn using one polyline.

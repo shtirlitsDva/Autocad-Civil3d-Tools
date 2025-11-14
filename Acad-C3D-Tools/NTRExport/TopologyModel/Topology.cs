@@ -1,4 +1,9 @@
-﻿using Autodesk.AutoCAD.DatabaseServices;
+﻿using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Reflection;
+
+using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 
 using IntersectUtilities;
@@ -9,10 +14,6 @@ using IntersectUtilities.UtilsCommon.Enums;
 using NTRExport.Enums;
 using NTRExport.Routing;
 using NTRExport.SoilModel;
-
-using System.Globalization;
-using System.Linq;
-using System.Reflection;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 using static NTRExport.Utils.Utils;
@@ -38,6 +39,7 @@ namespace NTRExport.TopologyModel
             Role = role;
             Node = node;
             Owner = owner;
+            node.Ports.Add(this);
         }
     }
 
@@ -79,23 +81,7 @@ namespace NTRExport.TopologyModel
                 }
             }
             return dns.Count > 0 ? dns.Max() : 200;
-        }
-
-        public int InferBranchDn(TFitting fitting)
-        {
-            var dns = new List<int>();
-            foreach (var node in fitting.Ports.Select(p => p.Node))
-            {
-                foreach (var pipe in Pipes)
-                {
-                    if (pipe.A.Node == node || pipe.B.Node == node)
-                    {
-                        dns.Add(pipe.DN);
-                    }
-                }
-            }
-            return dns.Count > 0 ? dns.Min() : 100;
-        }
+        }        
 
         public int InferDn1(TFitting fitting) => InferMainDn(fitting);
 
@@ -215,6 +201,55 @@ namespace NTRExport.TopologyModel
             }
 
             return false;
+        }
+
+        internal FlowRole FindRoleFromPort(TFitting requester, TPort startPort)
+        {
+            if (startPort?.Node == null) return FlowRole.Unknown;
+
+            FlowRole FlowFromType(PipeTypeEnum pipeType) =>
+                pipeType switch
+                {
+                    PipeTypeEnum.Frem => FlowRole.Supply,
+                    PipeTypeEnum.Retur => FlowRole.Return,
+                    _ => FlowRole.Unknown,
+                };
+
+            var visited = new HashSet<TNode>();
+            var queue = new Queue<TNode>();
+            visited.Add(startPort.Node);
+            queue.Enqueue(startPort.Node);
+
+            while (queue.Count > 0)
+            {
+                var node = queue.Dequeue();
+                foreach (var port in node.Ports)
+                {
+                    var owner = port.Owner;
+                    if (ReferenceEquals(owner, requester)) continue;
+
+                    if (owner is TFitting fitting)
+                    {
+                        if (ReferenceEquals(fitting, requester)) continue;
+                        if (fitting is FModel || fitting is YModel) continue;
+                        if (fitting.Variant.IsTwin) continue;
+                    }
+
+                    var role = FlowFromType(owner.Type);
+                    if (role != FlowRole.Unknown)
+                        return role;
+
+                    foreach (var otherPort in owner.Ports)
+                    {
+                        var nextNode = otherPort.Node;
+                        if (ReferenceEquals(nextNode, node)) continue;
+                        if (visited.Add(nextNode))
+                            queue.Enqueue(nextNode);
+                    }
+                }
+            }
+
+            return FlowRole.Unknown;
         }
     }
 }

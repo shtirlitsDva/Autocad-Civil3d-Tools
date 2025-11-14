@@ -8,6 +8,8 @@ using IntersectUtilities.UtilsCommon.Enums;
 using NTRExport.Enums;
 using NTRExport.Routing;
 
+using static IntersectUtilities.UtilsCommon.Utils;
+
 namespace NTRExport.TopologyModel
 {
     internal abstract class TFitting : ElementBase
@@ -80,6 +82,55 @@ namespace NTRExport.TopologyModel
             return true;
         }
 
+        protected FlowRole ResolveBondedFlowRole(Topology topo)
+        {
+            const FlowRole fallback = FlowRole.Return;
+
+            if (Variant.IsTwin)
+                return fallback;
+
+            FlowRole FlowFromType(PipeTypeEnum pipeType) =>
+                pipeType switch
+                {
+                    PipeTypeEnum.Frem => FlowRole.Supply,
+                    PipeTypeEnum.Retur => FlowRole.Return,
+                    _ => FlowRole.Unknown,
+                };
+
+            var direct = FlowFromType(Type);
+            if (direct != FlowRole.Unknown)
+                return direct;
+
+            foreach (var port in Ports)
+            {
+                var role = topo.FindRoleFromPort(this, port);
+                if (role != FlowRole.Unknown)
+                {
+                    prdDbg($"{GetType().Name} {Source} bonded flow role inferred as {role} via port {port.Role}.");
+                    return role;
+                }
+            }
+
+            prdDbg($"{GetType().Name} {Source} bonded flow role fallback to {fallback}.");
+            return fallback;
+        }
+
+        protected FlowRole ResolveBondedFlowRole(Topology topo, TPort referencePort)
+        {
+            if (Variant.IsTwin)
+                return FlowRole.Return;
+
+            if (referencePort != null)
+            {
+                var role = topo.FindRoleFromPort(this, referencePort);
+                if (role != FlowRole.Unknown)
+                {
+                    prdDbg($"{GetType().Name} {Source} bonded flow role inferred as {role} via port {referencePort.Role}.");
+                    return role;
+                }
+            }
+
+            return ResolveBondedFlowRole(topo);
+        }
     }
 }
-

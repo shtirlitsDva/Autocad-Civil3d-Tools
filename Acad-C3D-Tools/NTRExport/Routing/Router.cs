@@ -5,6 +5,8 @@ using System.Collections.Generic;
 using System.Linq;
 
 using static IntersectUtilities.UtilsCommon.Utils;
+using NTRExport.CadExtraction;
+using NTRExport.Enums;
 
 namespace NTRExport.Routing
 {
@@ -24,8 +26,112 @@ namespace NTRExport.Routing
 
             // Traverse subnets from roots (entryZ = 0.0) and emit members inline
             SolveElevationsAndGeometry(g, ctx);
+            VerticalElbowFix(g);
 
             return g;
+        }
+
+        private static void VerticalElbowFix(RoutedGraph g)
+        {
+            if (g.Members.Count == 0) return;
+
+            double connectionTol = CadTolerance.Tol;
+            const double maxSnapDist = 0.5; // meters
+
+            static IEnumerable<Point3d> EnumerateEndpoints(RoutedMember member)
+            {
+                switch (member)
+                {
+                    case RoutedStraight rs:
+                        yield return rs.A;
+                        yield return rs.B;
+                        break;
+                    case RoutedBend rb:
+                        yield return rb.A;
+                        yield return rb.B;
+                        break;
+                    case RoutedReducer red:
+                        yield return red.P1;
+                        yield return red.P2;
+                        break;
+                    case RoutedValve valve:
+                        yield return valve.P1;
+                        yield return valve.P2;
+                        break;
+                    case RoutedTee tee:
+                        yield return tee.Ph1;
+                        yield return tee.Ph2;
+                        yield return tee.Pa1;
+                        yield return tee.Pa2;
+                        break;
+                }
+            }
+
+            bool HasConnection(RoutedBend elbow, Point3d pt)
+            {
+                foreach (var member in g.Members)
+                {
+                    if (ReferenceEquals(member, elbow)) continue;
+                    if (member.FlowRole != elbow.FlowRole) continue;
+                    foreach (var candidate in EnumerateEndpoints(member))
+                    {
+                        if (pt.DistanceTo(candidate) <= connectionTol)
+                            return true;
+                    }
+                }
+                return false;
+            }
+
+            (RoutedStraight? straight, bool isA, double dist) FindNearestStraight(FlowRole role, Point3d target)
+            {
+                RoutedStraight? best = null;
+                bool bestIsA = true;
+                double bestDist = double.MaxValue;
+                foreach (var member in g.Members)
+                {
+                    if (member is not RoutedStraight rs) continue;
+                    if (rs.FlowRole != role) continue;
+
+                    var dA = rs.A.DistanceTo(target);
+                    if (dA < bestDist)
+                    {
+                        best = rs;
+                        bestIsA = true;
+                        bestDist = dA;
+                    }
+                    var dB = rs.B.DistanceTo(target);
+                    if (dB < bestDist)
+                    {
+                        best = rs;
+                        bestIsA = false;
+                        bestDist = dB;
+                    }
+                }
+                return (best, bestIsA, bestDist);
+            }
+
+            void SnapEndpoint(RoutedBend elbow, Point3d pt)
+            {
+                if (HasConnection(elbow, pt)) return;
+                var (straight, isA, dist) = FindNearestStraight(elbow.FlowRole, pt);
+                if (straight == null) return;
+                if (dist > maxSnapDist) return;
+
+                if (isA)
+                    straight.A = pt;
+                else
+                    straight.B = pt;
+            }
+
+            foreach (var member in g.Members)
+            {
+                if (member is not RoutedBend bend) continue;
+                if (bend.Emitter is not ElbowVertical ev) continue;
+                if (!ev.Variant.IsTwin) continue;
+
+                SnapEndpoint(bend, bend.A);
+                SnapEndpoint(bend, bend.B);
+            }
         }
 
         private void SolveElevationsAndGeometry(RoutedGraph g, RouterContext ctx)

@@ -1,4 +1,7 @@
-﻿using Autodesk.AutoCAD.DatabaseServices;
+﻿using System;
+using System.Collections.Generic;
+
+using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 
 using IntersectUtilities;
@@ -34,11 +37,11 @@ namespace NTRExport.TopologyModel
         protected override void ConfigureAllowedKinds(HashSet<PipelineElementType> allowed)
         {
             allowed.Clear();
-            allowed.Add(PipelineElementType.Kedelrørsbøjning);            
+            allowed.Add(PipelineElementType.Kedelrørsbøjning);
         }
 
         internal override void AttachPropertySet()
-        {            
+        {
             var ntr = new NtrData(_entity);
         }
 
@@ -57,12 +60,188 @@ namespace NTRExport.TopologyModel
 
             var exits = new List<(TPort exitPort, double exitZ, double exitSlope)>();
 
-            // Vertical elbow projected in plan: compute tangent intersection from endpoints and angle
-            var ends = Ports.Take(2).ToArray();
-            if (ends.Length >= 2)
+            List<(TPort exitPort, double exitZ, double exitSlope)> PropagateUnchanged()
             {
-                var aPort = ends[0];
-                var bPort = ends[1];
+                var fallback = new List<(TPort exitPort, double exitZ, double exitSlope)>();
+                foreach (var p in Ports)
+                {
+                    if (ReferenceEquals(p, entryPort)) continue;
+                    fallback.Add((p, entryZ, entrySlope));
+                }
+                return fallback;
+            }
+
+            static bool TryIntersect(Point2d e, Vector2d de, Point2d o, Vector2d d0, out Point2d inter, out double t, out double s)
+            {
+                inter = default; t = 0.0; s = 0.0;
+                double cross(Vector2d a, Vector2d b) => a.X * b.Y - a.Y * b.X;
+                var denom = cross(de, d0);
+                if (Math.Abs(denom) < 1e-12) return false;
+                var w = new Vector2d(o.X - e.X, o.Y - e.Y);
+                t = cross(w, d0) / denom;
+                s = cross(w, de) / denom;
+                inter = new Point2d(e.X + de.X * t, e.Y + de.Y * t);
+                return true;
+            }
+
+            if (Variant.IsTwin)
+            {
+                var entryPos = entryPort.Node.Pos;
+                var otherPos = otherPort.Node.Pos;
+
+                var entryXY = entryPos.To2d();
+                var otherXY = otherPos.To2d();
+                var dirXY = otherXY - entryXY;
+                var dirLen = dirXY.Length;
+
+                //prdDbg($"ElbowVertical {Source} twin inputs: entryZ={entryZ:0.###}, slope={entrySlope:0.####}, angleDeg={angleDeg:0.###}, radius={radius:0.###}, dirUp={dirUp}, entryXY=({entryXY.X:0.###},{entryXY.Y:0.###}), otherXY=({otherXY.X:0.###},{otherXY.Y:0.###})");
+
+                if (dirLen < 1e-9)
+                {
+                    //prdDbg($"ElbowVertical {Source} twin: degenerate XY baseline (|dir|={dirLen:0.###}); propagating unchanged.");
+                    return PropagateUnchanged();
+                }
+
+                var uHat = dirXY.GetNormal();
+
+                var alphaE = Math.Atan(entrySlope);
+                var theta = Math.Abs(angleDeg) * Math.PI / 180.0;
+                if (theta < 1e-6 || radius < 1e-9)
+                {
+                    //prdDbg($"ElbowVertical {Source} twin: invalid theta/radius (theta={theta:0.######}, radius={radius:0.###}).");
+                    return PropagateUnchanged();
+                }
+
+                var signedTheta = dirUp ? theta : -theta;
+                var alphaO = alphaE + signedTheta;
+                var entryDir = new Vector2d(Math.Cos(alphaE), Math.Sin(alphaE));
+                var exitDir = new Vector2d(Math.Cos(alphaO), Math.Sin(alphaO));
+
+                Vector2d RotateVec(Vector2d v, double ang)
+                {
+                    var ca = Math.Cos(ang);
+                    var sa = Math.Sin(ang);
+                    return new Vector2d(v.X * ca - v.Y * sa, v.X * sa + v.Y * ca);
+                }
+
+                var entryLocal = new Point2d(0.0, entryZ);
+                var leftNormal = new Vector2d(-entryDir.Y, entryDir.X);
+                var centerLocal = entryLocal.Add(leftNormal.MultiplyBy(dirUp ? radius : -radius));
+                var vecCenterToEntry = entryLocal - centerLocal;
+                var vecCenterToExit = RotateVec(vecCenterToEntry, signedTheta);
+                var exitLocal = centerLocal.Add(vecCenterToExit);
+                var deltaU = exitLocal.X - entryLocal.X;
+                var deltaW = exitLocal.Y - entryLocal.Y;
+
+                //prdDbg($"ElbowVertical {Source} twin local geom: alphaE={alphaE:0.####}, alphaO={alphaO:0.####}, center=({centerLocal.X:0.###},{centerLocal.Y:0.###}), deltaU={deltaU:0.###}, deltaW={deltaW:0.###}, exitLocal=({exitLocal.X:0.###},{exitLocal.Y:0.###})");
+
+                if (!TryIntersect(entryLocal, entryDir, exitLocal, exitDir, out var tangentLocal, out var tEntry, out var tExit))
+                {
+                    //prdDbg($"ElbowVertical {Source} twin: tangent intersection failed.");
+                    return PropagateUnchanged();
+                }
+
+                if (tEntry <= 1e-9)
+                {
+                    //prdDbg($"ElbowVertical {Source} twin: tangent length invalid (tEntry={tEntry:0.###}).");
+                    return PropagateUnchanged();
+                }
+
+                var vecTA = entryLocal - tangentLocal;
+                var vecTB = exitLocal - tangentLocal;
+                if (vecTA.Length <= 1e-9 || vecTB.Length <= 1e-9)
+                {
+                    //prdDbg($"ElbowVertical {Source} twin: tangent vectors too short (|TA|={vecTA.Length:0.###}, |TB|={vecTB.Length:0.###}).");
+                    return PropagateUnchanged();
+                }
+
+                var bisectorVec = vecTA.GetNormal() + vecTB.GetNormal();
+                if (bisectorVec.Length <= 1e-9)
+                {
+                    //prdDbg($"ElbowVertical {Source} twin: bisector undefined.");
+                    return PropagateUnchanged();
+                }
+                var bisectorUnit = bisectorVec.GetNormal();
+
+                var (zUp, zLow) = ComputeTwinOffsets(System, Type, DN);
+                //prdDbg($"ElbowVertical {Source} twin tangents: T=({tangentLocal.X:0.###},{tangentLocal.Y:0.###}), tEntry={tEntry:0.###}, tExit={tExit:0.###}, bisector=({bisectorUnit.X:0.####},{bisectorUnit.Y:0.####}), offsets=({zUp:0.###},{zLow:0.###})");
+
+                Point3d MapToWorld(Point2d uw)
+                {
+                    var x = entryXY.X + uHat.X * uw.X;
+                    var y = entryXY.Y + uHat.Y * uw.X;
+                    return new Point3d(x, y, uw.Y);
+                }
+
+                Point2d OffsetPoint(Point2d pt, Vector2d offset) => pt.Add(offset);
+
+                (Point3d A, Point3d T, Point3d B) BuildPoints(double offsetMag)
+                {
+                    var offsetLocal = bisectorUnit.MultiplyBy(offsetMag);
+                    var aLocal = OffsetPoint(entryLocal, offsetLocal);
+                    var tLocal = OffsetPoint(tangentLocal, offsetLocal);
+                    var bLocal = OffsetPoint(exitLocal, offsetLocal);
+                    return (MapToWorld(aLocal), MapToWorld(tLocal), MapToWorld(bLocal));
+                }
+
+                //offset along bisector needs to be scaled because the bisector is our hypotenuse
+                //and our offset is our near side of a right triangle, near angle is half of our bend
+                var f = Math.Cos(angleDeg * Math.PI / 360.0);
+                var returnPts = BuildPoints(zUp / f);
+                var supplyPts = BuildPoints(zLow / f);
+
+                double AvgZ((Point3d A, Point3d T, Point3d B) pts) =>
+                    (pts.A.Z + pts.T.Z + pts.B.Z) / 3.0;
+
+                var avgReturnZ = AvgZ(returnPts);
+                var avgSupplyZ = AvgZ(supplyPts);
+                const double roleSwapTol = 1e-6;
+                if (avgReturnZ + roleSwapTol < avgSupplyZ)
+                {
+                    //prdDbg($"ElbowVertical {Source} twin: swapping flow roles to keep return above supply (avgReturnZ={avgReturnZ:0.###}, avgSupplyZ={avgSupplyZ:0.###}).");
+                    var temp = returnPts;
+                    returnPts = supplyPts;
+                    supplyPts = temp;
+                }
+
+                //prdDbg($"ElbowVertical {Source} twin return pts: A=({returnPts.A.X:0.###},{returnPts.A.Y:0.###},{returnPts.A.Z:0.###}), T=({returnPts.T.X:0.###},{returnPts.T.Y:0.###},{returnPts.T.Z:0.###}), B=({returnPts.B.X:0.###},{returnPts.B.Y:0.###},{returnPts.B.Z:0.###})");
+                //prdDbg($"ElbowVertical {Source} twin supply pts: A=({supplyPts.A.X:0.###},{supplyPts.A.Y:0.###},{supplyPts.A.Z:0.###}), T=({supplyPts.T.X:0.###},{supplyPts.T.Y:0.###},{supplyPts.T.Z:0.###}), B=({supplyPts.B.X:0.###},{supplyPts.B.Y:0.###},{supplyPts.B.Z:0.###})");
+
+                g.Members.Add(new RoutedBend(Source, this)
+                {
+                    A = returnPts.A,
+                    B = returnPts.B,
+                    T = returnPts.T,
+                    DN = DN,
+                    Material = Material,
+                    DnSuffix = Variant.DnSuffix,
+                    FlowRole = FlowRole.Return,
+                    LTG = LTGMain(Source),
+                });
+
+                g.Members.Add(new RoutedBend(Source, this)
+                {
+                    A = supplyPts.A,
+                    B = supplyPts.B,
+                    T = supplyPts.T,
+                    DN = DN,
+                    Material = Material,
+                    DnSuffix = Variant.DnSuffix,
+                    FlowRole = FlowRole.Supply,
+                    LTG = LTGMain(Source),
+                });
+
+                var exitZVal = exitLocal.Y;
+                var exitSlopeVal = Math.Tan(alphaO);
+                //prdDbg($"ElbowVertical {Source} twin exit: exitZ={exitZVal:0.###}, exitSlope={exitSlopeVal:0.####}");
+
+                exits.Add((otherPort, exitZVal, exitSlopeVal));
+                return exits;
+            }
+            if (Variant.IsTwin == false)
+            {
+                var aPort = entryPort;
+                var bPort = otherPort;
                 var a = aPort.Node.Pos;
                 var b = bPort.Node.Pos;
 
@@ -78,12 +257,7 @@ namespace NTRExport.TopologyModel
                 if (c < 1e-9)
                 {
                     // Degenerate: fall back to simple propagation
-                    foreach (var p in Ports)
-                    {
-                        if (ReferenceEquals(p, entryPort)) continue;
-                        exits.Add((p, entryZ, entrySlope));
-                    }
-                    return exits;
+                    return PropagateUnchanged();
                 }
                 var uHat = dirXY.GetNormal(); // unit vector from entry to other in XY
 
@@ -97,24 +271,11 @@ namespace NTRExport.TopologyModel
 
                 // Map endpoints to (u,w)
                 var uE = 0.0; var wE = zEntry;
-                var uO = c;   var wO = zOther;
+                var uO = c; var wO = zOther;
 
                 // Tangent angles in (u,w) plane
                 var alphaE = Math.Atan(entrySlope);
                 var theta = Math.Abs(angleDeg) * Math.PI / 180.0;
-
-                static bool TryIntersect(Point2d e, Vector2d de, Point2d o, Vector2d d0, out Point2d inter, out double t, out double s)
-                {
-                    inter = default; t = 0.0; s = 0.0;
-                    double cross(Vector2d a, Vector2d b) => a.X * b.Y - a.Y * b.X;
-                    var denom = cross(de, d0);
-                    if (Math.Abs(denom) < 1e-12) return false;
-                    var w = new Vector2d(o.X - e.X, o.Y - e.Y);
-                    t = cross(w, d0) / denom;
-                    s = cross(w, de) / denom;
-                    inter = new Point2d(e.X + de.X * t, e.Y + de.Y * t);
-                    return true;
-                }
 
                 var e2 = new Point2d(uE, wE);
                 var o2 = new Point2d(uO, wO);
@@ -217,7 +378,7 @@ namespace NTRExport.TopologyModel
                 Point3d Off(Point3d p, Vector3d n, double off) =>
                     new Point3d(p.X + n.X * off, p.Y + n.Y * off, p.Z + n.Z * off);
 
-                var flowMain = Variant.IsTwin ? FlowRole.Return : Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return;
+                var flowMain = base.ResolveBondedFlowRole(topo);
 
                 g.Members.Add(new RoutedBend(Source, this)
                 {
@@ -231,21 +392,6 @@ namespace NTRExport.TopologyModel
                     LTG = LTGMain(Source),
                 });
 
-                if (Variant.IsTwin)
-                {
-                    g.Members.Add(new RoutedBend(Source, this)
-                    {
-                        A = Off(aWorld, nA, zLow),
-                        B = Off(bWorld, nB, zLow),
-                        T = Off(tWorld, nT, zLow),
-                        DN = DN,
-                        Material = Material,
-                        DnSuffix = Variant.DnSuffix,
-                        FlowRole = FlowRole.Supply,
-                        LTG = LTGMain(Source),
-                    });
-                }
-
                 // Single exit: propagate computed Z at other end and same slope                
                 var exitZVal = entryIsA ? zOther : zEntry;
                 var exitSlopeVal = Math.Tan(chosenAlphaO);
@@ -255,13 +401,7 @@ namespace NTRExport.TopologyModel
                 return exits;
             }
 
-            // Fallback: propagate unchanged
-            foreach (var p in Ports)
-            {
-                if (ReferenceEquals(p, entryPort)) continue;
-                exits.Add((p, entryZ, entrySlope));
-            }
-            return exits;
+            return PropagateUnchanged();
         }
 
         private TPort GetOtherPort(TPort port)

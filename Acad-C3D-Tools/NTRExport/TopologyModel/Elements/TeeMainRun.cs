@@ -59,31 +59,39 @@ namespace NTRExport.TopologyModel
         protected TPort MainPort2 => Ports.Last(p => p.Role == PortRole.Main);
         protected Point2d MidPoint => MainPort1.Node.Pos.To2d().MidPoint(MainPort2.Node.Pos.To2d());
         protected TPort BranchPort => Ports.First(p => p.Role == PortRole.Branch);
-        protected (double zUp, double zLow) OffsetMain;        
+        protected (double zUp, double zLow) OffsetMain;
 
         protected List<(TPort exitPort, double exitZ, double exitSlope)> RouteMain(
-            RoutedGraph g, Topology topo, RouterContext ctx, TPort? entryPort, double entryZ, double entrySlope)
+            RoutedGraph g,
+            Topology topo,
+            RouterContext ctx,
+            TPort? entryPort,
+            double entryZ,
+            double entrySlope,
+            FlowRole bondedFlowRole = FlowRole.Unknown)
         {
             var exits = new List<(TPort exitPort, double exitZ, double exitSlope)>();
-            
+
             // Emit main run
-            var mainFlow = Variant.IsTwin ? FlowRole.Return : Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return;
             var ltgMain = LTGMain(Source);
 
             if (!Variant.IsTwin)
-        {
-            g.Members.Add(
-                new RoutedStraight(Source, this)
-                {
+            {
+                var mainFlow = bondedFlowRole != FlowRole.Unknown
+                    ? bondedFlowRole
+                    : ResolveBondedFlowRole(topo);
+                g.Members.Add(
+                    new RoutedStraight(Source, this)
+                    {
                         A = MainPort1.Node.Pos.Z(entryZ),
                         B = MainPort2.Node.Pos.Z(entryZ),
-                    DN = DnM,
-                    Material = Material,
-                    DnSuffix = Variant.DnSuffix,
+                        DN = DnM,
+                        Material = Material,
+                        DnSuffix = Variant.DnSuffix,
                         FlowRole = mainFlow,
                         LTG = ltgMain,
                     }
-                );
+                    );
             }
             else
             {
@@ -113,7 +121,7 @@ namespace NTRExport.TopologyModel
                     }
                 );
             }
-            
+
             // Propagate elevation/slope to main ports
             if (entryPort == null)
             {
@@ -128,7 +136,7 @@ namespace NTRExport.TopologyModel
                 TPort otherMain = entryIsMain1 ? MainPort2 : MainPort1;
                 exits.Add((otherMain, entryZ, entrySlope));
             }
-            
+
             return exits;
         }
     }
@@ -136,7 +144,7 @@ namespace NTRExport.TopologyModel
     internal sealed class TeeFormstykke : TeeMainRun
     {
         public TeeFormstykke(Handle source, PipelineElementType kind)
-            : base(source, kind) { }        
+            : base(source, kind) { }
 
         protected override void ConfigureAllowedKinds(HashSet<PipelineElementType> allowed)
         {
@@ -156,7 +164,7 @@ namespace NTRExport.TopologyModel
         {
             allowed.Clear();
             allowed.Add(PipelineElementType.AfgreningMedSpring);
-        }        
+        }
 
         internal override void AttachPropertySet()
         {
@@ -185,14 +193,14 @@ namespace NTRExport.TopologyModel
             int dnMain = DnM;
 
             var sd = LookupSpringData(Series, dnMain, dnBranch);
-            
+
             // Calculate deltaZ = h = (D/2 + s + D1/2) in meters
             double deltaZ = (sd.D / 2.0 + sd.s + sd.D1 / 2.0) / 1000.0;
             double signedDz = isUp ? deltaZ : -deltaZ;
 
             // Determine entry port type
             bool entryIsMain = mains.Contains(entryPort);
-            
+
             // Calculate elevations
             double zMain = entryIsMain ? entryZ : entryZ - signedDz;
             double zBranch = entryIsMain ? entryZ + signedDz : entryZ;
@@ -201,7 +209,8 @@ namespace NTRExport.TopologyModel
             // If entry is from branch, pass null to RouteMain to emit both main ports as exits
             TPort? mainEntryPort = entryIsMain ? entryPort : null;
             double mainEntryZ = entryIsMain ? entryZ : zMain;
-            var mainExits = RouteMain(g, topo, ctx, mainEntryPort, mainEntryZ, entrySlope);
+            var mainFlow = Variant.IsTwin ? FlowRole.Unknown : ResolveBondedFlowRole(topo);
+            var mainExits = RouteMain(g, topo, ctx, mainEntryPort, mainEntryZ, entrySlope, mainFlow);
             exits.AddRange(mainExits);
 
             // Emit branch geometry: 45° bend + horizontal section
@@ -210,25 +219,25 @@ namespace NTRExport.TopologyModel
             var branchStart3d = BranchPort.Node.Pos.Z(zBranch);
             var midPoint2d = MidPoint;
             var branchDir2d = (branchStart2d - midPoint2d).GetNormal();
-            
+
             // Convert L1 from mm to meters
             double l1Meters = sd.L1 / 1000.0;
-            
+
             // Compute 45° section from MidPoint: length = sqrt(2) * h, with XY projection = h
             double hMeters = Math.Abs(signedDz);
             var midPoint3d = midPoint2d.To3d(zMain);
             var end45_2d = midPoint2d + branchDir2d.MultiplyBy(hMeters);
             var end45_3d = end45_2d.To3d(zMain + signedDz);
-            
+
             // Prepare fillet between lines MidPoint↔End45 and Branch↔End45 with 5D radius (branch DN)
             var a2 = midPoint2d;           // start of first straight (MidPoint)
             var b2 = branchStart2d;        // end straight (Branch port)
             var t2 = end45_2d;             // 45° intersection point (tangent point)
             var va = a2 - t2; var vb = b2 - t2;
             var ltgBranch = LTGBranch(Source);
-            var branchFlow = Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return;
+            var branchFlow = Variant.IsTwin ? FlowRole.Unknown : ResolveBondedFlowRole(topo, branch);
             double r = Geometry.GetBogRadius5D(DnB) / 1000.0;
-            
+
             bool TrySolveFillet3D(out Point3d aPrime3, out Point3d bPrime3, out Point3d tPoint)
             {
                 aPrime3 = default; bPrime3 = default; tPoint = default;
@@ -358,7 +367,7 @@ namespace NTRExport.TopologyModel
 
         private static SpringData LookupSpringData(PipeSeriesEnum series, int dnMain, int dnBranch)
         {
-            return SpringCatalogLookup.Lookup(series, dnMain, dnBranch);            
+            return SpringCatalogLookup.Lookup(series, dnMain, dnBranch);
         }
 
         // Lookup service for Afgrening med spring catalog tables (serie 2 and serie 3)
@@ -571,18 +580,20 @@ namespace NTRExport.TopologyModel
             RoutedGraph g, Topology topo, RouterContext ctx, TPort entryPort, double entryZ, double entrySlope)
         {
             var exits = new List<(TPort exitPort, double exitZ, double exitSlope)>();
-            
+
             // Emit main run via RouteMain
             // Determine if entry is from main or branch
             bool entryIsMain = ReferenceEquals(entryPort, MainPort1) || ReferenceEquals(entryPort, MainPort2);
             TPort? mainEntryPort = entryIsMain ? entryPort : null;
-            var mainExits = RouteMain(g, topo, ctx, mainEntryPort, entryZ, entrySlope);
+            var mainFlow = Variant.IsTwin ? FlowRole.Unknown : ResolveBondedFlowRole(topo);
+            var mainExits = RouteMain(g, topo, ctx, mainEntryPort, entryZ, entrySlope, mainFlow);
             exits.AddRange(mainExits);
 
             var offsetBranch = ComputeTwinOffsets(System, Type, DnB);
 
             if (!Variant.IsTwin)
             {
+                var branchFlow = ResolveBondedFlowRole(topo, BranchPort);
                 g.Members.Add(
                     new RoutedStraight(Source, this)
                     {
@@ -591,7 +602,7 @@ namespace NTRExport.TopologyModel
                         DN = DnB,
                         Material = Material,
                         DnSuffix = Variant.DnSuffix,
-                        FlowRole = Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return,
+                        FlowRole = branchFlow,
                         LTG = LTGBranch(Source),
                     }
                 );
@@ -744,10 +755,10 @@ namespace NTRExport.TopologyModel
                 EmitTwinBranch(filletReturn.Value, branchStartUp, mainCentreUp, FlowRole.Return);
                 EmitTwinBranch(filletSupply.Value, branchStartLow, mainCentreLow, FlowRole.Supply);
             }
-            
+
             // Add branch exit
             exits.Add((BranchPort, entryZ, entrySlope));
-            
+
             return exits;
         }
     }
