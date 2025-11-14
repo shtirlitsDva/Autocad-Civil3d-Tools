@@ -5558,7 +5558,7 @@ namespace IntersectUtilities
 
                     tr.Commit();
                 }
-                catch(System.Exception ex)
+                catch (System.Exception ex)
                 {
                     prdDbg(ex);
                     tr.Abort();
@@ -5598,6 +5598,131 @@ namespace IntersectUtilities
             }
             else
                 prdDbg("\nCoordinate system is invalid");
+        }
+
+        [CommandMethod("TANGENTOFFSETARC")]
+        public void TangentOffsetArc()
+        {
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+            Database db = doc.Database;
+            Editor ed = doc.Editor;
+
+            PromptNestedEntityOptions promptNestedEntityOptions = new PromptNestedEntityOptions("\nSelect the clearance block that the arc must be tangent to");
+
+            PromptNestedEntityResult promptNestedEntityResult = ed.GetNestedEntity(promptNestedEntityOptions);
+            if (promptNestedEntityResult.Status != PromptStatus.OK)
+                return;
+
+            Circle clearanceCircle = null;
+            Arc clearanceArc = null;
+            Polyline clearancePolyline = null;
+            Point3d clearanceCenterPoint;
+
+            using (Transaction tr = db.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    Entity entity = tr.GetObject(promptNestedEntityResult.ObjectId, OpenMode.ForRead) as Entity;
+
+                    Matrix3d transform = Matrix3d.Identity;
+
+                    foreach (ObjectId id in promptNestedEntityResult.GetContainers())
+                    {
+                        BlockReference br = tr.GetObject(id, OpenMode.ForRead) as BlockReference;
+                        if (br != null)
+                            transform = br.BlockTransform * transform;
+                    }
+
+                    if (entity is Circle circle)
+                    {
+                        prdDbg("\nEntity is a circle");
+                        clearanceCircle = (Circle)circle.Clone();
+                        clearanceCircle.TransformBy(transform);
+                        clearanceCenterPoint = clearanceCircle.Center;
+                    }
+                    else if (entity is Arc arc)
+                    {
+                        prdDbg("\nEnity is an arc");
+                        clearanceArc = (Arc)arc.Clone();
+                        clearanceArc.TransformBy(transform);
+                        clearanceCenterPoint = clearanceArc.Center;
+                    }
+                    else if (entity is Polyline polyline)
+                    {
+                        prdDbg("\nEntity is a polyline");
+                        clearancePolyline = (Polyline)polyline.Clone();
+                        clearancePolyline.TransformBy(transform);
+                        clearancePolyline.Closed = true;
+                        clearanceCenterPoint = clearancePolyline.GetCenter();
+                    }
+                    else
+                    {
+                        prdDbg("\nEntity is not valid");
+                        return;
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex);
+                    tr.Abort();
+                    return;
+                }
+            }
+
+
+
+            var promptPolylineOptions = new PromptEntityOptions("\nSelect a polyline for the arc to follow");
+
+            var promptPolylineResult = ed.GetEntity(promptPolylineOptions);
+            if (promptPolylineResult.Status != PromptStatus.OK || promptPolylineResult is Polyline)
+            {
+                prdDbg("\nNot a polyline");
+                return;
+            }
+
+            Point3d directionPoint;
+
+            using (Transaction tr = db.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    Polyline directionPolyline = tr.GetObject(promptPolylineResult.ObjectId, OpenMode.ForRead) as Polyline;
+                    directionPoint = directionPolyline.GetClosestPointTo(clearanceCenterPoint, true);
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex);
+                    tr.Abort();
+                    return;
+                }
+            }
+
+            Vector3d directionVectorUnit = clearanceCenterPoint.GetVectorTo(directionPoint).GetNormal();
+            
+            
+
+
+
+            using (Transaction tr = db.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    BlockTable bt = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
+                    BlockTableRecord btr = (BlockTableRecord)tr.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForWrite);
+
+                    btr.AppendEntity(clearanceCircle);
+                    tr.AddNewlyCreatedDBObject(clearanceCircle, true);
+
+                    tr.Commit();
+
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex);
+                    tr.Abort();
+                    return;
+                }
+            }
         }
     }
 }
