@@ -7455,7 +7455,7 @@ namespace IntersectUtilities
                 //Find the MIDT profiles for pipelines
                 var midtProfiles = new Dictionary<Node<IPipelineV2>, (Database db, Oid pid)>();
 
-                var rgx = new Regex(@"(?<number>\d{2,3}).+");
+                var rgx = new Regex(@"^(?<number>\d{2,3}).*");
                 var rawMidtProfiles = new Dictionary<string, Oid>();
                 foreach (var ldb in længdeprofilerdbs)
                 {

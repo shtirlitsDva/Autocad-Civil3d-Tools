@@ -1,16 +1,15 @@
 ﻿using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.Colors; // For color
 using Autodesk.AutoCAD.DatabaseServices;
+using Autodesk.AutoCAD.EditorInput; // Added for Editor & Prompt* classes
 using Autodesk.AutoCAD.Geometry; // For Point3d
 using Autodesk.AutoCAD.Runtime;
-using Autodesk.AutoCAD.EditorInput; // Added for Editor & Prompt* classes
 using Autodesk.Civil.DatabaseServices; // Added for ProfileView access
 using IntersectUtilities.UtilsCommon;
+using System; // For Math
+using System.Collections.Generic; // Added for list/dict helpers
 using System.Linq;
 using static IntersectUtilities.UtilsCommon.Utils;
-using System; // For Math
-using System.IO; // For path checks
-using System.Collections.Generic; // Added for list/dict helpers
 using AcadApp = Autodesk.AutoCAD.ApplicationServices.Application;
 
 namespace IntersectUtilities
@@ -98,228 +97,212 @@ namespace IntersectUtilities
             tx.Commit();
         }
 
-        /// <command>PLACEAFGRENING, PAF</command>
+        // DRAWCOMPASSSTAR command removed as requested.
+
+        /// <command>TRIM3DPOLYATINTERSECTIONS / TRIM3DPL</command>
         /// <summary>
-        /// Indsætter valgte T-blok(ke) orienteret efter tangent på en polyline.
-        /// Sekvens: 1) Vælg bloknavn 2) Vælg polyline 3) Vælg punkt.
+        /// User-driven trimming: Prompts user to select 3D polylines to be trimmed.
+        /// For each selected polyline, all intersections (XY) with any other 3D polyline are evaluated.
+        /// The intersection producing the smallest of the two side lengths (start->intersection vs intersection->end) is chosen.
+        /// The shorter side is removed and the longer side retained. If no intersection is found, the polyline is left unchanged.
+        /// Z at intersection is interpolated along the subject segment.
+        /// Preserves original layer, color and XData (entity + retained vertices) and extension dictionary content on the resulting trimmed polyline.
         /// </summary>
         /// <category>Utilities</category>
-        [CommandMethod("PLACEAFGRENING")]
-        [CommandMethod("PAF")]
-        public void placeAfgrening()
+        [CommandMethod("TRIM3DPOLYATINTERSECTIONS")]
+        [CommandMethod("TRIM3DPL")] // Abbreviated alias
+        public void Trim3DPolylinesAtIntersections()
         {
             var doc = AcadApp.DocumentManager.MdiActiveDocument;
             var ed = doc.Editor;
             var db = doc.Database;
 
-            string[] blockNames = new string[]
+            var selOpts = new PromptSelectionOptions { MessageForAdding = "Select 3D polylines to trim:" };
+            var filter = new SelectionFilter(new[] { new TypedValue((int)DxfCode.Start, "POLYLINE") });
+            var selRes = ed.GetSelection(selOpts, filter);
+            if (selRes.Status != PromptStatus.OK)
             {
-                "TEE KDLR","T-TWIN-S2-ISOPLUS","T-TWIN-S3-ISOPLUS","T-TWIN-S2-LOGSTOR","T-TWIN-S3-LOGSTOR",
-                "T ENKELT S2","T ENKELT S3","T PARALLEL S3 E","T PARALLEL S3 E VARIABEL"
-            };
-
-            // 1) Vælg blok (NUMMERERING i stedet for keywords – undgår mellemrum problem)
-            ed.WriteMessage("\nTilgængelige blokke:");
-            for (int i = 0; i < blockNames.Length; i++)
-                ed.WriteMessage($"\n  {i + 1}. {blockNames[i]}");
-            int index = -1;
-            while (true)
-            {
-                var intOpts = new PromptIntegerOptions($"\nIndtast tal (1-{blockNames.Length}) for blok: ")
-                { AllowNegative = false, AllowZero = false, LowerLimit = 1, UpperLimit = blockNames.Length };
-                var intRes = ed.GetInteger(intOpts);
-                if (intRes.Status != PromptStatus.OK) return;
-                index = intRes.Value - 1;
-                if (index >= 0 && index < blockNames.Length) break;
+                ed.WriteMessage("\nSelection cancelled.");
+                return;
             }
-            string selectedBlock = blockNames[index];
 
-            string libPath = @"X:\\AutoCAD DRI - 01 Civil 3D\\DynBlokke\\Symboler.dwg";
-            if (!File.Exists(libPath)) { prdDbg("Bibliotek ikke fundet: " + libPath); return; }
-
-            // Import block definition upfront to read dynamic properties
-            using (var preTx = db.TransactionManager.StartTransaction())
+            using var tr = db.TransactionManager.StartTransaction();
+            try
             {
-                try
+                var btr = (BlockTableRecord)tr.GetObject(db.CurrentSpaceId, OpenMode.ForWrite);
+
+                var allPolys = db.HashSetOfType<Polyline3d>(tr).ToList();
+                if (allPolys.Count < 2)
                 {
-                    db.CheckOrImportBlockRecord(libPath, selectedBlock);
-                    preTx.Commit();
-                }
-                catch (System.Exception ex)
-                {
-                    prdDbg("Kunne ikke importere blokdefinition: " + ex.Message);
-                    preTx.Abort();
+                    ed.WriteMessage("\nNeed at least two 3D polylines in the drawing.");
+                    tr.Commit();
                     return;
                 }
-            }
 
-            // 2) Vælg Type parameter (hvis dynamisk property eller attribut findes)
-            string chosenType = string.Empty;
-            List<string> allowedTypes = new List<string>();
-            using (var txTypes = db.TransactionManager.StartTransaction())
-            {
-                try
+                var subjectPolys = new List<Polyline3d>();
+                foreach (var id in selRes.Value.GetObjectIds())
                 {
-                    BlockTable bt = (BlockTable)txTypes.GetObject(db.BlockTableId, OpenMode.ForRead);
-                    if (bt.Has(selectedBlock))
+                    if (tr.GetObject(id, OpenMode.ForRead) is Polyline3d p3d) subjectPolys.Add(p3d);
+                }
+                if (subjectPolys.Count == 0)
+                {
+                    ed.WriteMessage("\nNo 3D polylines in selection.");
+                    tr.Commit();
+                    return;
+                }
+
+                // Cache vertices for all polylines
+                var polyVertices = new Dictionary<Polyline3d, List<Point3d>>();
+                foreach (var pl in allPolys)
+                {
+                    var pts = new List<Point3d>();
+                    foreach (ObjectId vId in pl)
                     {
-                        var btr = (BlockTableRecord)txTypes.GetObject(bt[selectedBlock], OpenMode.ForRead);
-                        using (var tempBr = new BlockReference(Point3d.Origin, btr.ObjectId))
+                        var v = (PolylineVertex3d)tr.GetObject(vId, OpenMode.ForRead);
+                        pts.Add(v.Position);
+                    }
+                    if (pts.Count >= 2) polyVertices[pl] = pts;
+                }
+
+                int trimmedCount = 0;
+                foreach (var subj in subjectPolys)
+                {
+                    if (!polyVertices.TryGetValue(subj, out var subjPts)) continue;
+
+                    // Capture original vertex XData buffers
+                    var vertexXData = new List<ResultBuffer?>();
+                    foreach (ObjectId vId in subj)
+                    {
+                        var v = (PolylineVertex3d)tr.GetObject(vId, OpenMode.ForRead);
+                        vertexXData.Add(v.XData == null ? null : new ResultBuffer(v.XData.AsArray()));
+                    }
+                    // Capture polyline XData
+                    var polyXData = subj.XData == null ? null : new ResultBuffer(subj.XData.AsArray());
+
+                    // Collect all RegApp names used (entity + vertices)
+                    var regAppNames = new HashSet<string>();
+                    void CollectApps(ResultBuffer? rb)
+                    {
+                        if (rb == null) return;
+                        foreach (TypedValue tv in rb)
+                            if (tv.TypeCode == 1001 && tv.Value is string s) regAppNames.Add(s);
+                    }
+                    CollectApps(polyXData);
+                    foreach (var rb in vertexXData) CollectApps(rb);
+                    RegisterRegApps(db, tr, regAppNames);
+
+                    // Segment length precompute
+                    var segLengths = new double[subjPts.Count - 1];
+                    double totalLen = 0;
+                    for (int i = 0; i < segLengths.Length; i++) { segLengths[i] = subjPts[i].DistanceTo(subjPts[i + 1]); totalLen += segLengths[i]; }
+
+                    double bestShorterSide = double.MaxValue; int bestSegIndex = -1; double bestT = 0; Point3d bestIp = Point3d.Origin;
+                    foreach (var other in allPolys)
+                    {
+                        if (other == subj) continue;
+                        if (!polyVertices.TryGetValue(other, out var otherPts)) continue;
+                        for (int a = 0; a < subjPts.Count - 1; a++)
                         {
-                            var dynProps = tempBr.DynamicBlockReferencePropertyCollection;
-                            foreach (DynamicBlockReferenceProperty prop in dynProps)
+                            var a1 = subjPts[a]; var a2 = subjPts[a + 1];
+                            for (int b = 0; b < otherPts.Count - 1; b++)
                             {
-                                if (prop.PropertyName.Equals("Type", StringComparison.OrdinalIgnoreCase))
+                                var b1 = otherPts[b]; var b2 = otherPts[b + 1];
+                                if (!TrySegmentIntersectXY(a1, a2, b1, b2, out double ta, out double tb, out Point2d ip2d)) continue;
+                                double zInterp = a1.Z + (a2.Z - a1.Z) * ta;
+                                var ip = new Point3d(ip2d.X, ip2d.Y, zInterp);
+                                double lenToIntersection = 0; for (int s = 0; s < a; s++) lenToIntersection += segLengths[s]; lenToIntersection += segLengths[a] * ta;
+                                double lenFromIntersection = totalLen - lenToIntersection; double shorter = Math.Min(lenToIntersection, lenFromIntersection);
+                                if (shorter + 1e-9 < bestShorterSide)
                                 {
-                                    var vals = prop.GetAllowedValues();
-                                    if (vals != null && vals.Length > 0)
-                                        allowedTypes.AddRange(vals.Select(v => v.ToString()));
-                                }
-                            }
-                        }
-                        if (allowedTypes.Count == 0)
-                        {
-                            foreach (ObjectId id in btr)
-                            {
-                                if (id.ObjectClass.DxfName == "ATTDEF")
-                                {
-                                    var attDef = (AttributeDefinition)txTypes.GetObject(id, OpenMode.ForRead);
-                                    if (attDef.Tag.Equals("TYPE", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(attDef.TextString))
-                                        allowedTypes.Add(attDef.TextString);
+                                    bestShorterSide = shorter; bestSegIndex = a; bestT = ta; bestIp = ip;
                                 }
                             }
                         }
                     }
-                    txTypes.Commit();
-                }
-                catch { txTypes.Abort(); }
-            }
 
-            if (allowedTypes.Count > 0)
-            {
-                string defaultType = allowedTypes.First();
-                ed.WriteMessage("\nTilgængelige Type værdier:");
-                for (int i = 0; i < allowedTypes.Count; i++) ed.WriteMessage($"\n  {i + 1}. {allowedTypes[i]}");
-                int typeIdx = -1;
-                while (true)
-                {
-                    var typeInt = new PromptIntegerOptions($"\nIndtast tal (1-{allowedTypes.Count}) for Type (Enter={defaultType}): ")
-                    { AllowNone = true, AllowNegative = false, AllowZero = false, LowerLimit = 1, UpperLimit = allowedTypes.Count };
-                    var tRes = ed.GetInteger(typeInt);
-                    if (tRes.Status == PromptStatus.None) { chosenType = defaultType; break; }
-                    if (tRes.Status != PromptStatus.OK) { chosenType = defaultType; break; }
-                    typeIdx = tRes.Value - 1;
-                    if (typeIdx >= 0 && typeIdx < allowedTypes.Count) { chosenType = allowedTypes[typeIdx]; break; }
-                }
-            }
-            else
-            {
-                var strOpt = new PromptStringOptions("\nIndtast Type (Enter springer over): ") { AllowSpaces = true };
-                var strRes = ed.GetString(strOpt);
-                if (strRes.Status == PromptStatus.OK && strRes.StringResult.IsNotNoE()) chosenType = strRes.StringResult;
-            }
+                    if (bestSegIndex < 0) continue; // nothing to trim
 
-            // 3) Vælg polyline
-            var peo = new PromptEntityOptions("\nVælg polyline: ");
-            peo.SetRejectMessage("\nObjekt er ikke en polyline.");
-            peo.AddAllowedClass(typeof(Polyline), true);
-            var per = ed.GetEntity(peo);
-            if (per.Status != PromptStatus.OK) return;
-            ObjectId plId = per.ObjectId;
+                    double lenToInt = 0; for (int s = 0; s < bestSegIndex; s++) lenToInt += segLengths[s]; lenToInt += segLengths[bestSegIndex] * bestT;
+                    double lenFromInt = totalLen - lenToInt; bool keepStartSide = lenToInt >= lenFromInt;
 
-            // 4) Vælg punkt(er) og placer blok(ke)
-            while (true)
-            {
-                var ppo = new PromptPointOptions("\nVælg punkt (ESC stopper): ");
-                var ppr = ed.GetPoint(ppo);
-                if (ppr.Status != PromptStatus.OK) break;
-                Point3d picked = ppr.Value;
-                using (var tx = db.TransactionManager.StartTransaction())
-                {
-                    try
+                    var newPts = new List<Point3d>();
+                    var newVertexSourceIndices = new List<int?>(); // Maps new vertex index -> original vertex index (null if synthetic intersection)
+
+                    if (keepStartSide)
                     {
-                        db.CheckOrImportBlockRecord(libPath, selectedBlock);
-                        Polyline pline = plId.Go<Polyline>(tx);
-                        Point3d onPl = pline.GetClosestPointTo(picked, false);
-                        double param = pline.GetParameterAtPoint(onPl);
-                        Vector3d deriv = pline.GetFirstDerivative(param);
-                        if (deriv.Length < 1e-9)
+                        for (int iPt = 0; iPt <= bestSegIndex; iPt++)
                         {
-                            double adjParam = Math.Min(param + 1e-3, pline.EndParam);
-                            deriv = pline.GetFirstDerivative(adjParam);
+                            newPts.Add(subjPts[iPt]);
+                            newVertexSourceIndices.Add(iPt);
                         }
-                        if (deriv.Length < 1e-9) { prdDbg("Kan ikke bestemme tangent – springer."); tx.Abort(); continue; }
-                        double rotation = Vector3d.XAxis.GetAngleTo(deriv, Vector3d.ZAxis);
-                        var brOid = db.CreateBlockWithAttributes(selectedBlock, onPl, rotation);
-                        BlockReference br = brOid;
-                        try
+                        if (bestIp.DistanceTo(newPts[^1]) > 1e-6)
                         {
-                            var dynProps = br.DynamicBlockReferencePropertyCollection;
-                            foreach (DynamicBlockReferenceProperty prop in dynProps)
-                            {
-                                if (prop.PropertyName.Equals("Type", StringComparison.OrdinalIgnoreCase) && chosenType.IsNotNoE())
-                                {
-                                    var allowed = prop.GetAllowedValues();
-                                    if (allowed == null || allowed.Length == 0 || allowed.Any(v => v.ToString().Equals(chosenType, StringComparison.OrdinalIgnoreCase)))
-                                        prop.Value = chosenType;
-                                }
-                            }
+                            newPts.Add(bestIp);
+                            newVertexSourceIndices.Add(null); // synthetic intersection
                         }
-                        catch { }
-                        try { SafeSetAttr(br, "TYPE", chosenType); } catch { }
-                        prdDbg($"Indsat {selectedBlock} (Type={chosenType}) @ {onPl.X:0.###},{onPl.Y:0.###} rot {rotation.ToDeg():0.##}°");
-                        tx.Commit();
                     }
-                    catch (System.Exception ex) { prdDbg(ex.Message); tx.Abort(); }
-                }
-            }
-        }
-
-        // Normaliserer navn (fjerner mellemrum, bindestreger og underscores, gør uppercase)
-        private string NormalizeName(string name) => new string(name.Where(c => !char.IsWhiteSpace(c) && c != '-' && c != '_').ToArray()).ToUpperInvariant();
-        private string ResolveLibraryBlockName(string userName, List<string> libraryNames)
-        {
-            // Eksakt
-            if (libraryNames.Contains(userName)) return userName;
-            // Case-insensitive
-            var ci = libraryNames.FirstOrDefault(x => x.Equals(userName, StringComparison.OrdinalIgnoreCase));
-            if (ci != null) return ci;
-            // Normaliseret
-            string norm = NormalizeName(userName);
-            var normMatch = libraryNames.FirstOrDefault(x => NormalizeName(x) == norm);
-            if (normMatch != null) return normMatch;
-            // Token baseret (alle tokens skal forekomme)
-            var tokens = userName.Split(' ', '-', '_');
-            var tokenMatch = libraryNames.FirstOrDefault(x => tokens.All(t => x.IndexOf(t, StringComparison.OrdinalIgnoreCase) >= 0));
-            return tokenMatch;
-        }
-
-        // Loader alle bloknavne fra bibliotek (engang pr. kommando-kørsel)
-        private List<string> GetLibraryBlockNames(string libPath)
-        {
-            List<string> names = new();
-            using (Database libDb = new Database(false, true))
-            {
-                libDb.ReadDwgFile(libPath, FileOpenMode.OpenForReadAndAllShare, false, null);
-                using (var tx = libDb.TransactionManager.StartTransaction())
-                {
-                    BlockTable bt = (BlockTable)tx.GetObject(libDb.BlockTableId, OpenMode.ForRead);
-                    foreach (ObjectId id in bt)
+                    else
                     {
-                        var btr = (BlockTableRecord)tx.GetObject(id, OpenMode.ForRead);
-                        if (btr.IsLayout) continue; // spring model/paper space
-                        if (btr.Name.StartsWith("*")) continue; // anonyme/dynamiske symboler
-                        names.Add(btr.Name);
+                        // Intersection first if not coincident with next vertex
+                        if (bestIp.DistanceTo(subjPts[bestSegIndex + 1]) > 1e-6)
+                        {
+                            newPts.Add(bestIp);
+                            newVertexSourceIndices.Add(null);
+                        }
+                        for (int iPt = bestSegIndex + 1; iPt < subjPts.Count; iPt++)
+                        {
+                            newPts.Add(subjPts[iPt]);
+                            newVertexSourceIndices.Add(iPt);
+                        }
                     }
-                    tx.Commit();
+
+                    if (newPts.Count < 2) continue;
+
+                    var newPl = new Polyline3d(Poly3dType.SimplePoly, new Point3dCollection(newPts.ToArray()), false);
+                    btr.AppendEntity(newPl); tr.AddNewlyCreatedDBObject(newPl, true);
+
+                    // Preserve basic properties
+                    newPl.SetPropertiesFrom(subj);
+
+                    PropertySetManager.CopyAllProperties(subj, newPl);
+
+                    subj.UpgradeOpen(); subj.Erase();
+                    trimmedCount++;
                 }
+
+                ed.WriteMessage($"\nTrimmed {trimmedCount} selected 3D polylines (data preserved). ");
+                tr.Commit();
             }
-            return names;
+            catch (System.Exception ex)
+            {
+                prdDbg(ex);
+                tr.Abort();
+            }
         }
 
-        private void SafeSetAttr(BlockReference br, string tag, string value)
+        private static void RegisterRegApps(Database db, Transaction tr, IEnumerable<string> names)
         {
-            try { br.SetAttributeStringValue(tag, value); } catch { }
+            var rat = (RegAppTable)tr.GetObject(db.RegAppTableId, OpenMode.ForRead);
+            foreach (var name in names)
+            {
+                if (string.IsNullOrWhiteSpace(name)) continue;
+                if (!rat.Has(name))
+                {
+                    rat.UpgradeOpen();
+                    var rec = new RegAppTableRecord { Name = name };
+                    rat.Add(rec);
+                    tr.AddNewlyCreatedDBObject(rec, true);
+                }
+            }
+        }
+
+        private static bool TrySegmentIntersectXY(Point3d p1, Point3d p2, Point3d q1, Point3d q2, out double t, out double u, out Point2d ip)
+        {
+            t = u = 0; ip = default;
+            var a1 = new Point2d(p1.X, p1.Y); var a2 = new Point2d(p2.X, p2.Y);
+            var b1 = new Point2d(q1.X, q1.Y); var b2 = new Point2d(q2.X, q2.Y);
+            var r = a2 - a1; var s = b2 - b1; double denom = r.X * s.Y - r.Y * s.X; if (Math.Abs(denom) < 1e-9) return false; var diff = b1 - a1;
+            t = (diff.X * s.Y - diff.Y * s.X) / denom; u = (diff.X * r.Y - diff.Y * r.X) / denom; if (t < 0 || t > 1 || u < 0 || u > 1) return false; ip = new Point2d(a1.X + r.X * t, a1.Y + r.Y * t); return true;
         }
     }
 }
