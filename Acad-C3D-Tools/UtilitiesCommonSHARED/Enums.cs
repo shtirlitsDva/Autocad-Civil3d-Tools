@@ -37,7 +37,7 @@ namespace IntersectUtilities.UtilsCommon.Enums
     public enum PipeSystemEnum
     {
         Ukendt,
-        Stål,
+        StÃ¥l,
         Kobberflex,
         AluPex,
         PertFlextra,
@@ -48,7 +48,7 @@ namespace IntersectUtilities.UtilsCommon.Enums
     public enum LerTypeEnum
     {
         Ukendt,
-        Afløb,
+        AflÃ¸b,
         Damp,
         EL_LS, // Low Supply (EL_04)
         EL_HS, // High Supply (EL_10, EL_30, EL_50, EL_132)
@@ -95,32 +95,33 @@ namespace IntersectUtilities.UtilsCommon.Enums
 
     public enum PipelineElementType
     {
-        Pipe,
-        AfgreningMedSpring,
-        AfgreningParallel,
-        Afgreningsstuds,
+        Pipe, //TPipe
+        AfgreningMedSpring, //AfgreningMedSpring
+        AfgreningParallel, //AfgreningParallel
+        Afgreningsstuds, //Afgreningsstuds
         Endebund,
-        Engangsventil,
-        F_Model,
-        Kedelrørsbøjning,
-        LigeAfgrening,
-        PreskoblingTee,
-        PræisoleretBøjning90gr,
-        Bøjning45gr,
-        Bøjning30gr,
-        Bøjning15gr,
-        PræisoleretBøjningVariabel,
-        PræisoleretVentil,
-        PræventilMedUdluftning,
-        Reduktion,
-        Svanehals,
-        Svejsetee,
+        Engangsventil, //Valve
+        F_Model, //FModel
+        KedelrÃ¸rsbÃ¸jning, //ElbowFormstykke
+        LigeAfgrening, //LigeAfgrening
+        PreskoblingTee, //TeeFormstykke
+        PrÃ¦isoleretBÃ¸jning90gr, //PreinsulatedElbow
+        PrÃ¦isoleretBÃ¸jning45gr, //PreinsulatedElbow
+        BÃ¸jning45gr, //ElbowFormstykke
+        BÃ¸jning30gr, //ElbowFormstykke
+        BÃ¸jning15gr, //ElbowFormstykke
+        PrÃ¦isoleretBÃ¸jningVariabel, //PreinsulatedElbowSteel
+        PrÃ¦isoleretVentil, //Valve
+        PrÃ¦ventilMedUdluftning, //Valve
+        Reduktion, //Reducer
+        Svanehals, //Svanehals
+        Svejsetee, //TeeFormstykke
         Svejsning,
-        Y_Model,
-        Buerør,
-        Stikafgrening,
-        Muffetee,
-        Materialeskift,
+        Y_Model, //YModel
+        BuerÃ¸r, //Bueror
+        Stikafgrening, 
+        Muffetee, //TeeFormstykke
+        Materialeskift, //Materialeskift
     }
     #endregion
 

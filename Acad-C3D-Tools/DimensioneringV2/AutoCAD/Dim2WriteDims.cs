@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using IntersectUtilities.UtilsCommon.Enums;
 using static IntersectUtilities.UtilsCommon.Utils;
 using IntersectUtilities.NTS;
+using IntersectUtilities.PlanDetailing;
 
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
@@ -79,7 +80,8 @@ namespace DimensioneringV2.AutoCAD
 
                     if (!ltt.Has(lineTypeName))
                     {
-                        createcomplexlinetypemethod(lineTypeName, lineTypeText, "Standard", dimDb);
+                        IntersectUtilities.PlanDetailing.LineTypes.LineTypes.createltmethod(
+                            lineTypeName, lineTypeText, "Standard", dimDb);
                     }
                     #endregion
 

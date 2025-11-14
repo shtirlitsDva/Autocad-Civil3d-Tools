@@ -21,7 +21,6 @@ using IntersectUtilities.GraphClasses;
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.DataManager;
 using IntersectUtilities.UtilsCommon.Enums;
-using IntersectUtilities.UtilsCommon.Graphs;
 
 using Microsoft.Win32;
 
@@ -69,7 +68,10 @@ namespace IntersectUtilities
                 SystemObjects.DynamicLinker.LoadModule(
                     "AcMPolygonObj" + Application.Version.Major + ".dbx", false, false);
             }
-            prdDbg("IntersectUtilites loaded!\n");
+            prdDbg("(❁´◡`❁) (っ °Д °;)っ (●'◡'●)");
+            prdDbg($" IntersectUtilites loaded!");
+            prdDbg("(❁´◡`❁) (っ °Д °;)っ (●'◡'●)");
+            prdDbg();
 #if DEBUG
             AppDomain.CurrentDomain.AssemblyResolve +=
                 new ResolveEventHandler(EventHandlers.Debug_AssemblyResolve);
@@ -1499,24 +1501,81 @@ namespace IntersectUtilities
         /// <summary>
         /// Creates complex linetype with text. User must type the name of the linetype and the text to be displayed.
         /// </summary>
-        /// <category>Miscellaneous</category>
+        /// <category>LineTypes</category>
         [CommandMethod("CCL")]
         public void createcomplexlinetype()
         {
-            //string lineTypeName = "BIPS_TEXT_N2";
-            string lineTypeName = Interaction.GetString("Enter LineType name: (ex: BIPS_TEXT_N2) \n");
-            if (lineTypeName.IsNoE()) return;
-            //string text = "N2";
-            string text = Interaction.GetString("Enter text to be displayed by line: (ex: 10kV) NO SPACES!!! \n", true);
+            string? lineTypeName = PlanDetailing.LineTypes.LineTypes.PromptForString(
+                "Line type name", "Enter LineType name: (ex: BIPS_TEXT_N2X) \n");
+            if (string.IsNullOrEmpty(lineTypeName)) return;
+            string? text = PlanDetailing.LineTypes.LineTypes.PromptForString(
+                "Text", "Enter text to be displayed by line: (ex: 10kV)\n");
+            if (string.IsNullOrEmpty(text)) return;
             string textStyleName = "Standard";
-            createcomplexlinetypemethod(lineTypeName, text, textStyleName);
+            PlanDetailing.LineTypes.LineTypes.createltmethod(lineTypeName, text, textStyleName);
+        }
+
+        /// <command>CCLS</command>
+        /// <summary>
+        /// Creates complex linetype with text. User must type the name of the linetype and the text to be displayed.
+        /// Uses single linetype dash for the text.
+        /// </summary>
+        /// <category>LineTypes</category>
+        [CommandMethod("CCLS")]
+        public void createcomplexlinetypesingle()
+        {
+            string? lineTypeName = PlanDetailing.LineTypes.LineTypes.PromptForString(
+                "Line type name", "Enter LineType name: (ex: BIPS_TEXT_N2X) \n");
+            if (string.IsNullOrEmpty(lineTypeName)) return;
+            string? text = PlanDetailing.LineTypes.LineTypes.PromptForString(
+                "Text", "Enter text to be displayed by line: (ex: 10kV)\n");
+            if (string.IsNullOrEmpty(text)) return;
+            string textStyleName = "Standard";
+            PlanDetailing.LineTypes.LineTypes.createltmethodsingle(lineTypeName, text, textStyleName);
+        }
+
+        /// <command>CCLX</command>
+        /// <summary>
+        /// Creates complex linetype with text and an X. User must type the name of the linetype and the text to be displayed.
+        /// </summary>
+        /// <category>LineTypes</category>
+        [CommandMethod("CCLX")]
+        public void createcomplexlinetypex()
+        {
+            string? lineTypeName = PlanDetailing.LineTypes.LineTypes.PromptForString(
+                "Line type name", "Enter LineType name: (ex: BIPS_TEXT_N2X) \n");
+            if (string.IsNullOrEmpty(lineTypeName)) return;
+            string? text = PlanDetailing.LineTypes.LineTypes.PromptForString(
+                "Text", "Enter text to be displayed by line: (ex: 10kV)\n");
+            if (string.IsNullOrEmpty(text)) return;
+            string textStyleName = "Standard";
+            PlanDetailing.LineTypes.LineTypes.linetypeX(lineTypeName, text, textStyleName);
+        }
+
+        /// <command>CCLXS</command>
+        /// <summary>
+        /// Creates complex linetype with text and an X. User must type the name of the linetype and the text to be displayed.
+        /// Uses single linetype dash for the text.
+        /// </summary>
+        /// <category>LineTypes</category>
+        [CommandMethod("CCLXS")]
+        public void createcomplexlinetypexsingle()
+        {
+            string? lineTypeName = PlanDetailing.LineTypes.LineTypes.PromptForString(
+                "Line type name", "Enter LineType name: (ex: BIPS_TEXT_N2X) \n");
+            if (string.IsNullOrEmpty(lineTypeName)) return;
+            string? text = PlanDetailing.LineTypes.LineTypes.PromptForString(
+                "Text", "Enter text to be displayed by line: (ex: 10kV)\n");
+            if (string.IsNullOrEmpty(text)) return;
+            string textStyleName = "Standard";
+            PlanDetailing.LineTypes.LineTypes.linetypeXsingle(lineTypeName, text, textStyleName);
         }
 
         /// <command>UELT</command>
         /// <summary>
         /// Update existing linetype. User must select object with linetype to be updated and type the text to be displayed.
         /// </summary>
-        /// <category>Miscellaneous</category>
+        /// <category>LineTypes</category>
         [CommandMethod("UELT")]
         public void updateexistinglinetype()
         {
@@ -1532,7 +1591,7 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    createcomplexlinetypemethod(
+                    PlanDetailing.LineTypes.LineTypes.createltmethod(
                         id.Layer().Replace("00LT-", ""), text, "Standard");
                 }
                 catch (System.Exception ex)
@@ -1549,7 +1608,7 @@ namespace IntersectUtilities
         /// Arranges the polylines in a table-like fashion.
         /// Useful for visualizing linetypes.
         /// </summary>
-        /// <category>Miscellaneous</category>
+        /// <category>LineTypes</category>
         [CommandMethod("CREATEALLLINETYPESLAYERS")]
         public void createcalllinetypeslayers()
         {
@@ -2051,216 +2110,6 @@ namespace IntersectUtilities
             IntersectUtilities.ODDataConverter.ODDataConverter.oddatacreatepropertysetsdefs();
             IntersectUtilities.ODDataConverter.ODDataConverter.attachpropertysetstoobjects();
             IntersectUtilities.ODDataConverter.ODDataConverter.populatepropertysetswithoddata();
-        }
-
-        public void graphpopulate(Database db = null)
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = db ?? docCol.MdiActiveDocument.Database;
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    System.Data.DataTable komponenter = CsvData.FK;
-                    HashSet<Entity> allEnts = localDb.GetFjvEntities(tx, true, false);
-                    PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriGraph);
-                    var graph = new GraphWrite.Graph(localDb, psm, komponenter);
-                    foreach (Entity entity in allEnts) graph.AddEntityToPOIs(entity);
-                    //Create clusters of POIs based on a maximum distance
-                    //Distance is reduced, because was having a bad day
-                    IEnumerable<IGrouping<POI, POI>> clusters
-                        = graph.POIs.GroupByCluster((x, y) => x.Point.GetDistanceTo(y.Point), 0.003);
-                    //Iterate over clusters
-                    foreach (IGrouping<POI, POI> cluster in clusters)
-                    {
-                        //SPECIAL CASE
-                        #region SPECIAL CASE: Stikafgreninger
-                        //Special case to get stikafgreninger to show on graph
-                        if (cluster.Any(x =>
-                        {
-                            //Detect stikafgreninger
-                            BlockReference br = x.Owner as BlockReference;
-                            if (br == null) return false;
-                            if (br.RealName() == "STIKAFGRENING") return true;
-                            return false;
-                        }))
-                        {
-                            //Test if cluster has right amount of POIs,
-                            //Should be 3: steelPipe, StikAfgrening, stikPipe
-                            if (cluster.Count() != 3)
-                                throw new System.Exception(
-                                    "StikafgreningsPOI har ikke 3 elementer!\n" +
-                                    $"{string.Join(", ", cluster.Select(x => x.Owner.Handle.ToString()))}");
-                            //Chain references from steel->stikafgrening->stik
-                            POI? stikAfgrening =
-                                cluster.Where(x =>
-                                {
-                                    BlockReference br = x.Owner as BlockReference;
-                                    if (br == null) return false;
-                                    if (br.RealName() == "STIKAFGRENING") return true;
-                                    return false;
-                                })
-                                .FirstOrDefault();
-                            POI? steelPipe =
-                                cluster.Where(x => GetPipeSystem(x.Owner) == PipeSystemEnum.Stål)
-                                .FirstOrDefault();
-                            if (steelPipe == null) throw new System.Exception(
-                                $"Stikafgrening {stikAfgrening.Owner.Handle} har ikke forbindelse til Stål!");
-                            POI? stikPipe =
-                                cluster.Where(x => x.Owner is Polyline && GetPipeSystem(x.Owner) != PipeSystemEnum.Stål)
-                                .FirstOrDefault();
-                            if (stikPipe == null) throw new System.Exception(
-                                $"Stikafgrening {stikAfgrening.Owner.Handle} kan ikke finde stikrør!");
-                            //Assign the references
-                            steelPipe.AddReference(stikAfgrening);
-                            stikAfgrening.AddReference(stikPipe);
-                            //Add a reference from stikpipe to block or the code will
-                            //throw because the connection string will be empty
-                            //if the stikpipe is the last element
-                            stikPipe.AddReference(stikAfgrening);
-                            //Skip rest of the creation
-                            continue;
-                        }
-                        #endregion
-                        //Create unique pairs
-                        var pairs = cluster.SelectMany((value, index) => cluster.Skip(index + 1),
-                                                       (first, second) => new { first, second });
-                        //Create reference to each other for each pair
-                        foreach (var pair in pairs)
-                        {
-                            if (pair.first.Owner.Handle == pair.second.Owner.Handle) continue;
-                            pair.first.AddReference(pair.second);
-                            pair.second.AddReference(pair.first);
-                        }
-                    }
-                }
-                catch (System.Exception ex)
-                {
-                    prdDbg(ex);
-                    tx.Abort();
-                    return;
-                }
-                tx.Commit();
-            }
-        }
-
-        /// <command>GRAPHWRITE</command>
-        /// <summary>
-        /// Draws a graph of the pipe system. Used to check for connectivity and other issues.
-        /// Must be run in fjernevarme fremtid drawing.
-        /// </summary>
-        /// <category>Quality Assurance</category>
-        [CommandMethod("GRAPHWRITE")]
-        public void graphwrite()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            graphclear();
-            graphpopulate();
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    System.Data.DataTable komponenter = CsvData.FK;
-                    HashSet<Entity> allEnts = localDb.GetFjvEntities(tx, true, false);
-                    //Remove stiktees which are special tee blocks for stikledninger
-                    allEnts = allEnts.Where(x =>
-                    {
-                        if (x is BlockReference br)
-                            if (br.RealName() == "STIKTEE") return false;
-                        return true;
-                    }).ToHashSet();
-                    PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriGraph);
-                    var graph = new GraphWrite.Graph(localDb, psm, komponenter);
-                    foreach (Entity entity in allEnts)
-                    {
-                        graph.AddEntityToGraphEntities(entity);
-                    }
-                    graph.CreateAndWriteGraph();
-                    //Start the dot engine to create the graph and convert to pdf
-                    System.Diagnostics.Process cmd = new System.Diagnostics.Process();
-                    cmd.StartInfo.FileName = "cmd.exe";
-                    cmd.StartInfo.WorkingDirectory = @"C:\Temp\";
-                    cmd.StartInfo.Arguments = @"/c ""dot -Tpdf MyGraph.dot > MyGraph.pdf""";
-                    cmd.Start();
-                    cmd.WaitForExit();
-                    //Start the dot engine to create the graph and convert to pdf
-                    cmd = new System.Diagnostics.Process();
-                    cmd.StartInfo.FileName = "cmd.exe";
-                    cmd.StartInfo.WorkingDirectory = @"C:\Temp\";
-                    cmd.StartInfo.Arguments = @"/c ""dot -Tsvg MyGraph.dot > MyGraph.svg""";
-                    cmd.Start();
-                    cmd.WaitForExit();
-                    string svgContent = File.ReadAllText(@"C:\Temp\MyGraph.svg");
-                    string htmlContent = $@"
-<!DOCTYPE html>
-<html lang=""da"">
-<head>
-    <meta charset=""UTF-8"">
-    <title>Rørsystem</title>
-    <style>
-        body {{
-            background-color: #121212;  /* Dark background color */
-            color: #ffffff;  /* White text color */
-        }}
-        svg {{
-            filter: invert(1) hue-rotate(180deg);  /* Invert colors and adjust hue */
-        }}
-    </style>
-</head>
-<body>
-    {svgContent}
-</body>
-</html>
-";
-                    File.WriteAllText(@"C:\Temp\MyGraph.html", htmlContent);
-                    string mSedgePath = @"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe";
-                    if (File.Exists(mSedgePath))
-                    {
-                        Process.Start(mSedgePath, @"C:\Temp\MyGraph.html");
-                    }
-                    else
-                    {
-                        var psi = new ProcessStartInfo
-                        {
-                            FileName = @"C:\Temp\MyGraph.html",
-                            UseShellExecute = true
-                        };
-                        Process.Start(psi);
-                    }
-                }
-                catch (System.Exception ex)
-                {
-                    prdDbg(ex);
-                    tx.Abort();
-                    return;
-                }
-                tx.Commit();
-            }
-        }
-        public void graphclear(Database? db = null)
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = db ?? docCol.MdiActiveDocument.Database;
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    System.Data.DataTable komponenter = CsvData.FK;
-                    HashSet<Entity> allEnts = localDb.GetFjvEntities(tx, true, false);
-                    PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriGraph);
-                    PSetDefs.DriGraph driGraph = new PSetDefs.DriGraph();
-                    foreach (var item in allEnts)
-                        psm.WritePropertyString(item, driGraph.ConnectedEntities, "");
-                }
-                catch (System.Exception ex)
-                {
-                    prdDbg(ex);
-                    tx.Abort();
-                    return;
-                }
-                tx.Commit();
-            }
         }
 
         /// <command>SELECTBYPS</command>
@@ -5590,5 +5439,165 @@ namespace IntersectUtilities
             tx.Abort();
         }
 
+        private static double _lastTangentArcRadius = 2.5;
+
+        [CommandMethod("TANGENTARCFROMLINE")]
+        public void TangentArcFromLine()
+        {
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+            Database db = doc.Database;
+            Editor ed = doc.Editor;
+
+            PromptDistanceOptions arcRadiusOptions = new PromptDistanceOptions("\nEnter arc radius");
+            arcRadiusOptions.AllowNegative = false;
+            arcRadiusOptions.AllowNone = false;
+            arcRadiusOptions.DefaultValue = _lastTangentArcRadius;
+            arcRadiusOptions.UseDefaultValue = true;
+
+            PromptDoubleResult arcRadiusResult = ed.GetDistance(arcRadiusOptions);
+            if (arcRadiusResult.Status != PromptStatus.OK)
+                return;
+
+            double arcRadius = arcRadiusResult.Value;
+            _lastTangentArcRadius = arcRadius;
+
+            var baseLineOptions = new PromptEntityOptions("\nSelect line");
+            baseLineOptions.SetRejectMessage("\nNot a line");
+            baseLineOptions.AddAllowedClass(typeof(Line), exactMatch: true);
+
+            var baseLineResult = ed.GetEntity(baseLineOptions);
+            if (baseLineResult.Status != PromptStatus.OK)
+                return;
+
+            Point3d startPoint;
+            Point3d endPoint;
+            double baseLineAngle;
+            Line baseLineEntity;
+
+            using (Transaction tr = db.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    baseLineEntity = (Line)tr.GetObject(baseLineResult.ObjectId, OpenMode.ForRead);
+
+                    startPoint = baseLineEntity.StartPoint;
+                    endPoint = baseLineEntity.EndPoint;
+                    baseLineAngle = baseLineEntity.Angle;
+
+                    tr.Commit();
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex);
+                    tr.Abort();
+                    return;
+                }
+            }
+
+            var directionPointOptions = new PromptPointOptions("\nSelect direction");
+
+            var directionPointResult = ed.GetPoint(directionPointOptions);
+            if (directionPointResult.Status != PromptStatus.OK)
+                return;
+
+            Point3d directionPoint = directionPointResult.Value;
+            Point3d midPoint = startPoint.MidPoint(endPoint);
+
+            Vector3d baseLineVectorUnit = startPoint.GetVectorTo(endPoint).GetNormal();
+            Vector3d perpendicularVectorUnit = baseLineVectorUnit.RotateBy(Math.PI / 2, Vector3d.ZAxis);
+            Vector3d directionVectorUnit = midPoint.GetVectorTo(directionPoint).GetNormal();
+
+            double angleToBase = directionVectorUnit.GetAngleTo(baseLineVectorUnit);
+            double angleToPerpendicular = directionVectorUnit.GetAngleTo(perpendicularVectorUnit);
+
+            Point3d arcCenterPoint;
+            double arcStartAngle;
+            double arcEndAngle;
+
+            if (angleToBase < Math.PI / 2 && angleToPerpendicular < Math.PI / 2)
+            {
+                arcCenterPoint = endPoint + perpendicularVectorUnit.MultiplyBy(arcRadius);
+                arcStartAngle = baseLineAngle - Math.PI / 2;
+                arcEndAngle = arcStartAngle + Math.PI / 4;
+            }
+            else if (angleToBase > Math.PI / 2 && angleToPerpendicular < Math.PI / 2)
+            {
+                arcCenterPoint = startPoint + perpendicularVectorUnit.MultiplyBy(arcRadius);
+                arcEndAngle = baseLineAngle - Math.PI / 2;
+                arcStartAngle = arcEndAngle - Math.PI / 4;
+            }
+            else if (angleToBase > Math.PI / 2 && angleToPerpendicular > Math.PI / 2)
+            {
+                arcCenterPoint = startPoint - perpendicularVectorUnit.MultiplyBy(arcRadius);
+                arcStartAngle = baseLineAngle + Math.PI / 2;
+                arcEndAngle = arcStartAngle + Math.PI / 4;
+            }
+            else if (angleToBase < Math.PI / 2 && angleToPerpendicular > Math.PI / 2)
+            {
+                arcCenterPoint = endPoint - perpendicularVectorUnit.MultiplyBy(arcRadius);
+                arcEndAngle = baseLineAngle + Math.PI / 2;
+                arcStartAngle = arcEndAngle - Math.PI / 4;
+            }
+            else
+            {
+                prdDbg("Could not determine quadrant");
+                return;
+            }
+
+            Arc arc = new Arc(arcCenterPoint, arcRadius, arcStartAngle, arcEndAngle);
+
+            using (Transaction tr = db.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    BlockTable bt = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
+                    BlockTableRecord btr = (BlockTableRecord)tr.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForWrite);
+
+                    btr.AppendEntity(arc);
+                    tr.AddNewlyCreatedDBObject(arc, true);
+
+                    tr.Commit();
+                }
+                catch(System.Exception ex)
+                {
+                    prdDbg(ex);
+                    tr.Abort();
+                    return;
+                }
+            }
+        }
+
+        [CommandMethod("SETMAPCS")]
+        public void SetMapCS()
+        {
+            MapApplication mapApp = HostMapApplicationServices.Application;
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+            Editor ed = doc.Editor;
+            Autodesk.Gis.Map.Project.ProjectModel projModel = mapApp.ActiveProject;
+
+            var coordinateSystemDictionary = new Dictionary<string, string>
+            {
+                {"UTM-32N", "ETRS89.UTM-32N"},
+                {"DKTM3",   "ETRF89.DKTM3"}
+            };
+
+            PromptKeywordOptions promptKeywordOptions = new PromptKeywordOptions("\nSelect coordinate system");
+            foreach (var key in coordinateSystemDictionary.Keys)
+                promptKeywordOptions.Keywords.Add(key);
+
+            PromptResult promptResult = ed.GetKeywords(promptKeywordOptions);
+            if (promptResult.Status != PromptStatus.OK)
+                return;
+
+            string selectedCoordinateSystemKey = promptResult.StringResult;
+
+            if (coordinateSystemDictionary.TryGetValue(selectedCoordinateSystemKey, out string selectedCoordinateSystemValue))
+            {
+                projModel.Projection = selectedCoordinateSystemValue;
+                prdDbg("\nCoordinate system has successfully been assigned to " + selectedCoordinateSystemKey);
+            }
+            else
+                prdDbg("\nCoordinate system is invalid");
+        }
     }
 }

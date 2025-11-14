@@ -44,10 +44,6 @@
 		<Reference Include="acdbmgd">
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\acdbmgd.dll</HintPath>
 			<Private>False</Private>
-		</Reference>				
-		<Reference Include="acmgd">
-			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\acmgd.dll</HintPath>
-			<Private>False</Private>
 		</Reference>
 		<Reference Include="AcMPolygonMGD">
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AcMPolygonMGD.dll</HintPath>
@@ -119,7 +115,6 @@
 		<Using Include="System.Collections.Generic" />
 	</ItemGroup>	
 	<Import Project="..\UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems" Label="Shared" />
-	<Import Project="..\AutoCADCommandsSHARED\AutoCADCommandsSHARED.projitems" Label="Shared" />
 	<Import Project="..\FormsSHARED\FormsSHARED.projitems" Label="Shared" />
 	<Import Project="..\PipelineSHARED\PipelineSHARED.projitems" Label="Shared" />
 </Project>

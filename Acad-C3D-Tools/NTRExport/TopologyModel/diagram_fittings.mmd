@@ -1,0 +1,143 @@
+%%{init: {'theme':'dark'}}%%
+classDiagram
+direction TB
+
+class ElementBase {
+  <<Abstract>>
+  +ElementBase(Handle source)
+  +Handle Source
+  +Ports* IReadOnlyList~TPort~
+  +PipeSystemEnum System
+  +PipeTypeEnum Type
+  +PipeSeriesEnum Series
+}
+
+class TPipe {
+  +TPipe(Handle source, Func~TPipe_TPort~ makeA, Func~TPipe_TPort~ makeB)
+  +TPort A
+  +TPort B
+  +int Dn
+  +string? Material
+  +IPipeVariant Variant
+  +TFlowRole Flow
+  +double Length
+  +List~(double_double)~ CushionSpans 
+}
+
+ElementBase <|-- TPipe
+
+class TFitting {
+  -List~TPort~ _ports
+  +TFitting(Handle source, List~TPort~ ports)
+  +override Ports* IReadOnlyList~TPort~
+  +PipelineElementType Kind
+  +void AddPort(TPort port)
+}
+
+ElementBase <|-- TFitting
+
+class ElbowFormstykke {
+  +Pt2 TangentPoint
+  +ElbowFormstykke(Handle source, List~TPort~ ports, Pt2 tangentPoint)
+  constraint: Kind is Kedelrørsbøjning, Bøjning45gr, Bøjning30gr, Bøjning15gr
+}
+
+TFitting <|-- ElbowFormstykke
+
+class Bueror {
+  +Bueror(Handle source, List~TPort~ ports, Pt2 tangentPoint)
+  constraint: Kind is Buerør
+}
+
+ElbowFormstykke <|-- Bueror
+
+class PreinsulatedElbow {
+  +PreinsulatedElbowSteel(Handle source, List~TPort~ ports, Pt2 tangentPoint)
+  constraint: Kind is PræisoleretBøjning90gr, PræisoleretBøjning45gr, PræisoleretBøjningVariabel
+}
+
+ElbowFormstykke <|-- PreinsulatedElbow
+
+class TeeMainRun {
+  <<Abstract>>
+  +TeeMainRun(Handle source, List~TPort~ ports)  
+}
+
+TFitting <|-- TeeMainRun
+
+class TeeFormstykke {
+  +TeeFormstykke(Handle source, List~TPort~ ports)
+  constraint: Kind is Svjesetee, PreskoblingTee, Muffetee
+}
+
+TeeMainRun <|-- TeeFormstykke
+
+class AfgreningMedSpring {
+  +AfgreningMedSpring(Handle source, List~TPort~ ports)
+  constraint: Kind is AfgreningMedSpring
+}
+
+TeeMainRun <|-- AfgreningMedSpring
+
+class AfgreningParallel {
+  +AfgreningParallel(Handle source, List~TPort~ ports)
+  constraint: Kind is AfgreningParallel
+}
+
+TeeMainRun <|-- AfgreningParallel
+
+class LigeAfgrening {
+  +LigeAfgrening(Handle source, List~TPort~ ports)
+  constraint: Kind is LigeAfgrening
+}
+
+TeeMainRun <|-- LigeAfgrening
+
+class FModel {
+  +FModel(Handle source, List~TPort~ ports)
+  constraint: Kind is F_Model
+}
+
+TFitting <|-- FModel
+
+class YModel {
+  +YModel(Handle source, List~TPort~ ports)
+  constraint: Kind is Y_Model
+}
+
+TFitting <|-- YModel
+
+class AfgreningsStuds {
+  +AfgreningsStuds(Handle source, List~TPort~ ports)
+  constraint: Kind is Afgreningsstuds
+}
+
+TFitting <|-- AfgreningsStuds
+
+class Valve {
+  +Valve(Handle source, List~TPort~ ports)
+  constraint: Kind is Engangsventil, PræisoleretVentil, PræventilMedUdluftning
+}
+
+TFitting <|-- Valve
+
+class Reducer {
+  +Reducer(Handle source, List~TPort~ ports)
+  constraint: Kind is Reduktion
+}
+
+TFitting <|-- Reducer
+
+class Svanehals {
+  +Svanehals(Handle source, List~TPort~ ports)
+  constraint: Kind is Svanehals
+}
+
+TFitting <|-- Svanehals
+
+class Materialeskift {
+  +Materialeskift(Handle source, List~TPort~ ports)
+  constraint: Kind is Materialeskift
+}
+
+TFitting <|-- Materialeskift

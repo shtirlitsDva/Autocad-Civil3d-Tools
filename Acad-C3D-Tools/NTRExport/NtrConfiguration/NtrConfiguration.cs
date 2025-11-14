@@ -1,15 +1,12 @@
-﻿using NTRExport.Excel;
+﻿using IntersectUtilities;
+
+using NTRExport.Excel;
 using NTRExport.Ntr;
 
-using System;
-using System.Collections.Generic;
 using System.Data;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Reflection;
 using System.Globalization;
-using IntersectUtilities;
+using System.Reflection;
+using System.Text;
 
 namespace NTRExport.NtrConfiguration
 {
@@ -19,9 +16,14 @@ namespace NTRExport.NtrConfiguration
         internal List<NtrLast> Last { get; }
         internal NtrLast SupplyLast { get; private set; }
         internal NtrLast ReturnLast { get; private set; }
-        internal DataTable Pipelines { get; }        
-        internal DataTable Profiles { get; }
-        
+        internal DataTable? Pipelines { get; }
+        internal DataTable? Profiles { get; }
+
+        internal ConfigurationData(NtrLast supplyLast, NtrLast returnLast)
+        {
+            Last = [supplyLast, returnLast];
+            SupplyLast = supplyLast; ReturnLast = returnLast;
+        }
 
         internal ConfigurationData()
         {
@@ -44,7 +46,7 @@ namespace NTRExport.NtrConfiguration
                     "Select LAST for *SUPPLY*: ");
             if (chosenSupplyLast == null) throw new Exception("Cancelled!");
             SupplyLast = chosenSupplyLast;
-            
+
             var chosenReturnLast =
                 TGridFormCaller.Call(
                     Last.Where(x => x.Name.Contains("RETUR")),

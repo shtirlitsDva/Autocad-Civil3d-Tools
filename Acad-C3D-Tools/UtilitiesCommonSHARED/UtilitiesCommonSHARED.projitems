@@ -30,7 +30,9 @@
     <Compile Include="$(MSBuildThisFileDirectory)Graphs\Node.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Graphs\Graph.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Graphs\POI.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Graphs\Styling\IDotStyler.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Infrastructure.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)LineTypes\LineTypes.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)PropertySetManager.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)UtilsCommon.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Win32Cursor.cs" />

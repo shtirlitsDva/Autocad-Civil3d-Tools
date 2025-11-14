@@ -8,15 +8,14 @@ using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.Enums;
 
 using NTRExport.Enums;
-using NTRExport.Geometry;
 
 namespace NTRExport.CadExtraction
 {
     internal interface ICadPipe
     {
         Handle Handle { get; }
-        Pt2 Start { get; }
-        Pt2 End { get; }
+        Point2d Start { get; }
+        Point2d End { get; }
         int Dn { get; }
         string Material { get; }
         PipeSystemEnum System { get; }
@@ -26,22 +25,12 @@ namespace NTRExport.CadExtraction
         double PipeId { get; }      // mm
         double PipeWallThk { get; } // mm
         double JacketOd { get; }    // mm
-        IEnumerable<CadPipeSegment> GetSegments();
-    }
-
-    internal enum CadSegmentKind { Line, Arc }
-
-    internal struct CadPipeSegment
-    {
-        public CadSegmentKind Kind { get; init; }
-        public Pt2 Start { get; init; }
-        public Pt2 End { get; init; }
-        public Pt2 Center { get; init; } // only for Arc
-    }
+        IEnumerable<Curve2d> GetSegments();
+    }    
 
     internal class CadPort
     {
-        public Pt2 Position { get; init; }
+        public Point2d Position { get; init; }
         public PortRole Role { get; init; }
         public Handle Owner { get; init; }
         public string Tag { get; init; } = "";
@@ -56,12 +45,6 @@ namespace NTRExport.CadExtraction
         IReadOnlyList<CadPort> GetPorts();
     }
 
-    internal sealed class CadModel
-    {
-        public List<ICadPipe> Pipes { get; } = new();
-        public List<ICadFitting> Fittings { get; } = new();
-    }
-
     internal static class PolylineAdapterFactory
     {
         public static ICadPipe Create(Polyline pl) => new PolylineAdapter(pl);
@@ -71,8 +54,8 @@ namespace NTRExport.CadExtraction
             private readonly Polyline _pl;
             public PolylineAdapter(Polyline pl) { _pl = pl; }
             public Handle Handle => _pl.Handle;
-            public Pt2 Start => new(_pl.StartPoint.X, _pl.StartPoint.Y);
-            public Pt2 End => new(_pl.EndPoint.X, _pl.EndPoint.Y);
+            public Point2d Start => new(_pl.StartPoint.X, _pl.StartPoint.Y);
+            public Point2d End => new(_pl.EndPoint.X, _pl.EndPoint.Y);
             public int Dn => PipeScheduleV2.GetPipeDN(_pl);
             public string Material => "P235GH";
             public PipeSystemEnum System => PipeScheduleV2.GetPipeSystem(_pl);
@@ -83,32 +66,19 @@ namespace NTRExport.CadExtraction
             public double PipeWallThk => Math.Max(0.0, (PipeOd - PipeId) / 2.0);
             public double JacketOd => PipeScheduleV2.GetPipeKOd(_pl);
 
-            public IEnumerable<CadPipeSegment> GetSegments()
+            public IEnumerable<Curve2d> GetSegments()
             {
                 // Iterate segments between vertices; ignore closing segment
                 int n = _pl.NumberOfVertices;
-                for (int i = 0; i < n - 1; i++)
+                for (int i = 0; i < n; i++)
                 {
                     switch (_pl.GetSegmentType(i))
                     {
                         case SegmentType.Line:
-                            var ls = _pl.GetLineSegment2dAt(i);
-                            yield return new CadPipeSegment
-                            {
-                                Kind = CadSegmentKind.Line,
-                                Start = new Pt2(ls.StartPoint.X, ls.StartPoint.Y),
-                                End = new Pt2(ls.EndPoint.X, ls.EndPoint.Y),
-                            };
+                            yield return _pl.GetLineSegment2dAt(i);                            
                             break;
                         case SegmentType.Arc:
-                            var ar = _pl.GetArcSegment2dAt(i);
-                            yield return new CadPipeSegment
-                            {
-                                Kind = CadSegmentKind.Arc,
-                                Start = new Pt2(ar.StartPoint.X, ar.StartPoint.Y),
-                                End = new Pt2(ar.EndPoint.X, ar.EndPoint.Y),
-                                Center = new Pt2(ar.Center.X, ar.Center.Y)
-                            };
+                            yield return _pl.GetArcSegment2dAt(i);                            
                             break;
                     }
                 }
@@ -161,7 +131,7 @@ namespace NTRExport.CadExtraction
 
                 result.Add(new CadPort
                 {
-                    Position = new Pt2(wpt.X, wpt.Y),
+                    Position = new Point2d(wpt.X, wpt.Y),
                     Role = role,
                     Owner = owner.Handle,
                     Tag = name

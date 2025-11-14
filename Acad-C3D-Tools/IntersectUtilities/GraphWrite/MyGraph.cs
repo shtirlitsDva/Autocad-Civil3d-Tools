@@ -41,6 +41,10 @@ namespace IntersectUtilities.GraphWrite
         }
         public void AddEntityToPOIs(Entity ent)
         {
+            PropertySetManager psmPipeline = 
+                new PropertySetManager(dB, PSetDefs.DefinedSets.DriPipelineData);
+            PSetDefs.DriPipelineData driPipelineData = new PSetDefs.DriPipelineData();
+
             switch (ent)
             {
                 case Polyline pline:
@@ -48,37 +52,7 @@ namespace IntersectUtilities.GraphWrite
                     {
                         case PipeSystemEnum.Ukendt:
                             prdDbg($"Wrong type of pline supplied: {pline.Handle}");
-                            throw new System.Exception("Supplied a new PipeSystemEnum! Add to code kthxbai.");
-                        case PipeSystemEnum.Kobberflex:
-                        case PipeSystemEnum.AluPex:
-                            #region STIK//Find forbindelse til forsyningsrøret
-                            Point3d pt = pline.StartPoint;
-                            var query = allPipes.Where(x =>
-                                pt.IsOnCurve(x, 0.025) &&
-                                pline.Handle != x.Handle &&
-                                GetPipeSystem(x) == PipeSystemEnum.Stål);
-
-                            if (query.FirstOrDefault() != default)
-                            {
-                                Polyline parent = query.FirstOrDefault();
-                                POIs.Add(new POI(parent, parent.GetClosestPointTo(pt, false).To2d(), EndType.StikAfgrening, PSM));
-                            }
-
-                            pt = pline.EndPoint;
-                            if (query.FirstOrDefault() != default)
-                            {
-                                //This shouldn't happen now, because AssignPlinesAndBlocksToAlignments
-                                //guarantees that the end point is never on a supply pipe
-                                Polyline parent = query.FirstOrDefault();
-                                POIs.Add(new POI(parent, parent.GetClosestPointTo(pt, false).To2d(), EndType.StikAfgrening, PSM));
-                            }
-                            #endregion
-
-                            //Tilføj almindelige ender til POIs
-                            //Bruger ikke længere det gamle stiksystem, så derfor er stikstart ændret til start og end til end
-                            POIs.Add(new POI(pline, pline.StartPoint.To2d(), EndType.Start, PSM));
-                            POIs.Add(new POI(pline, pline.EndPoint.To2d(), EndType.End, PSM));
-                            break;
+                            throw new System.Exception("Supplied a new PipeSystemEnum! Add to code kthxbai.");                        
                         default:
                             POIs.Add(new POI(pline, pline.StartPoint.To2d(), EndType.Start, PSM));
                             POIs.Add(new POI(pline, pline.EndPoint.To2d(), EndType.End, PSM));
@@ -93,10 +67,6 @@ namespace IntersectUtilities.GraphWrite
                     //Quick and dirty fix for missing data
                     if (br.RealName() == "SH LIGE" || br.RealName() == "SH VINKLET")
                     {
-                        PropertySetManager psmPipeline =
-                                    new PropertySetManager(dB, PSetDefs.DefinedSets.DriPipelineData);
-                        PSetDefs.DriPipelineData driPipelineData = new PSetDefs.DriPipelineData();
-
                         string belongsTo = psmPipeline.ReadPropertyString(br, driPipelineData.BelongsToAlignment);
                         if (belongsTo.IsNoE())
                         {
@@ -118,15 +88,11 @@ namespace IntersectUtilities.GraphWrite
                         else
                         {
                             endType = EndType.Main;
-                            //Handle special case of AFGRSTUDS
+                            //Handle special case of AFGRSTUDS, SH LIGE and SH VINKLET
                             //which does not coincide with an end on polyline
                             //but is situated somewhere along the polyline
                             if (br.RealName() == "AFGRSTUDS" || br.RealName() == "SH LIGE" || br.RealName() == "SH VINKLET")
                             {
-                                PropertySetManager psmPipeline =
-                                    new PropertySetManager(dB, PSetDefs.DefinedSets.DriPipelineData);
-                                PSetDefs.DriPipelineData driPipelineData = new PSetDefs.DriPipelineData();
-
                                 string branchAlName = psmPipeline.ReadPropertyString(br, driPipelineData.BranchesOffToAlignment);
                                 if (branchAlName.IsNoE())
                                     prdDbg(
@@ -247,9 +213,7 @@ namespace IntersectUtilities.GraphWrite
                 HashSet<Handle> visitedHandles = new HashSet<Handle>();
 
                 //Determine starting entity
-                //Criteria: Only one child -> means an end node AND largest DN of all not visited
-                //Currently only for one network
-                //Disjoined networks are not handled yet
+                //Criteria: Only one child -> means an end node AND largest DN of all not visited                
 
                 //Warning: this won't work if there's a connection to first pipe in system
                 //Warning: afgreningsstuds or stik pipe
@@ -292,27 +256,6 @@ namespace IntersectUtilities.GraphWrite
                     break;
                 }
                 prdDbg("Entry: " + ge.OwnerHandle.ToString());
-
-#if DEBUG
-                //{
-                //    Entity owner = ge.Owner;
-                //    Line line = new Line();
-                //    line.Layer = "0";
-                //    line.StartPoint = new Point3d();
-                //    switch (owner)
-                //    {
-                //        case Polyline pline:
-                //            line.EndPoint = pline.GetPointAtDist(pline.Length / 2);
-                //            break;
-                //        case BlockReference br:
-                //            line.EndPoint = br.Position;
-                //            break;
-                //        default:
-                //            break;
-                //    }
-                //    line.AddEntityToDbModelSpace(Application.DocumentManager.MdiActiveDocument.Database);
-                //}   
-#endif
 
                 //Flag the entry point subgraph
                 isEntryPoint = true;
@@ -401,10 +344,9 @@ namespace IntersectUtilities.GraphWrite
 
                 //Write collected data
                 //Stringbuilder to contain the overall file
-                //This must be refactored when working with disjoined networks
                 StringBuilder sb = new StringBuilder();
-                sb.AppendLine($"subgraph G_{graphCount} {{"); //First line of file stating a graph
-                                                              //Set the shape of the nodes for whole graph
+                sb.AppendLine($"subgraph G_{graphCount} {{");
+
                 sb.AppendLine("node [shape=record];");
 
                 //Write edges
@@ -425,12 +367,7 @@ namespace IntersectUtilities.GraphWrite
                 //Add closing curly brace correspoinding to the first line
                 sb.AppendLine("}");
                 //Append current disjoined graph to all collector
-                sbAll.Append(sb.ToString());
-
-                //using (System.IO.StreamWriter file = new System.IO.StreamWriter($"C:\\Temp\\MyGraph_{graphCount}.dot"))
-                //{
-                //    file.WriteLine(sb.ToString()); // "sb" is the StringBuilder
-                //}
+                sbAll.Append(sb.ToString());                
 
                 //Modify the GraphEntities to remove visited entities
                 GraphEntities = GraphEntities.Where(

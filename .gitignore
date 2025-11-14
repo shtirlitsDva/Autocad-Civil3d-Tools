@@ -3,6 +3,10 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
+# CAD files
+*.dwl
+*.dwl2
+
 # User-specific files
 *.suo
 *.user
@@ -328,9 +332,3 @@ ASALocalRun/
 
 # MFractors (Xamarin productivity tool) working folder 
 .mfractor/
-/Acad-C3D-Tools/SnoopCivil3DObjects.dll
-/Acad-C3D-Tools/TspWithGeneticSharp
-/Acad-C3D-Tools/IntersectUtilities/LongitudinalProfiles/AutoProfile/SolidAutoProfileFilleter_Complete.cs
-/Acad-C3D-Tools/IntersectUtilities/LongitudinalProfiles/AutoProfile/SOLID_Filleter_README.md
-/Acad-C3D-Tools/IntersectUtilities/LongitudinalProfiles/AutoProfile/SolidAutoProfileFilleter.cs
-/Acad-C3D-Tools/IntersectUtilities/IntersectUtilities_vpxzveax_wpftmp.csproj

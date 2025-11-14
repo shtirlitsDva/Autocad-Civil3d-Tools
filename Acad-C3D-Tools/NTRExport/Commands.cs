@@ -13,16 +13,18 @@ using IntersectUtilities.UtilsCommon.DataManager;
 using IntersectUtilities.UtilsCommon.Enums;
 using IntersectUtilities.UtilsCommon.Graphs;
 
-using NTRExport.CadExtraction;
 using NTRExport.Interfaces;
 using NTRExport.Ntr;
 using NTRExport.NtrConfiguration;
 using NTRExport.SoilModel;
 using NTRExport.TopologyModel;
+using NTRExport.Routing;
+
+using System.IO;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 
-using AcApp = Autodesk.AutoCAD.ApplicationServices.Application;
+using AcApp = Autodesk.AutoCAD.ApplicationServices.Core.Application;
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 
 [assembly: CommandClass(typeof(NTRExport.Commands))]
@@ -35,8 +37,7 @@ namespace NTRExport
         public void Initialize()
         {
             Document doc = AcApp.DocumentManager.MdiActiveDocument;
-            doc.Editor.WriteMessage("\nVelkommen til NTR Export!\n");
-
+            doc.Editor.WriteMessage("\nVelkommen til NTR Export!\n");            
 #if DEBUG
             AppDomain.CurrentDomain.AssemblyResolve +=
         new ResolveEventHandler(MissingAssemblyLoader.Debug_AssemblyResolve);
@@ -229,15 +230,15 @@ namespace NTRExport
                             case PipelineSegmentV2 pseg:
                                 switch (pseg.Size.Type)
                                 {
-                                    case IntersectUtilities.UtilsCommon.Enums.PipeTypeEnum.Twin:
+                                    case PipeTypeEnum.Twin:
                                         ntrSegment = new NtrSegmentTwin(pseg, rdict);
                                         break;
-                                    case IntersectUtilities.UtilsCommon.Enums.PipeTypeEnum.Frem:
-                                    case IntersectUtilities.UtilsCommon.Enums.PipeTypeEnum.Retur:
-                                    case IntersectUtilities.UtilsCommon.Enums.PipeTypeEnum.Enkelt:
+                                    case PipeTypeEnum.Frem:
+                                    case PipeTypeEnum.Retur:
+                                    case PipeTypeEnum.Enkelt:
                                         ntrSegment = new NtrSegmentEnkelt(pseg, rdict);
                                         break;
-                                    case IntersectUtilities.UtilsCommon.Enums.PipeTypeEnum.Ukendt:
+                                    case PipeTypeEnum.Ukendt:
                                     default:
                                         throw new NotImplementedException();
                                 }
@@ -298,10 +299,29 @@ namespace NTRExport
         [CommandMethod("NTREXPORT")]
         public void ntrexport()
         {
+            ntrexportmethod();
+        }
+#if DEBUG
+        [CommandMethod("NTRTEST")]
+        public void ntrtest()
+        {
+            ntrexportmethod(new ConfigurationData(
+                new NtrLast("FJV_FREM_P10_T80", "10", "80", "1000"),
+                new NtrLast("FJV_RETUR_P10_T45", "10", "45", "1000")));
+        }
+#endif
+        internal void ntrexportmethod(ConfigurationData? ntrConf = null)
+        {
             DocumentCollection docCol = AcApp.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;            
 
             using var tx = localDb.TransactionManager.StartTransaction();
+
+            var dwgPath = localDb.Filename;
+            var outNtrPath = Path.ChangeExtension(
+                string.IsNullOrEmpty(dwgPath) ? "export" : dwgPath, ".ntr");
+            var outExceptionPath = Path.ChangeExtension(
+                string.IsNullOrEmpty(dwgPath) ? "export" : dwgPath, ".exception.log");
 
             try
             {
@@ -313,8 +333,8 @@ namespace NTRExport
                 bool isAccepted(Entity ent)
                 {
 #if DEBUG
-                    prdDbg("DEBUG filtering active! Polylines only.");
-                    if (ent is BlockReference) return false;
+                    //prdDbg("DEBUG filtering active! Polylines only.");
+                    //if (ent is BlockReference) return false;
 #endif
 
                     switch (ent)
@@ -340,15 +360,9 @@ namespace NTRExport
                 #endregion
 
                 #region ------------- CAD ➜ Port topology -------------
-                var cad = new CadModel();
-                foreach (var e in ents)
-                {
-                    if (e is Polyline pl) 
-                        cad.Pipes.Add(PolylineAdapterFactory.Create(pl));
-                    else if (e is BlockReference br)
-                        cad.Fittings.Add(BlockRefAdapterFactory.Create(br));
-                }
-                var topo = new TopologyBuilder(cad).Build();
+                var polylines = ents.OfType<Polyline>().ToList();
+                var fittings = ents.OfType<BlockReference>().ToList();
+                var topo = TopologyBuilder.Build(polylines, fittings);
                 #endregion
 
                 #region ------------- Topology-level soil planning -------------
@@ -356,7 +370,7 @@ namespace NTRExport
                 #endregion
 
                 #region ------------- Read NTR configuration from Excel -------------
-                var conf = new ConfigurationData();
+                var conf = ntrConf ?? new ConfigurationData();
                 //foreach (var l in conf.Last) prdDbg(l);
                 #endregion
 
@@ -364,51 +378,70 @@ namespace NTRExport
                 NtrCoord.InitFromTopology(topo, marginMeters: 0.0);
                 #endregion
 
-                #region ------------- Topology ➜ NTR skeleton -------------
-                var ntr = new NtrMapper().Map(topo);
+                #region ------------- Topology ➜ Routed ➜ NTR skeleton -------------
+                var routed = new Routing.Router(topo).Route();
                 #endregion
 
                 #region ------------- Emit NTR -------------
-                var writer = new NtrWriter(new Rohr2SoilAdapter());
-                // Build IS and DN records across all distinct pipe groups found in the drawing
+                var writer = new NtrWriter(new Rohr2SoilAdapter(), conf);
+                // Build IS and DN records across all distinct pipe groups found in the routed model
                 var headerLines = new List<string>();
                 var headerDedup = new HashSet<string>();
-                var plines = ents.OfType<Polyline>().ToList();
-                var groups = plines.GroupBy(pl => (
-                    sys: PipeScheduleV2.GetPipeSystem(pl),
-                    typ: PipeScheduleV2.GetPipeType(pl, true),
-                    ser: PipeScheduleV2.GetPipeSeriesV2(pl),
-                    twin: PipeScheduleV2.GetPipeType(pl, true) == PipeTypeEnum.Twin
+
+                // Group routed members by System, normalized Type (Enkelt/Twin), Series, and Twin flag
+                var routedGroups = routed.Members.GroupBy(m => (
+                    sys: m.System,
+                    typ: m.Type == PipeTypeEnum.Twin ? PipeTypeEnum.Twin : PipeTypeEnum.Enkelt,
+                    ser: m.Series,
+                    twin: m.Type == PipeTypeEnum.Twin
                 ));
 
-                foreach (var ggrp in groups)
+                foreach (var rgrp in routedGroups)
                 {
-                    var dnsInGroup = ggrp.Select(PipeScheduleV2.GetPipeDN)
-                        .Where(d => d > 0)
-                        .Distinct()
-                        .ToList();
+                    var dnsInGroup = new HashSet<int>();
+
+                    foreach (var member in rgrp)
+                    {
+                        switch (member)
+                        {
+                            case RoutedReducer red:
+                                if (red.Dn1 > 0) dnsInGroup.Add(red.Dn1);
+                                if (red.Dn2 > 0) dnsInGroup.Add(red.Dn2);
+                                break;
+                            case RoutedTee tee:
+                                if (tee.DN > 0) dnsInGroup.Add(tee.DN);
+                                if (tee.DnBranch > 0) dnsInGroup.Add(tee.DnBranch);
+                                break;                            
+                            default:
+                                if (member.DN > 0) dnsInGroup.Add(member.DN);
+                                break;
+                        }
+                    }
+
                     if (dnsInGroup.Count == 0) continue;
 
-                    var catalog = new NtrDnCatalog(ggrp.Key.sys, ggrp.Key.typ, ggrp.Key.ser, ggrp.Key.twin);
+                    var catalog = new NtrDnCatalog(rgrp.Key.sys, rgrp.Key.typ, rgrp.Key.ser, rgrp.Key.twin);
                     foreach (var line in catalog.BuildRecords(dnsInGroup))
                     {
                         if (headerDedup.Add(line)) headerLines.Add(line);
                     }
                 }
 
-                var ntrText = writer.Build(ntr, headerLines, conf);
+                var ntrText = writer.Build(routed, headerLines);
 
-                // Save next to DWG
-                var dwgPath = localDb.Filename;
-                var outPath = System.IO.Path.ChangeExtension(
-                    string.IsNullOrEmpty(dwgPath) ? "export" : dwgPath, ".ntr");
-                System.IO.File.WriteAllText(outPath, ntrText, System.Text.Encoding.UTF8);
-                prdDbg($"NTR written: {outPath}");
+                // Save next to DWG                
+                File.WriteAllText(outNtrPath, ntrText, System.Text.Encoding.UTF8);
+                prdDbg($"NTR written: {outNtrPath}");
                 #endregion
             }
             catch (DebugPointException dbex)
             {
                 prdDbg(dbex);
+
+                File.WriteAllText(outExceptionPath,
+                    dbex.ToString(),
+                    System.Text.Encoding.UTF8);
+
                 tx.Abort();
 
                 using var dtx = localDb.TransactionManager.StartTransaction();
@@ -422,6 +455,11 @@ namespace NTRExport
             catch (System.Exception ex)
             {
                 prdDbg(ex);
+
+                File.WriteAllText(outExceptionPath,
+                    ex.ToString(),
+                    System.Text.Encoding.UTF8);
+
                 tx.Abort();
                 return;
             }

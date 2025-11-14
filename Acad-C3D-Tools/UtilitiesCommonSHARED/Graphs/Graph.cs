@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -6,13 +6,17 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
+using IntersectUtilities.UtilsCommon.Graphs.Styling;
+
 namespace IntersectUtilities.UtilsCommon.Graphs
 {
+    
     public class Graph<T> : IReadOnlyCollection<Node<T>>
     {
         public Node<T> Root { get; private set; }
         private Func<T, string> _nameSelector;
         private Func<T, string> _labelSelector;
+        private readonly HashSet<(Node<T> A, Node<T> B)> _extraEdges = new();
         public Graph(Node<T> root, Func<T, string> nameSelector, Func<T, string> labelSelector)
         {
             Root = root;
@@ -21,10 +25,83 @@ namespace IntersectUtilities.UtilsCommon.Graphs
         }
         public int Count => Dfs().Count();
 
+        public IEnumerable<(Node<T> A, Node<T> B)> ExtraEdges => _extraEdges;
+
+        public void AddCycleEdge(Node<T> a, Node<T> b)
+        {
+            if (a is null || b is null) return;
+            if (ReferenceEquals(a, b)) return;
+            var key = SortPair(a, b);
+            _extraEdges.Add(key);
+        }
+
         public string EdgesToDot()
         {
             var edges = new StringBuilder();
-            GatherEdges(Root, edges);
+            if (Root == null) return string.Empty;
+
+            var q = new Queue<Node<T>>();
+            q.Enqueue(Root);
+
+            while (q.Count > 0)
+            {
+                var node = q.Dequeue();
+                foreach (var child in node.Children)
+                {
+                    edges.AppendLine($"\"{_nameSelector(node.Value)}\" -> \"{_nameSelector(child.Value)}\"");
+                    q.Enqueue(child);
+                }
+            }
+
+            return edges.ToString();
+        }
+        public string EdgesToDot(Func<Node<T>, Node<T>, string?>? edgeAttrSelector)
+        {
+            var edges = new StringBuilder();
+            if (Root == null) return string.Empty;
+
+            var q = new Queue<Node<T>>();
+            q.Enqueue(Root);
+
+            while (q.Count > 0)
+            {
+                var node = q.Dequeue();
+                foreach (var child in node.Children)
+                {
+                    var attr = edgeAttrSelector?.Invoke(node, child);
+                    if (!string.IsNullOrWhiteSpace(attr))
+                        edges.AppendLine($"\"{_nameSelector(node.Value)}\" -> \"{_nameSelector(child.Value)}\" {attr}");
+                    else
+                        edges.AppendLine($"\"{_nameSelector(node.Value)}\" -> \"{_nameSelector(child.Value)}\"");
+                    q.Enqueue(child);
+                }
+            }
+
+            return edges.ToString();
+        }
+        public string ExtraEdgesToDot(Func<Node<T>, Node<T>, string?>? edgeAttrSelector)
+        {
+            var edges = new StringBuilder();
+            foreach (var (a, b) in _extraEdges)
+            {
+                var attr = edgeAttrSelector?.Invoke(a, b);
+                if (!string.IsNullOrWhiteSpace(attr))
+                    edges.AppendLine($"\"{_nameSelector(a.Value)}\" -> \"{_nameSelector(b.Value)}\" {attr}");
+                else
+                    edges.AppendLine($"\"{_nameSelector(a.Value)}\" -> \"{_nameSelector(b.Value)}\"");
+            }
+            return edges.ToString();
+        }
+        public string ExtraEdgesToDot(IDotStyler<T> styler, Func<Node<T>, Node<T>, string?>? edgeAttrSelector)
+        {
+            var edges = new StringBuilder();
+            foreach (var (a, b) in _extraEdges)
+            {
+                var qa = edgeAttrSelector?.Invoke(a, b);
+                var style = styler.BuildEdgeAttrs(a.Value, b.Value);
+                var merged = MergeAttributes(null, null, qa, style);
+                edges.AppendLine($"\"{_nameSelector(a.Value)}\" -> \"{_nameSelector(b.Value)}\" {merged}");
+            }
             return edges.ToString();
         }
         private void GatherEdges(Node<T> node, StringBuilder edges)
@@ -35,6 +112,28 @@ namespace IntersectUtilities.UtilsCommon.Graphs
                 GatherEdges(child, edges);  // Recursive call to gather edges of children
             }
         }
+        private void GatherEdgesWithAttributes(
+            Node<T> node,
+            StringBuilder edges,
+            Func<Node<T>, Node<T>, string?>? edgeAttrSelector)
+        {
+            foreach (var child in node.Children)
+            {
+                var attr = edgeAttrSelector?.Invoke(node, child);
+                if (!string.IsNullOrWhiteSpace(attr))
+                    edges.AppendLine($"\"{_nameSelector(node.Value)}\" -> \"{_nameSelector(child.Value)}\" {attr}");
+                else
+                    edges.AppendLine($"\"{_nameSelector(node.Value)}\" -> \"{_nameSelector(child.Value)}\"");
+                GatherEdgesWithAttributes(child, edges, edgeAttrSelector);
+            }
+        }
+        private (Node<T> A, Node<T> B) SortPair(Node<T> a, Node<T> b)
+        {
+            var na = _nameSelector(a.Value);
+            var nb = _nameSelector(b.Value);
+            return string.CompareOrdinal(na, nb) <= 0 ? (a, b) : (b, a);
+        }
+        
         public string NodesToDot(Func<T, string?>? clusterSelector = null)
         {
             var nodes = new StringBuilder();
@@ -77,7 +176,7 @@ namespace IntersectUtilities.UtilsCommon.Graphs
 
             foreach (var cluster in clusterMap.OrderBy(x => x.Key, StringComparer.Ordinal))
             {
-                var clusterId = SanitizeClusterId(cluster.Key);
+                var clusterId = cluster.Key;
                 nodes.AppendLine($"subgraph cluster_{clusterId} {{");
                 nodes.AppendLine($"label=\"{EscapeForLabel(cluster.Key)}\";");
                 foreach (var node in cluster.Value)
@@ -90,20 +189,159 @@ namespace IntersectUtilities.UtilsCommon.Graphs
             return nodes.ToString();
         }
 
+        public string NodesToDot(
+            Func<T, string?>? clusterSelector,
+            Func<T, string?>? nodeAttrSelector,
+            Func<string, string?>? clusterAttrsSelector)
+        {
+            var nodes = new StringBuilder();
+            var allNodes = Dfs().ToList();
+
+            if (clusterSelector is null)
+            {
+                foreach (var node in allNodes)
+                {
+                    AppendNode(nodes, node, nodeAttrSelector);
+                }
+                return nodes.ToString();
+            }
+
+            var clusterMap = new Dictionary<string, List<Node<T>>>(StringComparer.Ordinal);
+            var unclustered = new List<Node<T>>();
+
+            foreach (var node in allNodes)
+            {
+                var clusterKey = clusterSelector(node.Value);
+                if (string.IsNullOrWhiteSpace(clusterKey))
+                {
+                    unclustered.Add(node);
+                    continue;
+                }
+
+                if (!clusterMap.TryGetValue(clusterKey, out var list))
+                {
+                    list = new List<Node<T>>();
+                    clusterMap.Add(clusterKey, list);
+                }
+
+                list.Add(node);
+            }
+
+            foreach (var node in unclustered)
+            {
+                AppendNode(nodes, node, nodeAttrSelector);
+            }
+
+            foreach (var cluster in clusterMap.OrderBy(x => x.Key, StringComparer.Ordinal))
+            {
+                var clusterId = cluster.Key;
+                nodes.AppendLine($"subgraph \"cluster_{clusterId}\" {{");
+                nodes.AppendLine($"label=\"{EscapeForLabel(cluster.Key)}\";");
+                var extra = clusterAttrsSelector?.Invoke(cluster.Key);
+                if (!string.IsNullOrWhiteSpace(extra))
+                {
+                    foreach (var line in extra.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries))
+                    {
+                        nodes.AppendLine(line.EndsWith(";") ? line : line + ";");
+                    }
+                }
+                foreach (var node in cluster.Value)
+                {
+                    AppendNode(nodes, node, nodeAttrSelector);
+                }
+                nodes.AppendLine("}");
+            }
+
+            return nodes.ToString();
+        }
+
+        public string NodesToDot(IDotStyler<T> styler, Func<T, string?>? clusterSelector, Func<string, string?>? clusterAttrsSelector)
+        {
+            var nodes = new StringBuilder();
+            styler.BeginGraph(this);
+            var allNodes = Dfs().ToList();
+
+            if (clusterSelector is null)
+            {
+                foreach (var node in allNodes)
+                {
+                    AppendStyledNode(nodes, node, styler);
+                }
+                return nodes.ToString();
+            }
+
+            var clusterMap = new Dictionary<string, List<Node<T>>>(StringComparer.Ordinal);
+            var unclustered = new List<Node<T>>();
+
+            foreach (var node in allNodes)
+            {
+                var clusterKey = clusterSelector(node.Value);
+                if (string.IsNullOrWhiteSpace(clusterKey))
+                {
+                    unclustered.Add(node);
+                    continue;
+                }
+
+                if (!clusterMap.TryGetValue(clusterKey, out var list))
+                {
+                    list = new List<Node<T>>();
+                    clusterMap.Add(clusterKey, list);
+                }
+
+                list.Add(node);
+            }
+
+            foreach (var node in unclustered)
+            {
+                AppendStyledNode(nodes, node, styler);
+            }
+
+            foreach (var cluster in clusterMap.OrderBy(x => x.Key, StringComparer.Ordinal))
+            {
+                var clusterId = cluster.Key;
+                nodes.AppendLine($"subgraph \"cluster_{clusterId}\" {{");
+                nodes.AppendLine($"label=\"{EscapeForLabel(cluster.Key)}\";");
+                var extra = styler.BuildClusterAttrs(cluster.Key) ?? clusterAttrsSelector?.Invoke(cluster.Key);
+                if (!string.IsNullOrWhiteSpace(extra))
+                {
+                    foreach (var line in extra.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries))
+                    {
+                        nodes.AppendLine(line.EndsWith(";") ? line : line + ";");
+                    }
+                }
+                foreach (var node in cluster.Value)
+                {
+                    AppendStyledNode(nodes, node, styler);
+                }
+                nodes.AppendLine("}");
+            }
+
+            return nodes.ToString();
+        }
+
         private void AppendNode(StringBuilder nodes, Node<T> node)
         {
             var color = node.Parent == null ? " color = red" : string.Empty;
             nodes.AppendLine($"\"{_nameSelector(node.Value)}\" [label={_labelSelector(node.Value)}{color}]");
         }
-
-        private static string SanitizeClusterId(string value)
+        private void AppendNode(StringBuilder nodes, Node<T> node, Func<T, string?>? nodeAttrSelector)
         {
-            if (string.IsNullOrWhiteSpace(value)) return "ungrouped";
-            var sanitized = Regex.Replace(value, @"[^A-Za-z0-9_]+", "_");
-            sanitized = sanitized.Trim('_');
-            if (string.IsNullOrEmpty(sanitized)) sanitized = "cluster";
-            if (char.IsDigit(sanitized[0])) sanitized = "_" + sanitized;
-            return sanitized;
+            var color = node.Parent == null ? " color = red" : string.Empty;
+            var extra = nodeAttrSelector?.Invoke(node.Value);
+            if (!string.IsNullOrWhiteSpace(extra))
+                nodes.AppendLine($"\"{_nameSelector(node.Value)}\" [label={_labelSelector(node.Value)}{color} {extra}]");
+            else
+                nodes.AppendLine($"\"{_nameSelector(node.Value)}\" [label={_labelSelector(node.Value)}{color}]");
+        }        
+
+        private void AppendStyledNode(StringBuilder nodes, Node<T> node, IDotStyler<T> styler)
+        {
+            var isRoot = node.Parent == null;
+            var baseAttrs = isRoot ? " color = red" : string.Empty;
+            var label = styler.BuildNodeLabel(node.Value);
+            var extra = styler.BuildNodeAttrs(node.Value, isRoot);
+            var merged = MergeAttributes(label, baseAttrs, extra);
+            nodes.AppendLine($"\"{_nameSelector(node.Value)}\" {merged}");
         }
 
         private static string EscapeForLabel(string value)
@@ -159,6 +397,46 @@ namespace IntersectUtilities.UtilsCommon.Graphs
                     if (seen.Add(c)) st.Push(c);
                 }
             }
+        }
+
+        public string EdgesToDot(IDotStyler<T> styler, Func<Node<T>, Node<T>, string?>? edgeAttrSelector)
+        {
+            var edges = new StringBuilder();
+            if (Root == null) return string.Empty;
+
+            var q = new Queue<Node<T>>();
+            q.Enqueue(Root);
+
+            while (q.Count > 0)
+            {
+                var node = q.Dequeue();
+                foreach (var child in node.Children)
+                {
+                    var qa = edgeAttrSelector?.Invoke(node, child);
+                    var style = styler.BuildEdgeAttrs(node.Value, child.Value);
+                    var merged = MergeAttributes(null, null, qa, style);
+                    edges.AppendLine($"\"{_nameSelector(node.Value)}\" -> \"{_nameSelector(child.Value)}\" {merged}");
+                    q.Enqueue(child);
+                }
+            }
+
+            return edges.ToString();
+        }
+
+        private static string MergeAttributes(params string?[] parts)
+        {
+            var collected = new List<string>();
+            foreach (var p in parts)
+            {
+                if (string.IsNullOrWhiteSpace(p)) continue;
+                var s = p.Trim();
+                if (s.StartsWith("[")) s = s.Substring(1);
+                if (s.EndsWith("]")) s = s.Substring(0, s.Length - 1);
+                if (s.Length == 0) continue;
+                collected.Add(s);
+            }
+            if (collected.Count == 0) return string.Empty;
+            return "[ " + string.Join(", ", collected) + " ]";
         }
 
         public IEnumerator<Node<T>> GetEnumerator()
