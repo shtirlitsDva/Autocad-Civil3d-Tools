@@ -71,10 +71,10 @@ namespace NTRExport.TopologyModel
         {
             if (reach <= Tol || pipe.Length <= Tol) return;
 
-            var segRem = fromA ? (pipe.Length - sFrom) : sFrom;
+            var segRem = fromA ? pipe.Length - sFrom : sFrom;
             if (reach <= segRem + Tol)
             {
-                var s1 = fromA ? (sFrom + reach) : (sFrom - reach);
+                var s1 = fromA ? sFrom + reach : sFrom - reach;
                 AddSpan(pipe, sFrom, s1);
                 return;
             }

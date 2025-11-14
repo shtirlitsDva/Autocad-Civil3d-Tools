@@ -11,16 +11,17 @@ using IntersectUtilities.PipeScheduleV2;
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.DataManager;
 using IntersectUtilities.UtilsCommon.Enums;
-using IntersectUtilities.UtilsCommon.Graphs;
 
-using NTRExport.Interfaces;
+using NTRExport.Elevation;
 using NTRExport.Ntr;
 using NTRExport.NtrConfiguration;
+using NTRExport.Routing;
 using NTRExport.SoilModel;
 using NTRExport.TopologyModel;
-using NTRExport.Routing;
 
+using System.Diagnostics;
 using System.IO;
+using System.Text;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 
@@ -37,7 +38,7 @@ namespace NTRExport
         public void Initialize()
         {
             Document doc = AcApp.DocumentManager.MdiActiveDocument;
-            doc.Editor.WriteMessage("\nVelkommen til NTR Export!\n");            
+            doc.Editor.WriteMessage("\nVelkommen til NTR Export!\n");
 #if DEBUG
             AppDomain.CurrentDomain.AssemblyResolve +=
         new ResolveEventHandler(MissingAssemblyLoader.Debug_AssemblyResolve);
@@ -151,151 +152,6 @@ namespace NTRExport
             tx.Commit();
         }
 
-        //[CommandMethod("NTREXPORTV2")]
-        public void ntrexportv2()
-        {
-            DocumentCollection docCol = AcApp.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-
-            DataManager dm = new(new DataReferencesOptions());
-
-            using var fDb = dm.Fremtid();
-            using var fTx = fDb.TransactionManager.StartTransaction();
-
-            using var aDb = dm.Alignments();
-            using var aTx = aDb.TransactionManager.StartTransaction();
-
-            using var tx = localDb.TransactionManager.StartTransaction();
-
-            #region Clean previous entities
-            var toDelete = localDb.GetFjvPipes(tx);
-            if (toDelete.Count > 0)
-            {
-                foreach (var item in toDelete)
-                {
-                    item.CheckOrOpenForWrite();
-                    item.Erase(true);
-                }
-            }
-            #endregion
-
-            try
-            {
-                var ents = fDb.GetFjvEntities(fTx);
-                var als = aDb.HashSetOfType<Alignment>(aTx);
-
-                #region Basic implementation of rotation
-                //Read any NtrData from fremtidig
-                var ntrPsm = new PropertySetManager(
-                    fDb, PSetDefs.DefinedSets.NtrData);
-                var ntrDef = new PSetDefs.NtrData();
-
-                Dictionary<Entity, double> rotationDict = new();
-
-                foreach (var ent in ents)
-                {
-                    var rotation = ntrPsm.ReadPropertyDouble(
-                        ent, ntrDef.ElementRotation);
-                    if (rotation == 0) continue;
-                    rotationDict[ent] = rotation;
-                }
-                #endregion
-
-                PipelineNetwork pn = new PipelineNetwork();
-                pn.CreatePipelineNetwork(ents, als);
-                pn.CreatePipelineGraph();
-                pn.CreateSizeArrays();
-                pn.CreateSegmentGraphs();
-
-                var ntrgraphs = new List<Graph<INtrSegment>>();
-
-                if (pn.PipelineGraphs == null) return;
-
-                foreach (var pgraph in pn.PipelineGraphs)
-                {
-                    var sgraph = pgraph.Root.Value.SegmentsGraph;
-                    if (sgraph == null)
-                    {
-                        prdDbg($"WARNING: Segments graph for " +
-                        $"{pgraph.Root.Value.Name} is null!"); continue;
-                    }
-
-                    Node<INtrSegment> TranslateGraph(
-                        Node<IPipelineSegmentV2> proot,
-                        Dictionary<Entity, double> rdict)
-                    {
-                        INtrSegment ntrSegment;
-                        switch (proot.Value)
-                        {
-                            case PipelineSegmentV2 pseg:
-                                switch (pseg.Size.Type)
-                                {
-                                    case PipeTypeEnum.Twin:
-                                        ntrSegment = new NtrSegmentTwin(pseg, rdict);
-                                        break;
-                                    case PipeTypeEnum.Frem:
-                                    case PipeTypeEnum.Retur:
-                                    case PipeTypeEnum.Enkelt:
-                                        ntrSegment = new NtrSegmentEnkelt(pseg, rdict);
-                                        break;
-                                    case PipeTypeEnum.Ukendt:
-                                    default:
-                                        throw new NotImplementedException();
-                                }
-                                break;
-                            case PipelineTransitionV2 tseg:
-                                ntrSegment = new NtrSegmentTransition(tseg, rdict);
-                                break;
-                            default:
-                                throw new System.Exception(
-                                    $"ERR8736: Encountered unknown type: " +
-                                    $"{proot.Value.GetType()}");
-                        }
-
-                        var node = new Node<INtrSegment>(ntrSegment);
-
-                        foreach (var child in proot.Children)
-                        {
-                            var cnode = TranslateGraph(child, rdict);
-                            cnode.Parent = node;
-                            node.AddChild(cnode);
-                        }
-
-                        return node;
-                    }
-                    var root = TranslateGraph(sgraph.Root, rotationDict);
-                    var ntrgraph = new Graph<INtrSegment>(
-                        root,
-                        ntr => $"{ntr.PipelineSegment.Owner.Name}-{ntr.PipelineSegment.MidStation}",
-                        ntr => $"{ntr.PipelineSegment.Label}"
-                        );
-                    ntrgraphs.Add(ntrgraph);
-                }
-
-
-            }
-            catch (DebugPointException dbex)
-            {
-                prdDbg(dbex);
-                tx.Abort();
-
-                using var dtx = localDb.TransactionManager.StartTransaction();
-                foreach (var p in dbex.PointsToMark)
-                {
-                    DebugHelper.CreateDebugLine(p, ColorByName("red"));
-                }
-                dtx.Commit();
-                return;
-            }
-            catch (System.Exception ex)
-            {
-                prdDbg(ex);
-                tx.Abort();
-                return;
-            }
-            tx.Commit();
-        }
-
         [CommandMethod("NTREXPORT")]
         public void ntrexport()
         {
@@ -313,7 +169,7 @@ namespace NTRExport
         internal void ntrexportmethod(ConfigurationData? ntrConf = null)
         {
             DocumentCollection docCol = AcApp.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;            
+            Database localDb = docCol.MdiActiveDocument.Database;
 
             using var tx = localDb.TransactionManager.StartTransaction();
 
@@ -344,7 +200,7 @@ namespace NTRExport
                                 PipeScheduleV2.GetPipeSystem(ent));
                         case BlockReference br:
                             return acceptedSystems.Contains(
-                                br.GetPipeSystemEnum());                            
+                                br.GetPipeSystemEnum());
                         default:
                             return false;
                     }
@@ -378,8 +234,8 @@ namespace NTRExport
                 NtrCoord.InitFromTopology(topo, marginMeters: 0.0);
                 #endregion
 
-                #region ------------- Topology ➜ Routed ➜ NTR skeleton -------------
-                var routed = new Routing.Router(topo).Route();
+                #region ------------- Topology ➜ Traversal ➜ Routed skeleton -------------
+                var routed = new Router(topo).Route();
                 #endregion
 
                 #region ------------- Emit NTR -------------
@@ -411,7 +267,7 @@ namespace NTRExport
                             case RoutedTee tee:
                                 if (tee.DN > 0) dnsInGroup.Add(tee.DN);
                                 if (tee.DnBranch > 0) dnsInGroup.Add(tee.DnBranch);
-                                break;                            
+                                break;
                             default:
                                 if (member.DN > 0) dnsInGroup.Add(member.DN);
                                 break;
@@ -464,6 +320,342 @@ namespace NTRExport
                 return;
             }
             tx.Commit();
+        }
+
+#if DEBUG
+        [CommandMethod("NTRDOT")]
+        public void ntrdot()
+        {
+            DocumentCollection docCol = AcApp.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            using var tx = localDb.TransactionManager.StartTransaction();
+            try
+            {
+                var dwgPath = localDb.Filename;
+                var outDotPath = @"C:\Temp\ntrdot.dot";
+
+                // Build topology (same filter as export)
+                var ents = localDb.GetFjvEntities(tx);
+                var acceptedSystems = new HashSet<PipeSystemEnum>() { PipeSystemEnum.Stål };
+                bool isAccepted(Entity ent)
+                {
+                    switch (ent)
+                    {
+                        case Polyline _:
+                            return acceptedSystems.Contains(PipeScheduleV2.GetPipeSystem(ent));
+                        case BlockReference br:
+                            return acceptedSystems.Contains(br.GetPipeSystemEnum());
+                        default:
+                            return false;
+                    }
+                }
+                ents = ents.Where(x => isAccepted(x)).ToHashSet();
+
+                var polylines = ents.OfType<Polyline>().ToList();
+                var fittings = ents.OfType<BlockReference>().ToList();
+                var topo = TopologyBuilder.Build(polylines, fittings);
+
+                // Root selection debug (no traversal) - logs candidates and chosen roots per subnet
+                prdDbg("[NTRDOT] Root selection debug start...");
+                RootSelector.DebugPickRoots(topo);
+
+                // Build node -> (element, port) adjacency
+                var nodeAdj = new Dictionary<TNode, List<(ElementBase el, TPort port)>>(new RefEq<TNode>());
+                foreach (var el in topo.Elements)
+                {
+                    foreach (var p in el.Ports)
+                    {
+                        if (!nodeAdj.TryGetValue(p.Node, out var list)) nodeAdj[p.Node] = list = new();
+                        list.Add((el, p));
+                    }
+                }
+
+                // Build element adjacency (undirected)
+                var elAdj = new Dictionary<ElementBase, HashSet<ElementBase>>(new RefEq<ElementBase>());
+                foreach (var kv in nodeAdj)
+                {
+                    var items = kv.Value;
+                    for (int i = 0; i < items.Count; i++)
+                    {
+                        for (int j = i + 1; j < items.Count; j++)
+                        {
+                            var a = items[i].el;
+                            var b = items[j].el;
+                            if (ReferenceEquals(a, b)) continue;
+                            if (!elAdj.TryGetValue(a, out var setA)) elAdj[a] = setA = new(new RefEq<ElementBase>());
+                            if (!elAdj.TryGetValue(b, out var setB)) elAdj[b] = setB = new(new RefEq<ElementBase>());
+                            setA.Add(b);
+                            setB.Add(a);
+                        }
+                    }
+                }
+
+                // Find connected subnets of elements
+                var subnets = new List<List<ElementBase>>();
+                var visited = new HashSet<ElementBase>(new RefEq<ElementBase>());
+                foreach (var el in topo.Elements)
+                {
+                    if (!visited.Add(el))
+                        continue;
+                    var subnet = new List<ElementBase>();
+                    var q = new Queue<ElementBase>();
+                    q.Enqueue(el);
+                    while (q.Count > 0)
+                    {
+                        var cur = q.Dequeue();
+                        subnet.Add(cur);
+                        if (elAdj.TryGetValue(cur, out var nbrs))
+                        {
+                            foreach (var n in nbrs)
+                            {
+                                if (visited.Add(n))
+                                    q.Enqueue(n);
+                            }
+                        }
+                    }
+                    subnets.Add(subnet);
+                }
+
+                // Emit DOT
+                var sb = new StringBuilder();
+                sb.AppendLine("graph G {");
+                sb.AppendLine("  graph [compound=true];");
+                sb.AppendLine("  node [shape=box, fontsize=10];");
+
+                // Node labels and subnets
+                int subnetIdx = 0;
+                foreach (var comp in subnets)
+                {
+                    sb.AppendLine($"  subgraph cluster_{subnetIdx} {{");
+                    sb.AppendLine($"    label=\"subnet {subnetIdx}\";");
+                    sb.AppendLine("    color=lightgrey;");
+
+                    // Define nodes
+                    foreach (var e in comp)
+                    {
+                        var id = e.Source.ToString();
+                        var label = e.DotLabelForTest();
+                        sb.AppendLine($"    \"{id}\" [label=\"{label}\"];");
+                    }
+
+                    // DFS edges inside subnet, starting from chosen root
+                    ElementBase ChooseRootForComp(List<ElementBase> c)
+                    {
+                        // Leaf-by-port: at least one port has no neighbor
+                        bool IsLeafByPort(ElementBase el)
+                        {
+                            foreach (var p in el.Ports)
+                            {
+                                if (!nodeAdj.TryGetValue(p.Node, out var list)) return true;
+                                if (DegreeExcluding(list, el) == 0) return true;
+                            }
+                            return false;
+                        }
+
+                        int filtered = 0;
+                        ElementBase? best = null;
+                        int bestDn = -1;
+                        foreach (var e in c)
+                        {
+                            if (!IsLeafByPort(e)) { filtered++; continue; }
+                            int dn = 0;
+                            try { dn = e.DN; } catch { dn = 0; }
+                            if (dn > bestDn || (dn == bestDn && best != null && string.CompareOrdinal(e.Source.ToString(), best.Source.ToString()) < 0))
+                            {
+                                bestDn = dn;
+                                best = e;
+                            }
+                        }
+                        prdDbg($"[NTRDOT] Subnet {subnetIdx}: {filtered} component(s) with leafByPort=False were not considered.");
+                        if (best != null) return best;
+                        // Fallback: element with largest DN in subnet
+                        best = c.OrderByDescending(x => { try { return x.DN; } catch { return 0; } })
+                                .ThenBy(x => x.Source.ToString(), StringComparer.Ordinal)
+                                .First();
+                        return best;
+                    }
+
+                    int DegreeExcluding(List<(ElementBase el, TPort port)> items, ElementBase exclude)
+                    {
+                        var set = new HashSet<ElementBase>(new RefEq<ElementBase>());
+                        foreach (var t in items)
+                        {
+                            if (ReferenceEquals(t.el, exclude)) continue;
+                            set.Add(t.el);
+                        }
+                        return set.Count;
+                    }
+
+                    int ElementDegree(ElementBase el, Dictionary<TNode, List<(ElementBase el, TPort port)>> adj)
+                    {
+                        var set = new HashSet<ElementBase>(new RefEq<ElementBase>());
+                        foreach (var p in el.Ports)
+                        {
+                            if (!adj.TryGetValue(p.Node, out var list)) continue;
+                            foreach (var t in list)
+                            {
+                                if (ReferenceEquals(t.el, el)) continue;
+                                set.Add(t.el);
+                            }
+                        }
+                        return set.Count;
+                    }
+
+                    var root = ChooseRootForComp(comp);
+                    prdDbg($"[NTRDOT] Subnet {subnetIdx} DFS root: {root.Source} / {root.GetType().Name}");
+
+                    // Build DFS ordered edges
+                    var dfsVisited = new HashSet<ElementBase>(new RefEq<ElementBase>());
+                    var edgesOrdered = new List<(string a, string b)>();
+                    var edgeSeen = new HashSet<string>(StringComparer.Ordinal);
+
+                    void Dfs(ElementBase cur, ElementBase? parent)
+                    {
+                        dfsVisited.Add(cur);
+                        if (!elAdj.TryGetValue(cur, out var nbrs)) return;
+                        // stable order
+                        var ordered = nbrs.Where(n => comp.Contains(n))
+                                          .OrderBy(n => n.Source.ToString(), StringComparer.Ordinal)
+                                          .ToList();
+                        foreach (var n in ordered)
+                        {
+                            if (parent != null && ReferenceEquals(n, parent)) continue;
+                            if (!dfsVisited.Contains(n))
+                            {
+                                var ida = cur.Source.ToString();
+                                var idb = n.Source.ToString();
+                                if (!string.Equals(ida, idb, StringComparison.Ordinal))
+                                {
+                                    // dedupe undirected edge
+                                    var key = string.CompareOrdinal(ida, idb) <= 0 ? $"{ida}--{idb}" : $"{idb}--{ida}";
+                                    if (edgeSeen.Add(key))
+                                        edgesOrdered.Add((ida, idb));
+                                }
+                                Dfs(n, cur);
+                            }
+                        }
+                    }
+
+                    Dfs(root, null);
+                    // Cover any isolated or remaining nodes (safety)
+                    foreach (var e in comp)
+                    {
+                        if (!dfsVisited.Contains(e))
+                            Dfs(e, null);
+                    }
+
+                    foreach (var (a, b) in edgesOrdered)
+                        sb.AppendLine($"    \"{a}\" -- \"{b}\";");
+
+                    sb.AppendLine("  }");
+                    subnetIdx++;
+                }
+
+                sb.AppendLine("}");
+
+                var utf8NoBom = new UTF8Encoding(false);
+                File.WriteAllText(outDotPath, sb.ToString(), utf8NoBom);
+                prdDbg($"DOT written: {outDotPath}");
+
+                // Run Graphviz (PDF)
+                var cmd = new Process();
+                cmd.StartInfo.FileName = "dot";
+                cmd.StartInfo.WorkingDirectory = @"C:\Temp\";
+                cmd.StartInfo.Arguments = "-Tpdf ntrdot.dot -o ntrdot.pdf";
+                cmd.StartInfo.UseShellExecute = false;
+                cmd.Start();
+                cmd.WaitForExit();
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg(ex);
+                tx.Abort();
+                return;
+            }
+            tx.Commit();
+        }
+#endif
+
+        [CommandMethod("NTRCREATEPS")]
+        public void ntrcreateps()
+        {
+            DocumentCollection docCol = AcApp.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            PropertySetManager.UpdatePropertySetDefinition(localDb, PSetDefs.DefinedSets.NtrData);
+
+            using var tx = localDb.TransactionManager.StartTransaction();
+
+            try
+            {
+                var ents = localDb.GetFjvEntities(tx);
+
+                #region ------------- FILTER -------------
+                var acceptedSystems = new HashSet<PipeSystemEnum>() { PipeSystemEnum.Stål };
+
+                bool isAccepted(Entity ent)
+                {
+#if DEBUG
+                    //prdDbg("DEBUG filtering active! Polylines only.");
+                    //if (ent is BlockReference) return false;
+#endif
+
+                    switch (ent)
+                    {
+                        case Polyline _:
+                            return acceptedSystems.Contains(
+                                PipeScheduleV2.GetPipeSystem(ent));
+                        case BlockReference br:
+                            return acceptedSystems.Contains(
+                                br.GetPipeSystemEnum());
+                        default:
+                            return false;
+                    }
+                }
+
+                ents = ents.Where(x => isAccepted(x)).ToHashSet();
+                #endregion                
+
+                #region ------------- CAD ➜ Port topology -------------
+                var polylines = ents.OfType<Polyline>().ToList();
+                var fittings = ents.OfType<BlockReference>().ToList();
+                var topo = TopologyBuilder.Build(polylines, fittings);
+                #endregion                
+
+                foreach (var element in topo.Elements)
+                {
+                    element.AttachPropertySet();
+                }                
+            }
+            catch (DebugPointException dbex)
+            {
+                prdDbg(dbex);                
+
+                tx.Abort();
+
+                using var dtx = localDb.TransactionManager.StartTransaction();
+                foreach (var p in dbex.PointsToMark)
+                {
+                    DebugHelper.CreateDebugLine(p, ColorByName("red"));
+                }
+                dtx.Commit();
+                return;
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg(ex);                
+
+                tx.Abort();
+                return;
+            }
+            tx.Commit();
+        }
+
+        private sealed class RefEq<T> : IEqualityComparer<T> where T : class
+        {
+            public bool Equals(T? x, T? y) => ReferenceEquals(x, y);
+            public int GetHashCode(T obj) => System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(obj);
         }
     }
 }

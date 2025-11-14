@@ -3798,7 +3798,7 @@ namespace IntersectUtilities.UtilsCommon
 
     public static class ExtensionMethods
     {
-        public static T Go<T>(
+        public static T? Go<T>(
             this Oid oid,
             Transaction tx,
             Autodesk.AutoCAD.DatabaseServices.OpenMode openMode =
@@ -3810,7 +3810,7 @@ namespace IntersectUtilities.UtilsCommon
             return obj as T;
         }
 
-        public static T Go<T>(this Handle handle, Database database)
+        public static T? Go<T>(this Handle handle, Database database)
             where T : Autodesk.AutoCAD.DatabaseServices.DBObject
         {
             Oid id = database.GetObjectId(false, handle, 0);
@@ -3821,7 +3821,7 @@ namespace IntersectUtilities.UtilsCommon
             return id.Go<T>(database.TransactionManager.TopTransaction);
         }
 
-        public static T Go<T>(this Database db, string handle)
+        public static T? Go<T>(this Database db, string handle)
             where T : Autodesk.AutoCAD.DatabaseServices.DBObject
         {
             Handle h = new Handle(Convert.ToInt64(handle, 16));

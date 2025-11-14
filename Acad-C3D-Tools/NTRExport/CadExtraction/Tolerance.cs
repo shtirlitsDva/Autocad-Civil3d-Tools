@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace NTRExport.CadExtraction
 {
-    internal static class Tolerance
+    internal static class CadTolerance
     {
         public static double Tol => 0.005;
     }

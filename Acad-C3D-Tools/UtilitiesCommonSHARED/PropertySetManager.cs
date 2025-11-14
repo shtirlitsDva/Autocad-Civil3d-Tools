@@ -1,11 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Collections.Specialized;
-using System.Data;
-using System.Linq;
-
+﻿using Autodesk.Aec.DatabaseServices;
 using Autodesk.Aec.PropertyData.DatabaseServices;
-using Autodesk.AutoCAD.ApplicationServices.Core;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Runtime;
 using Autodesk.Civil.DatabaseServices;
@@ -13,6 +7,12 @@ using Autodesk.Civil.DatabaseServices;
 using IntersectUtilities.UtilsCommon;
 
 using MoreLinq;
+
+using System;
+using System.Collections.Generic;
+using System.Collections.Specialized;
+using System.Data;
+using System.Linq;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 
@@ -62,98 +62,10 @@ namespace IntersectUtilities
                     "PropertySetManager: Must be instantiated within a Transaction!");
             }
             //3
-            PropertySetDefinition = GetOrCreatePropertySetDefinition(propertySetName);
-        }
-
-        private PropertySetDefinition GetOrCreatePropertySetDefinition(
-            PSetDefs.DefinedSets propertySetName
-        )
-        {
-            if (PropertySetDefinitionExists(propertySetName))
-            {
-                //List<PSetDefs.Property> missingProperties = CheckPropertySetDefinition(propertySetName);
-                //if (missingProperties.Count == 0) return GetPropertySetDefinition(propertySetName);
-                //else
-                //{
-                //    UpdatePropertySetDefinition(propertySetName, missingProperties);
-                return GetPropertySetDefinition(propertySetName);
-                //}
-            }
-            else
-                return CreatePropertySetDefinition(propertySetName);
-        }
-
-        private PropertySetDefinition CreatePropertySetDefinition(
-            PSetDefs.DefinedSets propertySetName
-        )
-        {
-            string setName = propertySetName.ToString();
-            prdDbg($"Defining PropertySet {propertySetName}.");
-
-            //General properties
-            PropertySetDefinition propSetDef = new PropertySetDefinition();
-            propSetDef.SetToStandard(Db);
-            propSetDef.SubSetDatabaseDefaults(Db);
-            propSetDef.Description = setName;
-            bool isStyle = false;
-
-            PSetDefs pSetDefs = new PSetDefs();
-            PSetDefs.PSetDef currentDef = pSetDefs.GetRequestedDef(propertySetName);
-
-            propSetDef.SetAppliesToFilter(currentDef.GetAppliesTo(), isStyle);
-
-            foreach (PSetDefs.Property property in currentDef.ListOfProperties())
-            {
-                var propDefManual = new PropertyDefinition();
-                propDefManual.SetToStandard(Db);
-                propDefManual.SubSetDatabaseDefaults(Db);
-
-                propDefManual.Name = property.Name;
-                propDefManual.Description = property.Description;
-                propDefManual.DataType = property.DataType;
-                propDefManual.DefaultData = property.DefaultValue;
-                propSetDef.Definitions.Add(propDefManual);
-            }
-
-            using (Transaction defTx = Db.TransactionManager.StartTransaction())
-            {
-                DictionaryPropertySetDefinitions.AddNewRecord(setName, propSetDef);
-                defTx.AddNewlyCreatedDBObject(propSetDef, true);
-                defTx.Commit();
-            }
-
-            return propSetDef;
-        }
-
-        private bool PropertySetDefinitionExists(PSetDefs.DefinedSets propertySetName)
-        {
-            string setName = propertySetName.ToString();
-            if (DictionaryPropertySetDefinitions.Has(setName, Db.TransactionManager.TopTransaction))
-            {
-                //prdDbg($"Property Set {setName} already defined.");
-                return true;
-            }
-            else
-            {
-                prdDbg($"Property Set {setName} is not defined. Creating...");
-                return false;
-            }
-        }
-
-        private PropertySetDefinition GetPropertySetDefinition(
-            PSetDefs.DefinedSets propertySetName,
-            Transaction tx = null
-        )
-        {
-            if (Db == null)
-                throw new System.Exception("Database is null!");
-            if (tx == null && Db.TransactionManager.TopTransaction == null)
-                throw new System.Exception(
-                    "GetPropertySetDefinition: Usage outside of transaction!"
-                );
-            return DictionaryPropertySetDefinitions
-                .GetAt(propertySetName.ToString())
-                .Go<PropertySetDefinition>(tx ?? Db.TransactionManager.TopTransaction);
+            PropertySetDefinition = PSetDefs.GetOrCreatePropertySetDefinition(
+                Db,
+                DictionaryPropertySetDefinitions,
+                propertySetName);
         }
 
         public void GetOrAttachPropertySet(Entity ent)
@@ -196,20 +108,6 @@ namespace IntersectUtilities
             return PropertyDataServices
                 .GetPropertySet(ent, this.PropertySetDefinition.Id)
                 .Go<PropertySet>(Db.TransactionManager.TopTransaction);
-        }
-
-        /// <summary>
-        /// OBSOLETE!!!
-        /// </summary>
-        [Obsolete("Use ReadPropertyString(Entity ent, PSetDefs.Property property)")]
-        public string ReadPropertyString(PSetDefs.Property property)
-        {
-            int propertyId = this.CurrentPropertySet.PropertyNameToId(property.Name);
-            object value = this.CurrentPropertySet.GetAt(propertyId);
-            if (value == null)
-                return "";
-            else
-                return value.ToString();
         }
 
         public string ReadPropertyString(Entity ent, PSetDefs.Property property)
@@ -739,8 +637,7 @@ namespace IntersectUtilities
 
         public static void UpdatePropertySetDefinition(
             Database db,
-            PSetDefs.DefinedSets propertySetName
-        )
+            PSetDefs.DefinedSets propertySetName)
         {
             if (db.TransactionManager.TopTransaction != null)
             {
@@ -779,17 +676,7 @@ namespace IntersectUtilities
 
                 foreach (PSetDefs.Property property in missingProperties)
                 {
-                    var propDefManual = new PropertyDefinition();
-                    propDefManual.SetToStandard(db);
-                    propDefManual.SubSetDatabaseDefaults(db);
-
-                    propDefManual.Name = property.Name;
-                    propDefManual.Description = property.Description;
-                    propDefManual.DataType = property.DataType;
-                    propDefManual.DefaultData = property.DefaultValue;
-
-                    propSetDef.CheckOrOpenForWrite();
-                    propSetDef.Definitions.Add(propDefManual);
+                    property.AddToDefinition(db, propSetDef);
                 }
                 tx.Commit();
             }
@@ -1172,7 +1059,7 @@ namespace IntersectUtilities
 
         public class FJV_område : PSetDef
         {
-            public DefinedSets SetName { get; } = DefinedSets.FJV_område;
+            public override DefinedSets SetName { get; } = DefinedSets.FJV_område;
             public Property Område { get; } =
                 new Property(
                     "Område",
@@ -1180,20 +1067,20 @@ namespace IntersectUtilities
                     PsDataType.Text,
                     ""
                 );
-            public StringCollection AppliesTo { get; } =
+            public override StringCollection AppliesTo { get; } =
                 new StringCollection() { RXClass.GetClass(typeof(Polyline)).Name };
         }
 
         public class FJV_fremtid : PSetDef
         {
-            public DefinedSets SetName { get; } = DefinedSets.FJV_fremtid;
+            public override DefinedSets SetName { get; } = DefinedSets.FJV_fremtid;
             public Property Bemærkninger { get; } =
                 new Property("Bemærkninger", "Bemærkninger", PsDataType.Text, "");
             public Property Distriktets_navn { get; } =
                 new Property("Distriktets_navn", "Distriktets_navn.", PsDataType.Text, "");
             public Property Length { get; } =
                 new Property("Length", "Stores the length of the entity.", PsDataType.Real, 0);
-            public StringCollection AppliesTo { get; } =
+            public override StringCollection AppliesTo { get; } =
                 new StringCollection()
                 {
                     RXClass.GetClass(typeof(Polyline)).Name,
@@ -1203,7 +1090,7 @@ namespace IntersectUtilities
 
         public class DriCrossingData : PSetDef
         {
-            public DefinedSets SetName { get; } = DefinedSets.DriCrossingData;
+            public override DefinedSets SetName { get; } = DefinedSets.DriCrossingData;
             public Property Diameter { get; } =
                 new Property("Diameter", "Stores crossing pipe's diameter.", PsDataType.Integer, 0);
             public Property Alignment { get; } =
@@ -1222,13 +1109,13 @@ namespace IntersectUtilities
                     PsDataType.TrueFalse,
                     false
                 );
-            public StringCollection AppliesTo { get; } =
+            public override StringCollection AppliesTo { get; } =
                 new StringCollection() { RXClass.GetClass(typeof(CogoPoint)).Name };
         }
 
         public class DriSourceReference : PSetDef
         {
-            public DefinedSets SetName { get; } = DefinedSets.DriSourceReference;
+            public override DefinedSets SetName { get; } = DefinedSets.DriSourceReference;
             public Property SourceEntityHandle { get; } =
                 new Property(
                     "SourceEntityHandle",
@@ -1243,13 +1130,13 @@ namespace IntersectUtilities
                     PsDataType.Real,
                     99999.9
                 );
-            public StringCollection AppliesTo { get; } =
+            public override StringCollection AppliesTo { get; } =
                 new StringCollection() { RXClass.GetClass(typeof(BlockReference)).Name };
         }
 
         public class DriPipelineData : PSetDef
         {
-            public DefinedSets SetName { get; } = DefinedSets.DriPipelineData;
+            public override DefinedSets SetName { get; } = DefinedSets.DriPipelineData;
             public Property BelongsToAlignment { get; } =
                 new Property(
                     "BelongsToAlignment",
@@ -1271,7 +1158,7 @@ namespace IntersectUtilities
                     PsDataType.Text,
                     ""
                 );
-            public StringCollection AppliesTo { get; } =
+            public override StringCollection AppliesTo { get; } =
                 new StringCollection()
                 {
                     RXClass.GetClass(typeof(Polyline)).Name,
@@ -1281,14 +1168,14 @@ namespace IntersectUtilities
 
         public class DriGasDimOgMat : PSetDef
         {
-            public DefinedSets SetName { get; } = DefinedSets.DriGasDimOgMat;
+            public override DefinedSets SetName { get; } = DefinedSets.DriGasDimOgMat;
             public Property Dimension { get; } =
                 new Property("Dimension", "Dimension of the gas pipe.", PsDataType.Integer, 0);
             public Property Material { get; } =
                 new Property("Material", "Material of the gas pipe.", PsDataType.Text, "");
             public Property Bemærk { get; } =
                 new Property("Bemærk", "Bemærkning til ledning.", PsDataType.Text, "");
-            public StringCollection AppliesTo { get; } =
+            public override StringCollection AppliesTo { get; } =
                 new StringCollection()
                 {
                     RXClass.GetClass(typeof(Polyline)).Name,
@@ -1299,7 +1186,7 @@ namespace IntersectUtilities
 
         public class DriOmråder : PSetDef
         {
-            public DefinedSets SetName { get; } = DefinedSets.DriOmråder;
+            public override DefinedSets SetName { get; } = DefinedSets.DriOmråder;
             public Property Nummer { get; } =
                 new Property("Nummer", "Number of pipeline.", PsDataType.Text, "");
             public Property Vejnavn { get; } =
@@ -1314,16 +1201,16 @@ namespace IntersectUtilities
                 new Property("Vejklasse", "Street/road class.", PsDataType.Text, "");
             public Property Belægning { get; } =
                 new Property("Belægning", "Pavement type.", PsDataType.Text, "");
-            public StringCollection AppliesTo { get; } =
+            public override StringCollection AppliesTo { get; } =
                 new StringCollection() { RXClass.GetClass(typeof(Polyline)).Name };
         }
 
         public class DriGraph : PSetDef
         {
-            public DefinedSets SetName { get; } = DefinedSets.DriGraph;
+            public override DefinedSets SetName { get; } = DefinedSets.DriGraph;
             public Property ConnectedEntities { get; } =
                 new Property("ConnectedEntities", "Lists connected entities", PsDataType.Text, "");
-            public StringCollection AppliesTo { get; } =
+            public override StringCollection AppliesTo { get; } =
                 new StringCollection()
                 {
                     RXClass.GetClass(typeof(Polyline)).Name,
@@ -1333,12 +1220,12 @@ namespace IntersectUtilities
 
         public class DriDimGraph : PSetDef
         {
-            public DefinedSets SetName { get; } = DefinedSets.DriDimGraph;
+            public override DefinedSets SetName { get; } = DefinedSets.DriDimGraph;
             public Property Parent { get; } =
                 new Property("Parent", "Lists parent entity", PsDataType.Text, "");
             public Property Children { get; } =
                 new Property("Children", "Lists children entities", PsDataType.Text, "");
-            public StringCollection AppliesTo { get; } =
+            public override StringCollection AppliesTo { get; } =
                 new StringCollection()
                 {
                     RXClass.GetClass(typeof(Line)).Name,
@@ -1349,7 +1236,7 @@ namespace IntersectUtilities
 
         public class BBR : PSetDef
         {
-            public DefinedSets SetName { get; } = DefinedSets.BBR;
+            public override DefinedSets SetName { get; } = DefinedSets.BBR;
             public Property id_lokalId { get; } =
                 new Property("id_lokalId", "id_lokalId", PsDataType.Text, "");
             public Property id_husnummerid { get; } =
@@ -1437,28 +1324,44 @@ namespace IntersectUtilities
                 new Property("Distriktets_navn", "Distriktets_navn", PsDataType.Text, "");
             public Property AntalEnheder { get; } =
                 new Property("AntalEnheder", "AntalEnheder", PsDataType.Integer, 1);
-            public StringCollection AppliesTo { get; } =
+            public override StringCollection AppliesTo { get; } =
                 new StringCollection() { RXClass.GetClass(typeof(BlockReference)).Name };
         }
 
         public class NtrData : PSetDef
         {
-            public DefinedSets SetName { get; } = DefinedSets.NtrData;
-            public Property ElementRotation { get; } =
+            public override DefinedSets SetName { get; } = DefinedSets.NtrData;
+            public Property AfgreningMedSpringDir { get; } =
+                new ListProperty.UpDown(
+                    "AfgreningMedSpringDir",
+                    "Direction of the element branch.");
+            public Property VertikalBøjningDir { get; } =
+                new ListProperty.UpDown(
+                    "VertikalBøjningDir",
+                    "Direction of the element vertical bend.");
+            public Property BøjningBenRotationAxis { get; } =
+                new ListProperty.NearFar(
+                    "BøjningBenRotationAxis",
+                    "Location of the bends' leg which is the axis of rotation.");
+            public Property BøjningRotationVinkel { get; } =
                 new Property(
-                    "ElementRotation", 
-                    "Rotation of the pipe element around x-axis of the main run.", 
-                    PsDataType.Real, 0);
-            public StringCollection AppliesTo { get; } =
+                    "BøjningRotationVinkel",
+                    "Rotation angle of the bend.",
+                    PsDataType.Real,
+                    0.0
+                );
+            public override StringCollection AppliesTo { get; } =
                 new StringCollection()
                 {
-                    RXClass.GetClass(typeof(Polyline)).Name,
                     RXClass.GetClass(typeof(BlockReference)).Name,
                 };
         }
 
-        public class PSetDef
+        public abstract class PSetDef
         {
+            public abstract DefinedSets SetName { get; }
+            public abstract StringCollection AppliesTo { get; }
+
             public List<Property> ListOfProperties()
             {
                 var propDict = ToPropertyDictionary();
@@ -1481,14 +1384,40 @@ namespace IntersectUtilities
 
             public DefinedSets PSetName()
             {
-                var propDict = ToPropertyDictionary();
-                return (DefinedSets)propDict["SetName"];
+                return SetName;
             }
 
             public StringCollection GetAppliesTo()
             {
-                var propDict = ToPropertyDictionary();
-                return (StringCollection)propDict["AppliesTo"];
+                return AppliesTo;
+            }
+
+            public virtual PropertySetDefinition CreatePropertySetDefinition(
+                Database database,
+                DictionaryPropertySetDefinitions dictionaryPropertySetDefinitions
+            )
+            {
+                // Create the PropertySetDefinition and let each property add itself (polymorphism)
+                string setName = SetName.ToString();
+                PropertySetDefinition propSetDef = new PropertySetDefinition();
+                propSetDef.SetToStandard(database);
+                propSetDef.SubSetDatabaseDefaults(database);
+                propSetDef.Description = setName;
+                bool isStyle = false;
+
+                propSetDef.SetAppliesToFilter(GetAppliesTo(), isStyle);
+
+                foreach (PSetDefs.Property property in ListOfProperties())
+                    property.AddToDefinition(database, propSetDef);
+
+                using (Transaction defTx = database.TransactionManager.StartTransaction())
+                {
+                    dictionaryPropertySetDefinitions.AddNewRecord(setName, propSetDef);
+                    defTx.AddNewlyCreatedDBObject(propSetDef, true);
+                    defTx.Commit();
+                }
+
+                return propSetDef;
             }
         }
 
@@ -1511,6 +1440,120 @@ namespace IntersectUtilities
                 DataType = dataType;
                 DefaultValue = defaultValue;
             }
+
+            public virtual void AddToDefinition(Database database, PropertySetDefinition propSetDef)
+            {
+                var propDefManual = new PropertyDefinition();
+                propDefManual.SetToStandard(database);
+                propDefManual.SubSetDatabaseDefaults(database);
+
+                propDefManual.Name = Name;
+                propDefManual.Description = Description;
+                propDefManual.DataType = DataType;
+                propDefManual.DefaultData = DefaultValue;
+
+                propSetDef.Definitions.Add(propDefManual);
+            }
+        }
+
+        public class ListProperty : Property
+        {
+            public string ListName { get; }
+            public StringCollection ListAppliesTo { get; }
+            public StringCollection ListItems { get; }
+
+            public ListProperty(
+                string name,
+                string description,
+                string listName,
+                StringCollection listAppliesTo,
+                StringCollection listItems)
+                : base(name, description, PsDataType.List, null)
+            {
+                ListName = listName;
+                ListAppliesTo = listAppliesTo;
+                ListItems = listItems;
+            }
+
+            public override void AddToDefinition(Database database, PropertySetDefinition propSetDef)
+            {
+                //https://forums.autodesk.com/t5/net-forum/modify-list-definition-for-a-manual-property-definition/td-p/12055826
+
+                if (database == null || database.TransactionManager.TopTransaction == null)
+                    throw new System.Exception(
+                        "ListProperty.AddToDefinition called outside of transaction!");
+
+                DictionaryListDefinition ldDict = new DictionaryListDefinition(database);
+
+                Oid listDefId = Oid.Null;
+
+                if (!ldDict.Has(ListName, database.TransactionManager.TopTransaction))
+                {
+                    using (Transaction tr = database.TransactionManager.StartTransaction())
+                    {
+                        var ld = new ListDefinition();
+                        ld.SubSetDatabaseDefaults(database);
+                        ld.SetToStandard(database);
+
+                        ldDict.AddNewRecord(ListName, ld);
+
+                        foreach (string item in ListItems)
+                        {
+                            Oid itemId = ld.AddListItem(item);
+                        }
+
+                        ld.Description = $"List for {propSetDef.Description}.{Name}";
+                        ld.AppliesToFilter = ListAppliesTo;
+
+                        tr.AddNewlyCreatedDBObject(ld, true);
+                        listDefId = ld.Id;
+                        tr.Commit();
+                    }
+                }
+                else
+                {
+                    var ldOid = ldDict.GetAt(ListName);
+                    listDefId = ldOid;                    
+                }
+
+                var propDefManual = new PropertyDefinition();
+                propDefManual.SetToStandard(database);
+                propDefManual.SubSetDatabaseDefaults(database);
+
+                propDefManual.Name = Name;
+                propDefManual.Description = Description;
+                propDefManual.DataType = PsDataType.List;
+                propDefManual.ListDefinitionId = listDefId;
+                propDefManual.DefaultData = ListItems[0];
+
+                propSetDef.CheckOrOpenForWrite();
+                propSetDef.Definitions.Add(propDefManual);
+            }
+
+            public class UpDown : ListProperty
+            {
+                public UpDown(string name, string description)
+                    : base(
+                        name,
+                        description,
+                        "UpDown",
+                        new StringCollection() { "AecListUserManualPropertyDef" },
+                        new StringCollection() { "Up", "Down" }
+                    )
+                { }
+            }
+            public class NearFar : ListProperty
+            {
+                public NearFar(string name, string description)
+                    : base(
+                        name,
+                        description,
+                        "NearFar",
+                        new StringCollection() { "AecListUserManualPropertyDef" },
+                        new StringCollection() { "Near", "Far" }
+                    )
+                { }
+            }
         }
 
         public List<PSetDef> GetPSetClasses()
@@ -1518,7 +1561,11 @@ namespace IntersectUtilities
             var type = this.GetType();
             var types = type.Assembly.GetTypes();
             return types
-                .Where(x => x.BaseType != null && x.BaseType.Equals(typeof(PSetDef)))
+                .Where(x =>
+                    x.BaseType != null &&
+                    !x.IsAbstract &&
+                    typeof(PSetDef).IsAssignableFrom(x) &&
+                    x != typeof(PSetDef))
                 .Select(x => Activator.CreateInstance(x))
                 .Cast<PSetDef>()
                 .ToList();
@@ -1530,6 +1577,59 @@ namespace IntersectUtilities
 
             return list.Where(x => x.PSetName() == requestedSet).First();
         }
+
+        public static PropertySetDefinition GetOrCreatePropertySetDefinition(
+            Database database,
+            DictionaryPropertySetDefinitions dictionaryPropertySetDefinitions,
+            DefinedSets propertySetName)
+        {
+            if (PropertySetDefinitionExists(database, dictionaryPropertySetDefinitions, propertySetName))
+            {
+                return GetPropertySetDefinition(database, dictionaryPropertySetDefinitions, propertySetName);
+            }
+            else
+            {
+                // Use the specific definition instance to create the property set definition.
+                PSetDefs defs = new PSetDefs();
+                PSetDefs.PSetDef currentDef = defs.GetRequestedDef(propertySetName);
+                return currentDef.CreatePropertySetDefinition(database, dictionaryPropertySetDefinitions);
+            }
+        }
+
+        private static bool PropertySetDefinitionExists(
+            Database database,
+            DictionaryPropertySetDefinitions dictionaryPropertySetDefinitions,
+            DefinedSets propertySetName)
+        {
+            string setName = propertySetName.ToString();
+            if (dictionaryPropertySetDefinitions.Has(setName, database.TransactionManager.TopTransaction))
+            {
+                return true;
+            }
+            else
+            {
+                prdDbg($"Property Set {setName} is not defined. Creating...");
+                return false;
+            }
+        }
+
+        private static PropertySetDefinition GetPropertySetDefinition(
+            Database database,
+            DictionaryPropertySetDefinitions dictionaryPropertySetDefinitions,
+            DefinedSets propertySetName,
+            Transaction tx = null)
+        {
+            if (database == null)
+                throw new System.Exception("Database is null!");
+            if (tx == null && database.TransactionManager.TopTransaction == null)
+                throw new System.Exception(
+                    "GetPropertySetDefinition: Usage outside of transaction!"
+                );
+            return dictionaryPropertySetDefinitions
+                .GetAt(propertySetName.ToString())
+                .Go<PropertySetDefinition>(tx ?? database.TransactionManager.TopTransaction);
+        }
+
     }
 
     public class PropertySetNameComparer : IEqualityComparer<PropertySet>
@@ -1559,6 +1659,42 @@ namespace IntersectUtilities
             Pipeline = new PSM_Pipeline(db);
             PipelineDef = new PSetDefs.DriPipelineData();
         }
+    }
+
+    public class NtrData : PropertySetManager
+    {
+        private Entity _ent;
+        private PSetDefs.NtrData _def = new PSetDefs.NtrData();
+        public NtrData(Entity ent)
+            : base(ent.Database, PSetDefs.DefinedSets.NtrData)
+        {
+            _ent = ent;
+            GetOrAttachPropertySet(_ent);
+        }
+        public string AfgreningMedSpringDir
+        {
+            get => ReadPropertyString(_ent, _def.AfgreningMedSpringDir);
+            set => WritePropertyObject(_ent, _def.AfgreningMedSpringDir, value);
+        }
+
+        public string VertikalBøjningDir
+        {
+            get => ReadPropertyString(_ent, _def.VertikalBøjningDir);
+            set => WritePropertyObject(_ent, _def.VertikalBøjningDir, value);
+        }
+
+        public string BøjningBenRotationAxis
+        {
+            get => ReadPropertyString(_ent, _def.BøjningBenRotationAxis);
+            set => WritePropertyObject(_ent, _def.BøjningBenRotationAxis, value);
+        }
+
+        public double BøjningRotationVinkel
+        {
+            get => ReadPropertyDouble(_ent, _def.BøjningRotationVinkel);
+            set => WritePropertyObject(_ent, _def.BøjningRotationVinkel, value);
+        }
+
     }
 
     public class BBR : PropertySetManager

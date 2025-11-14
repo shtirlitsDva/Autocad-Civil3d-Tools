@@ -7,8 +7,8 @@ using NTRExport.Enums;
 using NTRExport.Ntr;
 using NTRExport.NtrConfiguration;
 using NTRExport.SoilModel;
-using NTRExport.TopologyModel;
 using IntersectUtilities.UtilsCommon.Enums;
+using NTRExport.TopologyModel;
 
 namespace NTRExport.Routing
 {

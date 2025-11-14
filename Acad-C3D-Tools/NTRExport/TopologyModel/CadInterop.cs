@@ -22,7 +22,7 @@ namespace NTRExport.TopologyModel
 
             foreach (ObjectId id in btr)
             {
-                if (!id.ObjectClass.IsDerivedFrom(RXClass.GetClass(typeof(BlockReference)))) continue;
+                if (!id.ObjectClass.IsDerivedFrom(RXObject.GetClass(typeof(BlockReference)))) continue;
                 var nested = (BlockReference)tr.GetObject(id, OpenMode.ForRead);
                 var name = nested.Name ?? string.Empty;
                 if (!name.Contains("MuffeIntern", StringComparison.OrdinalIgnoreCase)) continue;
