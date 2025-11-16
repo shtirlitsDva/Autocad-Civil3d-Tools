@@ -40,6 +40,7 @@
 	  <Compile Remove="TopologyModel\CadInterop.cs" />
 	</ItemGroup>
 	<ItemGroup>
+	  <None Remove="TopologyModel\Data\fmodel.csv" />
 	  <None Remove="TopologyModel\Data\spring_tables.csv" />
 	</ItemGroup>
 	<ItemGroup>
@@ -124,6 +125,7 @@
 	</ItemGroup>
 	<ItemGroup>
 	  <EmbeddedResource Include="TopologyModel\CadInterop.cs" />
+	  <EmbeddedResource Include="TopologyModel\Data\fmodel.csv" />
 	</ItemGroup>
 	<ItemGroup>
 	  <EmbeddedResource Include="TopologyModel\Data\spring_tables.csv" />
