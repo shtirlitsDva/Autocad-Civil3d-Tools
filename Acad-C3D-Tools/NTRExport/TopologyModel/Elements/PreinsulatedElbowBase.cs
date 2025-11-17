@@ -28,7 +28,8 @@ namespace NTRExport.TopologyModel
         protected abstract int ThresholdDN { get; }
 
         public override List<(TPort exitPort, double exitZ, double exitSlope)> Route(
-            RoutedGraph g, Topology topo, RouterContext ctx, TPort entryPort, double entryZ, double entrySlope)
+            RoutedGraph g, Topology topo, RouterContext ctx, TPort entryPort,
+            double entryZ, double entrySlope)
         {
             var exits = new List<(TPort exitPort, double exitZ, double exitSlope)>();
 
@@ -47,7 +48,9 @@ namespace NTRExport.TopologyModel
             var a = ends[0].Node.Pos;
             var b = ends[1].Node.Pos;
             var t = TangentPoint;
-            var r = (DN <= ThresholdDN ? Geometry.GetBogRadius5D(DN) : Geometry.GetBogRadius3D(DN)) / 1000.0;
+            var r = (DN <= ThresholdDN ?
+                Geometry.GetBogRadius5D(DN) :
+                Geometry.GetBogRadius3D(DN)) / 1000.0;
 
             // Solve fillet points a' and b' for a radius r between lines (a↔t) and (b↔t)
             Point2d a2 = a.To2d();
@@ -97,7 +100,8 @@ namespace NTRExport.TopologyModel
             var bPrime2 = new Point2d(t2.X + ub.X * l, t2.Y + ub.Y * l);
 
             var (zUp, zLow) = ComputeTwinOffsets(System, Type, DN);
-            var mainFlow = Variant.IsTwin ? FlowRole.Return : (Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return);
+            var mainFlow = Variant.IsTwin ? FlowRole.Return :
+                (Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return);
             var ltg = LTGMain(Source);
 
             void EmitFor(double zOffset, FlowRole flow)
@@ -152,15 +156,17 @@ namespace NTRExport.TopologyModel
                         LTG = ltg,
                     }
                 );
-            }
-
-            // Emit main flow
-            EmitFor(Variant.IsTwin ? zUp : 0.0, mainFlow);
+            }            
 
             // Emit supply for twin
             if (Variant.IsTwin)
             {
-                EmitFor(zLow, FlowRole.Supply);
+                EmitFor(zLow, FlowRole.Supply);                
+                EmitFor(zUp, FlowRole.Return);
+            }
+            else
+            {
+                EmitFor(zLow, ResolveBondedFlowRole(topo));
             }
 
             // Propagate same Z and slope to all other ports

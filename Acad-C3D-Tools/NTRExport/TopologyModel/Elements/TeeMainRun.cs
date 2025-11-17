@@ -172,7 +172,8 @@ namespace NTRExport.TopologyModel
         }
 
         public override List<(TPort exitPort, double exitZ, double exitSlope)> Route(
-            RoutedGraph g, Topology topo, RouterContext ctx, TPort entryPort, double entryZ, double entrySlope)
+            RoutedGraph g, Topology topo, RouterContext ctx, 
+            TPort entryPort, double entryZ, double entrySlope)
         {
             var exits = new List<(TPort exitPort, double exitZ, double exitSlope)>();
 
@@ -186,7 +187,6 @@ namespace NTRExport.TopologyModel
                     $"found {mains.Length} Main and {(branch == null ? "0" : "1")} Branch ports.");
             }
 
-            // Read direction and ΔZ from DN table
             var isUp = IsUp();
 
             int dnBranch = DnB;
@@ -235,6 +235,7 @@ namespace NTRExport.TopologyModel
             var t2 = end45_2d;             // 45° intersection point (tangent point)
             var va = a2 - t2; var vb = b2 - t2;
             var ltgBranch = LTGBranch(Source);
+            if (ltgBranch.IsNoE()) ltgBranch = LTGMain(Source);
             var branchFlow = Variant.IsTwin ? FlowRole.Unknown : ResolveBondedFlowRole(topo, branch);
             double r = Geometry.GetBogRadius5D(DnB) / 1000.0;
 

@@ -21,7 +21,6 @@ using IntersectUtilities.GraphClasses;
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.DataManager;
 using IntersectUtilities.UtilsCommon.Enums;
-using IntersectUtilities.UtilsCommon.Graphs;
 
 using Microsoft.Win32;
 
@@ -2111,7 +2110,7 @@ namespace IntersectUtilities
             IntersectUtilities.ODDataConverter.ODDataConverter.oddatacreatepropertysetsdefs();
             IntersectUtilities.ODDataConverter.ODDataConverter.attachpropertysetstoobjects();
             IntersectUtilities.ODDataConverter.ODDataConverter.populatepropertysetswithoddata();
-        }        
+        }
 
         /// <command>SELECTBYPS</command>
         /// <summary>
@@ -5440,5 +5439,290 @@ namespace IntersectUtilities
             tx.Abort();
         }
 
+        private static double _lastTangentArcRadius = 2.5;
+
+        [CommandMethod("TANGENTARCFROMLINE")]
+        public void TangentArcFromLine()
+        {
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+            Database db = doc.Database;
+            Editor ed = doc.Editor;
+
+            PromptDistanceOptions arcRadiusOptions = new PromptDistanceOptions("\nEnter arc radius");
+            arcRadiusOptions.AllowNegative = false;
+            arcRadiusOptions.AllowNone = false;
+            arcRadiusOptions.DefaultValue = _lastTangentArcRadius;
+            arcRadiusOptions.UseDefaultValue = true;
+
+            PromptDoubleResult arcRadiusResult = ed.GetDistance(arcRadiusOptions);
+            if (arcRadiusResult.Status != PromptStatus.OK)
+                return;
+
+            double arcRadius = arcRadiusResult.Value;
+            _lastTangentArcRadius = arcRadius;
+
+            var baseLineOptions = new PromptEntityOptions("\nSelect line");
+            baseLineOptions.SetRejectMessage("\nNot a line");
+            baseLineOptions.AddAllowedClass(typeof(Line), exactMatch: true);
+
+            var baseLineResult = ed.GetEntity(baseLineOptions);
+            if (baseLineResult.Status != PromptStatus.OK)
+                return;
+
+            Point3d startPoint;
+            Point3d endPoint;
+            double baseLineAngle;
+            Line baseLineEntity;
+
+            using (Transaction tr = db.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    baseLineEntity = (Line)tr.GetObject(baseLineResult.ObjectId, OpenMode.ForRead);
+
+                    startPoint = baseLineEntity.StartPoint;
+                    endPoint = baseLineEntity.EndPoint;
+                    baseLineAngle = baseLineEntity.Angle;
+
+                    tr.Commit();
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex);
+                    tr.Abort();
+                    return;
+                }
+            }
+
+            var directionPointOptions = new PromptPointOptions("\nSelect direction");
+
+            var directionPointResult = ed.GetPoint(directionPointOptions);
+            if (directionPointResult.Status != PromptStatus.OK)
+                return;
+
+            Point3d directionPoint = directionPointResult.Value;
+            Point3d midPoint = startPoint.MidPoint(endPoint);
+
+            Vector3d baseLineVectorUnit = startPoint.GetVectorTo(endPoint).GetNormal();
+            Vector3d perpendicularVectorUnit = baseLineVectorUnit.RotateBy(Math.PI / 2, Vector3d.ZAxis);
+            Vector3d directionVectorUnit = midPoint.GetVectorTo(directionPoint).GetNormal();
+
+            double angleToBase = directionVectorUnit.GetAngleTo(baseLineVectorUnit);
+            double angleToPerpendicular = directionVectorUnit.GetAngleTo(perpendicularVectorUnit);
+
+            Point3d arcCenterPoint;
+            double arcStartAngle;
+            double arcEndAngle;
+
+            if (angleToBase < Math.PI / 2 && angleToPerpendicular < Math.PI / 2)
+            {
+                arcCenterPoint = endPoint + perpendicularVectorUnit.MultiplyBy(arcRadius);
+                arcStartAngle = baseLineAngle - Math.PI / 2;
+                arcEndAngle = arcStartAngle + Math.PI / 4;
+            }
+            else if (angleToBase > Math.PI / 2 && angleToPerpendicular < Math.PI / 2)
+            {
+                arcCenterPoint = startPoint + perpendicularVectorUnit.MultiplyBy(arcRadius);
+                arcEndAngle = baseLineAngle - Math.PI / 2;
+                arcStartAngle = arcEndAngle - Math.PI / 4;
+            }
+            else if (angleToBase > Math.PI / 2 && angleToPerpendicular > Math.PI / 2)
+            {
+                arcCenterPoint = startPoint - perpendicularVectorUnit.MultiplyBy(arcRadius);
+                arcStartAngle = baseLineAngle + Math.PI / 2;
+                arcEndAngle = arcStartAngle + Math.PI / 4;
+            }
+            else if (angleToBase < Math.PI / 2 && angleToPerpendicular > Math.PI / 2)
+            {
+                arcCenterPoint = endPoint - perpendicularVectorUnit.MultiplyBy(arcRadius);
+                arcEndAngle = baseLineAngle + Math.PI / 2;
+                arcStartAngle = arcEndAngle - Math.PI / 4;
+            }
+            else
+            {
+                prdDbg("Could not determine quadrant");
+                return;
+            }
+
+            Arc arc = new Arc(arcCenterPoint, arcRadius, arcStartAngle, arcEndAngle);
+
+            using (Transaction tr = db.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    BlockTable bt = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
+                    BlockTableRecord btr = (BlockTableRecord)tr.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForWrite);
+
+                    btr.AppendEntity(arc);
+                    tr.AddNewlyCreatedDBObject(arc, true);
+
+                    tr.Commit();
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex);
+                    tr.Abort();
+                    return;
+                }
+            }
+        }
+
+        [CommandMethod("SETMAPCS")]
+        public void SetMapCS()
+        {
+            MapApplication mapApp = HostMapApplicationServices.Application;
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+            Editor ed = doc.Editor;
+            Autodesk.Gis.Map.Project.ProjectModel projModel = mapApp.ActiveProject;
+
+            var coordinateSystemDictionary = new Dictionary<string, string>
+            {
+                {"UTM-32N", "ETRS89.UTM-32N"},
+                {"DKTM3",   "ETRF89.DKTM3"}
+            };
+
+            PromptKeywordOptions promptKeywordOptions = new PromptKeywordOptions("\nSelect coordinate system");
+            foreach (var key in coordinateSystemDictionary.Keys)
+                promptKeywordOptions.Keywords.Add(key);
+
+            PromptResult promptResult = ed.GetKeywords(promptKeywordOptions);
+            if (promptResult.Status != PromptStatus.OK)
+                return;
+
+            string selectedCoordinateSystemKey = promptResult.StringResult;
+
+            if (coordinateSystemDictionary.TryGetValue(selectedCoordinateSystemKey, out string selectedCoordinateSystemValue))
+            {
+                projModel.Projection = selectedCoordinateSystemValue;
+                prdDbg("\nCoordinate system has successfully been assigned to " + selectedCoordinateSystemKey);
+            }
+            else
+                prdDbg("\nCoordinate system is invalid");
+        }
+
+        [CommandMethod("TANGENTOFFSETARC")]
+        public void TangentOffsetArc()
+        {
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+            Database db = doc.Database;
+            Editor ed = doc.Editor;
+
+            PromptNestedEntityOptions promptNestedEntityOptions = new PromptNestedEntityOptions("\nSelect the clearance block that the arc must be tangent to");
+
+            PromptNestedEntityResult promptNestedEntityResult = ed.GetNestedEntity(promptNestedEntityOptions);
+            if (promptNestedEntityResult.Status != PromptStatus.OK)
+                return;
+
+            Circle clearanceCircle = null;
+            Arc clearanceArc = null;
+            Polyline clearancePolyline = null;
+            Point3d clearanceCenterPoint;
+
+            using (Transaction tr = db.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    Entity entity = tr.GetObject(promptNestedEntityResult.ObjectId, OpenMode.ForRead) as Entity;
+
+                    Matrix3d transform = Matrix3d.Identity;
+
+                    foreach (ObjectId id in promptNestedEntityResult.GetContainers())
+                    {
+                        BlockReference br = tr.GetObject(id, OpenMode.ForRead) as BlockReference;
+                        if (br != null)
+                            transform = br.BlockTransform * transform;
+                    }
+
+                    if (entity is Circle circle)
+                    {
+                        prdDbg("\nEntity is a circle");
+                        clearanceCircle = (Circle)circle.Clone();
+                        clearanceCircle.TransformBy(transform);
+                        clearanceCenterPoint = clearanceCircle.Center;
+                    }
+                    else if (entity is Arc arc)
+                    {
+                        prdDbg("\nEnity is an arc");
+                        clearanceArc = (Arc)arc.Clone();
+                        clearanceArc.TransformBy(transform);
+                        clearanceCenterPoint = clearanceArc.Center;
+                    }
+                    else if (entity is Polyline polyline)
+                    {
+                        prdDbg("\nEntity is a polyline");
+                        clearancePolyline = (Polyline)polyline.Clone();
+                        clearancePolyline.TransformBy(transform);
+                        clearancePolyline.Closed = true;
+                        clearanceCenterPoint = clearancePolyline.GetCenter();
+                    }
+                    else
+                    {
+                        prdDbg("\nEntity is not valid");
+                        return;
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex);
+                    tr.Abort();
+                    return;
+                }
+            }
+
+
+
+            var promptPolylineOptions = new PromptEntityOptions("\nSelect a polyline for the arc to follow");
+
+            var promptPolylineResult = ed.GetEntity(promptPolylineOptions);
+            if (promptPolylineResult.Status != PromptStatus.OK || promptPolylineResult is Polyline)
+            {
+                prdDbg("\nNot a polyline");
+                return;
+            }
+
+            Point3d directionPoint;
+
+            using (Transaction tr = db.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    Polyline directionPolyline = tr.GetObject(promptPolylineResult.ObjectId, OpenMode.ForRead) as Polyline;
+                    directionPoint = directionPolyline.GetClosestPointTo(clearanceCenterPoint, true);
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex);
+                    tr.Abort();
+                    return;
+                }
+            }
+
+            Vector3d directionVectorUnit = clearanceCenterPoint.GetVectorTo(directionPoint).GetNormal();
+            
+            
+
+
+
+            using (Transaction tr = db.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    BlockTable bt = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
+                    BlockTableRecord btr = (BlockTableRecord)tr.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForWrite);
+
+                    btr.AppendEntity(clearanceCircle);
+                    tr.AddNewlyCreatedDBObject(clearanceCircle, true);
+
+                    tr.Commit();
+
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex);
+                    tr.Abort();
+                    return;
+                }
+            }
+        }
     }
 }
