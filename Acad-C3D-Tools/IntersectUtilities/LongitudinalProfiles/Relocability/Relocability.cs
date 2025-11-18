@@ -163,10 +163,10 @@ namespace IntersectUtilities.LongitudinalProfiles.Relocability
     {
         public static IEnumerable<IPipeRule> DefaultRules { get; } =
             [
-                // Twin steel DN32‒DN50
+                // Twin steel DN20‒DN50
                 new PipeRule(
                     PipeSystemEnum.Stål,
-                    32,
+                    20,
                     50,
                     new Dictionary<RuleKey, IThreshold>
                     {

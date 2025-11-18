@@ -123,7 +123,7 @@ namespace NTRExport.TopologyModel
             var predictedBondSupply = transform.MapPoint(canonBondSup.Position);
             var predictedBondReturn = transform.MapPoint(canonBondRet.Position);
 
-            DumpComparisonTable(variant.Variant, resolved, predictedTwinSupply, predictedTwinReturn, predictedBondSupply, predictedBondReturn);
+            //DumpComparisonTable(variant.Variant, resolved, predictedTwinSupply, predictedTwinReturn, predictedBondSupply, predictedBondReturn);
 
             var bondSupplyError = predictedBondSupply.DistanceTo(resolved.BondedSupply.Position);
             var bondReturnError = predictedBondReturn.DistanceTo(resolved.BondedReturn.Position);
@@ -260,10 +260,12 @@ namespace NTRExport.TopologyModel
             else if (ReferenceEquals(entryPort, assignment.BondedSupply.Port))
             {
                 AppendTwinExit(FlowRole.Supply);
+                //AppendBondedExit(assignment.BondedReturn, FlowRole.Return);
             }
             else if (ReferenceEquals(entryPort, assignment.BondedReturn.Port))
             {
                 AppendTwinExit(FlowRole.Return);
+                //AppendBondedExit(assignment.BondedSupply, FlowRole.Supply);
             }
             else
             {
@@ -276,8 +278,7 @@ namespace NTRExport.TopologyModel
             {
                 var tangent = solution.GetInwardTangent(bonded.Port, lane);
                 var outward = tangent.Negate();
-                var slope = ComputeSlope(outward);
-                var z = solution.GetPortElevation(bonded.Port, lane);
+                var slope = ComputeSlope(outward);                
                 exits.Add((bonded.Port, entryZ, slope));
             }
 
@@ -286,8 +287,7 @@ namespace NTRExport.TopologyModel
                 var twinPort = assignment.Twin.Port;
                 var tangent = solution.GetInwardTangent(twinPort, lane);
                 var outward = tangent.Negate();
-                var slope = ComputeSlope(outward);
-                var z = solution.GetPortElevation(twinPort, lane);
+                var slope = ComputeSlope(outward);                
                 exits.Add((twinPort, entryZ, slope));
             }
         }
