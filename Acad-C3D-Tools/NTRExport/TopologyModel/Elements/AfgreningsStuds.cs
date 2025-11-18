@@ -55,8 +55,11 @@ namespace NTRExport.TopologyModel
         public override List<(TPort exitPort, double exitZ, double exitSlope)> Route(
             RoutedGraph g, Topology topo, RouterContext ctx, TPort entryPort, double entryZ, double entrySlope)
         {
-            var exits = new List<(TPort exitPort, double exitZ, double exitSlope)>();
-            // TODO: Implement properly with elevation/slope propagation
+            var exits = new List<(TPort exitPort, double exitZ, double exitSlope)>
+            {
+                (Ports.Where(x => x != entryPort).First(), entryZ, entrySlope)
+            };
+
             var offsetBranch = ComputeTwinOffsets(System, Type, DnB);
             var offsetMain = ComputeTwinOffsets(System, Type, DnM);
 
@@ -65,8 +68,8 @@ namespace NTRExport.TopologyModel
                 g.Members.Add(
                     new RoutedStraight(Source, this)
                     {
-                        A = Main.Node.Pos,
-                        B = Branch.Node.Pos,
+                        A = Main.Node.Pos.Z(entryZ),
+                        B = Branch.Node.Pos.Z(entryZ),
                         DN = DN,
                         Material = Material,
                         DnSuffix = Variant.DnSuffix,
@@ -80,8 +83,8 @@ namespace NTRExport.TopologyModel
                 g.Members.Add(
                     new RoutedStraight(Source, this)
                     {
-                        A = Branch.Node.Pos.Z(offsetMain.zUp),
-                        B = Main.Node.Pos.Z(offsetMain.zUp),
+                        A = Branch.Node.Pos.Z(offsetMain.zUp + entryZ),
+                        B = Main.Node.Pos.Z(offsetMain.zUp + entryZ),
                         DN = DnB,
                         Material = Material,
                         DnSuffix = Variant.DnSuffix,
@@ -96,8 +99,8 @@ namespace NTRExport.TopologyModel
                     g.Members.Add(
                         new RoutedStraight(Source, this)
                         {
-                            A = Branch.Node.Pos.Z(offsetMain.zLow),
-                            B = Main.Node.Pos.Z(offsetMain.zLow),
+                            A = Branch.Node.Pos.Z(offsetMain.zLow + entryZ),
+                            B = Main.Node.Pos.Z(offsetMain.zLow + entryZ),
                             DN = DnB,
                             Material = Material,
                             DnSuffix = Variant.DnSuffix,
@@ -182,8 +185,8 @@ namespace NTRExport.TopologyModel
                     g.Members.Add(
                         new RoutedStraight(Source, this)
                         {
-                            A = branchStartWorld,
-                            B = branchTangentWorld,
+                            A = branchStartWorld.ModZ(entryZ),
+                            B = branchTangentWorld.ModZ(entryZ),
                             DN = DnB,
                             Material = Material,
                             DnSuffix = Variant.DnSuffix,
@@ -195,9 +198,9 @@ namespace NTRExport.TopologyModel
                     g.Members.Add(
                         new RoutedBend(Source, this)
                         {
-                            A = branchTangentWorld,
-                            B = mainTangentWorld,
-                            T = tangentIntersectionWorld,
+                            A = branchTangentWorld.ModZ(entryZ),
+                            B = mainTangentWorld.ModZ(entryZ),
+                            T = tangentIntersectionWorld.ModZ(entryZ),
                             DN = DnB,
                             Material = Material,
                             DnSuffix = Variant.DnSuffix,
@@ -209,8 +212,8 @@ namespace NTRExport.TopologyModel
                     g.Members.Add(
                         new RoutedStraight(Source, this)
                         {
-                            A = mainTangentWorld,
-                            B = mainCentreWorld,
+                            A = mainTangentWorld.ModZ(entryZ),
+                            B = mainCentreWorld.ModZ(entryZ),
                             DN = DnB,
                             Material = Material,
                             DnSuffix = Variant.DnSuffix,

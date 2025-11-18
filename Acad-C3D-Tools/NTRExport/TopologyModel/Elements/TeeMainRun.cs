@@ -715,8 +715,8 @@ namespace NTRExport.TopologyModel
                     g.Members.Add(
                         new RoutedStraight(Source, this)
                         {
-                            A = branchStartWorld,
-                            B = branchTangentWorld,
+                            A = branchStartWorld.ModZ(entryZ),
+                            B = branchTangentWorld.ModZ(entryZ),
                             DN = DnB,
                             Material = Material,
                             DnSuffix = Variant.DnSuffix,
@@ -728,9 +728,9 @@ namespace NTRExport.TopologyModel
                     g.Members.Add(
                         new RoutedBend(Source, this)
                         {
-                            A = branchTangentWorld,
-                            B = mainTangentWorld,
-                            T = tangentIntersectionWorld,
+                            A = branchTangentWorld.ModZ(entryZ),
+                            B = mainTangentWorld.ModZ(entryZ),
+                            T = tangentIntersectionWorld.ModZ(entryZ),
                             DN = DnB,
                             Material = Material,
                             DnSuffix = Variant.DnSuffix,
@@ -742,8 +742,8 @@ namespace NTRExport.TopologyModel
                     g.Members.Add(
                         new RoutedStraight(Source, this)
                         {
-                            A = mainTangentWorld,
-                            B = mainCentreWorld,
+                            A = mainTangentWorld.ModZ(entryZ),
+                            B = mainCentreWorld.ModZ(entryZ),
                             DN = DnB,
                             Material = Material,
                             DnSuffix = Variant.DnSuffix,
