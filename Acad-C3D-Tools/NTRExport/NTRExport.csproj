@@ -37,6 +37,9 @@
 		<DebugType>full</DebugType>
 	</PropertyGroup>
 	<ItemGroup>
+	  <None Remove="TopologyModel\Data\ymodel_tables.csv" />
+	</ItemGroup>
+	<ItemGroup>
 		<Reference Include="accoremgd">
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\accoremgd.dll</HintPath>
 			<Private>False</Private>
@@ -119,6 +122,7 @@
 	<ItemGroup>
 		<EmbeddedResource Include="TopologyModel\Data\fmodel_tables.csv" />
 		<EmbeddedResource Include="TopologyModel\Data\spring_tables.csv" />
+		<EmbeddedResource Include="TopologyModel\Data\ymodel_tables.csv" />
 	</ItemGroup>	
 	<ItemGroup>
 		<Using Include="System.Collections.Generic" />

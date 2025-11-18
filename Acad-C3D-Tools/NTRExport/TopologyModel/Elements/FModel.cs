@@ -502,9 +502,6 @@ namespace NTRExport.TopologyModel
             private Point3d AddZ(Point3d p) => new(p.X, p.Y, p.Z + ZOffset);
         }
 
-        private string DescribePort(PortInstance port) =>
-            $"{port.Flow}@{DescribePoint(port.Position)}";
-
         private string DescribePoint(Point3d pt) =>
             $"({pt.X:0.###},{pt.Y:0.###},{pt.Z:0.###})";
 
