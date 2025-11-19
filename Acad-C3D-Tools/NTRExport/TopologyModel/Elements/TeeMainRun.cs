@@ -610,32 +610,43 @@ namespace NTRExport.TopologyModel
             }
             else if (DnM == DnB)
             {
-                g.Members.Add(
-                    new RoutedStraight(Source, this)
-                    {
-                        A = BranchPort.Node.Pos.Z(OffsetMain.zUp),
-                        B = MidPoint.To3d().Z(OffsetMain.zUp),
-                        DN = DnB,
-                        Material = Material,
-                        DnSuffix = Variant.DnSuffix,
-                        FlowRole = Variant.IsTwin
-                            ? FlowRole.Return
-                            : Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return,
-                        LTG = LTGMain(Source),
-                    });
+                var firstStraight = new RoutedStraight(Source, this)
+                {
+                    A = BranchPort.Node.Pos.Z(OffsetMain.zUp),
+                    B = MidPoint.To3d().Z(OffsetMain.zUp),
+                    DN = DnB,
+                    Material = Material,
+                    DnSuffix = Variant.DnSuffix,
+                    FlowRole = Variant.IsTwin
+                        ? FlowRole.Return
+                        : Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return,
+                    LTG = LTGMain(Source),
+                };
+                g.Members.Add(firstStraight);
 
                 if (Variant.IsTwin)
                 {
+                    var secondStraight = new RoutedStraight(Source, this)
+                    {
+                        A = BranchPort.Node.Pos.Z(OffsetMain.zLow),
+                        B = MidPoint.To3d().Z(OffsetMain.zLow),
+                        DN = DnB,
+                        Material = Material,
+                        DnSuffix = Variant.DnSuffix,
+                        FlowRole = FlowRole.Supply,
+                        LTG = LTGMain(Source),
+                    };
+                    g.Members.Add(secondStraight);
+
+                    var midpointFirst = firstStraight.A.MidPoint(firstStraight.B);
+                    var midpointSecond = secondStraight.A.MidPoint(secondStraight.B);
+
                     g.Members.Add(
-                        new RoutedStraight(Source, this)
+                        new RoutedRigid(Source, this)
                         {
-                            A = BranchPort.Node.Pos.Z(OffsetMain.zLow),
-                            B = MidPoint.To3d().Z(OffsetMain.zLow),
-                            DN = DnB,
+                            P1 = midpointFirst,
+                            P2 = midpointSecond,
                             Material = Material,
-                            DnSuffix = Variant.DnSuffix,
-                            FlowRole = FlowRole.Supply,
-                            LTG = LTGMain(Source),
                         });
                 }
             }
@@ -699,12 +710,11 @@ namespace NTRExport.TopologyModel
                     return new Point3d(plan.X, plan.Y, local.Y);
                 }
 
-                void EmitTwinBranch(
+                (RoutedStraight stub, RoutedBend bend, RoutedStraight branch) EmitTwinBranch(
                     Geometry.BranchFilletSolution fillet,
                     Point2d branchStartLocal,
                     Point2d mainCentreLocal,
-                    FlowRole flowRole
-                )
+                    FlowRole flowRole)
                 {
                     var branchStartWorld = ToWorld(branchStartLocal);
                     var branchTangentWorld = ToWorld(fillet.BranchTangent);
@@ -712,49 +722,63 @@ namespace NTRExport.TopologyModel
                     var tangentIntersectionWorld = ToWorld(fillet.TangentIntersection);
                     var mainCentreWorld = ToWorld(mainCentreLocal);
 
-                    g.Members.Add(
-                        new RoutedStraight(Source, this)
-                        {
-                            A = branchStartWorld.ModZ(entryZ),
-                            B = branchTangentWorld.ModZ(entryZ),
-                            DN = DnB,
-                            Material = Material,
-                            DnSuffix = Variant.DnSuffix,
-                            FlowRole = flowRole,
-                            LTG = LTGBranch(Source),
-                        }
-                    );
+                    var branch = new RoutedStraight(Source, this)
+                    {
+                        A = branchStartWorld.ModZ(entryZ),
+                        B = branchTangentWorld.ModZ(entryZ),
+                        DN = DnB,
+                        Material = Material,
+                        DnSuffix = Variant.DnSuffix,
+                        FlowRole = flowRole,
+                        LTG = LTGBranch(Source),
+                    };
 
-                    g.Members.Add(
-                        new RoutedBend(Source, this)
-                        {
-                            A = branchTangentWorld.ModZ(entryZ),
-                            B = mainTangentWorld.ModZ(entryZ),
-                            T = tangentIntersectionWorld.ModZ(entryZ),
-                            DN = DnB,
-                            Material = Material,
-                            DnSuffix = Variant.DnSuffix,
-                            FlowRole = flowRole,
-                            LTG = LTGBranch(Source),
-                        }
-                    );
+                    var bend = new RoutedBend(Source, this)
+                    {
+                        A = branchTangentWorld.ModZ(entryZ),
+                        B = mainTangentWorld.ModZ(entryZ),
+                        T = tangentIntersectionWorld.ModZ(entryZ),
+                        DN = DnB,
+                        Material = Material,
+                        DnSuffix = Variant.DnSuffix,
+                        FlowRole = flowRole,
+                        LTG = LTGBranch(Source),
+                    };
 
-                    g.Members.Add(
-                        new RoutedStraight(Source, this)
-                        {
-                            A = mainTangentWorld.ModZ(entryZ),
-                            B = mainCentreWorld.ModZ(entryZ),
-                            DN = DnB,
-                            Material = Material,
-                            DnSuffix = Variant.DnSuffix,
-                            FlowRole = flowRole,
-                            LTG = LTGBranch(Source),
-                        }
-                    );
+                    var stub = new RoutedStraight(Source, this)
+                    {
+                        A = mainTangentWorld.ModZ(entryZ),
+                        B = mainCentreWorld.ModZ(entryZ),
+                        DN = DnB,
+                        Material = Material,
+                        DnSuffix = Variant.DnSuffix,
+                        FlowRole = flowRole,
+                        LTG = LTGBranch(Source),
+                    };
+
+                    return (stub, bend, branch);
                 }
 
-                EmitTwinBranch(filletReturn.Value, branchStartUp, mainCentreUp, FlowRole.Return);
-                EmitTwinBranch(filletSupply.Value, branchStartLow, mainCentreLow, FlowRole.Supply);
+                var r1 = EmitTwinBranch(filletReturn.Value, branchStartUp, mainCentreUp, FlowRole.Return);
+                var r2 = EmitTwinBranch(filletSupply.Value, branchStartLow, mainCentreLow, FlowRole.Supply);
+
+                g.Members.Add(r1.stub);
+                g.Members.Add(r1.bend);
+                g.Members.Add(r1.branch);
+                g.Members.Add(r2.stub);
+                g.Members.Add(r2.bend);
+                g.Members.Add(r2.branch);
+
+                var midpointReturn = r1.branch.A.MidPoint(r1.branch.B);
+                var midpointSupply = r2.branch.A.MidPoint(r2.branch.B);
+
+                g.Members.Add(
+                    new RoutedRigid(Source, this)
+                    {
+                        P1 = midpointReturn,
+                        P2 = midpointSupply,
+                        Material = Material,
+                    });
             }
 
             // Add branch exit

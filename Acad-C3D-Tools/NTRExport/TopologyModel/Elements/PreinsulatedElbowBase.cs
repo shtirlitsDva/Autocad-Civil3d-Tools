@@ -1,3 +1,5 @@
+using System.Linq;
+
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 
@@ -104,7 +106,7 @@ namespace NTRExport.TopologyModel
                 (Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return);
             var ltg = LTGMain(Source);
 
-            void EmitFor(double zOffset, FlowRole flow)
+            (RoutedStraight first, RoutedStraight second) EmitFor(double zOffset, FlowRole flow)
             {
                 var z = entryZ + zOffset;
                 var aPrime = aPrime2.To3d(z);
@@ -114,18 +116,17 @@ namespace NTRExport.TopologyModel
                 var tZ = t.Z(z);
 
                 // a → a'
-                g.Members.Add(
-                    new RoutedStraight(Source, this)
-                    {
-                        A = aZ,
-                        B = aPrime,
-                        DN = DN,
-                        Material = Material,
-                        DnSuffix = Variant.DnSuffix,
-                        FlowRole = flow,
-                        LTG = ltg,
-                    }
-                );
+                var firstStraight = new RoutedStraight(Source, this)
+                {
+                    A = aZ,
+                    B = aPrime,
+                    DN = DN,
+                    Material = Material,
+                    DnSuffix = Variant.DnSuffix,
+                    FlowRole = flow,
+                    LTG = ltg,
+                };
+                g.Members.Add(firstStraight);
 
                 // bend a' → b' with PT = t
                 g.Members.Add(
@@ -144,25 +145,49 @@ namespace NTRExport.TopologyModel
                 );
 
                 // b' → b
-                g.Members.Add(
-                    new RoutedStraight(Source, this)
-                    {
-                        A = bPrime,
-                        B = bZ,
-                        DN = DN,
-                        Material = Material,
-                        DnSuffix = Variant.DnSuffix,
-                        FlowRole = flow,
-                        LTG = ltg,
-                    }
-                );
-            }            
+                var secondStraight = new RoutedStraight(Source, this)
+                {
+                    A = bPrime,
+                    B = bZ,
+                    DN = DN,
+                    Material = Material,
+                    DnSuffix = Variant.DnSuffix,
+                    FlowRole = flow,
+                    LTG = ltg,
+                };
+                g.Members.Add(secondStraight);
+
+                return (firstStraight, secondStraight);
+            }
 
             // Emit supply for twin
             if (Variant.IsTwin)
             {
-                EmitFor(zLow, FlowRole.Supply);                
-                EmitFor(zUp, FlowRole.Return);
+                var supply = EmitFor(zLow, FlowRole.Supply);
+                var ret = EmitFor(zUp, FlowRole.Return);
+
+                var midpoints = new[]
+                {
+                    supply.first.A.MidPoint(supply.first.B),
+                    supply.second.A.MidPoint(supply.second.B),
+                    ret.first.A.MidPoint(ret.first.B),
+                    ret.second.A.MidPoint(ret.second.B)
+                };
+
+                const double tol = 0.001;
+                var pairs = midpoints
+                    .SelectMany((m1, i) => midpoints.Skip(i + 1).Select(m2 => (m1, m2)))
+                    .Where(pair => pair.m1.HorizontalEqualz(pair.m2, tol));
+
+                foreach (var (m1, m2) in pairs)
+                {
+                    g.Members.Add(new RoutedRigid(Source, this)
+                    {
+                        P1 = m1,
+                        P2 = new Point3d(m1.X, m1.Y, m2.Z),
+                        Material = Material,
+                    });
+                }
             }
             else
             {

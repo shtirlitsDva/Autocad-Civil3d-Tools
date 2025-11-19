@@ -29,7 +29,7 @@ namespace NTRExport.TopologyModel
             RoutedGraph g, Topology topo, RouterContext ctx, TPort entryPort, double entryZ, double entrySlope)
         {
             var assignment = ClassifyPorts(topo);
-            
+
             // Twin port is at fork handle start, bonded ports are at prong ends
             var twinPos = assignment.Twin.Position;
             var bondSupplyPos = assignment.BondedSupply.Position;
@@ -45,7 +45,7 @@ namespace NTRExport.TopologyModel
                 0.5 * (bondSupplyPos.X + bondReturnPos.X),
                 0.5 * (bondSupplyPos.Y + bondReturnPos.Y),
                 0.5 * (bondSupplyPos.Z + bondReturnPos.Z));
-            
+
             // Calculate distance from twin port to midpoint between bonded ports
             var L = (bondMidpoint - twinPos).Length;
 
@@ -63,10 +63,10 @@ namespace NTRExport.TopologyModel
 
             // Calculate geometry directly from port positions
             var geometry = CalculateGeometry(twinPos, bondSupplyPos, bondReturnPos, bondMidpoint, twinPipeLength, bondedPipeLength, zUp, zLow);
-            
+
             // Emit geometry
             EmitGeometry(g, geometry, r, entryZ);
-            
+
             // Compute exits
             return ComputeExits(entryPort, entryZ, entrySlope, assignment, geometry);
         }
@@ -102,7 +102,7 @@ namespace NTRExport.TopologyModel
             {
                 // No bonded ports found - check if any port connects to twin
                 var twinConnectedPorts = portInstances.Where(p => ConnectsToTwin(p.Port)).ToList();
-                
+
                 if (twinConnectedPorts.Count == 1)
                 {
                     // One port connects to twin - that's the twin port
@@ -111,7 +111,7 @@ namespace NTRExport.TopologyModel
                     var remainingPorts = portInstances.Where(p => !ReferenceEquals(p.Port, twinPort.Port)).ToList();
                     if (remainingPorts.Count != 2)
                         throw new InvalidOperationException($"YModel {Source}: expected exactly 2 remaining ports when twin port found, found {remainingPorts.Count}.");
-                    
+
                     // Assign flow roles randomly - doesn't matter which is supply/return
                     bondedInstances = new List<PortInstance>
                     {
@@ -210,17 +210,17 @@ namespace NTRExport.TopologyModel
         private YGeometry CalculateGeometry(
             Point3d twinPos, Point3d bondSupplyPos, Point3d bondReturnPos, Point3d bondMidpoint,
             double twinPipeLength, double bondedPipeLength, double zUp, double zLow)
-        {                        
+        {
             //prdDbg($"YModel {Source}: CalculateGeometry - Input parameters:");
             //prdDbg($"YModel {Source}:   twinPipeLength = {twinPipeLength:0.###} m, bondedPipeLength = {bondedPipeLength:0.###} m");
-            
+
             // Calculate direction from twin to midpoint (used for both twin and bonded pipes)
             var dirAxis = bondMidpoint - twinPos;
             if (dirAxis.Length < 1e-9)
                 throw new InvalidOperationException($"YModel {Source}: Invalid port positions - twin and bond midpoint too close.");
-            
+
             //prdDbg($"YModel {Source}:   dirAxis = ({dirAxis.X:0.###}, {dirAxis.Y:0.###}, {dirAxis.Z:0.###}), length = {dirAxis.Length:0.###} m");
-            
+
             var dirAxisNorm = dirAxis.GetNormal();
 
             //prdDbg($"YModel {Source}:   dirAxisNorm = ({dirAxisNorm.X:0.###}, {dirAxisNorm.Y:0.###}, {dirAxisNorm.Z:0.###})");
@@ -255,7 +255,7 @@ namespace NTRExport.TopologyModel
             var connectSupplyEnd = bondSupplyStart;
             var connectReturnStart = twinReturnEnd;
             var connectReturnEnd = bondReturnStart;
-            
+
             //prdDbg($"YModel {Source}: Connecting pipe directions:");
             var connectSupplyDir = connectSupplyEnd - connectSupplyStart;
             var connectReturnDir = connectReturnEnd - connectReturnStart;
@@ -301,7 +301,7 @@ namespace NTRExport.TopologyModel
                 // Create plane from three points: ts, te, bs
                 var v1 = teWorld - tsWorld;
                 var v2 = bsWorld - teWorld;
-                
+
                 if (v1.Length < 1e-9 || v2.Length < 1e-9)
                 {
                     //prdDbg($"YModel {Source}:   DEGENERATE: vectors too small");
@@ -360,7 +360,7 @@ namespace NTRExport.TopologyModel
                 // Vectors: from corner towards start and from corner towards end
                 var va = ts2 - te2;  // vector from corner towards start
                 var vb = bs2 - te2;  // vector from corner towards end
-                
+
                 //prdDbg($"YModel {Source}:   Vectors in plane:");
                 //prdDbg($"YModel {Source}:   va = ({va.X:0.###}, {va.Y:0.###}), length = {va.Length:0.###}");
                 //prdDbg($"YModel {Source}:   vb = ({vb.X:0.###}, {vb.Y:0.###}), length = {vb.Length:0.###}");
@@ -377,7 +377,7 @@ namespace NTRExport.TopologyModel
                 var alpha = Math.Acos(dot);
                 var sinHalf = Math.Sin(alpha * 0.5);
                 var cosHalf = Math.Cos(alpha * 0.5);
-                
+
                 //prdDbg($"YModel {Source}:   ua = ({ua.X:0.###}, {ua.Y:0.###})");
                 //prdDbg($"YModel {Source}:   ub = ({ub.X:0.###}, {ub.Y:0.###})");
                 //prdDbg($"YModel {Source}:   dot = {dot:0.###}, alpha = {alpha * 180.0 / Math.PI:0.###} degrees");
@@ -394,7 +394,7 @@ namespace NTRExport.TopologyModel
                 // Check feasibility
                 var lenAT = va.Length;
                 var lenBT = vb.Length;
-                
+
                 //prdDbg($"YModel {Source}:   Fillet calculation:");
                 //prdDbg($"YModel {Source}:   r = {radius:0.###} m, l (calculated) = {l:0.###} m");
                 //prdDbg($"YModel {Source}:   lenAT = {lenAT:0.###} m, lenBT = {lenBT:0.###} m");
@@ -428,7 +428,7 @@ namespace NTRExport.TopologyModel
             }
 
             // Emit geometry for one flow path (supply or return)
-            void EmitPath(Point3d ts, Point3d te, Point3d bs, Point3d be, FlowRole flow)
+            RoutedStraight EmitPath(Point3d ts, Point3d te, Point3d bs, Point3d be, FlowRole flow)
             {
                 //prdDbg($"YModel {Source}: === EmitPath ({flow}) ===");
                 //prdDbg($"YModel {Source}:   ts = {DescribePoint(ts)}");
@@ -438,7 +438,7 @@ namespace NTRExport.TopologyModel
 
                 // First fillet: between lines ts-te and te-bs
                 var (f1a, f1b) = CalculateFillet(ts, te, bs, r);
-                
+
                 // Second fillet: between lines te-bs and bs-be
                 var (f2a, f2b) = CalculateFillet(te, bs, be, r);
 
@@ -447,7 +447,7 @@ namespace NTRExport.TopologyModel
 
                 // Emit: ts → f1a (twin pipe straight)
                 //prdDbg($"YModel {Source}:   Emitting straight: ts → f1a");
-                g.Members.Add(new RoutedStraight(Source, this)
+                var firstStraight = new RoutedStraight(Source, this)
                 {
                     A = ApplyZ(ts),
                     B = f1a,
@@ -456,7 +456,8 @@ namespace NTRExport.TopologyModel
                     DnSuffix = Variant.DnSuffix,
                     FlowRole = flow,
                     LTG = ltg,
-                });
+                };
+                g.Members.Add(firstStraight);
 
                 // Emit: f1a → f1b (first elbow at intersection te)
                 //prdDbg($"YModel {Source}:   Emitting BEND: f1a → f1b, T = te");
@@ -511,15 +512,29 @@ namespace NTRExport.TopologyModel
                     FlowRole = flow,
                     LTG = ltg,
                 });
+
+                return firstStraight;
             }
 
             //prdDbg($"YModel {Source}: EmitGeometry - entryZ = {entryZ:0.###} m, r = {r:0.###} m");
 
             // Emit supply path: twin supply start → twin supply end → bonded supply start → bonded supply port
-            EmitPath(geometry.TwinSupplyStart, geometry.TwinSupplyEnd, geometry.BondSupplyStart, geometry.BondSupplyPort, FlowRole.Supply);
+            var supplyStraight = EmitPath(geometry.TwinSupplyStart, geometry.TwinSupplyEnd, geometry.BondSupplyStart, geometry.BondSupplyPort, FlowRole.Supply);
 
             // Emit return path: twin return start → twin return end → bonded return start → bonded return port
-            EmitPath(geometry.TwinReturnStart, geometry.TwinReturnEnd, geometry.BondReturnStart, geometry.BondReturnPort, FlowRole.Return);
+            var returnStraight = EmitPath(geometry.TwinReturnStart, geometry.TwinReturnEnd, geometry.BondReturnStart, geometry.BondReturnPort, FlowRole.Return);
+
+
+            var midpointSupply = supplyStraight.A.MidPoint(supplyStraight.B);
+            var midpointReturn = returnStraight.A.MidPoint(returnStraight.B);
+
+            g.Members.Add(new RoutedRigid(Source, this)
+            {
+                P1 = midpointSupply,
+                P2 = new Point3d(midpointSupply.X, midpointSupply.Y, midpointReturn.Z),
+                Material = Material,
+            });
+
 
             //prdDbg($"YModel {Source}: Geometry emission complete. Total members added: {g.Members.Count}");
         }

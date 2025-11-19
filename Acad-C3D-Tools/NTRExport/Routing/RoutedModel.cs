@@ -117,6 +117,22 @@ namespace NTRExport.Routing
         }
     }
 
+    internal sealed class RoutedRigid : RoutedMember
+    {
+        public RoutedRigid(Handle src, ElementBase elementBase) : base(src, elementBase) { }
+        public Point3d P1 { get; set; }
+        public Point3d P2 { get; set; }
+
+        public override IEnumerable<string> ToNtr(INtrSoilAdapter soil, ConfigurationData conf)
+        {
+            yield return "PROF" +
+                $" P1={NtrFormat.Pt(P1)}" +
+                $" P2={NtrFormat.Pt(P2)}" +
+                 " MAT=P235GH" +
+                " TYP=_RIGID_";                
+        }
+    }
+
     internal sealed class RoutedGraph
     {
         public List<RoutedMember> Members { get; } = new();

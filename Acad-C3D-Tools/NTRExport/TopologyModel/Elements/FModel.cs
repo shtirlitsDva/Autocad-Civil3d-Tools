@@ -4,6 +4,7 @@ using System.Linq;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 
+using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.Enums;
 using static IntersectUtilities.UtilsCommon.Utils;
 
@@ -209,13 +210,16 @@ namespace NTRExport.TopologyModel
 
         private void EmitGeometry(RoutedGraph g, VariantSolution solution)
         {
+            var members = new List<RoutedMember>();
+            const double tol = 0.001;
+
             foreach (var prim in solution.Variant.Primitives)
             {
                 var a = solution.MapPoint(prim.P1);
                 var b = solution.MapPoint(prim.P2);
                 if (prim.Kind == FModelCatalog.PrimitiveKind.Pipe)
                 {
-                    g.Members.Add(new RoutedStraight(Source, this)
+                    members.Add(new RoutedStraight(Source, this)
                     {
                         A = a,
                         B = b,
@@ -229,7 +233,7 @@ namespace NTRExport.TopologyModel
                 else
                 {
                     var t = prim.Centre ?? throw new InvalidOperationException("Elbow primitive missing centre point.");
-                    g.Members.Add(new RoutedBend(Source, this)
+                    members.Add(new RoutedBend(Source, this)
                     {
                         A = a,
                         B = b,
@@ -242,6 +246,38 @@ namespace NTRExport.TopologyModel
                     });
                 }
             }
+
+            var straights = members.OfType<RoutedStraight>().ToList();
+
+            var pairs = straights
+                .SelectMany((s1, i) => straights.Skip(i + 1).Select(s2 => (s1, s2)))
+                .Where(pair => AreVerticalPair(pair.s1, pair.s2, tol));
+
+            foreach (var (s1, s2) in pairs)
+            {
+                var shorter = s1.Length < s2.Length ? s1 : s2;
+                var longer = s1.Length < s2.Length ? s2 : s1;
+
+                var midpoint = shorter.A.MidPoint(shorter.B);
+                var otherEndZ = longer.A.Z;
+
+                members.Add(new RoutedRigid(Source, this)
+                {
+                    P1 = midpoint,
+                    P2 = new Point3d(midpoint.X, midpoint.Y, otherEndZ),
+                    Material = Material,
+                });
+            }
+
+            foreach (var member in members) g.Members.Add(member);
+        }
+
+        private static bool AreVerticalPair(RoutedStraight s1, RoutedStraight s2, double tol)
+        {
+            return s1.A.HorizontalEqualz(s2.A, tol) ||
+                   s1.A.HorizontalEqualz(s2.B, tol) ||
+                   s1.B.HorizontalEqualz(s2.A, tol) ||
+                   s1.B.HorizontalEqualz(s2.B, tol);
         }
 
         private List<(TPort exitPort, double exitZ, double exitSlope)> ComputeExits(
