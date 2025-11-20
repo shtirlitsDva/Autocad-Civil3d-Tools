@@ -71,6 +71,25 @@ namespace NTRExport.TopologyModel
                 return fallback;
             }
 
+            void AddRigid(Point3d first, Point3d second)
+            {
+                var top = first;
+                var bottom = second;
+                if (bottom.Z > top.Z)
+                {
+                    var temp = top;
+                    top = bottom;
+                    bottom = temp;
+                }
+
+                g.Members.Add(new RoutedRigid(Source, this)
+                {
+                    P1 = bottom,
+                    P2 = top,
+                    Material = Material,
+                });
+            }
+
             static bool TryIntersect(Point2d e, Vector2d de, Point2d o, Vector2d d0, out Point2d inter, out double t, out double s)
             {
                 inter = default; t = 0.0; s = 0.0;
@@ -234,6 +253,9 @@ namespace NTRExport.TopologyModel
                 var exitZVal = exitLocal.Y;
                 var exitSlopeVal = Math.Tan(alphaO);
                 //prdDbg($"ElbowVertical {Source} twin exit: exitZ={exitZVal:0.###}, exitSlope={exitSlopeVal:0.####}");
+
+                AddRigid(returnPts.A, supplyPts.A);
+                AddRigid(returnPts.B, supplyPts.B);
 
                 exits.Add((otherPort, exitZVal, exitSlopeVal));
                 return exits;

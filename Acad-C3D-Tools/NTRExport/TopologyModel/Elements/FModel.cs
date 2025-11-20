@@ -10,7 +10,6 @@ using static IntersectUtilities.UtilsCommon.Utils;
 
 using NTRExport.Enums;
 using NTRExport.Routing;
-using NTRExport.TopologyModel.Data;
 using static NTRExport.Utils.Utils;
 
 namespace NTRExport.TopologyModel
@@ -30,13 +29,22 @@ namespace NTRExport.TopologyModel
             RoutedGraph g, Topology topo, RouterContext ctx, TPort entryPort, double entryZ, double entrySlope)
         {
             var assignment = ClassifyPorts(topo);
-            var solution = ResolveVariant(assignment);            
-            solution = solution.WithZOffset(entryZ);
+            var axes = BuildAxes(assignment);
+            var (zUp, zLow) = ComputeTwinOffsets(System, Type, DN);
+            var radius = Geometry.GetBogRadius3D(DN) / 1000.0;
 
-            EmitGeometry(g, solution);
+            var supplyRun = BuildPipeRun(assignment, axes, radius, assignment.BondedSupply, zLow);
+            var returnRun = BuildPipeRun(assignment, axes, radius, assignment.BondedReturn, zUp);
 
-            var exits = ComputeExits(entryPort, entryZ, solution);
-            return exits;
+            var members = new List<RoutedMember>();
+            EmitPipeRun(members, supplyRun);
+            EmitPipeRun(members, returnRun);
+            AddRigidMembers(members);
+
+            foreach (var member in members)
+                g.Members.Add(member);
+
+            return ComputeExits(entryPort, supplyRun, returnRun, assignment.Twin.Port, entryZ, entrySlope);
         }
 
         private PortAssignment ClassifyPorts(Topology topo)
@@ -56,199 +64,65 @@ namespace NTRExport.TopologyModel
                 .Select(p => new PortInstance(p, InferFlow(p)))
                 .ToList();
 
-            return new PortAssignment(
+            var resolved = ResolveBondedPorts(
                 twinInstance,
                 bondedInstances[0],
                 bondedInstances[1]);
+
+            return new PortAssignment(
+                resolved.Twin,
+                resolved.BondedSupply,
+                resolved.BondedReturn);
         }
 
-        private VariantSolution ResolveVariant(PortAssignment assignment)
+        private void EmitPipeRun(List<RoutedMember> members, PipeRun run)
         {
-            VariantSolution? bestSolution = null;
-            double bestError = double.MaxValue;
+            const double tol = 1e-6;
+            var ltg = LTGMain(Source);
 
-            foreach (var variant in FModelCatalog.EnumerateVariants(DN))
+            if ((run.FirstStraightEnd - run.TwinStart).Length > tol)
             {
-                foreach (var candidate in assignment.ResolveCandidates())
-                {
-                    if (TryBuildTransform(variant, candidate, out var frame, out var bondedError))
-                    {
-                        if (bondedError < bestError)
-                        {
-                            bestError = bondedError;
-                            bestSolution = new VariantSolution(variant, frame, candidate, 0.0);
-                        }
-                    }
-                }
+                members.Add(CreateStraight(run.TwinStart, run.FirstStraightEnd, run.Flow, ltg));
             }
 
-            if (bestSolution.HasValue)
-            {
-                return bestSolution.Value;
-            }
+            members.Add(CreateBend(run.FirstStraightEnd, run.JointPoint, run.TangentFirst, run.Flow, ltg));
+            members.Add(CreateBend(run.JointPoint, run.FinalStraightStart, run.TangentSecond, run.Flow, ltg));
 
-            throw new InvalidOperationException($"FModel {Source}: unable to match catalog variant for DN {DN}.");
+            if ((run.BondedPoint - run.FinalStraightStart).Length > tol)
+            {
+                members.Add(CreateStraight(run.FinalStraightStart, run.BondedPoint, run.Flow, ltg));
+            }
         }
 
-        private bool TryBuildTransform(FModelCatalog.VariantData variant, ResolvedPorts resolved, out FrameTransform transform, out double bondedError)
+        private RoutedStraight CreateStraight(Point3d a, Point3d b, FlowRole flow, string ltg) =>
+            new(Source, this)
+            {
+                A = a,
+                B = b,
+                DN = DN,
+                Material = Material,
+                DnSuffix = Variant.DnSuffix,
+                FlowRole = flow,
+                LTG = ltg,
+            };
+
+        private RoutedBend CreateBend(Point3d a, Point3d b, Point3d t, FlowRole flow, string ltg) =>
+            new(Source, this)
+            {
+                A = a,
+                B = b,
+                T = t,
+                DN = DN,
+                Material = Material,
+                DnSuffix = Variant.DnSuffix,
+                FlowRole = flow,
+                LTG = ltg,
+            };
+
+        private void AddRigidMembers(List<RoutedMember> members)
         {
-            var canonTwinSup = variant.TwinPorts[FlowRole.Supply];
-            var canonTwinRet = variant.TwinPorts[FlowRole.Return];
-            var canonBondSup = variant.BondPorts[FlowRole.Supply];
-            var canonBondRet = variant.BondPorts[FlowRole.Return];
-
-            var canonFrame = BuildFrame(
-                canonTwinSup.Position,
-                canonTwinRet.Position,
-                canonBondSup.Position,
-                canonBondRet.Position);
-            var actualFrame = BuildActualFrame(
-                resolved.Twin.Position,
-                resolved.BondedSupply.Position,
-                resolved.BondedReturn.Position);
-
-            double canonDist = (canonBondSup.Position - canonFrame.Origin).Length;
-            double actualDist = (resolved.BondedSupply.Position - actualFrame.Origin).Length;
-            if (canonDist < 1e-6 || actualDist < 1e-6)
-            {
-                transform = default;
-                bondedError = double.PositiveInfinity;
-                return false;
-            }
-
-            const double scale = 1.0;
-            transform = new FrameTransform(canonFrame, actualFrame, scale);
-
-            var predictedTwinSupply = transform.MapPoint(canonTwinSup.Position);
-            var predictedTwinReturn = transform.MapPoint(canonTwinRet.Position);
-            var predictedBondSupply = transform.MapPoint(canonBondSup.Position);
-            var predictedBondReturn = transform.MapPoint(canonBondRet.Position);
-
-            //DumpComparisonTable(variant.Variant, resolved, predictedTwinSupply, predictedTwinReturn, predictedBondSupply, predictedBondReturn);
-
-            var bondSupplyError = predictedBondSupply.DistanceTo(resolved.BondedSupply.Position);
-            var bondReturnError = predictedBondReturn.DistanceTo(resolved.BondedReturn.Position);
-            bondedError = bondSupplyError + bondReturnError;
-
-            if (bondSupplyError > 0.05 || bondReturnError > 0.05)
-            {
-                transform = default;
-                bondedError = double.PositiveInfinity;
-                return false;
-            }
-
-            return true;
-        }
-
-        private void DumpComparisonTable(
-            string variantLabel,
-            ResolvedPorts resolved,
-            Point3d predictedTwinSupply,
-            Point3d predictedTwinReturn,
-            Point3d predictedBondSupply,
-            Point3d predictedBondReturn)
-        {
-            prdDbg($"FModel {Source}: variant {variantLabel} point comparison table (world units).");
-            prdDbg("  Role          | Actual (x,y,z)         | Predicted (x,y,z)      | Error (m)");
-
-            void LogRow(string role, Point3d actual, Point3d predicted)
-            {
-                var error = actual.DistanceTo(predicted);
-                prdDbg($"  {role.PadRight(12)}| {DescribePoint(actual).PadRight(23)} | {DescribePoint(predicted).PadRight(21)} | {error:0.###}");
-            }
-
-            var twinActual = resolved.Twin.Position;
-            LogRow("Twin Supply", twinActual, predictedTwinSupply);
-            LogRow("Twin Return", twinActual, predictedTwinReturn);
-            LogRow("Bond Supply", resolved.BondedSupply.Position, predictedBondSupply);
-            LogRow("Bond Return", resolved.BondedReturn.Position, predictedBondReturn);
-        }
-
-        private static LocalFrame BuildFrame(
-            Point3d twinSupply,
-            Point3d twinReturn,
-            Point3d bondedSupply,
-            Point3d bondedReturn)
-        {
-            var origin = new Point3d(
-                0.5 * (twinSupply.X + twinReturn.X),
-                0.5 * (twinSupply.Y + twinReturn.Y),
-                0.5 * (twinSupply.Z + twinReturn.Z));
-
-            var z = (twinReturn - twinSupply);
-            z = z.Length < 1e-9 ? Vector3d.ZAxis : z.GetNormal();
-            if (z.DotProduct(Vector3d.ZAxis) < 0.0)
-                z = z.Negate();
-
-            Vector3d MakeHorizontal(Vector3d v) => v - z.MultiplyBy(v.DotProduct(z));
-
-            var yRaw = MakeHorizontal(bondedSupply - bondedReturn);
-            if (yRaw.Length < 1e-9)
-                yRaw = MakeHorizontal(bondedSupply - origin);
-            if (yRaw.Length < 1e-9)
-                yRaw = Vector3d.YAxis;
-            var y = yRaw.GetNormal();
-
-            var x = y.CrossProduct(z);
-            if (x.Length < 1e-9)
-            {
-                x = Vector3d.XAxis;
-            }
-            else
-            {
-                x = x.GetNormal();
-            }
-
-            y = z.CrossProduct(x);
-            if (y.Length < 1e-9)
-                y = Vector3d.YAxis;
-            else
-                y = y.GetNormal();
-
-            return new LocalFrame(origin, x, y, z);
-        }
-
-        private void EmitGeometry(RoutedGraph g, VariantSolution solution)
-        {
-            var members = new List<RoutedMember>();
             const double tol = 0.001;
-
-            foreach (var prim in solution.Variant.Primitives)
-            {
-                var a = solution.MapPoint(prim.P1);
-                var b = solution.MapPoint(prim.P2);
-                if (prim.Kind == FModelCatalog.PrimitiveKind.Pipe)
-                {
-                    members.Add(new RoutedStraight(Source, this)
-                    {
-                        A = a,
-                        B = b,
-                        DN = DN,
-                        Material = Material,
-                        DnSuffix = Variant.DnSuffix,
-                        FlowRole = prim.Flow,
-                        LTG = LTGMain(Source),
-                    });
-                }
-                else
-                {
-                    var t = prim.Centre ?? throw new InvalidOperationException("Elbow primitive missing centre point.");
-                    members.Add(new RoutedBend(Source, this)
-                    {
-                        A = a,
-                        B = b,
-                        T = solution.MapPoint(t),
-                        DN = DN,
-                        Material = Material,
-                        DnSuffix = Variant.DnSuffix,
-                        FlowRole = prim.Flow,
-                        LTG = LTGMain(Source),
-                    });
-                }
-            }
-
             var straights = members.OfType<RoutedStraight>().ToList();
-
             var pairs = straights
                 .SelectMany((s1, i) => straights.Skip(i + 1).Select(s2 => (s1, s2)))
                 .Where(pair => AreVerticalPair(pair.s1, pair.s2, tol));
@@ -257,7 +131,6 @@ namespace NTRExport.TopologyModel
             {
                 var shorter = s1.Length < s2.Length ? s1 : s2;
                 var longer = s1.Length < s2.Length ? s2 : s1;
-
                 var midpoint = shorter.A.MidPoint(shorter.B);
                 var otherEndZ = longer.A.Z;
 
@@ -268,8 +141,6 @@ namespace NTRExport.TopologyModel
                     Material = Material,
                 });
             }
-
-            foreach (var member in members) g.Members.Add(member);
         }
 
         private static bool AreVerticalPair(RoutedStraight s1, RoutedStraight s2, double tol)
@@ -282,92 +153,213 @@ namespace NTRExport.TopologyModel
 
         private List<(TPort exitPort, double exitZ, double exitSlope)> ComputeExits(
             TPort entryPort,
+            PipeRun supply,
+            PipeRun ret,
+            TPort twinPort,
             double entryZ,
-            VariantSolution solution)
+            double entrySlope)
         {
             var exits = new List<(TPort exitPort, double exitZ, double exitSlope)>();
-            var assignment = solution.Assignment;
+            var runs = new[] { supply, ret };
 
-            if (ReferenceEquals(entryPort, assignment.Twin.Port))
+            if (ReferenceEquals(entryPort, twinPort))
             {
-                AppendBondedExit(assignment.BondedSupply, FlowRole.Supply);
-                AppendBondedExit(assignment.BondedReturn, FlowRole.Return);
+                foreach (var run in runs)
+                {
+                    exits.Add((run.BondedPort, entryZ, entrySlope));
+                }
+                return exits;
             }
-            else if (ReferenceEquals(entryPort, assignment.BondedSupply.Port))
-            {
-                AppendTwinExit(FlowRole.Supply);
-                //AppendBondedExit(assignment.BondedReturn, FlowRole.Return);
-            }
-            else if (ReferenceEquals(entryPort, assignment.BondedReturn.Port))
-            {
-                AppendTwinExit(FlowRole.Return);
-                //AppendBondedExit(assignment.BondedSupply, FlowRole.Supply);
-            }
-            else
-            {
+
+            var matched = runs.FirstOrDefault(r => ReferenceEquals(r.BondedPort, entryPort));
+            if (matched.Equals(default(PipeRun)))
                 throw new InvalidOperationException("Entry port not part of FModel.");
-            }
 
+            exits.Add((twinPort, entryZ, entrySlope));
             return exits;
-
-            void AppendBondedExit(PortInstance bonded, FlowRole lane)
-            {
-                var tangent = solution.GetInwardTangent(bonded.Port, lane);
-                var outward = tangent.Negate();
-                var slope = ComputeSlope(outward);                
-                exits.Add((bonded.Port, entryZ, slope));
-            }
-
-            void AppendTwinExit(FlowRole lane)
-            {
-                var twinPort = assignment.Twin.Port;
-                var tangent = solution.GetInwardTangent(twinPort, lane);
-                var outward = tangent.Negate();
-                var slope = ComputeSlope(outward);                
-                exits.Add((twinPort, entryZ, slope));
-            }
         }
+
+        private ResolvedPorts ResolveBondedPorts(
+            PortInstance twin,
+            PortInstance bondedA,
+            PortInstance bondedB)
+        {
+            bool aSupply = bondedA.Flow == FlowRole.Supply;
+            bool aReturn = bondedA.Flow == FlowRole.Return;
+            bool bSupply = bondedB.Flow == FlowRole.Supply;
+            bool bReturn = bondedB.Flow == FlowRole.Return;
+
+            if (aSupply && bReturn)
+                return new ResolvedPorts(twin, bondedA, bondedB);
+
+            if (bSupply && aReturn)
+                return new ResolvedPorts(twin, bondedB, bondedA);
+
+            if (aSupply)
+                return new ResolvedPorts(twin, bondedA, bondedB.WithFlow(FlowRole.Return));
+
+            if (aReturn)
+                return new ResolvedPorts(twin, bondedB.WithFlow(FlowRole.Supply), bondedA);
+
+            if (bSupply)
+                return new ResolvedPorts(twin, bondedB, bondedA.WithFlow(FlowRole.Return));
+
+            if (bReturn)
+                return new ResolvedPorts(twin, bondedA.WithFlow(FlowRole.Supply), bondedB);
+
+            return new ResolvedPorts(
+                twin,
+                bondedA.WithFlow(FlowRole.Supply),
+                bondedB.WithFlow(FlowRole.Return));
+        }
+
+        private PipeAxes BuildAxes(PortAssignment assignment)
+        {
+            var supplyPos = assignment.BondedSupply.Position;
+            var returnPos = assignment.BondedReturn.Position;
+            var twinPos = assignment.Twin.Position;
+
+            var axisTwin = ToHorizontal(returnPos - supplyPos);
+            if (axisTwin.Length < 1e-6)
+            {
+                var midBond = supplyPos.MidPoint(returnPos);
+                axisTwin = ToHorizontal(midBond - twinPos);
+            }
+            if (axisTwin.Length < 1e-9)
+                axisTwin = new Vector3d(0.0, 1.0, 0.0);
+            axisTwin = axisTwin.GetNormal();
+
+            var distSupply = supplyPos.DistanceTo(twinPos);
+            var distReturn = returnPos.DistanceTo(twinPos);
+            var far = distSupply >= distReturn ? supplyPos : returnPos;
+            if ((far - twinPos).DotProduct(axisTwin) < 0.0)
+                axisTwin = axisTwin.Negate();
+
+            var axisBond = Vector3d.ZAxis.CrossProduct(axisTwin);
+            if (axisBond.Length < 1e-9)
+                axisBond = axisTwin.X != 0.0 || axisTwin.Y != 0.0
+                    ? new Vector3d(-axisTwin.Y, axisTwin.X, 0.0)
+                    : new Vector3d(1.0, 0.0, 0.0);
+            axisBond = axisBond.GetNormal();
+
+            var avgBond = new Point3d(
+                0.5 * (supplyPos.X + returnPos.X),
+                0.5 * (supplyPos.Y + returnPos.Y),
+                0.5 * (supplyPos.Z + returnPos.Z));
+            if ((avgBond - twinPos).DotProduct(axisBond) < 0.0)
+                axisBond = axisBond.Negate();
+
+            return new PipeAxes(axisTwin, axisBond);
+        }
+
+        private PipeRun BuildPipeRun(
+            PortAssignment assignment,
+            PipeAxes axes,
+            double radius,
+            PortInstance bonded,
+            double twinOffset)
+        {
+            var twinCenter = assignment.Twin.Port.Node.Pos;
+            var twinStart = new Point3d(
+                twinCenter.X,
+                twinCenter.Y,
+                twinCenter.Z + twinOffset);
+
+            var bondPoint = bonded.Position;
+
+            var tiePoint = IntersectLines2D(twinStart, axes.Twin, bondPoint, axes.Bond, twinStart.Z);
+            var twinToTie = (tiePoint - twinStart).DotProduct(axes.Twin);
+            if (twinToTie < radius - 1e-6)
+                throw new InvalidOperationException($"FModel {Source}: insufficient distance between twin port and elbow.");
+
+            var firstStraightEnd = tiePoint - axes.Twin.MultiplyBy(radius);
+
+            var heightDelta = bondPoint.Z - twinStart.Z;
+            var sign = heightDelta >= 0.0 ? 1.0 : -1.0;
+            var absHeight = Math.Abs(heightDelta);
+
+            var elbowSolution = ElbowTransitionSolver.Solve(absHeight, radius);
+            var phi = elbowSolution.PhiRad;
+            var cy = elbowSolution.Cy;
+
+            var bondAlong = (bondPoint - tiePoint).DotProduct(axes.Bond);
+            if (bondAlong + 1e-6 < cy)
+                throw new InvalidOperationException($"FModel {Source}: bonded port too close for computed transition.");
+
+            var verticalDir = Vector3d.ZAxis.MultiplyBy(sign);
+            var intermediateDir = axes.Bond.MultiplyBy(Math.Cos(phi)) + verticalDir.MultiplyBy(Math.Sin(phi));
+
+            var jointPoint = tiePoint
+                + axes.Bond.MultiplyBy(Math.Cos(phi) * radius)
+                + verticalDir.MultiplyBy(Math.Sin(phi) * radius);
+
+            var finalStraightStart = tiePoint
+                + axes.Bond.MultiplyBy(cy)
+                + Vector3d.ZAxis.MultiplyBy(heightDelta);
+
+            var tangentFirst = ElbowTransitionSolver.ComputeTangentIntersection(
+                firstStraightEnd,
+                axes.Twin,
+                jointPoint,
+                intermediateDir,
+                radius);
+
+            var tangentSecond = ElbowTransitionSolver.ComputeTangentIntersection(
+                jointPoint,
+                intermediateDir,
+                finalStraightStart,
+                axes.Bond,
+                radius);
+
+            var twinExitVec = twinStart - firstStraightEnd;
+            var twinExitDir = twinExitVec.Length > 1e-6 ? twinExitVec.GetNormal() : axes.Twin.Negate();
+
+            var bondExitVec = bondPoint - finalStraightStart;
+            var bondExitDir = bondExitVec.Length > 1e-6 ? bondExitVec.GetNormal() : axes.Bond;
+
+            return new PipeRun(
+                bonded.Flow,
+                bonded.Port,
+                bondPoint,
+                twinStart,
+                firstStraightEnd,
+                jointPoint,
+                finalStraightStart,
+                axes.Twin,
+                axes.Bond,
+                intermediateDir,
+                tangentFirst,
+                tangentSecond,
+                twinExitDir,
+                bondExitDir);
+        }
+
+        private static Point3d IntersectLines2D(
+            Point3d originA,
+            Vector3d dirA,
+            Point3d originB,
+            Vector3d dirB,
+            double z)
+        {
+            var a2 = new Vector2d(dirA.X, dirA.Y);
+            var b2 = new Vector2d(dirB.X, dirB.Y);
+            var denom = a2.X * b2.Y - a2.Y * b2.X;
+            if (Math.Abs(denom) < 1e-12)
+                throw new InvalidOperationException("FModel axes are parallel; unable to find intersection.");
+
+            var delta = new Vector2d(originB.X - originA.X, originB.Y - originA.Y);
+            var s = (delta.X * b2.Y - delta.Y * b2.X) / denom;
+            var point = originA + dirA.MultiplyBy(s);
+            return new Point3d(point.X, point.Y, z);
+        }
+
+        private static Vector3d ToHorizontal(Vector3d v) => new(v.X, v.Y, 0.0);
 
         private static double ComputeSlope(Vector3d dir)
         {
             var horiz = Math.Sqrt(dir.X * dir.X + dir.Y * dir.Y);
             if (horiz < 1e-9) return 0.0;
             return dir.Z / horiz;
-        }
-
-        private static LocalFrame BuildActualFrame(
-            Point3d twinCenter,
-            Point3d bondedSupply,
-            Point3d bondedReturn)
-        {
-            var z = Vector3d.ZAxis;
-
-            Vector3d MakeHorizontal(Vector3d v) => v - z.MultiplyBy(v.DotProduct(z));
-
-            var yRaw = MakeHorizontal(bondedSupply - bondedReturn);
-            if (yRaw.Length < 1e-9)
-                yRaw = MakeHorizontal(bondedSupply - twinCenter);
-            if (yRaw.Length < 1e-9)
-                yRaw = Vector3d.YAxis;
-            var y = yRaw.GetNormal();
-
-            var x = y.CrossProduct(z);
-            if (x.Length < 1e-9)
-            {
-                x = Vector3d.XAxis;
-            }
-            else
-            {
-                x = x.GetNormal();
-            }
-
-            y = z.CrossProduct(x);
-            if (y.Length < 1e-9)
-                y = Vector3d.YAxis;
-            else
-                y = y.GetNormal();
-
-            return new LocalFrame(twinCenter, x, y, z);
         }
 
         #region Helper types
@@ -380,166 +372,30 @@ namespace NTRExport.TopologyModel
 
         private readonly record struct PortAssignment(
             PortInstance Twin,
-            PortInstance BondedA,
-            PortInstance BondedB)
-        {
-            public IEnumerable<ResolvedPorts> ResolveCandidates()
-            {
-                var a = BondedA;
-                var b = BondedB;
-
-                bool aSupply = a.Flow == FlowRole.Supply;
-                bool aReturn = a.Flow == FlowRole.Return;
-                bool bSupply = b.Flow == FlowRole.Supply;
-                bool bReturn = b.Flow == FlowRole.Return;
-
-                if (aSupply && bReturn)
-                {
-                    yield return new ResolvedPorts(Twin, a, b);
-                    yield break;
-                }
-
-                if (bSupply && aReturn)
-                {
-                    yield return new ResolvedPorts(Twin, b, a);
-                    yield break;
-                }
-
-                if (aSupply)
-                {
-                    yield return new ResolvedPorts(Twin, a, b.WithFlow(FlowRole.Return));
-                    yield break;
-                }
-
-                if (aReturn)
-                {
-                    yield return new ResolvedPorts(Twin, b.WithFlow(FlowRole.Supply), a);
-                    yield break;
-                }
-
-                if (bSupply)
-                {
-                    yield return new ResolvedPorts(Twin, b, a.WithFlow(FlowRole.Return));
-                    yield break;
-                }
-
-                if (bReturn)
-                {
-                    yield return new ResolvedPorts(Twin, a.WithFlow(FlowRole.Supply), b);
-                    yield break;
-                }
-
-                yield return new ResolvedPorts(Twin, a.WithFlow(FlowRole.Supply), b.WithFlow(FlowRole.Return));
-                yield return new ResolvedPorts(Twin, b.WithFlow(FlowRole.Supply), a.WithFlow(FlowRole.Return));
-            }
-        }
-
+            PortInstance BondedSupply,
+            PortInstance BondedReturn);
         private readonly record struct ResolvedPorts(
             PortInstance Twin,
             PortInstance BondedSupply,
             PortInstance BondedReturn);
 
-        private readonly record struct LocalFrame(Point3d Origin, Vector3d X, Vector3d Y, Vector3d Z);
+        private readonly record struct PipeAxes(Vector3d Twin, Vector3d Bond);
 
-        private readonly struct FrameTransform
-        {
-            private readonly LocalFrame _canon;
-            private readonly LocalFrame _actual;
-            private readonly double _scale;
-
-            public FrameTransform(LocalFrame canon, LocalFrame actual, double scale)
-            {
-                _canon = canon;
-                _actual = actual;
-                _scale = scale;
-            }
-
-            public Point3d MapPoint(Point3d point)
-            {
-                var coords = Decompose(point - _canon.Origin, _canon);
-                return _actual.Origin
-                    + _actual.X.MultiplyBy(coords.X * _scale)
-                    + _actual.Y.MultiplyBy(coords.Y * _scale)
-                    + _actual.Z.MultiplyBy(coords.Z * _scale);
-            }
-
-            public Vector3d MapVector(Vector3d vector)
-            {
-                var coords = Decompose(vector, _canon);
-                return _actual.X.MultiplyBy(coords.X * _scale)
-                    + _actual.Y.MultiplyBy(coords.Y * _scale)
-                    + _actual.Z.MultiplyBy(coords.Z * _scale);
-            }
-
-            private static Vector3d Decompose(Vector3d v, LocalFrame frame) =>
-                new(
-                    v.DotProduct(frame.X),
-                    v.DotProduct(frame.Y),
-                    v.DotProduct(frame.Z));
-        }
-
-        private record struct VariantSolution(
-            FModelCatalog.VariantData Variant,
-            FrameTransform Transform,
-            ResolvedPorts Assignment,
-            double ZOffset)
-        {
-            public VariantSolution WithZOffset(double offset) => this with { ZOffset = offset };
-
-            public Point3d MapPoint(Point3d point) => AddZ(Transform.MapPoint(point));
-
-            public Vector3d GetInwardTangent(TPort port, FlowRole lane)
-            {
-                if (ReferenceEquals(port, Assignment.Twin.Port))
-                {
-                    if (lane != FlowRole.Supply && lane != FlowRole.Return)
-                        throw new InvalidOperationException("Twin tangent requires supply or return lane.");
-                    return Transform.MapVector(Variant.TwinPorts[lane].Tangent);
-                }
-
-                if (ReferenceEquals(port, Assignment.BondedSupply.Port))
-                {
-                    if (lane != FlowRole.Supply && lane != FlowRole.Unknown)
-                        throw new InvalidOperationException("Bonded supply lane mismatch.");
-                    return Transform.MapVector(Variant.BondPorts[FlowRole.Supply].Tangent);
-                }
-
-                if (ReferenceEquals(port, Assignment.BondedReturn.Port))
-                {
-                    if (lane != FlowRole.Return && lane != FlowRole.Unknown)
-                        throw new InvalidOperationException("Bonded return lane mismatch.");
-                    return Transform.MapVector(Variant.BondPorts[FlowRole.Return].Tangent);
-                }
-
-                throw new InvalidOperationException("Missing tangent for port.");
-            }
-
-            public double GetPortElevation(TPort port, FlowRole lane) =>
-                GetPortPoint(port, lane).Z;
-
-            public Point3d GetPortPoint(TPort port, FlowRole lane)
-            {
-                if (ReferenceEquals(port, Assignment.Twin.Port))
-                {
-                    if (lane != FlowRole.Supply && lane != FlowRole.Return)
-                        throw new InvalidOperationException("Twin point requires supply or return lane.");
-                    return MapPoint(Variant.TwinPorts[lane].Position);
-                }
-
-                if (ReferenceEquals(port, Assignment.BondedSupply.Port))
-                    return MapPoint(Variant.BondPorts[FlowRole.Supply].Position);
-
-                if (ReferenceEquals(port, Assignment.BondedReturn.Port))
-                    return MapPoint(Variant.BondPorts[FlowRole.Return].Position);
-
-                throw new InvalidOperationException("Missing point for port.");
-            }
-
-            private Point3d AddZ(Point3d p) => new(p.X, p.Y, p.Z + ZOffset);
-        }
-
-        private string DescribePoint(Point3d pt) =>
-            $"({pt.X:0.###},{pt.Y:0.###},{pt.Z:0.###})";
+        private readonly record struct PipeRun(
+            FlowRole Flow,
+            TPort BondedPort,
+            Point3d BondedPoint,
+            Point3d TwinStart,
+            Point3d FirstStraightEnd,
+            Point3d JointPoint,
+            Point3d FinalStraightStart,
+            Vector3d AxisTwin,
+            Vector3d AxisBond,
+            Vector3d IntermediateDirection,
+            Point3d TangentFirst,
+            Point3d TangentSecond,
+            Vector3d TwinExitDirection,
+            Vector3d BondedExitDirection);
 
         #endregion
     }

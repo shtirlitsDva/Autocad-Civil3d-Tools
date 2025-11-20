@@ -91,6 +91,17 @@ namespace NTRExport.TopologyModel
                         FlowRole = FlowRole.Supply,
                         LTG = LTGMain(Source),
                     });
+
+                    foreach (var port in Ports)
+                    {
+                        var basePos = port.Node.Pos;
+                        g.Members.Add(new RoutedRigid(Source, this)
+                        {
+                            P1 = new Point3d(basePos.X, basePos.Y, entryZ + zLow),
+                            P2 = new Point3d(basePos.X, basePos.Y, entryZ + zUp),
+                            Material = Material,
+                        });
+                    }
                 }
             }
 
