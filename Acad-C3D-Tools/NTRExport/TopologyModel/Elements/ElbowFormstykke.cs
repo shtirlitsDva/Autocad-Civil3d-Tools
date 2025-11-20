@@ -8,6 +8,7 @@ using IntersectUtilities.UtilsCommon.Enums;
 
 using NTRExport.Enums;
 using NTRExport.Routing;
+using NTRExport.SoilModel;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 using static NTRExport.Utils.Utils;
@@ -66,7 +67,7 @@ namespace NTRExport.TopologyModel
 
                 var flowMain = Variant.IsTwin ? FlowRole.Return : Type == PipeTypeEnum.Frem ? FlowRole.Supply : FlowRole.Return;
 
-                g.Members.Add(new RoutedBend(Source, this)
+                var mainBend = new RoutedBend(Source, this)
                 {
                     A = a.Z(zUp + entryZ),
                     B = b.Z(zUp + entryZ),
@@ -76,11 +77,14 @@ namespace NTRExport.TopologyModel
                     DnSuffix = Variant.DnSuffix,
                     FlowRole = flowMain,
                     LTG = LTGMain(Source),
-                });
+                };
+                g.Members.Add(mainBend);
+                EmitSoilHint(g, ctx, mainBend.A, flowMain, "Elbow-A");
+                EmitSoilHint(g, ctx, mainBend.B, flowMain, "Elbow-B");
 
-            if (Variant.IsTwin)
-            {
-                    g.Members.Add(new RoutedBend(Source, this)
+                if (Variant.IsTwin)
+                {
+                    var supplyBend = new RoutedBend(Source, this)
                     {
                         A = a.Z(zLow + entryZ),
                         B = b.Z(zLow + entryZ),
@@ -90,7 +94,10 @@ namespace NTRExport.TopologyModel
                         DnSuffix = Variant.DnSuffix,
                         FlowRole = FlowRole.Supply,
                         LTG = LTGMain(Source),
-                    });
+                    };
+                    g.Members.Add(supplyBend);
+                    EmitSoilHint(g, ctx, supplyBend.A, FlowRole.Supply, "Elbow-A-Supply");
+                    EmitSoilHint(g, ctx, supplyBend.B, FlowRole.Supply, "Elbow-B-Supply");
 
                     foreach (var port in Ports)
                     {
@@ -112,6 +119,19 @@ namespace NTRExport.TopologyModel
                 exits.Add((p, entryZ, entrySlope));
             }
             return exits;
+        }
+
+        protected void EmitSoilHint(RoutedGraph g, RouterContext ctx, Point3d anchor, FlowRole flow, string tag)
+        {
+            if (ctx.CushionReach <= 1e-6) return;
+            g.SoilHints.Add(new SoilHint(
+                anchor,
+                flow,
+                ctx.CushionReach,
+                SoilHintKind.Cushion,
+                Source,
+                includeAnchorMember: false,
+                description: tag));
         }
     }
 

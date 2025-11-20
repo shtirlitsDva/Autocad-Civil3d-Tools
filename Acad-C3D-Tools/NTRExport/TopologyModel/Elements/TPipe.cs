@@ -86,7 +86,17 @@ namespace NTRExport.TopologyModel
                 var s1 = segments[i + 1];
                 if (s1 - s0 < 1e-6) continue;
 
-                var soil = IsCovered(CushionSpans, s0, s1) ? new SoilProfile("Soil_C80", 0.08) : SoilProfile.Default;
+                var soil = IsCovered(CushionSpans, s0, s1)
+                    ? new SoilProfile(
+                        name: "Soil_C80",
+                        coverHeight: 0.6,
+                        groundWaterDistance: null,
+                        soilWeightAbove: null,
+                        soilWeightBelow: null,
+                        frictionAngleDeg: null,
+                        cushionType: 2,
+                        cushionThickness: 0.08)
+                    : SoilProfile.Default;
 
                 var t0 = Length <= 1e-9 ? 0.0 : s0 / Length;
                 var t1 = Length <= 1e-9 ? 0.0 : s1 / Length;

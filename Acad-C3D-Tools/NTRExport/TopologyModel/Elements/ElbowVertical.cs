@@ -11,6 +11,7 @@ using IntersectUtilities.UtilsCommon.Enums;
 
 using NTRExport.Enums;
 using NTRExport.Routing;
+using NTRExport.SoilModel;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 using static NTRExport.Utils.Utils;
@@ -226,7 +227,7 @@ namespace NTRExport.TopologyModel
                 //prdDbg($"ElbowVertical {Source} twin return pts: A=({returnPts.A.X:0.###},{returnPts.A.Y:0.###},{returnPts.A.Z:0.###}), T=({returnPts.T.X:0.###},{returnPts.T.Y:0.###},{returnPts.T.Z:0.###}), B=({returnPts.B.X:0.###},{returnPts.B.Y:0.###},{returnPts.B.Z:0.###})");
                 //prdDbg($"ElbowVertical {Source} twin supply pts: A=({supplyPts.A.X:0.###},{supplyPts.A.Y:0.###},{supplyPts.A.Z:0.###}), T=({supplyPts.T.X:0.###},{supplyPts.T.Y:0.###},{supplyPts.T.Z:0.###}), B=({supplyPts.B.X:0.###},{supplyPts.B.Y:0.###},{supplyPts.B.Z:0.###})");
 
-                g.Members.Add(new RoutedBend(Source, this)
+                var bendReturn = new RoutedBend(Source, this)
                 {
                     A = returnPts.A,
                     B = returnPts.B,
@@ -236,9 +237,9 @@ namespace NTRExport.TopologyModel
                     DnSuffix = Variant.DnSuffix,
                     FlowRole = FlowRole.Return,
                     LTG = LTGMain(Source),
-                });
+                };
 
-                g.Members.Add(new RoutedBend(Source, this)
+                var bendSupply = new RoutedBend(Source, this)
                 {
                     A = supplyPts.A,
                     B = supplyPts.B,
@@ -248,7 +249,15 @@ namespace NTRExport.TopologyModel
                     DnSuffix = Variant.DnSuffix,
                     FlowRole = FlowRole.Supply,
                     LTG = LTGMain(Source),
-                });
+                };
+
+                g.Members.Add(bendReturn);
+                g.Members.Add(bendSupply);
+
+                EmitSoilHint(g, ctx, bendReturn.A, FlowRole.Return, "ElbowVertical-Return-A");
+                EmitSoilHint(g, ctx, bendReturn.B, FlowRole.Return, "ElbowVertical-Return-B");
+                EmitSoilHint(g, ctx, bendSupply.A, FlowRole.Supply, "ElbowVertical-Supply-A");
+                EmitSoilHint(g, ctx, bendSupply.B, FlowRole.Supply, "ElbowVertical-Supply-B");
 
                 var exitZVal = exitLocal.Y;
                 var exitSlopeVal = Math.Tan(alphaO);
@@ -402,7 +411,7 @@ namespace NTRExport.TopologyModel
 
                 var flowMain = base.ResolveBondedFlowRole(topo);
 
-                g.Members.Add(new RoutedBend(Source, this)
+                var singleBend = new RoutedBend(Source, this)
                 {
                     A = Off(aWorld, nA, zUp),
                     B = Off(bWorld, nB, zUp),
@@ -412,7 +421,10 @@ namespace NTRExport.TopologyModel
                     DnSuffix = Variant.DnSuffix,
                     FlowRole = flowMain,
                     LTG = LTGMain(Source),
-                });
+                };
+                g.Members.Add(singleBend);
+                EmitSoilHint(g, ctx, singleBend.A, flowMain, "ElbowVertical-A");
+                EmitSoilHint(g, ctx, singleBend.B, flowMain, "ElbowVertical-B");
 
                 // Single exit: propagate computed Z at other end and same slope                
                 var exitZVal = entryIsA ? zOther : zEntry;
@@ -434,6 +446,18 @@ namespace NTRExport.TopologyModel
                     return p;
             }
             throw new Exception("ElbowVertical has less than 2 ports!");
+        }
+        private void EmitSoilHint(RoutedGraph g, RouterContext ctx, Point3d anchor, FlowRole flow, string tag)
+        {
+            if (ctx.CushionReach <= 1e-6) return;
+            g.SoilHints.Add(new SoilHint(
+                anchor,
+                flow,
+                ctx.CushionReach,
+                SoilHintKind.Cushion,
+                Source,
+                includeAnchorMember: false,
+                description: tag));
         }
     }
 }

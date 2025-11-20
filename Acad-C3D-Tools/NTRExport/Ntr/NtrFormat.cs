@@ -2,6 +2,8 @@ using Autodesk.AutoCAD.Geometry;
 
 using NTRExport.SoilModel;
 
+using System.Text;
+
 namespace NTRExport.Ntr
 {
     internal static class NtrFormat
@@ -20,11 +22,22 @@ namespace NTRExport.Ntr
 
         public static string SoilTokens(SoilProfile? soil)
         {
-            // Always include cover; add cushion tokens when present
-            var baseTok = $" SOIL_H={DefaultSoilCoverM:0.###}";
-            if (soil != null && soil.CushionThk > 0)
-                return baseTok + $" SOIL_CUSH_TYPE=2 SOIL_CUSH_THK={CushionThkM:0.###}";
-            return baseTok;
+            var profile = soil ?? SoilProfile.Default;
+            var parts = new StringBuilder();
+            parts.Append($" SOIL_H={profile.CoverHeight:0.###}");
+            if (profile.GroundWaterDistance.HasValue)
+                parts.Append($" SOIL_HW={profile.GroundWaterDistance.Value:0.###}");
+            if (profile.SoilWeightAbove.HasValue)
+                parts.Append($" SOIL_GS={profile.SoilWeightAbove.Value:0.###}");
+            if (profile.SoilWeightBelow.HasValue)
+                parts.Append($" SOIL_GSW={profile.SoilWeightBelow.Value:0.###}");
+            if (profile.FrictionAngleDeg.HasValue)
+                parts.Append($" SOIL_PHI={profile.FrictionAngleDeg.Value:0.###}");
+            if (profile.CushionType.HasValue)
+                parts.Append($" SOIL_CUSH_TYPE={profile.CushionType.Value}");
+            if (profile.CushionThk > 0)
+                parts.Append($" SOIL_CUSH_THK={profile.CushionThk:0.###}");
+            return parts.ToString();
         }
     }
 }

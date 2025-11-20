@@ -13,20 +13,23 @@ namespace NTRExport.Routing
     internal sealed class Router
     {
         private readonly Topology _topo;
+        private readonly double _cushionReach;
 
-        public Router(Topology topo)
+        public Router(Topology topo, double cushionReach = 0.0)
         {
             _topo = topo;
+            _cushionReach = cushionReach;
         }
 
         public RoutedGraph Route()
         {
             var g = new RoutedGraph();
-            var ctx = new RouterContext(_topo);
+            var ctx = new RouterContext(_topo, _cushionReach);
 
             // Traverse subnets from roots (entryZ = 0.0) and emit members inline
             SolveElevationsAndGeometry(g, ctx);
             VerticalElbowFix(g);
+            RoutedTopologyBuilder.Build(g);
 
             return g;
         }
@@ -265,9 +268,11 @@ namespace NTRExport.Routing
     internal sealed class RouterContext
     {
         public Topology Topology { get; }
-        public RouterContext(Topology topo)
+        public double CushionReach { get; }
+        public RouterContext(Topology topo, double cushionReach)
         {
             Topology = topo;
+            CushionReach = cushionReach;
         }
 
         // Compatibility helper for legacy Route() code paths that still call ctx.GetZ.

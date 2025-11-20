@@ -136,6 +136,9 @@ namespace NTRExport.Routing
     internal sealed class RoutedGraph
     {
         public List<RoutedMember> Members { get; } = new();
+        public List<RoutedNode> Nodes { get; } = new();
+        public Dictionary<RoutedMember, RoutedEndpoint[]> EndpointMap { get; } = new();
+        public List<SoilHint> SoilHints { get; } = new();
     }
 
     internal sealed class RoutedReducer : RoutedMember
@@ -209,6 +212,32 @@ namespace NTRExport.Routing
                 Last(conf) +
                 PipelineToken +
                 NtrFormat.SoilTokens(null);
+        }
+    }
+
+    internal sealed class RoutedNode
+    {
+        public Point3d Position { get; }
+        public List<RoutedEndpoint> Endpoints { get; } = new();
+
+        public RoutedNode(Point3d position)
+        {
+            Position = position;
+        }
+    }
+
+    internal sealed class RoutedEndpoint
+    {
+        public RoutedMember Member { get; }
+        public int Index { get; }
+        public Point3d Position { get; }
+        public RoutedNode? Node { get; internal set; }
+
+        public RoutedEndpoint(RoutedMember member, int index, Point3d position)
+        {
+            Member = member;
+            Index = index;
+            Position = position;
         }
     }
 }
