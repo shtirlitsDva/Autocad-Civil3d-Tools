@@ -14,10 +14,10 @@ namespace NTRExport.Ntr
 
         public static string Pt(Point3d p)
         {
-            var x = (p.X - NtrCoord.OffsetX) * MetersToMillimeters;
-            var y = (p.Y - NtrCoord.OffsetY) * MetersToMillimeters;
-            var z = p.Z * MetersToMillimeters;
-            return "'" + $"{x:0.#}, {y:0.#}, {z:0.#}" + "'";
+            var x = (p.X - NtrCoord.OffsetX); //* MetersToMillimeters;
+            var y = (p.Y - NtrCoord.OffsetY); //* MetersToMillimeters;
+            var z = p.Z; // * MetersToMillimeters;
+            return "'" + $"{x:0.####}, {y:0.####}, {z:0.####}" + "'";
         }
 
         public static string SoilTokens(SoilProfile? soil)

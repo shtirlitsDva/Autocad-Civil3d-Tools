@@ -33,7 +33,7 @@ namespace NTRExport.Ntr
             var sb = new StringBuilder();
             // Header: units in millimeters
             sb.AppendLine("C General settings");
-            sb.AppendLine("GEN TMONT=10 EB=-Z UNITKT=MM CODE=EN13941");
+            sb.AppendLine("GEN TMONT=10 EB=-Z UNITKT=M CODE=EN13941");
 
             sb.AppendLine("C Loads definition");
             foreach (var last in _conf.Last) sb.AppendLine(last.ToString());

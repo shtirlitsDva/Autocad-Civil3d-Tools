@@ -33,8 +33,8 @@ namespace NTRExport.TopologyModel
             var (zUp, zLow) = ComputeTwinOffsets(System, Type, DN);
             var radius = Geometry.GetBogRadius3D(DN) / 1000.0;
 
-            var supplyRun = BuildPipeRun(assignment, axes, radius, assignment.BondedSupply, zLow);
-            var returnRun = BuildPipeRun(assignment, axes, radius, assignment.BondedReturn, zUp);
+            var supplyRun = BuildPipeRun(assignment, axes, radius, assignment.BondedSupply, zLow, entryZ);
+            var returnRun = BuildPipeRun(assignment, axes, radius, assignment.BondedReturn, zUp, entryZ);
 
             var members = new List<RoutedMember>();
             EmitPipeRun(members, supplyRun);
@@ -257,15 +257,20 @@ namespace NTRExport.TopologyModel
             PipeAxes axes,
             double radius,
             PortInstance bonded,
-            double twinOffset)
+            double twinOffset,
+            double entryZ)
         {
             var twinCenter = assignment.Twin.Port.Node.Pos;
             var twinStart = new Point3d(
                 twinCenter.X,
                 twinCenter.Y,
-                twinCenter.Z + twinOffset);
+                entryZ + twinOffset);
 
-            var bondPoint = bonded.Position;
+            var bondedPos = bonded.Position;
+            var bondPoint = new Point3d(
+                bondedPos.X,
+                bondedPos.Y,
+                entryZ);
 
             var tiePoint = IntersectLines2D(twinStart, axes.Twin, bondPoint, axes.Bond, twinStart.Z);
             var twinToTie = (tiePoint - twinStart).DotProduct(axes.Twin);

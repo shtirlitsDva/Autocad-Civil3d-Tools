@@ -237,7 +237,7 @@ namespace NTRExport.TopologyModel
             var ltgBranch = LTGBranch(Source);
             if (ltgBranch.IsNoE()) ltgBranch = LTGMain(Source);
             var branchFlow = Variant.IsTwin ? FlowRole.Unknown : ResolveBondedFlowRole(topo, branch);
-            double r = Geometry.GetBogRadius5D(DnB) / 1000.0;
+            double r = Geometry.GetBogRadius3D(DnB) / 1000.0;
 
             bool TrySolveFillet3D(out Point3d aPrime3, out Point3d bPrime3, out Point3d tPoint)
             {

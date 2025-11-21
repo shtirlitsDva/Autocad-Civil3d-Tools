@@ -96,7 +96,7 @@ namespace NTRExport.SoilModel
         }
 
         private void ApplyHint(SoilHint hint)
-        {
+            {
             if (!_profiles.ContainsKey(hint.Kind)) return;
             var node = FindNode(hint.AnchorPoint);
             if (node == null) return;
@@ -123,6 +123,12 @@ namespace NTRExport.SoilModel
             if (seen.TryGetValue(key, out var prev) && prev >= remaining - Tol)
                 return;
             seen[key] = remaining;
+
+            if (hint.IncludeAnchorMember &&
+                _profiles.TryGetValue(hint.Kind, out var cushion))
+            {
+                member.SoilOverride ??= cushion;
+            }
 
             double leftover = remaining;
             if (member is RoutedStraight straight)
@@ -195,7 +201,7 @@ namespace NTRExport.SoilModel
             if (e - s <= Tol) return;
 
             if (!_spans.TryGetValue(straight, out var list))
-            {
+                {
                 list = new();
                 _spans[straight] = list;
             }

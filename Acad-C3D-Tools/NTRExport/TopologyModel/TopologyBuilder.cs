@@ -170,7 +170,7 @@ namespace NTRExport.TopologyModel
 
                         if (arcSplits.Count == 0)
                         {
-                            var elbow = new ElbowFormstykke(
+                            var elbow = new ElbowFromPolyArc(
                                 pl.Handle,
                                 NTRExport.Utils.Utils.GetTangentPoint(arc),
                                 PipelineElementType.Kedelrørsbøjning);
@@ -217,7 +217,7 @@ namespace NTRExport.TopologyModel
                                 var e2 = chainFeet[j + 1];
                                 var tpnt = TangentPointFor(c, s2, e2);
 
-                                var sub = new ElbowFormstykke(
+                                var sub = new ElbowFromPolyArc(
                                     pl.Handle,
                                     tpnt == default ? NTRExport.Utils.Utils.GetTangentPoint(arc) : tpnt,
                                     PipelineElementType.Kedelrørsbøjning);

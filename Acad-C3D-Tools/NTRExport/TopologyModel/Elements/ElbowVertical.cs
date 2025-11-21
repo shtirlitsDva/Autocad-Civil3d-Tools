@@ -254,10 +254,10 @@ namespace NTRExport.TopologyModel
                 g.Members.Add(bendReturn);
                 g.Members.Add(bendSupply);
 
-                EmitSoilHint(g, ctx, bendReturn.A, FlowRole.Return, "ElbowVertical-Return-A");
-                EmitSoilHint(g, ctx, bendReturn.B, FlowRole.Return, "ElbowVertical-Return-B");
-                EmitSoilHint(g, ctx, bendSupply.A, FlowRole.Supply, "ElbowVertical-Supply-A");
-                EmitSoilHint(g, ctx, bendSupply.B, FlowRole.Supply, "ElbowVertical-Supply-B");
+                EmitSoilHint(g, ctx, bendReturn.A, FlowRole.Return, "ElbowVertical-Return-A", includeMember: true);
+                EmitSoilHint(g, ctx, bendReturn.B, FlowRole.Return, "ElbowVertical-Return-B", includeMember: true);
+                EmitSoilHint(g, ctx, bendSupply.A, FlowRole.Supply, "ElbowVertical-Supply-A", includeMember: true);
+                EmitSoilHint(g, ctx, bendSupply.B, FlowRole.Supply, "ElbowVertical-Supply-B", includeMember: true);
 
                 var exitZVal = exitLocal.Y;
                 var exitSlopeVal = Math.Tan(alphaO);
@@ -423,8 +423,8 @@ namespace NTRExport.TopologyModel
                     LTG = LTGMain(Source),
                 };
                 g.Members.Add(singleBend);
-                EmitSoilHint(g, ctx, singleBend.A, flowMain, "ElbowVertical-A");
-                EmitSoilHint(g, ctx, singleBend.B, flowMain, "ElbowVertical-B");
+                EmitSoilHint(g, ctx, singleBend.A, flowMain, "ElbowVertical-A", includeMember: true);
+                EmitSoilHint(g, ctx, singleBend.B, flowMain, "ElbowVertical-B", includeMember: true);
 
                 // Single exit: propagate computed Z at other end and same slope                
                 var exitZVal = entryIsA ? zOther : zEntry;
@@ -447,7 +447,7 @@ namespace NTRExport.TopologyModel
             }
             throw new Exception("ElbowVertical has less than 2 ports!");
         }
-        private void EmitSoilHint(RoutedGraph g, RouterContext ctx, Point3d anchor, FlowRole flow, string tag)
+        private void EmitSoilHint(RoutedGraph g, RouterContext ctx, Point3d anchor, FlowRole flow, string tag, bool includeMember)
         {
             if (ctx.CushionReach <= 1e-6) return;
             g.SoilHints.Add(new SoilHint(
@@ -456,7 +456,7 @@ namespace NTRExport.TopologyModel
                 ctx.CushionReach,
                 SoilHintKind.Cushion,
                 Source,
-                includeAnchorMember: false,
+                includeAnchorMember: includeMember,
                 description: tag));
         }
     }

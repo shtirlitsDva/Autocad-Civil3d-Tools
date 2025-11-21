@@ -29,6 +29,7 @@ namespace NTRExport.Routing
         public PipeSystemEnum System => Emitter.System;
         public PipeTypeEnum Type => Emitter.Type;
         public PipeSeriesEnum Series => Emitter.Series;
+        public SoilProfile? SoilOverride { get; set; }
 
         protected string FormatDnSuffix(string baseSuffix)
         {
@@ -84,6 +85,7 @@ namespace NTRExport.Routing
 
         public override IEnumerable<string> ToNtr(INtrSoilAdapter soil, ConfigurationData conf)
         {
+            var profile = Soil;
             yield return "RO " +
                 $"P1={NtrFormat.Pt(A)} " +
                 $"P2={NtrFormat.Pt(B)} " +
@@ -91,7 +93,7 @@ namespace NTRExport.Routing
                 (Material != null ? $" MAT={Material}" : string.Empty) +
                 Last(conf) +
                 PipelineToken +
-                NtrFormat.SoilTokens(Soil);
+                NtrFormat.SoilTokens(profile);
         }
     }
 
@@ -113,7 +115,7 @@ namespace NTRExport.Routing
                 Last(conf) +
                 NormField +
                 PipelineToken +
-                NtrFormat.SoilTokens(null);
+                NtrFormat.SoilTokens(SoilOverride);
         }
     }
 
