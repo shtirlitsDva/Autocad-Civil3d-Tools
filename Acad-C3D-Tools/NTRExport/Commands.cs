@@ -670,6 +670,106 @@ namespace NTRExport
             tx.Commit();
         }
 
+        [CommandMethod("NTRMARKVERTICALS")]
+        public void ntrmarkverticals()
+        {
+            DocumentCollection docCol = AcApp.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            PropertySetManager.UpdatePropertySetDefinition(localDb, PSetDefs.DefinedSets.NtrData);
+
+            using var tx = localDb.TransactionManager.StartTransaction();
+
+            try
+            {
+                var ents = localDb.GetFjvEntities(tx);
+
+                #region ------------- FILTER -------------
+                var acceptedSystems = new HashSet<PipeSystemEnum>() { PipeSystemEnum.Stål };
+
+                bool isAccepted(Entity ent)
+                {
+#if DEBUG
+                    //prdDbg("DEBUG filtering active! Polylines only.");
+                    //if (ent is BlockReference) return false;
+#endif
+
+                    switch (ent)
+                    {
+                        case Polyline _:
+                            return acceptedSystems.Contains(
+                                PipeScheduleV2.GetPipeSystem(ent));
+                        case BlockReference br:
+                            return acceptedSystems.Contains(
+                                br.GetPipeSystemEnum());
+                        default:
+                            return false;
+                    }
+                }
+
+                ents = ents.Where(x => isAccepted(x)).ToHashSet();
+                #endregion                
+
+                #region ------------- CAD ➜ Port topology -------------
+                var polylines = ents.OfType<Polyline>().ToList();
+                var fittings = ents.OfType<BlockReference>().ToList();
+                var topo = TopologyBuilder.Build(polylines, fittings);
+                #endregion                
+
+                foreach (var element in topo.Elements)
+                {
+                    if (element is not ElbowVertical ev) continue;
+                    
+                    var h = ev.Source;
+                    var ent = h.Go<BlockReference>(localDb);
+                    if (ent != null)
+                    {
+                        var ntr = new NtrData(ent);
+
+                        var dir = ntr.VertikalBøjningDir;
+
+                        switch (dir)
+                        {
+                            case "Up":
+                                DebugHelper.CreateDebugLine(
+                                    ent.Position,
+                                    ColorByName("green"));
+                                break;
+                            case "Down":
+                                DebugHelper.CreateDebugLine(
+                                    ent.Position,
+                                    ColorByName("red"));
+                                break;
+                            default:
+                                break;
+                        }
+                    }
+                }
+            }
+            catch (DebugPointException dbex)
+            {
+                prdDbg(dbex);
+
+                tx.Abort();
+
+                using var dtx = localDb.TransactionManager.StartTransaction();
+                foreach (var p in dbex.PointsToMark)
+                {
+                    DebugHelper.CreateDebugLine(p, ColorByName("red"));
+                }
+                dtx.Commit();
+                return;
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg(ex);
+
+                tx.Abort();
+                return;
+            }
+            tx.Commit();
+        }
+
         private sealed class RefEq<T> : IEqualityComparer<T> where T : class
         {
             public bool Equals(T? x, T? y) => ReferenceEquals(x, y);

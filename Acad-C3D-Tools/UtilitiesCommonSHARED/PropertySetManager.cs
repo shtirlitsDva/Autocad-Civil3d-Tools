@@ -676,6 +676,7 @@ namespace IntersectUtilities
 
                 foreach (PSetDefs.Property property in missingProperties)
                 {
+                    propSetDef.CheckOrOpenForWrite();
                     property.AddToDefinition(db, propSetDef);
                 }
                 tx.Commit();

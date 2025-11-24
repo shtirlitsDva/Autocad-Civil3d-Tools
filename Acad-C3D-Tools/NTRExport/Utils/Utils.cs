@@ -23,8 +23,10 @@ namespace NTRExport.Utils
 
             var ent = source.Go<Entity>(db);
 
-            return PropertySetManager.ReadNonDefinedPropertySetString(
+            var ltg = PropertySetManager.ReadNonDefinedPropertySetString(
                 ent, "DriPipelineData", "BelongsToAlignment");
+
+            return ltg.IsNoE() ? "" : $"\'{ltg}\'";
         }
 
         public static string LTGBranch(Handle source)
@@ -34,8 +36,10 @@ namespace NTRExport.Utils
 
             var ent = source.Go<Entity>(db);
 
-            return PropertySetManager.ReadNonDefinedPropertySetString(
+            var ltg = PropertySetManager.ReadNonDefinedPropertySetString(
                 ent, "DriPipelineData", "BranchesOffToAlignment");
+
+            return ltg.IsNoE() ? "" : $"\'{ltg}\'";
         }
 
         public static Point3d GetTangentPoint(CircularArc2d arc)
