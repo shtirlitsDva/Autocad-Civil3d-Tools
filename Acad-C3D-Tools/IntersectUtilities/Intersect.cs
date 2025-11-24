@@ -5600,12 +5600,27 @@ namespace IntersectUtilities
                 prdDbg("\nCoordinate system is invalid");
         }
 
+        private static double _lastTangentOffsetArcRadius = 104.0;
+
         [CommandMethod("TANGENTOFFSETARC")]
         public void TangentOffsetArc()
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
             Database db = doc.Database;
             Editor ed = doc.Editor;
+
+            PromptDistanceOptions arcRadiusOptions = new PromptDistanceOptions("\nEnter arc radius");
+            arcRadiusOptions.AllowNegative = false;
+            arcRadiusOptions.AllowNone = false;
+            arcRadiusOptions.DefaultValue = _lastTangentOffsetArcRadius;
+            arcRadiusOptions.UseDefaultValue = true;
+
+            PromptDoubleResult arcRadiusResult = ed.GetDistance(arcRadiusOptions);
+            if (arcRadiusResult.Status != PromptStatus.OK)
+                return;
+
+            double arcRadius = arcRadiusResult.Value;
+            _lastTangentOffsetArcRadius = arcRadius;
 
             PromptNestedEntityOptions promptNestedEntityOptions = new PromptNestedEntityOptions("\nSelect the clearance block that the arc must be tangent to");
 
@@ -5633,24 +5648,24 @@ namespace IntersectUtilities
                             transform = br.BlockTransform * transform;
                     }
 
-                    if (entity is Circle circle)
+                    if (entity is Circle entityCircle)
                     {
                         prdDbg("\nEntity is a circle");
-                        clearanceCircle = (Circle)circle.Clone();
+                        clearanceCircle = (Circle)entityCircle.Clone();
                         clearanceCircle.TransformBy(transform);
                         clearanceCenterPoint = clearanceCircle.Center;
                     }
-                    else if (entity is Arc arc)
+                    else if (entity is Arc entityArc)
                     {
                         prdDbg("\nEnity is an arc");
-                        clearanceArc = (Arc)arc.Clone();
+                        clearanceArc = (Arc)entityArc.Clone();
                         clearanceArc.TransformBy(transform);
                         clearanceCenterPoint = clearanceArc.Center;
                     }
-                    else if (entity is Polyline polyline)
+                    else if (entity is Polyline entityPolyline)
                     {
                         prdDbg("\nEntity is a polyline");
-                        clearancePolyline = (Polyline)polyline.Clone();
+                        clearancePolyline = (Polyline)entityPolyline.Clone();
                         clearancePolyline.TransformBy(transform);
                         clearancePolyline.Closed = true;
                         clearanceCenterPoint = clearancePolyline.GetCenter();
@@ -5669,16 +5684,13 @@ namespace IntersectUtilities
                 }
             }
 
-
-
             var promptPolylineOptions = new PromptEntityOptions("\nSelect a polyline for the arc to follow");
+            promptPolylineOptions.SetRejectMessage("\nEntity is not a polyline");
+            promptPolylineOptions.AddAllowedClass(typeof(Polyline), exactMatch: true);
 
             var promptPolylineResult = ed.GetEntity(promptPolylineOptions);
-            if (promptPolylineResult.Status != PromptStatus.OK || promptPolylineResult is Polyline)
-            {
-                prdDbg("\nNot a polyline");
+            if (promptPolylineResult.Status != PromptStatus.OK)
                 return;
-            }
 
             Point3d directionPoint;
 
@@ -5698,10 +5710,104 @@ namespace IntersectUtilities
             }
 
             Vector3d directionVectorUnit = clearanceCenterPoint.GetVectorTo(directionPoint).GetNormal();
-            
-            
+            Line directionLine = new Line(clearanceCenterPoint, directionPoint);
 
+            double arcStartAngle;
+            double arcEndAngle;
 
+            double arcWidth = 5.0;
+
+            double halfAngle = Math.Asin(arcWidth / (2 * arcRadius));
+
+            Arc arc = new Arc();
+
+            if (clearanceCircle != null)
+            {
+                Point3d arcTangentPoint = clearanceCenterPoint + directionVectorUnit.MultiplyBy(clearanceCircle.Radius);
+                Point3d arcCenterPoint = arcTangentPoint - directionVectorUnit.MultiplyBy(arcRadius);
+
+                arcStartAngle = directionLine.Angle - halfAngle;
+                arcEndAngle = directionLine.Angle + halfAngle;
+
+                arc = new Arc(arcCenterPoint, arcRadius, arcStartAngle, arcEndAngle);
+            }
+            else if (clearanceArc != null)
+            {
+                Point3d arcTangentPoint = clearanceCenterPoint + directionVectorUnit.MultiplyBy(clearanceArc.Radius);
+                Point3d arcCenterPoint = arcTangentPoint - directionVectorUnit.MultiplyBy(arcRadius);
+
+                arcStartAngle = directionLine.Angle - halfAngle;
+                arcEndAngle = directionLine.Angle + halfAngle;
+
+                arc = new Arc(arcCenterPoint, arcRadius, arcStartAngle, arcEndAngle);
+            }
+            else if (clearancePolyline != null)
+            {
+                int closestPointIndex = -1;
+                int secondClosestPointIndex = -1;
+                double closestPointDistance = double.MaxValue;
+                double secondClosestPointDistance = double.MaxValue;
+
+                for (int i = 0; i < clearancePolyline.NumberOfVertices; i++)
+                {
+                    Point3d vertex = clearancePolyline.GetPoint3dAt(i);
+                    double distanceToVertex = directionPoint.GetVectorTo(vertex).LengthSqrd;
+
+                    if (distanceToVertex < closestPointDistance)
+                    {
+                        secondClosestPointDistance = closestPointDistance;
+                        secondClosestPointIndex = closestPointIndex;
+
+                        closestPointDistance = distanceToVertex;
+                        closestPointIndex = i;
+                    }
+                    else if (distanceToVertex < secondClosestPointDistance)
+                    {
+                        secondClosestPointDistance = distanceToVertex;
+                        secondClosestPointIndex = i;
+                    }
+                }
+
+                Point3d closestPoint = clearancePolyline.GetPoint3dAt(closestPointIndex);
+                Point3d secondClosestPoint = clearancePolyline.GetPoint3dAt(secondClosestPointIndex);
+
+                double distanceBetweenPoints = closestPoint.DistanceTo(secondClosestPoint);
+
+                if (arcRadius < distanceBetweenPoints / 2)
+                {
+                    prdDbg("\nRadius too small for clerance");
+                    return;
+                }
+
+                double arcHeight = arcRadius - Math.Sqrt(arcRadius.Pow(2) - (distanceBetweenPoints / 2).Pow(2));
+
+                Point3d midPoint = closestPoint.MidPoint(secondClosestPoint);
+
+                double cleranceHalfHeight = clearanceCenterPoint.DistanceTo(midPoint);
+
+                Vector3d vertical = new Vector3d(0, 1, 0);
+
+                Point3d arcCenterPoint;
+
+                if (directionLine.Angle > Math.PI)
+                {
+                    Point3d arcTangentPoint = clearanceCenterPoint - vertical.MultiplyBy(cleranceHalfHeight + arcHeight);
+                    arcCenterPoint = arcTangentPoint + vertical.MultiplyBy(arcRadius);
+
+                    arcStartAngle = 3 * Math.PI / 2 - halfAngle;
+                    arcEndAngle = 3 * Math.PI / 2 + halfAngle;
+                }
+                else
+                {
+                    Point3d arcTangentPoint = clearanceCenterPoint + vertical.MultiplyBy(cleranceHalfHeight + arcHeight);
+                    arcCenterPoint = arcTangentPoint - vertical.MultiplyBy(arcRadius);
+
+                    arcStartAngle = Math.PI / 2 - halfAngle;
+                    arcEndAngle = Math.PI / 2 + halfAngle;
+                }
+
+                arc = new Arc(arcCenterPoint, arcRadius, arcStartAngle, arcEndAngle);
+            }
 
             using (Transaction tr = db.TransactionManager.StartTransaction())
             {
@@ -5710,8 +5816,8 @@ namespace IntersectUtilities
                     BlockTable bt = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
                     BlockTableRecord btr = (BlockTableRecord)tr.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForWrite);
 
-                    btr.AppendEntity(clearanceCircle);
-                    tr.AddNewlyCreatedDBObject(clearanceCircle, true);
+                    btr.AppendEntity(arc);
+                    tr.AddNewlyCreatedDBObject(arc, true);
 
                     tr.Commit();
 
