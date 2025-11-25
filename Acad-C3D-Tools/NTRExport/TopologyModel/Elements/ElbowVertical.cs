@@ -144,6 +144,7 @@ namespace NTRExport.TopologyModel
                     return new Vector2d(v.X * ca - v.Y * sa, v.X * sa + v.Y * ca);
                 }
 
+                // entryLocal represents the entry point centerline at entryZ elevation
                 var entryLocal = new Point2d(0.0, entryZ);
                 var leftNormal = new Vector2d(-entryDir.Y, entryDir.X);
                 var centerLocal = entryLocal.Add(leftNormal.MultiplyBy(dirUp ? radius : -radius));
@@ -295,7 +296,8 @@ namespace NTRExport.TopologyModel
                 //prdDbg($"ElbowVertical {Source}: angleDeg={angleDeg:0.###}, dirUp={dirUp}, entrySlope={entrySlope:0.####}, entryZ={entryZ:0.###}, cXY={c:0.###}");
                 //prdDbg($"ElbowVertical {Source}: entry=({entryXY.X:0.###},{entryXY.Y:0.###}), other=({otherXY.X:0.###},{otherXY.Y:0.###})");
 
-                // End elevations using entry slope projected along XY distance
+                // End elevations: entryZ is the centerline elevation at the entry port
+                // zEntry is the centerline elevation at entry port (must equal entryZ)
                 var zEntry = entryZ;
                 // Provisional zOther (for initial sign selection); will be recomputed from arc geometry
                 var zOther = entryZ + entrySlope * c;
@@ -385,12 +387,16 @@ namespace NTRExport.TopologyModel
                     }
                 }
 
-                // Map back to world
+                // Map back to world coordinates
+                // Use XY from port positions, but Z from computed geometry (zEntry/zOther)
+                // This ensures the centerline is at entryZ at the entry port
                 Point2d ToXY(double u) => new Point2d(entryXY.X + uHat.X * u, entryXY.Y + uHat.Y * u);
 
                 var aZ = entryIsA ? zEntry : zOther;
                 var bZ = entryIsA ? zOther : zEntry;
 
+                // Create world points using port XY positions but computed Z elevations
+                // This ensures entryZ is respected at the entry port
                 var aWorld = new Point3d(a.X, a.Y, aZ);
                 var bWorld = new Point3d(b.X, b.Y, bZ);
                 var tXY = ToXY(t2.X);
@@ -398,8 +404,11 @@ namespace NTRExport.TopologyModel
                 //prdDbg($"ElbowVertical {Source}: A=({aWorld.X:0.###},{aWorld.Y:0.###},{aWorld.Z:0.###}) B=({bWorld.X:0.###},{bWorld.Y:0.###},{bWorld.Z:0.###}) T=({tWorld.X:0.###},{tWorld.Y:0.###},{tWorld.Z:0.###})");
 
                 var (zUp, zLow) = ComputeTwinOffsets(System, Type, DN);
+                // For bonded pipes, ComputeTwinOffsets returns (0.0, 0.0), so no offset is applied
+                // For twin pipes, offsets would be applied, but this is a bonded pipe case
 
-                // Twin offsets should be applied along normal to local centerline, not world Z
+                // Offsets should be applied along normal to local centerline, not world Z
+                // This preserves the centerline elevation (entryZ at entry port)
                 var uHat3 = new Vector3d(uHat.X, uHat.Y, 0.0);
                 Vector3d NormalVec(double alpha) =>
                     uHat3.MultiplyBy(-Math.Sin(alpha)) + Vector3d.ZAxis.MultiplyBy(Math.Cos(alpha));
@@ -411,6 +420,8 @@ namespace NTRExport.TopologyModel
 
                 var flowMain = base.ResolveBondedFlowRole(topo);
 
+                // Create bend with centerline at computed elevations (entryZ at entry port)
+                // Offsets are applied along normals, preserving centerline elevation
                 var singleBend = new RoutedBend(Source, this)
                 {
                     A = Off(aWorld, nA, zUp),

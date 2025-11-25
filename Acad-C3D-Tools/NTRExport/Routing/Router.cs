@@ -4,9 +4,13 @@ using System.Runtime.CompilerServices;
 using System.Collections.Generic;
 using System.Linq;
 
+using IntersectUtilities.UtilsCommon;
 using static IntersectUtilities.UtilsCommon.Utils;
+using static NTRExport.Utils.Utils;
 using NTRExport.CadExtraction;
 using NTRExport.Enums;
+using IntersectUtilities.PipeScheduleV2;
+using IntersectUtilities.UtilsCommon.Enums;
 
 namespace NTRExport.Routing
 {
@@ -29,6 +33,7 @@ namespace NTRExport.Routing
             // Traverse subnets from roots (entryZ = 0.0) and emit members inline
             SolveElevationsAndGeometry(g, ctx);
             VerticalElbowFix(g);
+            PostProcessForgedTees(g);
             RoutedTopologyBuilder.Build(g);
 
             return g;
@@ -134,6 +139,61 @@ namespace NTRExport.Routing
 
                 SnapEndpoint(bend, bend.A);
                 SnapEndpoint(bend, bend.B);
+            }
+        }
+
+        private static void PostProcessForgedTees(RoutedGraph g)
+        {
+            if (g.Members.Count == 0) return;
+
+            double connectionTol = CadTolerance.Tol;
+
+            // Find all TeeFormstykke instances that need post-processing (twin + different DN)
+            var teesToProcess = new List<TeeFormstykke>();
+            foreach (var el in g.Members.Select(m => m.Emitter).Distinct())
+            {
+                if (el is TeeFormstykke tee && tee.Variant.IsTwin && tee.DnM != tee.DnB)
+                {
+                    teesToProcess.Add(tee);
+                }
+            }
+
+            if (teesToProcess.Count == 0) return;
+
+            // Build spatial index of RoutedStraight endpoints (XY only) for efficient lookup
+            var endpointIndex = new Dictionary<(long x, long y), List<(RoutedStraight straight, bool isA)>>();
+            long Quantize(double val) => (long)(val / connectionTol);
+
+            foreach (var member in g.Members)
+            {
+                if (member is not RoutedStraight rs) continue;
+                var keyA = (Quantize(rs.A.X), Quantize(rs.A.Y));
+                var keyB = (Quantize(rs.B.X), Quantize(rs.B.Y));
+                if (!endpointIndex.TryGetValue(keyA, out var listA)) endpointIndex[keyA] = listA = new();
+                listA.Add((rs, true));
+                if (!endpointIndex.TryGetValue(keyB, out var listB)) endpointIndex[keyB] = listB = new();
+                listB.Add((rs, false));
+            }
+
+            // For each tee, find connected branch pipes and main run pipes, then delegate geometry processing
+            foreach (var tee in teesToProcess)
+            {
+                // Find branch straights connected to this tee's branch port
+                var branchPort2d = tee.BranchPort.Node.Pos.To2d();
+                var branchKey = (Quantize(branchPort2d.X), Quantize(branchPort2d.Y));
+
+                if (!endpointIndex.TryGetValue(branchKey, out var candidates)) continue;
+
+                var connectedBranchStraights = candidates
+                    .Where(c => !ReferenceEquals(c.straight.Emitter, tee))
+                    .Select(c => c.straight)
+                    .Distinct()
+                    .ToList();
+
+                if (connectedBranchStraights.Count == 0) continue;
+
+                // Delegate geometry processing to the tee itself
+                tee.PostProcessBranchGeometry(g, connectedBranchStraights);
             }
         }
 

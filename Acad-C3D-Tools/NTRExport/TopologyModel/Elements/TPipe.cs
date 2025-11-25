@@ -48,12 +48,19 @@ namespace NTRExport.TopologyModel
             var exits = new List<(TPort exitPort, double exitZ, double exitSlope)>();
             var other = ReferenceEquals(entryPort, A) ? B : A;
 
+            // Compute Z at parameter t (0 = entry port, 1 = exit port)
+            // When entryPort is A: flow A→B, s = t * Length (0 to Length)
+            // When entryPort is B: flow B→A, s = (1-t) * Length (Length to 0)
+            // entrySlope is always in the direction of flow, so we use it directly
             double ZAtParam(double t)
             {
                 var s = ReferenceEquals(entryPort, A) ? t * Length : (1.0 - t) * Length;
                 return entryZ + entrySlope * s;
             }
-            double exitZ = ZAtParam(1.0);
+            
+            // Compute exitZ: at exit port, we've traveled Length distance from entry port
+            // entrySlope is in the direction of flow, so exitZ = entryZ + entrySlope * Length
+            double exitZ = entryZ + entrySlope * Length;
             exits.Add((other, exitZ, entrySlope));
 
             var isTwin = Variant.IsTwin;
