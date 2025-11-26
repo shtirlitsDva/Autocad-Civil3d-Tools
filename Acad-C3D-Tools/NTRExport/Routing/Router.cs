@@ -75,60 +75,44 @@ namespace NTRExport.Routing
                 }
             }
 
-            bool HasConnection(RoutedBend elbow, Point3d pt)
+            (RoutedMember? member, bool isA, double dist) FindNearestMember(RoutedBend anchor, FlowRole role, Point3d target)
             {
-                foreach (var member in g.Members)
-                {
-                    if (ReferenceEquals(member, elbow)) continue;
-                    if (member.FlowRole != elbow.FlowRole) continue;
-                    foreach (var candidate in EnumerateEndpoints(member))
-                    {
-                        if (pt.DistanceTo(candidate) <= connectionTol)
-                            return true;
-                    }
-                }
-                return false;
-            }
-
-            (RoutedStraight? straight, bool isA, double dist) FindNearestStraight(FlowRole role, Point3d target)
-            {
-                RoutedStraight? best = null;
+                RoutedMember? best = null;
                 bool bestIsA = true;
                 double bestDist = double.MaxValue;
                 foreach (var member in g.Members)
                 {
-                    if (member is not RoutedStraight rs) continue;
-                    if (rs.FlowRole != role) continue;
+                    if (ReferenceEquals(member, anchor)) continue;
+                    if (member is RoutedRigid) continue;
+                    if (member.FlowRole != role) continue;
 
-                    var dA = rs.A.DistanceTo(target);
-                    if (dA < bestDist)
+                foreach (var endpoint in EnumerateEndpoints(member).Select((p, idx) => (Point: p, Index: idx)))
+                {
+                    var d = endpoint.Point.DistanceTo(target);
+                    if (d < bestDist)
                     {
-                        best = rs;
-                        bestIsA = true;
-                        bestDist = dA;
+                        best = member;
+                        bestIsA = endpoint.Index == 0;
+                        bestDist = d;
                     }
-                    var dB = rs.B.DistanceTo(target);
-                    if (dB < bestDist)
-                    {
-                        best = rs;
-                        bestIsA = false;
-                        bestDist = dB;
-                    }
+                }
                 }
                 return (best, bestIsA, bestDist);
             }
 
             void SnapEndpoint(RoutedBend elbow, Point3d pt)
             {
-                if (HasConnection(elbow, pt)) return;
-                var (straight, isA, dist) = FindNearestStraight(elbow.FlowRole, pt);
-                if (straight == null) return;
+                var (member, isA, dist) = FindNearestMember(elbow, elbow.FlowRole, pt);
+                if (member == null) return;
                 if (dist > maxSnapDist) return;
 
-                if (isA)
-                    straight.A = pt;
-                else
-                    straight.B = pt;
+                if (member is RoutedStraight straight)
+                {
+                    if (isA)
+                        straight.A = pt;
+                    else
+                        straight.B = pt;
+                }
             }
 
             foreach (var member in g.Members)

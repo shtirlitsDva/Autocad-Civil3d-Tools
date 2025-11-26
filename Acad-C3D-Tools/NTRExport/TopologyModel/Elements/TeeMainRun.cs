@@ -902,8 +902,8 @@ namespace NTRExport.TopologyModel
                 g.Members.Add(
                     new RoutedStraight(Source, this)
                     {
-                        A = BranchPort.Node.Pos,
-                        B = MidPoint.To3d(),
+                        A = BranchPort.Node.Pos.Z(entryZ + OffsetMain.zUp),
+                        B = MidPoint.To3d().Z(entryZ + OffsetMain.zUp),
                         DN = DnB,
                         Material = Material,
                         DnSuffix = Variant.DnSuffix,
@@ -916,8 +916,8 @@ namespace NTRExport.TopologyModel
             {
                 var firstStraight = new RoutedStraight(Source, this)
                 {
-                    A = BranchPort.Node.Pos.Z(OffsetMain.zUp),
-                    B = MidPoint.To3d().Z(OffsetMain.zUp),
+                    A = BranchPort.Node.Pos.Z(entryZ + OffsetMain.zUp),
+                    B = MidPoint.To3d().Z(entryZ + OffsetMain.zUp),
                     DN = DnB,
                     Material = Material,
                     DnSuffix = Variant.DnSuffix,
@@ -932,8 +932,8 @@ namespace NTRExport.TopologyModel
                 {
                     var secondStraight = new RoutedStraight(Source, this)
                     {
-                        A = BranchPort.Node.Pos.Z(OffsetMain.zLow),
-                        B = MidPoint.To3d().Z(OffsetMain.zLow),
+                        A = BranchPort.Node.Pos.Z(entryZ + OffsetMain.zLow),
+                        B = MidPoint.To3d().Z(entryZ + OffsetMain.zLow),
                         DN = DnB,
                         Material = Material,
                         DnSuffix = Variant.DnSuffix,
