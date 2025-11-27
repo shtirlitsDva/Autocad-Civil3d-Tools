@@ -2646,6 +2646,8 @@ namespace IntersectUtilities
             Database dB = database ?? docCol.MdiActiveDocument.Database;
             Editor ed = docCol.MdiActiveDocument.Editor;
 
+            Dictionary<string, Polyline> alPlDict = new Dictionary<string, Polyline>();
+
             using (Transaction tx = dB.TransactionManager.StartTransaction())
             {
                 #region Open fremtidig db
@@ -2693,6 +2695,12 @@ namespace IntersectUtilities
                     #region Common variables
                     BlockTable bt = tx.GetObject(dB.BlockTableId, OpenMode.ForRead) as BlockTable;
                     HashSet<Alignment> als = dB.HashSetOfType<Alignment>(tx);
+                    foreach (Alignment al in als)
+                    {
+                        Polyline alPline = al.GetPolyline().Go<Polyline>(tx)!;
+                        if (alPline == null) continue;
+                        alPlDict.Add(al.Name, alPline);
+                    }
                     #endregion
 
                     #region Initialize PS for source object reference
@@ -3590,7 +3598,7 @@ namespace IntersectUtilities
                                             Point2d samplePoint = (
                                                 (Curve2d)arcSegment2dAt
                                             ).GetSamplePoints(11)[5];
-                                            Point3d location = al.GetClosestPointTo(
+                                            Point3d location = alPlDict[al.Name].GetClosestPointTo(
                                                 new Point3d(samplePoint.X, samplePoint.Y, 0),
                                                 false
                                             );
@@ -3750,6 +3758,14 @@ namespace IntersectUtilities
                     prdDbg(ex.ExceptionInfo());
                     prdDbg(ex);
                     return;
+                }
+                finally
+                {
+                    foreach (var kvp in alPlDict)
+                    {
+                        kvp.Value.CheckOrOpenForWrite();
+                        kvp.Value.Erase(true);
+                    }
                 }
                 fremTx.Abort();
                 fremTx.Dispose();
