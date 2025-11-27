@@ -3592,16 +3592,11 @@ namespace IntersectUtilities
                                         else
                                         {
                                             //Determine if centre of arc is within view
-                                            CircularArc2d arcSegment2dAt = pline.GetArcSegment2dAt(
-                                                i
-                                            );
-                                            Point2d samplePoint = (
-                                                (Curve2d)arcSegment2dAt
-                                            ).GetSamplePoints(11)[5];
+                                            CircularArc2d arcSegment2dAt = pline.GetArcSegment2dAt(i);
+                                            Point2d samplePoint = ((Curve2d)arcSegment2dAt).GetSamplePoints(11)[5];
                                             Point3d location = alPlDict[al.Name].GetClosestPointTo(
                                                 new Point3d(samplePoint.X, samplePoint.Y, 0),
-                                                false
-                                            );
+                                                false);
                                             double centreStation = 0;
                                             double centreOffset = 0;
                                             al.StationOffset(
