@@ -101,6 +101,76 @@ namespace IntersectUtilities.UtilsCommon
         public static double[] ToWGS84FromUtm32N(double[] coords, bool latlon = true) =>
             Extensions.ToWGS84FromUtm32N(new Point2d(coords[0], coords[1]), latlon);
 
+        /// <summary>
+        /// Converts WGS84 latitude/longitude to UTM32N easting/northing.
+        /// Returns array [easting, northing].
+        /// </summary>
+        /// <param name="lat">Latitude in degrees</param>
+        /// <param name="lon">Longitude in degrees</param>
+        /// <returns>Array [easting, northing] in meters</returns>
+        public static double[] ToUtm32NFromWGS84(double lat, double lon)
+        {
+            string zone = "32N";
+            int ZoneNumber = int.Parse(zone.Substring(0, zone.Length - 1));
+
+            double a = 6378137; // WGS-84 ellipsoid parameters
+            double eccSquared = 0.00669438;
+            double eccPrimeSquared = eccSquared / (1 - eccSquared);
+            double k0 = 0.9996; // UTM scale factor
+
+            double LongOrigin = (ZoneNumber - 1) * 6 - 180 + 3; // +3 puts origin in middle of zone
+
+            // Convert lat/lon to radians
+            double latRad = lat * Math.PI / 180.0;
+            double lonRad = lon * Math.PI / 180.0;
+            double lonOriginRad = LongOrigin * Math.PI / 180.0;
+
+            double N = a / Math.Sqrt(1 - eccSquared * Math.Sin(latRad) * Math.Sin(latRad));
+            double T = Math.Tan(latRad) * Math.Tan(latRad);
+            double C = eccPrimeSquared * Math.Cos(latRad) * Math.Cos(latRad);
+            double A = Math.Cos(latRad) * (lonRad - lonOriginRad);
+
+            double M = a * (
+                (1 - eccSquared / 4 - 3 * eccSquared * eccSquared / 64 - 5 * eccSquared * eccSquared * eccSquared / 256) * latRad
+                - (3 * eccSquared / 8 + 3 * eccSquared * eccSquared / 32 + 45 * eccSquared * eccSquared * eccSquared / 1024) * Math.Sin(2 * latRad)
+                + (15 * eccSquared * eccSquared / 256 + 45 * eccSquared * eccSquared * eccSquared / 1024) * Math.Sin(4 * latRad)
+                - (35 * eccSquared * eccSquared * eccSquared / 3072) * Math.Sin(6 * latRad)
+            );
+
+            double easting = k0 * N * (
+                A
+                + (1 - T + C) * A * A * A / 6
+                + (5 - 18 * T + T * T + 72 * C - 58 * eccPrimeSquared) * A * A * A * A * A / 120
+            ) + 500000.0; // False easting
+
+            double northing = k0 * (
+                M
+                + N * Math.Tan(latRad) * (
+                    A * A / 2
+                    + (5 - T + 9 * C + 4 * C * C) * A * A * A * A / 24
+                    + (61 - 58 * T + T * T + 600 * C - 330 * eccPrimeSquared) * A * A * A * A * A * A / 720
+                )
+            ); // False northing is 0 for Northern hemisphere
+
+            return new double[] { easting, northing };
+        }
+
+        /// <summary>
+        /// Converts WGS84 latitude/longitude to UTM32N easting/northing.
+        /// Input array can be [lat, lon] or [lon, lat] depending on latlon parameter.
+        /// Returns array [easting, northing].
+        /// </summary>
+        /// <param name="coords">Array containing lat/lon or lon/lat</param>
+        /// <param name="latlon">If true, coords are [lat, lon]; if false, coords are [lon, lat]</param>
+        /// <returns>Array [easting, northing] in meters</returns>
+        public static double[] ToUtm32NFromWGS84(double[] coords, bool latlon = true)
+        {
+            if (latlon)
+                return ToUtm32NFromWGS84(coords[0], coords[1]);
+            else
+                return ToUtm32NFromWGS84(coords[1], coords[0]);
+        }
+
         public static void prdDbg(string msg = "") =>
             Application.DocumentManager.MdiActiveDocument.Editor.WriteMessage("\n" + msg);
 
@@ -3019,7 +3089,7 @@ namespace IntersectUtilities.UtilsCommon
         /// </summary>
         /// <param name="latlon">If false, reverses the returned array to lon, lat.</param
         public static double[] ToWGS84FromUtm32N(this Point2d p, bool latlon = true) =>
-            ToWGS84FromUtm32N(p.To3d(), latlon);
+            ToWGS84FromUtm32N(p.To3d(), latlon);        
 
         public static bool IsOnCurve(this Point3d pt, Curve cv, double tol)
         {
@@ -4153,6 +4223,48 @@ namespace IntersectUtilities.UtilsCommon
                 }
             }
             return objs;
+        }
+
+        public static HashSet<T> HashSetOfTypeWithPs<T>(
+    this Database db,
+    Transaction tr, PSetDefs.DefinedSets ps,
+    bool discardFrozen = false
+)
+    where T : Autodesk.AutoCAD.DatabaseServices.Entity
+        {
+            //Init the list of the objects
+            List<T> objs = new();
+
+            // Get the block table for the current database
+            var blockTable = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
+
+            // Get the model space block table record
+            var modelSpace = (BlockTableRecord)
+                tr.GetObject(blockTable[BlockTableRecord.ModelSpace], OpenMode.ForRead);
+
+            RXClass theClass = RXObject.GetClass(typeof(T));
+
+            // Loop through the entities in model space
+            foreach (Oid oid in modelSpace)
+            {
+                // Look for entities of the correct type
+                if (oid.ObjectClass.IsDerivedFrom(theClass))
+                {
+                    var entity = (T)tr.GetObject(oid, OpenMode.ForRead);
+                    if (discardFrozen)
+                    {
+                        LayerTableRecord layer = (LayerTableRecord)
+                            tr.GetObject(entity.LayerId, OpenMode.ForRead);
+                        if (layer.IsFrozen)
+                            continue;
+                    }
+
+                    objs.Add(entity);
+                }
+            }
+
+            return objs.Where(
+                x => PropertySetManager.IsPropertySetAttached(x, ps)).ToHashSet();
         }
 
         public static HashSet<Entity> GetFjvEntities(

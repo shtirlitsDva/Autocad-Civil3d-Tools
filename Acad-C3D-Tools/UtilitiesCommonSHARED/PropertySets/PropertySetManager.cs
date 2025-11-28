@@ -1520,7 +1520,7 @@ namespace IntersectUtilities
                 else
                 {
                     var ldOid = ldDict.GetAt(ListName);
-                    listDefId = ldOid;                    
+                    listDefId = ldOid;
                 }
 
                 var propDefManual = new PropertyDefinition();
@@ -1707,12 +1707,16 @@ namespace IntersectUtilities
     public class BBR : PropertySetManager
     {
         private Entity _ent;
+        private BlockReference _br;
         private PSetDefs.BBR _def = new PSetDefs.BBR();
 
         public BBR(Entity ent)
             : base(ent.Database, PSetDefs.DefinedSets.BBR)
         {
             _ent = ent;
+            if (_ent is not BlockReference)
+                throw new System.Exception("BBR PropertySet can only be attached to BlockReference entities!");
+            _br = (BlockReference)_ent;
         }
 
         public string id_lokalId
@@ -1885,6 +1889,14 @@ namespace IntersectUtilities
         {
             get => ReadPropertyDouble(_ent, _def.TempDelta);
             set => WritePropertyObject(_ent, _def.TempDelta, value);
+        }
+        public double X
+        {
+            get => _br.Position.X;
+        }
+        public double Y
+        {
+            get => _br.Position.Y;
         }
     }
 }

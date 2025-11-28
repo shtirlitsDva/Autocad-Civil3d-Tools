@@ -29,133 +29,84 @@ using PsDataType = Autodesk.Aec.PropertyData.DataType;
 
 namespace IntersectUtilities
 {
-    public class GenericPropertySetImporter
+    public class CsvTypedDataTable
     {
-        private readonly Database _database;
-        private readonly string _csvFilePath;
-        private readonly string _propertySetName;
-        private readonly DictionaryPropertySetDefinitions _dictionaryPropertySetDefinitions;
-        private PropertySetDefinition _propertySetDefinition;
-        private readonly List<Dictionary<string, object>> _rows;
-        private int _currentRowIndex;
-        private readonly Dictionary<string, PsDataType> _columnDataTypes;
-        private readonly string _xColumnName;
-        private readonly string _yColumnName;
+        private readonly List<Dictionary<string, object?>> _rows = new();
+        private readonly List<string> _columnNames = new();
+        private readonly Dictionary<string, PsDataType> _columnDataTypes =
+            new(StringComparer.OrdinalIgnoreCase);
 
-        public bool HasMoreRows => _currentRowIndex < _rows.Count;
+        public string FilePath { get; }
+        public string TableName { get; }
+        public IReadOnlyList<string> ColumnNames => _columnNames;
+        public IReadOnlyDictionary<string, PsDataType> ColumnDataTypes => _columnDataTypes;
+        public IReadOnlyList<Dictionary<string, object?>> Rows => _rows;
+        public int RowCount => _rows.Count;
 
-        public GenericPropertySetImporter(
-            Database database,
-            string csvFilePath,
-            string xColumnName,
-            string yColumnName)
+        public CsvTypedDataTable(string csvFilePath)
         {
-            if (database == null)
-                throw new ArgumentNullException(nameof(database));
             if (string.IsNullOrWhiteSpace(csvFilePath))
                 throw new ArgumentException("CSV file path cannot be null or empty.", nameof(csvFilePath));
             if (!File.Exists(csvFilePath))
                 throw new FileNotFoundException($"CSV file not found: {csvFilePath}");
 
-            _database = database;
-            _csvFilePath = csvFilePath;
-            _xColumnName = xColumnName ?? throw new ArgumentNullException(nameof(xColumnName));
-            _yColumnName = yColumnName ?? throw new ArgumentNullException(nameof(yColumnName));
-
-            // Extract property set name from file name (without path and extension)
-            _propertySetName = Path.GetFileNameWithoutExtension(csvFilePath);
-
-            _dictionaryPropertySetDefinitions = new DictionaryPropertySetDefinitions(_database);
-            _rows = new List<Dictionary<string, object>>();
-            _columnDataTypes = new Dictionary<string, PsDataType>();
-            _currentRowIndex = 0;
+            FilePath = csvFilePath;
+            TableName = Path.GetFileNameWithoutExtension(csvFilePath);
 
             LoadCsvFile();
-            CreatePropertySetDefinition();
         }
+
+        public bool HasColumn(string columnName) => _columnDataTypes.ContainsKey(columnName);
 
         private void LoadCsvFile()
         {
-            string[] columnNames = null;
-            string[] dataTypes = null;
+            using TextFieldParser csvParser = new TextFieldParser(FilePath);
+            csvParser.CommentTokens = new string[] { "#" };
+            csvParser.SetDelimiters(new string[] { ";" });
+            csvParser.HasFieldsEnclosedInQuotes = false;
 
-            using (TextFieldParser csvParser = new TextFieldParser(_csvFilePath))
+            if (csvParser.EndOfData)
+                throw new InvalidDataException("CSV file is empty or missing header row.");
+
+            string[]? columnNames = csvParser.ReadFields();
+            if (columnNames == null || columnNames.Length == 0)
+                throw new InvalidDataException("CSV file is missing column header row.");
+            _columnNames.AddRange(columnNames);
+
+            if (csvParser.EndOfData)
+                throw new InvalidDataException("CSV file is missing data type header row.");
+
+            string[]? dataTypes = csvParser.ReadFields();
+            if (dataTypes == null || dataTypes.Length != _columnNames.Count)
+                throw new InvalidDataException(
+                    $"Column count mismatch: {_columnNames.Count} column names but {dataTypes?.Length ?? 0} data types.");
+
+            for (int i = 0; i < _columnNames.Count; i++)
             {
-                csvParser.CommentTokens = new string[] { "#" };
-                csvParser.SetDelimiters(new string[] { ";" });
-                csvParser.HasFieldsEnclosedInQuotes = false;
+                string columnName = _columnNames[i];
+                PsDataType psDataType = MapCsvTypeToPropertySetType(dataTypes[i]);
+                _columnDataTypes[columnName] = psDataType;
+            }
 
-                // Read first header row (column names)
-                if (!csvParser.EndOfData)
-                {
-                    columnNames = csvParser.ReadFields();
-                }
-                else
-                {
-                    throw new InvalidDataException("CSV file is empty or missing header row.");
-                }
+            while (!csvParser.EndOfData)
+            {
+                string[]? fields = csvParser.ReadFields();
+                if (fields == null || fields.Length == 0)
+                    continue;
 
-                // Read second header row (data types)
-                if (!csvParser.EndOfData)
+                Dictionary<string, object?> row = new(StringComparer.OrdinalIgnoreCase);
+                for (int i = 0; i < _columnNames.Count; i++)
                 {
-                    dataTypes = csvParser.ReadFields();
+                    string columnName = _columnNames[i];
+                    string fieldValue = i < fields.Length ? fields[i] : string.Empty;
+                    object? parsedValue = ParseFieldValue(fieldValue, _columnDataTypes[columnName]);
+                    row[columnName] = parsedValue;
                 }
-                else
-                {
-                    throw new InvalidDataException("CSV file is missing data type header row.");
-                }
-
-                if (columnNames.Length != dataTypes.Length)
-                {
-                    throw new InvalidDataException(
-                        $"Column count mismatch: {columnNames.Length} column names but {dataTypes.Length} data types.");
-                }
-
-                // Map CSV data types to PropertySet data types
-                for (int i = 0; i < columnNames.Length; i++)
-                {
-                    string columnName = columnNames[i];
-                    string csvDataType = dataTypes[i].ToLowerInvariant().Trim();
-                    PsDataType psDataType = MapCsvTypeToPropertySetType(csvDataType);
-                    _columnDataTypes[columnName] = psDataType;
-                }
-
-                // Verify coordinate columns exist
-                if (!_columnDataTypes.ContainsKey(_xColumnName))
-                {
-                    throw new ArgumentException(
-                        $"X coordinate column '{_xColumnName}' not found in CSV file.");
-                }
-                if (!_columnDataTypes.ContainsKey(_yColumnName))
-                {
-                    throw new ArgumentException(
-                        $"Y coordinate column '{_yColumnName}' not found in CSV file.");
-                }
-
-                // Read data rows
-                while (!csvParser.EndOfData)
-                {
-                    string[] fields = csvParser.ReadFields();
-                    if (fields.Length != columnNames.Length)
-                    {
-                        prdDbg($"Warning: Row {_rows.Count + 1} has {fields.Length} fields, expected {columnNames.Length}. Skipping.");
-                        continue;
-                    }
-
-                    Dictionary<string, object> row = new Dictionary<string, object>();
-                    for (int i = 0; i < columnNames.Length; i++)
-                    {
-                        string columnName = columnNames[i];
-                        string fieldValue = fields[i];
-                        object parsedValue = ParseFieldValue(fieldValue, _columnDataTypes[columnName]);
-                        row[columnName] = parsedValue;
-                    }
-                    _rows.Add(row);
-                }
+                _rows.Add(row);
             }
         }
 
-        private PsDataType MapCsvTypeToPropertySetType(string csvType)
+        private static PsDataType MapCsvTypeToPropertySetType(string csvType)
         {
             switch (csvType.ToLowerInvariant().Trim())
             {
@@ -170,20 +121,18 @@ namespace IntersectUtilities
                 case "boolean":
                     return PsDataType.TrueFalse;
                 case "date":
-                    // Dates are stored as Text in PropertySets
                     return PsDataType.Text;
                 default:
-                    // Default to Text for unknown types
                     prdDbg($"Warning: Unknown CSV data type '{csvType}', defaulting to Text.");
                     return PsDataType.Text;
             }
         }
 
-        private object ParseFieldValue(string fieldValue, PsDataType targetType)
+        private static object? ParseFieldValue(string fieldValue, PsDataType targetType)
         {
             if (string.IsNullOrWhiteSpace(fieldValue))
             {
-                return GetDefaultValue(targetType);
+                return null;
             }
 
             try
@@ -195,22 +144,21 @@ namespace IntersectUtilities
                     case PsDataType.Real:
                         if (double.TryParse(fieldValue, NumberStyles.Float, CultureInfo.InvariantCulture, out double dblValue))
                             return dblValue;
-                        return 0.0;
+                        return null;
                     case PsDataType.Integer:
                         if (int.TryParse(fieldValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out int intValue))
                             return intValue;
-                        return 0;
+                        return null;
                     case PsDataType.TrueFalse:
                         if (bool.TryParse(fieldValue, out bool boolValue))
                             return boolValue;
-                        // Try parsing "1"/"0" or "true"/"false" case-insensitively
                         if (fieldValue.Equals("1", StringComparison.OrdinalIgnoreCase) ||
                             fieldValue.Equals("true", StringComparison.OrdinalIgnoreCase))
                             return true;
                         if (fieldValue.Equals("0", StringComparison.OrdinalIgnoreCase) ||
                             fieldValue.Equals("false", StringComparison.OrdinalIgnoreCase))
                             return false;
-                        return false;
+                        return null;
                     default:
                         return fieldValue;
                 }
@@ -218,25 +166,53 @@ namespace IntersectUtilities
             catch (System.Exception ex)
             {
                 prdDbg($"Error parsing field value '{fieldValue}' as {targetType}: {ex.Message}");
-                return GetDefaultValue(targetType);
+                return null;
             }
         }
+    }
 
-        private object GetDefaultValue(PsDataType dataType)
+    public class GenericPropertySetImporter
+    {
+        private readonly Database _database;
+        private readonly CsvTypedDataTable _dataTable;
+        private readonly string _propertySetName;
+        private readonly DictionaryPropertySetDefinitions _dictionaryPropertySetDefinitions;
+        private PropertySetDefinition _propertySetDefinition = null!;
+        private int _currentRowIndex;
+        private readonly string _xColumnName;
+        private readonly string _yColumnName;
+
+        public bool HasMoreRows => _currentRowIndex < _dataTable.RowCount;
+
+        public GenericPropertySetImporter(
+            Database database,
+            string csvFilePath,
+            string xColumnName,
+            string yColumnName)
+            : this(database, new CsvTypedDataTable(csvFilePath), xColumnName, yColumnName)
+        { }
+
+        public GenericPropertySetImporter(
+            Database database,
+            CsvTypedDataTable dataTable,
+            string xColumnName,
+            string yColumnName)
         {
-            switch (dataType)
-            {
-                case PsDataType.Text:
-                    return "";
-                case PsDataType.Real:
-                    return 0.0;
-                case PsDataType.Integer:
-                    return 0;
-                case PsDataType.TrueFalse:
-                    return false;
-                default:
-                    return "";
-            }
+            _database = database ?? throw new ArgumentNullException(nameof(database));
+            _dataTable = dataTable ?? throw new ArgumentNullException(nameof(dataTable));
+            _xColumnName = xColumnName ?? throw new ArgumentNullException(nameof(xColumnName));
+            _yColumnName = yColumnName ?? throw new ArgumentNullException(nameof(yColumnName));
+
+            if (!_dataTable.HasColumn(_xColumnName))
+                throw new ArgumentException($"X coordinate column '{_xColumnName}' not found in CSV file.");
+            if (!_dataTable.HasColumn(_yColumnName))
+                throw new ArgumentException($"Y coordinate column '{_yColumnName}' not found in CSV file.");
+
+            _propertySetName = _dataTable.TableName;
+            _dictionaryPropertySetDefinitions = new DictionaryPropertySetDefinitions(_database);
+            _currentRowIndex = 0;
+
+            CreatePropertySetDefinition();
         }
 
         private void CreatePropertySetDefinition()
@@ -253,14 +229,14 @@ namespace IntersectUtilities
 
             try
             {
-                if (_dictionaryPropertySetDefinitions.Has(_propertySetName, checkTx))
+                if (_dictionaryPropertySetDefinitions.Has(_propertySetName, checkTx!))
                 {
                     _propertySetDefinition = _dictionaryPropertySetDefinitions
                         .GetAt(_propertySetName)
-                        .Go<PropertySetDefinition>(checkTx);
+                        .Go<PropertySetDefinition>(checkTx!)!;
                     if (ownsTransaction)
                     {
-                        checkTx.Commit();
+                        checkTx!.Commit();
                     }
                     return;
                 }
@@ -283,7 +259,7 @@ namespace IntersectUtilities
             _propertySetDefinition.SetAppliesToFilter(new StringCollection(), false);
 
             // Add PropertyDefinitions for each column
-            foreach (var kvp in _columnDataTypes)
+            foreach (var kvp in _dataTable.ColumnDataTypes)
             {
                 string propertyName = kvp.Key;
                 PsDataType dataType = kvp.Value;
@@ -313,7 +289,7 @@ namespace IntersectUtilities
             try
             {
                 _dictionaryPropertySetDefinitions.AddNewRecord(_propertySetName, _propertySetDefinition);
-                defTx.AddNewlyCreatedDBObject(_propertySetDefinition, true);
+                defTx!.AddNewlyCreatedDBObject(_propertySetDefinition, true);
                 if (ownsDefTransaction)
                 {
                     defTx.Commit();
@@ -328,23 +304,46 @@ namespace IntersectUtilities
             }
         }
 
-        public (Point3d Coordinates, Action<Entity> AttachPropertySet) GetNextRow()
+        public (double? X, double? Y, Action<Entity> AttachPropertySet) GetNextRow()
         {
             if (!HasMoreRows)
             {
                 throw new InvalidOperationException("No more rows available.");
             }
 
-            Dictionary<string, object> currentRow = _rows[_currentRowIndex];
+            Dictionary<string, object?> currentRow = _dataTable.Rows[_currentRowIndex]!;
             _currentRowIndex++;
 
             // Extract coordinates
-            object xObj = currentRow[_xColumnName];
-            object yObj = currentRow[_yColumnName];
+            object? xObj = currentRow[_xColumnName];
+            object? yObj = currentRow[_yColumnName];
 
-            double x = Convert.ToDouble(xObj, CultureInfo.InvariantCulture);
-            double y = Convert.ToDouble(yObj, CultureInfo.InvariantCulture);
-            Point3d coordinates = new Point3d(x, y, 0.0);
+            double? x = null;
+            double? y = null;
+
+            if (xObj != null)
+            {
+                try
+                {
+                    x = Convert.ToDouble(xObj, CultureInfo.InvariantCulture);
+                }
+                catch
+                {
+                    // If conversion fails, x remains null
+                }
+            }
+
+            if (yObj != null)
+            {
+                try
+                {
+                    y = Convert.ToDouble(yObj, CultureInfo.InvariantCulture);
+                }
+                catch
+                {
+                    // If conversion fails, y remains null
+                }
+            }
 
             // Create action to attach and populate PropertySet
             Action<Entity> attachAction = (Entity entity) =>
@@ -355,6 +354,9 @@ namespace IntersectUtilities
                         "AttachPropertySet action must be executed within a transaction.");
                 }
 
+                if (entity == null)
+                    throw new ArgumentNullException(nameof(entity));
+
                 // Attach PropertySet to entity
                 entity.CheckOrOpenForWrite();
                 PropertyDataServices.AddPropertySet(entity, _propertySetDefinition.Id);
@@ -362,14 +364,14 @@ namespace IntersectUtilities
                 // Get the PropertySet
                 PropertySet propertySet = PropertyDataServices
                     .GetPropertySet(entity, _propertySetDefinition.Id)
-                    .Go<PropertySet>(_database.TransactionManager.TopTransaction);
+                    .Go<PropertySet>(_database.TransactionManager.TopTransaction)!;
 
                 // Populate PropertySet with row data
                 propertySet.CheckOrOpenForWrite();
                 foreach (var kvp in currentRow)
                 {
                     string propertyName = kvp.Key;
-                    object value = kvp.Value;
+                    object value = kvp.Value ?? GetDefaultValue(_dataTable.ColumnDataTypes[propertyName]);
 
                     try
                     {
@@ -384,7 +386,24 @@ namespace IntersectUtilities
                 propertySet.DowngradeOpen();
             };
 
-            return (coordinates, attachAction);
+            return (x, y, attachAction);
+        }
+
+        private object GetDefaultValue(PsDataType dataType)
+        {
+            switch (dataType)
+            {
+                case PsDataType.Text:
+                    return "";
+                case PsDataType.Real:
+                    return 0.0;
+                case PsDataType.Integer:
+                    return 0;
+                case PsDataType.TrueFalse:
+                    return false;
+                default:
+                    return "";
+            }
         }
     }
 }
