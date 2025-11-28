@@ -5441,6 +5441,15 @@ namespace IntersectUtilities
 
         private static double _lastTangentArcRadius = 2.5;
 
+        /// <command>TANGENTARCFROMLINE</command>
+        /// <summary>
+        /// Tegner en bue med angivet radius, der er tangent til en valgt LINE.
+        /// Brugeren vælger først radius, derefter en linje og til sidst et retningspunkt,
+        /// hvorefter kommandoen beregner korrekt side/kvadrant og indsætter buen i Model Space.
+        /// Anvendes til hurtigt at modellere standard-buer tangent til et eksisterende tracé.
+        /// </summary>
+        /// <category>Utilities</category>
+
         [CommandMethod("TANGENTARCFROMLINE")]
         public void TangentArcFromLine()
         {
@@ -5514,29 +5523,36 @@ namespace IntersectUtilities
             double arcStartAngle;
             double arcEndAngle;
 
+            double arcWidth = Math.Min(startPoint.DistanceTo(directionPoint), endPoint.DistanceTo(directionPoint));
+
+            double ratio = arcWidth / (2 * arcRadius);
+            ratio = Math.Clamp(ratio, -1.0, 1.0);
+
+            double halfAngle = Math.Asin(ratio);
+
             if (angleToBase < Math.PI / 2 && angleToPerpendicular < Math.PI / 2)
             {
                 arcCenterPoint = endPoint + perpendicularVectorUnit.MultiplyBy(arcRadius);
                 arcStartAngle = baseLineAngle - Math.PI / 2;
-                arcEndAngle = arcStartAngle + Math.PI / 4;
+                arcEndAngle = arcStartAngle + halfAngle;
             }
             else if (angleToBase > Math.PI / 2 && angleToPerpendicular < Math.PI / 2)
             {
                 arcCenterPoint = startPoint + perpendicularVectorUnit.MultiplyBy(arcRadius);
                 arcEndAngle = baseLineAngle - Math.PI / 2;
-                arcStartAngle = arcEndAngle - Math.PI / 4;
+                arcStartAngle = arcEndAngle - halfAngle;
             }
             else if (angleToBase > Math.PI / 2 && angleToPerpendicular > Math.PI / 2)
             {
                 arcCenterPoint = startPoint - perpendicularVectorUnit.MultiplyBy(arcRadius);
                 arcStartAngle = baseLineAngle + Math.PI / 2;
-                arcEndAngle = arcStartAngle + Math.PI / 4;
+                arcEndAngle = arcStartAngle + halfAngle;
             }
             else if (angleToBase < Math.PI / 2 && angleToPerpendicular > Math.PI / 2)
             {
                 arcCenterPoint = endPoint - perpendicularVectorUnit.MultiplyBy(arcRadius);
                 arcEndAngle = baseLineAngle + Math.PI / 2;
-                arcStartAngle = arcEndAngle - Math.PI / 4;
+                arcStartAngle = arcEndAngle - halfAngle;
             }
             else
             {
@@ -5566,6 +5582,12 @@ namespace IntersectUtilities
                 }
             }
         }
+
+        /// <command>SETMAPCS</command>
+        /// <summary>
+        /// Sætter koordinatsystem (Projection) for det aktive Map-projekt via en keyword-menu.
+        /// </summary>
+        /// <category>GIS</category>
 
         [CommandMethod("SETMAPCS")]
         public void SetMapCS()
@@ -5601,6 +5623,16 @@ namespace IntersectUtilities
         }
 
         private static double _lastTangentOffsetArcRadius = 104.0;
+
+        /// <command>TANGENTOFFSETARC</command>
+        /// <summary>
+        /// Tegner en bue med angivet radius, der er tangent til en valgt respektafstands-blok
+        /// (cirkel, bue eller lukket polyline) og orienteret efter en valgt styre-polyline.
+        /// Kommandoen finder nærmeste punkt på polylinen, beregner tangentpunkt og centrum for buen
+        /// og indsætter en kort bue, der overholder den ønskede radius og respektafstand til blokken.
+        /// Velegnet til at modellere mindste bøjningsradius omkring krydsende rør/kabler.
+        /// </summary>
+        /// <category>Utilities</category>
 
         [CommandMethod("TANGENTOFFSETARC")]
         public void TangentOffsetArc()
@@ -5835,7 +5867,7 @@ namespace IntersectUtilities
         public void importptwithps()
         {
             DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;            
+            Database localDb = docCol.MdiActiveDocument.Database;
 
             #region File dialog for CSV selection
             string csvFilePath = string.Empty;
@@ -5865,7 +5897,7 @@ namespace IntersectUtilities
             string[] columnNames = null;
             try
             {
-                using (Microsoft.VisualBasic.FileIO.TextFieldParser csvParser = 
+                using (Microsoft.VisualBasic.FileIO.TextFieldParser csvParser =
                     new Microsoft.VisualBasic.FileIO.TextFieldParser(csvFilePath))
                 {
                     csvParser.CommentTokens = new string[] { "#" };
@@ -5943,7 +5975,7 @@ namespace IntersectUtilities
                 int pointCount = 0;
                 var pm = new ProgressMeter();
                 pm.Start("Importing points with PropertySets...");
-                
+
                 // Get model space block table record
                 BlockTableRecord space = (BlockTableRecord)tx.GetObject(
                     localDb.CurrentSpaceId, OpenMode.ForWrite);
