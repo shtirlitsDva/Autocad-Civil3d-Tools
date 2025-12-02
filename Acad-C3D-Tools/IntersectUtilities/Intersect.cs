@@ -4844,6 +4844,19 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>PRINTPIPEVOLUMESUMMARY</command>
+        /// <summary>
+        /// Udskriver en samlet volumen- og længdeoversigt for alle rør i Model Space baseret på PipeScheduleV2-data.
+        /// Kommandoen henter alle polylines, identificerer tilhørende rørparametre (system, type, DN, indvendig diameter)
+        /// og grupperer dem efter (system–type–DN) til én samlet linje pr. kategori.
+        /// ENKELT-rør kan behandles som dobbelt længde, hvis de er tegnet som én polyline.
+        /// Twin-rør tælles automatisk dobbelt i volumenberegningen.
+        /// Output sorteres efter system (STÅL først), derefter DN faldende og til sidst type (ENKELT før Twin).
+        /// Anvendes til hurtig mængdeudtræk af rørlængder og volumen direkte fra tegningen.
+        /// Komandoen tager ikke højde for komponenter.
+        /// </summary>
+        /// <category>PipeSchedule</category>
+
         [CommandMethod("PRINTPIPEVOLUMESUMMARY")]
         public static void PrintPipeVolumeSummaryAllInOne()
         {
@@ -4979,16 +4992,16 @@ namespace IntersectUtilities
             {
                 string label = $"{entry.Key.system}-{entry.Key.type}-DN{entry.Key.dn}";
                 double len = Math.Round(entry.Value.totalLength, 1);
-                double vol = Math.Round(entry.Value.totalVolume, 1);
-                string line = string.Format("{0,-30}{1,19:0.0}{2,14:0.0}",
+                double vol = Math.Round(entry.Value.totalVolume, 3);
+                string line = string.Format("{0,-30}{1,19:0.0}{2,14:0.000}",
                     label, len, vol);
                 ed.WriteMessage("\n" + line);
             }
 
             // Print total line.
             double totLen = Math.Round(overallLength, 1);
-            double totVol = Math.Round(overallVolume, 1);
-            string totalLine = string.Format("{0,-30}{1,19:0.0}{2,14:0.0}",
+            double totVol = Math.Round(overallVolume, 3);
+            string totalLine = string.Format("{0,-30}{1,19:0.0}{2,14:0.000}",
                 "TOTAL", totLen, totVol);
             ed.WriteMessage("\n" + totalLine);
         }
