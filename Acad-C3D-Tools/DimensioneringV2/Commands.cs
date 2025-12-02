@@ -477,6 +477,10 @@ namespace DimensioneringV2
         [CommandMethod("DIM2MAP")]
         public static void dim2map()
         {
+            PropertySetManager.UpdatePropertySetDefinition(
+                Application.DocumentManager.MdiActiveDocument.Database,
+                PSetDefs.DefinedSets.BBR);
+
             AcContext.Current = SynchronizationContext.Current;
 
             if (Services.PaletteSetCache.paletteSet == null) Services.PaletteSetCache.paletteSet = new CustomPaletteSet();

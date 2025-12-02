@@ -1,6 +1,7 @@
 ﻿using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
+using Autodesk.AutoCAD.PlottingServices;
 using Autodesk.AutoCAD.Runtime;
 
 using IntersectUtilities.UtilsCommon;
@@ -501,6 +502,7 @@ namespace IntersectUtilities
             #endregion
         }
 
+        #region Merge methods
         private static void SaveMergedDataToCsv(
             List<MatchResult> matches,
             CsvTypedDataTable leftTable,
@@ -564,7 +566,6 @@ namespace IntersectUtilities
                 _ => "string"
             };
         }
-
         private static string FormatCsvValue(Dictionary<string, object?> row, string column)
         {
             if (row == null || !row.TryGetValue(column, out var obj) || obj == null)
@@ -581,10 +582,8 @@ namespace IntersectUtilities
 
             return Convert.ToString(obj, CultureInfo.InvariantCulture) ?? string.Empty;
         }
-
         private static string FormatDoubleForCsv(double? value) =>
             value.HasValue ? value.Value.ToString("F6", CultureInfo.InvariantCulture) : string.Empty;
-
         private static string PromptForCsvFile(string title)
         {
             OpenFileDialog dialog = new OpenFileDialog()
@@ -602,7 +601,6 @@ namespace IntersectUtilities
 
             return string.Empty;
         }
-
         private static bool EnsureColumns(CsvTypedDataTable table, IEnumerable<string> requiredColumns, string label)
         {
             var missing = requiredColumns
@@ -617,7 +615,6 @@ namespace IntersectUtilities
 
             return true;
         }
-
         private static int ApplyCoordinateOffsets(List<MatchResult> matches)
         {
             const double metersPerDegreeLat = 1.0 / 111320.0;
@@ -653,12 +650,9 @@ namespace IntersectUtilities
 
             return adjusted;
         }
-
         private static bool AreAlmostEqual(double a, double b, double tolerance = 1e-8) =>
             Math.Abs(a - b) <= tolerance;
-
         private static double DegreesToRadians(double value) => value * Math.PI / 180.0;
-
         private class MatchResult
         {
             public Dictionary<string, object?> LeftRow { get; }
@@ -682,7 +676,62 @@ namespace IntersectUtilities
                 Stage = stage;
             }
         }
-
         private readonly record struct MergeKey(string Id, string Address, string HouseNumber);
+        #endregion
+
+        [CommandMethod("DSAPPLYAFKOLING")]
+        public void dsapplyafkoling()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            PropertySetManager.UpdatePropertySetDefinition(localDb, PSetDefs.DefinedSets.BBR);
+
+            using Transaction tx = localDb.TransactionManager.StartTransaction();
+
+            try
+            {
+                var bbrs = localDb.HashSetOfTypeWithPs<BlockReference>(tx,
+                    PSetDefs.DefinedSets.BBR).Select(x => new BBR(x)).ToHashSet();
+
+                var pts = localDb.HashSetOfType<DBPoint>(tx);
+
+                foreach (var bbr in bbrs)
+                {
+                    var location = new Point3d(bbr.X, bbr.Y, 0);
+
+                    var nearestPts = pts
+                        .Where(p => p.Position.DistanceHorizontalTo(location) < 3.0);
+
+                    if (!nearestPts.Any())
+                    {
+                        prdDbg("No nearby points found for BBR at location:");
+                        DebugHelper.CreateDebugLine(location);
+                        continue;
+                    }
+
+                    var data = nearestPts.Select(p => (
+                    MWh: PropertySetManager.ReadNonDefinedPropertySetDouble(
+                        p, "forbrugerdata", "EnergiiMWH"),
+                    Afkoling: PropertySetManager.ReadNonDefinedPropertySetDouble(
+                        p, "forbrugerdata", "Afkøling")
+                    ));
+
+                    double totalEnergy = data.Sum(d => d.MWh);
+                    double weightedAfkoling = data.Sum(d => d.MWh * d.Afkoling) / totalEnergy;
+
+                    bbr.EstimeretVarmeForbrug = totalEnergy;
+                    bbr.TempDelta = weightedAfkoling;
+                }
+            }
+            catch (System.Exception ex)
+            {
+                tx.Abort();
+                prdDbg(ex);
+                return;
+            }
+
+            tx.Commit();
+        }
     }
 }

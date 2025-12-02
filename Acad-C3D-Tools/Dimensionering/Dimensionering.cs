@@ -114,6 +114,10 @@ namespace IntersectUtilities.Dimensionering
             Editor editor = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
 
+            PropertySetManager.UpdatePropertySetDefinition(
+                Application.DocumentManager.MdiActiveDocument.Database,
+                PSetDefs.DefinedSets.BBR);
+
             #region Dialog box for selecting the geojson file
             string dbFilename = localDb.OriginalFileName;
             string path = System.IO.Path.GetDirectoryName(dbFilename);

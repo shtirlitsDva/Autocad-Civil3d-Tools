@@ -19,6 +19,8 @@ namespace DimensioneringV2.Legend
                 MapPropertyEnum.CriticalPath => "Kritisk\nforbruger",
                 MapPropertyEnum.SubGraphId => $"Sub-graphs",
                 MapPropertyEnum.Pipe => "Rørdimensioner",
+                MapPropertyEnum.ManualDim => "Manuelt\ndimensionerede\nrør",
+                MapPropertyEnum.TempDelta => "Afkøling [°C]",
 
                 //Gradient theme
                 MapPropertyEnum.Bygninger => $"Bygninger\nforsynet\n[stk]",

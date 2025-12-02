@@ -40,6 +40,8 @@ namespace DimensioneringV2.UI
         [Description("Vis kritisk kunde")]
         CriticalPath,
         [Description("Manuel dimension")]
-        ManualDim
+        ManualDim,
+        [Description("Afkøling")]
+        TempDelta
     }
 }
