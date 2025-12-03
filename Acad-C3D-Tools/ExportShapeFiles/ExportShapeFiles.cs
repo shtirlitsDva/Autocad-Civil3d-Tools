@@ -820,6 +820,8 @@ namespace ExportShapeFiles
             Database localDb = docCol.MdiActiveDocument.Database;
             Document doc = docCol.MdiActiveDocument;
 
+            PropertySetManager.UpdatePropertySetDefinition(localDb, PSetDefs.DefinedSets.BBR);
+
             string dbFilename = localDb.OriginalFileName;
             string path = Path.Combine(Path.GetDirectoryName(dbFilename), "SHP");
             if (!Directory.Exists(path)) Directory.CreateDirectory(path);
