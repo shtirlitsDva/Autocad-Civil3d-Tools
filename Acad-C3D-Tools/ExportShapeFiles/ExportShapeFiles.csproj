@@ -111,6 +111,7 @@
 	<PropertyGroup>
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
 		<GenerateDocumentationFile>True</GenerateDocumentationFile>
+		<AssemblyName>ExportShapeFiles</AssemblyName>
 	</PropertyGroup>
 	<ItemGroup>
 		<PackageReference Include="GeoAPI.CoordinateSystems" Version="1.7.5" />
