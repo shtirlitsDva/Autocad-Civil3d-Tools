@@ -16,7 +16,7 @@ namespace NorsynHydraulicCalc
 {
     public class HydraulicCalc
     {
-        public static Version version = new Version(20250916, 0);
+        public static Version version = new Version(20251203, 0);
 
         private ILog log { get; set; }
 
@@ -537,16 +537,31 @@ namespace NorsynHydraulicCalc
         #endregion
         #endregion
 
-        public CalculationResult CalculateHydraulicSegment(IHydraulicSegment segment)
+        /// <summary>
+        /// Performs hydraulic calculation for a given CLIENT segment.
+        /// The calculation is based on the segment type = STIKLEDNING, heating demand,
+        /// number of buildings, number of units supplied by the segment AND temperature delta (if any).
+        /// If temp delta is provided, the calculation will take afkøling into account.
+        /// </summary>
+        public ICalculationResult CalculateClientSegment(IHydraulicSegment segment)
         {
             #region Set calculation variables
-            //Convert segmentType to enum
+            
+            if (segment.SegmentType != SegmentType.Stikledning)
+            {
+                log.Report("Client segment calculation can only be performed for STIKLEDNING segments!");
+                return new CalculationResult();
+            }
+                
+
             SegmentType st = segment.SegmentType;
             double totalHeatingDemand = segment.HeatingDemandSupplied;
             int numberOfBuildings = segment.NumberOfBuildingsSupplied;
             int numberOfUnits = segment.NumberOfUnitsSupplied;
             //Used for restricting total pressure loss in stikledninger
             double length = segment.Length;
+            //Afkøling
+            double tempDelta = segment.TempDelta;
             #endregion
 
 #if DEBUG
@@ -580,6 +595,12 @@ namespace NorsynHydraulicCalc
             double s_heat = (double)N1(st) / (double)N50 + (1.0 - (double)N1(st) / (double)N50) / (double)numberOfBuildings;
             double s_hw = (51.0 - (double)numberOfUnits) / (50.0 * Math.Sqrt((double)numberOfUnits));
             s_hw = s_hw < 0 ? 0 : s_hw;
+
+            double karFlow1Frem = (totalHeatingDemand * 1000.0 / N1(st)) * volume(Tf(st), dT1(segment));
+            double karFlow2Frem = (totalHeatingDemand * 1000.0 / N1(st)) * KX * volume(Tf(st), dT1(st))
+                + numberOfUnits * 33 * f_b(st) * s_hw * volume(Tf(st), dT2(st));
+
+
 
             double dimFlow1Frem = (totalHeatingDemand * 1000.0 / N1(st)) * s_heat * volume(Tf(st), dT1(st));
             double dimFlow2Frem = (totalHeatingDemand * 1000.0 / N1(st)) * s_heat * KX * volume(Tf(st), dT1(st))
@@ -656,7 +677,7 @@ namespace NorsynHydraulicCalc
                 var dimSupply = determineDim(flowSupply, TempSetType.Supply, st);
                 var dimReturn = determineDim(flowReturn, TempSetType.Return, st);
                 dim = new[] { dimSupply, dimReturn }.MaxBy(x => x.OuterDiameter);
-            }                
+            }
 
             (double reynolds, double gradient, double velocity) resSupply;
             (double reynolds, double gradient, double velocity) resReturn;
@@ -671,7 +692,7 @@ namespace NorsynHydraulicCalc
 
                 double plossSupply = resSupply.gradient * length;
                 double plossReturn = resReturn.gradient * length;
-                
+
                 while (plossSupply + plossReturn > maxPressureLoss)
                 {
                     var idx = maxFlowTableSL.FindIndex(x => x.Dim == dim);
@@ -686,7 +707,7 @@ namespace NorsynHydraulicCalc
             }
             else
             {
-                resSupply = 
+                resSupply =
                     CalculateGradientAndVelocity(flowSupply, dim, TempSetType.Supply, st);
                 resReturn =
                     CalculateGradientAndVelocity(flowReturn, dim, TempSetType.Return, st);
@@ -738,6 +759,7 @@ namespace NorsynHydraulicCalc
 
             return r;
         }
+
         private (double reynolds, double gradient, double velocity) CalculateGradientAndVelocity(
             double flow, Dim dim, TempSetType tst, SegmentType st)
         {

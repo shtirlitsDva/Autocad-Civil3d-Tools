@@ -19,5 +19,9 @@ namespace NorsynHydraulicShared
         /// User has set a Dim. Dim must not be changed.
         /// </summary>
         bool ManualDim { get; }
+        /// <summary>
+        /// Client connections may have temperature delta specified or 0.
+        /// </summary>
+        double TempDelta { get; }
     }
 }

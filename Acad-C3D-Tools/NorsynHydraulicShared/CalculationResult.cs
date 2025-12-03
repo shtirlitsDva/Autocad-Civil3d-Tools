@@ -2,37 +2,42 @@
 
 namespace NorsynHydraulicCalc
 {
-    public struct CalculationResult
+    public interface ICalculationResult
     {
-        public string SegmentType { get; }
-        public Dim Dim { get; }
-        public double ReynoldsSupply { get; }
-        public double ReynoldsReturn { get; }
-        public double FlowSupply { get; }
-        public double FlowReturn { get; }
-        public double PressureGradientSupply { get; }
-        public double PressureGradientReturn { get; }
-        public double VelocitySupply { get; }
-        public double VelocityReturn { get; }
-        public double UtilizationRate { get; }
+        string SegmentType { get; }
+        Dim Dim { get; }
+        double ReynoldsSupply { get; }
+        double ReynoldsReturn { get; }
+        double KarFlowSupply { get; }
+        double KarFlowReturn { get; }
+        double DimFlowSupply { get; }
+        double DimFlowReturn { get; }
+        double PressureGradientSupply { get; }
+        double PressureGradientReturn { get; }
+        double VelocitySupply { get; }
+        double VelocityReturn { get; }
+        double UtilizationRate { get; }
+    }
 
-        public CalculationResult(
-            string segmentType, Dim dim, 
-            double reynoldsSupply, double reynoldsReturn, double flowSupply, 
-            double flowReturn, double pressureGradientSupply, double pressureGradientReturn, 
-            double velocitySupply, double velocityReturn, double utilizationRate)
-        {
-            SegmentType = segmentType;
-            Dim = dim;
-            ReynoldsSupply = reynoldsSupply;
-            ReynoldsReturn = reynoldsReturn;
-            FlowSupply = flowSupply;
-            FlowReturn = flowReturn;
-            PressureGradientSupply = pressureGradientSupply;
-            PressureGradientReturn = pressureGradientReturn;
-            VelocitySupply = velocitySupply;
-            VelocityReturn = velocityReturn;
-            UtilizationRate = utilizationRate;
-        }
+    public readonly struct CalculationResult(
+        string segmentType, Dim dim,
+        double reynoldsSupply, double reynoldsReturn, double karFlowSupply,
+        double karFlowReturn, double dimFlowSupply, double dimFlowReturn,
+        double pressureGradientSupply, double pressureGradientReturn,
+        double velocitySupply, double velocityReturn, double utilizationRate) : ICalculationResult
+    {
+        public string SegmentType { get; } = segmentType;
+        public Dim Dim { get; } = dim;
+        public double ReynoldsSupply { get; } = reynoldsSupply;
+        public double ReynoldsReturn { get; } = reynoldsReturn;
+        public double KarFlowSupply { get; } = karFlowSupply;
+        public double KarFlowReturn { get; } = karFlowReturn;
+        public double DimFlowSupply { get; } = dimFlowSupply;
+        public double DimFlowReturn { get; } = dimFlowReturn;
+        public double PressureGradientSupply { get; } = pressureGradientSupply;
+        public double PressureGradientReturn { get; } = pressureGradientReturn;
+        public double VelocitySupply { get; } = velocitySupply;
+        public double VelocityReturn { get; } = velocityReturn;
+        public double UtilizationRate { get; } = utilizationRate;
     }
 }
