@@ -15,17 +15,17 @@ using static NTRExport.Utils.Utils;
 
 namespace NTRExport.TopologyModel
 {
-    internal class ElbowFormstykke : TFitting
+    internal class ElbowFromPolyArc : TFitting
     {
         public Point3d TangentPoint { get; }
 
-        public ElbowFormstykke(Handle source, Point3d tangentPoint, PipelineElementType kind)
+        public ElbowFromPolyArc(Handle source, Point3d tangentPoint, PipelineElementType kind)
             : base(source, kind)
         {
             TangentPoint = tangentPoint;
         }
 
-        public ElbowFormstykke(Handle source, PipelineElementType kind)
+        public ElbowFromPolyArc(Handle source, PipelineElementType kind)
             : base(source, kind)
         {
             var db = Autodesk.AutoCAD.ApplicationServices.Core.Application
@@ -79,8 +79,6 @@ namespace NTRExport.TopologyModel
                     LTG = LTGMain(Source),
                 };
                 g.Members.Add(mainBend);
-                EmitSoilHint(g, ctx, mainBend.A, flowMain, "Elbow-A", includeMember: true);
-                EmitSoilHint(g, ctx, mainBend.B, flowMain, "Elbow-B", includeMember: true);
 
                 if (Variant.IsTwin)
                 {
@@ -96,19 +94,6 @@ namespace NTRExport.TopologyModel
                         LTG = LTGMain(Source),
                     };
                     g.Members.Add(supplyBend);
-                    EmitSoilHint(g, ctx, supplyBend.A, FlowRole.Supply, "Elbow-A-Supply", includeMember: true);
-                    EmitSoilHint(g, ctx, supplyBend.B, FlowRole.Supply, "Elbow-B-Supply", includeMember: true);
-
-                    foreach (var port in Ports)
-                    {
-                        var basePos = port.Node.Pos;
-                        g.Members.Add(new RoutedRigid(Source, this)
-                        {
-                            P1 = new Point3d(basePos.X, basePos.Y, entryZ + zLow),
-                            P2 = new Point3d(basePos.X, basePos.Y, entryZ + zUp),
-                            Material = Material,
-                        });
-                    }
                 }
             }
 
@@ -121,74 +106,5 @@ namespace NTRExport.TopologyModel
             return exits;
         }
 
-        protected void EmitSoilHint(
-            RoutedGraph g,
-            RouterContext ctx,
-            Point3d anchor,
-            FlowRole flow,
-            string tag,
-            bool includeMember = false)
-        {
-            if (ctx.CushionReach <= 1e-6) return;
-            g.SoilHints.Add(new SoilHint(
-                anchor,
-                flow,
-                ctx.CushionReach,
-                SoilHintKind.Cushion,
-                Source,
-                includeAnchorMember: includeMember,
-                description: tag));
-        }
-    }
-
-    internal sealed class Bueror : ElbowFormstykke
-    {
-        public Bueror(Handle source, PipelineElementType kind)
-            : base(source, CalculateTangentPoint(source), kind) { }
-
-        private static Point3d CalculateTangentPoint(Handle source)
-        {
-            var db = Autodesk.AutoCAD.ApplicationServices.Core.Application
-                .DocumentManager.MdiActiveDocument.Database;
-
-            var br = source.Go<BlockReference>(db);
-            if (br == null)
-                throw new Exception($"Received {source} for Buerør! Must be BlockReference!");
-
-            using var tx = db.TransactionManager.StartOpenCloseTransaction();
-            var btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
-
-            foreach (ObjectId id in btr)
-            {
-                if (!id.IsDerivedFrom<Arc>()) continue;
-
-                var arc = id.Go<Arc>(tx);
-
-                // Find tangent intersection using pure math (apply block transform)
-                var tangentPoint = GetTangentPoint(arc, br.BlockTransform);
-
-                if (tangentPoint != default)
-                {
-                    return tangentPoint;
-                }
-
-                break;
-            }
-
-            throw new Exception(
-                $"Buerør: Arc not found for buerør {source}!");
-        }
-
-        protected override void ConfigureAllowedKinds(HashSet<PipelineElementType> allowed)
-        {
-            allowed.Clear();
-            allowed.Add(PipelineElementType.Buerør);
-        }
-
-        internal override void AttachPropertySet()
-        {
-            base.AttachPropertySet();
-        }
-    }
+    }    
 }
-

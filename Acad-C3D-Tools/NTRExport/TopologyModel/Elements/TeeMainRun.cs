@@ -9,6 +9,8 @@ using IntersectUtilities.UtilsCommon.Enums;
 using NTRExport.Enums;
 using NTRExport.Routing;
 using NTRExport.SoilModel;
+using NTRExport.CadExtraction;
+using static IntersectUtilities.UtilsCommon.Extensions;
 
 using System.Globalization;
 using System.IO;
@@ -35,7 +37,7 @@ namespace NTRExport.TopologyModel
         public override string DnLabel() => $"{DnM.ToString()}/{DnB.ToString()}";
 
         public override int DN => DnM;
-        protected int DnM =>
+        public int DnM =>
             _entity switch
             {
                 BlockReference br => Convert.ToInt32(
@@ -45,7 +47,7 @@ namespace NTRExport.TopologyModel
                     $"Entity {Source} is not a BlockReference!"
                 ),
             };
-        protected int DnB =>
+        public int DnB =>
             _entity switch
             {
                 BlockReference br => Convert.ToInt32(
@@ -55,11 +57,11 @@ namespace NTRExport.TopologyModel
                     $"Entity {Source} is not a BlockReference!"
                 ),
             };
-        protected TPort MainPort1 => Ports.First(p => p.Role == PortRole.Main);
-        protected TPort MainPort2 => Ports.Last(p => p.Role == PortRole.Main);
-        protected Point2d MidPoint => MainPort1.Node.Pos.To2d().MidPoint(MainPort2.Node.Pos.To2d());
-        protected TPort BranchPort => Ports.First(p => p.Role == PortRole.Branch);
-        protected (double zUp, double zLow) OffsetMain;
+        public TPort MainPort1 => Ports.First(p => p.Role == PortRole.Main);
+        public TPort MainPort2 => Ports.Last(p => p.Role == PortRole.Main);
+        public Point2d MidPoint => MainPort1.Node.Pos.To2d().MidPoint(MainPort2.Node.Pos.To2d());
+        public TPort BranchPort => Ports.First(p => p.Role == PortRole.Branch);
+        public (double zUp, double zLow) OffsetMain;
 
         protected List<(TPort exitPort, double exitZ, double exitSlope)> RouteMain(
             RoutedGraph g,
@@ -153,6 +155,308 @@ namespace NTRExport.TopologyModel
             allowed.Add(PipelineElementType.PreskoblingTee);
             allowed.Add(PipelineElementType.Muffetee);
         }
+
+        public override List<(TPort exitPort, double exitZ, double exitSlope)> Route(
+            RoutedGraph g, Topology topo, RouterContext ctx, TPort entryPort, double entryZ, double entrySlope)
+        {
+            var exits = new List<(TPort exitPort, double exitZ, double exitSlope)>();
+
+            // Determine if entry is from main or branch
+            bool entryIsMain = ReferenceEquals(entryPort, MainPort1) || ReferenceEquals(entryPort, MainPort2);
+            TPort? mainEntryPort = entryIsMain ? entryPort : null;
+            var mainFlow = Variant.IsTwin ? FlowRole.Unknown : ResolveBondedFlowRole(topo);
+
+            // Route main run (always)
+            var mainExits = RouteMain(g, topo, ctx, mainEntryPort, entryZ, entrySlope, mainFlow);
+            exits.AddRange(mainExits);
+
+            // Handle branch geometry based on variant and DN
+            if (!Variant.IsTwin)
+            {
+                // Bonded: simple straight from main center to branch port
+                var branchFlow = ResolveBondedFlowRole(topo, BranchPort);
+                g.Members.Add(
+                    new RoutedStraight(Source, this)
+                    {
+                        A = MidPoint.To3d(entryZ),
+                        B = BranchPort.Node.Pos.Z(entryZ),
+                        DN = DnB,
+                        Material = Material,
+                        DnSuffix = Variant.DnSuffix,
+                        FlowRole = branchFlow,
+                        LTG = LTGBranch(Source),
+                    }
+                );
+                exits.Add((BranchPort, entryZ, entrySlope));
+            }
+            else if (DnM == DnB)
+            {
+                // Twin with same DN: level pipes, no elevation change needed
+                var (zUp, zLow) = OffsetMain;
+                g.Members.Add(
+                    new RoutedStraight(Source, this)
+                    {
+                        A = MidPoint.To3d(entryZ + zUp),
+                        B = BranchPort.Node.Pos.Z(entryZ + zUp),
+                        DN = DnB,
+                        Material = Material,
+                        DnSuffix = Variant.DnSuffix,
+                        FlowRole = FlowRole.Return,
+                        LTG = LTGBranch(Source),
+                    }
+                );
+                g.Members.Add(
+                    new RoutedStraight(Source, this)
+                    {
+                        A = MidPoint.To3d(entryZ + zLow),
+                        B = BranchPort.Node.Pos.Z(entryZ + zLow),
+                        DN = DnB,
+                        Material = Material,
+                        DnSuffix = Variant.DnSuffix,
+                        FlowRole = FlowRole.Supply,
+                        LTG = LTGBranch(Source),
+                    }
+                );
+
+                var midpointReturn = new Point3d(MidPoint.X, MidPoint.Y, entryZ + zUp);
+                var midpointSupply = new Point3d(MidPoint.X, MidPoint.Y, entryZ + zLow);
+                var branchReturn = BranchPort.Node.Pos.Z(entryZ + zUp);
+                var branchSupply = BranchPort.Node.Pos.Z(entryZ + zLow);
+
+                g.Members.Add(
+                    new RoutedRigid(Source, this)
+                    {
+                        P1 = midpointReturn.MidPoint(branchReturn),
+                        P2 = midpointSupply.MidPoint(branchSupply),
+                        Material = Material,
+                    });
+
+                exits.Add((BranchPort, entryZ, entrySlope));
+            }
+            else
+            {
+                // Twin with different DN: branch leg too short, needs post-processing
+                // Just propagate exits - branch geometry will be adjusted in post-processing
+                exits.Add((BranchPort, entryZ, entrySlope));
+            }
+
+            return exits;
+        }
+
+        /// <summary>
+        /// Post-processes the branch geometry for twin tees with different DNs.
+        /// Modifies connected branch straights and creates angled branch geometry with bends.
+        /// </summary>
+        /// <param name="g">The routed graph containing all members</param>
+        /// <param name="connectedBranchStraights">Branch straights connected to this tee's branch port</param>
+        public void PostProcessBranchGeometry(
+            RoutedGraph g,
+            List<RoutedStraight> connectedBranchStraights)
+        {
+            //prdDbg($"TeeFormstykke.PostProcessBranchGeometry: Starting for {Source}, DnM={DnM}, DnB={DnB}");
+            
+            if (!Variant.IsTwin || DnM == DnB)
+            {
+                prdDbg($"TeeFormstykke.PostProcessBranchGeometry: Skipping - IsTwin={Variant.IsTwin}, DnM={DnM}, DnB={DnB}");
+                return;
+            }
+            if (connectedBranchStraights.Count < 2)
+            {
+                prdDbg($"TeeFormstykke.PostProcessBranchGeometry: Skipping - only {connectedBranchStraights.Count} branch straights");
+                return;
+            }
+
+            double tol = CadTolerance.Tol;
+
+            // Get endpoints of branch straights that connect to the tee branch port
+            // For TeeFormstykke, the actual branch connection point is at the UPSTREAM end of connected straights
+            // (not at the branch port itself, since the branch leg is very short)
+            var branchPort3d = BranchPort.Node.Pos;
+            var upstreamEndpoints = new List<Point3d>();
+            
+            foreach (var bs in connectedBranchStraights)
+            {
+                // Find the endpoint that is NOT connected to the tee branch port (the upstream endpoint)
+                if (bs.A.HorizontalEqualz(branchPort3d, tol))
+                    upstreamEndpoints.Add(bs.B);
+                else if (bs.B.HorizontalEqualz(branchPort3d, tol))
+                    upstreamEndpoints.Add(bs.A);
+            }
+
+            if (upstreamEndpoints.Count < 2 || upstreamEndpoints.Count > 2)
+            {
+                prdDbg($"TeeFormstykke post-process: need exactly 2 upstream endpoints, found {upstreamEndpoints.Count} for {Source}.");
+                return;
+            }
+
+            // Centerline Z is the midpoint of the two branch pipe centerlines
+            var centerlineZ = (upstreamEndpoints[0].Z + upstreamEndpoints[1].Z) / 2.0;
+
+            // Compute offsets
+            var offsetBranch = ComputeTwinOffsets(System, Type, DnB);
+            var offsetMain = OffsetMain;
+
+            // Project system to 2D plane through upstream end of connected straights,
+            // main center, and plane normal is main run
+            // Following AfgreningsStuds pattern but using upstream end as origin
+            var branchOrigin = upstreamEndpoints[0].To2d().MidPoint(upstreamEndpoints[1].To2d());
+            var midPoint = MainPort1.Node.Pos.To2d().MidPoint(MainPort2.Node.Pos.To2d());
+            var toMid = midPoint - branchOrigin;
+            var branchDistance = toMid.Length;
+            if (branchDistance < 1e-9)
+            {
+                prdDbg($"TeeFormstykke post-process: branch and main coincide for {Source}.");
+                return;
+            }
+
+            var branchDirPlan = toMid.GetNormal();
+
+            Point2d branchStartUp = new Point2d(0.0, offsetBranch.zUp);
+            Point2d branchEndUp = new Point2d(branchDistance, offsetBranch.zUp);
+            Point2d mainCentreUp = new Point2d(branchDistance, offsetMain.zUp);
+
+            Point2d branchStartLow = new Point2d(0.0, offsetBranch.zLow);
+            Point2d branchEndLow = new Point2d(branchDistance, offsetBranch.zLow);
+            Point2d mainCentreLow = new Point2d(branchDistance, offsetMain.zLow);
+
+            double mainStubLength = PipeScheduleV2.GetPipeOd(System, DnM) / 2000.0 + 0.01;
+            double bendOd = Routing.Geometry.GetBogRadius5D(DnB) / 1000.0;
+
+            var filletReturn = Routing.Geometry.SolveBranchFillet(
+                branchStartUp,
+                branchEndUp,
+                mainCentreUp,
+                bendOd,
+                mainStubLength
+            );
+
+            if (filletReturn is null)
+            {
+                prdDbg($"TeeFormstykke post-process: unable to solve return branch fillet for {Source}.");
+                return;
+            }
+
+            var filletSupply = Routing.Geometry.SolveBranchFillet(
+                branchStartLow,
+                branchEndLow,
+                mainCentreLow,
+                bendOd,
+                mainStubLength
+            );
+
+            if (filletSupply is null)
+            {
+                prdDbg($"TeeFormstykke post-process: unable to solve supply branch fillet for {Source}.");
+                return;
+            }
+
+            // ToWorld function following AfgreningsStuds pattern exactly
+            // local.Y is the Z offset, which we'll add to centerlineZ using ModZ
+            Point3d ToWorld(Point2d local)
+            {
+                var plan = branchOrigin + branchDirPlan.MultiplyBy(local.X);
+                return new Point3d(plan.X, plan.Y, local.Y);
+            }
+
+            // Process return branch
+            ProcessBranchLane(g, connectedBranchStraights, filletReturn.Value, branchStartUp, mainCentreUp,
+                FlowRole.Return, centerlineZ, ToWorld);
+
+            // Process supply branch
+            ProcessBranchLane(g, connectedBranchStraights, filletSupply.Value, branchStartLow, mainCentreLow,
+                FlowRole.Supply, centerlineZ, ToWorld);
+
+            // Add rigid connection between branch lanes at bend endpoints (branch tangents)
+            var branchReturnTangent = ToWorld(filletReturn.Value.BranchTangent);
+            var branchSupplyTangent = ToWorld(filletSupply.Value.BranchTangent);
+            var rigidReturn = branchReturnTangent.ModZ(centerlineZ);
+            var rigidSupply = branchSupplyTangent.ModZ(centerlineZ);
+            g.Members.Add(
+                new RoutedRigid(Source, this)
+                {
+                    P1 = rigidReturn,
+                    P2 = rigidSupply,
+                    Material = Material,
+                });
+        }
+
+        private void ProcessBranchLane(
+            RoutedGraph g,
+            List<RoutedStraight> branchStraights,
+            Routing.Geometry.BranchFilletSolution fillet,
+            Point2d branchStartLocal,
+            Point2d mainCentreLocal,
+            FlowRole flowRole,
+            double centerlineZ,
+            Func<Point2d, Point3d> toWorld)
+        {
+            // Find branch straight for this flow role
+            var branchStraight = branchStraights.FirstOrDefault(bs => bs.FlowRole == flowRole);
+            if (branchStraight == null)
+            {
+                prdDbg($"TeeFormstykke.ProcessBranchLane: No branch straight found for {flowRole}");
+                return;
+            }
+
+            // Following AfgreningsStuds pattern exactly
+            var branchStartWorld = toWorld(branchStartLocal);
+            var branchTangentWorld = toWorld(fillet.BranchTangent);
+            var mainTangentWorld = toWorld(fillet.MainTangent);
+            var tangentIntersectionWorld = toWorld(fillet.TangentIntersection);
+            var mainCentreWorld = toWorld(mainCentreLocal);
+
+            // Determine which endpoint connects to the tee
+            var branchPort3d = BranchPort.Node.Pos;
+            bool connectsAtA = branchStraight.A.HorizontalEqualz(branchPort3d, CadTolerance.Tol);
+            bool connectsAtB = branchStraight.B.HorizontalEqualz(branchPort3d, CadTolerance.Tol);
+
+            if (!connectsAtA && !connectsAtB)
+            {
+                prdDbg($"TeeFormstykke post-process: branch straight does not connect to tee branch port for {Source}.");
+                return;
+            }
+
+            // Get upstream endpoint (the one NOT connected to the tee) - this stays fixed
+            var upstreamEndpoint = connectsAtA ? branchStraight.B : branchStraight.A;
+
+            // Modify existing branch straight: move tee-connected endpoint to branchTangent
+            // Following AfgreningsStuds: branch goes from branchStart to branchTangent
+            if (connectsAtA)
+            {
+                branchStraight.A = branchTangentWorld.ModZ(centerlineZ);
+            }
+            else
+            {
+                branchStraight.B = branchTangentWorld.ModZ(centerlineZ);
+            }
+
+            // Create bend following AfgreningsStuds pattern
+            var bend = new RoutedBend(Source, this)
+            {
+                A = branchTangentWorld.ModZ(centerlineZ),
+                B = mainTangentWorld.ModZ(centerlineZ),
+                T = tangentIntersectionWorld.ModZ(centerlineZ),
+                DN = DnB,
+                Material = Material,
+                DnSuffix = Variant.DnSuffix,
+                FlowRole = flowRole,
+                LTG = LTGBranch(Source),
+            };
+            g.Members.Add(bend);
+
+            // Create stub following AfgreningsStuds pattern
+            var stub = new RoutedStraight(Source, this)
+            {
+                A = mainTangentWorld.ModZ(centerlineZ),
+                B = mainCentreWorld.ModZ(centerlineZ),
+                DN = DnB,
+                Material = Material,
+                DnSuffix = Variant.DnSuffix,
+                FlowRole = flowRole,
+                LTG = LTGBranch(Source),
+            };
+            g.Members.Add(stub);
+        }
     }
 
     internal sealed class AfgreningMedSpring : TeeMainRun
@@ -237,7 +541,7 @@ namespace NTRExport.TopologyModel
             var ltgBranch = LTGBranch(Source);
             if (ltgBranch.IsNoE()) ltgBranch = LTGMain(Source);
             var branchFlow = Variant.IsTwin ? FlowRole.Unknown : ResolveBondedFlowRole(topo, branch);
-            double r = Geometry.GetBogRadius5D(DnB) / 1000.0;
+            double r = Geometry.GetBogRadius3D(DnB) / 1000.0;
 
             bool TrySolveFillet3D(out Point3d aPrime3, out Point3d bPrime3, out Point3d tPoint)
             {
@@ -598,8 +902,8 @@ namespace NTRExport.TopologyModel
                 g.Members.Add(
                     new RoutedStraight(Source, this)
                     {
-                        A = BranchPort.Node.Pos,
-                        B = MidPoint.To3d(),
+                        A = BranchPort.Node.Pos.Z(entryZ + OffsetMain.zUp),
+                        B = MidPoint.To3d().Z(entryZ + OffsetMain.zUp),
                         DN = DnB,
                         Material = Material,
                         DnSuffix = Variant.DnSuffix,
@@ -612,8 +916,8 @@ namespace NTRExport.TopologyModel
             {
                 var firstStraight = new RoutedStraight(Source, this)
                 {
-                    A = BranchPort.Node.Pos.Z(OffsetMain.zUp),
-                    B = MidPoint.To3d().Z(OffsetMain.zUp),
+                    A = BranchPort.Node.Pos.Z(entryZ + OffsetMain.zUp),
+                    B = MidPoint.To3d().Z(entryZ + OffsetMain.zUp),
                     DN = DnB,
                     Material = Material,
                     DnSuffix = Variant.DnSuffix,
@@ -628,8 +932,8 @@ namespace NTRExport.TopologyModel
                 {
                     var secondStraight = new RoutedStraight(Source, this)
                     {
-                        A = BranchPort.Node.Pos.Z(OffsetMain.zLow),
-                        B = MidPoint.To3d().Z(OffsetMain.zLow),
+                        A = BranchPort.Node.Pos.Z(entryZ + OffsetMain.zLow),
+                        B = MidPoint.To3d().Z(entryZ + OffsetMain.zLow),
                         DN = DnB,
                         Material = Material,
                         DnSuffix = Variant.DnSuffix,

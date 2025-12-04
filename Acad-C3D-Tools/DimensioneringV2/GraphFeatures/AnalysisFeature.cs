@@ -377,6 +377,16 @@ namespace DimensioneringV2.GraphFeatures
             set => SetAttributeValue(MapPropertyEnum.ManualDim, value);
         }
 
+        /// <summary>
+        /// The temperature delta at the client connection.
+        /// </summary>
+        [MapProperty(MapPropertyEnum.TempDelta)]
+        public double TempDelta
+        {
+            get => GetAttributeValue<double>(MapPropertyEnum.TempDelta);
+            //set => SetAttributeValue(MapPropertyEnum.TempDelta, value);
+        }
+
         public void ResetHydraulicResults()
         {
             NumberOfBuildingsSupplied = 0;

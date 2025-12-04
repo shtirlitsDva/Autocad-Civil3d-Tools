@@ -1,5 +1,7 @@
 ﻿using Autodesk.AutoCAD.Geometry;
 
+using NTRExport.CadExtraction;
+using NTRExport.Enums;
 using NTRExport.Routing;
 
 using System;
@@ -8,22 +10,50 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+using static IntersectUtilities.UtilsCommon.Utils;
+
 namespace NTRExport.SoilModel
 {
-    internal class SoilProfile
+    internal sealed class SoilProfile
     {
-        public static readonly SoilProfile Default = new("Soil_Default", 0.00);
-        public string Name { get; }
-        public double CushionThk { get; }            // m
-                                                     // extend with k, phi, gamma, bedding class…
-        public SoilProfile(string name, double cushionThk) { Name = name; CushionThk = cushionThk; }
-    }
+        public static SoilProfile Default { get; } = new SoilProfile(
+            name: "Soil_Default",
+            coverHeight: 0.6,
+            groundWaterDistance: null,
+            soilWeightAbove: null,
+            soilWeightBelow: null,
+            frictionAngleDeg: null,
+            cushionType: null,
+            cushionThickness: 0.0);
 
-    internal class SoilRule
-    {
-        public Type AppliesTo;                        // typeof(RoutedBend), typeof(RoutedTee), etc.
-        public double Reach;                          // m along pipeline away from the fitting
-        public SoilProfile Profile;
+        public string Name { get; }
+        public double CoverHeight { get; }
+        public double? GroundWaterDistance { get; }
+        public double? SoilWeightAbove { get; }
+        public double? SoilWeightBelow { get; }
+        public double? FrictionAngleDeg { get; }
+        public int? CushionType { get; }
+        public double CushionThk { get; }
+
+        public SoilProfile(
+            string name,
+            double coverHeight,
+            double? groundWaterDistance,
+            double? soilWeightAbove,
+            double? soilWeightBelow,
+            double? frictionAngleDeg,
+            int? cushionType,
+            double cushionThickness)
+        {
+            Name = name;
+            CoverHeight = coverHeight;
+            GroundWaterDistance = groundWaterDistance;
+            SoilWeightAbove = soilWeightAbove;
+            SoilWeightBelow = soilWeightBelow;
+            FrictionAngleDeg = frictionAngleDeg;
+            CushionType = cushionType;
+            CushionThk = cushionThickness;
+        }
     }
 
     internal interface INtrSoilAdapter
@@ -34,118 +64,240 @@ namespace NTRExport.SoilModel
 
     internal sealed class SoilPlanner
     {
-        private readonly RoutedGraph _g;
-        private readonly SoilProfile _defaultSoil;
-        private readonly IReadOnlyList<SoilRule> _rules;
-        private const double Tol = 0.005;
+        private readonly RoutedGraph _graph;
+        private readonly SoilProfile _defaultProfile;
+        private readonly IReadOnlyDictionary<SoilHintKind, SoilProfile> _profiles;
+        private readonly Dictionary<RoutedStraight, List<Span>> _spans = new();
+        private const double Tol = 1e-6;
 
-        public SoilPlanner(RoutedGraph g, SoilProfile @default, IEnumerable<SoilRule> rules)
-        { _g = g; _defaultSoil = @default; _rules = rules.ToList(); }
+        public SoilPlanner(
+            RoutedGraph graph,
+            SoilProfile defaultProfile,
+            IReadOnlyDictionary<SoilHintKind, SoilProfile> profiles)
+        {
+            _graph = graph;
+            _defaultProfile = defaultProfile;
+            _profiles = profiles;
+        }
 
         public void Apply()
         {
-            // Assign default to all pipes
-            foreach (var p in _g.Members.OfType<RoutedStraight>())
-                p.Soil = _defaultSoil;
+            foreach (var straight in _graph.Members.OfType<RoutedStraight>())
+                straight.Soil = _defaultProfile;
 
-            // Collect split marks per pipe
-            var marks = new Dictionary<RoutedStraight, SortedSet<double>>();
+            if (_graph.SoilHints.Count == 0)
+                return;
 
-            foreach (var m in _g.Members)
+            foreach (var hint in _graph.SoilHints)
+                ApplyHint(hint);
+
+            SplitAndAssign();
+            _graph.SoilHints.Clear();
+        }
+
+        private void ApplyHint(SoilHint hint)
             {
-                var rule = _rules.FirstOrDefault(r => r.AppliesTo.IsInstanceOfType(m));
-                if (rule == null) continue;
+            if (!_profiles.ContainsKey(hint.Kind)) return;
+            var node = FindNode(hint.AnchorPoint);
+            if (node == null) return;
 
-                foreach (var (pipe, sFrom) in IncidentPipes(m))
+            var seen = new Dictionary<(RoutedMember member, int endpoint), double>();
+
+            foreach (var endpoint in node.Endpoints)
+            {
+                if (!ShouldFollow(endpoint, hint)) continue;
+                TraverseMember(endpoint.Member, endpoint.Index, hint, hint.ReachMeters, seen);
+            }
+        }
+
+        private void TraverseMember(
+            RoutedMember member,
+            int fromIndex,
+            SoilHint hint,
+            double remaining,
+            Dictionary<(RoutedMember member, int endpoint), double> seen)
+        {
+            if (remaining <= Tol) return;
+
+            var key = (member, fromIndex);
+            if (seen.TryGetValue(key, out var prev) && prev >= remaining - Tol)
+                return;
+            seen[key] = remaining;
+
+            if (hint.IncludeAnchorMember &&
+                _profiles.TryGetValue(hint.Kind, out var cushion))
+            {
+                member.SoilOverride ??= cushion;
+            }
+
+            double leftover = remaining;
+            if (member is RoutedStraight straight)
+                leftover = ApplyStraightSpan(straight, fromIndex, remaining, hint.Kind);
+
+            if (leftover <= Tol)
+                return;
+
+            foreach (var exitNode in ExitNodes(member, fromIndex))
+            {
+                if (exitNode == null) continue;
+                foreach (var endpoint in exitNode.Endpoints)
                 {
-                    var (ok, sSplit) = FindSplitOnPipesForward(pipe, sFrom, rule.Reach);
-                    if (!ok) continue; // reach exhausted within fittings only
+                    if (ReferenceEquals(endpoint.Member, member)) continue;
+                    if (!ShouldFollow(endpoint, hint)) continue;
+                    TraverseMember(endpoint.Member, endpoint.Index, hint, leftover, seen);
+                }
+            }
+        }
 
-                    if (!marks.TryGetValue(pipe, out var set)) marks[pipe] = set = new() { 0.0, pipe.Length };
-                    set.Add(Math.Clamp(sSplit, 0, pipe.Length));
+        private double ApplyStraightSpan(RoutedStraight straight, int fromIndex, double remaining, SoilHintKind kind)
+        {
+            var length = straight.Length;
+            if (length <= Tol) return remaining;
 
-                    // Assign soil on [sFrom, sSplit]; overlapping picks thicker cushion
-                    // We defer assignment to SplitAndAssign to keep single responsibility
+            var cover = Math.Min(remaining, length);
+            var start = fromIndex == 0 ? 0.0 : length - cover;
+            var end = fromIndex == 0 ? cover : length;
+            AddSpan(straight, start, end, kind);
+            return remaining - cover;
+        }
+
+        private IEnumerable<RoutedNode?> ExitNodes(RoutedMember member, int fromIndex)
+        {
+            if (!_graph.EndpointMap.TryGetValue(member, out var endpoints))
+                yield break;
+
+            foreach (var endpoint in endpoints)
+            {
+                if (endpoint == null || endpoint.Index == fromIndex)
+                    continue;
+                yield return endpoint.Node;
+            }
+        }
+
+        private RoutedNode? FindNode(Point3d point)
+        {
+            var tol = CadTolerance.Tol;
+            return _graph.Nodes.FirstOrDefault(n => n.Position.DistanceTo(point) <= tol);
+        }
+
+        private static bool ShouldFollow(RoutedEndpoint endpoint, SoilHint hint)
+        {
+            if (!hint.IncludeAnchorMember &&
+                endpoint.Member.Emitter != null &&
+                endpoint.Member.Emitter.Source == hint.SourceHandle)
+                return false;
+
+            if (hint.FlowRole != FlowRole.Unknown &&
+                endpoint.Member.FlowRole != hint.FlowRole)
+                return false;
+
+            return true;
+        }
+
+        private void AddSpan(RoutedStraight straight, double start, double end, SoilHintKind kind)
+        {
+            var s = Math.Max(0.0, Math.Min(start, end));
+            var e = Math.Min(straight.Length, Math.Max(start, end));
+            if (e - s <= Tol) return;
+
+            if (!_spans.TryGetValue(straight, out var list))
+                {
+                list = new();
+                _spans[straight] = list;
+            }
+            list.Add(new Span(s, e, kind));
+        }
+
+        private void SplitAndAssign()
+        {
+            foreach (var kvp in _spans)
+            {
+                var straight = kvp.Key;
+                var length = straight.Length;
+                if (length <= Tol) continue;
+
+                var cuts = new SortedSet<double> { 0.0, length };
+                foreach (var span in kvp.Value)
+                {
+                    cuts.Add(Math.Max(0.0, Math.Min(length, span.Start)));
+                    cuts.Add(Math.Max(0.0, Math.Min(length, span.End)));
+                }
+
+                var ordered = cuts.ToList();
+                var newSegments = new List<RoutedStraight>();
+                for (int i = 0; i < ordered.Count - 1; i++)
+                {
+                    var s0 = ordered[i];
+                    var s1 = ordered[i + 1];
+                    if (s1 - s0 <= Tol) continue;
+
+                    var profile = SelectProfile(kvp.Value, 0.5 * (s0 + s1));
+                    var segment = SliceStraight(straight, s0 / length, s1 / length, profile);
+                    newSegments.Add(segment);
+                }
+
+                ReplaceStraight(straight, newSegments);
+            }
+
+            RoutedTopologyBuilder.Build(_graph);
+        }
+
+        private SoilProfile SelectProfile(List<Span> spans, double position)
+        {
+            var profile = _defaultProfile;
+            var best = _defaultProfile.CushionThk;
+
+            foreach (var span in spans)
+            {
+                if (position < span.Start - Tol || position > span.End + Tol)
+                    continue;
+                if (!_profiles.TryGetValue(span.Kind, out var candidate))
+                    continue;
+                if (candidate.CushionThk >= best)
+                {
+                    best = candidate.CushionThk;
+                    profile = candidate;
                 }
             }
 
-            // Replace affected pipes with split children and assign soils segment-wise
-            foreach (var kv in marks)
-                SplitAndAssign(kv.Key, kv.Value, SegmentSoilResolver(kv.Key));
+            return profile;
         }
 
-        // Find distance sSplit along the chain starting at sFrom on 'pipe', skipping fittings.
-        private (bool ok, double s) FindSplitOnPipesForward(RoutedStraight pipe, double sFrom, double reach)
+        private RoutedStraight SliceStraight(RoutedStraight original, double t0, double t1, SoilProfile profile)
         {
-            // Simple case: reach fits within this pipe
-            var remaining = pipe.Length - sFrom;
-            if (reach <= remaining + Tol) return (true, sFrom + reach);
-
-            // Otherwise move across fitting and continue on the most colinear next pipe
-            var next = NextPipeAfter(pipe);
-            if (next is null) return (true, pipe.Length); // clamp at end
-            var leftover = Math.Max(0.0, reach - remaining);
-            return FindSplitOnPipesForward(next.Value.pipe, 0.0, leftover);
-        }
-
-        private (RoutedStraight pipe, double angle)? NextPipeAfter(RoutedStraight p)
-        {
-            // Topology-free stub: you likely have node/port graph to query.
-            // Implement: find fittings touching p.B, pick outgoing pipe with max dot product to (p.B - p.A).
-            return null;
-        }
-
-        private IEnumerable<(RoutedStraight pipe, double sFrom)> IncidentPipes(RoutedMember m)
-        {
-            // Without explicit nodes, incident means pipes whose A or B equals a member end.
-            if (m is RoutedBend b)
+            var a = Interpolate(original.A, original.B, t0);
+            var b = Interpolate(original.A, original.B, t1);
+            return new RoutedStraight(original.Source, original.Emitter)
             {
-                foreach (var p in _g.Members.OfType<RoutedStraight>())
-                {
-                    if (Equal(p.A, b.A) || Equal(p.B, b.A)) yield return (p, Equal(p.A, b.A) ? 0.0 : p.Length);
-                    if (Equal(p.A, b.B) || Equal(p.B, b.B)) yield return (p, Equal(p.A, b.B) ? 0.0 : p.Length);
-                }
-            }
-            if (m is RoutedTee t)
-            {
-                foreach (var end in new[] { t.Ph1, t.Ph2, t.Pa1, t.Pa2 })
-                    foreach (var p in _g.Members.OfType<RoutedStraight>())
-                        if (Equal(p.A, end) || Equal(p.B, end)) yield return (p, Equal(p.A, end) ? 0.0 : p.Length);
-            }
+                A = a,
+                B = b,
+                DN = original.DN,
+                Material = original.Material,
+                DnSuffix = original.DnSuffix,
+                FlowRole = original.FlowRole,
+                LTG = original.LTG,
+                ZOffsetMeters = original.ZOffsetMeters,
+                Soil = profile,
+            };
         }
 
-        private static bool Equal(Point3d a, Point3d b) => Math.Abs(a.X - b.X) <= Tol && Math.Abs(a.Y - b.Y) <= Tol;
-
-        // Decide soil per segment [s0,s1] from overlapping rules; thicker cushion wins.
-        private Func<double, double, SoilProfile> SegmentSoilResolver(RoutedStraight basis) => (s0, s1) =>
+        private void ReplaceStraight(RoutedStraight original, List<RoutedStraight> replacement)
         {
-            // Hook: compute overlaps with rules anchored at nearby fittings if needed.
-            // Minimal version: if a split exists it was caused by some rule → use non-default.
-            return basis.Soil; // placeholder; you can keep a zone map if you wish
-        };
-
-        private void SplitAndAssign(RoutedStraight pipe, SortedSet<double> cuts, Func<double, double, SoilProfile> soilOf)
-        {
-            var list = cuts.ToList();
-            var idx = _g.Members.IndexOf(pipe);
-            _g.Members.RemoveAt(idx);
-
-            for (int i = 0; i < list.Count - 1; i++)
-            {
-                var a = list[i]; var b = list[i + 1];
-                var pa = Interpolate(pipe, a);
-                var pb = Interpolate(pipe, b);
-                var seg = pipe.WithSegment(pa, pb, soilOf(a, b));
-                _g.Members.Insert(idx++, seg);
-            }
+            var index = _graph.Members.IndexOf(original);
+            if (index < 0) return;
+            _graph.Members.RemoveAt(index);
+            _graph.Members.InsertRange(index, replacement);
         }
 
-        private static Point3d Interpolate(RoutedStraight p, double s)
+        private static Point3d Interpolate(Point3d a, Point3d b, double t)
         {
-            var t = (p.Length <= 1e-9) ? 0.0 : s / p.Length;
-            var x = p.A.X + t * (p.B.X - p.A.X);
-            var y = p.A.Y + t * (p.B.Y - p.A.Y);
-            return new Point3d(x, y, p.A.Z + t * (p.B.Z - p.A.Z));
+            var clamped = Math.Max(0.0, Math.Min(1.0, t));
+            return new Point3d(
+                a.X + clamped * (b.X - a.X),
+                a.Y + clamped * (b.Y - a.Y),
+                a.Z + clamped * (b.Z - a.Z));
         }
+
+        private readonly record struct Span(double Start, double End, SoilHintKind Kind);
     }
 }

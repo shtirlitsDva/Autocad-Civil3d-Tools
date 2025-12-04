@@ -204,6 +204,7 @@ namespace DimensioneringV2.GraphFeatures
                             { "EstimeretVarmeForbrug", 0.0 },
                             { "AntalEnheder", 0 },
                             { "VarmeDistrikt", "" },
+                            { "TempDelta", 0.0 },
                             { "IsBuildingConnection", false },
                             { "IsRootNode", false },
                         };
@@ -248,6 +249,7 @@ namespace DimensioneringV2.GraphFeatures
                             attributes["EstimeretVarmeForbrug"] = bbr.EstimeretVarmeForbrug;
                             attributes["AntalEnheder"] = bbr.AntalEnheder;
                             attributes["VarmeDistrikt"] = bbr.DistriktetsNavn;
+                            attributes["TempDelta"] = bbr.TempDelta;
                             attributes["IsBuildingConnection"] = true;
                         }
 

@@ -47,7 +47,8 @@ namespace NTRExport.TopologyModel
             allowed.Clear();
             allowed.Add(PipelineElementType.Afgreningsstuds);
         }
-
+        private PipeSeriesEnum _series = PipeSeriesEnum.Undefined;
+        public override PipeSeriesEnum Series => _series;        
         public override string DotLabelForTest()
         {
             return $"{Source.ToString()} / {this.GetType().Name}\n{DnLabel()}";
@@ -57,6 +58,17 @@ namespace NTRExport.TopologyModel
         public override List<(TPort exitPort, double exitZ, double exitSlope)> Route(
             RoutedGraph g, Topology topo, RouterContext ctx, TPort entryPort, double entryZ, double entrySlope)
         {
+            if (_series == PipeSeriesEnum.Undefined)
+            {
+                _series = topo.FindSeriesFromPort(this, entryPort);
+                if (_series == PipeSeriesEnum.Undefined)
+                {
+                    var other = Ports.FirstOrDefault(p => !ReferenceEquals(p, entryPort));
+                    if (other != null)
+                        _series = topo.FindSeriesFromPort(this, other);
+                }
+            }
+
             var exits = new List<(TPort exitPort, double exitZ, double exitSlope)>
             {
                 (Ports.Where(x => x != entryPort).First(), entryZ, entrySlope)

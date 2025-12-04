@@ -48,12 +48,19 @@ namespace NTRExport.TopologyModel
             var exits = new List<(TPort exitPort, double exitZ, double exitSlope)>();
             var other = ReferenceEquals(entryPort, A) ? B : A;
 
+            // Compute Z at parameter t (0 = entry port, 1 = exit port)
+            // When entryPort is A: flow A→B, s = t * Length (0 to Length)
+            // When entryPort is B: flow B→A, s = (1-t) * Length (Length to 0)
+            // entrySlope is always in the direction of flow, so we use it directly
             double ZAtParam(double t)
             {
                 var s = ReferenceEquals(entryPort, A) ? t * Length : (1.0 - t) * Length;
                 return entryZ + entrySlope * s;
             }
-            double exitZ = ZAtParam(1.0);
+            
+            // Compute exitZ: at exit port, we've traveled Length distance from entry port
+            // entrySlope is in the direction of flow, so exitZ = entryZ + entrySlope * Length
+            double exitZ = entryZ + entrySlope * Length;
             exits.Add((other, exitZ, entrySlope));
 
             var isTwin = Variant.IsTwin;
@@ -86,7 +93,17 @@ namespace NTRExport.TopologyModel
                 var s1 = segments[i + 1];
                 if (s1 - s0 < 1e-6) continue;
 
-                var soil = IsCovered(CushionSpans, s0, s1) ? new SoilProfile("Soil_C80", 0.08) : SoilProfile.Default;
+                var soil = IsCovered(CushionSpans, s0, s1)
+                    ? new SoilProfile(
+                        name: "Soil_C80",
+                        coverHeight: 0.6,
+                        groundWaterDistance: null,
+                        soilWeightAbove: null,
+                        soilWeightBelow: null,
+                        frictionAngleDeg: null,
+                        cushionType: 2,
+                        cushionThickness: 0.08)
+                    : SoilProfile.Default;
 
                 var t0 = Length <= 1e-9 ? 0.0 : s0 / Length;
                 var t1 = Length <= 1e-9 ? 0.0 : s1 / Length;

@@ -101,6 +101,39 @@ namespace NTRExport.TopologyModel
             return dns.Count > 1 ? dns.Min() : 100;
         }
 
+        internal PipeSeriesEnum FindSeriesFromPort(TFitting requester, TPort startPort)
+        {
+            if (startPort?.Node == null) return PipeSeriesEnum.Undefined;
+
+            var visited = new HashSet<TNode>();
+            var queue = new Queue<TNode>();
+            visited.Add(startPort.Node);
+            queue.Enqueue(startPort.Node);
+
+            while (queue.Count > 0)
+            {
+                var node = queue.Dequeue();
+                foreach (var port in node.Ports)
+                {
+                    var owner = port.Owner;
+                    if (ReferenceEquals(owner, requester)) continue;
+
+                    if (owner.Series != PipeSeriesEnum.Undefined)
+                        return owner.Series;
+
+                    foreach (var otherPort in owner.Ports)
+                    {
+                        var nextNode = otherPort.Node;
+                        if (ReferenceEquals(nextNode, node)) continue;
+                        if (visited.Add(nextNode))
+                            queue.Enqueue(nextNode);
+                    }
+                }
+            }
+
+            return PipeSeriesEnum.Undefined;
+        }
+
         private static bool TryReadReducerDeclaredDns(Reducer red, out int dn1, out int dn2)
         {
             dn1 = 0; dn2 = 0;

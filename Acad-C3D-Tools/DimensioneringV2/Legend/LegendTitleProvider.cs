@@ -19,6 +19,7 @@ namespace DimensioneringV2.Legend
                 MapPropertyEnum.CriticalPath => "Kritisk\nforbruger",
                 MapPropertyEnum.SubGraphId => $"Sub-graphs",
                 MapPropertyEnum.Pipe => "Rørdimensioner",
+                MapPropertyEnum.ManualDim => "Manuelt\ndimensionerede\nrør",                
 
                 //Gradient theme
                 MapPropertyEnum.Bygninger => $"Bygninger\nforsynet\n[stk]",
@@ -31,6 +32,7 @@ namespace DimensioneringV2.Legend
                 MapPropertyEnum.VelocitySupply => $"Hastighed\nfrem [m/s]",
                 MapPropertyEnum.VelocityReturn => $"Hastighed\nretur [m/s]",
                 MapPropertyEnum.UtilizationRate => $"Udnyttelses-\nfaktor [%]",
+                MapPropertyEnum.TempDelta => "Afkøling [°C]",
 
                 //Not used
                 MapPropertyEnum.Default => "Ledninger",

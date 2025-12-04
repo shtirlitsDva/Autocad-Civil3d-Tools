@@ -29,6 +29,7 @@ namespace NTRExport.Routing
         public PipeSystemEnum System => Emitter.System;
         public PipeTypeEnum Type => Emitter.Type;
         public PipeSeriesEnum Series => Emitter.Series;
+        public SoilProfile? SoilOverride { get; set; }
 
         protected string FormatDnSuffix(string baseSuffix)
         {
@@ -84,6 +85,7 @@ namespace NTRExport.Routing
 
         public override IEnumerable<string> ToNtr(INtrSoilAdapter soil, ConfigurationData conf)
         {
+            var profile = Soil;
             yield return "RO " +
                 $"P1={NtrFormat.Pt(A)} " +
                 $"P2={NtrFormat.Pt(B)} " +
@@ -91,7 +93,7 @@ namespace NTRExport.Routing
                 (Material != null ? $" MAT={Material}" : string.Empty) +
                 Last(conf) +
                 PipelineToken +
-                NtrFormat.SoilTokens(Soil);
+                NtrFormat.SoilTokens(profile);
         }
     }
 
@@ -113,7 +115,7 @@ namespace NTRExport.Routing
                 Last(conf) +
                 NormField +
                 PipelineToken +
-                NtrFormat.SoilTokens(null);
+                NtrFormat.SoilTokens(SoilOverride);
         }
     }
 
@@ -136,6 +138,9 @@ namespace NTRExport.Routing
     internal sealed class RoutedGraph
     {
         public List<RoutedMember> Members { get; } = new();
+        public List<RoutedNode> Nodes { get; } = new();
+        public Dictionary<RoutedMember, RoutedEndpoint[]> EndpointMap { get; } = new();
+        public List<SoilHint> SoilHints { get; } = new();
     }
 
     internal sealed class RoutedReducer : RoutedMember
@@ -209,6 +214,32 @@ namespace NTRExport.Routing
                 Last(conf) +
                 PipelineToken +
                 NtrFormat.SoilTokens(null);
+        }
+    }
+
+    internal sealed class RoutedNode
+    {
+        public Point3d Position { get; }
+        public List<RoutedEndpoint> Endpoints { get; } = new();
+
+        public RoutedNode(Point3d position)
+        {
+            Position = position;
+        }
+    }
+
+    internal sealed class RoutedEndpoint
+    {
+        public RoutedMember Member { get; }
+        public int Index { get; }
+        public Point3d Position { get; }
+        public RoutedNode? Node { get; internal set; }
+
+        public RoutedEndpoint(RoutedMember member, int index, Point3d position)
+        {
+            Member = member;
+            Index = index;
+            Position = position;
         }
     }
 }

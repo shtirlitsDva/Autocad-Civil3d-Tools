@@ -157,6 +157,9 @@ namespace NTRExport.TopologyModel
                 };
                 g.Members.Add(secondStraight);
 
+                EmitSoilHint(g, ctx, firstStraight.A, flow, $"Preinsulated-{flow}-Start", includeMember: true);
+                EmitSoilHint(g, ctx, secondStraight.B, flow, $"Preinsulated-{flow}-End", includeMember: true);
+
                 return (firstStraight, secondStraight);
             }
 

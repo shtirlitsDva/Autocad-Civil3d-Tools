@@ -15,6 +15,9 @@ using Autodesk.AutoCAD.Geometry;
 using IntersectUtilities.DynamicBlocks;
 using IntersectUtilities;
 
+using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
+using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
+
 namespace ExportShapeFiles
 {
     public static class PolylineFjvToShapeLineStringConverter
@@ -119,5 +122,5 @@ namespace ExportShapeFiles
 
             return new Feature(geom, props);
         }
-    }
+    }    
 }

@@ -118,8 +118,7 @@
 			<Link>Links\PipeScheduleV2\PipeScheduleV2.cs</Link>
 		</Compile>
 	</ItemGroup>
-	<ItemGroup>
-		<EmbeddedResource Include="TopologyModel\Data\fmodel_tables.csv" />
+	<ItemGroup>		
 		<EmbeddedResource Include="TopologyModel\Data\spring_tables.csv" />
 	</ItemGroup>	
 	<ItemGroup>

@@ -4,29 +4,37 @@ using System.Runtime.CompilerServices;
 using System.Collections.Generic;
 using System.Linq;
 
+using IntersectUtilities.UtilsCommon;
 using static IntersectUtilities.UtilsCommon.Utils;
+using static NTRExport.Utils.Utils;
 using NTRExport.CadExtraction;
 using NTRExport.Enums;
+using IntersectUtilities.PipeScheduleV2;
+using IntersectUtilities.UtilsCommon.Enums;
 
 namespace NTRExport.Routing
 {
     internal sealed class Router
     {
         private readonly Topology _topo;
+        private readonly double _cushionReach;
 
-        public Router(Topology topo)
+        public Router(Topology topo, double cushionReach = 0.0)
         {
             _topo = topo;
+            _cushionReach = cushionReach;
         }
 
         public RoutedGraph Route()
         {
             var g = new RoutedGraph();
-            var ctx = new RouterContext(_topo);
+            var ctx = new RouterContext(_topo, _cushionReach);
 
             // Traverse subnets from roots (entryZ = 0.0) and emit members inline
             SolveElevationsAndGeometry(g, ctx);
             VerticalElbowFix(g);
+            PostProcessForgedTees(g);
+            RoutedTopologyBuilder.Build(g);
 
             return g;
         }
@@ -67,60 +75,44 @@ namespace NTRExport.Routing
                 }
             }
 
-            bool HasConnection(RoutedBend elbow, Point3d pt)
+            (RoutedMember? member, bool isA, double dist) FindNearestMember(RoutedBend anchor, FlowRole role, Point3d target)
             {
-                foreach (var member in g.Members)
-                {
-                    if (ReferenceEquals(member, elbow)) continue;
-                    if (member.FlowRole != elbow.FlowRole) continue;
-                    foreach (var candidate in EnumerateEndpoints(member))
-                    {
-                        if (pt.DistanceTo(candidate) <= connectionTol)
-                            return true;
-                    }
-                }
-                return false;
-            }
-
-            (RoutedStraight? straight, bool isA, double dist) FindNearestStraight(FlowRole role, Point3d target)
-            {
-                RoutedStraight? best = null;
+                RoutedMember? best = null;
                 bool bestIsA = true;
                 double bestDist = double.MaxValue;
                 foreach (var member in g.Members)
                 {
-                    if (member is not RoutedStraight rs) continue;
-                    if (rs.FlowRole != role) continue;
+                    if (ReferenceEquals(member, anchor)) continue;
+                    if (member is RoutedRigid) continue;
+                    if (member.FlowRole != role) continue;
 
-                    var dA = rs.A.DistanceTo(target);
-                    if (dA < bestDist)
+                foreach (var endpoint in EnumerateEndpoints(member).Select((p, idx) => (Point: p, Index: idx)))
+                {
+                    var d = endpoint.Point.DistanceTo(target);
+                    if (d < bestDist)
                     {
-                        best = rs;
-                        bestIsA = true;
-                        bestDist = dA;
+                        best = member;
+                        bestIsA = endpoint.Index == 0;
+                        bestDist = d;
                     }
-                    var dB = rs.B.DistanceTo(target);
-                    if (dB < bestDist)
-                    {
-                        best = rs;
-                        bestIsA = false;
-                        bestDist = dB;
-                    }
+                }
                 }
                 return (best, bestIsA, bestDist);
             }
 
             void SnapEndpoint(RoutedBend elbow, Point3d pt)
             {
-                if (HasConnection(elbow, pt)) return;
-                var (straight, isA, dist) = FindNearestStraight(elbow.FlowRole, pt);
-                if (straight == null) return;
+                var (member, isA, dist) = FindNearestMember(elbow, elbow.FlowRole, pt);
+                if (member == null) return;
                 if (dist > maxSnapDist) return;
 
-                if (isA)
-                    straight.A = pt;
-                else
-                    straight.B = pt;
+                if (member is RoutedStraight straight)
+                {
+                    if (isA)
+                        straight.A = pt;
+                    else
+                        straight.B = pt;
+                }
             }
 
             foreach (var member in g.Members)
@@ -131,6 +123,61 @@ namespace NTRExport.Routing
 
                 SnapEndpoint(bend, bend.A);
                 SnapEndpoint(bend, bend.B);
+            }
+        }
+
+        private static void PostProcessForgedTees(RoutedGraph g)
+        {
+            if (g.Members.Count == 0) return;
+
+            double connectionTol = CadTolerance.Tol;
+
+            // Find all TeeFormstykke instances that need post-processing (twin + different DN)
+            var teesToProcess = new List<TeeFormstykke>();
+            foreach (var el in g.Members.Select(m => m.Emitter).Distinct())
+            {
+                if (el is TeeFormstykke tee && tee.Variant.IsTwin && tee.DnM != tee.DnB)
+                {
+                    teesToProcess.Add(tee);
+                }
+            }
+
+            if (teesToProcess.Count == 0) return;
+
+            // Build spatial index of RoutedStraight endpoints (XY only) for efficient lookup
+            var endpointIndex = new Dictionary<(long x, long y), List<(RoutedStraight straight, bool isA)>>();
+            long Quantize(double val) => (long)(val / connectionTol);
+
+            foreach (var member in g.Members)
+            {
+                if (member is not RoutedStraight rs) continue;
+                var keyA = (Quantize(rs.A.X), Quantize(rs.A.Y));
+                var keyB = (Quantize(rs.B.X), Quantize(rs.B.Y));
+                if (!endpointIndex.TryGetValue(keyA, out var listA)) endpointIndex[keyA] = listA = new();
+                listA.Add((rs, true));
+                if (!endpointIndex.TryGetValue(keyB, out var listB)) endpointIndex[keyB] = listB = new();
+                listB.Add((rs, false));
+            }
+
+            // For each tee, find connected branch pipes and main run pipes, then delegate geometry processing
+            foreach (var tee in teesToProcess)
+            {
+                // Find branch straights connected to this tee's branch port
+                var branchPort2d = tee.BranchPort.Node.Pos.To2d();
+                var branchKey = (Quantize(branchPort2d.X), Quantize(branchPort2d.Y));
+
+                if (!endpointIndex.TryGetValue(branchKey, out var candidates)) continue;
+
+                var connectedBranchStraights = candidates
+                    .Where(c => !ReferenceEquals(c.straight.Emitter, tee))
+                    .Select(c => c.straight)
+                    .Distinct()
+                    .ToList();
+
+                if (connectedBranchStraights.Count == 0) continue;
+
+                // Delegate geometry processing to the tee itself
+                tee.PostProcessBranchGeometry(g, connectedBranchStraights);
             }
         }
 
@@ -265,9 +312,11 @@ namespace NTRExport.Routing
     internal sealed class RouterContext
     {
         public Topology Topology { get; }
-        public RouterContext(Topology topo)
+        public double CushionReach { get; }
+        public RouterContext(Topology topo, double cushionReach)
         {
             Topology = topo;
+            CushionReach = cushionReach;
         }
 
         // Compatibility helper for legacy Route() code paths that still call ctx.GetZ.

@@ -32,8 +32,9 @@ using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 
 namespace NTRExport
 {
-    public class Commands : IExtensionApplication
+        public class Commands : IExtensionApplication
     {
+        private const double CushionReachMeters = 2.0;
         #region IExtensionApplication members
         public void Initialize()
         {
@@ -211,18 +212,30 @@ namespace NTRExport
 
                 #region ------------- CONFIG -------------
                 const double CushionReach = 2.0;       // m
-                var soilDefault = new SoilProfile("Soil_Default", 0.00);
-                var soilC80 = new SoilProfile("Soil_C80", 0.08);
+                var soilDefault = new SoilProfile(
+                    name: "Soil_Default",
+                    coverHeight: 0.6,
+                    groundWaterDistance: null,
+                    soilWeightAbove: null,
+                    soilWeightBelow: null,
+                    frictionAngleDeg: null,
+                    cushionType: null,
+                    cushionThickness: 0.0);
+                var soilC80 = new SoilProfile(
+                    name: "Soil_C80",
+                    coverHeight: 0.6,
+                    groundWaterDistance: null,
+                    soilWeightAbove: null,
+                    soilWeightBelow: null,
+                    frictionAngleDeg: null,
+                    cushionType: 2,
+                    cushionThickness: 0.08);
                 #endregion
 
                 #region ------------- CAD ➜ Port topology -------------
                 var polylines = ents.OfType<Polyline>().ToList();
                 var fittings = ents.OfType<BlockReference>().ToList();
                 var topo = TopologyBuilder.Build(polylines, fittings);
-                #endregion
-
-                #region ------------- Topology-level soil planning -------------
-                new TopologySoilPlanner(topo, 2.0, soilDefault, soilC80).Apply();
                 #endregion
 
                 #region ------------- Read NTR configuration from Excel -------------
@@ -235,7 +248,12 @@ namespace NTRExport
                 #endregion
 
                 #region ------------- Topology ➜ Traversal ➜ Routed skeleton -------------
-                var routed = new Router(topo).Route();
+                var routed = new Router(topo, CushionReachMeters).Route();
+                var soilProfiles = new Dictionary<SoilHintKind, SoilProfile>
+                {
+                    { SoilHintKind.Cushion, soilC80 },
+                };
+                new SoilPlanner(routed, soilDefault, soilProfiles).Apply();
                 #endregion
 
                 #region ------------- Emit NTR -------------
@@ -645,6 +663,106 @@ namespace NTRExport
             catch (System.Exception ex)
             {
                 prdDbg(ex);                
+
+                tx.Abort();
+                return;
+            }
+            tx.Commit();
+        }
+
+        [CommandMethod("NTRMARKVERTICALS")]
+        public void ntrmarkverticals()
+        {
+            DocumentCollection docCol = AcApp.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            PropertySetManager.UpdatePropertySetDefinition(localDb, PSetDefs.DefinedSets.NtrData);
+
+            using var tx = localDb.TransactionManager.StartTransaction();
+
+            try
+            {
+                var ents = localDb.GetFjvEntities(tx);
+
+                #region ------------- FILTER -------------
+                var acceptedSystems = new HashSet<PipeSystemEnum>() { PipeSystemEnum.Stål };
+
+                bool isAccepted(Entity ent)
+                {
+#if DEBUG
+                    //prdDbg("DEBUG filtering active! Polylines only.");
+                    //if (ent is BlockReference) return false;
+#endif
+
+                    switch (ent)
+                    {
+                        case Polyline _:
+                            return acceptedSystems.Contains(
+                                PipeScheduleV2.GetPipeSystem(ent));
+                        case BlockReference br:
+                            return acceptedSystems.Contains(
+                                br.GetPipeSystemEnum());
+                        default:
+                            return false;
+                    }
+                }
+
+                ents = ents.Where(x => isAccepted(x)).ToHashSet();
+                #endregion                
+
+                #region ------------- CAD ➜ Port topology -------------
+                var polylines = ents.OfType<Polyline>().ToList();
+                var fittings = ents.OfType<BlockReference>().ToList();
+                var topo = TopologyBuilder.Build(polylines, fittings);
+                #endregion                
+
+                foreach (var element in topo.Elements)
+                {
+                    if (element is not ElbowVertical ev) continue;
+                    
+                    var h = ev.Source;
+                    var ent = h.Go<BlockReference>(localDb);
+                    if (ent != null)
+                    {
+                        var ntr = new NtrData(ent);
+
+                        var dir = ntr.VertikalBøjningDir;
+
+                        switch (dir)
+                        {
+                            case "Up":
+                                DebugHelper.CreateDebugLine(
+                                    ent.Position,
+                                    ColorByName("green"));
+                                break;
+                            case "Down":
+                                DebugHelper.CreateDebugLine(
+                                    ent.Position,
+                                    ColorByName("red"));
+                                break;
+                            default:
+                                break;
+                        }
+                    }
+                }
+            }
+            catch (DebugPointException dbex)
+            {
+                prdDbg(dbex);
+
+                tx.Abort();
+
+                using var dtx = localDb.TransactionManager.StartTransaction();
+                foreach (var p in dbex.PointsToMark)
+                {
+                    DebugHelper.CreateDebugLine(p, ColorByName("red"));
+                }
+                dtx.Commit();
+                return;
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg(ex);
 
                 tx.Abort();
                 return;

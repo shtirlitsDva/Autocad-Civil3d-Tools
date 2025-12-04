@@ -676,6 +676,7 @@ namespace IntersectUtilities
 
                 foreach (PSetDefs.Property property in missingProperties)
                 {
+                    propSetDef.CheckOrOpenForWrite();
                     property.AddToDefinition(db, propSetDef);
                 }
                 tx.Commit();
@@ -1024,6 +1025,202 @@ namespace IntersectUtilities
             }
         }
 
+        /// <summary>
+        /// Gets all property values from defined property sets.
+        /// Returns a dictionary with property name as key and a tuple of (value, dataType) as value.
+        /// </summary>
+        public static Dictionary<string, (object value, PsDataType dataType)> GetAllPropertyValues(
+            Entity entity,
+            List<PSetDefs.DefinedSets> propertySets)
+        {
+            var result = new Dictionary<string, (object value, PsDataType dataType)>();
+
+            if (propertySets == null || propertySets.Count == 0)
+                return result;
+
+            // Get PSetDefs instance to access GetRequestedDef
+            PSetDefs defs = new PSetDefs();
+
+            // Process each property set
+            foreach (PSetDefs.DefinedSets propertySetName in propertySets)
+            {
+                // Get the property set definition instance
+                PSetDefs.PSetDef pSetDef = defs.GetRequestedDef(propertySetName);
+                
+                // Get all properties from this property set definition
+                List<PSetDefs.Property> properties = pSetDef.ListOfProperties();
+
+                // Check if property set is attached to entity
+                bool isAttached = IsPropertySetAttached(entity, propertySetName);
+                string propertySetNameStr = propertySetName.ToString();
+
+                // Process each property
+                foreach (PSetDefs.Property property in properties)
+                {
+                    object propertyValue;
+
+                    if (isAttached)
+                    {
+                        // Read the actual value from the attached property set
+                        if (TryReadNonDefinedPropertySetObject(
+                            entity, propertySetNameStr, property.Name, out object value))
+                        {
+                            propertyValue = value;
+                        }
+                        else
+                        {
+                            // Fallback to default if read fails
+                            propertyValue = property.DefaultValue;
+                        }
+                    }
+                    else
+                    {
+                        // Use default value from property definition
+                        propertyValue = property.DefaultValue;
+                    }
+
+                    // Add to result dictionary (will overwrite if duplicate property names exist)
+                    result[property.Name] = (propertyValue, property.DataType);
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Gets all property values from non-defined property sets.
+        /// Returns a dictionary with property name as key and a tuple of (value, dataType) as value.
+        /// </summary>
+        public static Dictionary<string, (object value, PsDataType dataType)> GetAllPropertyValues(
+            Entity entity,
+            List<string> nonDefinedPropertySets,
+            Transaction tx)
+        {
+            var result = new Dictionary<string, (object value, PsDataType dataType)>();
+
+            if (nonDefinedPropertySets == null || nonDefinedPropertySets.Count == 0)
+                return result;
+
+            var dpsd = new DictionaryPropertySetDefinitions(entity.Database);
+
+            foreach (string propertySetName in nonDefinedPropertySets)
+            {
+                // Check if property set definition exists in database
+                if (!dpsd.Has(propertySetName, tx))
+                {
+                    // Skip if property set doesn't exist
+                    continue;
+                }
+
+                // Get the PropertySetDefinition
+                Oid psDefId = dpsd.GetAt(propertySetName);
+                if (psDefId == Oid.Null)
+                {
+                    // Skip if property set definition not found
+                    continue;
+                }
+                PropertySetDefinition? psDef = psDefId.Go<PropertySetDefinition>(tx);
+                if (psDef == null)
+                {
+                    // Skip if property set definition is null
+                    continue;
+                }
+                PropertyDefinitionCollection defs = psDef.Definitions;
+
+                // Check if property set is attached to entity
+                bool isAttached = IsPropertySetAttached(entity, propertySetName);
+
+                // Process each property definition
+                foreach (PropertyDefinition propDef in defs)
+                {
+                    object propertyValue;
+
+                    if (isAttached)
+                    {
+                        // Read the actual value from the attached property set
+                        if (TryReadNonDefinedPropertySetObject(
+                            entity, propertySetName, propDef.Name, out object value))
+                        {
+                            propertyValue = value;
+                        }
+                        else
+                        {
+                            // Fallback to default if read fails
+                            propertyValue = propDef.DefaultData;
+                        }
+                    }
+                    else
+                    {
+                        // Use default value from property definition
+                        propertyValue = propDef.DefaultData;
+                    }
+
+                    // Add to result dictionary (will overwrite if duplicate property names exist)
+                    result[propDef.Name] = (propertyValue, propDef.DataType);
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Converts property values dictionary to string dictionary based on data types.
+        /// Handles special markers like "&lt;null&gt;" and "&lt;empty string&gt;" from TryReadNonDefinedPropertySetObject.
+        /// </summary>
+        public static Dictionary<string, string> ConvertPropertyValuesToStrings(
+            Dictionary<string, (object value, PsDataType dataType)> propertyValues)
+        {
+            var result = new Dictionary<string, string>();
+
+            foreach (var kvp in propertyValues)
+            {
+                string propertyName = kvp.Key;
+                object value = kvp.Value.value;
+                PsDataType dataType = kvp.Value.dataType;
+
+                string stringValue = ConvertPropertyValueToString(value, dataType);
+                result[propertyName] = stringValue;
+            }
+
+            return result;
+        }
+
+        private static string ConvertPropertyValueToString(object value, PsDataType dataType)
+        {
+            if (value == null)
+                return "";
+
+            // Handle special string markers from TryReadNonDefinedPropertySetObject
+            if (value is string strValue)
+            {
+                if (strValue == "<null>")
+                    return "";
+                if (strValue == "<empty string>")
+                    return "";
+                return strValue;
+            }
+
+            // Convert based on data type
+            switch (dataType)
+            {
+                case PsDataType.Text:
+                    return value?.ToString() ?? "";
+                case PsDataType.Integer:
+                    if (value == null) return "0";
+                    return System.Convert.ToInt32(value).ToString();
+                case PsDataType.Real:
+                    if (value == null) return "0.0";
+                    return System.Convert.ToDouble(value).ToString();
+                case PsDataType.TrueFalse:
+                    if (value == null) return "False";
+                    return System.Convert.ToBoolean(value).ToString();
+                case PsDataType.List:
+                    return value?.ToString() ?? "";
+                default:
+                    return value?.ToString() ?? "";
+            }
+        }
+
         public enum MatchTypeEnum
         {
             Equals,
@@ -1324,6 +1521,12 @@ namespace IntersectUtilities
                 new Property("Distriktets_navn", "Distriktets_navn", PsDataType.Text, "");
             public Property AntalEnheder { get; } =
                 new Property("AntalEnheder", "AntalEnheder", PsDataType.Integer, 1);
+            public Property TempFrem { get; } =
+                new Property("TempFrem", "Fremløbstemperatur for bygningen", PsDataType.Real, 0.0);
+            public Property TempRetur { get; } =
+                new Property("TempRetur", "Returtemperatur for bygningen", PsDataType.Real, 0.0);
+            public Property TempDelta { get; } =
+                new Property("TempDelta", "Afkøling for bygningen. Beregnet som TempFrem - TempRetur.", PsDataType.Real, 0.0);
             public override StringCollection AppliesTo { get; } =
                 new StringCollection() { RXClass.GetClass(typeof(BlockReference)).Name };
         }
@@ -1513,7 +1716,7 @@ namespace IntersectUtilities
                 else
                 {
                     var ldOid = ldDict.GetAt(ListName);
-                    listDefId = ldOid;                    
+                    listDefId = ldOid;
                 }
 
                 var propDefManual = new PropertyDefinition();
@@ -1700,12 +1903,16 @@ namespace IntersectUtilities
     public class BBR : PropertySetManager
     {
         private Entity _ent;
+        private BlockReference _br;
         private PSetDefs.BBR _def = new PSetDefs.BBR();
 
         public BBR(Entity ent)
             : base(ent.Database, PSetDefs.DefinedSets.BBR)
         {
             _ent = ent;
+            if (_ent is not BlockReference)
+                throw new System.Exception("BBR PropertySet can only be attached to BlockReference entities!");
+            _br = (BlockReference)_ent;
         }
 
         public string id_lokalId
@@ -1863,6 +2070,29 @@ namespace IntersectUtilities
         {
             get => ReadPropertyInt(_ent, _def.AntalEnheder);
             set => WritePropertyObject(_ent, _def.AntalEnheder, value);
+        }
+        public double TempFrem
+        {
+            get => ReadPropertyDouble(_ent, _def.TempFrem);
+            set => WritePropertyObject(_ent, _def.TempFrem, value);
+        }
+        public double TempRetur
+        {
+            get => ReadPropertyDouble(_ent, _def.TempRetur);
+            set => WritePropertyObject(_ent, _def.TempRetur, value);
+        }
+        public double TempDelta
+        {
+            get => ReadPropertyDouble(_ent, _def.TempDelta);
+            set => WritePropertyObject(_ent, _def.TempDelta, value);
+        }
+        public double X
+        {
+            get => _br.Position.X;
+        }
+        public double Y
+        {
+            get => _br.Position.Y;
         }
     }
 }

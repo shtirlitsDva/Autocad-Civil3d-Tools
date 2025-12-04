@@ -11,6 +11,7 @@ using IntersectUtilities.UtilsCommon.Enums;
 
 using NTRExport.Enums;
 using NTRExport.Routing;
+using NTRExport.SoilModel;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 using static NTRExport.Utils.Utils;
@@ -71,6 +72,25 @@ namespace NTRExport.TopologyModel
                 return fallback;
             }
 
+            void AddRigid(Point3d first, Point3d second)
+            {
+                var top = first;
+                var bottom = second;
+                if (bottom.Z > top.Z)
+                {
+                    var temp = top;
+                    top = bottom;
+                    bottom = temp;
+                }
+
+                g.Members.Add(new RoutedRigid(Source, this)
+                {
+                    P1 = bottom,
+                    P2 = top,
+                    Material = Material,
+                });
+            }
+
             static bool TryIntersect(Point2d e, Vector2d de, Point2d o, Vector2d d0, out Point2d inter, out double t, out double s)
             {
                 inter = default; t = 0.0; s = 0.0;
@@ -124,6 +144,7 @@ namespace NTRExport.TopologyModel
                     return new Vector2d(v.X * ca - v.Y * sa, v.X * sa + v.Y * ca);
                 }
 
+                // entryLocal represents the entry point centerline at entryZ elevation
                 var entryLocal = new Point2d(0.0, entryZ);
                 var leftNormal = new Vector2d(-entryDir.Y, entryDir.X);
                 var centerLocal = entryLocal.Add(leftNormal.MultiplyBy(dirUp ? radius : -radius));
@@ -207,7 +228,7 @@ namespace NTRExport.TopologyModel
                 //prdDbg($"ElbowVertical {Source} twin return pts: A=({returnPts.A.X:0.###},{returnPts.A.Y:0.###},{returnPts.A.Z:0.###}), T=({returnPts.T.X:0.###},{returnPts.T.Y:0.###},{returnPts.T.Z:0.###}), B=({returnPts.B.X:0.###},{returnPts.B.Y:0.###},{returnPts.B.Z:0.###})");
                 //prdDbg($"ElbowVertical {Source} twin supply pts: A=({supplyPts.A.X:0.###},{supplyPts.A.Y:0.###},{supplyPts.A.Z:0.###}), T=({supplyPts.T.X:0.###},{supplyPts.T.Y:0.###},{supplyPts.T.Z:0.###}), B=({supplyPts.B.X:0.###},{supplyPts.B.Y:0.###},{supplyPts.B.Z:0.###})");
 
-                g.Members.Add(new RoutedBend(Source, this)
+                var bendReturn = new RoutedBend(Source, this)
                 {
                     A = returnPts.A,
                     B = returnPts.B,
@@ -217,9 +238,9 @@ namespace NTRExport.TopologyModel
                     DnSuffix = Variant.DnSuffix,
                     FlowRole = FlowRole.Return,
                     LTG = LTGMain(Source),
-                });
+                };
 
-                g.Members.Add(new RoutedBend(Source, this)
+                var bendSupply = new RoutedBend(Source, this)
                 {
                     A = supplyPts.A,
                     B = supplyPts.B,
@@ -229,11 +250,22 @@ namespace NTRExport.TopologyModel
                     DnSuffix = Variant.DnSuffix,
                     FlowRole = FlowRole.Supply,
                     LTG = LTGMain(Source),
-                });
+                };
+
+                g.Members.Add(bendReturn);
+                g.Members.Add(bendSupply);
+
+                EmitSoilHint(g, ctx, bendReturn.A, FlowRole.Return, "ElbowVertical-Return-A", includeMember: true);
+                EmitSoilHint(g, ctx, bendReturn.B, FlowRole.Return, "ElbowVertical-Return-B", includeMember: true);
+                EmitSoilHint(g, ctx, bendSupply.A, FlowRole.Supply, "ElbowVertical-Supply-A", includeMember: true);
+                EmitSoilHint(g, ctx, bendSupply.B, FlowRole.Supply, "ElbowVertical-Supply-B", includeMember: true);
 
                 var exitZVal = exitLocal.Y;
                 var exitSlopeVal = Math.Tan(alphaO);
                 //prdDbg($"ElbowVertical {Source} twin exit: exitZ={exitZVal:0.###}, exitSlope={exitSlopeVal:0.####}");
+
+                AddRigid(returnPts.A, supplyPts.A);
+                AddRigid(returnPts.B, supplyPts.B);
 
                 exits.Add((otherPort, exitZVal, exitSlopeVal));
                 return exits;
@@ -264,7 +296,8 @@ namespace NTRExport.TopologyModel
                 //prdDbg($"ElbowVertical {Source}: angleDeg={angleDeg:0.###}, dirUp={dirUp}, entrySlope={entrySlope:0.####}, entryZ={entryZ:0.###}, cXY={c:0.###}");
                 //prdDbg($"ElbowVertical {Source}: entry=({entryXY.X:0.###},{entryXY.Y:0.###}), other=({otherXY.X:0.###},{otherXY.Y:0.###})");
 
-                // End elevations using entry slope projected along XY distance
+                // End elevations: entryZ is the centerline elevation at the entry port
+                // zEntry is the centerline elevation at entry port (must equal entryZ)
                 var zEntry = entryZ;
                 // Provisional zOther (for initial sign selection); will be recomputed from arc geometry
                 var zOther = entryZ + entrySlope * c;
@@ -354,12 +387,16 @@ namespace NTRExport.TopologyModel
                     }
                 }
 
-                // Map back to world
+                // Map back to world coordinates
+                // Use XY from port positions, but Z from computed geometry (zEntry/zOther)
+                // This ensures the centerline is at entryZ at the entry port
                 Point2d ToXY(double u) => new Point2d(entryXY.X + uHat.X * u, entryXY.Y + uHat.Y * u);
 
                 var aZ = entryIsA ? zEntry : zOther;
                 var bZ = entryIsA ? zOther : zEntry;
 
+                // Create world points using port XY positions but computed Z elevations
+                // This ensures entryZ is respected at the entry port
                 var aWorld = new Point3d(a.X, a.Y, aZ);
                 var bWorld = new Point3d(b.X, b.Y, bZ);
                 var tXY = ToXY(t2.X);
@@ -367,8 +404,11 @@ namespace NTRExport.TopologyModel
                 //prdDbg($"ElbowVertical {Source}: A=({aWorld.X:0.###},{aWorld.Y:0.###},{aWorld.Z:0.###}) B=({bWorld.X:0.###},{bWorld.Y:0.###},{bWorld.Z:0.###}) T=({tWorld.X:0.###},{tWorld.Y:0.###},{tWorld.Z:0.###})");
 
                 var (zUp, zLow) = ComputeTwinOffsets(System, Type, DN);
+                // For bonded pipes, ComputeTwinOffsets returns (0.0, 0.0), so no offset is applied
+                // For twin pipes, offsets would be applied, but this is a bonded pipe case
 
-                // Twin offsets should be applied along normal to local centerline, not world Z
+                // Offsets should be applied along normal to local centerline, not world Z
+                // This preserves the centerline elevation (entryZ at entry port)
                 var uHat3 = new Vector3d(uHat.X, uHat.Y, 0.0);
                 Vector3d NormalVec(double alpha) =>
                     uHat3.MultiplyBy(-Math.Sin(alpha)) + Vector3d.ZAxis.MultiplyBy(Math.Cos(alpha));
@@ -380,7 +420,9 @@ namespace NTRExport.TopologyModel
 
                 var flowMain = base.ResolveBondedFlowRole(topo);
 
-                g.Members.Add(new RoutedBend(Source, this)
+                // Create bend with centerline at computed elevations (entryZ at entry port)
+                // Offsets are applied along normals, preserving centerline elevation
+                var singleBend = new RoutedBend(Source, this)
                 {
                     A = Off(aWorld, nA, zUp),
                     B = Off(bWorld, nB, zUp),
@@ -390,7 +432,10 @@ namespace NTRExport.TopologyModel
                     DnSuffix = Variant.DnSuffix,
                     FlowRole = flowMain,
                     LTG = LTGMain(Source),
-                });
+                };
+                g.Members.Add(singleBend);
+                EmitSoilHint(g, ctx, singleBend.A, flowMain, "ElbowVertical-A", includeMember: true);
+                EmitSoilHint(g, ctx, singleBend.B, flowMain, "ElbowVertical-B", includeMember: true);
 
                 // Single exit: propagate computed Z at other end and same slope                
                 var exitZVal = entryIsA ? zOther : zEntry;
@@ -412,6 +457,18 @@ namespace NTRExport.TopologyModel
                     return p;
             }
             throw new Exception("ElbowVertical has less than 2 ports!");
+        }
+        private void EmitSoilHint(RoutedGraph g, RouterContext ctx, Point3d anchor, FlowRole flow, string tag, bool includeMember)
+        {
+            if (ctx.CushionReach <= 1e-6) return;
+            g.SoilHints.Add(new SoilHint(
+                anchor,
+                flow,
+                ctx.CushionReach,
+                SoilHintKind.Cushion,
+                Source,
+                includeAnchorMember: includeMember,
+                description: tag));
         }
     }
 }
