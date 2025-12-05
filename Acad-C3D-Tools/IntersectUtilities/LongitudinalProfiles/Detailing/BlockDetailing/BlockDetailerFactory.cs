@@ -30,6 +30,7 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.BlockDetailing
             PipelineElementType.Y_Model or
             PipelineElementType.Kedelrørsbøjning or
             PipelineElementType.PræisoleretBøjning90gr or
+            PipelineElementType.PræisoleretBøjning45gr or
             PipelineElementType.Bøjning45gr or
             PipelineElementType.Bøjning30gr or
             PipelineElementType.Bøjning15gr or
