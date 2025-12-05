@@ -20,8 +20,12 @@ namespace NorsynHydraulicShared
         /// </summary>
         bool ManualDim { get; }
         /// <summary>
-        /// Client connections may have temperature delta specified or 0.
+        /// Client connections may have temperature delta specified for heating or 0.
         /// </summary>
-        double TempDelta { get; }
+        double TempDeltaVarme { get; }
+        /// <summary>
+        /// Client connections may have temperature delta specified for water heating or 0.
+        /// </summary>
+        double TempDeltaBV { get; }
     }
 }

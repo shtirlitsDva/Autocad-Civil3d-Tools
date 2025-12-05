@@ -6,9 +6,9 @@ namespace NorsynHydraulicCalc.LookupData
 {
     internal interface ILookupData
     {
-        double rho(int T);
-        double cp(int T);
-        double nu(int T);
-        double mu(int T);
+        double rho(double T);
+        double cp(double T);
+        double nu(double T);
+        double mu(double T);
     }
 }

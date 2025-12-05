@@ -44,6 +44,10 @@ namespace DimensioneringV2.UI
                     if (!rules.SupportsPertFlextra) value.UsePertFlextraFL = false;
                     OnPropertyChanged(nameof(IsPertFlextraSelectable));
                 }
+                else if (e.PropertyName == nameof(value.UseBrugsvandsprioritering))
+                {
+                    OnPropertyChanged(nameof(IsFactorTillægEditable));
+                }
             };
         }
         public IEnumerable<PipeType> ValidPipeTypesFL
@@ -56,6 +60,8 @@ namespace DimensioneringV2.UI
         public bool IsPipeTypeSLSelectable => ValidPipeTypesSL.Count() > 1;
         public bool IsPertFlextraSelectable =>
             MediumRulesFactory.GetRules(Settings.MedieType).SupportsPertFlextra;
+
+        public bool IsFactorTillægEditable => !Settings.UseBrugsvandsprioritering;
         #endregion
 
         public SettingsTabViewModel()

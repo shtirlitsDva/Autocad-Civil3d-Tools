@@ -721,7 +721,7 @@ namespace IntersectUtilities
                     double weightedAfkoling = data.Sum(d => d.MWh * d.Afkoling) / totalEnergy;
 
                     bbr.EstimeretVarmeForbrug = totalEnergy;
-                    bbr.TempDelta = weightedAfkoling;
+                    bbr.TempDeltaVarme = weightedAfkoling;
                 }
             }
             catch (System.Exception ex)

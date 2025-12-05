@@ -41,7 +41,9 @@ namespace DimensioneringV2.UI
         CriticalPath,
         [Description("Manuel dimension")]
         ManualDim,
-        [Description("Afkøling")]
-        TempDelta
+        [Description("Afkøling rumvarme")]
+        TempDeltaVarme,
+        [Description("Afkøling brugsvand")]
+        TempDeltaBV,
     }
 }

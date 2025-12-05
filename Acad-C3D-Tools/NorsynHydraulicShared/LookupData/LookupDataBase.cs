@@ -7,39 +7,53 @@ namespace NorsynHydraulicCalc.LookupData
 {
     internal abstract class LookupDataBase : ILookupData
     {
-        private double? tryLookUp(int T, Dictionary<int, double> dict)
+        private double? tryLookUp(double T, Dictionary<int, double> dict)
         {
-            if (dict.TryGetValue(T, out double value)) return value;
-            else if (T >= LowT && T <= HighT)
+            // First, try exact match if T is a whole number
+            int intT = (int)T;
+            if (T == intT && dict.TryGetValue(intT, out double exactValue))
             {
-                int lowerkey = dict.Keys.Where(k => k < T).Max();
-                int upperkey = dict.Keys.Where(k => k > T).Min();
-                double lowerValue = dict[lowerkey];
-                double upperValue = dict[upperkey];
-                //Interpolate
-                return lowerValue + (upperValue - lowerValue) * ((T - lowerkey) / (double)(upperkey - lowerkey));
+                return exactValue;
+            }
+            
+            // Check if T is within valid range
+            if (T >= LowT && T <= HighT)
+            {
+                // Find the keys that bracket T
+                var lowerKeys = dict.Keys.Where(k => k < T);
+                var upperKeys = dict.Keys.Where(k => k > T);
+                
+                if (lowerKeys.Any() && upperKeys.Any())
+                {
+                    double lowerkey = lowerKeys.Max();
+                    double upperkey = upperKeys.Min();
+                    double lowerValue = dict[(int)lowerkey];
+                    double upperValue = dict[(int)upperkey];
+                    // Interpolate using double arithmetic
+                    return lowerValue + (upperValue - lowerValue) * ((T - lowerkey) / (upperkey - lowerkey));
+                }
             }
             return null;
         }
-        public virtual double rho(int T)
+        public virtual double rho(double T)
         {
             double? result = tryLookUp(T, rhoD);
             if (result.HasValue) return result.Value * 1000;
             throw new ArgumentException($"Temperature out of range for \"rho\": {T}, allowed values: {LowT} - {HighT}.");
         }
-        public virtual double cp(int T)
+        public virtual double cp(double T)
         {
             var result = tryLookUp(T, cpD);
             if (result.HasValue) return result.Value;
             throw new ArgumentException($"Temperature out of range for \"cp\": {T}, allowed values: {LowT} - {HighT}.");
         }
-        public virtual double mu(int T)
+        public virtual double mu(double T)
         {
             var result = tryLookUp(T, muD);
             if (result.HasValue) return result.Value;
             throw new ArgumentException($"Temperature out of range for \"mu\": {T}, allowed values: {LowT} - {HighT}.");
         }
-        public virtual double nu(int T) => throw new NotImplementedException();        
+        public virtual double nu(double T) => throw new NotImplementedException();        
 
         protected abstract Dictionary<int, double> rhoD { get; }
         protected abstract Dictionary<int, double> cpD { get; }

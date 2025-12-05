@@ -378,12 +378,22 @@ namespace DimensioneringV2.GraphFeatures
         }
 
         /// <summary>
-        /// The temperature delta at the client connection.
+        /// The temperature delta at the client connection for heating.
         /// </summary>
-        [MapProperty(MapPropertyEnum.TempDelta)]
-        public double TempDelta
+        [MapProperty(MapPropertyEnum.TempDeltaVarme)]
+        public double TempDeltaVarme
         {
-            get => GetAttributeValue<double>(MapPropertyEnum.TempDelta);
+            get => GetAttributeValue<double>(MapPropertyEnum.TempDeltaVarme);
+            //set => SetAttributeValue(MapPropertyEnum.TempDelta, value);
+        }
+
+        /// <summary>
+        /// The temperature delta at the client connection for water.
+        /// </summary>
+        [MapProperty(MapPropertyEnum.TempDeltaBV)]
+        public double TempDeltaBV
+        {
+            get => GetAttributeValue<double>(MapPropertyEnum.TempDeltaBV);
             //set => SetAttributeValue(MapPropertyEnum.TempDelta, value);
         }
 

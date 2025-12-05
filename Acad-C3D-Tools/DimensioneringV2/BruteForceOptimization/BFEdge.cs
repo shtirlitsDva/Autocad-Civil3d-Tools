@@ -49,6 +49,11 @@ namespace DimensioneringV2.BruteForceOptimization
         public double UtilizationRate { get; set; }        
         public EdgePipeSegment OriginalEdge { get; }
         public int NonBridgeChromosomeIndex { get; internal set; } = -1;
+
+        public double TempDeltaVarme => OriginalEdge.PipeSegment.TempDeltaVarme;
+
+        public double TempDeltaBV => OriginalEdge.PipeSegment.TempDeltaBV;
+
         public BFEdge([NotNull] BFNode source, [NotNull] BFNode target, EdgePipeSegment edge) : base(source, target)
         {
             OriginalEdge = edge;

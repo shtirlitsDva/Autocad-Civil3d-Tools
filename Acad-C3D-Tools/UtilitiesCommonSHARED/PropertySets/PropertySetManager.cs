@@ -1324,13 +1324,11 @@ namespace IntersectUtilities
             public Property DistriktetsNavn { get; } =
                 new Property("Distriktets_navn", "Distriktets_navn", PsDataType.Text, "");
             public Property AntalEnheder { get; } =
-                new Property("AntalEnheder", "AntalEnheder", PsDataType.Integer, 1);
-            public Property TempFrem { get; } =
-                new Property("TempFrem", "Fremløbstemperatur for bygningen", PsDataType.Real, 0.0);
-            public Property TempRetur { get; } =
-                new Property("TempRetur", "Returtemperatur for bygningen", PsDataType.Real, 0.0);
-            public Property TempDelta { get; } =
-                new Property("TempDelta", "Afkøling for bygningen. Beregnet som TempFrem - TempRetur.", PsDataType.Real, 0.0);
+                new Property("AntalEnheder", "AntalEnheder", PsDataType.Integer, 1);            
+            public Property TempDeltaVarme { get; } =
+                new Property("TempDeltaVarme", "Afkøling for rumvarme", PsDataType.Real, 0.0);
+            public Property TempDeltaBV { get; } =
+                new Property("TempDeltaBV", "Afkøling for brugsvand", PsDataType.Real, 0.0);
             public override StringCollection AppliesTo { get; } =
                 new StringCollection() { RXClass.GetClass(typeof(BlockReference)).Name };
         }
@@ -1874,21 +1872,16 @@ namespace IntersectUtilities
         {
             get => ReadPropertyInt(_ent, _def.AntalEnheder);
             set => WritePropertyObject(_ent, _def.AntalEnheder, value);
-        }
-        public double TempFrem
+        }        
+        public double TempDeltaVarme
         {
-            get => ReadPropertyDouble(_ent, _def.TempFrem);
-            set => WritePropertyObject(_ent, _def.TempFrem, value);
+            get => ReadPropertyDouble(_ent, _def.TempDeltaVarme);
+            set => WritePropertyObject(_ent, _def.TempDeltaVarme, value);
         }
-        public double TempRetur
+        public double TempDeltaBV
         {
-            get => ReadPropertyDouble(_ent, _def.TempRetur);
-            set => WritePropertyObject(_ent, _def.TempRetur, value);
-        }
-        public double TempDelta
-        {
-            get => ReadPropertyDouble(_ent, _def.TempDelta);
-            set => WritePropertyObject(_ent, _def.TempDelta, value);
+            get => ReadPropertyDouble(_ent, _def.TempDeltaBV);
+            set => WritePropertyObject(_ent, _def.TempDeltaBV, value);
         }
         public double X
         {

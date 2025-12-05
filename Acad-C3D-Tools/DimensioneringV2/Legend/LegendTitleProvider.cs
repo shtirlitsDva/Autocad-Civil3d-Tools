@@ -32,7 +32,8 @@ namespace DimensioneringV2.Legend
                 MapPropertyEnum.VelocitySupply => $"Hastighed\nfrem [m/s]",
                 MapPropertyEnum.VelocityReturn => $"Hastighed\nretur [m/s]",
                 MapPropertyEnum.UtilizationRate => $"Udnyttelses-\nfaktor [%]",
-                MapPropertyEnum.TempDelta => "Afkøling [°C]",
+                MapPropertyEnum.TempDeltaVarme => "Afkøling rumvarme [°C]",
+                MapPropertyEnum.TempDeltaBV => "Afkøling brugsvand [°C]",
 
                 //Not used
                 MapPropertyEnum.Default => "Ledninger",

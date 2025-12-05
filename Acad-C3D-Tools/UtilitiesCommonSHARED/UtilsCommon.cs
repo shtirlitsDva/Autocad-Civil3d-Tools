@@ -648,18 +648,9 @@ namespace IntersectUtilities.UtilsCommon
                 { "Bøjning, 45gr", PipelineElementType.Bøjning45gr },
                 { "Bøjning, 30gr", PipelineElementType.Bøjning30gr },
                 { "Bøjning, 15gr", PipelineElementType.Bøjning15gr },
-                {
-                    "$Præisoleret bøjning, L {$L1}x{$L2} m, V {$V}°",
-                    PipelineElementType.PræisoleretBøjningVariabel
-                },
-                {
-                    "$Præisoleret bøjning, 90gr, L {$L1}x{$L2} m",
-                    PipelineElementType.PræisoleretBøjningVariabel
-                },
-                {
-                    "Præisoleret bøjning, L {$L1}x{$L2} m, V {$V}°",
-                    PipelineElementType.PræisoleretBøjningVariabel
-                },
+                { "$Præisoleret bøjning, L {$L1}x{$L2} m, V {$V}°", PipelineElementType.PræisoleretBøjningVariabel },
+                { "$Præisoleret bøjning, 90gr, L {$L1}x{$L2} m", PipelineElementType.PræisoleretBøjningVariabel },
+                { "Præisoleret bøjning, L {$L1}x{$L2} m, V {$V}°", PipelineElementType.PræisoleretBøjningVariabel },
                 { "Præisoleret ventil", PipelineElementType.PræisoleretVentil },
                 { "Præventil med udluftning", PipelineElementType.PræventilMedUdluftning },
                 { "Reduktion", PipelineElementType.Reduktion },
