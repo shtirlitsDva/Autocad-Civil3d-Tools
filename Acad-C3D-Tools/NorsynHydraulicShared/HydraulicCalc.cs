@@ -509,8 +509,19 @@ namespace NorsynHydraulicCalc
         /// <summary>
         /// Heating delta temperature
         /// </summary>
-        private int dT1(SegmentType st) =>
-            st == SegmentType.Fordelingsledning ? tempFremFL - tempReturFL : tempFremSL - tempReturSL;
+        private double dT1(IHydraulicSegment s)
+        {
+            double delta = s.TempDelta;
+            if (delta > 0) return delta;
+            s.SegmentType switch
+            {
+                SegmentType.Fordelingsledning => (double)tempFremFL - (double)tempReturFL,
+
+                SegmentType.Stikledning => (double)tempFremSL - (double)tempReturSL,
+                _ => throw new NotImplementedException()
+            };
+        }
+
         /// <summary>
         /// Hot water delta temperature
         /// </summary>
@@ -532,7 +543,7 @@ namespace NorsynHydraulicCalc
         private static Func<int, double> rho;
         private static Func<int, double> cp;
         private static Func<int, double> mu;
-        private static double volume(int temp, int deltaT) => 3600.0 / (rho(temp) * cp(temp) * deltaT);
+        private static double volume(double temp, double deltaT) => 3600.0 / (rho(temp) * cp(temp) * deltaT);
         //private static double volume(int temp, int deltaT) => 3600.0 / (951.0 * 4.231 * deltaT);
         #endregion
         #endregion
@@ -546,13 +557,13 @@ namespace NorsynHydraulicCalc
         public ICalculationResult CalculateClientSegment(IHydraulicSegment segment)
         {
             #region Set calculation variables
-            
+
             if (segment.SegmentType != SegmentType.Stikledning)
             {
                 log.Report("Client segment calculation can only be performed for STIKLEDNING segments!");
                 return new CalculationResult();
             }
-                
+
 
             SegmentType st = segment.SegmentType;
             double totalHeatingDemand = segment.HeatingDemandSupplied;
@@ -880,7 +891,7 @@ namespace NorsynHydraulicCalc
                 (flowSupply - minFlowFrem) / (entry.MaxFlowFrem - minFlowFrem),
                 (flowReturn - minFlowReturn) / (entry.MaxFlowReturn - minFlowReturn));
 
-            if (res < 0) { ; }
+            if (res < 0) {; }
 
             return res;
         }
