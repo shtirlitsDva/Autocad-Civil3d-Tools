@@ -14,6 +14,8 @@ namespace NorsynHydraulicShared
         int NumberOfBuildingsSupplied { get; }
         int NumberOfUnitsSupplied { get; }
         double Length { get; }
+        double KarFlowSupply { get; }
+        double KarFlowReturn { get; }
         Dim Dim { get; }
         /// <summary>
         /// User has set a Dim. Dim must not be changed.

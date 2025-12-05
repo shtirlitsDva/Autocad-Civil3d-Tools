@@ -57,8 +57,8 @@ namespace DimensioneringV2.Themes
 
             switch (property)
             {
-                case MapPropertyEnum.FlowSupply:
-                case MapPropertyEnum.FlowReturn:
+                case MapPropertyEnum.DimFlowSupply:
+                case MapPropertyEnum.DimFlowReturn:
                 case MapPropertyEnum.PressureGradientSupply:
                 case MapPropertyEnum.PressureGradientReturn:
                 case MapPropertyEnum.VelocitySupply:

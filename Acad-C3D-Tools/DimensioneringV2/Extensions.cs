@@ -187,7 +187,10 @@ namespace DimensioneringV2
             newEdge.NonBridgeChromosomeIndex = edge.NonBridgeChromosomeIndex;
             graph.AddVerticesAndEdge(newEdge);
         }
-        public static void AddEdgeCopyAndSyncSums(this UndirectedGraph<BFNode, BFEdge> graph, BFEdge edge)
+        /// <summary>
+        /// Does this method need the new flow kar/dim? at least kar
+        /// </summary>
+        public static void UNVERIFIEDAddEdgeCopyAndSyncSums(this UndirectedGraph<BFNode, BFEdge> graph, BFEdge edge)
         {
             var newEdge = new BFEdge(edge.Source, edge.Target, edge.OriginalEdge);
 

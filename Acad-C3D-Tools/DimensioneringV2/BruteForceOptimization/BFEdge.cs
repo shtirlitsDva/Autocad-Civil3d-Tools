@@ -36,8 +36,10 @@ namespace DimensioneringV2.BruteForceOptimization
         public bool ManualDim { get => OriginalEdge.PipeSegment.ManualDim; }
         public double ReynoldsSupply { get; set; }
         public double ReynoldsReturn { get; set; }
-        public double FlowSupply { get; set; }
-        public double FlowReturn { get; set; }
+        public double KarFlowSupply { get; set; }
+        public double KarFlowReturn { get; set; }
+        public double DimFlowSupply { get; set; }
+        public double DimFlowReturn { get; set; }
         public double PressureGradientSupply { get; set; }
         public double PressureGradientReturn { get; set; }
         public double PressureLossAtClientSupply { get; set; } // Pressure loss at the client
@@ -49,11 +51,8 @@ namespace DimensioneringV2.BruteForceOptimization
         public double UtilizationRate { get; set; }        
         public EdgePipeSegment OriginalEdge { get; }
         public int NonBridgeChromosomeIndex { get; internal set; } = -1;
-
         public double TempDeltaVarme => OriginalEdge.PipeSegment.TempDeltaVarme;
-
         public double TempDeltaBV => OriginalEdge.PipeSegment.TempDeltaBV;
-
         public BFEdge([NotNull] BFNode source, [NotNull] BFNode target, EdgePipeSegment edge) : base(source, target)
         {
             OriginalEdge = edge;
@@ -72,8 +71,10 @@ namespace DimensioneringV2.BruteForceOptimization
             OriginalEdge.PipeSegment.Dim = Dim;
             OriginalEdge.PipeSegment.ReynoldsSupply = ReynoldsSupply;
             OriginalEdge.PipeSegment.ReynoldsReturn = ReynoldsReturn;
-            OriginalEdge.PipeSegment.FlowSupply = FlowSupply;
-            OriginalEdge.PipeSegment.FlowReturn = FlowReturn;
+            OriginalEdge.PipeSegment.KarFlowSupply = KarFlowSupply;
+            OriginalEdge.PipeSegment.KarFlowReturn = KarFlowReturn;
+            OriginalEdge.PipeSegment.DimFlowSupply = DimFlowSupply;
+            OriginalEdge.PipeSegment.DimFlowReturn = DimFlowReturn;
             OriginalEdge.PipeSegment.PressureGradientSupply = PressureGradientSupply;
             OriginalEdge.PipeSegment.PressureGradientReturn = PressureGradientReturn;
             OriginalEdge.PipeSegment.PressureLossAtClientSupply = PressureLossAtClientSupply;
@@ -85,6 +86,9 @@ namespace DimensioneringV2.BruteForceOptimization
             OriginalEdge.PipeSegment.UtilizationRate = UtilizationRate;            
         }
 
+        /// <summary>
+        /// How is this used? Does it need the new flow info?
+        /// </summary>        
         internal void SyncBaseSums(BFEdge edge)
         {
             NumberOfBuildingsSupplied = edge.NumberOfBuildingsSupplied;
@@ -104,8 +108,8 @@ namespace DimensioneringV2.BruteForceOptimization
             Dim = OriginalEdge.PipeSegment.Dim;
             ReynoldsSupply = OriginalEdge.PipeSegment.ReynoldsSupply;
             ReynoldsReturn = OriginalEdge.PipeSegment.ReynoldsReturn;
-            FlowSupply = OriginalEdge.PipeSegment.FlowSupply;
-            FlowReturn = OriginalEdge.PipeSegment.FlowReturn;
+            FlowSupply = OriginalEdge.PipeSegment.DimFlowSupply;
+            FlowReturn = OriginalEdge.PipeSegment.DimFlowReturn;
             PressureGradientSupply = OriginalEdge.PipeSegment.PressureGradientSupply;
             PressureGradientReturn = OriginalEdge.PipeSegment.PressureGradientReturn;
             PressureLossAtClientSupply = OriginalEdge.PipeSegment.PressureLossAtClientSupply;

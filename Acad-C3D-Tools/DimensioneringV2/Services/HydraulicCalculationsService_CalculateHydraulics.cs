@@ -42,8 +42,8 @@ namespace DimensioneringV2.Services
                 edge.PipeSegment.Dim = result.Dim;
                 edge.PipeSegment.ReynoldsSupply = result.ReynoldsSupply;
                 edge.PipeSegment.ReynoldsReturn = result.ReynoldsReturn;
-                edge.PipeSegment.FlowSupply = result.FlowSupply;
-                edge.PipeSegment.FlowReturn = result.FlowReturn;
+                edge.PipeSegment.DimFlowSupply = result.FlowSupply;
+                edge.PipeSegment.DimFlowReturn = result.FlowReturn;
                 edge.PipeSegment.PressureGradientSupply = result.PressureGradientSupply;
                 edge.PipeSegment.PressureGradientReturn = result.PressureGradientReturn;
                 edge.PipeSegment.VelocitySupply = result.VelocitySupply;

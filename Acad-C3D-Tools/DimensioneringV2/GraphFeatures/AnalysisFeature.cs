@@ -231,21 +231,21 @@ namespace DimensioneringV2.GraphFeatures
         /// <summary>
         /// Flow rate for supply
         /// </summary>
-        [MapPropertyAttribute(MapPropertyEnum.FlowSupply)]
-        public double FlowSupply
+        [MapPropertyAttribute(MapPropertyEnum.DimFlowSupply)]
+        public double DimFlowSupply
         {
-            get => GetAttributeValue<double>(MapPropertyEnum.FlowSupply);
-            set => SetAttributeValue(MapPropertyEnum.FlowSupply, value);
+            get => GetAttributeValue<double>(MapPropertyEnum.DimFlowSupply);
+            set => SetAttributeValue(MapPropertyEnum.DimFlowSupply, value);
         }
 
         /// <summary>
         /// Flow rate for return
         /// </summary>
-        [MapPropertyAttribute(MapPropertyEnum.FlowReturn)]
-        public double FlowReturn
+        [MapPropertyAttribute(MapPropertyEnum.DimFlowReturn)]
+        public double DimFlowReturn
         {
-            get => GetAttributeValue<double>(MapPropertyEnum.FlowReturn);
-            set => SetAttributeValue(MapPropertyEnum.FlowReturn, value);
+            get => GetAttributeValue<double>(MapPropertyEnum.DimFlowReturn);
+            set => SetAttributeValue(MapPropertyEnum.DimFlowReturn, value);
         }
 
         /// <summary>
@@ -397,6 +397,26 @@ namespace DimensioneringV2.GraphFeatures
             //set => SetAttributeValue(MapPropertyEnum.TempDelta, value);
         }
 
+        /// <summary>
+        /// Flow rate for supply
+        /// </summary>
+        [MapPropertyAttribute(MapPropertyEnum.KarFlowSupply)]
+        public double KarFlowSupply
+        {
+            get => GetAttributeValue<double>(MapPropertyEnum.KarFlowSupply);
+            set => SetAttributeValue(MapPropertyEnum.KarFlowSupply, value);
+        }
+
+        /// <summary>
+        /// Flow rate for return
+        /// </summary>
+        [MapPropertyAttribute(MapPropertyEnum.KarFlowReturn)]
+        public double KarFlowReturn
+        {
+            get => GetAttributeValue<double>(MapPropertyEnum.KarFlowReturn);
+            set => SetAttributeValue(MapPropertyEnum.KarFlowReturn, value);
+        }
+
         public void ResetHydraulicResults()
         {
             NumberOfBuildingsSupplied = 0;
@@ -405,8 +425,10 @@ namespace DimensioneringV2.GraphFeatures
             Dim = Dim.NA;
             ReynoldsSupply = 0;
             ReynoldsReturn = 0;
-            FlowSupply = 0;
-            FlowReturn = 0;
+            KarFlowSupply = 0;
+            KarFlowReturn = 0;
+            DimFlowSupply = 0;
+            DimFlowReturn = 0;
             PressureGradientSupply = 0;
             PressureGradientReturn = 0;
             VelocitySupply = 0;

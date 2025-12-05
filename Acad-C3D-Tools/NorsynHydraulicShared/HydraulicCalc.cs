@@ -485,7 +485,7 @@ namespace NorsynHydraulicCalc
                     throw new NotImplementedException();
             }
         }
-        private int Temp(TempSetType tst, SegmentType st)
+        private double Temp(TempSetType tst, SegmentType st)
         {
             switch (tst)
             {
@@ -570,15 +570,12 @@ namespace NorsynHydraulicCalc
                 return new CalculationResult();
             }
 
-
             SegmentType st = segment.SegmentType;
             double totalHeatingDemand = segment.HeatingDemandSupplied;
             int numberOfBuildings = segment.NumberOfBuildingsSupplied;
             int numberOfUnits = segment.NumberOfUnitsSupplied;
             //Used for restricting total pressure loss in stikledninger
-            double length = segment.Length;
-            //Afkøling
-            double tempDelta = segment.TempDeltaVarme;
+            double length = segment.Length;            
             #endregion
 
 #if DEBUG
@@ -688,8 +685,8 @@ namespace NorsynHydraulicCalc
                 log.Report();
             }
 
-            double flowSupply = Math.Max(dimFlow1Frem, dimFlow2Frem);
-            double flowReturn = Math.Max(dimFlow1Retur, dimFlow2Retur);
+            double dimFlowSupply = Math.Max(dimFlow1Frem, dimFlow2Frem);
+            double dimFlowReturn = Math.Max(dimFlow1Retur, dimFlow2Retur);
 
             Dim dim;
             if (segment.ManualDim)
@@ -698,8 +695,8 @@ namespace NorsynHydraulicCalc
             }
             else
             {
-                var dimSupply = determineDim(flowSupply, TempSetType.Supply, st);
-                var dimReturn = determineDim(flowReturn, TempSetType.Return, st);
+                var dimSupply = determineDim(dimFlowSupply, TempSetType.Supply, st);
+                var dimReturn = determineDim(dimFlowReturn, TempSetType.Return, st);
                 dim = new[] { dimSupply, dimReturn }.MaxBy(x => x.OuterDiameter);
             }
 
@@ -709,8 +706,8 @@ namespace NorsynHydraulicCalc
             #region Prevent service pipes from exceeding max allowed pressure loss
             if (st == SegmentType.Stikledning)
             {
-                resSupply = CalculateGradientAndVelocity(flowSupply, dim, TempSetType.Supply, st);
-                resReturn = CalculateGradientAndVelocity(flowReturn, dim, TempSetType.Return, st);
+                resSupply = CalculateGradientAndVelocity(dimFlowSupply, dim, TempSetType.Supply, st);
+                resReturn = CalculateGradientAndVelocity(dimFlowReturn, dim, TempSetType.Return, st);
 
                 double maxPressureLoss = maxPressureLossStikSL * 100000; // bar to Pa
 
@@ -722,8 +719,8 @@ namespace NorsynHydraulicCalc
                     var idx = maxFlowTableSL.FindIndex(x => x.Dim == dim);
 
                     dim = maxFlowTableSL[idx + 1].Dim;
-                    resSupply = CalculateGradientAndVelocity(flowSupply, dim, TempSetType.Supply, st);
-                    resReturn = CalculateGradientAndVelocity(flowReturn, dim, TempSetType.Return, st);
+                    resSupply = CalculateGradientAndVelocity(dimFlowSupply, dim, TempSetType.Supply, st);
+                    resReturn = CalculateGradientAndVelocity(dimFlowReturn, dim, TempSetType.Return, st);
 
                     plossSupply = resSupply.gradient * length;
                     plossReturn = resReturn.gradient * length;
@@ -732,9 +729,9 @@ namespace NorsynHydraulicCalc
             else
             {
                 resSupply =
-                    CalculateGradientAndVelocity(flowSupply, dim, TempSetType.Supply, st);
+                    CalculateGradientAndVelocity(dimFlowSupply, dim, TempSetType.Supply, st);
                 resReturn =
-                    CalculateGradientAndVelocity(flowReturn, dim, TempSetType.Return, st);
+                    CalculateGradientAndVelocity(dimFlowReturn, dim, TempSetType.Return, st);
             }
             #endregion
 
@@ -744,15 +741,239 @@ namespace NorsynHydraulicCalc
             //the larger dimension's minFlow is then larger than the calculated flow
             //and this gives negative utilization rate
             //AS UTIL RATE IS NOT USED FOR ANYTHING CURRENTLY THIS IS NOT CRITICAL
-            var utilRate = determineUtilizationRate(dim, flowSupply, flowReturn, st);
+            var utilRate = determineUtilizationRate(dim, dimFlowSupply, dimFlowReturn, st);
 
             var r = new CalculationResult(
                 st.ToString(),
                 dim,
                 resSupply.reynolds,
                 resReturn.reynolds,
-                flowSupply,
-                flowReturn,
+                Math.Max(karFlow1Frem, karFlow2Frem),
+                Math.Max(karFlow1Retur, karFlow2Retur),
+                dimFlowSupply,
+                dimFlowReturn,
+                resSupply.gradient,
+                resReturn.gradient,
+                resSupply.velocity,
+                resReturn.velocity,
+                utilRate
+            );
+
+            if (reportToConsole)
+            {
+                //Now report these five values to console
+                log.Report(
+                    $"Segment type: {r.SegmentType}\n" +
+                    $"Pipe type: {r.Dim.PipeType}\n" +
+                    $"Dim name: {r.Dim.DimName}\n" +
+                    $"Pressure gradient, supply: {r.PressureGradientSupply} Pa/m\n" +
+                    $"Pressure gradient, return: {r.PressureGradientReturn} Pa/m\n" +
+                    $"Velocity, supply: {r.VelocitySupply} m/s\n" +
+                    $"Velocity, return: {r.VelocityReturn} m/s\n" +
+                    $"Utilization rate: {utilRate}"
+                    );
+            }
+
+            sw.Stop();
+            if (reportToConsole)
+            {
+                log.Report($"Calculation time {sw.ElapsedMilliseconds} ms.");
+            }
+
+            return r;
+        }
+
+        /// <summary>
+        /// Performs hydraulic calculation for a given DISTRIBUTION segment.
+        /// The calculation is based on the segment type = FORDELINGSLEDNING, and
+        /// calculated flows which are multiplied by the samtidighedsfaktor.        
+        /// </summary>
+        public ICalculationResult CalculateDistributionSegment(IHydraulicSegment segment)
+        {
+            #region Set calculation variables
+
+            if (segment.SegmentType != SegmentType.Fordelingsledning)
+            {
+                log.Report("Client segment calculation can only be performed for STIKLEDNING segments!");
+                return new CalculationResult();
+            }
+
+            SegmentType st = segment.SegmentType;            
+            int numberOfBuildings = segment.NumberOfBuildingsSupplied;
+            int numberOfUnits = segment.NumberOfUnitsSupplied;
+            
+            
+            #endregion
+
+#if DEBUG
+            if (reportToConsole)
+            {
+                if (
+                    numberOfBuildings == 0 ||
+                    numberOfUnits == 0)
+                {
+                    log.Report("ERROR!!! Zero values in segment!\n" +
+                    $"Calculating {st} segment.\n" +
+                    $"Number of buildings: {numberOfBuildings}.\n" +
+                    $"Number of units: {numberOfUnits}.\n");                    
+                }
+            }
+#endif
+            if (
+                    numberOfBuildings == 0 ||
+                    numberOfUnits == 0)
+            {
+                return new CalculationResult();
+            }
+
+            sw.Restart();
+
+            double s_heat = (double)N1(st) / (double)N50 + (1.0 - (double)N1(st) / (double)N50) / (double)numberOfBuildings;
+            double s_hw = (51.0 - (double)numberOfUnits) / (50.0 * Math.Sqrt((double)numberOfUnits));
+            s_hw = s_hw < 0 ? 0 : s_hw;
+
+            double karFlow1Frem = (totalHeatingDemand * 1000.0 / N1(st)) * volume(Tf(st), dTHeating(segment));
+            double karFlow2Frem = numberOfUnits * 33 * f_b(st) * volume(Tf(st), dTBV(segment));
+
+            double dimFlow1Frem = karFlow1Frem * s_heat;
+            double dimFlow2Frem = karFlow1Frem * s_heat * KX + karFlow2Frem * s_hw;
+
+            //double dimFlow1Frem = (totalHeatingDemand * 1000.0 / N1(st)) * s_heat * volume(Tf(st), dTHeating(segment));
+            //double dimFlow2Frem = (totalHeatingDemand * 1000.0 / N1(st)) * s_heat * KX * volume(Tf(st), dTHeating(segment))
+            //    + numberOfUnits * 33 * f_b(st) * s_hw * volume(Tf(st), dTBV(segment));
+
+            double karFlow1Retur = (totalHeatingDemand * 1000.0 / N1(st)) * volume(Tr(st), dTHeating(segment));
+            double karFlow2Retur = numberOfUnits * 33 * f_b(st) * volume(Tr_hw, dTBV(segment));
+
+            double dimFlow1Retur = karFlow1Retur * s_heat;
+            double dimFlow2Retur = karFlow1Retur * s_heat * KX + karFlow2Retur * s_hw;
+
+            //double dimFlow1Retur = (totalHeatingDemand * 1000.0 / N1(st)) * s_heat * volume(Tr(st), dTHeating(segment));
+            //double dimFlow2Retur = (totalHeatingDemand * 1000.0 / N1(st)) * s_heat * KX * volume(Tr(st), dTHeating(segment))
+            //    + numberOfUnits * 33 * f_b(st) * s_hw * volume(Tr_hw, dTBV(segment));
+
+            if (reportToConsole)
+            {
+                List<(string, List<object>)> columns = new List<(string, List<object>)>
+                {
+                    ("Heating demand", new List<object>()
+                    {
+                        totalHeatingDemand,
+                        totalHeatingDemand,
+                        totalHeatingDemand,
+                        totalHeatingDemand
+                    }),
+                    ("Flow", new List<object>()
+                    {
+                        totalHeatingDemand / N1(st) * 1000.0/(dTHeating(segment) * 4.231),
+                        totalHeatingDemand / N1(st) * 1000.0 /(dTHeating(segment) * 4.231),
+                        totalHeatingDemand / N1(st) * 1000.0 /(dTHeating(segment) * 4.231),
+                        totalHeatingDemand / N1(st) * 1000.0 /(dTHeating(segment) * 4.231)
+                    }),
+                    ("Demand ajusted", new List<object>()
+                    {
+                        (totalHeatingDemand * 1000 / N1(st)),
+                        (totalHeatingDemand * 1000 / N1(st)),
+                        (totalHeatingDemand * 1000 / N1(st)),
+                        (totalHeatingDemand * 1000 / N1(st)),
+                    }),
+                    ("s_heat", new List<object>() { s_heat, s_heat, s_heat, s_heat }),
+                    ("s_hw", new List<object>() { 0, s_hw, 0, s_hw }),
+                    ("rho heat", new List<object>() { rho(Tf(st)), rho(Tf(st)), rho(Tr(st)), rho(Tr(st))}),
+                    ("rho hw", new List<object>() { rho(Tf(st)), rho(Tf(st)), rho(Tr_hw), rho(Tr_hw)}),
+                    ("Cp heat", new List<object>() { cp(Tf(st)), cp(Tf(st)), cp(Tr(st)), cp(Tr(st)) }),
+                    ("Cp hw", new List<object>() { cp(Tf(st)), cp(Tf(st)), cp(Tr_hw), cp(Tr_hw)}),
+                    ("m^3/kW heat", new List<object>() {
+                        volume(Tf(st), dTHeating(segment)), volume(Tf(st), dTHeating(segment)), volume(Tr(st),
+                        dTHeating(segment)), volume(Tr(st), dTHeating(segment)) }),
+                    ("m^3/kW hw", new List<object>() { 0, volume(Tf(st), dTBV(segment)), 0, volume(Tr_hw, dTBV(segment)) }),
+                    ("Flow m³/hr", new List<object>() { dimFlow1Frem, dimFlow2Frem, dimFlow1Retur, dimFlow2Retur }),
+                    ("Flow kg/s", new List<object>()
+                    {
+                        dimFlow1Frem * rho(Tf(st)) / 3600,
+                        dimFlow2Frem * rho(Tf(st)) / 3600,
+                        dimFlow1Retur * rho(Tr(st)) / 3600,
+                        dimFlow2Retur * rho(Tr(st)) / 3600
+                        //dimFlow1Frem * 951 / 3600,
+                        //dimFlow2Frem * 951 / 3600,
+                        //dimFlow1Retur * 951 / 3600,
+                        //dimFlow2Retur * 951 / 3600
+                    })
+                };
+
+                List<string> rowNames = new List<string> { "Frem 1", "Frem 2", "Retur 1", "Retur 2" };
+
+                log.Report(AsciiTableFormatter.CreateAsciiTableColumns(columns, rowNames, "F6"));
+                log.Report();
+            }
+
+            double dimFlowSupply = Math.Max(dimFlow1Frem, dimFlow2Frem);
+            double dimFlowReturn = Math.Max(dimFlow1Retur, dimFlow2Retur);
+
+            Dim dim;
+            if (segment.ManualDim)
+            {
+                dim = segment.Dim;
+            }
+            else
+            {
+                var dimSupply = determineDim(dimFlowSupply, TempSetType.Supply, st);
+                var dimReturn = determineDim(dimFlowReturn, TempSetType.Return, st);
+                dim = new[] { dimSupply, dimReturn }.MaxBy(x => x.OuterDiameter);
+            }
+
+            (double reynolds, double gradient, double velocity) resSupply;
+            (double reynolds, double gradient, double velocity) resReturn;
+
+            #region Prevent service pipes from exceeding max allowed pressure loss
+            if (st == SegmentType.Stikledning)
+            {
+                resSupply = CalculateGradientAndVelocity(dimFlowSupply, dim, TempSetType.Supply, st);
+                resReturn = CalculateGradientAndVelocity(dimFlowReturn, dim, TempSetType.Return, st);
+
+                double maxPressureLoss = maxPressureLossStikSL * 100000; // bar to Pa
+
+                double plossSupply = resSupply.gradient * length;
+                double plossReturn = resReturn.gradient * length;
+
+                while (plossSupply + plossReturn > maxPressureLoss)
+                {
+                    var idx = maxFlowTableSL.FindIndex(x => x.Dim == dim);
+
+                    dim = maxFlowTableSL[idx + 1].Dim;
+                    resSupply = CalculateGradientAndVelocity(dimFlowSupply, dim, TempSetType.Supply, st);
+                    resReturn = CalculateGradientAndVelocity(dimFlowReturn, dim, TempSetType.Return, st);
+
+                    plossSupply = resSupply.gradient * length;
+                    plossReturn = resReturn.gradient * length;
+                }
+            }
+            else
+            {
+                resSupply =
+                    CalculateGradientAndVelocity(dimFlowSupply, dim, TempSetType.Supply, st);
+                resReturn =
+                    CalculateGradientAndVelocity(dimFlowReturn, dim, TempSetType.Return, st);
+            }
+            #endregion
+
+            //Utilization rate can result in negative numbers for stikledninger
+            //This happens when stikledning is incremented in size to prevent exceeding max pressure loss
+            //and so the calculation is done with a larger dimension than the one in the maxFlowTable
+            //the larger dimension's minFlow is then larger than the calculated flow
+            //and this gives negative utilization rate
+            //AS UTIL RATE IS NOT USED FOR ANYTHING CURRENTLY THIS IS NOT CRITICAL
+            var utilRate = determineUtilizationRate(dim, dimFlowSupply, dimFlowReturn, st);
+
+            var r = new CalculationResult(
+                st.ToString(),
+                dim,
+                resSupply.reynolds,
+                resReturn.reynolds,
+                Math.Max(karFlow1Frem, karFlow2Frem),
+                Math.Max(karFlow1Retur, karFlow2Retur),
+                dimFlowSupply,
+                dimFlowReturn,
                 resSupply.gradient,
                 resReturn.gradient,
                 resSupply.velocity,
