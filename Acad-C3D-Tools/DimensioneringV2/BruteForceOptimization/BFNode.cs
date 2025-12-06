@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace DimensioneringV2.BruteForceOptimization
 {
-    internal class BFNode
+    internal sealed class BFNode
     {
         public int Id { get; set; }
         public Point2D Location { get; }

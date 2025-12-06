@@ -19,7 +19,7 @@ using System.Reflection;
 
 namespace DimensioneringV2.GraphFeatures
 {
-    public class AnalysisFeature : GeometryFeature, IFeature, ICloneable, IHydraulicSegment, IInfoForFeature
+    public sealed class AnalysisFeature : GeometryFeature, IFeature, ICloneable, IInfoForFeature
     {
         #region Constructors
         public AnalysisFeature() : base() { }
@@ -395,27 +395,7 @@ namespace DimensioneringV2.GraphFeatures
         {
             get => GetAttributeValue<double>(MapPropertyEnum.TempDeltaBV);
             //set => SetAttributeValue(MapPropertyEnum.TempDelta, value);
-        }
-
-        /// <summary>
-        /// Flow rate for supply
-        /// </summary>
-        [MapPropertyAttribute(MapPropertyEnum.KarFlowSupply)]
-        public double KarFlowSupply
-        {
-            get => GetAttributeValue<double>(MapPropertyEnum.KarFlowSupply);
-            set => SetAttributeValue(MapPropertyEnum.KarFlowSupply, value);
-        }
-
-        /// <summary>
-        /// Flow rate for return
-        /// </summary>
-        [MapPropertyAttribute(MapPropertyEnum.KarFlowReturn)]
-        public double KarFlowReturn
-        {
-            get => GetAttributeValue<double>(MapPropertyEnum.KarFlowReturn);
-            set => SetAttributeValue(MapPropertyEnum.KarFlowReturn, value);
-        }
+        }        
 
         public void ResetHydraulicResults()
         {
@@ -424,9 +404,7 @@ namespace DimensioneringV2.GraphFeatures
             HeatingDemandSupplied = 0;
             Dim = Dim.NA;
             ReynoldsSupply = 0;
-            ReynoldsReturn = 0;
-            KarFlowSupply = 0;
-            KarFlowReturn = 0;
+            ReynoldsReturn = 0;            
             DimFlowSupply = 0;
             DimFlowReturn = 0;
             PressureGradientSupply = 0;

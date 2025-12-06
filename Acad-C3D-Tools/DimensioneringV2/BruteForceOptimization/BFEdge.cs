@@ -16,28 +16,45 @@ using System.Threading.Tasks;
 
 namespace DimensioneringV2.BruteForceOptimization
 {
-    internal class BFEdge : Edge<BFNode>, IHydraulicSegment
+    /// <summary>
+    /// WARNING! When adding new properties that read from OriginalEdge.PipeSegment,
+    /// remember to cache the value in the constructor instead of accessing
+    /// OriginalEdge.PipeSegment directly in the property getter.
+    /// </summary>
+    internal sealed class BFEdge : Edge<BFNode>, IHydraulicSegment
     {
+        // Cached values from OriginalEdge.PipeSegment
+        private readonly bool _isRootNode;
+        private readonly double _length;
+        private readonly int _numberOfBuildingsConnected;
+        private readonly int _numberOfUnitsConnected;
+        private readonly double _heatingDemandConnected;
+        private readonly bool _manualDim;
+        private readonly double _tempDeltaVarme;
+        private readonly double _tempDeltaBV;
+
         public int Id { get; set; }
         public double Price { get => Dim.Price_m * Length + Dim.Price_stk(SegmentType); }
-        public bool IsRootNode { get => OriginalEdge.PipeSegment.IsRootNode; }
-        public double Length { get => OriginalEdge.PipeSegment.Length; }
-        public int NumberOfBuildingsConnected { get => OriginalEdge.PipeSegment.NumberOfBuildingsConnected; }
+        public bool IsRootNode { get => _isRootNode; }
+        public double Length { get => _length; }
+        public int NumberOfBuildingsConnected { get => _numberOfBuildingsConnected; }
         public SegmentType SegmentType =>
             NumberOfBuildingsConnected == 1 ?
             SegmentType.Stikledning :
             SegmentType.Fordelingsledning;
-        public int NumberOfUnitsConnected { get => OriginalEdge.PipeSegment.NumberOfUnitsConnected; }
-        public double HeatingDemandConnected { get => OriginalEdge.PipeSegment.HeatingDemandConnected; }
+        public int NumberOfUnitsConnected { get => _numberOfUnitsConnected; }
+        public double HeatingDemandConnected { get => _heatingDemandConnected; }
         public int NumberOfBuildingsSupplied { get; set; }
         public int NumberOfUnitsSupplied { get; set; }
         public double HeatingDemandSupplied { get; set; }
         public Dim Dim { get; set; }
-        public bool ManualDim { get => OriginalEdge.PipeSegment.ManualDim; }
+        public bool ManualDim { get => _manualDim; }
         public double ReynoldsSupply { get; set; }
         public double ReynoldsReturn { get; set; }
-        public double KarFlowSupply { get; set; }
-        public double KarFlowReturn { get; set; }
+        public double KarFlowHeatSupply { get; set; }
+        public double KarFlowBVSupply { get; set; }
+        public double KarFlowHeatReturn { get; set; }
+        public double KarFlowBVReturn { get; set; }
         public double DimFlowSupply { get; set; }
         public double DimFlowReturn { get; set; }
         public double PressureGradientSupply { get; set; }
@@ -51,11 +68,19 @@ namespace DimensioneringV2.BruteForceOptimization
         public double UtilizationRate { get; set; }        
         public EdgePipeSegment OriginalEdge { get; }
         public int NonBridgeChromosomeIndex { get; internal set; } = -1;
-        public double TempDeltaVarme => OriginalEdge.PipeSegment.TempDeltaVarme;
-        public double TempDeltaBV => OriginalEdge.PipeSegment.TempDeltaBV;
+        public double TempDeltaVarme => _tempDeltaVarme;
+        public double TempDeltaBV => _tempDeltaBV;
         public BFEdge([NotNull] BFNode source, [NotNull] BFNode target, EdgePipeSegment edge) : base(source, target)
         {
             OriginalEdge = edge;
+            _isRootNode = edge.PipeSegment.IsRootNode;
+            _length = edge.PipeSegment.Length;
+            _numberOfBuildingsConnected = edge.PipeSegment.NumberOfBuildingsConnected;
+            _numberOfUnitsConnected = edge.PipeSegment.NumberOfUnitsConnected;
+            _heatingDemandConnected = edge.PipeSegment.HeatingDemandConnected;
+            _manualDim = edge.PipeSegment.ManualDim;
+            _tempDeltaVarme = edge.PipeSegment.TempDeltaVarme;
+            _tempDeltaBV = edge.PipeSegment.TempDeltaBV;
         }
 
         public void PushBaseSums()
@@ -70,9 +95,7 @@ namespace DimensioneringV2.BruteForceOptimization
             PushBaseSums();
             OriginalEdge.PipeSegment.Dim = Dim;
             OriginalEdge.PipeSegment.ReynoldsSupply = ReynoldsSupply;
-            OriginalEdge.PipeSegment.ReynoldsReturn = ReynoldsReturn;
-            OriginalEdge.PipeSegment.KarFlowSupply = KarFlowSupply;
-            OriginalEdge.PipeSegment.KarFlowReturn = KarFlowReturn;
+            OriginalEdge.PipeSegment.ReynoldsReturn = ReynoldsReturn;            
             OriginalEdge.PipeSegment.DimFlowSupply = DimFlowSupply;
             OriginalEdge.PipeSegment.DimFlowReturn = DimFlowReturn;
             OriginalEdge.PipeSegment.PressureGradientSupply = PressureGradientSupply;
@@ -107,9 +130,7 @@ namespace DimensioneringV2.BruteForceOptimization
             HeatingDemandSupplied = OriginalEdge.PipeSegment.HeatingDemandSupplied;
             Dim = OriginalEdge.PipeSegment.Dim;
             ReynoldsSupply = OriginalEdge.PipeSegment.ReynoldsSupply;
-            ReynoldsReturn = OriginalEdge.PipeSegment.ReynoldsReturn;
-            FlowSupply = OriginalEdge.PipeSegment.DimFlowSupply;
-            FlowReturn = OriginalEdge.PipeSegment.DimFlowReturn;
+            ReynoldsReturn = OriginalEdge.PipeSegment.ReynoldsReturn;            
             PressureGradientSupply = OriginalEdge.PipeSegment.PressureGradientSupply;
             PressureGradientReturn = OriginalEdge.PipeSegment.PressureGradientReturn;
             PressureLossAtClientSupply = OriginalEdge.PipeSegment.PressureLossAtClientSupply;
