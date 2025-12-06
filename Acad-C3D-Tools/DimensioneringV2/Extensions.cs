@@ -194,7 +194,7 @@ namespace DimensioneringV2
         {
             var newEdge = new BFEdge(edge.Source, edge.Target, edge.OriginalEdge);
 
-            newEdge.SyncBaseSums(edge);
+            newEdge.SyncBaseSums(edge); //<-- this must be verified
             graph.AddVerticesAndEdge(newEdge);
         }
         public static void InitNonBridgeChromosomeIndex(this UndirectedGraph<BFNode, BFEdge> graph)
