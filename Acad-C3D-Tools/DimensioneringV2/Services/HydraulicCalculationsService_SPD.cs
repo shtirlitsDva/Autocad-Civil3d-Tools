@@ -14,6 +14,7 @@ using System.Diagnostics;
 using utils = IntersectUtilities.UtilsCommon.Utils;
 using System.IO;
 using NorsynHydraulicCalc;
+using DimensioneringV2.BruteForceOptimization;
 
 namespace DimensioneringV2.Services
 {
@@ -22,17 +23,19 @@ namespace DimensioneringV2.Services
         private static DataService _dataService = DataService.Instance;
         internal static void CalculateSPDijkstra(
             List<(
-                Func<AnalysisFeature, dynamic> Getter, 
-                Action<AnalysisFeature, dynamic> Setter)> props)
+                Func<BFEdge, dynamic> Getter, 
+                Action<BFEdge, dynamic> Setter)> props)
         {
             HydraulicCalculationService.Initialize();
             var graphs = _dataService.Graphs;
 
             //Reset the results
-            foreach (var f in graphs.SelectMany(g => g.Edges.Select(e => e.PipeSegment))) f.ResetHydraulicResults();
+            foreach (var f in graphs.SelectMany(g => g.Edges.Select(e => e.PipeSegment))) f.ResetHydraulicResults();            
 
-            foreach (var graph in graphs)
+            foreach (var ograph in graphs)
             {
+                var graph = ograph.CopyToBF();
+
                 //Mark bridges
                 FindBridges.DoMarkThem(graph);
 
@@ -41,7 +44,7 @@ namespace DimensioneringV2.Services
                 if (rootNode == null)
                     throw new System.Exception("Root node not found.");
 
-                var shortestPathTree = new UndirectedGraph<NodeJunction, EdgePipeSegment>();
+                var shortestPathTree = new UndirectedGraph<BFNode, BFEdge>();
                 shortestPathTree.AddVertexRange(graph.Vertices);
 
                 // Dijkstra's algorithm for shortest paths from the root node

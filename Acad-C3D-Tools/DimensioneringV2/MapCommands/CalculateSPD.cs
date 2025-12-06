@@ -1,4 +1,5 @@
-﻿using DimensioneringV2.GraphFeatures;
+﻿using DimensioneringV2.BruteForceOptimization;
+using DimensioneringV2.GraphFeatures;
 using DimensioneringV2.Services;
 using DimensioneringV2.Services.SubGraphs;
 
@@ -17,13 +18,17 @@ namespace DimensioneringV2.MapCommands
             try
             {
                 await Task.Run(() => HydraulicCalculationsService.CalculateSPDijkstra(
-                    new List<(Func<AnalysisFeature, dynamic> Getter, Action<AnalysisFeature, dynamic> Setter)>
+                    new List<(Func<BFEdge, dynamic> Getter, Action<BFEdge, dynamic> Setter)>
                     {
                         (f => f.NumberOfBuildingsConnected, (f, v) => f.NumberOfBuildingsSupplied = v),
                         (f => f.NumberOfUnitsConnected, (f, v) => f.NumberOfUnitsSupplied = v),
                         (f => f.HeatingDemandConnected, (f, v) => f.HeatingDemandSupplied = v),
+                        (f => f.KarFlowHeatSupply, (f, v) => f.KarFlowHeatSupply = v),
+                        (f => f.KarFlowBVSupply, (f, v) => f.KarFlowBVSupply = v),
+                        (f => f.KarFlowHeatReturn, (f, v) => f.KarFlowHeatReturn = v),
+                        (f => f.KarFlowBVReturn, (f, v) => f.KarFlowBVReturn = v),
 
-                    }));
+                    }));                
 
                 var graphs = DataService.Instance.Graphs;
 
