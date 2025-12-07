@@ -16,7 +16,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)AsciiTableFormatter.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)CalculationResult.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)CalculationResultFordeling.cs" />
+    <Compile Include="..\NorsynHydraulicShared\CalculationResultClient.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Enums.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)HydraulicCalc.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)IHydraulicSettings.cs" />

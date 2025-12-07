@@ -85,7 +85,7 @@ namespace DimensioneringV2.Services.SubGraphs
             //Parallel.ForEach(graph.Edges, edge =>
             foreach (var edge in graph.Edges)
             {
-                CalculationResult result;
+                CalculationResultClient result;
                 if (edge.SegmentType == SegmentType.Stikledning)
                 {
                     result = cache.GetServicePipeResult(edge.OriginalEdge.PipeSegment);

@@ -26,7 +26,7 @@ namespace DimensioneringV2.Services
         {
             Parallel.ForEach(graph.Edges, edge =>
             {
-                CalculationResult result;
+                CalculationResultClient result;
                 if (edge.SegmentType == SegmentType.Stikledning)
                 {
                     result = cache.GetServicePipeResult(edge.OriginalEdge.PipeSegment);

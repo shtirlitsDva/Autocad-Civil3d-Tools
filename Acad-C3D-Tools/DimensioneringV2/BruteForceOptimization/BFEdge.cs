@@ -1,4 +1,4 @@
-﻿using DimensioneringV2.GraphFeatures;
+using DimensioneringV2.GraphFeatures;
 
 using NorsynHydraulicCalc;
 using NorsynHydraulicCalc.Pipes;
@@ -8,11 +8,7 @@ using NorsynHydraulicShared;
 using QuikGraph;
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace DimensioneringV2.BruteForceOptimization
 {
@@ -36,6 +32,7 @@ namespace DimensioneringV2.BruteForceOptimization
         public int Id { get; set; }
         public double Price { get => Dim.Price_m * Length + Dim.Price_stk(SegmentType); }
         public bool IsRootNode { get => _isRootNode; }
+        public bool IsBridge { get; set; }
         public double Length { get => _length; }
         public int NumberOfBuildingsConnected { get => _numberOfBuildingsConnected; }
         public SegmentType SegmentType =>
@@ -65,7 +62,7 @@ namespace DimensioneringV2.BruteForceOptimization
         public bool IsCriticalPath { get; set; } = false;
         public double VelocitySupply { get; set; }
         public double VelocityReturn { get; set; }
-        public double UtilizationRate { get; set; }        
+        public double UtilizationRate { get; set; }
         public EdgePipeSegment OriginalEdge { get; }
         public int NonBridgeChromosomeIndex { get; internal set; } = -1;
         public double TempDeltaVarme => _tempDeltaVarme;
@@ -95,7 +92,7 @@ namespace DimensioneringV2.BruteForceOptimization
             PushBaseSums();
             OriginalEdge.PipeSegment.Dim = Dim;
             OriginalEdge.PipeSegment.ReynoldsSupply = ReynoldsSupply;
-            OriginalEdge.PipeSegment.ReynoldsReturn = ReynoldsReturn;            
+            OriginalEdge.PipeSegment.ReynoldsReturn = ReynoldsReturn;
             OriginalEdge.PipeSegment.DimFlowSupply = DimFlowSupply;
             OriginalEdge.PipeSegment.DimFlowReturn = DimFlowReturn;
             OriginalEdge.PipeSegment.PressureGradientSupply = PressureGradientSupply;
@@ -106,7 +103,8 @@ namespace DimensioneringV2.BruteForceOptimization
             OriginalEdge.PipeSegment.IsCriticalPath = IsCriticalPath;
             OriginalEdge.PipeSegment.VelocitySupply = VelocitySupply;
             OriginalEdge.PipeSegment.VelocityReturn = VelocityReturn;
-            OriginalEdge.PipeSegment.UtilizationRate = UtilizationRate;            
+            OriginalEdge.PipeSegment.UtilizationRate = UtilizationRate;
+            OriginalEdge.PipeSegment.IsBridge = IsBridge;
         }
 
         /// <summary>
@@ -130,7 +128,7 @@ namespace DimensioneringV2.BruteForceOptimization
             HeatingDemandSupplied = OriginalEdge.PipeSegment.HeatingDemandSupplied;
             Dim = OriginalEdge.PipeSegment.Dim;
             ReynoldsSupply = OriginalEdge.PipeSegment.ReynoldsSupply;
-            ReynoldsReturn = OriginalEdge.PipeSegment.ReynoldsReturn;            
+            ReynoldsReturn = OriginalEdge.PipeSegment.ReynoldsReturn;
             PressureGradientSupply = OriginalEdge.PipeSegment.PressureGradientSupply;
             PressureGradientReturn = OriginalEdge.PipeSegment.PressureGradientReturn;
             PressureLossAtClientSupply = OriginalEdge.PipeSegment.PressureLossAtClientSupply;
@@ -140,6 +138,40 @@ namespace DimensioneringV2.BruteForceOptimization
             VelocitySupply = OriginalEdge.PipeSegment.VelocitySupply;
             VelocityReturn = OriginalEdge.PipeSegment.VelocityReturn;
             UtilizationRate = OriginalEdge.PipeSegment.UtilizationRate;
+            IsBridge = OriginalEdge.PipeSegment.IsBridge;
+        }
+
+        internal void ApplyResult(CalculationResultClient result)
+        {
+            //Write data from result to properties
+            Dim = result.Dim;
+            ReynoldsSupply = result.ReynoldsSupply;
+            ReynoldsReturn = result.ReynoldsReturn;
+            KarFlowHeatSupply = result.KarFlowHeatSupply;
+            KarFlowBVSupply = result.KarFlowBVSupply;
+            KarFlowHeatReturn = result.KarFlowHeatReturn;
+            KarFlowBVReturn = result.KarFlowBVReturn;
+            DimFlowSupply = result.DimFlowSupply;
+            DimFlowReturn = result.DimFlowReturn;
+            PressureGradientSupply = result.PressureGradientSupply;
+            PressureGradientReturn = result.PressureGradientReturn;
+            VelocitySupply = result.VelocitySupply;
+            VelocityReturn = result.VelocityReturn;
+            UtilizationRate = result.UtilizationRate;
+        }
+        internal void ApplyResult(CalculationResultFordeling result)
+        {
+            //Write data from result to properties
+            Dim = result.Dim;
+            ReynoldsSupply = result.ReynoldsSupply;
+            ReynoldsReturn = result.ReynoldsReturn;
+            DimFlowSupply = result.DimFlowSupply;
+            DimFlowReturn = result.DimFlowReturn;
+            PressureGradientSupply = result.PressureGradientSupply;
+            PressureGradientReturn = result.PressureGradientReturn;
+            VelocitySupply = result.VelocitySupply;
+            VelocityReturn = result.VelocityReturn;
+            UtilizationRate = result.UtilizationRate;
         }
     }
 }

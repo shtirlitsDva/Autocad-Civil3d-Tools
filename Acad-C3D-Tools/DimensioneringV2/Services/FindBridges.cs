@@ -83,11 +83,11 @@ namespace DimensioneringV2.Services
             }
         }
 
-        internal static void DoMarkThem(UndirectedGraph<NodeJunction, EdgePipeSegment> graph)
+        internal static void DoMarkThem(UndirectedGraph<BFNode, BFEdge> graph)
         {
-            var bridges = new HashSet<EdgePipeSegment>();
-            var low = new Dictionary<NodeJunction, int>();
-            var pre = new Dictionary<NodeJunction, int>();
+            var bridges = new HashSet<BFEdge>();
+            var low = new Dictionary<BFNode, int>();
+            var pre = new Dictionary<BFNode, int>();
             foreach (var node in graph.Vertices)
             {
                 low[node] = -1;
@@ -105,40 +105,42 @@ namespace DimensioneringV2.Services
 
             foreach (var bridge in bridges)
             {
-                bridge.PipeSegment.IsBridge = true;
+                bridge.IsBridge = true;
             }
         }
-        internal static void BridgeDfs(
-            UndirectedGraph<NodeJunction, EdgePipeSegment> graph,
-            NodeJunction u,
-            NodeJunction v,
-            ref int cnt,
-            Dictionary<NodeJunction, int> low,
-            Dictionary<NodeJunction, int> pre,
-            HashSet<EdgePipeSegment> bridges)
-        {
-            cnt++;
-            pre[v] = cnt;
-            low[v] = pre[v];
 
-            foreach (var edge in graph.AdjacentEdges(v))
-            {
-                var w = edge.Source.Equals(v) ? edge.Target : edge.Source;
-                if (pre[w] == -1)
-                {
-                    BridgeDfs(graph, v, w, ref cnt, low, pre, bridges);
+        //OBSOLETE?? After transition to full DTO?
+        //internal static void BridgeDfs(
+        //    UndirectedGraph<NodeJunction, EdgePipeSegment> graph,
+        //    NodeJunction u,
+        //    NodeJunction v,
+        //    ref int cnt,
+        //    Dictionary<NodeJunction, int> low,
+        //    Dictionary<NodeJunction, int> pre,
+        //    HashSet<EdgePipeSegment> bridges)
+        //{
+        //    cnt++;
+        //    pre[v] = cnt;
+        //    low[v] = pre[v];
 
-                    low[v] = Math.Min(low[v], low[w]);
-                    if (low[w] == pre[w])
-                    {
-                        bridges.Add(edge);
-                    }
-                }
-                else if (!w.Equals(u))
-                {
-                    low[v] = Math.Min(low[v], pre[w]);
-                }
-            }
-        }
+        //    foreach (var edge in graph.AdjacentEdges(v))
+        //    {
+        //        var w = edge.Source.Equals(v) ? edge.Target : edge.Source;
+        //        if (pre[w] == -1)
+        //        {
+        //            BridgeDfs(graph, v, w, ref cnt, low, pre, bridges);
+
+        //            low[v] = Math.Min(low[v], low[w]);
+        //            if (low[w] == pre[w])
+        //            {
+        //                bridges.Add(edge);
+        //            }
+        //        }
+        //        else if (!w.Equals(u))
+        //        {
+        //            low[v] = Math.Min(low[v], pre[w]);
+        //        }
+        //    }
+        //}
     }
 }

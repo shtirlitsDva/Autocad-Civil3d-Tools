@@ -557,14 +557,14 @@ namespace NorsynHydraulicCalc
         /// number of buildings, number of units supplied by the segment AND temperature delta (if any).
         /// If temp delta is provided, the calculation will take afkøling into account.
         /// </summary>
-        public CalculationResult CalculateClientSegment(IHydraulicSegment segment)
+        public CalculationResultClient CalculateClientSegment(IHydraulicSegment segment)
         {
             #region Set calculation variables
 
             if (segment.SegmentType != SegmentType.Stikledning)
             {
                 log.Report("Client segment calculation can only be performed for STIKLEDNING segments!");
-                return new CalculationResult();
+                return new CalculationResultClient();
             }
 
             SegmentType st = segment.SegmentType;
@@ -597,7 +597,7 @@ namespace NorsynHydraulicCalc
                     numberOfBuildings == 0 ||
                     numberOfUnits == 0)
             {
-                return new CalculationResult();
+                return new CalculationResultClient();
             }
 
 
@@ -731,7 +731,7 @@ namespace NorsynHydraulicCalc
             //AS UTIL RATE IS NOT USED FOR ANYTHING CURRENTLY THIS IS NOT CRITICAL
             var utilRate = determineUtilizationRate(dim, dimFlowSupply, dimFlowReturn, st);
 
-            var r = new CalculationResult(
+            var r = new CalculationResultClient(
                 st.ToString(),
                 dim,
                 resSupply.reynolds,
@@ -778,14 +778,14 @@ namespace NorsynHydraulicCalc
         /// The calculation is based on the segment type = FORDELINGSLEDNING, and
         /// calculated flows which are multiplied by the samtidighedsfaktor.        
         /// </summary>
-        public CalculationResult CalculateDistributionSegment(IHydraulicSegment segment)
+        public CalculationResultFordeling CalculateDistributionSegment(IHydraulicSegment segment)
         {
             #region Set calculation variables
 
             if (segment.SegmentType != SegmentType.Fordelingsledning)
             {
                 log.Report("Client segment calculation can only be performed for FORDELINGSLEDNING segments!");
-                return new CalculationResult();
+                return new CalculationResultFordeling();
             }
 
             SegmentType st = segment.SegmentType;
@@ -826,7 +826,7 @@ namespace NorsynHydraulicCalc
                     numberOfBuildings == 0 ||
                     numberOfUnits == 0)
             {
-                return new CalculationResult();
+                return new CalculationResultFordeling();
             }
 
             sw.Restart();
@@ -903,12 +903,11 @@ namespace NorsynHydraulicCalc
             //AS UTIL RATE IS NOT USED FOR ANYTHING CURRENTLY THIS IS NOT CRITICAL
             var utilRate = determineUtilizationRate(dim, dimFlowSupply, dimFlowReturn, st);
 
-            var r = new CalculationResult(
+            var r = new CalculationResultFordeling(
                 st.ToString(),
                 dim,
                 resSupply.reynolds,
                 resReturn.reynolds,
-                0, 0, 0, 0,
                 dimFlowSupply,
                 dimFlowReturn,
                 resSupply.gradient,

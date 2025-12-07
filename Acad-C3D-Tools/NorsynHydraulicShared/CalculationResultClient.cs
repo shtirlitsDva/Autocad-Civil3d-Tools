@@ -2,7 +2,7 @@
 
 namespace NorsynHydraulicCalc
 {
-    public readonly struct CalculationResult(
+    public readonly struct CalculationResultClient(
         string segmentType, Dim dim,
         double reynoldsSupply, double reynoldsReturn,
         double karFlowHeatSupply, double karFlowBVSupply,
