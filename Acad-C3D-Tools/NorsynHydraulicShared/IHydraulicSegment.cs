@@ -10,6 +10,9 @@ namespace NorsynHydraulicShared
     public interface IHydraulicSegment
     {
         SegmentType SegmentType { get; }
+        double HeatingDemandConnected { get; }
+        int NumberOfBuildingsConnected { get; }
+        int NumberOfUnitsConnected { get; }
         double HeatingDemandSupplied { get; }
         int NumberOfBuildingsSupplied { get; }
         int NumberOfUnitsSupplied { get; }

@@ -250,7 +250,8 @@ namespace DimensioneringV2.GraphFeatures
                             attributes["EstimeretVarmeForbrug"] = bbr.EstimeretVarmeForbrug;
                             attributes["AntalEnheder"] = bbr.AntalEnheder;
                             attributes["VarmeDistrikt"] = bbr.DistriktetsNavn;
-                            attributes["TempDelta"] = bbr.TempDeltaVarme;
+                            attributes["TempDeltaVarme"] = bbr.TempDeltaVarme;
+                            attributes["TempDeltaBV"] = bbr.TempDeltaBV;
                             attributes["IsBuildingConnection"] = true;
                         }
 

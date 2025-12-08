@@ -1705,6 +1705,7 @@ namespace IntersectUtilities
     public class BBR : PropertySetManager
     {
         private Entity _ent;
+        public Entity Entity => _ent;
         private BlockReference _br;
         private PSetDefs.BBR _def = new PSetDefs.BBR();
 

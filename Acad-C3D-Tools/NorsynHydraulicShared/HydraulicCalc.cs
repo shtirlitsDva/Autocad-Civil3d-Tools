@@ -568,9 +568,9 @@ namespace NorsynHydraulicCalc
             }
 
             SegmentType st = segment.SegmentType;
-            double totalHeatingDemand = segment.HeatingDemandSupplied;
-            int numberOfBuildings = segment.NumberOfBuildingsSupplied;
-            int numberOfUnits = segment.NumberOfUnitsSupplied;
+            double totalHeatingDemand = segment.HeatingDemandConnected;
+            int numberOfBuildings = segment.NumberOfBuildingsConnected;
+            int numberOfUnits = segment.NumberOfUnitsConnected;
             //Used for restricting total pressure loss in stikledninger
             double length = segment.Length;
             #endregion
