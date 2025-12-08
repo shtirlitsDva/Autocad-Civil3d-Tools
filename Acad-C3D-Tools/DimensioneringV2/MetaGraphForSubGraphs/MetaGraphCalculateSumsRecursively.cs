@@ -1,5 +1,7 @@
-﻿using DimensioneringV2.BruteForceOptimization;
+using DimensioneringV2.BruteForceOptimization;
+using DimensioneringV2.Common;
 using DimensioneringV2.GraphModel;
+using DimensioneringV2.GraphUtilities;
 
 using QuikGraph;
 using QuikGraph.Algorithms;
@@ -7,10 +9,8 @@ using QuikGraph.Algorithms;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace DimensioneringV2.Services.SubGraphs
+namespace DimensioneringV2.MetaGraphForSubGraphs
 {
     internal class CalculateMetaGraphRecursively
     {
@@ -18,21 +18,27 @@ namespace DimensioneringV2.Services.SubGraphs
 
         public CalculateMetaGraphRecursively(MetaGraph<UndirectedGraph<BFNode, BFEdge>> metaGraph)
         {
-            this._metaGraph = metaGraph;
+            _metaGraph = metaGraph;
         }
 
-        internal void CalculateBaseSumsForMetaGraph(
-            List<(Func<BFEdge, dynamic> Getter, Action<BFEdge, dynamic> Setter)> props)
+        /// <summary>
+        /// Calculates base sums for all subgraphs in the metagraph.
+        /// Processes children first (bottom-up), storing sums at bridge nodes
+        /// so they can be injected when processing parent subgraphs.
+        /// </summary>
+        internal void CalculateBaseSumsForMetaGraph(List<SumProperty<BFEdge>> props)
         {
             foreach (var root in _metaGraph.Roots)
             {
                 Calculate(root, props);
             }
         }
+
         private void Calculate(
             MetaNode<UndirectedGraph<BFNode, BFEdge>> node,
-            List<(Func<BFEdge, dynamic> Getter, Action<BFEdge, dynamic> Setter)> props)
+            List<SumProperty<BFEdge>> props)
         {
+            // Process children first (bottom-up traversal)
             foreach (var child in node.Children) Calculate(child, props);
 
             var graph = node.Value;
@@ -42,27 +48,25 @@ namespace DimensioneringV2.Services.SubGraphs
 
             var nodeFlags = _metaGraph.NodeFlags[graph];
 
-            bool isLeaf(BFNode node)
+            bool isLeaf(BFNode n)
             {
-                if (nodeFlags.TryGetValue(node, out var value)) return value.IsLeaf;
+                if (nodeFlags.TryGetValue(n, out var value)) return value.IsLeaf;
                 return false;
             }
 
             BFNode? rootNode = nodeFlags.FirstOrDefault(x => x.Value.IsRoot).Key;
             if (rootNode == null)
-                throw new Exception("Root node not found.");
+                throw new Exception("Root node not found in subgraph.");
 
+            // Build shortest path tree from root to all terminals (buildings + leaf bridge nodes)
             var shortestPathTree = new UndirectedGraph<BFNode, BFEdge>();
             shortestPathTree.AddVertexRange(graph.Vertices);
 
-            var tryGetPaths = graph.ShortestPathsDijkstra(
-                edge => edge.Length, rootNode);
+            var tryGetPaths = graph.ShortestPathsDijkstra(edge => edge.Length, rootNode);
 
-            var query = graph.Vertices.Where(
-                x => x.IsBuildingNode || isLeaf(x)
-                );
+            var terminals = graph.Vertices.Where(x => x.IsBuildingNode || isLeaf(x));
 
-            foreach (var vertex in query)
+            foreach (var vertex in terminals)
             {
                 if (tryGetPaths(vertex, out var path))
                 {
@@ -76,9 +80,12 @@ namespace DimensioneringV2.Services.SubGraphs
                 }
             }
 
-            var visited = new HashSet<BFNode>();
-            var sum = CalculateSubgraphs.BFCalcBaseSums(shortestPathTree, rootNode, visited, _metaGraph, props);
-            _metaGraph.Sums[rootNode] = sum;
+            // Calculate sums recursively, injecting pre-calculated sums from child subgraphs
+            var sums = GraphSumCalculator.CalculateSums(
+                shortestPathTree, rootNode, props, _metaGraph.Sums);
+
+            // Store this subgraph's total sums at root for parent subgraph injection
+            _metaGraph.Sums[rootNode] = sums.ToList();
         }
     }
 }

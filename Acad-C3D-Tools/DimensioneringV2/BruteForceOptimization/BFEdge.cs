@@ -33,6 +33,7 @@ namespace DimensioneringV2.BruteForceOptimization
         public double Price { get => Dim.Price_m * Length + Dim.Price_stk(SegmentType); }
         public bool IsRootNode { get => _isRootNode; }
         public bool IsBridge { get; set; }
+        public int SubGraphId { get; set; }
         public double Length { get => _length; }
         public int NumberOfBuildingsConnected { get => _numberOfBuildingsConnected; }
         public SegmentType SegmentType =>
@@ -70,6 +71,7 @@ namespace DimensioneringV2.BruteForceOptimization
         public BFEdge([NotNull] BFNode source, [NotNull] BFNode target, EdgePipeSegment edge) : base(source, target)
         {
             OriginalEdge = edge;
+            Dim = edge.PipeSegment.Dim;            
             _isRootNode = edge.PipeSegment.IsRootNode;
             _length = edge.PipeSegment.Length;
             _numberOfBuildingsConnected = edge.PipeSegment.NumberOfBuildingsConnected;
@@ -78,6 +80,51 @@ namespace DimensioneringV2.BruteForceOptimization
             _manualDim = edge.PipeSegment.ManualDim;
             _tempDeltaVarme = edge.PipeSegment.TempDeltaVarme;
             _tempDeltaBV = edge.PipeSegment.TempDeltaBV;
+        }
+        public BFEdge([NotNull] BFNode source, [NotNull] BFNode target, BFEdge edge) : base(source, target)
+        {
+            OriginalEdge = edge.OriginalEdge;
+            Dim = edge.Dim;
+            NumberOfBuildingsSupplied = edge.NumberOfBuildingsSupplied;
+            NumberOfUnitsSupplied = edge.NumberOfUnitsSupplied;
+            HeatingDemandSupplied = edge.HeatingDemandSupplied;
+            KarFlowHeatSupply = edge.KarFlowHeatSupply;
+            KarFlowBVSupply = edge.KarFlowBVSupply;
+            KarFlowHeatReturn = edge.KarFlowHeatReturn;
+            KarFlowBVReturn = edge.KarFlowBVReturn;       
+            SubGraphId = edge.SubGraphId;
+            NonBridgeChromosomeIndex = edge.NonBridgeChromosomeIndex;
+            _isRootNode = edge.IsRootNode;
+            _length = edge.Length;
+            _numberOfBuildingsConnected = edge.NumberOfBuildingsConnected;
+            _numberOfUnitsConnected = edge.NumberOfUnitsConnected;
+            _heatingDemandConnected = edge.HeatingDemandConnected;
+            _manualDim = edge.ManualDim;            
+            _tempDeltaVarme = edge.TempDeltaVarme;
+            _tempDeltaBV = edge.TempDeltaBV;
+        }
+
+        public BFEdge(BFEdge edge) : base(edge.Source, edge.Target)
+        {
+            OriginalEdge = edge.OriginalEdge;
+            Dim = edge.Dim;
+            NumberOfBuildingsSupplied = edge.NumberOfBuildingsSupplied;
+            NumberOfUnitsSupplied = edge.NumberOfUnitsSupplied;
+            HeatingDemandSupplied = edge.HeatingDemandSupplied;
+            KarFlowHeatSupply = edge.KarFlowHeatSupply;
+            KarFlowBVSupply = edge.KarFlowBVSupply;
+            KarFlowHeatReturn = edge.KarFlowHeatReturn;
+            KarFlowBVReturn = edge.KarFlowBVReturn;
+            SubGraphId = edge.SubGraphId;
+            NonBridgeChromosomeIndex = edge.NonBridgeChromosomeIndex;
+            _isRootNode = edge.IsRootNode;
+            _length = edge.Length;
+            _numberOfBuildingsConnected = edge.NumberOfBuildingsConnected;
+            _numberOfUnitsConnected = edge.NumberOfUnitsConnected;
+            _heatingDemandConnected = edge.HeatingDemandConnected;
+            _manualDim = edge.ManualDim;
+            _tempDeltaVarme = edge.TempDeltaVarme;
+            _tempDeltaBV = edge.TempDeltaBV;
         }
 
         public void PushBaseSums()
@@ -105,17 +152,18 @@ namespace DimensioneringV2.BruteForceOptimization
             OriginalEdge.PipeSegment.VelocityReturn = VelocityReturn;
             OriginalEdge.PipeSegment.UtilizationRate = UtilizationRate;
             OriginalEdge.PipeSegment.IsBridge = IsBridge;
+            OriginalEdge.PipeSegment.SubGraphId = SubGraphId;
         }
 
         /// <summary>
-        /// How is this used? Does it need the new flow info?
+        /// Syncs base sums from another edge (used in specific scenarios).
         /// </summary>        
         internal void SyncBaseSums(BFEdge edge)
         {
             NumberOfBuildingsSupplied = edge.NumberOfBuildingsSupplied;
             NumberOfUnitsSupplied = edge.NumberOfUnitsSupplied;
             HeatingDemandSupplied = edge.HeatingDemandSupplied;
-        }
+        }        
 
         public override string ToString() =>
             $"BFEdge(Id={Id}, {Source.Id}--{Target.Id})";
@@ -139,6 +187,7 @@ namespace DimensioneringV2.BruteForceOptimization
             VelocityReturn = OriginalEdge.PipeSegment.VelocityReturn;
             UtilizationRate = OriginalEdge.PipeSegment.UtilizationRate;
             IsBridge = OriginalEdge.PipeSegment.IsBridge;
+            SubGraphId = OriginalEdge.PipeSegment.SubGraphId;
         }
 
         internal void ApplyResult(CalculationResultClient result)

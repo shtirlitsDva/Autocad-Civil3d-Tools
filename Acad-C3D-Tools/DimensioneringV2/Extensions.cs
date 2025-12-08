@@ -1,4 +1,4 @@
-﻿using Autodesk.AutoCAD.DatabaseServices.Filters;
+using Autodesk.AutoCAD.DatabaseServices.Filters;
 using Autodesk.AutoCAD.Geometry;
 
 using DimensioneringV2.BruteForceOptimization;
@@ -157,11 +157,11 @@ namespace DimensioneringV2
                 nodeMap[node] = bfNode;
                 bfGraph.AddVertex(bfNode);
             }
-            // Copy edges
+            // Copy edges with all calculated properties preserved
             foreach (var edge in graph.Edges)
             {
-                var bfEdge = new BFEdge(nodeMap[edge.Source], nodeMap[edge.Target], edge.OriginalEdge);
-                bfEdge.NonBridgeChromosomeIndex = edge.NonBridgeChromosomeIndex;
+                var bfEdge = new BFEdge(nodeMap[edge.Source], nodeMap[edge.Target], edge);
+                bfEdge.NonBridgeChromosomeIndex = edge.NonBridgeChromosomeIndex;                
                 bfGraph.AddEdge(bfEdge);
             }
 
@@ -171,10 +171,10 @@ namespace DimensioneringV2
         {
             var graphCopy = new UndirectedGraph<BFNode, BFEdge>();
 
-            // Copy edges
+            // Copy edges with all calculated properties preserved
             foreach (var edge in graph.Edges)
             {
-                var edgeCopy = new BFEdge(edge.Source, edge.Target, edge.OriginalEdge);
+                var edgeCopy = new BFEdge(edge.Source, edge.Target, edge);
                 edgeCopy.NonBridgeChromosomeIndex = edge.NonBridgeChromosomeIndex;
                 graphCopy.AddVerticesAndEdge(edgeCopy);
             }
@@ -183,20 +183,10 @@ namespace DimensioneringV2
         }
         public static void AddEdgeCopy(this UndirectedGraph<BFNode, BFEdge> graph, BFEdge edge)
         {
-            var newEdge = new BFEdge(edge.Source, edge.Target, edge.OriginalEdge);
+            var newEdge = new BFEdge(edge.Source, edge.Target, edge);
             newEdge.NonBridgeChromosomeIndex = edge.NonBridgeChromosomeIndex;
             graph.AddVerticesAndEdge(newEdge);
-        }
-        /// <summary>
-        /// Does this method need the new flow kar/dim? at least kar
-        /// </summary>
-        public static void UNVERIFIEDAddEdgeCopyAndSyncSums(this UndirectedGraph<BFNode, BFEdge> graph, BFEdge edge)
-        {
-            var newEdge = new BFEdge(edge.Source, edge.Target, edge.OriginalEdge);
-
-            newEdge.SyncBaseSums(edge); //<-- this must be verified
-            graph.AddVerticesAndEdge(newEdge);
-        }
+        }        
         public static void InitNonBridgeChromosomeIndex(this UndirectedGraph<BFNode, BFEdge> graph)
         {
             var bridges = FindBridges.DoFindThem(graph);

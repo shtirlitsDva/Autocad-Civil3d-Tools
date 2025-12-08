@@ -67,7 +67,8 @@ namespace DimensioneringV2.Themes
                 case MapPropertyEnum.HeatingDemand:
                 case MapPropertyEnum.Bygninger:
                 case MapPropertyEnum.Units:
-                case MapPropertyEnum.TempDelta:
+                case MapPropertyEnum.TempDeltaVarme:
+                case MapPropertyEnum.TempDeltaBV:
                     theme = BuildGradientTheme(property);
                     break;
 

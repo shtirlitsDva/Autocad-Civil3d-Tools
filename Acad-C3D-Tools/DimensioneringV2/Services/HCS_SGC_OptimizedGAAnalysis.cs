@@ -1,25 +1,18 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Threading;
+using System.Windows;
+
+using DimensioneringV2.BruteForceOptimization;
+using DimensioneringV2.Common;
+using DimensioneringV2.Genetic;
+using DimensioneringV2.GraphModel;
+using DimensioneringV2.ResultCache;
+using DimensioneringV2.UI;
+
+using GeneticSharp;
 
 using QuikGraph;
-
-using DimensioneringV2.GraphFeatures;
-using DimensioneringV2.BruteForceOptimization;
-
-using utils = IntersectUtilities.UtilsCommon.Utils;
-
-using DimensioneringV2.Genetic;
-using GeneticSharp;
-using System.Threading;
-using DotSpatial.Projections;
-using System.Windows;
-using DimensioneringV2.UI;
-using DimensioneringV2.GraphModel;
-using DimensioneringV2.Services.SubGraphs;
-using DimensioneringV2.ResultCache;
 
 namespace DimensioneringV2.Services
 {
@@ -29,10 +22,10 @@ namespace DimensioneringV2.Services
             MetaGraph<UndirectedGraph<BFNode, BFEdge>> metaGraph,
             UndirectedGraph<BFNode, BFEdge> subGraph,
             UndirectedGraph<BFNode, BFEdge> seed,
-            List<(Func<BFEdge, dynamic> Getter, Action<BFEdge, dynamic> Setter)> props,
+            List<SumProperty<BFEdge>> props,
             GeneticAlgorithmCalculationViewModel gaVM,
             CancellationToken token,
-            HydraulicCalculationCache cache)
+            HydraulicCalculationCache<BFEdge> cache)
         {
             var ga = SetupOptimizedGAAnalysis(metaGraph, subGraph, seed, props, cache);
 
@@ -57,11 +50,6 @@ namespace DimensioneringV2.Services
 
             ga.Start();
 
-            //if (token.IsCancellationRequested)
-            //{
-            //    ga.Stop();
-            //}
-
             var bestChromosome = ga.BestChromosome as GraphChromosome;
 
             if (bestChromosome == null)
@@ -71,13 +59,11 @@ namespace DimensioneringV2.Services
             }
 
             // Handle result processing for this graph
-            var visited = new HashSet<BFNode>();
             var rootNode = metaGraph.GetRootForSubgraph(subGraph);
 
-            HCS_SGC_CalculateSumsAndCost.CalculateSumsAndCost(
-                bestChromosome, props, cache);
-            
-            //Update the original graph with the results from the best result
+            HCS_SGC_CalculateSumsAndCost.CalculateSumsAndCost(bestChromosome, props, cache);
+
+            // Update the original graph with the results from the best result
             foreach (var edge in bestChromosome.LocalGraph.Edges)
             {
                 edge.PushAllResults();
