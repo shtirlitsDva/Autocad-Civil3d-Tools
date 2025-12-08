@@ -174,7 +174,7 @@ namespace DimensioneringV2
             // Copy edges with all calculated properties preserved
             foreach (var edge in graph.Edges)
             {
-                var edgeCopy = new BFEdge(edge.Source, edge.Target, edge);
+                var edgeCopy = new BFEdge(edge);
                 edgeCopy.NonBridgeChromosomeIndex = edge.NonBridgeChromosomeIndex;
                 graphCopy.AddVerticesAndEdge(edgeCopy);
             }
