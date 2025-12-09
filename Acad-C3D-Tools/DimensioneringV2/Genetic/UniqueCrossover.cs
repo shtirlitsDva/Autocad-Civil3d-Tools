@@ -1,4 +1,4 @@
-﻿using GeneticSharp;
+using GeneticSharp;
 
 using Mapsui.Utilities;
 
@@ -36,15 +36,24 @@ namespace DimensioneringV2.Genetic
             fc.ResetChromosome();
             sc.ResetChromosome();
 
-            var randomizedIndici =
-                Enumerable.Range(0, _chm.ChromosomeLength)
-                .OrderBy(x => RandomizationProvider.Current.GetDouble()).ToArray();
+            // Create and shuffle indices using Fisher-Yates: O(n) instead of O(n log n) OrderBy
+            var indices = new int[_chm.ChromosomeLength];
+            for (int i = 0; i < indices.Length; i++)
+                indices[i] = i;
 
-            for (int i = 0; i < randomizedIndici.Length; i++)
+            var rnd = RandomizationProvider.Current;
+            for (int i = indices.Length - 1; i > 0; i--)
             {
-                int rIdx = randomizedIndici[i];
+                int j = rnd.GetInt(0, i + 1);
+                // Swap
+                (indices[i], indices[j]) = (indices[j], indices[i]);
+            }
 
-                if (RandomizationProvider.Current.GetDouble() < this.MixProbability)
+            for (int i = 0; i < indices.Length; i++)
+            {
+                int rIdx = indices[i];
+
+                if (rnd.GetDouble() < this.MixProbability)
                 {
                     fc.ReplaceGraphChromosomeGene(rIdx, firstParent.GetGene(rIdx));
                     sc.ReplaceGraphChromosomeGene(rIdx, secondParent.GetGene(rIdx));

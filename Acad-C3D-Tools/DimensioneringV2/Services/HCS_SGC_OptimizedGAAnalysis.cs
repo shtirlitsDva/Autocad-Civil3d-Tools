@@ -18,7 +18,7 @@ namespace DimensioneringV2.Services
 {
     internal partial class HydraulicCalculationsService
     {
-        internal static void CalculateOptimizedGAAnalysis(
+        internal static UndirectedGraph<BFNode, BFEdge>? CalculateOptimizedGAAnalysis(
             MetaGraph<UndirectedGraph<BFNode, BFEdge>> metaGraph,
             UndirectedGraph<BFNode, BFEdge> subGraph,
             UndirectedGraph<BFNode, BFEdge> seed,
@@ -31,21 +31,22 @@ namespace DimensioneringV2.Services
 
             ga.GenerationRan += (s, e) =>
             {
-                var bestChromosome = ga.BestChromosome;
-                var fitness = -bestChromosome?.Fitness ?? 0.0;
-                var generation = ga.GenerationsNumber;
-
-                // Report progress to the UI
-                GeneticOptimizedReportingContext.VM.Dispatcher.Invoke(() =>
-                {
-                    gaVM.ReportProgress(generation, fitness);
-                });
-
+                // Check cancellation FIRST - don't do any work if cancelled
                 if (token.IsCancellationRequested)
                 {
                     ga.Stop();
                     return;
                 }
+
+                var bestChromosome = ga.BestChromosome;
+                var fitness = -bestChromosome?.Fitness ?? 0.0;
+                var generation = ga.GenerationsNumber;
+
+                // Report progress to the UI (non-blocking)
+                GeneticOptimizedReportingContext.VM.Dispatcher.BeginInvoke(() =>
+                {
+                    gaVM.ReportProgress(generation, fitness);
+                });
             };
 
             ga.Start();
@@ -55,19 +56,22 @@ namespace DimensioneringV2.Services
             if (bestChromosome == null)
             {
                 MessageBox.Show("No valid solution found by the genetic algorithm!");
-                return;
+                return null;
             }
 
             // Handle result processing for this graph
             var rootNode = metaGraph.GetRootForSubgraph(subGraph);
 
             HCS_SGC_CalculateSumsAndCost.CalculateSumsAndCost(bestChromosome, props, cache);
-            
-            // Update the original graph with the results from the best result
-            foreach (var edge in bestChromosome.LocalGraph.Edges)
-            {
-                edge.PushAllResults();
-            }
+
+            //// Update the original graph with the results from the best result
+            //// This is already done when returning the LocalGraph, so this step may be redundant
+            //foreach (var edge in bestChromosome.LocalGraph.Edges)
+            //{
+            //    edge.PushAllResults();
+            //}
+
+            return bestChromosome.LocalGraph;
         }
     }
 }

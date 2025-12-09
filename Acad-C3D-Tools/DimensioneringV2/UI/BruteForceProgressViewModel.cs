@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 
 using System;
 using System.Collections.Generic;
@@ -31,7 +31,7 @@ namespace DimensioneringV2.UI
 
         public void UpdateRound(int round)
         {
-            Dispatcher.Invoke(() =>
+            Dispatcher.BeginInvoke(() =>
             {
                 Round = round;
             });
@@ -39,7 +39,7 @@ namespace DimensioneringV2.UI
 
         public void UpdateBridges(int bridges)
         {
-            Dispatcher.Invoke(() =>
+            Dispatcher.BeginInvoke(() =>
             {
                 Bridges = bridges;
             });
@@ -47,7 +47,7 @@ namespace DimensioneringV2.UI
 
         public void UpdateRemovalCandidates(int removalCandidates)
         {
-            Dispatcher.Invoke(() =>
+            Dispatcher.BeginInvoke(() =>
             {
                 RemovalCandidates = removalCandidates;
             });
@@ -55,7 +55,7 @@ namespace DimensioneringV2.UI
 
         public void UpdateCurrentCandidate(int currentCandidate)
         {
-            Dispatcher.Invoke(() =>
+            Dispatcher.BeginInvoke(() =>
             {
                 CurrentCandidate = currentCandidate;
             });

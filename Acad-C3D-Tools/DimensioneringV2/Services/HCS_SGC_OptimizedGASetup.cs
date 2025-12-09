@@ -26,8 +26,8 @@ namespace DimensioneringV2.Services
             CoherencyManager chm = new CoherencyManager(metaGraph, subGraph, seed);
 
             var population = new Population(
-                50,
-                200,
+                10,
+                20,
                 new GraphChromosome(chm));
 
             var fitness = new GraphFitness(chm, props, cache);
@@ -41,7 +41,14 @@ namespace DimensioneringV2.Services
                     HydraulicSettingsService.Instance.Settings.NumberOfGSLUToEnd)
             };
 
+            int threadCount = Environment.ProcessorCount;
             ga.TaskExecutor = new TplTaskExecutor();
+            //ga.TaskExecutor = new ParallelTaskExecutor
+            //{
+            //    MinThreads = threadCount,
+            //    MaxThreads = threadCount
+            //};
+            //ga.TaskExecutor = new LinearTaskExecutor();
             ga.MutationProbability = 0.95f;
 
             return ga;

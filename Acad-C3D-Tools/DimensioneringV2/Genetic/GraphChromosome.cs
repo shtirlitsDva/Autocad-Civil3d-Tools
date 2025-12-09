@@ -1,4 +1,4 @@
-﻿using DimensioneringV2.BruteForceOptimization;
+using DimensioneringV2.BruteForceOptimization;
 using DimensioneringV2.GraphFeatures;
 using DimensioneringV2.Services;
 
@@ -25,24 +25,49 @@ namespace DimensioneringV2.Genetic
     {
         private UndirectedGraph<BFNode, BFEdge> _localGraph;
         private readonly HashSet<int> _removedEdges = new HashSet<int>();
+        private Dictionary<int, BFEdge> _edgeByIndex = new();
         private CoherencyManager _chm;
 
         public UndirectedGraph<BFNode, BFEdge> LocalGraph { get => _localGraph; set => _localGraph = value; }
         public HashSet<int> RemovedEdges => _removedEdges;
         public CoherencyManager CoherencyManager => _chm;
 
+        /// <summary>
+        /// Fast O(1) edge lookup by NonBridgeChromosomeIndex.
+        /// Returns null if edge not in current local graph.
+        /// </summary>
+        public BFEdge? GetEdgeByIndex(int index)
+        {
+            return _edgeByIndex.TryGetValue(index, out var edge) ? edge : null;
+        }
+
+        /// <summary>
+        /// Rebuilds the edge index dictionary from current local graph state.
+        /// Call after bulk graph modifications.
+        /// </summary>
+        private void RebuildEdgeIndex()
+        {
+            _edgeByIndex.Clear();
+            foreach (var edge in _localGraph.Edges)
+            {
+                if (edge.NonBridgeChromosomeIndex >= 0)
+                    _edgeByIndex[edge.NonBridgeChromosomeIndex] = edge;
+            }
+        }
+
         public GraphChromosome(CoherencyManager coherencyManager) : base(coherencyManager.ChromosomeLength)
         {
             _chm = coherencyManager;
             _localGraph = _chm.OriginalGraph.CopyWithNewEdges();
+            RebuildEdgeIndex();
 
             var random = RandomizationProvider.Current;
 
-            if (_chm.hasNOTSeeded)
+            // Thread-safe seeding: only the first chromosome gets the seed
+            if (_chm.TryClaimSeed())
             {
                 _localGraph = _chm.Seed.CopyWithNewEdges();
-
-                _chm.hasNOTSeeded = false;
+                RebuildEdgeIndex();
 
                 var set = _localGraph.Edges
                     .Select(x => x.NonBridgeChromosomeIndex)
@@ -70,9 +95,15 @@ namespace DimensioneringV2.Genetic
             {
                 do
                 {
-                    var randomizedIndici =
-                    Enumerable.Range(0, _chm.ChromosomeLength)
-                    .OrderBy(x => random.GetDouble()).ToArray();
+                    // Fisher-Yates shuffle: O(n) instead of O(n log n) OrderBy
+                    var randomizedIndici = new int[_chm.ChromosomeLength];
+                    for (int i = 0; i < randomizedIndici.Length; i++)
+                        randomizedIndici[i] = i;
+                    for (int i = randomizedIndici.Length - 1; i > 0; i--)
+                    {
+                        int j = random.GetInt(0, i + 1);
+                        (randomizedIndici[i], randomizedIndici[j]) = (randomizedIndici[j], randomizedIndici[i]);
+                    }
 
                     ResetChromosome();
 
@@ -82,11 +113,12 @@ namespace DimensioneringV2.Genetic
 
                         // Determine if the edge should be removed
                         bool removeEdge = random.GetDouble() >= 0.5;
-                        var edge = _localGraph.Edges.FirstOrDefault(x => x.NonBridgeChromosomeIndex == rIdx);
+                        var edge = GetEdgeByIndex(rIdx); // O(1) lookup instead of O(E)
 
                         if (edge != null && removeEdge && !_localGraph.IsBridgeEdge(edge))
                         {
                             _localGraph.RemoveEdge(edge);
+                            _edgeByIndex.Remove(rIdx); // Keep index in sync
                             _removedEdges.Add(rIdx);
                             ReplaceGene(rIdx, new Gene(1));
                         }
@@ -108,6 +140,7 @@ namespace DimensioneringV2.Genetic
         public void ResetChromosome()
         {
             _localGraph = _chm.OriginalGraph.CopyWithNewEdges();
+            RebuildEdgeIndex();
             _removedEdges.Clear();
             for (int i = 0; i < Length; i++)
             {
@@ -115,15 +148,15 @@ namespace DimensioneringV2.Genetic
             }
         }
 
-        public BitArray GetBitArray()
-        {
-            var bitArray = new BitArray(Length);
-            for (int i = 0; i < Length; i++)
-            {
-                bitArray[i] = (int)GetGene(i).Value == 1;
-            }
-            return bitArray;
-        }
+        //public BitArray GetBitArray()
+        //{
+        //    var bitArray = new BitArray(Length);
+        //    for (int i = 0; i < Length; i++)
+        //    {
+        //        bitArray[i] = (int)GetGene(i).Value == 1;
+        //    }
+        //    return bitArray;
+        //}
 
         public bool TryMutate(int index)
         {
@@ -131,9 +164,15 @@ namespace DimensioneringV2.Genetic
 
             //current value 0 means edge is on
             //case 0 (means mutates to 1 -> remove edge):
-            if (curValue == 0 && !_localGraph.IsBridgeEdge(index))
+            if (curValue == 0)
             {
-                _localGraph.RemoveEdgeByNonBridgeIndex(index);
+                var edge = GetEdgeByIndex(index); // O(1) lookup
+                if (edge == null) return false; // Edge not in graph
+                
+                if (_localGraph.IsBridgeEdge(edge)) return false; // Can't remove bridge
+                
+                _localGraph.RemoveEdge(edge);
+                _edgeByIndex.Remove(index); // Keep index in sync
                 _removedEdges.Add(index);
                 return true;
             }
@@ -142,7 +181,11 @@ namespace DimensioneringV2.Genetic
             else if (curValue == 1)
             {
                 _removedEdges.Remove(index);
-                _localGraph.AddEdgeCopy(_chm.OriginalNonBridgeEdgeFromIndex(index));
+                var originalEdge = _chm.OriginalNonBridgeEdgeFromIndex(index);
+                var newEdge = new BFEdge(originalEdge.Source, originalEdge.Target, originalEdge);
+                newEdge.NonBridgeChromosomeIndex = originalEdge.NonBridgeChromosomeIndex;
+                _localGraph.AddVerticesAndEdge(newEdge);
+                _edgeByIndex[index] = newEdge; // Keep index in sync
                 return true;
             }
             else
@@ -176,6 +219,7 @@ namespace DimensioneringV2.Genetic
         internal void UpdateChromosome(UndirectedGraph<BFNode, BFEdge> graph)
         {
             _localGraph = graph;
+            RebuildEdgeIndex();
 
             HashSet<int> newTurnedOnEdges = 
                 graph.Edges.Select(x => x.NonBridgeChromosomeIndex)

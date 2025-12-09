@@ -164,7 +164,7 @@ namespace DimensioneringV2.MapCommands
                             {
                                 // Use brute force evaluation of enumerated Steiner trees
                                 var bestGraph = EvaluateSteinerTrees(
-                                    solutions, rootNode, metaGraph, props, cache, 
+                                    solutions, rootNode, metaGraph, props, cache,
                                     nonbridges.Count, index, dispatcher);
 
                                 // Push results from best graph back to AnalysisFeature
@@ -181,9 +181,12 @@ namespace DimensioneringV2.MapCommands
                                     nonbridges.Count, index, dispatcher);
 
                                 // Push results from best graph back to AnalysisFeature
-                                foreach (var edge in bestGraph.Edges)
+                                if (bestGraph != null)
                                 {
-                                    edge.PushAllResults();
+                                    foreach (var edge in bestGraph.Edges)
+                                    {
+                                        edge.PushAllResults();
+                                    }
                                 }
                             }
                         });
@@ -284,7 +287,7 @@ namespace DimensioneringV2.MapCommands
         /// Runs genetic algorithm optimization when Steiner tree enumeration times out.
         /// First does greedy optimization, then refines with GA.
         /// </summary>
-        private UndirectedGraph<BFNode, BFEdge> RunGeneticOptimization(
+        private UndirectedGraph<BFNode, BFEdge>? RunGeneticOptimization(
             UndirectedGraph<BFNode, BFEdge> subGraph,
             BFNode rootNode,
             MetaGraph<UndirectedGraph<BFNode, BFEdge>> metaGraph,
@@ -313,7 +316,7 @@ namespace DimensioneringV2.MapCommands
             var seed = GreedyOptimization(subGraph, rootNode, metaGraph, props, cache, gaVM, dispatcher);
 
             // Phase 2: Genetic algorithm refinement
-            HydraulicCalculationsService.CalculateOptimizedGAAnalysis(
+            var result = HydraulicCalculationsService.CalculateOptimizedGAAnalysis(
                 metaGraph,
                 subGraph,
                 seed,
@@ -322,10 +325,7 @@ namespace DimensioneringV2.MapCommands
                 gaVM.CancellationToken,
                 cache);
 
-            // Return the best graph from GA (results already pushed in CalculateOptimizedGAAnalysis)
-            // But we need to return something - let's return seed for now
-            // TODO: CalculateOptimizedGAAnalysis should return the best graph
-            return seed;
+            return result;
         }
 
         /// <summary>

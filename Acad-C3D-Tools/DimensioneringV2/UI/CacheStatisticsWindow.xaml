@@ -78,11 +78,6 @@
                         <TextBlock Text="Hit Rate: " FontWeight="Bold"/>
                         <TextBlock Text="{Binding HitRate, StringFormat={}{0:F1}%}"/>
                     </StackPanel>
-                    
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Stored: " FontWeight="Bold"/>
-                        <TextBlock Text="{Binding UniqueEntriesStored, StringFormat={}{0:N0}}" Foreground="Orange"/>
-                    </StackPanel>
                 </StackPanel>
 
                 <!-- Right column: Calculations -->
