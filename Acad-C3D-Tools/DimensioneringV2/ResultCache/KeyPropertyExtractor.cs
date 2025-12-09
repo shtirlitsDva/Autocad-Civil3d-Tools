@@ -10,6 +10,16 @@ namespace DimensioneringV2.ResultCache
     public interface IKeyPropertyExtractor<T> where T : IHydraulicSegment
     {
         long ExtractScaled(T segment, int precisionFactor);
+        
+        /// <summary>
+        /// Gets the raw (unscaled) value as a string for debugging.
+        /// </summary>
+        string GetRawValue(T segment);
+        
+        /// <summary>
+        /// Gets the scaled value for debugging (uses default precision factor of 10000).
+        /// </summary>
+        long ExtractValue(T segment) => ExtractScaled(segment, 10000);
     }
 
     /// <summary>
@@ -25,6 +35,8 @@ namespace DimensioneringV2.ResultCache
         }
 
         public long ExtractScaled(T segment, int precisionFactor) => Getter(segment);
+        
+        public string GetRawValue(T segment) => Getter(segment).ToString();
     }
 
     /// <summary>
@@ -41,6 +53,8 @@ namespace DimensioneringV2.ResultCache
 
         public long ExtractScaled(T segment, int precisionFactor)
             => (long)Math.Round(Getter(segment) * precisionFactor, MidpointRounding.AwayFromZero);
+        
+        public string GetRawValue(T segment) => Getter(segment).ToString("G17");
     }
 
     /// <summary>

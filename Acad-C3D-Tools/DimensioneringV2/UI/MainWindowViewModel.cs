@@ -1,4 +1,4 @@
-﻿using Autodesk.AutoCAD.Geometry;
+using Autodesk.AutoCAD.Geometry;
 
 using BruTile.Cache;
 
@@ -83,6 +83,7 @@ namespace DimensioneringV2.UI
         public AsyncRelayCommand TestElevationsCommand => new AsyncRelayCommand(new TestElevations().Execute);
         public AsyncRelayCommand TrykprofilCommand => new(async () => { await new Trykprofil().Execute(SelectedFeature); });
         public AsyncRelayCommand SampleGridCommand => new AsyncRelayCommand(new SampleGrid().Execute);
+        public AsyncRelayCommand TestCacheCommand => new AsyncRelayCommand(new TestCache().Execute);
         #endregion
 
         #region ZoomToExtents

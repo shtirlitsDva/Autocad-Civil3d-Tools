@@ -59,7 +59,7 @@ namespace DimensioneringV2.Services
             // Build shortest path tree from root to all terminals
             var spt = new UndirectedGraph<BFNode, BFEdge>();
             spt.AddVertexRange(tempGraph.Vertices);
-
+            
             var tryGetPaths = tempGraph.ShortestPathsDijkstra(edge => edge.Length, rootNode);
             var terminals = metaGraph.GetTerminalsForSubgraph(originalSubGraph);
 

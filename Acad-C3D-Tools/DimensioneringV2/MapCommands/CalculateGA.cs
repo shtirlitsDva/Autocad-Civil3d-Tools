@@ -42,6 +42,9 @@ namespace DimensioneringV2.MapCommands
                 // Init the hydraulic calculation service using current settings
                 HydraulicCalculationService.Initialize();
 
+                // Setup cache statistics window (reuses existing if open)
+                var cacheStatsVM = CacheStatisticsContext.EnsureWindowVisible();
+
                 var reportingWindow = new GeneticOptimizedReporting();
                 reportingWindow.Show();
                 GeneticOptimizedReportingContext.VM = (GeneticOptimizedReportingViewModel)reportingWindow.DataContext;
@@ -49,6 +52,9 @@ namespace DimensioneringV2.MapCommands
 
                 var dispatcher = GeneticOptimizedReportingContext.VM.Dispatcher;
                 var settings = HydraulicSettingsService.Instance.Settings;
+
+                // Start statistics tracking
+                cacheStatsVM.Start();
 
                 await Task.Run(() =>
                 {
@@ -69,7 +75,8 @@ namespace DimensioneringV2.MapCommands
                         edge => HydraulicCalculationService.Calc.CalculateDistributionSegment(edge),
                         settings.CacheResults,
                         extractors,
-                        settings.CachePrecision);
+                        settings.CachePrecision,
+                        CacheStatisticsContext.Statistics);
                     #endregion
 
                     // Reset results on AnalysisFeatures before calculation
@@ -183,6 +190,9 @@ namespace DimensioneringV2.MapCommands
                     }
                 });
 
+                // Stop statistics tracking
+                cacheStatsVM.Stop();
+
                 // Post-processing: Pressure profile analysis
                 var graphs = DataService.Instance.Graphs;
                 foreach (var graph in graphs)
@@ -194,6 +204,9 @@ namespace DimensioneringV2.MapCommands
             {
                 Utils.prtDbg($"An error occurred during calculations: {ex.Message}");
                 Utils.prtDbg(ex);
+
+                // Stop statistics on error too
+                CacheStatisticsContext.VM?.Stop();
             }
 
             Utils.prtDbg("Calculations completed.");

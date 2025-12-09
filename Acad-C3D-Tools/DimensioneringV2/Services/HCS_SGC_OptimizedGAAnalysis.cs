@@ -62,7 +62,7 @@ namespace DimensioneringV2.Services
             var rootNode = metaGraph.GetRootForSubgraph(subGraph);
 
             HCS_SGC_CalculateSumsAndCost.CalculateSumsAndCost(bestChromosome, props, cache);
-
+            
             // Update the original graph with the results from the best result
             foreach (var edge in bestChromosome.LocalGraph.Edges)
             {

@@ -30,7 +30,7 @@ namespace DimensioneringV2.Genetic
         {
             if (chromosome is not GraphChromosome graphChromosome)
                 throw new ArgumentException("Chromosome is not of type GraphChromosome!");
-
+            
             if (!graphChromosome.LocalGraph.AreTerminalNodesConnected(
                 _chm.RootNode, _chm.Terminals))
             {

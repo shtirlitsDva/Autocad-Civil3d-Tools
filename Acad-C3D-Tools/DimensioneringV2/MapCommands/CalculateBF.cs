@@ -16,6 +16,7 @@ using QuikGraph;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -45,6 +46,9 @@ namespace DimensioneringV2.MapCommands
                 // Init the hydraulic calculation service using current settings
                 HydraulicCalculationService.Initialize();
 
+                // Setup cache statistics window (reuses existing if open)
+                var cacheStatsVM = CacheStatisticsContext.EnsureWindowVisible();
+
                 var reportingWindow = new GeneticOptimizedReporting();
                 reportingWindow.Show();
                 GeneticOptimizedReportingContext.VM = (GeneticOptimizedReportingViewModel)reportingWindow.DataContext;
@@ -52,6 +56,9 @@ namespace DimensioneringV2.MapCommands
 
                 var dispatcher = GeneticOptimizedReportingContext.VM.Dispatcher;
                 var settings = HydraulicSettingsService.Instance.Settings;
+
+                // Start statistics tracking
+                cacheStatsVM.Start();
 
                 await Task.Run(() =>
                 {
@@ -72,7 +79,8 @@ namespace DimensioneringV2.MapCommands
                         edge => HydraulicCalculationService.Calc.CalculateDistributionSegment(edge),
                         settings.CacheResults,
                         extractors,
-                        settings.CachePrecision);
+                        settings.CachePrecision,
+                        CacheStatisticsContext.Statistics);
                     #endregion
 
                     // Reset results on AnalysisFeatures before calculation
@@ -171,11 +179,28 @@ namespace DimensioneringV2.MapCommands
                         });
                     }
                 });
+
+                // Stop statistics tracking
+                cacheStatsVM.Stop();
+
+                // DEBUG: Uncomment to enable cache debug dump
+                // To enable: also set CacheStatisticsContext.EnableDebugMode = true; at start of Execute()
+                //if (CacheStatisticsContext.EnableDebugMode)
+                //{
+                //    var debugPath = CacheStatisticsContext.DebugOutputPath 
+                //        ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), 
+                //            $"cache_debug_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+                //    CacheStatisticsContext.Statistics.DumpDebugEntriesToCsv(debugPath);
+                //    Utils.prtDbg($"Cache debug dump saved to: {debugPath}");
+                //}
             }
             catch (Exception ex)
             {
                 Utils.prtDbg($"An error occurred during calculations: {ex.Message}");
                 Utils.prtDbg(ex);
+                
+                // Stop statistics on error too
+                CacheStatisticsContext.VM?.Stop();
             }
 
             // Post-processing
@@ -266,7 +291,7 @@ namespace DimensioneringV2.MapCommands
                 var results = new ConcurrentBag<(UndirectedGraph<BFNode, BFEdge> graph, double cost)>();
 
                 // Try removing each non-bridge and evaluate cost
-                Parallel.ForEach(nonBridges, candidate =>
+                Parallel.ForEach(nonBridges, candidate =>                     
                 {
                     var cGraph = seed.CopyWithNewEdges();
                     var cCandidate = cGraph.Edges.First(
@@ -287,7 +312,8 @@ namespace DimensioneringV2.MapCommands
 
                     var cost = cGraph.Edges.Sum(x => x.Price);
                     results.Add((cGraph, cost));
-                });
+                }
+                );
 
                 var bestResult = results.MinBy(x => x.cost);
                 seed = bestResult.graph;
