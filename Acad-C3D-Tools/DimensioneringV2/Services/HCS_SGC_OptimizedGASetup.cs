@@ -1,25 +1,16 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-using QuikGraph;
-
-using DimensioneringV2.GraphFeatures;
 using DimensioneringV2.BruteForceOptimization;
-
-using utils = IntersectUtilities.UtilsCommon.Utils;
-
-using IntersectUtilities.UtilsCommon;
-
+using DimensioneringV2.Common;
 using DimensioneringV2.Genetic;
-using GeneticSharp;
-using System.Collections;
-using System.Collections.Concurrent;
-using Mapsui.Utilities;
+using DimensioneringV2.GraphFeatures;
 using DimensioneringV2.GraphModel;
 using DimensioneringV2.ResultCache;
+
+using GeneticSharp;
+
+using QuikGraph;
 
 namespace DimensioneringV2.Services
 {
@@ -29,14 +20,14 @@ namespace DimensioneringV2.Services
             MetaGraph<UndirectedGraph<BFNode, BFEdge>> metaGraph,
             UndirectedGraph<BFNode, BFEdge> subGraph,
             UndirectedGraph<BFNode, BFEdge> seed,
-            List<(Func<BFEdge, dynamic> Getter, Action<BFEdge, dynamic> Setter)> props,
-            HydraulicCalculationCache cache)
+            List<SumProperty<BFEdge>> props,
+            HydraulicCalculationCache<BFEdge> cache)
         {
             CoherencyManager chm = new CoherencyManager(metaGraph, subGraph, seed);
 
             var population = new Population(
-                50,
-                200,
+                10,
+                20,
                 new GraphChromosome(chm));
 
             var fitness = new GraphFitness(chm, props, cache);
@@ -50,20 +41,17 @@ namespace DimensioneringV2.Services
                     HydraulicSettingsService.Instance.Settings.NumberOfGSLUToEnd)
             };
 
-            //ga.TaskExecutor = new ParallelTaskExecutor()
-            //{
-            //    MinThreads = 1,
-            //    MaxThreads = Environment.ProcessorCount
-            //};
-
+            int threadCount = Environment.ProcessorCount;
             ga.TaskExecutor = new TplTaskExecutor();
-
+            //ga.TaskExecutor = new ParallelTaskExecutor
+            //{
+            //    MinThreads = threadCount,
+            //    MaxThreads = threadCount
+            //};
             //ga.TaskExecutor = new LinearTaskExecutor();
-
             ga.MutationProbability = 0.95f;
-            //ga.CrossoverProbability = 0.85f;
 
             return ga;
-        }
+        }        
     }
 }

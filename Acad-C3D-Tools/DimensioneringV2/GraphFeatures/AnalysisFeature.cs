@@ -19,7 +19,7 @@ using System.Reflection;
 
 namespace DimensioneringV2.GraphFeatures
 {
-    public class AnalysisFeature : GeometryFeature, IFeature, ICloneable, IHydraulicSegment, IInfoForFeature
+    public sealed class AnalysisFeature : GeometryFeature, IFeature, ICloneable, IInfoForFeature
     {
         #region Constructors
         public AnalysisFeature() : base() { }
@@ -231,21 +231,21 @@ namespace DimensioneringV2.GraphFeatures
         /// <summary>
         /// Flow rate for supply
         /// </summary>
-        [MapPropertyAttribute(MapPropertyEnum.FlowSupply)]
-        public double FlowSupply
+        [MapPropertyAttribute(MapPropertyEnum.DimFlowSupply)]
+        public double DimFlowSupply
         {
-            get => GetAttributeValue<double>(MapPropertyEnum.FlowSupply);
-            set => SetAttributeValue(MapPropertyEnum.FlowSupply, value);
+            get => GetAttributeValue<double>(MapPropertyEnum.DimFlowSupply);
+            set => SetAttributeValue(MapPropertyEnum.DimFlowSupply, value);
         }
 
         /// <summary>
         /// Flow rate for return
         /// </summary>
-        [MapPropertyAttribute(MapPropertyEnum.FlowReturn)]
-        public double FlowReturn
+        [MapPropertyAttribute(MapPropertyEnum.DimFlowReturn)]
+        public double DimFlowReturn
         {
-            get => GetAttributeValue<double>(MapPropertyEnum.FlowReturn);
-            set => SetAttributeValue(MapPropertyEnum.FlowReturn, value);
+            get => GetAttributeValue<double>(MapPropertyEnum.DimFlowReturn);
+            set => SetAttributeValue(MapPropertyEnum.DimFlowReturn, value);
         }
 
         /// <summary>
@@ -378,14 +378,24 @@ namespace DimensioneringV2.GraphFeatures
         }
 
         /// <summary>
-        /// The temperature delta at the client connection.
+        /// The temperature delta at the client connection for heating.
         /// </summary>
-        [MapProperty(MapPropertyEnum.TempDelta)]
-        public double TempDelta
+        [MapProperty(MapPropertyEnum.TempDeltaVarme)]
+        public double TempDeltaVarme
         {
-            get => GetAttributeValue<double>(MapPropertyEnum.TempDelta);
+            get => GetAttributeValue<double>(MapPropertyEnum.TempDeltaVarme);
             //set => SetAttributeValue(MapPropertyEnum.TempDelta, value);
         }
+
+        /// <summary>
+        /// The temperature delta at the client connection for water.
+        /// </summary>
+        [MapProperty(MapPropertyEnum.TempDeltaBV)]
+        public double TempDeltaBV
+        {
+            get => GetAttributeValue<double>(MapPropertyEnum.TempDeltaBV);
+            //set => SetAttributeValue(MapPropertyEnum.TempDelta, value);
+        }        
 
         public void ResetHydraulicResults()
         {
@@ -394,9 +404,9 @@ namespace DimensioneringV2.GraphFeatures
             HeatingDemandSupplied = 0;
             Dim = Dim.NA;
             ReynoldsSupply = 0;
-            ReynoldsReturn = 0;
-            FlowSupply = 0;
-            FlowReturn = 0;
+            ReynoldsReturn = 0;            
+            DimFlowSupply = 0;
+            DimFlowReturn = 0;
             PressureGradientSupply = 0;
             PressureGradientReturn = 0;
             VelocitySupply = 0;

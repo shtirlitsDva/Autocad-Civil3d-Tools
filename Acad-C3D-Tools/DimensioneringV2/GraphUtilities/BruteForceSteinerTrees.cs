@@ -85,8 +85,7 @@ namespace DimensioneringV2.GraphUtilities
             if (TimeExceeded()) return;
 
             // Check if subgraph is still connecting the terminals
-            if (!TerminalsConnected(_graph.Vertices, currentEdges))
-                return;
+            if (!TerminalsConnected(_graph.Vertices, currentEdges)) return;
 
             // Now find which edges are bridges in the current subgraph
             var sub = BuildSubgraph(currentEdges);
@@ -126,8 +125,7 @@ namespace DimensioneringV2.GraphUtilities
         private UndirectedGraph<BFNode, BFEdge> BuildSubgraph(List<BFEdge> edges)
         {
             var sg = new UndirectedGraph<BFNode, BFEdge>();
-            foreach (var v in _graph.Vertices)
-                sg.AddVertex(v);
+            foreach (var v in _graph.Vertices) sg.AddVertex(v);
             sg.AddEdgeRange(edges);
             return sg;
         }

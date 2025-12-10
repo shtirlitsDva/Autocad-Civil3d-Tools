@@ -173,7 +173,7 @@ namespace DimensioneringV2.GraphUtilities
         {
             var graph = new UndirectedGraph<BFNode, BFEdge>();
             var query = _edges.Where(x => solution.EdgesUsed.Contains(x.Id));
-            foreach (var edge in query) graph.AddEdgeCopyAndSyncSums(edge);
+            foreach (var edge in query) graph.AddEdge(new BFEdge(edge));
             return graph;
         }
 

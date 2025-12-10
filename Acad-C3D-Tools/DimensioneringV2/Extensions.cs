@@ -1,4 +1,4 @@
-﻿using Autodesk.AutoCAD.DatabaseServices.Filters;
+using Autodesk.AutoCAD.DatabaseServices.Filters;
 using Autodesk.AutoCAD.Geometry;
 
 using DimensioneringV2.BruteForceOptimization;
@@ -157,11 +157,11 @@ namespace DimensioneringV2
                 nodeMap[node] = bfNode;
                 bfGraph.AddVertex(bfNode);
             }
-            // Copy edges
+            // Copy edges with all calculated properties preserved
             foreach (var edge in graph.Edges)
             {
-                var bfEdge = new BFEdge(nodeMap[edge.Source], nodeMap[edge.Target], edge.OriginalEdge);
-                bfEdge.NonBridgeChromosomeIndex = edge.NonBridgeChromosomeIndex;
+                var bfEdge = new BFEdge(nodeMap[edge.Source], nodeMap[edge.Target], edge);
+                bfEdge.NonBridgeChromosomeIndex = edge.NonBridgeChromosomeIndex;                
                 bfGraph.AddEdge(bfEdge);
             }
 
@@ -171,10 +171,10 @@ namespace DimensioneringV2
         {
             var graphCopy = new UndirectedGraph<BFNode, BFEdge>();
 
-            // Copy edges
+            // Copy edges with all calculated properties preserved
             foreach (var edge in graph.Edges)
             {
-                var edgeCopy = new BFEdge(edge.Source, edge.Target, edge.OriginalEdge);
+                var edgeCopy = new BFEdge(edge);
                 edgeCopy.NonBridgeChromosomeIndex = edge.NonBridgeChromosomeIndex;
                 graphCopy.AddVerticesAndEdge(edgeCopy);
             }
@@ -183,17 +183,10 @@ namespace DimensioneringV2
         }
         public static void AddEdgeCopy(this UndirectedGraph<BFNode, BFEdge> graph, BFEdge edge)
         {
-            var newEdge = new BFEdge(edge.Source, edge.Target, edge.OriginalEdge);
+            var newEdge = new BFEdge(edge.Source, edge.Target, edge);
             newEdge.NonBridgeChromosomeIndex = edge.NonBridgeChromosomeIndex;
             graph.AddVerticesAndEdge(newEdge);
-        }
-        public static void AddEdgeCopyAndSyncSums(this UndirectedGraph<BFNode, BFEdge> graph, BFEdge edge)
-        {
-            var newEdge = new BFEdge(edge.Source, edge.Target, edge.OriginalEdge);
-
-            newEdge.SyncBaseSums(edge);
-            graph.AddVerticesAndEdge(newEdge);
-        }
+        }        
         public static void InitNonBridgeChromosomeIndex(this UndirectedGraph<BFNode, BFEdge> graph)
         {
             var bridges = FindBridges.DoFindThem(graph);
@@ -279,56 +272,44 @@ namespace DimensioneringV2
                 }
             }
         }
+        /// <summary>
+        /// Checks if an edge is a bridge by testing connectivity without it.
+        /// Much more efficient than computing ALL bridges when checking a single edge.
+        /// O(V+E) worst case, but only traverses until target is found.
+        /// </summary>
         public static bool IsBridgeEdge(this UndirectedGraph<BFNode, BFEdge> graph, BFEdge edge)
         {
-            var bridges = new HashSet<BFEdge>();
-            var low = new Dictionary<BFNode, int>();
-            var pre = new Dictionary<BFNode, int>();
-            foreach (var node in graph.Vertices)
-            {
-                low[node] = -1;
-                pre[node] = -1;
-            }
+            // An edge is a bridge if removing it disconnects its endpoints.
+            // We check this with BFS from source to target, ignoring the edge.
+            var source = edge.Source;
+            var target = edge.Target;
 
-            int cnt = 0;
-            foreach (var node in graph.Vertices)
+            var visited = new HashSet<BFNode>();
+            var queue = new Queue<BFNode>();
+            queue.Enqueue(source);
+            visited.Add(source);
+
+            while (queue.Count > 0)
             {
-                if (pre[node] == -1)
+                var node = queue.Dequeue();
+                if (node == target) return false; // Found path without using the edge
+
+                foreach (var adjEdge in graph.AdjacentEdges(node))
                 {
-                    FindBridges.BridgeDfs(graph, node, node, ref cnt, low, pre, bridges);
+                    // Skip the edge we're testing
+                    if (adjEdge == edge) continue;
+
+                    var neighbor = adjEdge.GetOtherVertex(node);
+                    if (visited.Add(neighbor))
+                    {
+                        queue.Enqueue(neighbor);
+                    }
                 }
             }
 
-            return bridges.Contains(edge);
+            return true; // No path found = edge is a bridge
         }
-        public static bool IsBridgeEdge(this UndirectedGraph<BFNode, BFEdge> graph, int index)
-        {
-            var bridges = new HashSet<BFEdge>();
-            var low = new Dictionary<BFNode, int>();
-            var pre = new Dictionary<BFNode, int>();
-            foreach (var node in graph.Vertices)
-            {
-                low[node] = -1;
-                pre[node] = -1;
-            }
 
-            int cnt = 0;
-            foreach (var node in graph.Vertices)
-            {
-                if (pre[node] == -1)
-                {
-                    FindBridges.BridgeDfs(graph, node, node, ref cnt, low, pre, bridges);
-                }
-            }
-
-            return bridges.Any(x => x.NonBridgeChromosomeIndex == index);
-        }
-        public static void RemoveEdgeByNonBridgeIndex(this UndirectedGraph<BFNode, BFEdge> graph, int index)
-        {
-            var edge = graph.Edges.FirstOrDefault(x => x.NonBridgeChromosomeIndex == index);
-            if (edge == null) throw new Exception("Edge not found in graph!");
-            graph.RemoveEdge(edge);
-        }
         public static BFNode? GetRoot(this UndirectedGraph<BFNode, BFEdge> graph)
         {
             // Find the root node

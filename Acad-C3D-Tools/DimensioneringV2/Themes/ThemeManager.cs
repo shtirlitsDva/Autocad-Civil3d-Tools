@@ -57,8 +57,8 @@ namespace DimensioneringV2.Themes
 
             switch (property)
             {
-                case MapPropertyEnum.FlowSupply:
-                case MapPropertyEnum.FlowReturn:
+                case MapPropertyEnum.DimFlowSupply:
+                case MapPropertyEnum.DimFlowReturn:
                 case MapPropertyEnum.PressureGradientSupply:
                 case MapPropertyEnum.PressureGradientReturn:
                 case MapPropertyEnum.VelocitySupply:
@@ -67,7 +67,8 @@ namespace DimensioneringV2.Themes
                 case MapPropertyEnum.HeatingDemand:
                 case MapPropertyEnum.Bygninger:
                 case MapPropertyEnum.Units:
-                case MapPropertyEnum.TempDelta:
+                case MapPropertyEnum.TempDeltaVarme:
+                case MapPropertyEnum.TempDeltaBV:
                     theme = BuildGradientTheme(property);
                     break;
 

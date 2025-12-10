@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="DimensioneringV2.UI.MainWindow"
+<UserControl x:Class="DimensioneringV2.UI.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -51,6 +51,8 @@
                         Margin="2" Command="{Binding TestElevationsCommand}"/>
                 <Button x:Name="btnSampleElevations" Content="Sample grid" FontSize="10" Width="70" Height="20"
                         Margin="2" Command="{Binding SampleGridCommand}"/>
+                <Button x:Name="btnTestCache" Content="Test cache" FontSize="10" Width="70" Height="20"
+                        Margin="2" Command="{Binding TestCacheCommand}"/>
             </StackPanel>
 
             <!-- Main Content Area -->

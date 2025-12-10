@@ -12,10 +12,33 @@ public partial class HydraulicSettings : ObservableObject, IHydraulicSettings
     private MediumTypeEnum medieType = MediumTypeEnum.Water;
 
     [ObservableProperty]
-    private int hotWaterReturnTemp = 75;
+    private double hotWaterReturnTemp = 75;
+
+    [ObservableProperty]
+    private bool useBrugsvandsprioritering = false;
 
     [ObservableProperty]
     private double factorTillægForOpvarmningUdenBrugsvandsprioritering = 0.6;
+
+    private double? previousFactorValue = null;
+
+    partial void OnUseBrugsvandsprioriteringChanged(bool value)
+    {
+        if (value)
+        {
+            // Store the current value before setting to 0.0
+            if (FactorTillægForOpvarmningUdenBrugsvandsprioritering != 0.0)
+            {
+                previousFactorValue = FactorTillægForOpvarmningUdenBrugsvandsprioritering;
+            }
+            FactorTillægForOpvarmningUdenBrugsvandsprioritering = 0.0;
+        }
+        else
+        {
+            // Restore the previous value, or use default 0.6 if none was stored
+            FactorTillægForOpvarmningUdenBrugsvandsprioritering = previousFactorValue ?? 0.6;
+        }
+    }
 
     [ObservableProperty]
     private double minDifferentialPressureOverHovedHaner = 0.5;
@@ -61,10 +84,10 @@ public partial class HydraulicSettings : ObservableObject, IHydraulicSettings
 
     // Supply Lines (FL)
     [ObservableProperty]
-    private int tempFremFL = 110;
+    private double tempFremFL = 110;
 
     [ObservableProperty]
-    private int tempReturFL = 75;
+    private double tempReturFL = 75;
 
     [ObservableProperty]
     private double factorVarmtVandsTillægFL = 1.0;
@@ -104,10 +127,10 @@ public partial class HydraulicSettings : ObservableObject, IHydraulicSettings
 
     // Service Lines (SL)
     [ObservableProperty]
-    private int tempFremSL = 110;
+    private double tempFremSL = 110;
 
     [ObservableProperty]
-    private int tempReturSL = 75;
+    private double tempReturSL = 75;
 
     [ObservableProperty]
     private double factorVarmtVandsTillægSL = 1.0;

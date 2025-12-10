@@ -1,4 +1,4 @@
-﻿using DimensioneringV2.BruteForceOptimization;
+using DimensioneringV2.BruteForceOptimization;
 using DimensioneringV2.GraphModel;
 using DimensioneringV2.Services;
 
@@ -11,6 +11,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace DimensioneringV2.Genetic
@@ -31,7 +32,17 @@ namespace DimensioneringV2.Genetic
         private readonly HashSet<BFNode> _terminals;
         private readonly BFNode _rootNode;
         
-        internal bool hasNOTSeeded = true;
+        private int _seeded = 0; // 0 = not seeded, 1 = seeded (thread-safe via Interlocked)
+        
+        /// <summary>
+        /// Thread-safe check-and-set for seeding. Returns true only for the first caller.
+        /// </summary>
+        internal bool TryClaimSeed()
+        {
+            // Atomically: if _seeded == 0, set to 1 and return true; else return false
+            return Interlocked.CompareExchange(ref _seeded, 1, 0) == 0;
+        }
+        
         internal UndirectedGraph<BFNode, BFEdge> Seed => _seed;
         internal MetaGraph<UndirectedGraph<BFNode, BFEdge>> MetaGraph => _metaGraph;
         internal HashSet<BFNode> Terminals => _terminals;

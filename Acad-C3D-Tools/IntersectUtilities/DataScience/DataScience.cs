@@ -721,7 +721,41 @@ namespace IntersectUtilities
                     double weightedAfkoling = data.Sum(d => d.MWh * d.Afkoling) / totalEnergy;
 
                     bbr.EstimeretVarmeForbrug = totalEnergy;
-                    bbr.TempDelta = weightedAfkoling;
+                    bbr.TempDeltaVarme = weightedAfkoling;
+                }
+            }
+            catch (System.Exception ex)
+            {
+                tx.Abort();
+                prdDbg(ex);
+                return;
+            }
+
+            tx.Commit();
+        }
+
+        [CommandMethod("DSCOPYAFKOLING")]
+        public void dscopyafkoling()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            PropertySetManager.UpdatePropertySetDefinition(localDb, PSetDefs.DefinedSets.BBR);
+
+            using Transaction tx = localDb.TransactionManager.StartTransaction();
+
+            try
+            {
+                var bbrs = localDb.HashSetOfTypeWithPs<BlockReference>(tx,
+                    PSetDefs.DefinedSets.BBR).Select(x => new BBR(x)).ToHashSet();
+
+                var pts = localDb.HashSetOfType<DBPoint>(tx);
+
+                foreach (var bbr in bbrs)
+                {
+                    var value = PropertySetManager.ReadNonDefinedPropertySetDouble(
+                        bbr.Entity, "BBR", "TempDelta");
+                    bbr.TempDeltaVarme = value;
                 }
             }
             catch (System.Exception ex)

@@ -17,10 +17,14 @@ namespace DimensioneringV2.UI
         Units,
         [Description("Estimeret varmebehov")]
         HeatingDemand,
-        [Description("Vandflow for frem")]
-        FlowSupply,
-        [Description("Vandflow for retur")]
-        FlowReturn,
+        [Description("Kar. flow for frem")]
+        KarFlowSupply,
+        [Description("Kar. flow for retur")]
+        KarFlowReturn,
+        [Description("Dim. flow for frem")]
+        DimFlowSupply,
+        [Description("Dim. flow for retur")]
+        DimFlowReturn,
         [Description("Trykgradient for frem")]
         PressureGradientSupply,
         [Description("Trykgradient for retur")]
@@ -41,7 +45,9 @@ namespace DimensioneringV2.UI
         CriticalPath,
         [Description("Manuel dimension")]
         ManualDim,
-        [Description("Afkøling")]
-        TempDelta
+        [Description("Afkøling rumvarme")]
+        TempDeltaVarme,
+        [Description("Afkøling brugsvand")]
+        TempDeltaBV,
     }
 }

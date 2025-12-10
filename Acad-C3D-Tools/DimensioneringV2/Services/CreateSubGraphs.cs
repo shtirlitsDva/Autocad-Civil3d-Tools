@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -46,7 +46,7 @@ namespace DimensioneringV2.Services
             {
                 graphIndex++;
                 foreach (var edge in sub.Edges) 
-                    edge.OriginalEdge.PipeSegment.SubGraphId = graphIndex;
+                    edge.SubGraphId = graphIndex;
             }
 
             return nonBridgeSubs;

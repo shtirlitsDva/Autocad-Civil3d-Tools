@@ -1,10 +1,11 @@
-﻿using Autodesk.AutoCAD.Geometry;
+using Autodesk.AutoCAD.Geometry;
 
 using BruTile.Cache;
 
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
+using DimensioneringV2.AutoCAD;
 using DimensioneringV2.GraphFeatures;
 using DimensioneringV2.Legend;
 using DimensioneringV2.MapCommands;
@@ -21,6 +22,8 @@ using Mapsui.Extensions;
 using Mapsui.Layers;
 using Mapsui.Providers;
 using Mapsui.UI.Wpf;
+
+using NorsynHydraulicCalc;
 
 using ProjNet.CoordinateSystems;
 using ProjNet.CoordinateSystems.Transformations;
@@ -75,11 +78,12 @@ namespace DimensioneringV2.UI
         public RelayCommand Dim2ImportDimsCommand => new RelayCommand(() => new Dim2ImportDims().Execute());
         public RelayCommand SaveResultCommand => new RelayCommand(() => new SaveResult().Execute());
         public RelayCommand LoadResultCommand => new RelayCommand(() => new LoadResult().Execute());
-        public RelayCommand WriteToDwgCommand => new RelayCommand(() => new Write2Dwg().Execute());
+        public RelayCommand WriteToDwgCommand => new RelayCommand(() => new MapCommands.Write2Dwg().Execute());
         public RelayCommand WriteStikOgVejklasserCommand => new RelayCommand(() => new WriteStikOgVejklasser().Execute());
         public AsyncRelayCommand TestElevationsCommand => new AsyncRelayCommand(new TestElevations().Execute);
         public AsyncRelayCommand TrykprofilCommand => new(async () => { await new Trykprofil().Execute(SelectedFeature); });
         public AsyncRelayCommand SampleGridCommand => new AsyncRelayCommand(new SampleGrid().Execute);
+        public AsyncRelayCommand TestCacheCommand => new AsyncRelayCommand(new TestCache().Execute);
         #endregion
 
         #region ZoomToExtents
@@ -416,7 +420,32 @@ namespace DimensioneringV2.UI
             _angivDim = null;
             SelectedMapPropertyWrapper = _prevSelectedProperty;
 
-            new HydraulicCalculationsService().CalculateGraphs(_dataService.Graphs);
+            var graphs = DataService.Instance.Graphs;
+            HydraulicCalc hc = new HydraulicCalc(
+                HydraulicSettingsService.Instance.Settings,
+                new LoggerFile());
+
+            foreach (var ograph in graphs)
+            {
+                var graph = ograph.CopyToBF();
+
+                foreach (var edge in graph.Edges)
+                {
+                    switch (edge.SegmentType)
+                    {
+                        case SegmentType.Fordelingsledning:
+                            var res1 = hc.CalculateDistributionSegment(edge);
+                            edge.ApplyResult(res1);
+                            break;
+                        case SegmentType.Stikledning:
+                            var res2 = hc.CalculateClientSegment(edge);
+                            edge.ApplyResult(res2);
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            }
 
             foreach (var graph in DataService.Instance.Graphs)
                 PressureAnalysisService.CalculateDifferentialLossAtClient(graph);
@@ -510,7 +539,32 @@ namespace DimensioneringV2.UI
             _resetDim = null;
             SelectedMapPropertyWrapper = _prevSelectedProperty;
 
-            new HydraulicCalculationsService().CalculateGraphs(_dataService.Graphs);
+            var graphs = DataService.Instance.Graphs;
+            HydraulicCalc hc = new HydraulicCalc(
+                HydraulicSettingsService.Instance.Settings,
+                new LoggerFile());
+
+            foreach (var ograph in graphs)
+            {
+                var graph = ograph.CopyToBF();
+
+                foreach (var edge in graph.Edges)
+                {
+                    switch (edge.SegmentType)
+                    {
+                        case SegmentType.Fordelingsledning:
+                            var res1 = hc.CalculateDistributionSegment(edge);
+                            edge.ApplyResult(res1);
+                            break;
+                        case SegmentType.Stikledning:
+                            var res2 = hc.CalculateClientSegment(edge);
+                            edge.ApplyResult(res2);
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            }
 
             foreach (var graph in DataService.Instance.Graphs)
                 PressureAnalysisService.CalculateDifferentialLossAtClient(graph);

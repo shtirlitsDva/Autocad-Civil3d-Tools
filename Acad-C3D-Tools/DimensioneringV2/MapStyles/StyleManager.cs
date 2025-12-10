@@ -45,13 +45,13 @@ namespace DimensioneringV2.MapStyles
                     sOn = new StyleMapProperty_WithLabels<double>(f => f.HeatingDemandSupplied);
                     sOff = new StyleMapProperty_NoLabels<double>(f => f.HeatingDemandSupplied);
                     break;
-                case MapPropertyEnum.FlowSupply:
-                    sOn = new StyleMapProperty_WithLabels<double>(f => f.FlowSupply);
-                    sOff = new StyleMapProperty_NoLabels<double>(f => f.FlowSupply);
+                case MapPropertyEnum.DimFlowSupply:
+                    sOn = new StyleMapProperty_WithLabels<double>(f => f.DimFlowSupply);
+                    sOff = new StyleMapProperty_NoLabels<double>(f => f.DimFlowSupply);
                     break;
-                case MapPropertyEnum.FlowReturn:
-                    sOn = new StyleMapProperty_WithLabels<double>(f => f.FlowReturn);
-                    sOff = new StyleMapProperty_NoLabels<double>(f => f.FlowReturn);
+                case MapPropertyEnum.DimFlowReturn:
+                    sOn = new StyleMapProperty_WithLabels<double>(f => f.DimFlowReturn);
+                    sOff = new StyleMapProperty_NoLabels<double>(f => f.DimFlowReturn);
                     break;
                 case MapPropertyEnum.PressureGradientSupply:
                     sOn = new StyleMapProperty_WithLabels<double>(f => f.PressureGradientSupply);
