@@ -26,8 +26,8 @@ namespace DimensioneringV2.Services
             CoherencyManager chm = new CoherencyManager(metaGraph, subGraph, seed);
 
             var population = new Population(
-                10,
-                20,
+                50,
+                100,
                 new GraphChromosome(chm));
 
             var fitness = new GraphFitness(chm, props, cache);
