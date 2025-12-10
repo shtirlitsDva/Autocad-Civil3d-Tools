@@ -2,7 +2,11 @@ using DimensioneringV2.BruteForceOptimization;
 using DimensioneringV2.GraphModel;
 using DimensioneringV2.Services;
 
+using GeneticSharp;
+
 using Mapsui.Utilities;
+
+using NorsynHydraulicCalc.Pipes;
 
 using QuikGraph;
 
@@ -33,6 +37,20 @@ namespace DimensioneringV2.Genetic
         private readonly BFNode _rootNode;
         
         private int _seeded = 0; // 0 = not seeded, 1 = seeded (thread-safe via Interlocked)
+
+        // Graduated penalty support
+        private readonly double _graduatedPenaltyUpperBound;
+
+        /// <summary>
+        /// Upper bound cost used for graduated penalty calculation.
+        /// Calculated as total edge length * largest pipe price per meter.
+        /// </summary>
+        public double GraduatedPenaltyUpperBound => _graduatedPenaltyUpperBound;
+
+        /// <summary>
+        /// Total number of terminal nodes that must be connected.
+        /// </summary>
+        public int TotalTerminalCount => _terminals.Count;
         
         /// <summary>
         /// Thread-safe check-and-set for seeding. Returns true only for the first caller.
@@ -83,11 +101,70 @@ namespace DimensioneringV2.Genetic
 
             _terminals = metaGraph.GetTerminalsForSubgraph(subGraph).ToHashSet();
             _rootNode = metaGraph.GetRootForSubgraph(subGraph);
+
+            // Calculate graduated penalty upper bound if the setting is enabled
+            if (GASettingsService.Instance.Settings.UseGraduatedPenalty)
+            {
+                // Sum all edge lengths
+                double totalLength = subGraph.Edges.Sum(e => e.Length);
+
+                // Get largest steel pipe price per meter
+                var settings = HydraulicSettingsService.Instance.Settings;
+                var steelPipe = new PipeSteel(settings.RuhedSteel);
+                var largestDim = steelPipe.GetAllDimsSorted().Last();
+                double largestPricePerMeter = largestDim.Price_m;
+
+                // Upper bound = total length * largest price (an unreachably high cost)
+                _graduatedPenaltyUpperBound = totalLength * largestPricePerMeter;
+            }
+            else
+            {
+                _graduatedPenaltyUpperBound = 0;
+            }
         }
 
         public BFEdge OriginalNonBridgeEdgeFromIndex(int index)
         {
             return _indexToNonBridge[index];
+        }
+
+        /// <summary>
+        /// Rebuilds a graph from chromosome genes using only IChromosome interface methods.
+        /// Gene value 0 = edge is ON (included), 1 = edge is OFF (excluded).
+        /// Works with any IChromosome implementation.
+        /// </summary>
+        public UndirectedGraph<BFNode, BFEdge> RebuildGraphFromChromosome(IChromosome chromosome)
+        {
+            var graph = new UndirectedGraph<BFNode, BFEdge>();
+
+            // Add all vertices from original graph
+            graph.AddVertexRange(_originalGraph.Vertices);
+
+            // Add bridge edges (always included, not represented in chromosome)
+            foreach (var edge in _bridges)
+            {
+                var newEdge = new BFEdge(edge);
+                newEdge.NonBridgeChromosomeIndex = edge.NonBridgeChromosomeIndex;
+                graph.AddEdge(newEdge);
+            }
+
+            // Add non-bridge edges based on gene values (using interface method)
+            for (int i = 0; i < chromosome.Length; i++)
+            {
+                var gene = chromosome.GetGene(i);
+                int geneValue = (int)gene.Value;
+
+                // 0 = edge ON, 1 = edge OFF
+                if (geneValue == 0)
+                {
+                    var originalEdge = OriginalNonBridgeEdgeFromIndex(i);
+                    var newEdge = new BFEdge(originalEdge);
+                    newEdge.NonBridgeChromosomeIndex = originalEdge.NonBridgeChromosomeIndex;
+                    graph.AddEdge(newEdge);
+                }
+            }
+
+            return graph;
         }
     }
 }

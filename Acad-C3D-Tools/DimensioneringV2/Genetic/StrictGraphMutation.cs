@@ -1,4 +1,4 @@
-﻿using GeneticSharp;
+using GeneticSharp;
 
 using Mapsui.Utilities;
 
@@ -11,12 +11,14 @@ using System.Threading.Tasks;
 
 namespace DimensioneringV2.Genetic
 {
-    internal class GraphMutation : MutationBase
+    /// <summary>
+    /// Strict mutation operator that validates mutations don't break terminal connectivity.
+    /// Works only with StrictGraphChromosome.
+    /// </summary>
+    internal class StrictGraphMutation : MutationBase
     {
-        private readonly CoherencyManager _chm;
-        public GraphMutation(CoherencyManager coherencyManager)
+        public StrictGraphMutation()
         {
-            _chm = coherencyManager;
             m_rnd = RandomizationProvider.Current;
         }
 
@@ -26,11 +28,11 @@ namespace DimensioneringV2.Genetic
 
         protected override void PerformMutate(IChromosome chromosome, float probability)
         {
-            var binaryChromosome = chromosome as GraphChromosome;
+            var binaryChromosome = chromosome as StrictGraphChromosome;
 
             if (binaryChromosome == null)
             {
-                throw new MutationException(this, "Must be a GraphChromosome!");
+                throw new MutationException(this, "Must be a StrictGraphChromosome!");
             }
 
             if (m_rnd.GetDouble() <= probability)

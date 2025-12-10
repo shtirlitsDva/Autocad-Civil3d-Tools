@@ -51,7 +51,7 @@ namespace DimensioneringV2.Services
 
             ga.Start();
 
-            var bestChromosome = ga.BestChromosome as GraphChromosome;
+            var bestChromosome = ga.BestChromosome;
 
             if (bestChromosome == null)
             {
@@ -59,19 +59,35 @@ namespace DimensioneringV2.Services
                 return null;
             }
 
-            // Handle result processing for this graph
-            var rootNode = metaGraph.GetRootForSubgraph(subGraph);
+            // Get the CoherencyManager from the chromosome
+            var chm = GetCoherencyManagerFromChromosome(bestChromosome);
+            if (chm == null)
+            {
+                MessageBox.Show("Could not extract CoherencyManager from chromosome!");
+                return null;
+            }
 
-            HCS_SGC_CalculateSumsAndCost.CalculateSumsAndCost(bestChromosome, props, cache);
+            // Always rebuild graph from genes - works with any chromosome type
+            var localGraph = chm.RebuildGraphFromChromosome(bestChromosome);
 
-            //// Update the original graph with the results from the best result
-            //// This is already done when returning the LocalGraph, so this step may be redundant
-            //foreach (var edge in bestChromosome.LocalGraph.Edges)
-            //{
-            //    edge.PushAllResults();
-            //}
+            // Calculate final results with the graph
+            var result = HCS_SGC_CalculateSumsAndCost.CalculateSumsAndCostWithGraph(
+                localGraph, subGraph, props, metaGraph, cache);
 
-            return bestChromosome.LocalGraph;
+            return result.graph;
+        }
+
+        /// <summary>
+        /// Extracts the CoherencyManager from any supported chromosome type.
+        /// </summary>
+        private static CoherencyManager? GetCoherencyManagerFromChromosome(IChromosome chromosome)
+        {
+            return chromosome switch
+            {
+                StrictGraphChromosome strict => strict.CoherencyManager,
+                RelaxedGraphChromosome relaxed => relaxed.CoherencyManager,
+                _ => null
+            };
         }
     }
 }

@@ -19,9 +19,10 @@ using System.Threading.Tasks;
 namespace DimensioneringV2.Genetic
 {
     /// <summary>
+    /// Strict graph chromosome that validates every mutation to ensure terminal connectivity.
     /// 1 = edge is off, 0 = edge is on
     /// </summary>
-    internal class GraphChromosome : BinaryChromosomeBase
+    internal class StrictGraphChromosome : BinaryChromosomeBase
     {
         private UndirectedGraph<BFNode, BFEdge> _localGraph;
         private readonly HashSet<int> _removedEdges = new HashSet<int>();
@@ -55,7 +56,7 @@ namespace DimensioneringV2.Genetic
             }
         }
 
-        public GraphChromosome(CoherencyManager coherencyManager) : base(coherencyManager.ChromosomeLength)
+        public StrictGraphChromosome(CoherencyManager coherencyManager) : base(coherencyManager.ChromosomeLength)
         {
             _chm = coherencyManager;
             _localGraph = _chm.OriginalGraph.CopyWithNewEdges();
@@ -134,7 +135,7 @@ namespace DimensioneringV2.Genetic
 
         public override IChromosome CreateNew()
         {
-            return new GraphChromosome(_chm);
+            return new StrictGraphChromosome(_chm);
         }
 
         public void ResetChromosome()

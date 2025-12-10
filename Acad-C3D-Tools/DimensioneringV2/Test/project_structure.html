@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DimensioneringV2 - Project File Structure</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+        }
+        .folder {
+            margin: 15px 0;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-left: 4px solid #3498db;
+            border-radius: 4px;
+        }
+        .folder-name {
+            font-weight: bold;
+            color: #2980b9;
+            font-size: 1.1em;
+            margin-bottom: 8px;
+        }
+        .file-list {
+            margin-left: 20px;
+            list-style-type: none;
+            padding-left: 0;
+        }
+        .file-item {
+            padding: 4px 0;
+            color: #555;
+        }
+        .file-item::before {
+            content: "📄 ";
+            margin-right: 5px;
+        }
+        .folder-icon::before {
+            content: "📁 ";
+            margin-right: 5px;
+        }
+        .stats {
+            background-color: #e8f4f8;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .stats p {
+            margin: 5px 0;
+            color: #2c3e50;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>DimensioneringV2 - Project File Structure</h1>
+        
+        <div class="stats">
+            <p><strong>Generated:</strong> <span id="date"></span></p>
+        </div>
+
+        <div class="folder">
+            <div class="folder-name folder-icon">Root Files</div>
+            <ul class="file-list">
+                <li class="file-item">app.config</li>
+                <li class="file-item">Commands.cs</li>
+                <li class="file-item">CommonVariables.cs</li>
+                <li class="file-item">DebugHelper.cs</li>
+                <li class="file-item">DimensioneringV2.csproj</li>
+                <li class="file-item">DimensioneringV2.csproj.user</li>
+                <li class="file-item">Extensions.cs</li>
+                <li class="file-item">loadNet.scr</li>
+                <li class="file-item">Tolerance.cs</li>
+                <li class="file-item">Utils.cs</li>
+            </ul>
+        </div>
+
+        <div class="folder">
+            <div class="folder-name folder-icon">AutoCAD/</div>
+            <ul class="file-list">
+                <li class="file-item">Dim2WriteDims.cs</li>
+                <li class="file-item">HydraulicSettingsSerializer.cs</li>
+                <li class="file-item">LoggerAcConsole.cs</li>
+                <li class="file-item">LoggerFile.cs</li>
+                <li class="file-item">MarkNullEdges.cs</li>
+                <li class="file-item">MarkParallelEdges.cs</li>
+                <li class="file-item">Write2Dwg.cs</li>
+                <li class="file-item">WriteElevations2CurrentDrawing.cs</li>
+                <li class="file-item">WriteGridPoints2CurrentDrawing.cs</li>
+            </ul>
+        </div>
+
+        <div class="folder">
+            <div class="folder-name folder-icon">BruteForceOptimization/</div>
+            <ul class="file-list">
+                <li class="file-item">BFEdge.cs</li>
+                <li class="file-item">BFNode.cs</li>
+            </ul>
+        </div>
+
+        <div class="folder">
+            <div class="folder-name folder-icon">Chat/</div>
+            <ul class="file-list">
+                <li class="file-item">cursor_develop_ui_for_genetic_algorithm.md</li>
+            </ul>
+        </div>
+
+        <div class="folder">
+            <div class="folder-name folder-icon">CodeReview/</div>
+            <ul class="file-list">
+                <li class="file-item">CR_2025-12-08.md</li>
+            </ul>
+        </div>
+
+        <div class="folder">
+            <div class="folder-name folder-icon">Common/</div>
+            <ul class="file-list">
+                <li class="file-item">OpResult.cs</li>
+                <li class="file-item">SumResult.cs</li>
+            </ul>
+        </div>
+
+        <div class="folder">
+            <div class="folder-name folder-icon">Docs/</div>
+            <ul class="file-list">
+                <li class="file-item">Genetic Algorithms with Binary Chromosomes.md</li>
+                <li class="file-item">route_based_chromosome_guide.md</li>
+            </ul>
+        </div>
+
+        <div class="folder">
+            <div class="folder-name folder-icon">Genetic/</div>
+            <ul class="file-list">
+                <li class="file-item">CoherencyManager.cs</li>
+                <li class="file-item">GASettings.cs</li>
+                <li class="file-item">GraphChromosome.cs</li>
+                <li class="file-item">GraphFitness.cs</li>
+                <li class="file-item">GraphMutation.cs</li>
+                <li class="file-item">RelaxedCrossover.cs</li>
+                <li class="file-item">RelaxedGraphChromosome.cs</li>
+                <li class="file-item">RelaxedGraphMutation.cs</li>
+                <li class="file-item">UniqueCrossover.cs</li>
+            </ul>
+        </div>
+
+        <div class="folder">
+            <div class="folder-name folder-icon">Genetic/Operators/</div>
+            <ul class="file-list">
+                <li class="file-item">OperatorRegistry.cs</li>
+            </ul>
+        </div>
+
+        <div class="folder">
+            <div class="folder-name folder-icon">Geometry/</div>
+            <ul class="file-list">
+                <li class="file-item">Point2D.cs</li>
+                <li class="file-item">Point2DEqualityComparer.cs</li>
+            </ul>
+        </div>
+
+        <div class="folder">
+            <div class="folder-name folder-icon">GraphFeatures/</div>
+            <ul class="file-list">
+                <li class="file-item">AnalysisFeature.cs</li>
+                <li class="file-item">EdgePipeSegment.cs</li>
+                <li class="file-item">GraphTranslator.cs</li>
+                <li class="file-item">IInfoForFeature.cs</li>
+                <li class="file-item">NodeJunction.cs</li>
+                <li class="file-item">OriginalGeometry.cs</li>
+                <li class="file-item">PropertyItem.cs</li>
+            </ul>
+        </div>
+
+        <div class="folder">
+            <div class="folder-name folder-icon">GraphModel/</div>
+            <ul class="file-list">
+                <li class="file-item">ConnectedComponent.cs</li>
+                <li class="file-item">Graph.cs</li>
+                <li class="file-item">SegmentNode.cs</li>
+                <li class="file-item">SegmentNodeDistance.cs</li>
+                <li class="file-item">SpatialIndex.cs</li>
+            </ul>
+        </div>
+
+        <div class="folder">
+            <div class="folder-name folder-icon">GraphUtilities/</div>
+            <ul class="file-list">
+                <li class="file-item">BigRational.cs</li>
+                <li class="file-item">BruteForceSteinerTrees.cs</li>
+                <li class="file-item">BruteForceSteinerTreesParallel.cs</li>
+                <li class="file-item">GraphHydraulicsCalculator.cs</li>
+                <li class="file-item">GraphSumCalculator.cs</li>
+                <li class="file-item">SerializationChecker.cs</li>
+                <li class="file-item">SteinerTreeBDD.cs</li>
+                <li class="file-item">SteinerTreeEnumeratorV1.cs</li>
+                <li class="file-item">SteinerTreesEnumeratorV4.cs</li>
+            </ul>
+        </div>
+
+        <div class="folder">
+            <div class="folder-name folder-icon">Labels/</div>
+            <ul class="file-list">
+                <li class="file-item">LabelManager.cs</li>
+            </ul>
+        </div>
+
+        <div class="folder">
+            <div class="folder-name folder-icon">Legend/</div>
+            <ul class="file-list">
+                <li class="file-item">ILegendData.cs</li>
+                <li class="file-item">LegendItem.cs</li>
+                <li class="file-item">LegendLabelProvider.cs</li>
+                <li class="file-item">LegendTitleProvider.cs</li>
+                <li class="file-item">LegendWidget.cs</li>
+                <li class="file-item">LegendWidgetSkiaRenderer.cs</li>
+            </ul>
+        </div>
+
+        <div class="folder">
+            <div class="folder-name folder-icon">MapCommands/</div>
+            <ul class="file-list">
+                <li class="file-item">CalculateBF.cs</li>
+                <li class="file-item">CalculateGA.cs</li>
+                <li class="file-item">CalculatePrice.cs</li>
+                <li class="file-item">CalculateSPD.cs</li>
+                <li class="file-item">CollectFeatures.cs</li>
+                <li class="file-item">Dim2ImportDims.cs</li>
+                <li class="file-item">LoadElevations.cs</li>
+                <li class="file-item">LoadResult.cs</li>
+                <li class="file-item">SampleGrid.cs</li>
+                <li class="file-item">SaveResult.cs</li>
+                <li class="file-item">TestCache.cs</li>
+                <li class="file-item">TestElevations.cs</li>
+                <li class="file-item">TrykProfil.cs</li>
+                <li class="file-item">Write2Dwg.cs</li>
+                <li class="file-item">WriteStikOgVejklasser.cs</li>
+            </ul>
+        </div>
+
+        <div class="folder">
+            <div class="folder-name folder-icon">MapStyles/</div>
+            <ul class="file-list">
+                <li class="file-item">GradientHelper.cs</li>
+                <li class="file-item">IMapStyle.cs</li>
+                <li class="file-item">PenWidthCalculator.cs</li>
+                <li class="file-item">StyleBase.cs</li>
+                <li class="file-item">StyleBasic.cs</li>
+                <li class="file-item">StyleDefault.cs</li>
+                <li class="file-item">StyleManager.cs</li>
+                <li class="file-item">StyleMapBridge_NoLabels.cs</li>
+                <li class="file-item">StyleMapCriticalPath_NoLabels.cs</li>
+                <li class="file-item">StyleMapCriticalPath_WithLabels.cs</li>
+                <li class="file-item">StyleMapPipeSize_NoLabels.cs</li>
+                <li class="file-item">StyleMapPipeSize_WithLabels.cs</li>
+                <li class="file-item">StyleMapProperty_NoLabels.cs</li>
+                <li class="file-item">StyleMapProperty_WithLabels.cs</li>
+            </ul>
+        </div>
+
+        <div class="folder">
+            <div class="folder-name folder-icon">MetaGraphForSubGraphs/</div>
+            <ul class="file-list">
+                <li class="file-item">MetaGraph.cs</li>
+                <li class="file-item">MetaGraphBuilder.cs</li>
+                <li class="file-item">MetaGraphCalculateSumsRecursively.cs</li>
+                <li class="file-item">MetaNode.cs</li>
+            </ul>
+        </div>
+
+        <div class="folder">
+            <div class="folder-name folder-icon">Models/</div>
+            <ul class="file-list">
+                <li class="file-item">Trykprofil/PressureData.cs</li>
+                <li class="file-item">Trykprofil/PressureProfileEntry.cs</li>
+            </ul>
+        </div>
+
+        <div class="folder">
+            <div class="folder-name folder-icon">NorsynHydraulic/</div>
+            <ul class="file-list">
+                <li class="file-item">HydraulicSettings.cs</li>
+                <li class="file-item">IMediumRules.cs</li>
+                <li class="file-item">MediumRulesFactory.cs</li>
+                <li class="file-item">Water72Ipa28Rules.cs</li>
+                <li class="file-item">WaterRules.cs</li>
+            </ul>
+        </div>
+
+        <div class="folder">
+            <div class="folder-name folder-icon">ResultCache/</div>
+            <ul class="file-list">
+                <li class="file-item">CacheStatistics.cs</li>
+                <li class="file-item">HydraulicCalculationCache.cs</li>
+                <li class="file-item">KeyPropertyExtractor.cs</li>
+                <li class="file-item">SegmentKey.cs</li>
+                <li class="file-item">SegmentKeyBuilder.cs</li>
+            </ul>
+        </div>
+
+        <div class="folder">
+            <div class="folder-name folder-icon">Serialization/</div>
+            <ul class="file-list">
+                <li class="file-item">(7 files - see project for details)</li>
+            </ul>
+        </div>
+
+        <div class="folder">
+            <div class="folder-name folder-icon">Services/</div>
+            <ul class="file-list">
+                <li class="file-item">(29 files - see project for details)</li>
+            </ul>
+        </div>
+
+        <div class="folder">
+            <div class="folder-name folder-icon">StateMachine/</div>
+            <ul class="file-list">
+                <li class="file-item">Fsm.cs</li>
+            </ul>
+        </div>
+
+        <div class="folder">
+            <div class="folder-name folder-icon">SteinerTreeProblem/</div>
+            <ul class="file-list">
+                <li class="file-item">STP.cs</li>
+                <li class="file-item">STP_Edge.cs</li>
+                <li class="file-item">STP_Node.cs</li>
+                <li class="file-item">STP_Terminal.cs</li>
+            </ul>
+        </div>
+
+        <div class="folder">
+            <div class="folder-name folder-icon">Themes/</div>
+            <ul class="file-list">
+                <li class="file-item">(8 files - see project for details)</li>
+            </ul>
+        </div>
+
+        <div class="folder">
+            <div class="folder-name folder-icon">UI/</div>
+            <ul class="file-list">
+                <li class="file-item">(61 files: 45 *.cs, 14 *.xaml, 2 *.md - see project for details)</li>
+            </ul>
+        </div>
+
+        <div class="folder">
+            <div class="folder-name folder-icon">Vejklasser/</div>
+            <ul class="file-list">
+                <li class="file-item">(7 files: 6 *.cs, 1 *.xaml - see project for details)</li>
+            </ul>
+        </div>
+
+        <div class="folder">
+            <div class="folder-name folder-icon">Properties/</div>
+            <ul class="file-list">
+                <li class="file-item">launchSettings.json</li>
+                <li class="file-item">Settings.Designer.cs</li>
+                <li class="file-item">Settings.settings</li>
+            </ul>
+        </div>
+
+    </div>
+
+    <script>
+        document.getElementById('date').textContent = new Date().toLocaleString();
+    </script>
+</body>
+</html>
+
