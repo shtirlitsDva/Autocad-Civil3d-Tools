@@ -89,9 +89,9 @@ namespace DimensioneringV2.Services
             return settings.MutationType switch
             {
                 MutationType.FlipBit => new FlipBitMutation(),
-                MutationType.StrictGraph => new StrictGraphMutation(chm),
+                MutationType.StrictGraph => new StrictGraphMutation(),
                 MutationType.RelaxedGraph => new RelaxedGraphMutation(),
-                _ => new StrictGraphMutation(chm)
+                _ => new StrictGraphMutation()
             };
         }
 

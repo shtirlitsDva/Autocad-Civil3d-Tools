@@ -17,10 +17,8 @@ namespace DimensioneringV2.Genetic
     /// </summary>
     internal class StrictGraphMutation : MutationBase
     {
-        private readonly CoherencyManager _chm;
-        public StrictGraphMutation(CoherencyManager coherencyManager)
+        public StrictGraphMutation()
         {
-            _chm = coherencyManager;
             m_rnd = RandomizationProvider.Current;
         }
 
