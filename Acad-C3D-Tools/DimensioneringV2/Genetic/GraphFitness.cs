@@ -28,17 +28,22 @@ namespace DimensioneringV2.Genetic
 
         public double Evaluate(IChromosome chromosome)
         {
-            if (chromosome is not GraphChromosome graphChromosome)
-                throw new ArgumentException("Chromosome is not of type GraphChromosome!");
+            // Support both strict and relaxed chromosome types
+            var (localGraph, coherencyManager) = chromosome switch
+            {
+                StrictGraphChromosome strict => (strict.LocalGraph, strict.CoherencyManager),
+                RelaxedGraphChromosome relaxed => (relaxed.LocalGraph, relaxed.CoherencyManager),
+                _ => throw new ArgumentException("Chromosome must be StrictGraphChromosome or RelaxedGraphChromosome!")
+            };
             
-            if (!graphChromosome.LocalGraph.AreTerminalNodesConnected(
-                _chm.RootNode, _chm.Terminals))
+            // Check terminal connectivity - apply heavy penalty if disconnected
+            if (!localGraph.AreTerminalNodesConnected(_chm.RootNode, _chm.Terminals))
             {
                 return -double.MaxValue;
             }
 
             double result = HCS_SGC_CalculateSumsAndCost.CalculateSumsAndCost(
-                graphChromosome, _props, _cache);
+                chromosome, _props, _cache);
 
             return -result;
         }

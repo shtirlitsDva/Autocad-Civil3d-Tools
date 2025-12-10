@@ -51,7 +51,7 @@ namespace DimensioneringV2.Services
 
             ga.Start();
 
-            var bestChromosome = ga.BestChromosome as GraphChromosome;
+            var bestChromosome = ga.BestChromosome;
 
             if (bestChromosome == null)
             {
@@ -64,14 +64,15 @@ namespace DimensioneringV2.Services
 
             HCS_SGC_CalculateSumsAndCost.CalculateSumsAndCost(bestChromosome, props, cache);
 
-            //// Update the original graph with the results from the best result
-            //// This is already done when returning the LocalGraph, so this step may be redundant
-            //foreach (var edge in bestChromosome.LocalGraph.Edges)
-            //{
-            //    edge.PushAllResults();
-            //}
+            // Extract LocalGraph from either chromosome type
+            var localGraph = bestChromosome switch
+            {
+                StrictGraphChromosome strict => strict.LocalGraph,
+                RelaxedGraphChromosome relaxed => relaxed.LocalGraph,
+                _ => throw new InvalidOperationException("Unknown chromosome type")
+            };
 
-            return bestChromosome.LocalGraph;
+            return localGraph;
         }
     }
 }

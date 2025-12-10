@@ -1,4 +1,4 @@
-﻿using Autodesk.AutoCAD.ApplicationServices;
+using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.Windows;
 
 using DimensioneringV2.AutoCAD;
@@ -30,6 +30,7 @@ namespace DimensioneringV2.UI
             AddVisual("MAP", new MainWindow());
             AddVisual("SETTINGS", new SettingsTab());
             AddVisual("GRAPH", new GraphSettingsTab());
+            AddVisual("GA", new GASettingsTab());
             Activate(0);
 
             //// automatically hide the palette while none document is active (no document state)

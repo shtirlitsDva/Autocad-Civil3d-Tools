@@ -5,11 +5,14 @@ using DimensioneringV2.GraphModel;
 using DimensioneringV2.GraphUtilities;
 using DimensioneringV2.ResultCache;
 
+using GeneticSharp;
+
 using NorsynHydraulicCalc;
 
 using QuikGraph;
 using QuikGraph.Algorithms;
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -20,9 +23,40 @@ namespace DimensioneringV2.Services
         /// <summary>
         /// Calculates the cost of the chromosome's graph.
         /// Updates the chromosome's LocalGraph with the calculated results.
+        /// Supports both StrictGraphChromosome and RelaxedGraphChromosome.
         /// </summary>
         internal static double CalculateSumsAndCost(
-            GraphChromosome chr,
+            IChromosome chromosome,
+            List<SumProperty<BFEdge>> props,
+            HydraulicCalculationCache<BFEdge> cache)
+        {
+            return chromosome switch
+            {
+                StrictGraphChromosome strict => CalculateSumsAndCostForStrict(strict, props, cache),
+                RelaxedGraphChromosome relaxed => CalculateSumsAndCostForRelaxed(relaxed, props, cache),
+                _ => throw new ArgumentException("Chromosome must be StrictGraphChromosome or RelaxedGraphChromosome!")
+            };
+        }
+
+        private static double CalculateSumsAndCostForStrict(
+            StrictGraphChromosome chr,
+            List<SumProperty<BFEdge>> props,
+            HydraulicCalculationCache<BFEdge> cache)
+        {
+            var r = CalculateSumsAndCost(
+                chr.LocalGraph,
+                chr.CoherencyManager.OriginalGraph,
+                props,
+                chr.CoherencyManager.MetaGraph,
+                cache);
+
+            chr.LocalGraph = r.graph;
+
+            return r.price;
+        }
+
+        private static double CalculateSumsAndCostForRelaxed(
+            RelaxedGraphChromosome chr,
             List<SumProperty<BFEdge>> props,
             HydraulicCalculationCache<BFEdge> cache)
         {

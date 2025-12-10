@@ -11,13 +11,16 @@ using System.Threading.Tasks;
 
 namespace DimensioneringV2.Genetic
 {
-    internal class UniqueCrossover : CrossoverBase
+    /// <summary>
+    /// Strict crossover operator that validates each gene replacement to maintain connectivity.
+    /// Works only with StrictGraphChromosome.
+    /// </summary>
+    internal class StrictUniqueCrossover : CrossoverBase
     {
-
         private readonly CoherencyManager _chm;
         private readonly float MixProbability;
 
-        public UniqueCrossover(CoherencyManager coherencyManager, float mixProbability) : base(2,2)
+        public StrictUniqueCrossover(CoherencyManager coherencyManager, float mixProbability) : base(2, 2)
         {
             _chm = coherencyManager;
             this.MixProbability = mixProbability;
@@ -30,8 +33,8 @@ namespace DimensioneringV2.Genetic
             var firstChild = firstParent.CreateNew();
             var secondChild = secondParent.CreateNew();
 
-            GraphChromosome fc = (GraphChromosome)firstChild;
-            GraphChromosome sc = (GraphChromosome)secondChild;
+            StrictGraphChromosome fc = (StrictGraphChromosome)firstChild;
+            StrictGraphChromosome sc = (StrictGraphChromosome)secondChild;
             //Replace graph chromosome works only when chromosoe is reset
             fc.ResetChromosome();
             sc.ResetChromosome();
