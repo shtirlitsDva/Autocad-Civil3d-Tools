@@ -1,18 +1,14 @@
 using DimensioneringV2.BruteForceOptimization;
 using DimensioneringV2.Common;
-using DimensioneringV2.Genetic;
 using DimensioneringV2.GraphModel;
 using DimensioneringV2.GraphUtilities;
 using DimensioneringV2.ResultCache;
-
-using GeneticSharp;
 
 using NorsynHydraulicCalc;
 
 using QuikGraph;
 using QuikGraph.Algorithms;
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -21,62 +17,27 @@ namespace DimensioneringV2.Services
     internal class HCS_SGC_CalculateSumsAndCost
     {
         /// <summary>
-        /// Calculates the cost of the chromosome's graph.
-        /// Updates the chromosome's LocalGraph with the calculated results.
-        /// Supports both StrictGraphChromosome and RelaxedGraphChromosome.
+        /// Calculates the cost of the graph by building shortest path tree,
+        /// calculating sums, and applying hydraulic calculations.
+        /// Returns only the price (not the graph) for fitness evaluation.
         /// </summary>
         internal static double CalculateSumsAndCost(
-            IChromosome chromosome,
+            UndirectedGraph<BFNode, BFEdge> graph,
+            UndirectedGraph<BFNode, BFEdge> originalSubGraph,
             List<SumProperty<BFEdge>> props,
+            MetaGraph<UndirectedGraph<BFNode, BFEdge>> metaGraph,
             HydraulicCalculationCache<BFEdge> cache)
         {
-            return chromosome switch
-            {
-                StrictGraphChromosome strict => CalculateSumsAndCostForStrict(strict, props, cache),
-                RelaxedGraphChromosome relaxed => CalculateSumsAndCostForRelaxed(relaxed, props, cache),
-                _ => throw new ArgumentException("Chromosome must be StrictGraphChromosome or RelaxedGraphChromosome!")
-            };
-        }
-
-        private static double CalculateSumsAndCostForStrict(
-            StrictGraphChromosome chr,
-            List<SumProperty<BFEdge>> props,
-            HydraulicCalculationCache<BFEdge> cache)
-        {
-            var r = CalculateSumsAndCost(
-                chr.LocalGraph,
-                chr.CoherencyManager.OriginalGraph,
-                props,
-                chr.CoherencyManager.MetaGraph,
-                cache);
-
-            chr.LocalGraph = r.graph;
-
-            return r.price;
-        }
-
-        private static double CalculateSumsAndCostForRelaxed(
-            RelaxedGraphChromosome chr,
-            List<SumProperty<BFEdge>> props,
-            HydraulicCalculationCache<BFEdge> cache)
-        {
-            var r = CalculateSumsAndCost(
-                chr.LocalGraph,
-                chr.CoherencyManager.OriginalGraph,
-                props,
-                chr.CoherencyManager.MetaGraph,
-                cache);
-
-            chr.LocalGraph = r.graph;
-
-            return r.price;
+            var result = CalculateSumsAndCostWithGraph(graph, originalSubGraph, props, metaGraph, cache);
+            return result.price;
         }
 
         /// <summary>
         /// Calculates the cost of the graph by building shortest path tree,
         /// calculating sums, and applying hydraulic calculations.
+        /// Returns both the price and the resulting graph.
         /// </summary>
-        internal static (double price, UndirectedGraph<BFNode, BFEdge> graph) CalculateSumsAndCost(
+        internal static (double price, UndirectedGraph<BFNode, BFEdge> graph) CalculateSumsAndCostWithGraph(
             UndirectedGraph<BFNode, BFEdge> graph,
             UndirectedGraph<BFNode, BFEdge> originalSubGraph,
             List<SumProperty<BFEdge>> props,

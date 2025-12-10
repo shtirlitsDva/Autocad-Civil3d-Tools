@@ -59,20 +59,35 @@ namespace DimensioneringV2.Services
                 return null;
             }
 
-            // Handle result processing for this graph
-            var rootNode = metaGraph.GetRootForSubgraph(subGraph);
-
-            HCS_SGC_CalculateSumsAndCost.CalculateSumsAndCost(bestChromosome, props, cache);
-
-            // Extract LocalGraph from either chromosome type
-            var localGraph = bestChromosome switch
+            // Get the CoherencyManager from the chromosome
+            var chm = GetCoherencyManagerFromChromosome(bestChromosome);
+            if (chm == null)
             {
-                StrictGraphChromosome strict => strict.LocalGraph,
-                RelaxedGraphChromosome relaxed => relaxed.LocalGraph,
-                _ => throw new InvalidOperationException("Unknown chromosome type")
-            };
+                MessageBox.Show("Could not extract CoherencyManager from chromosome!");
+                return null;
+            }
 
-            return localGraph;
+            // Always rebuild graph from genes - works with any chromosome type
+            var localGraph = chm.RebuildGraphFromChromosome(bestChromosome);
+
+            // Calculate final results with the graph
+            var result = HCS_SGC_CalculateSumsAndCost.CalculateSumsAndCostWithGraph(
+                localGraph, subGraph, props, metaGraph, cache);
+
+            return result.graph;
+        }
+
+        /// <summary>
+        /// Extracts the CoherencyManager from any supported chromosome type.
+        /// </summary>
+        private static CoherencyManager? GetCoherencyManagerFromChromosome(IChromosome chromosome)
+        {
+            return chromosome switch
+            {
+                StrictGraphChromosome strict => strict.CoherencyManager,
+                RelaxedGraphChromosome relaxed => relaxed.CoherencyManager,
+                _ => null
+            };
         }
     }
 }

@@ -38,6 +38,8 @@ namespace DimensioneringV2.Genetic
 
     /// <summary>
     /// Enumeration of available crossover operators.
+    /// Standard GeneticSharp operators work with any chromosome type.
+    /// StrictUnique is domain-aware and maintains graph connectivity.
     /// </summary>
     public enum CrossoverType
     {
@@ -45,18 +47,18 @@ namespace DimensioneringV2.Genetic
         TwoPoint,
         Uniform,
         ThreeParent,
-        StrictUnique,
-        Relaxed
+        StrictUnique
     }
 
     /// <summary>
     /// Enumeration of available mutation operators.
+    /// FlipBit is standard GeneticSharp operator (works with any chromosome).
+    /// StrictGraph is domain-aware and validates graph connectivity.
     /// </summary>
     public enum MutationType
     {
         FlipBit,
-        StrictGraph,
-        RelaxedGraph
+        StrictGraph
     }
 
     /// <summary>
@@ -108,6 +110,14 @@ namespace DimensioneringV2.Genetic
         #region Chromosome Settings
         [ObservableProperty]
         private ChromosomeType chromosomeType = ChromosomeType.Strict;
+
+        /// <summary>
+        /// When enabled, disconnected graphs receive graduated penalties based on
+        /// number of disconnected terminals instead of -double.MaxValue.
+        /// Only applicable for Relaxed chromosome type.
+        /// </summary>
+        [ObservableProperty]
+        private bool useGraduatedPenalty = false;
         #endregion
 
         #region Selection Settings

@@ -5,6 +5,8 @@ using DimensioneringV2.Genetic;
 using DimensioneringV2.Services;
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 
@@ -17,11 +19,41 @@ namespace DimensioneringV2.UI
 
         public Array ChromosomeTypes => Enum.GetValues(typeof(ChromosomeType));
         public Array SelectionTypes => Enum.GetValues(typeof(SelectionType));
-        public Array CrossoverTypes => Enum.GetValues(typeof(CrossoverType));
-        public Array MutationTypes => Enum.GetValues(typeof(MutationType));
         public Array ReinsertionTypes => Enum.GetValues(typeof(ReinsertionType));
         public Array TerminationTypes => Enum.GetValues(typeof(TerminationType));
         public Array TaskExecutorTypes => Enum.GetValues(typeof(TaskExecutorType));
+
+        /// <summary>
+        /// Gets available crossover types based on selected chromosome.
+        /// StrictUnique is only available for Strict chromosome.
+        /// </summary>
+        public IEnumerable<CrossoverType> AvailableCrossoverTypes
+        {
+            get
+            {
+                var all = Enum.GetValues(typeof(CrossoverType)).Cast<CrossoverType>();
+                if (Settings.ChromosomeType == ChromosomeType.Strict)
+                    return all;
+                // For Relaxed chromosome, exclude StrictUnique
+                return all.Where(c => c != CrossoverType.StrictUnique);
+            }
+        }
+
+        /// <summary>
+        /// Gets available mutation types based on selected chromosome.
+        /// StrictGraph is only available for Strict chromosome.
+        /// </summary>
+        public IEnumerable<MutationType> AvailableMutationTypes
+        {
+            get
+            {
+                var all = Enum.GetValues(typeof(MutationType)).Cast<MutationType>();
+                if (Settings.ChromosomeType == ChromosomeType.Strict)
+                    return all;
+                // For Relaxed chromosome, exclude StrictGraph
+                return all.Where(m => m != MutationType.StrictGraph);
+            }
+        }
 
         public GASettingsTabViewModel()
         {
@@ -42,6 +74,21 @@ namespace DimensioneringV2.UI
                 OnPropertyChanged(nameof(TerminationParametersView));
             else if (e.PropertyName == nameof(GASettings.TaskExecutorType))
                 OnPropertyChanged(nameof(IsParallelExecutorSelected));
+            else if (e.PropertyName == nameof(GASettings.ChromosomeType))
+            {
+                OnPropertyChanged(nameof(AvailableCrossoverTypes));
+                OnPropertyChanged(nameof(AvailableMutationTypes));
+                OnPropertyChanged(nameof(IsRelaxedChromosomeSelected));
+                
+                // Reset to valid defaults if current selection is no longer available
+                if (Settings.ChromosomeType == ChromosomeType.Relaxed)
+                {
+                    if (Settings.CrossoverType == CrossoverType.StrictUnique)
+                        Settings.CrossoverType = CrossoverType.Uniform;
+                    if (Settings.MutationType == MutationType.StrictGraph)
+                        Settings.MutationType = MutationType.FlipBit;
+                }
+            }
         }
 
         public bool IsTournamentSelected => Settings.SelectionType == SelectionType.Tournament;
@@ -51,6 +98,11 @@ namespace DimensioneringV2.UI
             Settings.CrossoverType == CrossoverType.StrictUnique;
 
         public bool IsParallelExecutorSelected => Settings.TaskExecutorType == TaskExecutorType.Parallel;
+
+        /// <summary>
+        /// Returns true when Relaxed chromosome is selected (used to show graduated penalty checkbox).
+        /// </summary>
+        public bool IsRelaxedChromosomeSelected => Settings.ChromosomeType == ChromosomeType.Relaxed;
 
         public float CrossoverMixProbability
         {
@@ -119,6 +171,9 @@ namespace DimensioneringV2.UI
             OnPropertyChanged(nameof(CrossoverMixProbability));
             OnPropertyChanged(nameof(TerminationParametersView));
             OnPropertyChanged(nameof(IsParallelExecutorSelected));
+            OnPropertyChanged(nameof(AvailableCrossoverTypes));
+            OnPropertyChanged(nameof(AvailableMutationTypes));
+            OnPropertyChanged(nameof(IsRelaxedChromosomeSelected));
         }
     }
 }

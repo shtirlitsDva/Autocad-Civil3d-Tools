@@ -37,12 +37,15 @@ namespace DimensioneringV2.Services
             var population = new Population(
                 gaSettings.PopulationMinSize,
                 gaSettings.PopulationMaxSize,
-                adamChromosome);
+                adamChromosome)
+            {
+                GenerationStrategy = new PerformanceGenerationStrategy()
+            };
 
             var fitness = new GraphFitness(chm, props, cache);
             var selection = CreateSelection(gaSettings);
             var crossover = CreateCrossover(gaSettings, chm);
-            var mutation = CreateMutation(gaSettings, chm);
+            var mutation = CreateMutation(gaSettings);
 
             var ga = new GeneticAlgorithm(population, fitness, selection, crossover, mutation)
             {
@@ -79,19 +82,17 @@ namespace DimensioneringV2.Services
                 CrossoverType.Uniform => new UniformCrossover(settings.UniformCrossoverMixProbability),
                 CrossoverType.ThreeParent => new ThreeParentCrossover(),
                 CrossoverType.StrictUnique => new StrictUniqueCrossover(chm, settings.StrictUniqueCrossoverMixProbability),
-                CrossoverType.Relaxed => new RelaxedCrossover(chm),
-                _ => new StrictUniqueCrossover(chm, 0.5f)
+                _ => new UniformCrossover(0.5f)
             };
         }
 
-        private static IMutation CreateMutation(GASettings settings, CoherencyManager chm)
+        private static IMutation CreateMutation(GASettings settings)
         {
             return settings.MutationType switch
             {
                 MutationType.FlipBit => new FlipBitMutation(),
                 MutationType.StrictGraph => new StrictGraphMutation(),
-                MutationType.RelaxedGraph => new RelaxedGraphMutation(),
-                _ => new StrictGraphMutation()
+                _ => new FlipBitMutation()
             };
         }
 

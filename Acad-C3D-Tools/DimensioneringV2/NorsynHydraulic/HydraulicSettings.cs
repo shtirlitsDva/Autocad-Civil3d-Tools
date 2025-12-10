@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 
 using NorsynHydraulicCalc;
 
@@ -63,9 +63,6 @@ public partial class HydraulicSettings : ObservableObject, IHydraulicSettings
 
     [ObservableProperty]
     private double tillægTilHoldetrykMVS = 13;
-
-    [ObservableProperty]
-    private int numberOfGSLUToEnd = 300;
 
     [ObservableProperty]
     private int timeToSteinerTreeEnumeration = 20; // in seconds

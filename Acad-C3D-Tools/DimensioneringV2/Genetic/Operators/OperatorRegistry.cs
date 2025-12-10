@@ -34,15 +34,13 @@ namespace DimensioneringV2.Genetic.Operators
             new OperatorDescriptor("Two Point", typeof(TwoPointCrossover), Array.Empty<ParameterDescriptor>()),
             new OperatorDescriptor("Uniform", typeof(UniformCrossover), new[] { new ParameterDescriptor("MixProbability", "Mix Probability", typeof(float), 0.5f, 0.0f, 1.0f) }),
             new OperatorDescriptor("Three Parent", typeof(ThreeParentCrossover), Array.Empty<ParameterDescriptor>()),
-            new OperatorDescriptor("Strict Unique", typeof(StrictUniqueCrossover), new[] { new ParameterDescriptor("MixProbability", "Mix Probability", typeof(float), 0.5f, 0.0f, 1.0f) }),
-            new OperatorDescriptor("Relaxed", typeof(RelaxedCrossover), Array.Empty<ParameterDescriptor>())
+            new OperatorDescriptor("Strict Unique (Graph-aware)", typeof(StrictUniqueCrossover), new[] { new ParameterDescriptor("MixProbability", "Mix Probability", typeof(float), 0.5f, 0.0f, 1.0f) })
         };
 
         public static readonly OperatorDescriptor[] MutationOperators = new[]
         {
             new OperatorDescriptor("Flip Bit", typeof(FlipBitMutation), Array.Empty<ParameterDescriptor>()),
-            new OperatorDescriptor("Strict Graph", typeof(StrictGraphMutation), Array.Empty<ParameterDescriptor>()),
-            new OperatorDescriptor("Relaxed Graph", typeof(RelaxedGraphMutation), Array.Empty<ParameterDescriptor>())
+            new OperatorDescriptor("Strict Graph (Validates connectivity)", typeof(StrictGraphMutation), Array.Empty<ParameterDescriptor>())
         };
 
         public static readonly OperatorDescriptor[] ReinsertionOperators = new[]

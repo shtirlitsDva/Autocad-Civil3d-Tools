@@ -69,14 +69,21 @@
             </GroupBox>
 
             <GroupBox Header="Chromosome" Style="{StaticResource ModernGroupBox}">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <Label Content="Type:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                    <ComboBox Grid.Column="1" ItemsSource="{Binding ChromosomeTypes}" SelectedItem="{Binding Settings.ChromosomeType, UpdateSourceTrigger=PropertyChanged}" Margin="4,0"/>
-                </Grid>
+                <StackPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Type:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding ChromosomeTypes}" SelectedItem="{Binding Settings.ChromosomeType, UpdateSourceTrigger=PropertyChanged}" Margin="4,0"/>
+                    </Grid>
+                    <CheckBox Content="Use Graduated Penalty (for disconnected graphs)" 
+                              IsChecked="{Binding Settings.UseGraduatedPenalty, UpdateSourceTrigger=PropertyChanged}"
+                              Foreground="{DynamicResource Text}" 
+                              Margin="0,8,0,0"
+                              Visibility="{Binding IsRelaxedChromosomeSelected, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                </StackPanel>
             </GroupBox>
 
             <GroupBox Header="Selection" Style="{StaticResource ModernGroupBox}">
@@ -118,7 +125,7 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <Label Content="Operator:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                        <ComboBox Grid.Column="1" ItemsSource="{Binding CrossoverTypes}" SelectedItem="{Binding Settings.CrossoverType, UpdateSourceTrigger=PropertyChanged}" Margin="4,0"/>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding AvailableCrossoverTypes}" SelectedItem="{Binding Settings.CrossoverType, UpdateSourceTrigger=PropertyChanged}" Margin="4,0"/>
                     </Grid>
                     <Grid Margin="0,8,0,0" Visibility="{Binding IsCrossoverMixProbabilityVisible, Converter={StaticResource BoolToVisibilityConverter}}">
                         <Grid.ColumnDefinitions>
@@ -151,7 +158,7 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <Label Content="Operator:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                        <ComboBox Grid.Column="1" ItemsSource="{Binding MutationTypes}" SelectedItem="{Binding Settings.MutationType, UpdateSourceTrigger=PropertyChanged}" Margin="4,0"/>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding AvailableMutationTypes}" SelectedItem="{Binding Settings.MutationType, UpdateSourceTrigger=PropertyChanged}" Margin="4,0"/>
                     </Grid>
                 </StackPanel>
             </GroupBox>
