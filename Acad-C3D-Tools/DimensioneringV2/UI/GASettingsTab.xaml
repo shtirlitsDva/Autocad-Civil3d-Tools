@@ -1,0 +1,213 @@
+<UserControl x:Class="DimensioneringV2.UI.GASettingsTab"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:DimensioneringV2.UI"
+             xmlns:genetic="clr-namespace:DimensioneringV2.Genetic"
+             mc:Ignorable="d" 
+             d:DesignHeight="800" d:DesignWidth="400">
+    
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Theme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            
+            <Style x:Key="ModernGroupBox" TargetType="GroupBox">
+                <Setter Property="Foreground" Value="{DynamicResource Text}"/>
+                <Setter Property="Margin" Value="8,4"/>
+                <Setter Property="Padding" Value="8"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="GroupBox">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <Border Grid.Row="0" Background="#FF404040" CornerRadius="4,4,0,0" Padding="10,6">
+                                    <TextBlock Text="{TemplateBinding Header}" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource Text}"/>
+                                </Border>
+                                <Border Grid.Row="1" Background="#FF333333" BorderBrush="#FF555555" BorderThickness="1,0,1,1" CornerRadius="0,0,4,4" Padding="10,8">
+                                    <ContentPresenter/>
+                                </Border>
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <Style x:Key="ModernSlider" TargetType="Slider">
+                <Setter Property="Minimum" Value="0"/>
+                <Setter Property="Maximum" Value="1"/>
+                <Setter Property="TickFrequency" Value="0.05"/>
+                <Setter Property="IsSnapToTickEnabled" Value="True"/>
+                <Setter Property="MinWidth" Value="150"/>
+            </Style>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <ScrollViewer Background="{DynamicResource Background}" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="4">
+            
+            <TextBlock Text="Genetic Algorithm Configuration" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource Text}" Margin="8,8,8,12" HorizontalAlignment="Center"/>
+
+            <GroupBox Header="Population" Style="{StaticResource ModernGroupBox}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="70"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="70"/>
+                    </Grid.ColumnDefinitions>
+                    <Label Grid.Column="0" Content="Min Size:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
+                    <TextBox Grid.Column="1" Text="{Binding Settings.PopulationMinSize, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" Margin="4,0"/>
+                    <Label Grid.Column="2" Content="Max Size:" Foreground="{DynamicResource Text}" VerticalAlignment="Center" Margin="16,0,0,0"/>
+                    <TextBox Grid.Column="3" Text="{Binding Settings.PopulationMaxSize, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" Margin="4,0"/>
+                </Grid>
+            </GroupBox>
+
+            <GroupBox Header="Chromosome" Style="{StaticResource ModernGroupBox}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Label Content="Type:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
+                    <ComboBox Grid.Column="1" ItemsSource="{Binding ChromosomeTypes}" SelectedItem="{Binding Settings.ChromosomeType, UpdateSourceTrigger=PropertyChanged}" Margin="4,0"/>
+                </Grid>
+            </GroupBox>
+
+            <GroupBox Header="Selection" Style="{StaticResource ModernGroupBox}">
+                <StackPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Operator:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding SelectionTypes}" SelectedItem="{Binding Settings.SelectionType, UpdateSourceTrigger=PropertyChanged}" Margin="4,0"/>
+                    </Grid>
+                    <Grid Margin="0,8,0,0" Visibility="{Binding IsTournamentSelected, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="60"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Tournament Size:" Foreground="{DynamicResource Text}" VerticalAlignment="Center" FontSize="11"/>
+                        <TextBox Grid.Column="1" Text="{Binding Settings.TournamentSize, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" Margin="4,0"/>
+                    </Grid>
+                </StackPanel>
+            </GroupBox>
+
+            <GroupBox Header="Crossover" Style="{StaticResource ModernGroupBox}">
+                <StackPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="40"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Probability:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
+                        <Slider Grid.Column="1" Style="{StaticResource ModernSlider}" Value="{Binding Settings.CrossoverProbability, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" Margin="4,0"/>
+                        <TextBlock Grid.Column="2" Text="{Binding Settings.CrossoverProbability, StringFormat=F2}" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
+                    </Grid>
+                    <Grid Margin="0,8,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Operator:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding CrossoverTypes}" SelectedItem="{Binding Settings.CrossoverType, UpdateSourceTrigger=PropertyChanged}" Margin="4,0"/>
+                    </Grid>
+                    <Grid Margin="0,8,0,0" Visibility="{Binding IsCrossoverMixProbabilityVisible, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="40"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Mix Probability:" Foreground="{DynamicResource Text}" VerticalAlignment="Center" FontSize="11"/>
+                        <Slider Grid.Column="1" Style="{StaticResource ModernSlider}" Value="{Binding CrossoverMixProbability, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" Margin="4,0"/>
+                        <TextBlock Grid.Column="2" Text="{Binding CrossoverMixProbability, StringFormat=F2}" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
+                    </Grid>
+                </StackPanel>
+            </GroupBox>
+
+            <GroupBox Header="Mutation" Style="{StaticResource ModernGroupBox}">
+                <StackPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="40"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Probability:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
+                        <Slider Grid.Column="1" Style="{StaticResource ModernSlider}" Value="{Binding Settings.MutationProbability, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" Margin="4,0"/>
+                        <TextBlock Grid.Column="2" Text="{Binding Settings.MutationProbability, StringFormat=F2}" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
+                    </Grid>
+                    <Grid Margin="0,8,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Operator:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding MutationTypes}" SelectedItem="{Binding Settings.MutationType, UpdateSourceTrigger=PropertyChanged}" Margin="4,0"/>
+                    </Grid>
+                </StackPanel>
+            </GroupBox>
+
+            <GroupBox Header="Reinsertion" Style="{StaticResource ModernGroupBox}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Label Content="Operator:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
+                    <ComboBox Grid.Column="1" ItemsSource="{Binding ReinsertionTypes}" SelectedItem="{Binding Settings.ReinsertionType, UpdateSourceTrigger=PropertyChanged}" Margin="4,0"/>
+                </Grid>
+            </GroupBox>
+
+            <GroupBox Header="Termination" Style="{StaticResource ModernGroupBox}">
+                <StackPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Condition:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding TerminationTypes}" SelectedItem="{Binding Settings.TerminationType, UpdateSourceTrigger=PropertyChanged}" Margin="4,0"/>
+                    </Grid>
+                    <ContentControl Content="{Binding TerminationParametersView}" Margin="0,8,0,0"/>
+                </StackPanel>
+            </GroupBox>
+
+            <GroupBox Header="Execution" Style="{StaticResource ModernGroupBox}">
+                <StackPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Task Executor:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding TaskExecutorTypes}" SelectedItem="{Binding Settings.TaskExecutorType, UpdateSourceTrigger=PropertyChanged}" Margin="4,0"/>
+                    </Grid>
+                    <Grid Margin="0,8,0,0" Visibility="{Binding IsParallelExecutorSelected, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="50"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="50"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Min Threads:" Foreground="{DynamicResource Text}" VerticalAlignment="Center" FontSize="11"/>
+                        <TextBox Grid.Column="1" Text="{Binding Settings.ParallelTaskExecutorMinThreads, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" Margin="4,0"/>
+                        <Label Grid.Column="2" Content="Max:" Foreground="{DynamicResource Text}" VerticalAlignment="Center" FontSize="11" Margin="8,0,0,0"/>
+                        <TextBox Grid.Column="3" Text="{Binding Settings.ParallelTaskExecutorMaxThreads, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" Margin="4,0"/>
+                    </Grid>
+                </StackPanel>
+            </GroupBox>
+
+            <Button Content="Reset to Defaults" Command="{Binding ResetToDefaultsCommand}" HorizontalAlignment="Center" Margin="8,16,8,8" Padding="16,6"/>
+            
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
