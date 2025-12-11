@@ -104,6 +104,31 @@ namespace AcadOverrules
             }
             Application.DocumentManager.MdiActiveDocument.Editor.Regen();
         }
+
+        private static PolylineArcHighlight _polylineArcHighlight;
+        /// <command>TOGGLEARCHIGHLIGHT</command>
+        /// <summary>
+        /// Highlights arc segments of polylines with cyan color overlay.
+        /// Straight segments are not affected.
+        /// </summary>
+        /// <category>Overrules</category>
+        [CommandMethod("TOGGLEPOLYARCS")]
+        public static void togglearchighlightoverrule()
+        {
+            if (_polylineArcHighlight == null)
+            {
+                _polylineArcHighlight = new PolylineArcHighlight();
+                Overrule.AddOverrule(RXObject.GetClass(typeof(Polyline)), _polylineArcHighlight, false);
+                Overrule.Overruling = true;
+            }
+            else
+            {
+                Overrule.RemoveOverrule(RXObject.GetClass(typeof(Polyline)), _polylineArcHighlight);
+                _polylineArcHighlight.Dispose();
+                _polylineArcHighlight = null;
+            }
+            Application.DocumentManager.MdiActiveDocument.Editor.Regen();
+        }
 #if DEBUG
         private static GripVectorOverrule _gripVectorOverrule;
 
