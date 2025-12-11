@@ -159,6 +159,12 @@ namespace DimensioneringV2.UI
         }
 
         [RelayCommand]
+        private void SaveSettings()
+        {
+            GASettingsService.Instance.SaveToActiveDocument();
+        }
+
+        [RelayCommand]
         private void ResetToDefaults()
         {
             GASettingsService.Instance.ResetToDefaults();

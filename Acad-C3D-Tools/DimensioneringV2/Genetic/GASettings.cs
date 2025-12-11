@@ -109,7 +109,7 @@ namespace DimensioneringV2.Genetic
 
         #region Chromosome Settings
         [ObservableProperty]
-        private ChromosomeType chromosomeType = ChromosomeType.Strict;
+        private ChromosomeType chromosomeType = ChromosomeType.Relaxed;
 
         /// <summary>
         /// When enabled, disconnected graphs receive graduated penalties based on
@@ -117,7 +117,7 @@ namespace DimensioneringV2.Genetic
         /// Only applicable for Relaxed chromosome type.
         /// </summary>
         [ObservableProperty]
-        private bool useGraduatedPenalty = false;
+        private bool useGraduatedPenalty = true;
         #endregion
 
         #region Selection Settings
@@ -130,13 +130,13 @@ namespace DimensioneringV2.Genetic
 
         #region Crossover Settings
         [ObservableProperty]
-        private double crossoverProbability = 0.75;
+        private double crossoverProbability = 0.7;
 
         [ObservableProperty]
-        private CrossoverType crossoverType = CrossoverType.StrictUnique;
+        private CrossoverType crossoverType = CrossoverType.Uniform;
 
         [ObservableProperty]
-        private float uniformCrossoverMixProbability = 0.5f;
+        private float uniformCrossoverMixProbability = 0.7f;
 
         [ObservableProperty]
         private float strictUniqueCrossoverMixProbability = 0.5f;
@@ -144,10 +144,10 @@ namespace DimensioneringV2.Genetic
 
         #region Mutation Settings
         [ObservableProperty]
-        private float mutationProbability = 0.1f;
+        private float mutationProbability = 0.9f;
 
         [ObservableProperty]
-        private MutationType mutationType = MutationType.StrictGraph;
+        private MutationType mutationType = MutationType.FlipBit;
         #endregion
 
         #region Reinsertion Settings
@@ -163,7 +163,7 @@ namespace DimensioneringV2.Genetic
         private int generationNumberTerminationCount = 100;
 
         [ObservableProperty]
-        private int fitnessStagnationTerminationCount = 100;
+        private int fitnessStagnationTerminationCount = 1000;
 
         [ObservableProperty]
         private double fitnessThresholdTerminationValue = 0.95;

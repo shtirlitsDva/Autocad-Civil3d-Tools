@@ -213,7 +213,10 @@
                 </StackPanel>
             </GroupBox>
 
-            <Button Content="Reset to Defaults" Command="{Binding ResetToDefaultsCommand}" HorizontalAlignment="Center" Margin="8,16,8,8" Padding="16,6"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="8,16,8,8">
+                <Button Content="Save Settings" Command="{Binding SaveSettingsCommand}" Padding="16,6" Margin="0,0,8,0"/>
+                <Button Content="Reset to Defaults" Command="{Binding ResetToDefaultsCommand}" Padding="16,6"/>
+            </StackPanel>
             
         </StackPanel>
     </ScrollViewer>
