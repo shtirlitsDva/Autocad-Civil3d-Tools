@@ -113,7 +113,7 @@ namespace AcadOverrules
         /// </summary>
         /// <category>Overrules</category>
         [CommandMethod("TOGGLEPOLYARCS")]
-        public static void togglearchighlightoverrule()
+        public static void togglepolyarcs()
         {
             if (_polylineArcHighlight == null)
             {
