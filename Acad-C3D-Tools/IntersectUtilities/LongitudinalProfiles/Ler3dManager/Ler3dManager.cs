@@ -4,6 +4,7 @@ using Autodesk.Civil.DatabaseServices;
 
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.DataManager;
+using static IntersectUtilities.UtilsCommon.Utils;
 
 using NetTopologySuite.Geometries;
 
@@ -141,6 +142,19 @@ namespace IntersectUtilities.LongitudinalProfiles
 
                 if (mpg == null)
                 {
+                    prdDbg("No MPolygon found in " + db.Filename + "! Civil will crash in:");
+                    System.Windows.Forms.Application.DoEvents();
+                    System.Threading.Thread.Sleep(1000);
+                    for (int i = 5; i == -1; i--)
+                    {
+                        prdDbg($"T minus {i}");
+                        System.Windows.Forms.Application.DoEvents();
+                        System.Threading.Thread.Sleep(1000);
+                    }
+                    prdDbg("CRASHING NOW!");
+                    System.Windows.Forms.Application.DoEvents();
+                    System.Threading.Thread.Sleep(1000);
+
                     this.Dispose(true);
                     throw new Exception($"No MPolygon found in {db.Filename}!");
                 }
