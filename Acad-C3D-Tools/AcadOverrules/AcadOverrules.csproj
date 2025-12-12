@@ -132,6 +132,9 @@
 		<PackageReference Include="System.Text.Encodings.Web" Version="8.0.0" />
 		<PackageReference Include="System.Text.Json" Version="8.0.5" />
 	</ItemGroup>
+	<ItemGroup>
+	  <Folder Include="Docs\" />
+	</ItemGroup>
 	<Import Project="..\UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems" Label="Shared" />
 	<Import Project="..\AutoCADCommandsSHARED\AutoCADCommandsSHARED.projitems" Label="Shared" />
 	<Import Project="..\FormsSHARED\FormsSHARED.projitems" Label="Shared" />
