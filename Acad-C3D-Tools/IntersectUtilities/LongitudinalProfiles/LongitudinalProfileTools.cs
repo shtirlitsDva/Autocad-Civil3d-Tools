@@ -553,7 +553,8 @@ namespace IntersectUtilities
 
         public void createlerdatapssmethod2(
             DataReferencesOptions dro,
-            List<Alignment>? allAlignments = null
+            List<Alignment>? allAlignments = null,
+            CivSurface? surface = null
         )
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -571,9 +572,7 @@ namespace IntersectUtilities
                 PSetDefs.DefinedSets.DriCrossingData
             );
 
-            DataManager dm = new(dro);
-            using Database surfaceDb = dm.Surface();
-            using Transaction surfaceTx = surfaceDb.TransactionManager.StartTransaction();
+            DataManager dm = new(dro);            
 
             using Database fjvDb = dm.Fremtid();
             using Transaction fjvTx = fjvDb.TransactionManager.StartTransaction();
@@ -587,29 +586,31 @@ namespace IntersectUtilities
             string etapeName = dro.EtapeName;
 
             #region Read surface from file
-            CivSurface? surface = null;
-            try
-            {
-                surface =
-                    surfaceDb.HashSetOfType<TinSurface>(surfaceTx).FirstOrDefault() as CivSurface;
-            }
-            catch (System.Exception)
-            {
-                surfaceTx.Abort();
-                fjvTx.Abort();
-                alTx.Abort();
-                tx.Abort();
-                return;
-            }
-
             if (surface == null)
             {
-                editor.WriteMessage("\nSurface could not be loaded from the xref!");
-                surfaceTx.Abort();
-                fjvTx.Abort();
-                alTx.Abort();
-                tx.Abort();
-                return;
+                try
+                {
+                    using Database surfaceDb = dm.Surface();
+                    using Transaction surfaceTx = surfaceDb.TransactionManager.StartTransaction();
+                    surface =
+                        surfaceDb.HashSetOfType<TinSurface>(surfaceTx).FirstOrDefault() as CivSurface;
+                }
+                catch (System.Exception)
+                {
+                    fjvTx.Abort();
+                    alTx.Abort();
+                    tx.Abort();
+                    return;
+                }
+
+                if (surface == null)
+                {
+                    editor.WriteMessage("\nSurface could not be loaded from the xref!");
+                    fjvTx.Abort();
+                    alTx.Abort();
+                    tx.Abort();
+                    return;
+                }
             }
             #endregion
 
@@ -1213,7 +1214,11 @@ namespace IntersectUtilities
 
                         editor.SetImpliedSelection(selection);
                         prdDbg("");
-                        editor.Command("_AeccProjectObjectsToProf", pv.ObjectId);
+                        // Arm UIA to dismiss the modal for this command invocation
+                        using (CivilDialogAutomation.ArmClickOk_ProjectObjectsToProfileView(timeoutMs: 10000, pollMs: 150))
+                        {
+                            editor.Command("._AeccProjectObjectsToProf", pv.ObjectId);
+                        }
                     }
                     #endregion
                     #endregion
@@ -1224,7 +1229,6 @@ namespace IntersectUtilities
             {
                 lman.Dispose(true);
 
-                surfaceTx.Abort();
                 fjvTx.Abort();
                 alTx.Abort();
                 prdDbg(ex);
@@ -1232,7 +1236,6 @@ namespace IntersectUtilities
             }
             lman.Dispose(true);
             tx.Commit();
-            surfaceTx.Abort();
             fjvTx.Abort();
             alTx.Abort();
         }
@@ -6800,7 +6803,8 @@ namespace IntersectUtilities
 
         public void updatesingleprofileviewmethod(
             Oid profileViewId,
-            DataReferencesOptions? dro = null
+            DataReferencesOptions? dro = null,
+            CivSurface? surface = null
         )
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -6991,7 +6995,7 @@ namespace IntersectUtilities
                     Alignment al = alId.Go<Alignment>(tx);
                     createsurfaceprofilesmethod(dro, new List<Alignment>() { al });
                     createprofileviewsmethod(originalProfileViewLocation);
-                    createlerdatapssmethod2(dro, new List<Alignment>() { al });
+                    createlerdatapssmethod2(dro, new List<Alignment>() { al }, surface);
                     populateprofilesmethod(dro, al.GetProfileViewIds().ToHashSet());
                     colorizealllerlayersmethod();
                     createprofilesmethod(dro, new HashSet<Alignment> { al });
@@ -7066,9 +7070,32 @@ namespace IntersectUtilities
 
             var pvIds = localDb.HashSetIdsOfType<ProfileView>();
 
+            DataManager dm = new(dro);
+            using Database surfaceDb = dm.Surface();
+            using Transaction surfaceTx = surfaceDb.TransactionManager.StartTransaction();
+
+            CivSurface? surface = null;
+            try
+            {
+                surface =
+                    surfaceDb.HashSetOfType<TinSurface>(surfaceTx).FirstOrDefault() as CivSurface;
+            }
+            catch (System.Exception)
+            {
+                surfaceTx.Abort();
+                return;
+            }
+
+            if (surface == null)
+            {
+                editor.WriteMessage("\nSurface could not be loaded from the xref!");
+                surfaceTx.Abort();
+                return;
+            }
+
             foreach (Oid pvId in pvIds)
             {
-                updatesingleprofileviewmethod(pvId, dro);
+                updatesingleprofileviewmethod(pvId, dro, surface);
             }
         }
 

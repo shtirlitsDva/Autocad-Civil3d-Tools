@@ -28,6 +28,9 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
+using System.Threading;
+using System.Windows.Automation;
+using System.Windows.Forms;
 using System.Xml.Serialization;
 
 using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
@@ -36,6 +39,7 @@ using static IntersectUtilities.UtilsCommon.Utils;
 using AcRx = Autodesk.AutoCAD.Runtime;
 using Application = Autodesk.AutoCAD.ApplicationServices.Core.Application;
 using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
+using Color = Autodesk.AutoCAD.Colors.Color;
 using DataTable = System.Data.DataTable;
 using DataType = Autodesk.Gis.Map.Constants.DataType;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
@@ -46,7 +50,6 @@ using ObjectId = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
-using Color = Autodesk.AutoCAD.Colors.Color;
 
 namespace IntersectUtilities.UtilsCommon
 {
@@ -569,7 +572,7 @@ namespace IntersectUtilities.UtilsCommon
 
             return startPoint.GetVectorTo(endPoint);
         }
-        
+
         public static class DebugHelper
         {
             /// <param name="color">byblock, red, yellow, green, cyan, blue, magenta, white, grey, bylayer</param>
@@ -3080,7 +3083,7 @@ namespace IntersectUtilities.UtilsCommon
         /// </summary>
         /// <param name="latlon">If false, reverses the returned array to lon, lat.</param
         public static double[] ToWGS84FromUtm32N(this Point2d p, bool latlon = true) =>
-            ToWGS84FromUtm32N(p.To3d(), latlon);        
+            ToWGS84FromUtm32N(p.To3d(), latlon);
 
         public static bool IsOnCurve(this Point3d pt, Curve cv, double tol)
         {
@@ -4447,7 +4450,7 @@ namespace IntersectUtilities.UtilsCommon
         }
 
         public static DoubleCollection ToDoubleCollection(this IEnumerable<double> list) =>
-            new DoubleCollection(list.ToArray());        
+            new DoubleCollection(list.ToArray());
     }
 
     public class PointDBHorizontalComparer : IEqualityComparer<DBPoint>
@@ -4873,4 +4876,100 @@ namespace IntersectUtilities.UtilsCommon
             }
         }
     }
+
+    internal static class CivilDialogAutomation
+    {
+        public static IDisposable ArmClickOk_ProjectObjectsToProfileView(
+            int timeoutMs = 10000,
+            int pollMs = 150)
+        {
+            const string dialogTitle = "Project Objects To Profile View";
+
+            var cts = new CancellationTokenSource();
+            var token = cts.Token;
+
+            // Run UIA polling on an STA thread (more reliable for UI Automation)
+            var t = new Thread(() =>
+            {
+                try
+                {
+                    var procId = Process.GetCurrentProcess().Id;
+                    var sw = Stopwatch.StartNew();
+
+                    while (!token.IsCancellationRequested && sw.ElapsedMilliseconds < timeoutMs)
+                    {
+                        try
+                        {
+                            // Find the modal dialog on the desktop for THIS process
+                            var dialogCondition = new AndCondition(
+                                new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Window),
+                                new PropertyCondition(AutomationElement.NameProperty, dialogTitle),
+                                new PropertyCondition(AutomationElement.ProcessIdProperty, procId)
+                            );
+
+                            var dialog = AutomationElement.RootElement.FindFirst(TreeScope.Children, dialogCondition);
+                            if (dialog != null)
+                            {
+                                // Find OK inside that dialog only
+                                var okCondition = new AndCondition(
+                                    new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Button),
+                                    new PropertyCondition(AutomationElement.NameProperty, "OK")
+                                );
+
+                                var ok = dialog.FindFirst(TreeScope.Descendants, okCondition);
+                                if (ok != null &&
+                                    ok.TryGetCurrentPattern(InvokePattern.Pattern, out var p) &&
+                                    p is InvokePattern invoke)
+                                {
+                                    invoke.Invoke();
+                                    return; // done
+                                }
+                            }
+                        }
+                        catch
+                        {
+                            // UIA can throw while UI changes; ignore and keep polling
+                        }
+
+                        Thread.Sleep(pollMs);
+                    }
+                }
+                catch
+                {
+                    // swallow - best-effort automation
+                }
+            });
+
+            t.IsBackground = true;
+            t.SetApartmentState(ApartmentState.STA);
+            t.Start();
+
+            return new CancelHandle(cts, t);
+        }
+
+        private sealed class CancelHandle : IDisposable
+        {
+            private CancellationTokenSource _cts;
+            private Thread _thread;
+
+            public CancelHandle(CancellationTokenSource cts, Thread thread)
+            {
+                _cts = cts;
+                _thread = thread;
+            }
+
+            public void Dispose()
+            {
+                if (_cts == null) return;
+
+                try { _cts.Cancel(); } catch { }
+                try { _cts.Dispose(); } catch { }
+
+                // Do not Join() here; we do not want to block AutoCAD's main thread.
+                _cts = null;
+                _thread = null;
+            }
+        }
+
+    } 
 }
