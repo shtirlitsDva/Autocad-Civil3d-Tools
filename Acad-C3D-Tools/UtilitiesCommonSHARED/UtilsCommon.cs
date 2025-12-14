@@ -4877,99 +4877,77 @@ namespace IntersectUtilities.UtilsCommon
         }
     }
 
-    internal static class CivilDialogAutomation
+    public static class ModalDialogDismisser
     {
-        public static IDisposable ArmClickOk_ProjectObjectsToProfileView(
-            int timeoutMs = 10000,
-            int pollMs = 150)
+        /// <summary>
+        /// Arms a timer that will automatically click the OK button on a modal dialog.
+        /// Call this BEFORE invoking a command that shows a modal dialog.
+        /// </summary>
+        /// <param name="dialogTitle">Title of the dialog window to find</param>
+        /// <param name="intervalMs">Timer tick interval in milliseconds</param>
+        /// <param name="timeoutMs">Maximum time to wait for dialog before throwing</param>
+        public static void ArmOkButtonDismisser(
+            string dialogTitle = "Project Objects To Profile View",
+            int intervalMs = 500,
+            int timeoutMs = 10000)
         {
-            const string dialogTitle = "Project Objects To Profile View";
+            int elapsed = 0;
+            System.Threading.Timer? timer = null;
 
-            var cts = new CancellationTokenSource();
-            var token = cts.Token;
-
-            // Run UIA polling on an STA thread (more reliable for UI Automation)
-            var t = new Thread(() =>
+            timer = new System.Threading.Timer(_ =>
             {
-                try
-                {
-                    var procId = Process.GetCurrentProcess().Id;
-                    var sw = Stopwatch.StartNew();
+                elapsed += intervalMs;
 
-                    while (!token.IsCancellationRequested && sw.ElapsedMilliseconds < timeoutMs)
+                IntPtr hwnd = Autodesk.AutoCAD.ApplicationServices
+                    .Application.MainWindow.Handle;
+                var mainWindow = AutomationElement.FromHandle(hwnd);
+
+                if (mainWindow == null)
+                {
+                    if (elapsed >= timeoutMs)
                     {
-                        try
-                        {
-                            // Find the modal dialog on the desktop for THIS process
-                            var dialogCondition = new AndCondition(
-                                new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Window),
-                                new PropertyCondition(AutomationElement.NameProperty, dialogTitle),
-                                new PropertyCondition(AutomationElement.ProcessIdProperty, procId)
-                            );
-
-                            var dialog = AutomationElement.RootElement.FindFirst(TreeScope.Children, dialogCondition);
-                            if (dialog != null)
-                            {
-                                // Find OK inside that dialog only
-                                var okCondition = new AndCondition(
-                                    new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Button),
-                                    new PropertyCondition(AutomationElement.NameProperty, "OK")
-                                );
-
-                                var ok = dialog.FindFirst(TreeScope.Descendants, okCondition);
-                                if (ok != null &&
-                                    ok.TryGetCurrentPattern(InvokePattern.Pattern, out var p) &&
-                                    p is InvokePattern invoke)
-                                {
-                                    invoke.Invoke();
-                                    return; // done
-                                }
-                            }
-                        }
-                        catch
-                        {
-                            // UIA can throw while UI changes; ignore and keep polling
-                        }
-
-                        Thread.Sleep(pollMs);
+                        timer?.Change(Timeout.Infinite, Timeout.Infinite);
+                        timer?.Dispose();
+                        throw new InvalidOperationException(
+                            "ModalDialogDismisser: Main AutoCAD window not found.");
                     }
+                    return; // Retry on next tick
                 }
-                catch
+
+                // Try to find the dialog window by its title
+                var dialog = mainWindow.FindFirst(
+                    TreeScope.Descendants,
+                    new PropertyCondition(AutomationElement.NameProperty, dialogTitle));
+
+                if (dialog == null)
                 {
-                    // swallow - best-effort automation
+                    if (elapsed >= timeoutMs)
+                    {
+                        timer?.Change(Timeout.Infinite, Timeout.Infinite);
+                        timer?.Dispose();
+                        throw new InvalidOperationException(
+                            $"ModalDialogDismisser: Dialog '{dialogTitle}' not found " +
+                            $"after {timeoutMs / 1000} seconds.");
+                    }
+                    return; // Retry on next tick
                 }
-            });
 
-            t.IsBackground = true;
-            t.SetApartmentState(ApartmentState.STA);
-            t.Start();
+                // Dialog found - now find and click OK button
+                timer?.Change(Timeout.Infinite, Timeout.Infinite);
+                timer?.Dispose();
 
-            return new CancelHandle(cts, t);
+                var okButton = dialog.FindFirst(
+                    TreeScope.Descendants,
+                    new PropertyCondition(AutomationElement.NameProperty, "OK"));
+
+                if (okButton == null)
+                    throw new InvalidOperationException(
+                        $"ModalDialogDismisser: OK button not found in dialog '{dialogTitle}'.");
+
+                var invokePattern = okButton.GetCurrentPattern(InvokePattern.Pattern)
+                    as InvokePattern;
+                invokePattern?.Invoke();
+            }, null, intervalMs, intervalMs);
         }
-
-        private sealed class CancelHandle : IDisposable
-        {
-            private CancellationTokenSource _cts;
-            private Thread _thread;
-
-            public CancelHandle(CancellationTokenSource cts, Thread thread)
-            {
-                _cts = cts;
-                _thread = thread;
-            }
-
-            public void Dispose()
-            {
-                if (_cts == null) return;
-
-                try { _cts.Cancel(); } catch { }
-                try { _cts.Dispose(); } catch { }
-
-                // Do not Join() here; we do not want to block AutoCAD's main thread.
-                _cts = null;
-                _thread = null;
-            }
-        }
-
-    } 
+    }
 }

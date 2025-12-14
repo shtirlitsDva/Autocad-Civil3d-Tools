@@ -650,3 +650,6 @@ Based on user feedback (Henrik Hein, June 2025):
 - **IntersectUtilities.PipeScheduleV2** - Pipe specifications and cover depths
 - **IntersectUtilities.NTS** - NTS ↔ AutoCAD geometry conversion
 
+
+
+

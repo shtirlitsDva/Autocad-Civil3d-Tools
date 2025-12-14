@@ -275,7 +275,8 @@ namespace IntersectUtilities
 
         private void createsurfaceprofilesmethod(
             DataReferencesOptions? dro = null,
-            List<Alignment>? allAlignments = null
+            List<Alignment>? allAlignments = null,
+            CivSurface? surface = null
         )
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -300,28 +301,29 @@ namespace IntersectUtilities
 
                 #region Read surface from file
                 // open the xref database
-                using Database xRefSurfaceDB = dm.Surface();
-                using Transaction xRefSurfaceTx = xRefSurfaceDB.TransactionManager.StartTransaction();
 
-                prdDbg(xRefSurfaceDB.Filename);
-
-                CivSurface? surface = null;
-                try
-                {
-                    surface =
-                        xRefSurfaceDB.HashSetOfType<TinSurface>(xRefSurfaceTx).FirstOrDefault()
-                        as CivSurface;
-                }
-                catch (System.Exception)
-                {
-                    throw;
-                }
 
                 if (surface == null)
                 {
-                    editor.WriteMessage("\nSurface could not be loaded from the xref!");
-                    xRefSurfaceTx.Commit();
-                    return;
+                    try
+                    {
+                        using Database xRefSurfaceDB = dm.Surface();
+                        prdDbg(xRefSurfaceDB.Filename);
+                        using Transaction xRefSurfaceTx = xRefSurfaceDB.TransactionManager.StartTransaction();
+                        surface =
+                            xRefSurfaceDB.HashSetOfType<TinSurface>(xRefSurfaceTx).FirstOrDefault()
+                            as CivSurface;
+                    }
+                    catch (System.Exception)
+                    {
+                        throw;
+                    }
+
+                    if (surface == null)
+                    {
+                        editor.WriteMessage("\nSurface could not be loaded from the xref!");
+                        return;
+                    }
                 }
                 #endregion
 
@@ -405,16 +407,10 @@ namespace IntersectUtilities
                 }
                 catch (System.Exception ex)
                 {
-                    xRefSurfaceTx.Abort();
-                    xRefSurfaceTx.Dispose();
-                    xRefSurfaceDB.Dispose();
                     tx.Abort();
                     prdDbg(ex);
                     return;
                 }
-                xRefSurfaceTx.Commit();
-                xRefSurfaceTx.Dispose();
-                xRefSurfaceDB.Dispose();
                 tx.Commit();
             }
         }
@@ -572,7 +568,7 @@ namespace IntersectUtilities
                 PSetDefs.DefinedSets.DriCrossingData
             );
 
-            DataManager dm = new(dro);            
+            DataManager dm = new(dro);
 
             using Database fjvDb = dm.Fremtid();
             using Transaction fjvTx = fjvDb.TransactionManager.StartTransaction();
@@ -765,7 +761,6 @@ namespace IntersectUtilities
                             );
                             lman.Dispose(true);
                             tx.Abort();
-                            surfaceTx.Abort();
                             fjvTx.Abort();
                             alTx.Abort();
                             return;
@@ -811,7 +806,6 @@ namespace IntersectUtilities
                             );
                             lman.Dispose(true);
                             tx.Abort();
-                            surfaceTx.Abort();
                             fjvTx.Abort();
                             alTx.Abort();
                             return;
@@ -1053,7 +1047,6 @@ namespace IntersectUtilities
                         prdDbg($"No profile named {al.Name}_surface_P found!");
                         lman.Dispose(true);
                         tx.Abort();
-                        surfaceTx.Abort();
                         fjvTx.Abort();
                         alTx.Abort();
                         return;
@@ -1215,10 +1208,8 @@ namespace IntersectUtilities
                         editor.SetImpliedSelection(selection);
                         prdDbg("");
                         // Arm UIA to dismiss the modal for this command invocation
-                        using (CivilDialogAutomation.ArmClickOk_ProjectObjectsToProfileView(timeoutMs: 10000, pollMs: 150))
-                        {
-                            editor.Command("._AeccProjectObjectsToProf", pv.ObjectId);
-                        }
+                        ModalDialogDismisser.ArmOkButtonDismisser();
+                        editor.Command("._AeccProjectObjectsToProf", pv.ObjectId);
                     }
                     #endregion
                     #endregion
@@ -3820,77 +3811,6 @@ namespace IntersectUtilities
                     }
                 }
                 #endregion
-                tx.Commit();
-            }
-        }
-
-        /// <command>CREATEPOINTSATVERTICES</command>
-        /// <summary>
-        /// Creates points at the vertices of polylines.
-        /// </summary>
-        /// <category>Longitudinal Profiles</category>
-        [CommandMethod("CREATEPOINTSATVERTICES")]
-        public void createpointsatvertices() => createpointsatverticesmethod();
-
-        public void createpointsatverticesmethod(Extents3d bbox = default)
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk
-                .Civil
-                .ApplicationServices
-                .CivilApplication
-                .ActiveDocument;
-
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    #region Load linework
-                    HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx);
-                    if (bbox != default)
-                    {
-                        plines = plines
-                            .Where(x => bbox.IsExtentsInsideXY(x.GeometricExtents))
-                            .ToHashSet();
-                    }
-                    #endregion
-
-                    #region Layer handling
-                    string localLayerName = "0-POINTS_FOR_PL_VERTICES";
-                    localDb.CheckOrCreateLayer(localLayerName);
-                    #endregion
-
-                    #region Decorate polyline vertices
-                    BlockTableRecord space = (BlockTableRecord)
-                        tx.GetObject(localDb.CurrentSpaceId, OpenMode.ForWrite);
-                    BlockTable bt =
-                        tx.GetObject(localDb.BlockTableId, OpenMode.ForWrite) as BlockTable;
-
-                    foreach (Polyline pline in plines)
-                    {
-                        int numOfVerts = pline.NumberOfVertices - 1;
-                        for (int i = 0; i < numOfVerts; i++)
-                        {
-                            Point3d location = pline.GetPoint3dAt(i);
-                            using (var pt = new DBPoint(new Point3d(location.X, location.Y, 0)))
-                            {
-                                space.AppendEntity(pt);
-                                tx.AddNewlyCreatedDBObject(pt, true);
-                                pt.Layer = localLayerName;
-                            }
-                        }
-                    }
-                    #endregion
-                }
-                catch (System.Exception ex)
-                {
-                    tx.Abort();
-                    editor.WriteMessage("\n" + ex.Message);
-                    return;
-                }
                 tx.Commit();
             }
         }
@@ -6993,13 +6913,12 @@ namespace IntersectUtilities
                 try
                 {
                     Alignment al = alId.Go<Alignment>(tx);
-                    createsurfaceprofilesmethod(dro, new List<Alignment>() { al });
+                    createsurfaceprofilesmethod(dro, new List<Alignment>() { al }, surface);
                     createprofileviewsmethod(originalProfileViewLocation);
                     createlerdatapssmethod2(dro, new List<Alignment>() { al }, surface);
                     populateprofilesmethod(dro, al.GetProfileViewIds().ToHashSet());
                     colorizealllerlayersmethod();
                     createprofilesmethod(dro, new HashSet<Alignment> { al });
-                    createpointsatverticesmethod(bufferedOriginalBbox);
                     createdetailingpreliminarymethod(dro, null, new HashSet<Alignment> { al });
                     staggerlabelsallmethod(null, al.GetProfileViewIds().ToHashSet());
                 }
@@ -7675,6 +7594,160 @@ namespace IntersectUtilities
             }
 
             tx.Commit();
+        }
+
+        /// <command>LEROPENANDSELECT</command>
+        /// <summary>
+        /// Select a cogo point in a profile view.
+        /// The command opens the corresponding LER database and selects the corresponding polyline3d.
+        /// </summary>
+        /// <category>Longitudinal Profiles</category>
+        [CommandMethod("LEROPENANDSELECT", CommandFlags.UsePickSet | CommandFlags.Session)]
+        public void leropenandselect()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor ed = docCol.MdiActiveDocument.Editor;
+
+            // Get preselected objects (PickFirst selection)
+            PromptSelectionResult ssResult = ed.SelectImplied();
+            if (ssResult.Status != PromptStatus.OK)
+            {
+                ed.WriteMessage("\nNo cogo point was preselected.");
+                return;
+            }
+
+            ObjectId[] ids = ssResult.Value.GetObjectIds();
+            if (ids.Length != 1)
+            {
+                ed.WriteMessage("\nPlease select exactly one cogo point.");
+                return;
+            }
+
+            using Transaction tx = localDb.TransactionManager.StartTransaction();
+
+            try
+            {
+                // Get the selected entity
+                Entity ent = ids[0].Go<Entity>(tx);
+
+                // Check if it's a CogoPoint
+                if (ent is not CogoPoint cogoPoint)
+                {
+                    ed.WriteMessage($"\nSelected object is not a CogoPoint. Type: {ent.GetType().Name}");
+                    tx.Abort();
+                    return;
+                }
+
+                string pointName = cogoPoint.PointName;
+                prdDbg($"CogoPoint name: {pointName}");
+
+                // Parse the point name
+                // Ler3dManagerFile format: <project>:<phase>:<Handle>_<n>
+                // Ler3dManagerFolder format: <project>:<phase>:<FileName>.dwg:<Handle>_<n>
+                string[] parts = pointName.Split(':');
+                if (parts.Length < 3)
+                {
+                    ed.WriteMessage($"\nInvalid point name format: {pointName}");
+                    tx.Abort();
+                    return;
+                }
+
+                string project = parts[0];
+                string phase = parts[1];
+
+                // Handle is always the last part, strip _<n> suffix if present
+                string handlePart = parts[^1];
+                string handle = handlePart.Contains('_')
+                    ? handlePart.Split('_')[0]
+                    : handlePart;
+
+                prdDbg($"Project: {project}, Phase: {phase}, Handle: {handle}");
+
+                // Create DataManager with parsed project and phase
+                var dro = new DataReferencesOptions(project, phase);
+                var dm = new DataManager(dro);
+
+                // Load Ler3dManager to get the database path
+                ILer3dManager lman = Ler3dManagerFactory.LoadLer3d(dm);
+                string? dbPath = null;
+
+                try
+                {
+                    // Get the correct database using the full ID string
+                    Database? targetDb = lman.GetDatabaseByIdString(pointName);
+
+                    if (targetDb == null)
+                    {
+                        ed.WriteMessage($"\nCould not find database for ID: {pointName}");
+                        tx.Abort();
+                        return;
+                    }
+
+                    dbPath = targetDb.Filename;
+                    prdDbg($"Opening database: {dbPath}");
+                }
+                finally
+                {
+                    // Dispose the Ler3dManager before opening the document
+                    // This releases file locks on all side-loaded databases
+                    lman.Dispose(true);
+                }
+
+                // Commit current transaction before opening new document
+                tx.Commit();
+
+                // Check if the document is already open
+                Document? newDoc = null;
+                foreach (Document doc in docCol)
+                {
+                    if (string.Equals(doc.Database.Filename, dbPath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        newDoc = doc;
+                        break;
+                    }
+                }
+
+                // Open the drawing if not already open, otherwise just switch to it
+                if (newDoc == null)
+                {
+                    newDoc = docCol.Open(dbPath, false);
+                }
+                docCol.MdiActiveDocument = newDoc;
+
+                // Now select and zoom to the entity in the new document
+                using (DocumentLock dl = newDoc.LockDocument())
+                {
+                    Database newDb = newDoc.Database;
+                    Editor newEd = newDoc.Editor;
+
+                    // Convert handle string to ObjectId
+                    long ln = Convert.ToInt64(handle, 16);
+                    Handle hn = new Handle(ln);
+                    Oid id = newDb.GetObjectId(false, hn, 0);
+
+                    if (id.IsNull || !id.IsValid)
+                    {
+                        newEd.WriteMessage($"\nCould not find entity with handle: {handle}");
+                        return;
+                    }
+
+                    // Select the entity using Internal.Utils (works cross-document)
+                    Autodesk.AutoCAD.Internal.Utils.SelectObjects([id]);
+
+                    // Zoom to the entity
+                    Interaction.ZoomObjects([ id ]);
+
+                    newEd.WriteMessage($"Selected and zoomed to entity with handle: {handle}");
+                }
+
+                return;
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg(ex);
+                return;
+            }
         }
     }
 }
