@@ -18,19 +18,16 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Data;
-using System.Data.Common;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Runtime.Serialization;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Windows.Automation;
-using System.Windows.Forms;
 using System.Xml.Serialization;
 
 using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
@@ -43,7 +40,6 @@ using Color = Autodesk.AutoCAD.Colors.Color;
 using DataTable = System.Data.DataTable;
 using DataType = Autodesk.Gis.Map.Constants.DataType;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
-using DebugHelper = IntersectUtilities.UtilsCommon.Utils.DebugHelper;
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 using ErrorStatus = Autodesk.AutoCAD.Runtime.ErrorStatus;
 using ObjectId = Autodesk.AutoCAD.DatabaseServices.ObjectId;
@@ -4113,6 +4109,49 @@ namespace IntersectUtilities.UtilsCommon
 
             lt.Close();
             lt.Dispose();
+            ms.Close();
+            ms.Dispose();
+            bt.Close();
+            bt.Dispose();
+
+            return result;
+        }
+
+        public static HashSet<Oid> HashSetOfIds<T>(this Database db, bool discardFrozen = true)
+        {
+            if (db.TransactionManager.TopTransaction != null)
+                throw new System.Exception(
+                    "HashSetOfFjvPipeIds must be used outside of Transaction!"
+                );
+
+            HashSet<Oid> result = new HashSet<Oid>();
+
+            var bt = db.BlockTableId.Open(OpenMode.ForRead) as BlockTable;
+            var ms = bt[BlockTableRecord.ModelSpace].Open(OpenMode.ForRead) as BlockTableRecord;
+            var lt = db.LayerTableId.Open(OpenMode.ForRead) as LayerTable;
+
+            foreach (Oid oid in ms)
+            {
+                if (oid.IsDerivedFrom<T>())
+                {
+                    if (discardFrozen)
+                    {
+                        Entity ent = oid.Open(OpenMode.ForRead) as Entity;
+                        var ltr = lt[ent.Layer].Open(OpenMode.ForRead) as LayerTableRecord;
+
+                        if (!(ltr.IsFrozen && discardFrozen)) result.Add(oid);
+
+                        ltr.Close();
+                        ltr.Dispose();
+                        ent.Close();
+                        ent.Dispose();
+                    }
+                    else result.Add(oid);                    
+                }
+            }
+
+            //lt.Close();
+            //lt.Dispose();
             ms.Close();
             ms.Dispose();
             bt.Close();

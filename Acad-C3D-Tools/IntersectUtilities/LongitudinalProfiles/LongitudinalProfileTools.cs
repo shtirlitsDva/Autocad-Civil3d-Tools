@@ -544,14 +544,30 @@ namespace IntersectUtilities
         public void createlerdatapss()
         {
             DataReferencesOptions dro = new DataReferencesOptions();
-            createlerdatapssmethod2(dro);
+            DataManager dm = new(dro);
+            using var surfaceDb = dm.Surface();
+            using Transaction surfaceTx = surfaceDb.TransactionManager.StartTransaction();
+
+            CivSurface? surface = surfaceDb
+                .HashSetOfType<TinSurface>(surfaceTx)
+                .FirstOrDefault();
+
+            if (surface != null)
+            {
+                createlerdatapssmethod2(dro, surface);
+            }
+            else
+            {
+                prdDbg("Surface could not be loaded!");
+            }
+
+            surfaceTx.Abort();
         }
 
         public void createlerdatapssmethod2(
             DataReferencesOptions dro,
-            List<Alignment>? allAlignments = null,
-            CivSurface? surface = null
-        )
+            CivSurface surface,
+            List<Alignment>? allAlignments = null)
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
@@ -580,35 +596,6 @@ namespace IntersectUtilities
 
             string projectName = dro.ProjectName;
             string etapeName = dro.EtapeName;
-
-            #region Read surface from file
-            if (surface == null)
-            {
-                try
-                {
-                    using Database surfaceDb = dm.Surface();
-                    using Transaction surfaceTx = surfaceDb.TransactionManager.StartTransaction();
-                    surface =
-                        surfaceDb.HashSetOfType<TinSurface>(surfaceTx).FirstOrDefault() as CivSurface;
-                }
-                catch (System.Exception)
-                {
-                    fjvTx.Abort();
-                    alTx.Abort();
-                    tx.Abort();
-                    return;
-                }
-
-                if (surface == null)
-                {
-                    editor.WriteMessage("\nSurface could not be loaded from the xref!");
-                    fjvTx.Abort();
-                    alTx.Abort();
-                    tx.Abort();
-                    return;
-                }
-            }
-            #endregion
 
             #region Load LER data
             ILer3dManager lman = Ler3dManagerFactory.LoadLer3d(dm);
@@ -840,11 +827,8 @@ namespace IntersectUtilities
                             string kote = "";
                             if (type != "3D")
                             {
-                                var intPoint = surface.GetIntersectionPoint(
-                                    new Point3d(p3d.X, p3d.Y, -99.0),
-                                    new Vector3d(0, 0, 1)
-                                );
-                                zElevation = intPoint.Z;
+
+                                zElevation = surface.FindElevationAtXY(p3d.X, p3d.Y);
 
                                 //Subtract the depth (if invalid it is zero, so no modification will occur)
                                 zElevation -= depth;
@@ -1224,7 +1208,7 @@ namespace IntersectUtilities
                 alTx.Abort();
                 prdDbg(ex);
                 return;
-            }
+            }            
             lman.Dispose(true);
             tx.Commit();
             fjvTx.Abort();
@@ -6915,7 +6899,7 @@ namespace IntersectUtilities
                     Alignment al = alId.Go<Alignment>(tx);
                     createsurfaceprofilesmethod(dro, new List<Alignment>() { al }, surface);
                     createprofileviewsmethod(originalProfileViewLocation);
-                    createlerdatapssmethod2(dro, new List<Alignment>() { al }, surface);
+                    createlerdatapssmethod2(dro, surface, new List<Alignment>() { al });
                     populateprofilesmethod(dro, al.GetProfileViewIds().ToHashSet());
                     colorizealllerlayersmethod();
                     createprofilesmethod(dro, new HashSet<Alignment> { al });
@@ -7736,7 +7720,7 @@ namespace IntersectUtilities
                     Autodesk.AutoCAD.Internal.Utils.SelectObjects([id]);
 
                     // Zoom to the entity
-                    Interaction.ZoomObjects([ id ]);
+                    Interaction.ZoomObjects([id]);
 
                     newEd.WriteMessage($"Selected and zoomed to entity with handle: {handle}");
                 }

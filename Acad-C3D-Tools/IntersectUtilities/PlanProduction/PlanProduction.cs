@@ -81,8 +81,19 @@ namespace IntersectUtilities
 
             DataReferencesOptions dro = new DataReferencesOptions();
 
+            DataManager dm = new DataManager(dro);
+            using var surfaceDb = dm.Surface();
+            using var stx = surfaceDb.TransactionManager.StartTransaction();
+            var surface = surfaceDb.HashSetOfType<TinSurface>(stx).FirstOrDefault();
+            if (surface == null)
+            {
+                prdDbg("\nNo surface found in the specified DataReferencesOptions.");
+                return;
+            }
+
             //Create crossing points first
-            createlerdatapssmethod2(dro);
+            createlerdatapssmethod2(dro, surface);
+
             //Populateprofileviews with crossing data
             populateprofiles();
 
@@ -387,7 +398,18 @@ namespace IntersectUtilities
 
             //Create crossing points first
             DataReferencesOptions dro = new DataReferencesOptions();
-            createlerdatapssmethod2(dro);
+
+            DataManager dm = new DataManager(dro);
+            using var surfaceDb = dm.Surface();
+            using var stx = surfaceDb.TransactionManager.StartTransaction();
+            var surface = surfaceDb.HashSetOfType<TinSurface>(stx).FirstOrDefault();
+            if (surface == null)
+            {
+                prdDbg("\nNo surface found in the specified DataReferencesOptions.");
+                return;
+            }
+
+            createlerdatapssmethod2(dro, surface);
 
             //Populateprofileviews with crossing data
             populateprofilesmethod(dro);
@@ -656,7 +678,18 @@ namespace IntersectUtilities
             //Create crossing points first
             DataReferencesOptions dro = new DataReferencesOptions(droText[0], droText[1]);
             #region The whole sequence
-            createlerdatapssmethod2(dro);
+
+            DataManager dm = new DataManager(dro);
+            using var surfaceDb = dm.Surface();
+            using var stx = surfaceDb.TransactionManager.StartTransaction();
+            var surface = surfaceDb.HashSetOfType<TinSurface>(stx).FirstOrDefault();
+            if (surface == null)
+            {
+                prdDbg("\nNo surface found in the specified DataReferencesOptions.");
+                return;
+            }
+
+            createlerdatapssmethod2(dro, surface);
 
             //Populateprofileviews with crossing data
             populateprofilesmethod(dro);
