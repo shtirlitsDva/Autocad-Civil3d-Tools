@@ -6702,7 +6702,18 @@ namespace IntersectUtilities
         [CommandMethod("UPDATESINGLEPROFILEVIEW")]
         public void updatesingleprofileview()
         {
-            updatesingleprofileviewmethod(Oid.Null, null);
+            var dro = new DataReferencesOptions();
+            DataManager dm = new DataManager(dro);
+            using var surfaceDb = dm.Surface();
+            using var stx = surfaceDb.TransactionManager.StartTransaction();
+            var surface = surfaceDb.HashSetOfType<TinSurface>(stx).FirstOrDefault();
+            if (surface == null)
+            {
+                prdDbg("\nNo surface found in the specified DataReferencesOptions.");
+                return;
+            }
+
+            updatesingleprofileviewmethod(Oid.Null, dro, surface);
         }
 
         public void updatesingleprofileviewmethod(
