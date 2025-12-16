@@ -129,6 +129,31 @@ namespace AcadOverrules
             }
             Application.DocumentManager.MdiActiveDocument.Editor.Regen();
         }
+
+        private static DraftPolylineVerticeMark _draftPolylineVerticeMark;
+        /// <command>TOGGLEDRAFTVERTICES</command>
+        /// <summary>
+        /// Draws small circles at each vertex of polylines on layer '0-FJV-PROFILE-DRAFT'
+        /// with red color. Circles are drawn in white/black (ACI 7).
+        /// </summary>
+        /// <category>Overrules</category>
+        [CommandMethod("TOGGLEDRAFTVERTICES")]
+        public static void toggledraftvertices()
+        {
+            if (_draftPolylineVerticeMark == null)
+            {
+                _draftPolylineVerticeMark = new DraftPolylineVerticeMark();
+                Overrule.AddOverrule(RXObject.GetClass(typeof(Polyline)), _draftPolylineVerticeMark, false);
+                Overrule.Overruling = true;
+            }
+            else
+            {
+                Overrule.RemoveOverrule(RXObject.GetClass(typeof(Polyline)), _draftPolylineVerticeMark);
+                _draftPolylineVerticeMark.Dispose();
+                _draftPolylineVerticeMark = null;
+            }
+            Application.DocumentManager.MdiActiveDocument.Editor.Regen();
+        }
 #if DEBUG
         private static GripVectorOverrule _gripVectorOverrule;
 
