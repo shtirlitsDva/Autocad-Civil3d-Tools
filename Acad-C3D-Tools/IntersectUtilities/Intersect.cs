@@ -5896,7 +5896,7 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    double toleranceCover = 0.05;
+                    double toleranceCover = 0.0;
 
                     PromptIntegerOptions soilCoverOptions = new PromptIntegerOptions("\nMinimum soil cover in cm:");
                     soilCoverOptions.AllowNegative = false;
