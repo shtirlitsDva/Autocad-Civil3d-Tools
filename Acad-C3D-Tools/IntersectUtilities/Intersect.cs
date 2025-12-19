@@ -5874,6 +5874,114 @@ namespace IntersectUtilities
                     return;
                 }
             }
-        }        
+        }
+
+        /// <command>CHECKSOILCOVER</command>
+        /// <summary>
+        /// Går alle længdeprofiler igennem og tjekker om et ønskede jorddække er overholdt.
+        /// Der tjekkes for hver 5 m (station). Hvis en station har mindre end det ønsket jorddække gives der besked i kommandovinduet
+        /// Hvis en længdeprofil indeholder profiler der ikke er fuldendte bliver brugeren gjort opmærksom.
+        /// </summary>
+        /// <category>Longitudinal Profiles</category>
+
+        [CommandMethod("CHECKSOILCOVER")]
+        public void CheckSoilCover()
+        {
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+            Database db = doc.Database;
+            Editor ed = doc.Editor;
+            CivilDocument civDoc = CivilApplication.ActiveDocument;
+
+            using (Transaction tr = db.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    double toleranceCover = 0.0;
+
+                    PromptIntegerOptions soilCoverOptions = new PromptIntegerOptions("\nMinimum soil cover in cm:");
+                    soilCoverOptions.AllowNegative = false;
+                    soilCoverOptions.AllowNone = false;
+                    soilCoverOptions.DefaultValue = 60;
+                    soilCoverOptions.UseDefaultValue = true;
+
+                    PromptIntegerResult soilCoverResult = ed.GetInteger(soilCoverOptions);
+                    if (soilCoverResult.Status != PromptStatus.OK)
+                        return;
+
+                    double minimumSoilCover = soilCoverResult.Value / 100.0;
+
+                    List<Alignment> alignments = new List<Alignment>();
+
+                    foreach (ObjectId alignId in civDoc.GetAlignmentIds())
+                    {
+                        Alignment alignment = tr.GetObject(alignId, OpenMode.ForRead) as Alignment;
+
+                        if (alignment != null)
+                            alignments.Add(alignment);
+                    }
+
+                    var orderedAlignments = alignments.OrderBy(a => a.Name).ToList();
+
+                    foreach (Alignment alignment in orderedAlignments)
+                    {
+                        ObjectIdCollection profileIds = alignment.GetProfileIds();
+
+                        Profile surface = null;
+                        Profile top = null;
+
+                        foreach (ObjectId profileId in profileIds)
+                        {
+                            Profile profile = tr.GetObject(profileId, OpenMode.ForRead) as Profile;
+
+                            if (profile.Name.Contains("surface"))
+                                surface = profile;
+                            else if (profile.Name.Contains("TOP"))
+                                top = profile;
+                        }
+
+                        if (surface == null || top == null)
+                        {
+                            prdDbg($"\n{alignment.Name} failed due to missing profiles");
+                            continue;
+                        }
+
+                        try
+                        {
+                            prdDbg($"\n{alignment.Name}:");
+
+                            for (double station = alignment.StartingStation; station < alignment.EndingStation; station += 5.0)
+                            {
+                                double surfaceKote = surface.ElevationAt(station);
+                                double topKote = top.ElevationAt(station);
+
+                                double soilCover = surfaceKote - topKote;
+
+                                if (soilCover < minimumSoilCover - toleranceCover)
+                                    prdDbg($"{soilCover:F2} at station {station}");
+                            }
+
+                            double soilCoverEndingStation = surface.ElevationAt(alignment.EndingStation) - top.ElevationAt(alignment.EndingStation);
+
+                            if (soilCoverEndingStation < minimumSoilCover - toleranceCover)
+                                prdDbg($"{soilCoverEndingStation:F2} at station {alignment.EndingStation:F0}");
+                        }
+                        catch
+                        {
+                            prdDbg("Profiles does not cover the entire profileview");
+                            continue;
+                        }
+                    }
+
+                    tr.Commit();
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex);
+                    tr.Abort();
+                    return;
+                }
+            }
+        }
+
     }
 }
