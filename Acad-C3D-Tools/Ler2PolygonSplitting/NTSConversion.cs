@@ -69,10 +69,17 @@ namespace Ler2PolygonSplitting.NTS
             Polyline polyline = new Polyline(points.Length);
             foreach (var point in points)
                 polyline.AddVertexAt(polyline.NumberOfVertices, point, 0, 0, 0);
-            polyline.Closed = true;
+            polyline.Closed = true;            
 
             MPolygon mpg = new MPolygon();
             mpg.AppendLoopFromBoundary(polyline, true, Tolerance.Global.EqualPoint);
+
+            if (mpg.Area < 0)
+            {
+                mpg = new MPolygon();
+                polyline.ReverseCurve();
+                mpg.AppendLoopFromBoundary(polyline, true, Tolerance.Global.EqualPoint);
+            }
             
             return mpg;
         }

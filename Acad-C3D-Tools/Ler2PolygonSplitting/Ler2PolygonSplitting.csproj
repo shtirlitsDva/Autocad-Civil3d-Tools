@@ -40,6 +40,7 @@
 	<PropertyGroup>
 		<GenerateDocumentationFile>True</GenerateDocumentationFile>
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+		<AssemblyName>Ler2PolygonSplitting</AssemblyName>
 	</PropertyGroup>
 	<ItemGroup>
 		<PackageReference Include="Accord" Version="3.8.0" />

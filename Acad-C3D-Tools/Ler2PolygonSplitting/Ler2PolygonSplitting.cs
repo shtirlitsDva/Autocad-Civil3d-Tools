@@ -98,7 +98,7 @@ namespace Ler2PolygonSplitting
                         for (int i = 1; i < 5; i++)
                             keywords.Add($"N{minsplits + i}:{(polygon.Area / (minsplits + i)).ToString("0", dk)} m²", minsplits + i);
 
-                        string value = StringGridFormCaller.Call(keywords.Select(x => x.Key).ToList(), "Select number of polygons to create:");
+                        string value = StringGridFormCaller.Call(keywords.Select(x => x.Key), "Select number of polygons to create:");
 
                         int K = keywords[value];
 
