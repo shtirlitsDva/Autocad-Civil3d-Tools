@@ -33,5 +33,46 @@
             </Setter.Value>
         </Setter>
     </Style>
+
+    <!-- Unified Form Styles -->
+    <Style x:Key="FormRowStyle" TargetType="Grid">
+        <Setter Property="Margin" Value="0,4"/>
+    </Style>
+
+    <Style x:Key="FormLabelStyle" TargetType="Label">
+        <Setter Property="Foreground" Value="{DynamicResource Text}"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Margin" Value="0,0,10,0"/>
+    </Style>
+
+    <Style x:Key="FormTextBoxStyle" TargetType="TextBox">
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="HorizontalAlignment" Value="Left"/>
+        <Setter Property="Padding" Value="2"/>
+    </Style>
+
+    <Style x:Key="FormComboBoxStyle" TargetType="ComboBox">
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="HorizontalAlignment" Value="Left"/>
+        <Setter Property="Padding" Value="2"/>
+    </Style>
+
+    <Style x:Key="FormCheckBoxStyle" TargetType="CheckBox">
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="HorizontalAlignment" Value="Left"/>
+        <Setter Property="Foreground" Value="{DynamicResource Text}"/>
+        <Setter Property="Margin" Value="0,4"/>
+    </Style>
+
+    <Style x:Key="FormGroupBoxStyle" TargetType="GroupBox">
+        <Setter Property="Margin" Value="0,0,0,15"/>
+        <Setter Property="Padding" Value="5"/>
+        <Setter Property="Foreground" Value="{DynamicResource Text}"/>
+    </Style>
+
+    <Style x:Key="ActionButtonStyle" TargetType="Button">
+        <Setter Property="Margin" Value="5,0"/>
+        <Setter Property="Padding" Value="15,5"/>
+    </Style>
     
 </ResourceDictionary>

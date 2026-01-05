@@ -6,189 +6,356 @@
              xmlns:local="clr-namespace:DimensioneringV2.UI"
              xmlns:sys="clr-namespace:System;assembly=mscorlib"
              mc:Ignorable="d" 
-             d:DesignHeight="704" d:DesignWidth="800">
+             d:DesignHeight="1200" d:DesignWidth="800">
 
     <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
         <ResourceDictionary Source="Theme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- Map Theme Styles to Implicit Styles for this view -->
+            <Style TargetType="Grid" x:Key="RowStyle" BasedOn="{StaticResource FormRowStyle}"/>
+            <Style TargetType="Label" BasedOn="{StaticResource FormLabelStyle}"/>
+            <Style TargetType="TextBox" BasedOn="{StaticResource FormTextBoxStyle}"/>
+            <Style TargetType="ComboBox" BasedOn="{StaticResource FormComboBoxStyle}"/>
+            <Style TargetType="CheckBox" BasedOn="{StaticResource FormCheckBoxStyle}"/>
+            <Style TargetType="GroupBox" BasedOn="{StaticResource FormGroupBoxStyle}"/>
+            <Style TargetType="Button" x:Key="ActionBtn" BasedOn="{StaticResource ActionButtonStyle}"/>
+
+        </ResourceDictionary>
     </UserControl.Resources>
 
-    <!-- 
-    Ensure that the root or a parent panel has IsSharedSizeScope="True"
-    This will allow columns in nested grids that share a SharedSizeGroup name
-    to align columns across multiple areas.
-    -->
     <ScrollViewer Background="{DynamicResource Background}" 
                   HorizontalScrollBarVisibility="Auto"
                   VerticalScrollBarVisibility="Auto">
-        <StackPanel Orientation="Vertical" Grid.IsSharedSizeScope="True">
 
-            <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+        <!-- Root StackPanel with SharedSizeScope -->
+        <StackPanel Orientation="Vertical" Grid.IsSharedSizeScope="True" Margin="10">
                 
+            <!-- Buttons -->
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
                 <Button Content="Save Settings"
                         Command="{Binding SaveSettingsCommand}"
-                        Margin="5,0" />
+                        Style="{StaticResource ActionBtn}" />
 
                 <Button Content="Observe"
                         Command="{Binding ObserveSettingsCommand}"
-                        Margin="5,0" />
-                
+                        Style="{StaticResource ActionBtn}" />
             </StackPanel>
 
             <!-- Miscellaneous Settings -->
-            <GroupBox Header="Fælles input (stik- og fordelingsledninger)" Foreground="{DynamicResource Text}">
-                <Grid>
+            <GroupBox Header="Fælles input (stik- og fordelingsledninger)">
+                <StackPanel>
+                    <!-- Medietype -->
+                    <Grid Style="{StaticResource RowStyle}">
                     <Grid.ColumnDefinitions>
-                        <!-- Shared size group for labels -->
                         <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
-                        <!-- Shared size group for inputs -->
                         <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
                     </Grid.ColumnDefinitions>
-
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-
-                    <Label Grid.Row="0" Grid.Column="0" Content="Medietype:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                    <ComboBox Grid.Row="0" Grid.Column="1" Width="150"
+                        <Label Content="Medietype:"/>
+                        <ComboBox Grid.Column="1" Width="150"
                               ItemsSource="{Binding MedieTypes}"
                               SelectedItem="{Binding Settings.MedieType, UpdateSourceTrigger=PropertyChanged}" />
+                    </Grid>
 
-                    <Label Grid.Row="1" Grid.Column="0" Content="Returtemperatur for varmt brugsvand [°:Decimaltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                    <TextBox Grid.Row="1" Grid.Column="1" Width="50" Text="{Binding Settings.HotWaterReturnTemp, UpdateSourceTrigger=PropertyChanged}"/>
+                    <!-- HotWaterReturnTemp -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Returtemperatur for varmt brugsvand [°:Decimaltal]:"/>
+                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.HotWaterReturnTemp, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
 
-                    <CheckBox Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Content="Brug brugsvandsprioritering"
-                              IsChecked="{Binding Settings.UseBrugsvandsprioritering, UpdateSourceTrigger=PropertyChanged}"
-                              Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
+                    <!-- UseBrugsvandsprioritering (CheckBox) -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <CheckBox Grid.Column="0" Grid.ColumnSpan="2" Content="Brug brugsvandsprioritering"
+                                  IsChecked="{Binding Settings.UseBrugsvandsprioritering, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
 
-                    <Label Grid.Row="3" Grid.Column="0" Content="Factor for tillæg for opvarmning uden brugsvandsprioritering [Decimaltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                    <TextBox Grid.Row="3" Grid.Column="1" Width="50" Text="{Binding Settings.FactorTillægForOpvarmningUdenBrugsvandsprioritering, UpdateSourceTrigger=PropertyChanged}"
+                    <!-- FactorTillæg -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Factor for tillæg for opvarmning uden brugsvandsprioritering [Decimaltal]:"/>
+                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.FactorTillægForOpvarmningUdenBrugsvandsprioritering, UpdateSourceTrigger=PropertyChanged}"
                              IsEnabled="{Binding IsFactorTillægEditable}"/>
+                    </Grid>
 
-                    <Label Grid.Row="4" Grid.Column="0" Content="Minimum differenstryk over hovedhaner ved forbrugeren [bar:Decimaltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                    <TextBox Grid.Row="4" Grid.Column="1" Width="50" Text="{Binding Settings.MinDifferentialPressureOverHovedHaner, UpdateSourceTrigger=PropertyChanged}"/>
+                    <!-- MinDifferentialPressure -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Minimum differenstryk over hovedhaner ved forbrugeren [bar:Decimaltal]:"/>
+                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.MinDifferentialPressureOverHovedHaner, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
 
-                    <Label Grid.Row="5" Grid.Column="0" Content="Ruhed stålrør [mm:Decimaltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                    <TextBox Grid.Row="5" Grid.Column="1" Width="50" Text="{Binding Settings.RuhedSteel, UpdateSourceTrigger=PropertyChanged}"/>
+                    <!-- RuhedSteel -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Ruhed stålrør [mm:Decimaltal]:"/>
+                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.RuhedSteel, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
 
-                    <Label Grid.Row="6" Grid.Column="0" Content="Ruhed Pert Flextra [mm:Decimaltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                    <TextBox Grid.Row="6" Grid.Column="1" Width="50" Text="{Binding Settings.RuhedPertFlextra, UpdateSourceTrigger=PropertyChanged}"/>
+                    <!-- RuhedPertFlextra -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Ruhed Pert Flextra [mm:Decimaltal]:"/>
+                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.RuhedPertFlextra, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
 
-                    <Label Grid.Row="7" Grid.Column="0" Content="Ruhed AluPEX [mm:Decimaltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                    <TextBox Grid.Row="7" Grid.Column="1" Width="50" Text="{Binding Settings.RuhedAluPEX, UpdateSourceTrigger=PropertyChanged}"/>
+                    <!-- RuhedAluPEX -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Ruhed AluPEX [mm:Decimaltal]:"/>
+                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.RuhedAluPEX, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
 
-                    <Label Grid.Row="8" Grid.Column="0" Content="Ruhed CuFlex [mm:Decimaltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                    <TextBox Grid.Row="8" Grid.Column="1" Width="50" Text="{Binding Settings.RuhedCu, UpdateSourceTrigger=PropertyChanged}"/>
+                    <!-- RuhedCu -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Ruhed CuFlex [mm:Decimaltal]:"/>
+                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.RuhedCu, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
 
-                    <Label Grid.Row="9" Grid.Column="0" Content="Ruhed PE [mm:Decimaltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                    <TextBox Grid.Row="9" Grid.Column="1" Width="50" Text="{Binding Settings.RuhedPe, UpdateSourceTrigger=PropertyChanged}"/>
+                    <!-- RuhedPe -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Ruhed PE [mm:Decimaltal]:"/>
+                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.RuhedPe, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
 
-                    <Label Grid.Row="10" Grid.Column="0" Content="Tillæg til holdetryk [mVS:Decimaltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                    <TextBox Grid.Row="10" Grid.Column="1" Width="50" Text="{Binding Settings.TillægTilHoldetrykMVS, UpdateSourceTrigger=PropertyChanged}"/>
+                    <!-- TillægTilHoldetrykMVS -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Tillæg til holdetryk [mVS:Decimaltal]:"/>
+                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.TillægTilHoldetrykMVS, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
 
-                    <Label Grid.Row="11" Grid.Column="0" Content="Tillæg til tryktab i procent [%:Heltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                    <TextBox Grid.Row="11" Grid.Column="1" Width="50" Text="{Binding Settings.ProcentTillægTilTryktab, UpdateSourceTrigger=PropertyChanged}"/>
+                    <!-- ProcentTillægTilTryktab -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Tillæg til tryktab i procent [%:Heltal]:"/>
+                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.ProcentTillægTilTryktab, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
                     
-                    <Label Grid.Row="12" Grid.Column="0" Content="Tid til søgning af Steiner træer [sek:Heltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                    <TextBox Grid.Row="12" Grid.Column="1" Width="50" Text="{Binding Settings.TimeToSteinerTreeEnumeration, UpdateSourceTrigger=PropertyChanged}"/>
+                    <!-- TimeToSteinerTreeEnumeration -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Tid til søgning af Steiner træer [sek:Heltal]:"/>
+                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.TimeToSteinerTreeEnumeration, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
 
-                    <Label Grid.Row="13" Grid.Column="0" Content="Friktionsfaktor formel [CW = ColebrookWhite, TM = TkaczenkoMileikovskyi]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                    <ComboBox Grid.Row="13" Grid.Column="1" Width="100"
+                    <!-- CalculationType -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Friktionsfaktor formel [CW = ColebrookWhite, TM = TkaczenkoMileikovskyi]:"/>
+                        <ComboBox Grid.Column="1" Width="100"
                               ItemsSource="{Binding CalculationTypes}"
                               SelectedItem="{Binding Settings.CalculationType, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
 
-                    <!-- CheckBox spans both columns if needed -->
-                    <CheckBox Grid.Row="14" Grid.Column="0" Grid.ColumnSpan="2" Content="Skriv resultater til konsolvinduet [Langsommere]"
-                              IsChecked="{Binding Settings.ReportToConsole, UpdateSourceTrigger=PropertyChanged}"
-                              Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
+                    <!-- ReportToConsole -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <CheckBox Grid.Column="0" Grid.ColumnSpan="2" Content="Skriv resultater til konsolvinduet [Langsommere]"
+                                  IsChecked="{Binding Settings.ReportToConsole, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
 
-                    <!-- CheckBox spans both columns if needed -->
-                    <CheckBox Grid.Row="15" Grid.Column="0" Grid.ColumnSpan="2" Content="Brug resultat caching"
-                              IsChecked="{Binding Settings.CacheResults, UpdateSourceTrigger=PropertyChanged}"
-                              Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
+                    <!-- CacheResults -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <CheckBox Grid.Column="0" Grid.ColumnSpan="2" Content="Brug resultat caching"
+                                  IsChecked="{Binding Settings.CacheResults, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
 
-                    <Label Grid.Row="16" Grid.Column="0" Content="Præcision for caching [Heltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                    <TextBox Grid.Row="16" Grid.Column="1" Width="50" Text="{Binding Settings.CachePrecision, UpdateSourceTrigger=PropertyChanged}"/>
+                    <!-- CachePrecision -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Præcision for caching [Heltal]:"/>
+                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.CachePrecision, UpdateSourceTrigger=PropertyChanged}"/>
                 </Grid>
+                </StackPanel>
             </GroupBox>
 
             <!-- Supply Lines (FL) -->
-            <GroupBox Header="Fordelingsledninger" Foreground="{DynamicResource Text}">
-                <Grid>
+            <GroupBox Header="Fordelingsledninger">
+                <StackPanel>
+                    <!-- TempFremFL -->
+                    <Grid Style="{StaticResource RowStyle}">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
                         <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
                     </Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
+                        <Label Content="Temperatur frem [°:Decimaltal]:"/>
+                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.TempFremFL, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
 
-                    <Label Grid.Row="0" Grid.Column="0" Content="Temperatur frem [°:Decimaltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                    <TextBox Grid.Row="0" Grid.Column="1" Width="50" Text="{Binding Settings.TempFremFL, UpdateSourceTrigger=PropertyChanged}"/>
+                    <!-- TempReturFL -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Temperatur retur [°:Decimaltal]:"/>
+                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.TempReturFL, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
 
-                    <Label Grid.Row="1" Grid.Column="0" Content="Temperatur retur [°:Decimaltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                    <TextBox Grid.Row="1" Grid.Column="1" Width="50" Text="{Binding Settings.TempReturFL, UpdateSourceTrigger=PropertyChanged}"/>
+                    <!-- FactorVarmtVandsTillægFL -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Faktor for varmtvandstillæg (veksler eller beholder) [Decimaltal]:"/>
+                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.FactorVarmtVandsTillægFL, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
 
-                    <Label Grid.Row="2" Grid.Column="0" Content="Faktor for varmtvandstillæg (veksler eller beholder) [Decimaltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                    <TextBox Grid.Row="2" Grid.Column="1" Width="50" Text="{Binding Settings.FactorVarmtVandsTillægFL, UpdateSourceTrigger=PropertyChanged}"/>
+                    <!-- NyttetimerOneUserFL -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Nyttetimer ved 1 forbruger [Heltal]:"/>
+                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.NyttetimerOneUserFL, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
 
-                    <Label Grid.Row="3" Grid.Column="0" Content="Nyttetimer ved 1 forbruger [Heltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                    <TextBox Grid.Row="3" Grid.Column="1" Width="50" Text="{Binding Settings.NyttetimerOneUserFL, UpdateSourceTrigger=PropertyChanged}"/>
+                    <!-- Nyttetimer50PlusUsersFL -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Nyttetimer ved 50+ forbrugere [Heltal]:"/>
+                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.Nyttetimer50PlusUsersFL, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
 
-                    <Label Grid.Row="4" Grid.Column="0" Content="Nyttetimer ved 50+ forbrugere [Heltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                    <TextBox Grid.Row="4" Grid.Column="1" Width="50" Text="{Binding Settings.Nyttetimer50PlusUsersFL, UpdateSourceTrigger=PropertyChanged}"/>
+                    <!-- AcceptVelocity20_150FL -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Acceptkriterie hastighed DN 20-150 [m/s:Decimaltal]:"/>
+                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.AcceptVelocity20_150FL, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
 
-                    <Label Grid.Row="5" Grid.Column="0" Content="Acceptkriterie hastighed DN 20-150 [m/s:Decimaltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                    <TextBox Grid.Row="5" Grid.Column="1" Width="50" Text="{Binding Settings.AcceptVelocity20_150FL, UpdateSourceTrigger=PropertyChanged}"/>
+                    <!-- AcceptVelocity200_300FL -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Acceptkriterie hastighed DN 200-300 [m/s:Decimaltal]:"/>
+                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.AcceptVelocity200_300FL, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
 
-                    <Label Grid.Row="6" Grid.Column="0" Content="Acceptkriterie hastighed DN 200-300 [m/s:Decimaltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                    <TextBox Grid.Row="6" Grid.Column="1" Width="50" Text="{Binding Settings.AcceptVelocity200_300FL, UpdateSourceTrigger=PropertyChanged}"/>
+                    <!-- AcceptVelocity350PlusFL -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Acceptkriterie hastighed DN 350+ [m/s:Decimaltal]:"/>
+                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.AcceptVelocity350PlusFL, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
 
-                    <Label Grid.Row="7" Grid.Column="0" Content="Acceptkriterie hastighed DN 350+ [m/s:Decimaltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                    <TextBox Grid.Row="7" Grid.Column="1" Width="50" Text="{Binding Settings.AcceptVelocity350PlusFL, UpdateSourceTrigger=PropertyChanged}"/>
+                    <!-- AcceptPressureGradient20_150FL -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Acceptkriterie trykgradient DN 20-150 [Pa/m:Heltal]:"/>
+                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.AcceptPressureGradient20_150FL, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
 
-                    <Label Grid.Row="8" Grid.Column="0" Content="Acceptkriterie trykgradient DN 20-150 [Pa/m:Heltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                    <TextBox Grid.Row="8" Grid.Column="1" Width="50" Text="{Binding Settings.AcceptPressureGradient20_150FL, UpdateSourceTrigger=PropertyChanged}"/>
+                    <!-- AcceptPressureGradient200_300FL -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Acceptkriterie trykgradient DN 200-300 [Pa/m:Heltal]:"/>
+                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.AcceptPressureGradient200_300FL, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
 
-                    <Label Grid.Row="9" Grid.Column="0" Content="Acceptkriterie trykgradient DN 200-300 [Pa/m:Heltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                    <TextBox Grid.Row="9" Grid.Column="1" Width="50" Text="{Binding Settings.AcceptPressureGradient200_300FL, UpdateSourceTrigger=PropertyChanged}"/>
+                    <!-- AcceptPressureGradient350PlusFL -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Acceptkriterie trykgradient DN 350+ [Pa/m:Heltal]:"/>
+                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.AcceptPressureGradient350PlusFL, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
 
-                    <Label Grid.Row="10" Grid.Column="0" Content="Acceptkriterie trykgradient DN 350+ [Pa/m:Heltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                    <TextBox Grid.Row="10" Grid.Column="1" Width="50" Text="{Binding Settings.AcceptPressureGradient350PlusFL, UpdateSourceTrigger=PropertyChanged}"/>
+                    <!-- UsePertFlextraFL (CheckBox) -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <CheckBox Grid.Column="0" Grid.ColumnSpan="2" Content="Brug PertFlextra" 
+                                  IsChecked="{Binding Settings.UsePertFlextraFL, UpdateSourceTrigger=PropertyChanged}"
+                                  IsEnabled="{Binding IsPertFlextraSelectable}"/>
+                    </Grid>
 
-                    <CheckBox Grid.Row="11" Grid.Column="0" Grid.ColumnSpan="2" Content="Brug PertFlextra" IsChecked="{Binding Settings.UsePertFlextraFL, UpdateSourceTrigger=PropertyChanged}"
-                              IsEnabled="{Binding IsPertFlextraSelectable}"
-                              Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-
-                    <Label Grid.Row="12" Grid.Column="0" Content="PertFlextra maksimum størrelse:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                    <ComboBox Grid.Row="12" Grid.Column="1" Width="100" SelectedItem="{Binding Settings.PertFlextraMaxDnFL, UpdateSourceTrigger=PropertyChanged}"
+                    <!-- PertFlextraMaxDnFL -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="PertFlextra maksimum størrelse:"/>
+                        <ComboBox Grid.Column="1" Width="100" SelectedItem="{Binding Settings.PertFlextraMaxDnFL, UpdateSourceTrigger=PropertyChanged}"
                               IsEnabled="{Binding IsPertFlextraSelectable}">
                         <sys:Int32>75</sys:Int32>
                         <sys:Int32>63</sys:Int32>
@@ -198,61 +365,115 @@
                         <sys:Int32>25</sys:Int32>
                     </ComboBox>
                 </Grid>
+                </StackPanel>
             </GroupBox>
 
             <!-- Service Lines (SL) -->
-            <GroupBox Header="Stikledninger" Foreground="{DynamicResource Text}">
-                <Grid>
+            <GroupBox Header="Stikledninger">
+                <StackPanel>
+                    <!-- TempFremSL -->
+                    <Grid Style="{StaticResource RowStyle}">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
                         <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
                     </Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
+                        <Label Content="Temperatur frem [°:Decimaltal]:"/>
+                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.TempFremSL, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
 
-                    <Label Grid.Row="0" Grid.Column="0" Content="Temperatur frem [°:Decimaltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                    <TextBox Grid.Row="0" Grid.Column="1" Width="50" Text="{Binding Settings.TempFremSL, UpdateSourceTrigger=PropertyChanged}"/>
+                    <!-- TempReturSL -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Temperatur retur [°:Decimaltal]:"/>
+                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.TempReturSL, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
 
-                    <Label Grid.Row="1" Grid.Column="0" Content="Temperatur retur [°:Decimaltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                    <TextBox Grid.Row="1" Grid.Column="1" Width="50" Text="{Binding Settings.TempReturSL, UpdateSourceTrigger=PropertyChanged}"/>
+                    <!-- FactorVarmtVandsTillægSL -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Faktor for varmtvandstillæg (veksler eller beholder) [Decimaltal]:"/>
+                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.FactorVarmtVandsTillægSL, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
 
-                    <Label Grid.Row="2" Grid.Column="0" Content="Faktor for varmtvandstillæg (veksler eller beholder) [Decimaltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                    <TextBox Grid.Row="2" Grid.Column="1" Width="50" Text="{Binding Settings.FactorVarmtVandsTillægSL, UpdateSourceTrigger=PropertyChanged}"/>
+                    <!-- NyttetimerOneUserSL -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Nyttetimer ved 1 forbruger [Heltal]:"/>
+                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.NyttetimerOneUserSL, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
 
-                    <Label Grid.Row="3" Grid.Column="0" Content="Nyttetimer ved 1 forbruger [Heltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                    <TextBox Grid.Row="3" Grid.Column="1" Width="50" Text="{Binding Settings.NyttetimerOneUserSL, UpdateSourceTrigger=PropertyChanged}"/>
-
-                    <Label Grid.Row="4" Grid.Column="0" Content="Fleksible stik udføres som:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                    <ComboBox Grid.Row="4" Grid.Column="1" Width="100"
+                    <!-- PipeTypeSL -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Fleksible stik udføres som:"/>
+                        <ComboBox Grid.Column="1" Width="100"
                               ItemsSource="{Binding ValidPipeTypesSL}"
                               SelectedItem="{Binding Settings.PipeTypeSL, UpdateSourceTrigger=PropertyChanged}"
                               IsEnabled="{Binding IsPipeTypeSLSelectable}"/>
+                    </Grid>
 
-                    <Label Grid.Row="5" Grid.Column="0" Content="Acceptkriterie hastighed fleksible stik [m/s:Decimaltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                    <TextBox Grid.Row="5" Grid.Column="1" Width="50" Text="{Binding Settings.AcceptVelocityFlexibleSL, UpdateSourceTrigger=PropertyChanged}"/>
+                    <!-- AcceptVelocityFlexibleSL -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Acceptkriterie hastighed fleksible stik [m/s:Decimaltal]:"/>
+                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.AcceptVelocityFlexibleSL, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
 
-                    <Label Grid.Row="6" Grid.Column="0" Content="Acceptkriterie hastighed DN 20-150 [m/s:Decimaltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                    <TextBox Grid.Row="6" Grid.Column="1" Width="50" Text="{Binding Settings.AcceptVelocity20_150SL, UpdateSourceTrigger=PropertyChanged}"/>
+                    <!-- AcceptVelocity20_150SL -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Acceptkriterie hastighed DN 20-150 [m/s:Decimaltal]:"/>
+                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.AcceptVelocity20_150SL, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
 
-                    <Label Grid.Row="7" Grid.Column="0" Content="Acceptkriterie trykgradient fleksible stik [Pa/m:Heltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                    <TextBox Grid.Row="7" Grid.Column="1" Width="50" Text="{Binding Settings.AcceptPressureGradientFlexibleSL, UpdateSourceTrigger=PropertyChanged}"/>
+                    <!-- AcceptPressureGradientFlexibleSL -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Acceptkriterie trykgradient fleksible stik [Pa/m:Heltal]:"/>
+                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.AcceptPressureGradientFlexibleSL, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
 
-                    <Label Grid.Row="8" Grid.Column="0" Content="Acceptkriterie trykgradient DN 20-150 [Pa/m:Heltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                    <TextBox Grid.Row="8" Grid.Column="1" Width="50" Text="{Binding Settings.AcceptPressureGradient20_150SL, UpdateSourceTrigger=PropertyChanged}"/>
+                    <!-- AcceptPressureGradient20_150SL -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Acceptkriterie trykgradient DN 20-150 [Pa/m:Heltal]:"/>
+                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.AcceptPressureGradient20_150SL, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
 
-                    <Label Grid.Row="9" Grid.Column="0" Content="Maks. tryktab i stikledning [bar:Decimaltal]:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                    <TextBox Grid.Row="9" Grid.Column="1" Width="50" Text="{Binding Settings.MaxPressureLossStikSL, UpdateSourceTrigger=PropertyChanged}"/>
+                    <!-- MaxPressureLossStikSL -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Maks. tryktab i stikledning [bar:Decimaltal]:"/>
+                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.MaxPressureLossStikSL, UpdateSourceTrigger=PropertyChanged}"/>
                 </Grid>
+                </StackPanel>
             </GroupBox>
         </StackPanel>
     </ScrollViewer>

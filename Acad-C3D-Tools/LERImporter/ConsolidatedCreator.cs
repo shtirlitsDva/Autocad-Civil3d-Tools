@@ -542,7 +542,25 @@ namespace LERImporter
                         .GetObject(ltDb.LinetypeTableId, OpenMode.ForRead);
                     ObjectIdCollection idsToClone = new ObjectIdCollection();
 
-                    foreach (string missingName in missingLineTypes) idsToClone.Add(sourceLtt[missingName]);
+                    HashSet<string> errorneousLineTypes = new HashSet<string>();
+                    foreach (string missingName in missingLineTypes)
+                    { 
+                        if (!sourceLtt.Has(missingName))
+                        {
+                            Log.log($"ERROR! Could not find missing linetype {missingName} in Projection_styles.dwg!");
+                            errorneousLineTypes.Add(missingName);
+                            continue;
+                        }
+                        idsToClone.Add(sourceLtt[missingName]); 
+                    }
+
+                    if (errorneousLineTypes.Count > 0)
+                    {
+                        StringBuilder sb = new StringBuilder();
+                        sb.AppendLine("The following linetypes could not be found in Projection_styles.dwg:");
+                        foreach (var item in errorneousLineTypes) sb.AppendLine(item);
+                        throw new System.Exception(sb.ToString());
+                    }
 
                     IdMapping mapping = new IdMapping();
                     ltDb.WblockCloneObjects(idsToClone, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
