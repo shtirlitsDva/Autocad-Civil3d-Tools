@@ -7,7 +7,6 @@ using NorsynHydraulicShared;
 
 using QuikGraph;
 
-using System;
 using System.Diagnostics.CodeAnalysis;
 
 namespace DimensioneringV2.BruteForceOptimization
@@ -71,7 +70,7 @@ namespace DimensioneringV2.BruteForceOptimization
         public BFEdge([NotNull] BFNode source, [NotNull] BFNode target, EdgePipeSegment edge) : base(source, target)
         {
             OriginalEdge = edge;
-            Dim = edge.PipeSegment.Dim;            
+            Dim = edge.PipeSegment.Dim;
             _isRootNode = edge.PipeSegment.IsRootNode;
             _length = edge.PipeSegment.Length;
             _numberOfBuildingsConnected = edge.PipeSegment.NumberOfBuildingsConnected;
@@ -91,7 +90,7 @@ namespace DimensioneringV2.BruteForceOptimization
             KarFlowHeatSupply = edge.KarFlowHeatSupply;
             KarFlowBVSupply = edge.KarFlowBVSupply;
             KarFlowHeatReturn = edge.KarFlowHeatReturn;
-            KarFlowBVReturn = edge.KarFlowBVReturn;       
+            KarFlowBVReturn = edge.KarFlowBVReturn;
             SubGraphId = edge.SubGraphId;
             NonBridgeChromosomeIndex = edge.NonBridgeChromosomeIndex;
             _isRootNode = edge.IsRootNode;
@@ -99,7 +98,7 @@ namespace DimensioneringV2.BruteForceOptimization
             _numberOfBuildingsConnected = edge.NumberOfBuildingsConnected;
             _numberOfUnitsConnected = edge.NumberOfUnitsConnected;
             _heatingDemandConnected = edge.HeatingDemandConnected;
-            _manualDim = edge.ManualDim;            
+            _manualDim = edge.ManualDim;
             _tempDeltaVarme = edge.TempDeltaVarme;
             _tempDeltaBV = edge.TempDeltaBV;
         }
@@ -115,6 +114,14 @@ namespace DimensioneringV2.BruteForceOptimization
             KarFlowBVSupply = edge.KarFlowBVSupply;
             KarFlowHeatReturn = edge.KarFlowHeatReturn;
             KarFlowBVReturn = edge.KarFlowBVReturn;
+            DimFlowSupply = edge.DimFlowSupply;
+            DimFlowReturn = edge.DimFlowReturn;
+            PressureGradientSupply = edge.PressureGradientSupply;
+            PressureGradientReturn = edge.PressureGradientReturn;
+            VelocitySupply = edge.VelocitySupply;
+            VelocityReturn = edge.VelocityReturn;
+            UtilizationRate = edge.UtilizationRate;
+            IsBridge = edge.IsBridge;
             SubGraphId = edge.SubGraphId;
             NonBridgeChromosomeIndex = edge.NonBridgeChromosomeIndex;
             _isRootNode = edge.IsRootNode;
@@ -163,7 +170,7 @@ namespace DimensioneringV2.BruteForceOptimization
             NumberOfBuildingsSupplied = edge.NumberOfBuildingsSupplied;
             NumberOfUnitsSupplied = edge.NumberOfUnitsSupplied;
             HeatingDemandSupplied = edge.HeatingDemandSupplied;
-        }        
+        }
 
         public override string ToString() =>
             $"BFEdge(Id={Id}, {Source.Id}--{Target.Id})";
