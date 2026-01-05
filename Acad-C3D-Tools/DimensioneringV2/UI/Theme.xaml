@@ -71,8 +71,8 @@
     </Style>
 
     <Style x:Key="ActionButtonStyle" TargetType="Button">
-        <Setter Property="Margin" Value="5,0"/>
-        <Setter Property="Padding" Value="15,5"/>
+        <Setter Property="Margin" Value="0,0"/>
+        <Setter Property="Padding" Value="15,2"/>
     </Style>
     
 </ResourceDictionary>

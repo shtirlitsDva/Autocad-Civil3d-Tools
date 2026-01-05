@@ -12,13 +12,21 @@ public partial class HydraulicSettings : ObservableObject, IHydraulicSettings
     private MediumTypeEnum medieType = MediumTypeEnum.Water;
 
     [ObservableProperty]
-    private double hotWaterReturnTemp = 75;
+    private double afkølingBrugsvand = 35;
 
     [ObservableProperty]
     private bool useBrugsvandsprioritering = false;
 
     [ObservableProperty]
     private double factorTillægForOpvarmningUdenBrugsvandsprioritering = 0.6;
+    
+    // ...
+
+    [ObservableProperty]
+    private double tempFrem = 110;
+
+    [ObservableProperty]
+    private double afkølingVarme = 35;
 
     private double? previousFactorValue = null;
 
@@ -80,11 +88,6 @@ public partial class HydraulicSettings : ObservableObject, IHydraulicSettings
     private int cachePrecision = 4;
 
     // Supply Lines (FL)
-    [ObservableProperty]
-    private double tempFremFL = 110;
-
-    [ObservableProperty]
-    private double tempReturFL = 75;
 
     [ObservableProperty]
     private double factorVarmtVandsTillægFL = 1.0;
@@ -123,11 +126,6 @@ public partial class HydraulicSettings : ObservableObject, IHydraulicSettings
     private int pertFlextraMaxDnFL = 75; // Dropdown: 75, 63, 50, 40, 32, 25
 
     // Service Lines (SL)
-    [ObservableProperty]
-    private double tempFremSL = 110;
-
-    [ObservableProperty]
-    private double tempReturSL = 75;
 
     [ObservableProperty]
     private double factorVarmtVandsTillægSL = 1.0;

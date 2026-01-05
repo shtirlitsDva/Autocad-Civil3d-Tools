@@ -4,9 +4,13 @@ public interface IHydraulicSettings
 {
     // General
     MediumTypeEnum MedieType { get; set; }
-    double HotWaterReturnTemp { get; set; }
+    double AfkølingBrugsvand { get; set; }
     double FactorTillægForOpvarmningUdenBrugsvandsprioritering { get; set; }
     double MinDifferentialPressureOverHovedHaner { get; set; }
+    
+    double TempFrem { get; set; }
+    double AfkølingVarme { get; set; }
+    
     double RuhedSteel { get; set; }
     double RuhedPertFlextra { get; set; }
     double RuhedAluPEX { get; set; }
@@ -16,8 +20,6 @@ public interface IHydraulicSettings
     bool ReportToConsole { get; set; }
 
     // Supply Lines (FL)
-    double TempFremFL { get; set; }
-    double TempReturFL { get; set; }
     double FactorVarmtVandsTillægFL { get; set; }
     int NyttetimerOneUserFL { get; set; }
     int Nyttetimer50PlusUsersFL { get; set; }
@@ -32,8 +34,6 @@ public interface IHydraulicSettings
     int PertFlextraMaxDnFL { get; set; }
 
     // Service Lines (SL)
-    double TempFremSL { get; set; }
-    double TempReturSL { get; set; }
     double FactorVarmtVandsTillægSL { get; set; }
     int NyttetimerOneUserSL { get; set; }
     PipeType PipeTypeSL { get; set; }

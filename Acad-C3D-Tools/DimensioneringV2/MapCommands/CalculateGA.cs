@@ -93,6 +93,7 @@ namespace DimensioneringV2.MapCommands
                         {
                             var result = HydraulicCalculationService.Calc.CalculateClientSegment(edge);
                             edge.ApplyResult(result);
+                            edge.PushAllResults();
                         }
 
                         // Split network into subgraphs (islands of non-bridge edges)
@@ -168,7 +169,7 @@ namespace DimensioneringV2.MapCommands
                                     nonbridges.Count, index, dispatcher);
 
                                 // Push results from best graph back to AnalysisFeature
-                                foreach (var edge in bestGraph.Edges)
+                                foreach (var edge in bestGraph.Edges.Where(x => x.SegmentType != SegmentType.Stikledning))
                                 {
                                     edge.PushAllResults();
                                 }
@@ -183,7 +184,7 @@ namespace DimensioneringV2.MapCommands
                                 // Push results from best graph back to AnalysisFeature
                                 if (bestGraph != null)
                                 {
-                                    foreach (var edge in bestGraph.Edges)
+                                    foreach (var edge in bestGraph.Edges.Where(x => x.SegmentType != SegmentType.Stikledning))
                                     {
                                         edge.PushAllResults();
                                     }

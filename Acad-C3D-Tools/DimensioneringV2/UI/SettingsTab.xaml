@@ -59,14 +59,34 @@
                               SelectedItem="{Binding Settings.MedieType, UpdateSourceTrigger=PropertyChanged}" />
                     </Grid>
 
-                    <!-- HotWaterReturnTemp -->
+                    <!-- TempFrem (Moved from FL/SL) -->
                     <Grid Style="{StaticResource RowStyle}">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
                             <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
                         </Grid.ColumnDefinitions>
-                        <Label Content="Returtemperatur for varmt brugsvand [°:Decimaltal]:"/>
-                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.HotWaterReturnTemp, UpdateSourceTrigger=PropertyChanged}"/>
+                        <Label Content="Temperatur frem [°:Decimaltal]:"/>
+                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.TempFrem, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
+
+                    <!-- AfkølingVarme (Renamed from TempRetur) -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Afkøling varme [°:Decimaltal]:"/>
+                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.AfkølingVarme, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
+
+                    <!-- AfkølingBrugsvand (Renamed from HotWaterReturnTemp) -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Afkøling brugsvand [°:Decimaltal]:"/>
+                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.AfkølingBrugsvand, UpdateSourceTrigger=PropertyChanged}"/>
                     </Grid>
 
                     <!-- UseBrugsvandsprioritering (CheckBox) -->
@@ -75,7 +95,8 @@
                             <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
                             <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
                         </Grid.ColumnDefinitions>
-                        <CheckBox Grid.Column="0" Grid.ColumnSpan="2" Content="Brug brugsvandsprioritering"
+                        <Label Content="Brug brugsvandsprioritering"/>
+                        <CheckBox Grid.Column="1" 
                                   IsChecked="{Binding Settings.UseBrugsvandsprioritering, UpdateSourceTrigger=PropertyChanged}"/>
                     </Grid>
 
@@ -100,54 +121,17 @@
                         <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.MinDifferentialPressureOverHovedHaner, UpdateSourceTrigger=PropertyChanged}"/>
                     </Grid>
 
-                    <!-- RuhedSteel -->
+                    <!-- Ruheder Edit Button -->
                     <Grid Style="{StaticResource RowStyle}">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
                             <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
                         </Grid.ColumnDefinitions>
-                        <Label Content="Ruhed stålrør [mm:Decimaltal]:"/>
-                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.RuhedSteel, UpdateSourceTrigger=PropertyChanged}"/>
-                    </Grid>
-
-                    <!-- RuhedPertFlextra -->
-                    <Grid Style="{StaticResource RowStyle}">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
-                        </Grid.ColumnDefinitions>
-                        <Label Content="Ruhed Pert Flextra [mm:Decimaltal]:"/>
-                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.RuhedPertFlextra, UpdateSourceTrigger=PropertyChanged}"/>
-                    </Grid>
-
-                    <!-- RuhedAluPEX -->
-                    <Grid Style="{StaticResource RowStyle}">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
-                        </Grid.ColumnDefinitions>
-                        <Label Content="Ruhed AluPEX [mm:Decimaltal]:"/>
-                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.RuhedAluPEX, UpdateSourceTrigger=PropertyChanged}"/>
-                    </Grid>
-
-                    <!-- RuhedCu -->
-                    <Grid Style="{StaticResource RowStyle}">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
-                        </Grid.ColumnDefinitions>
-                        <Label Content="Ruhed CuFlex [mm:Decimaltal]:"/>
-                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.RuhedCu, UpdateSourceTrigger=PropertyChanged}"/>
-                    </Grid>
-
-                    <!-- RuhedPe -->
-                    <Grid Style="{StaticResource RowStyle}">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
-                        </Grid.ColumnDefinitions>
-                        <Label Content="Ruhed PE [mm:Decimaltal]:"/>
-                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.RuhedPe, UpdateSourceTrigger=PropertyChanged}"/>
+                        <Label Content="Ruheder:"/>
+                        <Button Grid.Column="1" Content="Edit" 
+                                Command="{Binding EditRoughnessCommand}" 
+                                Style="{StaticResource ActionBtn}"
+                                HorizontalAlignment="Left"/>
                     </Grid>
 
                     <!-- TillægTilHoldetrykMVS -->
@@ -198,7 +182,8 @@
                             <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
                             <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
                         </Grid.ColumnDefinitions>
-                        <CheckBox Grid.Column="0" Grid.ColumnSpan="2" Content="Skriv resultater til konsolvinduet [Langsommere]"
+                        <Label Content="Skriv resultater til konsolvinduet [Langsommere]"/>
+                        <CheckBox Grid.Column="1" 
                                   IsChecked="{Binding Settings.ReportToConsole, UpdateSourceTrigger=PropertyChanged}"/>
                     </Grid>
 
@@ -208,7 +193,8 @@
                             <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
                             <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
                         </Grid.ColumnDefinitions>
-                        <CheckBox Grid.Column="0" Grid.ColumnSpan="2" Content="Brug resultat caching"
+                        <Label Content="Brug resultat caching"/>
+                        <CheckBox Grid.Column="1" 
                                   IsChecked="{Binding Settings.CacheResults, UpdateSourceTrigger=PropertyChanged}"/>
                     </Grid>
 
@@ -227,26 +213,6 @@
             <!-- Supply Lines (FL) -->
             <GroupBox Header="Fordelingsledninger">
                 <StackPanel>
-                    <!-- TempFremFL -->
-                    <Grid Style="{StaticResource RowStyle}">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
-                        <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
-                    </Grid.ColumnDefinitions>
-                        <Label Content="Temperatur frem [°:Decimaltal]:"/>
-                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.TempFremFL, UpdateSourceTrigger=PropertyChanged}"/>
-                    </Grid>
-
-                    <!-- TempReturFL -->
-                    <Grid Style="{StaticResource RowStyle}">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
-                        </Grid.ColumnDefinitions>
-                        <Label Content="Temperatur retur [°:Decimaltal]:"/>
-                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.TempReturFL, UpdateSourceTrigger=PropertyChanged}"/>
-                    </Grid>
-
                     <!-- FactorVarmtVandsTillægFL -->
                     <Grid Style="{StaticResource RowStyle}">
                         <Grid.ColumnDefinitions>
@@ -343,7 +309,8 @@
                             <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
                             <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
                         </Grid.ColumnDefinitions>
-                        <CheckBox Grid.Column="0" Grid.ColumnSpan="2" Content="Brug PertFlextra" 
+                        <Label Content="Brug PertFlextra"/>
+                        <CheckBox Grid.Column="1" 
                                   IsChecked="{Binding Settings.UsePertFlextraFL, UpdateSourceTrigger=PropertyChanged}"
                                   IsEnabled="{Binding IsPertFlextraSelectable}"/>
                     </Grid>
@@ -371,26 +338,6 @@
             <!-- Service Lines (SL) -->
             <GroupBox Header="Stikledninger">
                 <StackPanel>
-                    <!-- TempFremSL -->
-                    <Grid Style="{StaticResource RowStyle}">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
-                        <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
-                    </Grid.ColumnDefinitions>
-                        <Label Content="Temperatur frem [°:Decimaltal]:"/>
-                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.TempFremSL, UpdateSourceTrigger=PropertyChanged}"/>
-                    </Grid>
-
-                    <!-- TempReturSL -->
-                    <Grid Style="{StaticResource RowStyle}">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
-                        </Grid.ColumnDefinitions>
-                        <Label Content="Temperatur retur [°:Decimaltal]:"/>
-                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.TempReturSL, UpdateSourceTrigger=PropertyChanged}"/>
-                    </Grid>
-
                     <!-- FactorVarmtVandsTillægSL -->
                     <Grid Style="{StaticResource RowStyle}">
                         <Grid.ColumnDefinitions>

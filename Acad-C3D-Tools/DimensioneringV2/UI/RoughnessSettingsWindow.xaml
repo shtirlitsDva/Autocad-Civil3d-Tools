@@ -1,0 +1,76 @@
+<Window x:Class="DimensioneringV2.UI.RoughnessSettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:DimensioneringV2.UI"
+        mc:Ignorable="d"
+        Title="Rediger Ruheder" Height="300" Width="400"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Theme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            
+            <!-- Map Theme Styles to Implicit Styles -->
+            <Style TargetType="Grid" x:Key="RowStyle" BasedOn="{StaticResource FormRowStyle}"/>
+            <Style TargetType="Label" BasedOn="{StaticResource FormLabelStyle}"/>
+            <Style TargetType="TextBox" BasedOn="{StaticResource FormTextBoxStyle}"/>
+            <Style TargetType="Button" BasedOn="{StaticResource ActionButtonStyle}"/>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid Background="{DynamicResource Background}">
+        <StackPanel Margin="10">
+            <Grid Style="{StaticResource RowStyle}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="200"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Label Content="Ruhed stålrør [mm:Decimaltal]:"/>
+                <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.RuhedSteel, UpdateSourceTrigger=PropertyChanged}"/>
+            </Grid>
+
+            <Grid Style="{StaticResource RowStyle}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="200"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Label Content="Ruhed Pert Flextra [mm:Decimaltal]:"/>
+                <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.RuhedPertFlextra, UpdateSourceTrigger=PropertyChanged}"/>
+            </Grid>
+
+            <Grid Style="{StaticResource RowStyle}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="200"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Label Content="Ruhed AluPEX [mm:Decimaltal]:"/>
+                <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.RuhedAluPEX, UpdateSourceTrigger=PropertyChanged}"/>
+            </Grid>
+
+            <Grid Style="{StaticResource RowStyle}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="200"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Label Content="Ruhed CuFlex [mm:Decimaltal]:"/>
+                <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.RuhedCu, UpdateSourceTrigger=PropertyChanged}"/>
+            </Grid>
+
+            <Grid Style="{StaticResource RowStyle}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="200"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Label Content="Ruhed PE [mm:Decimaltal]:"/>
+                <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.RuhedPe, UpdateSourceTrigger=PropertyChanged}"/>
+            </Grid>
+
+            <Button Content="Luk" Click="CloseButton_Click" HorizontalAlignment="Right" Margin="0,20,0,0" Width="100"/>
+        </StackPanel>
+    </Grid>
+</Window>

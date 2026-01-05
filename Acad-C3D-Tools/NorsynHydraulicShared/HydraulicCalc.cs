@@ -37,24 +37,13 @@ namespace NorsynHydraulicCalc
         private IMaxFlowCalc mfc;
 
         // Shared
-        private double hotWaterReturnTemp => s.HotWaterReturnTemp; // degree
+        private double afkølingBrugsvand => s.AfkølingBrugsvand; // degree
         private double factorTillægForOpvarmningUdenBrugsvandsprioritering =>
             s.FactorTillægForOpvarmningUdenBrugsvandsprioritering;
 
-        //Not used for Hydraulic calculations, only used when calculating critical path
-        //private double minDifferentialPressureOverHovedHaner =>
-        //    s.MinDifferentialPressureOverHovedHaner; // bar
-
-        //Roughness settings are not used in Hydraulic calculations from here
-        //But they are supplied by the pipe types.
-        //private double ruhedSteel => s.RuhedSteel; // mm
-        //private double ruhedPertFlextra => s.RuhedPertFlextra; // mm
-        //private double ruhedAluPEX => s.RuhedAluPEX; // mm
-        //private double ruhedCu => s.RuhedCu; // mm
-
         // Fordelingsledninger (Distribution pipes)
-        private double tempFremFL => s.TempFremFL; // degree
-        private double tempReturFL => s.TempReturFL; // degree
+        private double tempFrem => s.TempFrem; // degree
+        private double afkølingVarme => s.AfkølingVarme; // degree
         private double factorVarmtVandsTillægFL => s.FactorVarmtVandsTillægFL;
         private int nyttetimerOneUserFL => s.NyttetimerOneUserFL;
         private int nyttetimer50PlusUsersFL => s.Nyttetimer50PlusUsersFL;
@@ -68,8 +57,8 @@ namespace NorsynHydraulicCalc
         private int pertFlextraMaxDnFL => s.PertFlextraMaxDnFL; // mm
 
         // Stikledninger (Service pipes)
-        private double tempFremSL => s.TempFremSL; // degree
-        private double tempReturSL => s.TempReturSL; // degree
+        // private double tempFremSL => s.TempFremSL; // degree (Consolidated to tempFrem)
+        // private double tempReturSL => s.TempReturSL; // degree (Consolidated to tempRetur)
         private double factorVarmtVandsTillægSL => s.FactorVarmtVandsTillægSL;
         private int nyttetimerOneUserSL => s.NyttetimerOneUserSL;
         private PipeType pipeTypeSL => s.PipeTypeSL;
@@ -258,14 +247,16 @@ namespace NorsynHydraulicCalc
             #region Reporting
             if (reportToConsole)
             {
+                double temp = tempSetType == TempSetType.Supply ? tempFrem : tempFrem - afkølingVarme;
+
                 string rowName = $"{dim.DimName} {tempSetType}";
                 List<object> data = new List<object>()
                 {
                     vmax, dim.InnerDiameter_m, dim.CrossSectionArea, Qmax_velocity_m3hr,
                     dPdx_max(dim, st), dim.Roughness_m / dim.InnerDiameter_m,
-                    rho(Temp(tempSetType, st)), mu(Temp(tempSetType, st)),
+                    rho(temp), mu(temp),
                     res.iterations, res.Re, res.Qmax,
-                    Math.Min(Qmax_velocity_m3hr, res.Qmax)/3600*rho(Temp(tempSetType, st))
+                    Math.Min(Qmax_velocity_m3hr, res.Qmax) / 3600 * rho(temp)
                 };
                 switch (st)
                 {
@@ -288,8 +279,9 @@ namespace NorsynHydraulicCalc
         {
             double dp_dx = dPdx_max(dim, st);
             double reynolds = 0, velocity1 = 1, velocity2 = 1.1, newVelocity = 0, error1, error2;
-            double density = rho(Temp(tempSetType, st));
-            double viscosity = mu(Temp(tempSetType, st));
+            double temp = tempSetType == TempSetType.Supply ? tempFrem : tempFrem - afkølingVarme;
+            double density = rho(temp);
+            double viscosity = mu(temp);
             double tolerance = 1e-6;
             int maxIterations = 100;
             int iteration = 0;
@@ -482,20 +474,6 @@ namespace NorsynHydraulicCalc
                     throw new NotImplementedException();
             }
         }
-        private double Temp(TempSetType tst, SegmentType st)
-        {
-            switch (tst)
-            {
-                case TempSetType.Supply:
-                    if (st == SegmentType.Fordelingsledning) return tempFremFL;
-                    else return tempFremSL;
-                case TempSetType.Return:
-                    if (st == SegmentType.Fordelingsledning) return tempReturFL;
-                    else return tempReturSL;
-                default:
-                    throw new NotImplementedException();
-            }
-        }
         #endregion
 
         #region Properties for instance segment calculations
@@ -503,19 +481,17 @@ namespace NorsynHydraulicCalc
         private int N1(SegmentType st) =>
             st == SegmentType.Fordelingsledning ? nyttetimerOneUserFL : nyttetimerOneUserSL;
         private int N50 => nyttetimer50PlusUsersFL;
+        private double tempReturVarme(IHydraulicSegment s) =>
+            s.TempDeltaVarme > 0 ? tempFrem - s.TempDeltaVarme : tempFrem - afkølingVarme;
+        private double tempReturBV(IHydraulicSegment s) =>
+            s.TempDeltaBV > 0 ? tempFrem - s.TempDeltaBV : tempFrem - afkølingBrugsvand;
         /// <summary>
         /// Heating delta temperature.
         /// </summary>
         private double dTHeating(IHydraulicSegment s)
         {
-            double delta = s.TempDeltaVarme;
-            if (delta > 0) return delta;
-            return s.SegmentType switch
-            {
-                SegmentType.Fordelingsledning => tempFremFL - tempReturFL,
-                SegmentType.Stikledning => tempFremSL - tempReturSL,
-                _ => throw new NotImplementedException()
-            };
+            if (s.TempDeltaVarme > 0) return s.TempDeltaVarme;
+            return afkølingVarme;
         }
 
         /// <summary>
@@ -523,20 +499,9 @@ namespace NorsynHydraulicCalc
         /// </summary>
         private double dTBV(IHydraulicSegment s)
         {
-            double delta = s.TempDeltaBV;
-            if (delta > 0) return delta;
-            return s.SegmentType switch
-            {
-                SegmentType.Fordelingsledning => tempFremFL - Tr_hw,
-                SegmentType.Stikledning => tempFremSL - Tr_hw,
-                _ => throw new NotImplementedException()
-            };
+            if (s.TempDeltaBV > 0) return s.TempDeltaBV;
+            return afkølingBrugsvand;
         }
-        private double Tf(SegmentType st) =>
-            st == SegmentType.Fordelingsledning ? tempFremFL : tempFremSL;
-        private double Tr(SegmentType st) =>
-            st == SegmentType.Fordelingsledning ? tempReturFL : tempReturSL;
-        private double Tr_hw => hotWaterReturnTemp;
         private double f_b(SegmentType st) =>
             st == SegmentType.Fordelingsledning ? factorVarmtVandsTillægFL : factorVarmtVandsTillægSL;
         private double KX => factorTillægForOpvarmningUdenBrugsvandsprioritering;
@@ -607,8 +572,8 @@ namespace NorsynHydraulicCalc
             double s_hw = (51.0 - (double)numberOfUnits) / (50.0 * Math.Sqrt((double)numberOfUnits));
             s_hw = s_hw < 0 ? 0 : s_hw;
 
-            double karFlowHeatFrem = (totalHeatingDemand * 1000.0 / N1(st)) * volume(Tf(st), dTHeating(segment));
-            double karFlowBVFrem = numberOfUnits * 33 * f_b(st) * volume(Tf(st), dTBV(segment));
+            double karFlowHeatFrem = (totalHeatingDemand * 1000.0 / N1(st)) * volume(tempFrem, dTHeating(segment));
+            double karFlowBVFrem = numberOfUnits * 33 * f_b(st) * volume(tempFrem, dTBV(segment));
 
             double dimFlowHeatFrem = karFlowHeatFrem * s_heat;
             double dimFlowBVFrem = karFlowHeatFrem * s_heat * KX + karFlowBVFrem * s_hw;
@@ -617,8 +582,8 @@ namespace NorsynHydraulicCalc
             //double dimFlow2Frem = (totalHeatingDemand * 1000.0 / N1(st)) * s_heat * KX * volume(Tf(st), dTHeating(segment))
             //    + numberOfUnits * 33 * f_b(st) * s_hw * volume(Tf(st), dTBV(segment));
 
-            double karFlowHeatRetur = (totalHeatingDemand * 1000.0 / N1(st)) * volume(Tr(st), dTHeating(segment));
-            double karFlowBVRetur = numberOfUnits * 33 * f_b(st) * volume(Tr_hw, dTBV(segment));
+            double karFlowHeatRetur = (totalHeatingDemand * 1000.0 / N1(st)) * volume(tempReturVarme(segment), dTHeating(segment));
+            double karFlowBVRetur = numberOfUnits * 33 * f_b(st) * volume(tempReturBV(segment), dTBV(segment));
 
             double dimFlowHeatRetur = karFlowHeatRetur * s_heat;
             double dimFlowBVRetur = karFlowHeatRetur * s_heat * KX + karFlowBVRetur * s_hw;
@@ -654,21 +619,21 @@ namespace NorsynHydraulicCalc
                     }),
                     ("s_heat", new List<object>() { s_heat, s_heat, s_heat, s_heat }),
                     ("s_hw", new List<object>() { 0, s_hw, 0, s_hw }),
-                    ("rho heat", new List<object>() { rho(Tf(st)), rho(Tf(st)), rho(Tr(st)), rho(Tr(st))}),
-                    ("rho hw", new List<object>() { rho(Tf(st)), rho(Tf(st)), rho(Tr_hw), rho(Tr_hw)}),
-                    ("Cp heat", new List<object>() { cp(Tf(st)), cp(Tf(st)), cp(Tr(st)), cp(Tr(st)) }),
-                    ("Cp hw", new List<object>() { cp(Tf(st)), cp(Tf(st)), cp(Tr_hw), cp(Tr_hw)}),
+                    ("rho heat", new List<object>() { rho(tempFrem), rho(tempFrem), rho(tempReturVarme(segment)), rho(tempReturVarme(segment)) }),
+                    ("rho hw", new List<object>() { rho(tempFrem), rho(tempFrem), rho(tempReturBV(segment)), rho(tempReturBV(segment)) }),
+                    ("Cp heat", new List<object>() { cp(tempFrem), cp(tempFrem), cp(tempReturVarme(segment)), cp(tempReturVarme(segment)) }),
+                    ("Cp hw", new List<object>() { cp(tempFrem), cp(tempFrem), cp(tempReturBV(segment)), cp(tempReturBV(segment)) }),
                     ("m^3/kW heat", new List<object>() {
-                        volume(Tf(st), dTHeating(segment)), volume(Tf(st), dTHeating(segment)), volume(Tr(st),
-                        dTHeating(segment)), volume(Tr(st), dTHeating(segment)) }),
-                    ("m^3/kW hw", new List<object>() { 0, volume(Tf(st), dTBV(segment)), 0, volume(Tr_hw, dTBV(segment)) }),
+                        volume(tempFrem, dTHeating(segment)), volume(tempFrem, dTHeating(segment)), volume(tempReturVarme(segment),
+                        dTHeating(segment)), volume(tempReturVarme(segment), dTHeating(segment)) }),
+                    ("m^3/kW hw", new List<object>() { 0, volume(tempFrem, dTBV(segment)), 0, volume(tempReturBV(segment), dTBV(segment)) }),
                     ("Flow m³/hr", new List<object>() { dimFlowHeatFrem, dimFlowBVFrem, dimFlowHeatRetur, dimFlowBVRetur }),
                     ("Flow kg/s", new List<object>()
                     {
-                        dimFlowHeatFrem * rho(Tf(st)) / 3600,
-                        dimFlowBVFrem * rho(Tf(st)) / 3600,
-                        dimFlowHeatRetur * rho(Tr(st)) / 3600,
-                        dimFlowBVRetur * rho(Tr(st)) / 3600
+                        dimFlowHeatFrem * rho(tempFrem) / 3600,
+                        dimFlowBVFrem * rho(tempFrem) / 3600,
+                        dimFlowHeatRetur * rho(tempReturVarme(segment)) / 3600,
+                        dimFlowBVRetur * rho(tempReturBV(segment)) / 3600
                         //dimFlow1Frem * 951 / 3600,
                         //dimFlow2Frem * 951 / 3600,
                         //dimFlow1Retur * 951 / 3600,
@@ -699,10 +664,10 @@ namespace NorsynHydraulicCalc
 
             #region Prevent service pipes from exceeding max allowed pressure loss
 
-            (double reynolds, double gradient, double velocity) resSupply = 
-                CalculateGradientAndVelocity(dimFlowSupply, dim, TempSetType.Supply, st);
-            (double reynolds, double gradient, double velocity) resReturn = 
-                CalculateGradientAndVelocity(dimFlowReturn, dim, TempSetType.Return, st);
+            (double reynolds, double gradient, double velocity) resSupply =
+                CalculateGradientAndVelocity(dimFlowSupply, dim, TempSetType.Supply, segment);
+            (double reynolds, double gradient, double velocity) resReturn =
+                CalculateGradientAndVelocity(dimFlowReturn, dim, TempSetType.Return, segment);
 
             double maxPressureLoss = maxPressureLossStikSL * 100000; // bar to Pa
 
@@ -712,10 +677,11 @@ namespace NorsynHydraulicCalc
             while (plossSupply + plossReturn > maxPressureLoss)
             {
                 var idx = maxFlowTableSL.FindIndex(x => x.Dim == dim);
+                if (idx >= maxFlowTableSL.Count - 1) break;
 
                 dim = maxFlowTableSL[idx + 1].Dim;
-                resSupply = CalculateGradientAndVelocity(dimFlowSupply, dim, TempSetType.Supply, st);
-                resReturn = CalculateGradientAndVelocity(dimFlowReturn, dim, TempSetType.Return, st);
+                resSupply = CalculateGradientAndVelocity(dimFlowSupply, dim, TempSetType.Supply, segment);
+                resReturn = CalculateGradientAndVelocity(dimFlowReturn, dim, TempSetType.Return, segment);
 
                 plossSupply = resSupply.gradient * length;
                 plossReturn = resReturn.gradient * length;
@@ -835,8 +801,8 @@ namespace NorsynHydraulicCalc
             double s_hw = (51.0 - (double)numberOfUnits) / (50.0 * Math.Sqrt((double)numberOfUnits));
             s_hw = s_hw < 0 ? 0 : s_hw;
 
-            double dimFlowHeatSupply = karFlowHeatSupply * s_heat;
-            double dimFlowBVSupply = karFlowHeatSupply * s_heat * KX + karFlowBVSupply * s_hw;
+            double dimFlowHeatFrem = karFlowHeatSupply * s_heat;
+            double dimFlowBVFrem = karFlowHeatSupply * s_heat * KX + karFlowBVSupply * s_hw;
 
             double dimFlowHeatReturn = karFlowHeatReturn * s_heat;
             double dimFlowBVReturn = karFlowHeatReturn * s_heat * KX + karFlowBVReturn * s_hw;
@@ -847,21 +813,21 @@ namespace NorsynHydraulicCalc
                 {
                     ("s_heat", new List<object>() { s_heat, s_heat, s_heat, s_heat }),
                     ("s_hw", new List<object>() { 0, s_hw, 0, s_hw }),
-                    ("rho heat", new List<object>() { rho(Tf(st)), rho(Tf(st)), rho(Tr(st)), rho(Tr(st))}),
-                    ("rho hw", new List<object>() { rho(Tf(st)), rho(Tf(st)), rho(Tr_hw), rho(Tr_hw)}),
-                    ("Cp heat", new List<object>() { cp(Tf(st)), cp(Tf(st)), cp(Tr(st)), cp(Tr(st)) }),
-                    ("Cp hw", new List<object>() { cp(Tf(st)), cp(Tf(st)), cp(Tr_hw), cp(Tr_hw)}),
+                    ("rho heat", new List<object>() { rho(tempFrem), rho(tempFrem), rho(tempReturVarme(segment)), rho(tempReturVarme(segment)) }),
+                    ("rho hw", new List<object>() { rho(tempFrem), rho(tempFrem), rho(tempReturBV(segment)), rho(tempReturBV(segment)) }),
+                    ("Cp heat", new List<object>() { cp(tempFrem), cp(tempFrem), cp(tempReturVarme(segment)), cp(tempReturVarme(segment)) }),
+                    ("Cp hw", new List<object>() { cp(tempFrem), cp(tempFrem), cp(tempReturBV(segment)), cp(tempReturBV(segment)) }),
                     ("m^3/kW heat", new List<object>() {
-                        volume(Tf(st), dTHeating(segment)), volume(Tf(st), dTHeating(segment)), volume(Tr(st),
-                        dTHeating(segment)), volume(Tr(st), dTHeating(segment)) }),
-                    ("m^3/kW hw", new List<object>() { 0, volume(Tf(st), dTBV(segment)), 0, volume(Tr_hw, dTBV(segment)) }),
-                    ("Flow m³/hr", new List<object>() { dimFlowHeatSupply, dimFlowBVSupply, dimFlowHeatReturn, dimFlowBVReturn }),
+                        volume(tempFrem, dTHeating(segment)), volume(tempFrem, dTHeating(segment)), volume(tempReturVarme(segment),
+                        dTHeating(segment)), volume(tempReturVarme(segment), dTHeating(segment)) }),
+                    ("m^3/kW hw", new List<object>() { 0, volume(tempFrem, dTBV(segment)), 0, volume(tempReturBV(segment), dTBV(segment)) }),
+                    ("Flow m³/hr", new List<object>() { dimFlowHeatFrem, dimFlowBVFrem, dimFlowHeatReturn, dimFlowBVReturn }),
                     ("Flow kg/s", new List<object>()
                     {
-                        dimFlowHeatSupply * rho(Tf(st)) / 3600,
-                        dimFlowBVSupply * rho(Tf(st)) / 3600,
-                        dimFlowHeatReturn * rho(Tr(st)) / 3600,
-                        dimFlowBVReturn * rho(Tr(st)) / 3600
+                        dimFlowHeatFrem * rho(tempFrem) / 3600,
+                        dimFlowBVFrem * rho(tempFrem) / 3600,
+                        dimFlowHeatReturn * rho(tempReturVarme(segment)) / 3600,
+                        dimFlowBVReturn * rho(tempReturBV(segment)) / 3600
                         //dimFlow1Frem * 951 / 3600,
                         //dimFlow2Frem * 951 / 3600,
                         //dimFlow1Retur * 951 / 3600,
@@ -875,7 +841,7 @@ namespace NorsynHydraulicCalc
                 log.Report();
             }
 
-            double dimFlowSupply = Math.Max(dimFlowHeatSupply, dimFlowBVSupply);
+            double dimFlowSupply = Math.Max(dimFlowHeatFrem, dimFlowBVFrem);
             double dimFlowReturn = Math.Max(dimFlowHeatReturn, dimFlowBVReturn);
 
             Dim dim;
@@ -891,9 +857,9 @@ namespace NorsynHydraulicCalc
             }
 
             (double reynolds, double gradient, double velocity) resSupply =
-                CalculateGradientAndVelocity(dimFlowSupply, dim, TempSetType.Supply, st);
+                CalculateGradientAndVelocity(dimFlowSupply, dim, TempSetType.Supply, segment);
             (double reynolds, double gradient, double velocity) resReturn =
-                CalculateGradientAndVelocity(dimFlowReturn, dim, TempSetType.Return, st);
+                CalculateGradientAndVelocity(dimFlowReturn, dim, TempSetType.Return, segment);
 
             //Utilization rate can result in negative numbers for stikledninger
             //This happens when stikledning is incremented in size to prevent exceeding max pressure loss
@@ -942,7 +908,7 @@ namespace NorsynHydraulicCalc
         }
 
         private (double reynolds, double gradient, double velocity) CalculateGradientAndVelocity(
-            double flow, Dim dim, TempSetType tst, SegmentType st)
+            double flow, Dim dim, TempSetType tst, IHydraulicSegment s)
         {
 
 #if DEBUG
@@ -951,12 +917,13 @@ namespace NorsynHydraulicCalc
             List<(string, List<object>)> vals = new();
 #endif
 
+            double temp = tst == TempSetType.Supply ? tempFrem : tempReturVarme(s);
             double velocity = flow / 3600 / dim.CrossSectionArea;
             double reynolds = Reynolds(
-                rho(this.Temp(tst, st)),
+                rho(temp),
                 velocity,
                 dim.InnerDiameter_m,
-                mu(this.Temp(tst, st)));
+                mu(temp));
 
             double f;
             switch (this.calcType)
@@ -971,12 +938,12 @@ namespace NorsynHydraulicCalc
                     throw new NotImplementedException();
             }
 
-            double gradient = f * rho(this.Temp(tst, st)) * velocity * velocity / (2 * dim.InnerDiameter_m);
+            double gradient = f * rho(temp) * velocity * velocity / (2 * dim.InnerDiameter_m);
             //double gradient = f * 951 * velocity * velocity / (2 * dim.InnerDiameter_m);
 #if DEBUG
             if (reportToConsole)
             {
-                vals.Add(("Values", [flow, dim, tst, st, velocity, rho(this.Temp(tst, st)), mu(this.Temp(tst, st)), reynolds, f, gradient]));
+                vals.Add(("Values", [flow, dim, tst, s.SegmentType, velocity, rho(temp), mu(temp), reynolds, f, gradient]));
                 log.Report(
                     AsciiTableFormatter.CreateAsciiTableRows(
                         "Gradient and velocity", vals, cns, u, "F6"));

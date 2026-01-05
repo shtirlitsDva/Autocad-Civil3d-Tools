@@ -86,5 +86,13 @@ namespace DimensioneringV2.UI
             w.Init(Settings);
             w.Show();
         }
+
+        public RelayCommand EditRoughnessCommand => new RelayCommand(EditRoughness);
+        private void EditRoughness()
+        {
+            var w = new RoughnessSettingsWindow();
+            w.DataContext = this;
+            w.ShowDialog();
+        }
     }
 }
