@@ -11,6 +11,8 @@ public interface IHydraulicSettings
     double TempFrem { get; set; }
     double AfkølingVarme { get; set; }
     
+    double FactorVarmtVandsTillæg { get; set; }
+    
     double RuhedSteel { get; set; }
     double RuhedPertFlextra { get; set; }
     double RuhedAluPEX { get; set; }
@@ -20,7 +22,6 @@ public interface IHydraulicSettings
     bool ReportToConsole { get; set; }
 
     // Supply Lines (FL)
-    double FactorVarmtVandsTillægFL { get; set; }
     int NyttetimerOneUserFL { get; set; }
     int Nyttetimer50PlusUsersFL { get; set; }
     double AcceptVelocity20_150FL { get; set; }
@@ -34,7 +35,6 @@ public interface IHydraulicSettings
     int PertFlextraMaxDnFL { get; set; }
 
     // Service Lines (SL)
-    double FactorVarmtVandsTillægSL { get; set; }
     int NyttetimerOneUserSL { get; set; }
     PipeType PipeTypeSL { get; set; }
     double AcceptVelocityFlexibleSL { get; set; }

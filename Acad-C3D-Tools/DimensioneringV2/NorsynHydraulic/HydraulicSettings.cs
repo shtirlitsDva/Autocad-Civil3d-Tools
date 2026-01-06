@@ -28,6 +28,9 @@ public partial class HydraulicSettings : ObservableObject, IHydraulicSettings
     [ObservableProperty]
     private double afkølingVarme = 35;
 
+    [ObservableProperty]
+    private double factorVarmtVandsTillæg = 1.0;
+
     private double? previousFactorValue = null;
 
     partial void OnUseBrugsvandsprioriteringChanged(bool value)
@@ -90,9 +93,6 @@ public partial class HydraulicSettings : ObservableObject, IHydraulicSettings
     // Supply Lines (FL)
 
     [ObservableProperty]
-    private double factorVarmtVandsTillægFL = 1.0;
-
-    [ObservableProperty]
     private int nyttetimerOneUserFL = 2000;
 
     [ObservableProperty]
@@ -126,9 +126,6 @@ public partial class HydraulicSettings : ObservableObject, IHydraulicSettings
     private int pertFlextraMaxDnFL = 75; // Dropdown: 75, 63, 50, 40, 32, 25
 
     // Service Lines (SL)
-
-    [ObservableProperty]
-    private double factorVarmtVandsTillægSL = 1.0;
 
     [ObservableProperty]
     private int nyttetimerOneUserSL = 2000;

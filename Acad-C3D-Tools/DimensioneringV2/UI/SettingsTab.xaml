@@ -89,6 +89,16 @@
                         <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.AfkølingBrugsvand, UpdateSourceTrigger=PropertyChanged}"/>
                     </Grid>
 
+                    <!-- FactorVarmtVandsTillæg (Consolidated from FL/SL) -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Faktor for varmtvandstillæg (veksler eller beholder) [Decimaltal]:"/>
+                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.FactorVarmtVandsTillæg, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
+
                     <!-- UseBrugsvandsprioritering (CheckBox) -->
                     <Grid Style="{StaticResource RowStyle}">
                         <Grid.ColumnDefinitions>
@@ -213,16 +223,6 @@
             <!-- Supply Lines (FL) -->
             <GroupBox Header="Fordelingsledninger">
                 <StackPanel>
-                    <!-- FactorVarmtVandsTillægFL -->
-                    <Grid Style="{StaticResource RowStyle}">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
-                        </Grid.ColumnDefinitions>
-                        <Label Content="Faktor for varmtvandstillæg (veksler eller beholder) [Decimaltal]:"/>
-                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.FactorVarmtVandsTillægFL, UpdateSourceTrigger=PropertyChanged}"/>
-                    </Grid>
-
                     <!-- NyttetimerOneUserFL -->
                     <Grid Style="{StaticResource RowStyle}">
                         <Grid.ColumnDefinitions>
@@ -338,16 +338,6 @@
             <!-- Service Lines (SL) -->
             <GroupBox Header="Stikledninger">
                 <StackPanel>
-                    <!-- FactorVarmtVandsTillægSL -->
-                    <Grid Style="{StaticResource RowStyle}">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
-                        </Grid.ColumnDefinitions>
-                        <Label Content="Faktor for varmtvandstillæg (veksler eller beholder) [Decimaltal]:"/>
-                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.FactorVarmtVandsTillægSL, UpdateSourceTrigger=PropertyChanged}"/>
-                    </Grid>
-
                     <!-- NyttetimerOneUserSL -->
                     <Grid Style="{StaticResource RowStyle}">
                         <Grid.ColumnDefinitions>

@@ -44,7 +44,7 @@ namespace NorsynHydraulicCalc
         // Fordelingsledninger (Distribution pipes)
         private double tempFrem => s.TempFrem; // degree
         private double afkølingVarme => s.AfkølingVarme; // degree
-        private double factorVarmtVandsTillægFL => s.FactorVarmtVandsTillægFL;
+        private double factorVarmtVandsTillæg => s.FactorVarmtVandsTillæg;
         private int nyttetimerOneUserFL => s.NyttetimerOneUserFL;
         private int nyttetimer50PlusUsersFL => s.Nyttetimer50PlusUsersFL;
         private double acceptVelocity20_150FL => s.AcceptVelocity20_150FL; // m/s
@@ -59,7 +59,6 @@ namespace NorsynHydraulicCalc
         // Stikledninger (Service pipes)
         // private double tempFremSL => s.TempFremSL; // degree (Consolidated to tempFrem)
         // private double tempReturSL => s.TempReturSL; // degree (Consolidated to tempRetur)
-        private double factorVarmtVandsTillægSL => s.FactorVarmtVandsTillægSL;
         private int nyttetimerOneUserSL => s.NyttetimerOneUserSL;
         private PipeType pipeTypeSL => s.PipeTypeSL;
         private double acceptVelocityFlexibleSL => s.AcceptVelocityFlexibleSL; // m/s
@@ -502,8 +501,10 @@ namespace NorsynHydraulicCalc
             if (s.TempDeltaBV > 0) return s.TempDeltaBV;
             return afkølingBrugsvand;
         }
-        private double f_b(SegmentType st) =>
-            st == SegmentType.Fordelingsledning ? factorVarmtVandsTillægFL : factorVarmtVandsTillægSL;
+        /// <summary>
+        /// Consolidated to common variable from fordeling and stikledninger.
+        /// </summary>
+        private double f_b(SegmentType st) => factorVarmtVandsTillæg;
         private double KX => factorTillægForOpvarmningUdenBrugsvandsprioritering;
         #endregion
 
