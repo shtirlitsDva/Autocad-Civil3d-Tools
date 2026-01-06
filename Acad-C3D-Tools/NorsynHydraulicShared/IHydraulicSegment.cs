@@ -34,5 +34,12 @@ namespace NorsynHydraulicShared
         /// Client connections may have temperature delta specified for water heating or 0.
         /// </summary>
         double TempDeltaBV { get; }
+        
+        /// <summary>
+        /// Building nyttetimer value for this segment.
+        /// Pre-populated before calculation based on AnvendelsesKode lookup.
+        /// Only used for Stikledning segments.
+        /// </summary>
+        int Bygningsnyttetimer { get; set; }
     }
 }

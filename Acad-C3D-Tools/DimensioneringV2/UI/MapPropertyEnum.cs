@@ -49,5 +49,11 @@ namespace DimensioneringV2.UI
         TempDeltaVarme,
         [Description("Afkøling brugsvand")]
         TempDeltaBV,
+        [Description("Adresse")]
+        Address,
+        [Description("Anvendelse, tekst")]
+        BygningsAnvendelseNyTekst,
+        [Description("Anvendelse, kode")]
+        BygningsAnvendelseNyKode
     }
 }

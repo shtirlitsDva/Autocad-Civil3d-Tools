@@ -33,7 +33,10 @@
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
 		<OutputPath>bin\Release\</OutputPath>
 		<DebugType>full</DebugType>
-	</PropertyGroup>	
+	</PropertyGroup>
+	<ItemGroup>
+	  <None Remove="Models\Nyttetimer\Anvendelseskoder.csv" />
+	</ItemGroup>	
 		<ItemGroup>
 		<Reference Include="accoremgd">
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\accoremgd.dll</HintPath>
@@ -149,6 +152,9 @@
 		<Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeScheduleV2.cs">
 			<Link>Links\PipeScheduleV2\PipeScheduleV2.cs</Link>
 		</Compile>
+	</ItemGroup>	
+	<ItemGroup>
+	  <EmbeddedResource Include="Models\Nyttetimer\Anvendelseskoder.csv" />
 	</ItemGroup>
 	<ItemGroup>
 		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />

@@ -49,6 +49,18 @@ namespace DimensioneringV2.Themes
             _categoryThemeBuilders[MapPropertyEnum.Pipe] =
                 () => BuildCategoryTheme(
                     MapPropertyEnum.Pipe, f => f.Dim.DimName, ["NA 000"]);
+
+            _categoryThemeBuilders[MapPropertyEnum.Address] =
+                () => BuildCategoryTheme(
+                    MapPropertyEnum.Address, f => f.Adresse, [""]);
+
+            _categoryThemeBuilders[MapPropertyEnum.BygningsAnvendelseNyTekst] =
+                () => BuildCategoryTheme(
+                    MapPropertyEnum.BygningsAnvendelseNyTekst, f => f.BygningsAnvendelseNyTekst, [""]);
+
+            _categoryThemeBuilders[MapPropertyEnum.BygningsAnvendelseNyKode] =
+                () => BuildCategoryTheme(
+                    MapPropertyEnum.BygningsAnvendelseNyKode, f => f.BygningsAnvendelseNyKode, [""]);
         }
 
         public void SetTheme(MapPropertyEnum property, bool labelsEnabled = false)
@@ -77,6 +89,9 @@ namespace DimensioneringV2.Themes
                 case MapPropertyEnum.ManualDim:
                 case MapPropertyEnum.Bridge:
                 case MapPropertyEnum.Pipe:
+                case MapPropertyEnum.Address:
+                case MapPropertyEnum.BygningsAnvendelseNyTekst:
+                case MapPropertyEnum.BygningsAnvendelseNyKode:
                     theme = _categoryThemeBuilders[property]();
                     break;
 
@@ -106,9 +121,9 @@ namespace DimensioneringV2.Themes
 
         private IStyle BuildGradientTheme(MapPropertyEnum prop)
         {
-            // Make sure each feature has feature[key] set to numeric
+            // Use GetDisplayValue to invoke property getter with any custom logic
             var values = _allFeatures
-                .Select(f => Convert.ToDouble(f[prop]))
+                .Select(f => Convert.ToDouble(f.GetDisplayValue(prop)))
                 .Where(v => !double.IsNaN(v))
                 .ToList();
 
@@ -121,7 +136,7 @@ namespace DimensioneringV2.Themes
             double max = query.Count() > 0 ? values.Max() : 1;
 
             var theme = new GradientWithDefaultTheme(
-                columnName: AnalysisFeature.GetAttributeName(prop),
+                property: prop,
                 minValue: min,
                 maxValue: max,
                 minStyle: new VectorStyle { Line = new Pen(Color.Blue, 2) },

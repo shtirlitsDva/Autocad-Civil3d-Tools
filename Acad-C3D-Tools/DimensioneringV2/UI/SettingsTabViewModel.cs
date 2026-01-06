@@ -14,6 +14,8 @@ using DimensioneringV2.GraphFeatures;
 using CommunityToolkit.Mvvm.Input;
 using DimensioneringV2.AutoCAD;
 using DimensioneringV2.NorsynHydraulic;
+using DimensioneringV2.Services;
+using DimensioneringV2.UI.Nyttetimer;
 
 namespace DimensioneringV2.UI
 {
@@ -25,6 +27,11 @@ namespace DimensioneringV2.UI
         public Array MedieTypes => Enum.GetValues(typeof(MediumTypeEnum));
         public Array CalculationTypes => Enum.GetValues(typeof(CalcType));
         public Array PipeTypes => Enum.GetValues(typeof(PipeType));
+
+        /// <summary>
+        /// The name of the currently selected Nyttetimer configuration.
+        /// </summary>
+        public string CurrentNyttetimerConfigName => NyttetimerService.Instance.CurrentConfiguration.Name;
 
         #region Implementation of medium switching
         partial void OnSettingsChanged(HydraulicSettings value)
@@ -93,6 +100,15 @@ namespace DimensioneringV2.UI
             var w = new RoughnessSettingsWindow();
             w.DataContext = this;
             w.ShowDialog();
+        }
+
+        public RelayCommand EditNyttetimerConfigCommand => new RelayCommand(EditNyttetimerConfig);
+        private void EditNyttetimerConfig()
+        {
+            var w = new ConfigurationSelectorWindow();
+            w.ShowDialog();
+            // Update the displayed name after dialog closes
+            OnPropertyChanged(nameof(CurrentNyttetimerConfigName));
         }
     }
 }

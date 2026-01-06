@@ -26,8 +26,11 @@ namespace DimensioneringV2.Labels
 
                 LabelMethod = (feature) =>
                 {
-                    var attrName = AnalysisFeature.GetAttributeName(prop);
-                    var value = feature[attrName];
+                    // Use GetDisplayValue to invoke property getter with any custom logic,
+                    // rather than direct attribute access which bypasses property logic.
+                    var value = feature is AnalysisFeature af
+                        ? af.GetDisplayValue(prop)
+                        : feature[AnalysisFeature.GetAttributeName(prop)];
 
                     return prop switch
                     {

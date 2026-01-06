@@ -216,33 +216,65 @@
                         </Grid.ColumnDefinitions>
                         <Label Content="Præcision for caching [Heltal]:"/>
                         <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.CachePrecision, UpdateSourceTrigger=PropertyChanged}"/>
-                </Grid>
+                    </Grid>
+
+                    <!-- Separator for Nyttetimer section -->
+                    <Separator Margin="0,10,0,5"/>
+                    <TextBlock Text="Nyttetimer Indstillinger" 
+                               Foreground="{DynamicResource Text}" 
+                               FontWeight="SemiBold" 
+                               Margin="0,0,0,5"/>
+
+                    <!-- SystemnyttetimerVed1Forbruger -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Systemnyttetimer ved 1 forbruger [Heltal]:"/>
+                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.SystemnyttetimerVed1Forbruger, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
+
+                    <!-- SystemnyttetimerVed50PlusForbrugere -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Systemnyttetimer ved 50+ forbrugere [Heltal]:"/>
+                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.SystemnyttetimerVed50PlusForbrugere, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
+
+                    <!-- BygningsnyttetimerDefault -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Bygningsnyttetimer når anvendelseskode er ukendt [Heltal]:"/>
+                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.BygningsnyttetimerDefault, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
+
+                    <!-- Nyttetimer Configuration Button -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Nyttetimer for specifikke anvendelseskoder:"/>
+                        <Button Grid.Column="1" 
+                                Content="{Binding CurrentNyttetimerConfigName}" 
+                                Command="{Binding EditNyttetimerConfigCommand}" 
+                                Style="{StaticResource ActionBtn}"
+                                HorizontalAlignment="Left"
+                                MinWidth="100"/>
+                    </Grid>
                 </StackPanel>
             </GroupBox>
 
             <!-- Supply Lines (FL) -->
             <GroupBox Header="Fordelingsledninger">
                 <StackPanel>
-                    <!-- NyttetimerOneUserFL -->
-                    <Grid Style="{StaticResource RowStyle}">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
-                        </Grid.ColumnDefinitions>
-                        <Label Content="Nyttetimer ved 1 forbruger [Heltal]:"/>
-                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.NyttetimerOneUserFL, UpdateSourceTrigger=PropertyChanged}"/>
-                    </Grid>
-
-                    <!-- Nyttetimer50PlusUsersFL -->
-                    <Grid Style="{StaticResource RowStyle}">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
-                        </Grid.ColumnDefinitions>
-                        <Label Content="Nyttetimer ved 50+ forbrugere [Heltal]:"/>
-                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.Nyttetimer50PlusUsersFL, UpdateSourceTrigger=PropertyChanged}"/>
-                    </Grid>
-
                     <!-- AcceptVelocity20_150FL -->
                     <Grid Style="{StaticResource RowStyle}">
                         <Grid.ColumnDefinitions>
@@ -338,16 +370,6 @@
             <!-- Service Lines (SL) -->
             <GroupBox Header="Stikledninger">
                 <StackPanel>
-                    <!-- NyttetimerOneUserSL -->
-                    <Grid Style="{StaticResource RowStyle}">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
-                        </Grid.ColumnDefinitions>
-                        <Label Content="Nyttetimer ved 1 forbruger [Heltal]:"/>
-                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.NyttetimerOneUserSL, UpdateSourceTrigger=PropertyChanged}"/>
-                    </Grid>
-
                     <!-- PipeTypeSL -->
                     <Grid Style="{StaticResource RowStyle}">
                         <Grid.ColumnDefinitions>

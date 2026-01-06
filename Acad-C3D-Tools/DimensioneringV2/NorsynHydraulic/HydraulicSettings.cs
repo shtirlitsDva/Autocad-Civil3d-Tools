@@ -90,13 +90,27 @@ public partial class HydraulicSettings : ObservableObject, IHydraulicSettings
     [ObservableProperty]
     private int cachePrecision = 4;
 
+    // Nyttetimer Settings (consolidated from FL/SL)
+    
+    /// <summary>
+    /// System nyttetimer for 1 consumer calculation.
+    /// </summary>
+    [ObservableProperty]
+    private int systemnyttetimerVed1Forbruger = 2000;
+    
+    /// <summary>
+    /// System nyttetimer for 50+ consumers calculation.
+    /// </summary>
+    [ObservableProperty]
+    private int systemnyttetimerVed50PlusForbrugere = 2800;
+    
+    /// <summary>
+    /// Default building nyttetimer when anvendelseskode is unknown or not found.
+    /// </summary>
+    [ObservableProperty]
+    private int bygningsnyttetimerDefault = 2000;
+
     // Supply Lines (FL)
-
-    [ObservableProperty]
-    private int nyttetimerOneUserFL = 2000;
-
-    [ObservableProperty]
-    private int nyttetimer50PlusUsersFL = 2800;
 
     [ObservableProperty]
     private double acceptVelocity20_150FL = 1.5;
@@ -126,9 +140,6 @@ public partial class HydraulicSettings : ObservableObject, IHydraulicSettings
     private int pertFlextraMaxDnFL = 75; // Dropdown: 75, 63, 50, 40, 32, 25
 
     // Service Lines (SL)
-
-    [ObservableProperty]
-    private int nyttetimerOneUserSL = 2000;
 
     [ObservableProperty]
     private PipeType pipeTypeSL = PipeType.AluPEX; // Dropdown: AluPEX, Kobber, Stål, PertFlextra, Pe

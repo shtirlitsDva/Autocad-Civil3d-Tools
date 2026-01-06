@@ -187,6 +187,7 @@ namespace DimensioneringV2.GraphFeatures
                             { "Name", "" },
                             { "Adresse", "" },
                             { "AdresseDuplikatNr", 0 },
+                            { "BygningsAnvendelseNyKode", "" },
                             { "BygningsAnvendelseNyTekst", "" },
                             { "Opførelsesår", 0 },
                             { "BeregningsAreal", 0.0 },
@@ -233,6 +234,7 @@ namespace DimensioneringV2.GraphFeatures
                             attributes["Name"] = bbr.Name;
                             attributes["Adresse"] = bbr.Adresse;
                             attributes["AdresseDuplikatNr"] = bbr.AdresseDuplikatNr;
+                            attributes["BygningsAnvendelseNyKode"] = bbr.BygningsAnvendelseNyKode;
                             attributes["BygningsAnvendelseNyTekst"] = bbr.BygningsAnvendelseNyTekst;
                             attributes["Opførelsesår"] = bbr.Opførelsesår;
                             attributes["BeregningsAreal"] = bbr.SamletBoligareal + bbr.SamletErhvervsareal;

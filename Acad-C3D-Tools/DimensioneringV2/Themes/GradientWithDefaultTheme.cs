@@ -8,15 +8,17 @@ using System.Text;
 using System.Threading.Tasks;
 using Mapsui;
 using DimensioneringV2.Legend;
+using DimensioneringV2.UI;
+using DimensioneringV2.GraphFeatures;
 
 namespace DimensioneringV2.Themes
 {
     class GradientWithDefaultTheme : StyleBase, IThemeStyle, ILegendData
     {
         /// <summary>
-        /// Gets or sets the column name from where to get the attribute value
+        /// Gets the property enum used to retrieve the attribute value via property getter.
         /// </summary>
-        public string ColumnName { get; init; }
+        public MapPropertyEnum Property { get; init; }
 
         /// <summary>
         /// Gets or sets the minimum value of the gradient
@@ -56,13 +58,14 @@ namespace DimensioneringV2.Themes
         /// <summary>
         /// Initializes a new instance of the GradientTheme class
         /// </summary>
-        /// <param name="columnName">Name of column to extract the attribute</param>
+        /// <param name="property">Property enum to extract the attribute via property getter</param>
         /// <param name="minValue">Minimum value</param>
         /// <param name="maxValue">Maximum value</param>
         /// <param name="minStyle">Color for minimum value</param>
         /// <param name="maxStyle">Color for maximum value</param>
+        /// <param name="legendTitle">Title for the legend</param>
         public GradientWithDefaultTheme(
-            string columnName, 
+            MapPropertyEnum property, 
             double minValue, 
             double maxValue, 
             IStyle minStyle, 
@@ -70,7 +73,7 @@ namespace DimensioneringV2.Themes
             string legendTitle
             )
         {
-            ColumnName = columnName;
+            Property = property;
             Min = minValue;
             Max = maxValue;
             MaxStyle = maxStyle;
@@ -86,8 +89,12 @@ namespace DimensioneringV2.Themes
         /// <returns>A <see cref="IStyle">Style</see> calculated by a linear interpolation between the min/max styles</returns>
         public IStyle? GetStyle(IFeature row)
         {
+            // Use GetDisplayValue to invoke property getter with any custom logic
+            if (row is not AnalysisFeature af)
+                return StyleProvider.BasicStyle;
+
             double attr;
-            try { attr = Convert.ToDouble(row[ColumnName]); }
+            try { attr = Convert.ToDouble(af.GetDisplayValue(Property)); }
             catch { throw new Exception("Invalid Attribute type in Gradient Theme - Couldn't parse attribute (must be numerical)"); }
             if (MinStyle.GetType() != MaxStyle.GetType())
                 throw new ArgumentException("MinStyle and MaxStyle must be of the same type");

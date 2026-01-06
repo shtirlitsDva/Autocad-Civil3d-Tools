@@ -21,9 +21,23 @@ public interface IHydraulicSettings
     CalcType CalculationType { get; set; }
     bool ReportToConsole { get; set; }
 
+    // Nyttetimer Settings (consolidated from FL/SL)
+    /// <summary>
+    /// System nyttetimer for 1 consumer calculation.
+    /// </summary>
+    int SystemnyttetimerVed1Forbruger { get; set; }
+    
+    /// <summary>
+    /// System nyttetimer for 50+ consumers calculation.
+    /// </summary>
+    int SystemnyttetimerVed50PlusForbrugere { get; set; }
+    
+    /// <summary>
+    /// Default building nyttetimer when anvendelseskode is unknown or not found.
+    /// </summary>
+    int BygningsnyttetimerDefault { get; set; }
+
     // Supply Lines (FL)
-    int NyttetimerOneUserFL { get; set; }
-    int Nyttetimer50PlusUsersFL { get; set; }
     double AcceptVelocity20_150FL { get; set; }
     double AcceptVelocity200_300FL { get; set; }
     double AcceptVelocity350PlusFL { get; set; }
@@ -35,7 +49,6 @@ public interface IHydraulicSettings
     int PertFlextraMaxDnFL { get; set; }
 
     // Service Lines (SL)
-    int NyttetimerOneUserSL { get; set; }
     PipeType PipeTypeSL { get; set; }
     double AcceptVelocityFlexibleSL { get; set; }
     double AcceptVelocity20_150SL { get; set; }

@@ -27,6 +27,7 @@ namespace DimensioneringV2.BruteForceOptimization
         private readonly bool _manualDim;
         private readonly double _tempDeltaVarme;
         private readonly double _tempDeltaBV;
+        private readonly string _anvKode;
 
         public int Id { get; set; }
         public double Price { get => Dim.Price_m * Length + Dim.Price_stk(SegmentType); }
@@ -67,6 +68,8 @@ namespace DimensioneringV2.BruteForceOptimization
         public int NonBridgeChromosomeIndex { get; internal set; } = -1;
         public double TempDeltaVarme => _tempDeltaVarme;
         public double TempDeltaBV => _tempDeltaBV;
+        public string AnvendelseKode => _anvKode;
+        public int Bygningsnyttetimer { get; set; }
         public BFEdge([NotNull] BFNode source, [NotNull] BFNode target, EdgePipeSegment edge) : base(source, target)
         {
             OriginalEdge = edge;
@@ -79,6 +82,7 @@ namespace DimensioneringV2.BruteForceOptimization
             _manualDim = edge.PipeSegment.ManualDim;
             _tempDeltaVarme = edge.PipeSegment.TempDeltaVarme;
             _tempDeltaBV = edge.PipeSegment.TempDeltaBV;
+            _anvKode = edge.PipeSegment.BygningsAnvendelseNyKode;
         }
         public BFEdge([NotNull] BFNode source, [NotNull] BFNode target, BFEdge edge) : base(source, target)
         {
@@ -91,31 +95,10 @@ namespace DimensioneringV2.BruteForceOptimization
             KarFlowBVSupply = edge.KarFlowBVSupply;
             KarFlowHeatReturn = edge.KarFlowHeatReturn;
             KarFlowBVReturn = edge.KarFlowBVReturn;
-            SubGraphId = edge.SubGraphId;
-            NonBridgeChromosomeIndex = edge.NonBridgeChromosomeIndex;
-            _isRootNode = edge.IsRootNode;
-            _length = edge.Length;
-            _numberOfBuildingsConnected = edge.NumberOfBuildingsConnected;
-            _numberOfUnitsConnected = edge.NumberOfUnitsConnected;
-            _heatingDemandConnected = edge.HeatingDemandConnected;
-            _manualDim = edge.ManualDim;
-            _tempDeltaVarme = edge.TempDeltaVarme;
-            _tempDeltaBV = edge.TempDeltaBV;
-        }
-
-        public BFEdge(BFEdge edge) : base(edge.Source, edge.Target)
-        {
-            OriginalEdge = edge.OriginalEdge;
-            Dim = edge.Dim;
-            NumberOfBuildingsSupplied = edge.NumberOfBuildingsSupplied;
-            NumberOfUnitsSupplied = edge.NumberOfUnitsSupplied;
-            HeatingDemandSupplied = edge.HeatingDemandSupplied;
-            KarFlowHeatSupply = edge.KarFlowHeatSupply;
-            KarFlowBVSupply = edge.KarFlowBVSupply;
-            KarFlowHeatReturn = edge.KarFlowHeatReturn;
-            KarFlowBVReturn = edge.KarFlowBVReturn;
             DimFlowSupply = edge.DimFlowSupply;
             DimFlowReturn = edge.DimFlowReturn;
+            ReynoldsSupply = edge.ReynoldsSupply;
+            ReynoldsReturn = edge.ReynoldsReturn;
             PressureGradientSupply = edge.PressureGradientSupply;
             PressureGradientReturn = edge.PressureGradientReturn;
             VelocitySupply = edge.VelocitySupply;
@@ -132,6 +115,41 @@ namespace DimensioneringV2.BruteForceOptimization
             _manualDim = edge.ManualDim;
             _tempDeltaVarme = edge.TempDeltaVarme;
             _tempDeltaBV = edge.TempDeltaBV;
+            _anvKode = edge.AnvendelseKode;
+        }
+
+        public BFEdge(BFEdge edge) : base(edge.Source, edge.Target)
+        {
+            OriginalEdge = edge.OriginalEdge;
+            Dim = edge.Dim;
+            NumberOfBuildingsSupplied = edge.NumberOfBuildingsSupplied;
+            NumberOfUnitsSupplied = edge.NumberOfUnitsSupplied;
+            HeatingDemandSupplied = edge.HeatingDemandSupplied;
+            KarFlowHeatSupply = edge.KarFlowHeatSupply;
+            KarFlowBVSupply = edge.KarFlowBVSupply;
+            KarFlowHeatReturn = edge.KarFlowHeatReturn;
+            KarFlowBVReturn = edge.KarFlowBVReturn;
+            DimFlowSupply = edge.DimFlowSupply;
+            DimFlowReturn = edge.DimFlowReturn;
+            ReynoldsSupply = edge.ReynoldsSupply;
+            ReynoldsReturn = edge.ReynoldsReturn;
+            PressureGradientSupply = edge.PressureGradientSupply;
+            PressureGradientReturn = edge.PressureGradientReturn;
+            VelocitySupply = edge.VelocitySupply;
+            VelocityReturn = edge.VelocityReturn;
+            UtilizationRate = edge.UtilizationRate;
+            IsBridge = edge.IsBridge;
+            SubGraphId = edge.SubGraphId;
+            NonBridgeChromosomeIndex = edge.NonBridgeChromosomeIndex;
+            _isRootNode = edge.IsRootNode;
+            _length = edge.Length;
+            _numberOfBuildingsConnected = edge.NumberOfBuildingsConnected;
+            _numberOfUnitsConnected = edge.NumberOfUnitsConnected;
+            _heatingDemandConnected = edge.HeatingDemandConnected;
+            _manualDim = edge.ManualDim;
+            _tempDeltaVarme = edge.TempDeltaVarme;
+            _tempDeltaBV = edge.TempDeltaBV;
+            _anvKode = edge.AnvendelseKode;
         }
 
         public void PushBaseSums()

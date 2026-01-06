@@ -1,0 +1,117 @@
+<Window x:Class="DimensioneringV2.UI.Nyttetimer.ConfigurationSelectorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="Vælg Nyttetimer Konfiguration"
+        Width="700" Height="120"
+        MinWidth="600" MinHeight="100"
+        ResizeMode="CanResizeWithGrip"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Background}">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="../Theme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Configuration Selection Row -->
+        <Grid Grid.Row="0" Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*" MinWidth="200"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Column="0" Text="Konfiguration:" 
+                       Style="{StaticResource DialogLabelStyle}"/>
+
+            <ComboBox Grid.Column="1" 
+                      ItemsSource="{Binding Configurations}"
+                      SelectedItem="{Binding SelectedConfiguration}"
+                      DisplayMemberPath="Name"
+                      Margin="0,0,10,0"/>
+
+            <!-- Action Buttons -->
+            <StackPanel Grid.Column="2" Orientation="Horizontal">
+                <!-- New (Segoe MDL2: E710 = Add) -->
+                <Button Style="{StaticResource IconButtonStyle}" 
+                        Content="&#xE710;" 
+                        ToolTip="Ny konfiguration..."
+                        Command="{Binding NewCommand}"/>
+                
+                <!-- Duplicate (Segoe MDL2: E8C8 = Copy) -->
+                <Button Style="{StaticResource IconButtonStyle}" 
+                        Content="&#xE8C8;" 
+                        ToolTip="Dupliker valgte"
+                        Command="{Binding DuplicateCommand}"
+                        IsEnabled="{Binding CanDuplicate}"/>
+                
+                <!-- Rename (Segoe MDL2: E8AC = Rename) -->
+                <Button Style="{StaticResource IconButtonStyle}" 
+                        Content="&#xE8AC;" 
+                        ToolTip="Omdøb..."
+                        Command="{Binding RenameCommand}"
+                        IsEnabled="{Binding CanRename}"/>
+                
+                <!-- Edit (Segoe MDL2: E70F = Edit) -->
+                <Button Style="{StaticResource IconButtonStyle}" 
+                        Content="&#xE70F;" 
+                        ToolTip="Rediger/Vis..."
+                        Command="{Binding EditCommand}"
+                        IsEnabled="{Binding CanEditOrView}"/>
+                
+                <!-- Delete (Segoe MDL2: E74D = Delete) -->
+                <Button Style="{StaticResource IconButtonStyle}" 
+                        Content="&#xE74D;" 
+                        ToolTip="Slet"
+                        Command="{Binding DeleteCommand}"
+                        IsEnabled="{Binding CanDelete}"/>
+
+                <Rectangle Width="1" Fill="{DynamicResource BorderBrush}" Margin="6,2"/>
+
+                <!-- Import CSV (Segoe MDL2: E8B5 = Import) -->
+                <Button Style="{StaticResource IconButtonStyle}" 
+                        Content="&#xE8B5;" 
+                        ToolTip="Importer fra CSV..."
+                        Command="{Binding ImportCsvCommand}"/>
+                
+                <!-- Import DWG (Segoe MDL2: E8E5 = OpenFile) -->
+                <Button Style="{StaticResource IconButtonStyle}" 
+                        Content="&#xE8E5;" 
+                        ToolTip="Importer fra DWG..."
+                        Command="{Binding ImportDwgCommand}"/>
+                
+                <!-- Export (Segoe MDL2: EDE1 = Export) -->
+                <Button Style="{StaticResource IconButtonStyle}" 
+                        Content="&#xEDE1;" 
+                        ToolTip="Eksporter til CSV..."
+                        Command="{Binding ExportCommand}"
+                        IsEnabled="{Binding CanExport}"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- OK/Cancel Row -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="OK" 
+                    Style="{StaticResource DialogButtonStyle}"
+                    Command="{Binding OkCommand}"
+                    IsDefault="True"/>
+            <Button Content="Annuller" 
+                    Style="{StaticResource DialogButtonStyle}"
+                    Command="{Binding CancelCommand}"
+                    IsCancel="True"/>
+        </StackPanel>
+    </Grid>
+</Window>
+

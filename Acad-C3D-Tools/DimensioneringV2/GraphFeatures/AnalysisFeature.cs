@@ -10,8 +10,6 @@ using NetTopologySuite.Geometries;
 using NorsynHydraulicCalc;
 using NorsynHydraulicCalc.Pipes;
 
-using NorsynHydraulicShared;
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -74,6 +72,17 @@ namespace DimensioneringV2.GraphFeatures
                     x => x.attr!.Property,
                     x => x.prop.Name
                 );
+
+        private static Dictionary<MapPropertyEnum, PropertyInfo>? _propertyInfoLookup;
+        private static Dictionary<MapPropertyEnum, PropertyInfo> PropertyInfoLookup =>
+            _propertyInfoLookup ??= typeof(AnalysisFeature)
+                .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .Select(prop => (prop, attr: prop.GetCustomAttribute<MapPropertyAttribute>()))
+                .Where(x => x.attr != null)
+                .ToDictionary(
+                    x => x.attr!.Property,
+                    x => x.prop
+                );
         public object? this[MapPropertyEnum property]
         {
             get
@@ -112,6 +121,18 @@ namespace DimensioneringV2.GraphFeatures
             if (!PropertyKeyLookup.TryGetValue(property, out var key))
                 throw new KeyNotFoundException($"Property enum '{property}' not found in lookup.");
             return key;
+        }
+
+        /// <summary>
+        /// Gets the display value for a property by invoking the property getter.
+        /// This ensures that any custom logic in the property getter is executed,
+        /// unlike direct attribute table access which bypasses property logic.
+        /// </summary>
+        public object? GetDisplayValue(MapPropertyEnum property)
+        {
+            if (!PropertyInfoLookup.TryGetValue(property, out var propInfo))
+                throw new KeyNotFoundException($"Property enum '{property}' not found in lookup.");
+            return propInfo.GetValue(this);
         }
         #endregion
 
@@ -254,7 +275,7 @@ namespace DimensioneringV2.GraphFeatures
         [MapPropertyAttribute(MapPropertyEnum.PressureGradientSupply)]
         public double PressureGradientSupply
         {
-            get => GetAttributeValue<double>(MapPropertyEnum.PressureGradientSupply) * pct;            
+            get => GetAttributeValue<double>(MapPropertyEnum.PressureGradientSupply) * pct;
             set => SetAttributeValue(MapPropertyEnum.PressureGradientSupply, value);
         }
         private double pct => 1.0 + (double)HydraulicSettingsService.Instance.Settings.ProcentTillægTilTryktab / 100;
@@ -395,7 +416,16 @@ namespace DimensioneringV2.GraphFeatures
         {
             get => GetAttributeValue<double>(MapPropertyEnum.TempDeltaBV);
             //set => SetAttributeValue(MapPropertyEnum.TempDelta, value);
-        }        
+        }
+
+        /// <summary>
+        /// Anvendelseskode for the feature.
+        /// </summary>
+        [MapProperty(MapPropertyEnum.BygningsAnvendelseNyKode)]
+        public string BygningsAnvendelseNyKode
+        {
+            get => GetAttributeValue<string>(MapPropertyEnum.BygningsAnvendelseNyKode);
+        }
 
         public void ResetHydraulicResults()
         {
@@ -404,7 +434,7 @@ namespace DimensioneringV2.GraphFeatures
             HeatingDemandSupplied = 0;
             Dim = Dim.NA;
             ReynoldsSupply = 0;
-            ReynoldsReturn = 0;            
+            ReynoldsReturn = 0;
             DimFlowSupply = 0;
             DimFlowReturn = 0;
             PressureGradientSupply = 0;
@@ -459,6 +489,7 @@ namespace DimensioneringV2.GraphFeatures
         /// <summary>
         /// The address of the feature.
         /// </summary>
+        [MapProperty(MapPropertyEnum.Address)]
         public string Adresse
         {
             get
@@ -470,6 +501,16 @@ namespace DimensioneringV2.GraphFeatures
                 return addresse;
             }
         }
+
+        /// <summary>
+        /// The anvendelse text of the feature.
+        /// </summary>
+        [MapProperty(MapPropertyEnum.BygningsAnvendelseNyTekst)]
+        public string BygningsAnvendelseNyTekst
+        {
+            get => GetAttributeValue<string>(MapPropertyEnum.BygningsAnvendelseNyTekst);
+        }
+
         /// <summary>
         /// The pressure loss in this pipe segment.
         /// </summary>

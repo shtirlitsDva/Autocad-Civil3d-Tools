@@ -91,6 +91,11 @@ namespace DimensioneringV2.MapCommands
                         // Calculate service pipes (stikledninger) once - they're always leaf nodes
                         foreach (var edge in graph.Edges.Where(x => x.SegmentType == SegmentType.Stikledning))
                         {
+                            // Populate Bygningsnyttetimer from config based on AnvendelsesKode
+                            edge.Bygningsnyttetimer = NyttetimerService.Instance.GetNyttetimer(
+                                edge.AnvendelseKode,
+                                HydraulicSettingsService.Instance.Settings.BygningsnyttetimerDefault);
+                            
                             var result = HydraulicCalculationService.Calc.CalculateClientSegment(edge);
                             edge.ApplyResult(result);                            
                         }
