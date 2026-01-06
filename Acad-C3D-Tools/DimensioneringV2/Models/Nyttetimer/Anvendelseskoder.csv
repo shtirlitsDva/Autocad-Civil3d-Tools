@@ -1,0 +1,105 @@
+﻿2000;110;Stuehus til landbrugsejendom
+2000;120;Fritliggende enfamiliehus
+2000;121;Sammenbygget enfamiliehus
+2000;122;Fritliggende enfamiliehus i tæt-lav bebyggelse
+2000;130;(UDFASES) Række-, kæde-, eller dobbelthus (lodret adskillelse mellem enhederne).
+2000;131;Række-, kæde- og klyngehus
+2000;132;Dobbelthus
+2000;140;Etagebolig-bygning, flerfamiliehus eller to-familiehus
+2000;150;Kollegium
+2000;160;Boligbygning til døgninstitution
+2000;185;Anneks i tilknytning til helårsbolig.
+2000;190;Anden bygning til helårsbeboelse
+1500;210;(UDFASES) Bygning til erhvervsmæssig produktion vedrørende landbrug, gartneri, råstofudvinding o. lign
+1500;211;Stald til svin
+1500;212;Stald til kvæg, får mv.
+1500;213;Stald til fjerkræ
+1500;214;Minkhal
+1500;215;Væksthus
+1500;216;Lade til foder, afgrøder mv.
+1500;217;Maskinhus, garage mv.
+1500;218;Lade til halm, hø mv.
+1500;219;Anden bygning til landbrug mv.
+1500;220;(UDFASES) Bygning til erhvervsmæssig produktion vedrørende industri, håndværk m.v. (fabrik, værksted o.lign.)
+1500;221;Bygning til industri med integreret produktionsapparat
+1500;222;Bygning til industri uden integreret produktionsapparat
+1500;223;Værksted
+1500;229;Anden bygning til produktion
+1500;230;(UDFASES) El-, gas-, vand- eller varmeværk, forbrændingsanstalt m.v.
+1500;231;Bygning til energiproduktion
+1500;232;Bygning til energidistribution
+1500;233;Bygning til vandforsyning
+1500;234;Bygning til håndtering af affald og spildevand
+1500;239;Anden bygning til energiproduktion og forsyning
+1500;290;(UDFASES) Anden bygning til landbrug, industri etc.
+1500;310;(UDFASES) Transport- og garageanlæg (fragtmandshal, lufthavnsbygning, banegårdsbygning, parkeringshus). Garage med plads til et eller to køretøjer registreres med anvendelseskode 910
+1500;311;Bygning til jernbane- og busdrift
+1500;312;Bygning til luftfart
+1500;313;Bygning til parkering- og transportanlæg
+1500;314;Bygning til parkering af flere end to køretøjer i tilknytning til boliger
+1500;315;Havneanlæg
+1500;319;Andet transportanlæg
+1500;320;(UDFASES) Bygning til kontor, handel, lager, herunder offentlig administration
+1500;321;Bygning til kontor
+1500;322;Bygning til detailhandel
+1500;323;Bygning til lager
+1500;324;Butikscenter
+1500;325;Tankstation
+1500;329;Anden bygning til kontor, handel og lager
+1500;330;(UDFASES) Bygning til hotel, restaurant, vaskeri, frisør og anden servicevirksomhed
+1500;331;Hotel, kro eller konferencecenter med overnatning
+1500;332;Bed & breakfast mv.
+1500;333;Restaurant, café og konferencecenter uden overnatning
+1500;334;Privat servicevirksomhed som frisør, vaskeri, netcafé mv.
+1500;339;Anden bygning til serviceerhverv
+1500;390;(UDFASES) Anden bygning til transport, handel etc
+1500;410;(UDFASES) Bygning til biograf, teater, erhvervsmæssig udstilling, bibliotek, museum, kirke o. lign.
+1500;411;Biograf, teater, koncertsted mv.
+1500;412;Museum
+1500;413;Bibliotek
+1500;414;Kirke eller anden bygning til trosudøvelse for statsanerkendte trossamfund
+1500;415;Forsamlingshus
+1500;416;Forlystelsespark
+1500;419;Anden bygning til kulturelle formål
+1500;420;(UDFASES) Bygning til undervisning og forskning (skole, gymnasium, forskningslabratorium o.lign.).
+1500;421;Grundskole
+1500;422;Universitet
+1500;429;Anden bygning til undervisning og forskning
+1500;430;(UDFASES) Bygning til hospital, sygehjem, fødeklinik o. lign.
+1500;431;Hospital og sygehus
+1500;432;Hospice, behandlingshjem mv.
+1500;433;Sundhedscenter, lægehus, fødeklinik mv.
+1500;439;Anden bygning til sundhedsformål
+1500;440;(UDFASES) Bygning til daginstitution
+1500;441;Daginstitution
+3000;442;Servicefunktion på døgninstitution
+1500;443;Kaserne
+1500;444;Fængsel, arresthus mv.
+1500;449;Anden bygning til institutionsformål
+1500;451;Beskyttelsesrum
+1500;490;(UDFASES) Bygning til anden institution, herunder kaserne, fængsel o. lign.
+1500;510;Sommerhus
+1500;520;(UDFASES) Bygning til feriekoloni, vandrehjem o.lign. bortset fra sommerhus
+1500;521;Feriecenter, center til campingplads mv.
+1500;522;Bygning med ferielejligheder til erhvervsmæssig udlejning
+1500;523;Bygning med ferielejligheder til eget brug
+1500;529;Anden bygning til ferieformål
+1500;530;(UDFASES) Bygning i forbindelse med idrætsudøvelse (klubhus, idrætshal, svømmehal o. lign.)
+1500;531;Klubhus i forbindelse med fritid og idræt
+1500;532;Svømmehal
+1500;533;Idrætshal
+1500;534;Tribune i forbindelse med stadion
+1500;535;Bygning til træning og opstaldning af heste
+1500;539;Anden bygning til idrætformål
+1500;540;Kolonihavehus
+1500;585;Anneks i tilknytning til fritids- og sommerhus
+1500;590;Anden bygning til fritidsformål
+1500;910;Garage
+1500;920;Carport
+1500;930;Udhus
+1500;940;Drivhus
+1500;950;Fritliggende overdækning
+1500;960;Fritliggende udestue
+1500;970;Tiloversbleven landbrugsbygning
+1500;990;Faldefærdig bygning
+1500;999;Ukendt bygning
