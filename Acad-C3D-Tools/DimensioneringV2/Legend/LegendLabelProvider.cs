@@ -24,6 +24,7 @@ namespace DimensioneringV2.Legend
                 MapPropertyEnum.Address => value is string addr && !string.IsNullOrEmpty(addr) ? addr : "Ukendt",
                 MapPropertyEnum.BygningsAnvendelseNyTekst => value is string anvt && !string.IsNullOrEmpty(anvt) ? anvt : "Ukendt",
                 MapPropertyEnum.BygningsAnvendelseNyKode => value is string anvk && !string.IsNullOrEmpty(anvk) ? anvk : "Ukendt",
+                MapPropertyEnum.Nyttetimer => value is int nt && nt > 0 ? nt.ToString() : "",
 
                 //Not used for gradient legend
 

@@ -427,6 +427,25 @@ namespace DimensioneringV2.GraphFeatures
             get => GetAttributeValue<string>(MapPropertyEnum.BygningsAnvendelseNyKode);
         }
 
+        /// <summary>
+        /// Nyttetimer value from the current configuration based on AnvendelsesKode.
+        /// Only valid for Stikledning segments. Returns 0 for Fordelingsledning.
+        /// This property dynamically reads from NyttetimerService so changes in settings
+        /// are reflected when the map is refreshed.
+        /// </summary>
+        [MapProperty(MapPropertyEnum.Nyttetimer)]
+        public int Nyttetimer
+        {
+            get
+            {
+                if (SegmentType != SegmentType.Stikledning) return 0;
+
+                var kode = BygningsAnvendelseNyKode;
+                var defaultValue = HydraulicSettingsService.Instance.Settings.BygningsnyttetimerDefault;
+                return NyttetimerService.Instance.GetNyttetimer(kode, defaultValue);
+            }
+        }
+
         public void ResetHydraulicResults()
         {
             NumberOfBuildingsSupplied = 0;

@@ -17,6 +17,7 @@ namespace DimensioneringV2.Legend
                 MapPropertyEnum.Address => "Adresser",
                 MapPropertyEnum.BygningsAnvendelseNyTekst => "Anvendelse, tekst",
                 MapPropertyEnum.BygningsAnvendelseNyKode => "Anvendelse, kode",
+                MapPropertyEnum.Nyttetimer => "Nyttetimer",
 
                 //Gradient theme
                 MapPropertyEnum.Bygninger => $"Bygninger\nforsynet\n[stk]",

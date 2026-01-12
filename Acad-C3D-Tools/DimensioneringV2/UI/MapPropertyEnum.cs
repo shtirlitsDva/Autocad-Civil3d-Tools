@@ -54,6 +54,8 @@ namespace DimensioneringV2.UI
         [Description("Anvendelse, tekst")]
         BygningsAnvendelseNyTekst,
         [Description("Anvendelse, kode")]
-        BygningsAnvendelseNyKode
+        BygningsAnvendelseNyKode,
+        [Description("Nyttetimer")]
+        Nyttetimer
     }
 }

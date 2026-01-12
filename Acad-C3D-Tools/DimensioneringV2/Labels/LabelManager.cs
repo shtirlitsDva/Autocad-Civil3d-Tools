@@ -36,6 +36,7 @@ namespace DimensioneringV2.Labels
                     {
                         MapPropertyEnum.CriticalPath => formatCriticalPath(feature),
                         MapPropertyEnum.UtilizationRate => value is double d ? $"{d * 100:F0}%" : value?.ToString(),
+                        MapPropertyEnum.Nyttetimer => value is int nt && nt > 0 ? nt.ToString() : null,
                         _ => value switch
                         {
                             double d => d.ToString("F2"),

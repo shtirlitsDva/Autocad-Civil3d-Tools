@@ -61,6 +61,10 @@ namespace DimensioneringV2.Themes
             _categoryThemeBuilders[MapPropertyEnum.BygningsAnvendelseNyKode] =
                 () => BuildCategoryTheme(
                     MapPropertyEnum.BygningsAnvendelseNyKode, f => f.BygningsAnvendelseNyKode, [""]);
+
+            _categoryThemeBuilders[MapPropertyEnum.Nyttetimer] =
+                () => BuildCategoryTheme(
+                    MapPropertyEnum.Nyttetimer, f => f.Nyttetimer, [0]);
         }
 
         public void SetTheme(MapPropertyEnum property, bool labelsEnabled = false)
@@ -92,6 +96,7 @@ namespace DimensioneringV2.Themes
                 case MapPropertyEnum.Address:
                 case MapPropertyEnum.BygningsAnvendelseNyTekst:
                 case MapPropertyEnum.BygningsAnvendelseNyKode:
+                case MapPropertyEnum.Nyttetimer:
                     theme = _categoryThemeBuilders[property]();
                     break;
 
