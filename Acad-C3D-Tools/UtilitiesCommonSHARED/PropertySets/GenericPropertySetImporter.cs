@@ -81,6 +81,30 @@ namespace IntersectUtilities
                 throw new InvalidDataException(
                     $"Column count mismatch: {_columnNames.Count} column names but {dataTypes?.Length ?? 0} data types.");
 
+            // Validate that the second row contains valid data type declarations
+            var invalidTypes = dataTypes
+                .Select((dt, idx) => (Type: dt, Column: _columnNames[idx]))
+                .Where(x => !IsValidCsvType(x.Type))
+                .ToList();
+
+            if (invalidTypes.Count > 0)
+            {
+                string invalidExamples = string.Join(", ",
+                    invalidTypes.Take(3).Select(x => $"'{x.Type}' (column '{x.Column}')"));
+                if (invalidTypes.Count > 3)
+                    invalidExamples += $", ... ({invalidTypes.Count - 3} more)";
+
+                throw new InvalidDataException(
+                    $"CSV file is missing the data types row (row 2).\n" +
+                    $"The second row appears to contain data values instead of type declarations.\n" +
+                    $"Invalid type values found: {invalidExamples}\n" +
+                    $"Valid types are: string, double, int, integer, bool, boolean, date.\n" +
+                    $"Example CSV format:\n" +
+                    $"  Row 1: ColumnA;ColumnB;ColumnC\n" +
+                    $"  Row 2: string;double;int\n" +
+                    $"  Row 3+: actual;data;values");
+            }
+
             for (int i = 0; i < _columnNames.Count; i++)
             {
                 string columnName = _columnNames[i];
@@ -104,6 +128,16 @@ namespace IntersectUtilities
                 }
                 _rows.Add(row);
             }
+        }
+
+        private static readonly HashSet<string> ValidCsvTypes = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "string", "double", "int", "integer", "bool", "boolean", "date"
+        };
+
+        private static bool IsValidCsvType(string csvType)
+        {
+            return ValidCsvTypes.Contains(csvType.Trim());
         }
 
         private static PsDataType MapCsvTypeToPropertySetType(string csvType)
