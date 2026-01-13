@@ -17,6 +17,7 @@
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)AsciiTableFormatter.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)CalculationResultFordeling.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Pipes\PipeAquaTherm11.cs" />
     <Compile Include="..\NorsynHydraulicShared\CalculationResultClient.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Enums.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)HydraulicCalc.cs" />
@@ -45,5 +46,8 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)Pipes\Sizes\PipePeSizes.csv" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Pipes\Sizes\PipeAquaTherm11Sizes.csv" />
   </ItemGroup>
 </Project>

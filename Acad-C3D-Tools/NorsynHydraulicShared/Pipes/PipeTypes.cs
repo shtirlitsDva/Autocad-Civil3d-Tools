@@ -16,13 +16,15 @@ namespace NorsynHydraulicCalc.Pipes
             _pertFlextra = new PipePertFlextra(s.RuhedPertFlextra);
             _cu = new PipeCu(s.RuhedCu);
             _pe = new PipePe(s.RuhedPe);
+            _at11 = new PipeAquaTherm11(s.RuhedAquaTherm11);
             _allTypes = new Dictionary<PipeType, IPipe>
             {
                 { PipeType.Stål, _stål },
                 { PipeType.AluPEX, _aluPex },
                 { PipeType.PertFlextra, _pertFlextra },
                 { PipeType.Kobber, _cu },
-                { PipeType.Pe, _pe }
+                { PipeType.Pe, _pe },
+                { PipeType.AquaTherm11, _at11 }
             };
         }
         public IPipe GetPipeType(PipeType type)
@@ -45,5 +47,8 @@ namespace NorsynHydraulicCalc.Pipes
 
         public PipePe _pe;
         public PipePe Pe => _pe;
+
+        public PipeAquaTherm11 _at11;
+        public PipeAquaTherm11 AT11 => _at11;
     }
 }

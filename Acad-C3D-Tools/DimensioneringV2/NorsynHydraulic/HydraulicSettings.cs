@@ -70,6 +70,9 @@ public partial class HydraulicSettings : ObservableObject, IHydraulicSettings
     private double ruhedPe = 0.01;
 
     [ObservableProperty]
+    private double ruhedAquaTherm11 = 0.01;
+
+    [ObservableProperty]
     private int procentTillægTilTryktab = 0;
 
     [ObservableProperty]

@@ -70,6 +70,15 @@
                 <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.RuhedPe, UpdateSourceTrigger=PropertyChanged}"/>
             </Grid>
 
+            <Grid Style="{StaticResource RowStyle}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="200"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Label Content="Ruhed AquaTherm11 [mm:Decimaltal]:"/>
+                <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.RuhedAquaTherm11, UpdateSourceTrigger=PropertyChanged}"/>
+            </Grid>
+
             <Button Content="Luk" Click="CloseButton_Click" HorizontalAlignment="Right" Margin="0,20,0,0" Width="100"/>
         </StackPanel>
     </Grid>
