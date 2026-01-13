@@ -1,0 +1,55 @@
+<Window x:Class="DimensioneringV2.UI.PipeSettings.AddPipeTypeDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Tilføj rørtype"
+        Height="200" Width="350"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource Background}">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="../Theme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <TextBlock Grid.Row="0" 
+                   Text="Vælg rørtype" 
+                   FontSize="16" 
+                   FontWeight="SemiBold" 
+                   Foreground="White"
+                   Margin="0,0,0,16"/>
+
+        <!-- Pipe Type Selection -->
+        <StackPanel Grid.Row="1">
+            <TextBlock Style="{StaticResource FieldLabelStyle}" Text="Rørtype:"/>
+            <ComboBox x:Name="PipeTypeComboBox" 
+                      Style="{StaticResource ModernDarkComboBox}"
+                      ItemsSource="{Binding AvailablePipeTypes}"
+                      SelectedItem="{Binding SelectedPipeType, Mode=TwoWay}"
+                      MinWidth="200"/>
+        </StackPanel>
+
+        <!-- Buttons -->
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="Annuller" 
+                    Style="{StaticResource SecondaryButtonStyle}" 
+                    Margin="0,0,8,0"
+                    Click="Cancel_Click"/>
+            <Button Content="Tilføj" 
+                    Style="{StaticResource PrimaryButtonStyle}"
+                    Click="Ok_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

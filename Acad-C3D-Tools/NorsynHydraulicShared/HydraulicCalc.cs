@@ -45,17 +45,6 @@ namespace NorsynHydraulicCalc
         private double tempFrem => s.TempFrem; // degree
         private double afkølingVarme => s.AfkølingVarme; // degree
         private double factorVarmtVandsTillæg => s.FactorVarmtVandsTillæg;
-        private double acceptVelocity20_150FL => s.AcceptVelocity20_150FL; // m/s
-        private double acceptVelocity200_300FL => s.AcceptVelocity200_300FL; // m/s
-        private double acceptVelocity350PlusFL => s.AcceptVelocity350PlusFL;
-        private int acceptPressureGradient20_150FL => s.AcceptPressureGradient20_150FL; // Pa/m
-        private int acceptPressureGradient200_300FL => s.AcceptPressureGradient200_300FL; // Pa/m
-        private int acceptPressureGradient350PlusFL => s.AcceptPressureGradient350PlusFL; // Pa/m
-        private bool usePertFlextraFL => s.UsePertFlextraFL; // boolean
-        private int pertFlextraMaxDnFL => s.PertFlextraMaxDnFL; // mm
-
-        // Stikledninger (Service pipes)
-        private PipeType pipeTypeSL => s.PipeTypeSL;
         
         // Nyttetimer (consolidated from FL/SL)
         /// <summary>
@@ -66,10 +55,6 @@ namespace NorsynHydraulicCalc
         /// System nyttetimer for 50+ consumers (SN50).
         /// </summary>
         private int SN50 => s.SystemnyttetimerVed50PlusForbrugere;
-        private double acceptVelocityFlexibleSL => s.AcceptVelocityFlexibleSL; // m/s
-        private double acceptVelocity20_150SL => s.AcceptVelocity20_150SL; // m/s
-        private int acceptPressureGradientFlexibleSL => s.AcceptPressureGradientFlexibleSL; // Pa/m
-        private int acceptPressureGradient20_150SL => s.AcceptPressureGradient20_150SL; // Pa/m
         private double maxPressureLossStikSL => s.MaxPressureLossStikSL; // bar
 
         //Calculation settings
@@ -448,35 +433,61 @@ namespace NorsynHydraulicCalc
 
         #region Properties aliases to handle different types
         #region Properties for general max flow calculation
+        /// <summary>
+        /// Gets the max allowed velocity for a dimension by looking up the accept criteria
+        /// from the pipe type configuration.
+        /// </summary>
         private double Vmax(Dim dim, SegmentType st)
         {
-            switch (st)
+            var criteria = GetAcceptCriteria(dim, st);
+            if (criteria == null)
             {
-                case SegmentType.Fordelingsledning:
-                    if (dim.NominalDiameter <= 150) return acceptVelocity20_150FL;
-                    else if (dim.NominalDiameter <= 300) return acceptVelocity200_300FL;
-                    else return acceptVelocity350PlusFL;
-                case SegmentType.Stikledning:
-                    if (dim.PipeType != PipeType.Stål) return acceptVelocityFlexibleSL;
-                    else return acceptVelocity20_150SL;
-                default:
-                    throw new NotImplementedException();
+                throw new InvalidOperationException(
+                    $"No accept criteria found for {dim.PipeType} DN{dim.NominalDiameter} in {st}. " +
+                    "Check PipeTypeConfiguration settings.");
             }
+            return criteria.MaxVelocity;
         }
+
+        /// <summary>
+        /// Gets the max allowed pressure gradient for a dimension by looking up the accept criteria
+        /// from the pipe type configuration.
+        /// </summary>
         private double dPdx_max(Dim dim, SegmentType st)
         {
-            switch (st)
+            var criteria = GetAcceptCriteria(dim, st);
+            if (criteria == null)
             {
-                case SegmentType.Fordelingsledning:
-                    if (dim.NominalDiameter <= 150) return acceptPressureGradient20_150FL;
-                    else if (dim.NominalDiameter <= 300) return acceptPressureGradient200_300FL;
-                    else return acceptPressureGradient350PlusFL;
-                case SegmentType.Stikledning:
-                    if (dim.PipeType != PipeType.Stål) return acceptPressureGradientFlexibleSL;
-                    else return acceptPressureGradient20_150SL;
-                default:
-                    throw new NotImplementedException();
+                throw new InvalidOperationException(
+                    $"No accept criteria found for {dim.PipeType} DN{dim.NominalDiameter} in {st}. " +
+                    "Check PipeTypeConfiguration settings.");
             }
+            return criteria.MaxPressureGradient;
+        }
+
+        /// <summary>
+        /// Looks up accept criteria for a dimension from the pipe type configuration.
+        /// </summary>
+        private DnAcceptCriteria GetAcceptCriteria(Dim dim, SegmentType st)
+        {
+            var config = st == SegmentType.Fordelingsledning ? s.PipeConfigFL : s.PipeConfigSL;
+
+            if (config == null)
+            {
+                throw new InvalidOperationException(
+                    $"PipeConfig{(st == SegmentType.Fordelingsledning ? "FL" : "SL")} is not initialized.");
+            }
+
+            // Find the priority entry that contains this pipe type
+            var priority = config.GetPriorityForPipeType(dim.PipeType);
+            if (priority == null)
+            {
+                // Pipe type not configured for this segment type
+                return null;
+            }
+
+            // Get the accept criteria for this specific DN
+            return priority.GetCriteriaForDn(dim.NominalDiameter);
         }
         #endregion
 

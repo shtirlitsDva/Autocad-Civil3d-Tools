@@ -29,11 +29,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)LookupData\LookupDataFactory.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)LookupData\LookupDataWater.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)LookupData\LookupDataWater72Ipa28.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)MaxFlowCalc\IMaxFlowCalc.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)maxflowcalc\MaxFlowCalcBase.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)MaxFlowCalc\MaxFlowCalcFactory.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)MaxFlowCalc\MaxFlowCalcWater.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)MaxFlowCalc\MaxFlowCalcWater72Ipa28.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Pipes\Dim.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Pipes\IPipe.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Pipes\PipeAluPex.cs" />
@@ -43,6 +38,14 @@
     <Compile Include="$(MSBuildThisFileDirectory)Pipes\PipePertFlextra.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Pipes\PipeSteel.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Pipes\PipeTypes.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)DnAcceptCriteria.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)PipeTypePriority.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)PipeTypeConfiguration.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)MediumPipeTypeRules.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)DefaultPipeConfigFactory.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)MaxFlowCalc\IMaxFlowCalc.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)MaxFlowCalc\MaxFlowCalcBase.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)MaxFlowCalc\MaxFlowCalcFactory.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)Pipes\Sizes\PipePeSizes.csv" />

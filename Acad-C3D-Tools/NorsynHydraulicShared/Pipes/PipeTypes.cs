@@ -33,6 +33,17 @@ namespace NorsynHydraulicCalc.Pipes
                 throw new Exception("PipeTypes not initialized");
             return _allTypes[type];
         }
+        
+        /// <summary>
+        /// Gets available DN values for a specific pipe type (from loaded CSV data).
+        /// </summary>
+        public int[] GetAvailableDnValues(PipeType type)
+        {
+            var pipe = GetPipeType(type);
+            if (pipe is PipeBase pipeBase)
+                return pipeBase.GetAvailableDnValues();
+            return Array.Empty<int>();
+        }
         private PipeSteel _stål;
         public PipeSteel Stål => _stål;
 

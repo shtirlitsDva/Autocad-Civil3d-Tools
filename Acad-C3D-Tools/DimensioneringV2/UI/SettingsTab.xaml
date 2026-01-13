@@ -275,152 +275,35 @@
             <!-- Supply Lines (FL) -->
             <GroupBox Header="Fordelingsledninger">
                 <StackPanel>
-                    <!-- AcceptVelocity20_150FL -->
+                    <!-- Rørindstillinger (Pipe Settings) -->
                     <Grid Style="{StaticResource RowStyle}">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
                             <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
                         </Grid.ColumnDefinitions>
-                        <Label Content="Acceptkriterie hastighed DN 20-150 [m/s:Decimaltal]:"/>
-                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.AcceptVelocity20_150FL, UpdateSourceTrigger=PropertyChanged}"/>
+                        <Label Content="Rørindstillinger (rørtyper og acceptkriterier):"/>
+                        <Button Grid.Column="1" Content="Rediger" 
+                                Command="{Binding EditPipeSettingsFLCommand}" 
+                                Style="{StaticResource ActionBtn}"
+                                HorizontalAlignment="Left"/>
                     </Grid>
-
-                    <!-- AcceptVelocity200_300FL -->
-                    <Grid Style="{StaticResource RowStyle}">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
-                        </Grid.ColumnDefinitions>
-                        <Label Content="Acceptkriterie hastighed DN 200-300 [m/s:Decimaltal]:"/>
-                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.AcceptVelocity200_300FL, UpdateSourceTrigger=PropertyChanged}"/>
-                    </Grid>
-
-                    <!-- AcceptVelocity350PlusFL -->
-                    <Grid Style="{StaticResource RowStyle}">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
-                        </Grid.ColumnDefinitions>
-                        <Label Content="Acceptkriterie hastighed DN 350+ [m/s:Decimaltal]:"/>
-                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.AcceptVelocity350PlusFL, UpdateSourceTrigger=PropertyChanged}"/>
-                    </Grid>
-
-                    <!-- AcceptPressureGradient20_150FL -->
-                    <Grid Style="{StaticResource RowStyle}">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
-                        </Grid.ColumnDefinitions>
-                        <Label Content="Acceptkriterie trykgradient DN 20-150 [Pa/m:Heltal]:"/>
-                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.AcceptPressureGradient20_150FL, UpdateSourceTrigger=PropertyChanged}"/>
-                    </Grid>
-
-                    <!-- AcceptPressureGradient200_300FL -->
-                    <Grid Style="{StaticResource RowStyle}">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
-                        </Grid.ColumnDefinitions>
-                        <Label Content="Acceptkriterie trykgradient DN 200-300 [Pa/m:Heltal]:"/>
-                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.AcceptPressureGradient200_300FL, UpdateSourceTrigger=PropertyChanged}"/>
-                    </Grid>
-
-                    <!-- AcceptPressureGradient350PlusFL -->
-                    <Grid Style="{StaticResource RowStyle}">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
-                        </Grid.ColumnDefinitions>
-                        <Label Content="Acceptkriterie trykgradient DN 350+ [Pa/m:Heltal]:"/>
-                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.AcceptPressureGradient350PlusFL, UpdateSourceTrigger=PropertyChanged}"/>
-                    </Grid>
-
-                    <!-- UsePertFlextraFL (CheckBox) -->
-                    <Grid Style="{StaticResource RowStyle}">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
-                        </Grid.ColumnDefinitions>
-                        <Label Content="Brug PertFlextra"/>
-                        <CheckBox Grid.Column="1" 
-                                  IsChecked="{Binding Settings.UsePertFlextraFL, UpdateSourceTrigger=PropertyChanged}"
-                                  IsEnabled="{Binding IsPertFlextraSelectable}"/>
-                    </Grid>
-
-                    <!-- PertFlextraMaxDnFL -->
-                    <Grid Style="{StaticResource RowStyle}">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
-                        </Grid.ColumnDefinitions>
-                        <Label Content="PertFlextra maksimum størrelse:"/>
-                        <ComboBox Grid.Column="1" Width="100" SelectedItem="{Binding Settings.PertFlextraMaxDnFL, UpdateSourceTrigger=PropertyChanged}"
-                              IsEnabled="{Binding IsPertFlextraSelectable}">
-                        <sys:Int32>75</sys:Int32>
-                        <sys:Int32>63</sys:Int32>
-                        <sys:Int32>50</sys:Int32>
-                        <sys:Int32>40</sys:Int32>
-                        <sys:Int32>32</sys:Int32>
-                        <sys:Int32>25</sys:Int32>
-                    </ComboBox>
-                </Grid>
                 </StackPanel>
             </GroupBox>
 
             <!-- Service Lines (SL) -->
             <GroupBox Header="Stikledninger">
                 <StackPanel>
-                    <!-- PipeTypeSL -->
+                    <!-- Rørindstillinger (Pipe Settings) -->
                     <Grid Style="{StaticResource RowStyle}">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
                             <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
                         </Grid.ColumnDefinitions>
-                        <Label Content="Fleksible stik udføres som:"/>
-                        <ComboBox Grid.Column="1" Width="100"
-                              ItemsSource="{Binding ValidPipeTypesSL}"
-                              SelectedItem="{Binding Settings.PipeTypeSL, UpdateSourceTrigger=PropertyChanged}"
-                              IsEnabled="{Binding IsPipeTypeSLSelectable}"/>
-                    </Grid>
-
-                    <!-- AcceptVelocityFlexibleSL -->
-                    <Grid Style="{StaticResource RowStyle}">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
-                        </Grid.ColumnDefinitions>
-                        <Label Content="Acceptkriterie hastighed fleksible stik [m/s:Decimaltal]:"/>
-                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.AcceptVelocityFlexibleSL, UpdateSourceTrigger=PropertyChanged}"/>
-                    </Grid>
-
-                    <!-- AcceptVelocity20_150SL -->
-                    <Grid Style="{StaticResource RowStyle}">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
-                        </Grid.ColumnDefinitions>
-                        <Label Content="Acceptkriterie hastighed DN 20-150 [m/s:Decimaltal]:"/>
-                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.AcceptVelocity20_150SL, UpdateSourceTrigger=PropertyChanged}"/>
-                    </Grid>
-
-                    <!-- AcceptPressureGradientFlexibleSL -->
-                    <Grid Style="{StaticResource RowStyle}">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
-                        </Grid.ColumnDefinitions>
-                        <Label Content="Acceptkriterie trykgradient fleksible stik [Pa/m:Heltal]:"/>
-                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.AcceptPressureGradientFlexibleSL, UpdateSourceTrigger=PropertyChanged}"/>
-                    </Grid>
-
-                    <!-- AcceptPressureGradient20_150SL -->
-                    <Grid Style="{StaticResource RowStyle}">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
-                        </Grid.ColumnDefinitions>
-                        <Label Content="Acceptkriterie trykgradient DN 20-150 [Pa/m:Heltal]:"/>
-                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.AcceptPressureGradient20_150SL, UpdateSourceTrigger=PropertyChanged}"/>
+                        <Label Content="Rørindstillinger (rørtyper og acceptkriterier):"/>
+                        <Button Grid.Column="1" Content="Rediger" 
+                                Command="{Binding EditPipeSettingsSLCommand}" 
+                                Style="{StaticResource ActionBtn}"
+                                HorizontalAlignment="Left"/>
                     </Grid>
 
                     <!-- MaxPressureLossStikSL -->
@@ -431,7 +314,7 @@
                         </Grid.ColumnDefinitions>
                         <Label Content="Maks. tryktab i stikledning [bar:Decimaltal]:"/>
                         <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.MaxPressureLossStikSL, UpdateSourceTrigger=PropertyChanged}"/>
-                </Grid>
+                    </Grid>
                 </StackPanel>
             </GroupBox>
         </StackPanel>

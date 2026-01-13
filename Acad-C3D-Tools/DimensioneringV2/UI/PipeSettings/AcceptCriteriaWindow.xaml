@@ -1,0 +1,222 @@
+<Window x:Class="DimensioneringV2.UI.PipeSettings.AcceptCriteriaWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="{Binding WindowTitle}"
+        Height="500" Width="550"
+        MinHeight="350" MinWidth="450"
+        ResizeMode="CanResizeWithGrip"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource Background}">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="../Theme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- Row style with initialization indicator -->
+            <Style x:Key="CriteriaRowStyle" TargetType="DataGridRow">
+                <Setter Property="Background" Value="#FF1E1E1E"/>
+                <Setter Property="Foreground" Value="White"/>
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsInitialized}" Value="False">
+                        <Setter Property="Background" Value="#30FF8C00"/>
+                    </DataTrigger>
+                    <Trigger Property="IsSelected" Value="True">
+                        <Setter Property="Background" Value="#FF4A6B8A"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+
+            <!-- DataGrid Cell Style -->
+            <Style x:Key="CriteriaCellStyle" TargetType="DataGridCell">
+                <Setter Property="Foreground" Value="White"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="Padding" Value="8,6"/>
+                <Style.Triggers>
+                    <Trigger Property="IsSelected" Value="True">
+                        <Setter Property="Background" Value="Transparent"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <TextBlock Grid.Row="0"
+                   Text="{Binding WindowTitle}"
+                   FontSize="18"
+                   FontWeight="SemiBold"
+                   Foreground="White"
+                   Margin="0,0,0,8"/>
+
+        <!-- Info bar -->
+        <Border Grid.Row="1" 
+                Background="#30FF8C00" 
+                CornerRadius="4" 
+                Padding="12,8" 
+                Margin="0,0,0,16">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="&#xE7BA;" 
+                           FontFamily="Segoe MDL2 Assets" 
+                           Foreground="#FFFFB347"
+                           FontSize="14"
+                           VerticalAlignment="Center"
+                           Margin="0,0,8,0"/>
+                <TextBlock Text="Orange rækker mangler bekræftelse. Rediger værdier eller klik 'Marker alle bekræftet'."
+                           Foreground="#FFFFB347"
+                           FontSize="12"
+                           VerticalAlignment="Center"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Criteria DataGrid -->
+        <DataGrid Grid.Row="2"
+                  ItemsSource="{Binding VisibleCriteria}"
+                  AutoGenerateColumns="False"
+                  CanUserAddRows="False"
+                  CanUserDeleteRows="False"
+                  CanUserSortColumns="False"
+                  SelectionMode="Single"
+                  SelectionUnit="FullRow"
+                  GridLinesVisibility="Horizontal"
+                  HeadersVisibility="Column"
+                  RowHeight="36"
+                  Background="#FF1E1E1E"
+                  BorderBrush="#FF444444"
+                  BorderThickness="1"
+                  RowStyle="{StaticResource CriteriaRowStyle}"
+                  CellStyle="{StaticResource CriteriaCellStyle}"
+                  HorizontalGridLinesBrush="#FF333333">
+            
+            <DataGrid.ColumnHeaderStyle>
+                <Style TargetType="DataGridColumnHeader">
+                    <Setter Property="Background" Value="#FF3C3C3C"/>
+                    <Setter Property="Foreground" Value="White"/>
+                    <Setter Property="FontWeight" Value="SemiBold"/>
+                    <Setter Property="FontSize" Value="13"/>
+                    <Setter Property="Padding" Value="12,10"/>
+                    <Setter Property="BorderBrush" Value="#FF444444"/>
+                    <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                </Style>
+            </DataGrid.ColumnHeaderStyle>
+
+            <DataGrid.Columns>
+                <!-- DN Column -->
+                <DataGridTextColumn Header="DN" 
+                                    Binding="{Binding NominalDiameter}" 
+                                    Width="70"
+                                    IsReadOnly="True">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                            <Setter Property="VerticalAlignment" Value="Center"/>
+                            <Setter Property="FontWeight" Value="SemiBold"/>
+                            <Setter Property="Foreground" Value="White"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+
+                <!-- Max Velocity Column -->
+                <DataGridTextColumn Header="Max hastighed [m/s]"
+                                    Binding="{Binding MaxVelocity, StringFormat=F2, UpdateSourceTrigger=LostFocus}"
+                                    Width="*">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                            <Setter Property="VerticalAlignment" Value="Center"/>
+                            <Setter Property="Foreground" Value="White"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                    <DataGridTextColumn.EditingElementStyle>
+                        <Style TargetType="TextBox">
+                            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                            <Setter Property="Background" Value="#FF2A2A2A"/>
+                            <Setter Property="Foreground" Value="White"/>
+                            <Setter Property="BorderThickness" Value="0"/>
+                            <Setter Property="Padding" Value="4"/>
+                        </Style>
+                    </DataGridTextColumn.EditingElementStyle>
+                </DataGridTextColumn>
+
+                <!-- Max Pressure Gradient Column -->
+                <DataGridTextColumn Header="Max trykgradient [Pa/m]"
+                                    Binding="{Binding MaxPressureGradient, UpdateSourceTrigger=LostFocus}"
+                                    Width="*">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                            <Setter Property="VerticalAlignment" Value="Center"/>
+                            <Setter Property="Foreground" Value="White"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                    <DataGridTextColumn.EditingElementStyle>
+                        <Style TargetType="TextBox">
+                            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                            <Setter Property="Background" Value="#FF2A2A2A"/>
+                            <Setter Property="Foreground" Value="White"/>
+                            <Setter Property="BorderThickness" Value="0"/>
+                            <Setter Property="Padding" Value="4"/>
+                        </Style>
+                    </DataGridTextColumn.EditingElementStyle>
+                </DataGridTextColumn>
+
+                <!-- Status Column -->
+                <DataGridTemplateColumn Header="Status" Width="80">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Text" Value="✓"/>
+                                        <Setter Property="Foreground" Value="#FF4CAF50"/>
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsInitialized}" Value="False">
+                                                <Setter Property="Text" Value="⚠"/>
+                                                <Setter Property="Foreground" Value="#FFFFB347"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <!-- Quick Actions -->
+        <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,16,0,0">
+            <Button Content="Kopier første til alle"
+                    Style="{StaticResource SecondaryButtonStyle}"
+                    Command="{Binding ApplyToAllCommand}"
+                    ToolTip="Kopier værdier fra første række til alle andre"/>
+            <Button Content="Marker alle bekræftet"
+                    Style="{StaticResource SecondaryButtonStyle}"
+                    Command="{Binding MarkAllInitializedCommand}"
+                    Margin="8,0,0,0"
+                    ToolTip="Marker alle rækker som bekræftet"/>
+        </StackPanel>
+
+        <!-- Close Button -->
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Content="Gem og luk"
+                    Style="{StaticResource PrimaryButtonStyle}"
+                    Command="{Binding CloseCommand}"
+                    CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"/>
+        </StackPanel>
+    </Grid>
+</Window>

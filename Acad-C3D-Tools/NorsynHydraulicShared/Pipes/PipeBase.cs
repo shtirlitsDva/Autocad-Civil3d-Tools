@@ -36,6 +36,15 @@ namespace NorsynHydraulicCalc.Pipes
                 .OrderBy(kvp => kvp.Key)
                 .Select(kvp => kvp.Value);
         }
+        
+        /// <summary>
+        /// Gets all available DN values for this pipe type (from loaded CSV data).
+        /// </summary>
+        public int[] GetAvailableDnValues()
+        {
+            return Sizes.Keys.OrderBy(k => k).ToArray();
+        }
+        
         public Dim GetDim(int dia) => Sizes[dia];
         private void LoadDimsFromEmbeddedResource()
         {

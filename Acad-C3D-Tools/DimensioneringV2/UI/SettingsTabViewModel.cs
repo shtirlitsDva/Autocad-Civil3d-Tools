@@ -1,21 +1,20 @@
-﻿using Autodesk.AutoCAD.ApplicationServices;
+using Autodesk.AutoCAD.ApplicationServices;
 using AcAp = Autodesk.AutoCAD.ApplicationServices.Application;
 
 using CommunityToolkit.Mvvm.ComponentModel;
-
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-using NorsynHydraulicCalc;
-using DimensioneringV2.GraphFeatures;
 using CommunityToolkit.Mvvm.Input;
+
 using DimensioneringV2.AutoCAD;
-using DimensioneringV2.NorsynHydraulic;
 using DimensioneringV2.Services;
 using DimensioneringV2.UI.Nyttetimer;
+using DimensioneringV2.UI.PipeSettings;
+
+using NorsynHydraulicCalc;
+
+using System;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Windows;
 
 namespace DimensioneringV2.UI
 {
@@ -26,60 +25,40 @@ namespace DimensioneringV2.UI
 
         public Array MedieTypes => Enum.GetValues(typeof(MediumTypeEnum));
         public Array CalculationTypes => Enum.GetValues(typeof(CalcType));
-        public Array PipeTypes => Enum.GetValues(typeof(PipeType));
 
         /// <summary>
         /// The name of the currently selected Nyttetimer configuration.
         /// </summary>
         public string CurrentNyttetimerConfigName => NyttetimerService.Instance.CurrentConfiguration.Name;
 
-        #region Implementation of medium switching
+        #region Settings Property Change Handling
         partial void OnSettingsChanged(HydraulicSettings value)
         {
+            // Ensure pipe configurations are initialized
+            value.EnsureInitialized();
+
             value.PropertyChanged += (s, e) =>
             {
-                if (e.PropertyName == nameof(value.MedieType))
-                {
-                    var rules = MediumRulesFactory.GetRules(value.MedieType);
-                    rules.ApplyDefaults(value);
-
-                    OnPropertyChanged(nameof(ValidPipeTypesFL));
-                    OnPropertyChanged(nameof(ValidPipeTypesSL));
-                    OnPropertyChanged(nameof(IsPipeTypeFLSelectable));
-                    OnPropertyChanged(nameof(IsPipeTypeSLSelectable));
-
-                    if (!rules.SupportsPertFlextra) value.UsePertFlextraFL = false;
-                    OnPropertyChanged(nameof(IsPertFlextraSelectable));
-                }
-                else if (e.PropertyName == nameof(value.UseBrugsvandsprioritering))
+                if (e.PropertyName == nameof(value.UseBrugsvandsprioritering))
                 {
                     OnPropertyChanged(nameof(IsFactorTillægEditable));
                 }
             };
         }
-        public IEnumerable<PipeType> ValidPipeTypesFL
-            => MediumRulesFactory.GetRules(Settings.MedieType).GetValidPipeTypesForSupply();
-
-        public IEnumerable<PipeType> ValidPipeTypesSL
-            => MediumRulesFactory.GetRules(Settings.MedieType).GetValidPipeTypesForService();
-
-        public bool IsPipeTypeFLSelectable => ValidPipeTypesFL.Count() > 1;
-        public bool IsPipeTypeSLSelectable => ValidPipeTypesSL.Count() > 1;
-        public bool IsPertFlextraSelectable =>
-            MediumRulesFactory.GetRules(Settings.MedieType).SupportsPertFlextra;
 
         public bool IsFactorTillægEditable => !Settings.UseBrugsvandsprioritering;
         #endregion
 
         public SettingsTabViewModel()
         {
-            Settings = Services.HydraulicSettingsService.Instance.Settings;            
+            Settings = Services.HydraulicSettingsService.Instance.Settings;
         }
 
+        #region Save/Observe Commands
         public AsyncRelayCommand SaveSettingsCommand => new AsyncRelayCommand(SaveSettings);
 
         private async Task SaveSettings()
-        {   
+        {
             Utils.prtDbg($"Saving settings to {AcAp.DocumentManager.MdiActiveDocument.Name}");
             HydraulicSettingsSerializer.Save(
                 AcAp.DocumentManager.MdiActiveDocument,
@@ -93,7 +72,9 @@ namespace DimensioneringV2.UI
             w.Init(Settings);
             w.Show();
         }
+        #endregion
 
+        #region Roughness Command
         public RelayCommand EditRoughnessCommand => new RelayCommand(EditRoughness);
         private void EditRoughness()
         {
@@ -101,7 +82,9 @@ namespace DimensioneringV2.UI
             w.DataContext = this;
             w.ShowDialog();
         }
+        #endregion
 
+        #region Nyttetimer Command
         public RelayCommand EditNyttetimerConfigCommand => new RelayCommand(EditNyttetimerConfig);
         private void EditNyttetimerConfig()
         {
@@ -110,5 +93,38 @@ namespace DimensioneringV2.UI
             // Update the displayed name after dialog closes
             OnPropertyChanged(nameof(CurrentNyttetimerConfigName));
         }
+        #endregion
+
+        #region Pipe Settings Commands
+        public RelayCommand EditPipeSettingsFLCommand => new RelayCommand(EditPipeSettingsFL);
+        private void EditPipeSettingsFL()
+        {
+            // Ensure configuration exists
+            if (Settings.PipeConfigFL == null)
+            {
+                Settings.PipeConfigFL = DefaultPipeConfigFactory.CreateDefaultFL(Settings.MedieType, Settings.GetPipeTypes());
+            }
+
+            var window = new PipeSettingsWindow();
+            var viewModel = new PipeSettingsViewModel(Settings.PipeConfigFL, Settings.MedieType, Settings.GetPipeTypes());
+            window.DataContext = viewModel;
+            window.ShowDialog();
+        }
+
+        public RelayCommand EditPipeSettingsSLCommand => new RelayCommand(EditPipeSettingsSL);
+        private void EditPipeSettingsSL()
+        {
+            // Ensure configuration exists
+            if (Settings.PipeConfigSL == null)
+            {
+                Settings.PipeConfigSL = DefaultPipeConfigFactory.CreateDefaultSL(Settings.MedieType, Settings.GetPipeTypes());
+            }
+
+            var window = new PipeSettingsWindow();
+            var viewModel = new PipeSettingsViewModel(Settings.PipeConfigSL, Settings.MedieType, Settings.GetPipeTypes());
+            window.DataContext = viewModel;
+            window.ShowDialog();
+        }
+        #endregion
     }
 }
