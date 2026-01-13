@@ -266,55 +266,81 @@
             </Setter>
         </Style>
 
-        <!-- DataGrid Style -->
-        <Style x:Key="DarkDataGridStyle" TargetType="DataGrid">
+        <!-- ListView Style -->
+        <Style x:Key="DarkListViewStyle" TargetType="ListView">
             <Setter Property="Background" Value="{StaticResource BackgroundBrush}"/>
             <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
-            <Setter Property="RowBackground" Value="{StaticResource DarkRowBackground}"/>
-            <Setter Property="AlternatingRowBackground" Value="{StaticResource DarkAltRowBackground}"/>
             <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
-            <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource BorderBrush}"/>
-            <Setter Property="VerticalGridLinesBrush" Value="{StaticResource BorderBrush}"/>
             <Setter Property="FontSize" Value="13"/>
-            <Setter Property="ColumnHeaderStyle">
+            <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True"/>
+            <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling"/>
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="ScrollViewer.IsDeferredScrollingEnabled" Value="True"/>
+        </Style>
+
+        <!-- ListViewItem Style for alternating rows and selection -->
+        <Style x:Key="DarkListViewItemStyle" TargetType="ListViewItem">
+            <Setter Property="Background" Value="{StaticResource DarkRowBackground}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+            <Setter Property="Padding" Value="2"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
                 <Setter.Value>
-                    <Style TargetType="DataGridColumnHeader">
-                        <Setter Property="Background" Value="{StaticResource DarkHeaderBackground}"/>
-                        <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
-                        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
-                        <Setter Property="BorderThickness" Value="0,0,1,1"/>
-                        <Setter Property="Padding" Value="8,6"/>
-                        <Setter Property="FontWeight" Value="SemiBold"/>
-                    </Style>
-                </Setter.Value>
-            </Setter>
-            <Setter Property="CellStyle">
-                <Setter.Value>
-                    <Style TargetType="DataGridCell">
-                        <Setter Property="Padding" Value="6,4"/>
-                        <Setter Property="BorderBrush" Value="Transparent"/>
-                        <Setter Property="BorderThickness" Value="0"/>
-                        <Style.Triggers>
+                    <ControlTemplate TargetType="ListViewItem">
+                        <Border x:Name="Border" 
+                                Background="{TemplateBinding Background}" 
+                                BorderBrush="{StaticResource BorderBrush}"
+                                BorderThickness="0,0,0,1"
+                                Padding="{TemplateBinding Padding}">
+                            <GridViewRowPresenter VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
                             <Trigger Property="IsSelected" Value="True">
-                                <Setter Property="Background" Value="{StaticResource SelectionBrush}"/>
-                                <Setter Property="Foreground" Value="White"/>
-                            </Trigger>
-                        </Style.Triggers>
-                    </Style>
-                </Setter.Value>
-            </Setter>
-            <Setter Property="RowStyle">
-                <Setter.Value>
-                    <Style TargetType="DataGridRow">
-                        <Style.Triggers>
-                            <Trigger Property="IsSelected" Value="True">
-                                <Setter Property="Background" Value="{StaticResource SelectionBrush}"/>
+                                <Setter TargetName="Border" Property="Background" Value="{StaticResource SelectionBrush}"/>
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#FF3E3E42"/>
+                                <Setter TargetName="Border" Property="Background" Value="#FF3E3E42"/>
                             </Trigger>
-                        </Style.Triggers>
-                    </Style>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsSelected" Value="True"/>
+                                    <Condition Property="IsMouseOver" Value="True"/>
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="Border" Property="Background" Value="{StaticResource SelectionBrush}"/>
+                            </MultiTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="ItemsControl.AlternationIndex" Value="1">
+                    <Setter Property="Background" Value="{StaticResource DarkAltRowBackground}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- GridViewColumnHeader Style -->
+        <Style x:Key="DarkColumnHeaderStyle" TargetType="GridViewColumnHeader">
+            <Setter Property="Background" Value="{StaticResource DarkHeaderBackground}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="GridViewColumnHeader">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
@@ -376,27 +402,23 @@
                      IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}"/>
         </Grid>
 
-        <!-- Data Grid -->
-        <DataGrid Grid.Row="2" 
-                  x:Name="DataGridView"
-                  Style="{StaticResource DarkDataGridStyle}"
-                  AutoGenerateColumns="False"
-                  IsReadOnly="True"
+        <!-- ListView with GridView - lighter weight than DataGrid -->
+        <ListView Grid.Row="2" 
+                  x:Name="ListViewData"
+                  Style="{StaticResource DarkListViewStyle}"
+                  ItemContainerStyle="{StaticResource DarkListViewItemStyle}"
+                  AlternationCount="2"
                   SelectionMode="Single"
-                  SelectionUnit="FullRow"
-                  CanUserAddRows="False"
-                  CanUserDeleteRows="False"
-                  EnableRowVirtualization="True"
-                  VirtualizingPanel.IsVirtualizing="True"
-                  VirtualizingPanel.VirtualizationMode="Recycling"
-                  ScrollViewer.HorizontalScrollBarVisibility="Auto"
-                  ScrollViewer.VerticalScrollBarVisibility="Auto"
-                  ScrollViewer.CanContentScroll="True"
                   ItemsSource="{Binding RowsView}"
                   SelectedItem="{Binding SelectedRow}"
-                  MouseDoubleClick="DataGridView_MouseDoubleClick">
-            <!-- Columns are generated dynamically in code-behind -->
-        </DataGrid>
+                  MouseDoubleClick="ListView_MouseDoubleClick">
+            <ListView.View>
+                <GridView x:Name="GridViewColumns" 
+                          ColumnHeaderContainerStyle="{StaticResource DarkColumnHeaderStyle}">
+                    <!-- Columns are generated dynamically in code-behind -->
+                </GridView>
+            </ListView.View>
+        </ListView>
 
         <!-- Loading Overlay -->
         <Border Grid.Row="2" 

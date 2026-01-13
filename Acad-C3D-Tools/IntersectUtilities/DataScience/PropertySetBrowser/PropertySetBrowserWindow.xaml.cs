@@ -66,39 +66,27 @@ namespace IntersectUtilities.DataScience.PropertySetBrowser
 
         private void RebuildColumns()
         {
-            DataGridView.Columns.Clear();
+            GridViewColumns.Columns.Clear();
 
-            // Add Handle column (text, left-aligned)
-            var handleColumn = new DataGridTextColumn
+            // Add Handle column
+            GridViewColumns.Columns.Add(new GridViewColumn
             {
                 Header = "Handle",
-                Binding = new Binding("EntityHandle"),
-                Width = DataGridLength.Auto
-            };
-            handleColumn.ElementStyle = CreateCellStyle(System.Windows.TextAlignment.Left);
-            DataGridView.Columns.Add(handleColumn);
+                DisplayMemberBinding = new Binding("EntityHandle"),
+                Width = double.NaN // Auto width
+            });
 
-            // Add Entity Type column (text, left-aligned)
-            var typeColumn = new DataGridTextColumn
+            // Add Entity Type column
+            GridViewColumns.Columns.Add(new GridViewColumn
             {
                 Header = "Type",
-                Binding = new Binding("EntityType"),
-                Width = DataGridLength.Auto
-            };
-            typeColumn.ElementStyle = CreateCellStyle(System.Windows.TextAlignment.Left);
-            DataGridView.Columns.Add(typeColumn);
+                DisplayMemberBinding = new Binding("EntityType"),
+                Width = double.NaN
+            });
 
             // Add property columns dynamically
             foreach (var propName in _viewModel.PropertyColumns)
             {
-                var column = new DataGridTextColumn
-                {
-                    Header = propName,
-                    Binding = new Binding($"Properties[{propName}]"),
-                    Width = DataGridLength.Auto,
-                    MinWidth = 60
-                };
-
                 // Determine alignment based on data type
                 bool isNumeric = false;
                 if (_viewModel.PropertyDataTypes.TryGetValue(propName, out var dataType))
@@ -106,25 +94,39 @@ namespace IntersectUtilities.DataScience.PropertySetBrowser
                     isNumeric = dataType == PsDataType.Real || dataType == PsDataType.Integer;
                 }
 
-                column.ElementStyle = CreateCellStyle(isNumeric ? System.Windows.TextAlignment.Right : System.Windows.TextAlignment.Left);
-                DataGridView.Columns.Add(column);
+                var column = new GridViewColumn
+                {
+                    Header = propName,
+                    Width = double.NaN // Auto width
+                };
+
+                // Use CellTemplate for custom alignment
+                column.CellTemplate = CreateCellTemplate(propName, isNumeric);
+                GridViewColumns.Columns.Add(column);
             }
         }
 
-        private Style CreateCellStyle(System.Windows.TextAlignment alignment)
+        private DataTemplate CreateCellTemplate(string propertyName, bool isNumeric)
         {
-            var style = new Style(typeof(TextBlock));
-            style.Setters.Add(new Setter(TextBlock.TextAlignmentProperty, alignment));
-            style.Setters.Add(new Setter(TextBlock.PaddingProperty, new Thickness(6, 4, 6, 4)));
-            return style;
+            var template = new DataTemplate();
+            var factory = new FrameworkElementFactory(typeof(TextBlock));
+            factory.SetBinding(TextBlock.TextProperty, new Binding($"Properties[{propertyName}]"));
+            factory.SetValue(TextBlock.PaddingProperty, new Thickness(6, 2, 6, 2));
+            factory.SetValue(TextBlock.TextAlignmentProperty, 
+                isNumeric ? System.Windows.TextAlignment.Right : System.Windows.TextAlignment.Left);
+            template.VisualTree = factory;
+            return template;
         }
 
-        private void DataGridView_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        private void ListView_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
-            // Zoom to entity on double-click
-            if (_viewModel.ZoomToEntityCommand.CanExecute(null))
+            // Zoom to entity on double-click (only if clicking on an item, not header)
+            if (e.OriginalSource is FrameworkElement fe && fe.DataContext is PropertySetEntityRow)
             {
-                _viewModel.ZoomToEntityCommand.Execute(null);
+                if (_viewModel.ZoomToEntityCommand.CanExecute(null))
+                {
+                    _viewModel.ZoomToEntityCommand.Execute(null);
+                }
             }
         }
 

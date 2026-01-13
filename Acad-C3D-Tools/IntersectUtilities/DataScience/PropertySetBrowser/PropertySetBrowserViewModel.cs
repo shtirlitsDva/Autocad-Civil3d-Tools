@@ -166,6 +166,9 @@ namespace IntersectUtilities.DataScience.PropertySetBrowser
                             }
                         }
 
+                        // Build search index for fast filtering
+                        row.BuildSearchIndex();
+
                         _allRows.Add(row);
                     }
 

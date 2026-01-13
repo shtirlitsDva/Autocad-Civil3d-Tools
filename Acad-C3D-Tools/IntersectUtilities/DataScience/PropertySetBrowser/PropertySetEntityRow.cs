@@ -2,6 +2,7 @@ using Autodesk.AutoCAD.DatabaseServices;
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace IntersectUtilities.DataScience.PropertySetBrowser
 {
@@ -27,6 +28,12 @@ namespace IntersectUtilities.DataScience.PropertySetBrowser
         public Dictionary<string, string> Properties { get; set; } = new();
 
         /// <summary>
+        /// Pre-computed concatenated string of all searchable values.
+        /// Built once at load time for O(1) search instead of O(n) dictionary iteration.
+        /// </summary>
+        public string SearchableText { get; private set; } = string.Empty;
+
+        /// <summary>
         /// Gets a property value by name, or empty string if not found.
         /// </summary>
         public string GetProperty(string propertyName)
@@ -35,26 +42,28 @@ namespace IntersectUtilities.DataScience.PropertySetBrowser
         }
 
         /// <summary>
-        /// Checks if this row matches a search term across all properties.
-        /// Uses OrdinalIgnoreCase for fast comparison without string allocations.
+        /// Builds the searchable text index from EntityType and all property values.
+        /// Call this after populating Properties.
+        /// </summary>
+        public void BuildSearchIndex()
+        {
+            // Concatenate EntityType and all property values with space separator
+            var parts = new List<string> { EntityType };
+            parts.AddRange(Properties.Values.Where(v => !string.IsNullOrEmpty(v)));
+            SearchableText = string.Join(" ", parts);
+        }
+
+        /// <summary>
+        /// Checks if this row matches a search term.
+        /// Uses pre-computed SearchableText for O(1) lookup instead of iterating properties.
         /// </summary>
         public bool MatchesSearch(string searchTerm)
         {
             if (string.IsNullOrWhiteSpace(searchTerm))
                 return true;
 
-            // Check entity type - no string allocation with OrdinalIgnoreCase
-            if (EntityType.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
-                return true;
-
-            // Check all property values
-            foreach (var kvp in Properties)
-            {
-                if (kvp.Value?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) == true)
-                    return true;
-            }
-
-            return false;
+            // Single Contains() on pre-computed string - no dictionary iteration
+            return SearchableText.Contains(searchTerm, StringComparison.OrdinalIgnoreCase);
         }
     }
 }
