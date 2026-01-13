@@ -375,7 +375,7 @@ namespace IntersectUtilities
             {
                 PropertySet ps = oid.Go<PropertySet>(tx);
 
-                if (ps.PropertySetDefinitionName == propertySetName)
+                 if (ps.PropertySetDefinitionName == propertySetName)
                 {
                     int id = ps.PropertyNameToId(propertyName);
                     object value = ps.GetAt(id);

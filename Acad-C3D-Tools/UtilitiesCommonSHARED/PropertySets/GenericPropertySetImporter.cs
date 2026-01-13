@@ -1,13 +1,7 @@
-﻿using Autodesk.Aec.DatabaseServices;
-using Autodesk.Aec.PropertyData.DatabaseServices;
+﻿using Autodesk.Aec.PropertyData.DatabaseServices;
 using Autodesk.AutoCAD.DatabaseServices;
-using Autodesk.AutoCAD.Geometry;
-using Autodesk.AutoCAD.Runtime;
-using Autodesk.Civil.DatabaseServices;
 
 using IntersectUtilities.UtilsCommon;
-
-using MoreLinq;
 
 using Microsoft.VisualBasic.FileIO;
 
@@ -21,10 +15,7 @@ using System.Linq;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 
-using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
-using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
-using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using PsDataType = Autodesk.Aec.PropertyData.DataType;
 
 namespace IntersectUtilities

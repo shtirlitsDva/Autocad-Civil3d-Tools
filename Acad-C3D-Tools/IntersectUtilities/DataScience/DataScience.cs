@@ -4,6 +4,7 @@ using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.PlottingServices;
 using Autodesk.AutoCAD.Runtime;
 
+using IntersectUtilities.DataScience.PropertySetBrowser;
 using IntersectUtilities.UtilsCommon;
 
 using Microsoft.Win32;
@@ -23,6 +24,33 @@ namespace IntersectUtilities
 {
     public partial class Intersect
     {
+        private static PropertySetBrowserWindow? _propertySetBrowserWindow;
+
+        /// <command>DSPSBROWSER</command>
+        /// <summary>
+        /// Opens a modeless window to browse PropertySet data in the drawing.
+        /// Allows searching and filtering, and selecting entities in AutoCAD.
+        /// </summary>
+        /// <category>Data Science</category>
+        [CommandMethod("DSPSBROWSER")]
+        public void dspsbrowser()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            // If window already exists and is open, bring to front
+            if (_propertySetBrowserWindow != null && _propertySetBrowserWindow.IsLoaded)
+            {
+                _propertySetBrowserWindow.Activate();
+                return;
+            }
+
+            // Create new window
+            _propertySetBrowserWindow = new PropertySetBrowserWindow(localDb);
+            _propertySetBrowserWindow.Closed += (s, e) => _propertySetBrowserWindow = null;
+            _propertySetBrowserWindow.Show();
+        }
+
         [CommandMethod("DSIMPORTPTSWITHPS")]
         public void dsimportptwithps()
         {
@@ -116,6 +144,8 @@ namespace IntersectUtilities
                 BlockTableRecord space = (BlockTableRecord)tx.GetObject(
                     localDb.CurrentSpaceId, OpenMode.ForWrite);
 
+                string propertySetName = csvData.TableName;
+
                 while (importer.HasMoreRows)
                 {
                     (double? x, double? y, Action<Entity> attachAction) = importer.GetNextRow();
@@ -132,18 +162,21 @@ namespace IntersectUtilities
                     {
                         // Try to find values in BBR
                         var vejnavn = PropertySetManager.ReadNonDefinedPropertySetString(
-                            dbPoint, "forbrugerdata", "Adresse");
+                            dbPoint, propertySetName, "Adresse");
                         var husnr = PropertySetManager.ReadNonDefinedPropertySetString(
-                            dbPoint, "forbrugerdata", "Husnr");
+                            dbPoint, propertySetName, "Husnr");
                         var litraer = PropertySetManager.ReadNonDefinedPropertySetString(
-                            dbPoint, "forbrugerdata", "Litraer");
+                            dbPoint, propertySetName, "Litraer");
 
                         var searchstring = $"{vejnavn} {husnr}{litraer}";
 
                         var query = bbrs.Where(x => x.Adresse == searchstring).FirstOrDefault();
                         if (query == default)
+                        {
+                            pm.Stop();
                             throw new System.Exception(
                                 $"{searchstring} cannot find matchin bbr!");
+                        }
 
                         dbPoint.Position = new Point3d(query.X, query.Y, 0);
                     }
