@@ -26,6 +26,17 @@ Style: businesslike; no fluff, no stories, no metaphors.
 • If pauses aren’t allowed, first list needed clarifications; then give best attempt, explicitly marking assumptions and limits.
 • Never mask lack of data: write “I cannot verify this” or “No sufficiently reliable sources found.” 
 
+## Build Scripts
+The repository includes batch files for building projects with MSBuild (required due to COM references that `dotnet build` cannot resolve):
+
+| Script | Project | Configuration |
+|--------|---------|---------------|
+| `build-intersectutilities-debug.bat` | IntersectUtilities | Debug |
+| `build-intersectutilities-release.bat` | IntersectUtilities | Release |
+| `build-ntrexport-debug.bat` | NTRExport | Debug |
+
+All scripts use VS 2022 Community MSBuild at `C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe` and output errors only with summary.
+
 ## Coding Style & Naming Conventions
 Use four-space indentation and respect nullable reference types (`<Nullable>enable</Nullable>` is the default). Favor PascalCase for public types, camelCase for locals, and avoid abbreviations not already established nearby. Keep command class names aligned with their AutoCAD command keyword (for example `ApplyDimCommand`). `.editorconfig` disables XML documentation warnings; prefer concise inline comments only when the intent is non-obvious.
 

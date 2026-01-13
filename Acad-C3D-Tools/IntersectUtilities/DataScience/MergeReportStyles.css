@@ -1,0 +1,209 @@
+:root {
+    --bg-primary: #1a1a2e;
+    --bg-secondary: #16213e;
+    --bg-tertiary: #0f3460;
+    --text-primary: #eaeaea;
+    --text-secondary: #a0a0a0;
+    --accent: #e94560;
+    --accent-secondary: #0f9b8e;
+    --success: #4caf50;
+    --warning: #ff9800;
+    --error: #f44336;
+    --border: #2a2a4a;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.6;
+    padding: 20px;
+}
+
+h1 {
+    color: var(--accent);
+    border-bottom: 2px solid var(--accent);
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+h2 {
+    color: var(--accent-secondary);
+    margin: 20px 0 10px 0;
+    font-size: 1.3em;
+}
+
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 30px;
+}
+
+.summary-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 15px;
+    text-align: center;
+}
+
+.summary-card .value {
+    font-size: 2em;
+    font-weight: bold;
+    color: var(--accent);
+}
+
+.summary-card .label {
+    color: var(--text-secondary);
+    font-size: 0.9em;
+}
+
+.summary-card.success .value { color: var(--success); }
+.summary-card.warning .value { color: var(--warning); }
+.summary-card.error .value { color: var(--error); }
+
+.panel {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 20px;
+    overflow: hidden;
+}
+
+.panel-header {
+    background: var(--bg-tertiary);
+    padding: 12px 15px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    user-select: none;
+}
+
+.panel-header:hover { background: #1a4a7a; }
+
+.panel-header h3 {
+    margin: 0;
+    font-size: 1.1em;
+    color: var(--text-primary);
+}
+
+.panel-header .badge {
+    background: var(--accent);
+    color: white;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 0.85em;
+}
+
+.panel-header .badge.warning { background: var(--warning); }
+.panel-header .badge.error { background: var(--error); }
+.panel-header .badge.success { background: var(--success); }
+
+.panel-content {
+    padding: 15px;
+    display: none;
+}
+
+.panel.open .panel-content { display: block; }
+
+.panel-header::after {
+    content: '▶';
+    transition: transform 0.2s;
+}
+
+.panel.open .panel-header::after {
+    transform: rotate(90deg);
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85em;
+    margin-top: 10px;
+}
+
+.data-table th, .data-table td {
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    text-align: left;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.data-table th {
+    background: var(--bg-tertiary);
+    color: var(--accent-secondary);
+    position: sticky;
+    top: 0;
+}
+
+.data-table tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+.data-table tr:hover { background: rgba(255,255,255,0.05); }
+
+.data-table td:hover {
+    white-space: normal;
+    word-break: break-all;
+}
+
+.group-container {
+    margin-bottom: 20px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.group-header {
+    background: var(--bg-tertiary);
+    padding: 10px 15px;
+    font-weight: bold;
+    border-bottom: 1px solid var(--border);
+}
+
+.group-content { padding: 10px; }
+
+.sub-table-label {
+    color: var(--accent-secondary);
+    font-size: 0.9em;
+    margin: 10px 0 5px 0;
+    font-weight: bold;
+}
+
+.stage-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.8em;
+    font-weight: bold;
+}
+
+.stage-Ejendomsnr { background: var(--success); color: white; }
+.stage-DuplicateSequential { background: var(--warning); color: black; }
+.stage-AmbiguousFallback { background: var(--error); color: white; }
+
+.table-scroll {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.timestamp {
+    color: var(--text-secondary);
+    font-size: 0.85em;
+    margin-bottom: 20px;
+}
+
+.no-data {
+    color: var(--text-secondary);
+    font-style: italic;
+    padding: 20px;
+    text-align: center;
+}

@@ -4,6 +4,9 @@ using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.PlottingServices;
 using Autodesk.AutoCAD.Runtime;
 
+using Fluid;
+
+using IntersectUtilities.DataScience;
 using IntersectUtilities.UtilsCommon;
 
 using Microsoft.Win32;
@@ -674,6 +677,52 @@ namespace IntersectUtilities
             Math.Abs(a - b) <= tolerance;
         private static double DegreesToRadians(double value) => value * Math.PI / 180.0;
 
+        #region Fluid Templating Engine
+        private static readonly FluidParser FluidParser = new FluidParser();
+
+        private static readonly Lazy<IFluidTemplate> FluidTemplate = new Lazy<IFluidTemplate>(() =>
+        {
+            if (FluidParser.TryParse(MergeReportTemplate.Template, out var template, out var error))
+                return template;
+            throw new InvalidOperationException($"Failed to parse Fluid template: {error}");
+        });
+
+        private static readonly Lazy<TemplateOptions> FluidOptions = new Lazy<TemplateOptions>(() =>
+        {
+            var options = new TemplateOptions();
+            options.MemberAccessStrategy.Register<MergeReportModel>();
+            options.MemberAccessStrategy.Register<SummaryCard>();
+            options.MemberAccessStrategy.Register<StageCount>();
+            options.MemberAccessStrategy.Register<ReportSection>();
+            options.MemberAccessStrategy.Register<SectionGroup>();
+            options.MemberAccessStrategy.Register<DataTableModel>();
+            options.MemberAccessStrategy.Register<CellValue>();
+            return options;
+        });
+
+        private static readonly Lazy<string> EmbeddedStyles = new Lazy<string>(() =>
+        {
+            var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+            // Find the CSS resource by suffix since assembly name can change (NetReload scenario)
+            var resourceName = assembly.GetManifestResourceNames()
+                .FirstOrDefault(n => n.EndsWith("MergeReportStyles.css"));
+            if (resourceName == null)
+                throw new InvalidOperationException("Embedded resource 'MergeReportStyles.css' not found.");
+            using var stream = assembly.GetManifestResourceStream(resourceName);
+            if (stream == null)
+                throw new InvalidOperationException($"Could not load embedded resource '{resourceName}'.");
+            using var reader = new StreamReader(stream);
+            return reader.ReadToEnd();
+        });
+
+        private static string RenderReport(MergeReportModel model)
+        {
+            var template = FluidTemplate.Value;
+            var context = new TemplateContext(model, FluidOptions.Value);
+            return template.Render(context);
+        }
+        #endregion
+
         private static void GenerateMergeReport(
             string reportPath,
             CsvTypedDataTable leftTable,
@@ -686,12 +735,33 @@ namespace IntersectUtilities
             Dictionary<MergeKey, List<int>> leftGroups,
             Dictionary<MergeKey, List<int>> rightGroups)
         {
-            var sb = new StringBuilder();
+            var model = BuildReportModel(
+                leftTable, rightTable, matches, unmatched,
+                orphanedRightIndices, matchStageCounts, adjustedCoordinates,
+                leftGroups, rightGroups);
 
-            // Identify non-1:1 matches (anything not matched by simple Ejendomsnr alone)
-            var nonSimpleMatches = matches
-                .Where(m => m.Stage != "Ejendomsnr")
-                .ToList();
+            string html = RenderReport(model);
+            File.WriteAllText(reportPath, html, Encoding.UTF8);
+        }
+
+        private static MergeReportModel BuildReportModel(
+            CsvTypedDataTable leftTable,
+            CsvTypedDataTable rightTable,
+            List<MatchResult> matches,
+            List<UnmatchedLeftRow> unmatched,
+            List<int> orphanedRightIndices,
+            Dictionary<string, int> matchStageCounts,
+            int adjustedCoordinates,
+            Dictionary<MergeKey, List<int>> leftGroups,
+            Dictionary<MergeKey, List<int>> rightGroups)
+        {
+            var model = new MergeReportModel
+            {
+                Styles = EmbeddedStyles.Value
+            };
+
+            // Identify non-1:1 matches
+            var nonSimpleMatches = matches.Where(m => m.Stage != "Ejendomsnr").ToList();
 
             // Group matches by key to show full picture of duplicates
             var matchesByKey = matches
@@ -699,423 +769,222 @@ namespace IntersectUtilities
                 .Where(g => g.Count() > 1 || g.Any(m => m.Stage != "Ejendomsnr"))
                 .ToDictionary(g => g.Key, g => g.ToList());
 
-            // HTML Header
-            sb.AppendLine("<!DOCTYPE html>");
-            sb.AppendLine("<html lang=\"en\">");
-            sb.AppendLine("<head>");
-            sb.AppendLine("  <meta charset=\"UTF-8\">");
-            sb.AppendLine("  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
-            sb.AppendLine("  <title>DSMERGE Report</title>");
-            sb.AppendLine("  <style>");
-            sb.AppendLine(@"
-    :root {
-      --bg-primary: #1a1a2e;
-      --bg-secondary: #16213e;
-      --bg-tertiary: #0f3460;
-      --text-primary: #eaeaea;
-      --text-secondary: #a0a0a0;
-      --accent: #e94560;
-      --accent-secondary: #0f9b8e;
-      --success: #4caf50;
-      --warning: #ff9800;
-      --error: #f44336;
-      --border: #2a2a4a;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: 'Segoe UI', system-ui, sans-serif;
-      background: var(--bg-primary);
-      color: var(--text-primary);
-      line-height: 1.6;
-      padding: 20px;
-    }
-    h1 {
-      color: var(--accent);
-      border-bottom: 2px solid var(--accent);
-      padding-bottom: 10px;
-      margin-bottom: 20px;
-    }
-    h2 {
-      color: var(--accent-secondary);
-      margin: 20px 0 10px 0;
-      font-size: 1.3em;
-    }
-    .summary-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 15px;
-      margin-bottom: 30px;
-    }
-    .summary-card {
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 15px;
-      text-align: center;
-    }
-    .summary-card .value {
-      font-size: 2em;
-      font-weight: bold;
-      color: var(--accent);
-    }
-    .summary-card .label {
-      color: var(--text-secondary);
-      font-size: 0.9em;
-    }
-    .summary-card.success .value { color: var(--success); }
-    .summary-card.warning .value { color: var(--warning); }
-    .summary-card.error .value { color: var(--error); }
-    .section {
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      margin-bottom: 20px;
-      overflow: hidden;
-    }
-    .section-header {
-      background: var(--bg-tertiary);
-      padding: 12px 15px;
-      cursor: pointer;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      user-select: none;
-    }
-    .section-header:hover { background: #1a4a7a; }
-    .section-header h3 {
-      margin: 0;
-      font-size: 1.1em;
-      color: var(--text-primary);
-    }
-    .section-header .badge {
-      background: var(--accent);
-      color: white;
-      padding: 2px 10px;
-      border-radius: 12px;
-      font-size: 0.85em;
-    }
-    .section-header .badge.warning { background: var(--warning); }
-    .section-header .badge.error { background: var(--error); }
-    .section-header .badge.success { background: var(--success); }
-    .section-content {
-      padding: 15px;
-      display: none;
-    }
-    .section.open .section-content { display: block; }
-    .section-header::after {
-      content: '▶';
-      transition: transform 0.2s;
-    }
-    .section.open .section-header::after {
-      transform: rotate(90deg);
-    }
-    .data-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.85em;
-      margin-top: 10px;
-    }
-    .data-table th, .data-table td {
-      padding: 8px 10px;
-      border: 1px solid var(--border);
-      text-align: left;
-      max-width: 200px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .data-table th {
-      background: var(--bg-tertiary);
-      color: var(--accent-secondary);
-      position: sticky;
-      top: 0;
-    }
-    .data-table tr:nth-child(even) { background: rgba(255,255,255,0.02); }
-    .data-table tr:hover { background: rgba(255,255,255,0.05); }
-    .data-table td:hover {
-      white-space: normal;
-      word-break: break-all;
-    }
-    .group-container {
-      margin-bottom: 20px;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      overflow: hidden;
-    }
-    .group-header {
-      background: var(--bg-tertiary);
-      padding: 10px 15px;
-      font-weight: bold;
-      border-bottom: 1px solid var(--border);
-    }
-    .group-content { padding: 10px; }
-    .sub-table-label {
-      color: var(--accent-secondary);
-      font-size: 0.9em;
-      margin: 10px 0 5px 0;
-      font-weight: bold;
-    }
-    .stage-badge {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 0.8em;
-      font-weight: bold;
-    }
-    .stage-Ejendomsnr { background: var(--success); color: white; }
-    .stage-DuplicateSequential { background: var(--warning); color: black; }
-    .stage-AmbiguousFallback { background: var(--error); color: white; }
-    .table-scroll {
-      max-height: 400px;
-      overflow-y: auto;
-    }
-    .timestamp {
-      color: var(--text-secondary);
-      font-size: 0.85em;
-      margin-bottom: 20px;
-    }
-    .no-data {
-      color: var(--text-secondary);
-      font-style: italic;
-      padding: 20px;
-      text-align: center;
-    }
-");
-            sb.AppendLine("  </style>");
-            sb.AppendLine("</head>");
-            sb.AppendLine("<body>");
-
-            // Title
-            sb.AppendLine($"<h1>DSMERGE Report</h1>");
-            sb.AppendLine($"<p class=\"timestamp\">Generated: {DateTime.Now:yyyy-MM-dd HH:mm:ss}</p>");
-
             // Summary Cards
-            sb.AppendLine("<div class=\"summary-grid\">");
-            AppendSummaryCard(sb, "Left Rows", leftTable.RowCount.ToString(), "");
-            AppendSummaryCard(sb, "Right Rows", rightTable.RowCount.ToString(), "");
-            AppendSummaryCard(sb, "Matched", matches.Count.ToString(), matches.Count == leftTable.RowCount ? "success" : "warning");
-            AppendSummaryCard(sb, "Unmatched Left", unmatched.Count.ToString(), unmatched.Count == 0 ? "success" : "error");
-            AppendSummaryCard(sb, "Orphaned Right", orphanedRightIndices.Count.ToString(), orphanedRightIndices.Count == 0 ? "success" : "warning");
-            AppendSummaryCard(sb, "Non-Simple Matches", nonSimpleMatches.Count.ToString(), nonSimpleMatches.Count == 0 ? "success" : "warning");
-            AppendSummaryCard(sb, "Coord. Adjustments", adjustedCoordinates.ToString(), adjustedCoordinates == 0 ? "success" : "warning");
-            sb.AppendLine("</div>");
-
-            // Match Stage Breakdown
-            sb.AppendLine("<h2>Match Stage Breakdown</h2>");
-            sb.AppendLine("<table class=\"data-table\" style=\"max-width: 400px;\">");
-            sb.AppendLine("<tr><th>Stage</th><th>Count</th></tr>");
-            foreach (var kvp in matchStageCounts.OrderByDescending(x => x.Value))
+            model.SummaryCards = new List<SummaryCard>
             {
-                string stageClass = $"stage-{kvp.Key.Replace("+", "")}";
-                sb.AppendLine($"<tr><td><span class=\"stage-badge {stageClass}\">{HtmlEncode(kvp.Key)}</span></td><td>{kvp.Value}</td></tr>");
-            }
-            sb.AppendLine("</table>");
+                new() { Label = "Left Rows", Value = leftTable.RowCount.ToString() },
+                new() { Label = "Right Rows", Value = rightTable.RowCount.ToString() },
+                new() { Label = "Matched", Value = matches.Count.ToString(),
+                        CssClass = matches.Count == leftTable.RowCount ? "success" : "warning" },
+                new() { Label = "Unmatched Left", Value = unmatched.Count.ToString(),
+                        CssClass = unmatched.Count == 0 ? "success" : "error" },
+                new() { Label = "Orphaned Right", Value = orphanedRightIndices.Count.ToString(),
+                        CssClass = orphanedRightIndices.Count == 0 ? "success" : "warning" },
+                new() { Label = "Non-Simple Matches", Value = nonSimpleMatches.Count.ToString(),
+                        CssClass = nonSimpleMatches.Count == 0 ? "success" : "warning" },
+                new() { Label = "Coord. Adjustments", Value = adjustedCoordinates.ToString(),
+                        CssClass = adjustedCoordinates == 0 ? "success" : "warning" },
+            };
 
-            // Section: Duplicate/Complex Matches (Full Picture)
+            // Match Stages
+            model.MatchStages = matchStageCounts
+                .OrderByDescending(x => x.Value)
+                .Select(x => new StageCount { Stage = x.Key, Count = x.Value })
+                .ToList();
+
+            // Build sections
+            model.Sections = new List<ReportSection>();
+
+            // Section 1: Duplicate & Complex Matches
             var complexKeys = matchesByKey.Keys.ToList();
-            AppendCollapsibleSection(sb, "Duplicate & Complex Matches (Full Picture)", complexKeys.Count,
-                complexKeys.Count > 0 ? "warning" : "success",
-                () =>
+            var complexSection = new ReportSection
+            {
+                Title = "Duplicate & Complex Matches (Full Picture)",
+                Count = complexKeys.Count,
+                BadgeClass = complexKeys.Count > 0 ? "warning" : "success",
+                EmptyMessage = "All matches were simple 1:1 by Ejendomsnr. No complex matches to report."
+            };
+
+            foreach (var key in complexKeys)
+            {
+                var groupMatches = matchesByKey[key];
+                var leftIndicesInGroup = leftGroups.TryGetValue(key, out var lg) ? lg : new List<int>();
+                var rightIndicesInGroup = rightGroups.TryGetValue(key, out var rg) ? rg : new List<int>();
+
+                var group = new SectionGroup
                 {
-                    if (complexKeys.Count == 0)
-                    {
-                        sb.AppendLine("<p class=\"no-data\">All matches were simple 1:1 by Ejendomsnr. No complex matches to report.</p>");
-                        return;
-                    }
+                    Header = $"Key: {HtmlEncode(key.Id)} | {HtmlEncode(key.Address)} | {HtmlEncode(key.HouseNumber)} ({groupMatches.Count} matches)",
+                    Description = $"<strong>Left rows with this key:</strong> {leftIndicesInGroup.Count} | <strong>Right rows with this key:</strong> {rightIndicesInGroup.Count}"
+                };
 
-                    sb.AppendLine("<p>These are matches where either duplicates existed or additional criteria were needed.</p>");
-
-                    foreach (var key in complexKeys)
-                    {
-                        var groupMatches = matchesByKey[key];
-                        sb.AppendLine("<div class=\"group-container\">");
-                        sb.AppendLine($"<div class=\"group-header\">Key: {HtmlEncode(key.Id)} | {HtmlEncode(key.Address)} | {HtmlEncode(key.HouseNumber)} ({groupMatches.Count} matches)</div>");
-                        sb.AppendLine("<div class=\"group-content\">");
-
-                        // Show all left rows in this group
-                        var leftIndicesInGroup = leftGroups.TryGetValue(key, out var lg) ? lg : new List<int>();
-                        var rightIndicesInGroup = rightGroups.TryGetValue(key, out var rg) ? rg : new List<int>();
-
-                        sb.AppendLine($"<p><strong>Left rows with this key:</strong> {leftIndicesInGroup.Count} | <strong>Right rows with this key:</strong> {rightIndicesInGroup.Count}</p>");
-
-                        // Show the actual pairings
-                        sb.AppendLine("<div class=\"sub-table-label\">Pairings Made:</div>");
-                        sb.AppendLine("<div class=\"table-scroll\">");
-                        sb.AppendLine("<table class=\"data-table\">");
-                        sb.AppendLine("<tr><th>Stage</th><th>Left#</th><th>Right#</th>");
-                        foreach (var col in leftTable.ColumnNames.Take(5))
-                            sb.AppendLine($"<th>L:{HtmlEncode(col)}</th>");
-                        foreach (var col in rightTable.ColumnNames.Take(5))
-                            sb.AppendLine($"<th>R:{HtmlEncode(col)}</th>");
-                        sb.AppendLine("</tr>");
-
-                        foreach (var m in groupMatches)
-                        {
-                            string stageClass = $"stage-{m.Stage.Replace("+", "")}";
-                            sb.Append($"<tr><td><span class=\"stage-badge {stageClass}\">{HtmlEncode(m.Stage)}</span></td>");
-                            sb.Append($"<td>{m.LeftIndex + 1}</td><td>{m.RightIndex + 1}</td>");
-                            foreach (var col in leftTable.ColumnNames.Take(5))
-                                sb.Append($"<td title=\"{HtmlEncode(FormatValue(m.LeftRow, col))}\">{HtmlEncode(TruncateValue(FormatValue(m.LeftRow, col), 30))}</td>");
-                            foreach (var col in rightTable.ColumnNames.Take(5))
-                                sb.Append($"<td title=\"{HtmlEncode(FormatValue(m.RightRow, col))}\">{HtmlEncode(TruncateValue(FormatValue(m.RightRow, col), 30))}</td>");
-                            sb.AppendLine("</tr>");
-                        }
-                        sb.AppendLine("</table>");
-                        sb.AppendLine("</div>");
-
-                        // Show full left rows data
-                        if (leftIndicesInGroup.Count > 0)
-                        {
-                            sb.AppendLine("<div class=\"sub-table-label\">All Left Rows in Group:</div>");
-                            sb.AppendLine("<div class=\"table-scroll\">");
-                            AppendFullRowTable(sb, leftTable, leftIndicesInGroup.Select(i => leftTable.Rows[i]).ToList(), leftIndicesInGroup);
-                            sb.AppendLine("</div>");
-                        }
-
-                        // Show full right rows data
-                        if (rightIndicesInGroup.Count > 0)
-                        {
-                            sb.AppendLine("<div class=\"sub-table-label\">All Right Rows in Group:</div>");
-                            sb.AppendLine("<div class=\"table-scroll\">");
-                            AppendFullRowTable(sb, rightTable, rightIndicesInGroup.Select(i => rightTable.Rows[i]).ToList(), rightIndicesInGroup);
-                            sb.AppendLine("</div>");
-                        }
-
-                        sb.AppendLine("</div></div>");
-                    }
-                });
-
-            // Section: Unmatched Left Rows
-            AppendCollapsibleSection(sb, "Unmatched Left Rows", unmatched.Count,
-                unmatched.Count == 0 ? "success" : "error",
-                () =>
+                // Pairings table
+                var pairingsTable = new DataTableModel
                 {
-                    if (unmatched.Count == 0)
-                    {
-                        sb.AppendLine("<p class=\"no-data\">All left rows were successfully matched.</p>");
-                        return;
-                    }
+                    Label = "Pairings Made:",
+                    Columns = new List<string> { "Stage", "Left#", "Right#" }
+                };
+                foreach (var col in leftTable.ColumnNames.Take(5))
+                    pairingsTable.Columns.Add($"L:{col}");
+                foreach (var col in rightTable.ColumnNames.Take(5))
+                    pairingsTable.Columns.Add($"R:{col}");
 
-                    // Group by reason
-                    var byReason = unmatched.GroupBy(u => u.Reason).OrderByDescending(g => g.Count());
-
-                    foreach (var reasonGroup in byReason)
-                    {
-                        sb.AppendLine("<div class=\"group-container\">");
-                        sb.AppendLine($"<div class=\"group-header\">Reason: {HtmlEncode(reasonGroup.Key)} ({reasonGroup.Count()} rows)</div>");
-                        sb.AppendLine("<div class=\"group-content\">");
-                        sb.AppendLine("<div class=\"table-scroll\">");
-                        AppendFullRowTable(sb, leftTable, reasonGroup.Select(u => u.Row).ToList(), reasonGroup.Select(u => u.LeftIndex).ToList());
-                        sb.AppendLine("</div></div></div>");
-                    }
-                });
-
-            // Section: Orphaned Right Rows
-            AppendCollapsibleSection(sb, "Orphaned Right Rows (Never Matched)", orphanedRightIndices.Count,
-                orphanedRightIndices.Count == 0 ? "success" : "warning",
-                () =>
+                foreach (var m in groupMatches)
                 {
-                    if (orphanedRightIndices.Count == 0)
+                    var row = new List<CellValue>
                     {
-                        sb.AppendLine("<p class=\"no-data\">All right rows were used in matches.</p>");
-                        return;
-                    }
+                        CellValue.Badge(m.Stage, $"stage-{m.Stage.Replace("+", "")}"),
+                        CellValue.Simple((m.LeftIndex + 1).ToString()),
+                        CellValue.Simple((m.RightIndex + 1).ToString())
+                    };
+                    foreach (var col in leftTable.ColumnNames.Take(5))
+                        row.Add(CellValue.Simple(FormatValue(m.LeftRow, col), 30));
+                    foreach (var col in rightTable.ColumnNames.Take(5))
+                        row.Add(CellValue.Simple(FormatValue(m.RightRow, col), 30));
+                    pairingsTable.Rows.Add(row);
+                }
+                group.Tables.Add(pairingsTable);
 
-                    sb.AppendLine("<p>These rows from the right (geocoding) dataset were never matched to any left row.</p>");
-                    sb.AppendLine("<div class=\"table-scroll\">");
-                    AppendFullRowTable(sb, rightTable, orphanedRightIndices.Select(i => rightTable.Rows[i]).ToList(), orphanedRightIndices);
-                    sb.AppendLine("</div>");
-                });
+                // Left rows table
+                if (leftIndicesInGroup.Count > 0)
+                {
+                    group.Tables.Add(BuildFullRowTableModel(
+                        "All Left Rows in Group:",
+                        leftTable,
+                        leftIndicesInGroup.Select(i => leftTable.Rows[i]).ToList(),
+                        leftIndicesInGroup));
+                }
 
-            // Section: Coordinate Adjustments
+                // Right rows table
+                if (rightIndicesInGroup.Count > 0)
+                {
+                    group.Tables.Add(BuildFullRowTableModel(
+                        "All Right Rows in Group:",
+                        rightTable,
+                        rightIndicesInGroup.Select(i => rightTable.Rows[i]).ToList(),
+                        rightIndicesInGroup));
+                }
+
+                complexSection.Groups.Add(group);
+            }
+            model.Sections.Add(complexSection);
+
+            // Section 2: Unmatched Left Rows
+            var unmatchedSection = new ReportSection
+            {
+                Title = "Unmatched Left Rows",
+                Count = unmatched.Count,
+                BadgeClass = unmatched.Count == 0 ? "success" : "error",
+                EmptyMessage = "All left rows were successfully matched."
+            };
+
+            var byReason = unmatched.GroupBy(u => u.Reason).OrderByDescending(g => g.Count());
+            foreach (var reasonGroup in byReason)
+            {
+                var group = new SectionGroup
+                {
+                    Header = $"Reason: {HtmlEncode(reasonGroup.Key)} ({reasonGroup.Count()} rows)"
+                };
+                group.Tables.Add(BuildFullRowTableModel(
+                    "",
+                    leftTable,
+                    reasonGroup.Select(u => u.Row).ToList(),
+                    reasonGroup.Select(u => u.LeftIndex).ToList()));
+                unmatchedSection.Groups.Add(group);
+            }
+            model.Sections.Add(unmatchedSection);
+
+            // Section 3: Orphaned Right Rows
+            var orphanedSection = new ReportSection
+            {
+                Title = "Orphaned Right Rows (Never Matched)",
+                Count = orphanedRightIndices.Count,
+                BadgeClass = orphanedRightIndices.Count == 0 ? "success" : "warning",
+                EmptyMessage = "All right rows were used in matches."
+            };
+
+            if (orphanedRightIndices.Count > 0)
+            {
+                var group = new SectionGroup
+                {
+                    Description = "These rows from the right (geocoding) dataset were never matched to any left row."
+                };
+                group.Tables.Add(BuildFullRowTableModel(
+                    "",
+                    rightTable,
+                    orphanedRightIndices.Select(i => rightTable.Rows[i]).ToList(),
+                    orphanedRightIndices));
+                orphanedSection.Groups.Add(group);
+            }
+            model.Sections.Add(orphanedSection);
+
+            // Section 4: Coordinate Adjustments
             var adjustedMatches = matches.Where(m => m.AdjustedLatitude.HasValue).ToList();
-            AppendCollapsibleSection(sb, "Coordinate Adjustments", adjustedMatches.Count,
-                adjustedMatches.Count == 0 ? "success" : "warning",
-                () =>
+            var coordSection = new ReportSection
+            {
+                Title = "Coordinate Adjustments",
+                Count = adjustedMatches.Count,
+                BadgeClass = adjustedMatches.Count == 0 ? "success" : "warning",
+                EmptyMessage = "No coordinate adjustments were necessary."
+            };
+
+            if (adjustedMatches.Count > 0)
+            {
+                var group = new SectionGroup
                 {
-                    if (adjustedMatches.Count == 0)
+                    Description = "These matches had overlapping coordinates and were offset by 5m increments."
+                };
+
+                var coordTable = new DataTableModel
+                {
+                    Columns = new List<string> { "Left#", "Key", "Original Lat", "Original Lng", "Adjusted Lat", "Adjusted Lng" }
+                };
+
+                foreach (var m in adjustedMatches)
+                {
+                    coordTable.Rows.Add(new List<CellValue>
                     {
-                        sb.AppendLine("<p class=\"no-data\">No coordinate adjustments were necessary.</p>");
-                        return;
-                    }
+                        CellValue.Simple((m.LeftIndex + 1).ToString()),
+                        CellValue.Simple(m.Key.Id),
+                        CellValue.Simple(m.Latitude?.ToString("F6") ?? ""),
+                        CellValue.Simple(m.Longitude?.ToString("F6") ?? ""),
+                        CellValue.Simple(m.AdjustedLatitude?.ToString("F6") ?? ""),
+                        CellValue.Simple(m.AdjustedLongitude?.ToString("F6") ?? "")
+                    });
+                }
+                group.Tables.Add(coordTable);
+                coordSection.Groups.Add(group);
+            }
+            model.Sections.Add(coordSection);
 
-                    sb.AppendLine("<p>These matches had overlapping coordinates and were offset by 5m increments.</p>");
-                    sb.AppendLine("<div class=\"table-scroll\">");
-                    sb.AppendLine("<table class=\"data-table\">");
-                    sb.AppendLine("<tr><th>Left#</th><th>Key</th><th>Original Lat</th><th>Original Lng</th><th>Adjusted Lat</th><th>Adjusted Lng</th></tr>");
-                    foreach (var m in adjustedMatches)
-                    {
-                        sb.AppendLine($"<tr><td>{m.LeftIndex + 1}</td><td>{HtmlEncode(m.Key.Id)}</td>");
-                        sb.AppendLine($"<td>{m.Latitude:F6}</td><td>{m.Longitude:F6}</td>");
-                        sb.AppendLine($"<td>{m.AdjustedLatitude:F6}</td><td>{m.AdjustedLongitude:F6}</td></tr>");
-                    }
-                    sb.AppendLine("</table>");
-                    sb.AppendLine("</div>");
-                });
-
-            // JavaScript for collapsible sections
-            sb.AppendLine("<script>");
-            sb.AppendLine(@"
-document.querySelectorAll('.section-header').forEach(header => {
-    header.addEventListener('click', () => {
-        header.parentElement.classList.toggle('open');
-    });
-});
-// Auto-open sections with issues
-document.querySelectorAll('.section').forEach(section => {
-    const badge = section.querySelector('.badge');
-    if (badge && (badge.classList.contains('warning') || badge.classList.contains('error'))) {
-        const count = parseInt(badge.textContent);
-        if (count > 0) section.classList.add('open');
-    }
-});
-");
-            sb.AppendLine("</script>");
-
-            sb.AppendLine("</body></html>");
-
-            File.WriteAllText(reportPath, sb.ToString(), Encoding.UTF8);
+            return model;
         }
 
-        private static void AppendSummaryCard(StringBuilder sb, string label, string value, string cssClass)
+        private static DataTableModel BuildFullRowTableModel(
+            string label,
+            CsvTypedDataTable table,
+            List<Dictionary<string, object?>> rows,
+            List<int> indices)
         {
-            string classAttr = string.IsNullOrEmpty(cssClass) ? "" : $" {cssClass}";
-            sb.AppendLine($"<div class=\"summary-card{classAttr}\">");
-            sb.AppendLine($"  <div class=\"value\">{value}</div>");
-            sb.AppendLine($"  <div class=\"label\">{HtmlEncode(label)}</div>");
-            sb.AppendLine("</div>");
-        }
-
-        private static void AppendCollapsibleSection(StringBuilder sb, string title, int count, string badgeClass, Action contentBuilder)
-        {
-            sb.AppendLine("<div class=\"section\">");
-            sb.AppendLine($"<div class=\"section-header\"><h3>{HtmlEncode(title)}</h3><span class=\"badge {badgeClass}\">{count}</span></div>");
-            sb.AppendLine("<div class=\"section-content\">");
-            contentBuilder();
-            sb.AppendLine("</div></div>");
-        }
-
-        private static void AppendFullRowTable(StringBuilder sb, CsvTypedDataTable table, List<Dictionary<string, object?>> rows, List<int> indices)
-        {
-            sb.AppendLine("<table class=\"data-table\">");
-            sb.Append("<tr><th>#</th>");
-            foreach (var col in table.ColumnNames)
-                sb.Append($"<th>{HtmlEncode(col)}</th>");
-            sb.AppendLine("</tr>");
+            var model = new DataTableModel
+            {
+                Label = label,
+                Columns = new List<string> { "#" }
+            };
+            model.Columns.AddRange(table.ColumnNames);
 
             for (int i = 0; i < rows.Count; i++)
             {
                 var row = rows[i];
-                int rowNum = indices[i] + 1; // 1-based for display
-                sb.Append($"<tr><td>{rowNum}</td>");
+                int rowNum = indices[i] + 1;
+                var cellRow = new List<CellValue> { CellValue.Simple(rowNum.ToString()) };
                 foreach (var col in table.ColumnNames)
                 {
-                    string val = FormatValue(row, col);
-                    sb.Append($"<td title=\"{HtmlEncode(val)}\">{HtmlEncode(TruncateValue(val, 25))}</td>");
+                    cellRow.Add(CellValue.Simple(FormatValue(row, col)));
                 }
-                sb.AppendLine("</tr>");
+                model.Rows.Add(cellRow);
             }
-            sb.AppendLine("</table>");
+
+            return model;
         }
 
         private static string FormatValue(Dictionary<string, object?> row, string column)
@@ -1125,13 +994,6 @@ document.querySelectorAll('.section').forEach(section => {
             if (obj is double d)
                 return d.ToString("G", CultureInfo.InvariantCulture);
             return Convert.ToString(obj, CultureInfo.InvariantCulture) ?? "";
-        }
-
-        private static string TruncateValue(string value, int maxLength)
-        {
-            if (string.IsNullOrEmpty(value) || value.Length <= maxLength)
-                return value;
-            return value.Substring(0, maxLength - 3) + "...";
         }
 
         private static string HtmlEncode(string value)
