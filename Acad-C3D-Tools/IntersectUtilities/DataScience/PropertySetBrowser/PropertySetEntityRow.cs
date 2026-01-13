@@ -1,5 +1,6 @@
 using Autodesk.AutoCAD.DatabaseServices;
 
+using System;
 using System.Collections.Generic;
 
 namespace IntersectUtilities.DataScience.PropertySetBrowser
@@ -35,22 +36,21 @@ namespace IntersectUtilities.DataScience.PropertySetBrowser
 
         /// <summary>
         /// Checks if this row matches a search term across all properties.
+        /// Uses OrdinalIgnoreCase for fast comparison without string allocations.
         /// </summary>
         public bool MatchesSearch(string searchTerm)
         {
             if (string.IsNullOrWhiteSpace(searchTerm))
                 return true;
 
-            var term = searchTerm.ToLowerInvariant();
-
-            // Check entity type
-            if (EntityType.ToLowerInvariant().Contains(term))
+            // Check entity type - no string allocation with OrdinalIgnoreCase
+            if (EntityType.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
                 return true;
 
             // Check all property values
             foreach (var kvp in Properties)
             {
-                if (kvp.Value?.ToLowerInvariant().Contains(term) == true)
+                if (kvp.Value?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) == true)
                     return true;
             }
 

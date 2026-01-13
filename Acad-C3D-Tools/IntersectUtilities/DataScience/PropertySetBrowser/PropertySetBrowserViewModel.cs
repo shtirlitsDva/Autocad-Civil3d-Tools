@@ -10,8 +10,10 @@ using IntersectUtilities.UtilsCommon;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Linq;
 using System.Windows;
+using System.Windows.Data;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 
@@ -23,7 +25,8 @@ namespace IntersectUtilities.DataScience.PropertySetBrowser
     public partial class PropertySetBrowserViewModel : ObservableObject
     {
         private readonly Database _database;
-        private List<PropertySetEntityRow> _allRows = new();
+        private readonly ObservableCollection<PropertySetEntityRow> _allRows = new();
+        private ICollectionView? _rowsView;
 
         [ObservableProperty]
         private ObservableCollection<string> propertySetNames = new();
@@ -39,8 +42,21 @@ namespace IntersectUtilities.DataScience.PropertySetBrowser
         /// </summary>
         public Dictionary<string, PsDataType> PropertyDataTypes { get; private set; } = new();
 
-        [ObservableProperty]
-        private ObservableCollection<PropertySetEntityRow> filteredRows = new();
+        /// <summary>
+        /// The ICollectionView used for filtering - binds to DataGrid.
+        /// Using ICollectionView.Filter is much faster than recreating ObservableCollections.
+        /// </summary>
+        public ICollectionView RowsView => _rowsView ??= CreateRowsView();
+
+        /// <summary>
+        /// Gets the count of filtered (visible) rows.
+        /// </summary>
+        public int FilteredCount => _rowsView?.Cast<object>().Count() ?? 0;
+
+        /// <summary>
+        /// Gets the total count of all rows.
+        /// </summary>
+        public int TotalCount => _allRows.Count;
 
         [ObservableProperty]
         private PropertySetEntityRow? selectedRow;
@@ -58,6 +74,20 @@ namespace IntersectUtilities.DataScience.PropertySetBrowser
         {
             _database = database ?? throw new ArgumentNullException(nameof(database));
             LoadPropertySetNames();
+        }
+
+        private ICollectionView CreateRowsView()
+        {
+            var view = CollectionViewSource.GetDefaultView(_allRows);
+            view.Filter = FilterPredicate;
+            return view;
+        }
+
+        private bool FilterPredicate(object obj)
+        {
+            if (obj is not PropertySetEntityRow row)
+                return false;
+            return row.MatchesSearch(FilterText);
         }
 
         private void LoadPropertySetNames()
@@ -95,7 +125,6 @@ namespace IntersectUtilities.DataScience.PropertySetBrowser
             IsLoading = true;
             StatusText = $"Loading data for {propertySetName}...";
             _allRows.Clear();
-            FilteredRows.Clear();
             PropertyColumns.Clear();
             PropertyDataTypes.Clear();
 
@@ -181,17 +210,11 @@ namespace IntersectUtilities.DataScience.PropertySetBrowser
 
         private void ApplyFilter()
         {
-            if (string.IsNullOrWhiteSpace(FilterText))
-            {
-                FilteredRows = new ObservableCollection<PropertySetEntityRow>(_allRows);
-            }
-            else
-            {
-                var filtered = _allRows.Where(r => r.MatchesSearch(FilterText));
-                FilteredRows = new ObservableCollection<PropertySetEntityRow>(filtered);
-            }
-
-            StatusText = $"Showing {FilteredRows.Count} of {_allRows.Count} entities.";
+            // Just refresh the view - the filter predicate will be re-evaluated
+            // This is much faster than creating a new ObservableCollection
+            RowsView.Refresh();
+            
+            StatusText = $"Showing {FilteredCount} of {TotalCount} entities.";
         }
 
         [RelayCommand]
@@ -209,13 +232,14 @@ namespace IntersectUtilities.DataScience.PropertySetBrowser
         [RelayCommand]
         private void SelectAllFiltered()
         {
-            if (FilteredRows.Count == 0)
+            var filteredRows = RowsView.Cast<PropertySetEntityRow>().ToList();
+            if (filteredRows.Count == 0)
             {
                 StatusText = "No entities to select.";
                 return;
             }
 
-            var handles = FilteredRows.Select(r => r.EntityHandle).ToArray();
+            var handles = filteredRows.Select(r => r.EntityHandle).ToArray();
             SelectEntitiesByHandles(handles);
         }
 

@@ -392,7 +392,7 @@
                   ScrollViewer.HorizontalScrollBarVisibility="Auto"
                   ScrollViewer.VerticalScrollBarVisibility="Auto"
                   ScrollViewer.CanContentScroll="True"
-                  ItemsSource="{Binding FilteredRows}"
+                  ItemsSource="{Binding RowsView}"
                   SelectedItem="{Binding SelectedRow}"
                   MouseDoubleClick="DataGridView_MouseDoubleClick">
             <!-- Columns are generated dynamically in code-behind -->
