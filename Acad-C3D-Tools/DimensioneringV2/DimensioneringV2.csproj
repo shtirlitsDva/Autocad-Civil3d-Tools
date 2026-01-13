@@ -21,7 +21,7 @@
 	<PropertyGroup>
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
 		<GenerateDocumentationFile>True</GenerateDocumentationFile>
-		<AssemblyName>wsqsa10d.wuy</AssemblyName>
+		<AssemblyName>DimensioneringV2</AssemblyName>
 	</PropertyGroup>
 	<PropertyGroup Condition=" '$(Platform)' == 'x64' ">
 		<DebugSymbols>true</DebugSymbols>
