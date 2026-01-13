@@ -137,10 +137,11 @@
 	</ItemGroup>
 	<PropertyGroup>
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-		<GenerateDocumentationFile>True</GenerateDocumentationFile>		
+		<GenerateDocumentationFile>True</GenerateDocumentationFile>
 	</PropertyGroup>
 	<ItemGroup>
 		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+		<PackageReference Include="Fluid.Core" Version="2.11.1" />
 		<PackageReference Include="CsvHelper" Version="33.0.1" />
 		<PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
 		<PackageReference Include="Microsoft.VisualBasic" Version="10.3.0" />
@@ -162,6 +163,9 @@
 	</ItemGroup>
 	<ItemGroup>
 	  <Resource Include="FjernvarmeFremtidig\VejkantOffset\UI\Resources\DarkTheme.xaml" />
+	</ItemGroup>
+	<ItemGroup>
+	  <EmbeddedResource Include="DataScience\MergeReportStyles.css" />
 	</ItemGroup>	
 	<Import Project="..\UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems" Label="Shared" />
 	<Import Project="..\AutoCADCommandsSHARED\AutoCADCommandsSHARED.projitems" Label="Shared" />
