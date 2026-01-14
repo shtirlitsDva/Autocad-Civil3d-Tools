@@ -121,16 +121,6 @@
                              IsEnabled="{Binding IsFactorTillægEditable}"/>
                     </Grid>
 
-                    <!-- MinDifferentialPressure -->
-                    <Grid Style="{StaticResource RowStyle}">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
-                        </Grid.ColumnDefinitions>
-                        <Label Content="Minimum differenstryk over hovedhaner ved forbrugeren [bar:Decimaltal]:"/>
-                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.MinDifferentialPressureOverHovedHaner, UpdateSourceTrigger=PropertyChanged}"/>
-                    </Grid>
-
                     <!-- Ruheder Edit Button -->
                     <Grid Style="{StaticResource RowStyle}">
                         <Grid.ColumnDefinitions>
@@ -314,6 +304,16 @@
                         </Grid.ColumnDefinitions>
                         <Label Content="Maks. tryktab i stikledning [bar:Decimaltal]:"/>
                         <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.MaxPressureLossStikSL, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
+
+                    <!-- MinDifferentialPressure -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Minimum differenstryk over hovedhaner ved forbrugeren [bar:Decimaltal]:"/>
+                        <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.MinDifferentialPressureOverHovedHaner, UpdateSourceTrigger=PropertyChanged}"/>
                     </Grid>
                 </StackPanel>
             </GroupBox>
