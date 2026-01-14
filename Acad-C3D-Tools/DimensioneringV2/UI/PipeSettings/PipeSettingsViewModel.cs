@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 
 using NorsynHydraulicCalc;
 using NorsynHydraulicCalc.Pipes;
+using NorsynHydraulicCalc.Rules;
 
 using System;
 using System.Collections.Generic;
@@ -18,6 +19,7 @@ namespace DimensioneringV2.UI.PipeSettings
         private readonly MediumTypeEnum _medium;
         private readonly SegmentType _segmentType;
         private readonly PipeTypes _pipeTypes;
+        private readonly IEnumerable<PipeType> _flPipeTypes;
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(IsEmpty))]
@@ -59,12 +61,28 @@ namespace DimensioneringV2.UI.PipeSettings
         /// </summary>
         public PipeTypes PipeTypes => _pipeTypes;
 
+        /// <summary>
+        /// Creates a ViewModel for FL pipe settings (no rules support).
+        /// </summary>
         public PipeSettingsViewModel(PipeTypeConfiguration config, MediumTypeEnum medium, PipeTypes pipeTypes)
+            : this(config, medium, pipeTypes, Enumerable.Empty<PipeType>())
+        {
+        }
+
+        /// <summary>
+        /// Creates a ViewModel for SL pipe settings with support for rules.
+        /// </summary>
+        /// <param name="config">The SL pipe configuration to edit.</param>
+        /// <param name="medium">The medium type.</param>
+        /// <param name="pipeTypes">The pipe types instance for DN lookups.</param>
+        /// <param name="flPipeTypes">Available FL pipe types for parent pipe rules.</param>
+        public PipeSettingsViewModel(PipeTypeConfiguration config, MediumTypeEnum medium, PipeTypes pipeTypes, IEnumerable<PipeType> flPipeTypes)
         {
             _originalConfig = config;
             _medium = medium;
             _segmentType = config.SegmentType;
             _pipeTypes = pipeTypes;
+            _flPipeTypes = flPipeTypes;
             IsStikledning = _segmentType == SegmentType.Stikledning;
 
             // Create a working copy of the priorities
@@ -239,13 +257,32 @@ namespace DimensioneringV2.UI.PipeSettings
         }
 
         [RelayCommand]
-        private void EditRegler()
+        private void EditRegler(PipeTypePriority? priority)
         {
-            MessageBox.Show(
-                "Regelkonfiguration er ikke implementeret endnu.",
-                "Kommer snart",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
+            var target = priority ?? SelectedPriority;
+            if (target == null) return;
+
+            if (!_flPipeTypes.Any())
+            {
+                MessageBox.Show(
+                    "Ingen fordelingsledninger er konfigureret.\nKonfigurer FL først for at kunne definere forældrerør-regler.",
+                    "Ingen FL konfiguration",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
+            var window = new RegelWindow();
+            var viewModel = new RegelViewModel(target, _flPipeTypes);
+            window.DataContext = viewModel;
+            window.ShowDialog();
+
+            // Force UI refresh
+            var index = Priorities.IndexOf(target);
+            if (index >= 0)
+            {
+                Priorities[index] = target;
+            }
         }
 
         [RelayCommand]

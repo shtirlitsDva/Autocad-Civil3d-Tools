@@ -17,17 +17,20 @@ namespace DimensioneringV2.Genetic
     {
         private readonly List<SumProperty<BFEdge>> _props;
         private readonly CoherencyManager _chm;
-        private readonly HydraulicCalculationCache<BFEdge> _cache;
+        private readonly HydraulicCalculationCache<BFEdge> _flCache;
+        private readonly ClientCalculationCache<BFEdge>? _slCache;
         private readonly bool _useGraduatedPenalty;
 
         public GraphFitness(
             CoherencyManager coherencyManager,
             List<SumProperty<BFEdge>> props,
-            HydraulicCalculationCache<BFEdge> cache)
+            HydraulicCalculationCache<BFEdge> flCache,
+            ClientCalculationCache<BFEdge>? slCache = null)
         {
             _props = props;
             _chm = coherencyManager;
-            _cache = cache;
+            _flCache = flCache;
+            _slCache = slCache;
             _useGraduatedPenalty = GASettingsService.Instance.Settings.UseGraduatedPenalty;
         }
 
@@ -61,7 +64,7 @@ namespace DimensioneringV2.Genetic
             }
 
             double result = HCS_SGC_CalculateSumsAndCost.CalculateSumsAndCost(
-                localGraph, _chm.OriginalGraph, _props, _chm.MetaGraph, _cache);
+                localGraph, _chm.OriginalGraph, _props, _chm.MetaGraph, _flCache, _slCache);
 
             return -result;
         }

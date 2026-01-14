@@ -465,7 +465,6 @@ namespace DimensioneringV2.GraphFeatures
             PressureLossAtClientSupply = 0;
             PressureLossAtClientReturn = 0;
             DifferentialPressureAtClient = 0;
-            //SubGraphId = 0;
         }
         #region ICloneable Implementation
         public object Clone()

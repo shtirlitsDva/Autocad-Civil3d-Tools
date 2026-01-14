@@ -69,7 +69,7 @@ namespace DimensioneringV2.BruteForceOptimization
         public double TempDeltaVarme => _tempDeltaVarme;
         public double TempDeltaBV => _tempDeltaBV;
         public string AnvendelseKode => _anvKode;
-        public int Bygningsnyttetimer { get; set; }
+        public int Nyttetimer { get => OriginalEdge.PipeSegment.Nyttetimer; }
         public BFEdge([NotNull] BFNode source, [NotNull] BFNode target, EdgePipeSegment edge) : base(source, target)
         {
             OriginalEdge = edge;

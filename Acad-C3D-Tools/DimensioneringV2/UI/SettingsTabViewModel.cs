@@ -10,8 +10,10 @@ using DimensioneringV2.UI.Nyttetimer;
 using DimensioneringV2.UI.PipeSettings;
 
 using NorsynHydraulicCalc;
+using NorsynHydraulicCalc.Rules;
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
@@ -105,23 +107,79 @@ namespace DimensioneringV2.UI
                 Settings.PipeConfigFL = DefaultPipeConfigFactory.CreateDefaultFL(Settings.MedieType, Settings.GetPipeTypes());
             }
 
+            // Remember FL pipe types before editing
+            var flPipeTypesBefore = Settings.PipeConfigFL.GetConfiguredPipeTypes().ToHashSet();
+
             var window = new PipeSettingsWindow();
             var viewModel = new PipeSettingsViewModel(Settings.PipeConfigFL, Settings.MedieType, Settings.GetPipeTypes());
             window.DataContext = viewModel;
-            window.ShowDialog();
+
+            if (window.ShowDialog() == true)
+            {
+                // Check if any FL pipe types were removed that are used in SL rules
+                ValidateAndCleanupSlRulesAfterFlChange(flPipeTypesBefore);
+            }
+        }
+
+        /// <summary>
+        /// Validates SL rules after FL configuration changes.
+        /// Removes any ParentPipeRules that reference removed FL pipe types.
+        /// </summary>
+        private void ValidateAndCleanupSlRulesAfterFlChange(HashSet<PipeType> flPipeTypesBefore)
+        {
+            if (Settings.PipeConfigSL == null) return;
+
+            var flPipeTypesAfter = Settings.PipeConfigFL?.GetConfiguredPipeTypes().ToHashSet()
+                ?? new HashSet<PipeType>();
+
+            var removedFlTypes = flPipeTypesBefore.Except(flPipeTypesAfter).ToList();
+            if (removedFlTypes.Count == 0) return;
+
+            var invalidatedRules = new List<string>();
+
+            foreach (var slPriority in Settings.PipeConfigSL.Priorities)
+            {
+                var rulesToRemove = slPriority.Rules
+                    .OfType<ParentPipeRule>()
+                    .Where(r => removedFlTypes.Contains(r.ParentPipeType))
+                    .ToList();
+
+                foreach (var rule in rulesToRemove)
+                {
+                    invalidatedRules.Add($"{slPriority.PipeType}: Forældrerør {rule.ParentPipeType}");
+                    slPriority.Rules.Remove(rule);
+                }
+            }
+
+            if (invalidatedRules.Count > 0)
+            {
+                MessageBox.Show(
+                    $"Følgende SL-regler er blevet fjernet, fordi deres forældrerørtype ikke længere findes i FL:\n\n" +
+                    string.Join("\n", invalidatedRules),
+                    "Regler fjernet",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
         }
 
         public RelayCommand EditPipeSettingsSLCommand => new RelayCommand(EditPipeSettingsSL);
         private void EditPipeSettingsSL()
         {
-            // Ensure configuration exists
+            // Ensure configurations exist
+            if (Settings.PipeConfigFL == null)
+            {
+                Settings.PipeConfigFL = DefaultPipeConfigFactory.CreateDefaultFL(Settings.MedieType, Settings.GetPipeTypes());
+            }
             if (Settings.PipeConfigSL == null)
             {
                 Settings.PipeConfigSL = DefaultPipeConfigFactory.CreateDefaultSL(Settings.MedieType, Settings.GetPipeTypes());
             }
 
+            // Get FL pipe types for parent pipe rules
+            var flPipeTypes = Settings.PipeConfigFL.GetConfiguredPipeTypes();
+
             var window = new PipeSettingsWindow();
-            var viewModel = new PipeSettingsViewModel(Settings.PipeConfigSL, Settings.MedieType, Settings.GetPipeTypes());
+            var viewModel = new PipeSettingsViewModel(Settings.PipeConfigSL, Settings.MedieType, Settings.GetPipeTypes(), flPipeTypes);
             window.DataContext = viewModel;
             window.ShowDialog();
         }

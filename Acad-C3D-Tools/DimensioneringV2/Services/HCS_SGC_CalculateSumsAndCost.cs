@@ -26,9 +26,10 @@ namespace DimensioneringV2.Services
             UndirectedGraph<BFNode, BFEdge> originalSubGraph,
             List<SumProperty<BFEdge>> props,
             MetaGraph<UndirectedGraph<BFNode, BFEdge>> metaGraph,
-            HydraulicCalculationCache<BFEdge> cache)
+            HydraulicCalculationCache<BFEdge> flCache,
+            ClientCalculationCache<BFEdge>? slCache = null)
         {
-            var result = CalculateSumsAndCostWithGraph(graph, originalSubGraph, props, metaGraph, cache);
+            var result = CalculateSumsAndCostWithGraph(graph, originalSubGraph, props, metaGraph, flCache, slCache);
             return result.price;
         }
 
@@ -42,7 +43,8 @@ namespace DimensioneringV2.Services
             UndirectedGraph<BFNode, BFEdge> originalSubGraph,
             List<SumProperty<BFEdge>> props,
             MetaGraph<UndirectedGraph<BFNode, BFEdge>> metaGraph,
-            HydraulicCalculationCache<BFEdge> cache)
+            HydraulicCalculationCache<BFEdge> flCache,
+            ClientCalculationCache<BFEdge>? slCache = null)
         {
             var rootNode = metaGraph.GetRootForSubgraph(originalSubGraph);
 
@@ -79,9 +81,12 @@ namespace DimensioneringV2.Services
             foreach (var edge in spt.Edges)
             {
                 if (edge.SegmentType == SegmentType.Stikledning) continue;
-                var result = cache.GetOrCalculate(edge);
+                var result = flCache.GetOrCalculate(edge);
                 edge.ApplyResult(result);
             }
+
+            // Recalculate SL with rules now that FL pipe types are determined
+            BFEdgeCalculationService.RecalculateSlWithRules(spt, slCache);
 
             return (spt.Edges.Sum(x => x.Price), spt);
         }

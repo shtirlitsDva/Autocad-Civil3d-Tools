@@ -143,12 +143,21 @@
                                 </StackPanel>
                             </Grid>
 
-                            <!-- Edit Button -->
-                            <Button Grid.Column="2" 
-                                    Content="Acceptkriterier..."
-                                    Style="{StaticResource SmallEditButtonStyle}"
-                                    Command="{Binding DataContext.EditAcceptCriteriaCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
-                                    CommandParameter="{Binding}"/>
+                            <!-- Edit Buttons -->
+                            <StackPanel Grid.Column="2" Orientation="Horizontal">
+                                <!-- Regler Button (SL only) -->
+                                <Button Content="Regler..."
+                                        Style="{StaticResource SmallEditButtonStyle}"
+                                        Margin="0,0,8,0"
+                                        Visibility="{Binding DataContext.IsStikledning, RelativeSource={RelativeSource AncestorType=ListBox}, Converter={StaticResource BoolToVis}}"
+                                        Command="{Binding DataContext.EditReglerCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                        CommandParameter="{Binding}"/>
+                                <!-- Acceptkriterier Button -->
+                                <Button Content="Acceptkriterier..."
+                                        Style="{StaticResource SmallEditButtonStyle}"
+                                        Command="{Binding DataContext.EditAcceptCriteriaCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                        CommandParameter="{Binding}"/>
+                            </StackPanel>
                         </Grid>
                     </Border>
                 </DataTemplate>

@@ -37,6 +37,16 @@ The repository includes batch files for building projects with MSBuild (required
 
 All scripts use VS 2022 Community MSBuild at `C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe` and output errors only with summary.
 
+### dotnet build
+When building with `dotnet build`, always suppress warnings and build only the target project:
+```bash
+dotnet build ProjectName.csproj --nologo -v q
+```
+- `--nologo`: Suppress the startup banner
+- `-v q`: Quiet verbosity (errors only)
+
+Filter output to show only errors: `2>&1 | grep -E "(error|Error)"`
+
 ## Coding Style & Naming Conventions
 Use four-space indentation and respect nullable reference types (`<Nullable>enable</Nullable>` is the default). Favor PascalCase for public types, camelCase for locals, and avoid abbreviations not already established nearby. Keep command class names aligned with their AutoCAD command keyword (for example `ApplyDimCommand`). `.editorconfig` disables XML documentation warnings; prefer concise inline comments only when the intent is non-obvious.
 

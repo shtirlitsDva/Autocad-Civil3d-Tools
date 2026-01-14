@@ -6,17 +6,17 @@ namespace NorsynHydraulicCalc.Pipes
 {
     public class PipeTypes
     {
-        private IHydraulicSettings? s;
+        private IHydraulicSettings? _s;
         private Dictionary<PipeType, IPipe>? _allTypes;
         public PipeTypes(IHydraulicSettings settings)
         {
-            s = settings;
-            _stål = new PipeSteel(s.RuhedSteel);            
-            _aluPex = new PipeAluPex(s.RuhedAluPEX);
-            _pertFlextra = new PipePertFlextra(s.RuhedPertFlextra);
-            _cu = new PipeCu(s.RuhedCu);
-            _pe = new PipePe(s.RuhedPe);
-            _at11 = new PipeAquaTherm11(s.RuhedAquaTherm11);
+            _s = settings;
+            _stål = new PipeSteel(_s.RuhedSteel);            
+            _aluPex = new PipeAluPex(_s.RuhedAluPEX);
+            _pertFlextra = new PipePertFlextra(_s.RuhedPertFlextra);
+            _cu = new PipeCu(_s.RuhedCu);
+            _pe = new PipePe(_s.RuhedPe);
+            _at11 = new PipeAquaTherm11(_s.RuhedAquaTherm11);
             _allTypes = new Dictionary<PipeType, IPipe>
             {
                 { PipeType.Stål, _stål },

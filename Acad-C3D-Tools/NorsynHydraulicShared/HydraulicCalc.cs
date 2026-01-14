@@ -1,6 +1,6 @@
 ﻿using NorsynHydraulicCalc.LookupData;
-using NorsynHydraulicCalc.MaxFlowCalc;
 using NorsynHydraulicCalc.Pipes;
+using NorsynHydraulicCalc.Rules;
 
 using NorsynHydraulicShared;
 
@@ -17,9 +17,7 @@ namespace NorsynHydraulicCalc
 
         private ILog log { get; set; }
 
-        #region Static properties for max flow pipe table
-        private List<(Dim Dim, double MaxFlowFrem, double MaxFlowReturn)> maxFlowTableFL;
-        private List<(Dim Dim, double MaxFlowFrem, double MaxFlowReturn)> maxFlowTableSL;
+        #region Properties for reporting
         private List<string> reportingColumnNames;
         private List<string> reportingUnits;
         private List<(string, List<object>)> reportingRowsFL;
@@ -33,8 +31,6 @@ namespace NorsynHydraulicCalc
         private PipeTypes pipeTypes;
         //Lookup data
         private ILookupData ld;
-        //MaxFlowCalculations
-        private IMaxFlowCalc mfc;
 
         // Shared
         private double afkølingBrugsvand => s.AfkølingBrugsvand; // degree
@@ -45,7 +41,7 @@ namespace NorsynHydraulicCalc
         private double tempFrem => s.TempFrem; // degree
         private double afkølingVarme => s.AfkølingVarme; // degree
         private double factorVarmtVandsTillæg => s.FactorVarmtVandsTillæg;
-        
+
         // Nyttetimer (consolidated from FL/SL)
         /// <summary>
         /// System nyttetimer for 1 consumer (SN1).
@@ -77,7 +73,6 @@ namespace NorsynHydraulicCalc
             rho = ld.rho;
             cp = ld.cp;
             mu = ld.mu;
-            mfc = MaxFlowCalcFactory.GetMaxFlowCalc(s.MedieType, s);
 
             log.Report($"HydraulicCalc {version}.");
 
@@ -89,12 +84,9 @@ namespace NorsynHydraulicCalc
         }
         #endregion
 
-        #region Initialize the max flow table
+        #region Initialize the max flow values in DnAcceptCriteria
         private void CalculateMaxFlowValues()
         {
-            maxFlowTableFL = new List<(Dim Dim, double MaxFlowFrem, double MaxFlowReturn)>();
-            maxFlowTableSL = new List<(Dim Dim, double MaxFlowFrem, double MaxFlowReturn)>();
-
             #region Setup reporting
             //Setup reporting
             if (reportToConsole)
@@ -117,93 +109,9 @@ namespace NorsynHydraulicCalc
             }
             #endregion
 
-            var translationBetweenMaxPertAndMinStål = new Dictionary<int, int>()
-            {
-                //{ 75, 65 },
-                //{ 63, 50 },
-                //{ 50, 40 },
-                //{ 40, 32 },
-                //{ 32, 25 }
-
-                { 75, 65 },
-                { 63, 50 },
-                { 50, 40 },
-            };
-
-            #region Populate maxFlowTableFL
-            //Populate maxFlowTableFL
-            {
-                mfc.CalculateMaxFlowTableFL(maxFlowTableFL, CalculateMaxFlow);
-
-                //int steelMinDn = 32;
-
-                //if (usePertFlextraFL)
-                //{
-                //    foreach (var dim in pipeTypes.PertFlextra.GetDimsRange(
-                //        50, pertFlextraMaxDnFL))
-                //    {
-                //        maxFlowTableFL.Add((dim,
-                //            CalculateMaxFlow(dim, TempSetType.Supply, SegmentType.Fordelingsledning),
-                //            CalculateMaxFlow(dim, TempSetType.Return, SegmentType.Fordelingsledning)));
-                //    }
-
-                //    steelMinDn = translationBetweenMaxPertAndMinStål[pertFlextraMaxDnFL];
-                //}
-
-                //foreach (var dim in pipeTypes.Stål.GetDimsRange(steelMinDn, 1000))
-                //{
-                //    maxFlowTableFL.Add((dim,
-                //            CalculateMaxFlow(dim, TempSetType.Supply, SegmentType.Fordelingsledning),
-                //            CalculateMaxFlow(dim, TempSetType.Return, SegmentType.Fordelingsledning)));
-                //}
-            }
-            #endregion
-
-            #region Populate maxFlowTableSL
-            //Populate maxFlowTableSL
-            {
-                mfc.CalculateMaxFlowTableSL(maxFlowTableSL, CalculateMaxFlow);
-
-                //switch (pipeTypeSL)
-                //{
-                //    case PipeType.Stål:
-                //        throw new Exception("Stål-stikledninger er ikke tilladt!");
-                //    case PipeType.PertFlextra:
-                //        foreach (var dim in pipeTypes.PertFlextra.GetDimsRange(25, 75))
-                //        {
-                //            maxFlowTableSL.Add((dim,
-                //                CalculateMaxFlow(dim, TempSetType.Supply, SegmentType.Stikledning),
-                //                CalculateMaxFlow(dim, TempSetType.Return, SegmentType.Stikledning)));
-                //        }
-                //        break;
-                //    case PipeType.AluPEX:
-                //        foreach (var dim in pipeTypes.AluPex.GetDimsRange(26, 32))
-                //        {
-                //            maxFlowTableSL.Add((dim,
-                //                CalculateMaxFlow(dim, TempSetType.Supply, SegmentType.Stikledning),
-                //                CalculateMaxFlow(dim, TempSetType.Return, SegmentType.Stikledning)));
-                //        }
-                //        break;
-                //    case PipeType.Kobber:
-                //        foreach (var dim in pipeTypes.Cu.GetDimsRange(22, 28))
-                //        {
-                //            maxFlowTableSL.Add((dim,
-                //                CalculateMaxFlow(dim, TempSetType.Supply, SegmentType.Stikledning),
-                //                CalculateMaxFlow(dim, TempSetType.Return, SegmentType.Stikledning)));
-                //        }
-                //        break;
-                //    default:
-                //        throw new NotImplementedException($"{pipeTypeSL} not Implemented!");
-                //}
-
-                //foreach (var dim in pipeTypes.Stål.GetDimsRange(32, 1000))
-                //{
-                //    maxFlowTableSL.Add((dim,
-                //            CalculateMaxFlow(dim, TempSetType.Supply, SegmentType.Stikledning),
-                //            CalculateMaxFlow(dim, TempSetType.Return, SegmentType.Stikledning)));
-                //}
-            }
-            #endregion
+            // Initialize max flow values in DnAcceptCriteria for each priority
+            InitializeMaxFlowForConfig(s.PipeConfigFL, SegmentType.Fordelingsledning);
+            InitializeMaxFlowForConfig(s.PipeConfigSL, SegmentType.Stikledning);
 
             #region Reporting
             if (reportToConsole)
@@ -262,6 +170,44 @@ namespace NorsynHydraulicCalc
             #endregion
 
             return Math.Min(Qmax_velocity_m3hr, res.Qmax);
+        }
+        /// <summary>
+        /// Initializes max flow values and Dim references in DnAcceptCriteria for all priorities in a configuration.
+        /// </summary>
+        private void InitializeMaxFlowForConfig(PipeTypeConfiguration config, SegmentType segmentType)
+        {
+            if (config == null || config.Priorities.Count == 0)
+            {
+                throw new InvalidOperationException(
+                    $"No pipe type configuration for {segmentType}. " +
+                    "Ensure PipeConfigFL/PipeConfigSL is properly initialized.");
+            }
+
+            // Process priorities in order (lowest priority number first = highest priority)
+            foreach (var priority in config.Priorities.OrderBy(p => p.Priority))
+            {
+                // Get pipe instance to retrieve dimension data
+                IPipe pipe = pipeTypes.GetPipeType(priority.PipeType);
+
+                // Get dimensions within the configured range, ordered by DN (smallest first)
+                var dims = pipe.GetDimsRange(priority.MinDn, priority.MaxDn);
+
+                foreach (var dim in dims)
+                {
+                    // Find the DnAcceptCriteria for this DN
+                    var criteria = priority.GetCriteriaForDn(dim.NominalDiameter);
+                    if (criteria == null)
+                    {
+                        log.Report($"Warning: No accept criteria for {priority.PipeType} DN{dim.NominalDiameter}");
+                        continue;
+                    }
+
+                    // Calculate and store max flow values
+                    criteria.MaxFlowSupply = CalculateMaxFlow(dim, TempSetType.Supply, segmentType);
+                    criteria.MaxFlowReturn = CalculateMaxFlow(dim, TempSetType.Return, segmentType);
+                    criteria.Dim = dim;
+                }
+            }
         }
         private (double Qmax, int iterations, double Re) FindQmaxPressure(
             Dim dim, TempSetType tempSetType, SegmentType st, CalcType calc)
@@ -536,6 +482,15 @@ namespace NorsynHydraulicCalc
         /// If temp delta is provided, the calculation will take afkøling into account.
         /// </summary>
         public CalculationResultClient CalculateClientSegment(IHydraulicSegment segment)
+            => CalculateClientSegment(segment, null);
+
+        /// <summary>
+        /// Performs hydraulic calculation for a given CLIENT segment with optional parent pipe type.
+        /// When parentPipeType is provided, rule-based dimension selection is used.
+        /// </summary>
+        /// <param name="segment">The segment to calculate.</param>
+        /// <param name="parentPipeType">The pipe type of the parent FL segment (for rule evaluation).</param>
+        public CalculationResultClient CalculateClientSegment(IHydraulicSegment segment, PipeType? parentPipeType)
         {
             #region Set calculation variables
 
@@ -553,7 +508,7 @@ namespace NorsynHydraulicCalc
             double length = segment.Length;
             // SN1 and SN50 are system nyttetimer values (consolidated)
             // BN is building nyttetimer (pre-populated on segment from config lookup)
-            int BN = segment.Bygningsnyttetimer;
+            int BN = segment.Nyttetimer;
             #endregion
 
 #if DEBUG
@@ -581,8 +536,8 @@ namespace NorsynHydraulicCalc
                 return new CalculationResultClient();
             }
 
-            sw.Restart();            
-            
+            sw.Restart();
+
             double s_heat = (double)SN1 / (double)SN50 + (1.0 - (double)SN1 / (double)SN50) / (double)numberOfBuildings;
             double s_hw = (51.0 - (double)numberOfUnits) / (50.0 * Math.Sqrt((double)numberOfUnits));
             s_hw = s_hw < 0 ? 0 : s_hw;
@@ -670,8 +625,15 @@ namespace NorsynHydraulicCalc
             {
                 dim = segment.Dim;
             }
+            else if (parentPipeType.HasValue)
+            {
+                // Use rule-based dimension selection when parent pipe type is known
+                var context = RuleEvaluationContext.ForParent(parentPipeType.Value);
+                dim = determineDimWithRules(dimFlowSupply, dimFlowReturn, context);
+            }
             else
             {
+                // Fallback to sequential priority selection
                 var dimSupply = determineDim(dimFlowSupply, TempSetType.Supply, st);
                 var dimReturn = determineDim(dimFlowReturn, TempSetType.Return, st);
                 dim = new[] { dimSupply, dimReturn }.MaxBy(x => x.OuterDiameter);
@@ -689,12 +651,21 @@ namespace NorsynHydraulicCalc
             double plossSupply = resSupply.gradient * length;
             double plossReturn = resReturn.gradient * length;
 
+            // Build flat list of all SL dimensions for iteration
+            List<Dim> allSlDims = s.PipeConfigSL.Priorities
+                .OrderBy(p => p.Priority)
+                .SelectMany(p => p.GetCriteriaInRange())
+                .Where(c => c.IsCalculated && c.Dim != null)
+                .Select(c => c.Dim)
+                .OfType<Dim>()
+                .ToList();
+
             while (plossSupply + plossReturn > maxPressureLoss)
             {
-                var idx = maxFlowTableSL.FindIndex(x => x.Dim == dim);
-                if (idx >= maxFlowTableSL.Count - 1) break;
+                var idx = allSlDims.FindIndex(x => x == dim);
+                if (idx < 0 || idx >= allSlDims.Count - 1) break;
 
-                dim = maxFlowTableSL[idx + 1].Dim;
+                dim = allSlDims[idx + 1];
                 resSupply = CalculateGradientAndVelocity(dimFlowSupply, dim, TempSetType.Supply, segment);
                 resReturn = CalculateGradientAndVelocity(dimFlowReturn, dim, TempSetType.Return, segment);
 
@@ -967,84 +938,106 @@ namespace NorsynHydraulicCalc
 #endif
             return (reynolds, gradient, velocity);
         }
+        /// <summary>
+        /// Determines the pipe dimension for a given flow rate (for FL or SL without rules).
+        /// Iterates through priorities in order, finding the smallest DN that can handle the flow.
+        /// </summary>
         private Dim determineDim(double flow, TempSetType tst, SegmentType st)
         {
-            switch (st)
+            var config = st == SegmentType.Fordelingsledning ? s.PipeConfigFL : s.PipeConfigSL;
+
+            // Process priorities in order (lowest priority number first = highest priority)
+            foreach (var priority in config.Priorities.OrderBy(p => p.Priority))
             {
-                case SegmentType.Fordelingsledning:
-                    for (int i = 0; i < maxFlowTableFL.Count; i++)
-                    {
-                        var cur = maxFlowTableFL[i];
-                        switch (tst)
-                        {
-                            case TempSetType.Supply:
-                                if (flow >= cur.MaxFlowFrem) continue;
-                                return cur.Dim;
-                            case TempSetType.Return:
-                                if (flow >= cur.MaxFlowReturn) continue;
-                                return cur.Dim;
-                            default:
-                                throw new NotImplementedException();
-                        }
-                    }
-                    break;
-                case SegmentType.Stikledning:
-                    for (int i = 0; i < maxFlowTableSL.Count; i++)
-                    {
-                        var cur = maxFlowTableSL[i];
-                        switch (tst)
-                        {
-                            case TempSetType.Supply:
-                                if (flow >= cur.MaxFlowFrem) continue;
-                                return cur.Dim;
-                            case TempSetType.Return:
-                                if (flow >= cur.MaxFlowReturn) continue;
-                                return cur.Dim;
-                            default:
-                                throw new NotImplementedException();
-                        }
-                    }
-                    break;
-                default:
-                    throw new NotImplementedException();
+                // Get criteria in range, ordered by DN (smallest first)
+                foreach (var criteria in priority.GetCriteriaInRange())
+                {
+                    if (!criteria.IsCalculated)
+                        continue;
+
+                    double maxFlow = tst == TempSetType.Supply
+                        ? criteria.MaxFlowSupply!.Value
+                        : criteria.MaxFlowReturn!.Value;
+
+                    if (flow < maxFlow)
+                        return criteria.Dim!.Value;
+                }
             }
 
-            throw new Exception("No suitable dimension found!");
+            throw new Exception($"No suitable dimension found for {st} with flow {flow:F2} m³/hr!");
         }
+
+        /// <summary>
+        /// Determines the pipe dimension for SL using rules and evaluation context.
+        /// Evaluates priorities with rules first - if a matching rule is found, uses that priority.
+        /// If no rule matches, falls back to sequential priority order (priorities without rules).
+        /// </summary>
+        /// <param name="flowSupply">Supply flow rate in m³/hr.</param>
+        /// <param name="flowReturn">Return flow rate in m³/hr.</param>
+        /// <param name="context">Rule evaluation context containing parent pipe type info.</param>
+        /// <returns>The appropriate pipe dimension.</returns>
+        private Dim determineDimWithRules(double flowSupply, double flowReturn, IRuleEvaluationContext context)
+        {
+            var config = s.PipeConfigSL;
+            double flow = Math.Max(flowSupply, flowReturn);
+
+            // First pass: Check priorities with rules that match the context
+            foreach (var priority in config.Priorities.OrderBy(p => p.Priority))
+            {
+                // If priority has rules, check if any match
+                if (priority.Rules.Count > 0)
+                {
+                    bool anyRuleMatches = priority.Rules.Any(r => r.Evaluate(context));
+                    if (!anyRuleMatches)
+                        continue; // Rules exist but don't match - skip this priority
+                }
+
+                // Either no rules (fallback) or rules match - try to find a suitable dimension
+                foreach (var criteria in priority.GetCriteriaInRange())
+                {
+                    if (!criteria.IsCalculated)
+                        continue;
+
+                    // Check both supply and return max flow
+                    if (flowSupply < criteria.MaxFlowSupply!.Value &&
+                        flowReturn < criteria.MaxFlowReturn!.Value)
+                    {
+                        return criteria.Dim!.Value;
+                    }
+                }
+            }
+
+            throw new Exception($"No suitable SL dimension found for flow {flow:F2} m³/hr with context!");
+        }
+
+        /// <summary>
+        /// Calculates utilization rate for a dimension based on how much of the available flow capacity is used.
+        /// </summary>
         private double determineUtilizationRate(
             Dim dim, double flowSupply, double flowReturn, SegmentType st)
         {
-            List<(Dim Dim, double MaxFlowFrem, double MaxFlowReturn)> table;
+            var config = st == SegmentType.Fordelingsledning ? s.PipeConfigFL : s.PipeConfigSL;
 
-            switch (st)
-            {
-                case SegmentType.Fordelingsledning:
-                    table = maxFlowTableFL;
-                    break;
-                case SegmentType.Stikledning:
-                    table = maxFlowTableSL;
-                    break;
-                default:
-                    throw new NotImplementedException();
-            }
+            // Build a flat list of all calculated criteria in priority order for utilization calculation
+            var allCriteria = config.Priorities
+                .OrderBy(p => p.Priority)
+                .SelectMany(p => p.GetCriteriaInRange())
+                .Where(c => c.IsCalculated)
+                .ToList();
 
-            var entry = table
-                .Where(x => x.Dim.DimName == dim.DimName)
-                .FirstOrDefault();
+            // Find the criteria for this dimension
+            var entry = allCriteria.FirstOrDefault(c => c.Dim.HasValue && c.Dim.Value.DimName == dim.DimName);
+            if (entry == null)
+                return 0; // Dimension not found in configuration
 
-            int idx = table.IndexOf(entry);
+            int idx = allCriteria.IndexOf(entry);
 
-            double minFlowFrem = idx > 0 ? table[idx - 1].MaxFlowFrem : 0;
-            double minFlowReturn = idx > 0 ? table[idx - 1].MaxFlowReturn : 0;
+            double minFlowFrem = idx > 0 ? allCriteria[idx - 1].MaxFlowSupply!.Value : 0;
+            double minFlowReturn = idx > 0 ? allCriteria[idx - 1].MaxFlowReturn!.Value : 0;
 
-            //Console.WriteLine(
-            //    $"{(flowSupply / entry.MaxFlowFrem * 100).ToString("F2")}, " +
-            //    $"{(flowReturn / entry.MaxFlowReturn * 100).ToString("F2")}");
             var res = Math.Max(
-                (flowSupply - minFlowFrem) / (entry.MaxFlowFrem - minFlowFrem),
-                (flowReturn - minFlowReturn) / (entry.MaxFlowReturn - minFlowReturn));
-
-            if (res < 0) {; }
+                (flowSupply - minFlowFrem) / (entry.MaxFlowSupply!.Value - minFlowFrem),
+                (flowReturn - minFlowReturn) / (entry.MaxFlowReturn!.Value - minFlowReturn));
 
             return res;
         }

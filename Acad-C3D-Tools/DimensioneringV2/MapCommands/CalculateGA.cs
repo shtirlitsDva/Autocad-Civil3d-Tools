@@ -60,8 +60,8 @@ namespace DimensioneringV2.MapCommands
                 {
                     var graphs = DataService.Instance.Graphs;
 
-                    #region Setup result cache for distribution pipes
-                    var extractors = new List<IKeyPropertyExtractor<BFEdge>>
+                    #region Setup result cache for distribution pipes (FL)
+                    var flExtractors = new List<IKeyPropertyExtractor<BFEdge>>
                     {
                         KeyProperty<BFEdge>.Int(s => s.NumberOfBuildingsSupplied),
                         KeyProperty<BFEdge>.Int(s => s.NumberOfUnitsSupplied),
@@ -71,10 +71,27 @@ namespace DimensioneringV2.MapCommands
                         KeyProperty<BFEdge>.Double(s => s.KarFlowBVReturn),
                     };
 
-                    var cache = new HydraulicCalculationCache<BFEdge>(
+                    var flCache = new HydraulicCalculationCache<BFEdge>(
                         edge => HydraulicCalculationService.Calc.CalculateDistributionSegment(edge),
                         settings.CacheResults,
-                        extractors,
+                        flExtractors,
+                        settings.CachePrecision,
+                        CacheStatisticsContext.Statistics);
+                    #endregion
+
+                    #region Setup result cache for client pipes (SL)
+                    // SL cache key includes HeatingDemandConnected and NumberOfUnitsConnected
+                    // Plus parentPipeType which is handled by ClientCalculationCache
+                    var slExtractors = new List<IKeyPropertyExtractor<BFEdge>>
+                    {
+                        KeyProperty<BFEdge>.Double(s => s.HeatingDemandConnected),
+                        KeyProperty<BFEdge>.Int(s => s.NumberOfUnitsConnected),
+                    };
+
+                    var slCache = new ClientCalculationCache<BFEdge>(
+                        (edge, parentPipeType) => HydraulicCalculationService.Calc.CalculateClientSegment(edge, parentPipeType),
+                        settings.CacheResults,
+                        slExtractors,
                         settings.CachePrecision,
                         CacheStatisticsContext.Statistics);
                     #endregion
@@ -90,12 +107,7 @@ namespace DimensioneringV2.MapCommands
 
                         // Calculate service pipes (stikledninger) once - they're always leaf nodes
                         foreach (var edge in graph.Edges.Where(x => x.SegmentType == SegmentType.Stikledning))
-                        {
-                            // Populate Bygningsnyttetimer from config based on AnvendelsesKode
-                            edge.Bygningsnyttetimer = NyttetimerService.Instance.GetNyttetimer(
-                                edge.AnvendelseKode,
-                                HydraulicSettingsService.Instance.Settings.BygningsnyttetimerDefault);
-                            
+                        {                            
                             var result = HydraulicCalculationService.Calc.CalculateClientSegment(edge);
                             edge.ApplyResult(result);                            
                         }
@@ -168,8 +180,9 @@ namespace DimensioneringV2.MapCommands
                             if (solutions.Count > 0)
                             {
                                 // Use brute force evaluation of enumerated Steiner trees
+                                // Note: SL is recalculated with rules inside EvaluateSteinerTrees
                                 var bestGraph = EvaluateSteinerTrees(
-                                    solutions, rootNode, metaGraph, props, cache,
+                                    solutions, rootNode, metaGraph, props, flCache, slCache,
                                     nonbridges.Count, index, dispatcher);
 
                                 // Push results from best graph back to AnalysisFeature
@@ -181,8 +194,9 @@ namespace DimensioneringV2.MapCommands
                             else
                             {
                                 // Use GA optimization
+                                // Note: SL is recalculated with rules inside HCS_SGC_CalculateSumsAndCost
                                 var bestGraph = RunGeneticOptimization(
-                                    subGraph, rootNode, metaGraph, props, cache,
+                                    subGraph, rootNode, metaGraph, props, flCache, slCache,
                                     nonbridges.Count, index, dispatcher);
 
                                 // Push results from best graph back to AnalysisFeature
@@ -228,7 +242,8 @@ namespace DimensioneringV2.MapCommands
             BFNode rootNode,
             MetaGraph<UndirectedGraph<BFNode, BFEdge>> metaGraph,
             List<SumProperty<BFEdge>> props,
-            HydraulicCalculationCache<BFEdge> cache,
+            HydraulicCalculationCache<BFEdge> flCache,
+            ClientCalculationCache<BFEdge> slCache,
             int nonBridgesCount,
             long subgraphIndex,
             System.Windows.Threading.Dispatcher dispatcher)
@@ -266,9 +281,12 @@ namespace DimensioneringV2.MapCommands
                 foreach (var edge in st.Edges)
                 {
                     if (edge.SegmentType == SegmentType.Stikledning) continue;
-                    var result = cache.GetOrCalculate(edge);
+                    var result = flCache.GetOrCalculate(edge);
                     edge.ApplyResult(result);
                 }
+
+                // Recalculate SL with rules now that FL pipe types are determined
+                BFEdgeCalculationService.RecalculateSlWithRules(st, slCache);
 
                 var cost = st.Edges.Sum(x => x.Price);
                 bag.Add((cost, st));
@@ -297,7 +315,8 @@ namespace DimensioneringV2.MapCommands
             BFNode rootNode,
             MetaGraph<UndirectedGraph<BFNode, BFEdge>> metaGraph,
             List<SumProperty<BFEdge>> props,
-            HydraulicCalculationCache<BFEdge> cache,
+            HydraulicCalculationCache<BFEdge> flCache,
+            ClientCalculationCache<BFEdge> slCache,
             int nonBridgesCount,
             long subgraphIndex,
             System.Windows.Threading.Dispatcher dispatcher)
@@ -318,7 +337,7 @@ namespace DimensioneringV2.MapCommands
             });
 
             // Phase 1: Greedy optimization (remove non-bridges one by one)
-            var seed = GreedyOptimization(subGraph, rootNode, metaGraph, props, cache, gaVM, dispatcher);
+            var seed = GreedyOptimization(subGraph, rootNode, metaGraph, props, flCache, slCache, gaVM, dispatcher);
 
             // Phase 2: Genetic algorithm refinement
             var result = HydraulicCalculationsService.CalculateOptimizedGAAnalysis(
@@ -328,7 +347,8 @@ namespace DimensioneringV2.MapCommands
                 props,
                 gaVM,
                 gaVM.CancellationToken,
-                cache);
+                flCache,
+                slCache);
 
             return result;
         }
@@ -342,7 +362,8 @@ namespace DimensioneringV2.MapCommands
             BFNode rootNode,
             MetaGraph<UndirectedGraph<BFNode, BFEdge>> metaGraph,
             List<SumProperty<BFEdge>> props,
-            HydraulicCalculationCache<BFEdge> cache,
+            HydraulicCalculationCache<BFEdge> flCache,
+            ClientCalculationCache<BFEdge> slCache,
             GeneticAlgorithmCalculationViewModel gaVM,
             System.Windows.Threading.Dispatcher dispatcher)
         {
@@ -380,9 +401,12 @@ namespace DimensioneringV2.MapCommands
                     foreach (var edge in cGraph.Edges)
                     {
                         if (edge.SegmentType == SegmentType.Stikledning) continue;
-                        var result = cache.GetOrCalculate(edge);
+                        var result = flCache.GetOrCalculate(edge);
                         edge.ApplyResult(result);
                     }
+
+                    // Recalculate SL with rules now that FL pipe types are determined
+                    BFEdgeCalculationService.RecalculateSlWithRules(cGraph, slCache);
 
                     var cost = cGraph.Edges.Sum(x => x.Price);
                     results.Add((cGraph, cost));

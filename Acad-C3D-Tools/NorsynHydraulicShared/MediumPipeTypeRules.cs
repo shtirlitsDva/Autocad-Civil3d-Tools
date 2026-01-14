@@ -20,9 +20,9 @@ namespace NorsynHydraulicCalc
             return medium switch
             {
                 // Water can use all pipe types except PE
-                MediumTypeEnum.Water => new[] { PipeType.Stål, PipeType.PertFlextra, PipeType.AluPEX, PipeType.Kobber, PipeType.AquaTherm11 },
+                MediumTypeEnum.Water => [PipeType.Stål, PipeType.PertFlextra, PipeType.AluPEX, PipeType.Kobber, PipeType.AquaTherm11],
                 // Water72Ipa28 can ONLY use PE
-                MediumTypeEnum.Water72Ipa28 => new[] { PipeType.Pe },
+                MediumTypeEnum.Water72Ipa28 => [PipeType.Pe],
                 _ => throw new NotSupportedException($"Unknown medium: {medium}")
             };
         }
@@ -54,19 +54,6 @@ namespace NorsynHydraulicCalc
                 : GetValidPipeTypesForService(medium);
 
             return validTypes.Contains(pipeType);
-        }
-
-        /// <summary>
-        /// Indicates whether PertFlextra pipes are supported for the given medium.
-        /// </summary>
-        public static bool SupportsPertFlextra(MediumTypeEnum medium)
-        {
-            return medium switch
-            {
-                MediumTypeEnum.Water => true,
-                MediumTypeEnum.Water72Ipa28 => false,
-                _ => false
-            };
         }
     }
 }

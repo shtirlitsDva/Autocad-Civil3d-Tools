@@ -22,7 +22,7 @@ namespace NorsynHydraulicCalc.Pipes
             _roughness_m = roughness_mm / 1000;
             LoadDimsFromEmbeddedResource();
         }
-        internal IEnumerable<Dim> GetDimsRange(int minNS, int maxNS)
+        public IEnumerable<Dim> GetDimsRange(int minNS, int maxNS)
         {
             //Up to the coder to get the right keys
             return Sizes

@@ -21,7 +21,8 @@ namespace DimensioneringV2.Services
             UndirectedGraph<BFNode, BFEdge> subGraph,
             UndirectedGraph<BFNode, BFEdge> seed,
             List<SumProperty<BFEdge>> props,
-            HydraulicCalculationCache<BFEdge> cache)
+            HydraulicCalculationCache<BFEdge> flCache,
+            ClientCalculationCache<BFEdge>? slCache = null)
         {
             var gaSettings = GASettingsService.Instance.Settings;
             CoherencyManager chm = new CoherencyManager(metaGraph, subGraph, seed);
@@ -42,7 +43,7 @@ namespace DimensioneringV2.Services
                 GenerationStrategy = new PerformanceGenerationStrategy()
             };
 
-            var fitness = new GraphFitness(chm, props, cache);
+            var fitness = new GraphFitness(chm, props, flCache, slCache);
             var selection = CreateSelection(gaSettings);
             var crossover = CreateCrossover(gaSettings, chm);
             var mutation = CreateMutation(gaSettings);

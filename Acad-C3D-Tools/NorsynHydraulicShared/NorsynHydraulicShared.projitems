@@ -43,9 +43,9 @@
     <Compile Include="$(MSBuildThisFileDirectory)PipeTypeConfiguration.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)MediumPipeTypeRules.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)DefaultPipeConfigFactory.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)MaxFlowCalc\IMaxFlowCalc.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)MaxFlowCalc\MaxFlowCalcBase.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)MaxFlowCalc\MaxFlowCalcFactory.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Rules\IPipeRule.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Rules\IRuleEvaluationContext.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Rules\ParentPipeRule.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)Pipes\Sizes\PipePeSizes.csv" />

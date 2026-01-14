@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using NorsynHydraulicCalc.Pipes;
 
 namespace NorsynHydraulicCalc
@@ -37,18 +38,16 @@ namespace NorsynHydraulicCalc
             // For Water medium: PertFlextra first (if supported), then Steel
             if (medium == MediumTypeEnum.Water)
             {
-                if (MediumPipeTypeRules.SupportsPertFlextra(medium))
-                {
-                    // PertFlextra: DN 50-75 (typical FL range)
-                    var pertFlextra = CreatePipeTypePriority(
-                        priority++,
-                        PipeType.PertFlextra,
-                        50, 75,
-                        pipeTypes,
-                        DefaultVelocitySmall,
-                        DefaultGradientFL);
-                    config.Priorities.Add(pertFlextra);
-                }
+
+                // PertFlextra: DN 50-75 (typical FL range)
+                var pertFlextra = CreatePipeTypePriority(
+                    priority++,
+                    PipeType.PertFlextra,
+                    50, 75,
+                    pipeTypes,
+                    DefaultVelocitySmall,
+                    DefaultGradientFL);
+                config.Priorities.Add(pertFlextra);
 
                 // Steel: DN 65-600 (overlaps with PertFlextra for transition)
                 var steel = CreatePipeTypePriority(

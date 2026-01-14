@@ -7,5 +7,6 @@ namespace NorsynHydraulicCalc.Pipes
     public interface IPipe
     {
         Dim GetDim(int dia);
+        IEnumerable<Dim> GetDimsRange(int minNS, int maxNS);
     }
 }

@@ -40,6 +40,6 @@ namespace NorsynHydraulicShared
         /// Pre-populated before calculation based on AnvendelsesKode lookup.
         /// Only used for Stikledning segments.
         /// </summary>
-        int Bygningsnyttetimer { get; set; }
+        int Nyttetimer { get; }
     }
 }

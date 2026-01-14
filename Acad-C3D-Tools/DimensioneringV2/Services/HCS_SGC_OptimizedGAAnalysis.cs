@@ -25,9 +25,10 @@ namespace DimensioneringV2.Services
             List<SumProperty<BFEdge>> props,
             GeneticAlgorithmCalculationViewModel gaVM,
             CancellationToken token,
-            HydraulicCalculationCache<BFEdge> cache)
+            HydraulicCalculationCache<BFEdge> flCache,
+            ClientCalculationCache<BFEdge>? slCache = null)
         {
-            var ga = SetupOptimizedGAAnalysis(metaGraph, subGraph, seed, props, cache);
+            var ga = SetupOptimizedGAAnalysis(metaGraph, subGraph, seed, props, flCache, slCache);
 
             ga.GenerationRan += (s, e) =>
             {
@@ -72,7 +73,7 @@ namespace DimensioneringV2.Services
 
             // Calculate final results with the graph
             var result = HCS_SGC_CalculateSumsAndCost.CalculateSumsAndCostWithGraph(
-                localGraph, subGraph, props, metaGraph, cache);
+                localGraph, subGraph, props, metaGraph, flCache, slCache);
 
             return result.graph;
         }

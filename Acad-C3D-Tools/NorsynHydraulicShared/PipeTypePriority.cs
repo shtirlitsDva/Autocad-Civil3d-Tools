@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
+using NorsynHydraulicCalc.Rules;
+
 namespace NorsynHydraulicCalc
 {
     /// <summary>
@@ -34,6 +36,13 @@ namespace NorsynHydraulicCalc
         /// Accept criteria for each DN size.
         /// </summary>
         public List<DnAcceptCriteria> AcceptCriteria { get; set; } = new List<DnAcceptCriteria>();
+
+        /// <summary>
+        /// Rules that must be satisfied for this priority to be used (SL only).
+        /// Empty list means no rules - priority executes in sequence.
+        /// Multiple rules are evaluated with OR logic (any match = priority applies).
+        /// </summary>
+        public List<IPipeRule> Rules { get; set; } = new List<IPipeRule>();
 
         /// <summary>
         /// Parameterless constructor for serialization.
@@ -79,6 +88,10 @@ namespace NorsynHydraulicCalc
             foreach (var criteria in AcceptCriteria)
             {
                 clone.AcceptCriteria.Add(criteria.Clone());
+            }
+            foreach (var rule in Rules)
+            {
+                clone.Rules.Add(rule.Clone());
             }
             return clone;
         }
