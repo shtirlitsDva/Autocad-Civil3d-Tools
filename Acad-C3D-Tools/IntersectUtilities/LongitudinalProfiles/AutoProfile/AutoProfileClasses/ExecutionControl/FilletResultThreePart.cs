@@ -58,7 +58,7 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
             if (second is null)
                 throw new InvalidOperationException("Original second segment not found in segments.");
 
-            // verify that first precedes second—no goto needed
+            // verify that first precedes secondâ€”no goto needed
             bool inOrder = false;
             for (var n = first; n is not null && !inOrder; n = n.Next)
                 inOrder = n == second;
