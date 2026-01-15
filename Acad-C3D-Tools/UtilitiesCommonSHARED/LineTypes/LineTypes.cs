@@ -1,4 +1,4 @@
-﻿using Autodesk.AutoCAD.ApplicationServices;
+using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 
@@ -917,6 +917,567 @@ namespace IntersectUtilities.PlanDetailing.LineTypes
             using (var form = new StringInputForm(title, prompt, defaultValue))
             {
                 return form.ShowDialog() == DialogResult.OK ? form.InputText : null;
+            }
+        }
+
+        /// <summary>
+        /// Holds extracted properties from a linetype text/symbol segment.
+        /// </summary>
+        internal class LinetypeSegmentInfo
+        {
+            public string Text { get; set; } = "";
+            public Oid TextStyleId { get; set; } = Oid.Null;
+            public double Scale { get; set; } = 0.9;
+            public double YOffset { get; set; } = -0.45;
+            public double XOffset { get; set; } = 0;
+        }
+
+        /// <summary>
+        /// Extracts the first non-empty text segment info from a linetype.
+        /// </summary>
+        internal static LinetypeSegmentInfo? ExtractTextInfoFromLinetype(LinetypeTableRecord lttr)
+        {
+            for (int i = 0; i < lttr.NumDashes; i++)
+            {
+                try
+                {
+                    Oid shapeStyleId = lttr.ShapeStyleAt(i);
+                    if (shapeStyleId.IsNull) continue;
+
+                    string text = lttr.TextAt(i);
+                    if (!string.IsNullOrEmpty(text) && text != "X" && text != "\u26A1")
+                    {
+                        var offset = lttr.ShapeOffsetAt(i);
+                        return new LinetypeSegmentInfo
+                        {
+                            Text = text,
+                            TextStyleId = shapeStyleId,
+                            Scale = lttr.ShapeScaleAt(i),
+                            YOffset = offset.Y,
+                            XOffset = offset.X
+                        };
+                    }
+                }
+                catch (Autodesk.AutoCAD.Runtime.Exception)
+                {
+                    continue;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Extracts symbol segment info (X or lightning bolt) from a linetype.
+        /// </summary>
+        internal static LinetypeSegmentInfo? ExtractSymbolInfoFromLinetype(LinetypeTableRecord lttr)
+        {
+            for (int i = 0; i < lttr.NumDashes; i++)
+            {
+                try
+                {
+                    Oid shapeStyleId = lttr.ShapeStyleAt(i);
+                    if (shapeStyleId.IsNull) continue;
+
+                    string text = lttr.TextAt(i);
+                    if (text == "X" || text == "\u26A1")
+                    {
+                        var offset = lttr.ShapeOffsetAt(i);
+                        return new LinetypeSegmentInfo
+                        {
+                            Text = text,
+                            TextStyleId = shapeStyleId,
+                            Scale = lttr.ShapeScaleAt(i),
+                            YOffset = offset.Y,
+                            XOffset = offset.X
+                        };
+                    }
+                }
+                catch (Autodesk.AutoCAD.Runtime.Exception)
+                {
+                    continue;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Holds all properties of a single dash in a linetype pattern.
+        /// </summary>
+        internal class LinetypeDashInfo
+        {
+            public int OriginalIndex { get; set; }
+            public double DashLength { get; set; }
+            public bool HasText { get; set; }
+            public string Text { get; set; } = "";
+            public Oid TextStyleId { get; set; } = Oid.Null;
+            public double Scale { get; set; }
+            public double Rotation { get; set; }
+            public Vector2d Offset { get; set; }
+            public bool IsUcsOriented { get; set; }
+            public int ShapeNumber { get; set; }
+            public bool IsTextSegment { get; set; } // true if text (not symbol)
+            public bool IsSymbolSegment { get; set; } // true if symbol (X or ⚡)
+        }
+
+        /// <summary>
+        /// Holds metadata about a linetype.
+        /// </summary>
+        internal class LinetypeInfo
+        {
+            public string Name { get; set; } = "";
+            public string Description { get; set; } = "";
+            public bool IsScaledToFit { get; set; }
+            public List<LinetypeDashInfo> Dashes { get; set; } = new List<LinetypeDashInfo>();
+        }
+
+        /// <summary>
+        /// Reads all linetype information into a data object.
+        /// </summary>
+        internal static LinetypeInfo ReadLinetypeInfo(LinetypeTableRecord lttr)
+        {
+            var info = new LinetypeInfo
+            {
+                Name = lttr.Name,
+                Description = lttr.AsciiDescription,
+                IsScaledToFit = lttr.IsScaledToFit,
+                Dashes = ReadLinetypePattern(lttr)
+            };
+            return info;
+        }
+
+        /// <summary>
+        /// Prints linetype definition details for debugging.
+        /// </summary>
+        internal static void PrintLinetypeDefinition(LinetypeTableRecord lttr)
+        {
+            prdDbg($"=== Linetype: {lttr.Name} ===");
+            prdDbg($"Description: {lttr.AsciiDescription}");
+            prdDbg($"PatternLength: {lttr.PatternLength}");
+            prdDbg($"NumDashes: {lttr.NumDashes}");
+            prdDbg($"IsScaledToFit: {lttr.IsScaledToFit}");
+            prdDbg("");
+
+            for (int i = 0; i < lttr.NumDashes; i++)
+            {
+                prdDbg($"--- Dash [{i}] ---");
+                prdDbg($"  DashLength: {lttr.DashLengthAt(i)}");
+
+                try
+                {
+                    Oid styleId = lttr.ShapeStyleAt(i);
+                    prdDbg($"  ShapeStyleAt: {(styleId.IsNull ? "NULL" : styleId.ToString())}");
+
+                    if (!styleId.IsNull)
+                    {
+                        try { prdDbg($"  TextAt: \"{lttr.TextAt(i)}\""); }
+                        catch { prdDbg($"  TextAt: [ERROR reading]"); }
+
+                        try { prdDbg($"  ShapeNumberAt: {lttr.ShapeNumberAt(i)}"); }
+                        catch { prdDbg($"  ShapeNumberAt: [ERROR reading]"); }
+
+                        try { prdDbg($"  ShapeScaleAt: {lttr.ShapeScaleAt(i)}"); }
+                        catch { prdDbg($"  ShapeScaleAt: [ERROR reading]"); }
+
+                        try { prdDbg($"  ShapeRotationAt: {lttr.ShapeRotationAt(i)}"); }
+                        catch { prdDbg($"  ShapeRotationAt: [ERROR reading]"); }
+
+                        try
+                        {
+                            var offset = lttr.ShapeOffsetAt(i);
+                            prdDbg($"  ShapeOffsetAt: ({offset.X}, {offset.Y})");
+                        }
+                        catch { prdDbg($"  ShapeOffsetAt: [ERROR reading]"); }
+
+                        try { prdDbg($"  ShapeIsUcsOrientedAt: {lttr.ShapeIsUcsOrientedAt(i)}"); }
+                        catch { prdDbg($"  ShapeIsUcsOrientedAt: [ERROR reading]"); }
+                    }
+                }
+                catch
+                {
+                    prdDbg($"  [No shape/text at this dash]");
+                }
+            }
+            prdDbg($"=== End Linetype ===");
+        }
+
+        /// <summary>
+        /// Reads all dash information from an existing linetype.
+        /// Skips zero-length dashes that have no shape/text (these are artifacts).
+        /// </summary>
+        internal static List<LinetypeDashInfo> ReadLinetypePattern(LinetypeTableRecord lttr)
+        {
+            var dashes = new List<LinetypeDashInfo>();
+            for (int i = 0; i < lttr.NumDashes; i++)
+            {
+                double dashLen = lttr.DashLengthAt(i);
+
+                // Check if this is a zero-length dash with no shape - skip it
+                bool hasShape = false;
+                try
+                {
+                    Oid styleId = lttr.ShapeStyleAt(i);
+                    hasShape = !styleId.IsNull;
+                }
+                catch { }
+
+                if (dashLen == 0 && !hasShape)
+                {
+                    // Skip zero-length dashes with no shape (artifacts)
+                    continue;
+                }
+
+                var dash = new LinetypeDashInfo
+                {
+                    OriginalIndex = i,
+                    DashLength = dashLen
+                };
+
+                try
+                {
+                    Oid styleId = lttr.ShapeStyleAt(i);
+                    if (!styleId.IsNull)
+                    {
+                        dash.HasText = true;
+                        dash.TextStyleId = styleId;
+                        dash.Text = lttr.TextAt(i);
+                        dash.Scale = lttr.ShapeScaleAt(i);
+                        dash.Rotation = lttr.ShapeRotationAt(i);
+                        dash.Offset = lttr.ShapeOffsetAt(i);
+                        dash.IsUcsOriented = lttr.ShapeIsUcsOrientedAt(i);
+                        dash.ShapeNumber = lttr.ShapeNumberAt(i);
+
+                        // Classify as text or symbol
+                        if (dash.Text == "X" || dash.Text == "\u26A1")
+                            dash.IsSymbolSegment = true;
+                        else if (!string.IsNullOrEmpty(dash.Text))
+                            dash.IsTextSegment = true;
+                    }
+                }
+                catch (Autodesk.AutoCAD.Runtime.Exception)
+                {
+                    // No text/shape at this dash
+                }
+
+                dashes.Add(dash);
+            }
+            return dashes;
+        }
+
+        /// <summary>
+        /// Updates an existing linetype with symbol to use upright rotation (U=0 and U=π).
+        /// Preserves the exact structure of the original linetype, only duplicating the pattern
+        /// with text at 0° in first half and text at 180° in second half.
+        /// </summary>
+        public static void UpdateLinetypeWithSymbolUprightRotation(
+            LinetypeInfo originalInfo,
+            Database? db = null
+        )
+        {
+            // AutoCAD has a maximum of 12 dashes per linetype
+            const int maxDashes = 12;
+            if (originalInfo.Dashes.Count * 2 > maxDashes)
+            {
+                prdDbg($"ERROR: Cannot double linetype '{originalInfo.Name}' - would have {originalInfo.Dashes.Count * 2} dashes (max is {maxDashes})");
+                prdDbg($"Original has {originalInfo.Dashes.Count} dashes. Consider simplifying the linetype first.");
+                return;
+            }
+
+            db ??= Application.DocumentManager.MdiActiveDocument.Database;
+            Transaction tx = db.TransactionManager.StartTransaction();
+            using (tx)
+            {
+                try
+                {
+                    LinetypeTable ltt = (LinetypeTable)
+                        tx.GetObject(db.LinetypeTableId, OpenMode.ForWrite);
+                    LayerTable lt = tx.GetObject(db.LayerTableId, OpenMode.ForRead) as LayerTable;
+
+                    // Use the pre-read pattern
+                    var originalDashes = originalInfo.Dashes;
+                    string lineTypeName = originalInfo.Name;
+
+                    List<string> layersToChange = new List<string>();
+                    if (ltt.Has(lineTypeName))
+                    {
+                        Oid existingId = ltt[lineTypeName];
+                        Oid placeHolderId = ltt["Continuous"];
+                        foreach (Oid oid in lt)
+                        {
+                            LayerTableRecord ltr = oid.Go<LayerTableRecord>(tx);
+                            if (ltr.LinetypeObjectId == existingId)
+                            {
+                                ltr.CheckOrOpenForWrite();
+                                ltr.LinetypeObjectId = placeHolderId;
+                                layersToChange.Add(ltr.Name);
+                            }
+                        }
+                        LinetypeTableRecord exLtr = existingId.Go<LinetypeTableRecord>(
+                            tx,
+                            OpenMode.ForWrite
+                        );
+                        exLtr.Erase(true);
+                    }
+
+                    // Create new linetype with doubled pattern (first half U=0, second half U=π)
+                    LinetypeTableRecord lttr = new LinetypeTableRecord();
+                    lttr.Name = lineTypeName;
+                    lttr.AsciiDescription = originalInfo.Description;
+                    lttr.IsScaledToFit = originalInfo.IsScaledToFit;
+
+                    // Double the pattern: original pattern twice
+                    int originalCount = originalDashes.Count;
+                    lttr.NumDashes = originalCount * 2;
+
+                    double totalPatternLen = 0;
+
+                    // First copy: text segments at U=0
+                    for (int i = 0; i < originalCount; i++)
+                    {
+                        var dash = originalDashes[i];
+                        lttr.SetDashLengthAt(i, dash.DashLength);
+                        totalPatternLen += Math.Abs(dash.DashLength);
+
+                        if (dash.HasText && !dash.TextStyleId.IsNull)
+                        {
+                            lttr.SetShapeStyleAt(i, dash.TextStyleId);
+                            lttr.SetShapeNumberAt(i, dash.ShapeNumber);
+                            lttr.SetShapeScaleAt(i, dash.Scale);
+                            lttr.SetShapeIsUcsOrientedAt(i, dash.IsUcsOriented);
+                            // Order must be: Rotation → Text → Offset
+                            if (dash.IsTextSegment)
+                                lttr.SetShapeRotationAt(i, 0);
+                            else
+                                lttr.SetShapeRotationAt(i, dash.Rotation);
+                            lttr.SetTextAt(i, dash.Text ?? "");
+                            lttr.SetShapeOffsetAt(i, dash.Offset);
+                        }
+                    }
+
+                    // Second copy: text segments at U=π
+                    for (int i = 0; i < originalCount; i++)
+                    {
+                        int newIndex = originalCount + i;
+                        var dash = originalDashes[i];
+                        lttr.SetDashLengthAt(newIndex, dash.DashLength);
+                        totalPatternLen += Math.Abs(dash.DashLength);
+
+                        if (dash.HasText && !dash.TextStyleId.IsNull)
+                        {
+                            lttr.SetShapeStyleAt(newIndex, dash.TextStyleId);
+                            lttr.SetShapeNumberAt(newIndex, dash.ShapeNumber);
+                            lttr.SetShapeScaleAt(newIndex, dash.Scale);
+                            lttr.SetShapeIsUcsOrientedAt(newIndex, dash.IsUcsOriented);
+                            // Order must be: Rotation → Text → Offset
+                            if (dash.IsTextSegment && !string.IsNullOrEmpty(dash.Text))
+                            {
+                                try
+                                {
+                                    // Measure text width using graphics engine
+                                    var ts = new Autodesk.AutoCAD.GraphicsInterface.TextStyle();
+                                    ts.FromTextStyleTableRecord(dash.TextStyleId);
+                                    ts.TextSize = dash.Scale > 0 ? dash.Scale : 0.9;
+                                    var extBox = ts.ExtentsBox(dash.Text, true, false, null);
+                                    double textWidth = extBox.MaxPoint.X - extBox.MinPoint.X;
+                                    double textBuffer = 0.05;
+                                    double rotatedX = (textWidth - textBuffer);
+
+                                    lttr.SetShapeRotationAt(newIndex, Math.PI);
+                                    lttr.SetTextAt(newIndex, dash.Text);
+                                    lttr.SetShapeOffsetAt(newIndex, new Vector2d(rotatedX, -dash.Offset.Y));
+                                }
+                                catch
+                                {
+                                    // Fallback if text measurement fails
+                                    lttr.SetShapeRotationAt(newIndex, Math.PI);
+                                    lttr.SetTextAt(newIndex, dash.Text);
+                                    lttr.SetShapeOffsetAt(newIndex, new Vector2d(0, -dash.Offset.Y));
+                                }
+                            }
+                            else
+                            {
+                                lttr.SetShapeRotationAt(newIndex, dash.Rotation);
+                                lttr.SetTextAt(newIndex, dash.Text ?? "");
+                                lttr.SetShapeOffsetAt(newIndex, dash.Offset);
+                            }
+                        }
+                    }
+
+                    lttr.PatternLength = totalPatternLen;
+
+                    Oid ltId = ltt.Add(lttr);
+                    tx.AddNewlyCreatedDBObject(lttr, true);
+                    foreach (string name in layersToChange)
+                    {
+                        Oid ltrId = lt[name];
+                        LayerTableRecord ltr = ltrId.Go<LayerTableRecord>(tx, OpenMode.ForWrite);
+                        ltr.LinetypeObjectId = ltId;
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                }
+                tx.Commit();
+            }
+        }
+
+        /// <summary>
+        /// Updates an existing linetype without symbol to use upright rotation (U=0 and U=π).
+        /// Preserves the exact structure of the original linetype, only duplicating the pattern
+        /// with text at 0° in first half and text at 180° in second half.
+        /// </summary>
+        public static void UpdateLinetypeNoSymbolUprightRotation(
+            LinetypeInfo originalInfo,
+            Database? db = null
+        )
+        {
+            // AutoCAD has a maximum of 12 dashes per linetype
+            const int maxDashes = 12;
+            if (originalInfo.Dashes.Count * 2 > maxDashes)
+            {
+                prdDbg($"ERROR: Cannot double linetype '{originalInfo.Name}' - would have {originalInfo.Dashes.Count * 2} dashes (max is {maxDashes})");
+                prdDbg($"Original has {originalInfo.Dashes.Count} dashes. Consider simplifying the linetype first.");
+                return;
+            }
+
+            db ??= Application.DocumentManager.MdiActiveDocument.Database;
+            Transaction tx = db.TransactionManager.StartTransaction();
+            using (tx)
+            {
+                try
+                {
+                    LinetypeTable ltt = (LinetypeTable)
+                        tx.GetObject(db.LinetypeTableId, OpenMode.ForWrite);
+                    LayerTable lt = tx.GetObject(db.LayerTableId, OpenMode.ForRead) as LayerTable;
+
+                    // Use the pre-read pattern
+                    var originalDashes = originalInfo.Dashes;
+                    string lineTypeName = originalInfo.Name;
+
+                    List<string> layersToChange = new List<string>();
+                    if (ltt.Has(lineTypeName))
+                    {
+                        Oid existingId = ltt[lineTypeName];
+                        Oid placeHolderId = ltt["Continuous"];
+                        foreach (Oid oid in lt)
+                        {
+                            LayerTableRecord ltr = oid.Go<LayerTableRecord>(tx);
+                            if (ltr.LinetypeObjectId == existingId)
+                            {
+                                ltr.CheckOrOpenForWrite();
+                                ltr.LinetypeObjectId = placeHolderId;
+                                layersToChange.Add(ltr.Name);
+                            }
+                        }
+                        LinetypeTableRecord exLtr = existingId.Go<LinetypeTableRecord>(
+                            tx,
+                            OpenMode.ForWrite
+                        );
+                        exLtr.Erase(true);
+                    }
+
+                    // Create new linetype with doubled pattern (first half U=0, second half U=π)
+                    LinetypeTableRecord lttr = new LinetypeTableRecord();
+                    lttr.Name = lineTypeName;
+                    lttr.AsciiDescription = originalInfo.Description;
+                    lttr.IsScaledToFit = originalInfo.IsScaledToFit;
+
+                    // Double the pattern: original pattern twice
+                    int originalCount = originalDashes.Count;
+                    lttr.NumDashes = originalCount * 2;
+
+                    double totalPatternLen = 0;
+
+                    // First copy: text segments at U=0
+                    for (int i = 0; i < originalCount; i++)
+                    {
+                        var dash = originalDashes[i];
+                        lttr.SetDashLengthAt(i, dash.DashLength);
+                        totalPatternLen += Math.Abs(dash.DashLength);
+
+                        if (dash.HasText && !dash.TextStyleId.IsNull)
+                        {
+                            lttr.SetShapeStyleAt(i, dash.TextStyleId);
+                            lttr.SetShapeNumberAt(i, dash.ShapeNumber);
+                            lttr.SetShapeScaleAt(i, dash.Scale);
+                            lttr.SetShapeIsUcsOrientedAt(i, dash.IsUcsOriented);
+                            // Order must be: Rotation → Text → Offset
+                            if (dash.IsTextSegment)
+                                lttr.SetShapeRotationAt(i, 0);
+                            else
+                                lttr.SetShapeRotationAt(i, dash.Rotation);
+                            lttr.SetTextAt(i, dash.Text ?? "");
+                            lttr.SetShapeOffsetAt(i, dash.Offset);
+                        }
+                    }
+
+                    // Second copy: text segments at U=π
+                    for (int i = 0; i < originalCount; i++)
+                    {
+                        int newIndex = originalCount + i;
+                        var dash = originalDashes[i];
+                        lttr.SetDashLengthAt(newIndex, dash.DashLength);
+                        totalPatternLen += Math.Abs(dash.DashLength);
+
+                        if (dash.HasText && !dash.TextStyleId.IsNull)
+                        {
+                            lttr.SetShapeStyleAt(newIndex, dash.TextStyleId);
+                            lttr.SetShapeNumberAt(newIndex, dash.ShapeNumber);
+                            lttr.SetShapeScaleAt(newIndex, dash.Scale);
+                            lttr.SetShapeIsUcsOrientedAt(newIndex, dash.IsUcsOriented);
+                            // Order must be: Rotation → Text → Offset
+                            if (dash.IsTextSegment && !string.IsNullOrEmpty(dash.Text))
+                            {
+                                try
+                                {
+                                    // Measure text width using graphics engine
+                                    var ts = new Autodesk.AutoCAD.GraphicsInterface.TextStyle();
+                                    ts.FromTextStyleTableRecord(dash.TextStyleId);
+                                    ts.TextSize = dash.Scale > 0 ? dash.Scale : 0.9;
+                                    var extBox = ts.ExtentsBox(dash.Text, true, false, null);
+                                    double textWidth = extBox.MaxPoint.X - extBox.MinPoint.X;
+                                    double textBuffer = 0.05;
+                                    double rotatedX = (textWidth - textBuffer);
+
+                                    lttr.SetShapeRotationAt(newIndex, Math.PI);
+                                    lttr.SetTextAt(newIndex, dash.Text);
+                                    lttr.SetShapeOffsetAt(newIndex, new Vector2d(rotatedX, -dash.Offset.Y));
+                                }
+                                catch
+                                {
+                                    // Fallback if text measurement fails
+                                    lttr.SetShapeRotationAt(newIndex, Math.PI);
+                                    lttr.SetTextAt(newIndex, dash.Text);
+                                    lttr.SetShapeOffsetAt(newIndex, new Vector2d(0, -dash.Offset.Y));
+                                }
+                            }
+                            else
+                            {
+                                lttr.SetShapeRotationAt(newIndex, dash.Rotation);
+                                lttr.SetTextAt(newIndex, dash.Text ?? "");
+                                lttr.SetShapeOffsetAt(newIndex, dash.Offset);
+                            }
+                        }
+                    }
+
+                    lttr.PatternLength = totalPatternLen;
+
+                    Oid ltId = ltt.Add(lttr);
+                    tx.AddNewlyCreatedDBObject(lttr, true);
+                    foreach (string name in layersToChange)
+                    {
+                        Oid ltrId = lt[name];
+                        LayerTableRecord ltr = ltrId.Go<LayerTableRecord>(tx, OpenMode.ForWrite);
+                        ltr.LinetypeObjectId = ltId;
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                }
+                tx.Commit();
             }
         }
     }

@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(dotnet build:*)",
-      "Bash(Select-String -Pattern \"error CS|Build succeeded|Build FAILED\")"
+      "Bash(Select-String -Pattern \"error CS|Build succeeded|Build FAILED\")",
+      "WebSearch",
+      "WebFetch(domain:help.autodesk.com)"
     ]
   }
 }
