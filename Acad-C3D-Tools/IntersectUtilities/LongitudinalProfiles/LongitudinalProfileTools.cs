@@ -1,4 +1,4 @@
-﻿using Autodesk.AutoCAD.ApplicationServices;
+using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
@@ -270,13 +270,43 @@ namespace IntersectUtilities
         [CommandMethod("CREATESURFACEPROFILES")]
         public void createsurfaceprofiles()
         {
-            createsurfaceprofilesmethod();
+            DocumentCollection docCol = Application.DocumentManager;
+            Database db = docCol.MdiActiveDocument.Database;
+
+            DataReferencesOptions dro = new DataReferencesOptions();
+            var dm = new DataManager(dro);
+
+            using Database xRefSurfaceDB = dm.Surface();
+            prdDbg(xRefSurfaceDB.Filename);
+            using Transaction xRefSurfaceTx = xRefSurfaceDB.TransactionManager.StartTransaction();
+
+            using Transaction tx = db.TransactionManager.StartTransaction();            
+            var allAlignments = db.ListOfType<Alignment>(tx).OrderBy(x => x.Name).ToList();
+
+            try
+            {
+                var surface =
+                    xRefSurfaceDB.HashSetOfType<TinSurface>(xRefSurfaceTx).FirstOrDefault()
+                    as CivSurface;
+
+                if (surface == null)
+                {
+                    prdDbg("Surface could not be loaded!");
+                    return;
+                }
+
+                createsurfaceprofilesmethod(dro, allAlignments, surface);
+            }
+            catch (System.Exception ex)
+            {
+                return;
+            }
         }
 
         private void createsurfaceprofilesmethod(
-            DataReferencesOptions? dro = null,
-            List<Alignment>? allAlignments = null,
-            CivSurface? surface = null
+            DataReferencesOptions dro,
+            List<Alignment> allAlignments,
+            CivSurface surface
         )
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -299,39 +329,8 @@ namespace IntersectUtilities
 
                 var dm = new DataManager(dro);
 
-                #region Read surface from file
-                // open the xref database
-
-
-                if (surface == null)
-                {
-                    try
-                    {
-                        using Database xRefSurfaceDB = dm.Surface();
-                        prdDbg(xRefSurfaceDB.Filename);
-                        using Transaction xRefSurfaceTx = xRefSurfaceDB.TransactionManager.StartTransaction();
-                        surface =
-                            xRefSurfaceDB.HashSetOfType<TinSurface>(xRefSurfaceTx).FirstOrDefault()
-                            as CivSurface;
-                    }
-                    catch (System.Exception)
-                    {
-                        throw;
-                    }
-
-                    if (surface == null)
-                    {
-                        editor.WriteMessage("\nSurface could not be loaded from the xref!");
-                        return;
-                    }
-                }
-                #endregion
-
                 try
                 {
-                    if (allAlignments == null)
-                        allAlignments = db.ListOfType<Alignment>(tx).OrderBy(x => x.Name).ToList();
-
                     #region Create surface profiles
 
                     #region Get terrain layer id
@@ -393,11 +392,14 @@ namespace IntersectUtilities
                                     profileLabelSetStyleId
                                 );
                             }
-                            catch (System.Exception)
+                            catch (System.Exception ex)
                             {
-                                prdDbg(alignment.Name + "failed!");
+                                prdDbg(alignment.Name + " failed!");
+                                prdDbg(ex);
                                 continue;
                             }
+
+
                             editor.WriteMessage($"\nSurface profile created for {alignment.Name}.");
                         }
 
@@ -1208,7 +1210,7 @@ namespace IntersectUtilities
                 alTx.Abort();
                 prdDbg(ex);
                 return;
-            }            
+            }
             lman.Dispose(true);
             tx.Commit();
             fjvTx.Abort();
