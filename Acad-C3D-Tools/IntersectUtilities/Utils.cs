@@ -1,4 +1,4 @@
-﻿using Autodesk.Aec.PropertyData.DatabaseServices;
+using Autodesk.Aec.PropertyData.DatabaseServices;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
@@ -516,22 +516,7 @@ namespace IntersectUtilities
                 tr.Commit();
             }
             return blkIsErased;
-        }
-        /// <summary>
-        /// Gets the working folder path for selected project
-        /// </summary>
-        /// <param name="projectName">The name of the project</param>
-        /// <param name="workingFolder">The name of the column to read</param>
-        /// <returns>Returns the path to working folder</returns>
-        public static string GetWorkingFolder(string projectName, string workingFolder = "WorkingFolder")
-        {
-            #region Read Csv for paths
-            string pathWF = "X:\\AutoCAD DRI - 01 Civil 3D\\Stier.csv";
-            System.Data.DataTable dtWF = CsvReader.ReadCsvToDataTable(pathWF, "WF");
-            #endregion
-
-            return ReadStringParameterFromDataTable(projectName, dtWF, workingFolder, 0);
-        }
+        }        
         public static int GetLineNumber([CallerLineNumber] int lineNumber = 0) => lineNumber;
         public static bool IsFileLockedOrReadOnly(FileInfo fi)
         {

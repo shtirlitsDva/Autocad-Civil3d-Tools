@@ -63,9 +63,9 @@ namespace IntersectUtilities.LongitudinalProfiles.Relocability
 
             foreach (var row in krydsninger.Rows)
             {
-                var navn = row[(int)Krydsninger.Columns.Navn];
-                var distance = row[(int)Krydsninger.Columns.Distance];
-                var type = row[(int)Krydsninger.Columns.Type];
+                var navn = Krydsninger.Col(row, Krydsninger.Columns.Navn);
+                var distance = Krydsninger.Col(row, Krydsninger.Columns.Distance);
+                var type = Krydsninger.Col(row, Krydsninger.Columns.Type);
 
                 if (string.IsNullOrWhiteSpace(navn) || string.IsNullOrWhiteSpace(distance))
                     continue;

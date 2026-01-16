@@ -451,8 +451,8 @@ namespace IntersectUtilities
             {
                 var matchingRow = fk.Rows
                     .Where(row => 
-                        row[(int)FjvDynamicComponents.Columns.Navn] == key &&
-                        row[versionIndex] == version)
+                        FjvDynamicComponents.Col(row, FjvDynamicComponents.Columns.Navn) == key &&
+                        FjvDynamicComponents.Col(row, FjvDynamicComponents.Columns.Version) == version)
                     .FirstOrDefault();
 
                 if (matchingRow == null || matchingRow.Length <= columnIndex)
@@ -516,7 +516,7 @@ namespace IntersectUtilities
                 var fk = Csv.FjvDynamicComponents;
                 foreach (var row in fk.Rows)
                 {
-                    var type = row[(int)FjvDynamicComponents.Columns.Type];
+                    var type = FjvDynamicComponents.Col(row, FjvDynamicComponents.Columns.Type);
                     if (!string.IsNullOrEmpty(type) && !PipelineElementTypeDict.ContainsKey(type))
                         missing.Add(type);
                 }
@@ -581,8 +581,8 @@ namespace IntersectUtilities
 
                     #region Determine latest version
                     var query = fk.Rows
-                            .Where(row => row[(int)FjvDynamicComponents.Columns.Navn] == blockName)
-                            .Select(row => row[(int)FjvDynamicComponents.Columns.Version])
+                            .Where(row => FjvDynamicComponents.Col(row, FjvDynamicComponents.Columns.Navn) == blockName)
+                            .Select(row => FjvDynamicComponents.Col(row, FjvDynamicComponents.Columns.Version))
                             .Select(x => { if (string.IsNullOrEmpty(x)) return "1"; else return x; })
                             .Select(x => Convert.ToInt32(x.Replace("v", "")))
                             .OrderBy(x => x);

@@ -293,5 +293,19 @@ namespace IntersectUtilities.UtilsCommon.DataManager.CsvData
 
             return GetValue(keyValue, columnIndex, keyColumnIndex);
         }
+
+        /// <summary>
+        /// Gets a column value from a row array using an enum column index.
+        /// Use when iterating Rows to avoid (int) casts everywhere.
+        /// </summary>
+        /// <typeparam name="TColumn">The column enum type.</typeparam>
+        /// <param name="row">The row array.</param>
+        /// <param name="column">The column enum value.</param>
+        /// <returns>The column value, or empty string if out of bounds.</returns>
+        public static string Col<TColumn>(string[] row, TColumn column) where TColumn : Enum
+        {
+            int index = Convert.ToInt32(column);
+            return row.Length > index ? row[index] : string.Empty;
+        }
     }
 }

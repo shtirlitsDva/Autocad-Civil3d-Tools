@@ -83,12 +83,12 @@ namespace IntersectUtilities.UtilsCommon.DataManager.CsvData
             string targetVersion = version.StartsWith("v") ? version : $"v{version}";
             foreach (var row in Rows)
             {
-                if (string.Equals(row[(int)Columns.Navn], navn, global::System.StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(Col(row, Columns.Navn), navn, global::System.StringComparison.OrdinalIgnoreCase))
                 {
-                    string rowVersion = row[(int)Columns.Version] ?? "";
+                    string rowVersion = Col(row, Columns.Version);
                     if (string.Equals(rowVersion, targetVersion, global::System.StringComparison.OrdinalIgnoreCase))
                     {
-                        return row[columnIndex];
+                        return Col(row, (Columns)columnIndex);
                     }
                 }
             }

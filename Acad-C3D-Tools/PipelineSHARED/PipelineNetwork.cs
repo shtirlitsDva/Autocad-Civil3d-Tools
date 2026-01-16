@@ -549,8 +549,8 @@ namespace IntersectUtilities.PipelineNetworkSystem
 
                         #region Determine latest version
                         var query = fk.Rows
-                                .Where(row => row[(int)FjvDynamicComponents.Columns.Navn] == blockName)
-                                .Select(row => row[(int)FjvDynamicComponents.Columns.Version])
+                                .Where(row => FjvDynamicComponents.Col(row, FjvDynamicComponents.Columns.Navn) == blockName)
+                                .Select(row => FjvDynamicComponents.Col(row, FjvDynamicComponents.Columns.Version))
                                 .Select(x => { if (string.IsNullOrEmpty(x)) return "1"; else return x; })
                                 .Select(x => Convert.ToInt32(x.Replace("v", "")))
                                 .OrderBy(x => x);

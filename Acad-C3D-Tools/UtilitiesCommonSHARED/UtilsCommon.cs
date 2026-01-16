@@ -32,6 +32,7 @@ using System.Xml.Serialization;
 
 using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 using static IntersectUtilities.UtilsCommon.Utils;
+using FjvDynamicComponents = IntersectUtilities.UtilsCommon.DataManager.CsvData.FjvDynamicComponents;
 
 using AcRx = Autodesk.AutoCAD.Runtime;
 using Application = Autodesk.AutoCAD.ApplicationServices.Core.Application;
@@ -2197,8 +2198,8 @@ namespace IntersectUtilities.UtilsCommon
 
             #region Determine latest version
             var query = fk.Rows
-                .Where(row => row[(int)DataManager.CsvData.FjvDynamicComponents.Columns.Navn] == br.RealName())
-                .Select(row => row[(int)DataManager.CsvData.FjvDynamicComponents.Columns.Version])
+                .Where(row => FjvDynamicComponents.Col(row, FjvDynamicComponents.Columns.Navn) == br.RealName())
+                .Select(row => FjvDynamicComponents.Col(row, FjvDynamicComponents.Columns.Version))
                 .Select(x =>
                 {
                     if (string.IsNullOrEmpty(x))

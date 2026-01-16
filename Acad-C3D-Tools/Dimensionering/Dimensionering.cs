@@ -1653,8 +1653,8 @@ namespace IntersectUtilities.Dimensionering
                 Dictionary<string, string> enhKoderDict = new Dictionary<string, string>();
                 foreach (var row in enhKoder.Rows)
                 {
-                    string key = row[(int)EnhKoder.Columns.Nr];
-                    string value = row[(int)EnhKoder.Columns.Kode];
+                    string key = EnhKoder.Col(row, EnhKoder.Columns.Nr);
+                    string value = EnhKoder.Col(row, EnhKoder.Columns.Kode);
                     if (!enhKoderDict.ContainsKey(key))
                         enhKoderDict.Add(key, value);
                 }
@@ -1799,9 +1799,9 @@ namespace IntersectUtilities.Dimensionering
                 foreach (var row in enhKoder.Rows)
                 {
                     //Column "Nr."
-                    string key = row[(int)EnhKoder.Columns.Nr];
+                    string key = EnhKoder.Col(row, EnhKoder.Columns.Nr);
                     //Column "Beboelse"
-                    bool result = int.TryParse(row[(int)EnhKoder.Columns.Beboelse], out int val) && val == 1;
+                    bool result = int.TryParse(EnhKoder.Col(row, EnhKoder.Columns.Beboelse), out int val) && val == 1;
                     if (!enhKoderDict.ContainsKey(key))
                         enhKoderDict.Add(key, result);
                 }

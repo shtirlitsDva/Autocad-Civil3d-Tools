@@ -51,19 +51,19 @@ namespace IntersectUtilities.UtilsCommon.DataManager
             foreach (var row in stier.Rows)
             {
                 // Get values by column index
-                var prjId = row.Length > (int)CsvData.Stier.Columns.PrjId ? row[(int)CsvData.Stier.Columns.PrjId] : string.Empty;
-                var etape = row.Length > (int)CsvData.Stier.Columns.Etape ? row[(int)CsvData.Stier.Columns.Etape] : string.Empty;
+                var prjId = CsvData.Stier.Col(row, CsvData.Stier.Columns.PrjId);
+                var etape = CsvData.Stier.Col(row, CsvData.Stier.Columns.Etape);
 
                 if (prjId.IsNoE() || etape.IsNoE()) continue;
 
                 var key = (prjId, etape);
 
                 // Get other column values by index
-                string lerValue = row.Length > (int)CsvData.Stier.Columns.Ler ? row[(int)CsvData.Stier.Columns.Ler] : string.Empty;
-                string surfaceValue = row.Length > (int)CsvData.Stier.Columns.Surface ? row[(int)CsvData.Stier.Columns.Surface] : string.Empty;
-                string alignmentsValue = row.Length > (int)CsvData.Stier.Columns.Alignments ? row[(int)CsvData.Stier.Columns.Alignments] : string.Empty;
-                string fremtidValue = row.Length > (int)CsvData.Stier.Columns.Fremtid ? row[(int)CsvData.Stier.Columns.Fremtid] : string.Empty;
-                string laengdeprofilerValue = row.Length > (int)CsvData.Stier.Columns.Laengdeprofiler ? row[(int)CsvData.Stier.Columns.Laengdeprofiler] : string.Empty;
+                string lerValue = CsvData.Stier.Col(row, CsvData.Stier.Columns.Ler);
+                string surfaceValue = CsvData.Stier.Col(row, CsvData.Stier.Columns.Surface);
+                string alignmentsValue = CsvData.Stier.Col(row, CsvData.Stier.Columns.Alignments);
+                string fremtidValue = CsvData.Stier.Col(row, CsvData.Stier.Columns.Fremtid);
+                string laengdeprofilerValue = CsvData.Stier.Col(row, CsvData.Stier.Columns.Laengdeprofiler);
 
                 List<string> Ler = rler.ResolveFiles(lerValue).ToList();
                 string? Surface = rs.ResolveFiles(surfaceValue).FirstOrDefault();

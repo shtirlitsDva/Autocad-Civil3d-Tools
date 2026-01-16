@@ -836,17 +836,14 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    Csv.
-                    string lagSti = "X:\\AutoCAD DRI - 01 Civil 3D\\Lag.csv";
-                    System.Data.DataTable dtLag = CsvReader.ReadCsvToDataTable(lagSti, "Lag");
+                    var lagLer = Csv.LagLer;
                     LayerTable lt = selectedDB.LayerTableId.Go<LayerTable>(selectedDB.TransactionManager.TopTransaction);
-                    Regex regex = new Regex(@"^(?<R>\d+)\*(?<G>\d+)\*(?<B>\d+)");
-                    HashSet<string> layerNames = dtLag.AsEnumerable().Select(x => x["Layer"].ToString()).ToHashSet();
+                    HashSet<string> layerNames = lagLer.AllLayers().ToHashSet();
                     foreach (string name in layerNames.Where(x => x.IsNotNoE()).OrderBy(x => x))
                     {
                         if (lt.Has(name))
                         {
-                            string colorString = ReadStringParameterFromDataTable(name, dtLag, "Farve", 0);
+                            string? colorString = lagLer.Farve(name);
                             if (colorString.IsNotNoE())
                             {
                                 var color = UtilsCommon.Utils.ParseColorString(colorString);
@@ -887,143 +884,7 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
-        }
-
-        /// <command>ATTACHAREADATA</command>
-        /// <summary>
-        /// Attaches area data to selected entities. Used long time ago when the areas were defined in a dwf file.
-        /// </summary>
-        /// <category>Mængdeudtræk</category>
-        [CommandMethod("ATTACHAREADATA")]
-        public static void attachareadata()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-            Editor ed = Application.DocumentManager.MdiActiveDocument.Editor;
-            try
-            {
-                try
-                {
-                    #region Dialog box for file list selection and path determination
-
-                    string path = string.Empty;
-                    OpenFileDialog dialog = new OpenFileDialog()
-                    {
-                        Title = "Choose csv file:",
-                        DefaultExt = "csv",
-                        Filter = "csv files (*.csv)|*.csv|All files (*.*)|*.*",
-                        FilterIndex = 0
-                    };
-                    if (dialog.ShowDialog() == true)
-                    {
-                        path = dialog.FileName;
-                    }
-                    else return;
-                    #endregion
-
-                    #region Populate area data from string
-
-                    System.Data.DataTable areaDescriptions = CsvReader.ReadCsvToDataTable(path, "Areas");
-                    //Datatable to list of strings
-                    //List<string> areaNames = (from System.Data.DataRow dr in areaDescriptions.Rows select (string)dr[1]).ToList();
-                    //foreach (string name in areaNames)
-                    foreach (DataRow row in areaDescriptions.Rows)
-                    {
-                        //string nummer = row["Nummer"].ToString();
-                        //string navn = row["Navn"].ToString();
-                        //string vejkl = row["Vejkl"].ToString();
-                        //string belægning = row["Belaegning"].ToString();
-                        string vejkl = row["Vejklasse"].ToString().Replace("Vejkl. ", "");
-                        string belægning = row["Belægning"].ToString();
-                        string vejnavn = row["Vejnavn"].ToString();
-                        //prdDbg(name);
-                        prdDbg($"Vejkl. {vejkl}, {belægning}, {vejnavn}");
-                        System.Windows.Forms.Application.DoEvents();
-                        #region Select pline
-
-                        PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
-                            "\nSelect polyline to add data to:");
-                        promptEntityOptions1.SetRejectMessage("\nNot a polyline!");
-                        promptEntityOptions1.AddAllowedClass(typeof(Polyline), true);
-                        PromptEntityResult entity1 = ed.GetEntity(promptEntityOptions1);
-                        if (((PromptResult)entity1).Status != PromptStatus.OK) return;
-                        Oid plineId = entity1.ObjectId;
-                        #endregion
-
-                        //string[] split1 = name.Split(new[] { ", " }, StringSplitOptions.None);
-                        //split1[1] = split1[1].Replace("Vejkl. ", "");
-                        #region Old ownership logic
-
-                        //string ownership = "O";
-                        ////Handle the ownership dilemma
-                        //if (split1[0].Contains("(P)"))
-                        //{
-                        //    split1[0] = split1[0].Split(new[] { " (" }, StringSplitOptions.None)[0];
-                        //    ownership = "P";
-                        //}
-                        //string[] data = new string[4] { split1[0], ownership, split1[1], split1[2] }; 
-                        #endregion
-
-                        //Test change
-                        //if (ownership == "P") prdDbg(data[0] + " " + data[1] + " " + data[2] + " " + data[3]);
-                        #region Create layer for OK plines
-
-                        string områderLayer = "0-OMRÅDER-OK";
-                        using (Transaction txLag = localDb.TransactionManager.StartTransaction())
-                        {
-                            LayerTable lt = txLag.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
-                            if (!lt.Has(områderLayer))
-                            {
-                                LayerTableRecord ltr = new LayerTableRecord();
-                                ltr.Name = områderLayer;
-                                ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 0);
-                                ltr.LineWeight = LineWeight.LineWeight000;
-                                ltr.IsPlottable = false;
-                                //Make layertable writable
-                                lt.CheckOrOpenForWrite();
-                                //Add the new layer to layer table
-                                Oid ltId = lt.Add(ltr);
-                                txLag.AddNewlyCreatedDBObject(ltr, true);
-                            }
-                            txLag.Commit();
-                        }
-                        #endregion
-
-                        using (Transaction tx = localDb.TransactionManager.StartTransaction())
-                        {
-                            #region Property Set Manager
-
-                            PropertySetManager psmOmråder =
-                                new PropertySetManager(localDb, PSetDefs.DefinedSets.DriOmråder);
-                            PSetDefs.DriOmråder driOmråder = new PSetDefs.DriOmråder();
-                            #endregion
-
-                            Polyline pline = plineId.Go<Polyline>(tx, OpenMode.ForWrite);
-                            psmOmråder.WritePropertyString(pline, driOmråder.Vejnavn, vejnavn);
-                            psmOmråder.WritePropertyString(pline, driOmråder.Vejklasse, vejkl);
-                            psmOmråder.WritePropertyString(pline, driOmråder.Belægning, belægning);
-                            pline.Layer = områderLayer;
-                            pline.Color = Color.FromColorIndex(ColorMethod.ByAci, 256);
-                            pline.LineWeight = LineWeight.ByLayer;
-                            tx.Commit();
-                        }
-                    }
-                    #endregion
-
-                }
-                catch (System.Exception ex)
-                {
-                    ed.WriteMessage(ex.Message + " \nCheck if OK layer exists!");
-                    throw;
-                }
-            }
-            catch (System.Exception ex)
-            {
-                ed.WriteMessage(ex.Message);
-            }
-        }
+        }        
 
         /// <command>SETMODELSPACESCALEFORALL</command>
         /// <summary>
@@ -2297,10 +2158,18 @@ namespace IntersectUtilities
         }
         public void fixlerlayersmethod(Database localDb)
         {
-            string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
-            string pathLag = "X:\\AutoCAD DRI - 01 Civil 3D\\Lag.csv";
-            System.Data.DataTable dtK = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
-            System.Data.DataTable dtLag = CsvReader.ReadCsvToDataTable(pathLag, "Lag");
+            var krydsninger = Csv.Krydsninger;
+            var lagLer = Csv.LagLer;
+            
+            // Helper to strip -2D and -3D suffixes from layer names for LagLer lookup
+            static string StripSuffix(string? layerName)
+            {
+                if (string.IsNullOrEmpty(layerName)) return string.Empty;
+                if (layerName.EndsWith("-2D")) return layerName[..^3];
+                if (layerName.EndsWith("-3D")) return layerName[..^3];
+                return layerName;
+            }
+            
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
@@ -2316,10 +2185,11 @@ namespace IntersectUtilities
                     Dictionary<string, string> layerLineTypeMap = new Dictionary<string, string>();
                     foreach (var layer in layers)
                     {
-                        string targetLayerName = ReadStringParameterFromDataTable(layer.Name, dtK, "Layer", 0);
-                        string lineTypeName = ReadStringParameterFromDataTable(targetLayerName, dtLag, "LineType", 0);
+                        string? targetLayerName = krydsninger.Layer(layer.Name);
+                        string lookupKey = StripSuffix(targetLayerName);
+                        string? lineTypeName = lagLer.LineType(lookupKey);
                         if (lineTypeName.IsNoE()) prdDbg($"LineTypeName is missing for {layer.Name}!");
-                        layerLineTypeMap.Add(layer.Name, lineTypeName);
+                        layerLineTypeMap.Add(layer.Name, lineTypeName ?? string.Empty);
                     }
                     //Check if all line types are present
                     HashSet<string> missingLineTypes = new HashSet<string>();
@@ -2350,20 +2220,21 @@ namespace IntersectUtilities
                     foreach (LayerTableRecord ltr in layers)
                     {
                         string layerName = ltr.Name;
-                        if (!dtK.AsEnumerable().Any(row => row[0].ToString() == layerName))
+                        if (!krydsninger.HasNavn(layerName))
                         {
                             prdDbg($"UNKNOWN LAYER: {ltr.Name}");
                             continue;
                         }
-                        string type = ReadStringParameterFromDataTable(layerName, dtK, "Type", 0);
+                        string? type = krydsninger.Type(layerName);
                         if (type == "IGNORE") { prdDbg($"Layer {layerName} IGNORED!"); continue; }
-                        string lerLayerName = ReadStringParameterFromDataTable(layerName, dtK, "Layer", 0);
-                        if (!dtLag.AsEnumerable().Any(row => row[0].ToString() == lerLayerName))
+                        string? lerLayerName = krydsninger.Layer(layerName);
+                        string lookupKey = StripSuffix(lerLayerName);
+                        if (!lagLer.HasLayer(lookupKey))
                         {
-                            prdDbg($"Ler layer {lerLayerName} not found in Lag.csv! Tilføj laget i Lag.csv.");
+                            prdDbg($"Ler layer {lerLayerName} (lookup: {lookupKey}) not found in LagLer! Tilføj laget i LagLer.csv.");
                             continue;
                         }
-                        string farveString = ReadStringParameterFromDataTable(lerLayerName, dtLag, "Farve", 0);
+                        string? farveString = lagLer.Farve(lookupKey);
                         Color color = UtilsCommon.Utils.ParseColorString(farveString);
                         if (color == null)
                         {
