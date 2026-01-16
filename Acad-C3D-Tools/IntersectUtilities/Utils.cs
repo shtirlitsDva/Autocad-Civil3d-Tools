@@ -12,6 +12,7 @@ using Autodesk.Gis.Map.Utilities;
 using Dreambuild.AutoCAD;
 
 using IntersectUtilities.UtilsCommon;
+using IntersectUtilities.UtilsCommon.DataManager.CsvData;
 using IntersectUtilities.UtilsCommon.Enums;
 
 using MoreLinq;
@@ -1294,6 +1295,39 @@ namespace IntersectUtilities
                 descrFromKrydsninger =
                     ProcessDescription(
                         ent, descrFromKrydsninger, dtKrydsninger);
+            }
+
+            //When all column names are replaced by recipes ->
+            //Replace recipes
+            descrFromKrydsninger = ConstructStringFromPSByRecipe(
+                ent, descrFromKrydsninger);
+
+            return descrFromKrydsninger;
+        }
+
+        public static string ProcessDescription(Entity ent,
+            string descrFromKrydsninger, Krydsninger krydsninger)
+        {
+            Regex columnNameRegex = new Regex(@"{(?<column>[a-zæøåA-ZÆØÅ_-]*)}");
+
+            if (columnNameRegex.IsMatch(descrFromKrydsninger))
+            {
+                //Get the first match
+                Match match = columnNameRegex.Match(descrFromKrydsninger);
+                //Get the first capture, it needs to be replaced by the property value
+                string capture = match.Captures[0].Value;
+                //Get the column name
+                string columnName = match.Groups["column"].Value;
+                //Retreive recipe from column using new CSV API
+                string recipe = krydsninger.GetByColumnName(ent.Layer, columnName, 0) ?? "";
+                //Replace the captured group in original string with the parameter value
+                descrFromKrydsninger = descrFromKrydsninger
+                    .Replace(capture, recipe);
+                //Recursively call current function
+                //It runs on the string until no more captures remain
+                descrFromKrydsninger =
+                    ProcessDescription(
+                        ent, descrFromKrydsninger, krydsninger);
             }
 
             //When all column names are replaced by recipes ->

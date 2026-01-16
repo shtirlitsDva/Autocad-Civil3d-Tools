@@ -6,6 +6,7 @@ using GroupByCluster;
 
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.Graphs;
+using IntersectUtilities.UtilsCommon.DataManager.CsvData;
 
 using System;
 using System.Collections.Generic;
@@ -29,7 +30,7 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    System.Data.DataTable komponenter = CsvData.FK;
+                    var komponenter = Csv.FjvDynamicComponents;
                     HashSet<Entity> allEnts = localDb.GetFjvEntities(tx, true, false);
                     PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriGraph);
                     var graph = new GraphWrite.Graph(localDb, psm, komponenter);
@@ -80,7 +81,7 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    System.Data.DataTable komponenter = CsvData.FK;
+                    var komponenter = Csv.FjvDynamicComponents;
                     HashSet<Entity> allEnts = localDb.GetFjvEntities(tx, true, false);
                     //Remove stiktees which are special tee blocks for stikledninger
                     allEnts = allEnts.Where(x =>
@@ -165,7 +166,7 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    System.Data.DataTable komponenter = CsvData.FK;
+                    var komponenter = Csv.FjvDynamicComponents;
                     HashSet<Entity> allEnts = localDb.GetFjvEntities(tx, true, false);
                     PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriGraph);
                     PSetDefs.DriGraph driGraph = new PSetDefs.DriGraph();

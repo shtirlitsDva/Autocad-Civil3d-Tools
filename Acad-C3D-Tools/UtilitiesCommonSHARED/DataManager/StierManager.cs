@@ -1,8 +1,8 @@
-﻿using IntersectUtilities.UtilsCommon.DataManager.FileResolvers;
+﻿using IntersectUtilities.UtilsCommon.DataManager.CsvData;
+using IntersectUtilities.UtilsCommon.DataManager.FileResolvers;
 using IntersectUtilities.UtilsCommon;
 
 using System.Collections.Generic;
-using System.Data;
 using System.Linq;
 using System;
 
@@ -41,50 +41,35 @@ namespace IntersectUtilities.UtilsCommon.DataManager
             LoadStierData().Values.Where(x => x.ContainsFile(fileName)).Select(x => x.Key).OrderBy(x => x.ProjectId).ThenBy(x => x.EtapeId);
         private static Dictionary<(string ProjectId, string EtapeId), StierRecord> LoadStierData()
         {
-            var dt = CsvData.Stier;
+            var stier = Csv.Stier;
             var result = new Dictionary<(string, string), StierRecord>();
 
             var rs = new FileResolverSingle();
             var rler = new FileResolverLer();
             var rlgd = new FileResolverLængdeprofiler();
 
-            foreach (DataRow row in dt.Rows)
+            foreach (var row in stier.Rows)
             {
-                var prjId = row["PrjId"]?.ToString() ?? string.Empty;
-                var etape = row["Etape"]?.ToString() ?? string.Empty;
+                // Get values by column index
+                var prjId = row.Length > (int)CsvData.Stier.Columns.PrjId ? row[(int)CsvData.Stier.Columns.PrjId] : string.Empty;
+                var etape = row.Length > (int)CsvData.Stier.Columns.Etape ? row[(int)CsvData.Stier.Columns.Etape] : string.Empty;
 
                 if (prjId.IsNoE() || etape.IsNoE()) continue;
 
                 var key = (prjId, etape);
 
-                string? Fremtid = null, Alignments = null, Surface = null;
-                List<string> Ler = new(), Længdeprofiler = new();                
+                // Get other column values by index
+                string lerValue = row.Length > (int)CsvData.Stier.Columns.Ler ? row[(int)CsvData.Stier.Columns.Ler] : string.Empty;
+                string surfaceValue = row.Length > (int)CsvData.Stier.Columns.Surface ? row[(int)CsvData.Stier.Columns.Surface] : string.Empty;
+                string alignmentsValue = row.Length > (int)CsvData.Stier.Columns.Alignments ? row[(int)CsvData.Stier.Columns.Alignments] : string.Empty;
+                string fremtidValue = row.Length > (int)CsvData.Stier.Columns.Fremtid ? row[(int)CsvData.Stier.Columns.Fremtid] : string.Empty;
+                string laengdeprofilerValue = row.Length > (int)CsvData.Stier.Columns.Laengdeprofiler ? row[(int)CsvData.Stier.Columns.Laengdeprofiler] : string.Empty;
 
-                foreach (var column in ValueColumns)
-                {
-                    string value = row[column]?.ToString() ?? string.Empty;
-
-                    switch (column)
-                    {
-                        case "Ler":
-                            Ler = rler.ResolveFiles(value).ToList();
-                            break;
-                        case "Surface":
-                            Surface = rs.ResolveFiles(value).FirstOrDefault();
-                            break;
-                        case "Alignments":
-                            Alignments = rs.ResolveFiles(value).FirstOrDefault();
-                            break;
-                        case "Fremtid":
-                            Fremtid = rs.ResolveFiles(value).FirstOrDefault();
-                            break;
-                        case "Længdeprofiler":
-                            Længdeprofiler = rlgd.ResolveFiles(value).ToList();
-                            break;
-                        default:
-                            break;
-                    }
-                }
+                List<string> Ler = rler.ResolveFiles(lerValue).ToList();
+                string? Surface = rs.ResolveFiles(surfaceValue).FirstOrDefault();
+                string? Alignments = rs.ResolveFiles(alignmentsValue).FirstOrDefault();
+                string? Fremtid = rs.ResolveFiles(fremtidValue).FirstOrDefault();
+                List<string> Længdeprofiler = rlgd.ResolveFiles(laengdeprofilerValue).ToList();
 
                 //if all entries are empty then the record is not accessible
                 if (Fremtid == null &&

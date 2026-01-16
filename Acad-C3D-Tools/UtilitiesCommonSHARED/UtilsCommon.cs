@@ -2166,7 +2166,7 @@ namespace IntersectUtilities.UtilsCommon
 
         public static bool CheckIfBlockIsLatestVersion(this BlockReference br)
         {
-            System.Data.DataTable dt = CsvData.FK;
+            var fk = DataManager.CsvData.Csv.FjvDynamicComponents;
             Database Db = br.Database;
             if (Db.TransactionManager.TopTransaction == null)
                 throw new System.Exception("CheckIfBlockLatestVersion called outside transaction!");
@@ -2196,12 +2196,12 @@ namespace IntersectUtilities.UtilsCommon
             #endregion
 
             #region Determine latest version
-            var query = dt.AsEnumerable()
-                .Where(x => x["Navn"].ToString() == br.RealName())
-                .Select(x => x["Version"].ToString())
+            var query = fk.Rows
+                .Where(row => row[(int)DataManager.CsvData.FjvDynamicComponents.Columns.Navn] == br.RealName())
+                .Select(row => row[(int)DataManager.CsvData.FjvDynamicComponents.Columns.Version])
                 .Select(x =>
                 {
-                    if (x == "")
+                    if (string.IsNullOrEmpty(x))
                         return "1";
                     else
                         return x;
@@ -4308,7 +4308,7 @@ namespace IntersectUtilities.UtilsCommon
             bool discardFrozen = false
         )
         {
-            System.Data.DataTable dt = CsvData.FK;
+            var fk = DataManager.CsvData.Csv.FjvDynamicComponents;
 
             HashSet<Entity> entities = new HashSet<Entity>();
 
@@ -4318,10 +4318,7 @@ namespace IntersectUtilities.UtilsCommon
             );
 
             var rawBrefs = db.ListOfType<BlockReference>(tr, discardFrozen);
-            var brQuery = rawBrefs.Where(x =>
-                UtilsDataTables.ReadStringParameterFromDataTable(x.RealName(), dt, "Navn", 0)
-                != default
-            );
+            var brQuery = rawBrefs.Where(x => fk.HasNavn(x.RealName()));
 
             HashSet<string> weldingBlocks = new HashSet<string>()
             {
@@ -4347,23 +4344,17 @@ namespace IntersectUtilities.UtilsCommon
         public static HashSet<BlockReference> GetFjvBlocks(
             this Database db,
             Transaction tr,
-            System.Data.DataTable fjvKomponenter,
             bool discardWelds = true,
             bool discardStikBlocks = true,
             bool discardFrozen = false
         )
         {
+            var fk = DataManager.CsvData.Csv.FjvDynamicComponents;
+
             HashSet<BlockReference> entities = new HashSet<BlockReference>();
 
             var rawBrefs = db.ListOfType<BlockReference>(tr, discardFrozen);
-            var brQuery = rawBrefs.Where(x =>
-                UtilsDataTables.ReadStringParameterFromDataTable(
-                    x.RealName(),
-                    fjvKomponenter,
-                    "Navn",
-                    0
-                ) != default
-            );
+            var brQuery = rawBrefs.Where(x => fk.HasNavn(x.RealName()));
 
             HashSet<string> weldingBlocks = new HashSet<string>()
             {
@@ -4605,139 +4596,7 @@ namespace IntersectUtilities.UtilsCommon
         }
     }
 
-    public static class CsvData
-    {
-        private static readonly Dictionary<string, (DataTable data, DateTime lastModified)> cache =
-            new Dictionary<string, (DataTable data, DateTime lastModified)>();
-        private static readonly Dictionary<string, string> csvs = new Dictionary<string, string>();
-
-        static CsvData()
-        {
-            if (!File.Exists(@"X:\AutoCAD DRI - 01 Civil 3D\_csv_register.csv"))
-                throw new FileNotFoundException("CSV register not found!");
-
-            var lines = File.ReadAllLines(
-                    @"X:\AutoCAD DRI - 01 Civil 3D\_csv_register.csv",
-                    Encoding.UTF8
-                )
-                .Skip(1);
-
-            foreach (var line in lines)
-            {
-                var split = line.Split(';');
-                csvs.Add(split[0], split[1]);
-            }
-
-            foreach (var item in csvs)
-                LoadCsvFile(item.Key, item.Value);
-        }
-
-        private static void LoadCsvFile(string name, string path)
-        {
-            if (!File.Exists(path))
-                throw new FileNotFoundException($"File {path} does not exist!");
-
-            DateTime lastWriteTime = File.GetLastWriteTimeUtc(path);
-            DataTable dt = CsvReader.ReadCsvToDataTable(path, name);
-            cache.Add(name, (dt, lastWriteTime));
-        }
-
-        private static DataTable GetDataTable(string name)
-        {
-            if (csvs.ContainsKey(name))
-            {
-                var path = csvs[name];
-                if (cache.ContainsKey(name))
-                {
-                    var cached = cache[name];
-                    var lastWriteTime = File.GetLastWriteTimeUtc(path);
-
-#if DEBUG
-                    //prdDbg($"Cached last modified: {cached.lastModified}\n" +
-                    //                           $"File last modified: {lastWriteTime}");
-#endif
-
-                    if (cached.lastModified < lastWriteTime)
-                    {
-                        prdDbg($"Csv file {name} has been updated! Loading new version.");
-                        cache.Remove(name);
-                        LoadCsvFile(name, path);
-                        return cache[name].data;
-                    }
-                    else
-                        return cached.data;
-                }
-                else
-                {
-                    LoadCsvFile(name, path);
-                    return cache[name].data;
-                }
-            }
-            else
-                throw new System.Exception($"Csv name {name} not defined!\nUpdate registration.");
-        }
-
-        ///<summary>
-        ///Stier til projektfiler
-        ///</summary>
-        public static DataTable Stier => GetDataTable("stier");
-
-        /// <summary>
-        /// Fjernvarme komponenter
-        /// </summary>
-        public static DataTable FK
-        {
-            get => GetDataTable("fjvKomponenter");
-        }
-
-        /// <summary>
-        /// Krydsninger
-        /// </summary>
-        public static DataTable Kryds
-        {
-            get => GetDataTable("krydsninger");
-        }
-
-        /// <summary>
-        /// Dybde
-        /// </summary>
-        public static DataTable Dybde
-        {
-            get => GetDataTable("dybde");
-        }
-
-        /// <summary>
-        /// Distances
-        /// </summary>
-        public static DataTable Dist
-        {
-            get => GetDataTable("distances");
-        }
-
-        /// <summary>
-        /// Installation og brændsel
-        /// </summary>
-        public static DataTable InstOgBrændsel
-        {
-            get => GetDataTable("instogbr");
-        }
-
-        /// <summary>
-        /// Anvendelseskoder for bygninger fra BBR registeret
-        /// </summary>
-        public static DataTable AnvKoder
-        {
-            get => GetDataTable("AnvKoder");
-        }
-
-        /// <summary>
-        /// Anvendelseskoder for enheder fra BBR registeret
-        /// </summary>
-        public static DataTable EnhKoder
-        {
-            get => GetDataTable("EnhKoder");
-        }
-    }
+    // Old CsvData class removed - use IntersectUtilities.UtilsCommon.DataManager.CsvData.Csv instead
 
     public static class AutocadColors
     {

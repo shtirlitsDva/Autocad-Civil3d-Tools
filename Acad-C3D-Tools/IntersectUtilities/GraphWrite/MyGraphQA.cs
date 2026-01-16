@@ -2,6 +2,7 @@
 
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.Enums;
+using IntersectUtilities.UtilsCommon.DataManager.CsvData;
 
 using MoreLinq;
 
@@ -20,7 +21,7 @@ namespace IntersectUtilities.GraphWrite
     {
         private static class QA
         {
-            internal static void QualityAssurance(Edge edge, Database db, System.Data.DataTable dt)
+            internal static void QualityAssurance(Edge edge, Database db, FjvDynamicComponents dt)
             {
                 List<string> errorMsg = new List<string>();
 
@@ -46,7 +47,7 @@ namespace IntersectUtilities.GraphWrite
             /// Returns the error msg.
             /// </summary>
             private static void QA_System(
-                Edge edge, Database db, System.Data.DataTable dt, List<string> errorMsg)
+                Edge edge, Database db, FjvDynamicComponents dt, List<string> errorMsg)
             {
                 #region Twin/Enkelt test
                 Entity ent1 = edge.Id1.Go<Entity>(db);
@@ -79,7 +80,7 @@ namespace IntersectUtilities.GraphWrite
             }
 
             private static void QA_Dn(
-                Edge edge, Database db, System.Data.DataTable dt, List<string> errorMsg)
+                Edge edge, Database db, FjvDynamicComponents dt, List<string> errorMsg)
             {
                 #region DN QA
                 //DN test

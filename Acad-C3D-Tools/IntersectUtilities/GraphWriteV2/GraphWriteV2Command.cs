@@ -3,6 +3,7 @@ using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Runtime;
 
 using IntersectUtilities.UtilsCommon;
+using IntersectUtilities.UtilsCommon.DataManager.CsvData;
 using static IntersectUtilities.UtilsCommon.Utils;
 
 using System;
@@ -37,7 +38,6 @@ namespace IntersectUtilities
 
             try
             {
-                System.Data.DataTable komponenter = CsvData.FK;
                 HashSet<Entity> allEnts = localDb.GetFjvEntities(tx, true, false);
                 // Remove STIKTEE
                 allEnts = allEnts.Where(x =>
@@ -47,8 +47,10 @@ namespace IntersectUtilities
                     return true;
                 }).ToHashSet();
 
+                var komponenter = Csv.FjvDynamicComponents;
+
                 // Build spanning forest
-                var builder = new GraphBuilderV2(localDb, komponenter);
+                var builder = new GraphBuilderV2(localDb);
                 var graphs = builder.BuildGraphs(allEnts);
 
                 // Attribute selectors

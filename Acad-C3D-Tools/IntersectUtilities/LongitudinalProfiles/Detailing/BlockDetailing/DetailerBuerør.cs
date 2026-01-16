@@ -53,7 +53,7 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.BlockDetailing
 
             SetAttribute(target, "LGD", Math.Abs(bueRorLength).ToString("0.0") + " m");
 
-            string augmentedType = ComponentSchedule.ReadComponentType(sourceBlock, context.ComponentDataTable);
+            string augmentedType = ComponentSchedule.ReadComponentType(sourceBlock, context.FjvComponents);
             SetAttribute(target, "TEXT", augmentedType);
 
             WriteSourceReference(target, context, sourceBlock.Handle.ToString(), station);

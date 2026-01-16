@@ -16,15 +16,13 @@ namespace IntersectUtilities.GraphWriteV2
     internal sealed class GraphBuilderV2
     {
         private readonly Database _db;
-        private readonly System.Data.DataTable _fjvTable;
         private readonly PropertySetManager _psmGraph;
         private readonly PropertySetManager _psmPipeline;
         private readonly PSetDefs.DriPipelineData _driPipelineData = new();
 
-        public GraphBuilderV2(Database db, System.Data.DataTable fjvTable)
+        public GraphBuilderV2(Database db)
         {
             _db = db;
-            _fjvTable = fjvTable;
             _psmGraph = new PropertySetManager(_db, PSetDefs.DefinedSets.DriGraph);
             _psmPipeline = new PropertySetManager(_db, PSetDefs.DefinedSets.DriPipelineData);
         }

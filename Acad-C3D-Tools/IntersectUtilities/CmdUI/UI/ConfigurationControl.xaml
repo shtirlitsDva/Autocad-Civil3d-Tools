@@ -1,0 +1,115 @@
+<UserControl x:Class="IntersectUtilities.CmdUI.UI.ConfigurationControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:IntersectUtilities.CmdUI.UI"
+             mc:Ignorable="d"
+             d:DesignHeight="300" d:DesignWidth="400"
+             d:Background="{DynamicResource Background}">
+    <UserControl.Resources>
+        <ResourceDictionary Source="Theme.xaml"/>
+    </UserControl.Resources>
+
+    <Grid Background="{DynamicResource Background}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Border Grid.Row="0" Background="{DynamicResource DarkHeaderBackground}" Padding="10,8">
+            <TextBlock Text="CSV Configuration" 
+                       FontSize="16" 
+                       FontWeight="SemiBold" 
+                       Foreground="{DynamicResource Text}"/>
+        </Border>
+
+        <!-- Configuration Selection -->
+        <GroupBox Grid.Row="1" 
+                  Header="Active Configuration" 
+                  Margin="10,10,10,5"
+                  Style="{StaticResource ModernGroupBox}">
+            <StackPanel Orientation="Vertical" Margin="5">
+                <StackPanel Orientation="Horizontal" Margin="0,5">
+                    <Label Content="Configuration:" 
+                           Foreground="{DynamicResource Text}" 
+                           VerticalAlignment="Center"
+                           Width="100"/>
+                    <ComboBox x:Name="ConfigurationDropdown"
+                              Width="150"
+                              Style="{StaticResource ModernDarkComboBox}"
+                              ItemsSource="{Binding AvailableConfigurations}"
+                              SelectedItem="{Binding SelectedConfiguration, Mode=TwoWay}"/>
+                </StackPanel>
+
+                <!-- Status indicator -->
+                <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                    <TextBlock Text="Status: " 
+                               Foreground="{DynamicResource Text}"
+                               VerticalAlignment="Center"/>
+                    <TextBlock x:Name="StatusText"
+                               VerticalAlignment="Center">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Foreground" Value="#FF4CAF50"/>
+                                <Setter Property="Text" Value="Configuration active"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsConfigurationSet}" Value="False">
+                                        <Setter Property="Foreground" Value="#FFFF9800"/>
+                                        <Setter Property="Text" Value="No configuration selected - please select V1 or V2"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </StackPanel>
+            </StackPanel>
+        </GroupBox>
+
+        <!-- Information panel -->
+        <GroupBox Grid.Row="2" 
+                  Header="Information" 
+                  Margin="10,5,10,10"
+                  Style="{StaticResource ModernGroupBox}">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="5">
+                    <TextBlock TextWrapping="Wrap" 
+                               Foreground="{DynamicResource Text}"
+                               FontSize="12"
+                               Margin="0,0,0,10">
+                        <Run FontWeight="SemiBold">CSV Data Configurations</Run>
+                        <LineBreak/>
+                        <LineBreak/>
+                        Select a configuration to determine which version of CSV files will be used by commands.
+                        <LineBreak/>
+                        <LineBreak/>
+                        • <Run FontWeight="SemiBold">V1</Run>: Uses .v1.csv files (e.g., Krydsninger.v1.csv)
+                        <LineBreak/>
+                        • <Run FontWeight="SemiBold">V2</Run>: Uses .v2.csv files (e.g., Krydsninger.v2.csv)
+                        <LineBreak/>
+                        <LineBreak/>
+                        Non-versioned files (Distances.csv, Dybde.csv, etc.) are shared across all configurations.
+                        <LineBreak/>
+                        <LineBreak/>
+                        <Run FontStyle="Italic" Foreground="#FFB0B0B0">
+                            Note: Your selection is automatically saved and will be restored next time you start AutoCAD.
+                        </Run>
+                    </TextBlock>
+
+                    <TextBlock Text="CSV Files Location:" 
+                               Foreground="{DynamicResource Text}"
+                               FontWeight="SemiBold"
+                               Margin="0,10,0,5"/>
+                    <TextBox Text="X:\AutoCAD DRI - 01 Civil 3D\Conf"
+                             IsReadOnly="True"
+                             Background="{DynamicResource DarkRowBackground}"
+                             Foreground="{DynamicResource Text}"
+                             BorderBrush="{DynamicResource BorderBrush}"
+                             Padding="5,3"/>
+                </StackPanel>
+            </ScrollViewer>
+        </GroupBox>
+    </Grid>
+</UserControl>

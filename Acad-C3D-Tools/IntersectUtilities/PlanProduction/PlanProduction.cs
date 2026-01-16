@@ -28,6 +28,7 @@ using System.Data;
 using MoreLinq;
 using GroupByCluster;
 using IntersectUtilities.UtilsCommon;
+using IntersectUtilities.UtilsCommon.DataManager.CsvData;
 using static IntersectUtilities.UtilsCommon.Utils;
 using Dreambuild.AutoCAD;
 
@@ -961,7 +962,7 @@ namespace IntersectUtilities
                     DataReferencesOptions dro = new DataReferencesOptions(droText[0], droText[1]);
                     var dm = new DataManager(dro);
 
-                    var dtKrydsninger = CsvData.Kryds;
+                    var dtKrydsninger = Csv.Krydsninger;
 
                     Plane plane = new Plane();
 

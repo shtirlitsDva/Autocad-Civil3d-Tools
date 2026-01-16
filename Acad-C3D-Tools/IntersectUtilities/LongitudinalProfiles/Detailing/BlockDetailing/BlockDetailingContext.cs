@@ -3,6 +3,7 @@ using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 using Autodesk.Civil.DatabaseServices;
 using Autodesk.Civil.DatabaseServices.Styles;
+using IntersectUtilities.UtilsCommon.DataManager.CsvData;
 
 namespace IntersectUtilities.LongitudinalProfiles.Detailing.BlockDetailing
 {
@@ -24,7 +25,7 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.BlockDetailing
         public double ProfileViewBottomElevation { get; }
         public string ComponentBlockName { get; }
         public string BueRorBlockName { get; }
-        public System.Data.DataTable ComponentDataTable { get; }
+        public FjvDynamicComponents FjvComponents { get; }
         public PropertySetManager PipelineData { get; }
         public PSetDefs.DriPipelineData PipelineDataKeys { get; }
         public PropertySetManager SourceReference { get; }
@@ -49,7 +50,7 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.BlockDetailing
             double profileViewBottomElevation,
             string componentBlockName,
             string bueRorBlockName,
-            System.Data.DataTable componentDataTable,
+            FjvDynamicComponents fjvComponents,
             PropertySetManager pipelineData,
             PSetDefs.DriPipelineData pipelineDataKeys,
             PropertySetManager sourceReference,
@@ -71,7 +72,7 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.BlockDetailing
             ProfileViewBottomElevation = profileViewBottomElevation;
             ComponentBlockName = componentBlockName;
             BueRorBlockName = bueRorBlockName;
-            ComponentDataTable = componentDataTable;
+            FjvComponents = fjvComponents;
             PipelineData = pipelineData;
             PipelineDataKeys = pipelineDataKeys;
             SourceReference = sourceReference;

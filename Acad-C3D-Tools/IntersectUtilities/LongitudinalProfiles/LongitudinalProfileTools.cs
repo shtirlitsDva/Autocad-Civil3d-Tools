@@ -22,6 +22,7 @@ using IntersectUtilities.PipelineNetworkSystem;
 using IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray;
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.DataManager;
+using IntersectUtilities.UtilsCommon.DataManager.CsvData;
 using IntersectUtilities.UtilsCommon.Enums;
 using IntersectUtilities.UtilsCommon.Graphs;
 
@@ -633,12 +634,12 @@ namespace IntersectUtilities
                 #endregion
 
                 #region Read Csv Data for Layers and Depth
-                var dtKrydsninger = CsvData.Kryds;
+                var krydsninger = Csv.Krydsninger;
                 //Build the LerTypeResolution dictionary
-                var lerTypeResolver = LerTypeResolverFactory.CreateFromDataTable(dtKrydsninger);
+                var lerTypeResolver = LerTypeResolverFactory.Create(krydsninger);
                 var relocabilityService = RuleFactory.CreateDefaultService();
 
-                var dtDybde = CsvData.Dybde;
+                var dybde = Csv.Dybde;
                 #endregion
 
                 #region Delete existing points
@@ -738,12 +739,7 @@ namespace IntersectUtilities
 
                         #region Read data parameters from csvs
                         //Read 'Type' value
-                        string type = ReadStringParameterFromDataTable(
-                            ent.Layer,
-                            dtKrydsninger,
-                            "Type",
-                            0
-                        );
+                        string type = krydsninger.Type(ent.Layer) ?? "";
                         if (type.IsNoE())
                         { //Exit, if a layer is not defined in Krydsninger.csv
                             prdDbg(
@@ -761,28 +757,18 @@ namespace IntersectUtilities
                         double depth = 0;
                         if (!type.IsNoE())
                         {
-                            depth = ReadDoubleParameterFromDataTable(type, dtDybde, "Dybde", 0);
+                            depth = dybde.GetDybdeDouble(type);
                         }
 
                         //Read layer value for the object
-                        string localPointLayerName = ReadStringParameterFromDataTable(
-                            ent.Layer,
-                            dtKrydsninger,
-                            "Layer",
-                            0
-                        );
+                        string localPointLayerName = krydsninger.Layer(ent.Layer) ?? "";
 
                         //Read UtilityCategory for Relocability
                         LerType lerCat = lerTypeResolver.Resolve(ent.Layer);
                         #endregion
 
                         #region Populate description field
-                        string descrFromKrydsninger = ReadStringParameterFromDataTable(
-                            ent.Layer,
-                            dtKrydsninger,
-                            "Description",
-                            0
-                        );
+                        string descrFromKrydsninger = krydsninger.Description(ent.Layer) ?? "";
 
                         //Guard against empty descriptions
                         //All descriptions must contain some information
@@ -805,7 +791,7 @@ namespace IntersectUtilities
                         string description = ProcessDescription(
                             ent,
                             descrFromKrydsninger,
-                            dtKrydsninger
+                            krydsninger
                         );
                         #endregion
 
@@ -918,12 +904,7 @@ namespace IntersectUtilities
 
                             #region Populate DriCrossingData property set
                             //Fetch diameter definitions if any
-                            string diaDef = ReadStringParameterFromDataTable(
-                                ent.Layer,
-                                dtKrydsninger,
-                                "Diameter",
-                                0
-                            );
+                            string diaDef = krydsninger.Diameter(ent.Layer) ?? "";
 
                             int diameter = 0;
                             if (diaDef.IsNotNoE())
@@ -1335,7 +1316,7 @@ namespace IntersectUtilities
                 try
                 {
                     #region Read Csv Data for Layers
-                    var dtKrydsninger = CsvData.Kryds;
+                    var krydsninger = Csv.Krydsninger;
                     #endregion
 
                     BlockTableRecord space = (BlockTableRecord)
@@ -1470,12 +1451,7 @@ namespace IntersectUtilities
                                 psm.ReadPropertyString(fEnt, dcd.SourceEntityHandle)
                             );
 
-                            string blockName = ReadStringParameterFromDataTable(
-                                originalEnt.Layer,
-                                dtKrydsninger,
-                                "Block",
-                                0
-                            );
+                            string blockName = krydsninger.Block(originalEnt.Layer) ?? "";
 
                             if (blockName.IsNotNoE())
                             {
@@ -1577,12 +1553,8 @@ namespace IntersectUtilities
                 using Database fremDb = dm.Fremtid();
                 using Transaction fremTx = fremDb.TransactionManager.StartTransaction();
 
-                #region Read CSV
-                System.Data.DataTable dynBlocks = CsvData.FK;
-                #endregion
-
                 HashSet<Curve> allCurves = fremDb.GetFjvPipes(fremTx).Cast<Curve>().ToHashSet();
-                HashSet<BlockReference> allBrs = fremDb.GetFjvBlocks(fremTx, dynBlocks);
+                HashSet<BlockReference> allBrs = fremDb.GetFjvBlocks(fremTx);
 
 #if DEBUG
                 prdDbg("FJV Blocks present:");
@@ -2018,7 +1990,7 @@ namespace IntersectUtilities
             DataReferencesOptions dro = dataReferencesOptions ?? new DataReferencesOptions();
             var dm = new DataManager(dro);
 
-            var dt = CsvData.FK;
+            var fjvComponents = Csv.FjvDynamicComponents;
 
             PropertySetManager.UpdatePropertySetDefinition(
                 dB,
@@ -2385,7 +2357,7 @@ namespace IntersectUtilities
                                     pvElBottom,
                                     komponentBlockName,
                                     bueBlockName,
-                                    dt,
+                                    fjvComponents,
                                     psmPipeLineData,
                                     driPipelineData,
                                     psmSourceReference,
@@ -6260,9 +6232,9 @@ namespace IntersectUtilities
                 try
                 {
                     #region Read Csv Data
-                    var dtKrydsninger = CsvData.Kryds;
-                    var dtDistances = CsvData.Dist;
-                    var dt = CsvData.FK;
+                    var krydsninger = Csv.Krydsninger;
+                    var distances = Csv.Distances;
+                    var fjvComponents = Csv.FjvDynamicComponents;
                     #endregion
 
                     BlockTableRecord space = (BlockTableRecord)
@@ -6447,25 +6419,10 @@ namespace IntersectUtilities
                                 );
 
                             //Determine type and distance
-                            string distanceType = ReadStringParameterFromDataTable(
-                                originalEnt.Layer,
-                                dtKrydsninger,
-                                "Distance",
-                                0
-                            );
-                            string blockType = ReadStringParameterFromDataTable(
-                                originalEnt.Layer,
-                                dtKrydsninger,
-                                "Block",
-                                0
-                            );
-                            string distance = ReadStringParameterFromDataTable(
-                                distanceType,
-                                dtDistances,
-                                "Distance",
-                                0
-                            );
-                            if (distance == null)
+                            string distanceType = krydsninger.Distance(originalEnt.Layer) ?? "";
+                            string blockType = krydsninger.Block(originalEnt.Layer) ?? "";
+                            string distance = distances.Distance(distanceType) ?? "";
+                            if (string.IsNullOrEmpty(distance))
                                 throw new System.Exception(
                                     $"Distance not found for {distanceType}! Layer: {originalEnt.Layer}"
                                 );

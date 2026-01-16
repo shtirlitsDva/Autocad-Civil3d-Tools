@@ -18,6 +18,7 @@ using IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.UI.Views;
 using IntersectUtilities.Jigs;
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.DataManager;
+using IntersectUtilities.UtilsCommon.DataManager.CsvData;
 using IntersectUtilities.UtilsCommon.Enums;
 
 using IntersectUtilities.UtilsCommon.Graphs;
@@ -85,9 +86,8 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    System.Data.DataTable fk = CsvData.FK;
                     HashSet<Polyline> allPipes = localDb.GetFjvPipes(tx);
-                    HashSet<BlockReference> brs = localDb.GetFjvBlocks(tx, fk, true, false);
+                    HashSet<BlockReference> brs = localDb.GetFjvBlocks(tx, true, false);
 
                     #region Initialize property set
                     PropertySetManager psm = new PropertySetManager(
@@ -98,10 +98,11 @@ namespace IntersectUtilities
 
                     #region Blocks
                     HashSet<string> unkBrs = new HashSet<string>();
+                    var fk = Csv.FjvDynamicComponents;
                     foreach (BlockReference br in brs)
                     {
                         //Guard against unknown blocks
-                        if (ReadStringParameterFromDataTable(br.RealName(), fk, "Navn", 0) == null)
+                        if (!fk.HasNavn(br.RealName()))
                         {
                             BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
                             if (btr.IsFromExternalReference) continue;

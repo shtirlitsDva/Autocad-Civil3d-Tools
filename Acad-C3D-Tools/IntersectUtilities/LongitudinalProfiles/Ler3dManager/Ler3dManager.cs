@@ -4,6 +4,7 @@ using Autodesk.Civil.DatabaseServices;
 
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.DataManager;
+using IntersectUtilities.UtilsCommon.DataManager.CsvData;
 using static IntersectUtilities.UtilsCommon.Utils;
 
 using NetTopologySuite.Geometries;
@@ -104,8 +105,7 @@ namespace IntersectUtilities.LongitudinalProfiles
 
                 foreach (var pl in plines)
                 {
-                    string type = UtilsDataTables.ReadStringParameterFromDataTable(
-                        pl.Layer, CsvData.Kryds, "Type", 0);
+                    string type = Csv.Krydsninger.Type(pl.Layer) ?? "";
                     if (type == "IGNORE") continue;
 
                     List<Point3d> p3dcol = new List<Point3d>();
@@ -235,8 +235,7 @@ namespace IntersectUtilities.LongitudinalProfiles
                     var plines = db.ListOfType<Polyline3d>(tx);
                     foreach (var pl in plines)
                     {
-                        string type = UtilsDataTables.ReadStringParameterFromDataTable(
-                            pl.Layer, CsvData.Kryds, "Type", 0);
+                        string type = Csv.Krydsninger.Type(pl.Layer) ?? "";
                         if (type == "IGNORE") continue;
 
                         List<Point3d> p3dcol = new List<Point3d>();

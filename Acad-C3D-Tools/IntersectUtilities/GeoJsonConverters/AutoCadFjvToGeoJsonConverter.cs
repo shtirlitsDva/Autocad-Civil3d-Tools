@@ -29,6 +29,7 @@ using System.Data;
 using MoreLinq;
 using GroupByCluster;
 using IntersectUtilities.UtilsCommon;
+using IntersectUtilities.UtilsCommon.DataManager.CsvData;
 using IntersectUtilities.UtilsCommon.Enums;
 using static IntersectUtilities.UtilsCommon.Utils;
 using Dreambuild.AutoCAD;
@@ -179,19 +180,19 @@ namespace IntersectUtilities
             if (!(entity is BlockReference br))
                 throw new ArgumentException($"Entity {entity.Handle} is not a block!");
 
-            System.Data.DataTable dt = CsvData.FK;
+            var fk = Csv.FjvDynamicComponents;
             Transaction tx = br.Database.TransactionManager.TopTransaction;
 
             var props = new Dictionary<string, object>
             {
                 { "BlockName", br.RealName() },
                 { "Type", br.ReadDynamicCsvProperty(DynamicProperty.Type) },
-                { "Rotation", ComponentSchedule.ReadBlockRotation(br, dt).ToString("0.00") },
-                { "System", ComponentSchedule.ReadComponentSystem(br, dt) },
-                { "Nominal Diameter 1", ComponentSchedule.ReadComponentDN1(br, dt) },
-                { "Nominal Diameter 2", ComponentSchedule.ReadComponentDN2(br, dt) },
-                { "Serie", PropertyReader.ReadComponentSeries(br, dt) },
-                { "Vinkel", ComponentSchedule.ReadComponentVinkel(br, dt) },
+                { "Rotation", ComponentSchedule.ReadBlockRotation(br, fk).ToString("0.00") },
+                { "System", ComponentSchedule.ReadComponentSystem(br, fk) },
+                { "Nominal Diameter 1", ComponentSchedule.ReadComponentDN1(br, fk) },
+                { "Nominal Diameter 2", ComponentSchedule.ReadComponentDN2(br, fk) },
+                { "Serie", fk.Serie(br.RealName()) ?? "" },
+                { "Vinkel", ComponentSchedule.ReadComponentVinkel(br, fk) },
                 { "color", "#000000" },
                 { "Handle", br.Handle.ToString() }
             };

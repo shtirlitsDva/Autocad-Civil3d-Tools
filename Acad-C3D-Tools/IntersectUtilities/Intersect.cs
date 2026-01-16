@@ -20,6 +20,7 @@ using IntersectUtilities.Forms;
 using IntersectUtilities.GraphClasses;
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.DataManager;
+using IntersectUtilities.UtilsCommon.DataManager.CsvData;
 using IntersectUtilities.UtilsCommon.Enums;
 
 using Microsoft.Win32;
@@ -3157,7 +3158,6 @@ namespace IntersectUtilities
             Editor editor = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-            var dt = CsvData.FK;
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
@@ -3533,7 +3533,6 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    System.Data.DataTable dt = CsvData.FK;
                     PropertySetManager psmPipeLineData = new PropertySetManager(
                         localDb,
                         PSetDefs.DefinedSets.DriPipelineData);
@@ -3587,8 +3586,7 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    System.Data.DataTable dt = CsvData.FK;
-                    var ents = localDb.GetFjvBlocks(tx, dt, false, false, true);
+                    var ents = localDb.GetFjvBlocks(tx, false, false, true);
                     List<string> brNames = ents.Select(x => x.RealName())
                         .Distinct().OrderBy(x => x).ToList();
                     StringGridForm sgf = new StringGridForm(brNames, "Select block NAME to set Serie: ");

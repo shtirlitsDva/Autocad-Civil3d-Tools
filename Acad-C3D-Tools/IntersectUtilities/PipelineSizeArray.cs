@@ -8,6 +8,7 @@ using static IntersectUtilities.DynamicBlocks.PropertyReader;
 using static IntersectUtilities.UtilsCommon.UtilsDataTables;
 using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 using IntersectUtilities.UtilsCommon;
+using IntersectUtilities.UtilsCommon.DataManager.CsvData;
 using IntersectUtilities.UtilsCommon.Enums;
 using GroupByCluster;
 using QuikGraph;
@@ -38,7 +39,7 @@ namespace IntersectUtilities
         public SizeEntry this[int index] { get => SizeArray[index]; }
         public int MaxDn { get => SizeArray.MaxBy(x => x.DN).DN; }
         public int MinDn { get => SizeArray.MinBy(x => x.DN).DN; }
-        private System.Data.DataTable dynamicBlocks { get; }
+        private FjvDynamicComponents dynamicBlocks { get; }
         private static readonly HashSet<string> unwantedTypes = new HashSet<string>()
         {
             "Svejsning",
@@ -67,7 +68,7 @@ namespace IntersectUtilities
         /// <param name="curves">All pipline curves belonging to the current alignment.</param>
         public PipelineSizeArray(Alignment al, HashSet<Curve> curves, HashSet<BlockReference> brs = default)
         {
-            dynamicBlocks = CsvData.FK;
+            dynamicBlocks = Csv.FjvDynamicComponents;
 
             #region Create graph
             var entities = new HashSet<Entity>(curves);
@@ -540,20 +541,27 @@ namespace IntersectUtilities
             }
             return default;
         }
-        private int GetDn(Entity entity, System.Data.DataTable dynBlocks)
+        private int GetDn(Entity entity, FjvDynamicComponents dynBlocks)
         {
             if (entity is Polyline pline)
                 return GetPipeDN(pline);
             else if (entity is BlockReference br)
             {
                 if (br.ReadDynamicCsvProperty(DynamicProperty.Type, false) == "Afgreningsstuds")
-                    return ReadComponentDN2Int(br, dynBlocks);
-                else return ReadComponentDN1Int(br, dynBlocks);
+                {
+                    string dn2Str = br.ReadDynamicCsvProperty(DynamicProperty.DN2);
+                    return int.TryParse(dn2Str, out int dn2) ? dn2 : 0;
+                }
+                else
+                {
+                    string dn1Str = br.ReadDynamicCsvProperty(DynamicProperty.DN1);
+                    return int.TryParse(dn1Str, out int dn1) ? dn1 : 0;
+                }
             }
 
             else throw new System.Exception("Invalid entity type");
         }
-        private PipeTypeEnum GetPipeTypeLocal(Entity entity, System.Data.DataTable dynBlocks)
+        private PipeTypeEnum GetPipeTypeLocal(Entity entity, FjvDynamicComponents dynBlocks)
         {
             if (entity is Polyline pline)
                 return GetPipeType(pline, true);
@@ -565,7 +573,7 @@ namespace IntersectUtilities
 
             else throw new System.Exception("Invalid entity type");
         }
-        private PipeSeriesEnum GetPipeSeries(Entity entity, System.Data.DataTable dynBlocks)
+        private PipeSeriesEnum GetPipeSeries(Entity entity, FjvDynamicComponents dynBlocks)
         {
             if (entity is Polyline pline)
                 return GetPipeSeriesV2(pline, true);
@@ -739,9 +747,9 @@ namespace IntersectUtilities
         /// <param name="al">Current alignment.</param>
         /// <param name="curves">Curves are only here to provide sizes to F- and Y-Models.</param>
         /// <param name="brs">Size changing blocks and transitions (F- and Y-Models).</param>
-        /// <param name="dt">Dynamic block datatable.</param>
+        /// <param name="dt">Dynamic block data source.</param>
         /// <returns>SizeArray with sizes for current alignment.</returns>
-        private SizeEntry[] ConstructWithBlocks(Alignment al, HashSet<Curve> curves, HashSet<BlockReference> brs, System.Data.DataTable dt)
+        private SizeEntry[] ConstructWithBlocks(Alignment al, HashSet<Curve> curves, HashSet<BlockReference> brs, FjvDynamicComponents dt)
         {
             BlockReference[] brsArray = default;
 
@@ -1169,71 +1177,51 @@ namespace IntersectUtilities
             throw new Exception($"Finding directionally correct properties for X-Model {br.Handle} failed!");
             #endregion
         }
-        private int GetDirectionallyCorrectDn(BlockReference br, Side side, System.Data.DataTable dt)
+        private int GetDirectionallyCorrectDn(BlockReference br, Side side, FjvDynamicComponents dt)
         {
-            switch (Arrangement)
+            // Helper function to parse DN
+            int parseDn(string s)
             {
-                case PipelineSizesArrangement.SmallToLargeAscending:
-                    switch (side)
-                    {
-                        case Side.Left:
-                            return ReadComponentDN2Int(br, dt);
-                        case Side.Right:
-                            return ReadComponentDN1Int(br, dt);
-                    }
-                    break;
-                case PipelineSizesArrangement.LargeToSmallDescending:
-                    switch (side)
-                    {
-                        case Side.Left:
-                            return ReadComponentDN1Int(br, dt);
-                        case Side.Right:
-                            return ReadComponentDN2Int(br, dt);
-                    }
-                    break;
+                string dnStr = br.ReadDynamicCsvProperty(s == "DN1" ? DynamicProperty.DN1 : DynamicProperty.DN2);
+                return int.TryParse(dnStr, out int dn) ? dn : 0;
             }
-            return 0;
-        }
-        private double GetDirectionallyCorrectKod(BlockReference br, Side side, System.Data.DataTable dt)
-        {
-            switch (Arrangement)
-            {
-                case PipelineSizesArrangement.SmallToLargeAscending:
-                    switch (side)
-                    {
-                        case Side.Left:
-                            return ReadComponentDN2KodDouble(br, dt);
-                        case Side.Right:
-                            return ReadComponentDN1KodDouble(br, dt);
-                    }
-                    break;
-                case PipelineSizesArrangement.LargeToSmallDescending:
-                    switch (side)
-                    {
-                        case Side.Left:
-                            return ReadComponentDN1KodDouble(br, dt);
-                        case Side.Right:
-                            return ReadComponentDN2KodDouble(br, dt);
-                    }
-                    break;
-            }
-            return 0;
-        }
-        private static bool IsTransition(BlockReference br, System.Data.DataTable dynBlocks)
-        {
-            string type = ReadStringParameterFromDataTable(br.RealName(), dynBlocks, "Type", 0);
 
-            if (type == null) throw new System.Exception($"Block with name {br.RealName()} does not exist " +
+            switch (Arrangement)
+            {
+                case PipelineSizesArrangement.SmallToLargeAscending:
+                    return side == Side.Left ? parseDn("DN2") : parseDn("DN1");
+                case PipelineSizesArrangement.LargeToSmallDescending:
+                    return side == Side.Left ? parseDn("DN1") : parseDn("DN2");
+            }
+            return 0;
+        }
+        private double GetDirectionallyCorrectKod(BlockReference br, Side side, FjvDynamicComponents dt)
+        {
+            int dn = GetDirectionallyCorrectDn(br, side, dt);
+            if (dn == 0) return 0;
+            
+            // Get KOd based on the block's properties
+            var ps = br.GetPipeSystemEnum();
+            var pt = br.GetPipeTypeEnum();
+            var series = br.GetPipeSeriesEnum();
+            
+            return GetPipeKOd(ps == PipeSystemEnum.Ukendt ? PipeSystemEnum.Stål : ps, dn, pt, series);
+        }
+        private static bool IsTransition(BlockReference br, FjvDynamicComponents dynBlocks)
+        {
+            string type = dynBlocks.Type(br.RealName()) ?? "";
+
+            if (string.IsNullOrEmpty(type)) throw new System.Exception($"Block with name {br.RealName()} does not exist " +
                 $"in Dynamiske Komponenter!");
 
             return type == "Reduktion";
         }
         ///Determines whether the block is an F- or Y-Model
-        private static bool IsXModel(BlockReference br, System.Data.DataTable dynBlocks)
+        private static bool IsXModel(BlockReference br, FjvDynamicComponents dynBlocks)
         {
-            string type = ReadStringParameterFromDataTable(br.RealName(), dynBlocks, "Type", 0);
+            string type = dynBlocks.Type(br.RealName()) ?? "";
 
-            if (type == null) throw new System.Exception($"Block with name {br.RealName()} does not exist " +
+            if (string.IsNullOrEmpty(type)) throw new System.Exception($"Block with name {br.RealName()} does not exist " +
                 $"in Dynamiske Komponenter!");
 
             HashSet<string> transitionTypes = new HashSet<string>()
@@ -1318,7 +1306,7 @@ namespace IntersectUtilities
         public readonly int DN2;
         public readonly PipelineElementType Type;
         public readonly double Station;
-        public PipelineElement(Entity entity, Alignment al, System.Data.DataTable dt)
+        public PipelineElement(Entity entity, Alignment al, FjvDynamicComponents dt)
         {
             switch (entity)
             {

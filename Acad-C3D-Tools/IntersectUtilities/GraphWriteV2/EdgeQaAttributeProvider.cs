@@ -4,6 +4,7 @@ using IntersectUtilities.DynamicBlocks;
 using IntersectUtilities;
 using IntersectUtilities.UtilsCommon.Enums;
 using IntersectUtilities.UtilsCommon.Graphs;
+using IntersectUtilities.UtilsCommon.DataManager.CsvData;
 
 using System;
 using System.Collections.Generic;
@@ -24,7 +25,7 @@ namespace IntersectUtilities.GraphWriteV2
         /// </remarks>
         public static Dictionary<(string fromHandle, string toHandle), string> BuildEdgeAttributes(
             Graph<GraphEntity> graph,
-            System.Data.DataTable fjvTable)
+            FjvDynamicComponents fjvTable)
         {
             var result = new Dictionary<(string fromHandle, string toHandle), string>();
             if (graph == null || graph.Root == null) return result;
@@ -341,7 +342,7 @@ namespace IntersectUtilities.GraphWriteV2
             return result;
         }
 
-        private static bool DnIsAllowedOnNodeEdge(GraphEntity node, string neighborHandleStr, int dn, System.Data.DataTable fjvTable)
+        private static bool DnIsAllowedOnNodeEdge(GraphEntity node, string neighborHandleStr, int dn, FjvDynamicComponents fjvTable)
         {
             // If node is a pipe, DN must equal pipe DN
             if (node.Owner is Polyline pl)
@@ -392,7 +393,7 @@ namespace IntersectUtilities.GraphWriteV2
             return result;
         }
 
-        private static HashSet<int> GetNodeDnSet(GraphEntity node, System.Data.DataTable fjvTable)
+        private static HashSet<int> GetNodeDnSet(GraphEntity node, FjvDynamicComponents fjvTable)
         {
             var set = new HashSet<int>();
             switch (node.Owner)
@@ -420,7 +421,7 @@ namespace IntersectUtilities.GraphWriteV2
             return string.CompareOrdinal(a, b) <= 0 ? (a, b) : (b, a);
         }
 
-        private static PipeTypeEnum GetPipeTypeOnEnd(Entity ent, EndType endType, System.Data.DataTable fjvTable)
+        private static PipeTypeEnum GetPipeTypeOnEnd(Entity ent, EndType endType, FjvDynamicComponents fjvTable)
         {
             if (ent is Polyline pl)
             {
@@ -493,7 +494,7 @@ namespace IntersectUtilities.GraphWriteV2
         public static string? GetAttributes(
             Entity ent1, EndType endType1,
             Entity ent2, EndType endType2,
-            System.Data.DataTable fjvTable)
+            FjvDynamicComponents fjvTable)
         {
             var errors = new List<string>();
 
@@ -515,7 +516,7 @@ namespace IntersectUtilities.GraphWriteV2
         private static void Qa_System(
             Entity ent1, EndType endType1,
             Entity ent2, EndType endType2,
-            System.Data.DataTable fjvTable,
+            FjvDynamicComponents fjvTable,
             List<string> errors)
         {
             PipeTypeEnum type1 = default;
@@ -554,7 +555,7 @@ namespace IntersectUtilities.GraphWriteV2
         private static void Qa_Dn(
             Entity ent1, EndType endType1,
             Entity ent2, EndType endType2,
-            System.Data.DataTable fjvTable,
+            FjvDynamicComponents fjvTable,
             List<string> errors)
         {
             var dnSet1 = new HashSet<int>();

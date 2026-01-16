@@ -4,6 +4,7 @@ using System;
 using System.Linq;
 using System.Text.RegularExpressions;
 using IntersectUtilities.UtilsCommon;
+using IntersectUtilities.UtilsCommon.DataManager.CsvData;
 using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
 using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
@@ -170,6 +171,8 @@ namespace IntersectUtilities
             return stringToProcess;
         }
         public static string ReadBlockName(BlockReference br, System.Data.DataTable fjvTable) => br.RealName();
+        public static string ReadBlockName(BlockReference br, FjvDynamicComponents fjvComponents) => br.RealName();
+
         public static string ReadComponentType(BlockReference br, System.Data.DataTable fjvTable)
         {
             string propertyToExtractName = "Type";
@@ -189,8 +192,29 @@ namespace IntersectUtilities
             }
             return valueToReturn ?? "";
         }
+
+        public static string ReadComponentType(BlockReference br, FjvDynamicComponents fjvComponents)
+        {
+            string valueToReturn = fjvComponents.Type(br.RealName()) ?? "";
+
+            if (valueToReturn.StartsWith("$"))
+            {
+                valueToReturn = valueToReturn.Substring(1);
+                //If the value is a pattern to extract from string
+                if (valueToReturn.Contains("{"))
+                {
+                    valueToReturn = ConstructStringByRegex(br, valueToReturn);
+                }
+                //Else the value is parameter literal to read
+                else return (br.GetDynamicPropertyByName(valueToReturn)?.Value as string ?? "");
+            }
+            return valueToReturn ?? "";
+        }
         public static double ReadBlockRotation(BlockReference br, System.Data.DataTable fjvTable) =>
             br.Rotation * (180 / Math.PI);
+        public static double ReadBlockRotation(BlockReference br, FjvDynamicComponents fjvComponents) =>
+            br.Rotation * (180 / Math.PI);
+
         public static string ReadComponentSystem(BlockReference br, System.Data.DataTable fjvTable)
         {
             string propertyToExtractName = "System";
@@ -210,6 +234,22 @@ namespace IntersectUtilities
             }
             return valueToReturn ?? "";
         }
+        public static string ReadComponentSystem(BlockReference br, FjvDynamicComponents fjvComponents)
+        {
+            string valueToReturn = fjvComponents.System(br.RealName()) ?? "";
+
+            if (valueToReturn.StartsWith("$"))
+            {
+                valueToReturn = valueToReturn.Substring(1);
+                if (valueToReturn.Contains("{"))
+                {
+                    valueToReturn = GetValueByRegex(br, "System", valueToReturn);
+                }
+                else return br.GetDynamicPropertyByName(valueToReturn).Value as string ?? "";
+            }
+            return valueToReturn ?? "";
+        }
+
         public static string ReadComponentDN1(BlockReference br, System.Data.DataTable fjvTable)
         {
             string propertyToExtractName = "DN1";
@@ -231,6 +271,22 @@ namespace IntersectUtilities
             }
             return valueToReturn ?? "";
         }
+        public static string ReadComponentDN1(BlockReference br, FjvDynamicComponents fjvComponents)
+        {
+            string valueToReturn = fjvComponents.DN1(br.RealName()) ?? "";
+
+            if (valueToReturn.StartsWith("$"))
+            {
+                valueToReturn = valueToReturn.Substring(1);
+                if (valueToReturn.Contains("{"))
+                {
+                    valueToReturn = GetValueByRegex(br, "DN1", valueToReturn);
+                }
+                else return br.GetDynamicPropertyByName(valueToReturn).Value.ToString() ?? "";
+            }
+            return valueToReturn ?? "";
+        }
+
         public static string ReadComponentDN2(BlockReference br, System.Data.DataTable fjvTable)
         {
             string propertyToExtractName = "DN2";
@@ -251,6 +307,22 @@ namespace IntersectUtilities
             }
             return valueToReturn ?? "";
         }
+        public static string ReadComponentDN2(BlockReference br, FjvDynamicComponents fjvComponents)
+        {
+            string valueToReturn = fjvComponents.DN2(br.RealName()) ?? "";
+
+            if (valueToReturn.StartsWith("$"))
+            {
+                valueToReturn = valueToReturn.Substring(1);
+                if (valueToReturn.Contains("{"))
+                {
+                    valueToReturn = GetValueByRegex(br, "DN2", valueToReturn);
+                }
+                else return br.GetDynamicPropertyByName(valueToReturn).Value.ToString() ?? "";
+            }
+            return valueToReturn ?? "";
+        }
+
         public static string ReadComponentVinkel(BlockReference br, System.Data.DataTable fjvTable)
         {
             string propertyToExtractName = "Vinkel";
@@ -266,6 +338,25 @@ namespace IntersectUtilities
                     valueToReturn = GetValueByRegex(br, propertyToExtractName, valueToReturn);
                 }
                 //Else the value is parameter literal to read
+                else
+                {
+                    double value = Convert.ToDouble(br.GetDynamicPropertyByName(valueToReturn).Value);
+                    return (value * (180 / Math.PI)).ToString("0.##");
+                }
+            }
+            return valueToReturn ?? "";
+        }
+        public static string ReadComponentVinkel(BlockReference br, FjvDynamicComponents fjvComponents)
+        {
+            string valueToReturn = fjvComponents.Vinkel(br.RealName()) ?? "";
+
+            if (valueToReturn.StartsWith("$"))
+            {
+                valueToReturn = valueToReturn.Substring(1);
+                if (valueToReturn.Contains("{"))
+                {
+                    valueToReturn = GetValueByRegex(br, "Vinkel", valueToReturn);
+                }
                 else
                 {
                     double value = Convert.ToDouble(br.GetDynamicPropertyByName(valueToReturn).Value);
@@ -343,68 +434,76 @@ namespace IntersectUtilities
         public static string ReadDynamicCsvProperty(
             this BlockReference br, DynamicProperty prop, bool parseProperty = true)
         {
-            System.Data.DataTable dt = CsvData.FK;
+            var fk = Csv.FjvDynamicComponents;
 
             string key = br.RealName();
             string parameter = prop.ToString();
             string version = br.GetAttributeStringValue("VERSION");
-            //int keyColumnIdx = 0
+
+            // Get column index from parameter name
+            if (!Enum.TryParse<FjvDynamicComponents.Columns>(parameter, out var columnEnum))
+                return "";
+
+            int columnIndex = (int)columnEnum;
+            int versionIndex = (int)FjvDynamicComponents.Columns.Version;
+
+            if (fk.HasNavn(key))
             {
-                if (dt.AsEnumerable().Any(row => row.Field<string>(0) == key))
+                var matchingRow = fk.Rows
+                    .Where(row => 
+                        row[(int)FjvDynamicComponents.Columns.Navn] == key &&
+                        row[versionIndex] == version)
+                    .FirstOrDefault();
+
+                if (matchingRow == null || matchingRow.Length <= columnIndex)
+                    return "";
+
+                string value = matchingRow[columnIndex] ?? "";
+                if (parseProperty)
                 {
-                    var query = dt.AsEnumerable()
-                        .Where(x =>
-                        x.Field<string>(0) == key &&
-                        x.Field<string>("Version") == version)
-                        .Select(x => x.Field<string>(parameter));
+                    //Catch ordinary block attributes
+                    //This is a quick fix!
+                    //TODO: Refactor attributes reading!!!!
 
-                    string value = query.FirstOrDefault();
-                    if (parseProperty)
+                    if (value.StartsWith("#"))
                     {
-                        //Catch ordinary block attributes
-                        //This is a quick fix!
-                        //TODO: Refactor attributes reading!!!!
+                        value = value.Substring(1);
 
-                        if (value.StartsWith("#"))
+                        value = br.GetAttributeStringValue(value);
+                    }
+
+                    //Continue with old dynamic attributes logic
+
+                    value = ConstructStringByRegex(br, value);
+                    if (value.StartsWith("$"))
+                    {
+                        value = value.Substring(1);
+
+                        //If the value is a pattern to extract from string
+                        if (value.Contains("{"))
                         {
-                            value = value.Substring(1);
-
-                            value = br.GetAttributeStringValue(value);
+                            value = GetValueByRegex(br, parameter, value);
                         }
-
-                        //Continue with old dynamic attributes logic
-
-                        value = ConstructStringByRegex(br, value);
-                        if (value.StartsWith("$"))
+                        //Else the value is parameter literal to read
+                        else
                         {
-                            value = value.Substring(1);
-
-                            //If the value is a pattern to extract from string
-                            if (value.Contains("{"))
+                            var result = br.GetDynamicPropertyByName(value)?.Value?.ToString() ?? "";
+                            if (result == "") 
                             {
-                                value = GetValueByRegex(br, parameter, value);
-                            }
-                            //Else the value is parameter literal to read
-                            else
-                            {
-                                var result = br.GetDynamicPropertyByName(value)?.Value?.ToString() ?? "";
-                                if (result == "") 
-                                {
-                                    //If the value is not found within dynamic properties,
-                                    //try to read it from the block attributes
-                                    result = br.GetAttributeStringValue(value);
-                                    return result;
-                                }
-
+                                //If the value is not found within dynamic properties,
+                                //try to read it from the block attributes
+                                result = br.GetAttributeStringValue(value);
                                 return result;
                             }
+
+                            return result;
                         }
-                        return value;
                     }
-                    else return value;
+                    return value;
                 }
-                else return "";
+                else return value;
             }
+            else return "";
         }
         public static PipelineElementType GetPipelineType(this BlockReference br)
         {
@@ -414,10 +513,11 @@ namespace IntersectUtilities
             else
             {
                 HashSet<string> missing = new HashSet<string>();
-                foreach (DataRow row in CsvData.FK.Rows)
+                var fk = Csv.FjvDynamicComponents;
+                foreach (var row in fk.Rows)
                 {
-                    var type = row["Type"].ToString();
-                    if (!PipelineElementTypeDict.ContainsKey(type))
+                    var type = row[(int)FjvDynamicComponents.Columns.Type];
+                    if (!string.IsNullOrEmpty(type) && !PipelineElementTypeDict.ContainsKey(type))
                         missing.Add(type);
                 }
 
@@ -460,7 +560,7 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    System.Data.DataTable dt = CsvData.FK;
+                    var fk = Csv.FjvDynamicComponents;
 
                     var btr = db.GetBlockTableRecordByName(blockName);
 
@@ -480,10 +580,10 @@ namespace IntersectUtilities
                     #endregion
 
                     #region Determine latest version
-                    var query = dt.AsEnumerable()
-                            .Where(x => x["Navn"].ToString() == blockName)
-                            .Select(x => x["Version"].ToString())
-                            .Select(x => { if (x == "") return "1"; else return x; })
+                    var query = fk.Rows
+                            .Where(row => row[(int)FjvDynamicComponents.Columns.Navn] == blockName)
+                            .Select(row => row[(int)FjvDynamicComponents.Columns.Version])
+                            .Select(x => { if (string.IsNullOrEmpty(x)) return "1"; else return x; })
                             .Select(x => Convert.ToInt32(x.Replace("v", "")))
                             .OrderBy(x => x);
 

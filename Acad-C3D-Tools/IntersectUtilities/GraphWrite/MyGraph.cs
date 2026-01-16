@@ -7,9 +7,9 @@ using IntersectUtilities.UtilsCommon.Graphs;
 
 using System;
 using System.Collections.Generic;
-using System.Data;
 using System.IO;
 using System.Linq;
+using IntersectUtilities.UtilsCommon.DataManager.CsvData;
 //using MoreLinq;
 using System.Text;
 
@@ -31,8 +31,8 @@ namespace IntersectUtilities.GraphWrite
         public static PropertySetManager PSM { get; set; }
         Database dB { get; }
         private HashSet<Polyline> allPipes;
-        private System.Data.DataTable ComponentTable { get; }
-        public Graph(Database database, PropertySetManager psm, System.Data.DataTable componentTable)
+        private FjvDynamicComponents ComponentTable { get; }
+        public Graph(Database database, PropertySetManager psm, FjvDynamicComponents componentTable)
         {
             PSM = psm;
             ComponentTable = componentTable;

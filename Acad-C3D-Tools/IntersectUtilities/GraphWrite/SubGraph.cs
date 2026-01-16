@@ -1,6 +1,7 @@
 ﻿using Autodesk.AutoCAD.DatabaseServices;
 
 using IntersectUtilities.UtilsCommon;
+using IntersectUtilities.UtilsCommon.DataManager.CsvData;
 
 using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 
@@ -16,11 +17,11 @@ namespace IntersectUtilities.GraphWrite
     internal class Subgraph
     {
         private Database Database { get; }
-        private System.Data.DataTable Table { get; }
+        private FjvDynamicComponents Table { get; }
         internal string Alignment { get; }
         internal bool isEntryPoint { get; set; } = false;
         internal HashSet<Handle> Nodes { get; } = new HashSet<Handle>();
-        internal Subgraph(Database database, System.Data.DataTable table, string alignment)
+        internal Subgraph(Database database, FjvDynamicComponents table, string alignment)
         { Alignment = alignment; Database = database; Table = table; }
         internal string WriteSubgraph(int subgraphIndex, bool subGraphsOn = true)
         {

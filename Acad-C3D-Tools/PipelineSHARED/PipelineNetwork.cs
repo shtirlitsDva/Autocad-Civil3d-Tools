@@ -7,6 +7,7 @@ using GroupByCluster;
 
 using IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray;
 using IntersectUtilities.UtilsCommon;
+using IntersectUtilities.UtilsCommon.DataManager.CsvData;
 using IntersectUtilities.UtilsCommon.Enums;
 using IntersectUtilities.UtilsCommon.Graphs;
 
@@ -449,7 +450,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
             Database localDb = docCol.MdiActiveDocument.Database;
 
             PipeSettingsCollection psc = PipeSettingsCollection.LoadWithValidation(localDb);
-            DataTable dt = CsvData.FK;
+            var fk = Csv.FjvDynamicComponents;
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
@@ -547,10 +548,10 @@ namespace IntersectUtilities.PipelineNetworkSystem
                         #endregion
 
                         #region Determine latest version
-                        var query = dt.AsEnumerable()
-                                .Where(x => x["Navn"].ToString() == blockName)
-                                .Select(x => x["Version"].ToString())
-                                .Select(x => { if (x == "") return "1"; else return x; })
+                        var query = fk.Rows
+                                .Where(row => row[(int)FjvDynamicComponents.Columns.Navn] == blockName)
+                                .Select(row => row[(int)FjvDynamicComponents.Columns.Version])
+                                .Select(x => { if (string.IsNullOrEmpty(x)) return "1"; else return x; })
                                 .Select(x => Convert.ToInt32(x.Replace("v", "")))
                                 .OrderBy(x => x);
 

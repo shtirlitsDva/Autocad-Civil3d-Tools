@@ -18,6 +18,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.Enums;
+using IntersectUtilities.UtilsCommon.DataManager.CsvData;
 using static IntersectUtilities.UtilsCommon.Utils;
 using IntersectUtilities.PipeScheduleV2;
 using IntersectUtilities;
@@ -293,5 +294,152 @@ namespace IntersectUtilities.DynamicBlocks
             }
             else throw new System.Exception($"{br.RealName()}:{br.Handle} returned non-standard \"System\": {systemString}!");
         }
+
+        #region FjvDynamicComponents overloads
+        public static string ReadComponentDN1Str(BlockReference br, FjvDynamicComponents fjv)
+        {
+            string version = br.GetAttributeStringValue("VERSION");
+            string valueToReturn = fjv.DN1(br.RealName(), version) ?? "";
+
+            if (valueToReturn.StartsWith("$"))
+            {
+                valueToReturn = valueToReturn.Substring(1);
+                if (valueToReturn.Contains("{"))
+                    valueToReturn = GetValueByRegex(br, "DN1", valueToReturn);
+                else
+                    return br.GetDynamicPropertyByName(valueToReturn)?.ToString() ?? "";
+            }
+            return valueToReturn;
+        }
+
+        public static int ReadComponentDN1Int(BlockReference br, FjvDynamicComponents fjv)
+        {
+            string value = ReadComponentDN1Str(br, fjv);
+            if (value.IsNoE()) return 0;
+            return int.TryParse(value, out int result) ? result : 0;
+        }
+
+        public static string ReadComponentDN2Str(BlockReference br, FjvDynamicComponents fjv)
+        {
+            string version = br.GetAttributeStringValue("VERSION");
+            string valueToReturn = fjv.DN2(br.RealName(), version) ?? "";
+
+            if (valueToReturn.StartsWith("$"))
+            {
+                valueToReturn = valueToReturn.Substring(1);
+                if (valueToReturn.Contains("{"))
+                    valueToReturn = GetValueByRegex(br, "DN2", valueToReturn);
+                else
+                    return br.GetDynamicPropertyByName(valueToReturn)?.ToString() ?? "";
+            }
+            return valueToReturn;
+        }
+
+        public static int ReadComponentDN2Int(BlockReference br, FjvDynamicComponents fjv)
+        {
+            string value = ReadComponentDN2Str(br, fjv);
+            if (value.IsNoE()) return 0;
+            return int.TryParse(value, out int result) ? result : 0;
+        }
+
+        public static string ReadComponentSeries(BlockReference br, FjvDynamicComponents fjv)
+        {
+            string version = br.GetAttributeStringValue("VERSION");
+            string valueToReturn = fjv.Serie(br.RealName(), version) ?? "";
+
+            if (valueToReturn.StartsWith("$"))
+            {
+                valueToReturn = valueToReturn.Substring(1);
+                if (valueToReturn.Contains("{"))
+                    valueToReturn = GetValueByRegex(br, "Serie", valueToReturn);
+                else
+                    return br.GetDynamicPropertyByName(valueToReturn)?.ToString() ?? "";
+            }
+            return valueToReturn;
+        }
+
+        public static string ReadComponentSystem(BlockReference br, FjvDynamicComponents fjv, EndType endType = default)
+        {
+            try
+            {
+                string version = br.GetAttributeStringValue("VERSION");
+                string valueToReturn = fjv.System(br.RealName(), version) ?? "";
+
+                // Special care for F-Model og Y-Rør
+                string type = fjv.Type(br.RealName(), version) ?? "";
+
+                if (endType != default && (type == "F-Model" || type == "Y-Model"))
+                {
+                    if (endType == EndType.Main) return "Twin";
+                    else if (endType == EndType.Branch) return "Enkelt";
+                    else return "Enkelt";
+                }
+
+                if (valueToReturn.StartsWith("$"))
+                {
+                    valueToReturn = valueToReturn.Substring(1);
+                    if (valueToReturn.Contains("{"))
+                        valueToReturn = GetValueByRegex(br, "System", valueToReturn);
+                    else
+                        return br.GetDynamicPropertyByName(valueToReturn)?.ToString() ?? "";
+                }
+                return valueToReturn;
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg(br.Handle);
+                prdDbg(ex);
+                throw;
+            }
+        }
+
+        public static double ReadComponentDN1KodDouble(BlockReference br, FjvDynamicComponents fjv)
+        {
+            string systemString = ReadComponentSystem(br, fjv);
+            if (Enum.TryParse(systemString, out PipeTypeEnum system))
+            {
+                int dn = ReadComponentDN1Int(br, fjv);
+                if (dn == 0 || dn == 999) throw new System.Exception($"{br.RealName()} failed to read DN1!");
+
+                string seriesString = ReadComponentSeries(br, fjv);
+                if (Enum.TryParse(seriesString, out PipeSeriesEnum series))
+                {
+                    return system switch
+                    {
+                        PipeTypeEnum.Twin => GetPipeKOd(PipeSystemEnum.Stål, dn, PipeTypeEnum.Twin, series),
+                        PipeTypeEnum.Frem or PipeTypeEnum.Retur or PipeTypeEnum.Enkelt =>
+                            GetPipeKOd(PipeSystemEnum.Stål, dn, PipeTypeEnum.Enkelt, series),
+                        _ => throw new System.Exception($"{br.RealName()}:{br.Handle} returned non-standard \"System\": (PipeTypeEnum) {systemString}!")
+                    };
+                }
+                else throw new System.Exception($"{br.RealName()}:{br.Handle} returned non-standard \"Serie\": {seriesString}!");
+            }
+            else throw new System.Exception($"{br.RealName()}:{br.Handle} returned non-standard \"System\": {systemString}!");
+        }
+
+        public static double ReadComponentDN2KodDouble(BlockReference br, FjvDynamicComponents fjv)
+        {
+            string systemString = ReadComponentSystem(br, fjv);
+            if (Enum.TryParse(systemString, out PipeTypeEnum system))
+            {
+                int dn = ReadComponentDN2Int(br, fjv);
+                if (dn == 0 || dn == 999) throw new System.Exception($"{br.RealName()}:{br.Handle} failed to read DN2!");
+
+                string seriesString = ReadComponentSeries(br, fjv);
+                if (Enum.TryParse(seriesString, out PipeSeriesEnum series))
+                {
+                    return system switch
+                    {
+                        PipeTypeEnum.Twin => GetPipeKOd(PipeSystemEnum.Stål, dn, PipeTypeEnum.Twin, series),
+                        PipeTypeEnum.Frem or PipeTypeEnum.Retur or PipeTypeEnum.Enkelt =>
+                            GetPipeKOd(PipeSystemEnum.Stål, dn, PipeTypeEnum.Enkelt, series),
+                        _ => throw new System.Exception($"{br.RealName()}:{br.Handle} returned non-standard \"System\": (PipeTypeEnum) {systemString}!")
+                    };
+                }
+                else throw new System.Exception($"{br.RealName()}:{br.Handle} returned non-standard \"Serie\": {seriesString}!");
+            }
+            else throw new System.Exception($"{br.RealName()}:{br.Handle} returned non-standard \"System\": {systemString}!");
+        }
+        #endregion
     }
 }

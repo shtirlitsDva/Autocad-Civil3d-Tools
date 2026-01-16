@@ -165,6 +165,11 @@
 	  <Resource Include="FjernvarmeFremtidig\VejkantOffset\UI\Resources\DarkTheme.xaml" />
 	</ItemGroup>
 	<ItemGroup>
+	  <Page Include="..\DimensioneringV2\UI\Theme.xaml" Link="CmdUI\UI\Theme.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </Page>
+	</ItemGroup>
+	<ItemGroup>
 	  <EmbeddedResource Include="DataScience\MergeReportStyles.css" />
 	</ItemGroup>	
 	<Import Project="..\UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems" Label="Shared" />

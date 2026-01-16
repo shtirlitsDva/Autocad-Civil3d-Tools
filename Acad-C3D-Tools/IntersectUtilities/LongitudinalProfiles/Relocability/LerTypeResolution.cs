@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using static IntersectUtilities.UtilsCommon.Utils;
 using IntersectUtilities.UtilsCommon.Enums;
+using IntersectUtilities.UtilsCommon.DataManager.CsvData;
 
 namespace IntersectUtilities.LongitudinalProfiles.Relocability
 {
@@ -52,19 +53,19 @@ namespace IntersectUtilities.LongitudinalProfiles.Relocability
     public static partial class LerTypeBuilder
     {
         /// <summary>
-        /// Builds name-to-type mapping from a DataTable - for integration with existing systems
+        /// Builds name-to-type mapping from Krydsninger CSV data source.
         /// </summary>
-        public static Dictionary<string, LerType> BuildNameToTypeMappingFromDataTable(
-            DataTable dataTable
+        public static Dictionary<string, LerType> BuildNameToTypeMappingFromKrydsninger(
+            Krydsninger krydsninger
         )
         {
             var mapping = new Dictionary<string, LerType>(StringComparer.OrdinalIgnoreCase);
 
-            foreach (DataRow row in dataTable.Rows)
+            foreach (var row in krydsninger.Rows)
             {
-                var navn = row["Navn"]?.ToString();
-                var distance = row["Distance"]?.ToString();
-                var type = row["Type"]?.ToString();
+                var navn = row[(int)Krydsninger.Columns.Navn];
+                var distance = row[(int)Krydsninger.Columns.Distance];
+                var type = row[(int)Krydsninger.Columns.Type];
 
                 if (string.IsNullOrWhiteSpace(navn) || string.IsNullOrWhiteSpace(distance))
                     continue;
@@ -131,12 +132,20 @@ namespace IntersectUtilities.LongitudinalProfiles.Relocability
     public static partial class LerTypeResolverFactory
     {
         /// <summary>
-        /// Creates a resolver from an existing DataTable - for integration with existing systems
+        /// Creates a resolver from the Krydsninger CSV data source.
         /// </summary>
-        public static ILerTypeResolver CreateFromDataTable(DataTable dataTable)
+        public static ILerTypeResolver Create(Krydsninger krydsninger)
         {
-            var mapping = LerTypeBuilder.BuildNameToTypeMappingFromDataTable(dataTable);
+            var mapping = LerTypeBuilder.BuildNameToTypeMappingFromKrydsninger(krydsninger);
             return new LerTypeResolver(mapping);
+        }
+
+        /// <summary>
+        /// Creates a resolver using the active Krydsninger configuration.
+        /// </summary>
+        public static ILerTypeResolver Create()
+        {
+            return Create(Csv.Krydsninger);
         }
     }
 }
