@@ -760,8 +760,17 @@ namespace IntersectUtilities
                             depth = dybde.GetDybdeDouble(type);
                         }
 
+                        // Helper to strip -2D and -3D suffixes from layer names for LagLer lookup
+                        static string StripSuffix(string? layerName)
+                        {
+                            if (string.IsNullOrEmpty(layerName)) return string.Empty;
+                            if (layerName.EndsWith("-2D")) return layerName[..^3];
+                            if (layerName.EndsWith("-3D")) return layerName[..^3];
+                            return layerName;
+                        }
+
                         //Read layer value for the object
-                        string localPointLayerName = ent.Layer;
+                        string localPointLayerName = StripSuffix(ent.Layer);
 
                         //Read UtilityCategory for Relocability
                         LerType lerCat = lerTypeResolver.Resolve(ent.Layer);
