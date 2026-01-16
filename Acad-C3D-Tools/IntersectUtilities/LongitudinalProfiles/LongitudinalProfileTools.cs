@@ -761,7 +761,7 @@ namespace IntersectUtilities
                         }
 
                         //Read layer value for the object
-                        string localPointLayerName = krydsninger.Layer(ent.Layer) ?? "";
+                        string localPointLayerName = ent.Layer;
 
                         //Read UtilityCategory for Relocability
                         LerType lerCat = lerTypeResolver.Resolve(ent.Layer);

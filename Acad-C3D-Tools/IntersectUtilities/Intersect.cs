@@ -839,6 +839,8 @@ namespace IntersectUtilities
                     var lagLer = Csv.LagLer;
                     LayerTable lt = selectedDB.LayerTableId.Go<LayerTable>(selectedDB.TransactionManager.TopTransaction);
                     HashSet<string> layerNames = lagLer.AllLayers().ToHashSet();
+                    LinetypeTable ltt = selectedDB.LinetypeTableId.Go<LinetypeTable>(selectedDB.TransactionManager.TopTransaction);
+
                     foreach (string name in layerNames.Where(x => x.IsNotNoE()).OrderBy(x => x))
                     {
                         if (lt.Has(name))
@@ -848,9 +850,11 @@ namespace IntersectUtilities
                             {
                                 var color = UtilsCommon.Utils.ParseColorString(colorString);
                                 prdDbg($"Set layer {name} to color: {color}");
-                                LayerTableRecord ltr = lt[name].Go<LayerTableRecord>(selectedDB.TransactionManager.TopTransaction, OpenMode.ForWrite);
+                                LayerTableRecord ltr = lt[name].Go<LayerTableRecord>(
+                                    selectedDB.TransactionManager.TopTransaction, OpenMode.ForWrite);
                                 ltr.Color = color;
                                 ltr.LineWeight = LineWeight.LineWeight013;
+                                ltr.LinetypeObjectId = ltt["Continuous"];
                             }
                             else prdDbg("No match!");
                         }
