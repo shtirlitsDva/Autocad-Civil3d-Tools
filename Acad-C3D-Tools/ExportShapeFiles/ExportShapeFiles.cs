@@ -21,6 +21,7 @@ using System.Linq;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 using static IntersectUtilities.UtilsCommon.UtilsDataTables;
+using IntersectUtilities.UtilsCommon.DataManager.CsvData;
 
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Log = ExportShapeFiles.ExportShapeFiles.SimpleLogger;
@@ -137,9 +138,7 @@ namespace ExportShapeFiles
                     #endregion
 
                     #region Exporting BRs
-                    var dt = CsvData.FK;
-
-                    HashSet<BlockReference> brs = localDb.GetFjvBlocks(tx, dt, false);
+                    HashSet<BlockReference> brs = localDb.GetFjvBlocks(tx, discardWelds: false);
 
                     Log.log($"{brs.Count} br(s) found for export.");
 
@@ -259,9 +258,7 @@ namespace ExportShapeFiles
                     #endregion
 
                     #region Exporting BRs
-                    var dt = CsvData.FK;
-
-                    HashSet<BlockReference> brs = localDb.GetFjvBlocks(tx, dt);
+                    HashSet<BlockReference> brs = localDb.GetFjvBlocks(tx);
 
                     Log.log($"{brs.Count} br(s) found for export.");
 

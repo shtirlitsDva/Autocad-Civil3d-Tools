@@ -2616,25 +2616,7 @@ namespace IntersectUtilities
                 #endregion
 
                 #region Read CSV
-                System.Data.DataTable dt = default;
-                try
-                {
-                    dt = CsvReader.ReadCsvToDataTable(
-                        @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv",
-                        "FjvKomponenter"
-                    );
-                }
-                catch (System.Exception ex)
-                {
-                    prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
-                    prdDbg(ex);
-                    throw;
-                }
-                if (dt == default)
-                {
-                    prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
-                    throw new System.Exception("Failed to read FJV Dynamiske Komponenter.csv");
-                }
+                var fk = Csv.FjvDynamicComponents;
                 #endregion
 
                 //////////////////////////////////////
@@ -3069,10 +3051,7 @@ namespace IntersectUtilities
                             #endregion
 
                             #region Place component blocks
-                            System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(
-                                @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv",
-                                "FjvKomponenter"
-                            );
+                            var fjvKomponenter = Csv.FjvDynamicComponents;
                             foreach (BlockReference br in brs)
                             {
 #if DEBUG
@@ -3181,12 +3160,7 @@ namespace IntersectUtilities
                                 //Buerør need special treatment
                                 if (br.RealName() != "BUEROR1" && br.RealName() != "BUEROR2")
                                     continue;
-                                string type = ReadStringParameterFromDataTable(
-                                    br.RealName(),
-                                    fjvKomponenter,
-                                    "Type",
-                                    0
-                                );
+                                string? type = fjvKomponenter.Type(br.RealName());
                                 string augmentedType = ComponentSchedule.ReadComponentType(
                                     br,
                                     fjvKomponenter
@@ -3334,12 +3308,7 @@ namespace IntersectUtilities
                             foreach (BlockReference br in brs)
                             {
                                 #region Determine placement
-                                string type = ReadStringParameterFromDataTable(
-                                    br.RealName(),
-                                    fjvKomponenter,
-                                    "Type",
-                                    0
-                                );
+                                string? type = fjvKomponenter.Type(br.RealName());
                                 if (type != "Svejsning")
                                     continue;
 
@@ -3944,28 +3913,6 @@ namespace IntersectUtilities
                     //prdDbg("Curves:");
                     //prdDbg(sizeArray.ToString());
 
-                    #region Read CSV
-                    System.Data.DataTable dt = default;
-                    try
-                    {
-                        dt = CsvReader.ReadCsvToDataTable(
-                            @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv",
-                            "FjvKomponenter"
-                        );
-                    }
-                    catch (System.Exception ex)
-                    {
-                        prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
-                        prdDbg(ex);
-                        throw;
-                    }
-                    if (dt == default)
-                    {
-                        prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
-                        throw new System.Exception("Failed to read FJV Dynamiske Komponenter.csv");
-                    }
-                    #endregion
-
                     IPipelineV2 pipeline = PipelineV2Factory.Create(
                         curves.Cast<Entity>().Union(brs),
                         al
@@ -4547,23 +4494,7 @@ namespace IntersectUtilities
                     );
                     #endregion
 
-                    #region Read Csv Data for Layers and Depth
-
-                    //Establish the pathnames to files
-                    //Files should be placed in a specific folder on desktop
-                    string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
-                    string pathDybde = "X:\\AutoCAD DRI - 01 Civil 3D\\Dybde.csv";
-
-                    System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(
-                        pathKrydsninger,
-                        "Krydsninger"
-                    );
-                    System.Data.DataTable dtDybde = CsvReader.ReadCsvToDataTable(
-                        pathDybde,
-                        "Dybde"
-                    );
-
-                    #endregion
+                    // Krydsninger and Dybde can be accessed via Csv.Krydsninger and Csv.Dybde if needed
 
                     #region Delete existing points
                     PointGroupCollection pgs = civilDoc.PointGroups;
@@ -6985,28 +6916,6 @@ namespace IntersectUtilities
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
-
-            #region Read CSV
-            System.Data.DataTable dt = default;
-            try
-            {
-                dt = CsvReader.ReadCsvToDataTable(
-                    @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv",
-                    "FjvKomponenter"
-                );
-            }
-            catch (System.Exception ex)
-            {
-                prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
-                prdDbg(ex);
-                throw;
-            }
-            if (dt == default)
-            {
-                prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
-                throw new System.Exception("Failed to read FJV Dynamiske Komponenter.csv");
-            }
-            #endregion
 
             #region Open fremtidig db and get entities
             var dro = new DataReferencesOptions();

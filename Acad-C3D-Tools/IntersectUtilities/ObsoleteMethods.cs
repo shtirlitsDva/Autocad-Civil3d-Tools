@@ -1,4 +1,4 @@
-﻿using Autodesk.AutoCAD.ApplicationServices;
+using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
@@ -47,70 +47,10 @@ using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 namespace IntersectUtilities
 {
     /// <summary>
-    /// Class for intersection tools.
+    /// Class for storing old code that is now obsolete.
     /// </summary>
     public class ObsoleteMethods
     {
-        [CommandMethod("LISTALLFJVBLOCKS")]
-        public static void listallfjvblocks()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-
-            Editor ed = Application.DocumentManager.MdiActiveDocument.Editor;
-            try
-            {
-                using (Transaction tx = localDb.TransactionManager.StartTransaction())
-                using (Database symbolerDB = new Database(false, true))
-                {
-                    try
-                    {
-                        System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(
-                                            @"X:\AutoCAD DRI - 01 Civil 3D\FJV Komponenter.csv", "FjvKomponenter");
-
-                        symbolerDB.ReadDwgFile(@"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\" +
-                                               @"02 Tegninger\01 Autocad\Autocad\01 Views\0.0 Fælles\Symboler.dwg",
-                                               System.IO.FileShare.Read, true, "");
-
-                        ObjectIdCollection ids = new ObjectIdCollection();
-
-                        BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
-
-                        using (Transaction symbTx = symbolerDB.TransactionManager.StartTransaction())
-                        {
-                            BlockTable symbBt = symbTx.GetObject(symbolerDB.BlockTableId, OpenMode.ForRead) as BlockTable;
-
-                            foreach (oid Oid in bt)
-                            {
-                                BlockTableRecord btr = tx.GetObject(Oid, OpenMode.ForWrite) as BlockTableRecord;
-
-                                if (ReadStringParameterFromDataTable(btr.Name, fjvKomponenter, "Navn", 0) != null &&
-                                    ReadStringParameterFromDataTable(btr.Name, fjvKomponenter, "Type", 0) == "Reduktion" &&
-                                    bt.Has(btr.Name))
-                                {
-                                    prdDbg(btr.Name);
-                                }
-                            }
-                            symbTx.Commit();
-                        }
-
-                    }
-                    catch (System.Exception ex)
-                    {
-                        tx.Abort();
-                        ed.WriteMessage(ex.Message);
-                        throw;
-                    }
-
-                    tx.Commit();
-                };
-            }
-            catch (System.Exception ex)
-            {
-                ed.WriteMessage(ex.Message);
-            }
-        }
+        
     }
 }

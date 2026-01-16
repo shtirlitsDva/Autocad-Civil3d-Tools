@@ -40,6 +40,7 @@ using static IntersectUtilities.UtilsCommon.Utils;
 
 using static IntersectUtilities.UtilsCommon.UtilsDataTables;
 using static IntersectUtilities.UtilsCommon.UtilsODData;
+using IntersectUtilities.UtilsCommon.DataManager.CsvData;
 
 using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
 using CivSurface = Autodesk.Civil.DatabaseServices.Surface;
@@ -1648,13 +1649,14 @@ namespace IntersectUtilities.Dimensionering
                 PropertySetManager bbrPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.BBR);
                 PSetDefs.BBR bbrDef = new PSetDefs.BBR();
 
-                var enhKoder = CsvData.EnhKoder;
+                var enhKoder = Csv.EnhKoder;
                 Dictionary<string, string> enhKoderDict = new Dictionary<string, string>();
-                foreach (DataRow row in enhKoder.Rows)
+                foreach (var row in enhKoder.Rows)
                 {
-                    string key = row[0].ToString();
-                    string value = row[1].ToString();
-                    enhKoderDict.Add(key, value);
+                    string key = row[(int)EnhKoder.Columns.Nr];
+                    string value = row[(int)EnhKoder.Columns.Kode];
+                    if (!enhKoderDict.ContainsKey(key))
+                        enhKoderDict.Add(key, value);
                 }
 
                 var brs = localDb.HashSetOfType<BlockReference>(tx, true);
@@ -1792,15 +1794,16 @@ namespace IntersectUtilities.Dimensionering
                 PropertySetManager bbrPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.BBR);
                 PSetDefs.BBR bbrDef = new PSetDefs.BBR();
 
-                var enhKoder = CsvData.EnhKoder;
+                var enhKoder = Csv.EnhKoder;
                 var enhKoderDict = new Dictionary<string, bool>();
-                foreach (DataRow row in enhKoder.Rows)
+                foreach (var row in enhKoder.Rows)
                 {
                     //Column "Nr."
-                    string key = row[0].ToString();
+                    string key = row[(int)EnhKoder.Columns.Nr];
                     //Column "Beboelse"
-                    bool result = int.Parse(row[2].ToString()) == 1;
-                    enhKoderDict.Add(key, result);
+                    bool result = int.TryParse(row[(int)EnhKoder.Columns.Beboelse], out int val) && val == 1;
+                    if (!enhKoderDict.ContainsKey(key))
+                        enhKoderDict.Add(key, result);
                 }
 
                 //PrintTable(

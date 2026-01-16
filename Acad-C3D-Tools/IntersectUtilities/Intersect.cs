@@ -100,44 +100,6 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    #region Select XREF -- OBSOLETE
-
-                    //PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions("\n Select a LER XREF : ");
-                    //promptEntityOptions1.SetRejectMessage("\n Not a XREF");
-                    //promptEntityOptions1.AddAllowedClass(typeof(Autodesk.AutoCAD.DatabaseServices.BlockReference), true);
-                    //PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
-                    //if (((PromptResult)entity1).Status != PromptStatus.OK) return;
-                    //Autodesk.AutoCAD.DatabaseServices.ObjectId blkObjId = entity1.ObjectId;
-                    //Autodesk.AutoCAD.DatabaseServices.BlockReference blkRef
-                    //    = tx.GetObject(blkObjId, OpenMode.ForRead, false)
-                    //    as Autodesk.AutoCAD.DatabaseServices.BlockReference;
-                    #endregion
-
-                    #region Open XREF and tx -- OBSOLETE
-
-                    //// open the block definition?
-                    //BlockTableRecord blockDef = tx.GetObject(blkRef.BlockTableRecord, OpenMode.ForRead) as BlockTableRecord;
-                    //// is not from external reference, exit
-                    //if (!blockDef.IsFromExternalReference) return;
-                    //// open the xref database
-                    //Database xRefDB = new Database(false, true);
-                    //editor.WriteMessage($"\nPathName of the blockDef -> {blockDef.PathName}");
-                    ////Relative path handling
-                    ////I
-                    //string curPathName = blockDef.PathName;
-                    //bool isFullPath = IsFullPath(curPathName);
-                    //if (isFullPath == false)
-                    //{
-                    //    string sourcePath = Path.GetDirectoryName(doc.Name);
-                    //    editor.WriteMessage($"\nSourcePath -> {sourcePath}");
-                    //    curPathName = GetAbsolutePath(sourcePath, blockDef.PathName);
-                    //    editor.WriteMessage($"\nTargetPath -> {curPathName}");
-                    //}
-                    //xRefDB.ReadDwgFile(curPathName, System.IO.FileShare.Read, false, string.Empty);
-                    ////Transaction from Database of the Xref
-                    //Transaction xrefTx = xRefDB.TransactionManager.StartTransaction();
-                    #endregion
-
                     #region Gather layer names
 
                     HashSet<Line> lines = db.HashSetOfType<Line>(tx);
@@ -168,24 +130,20 @@ namespace IntersectUtilities
                     #endregion
 
                     #region Read Csv Data for Layers and Depth
-
-                    //Establish the pathnames to files
-                    string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
-                    string pathDybde = "X:\\AutoCAD DRI - 01 Civil 3D\\Dybde.csv";
-                    System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
-                    System.Data.DataTable dtDybde = CsvReader.ReadCsvToDataTable(pathDybde, "Dybde");
+                    var krydsninger = Csv.Krydsninger;
+                    var dybde = Csv.Dybde;
                     #endregion
 
                     foreach (string name in layNames)
                     {
-                        string nameInFile = ReadStringParameterFromDataTable(name, dtKrydsninger, "Navn", 0);
+                        string? nameInFile = krydsninger.Navn(name);
                         if (nameInFile.IsNoE())
                         {
                             editor.WriteMessage($"\nDefinition af ledningslag '{name}' mangler i Krydsninger.csv!");
                         }
                         else
                         {
-                            string typeInFile = ReadStringParameterFromDataTable(name, dtKrydsninger, "Type", 0);
+                            string? typeInFile = krydsninger.Type(name);
                             if (typeInFile == "IGNORE")
                             {
                                 editor.WriteMessage($"\nAdvarsel: Ledningslag" +
@@ -193,7 +151,7 @@ namespace IntersectUtilities
                             }
                             else
                             {
-                                string layerInFile = ReadStringParameterFromDataTable(name, dtKrydsninger, "Layer", 0);
+                                string? layerInFile = krydsninger.Layer(name);
                                 if (layerInFile.IsNoE())
                                     editor.WriteMessage($"\nFejl: Definition af kolonne \"Layer\" for ledningslag" +
                                         $" '{name}' mangler i Krydsninger.csv!");
@@ -878,6 +836,7 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    Csv.
                     string lagSti = "X:\\AutoCAD DRI - 01 Civil 3D\\Lag.csv";
                     System.Data.DataTable dtLag = CsvReader.ReadCsvToDataTable(lagSti, "Lag");
                     LayerTable lt = selectedDB.LayerTableId.Go<LayerTable>(selectedDB.TransactionManager.TopTransaction);
@@ -3814,23 +3773,7 @@ namespace IntersectUtilities
                 try
                 {
                     #region Read CSV
-                    System.Data.DataTable dt = default;
-                    try
-                    {
-                        dt = CsvReader.ReadCsvToDataTable(
-                                @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
-                    }
-                    catch (System.Exception ex)
-                    {
-                        prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
-                        prdDbg(ex);
-                        throw;
-                    }
-                    if (dt == default)
-                    {
-                        prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
-                        throw new System.Exception("Failed to read FJV Dynamiske Komponenter.csv");
-                    }
+                    var fk = Csv.FjvDynamicComponents;
                     #endregion
                     PropertySetManager psmPLD = new PropertySetManager(
                         localDb,
@@ -3877,7 +3820,7 @@ namespace IntersectUtilities
                     var leafVerts = startingGraph.Vertices.Where(
                         x => startingGraph.OutEdges(x).Where(
                             y => y.EndType != EndType.WeldOn).Count() == 1);
-                    var startVert = leafVerts.MaxBy(x => GetDn(x, dt));
+                    var startVert = leafVerts.MaxBy(x => GetDn(x));
                     //var vert = startingGraph.Vertices.Where(
                     //    x => x.Handle.ToString() == "11EFA0").FirstOrDefault();
                     //foreach (var edge in startingGraph.OutEdges(vert))
@@ -3909,7 +3852,7 @@ namespace IntersectUtilities
                         new Dictionary<string, ClusteredAdjacencyGraph<Entity, EdgeTyped>>();
                     foreach (var vertex in adjacencyGraph.Vertices)
                     {
-                        string clusterName = GetClusterName(vertex, psmPLD, driPLD, dt);
+                        string clusterName = GetClusterName(vertex, psmPLD, driPLD);
                         if (clusterName.IsNoE()) continue;
                         if (!clusterDict.ContainsKey(clusterName))
                             clusterDict[clusterName] = clusteredGraph.AddCluster();
@@ -3936,8 +3879,8 @@ namespace IntersectUtilities
                                 string dn1 = ComponentSchedule.ReadDynamicCsvProperty(br, DynamicProperty.DN1);
                                 string dn2 = ComponentSchedule.ReadDynamicCsvProperty(br, DynamicProperty.DN2);
                                 string dnStr = dn2 == "0" ? dn1 : dn1 + "/" + dn2;
-                                system = ComponentSchedule.ReadComponentSystem(br, dt);
-                                string type = ComponentSchedule.ReadComponentType(br, dt);
+                                system = ComponentSchedule.ReadComponentSystem(br, fk);
+                                string type = ComponentSchedule.ReadComponentType(br, fk);
                                 if (type == "Reduktion")
                                     args.VertexFormat.StrokeColor =
                                     QuikGraph.Graphviz.Dot.GraphvizColor.Red;
@@ -3975,7 +3918,7 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
-        private int GetDn(Entity entity, System.Data.DataTable dt)
+        private int GetDn(Entity entity)
         {
             if (entity is Polyline pline)
                 return GetPipeDN(pline);
@@ -3990,7 +3933,7 @@ namespace IntersectUtilities
             else throw new System.Exception("Invalid entity type");
         }
         private string GetClusterName(
-            Entity entity, PropertySetManager psm, PSetDefs.DriPipelineData pld, System.Data.DataTable dt)
+            Entity entity, PropertySetManager psm, PSetDefs.DriPipelineData pld)
         {
             if (entity is Polyline)
                 return psm.ReadPropertyString(entity, pld.BelongsToAlignment);
@@ -4445,11 +4388,7 @@ namespace IntersectUtilities
                     #endregion
 
                     #region Read Csv Data for Layers
-                    //Establish the pathnames to files
-                    //Files should be placed in a specific folder on desktop
-                    string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
-
-                    System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
+                    var krydsninger = Csv.Krydsninger;
                     #endregion
 
                     #region Load linework for analysis
@@ -4471,7 +4410,7 @@ namespace IntersectUtilities
                         pline.ColorIndex = 256;
 
                         //Check if pline's layer exists in krydsninger
-                        string nameInFile = ReadStringParameterFromDataTable(pline.Layer, dtKrydsninger, "Navn", 0);
+                        string? nameInFile = krydsninger.Navn(pline.Layer);
                         if (nameInFile.IsNoE())
                         {
                             layerNameNotDefined++;
@@ -4479,7 +4418,7 @@ namespace IntersectUtilities
                         }
 
                         //Check if pline's layer is IGNOREd
-                        string typeInFile = ReadStringParameterFromDataTable(pline.Layer, dtKrydsninger, "Type", 0);
+                        string? typeInFile = krydsninger.Type(pline.Layer);
                         if (typeInFile == "IGNORE")
                         {
                             layerNameIgnored++;
@@ -4487,8 +4426,7 @@ namespace IntersectUtilities
                         }
 
                         //Check if diameter information exists
-                        string diameterDef = ReadStringParameterFromDataTable(pline.Layer,
-                                dtKrydsninger, "Diameter", 0);
+                        string? diameterDef = krydsninger.Diameter(pline.Layer);
                         if (diameterDef.IsNoE())
                         {
                             layerDiameterDefMissing++;
@@ -4593,9 +4531,7 @@ namespace IntersectUtilities
                 try
                 {
                     #region Read krydsninger
-                    string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
-                    System.Data.DataTable dtK = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
-                    if (dtK == null) throw new System.Exception("Failed to read Krydsninger.csv!");
+                    var krydsninger = Csv.Krydsninger;
                     #endregion
 
                     #region Create layer for labels
@@ -4612,8 +4548,7 @@ namespace IntersectUtilities
                     {
                         string layerName = group.Key;
 
-                        string labelRecipe =
-                            ReadStringParameterFromDataTable(layerName, dtK, "Label", 0);
+                        string? labelRecipe = krydsninger.Label(layerName);
 
                         if (labelRecipe.IsNoE())
                         {

@@ -12,6 +12,7 @@ using GroupByCluster;
 using IntersectUtilities.LER2;
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.DataManager;
+using IntersectUtilities.UtilsCommon.DataManager.CsvData;
 
 using Microsoft.Win32;
 
@@ -151,12 +152,7 @@ namespace IntersectUtilities
             Document doc = docCol.MdiActiveDocument;
 
             #region Read Csv Data for Layers and Depth
-
-            //Establish the pathnames to files
-            //Files should be placed in a specific folder on desktop
-            string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
-
-            System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
+            var krydsninger = Csv.Krydsninger;
             #endregion
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
@@ -211,7 +207,7 @@ namespace IntersectUtilities
 
                 HashSet<Polyline3d> allLinework = localDb
                     .HashSetOfType<Polyline3d>(tx)
-                    .Where(x => ReadStringParameterFromDataTable(x.Layer, dtKrydsninger, "Type", 0) == "3D")
+                    .Where(x => krydsninger.Type(x.Layer) == "3D")
                     .ToHashSet();
                 editor.WriteMessage($"\nNr. of 3D polies: {allLinework.Count}");
                 #endregion

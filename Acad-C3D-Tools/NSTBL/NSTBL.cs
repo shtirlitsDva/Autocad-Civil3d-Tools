@@ -177,8 +177,6 @@ namespace IntersectUtilities.NSTBL
                     PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriOmråder);
                     PSetDefs.DriOmråder psDef = new PSetDefs.DriOmråder();
 
-                    System.Data.DataTable dt = CsvData.FK;
-
                     #region Collect Intersection Results
                     for (int i = 0; i < cplines.Count; i++)
                     {

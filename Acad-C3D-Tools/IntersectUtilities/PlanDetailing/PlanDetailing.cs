@@ -853,26 +853,6 @@ namespace IntersectUtilities
                     HashSet<BlockReference> allbrs = localDb.HashSetOfType<BlockReference>(tx);
                     HashSet<Curve> curves = localDb.ListOfType<Curve>(tx).ToHashSet();
 
-                    #region Read CSV
-                    System.Data.DataTable dt = default;
-                    try
-                    {
-                        dt = CsvReader.ReadCsvToDataTable(
-                                @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
-                    }
-                    catch (System.Exception ex)
-                    {
-                        prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
-                        prdDbg(ex);
-                        throw;
-                    }
-                    if (dt == default)
-                    {
-                        prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
-                        throw new System.Exception("Failed to read FJV Dynamiske Komponenter.csv");
-                    }
-                    #endregion
-
                     var reducers = allbrs.Where(x => x.ReadDynamicCsvProperty(DynamicProperty.Type) == "Reduktion");
 
                     foreach (BlockReference r in reducers)
