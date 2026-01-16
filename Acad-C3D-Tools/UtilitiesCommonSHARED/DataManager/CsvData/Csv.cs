@@ -38,6 +38,7 @@ namespace IntersectUtilities.UtilsCommon.DataManager.CsvData
         private static InstOgBr? _instOgBr;
         private static AnvKoder? _anvKoder;
         private static EnhKoder? _enhKoder;
+        private static NsLoadRegister? _nsLoadRegister;
 
         static Csv()
         {
@@ -237,6 +238,24 @@ namespace IntersectUtilities.UtilsCommon.DataManager.CsvData
             }
         }
 
+        /// <summary>
+        /// Gets the NsLoadRegister (DLL loading registry) data source.
+        /// </summary>
+        public static NsLoadRegister NsLoadRegister
+        {
+            get
+            {
+                if (_nsLoadRegister == null)
+                {
+                    lock (_lock)
+                    {
+                        _nsLoadRegister ??= new NsLoadRegister();
+                    }
+                }
+                return _nsLoadRegister;
+            }
+        }
+
         #endregion
 
         #region Utility methods
@@ -257,6 +276,7 @@ namespace IntersectUtilities.UtilsCommon.DataManager.CsvData
                 _instOgBr?.Invalidate();
                 _anvKoder?.Invalidate();
                 _enhKoder?.Invalidate();
+                _nsLoadRegister?.Invalidate();
             }
         }
 

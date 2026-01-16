@@ -131,9 +131,6 @@
 		</Reference>
 	</ItemGroup>	
 	<ItemGroup>
-		<Compile Include="..\IntersectUtilities\CsvReader.cs">
-			<Link>Links\CsvReader.cs</Link>
-		</Compile>
 		<Compile Include="..\IntersectUtilities\GroupByCluster.cs">
 			<Link>Links\GroupByCluster.cs</Link>
 		</Compile>

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -7,9 +7,10 @@ using System.Xml.Linq;
 
 using Autodesk.AutoCAD.Runtime;
 using Autodesk.AutoCAD.ApplicationServices;
-using static IntersectUtilities.CsvReader;
 using Autodesk.AutoCAD.EditorInput;
 using System.Reflection;
+
+using Microsoft.VisualBasic.FileIO;
 
 namespace DRILOAD
 {
@@ -30,13 +31,8 @@ namespace DRILOAD
         [CommandMethod("NSLOAD")]
         public void nsload()
         {
-            System.Data.DataTable dt = ReadCsvToDataTable(
-                @"X:\AutoCAD DRI - 01 Civil 3D\NetloadV2\Register-2025.csv", "Register");
-
-            Dictionary<string, string> dllDict = new Dictionary<string, string>();
-
-            foreach (System.Data.DataRow row in dt.Rows)
-                dllDict.Add(row["DisplayName"].ToString(), row["Path"].ToString());
+            string csvPath = @"X:\AutoCAD DRI - 01 Civil 3D\NetloadV2\Register-2025.csv";
+            var dllDict = LoadRegisterCsv(csvPath);
 
             var kwd = IntersectUtilities.StringGridFormCaller.Call(
                 dllDict.Keys, "Select Norsyn program to load: ");
@@ -69,79 +65,37 @@ namespace DRILOAD
                 $"DLL {System.IO.Path.GetFileName(pathToLoad)} loaded!");
         }
 
-        [CommandMethod("NSLOADALL")]
-        public void nsloadall()
+        /// <summary>
+        /// Reads the register CSV and returns a dictionary of DisplayName -> Path.
+        /// </summary>
+        private static Dictionary<string, string> LoadRegisterCsv(string csvPath)
         {
-            System.Data.DataTable dt = ReadCsvToDataTable(
-                @"X:\AutoCAD DRI - 01 Civil 3D\NetloadV2\Register-2025.csv", "Register");
+            var dict = new Dictionary<string, string>();
 
-            Dictionary<string, string> dllDict = new Dictionary<string, string>();
-
-            foreach (System.Data.DataRow row in dt.Rows)
-                dllDict.Add(row["DisplayName"].ToString(), row["Path"].ToString());
-
-            foreach (var dllFile in dllDict)
+            using (var parser = new TextFieldParser(csvPath))
             {
-                // Springer Dimensionering v2 over
-                if (dllFile.Key.Equals("NSDIMv2"))
+                parser.TextFieldType = FieldType.Delimited;
+                parser.SetDelimiters(";");
+                parser.HasFieldsEnclosedInQuotes = true;
+
+                // Skip header
+                if (!parser.EndOfData)
+                    parser.ReadFields();
+
+                while (!parser.EndOfData)
                 {
-                    continue;
+                    string[]? fields = parser.ReadFields();
+                    if (fields != null && fields.Length >= 2)
+                    {
+                        string displayName = fields[0].Trim();
+                        string path = fields[1].Trim();
+                        if (!string.IsNullOrEmpty(displayName) && !string.IsNullOrEmpty(path))
+                            dict[displayName] = path;
+                    }
                 }
-
-                string pathToLoad = dllFile.Value;
-
-                if (!System.IO.File.Exists(pathToLoad))
-                    throw new System.Exception($"DLL file {pathToLoad} does not exist!");
-
-
-
-                try
-                {
-                    Assembly.LoadFrom(pathToLoad);
-                }
-                catch (System.Exception ex)
-                {
-                    Application.DocumentManager.MdiActiveDocument.Editor.WriteMessage(
-                      "\nCannot load {0}: {1}",
-                      pathToLoad,
-                      ex.Message
-                    );
-                    Application.DocumentManager.MdiActiveDocument.Editor.WriteMessage(
-                      "\n" + ex.ToString()
-                    );
-                    return;
-                }
-
-                Application.DocumentManager.MdiActiveDocument.Editor.WriteMessage(
-                    $"DLL {System.IO.Path.GetFileName(pathToLoad)} loaded!");
             }
+
+            return dict;
         }
-
-        //private static string GetKeywords(string message, ICollection<string> keywords)
-        //{
-        //    if (keywords.Count == 0) return null;
-
-        //    string messageAndKeywords = message + " [";
-        //    messageAndKeywords += string.Join("/", keywords.ToArray());
-        //    messageAndKeywords += "]";
-
-        //    string globalKeywords = string.Join(" ", keywords.ToArray());
-
-        //    var ed = Application.DocumentManager.MdiActiveDocument.Editor;
-        //    var opt = new PromptKeywordOptions(message);
-        //    opt.AllowNone = true;
-
-        //    opt.SetMessageAndKeywords(messageAndKeywords, globalKeywords);
-        //    opt.Keywords.Default = keywords.FirstOrDefault();
-
-        //    var res = ed.GetKeywords(opt);
-        //    if (res.Status == PromptStatus.OK)
-        //    {
-        //        return res.StringResult;
-        //    }
-
-        //    return null;
-        //}
     }
 }
-

@@ -61,6 +61,7 @@ using IntersectUtilities.Dimensionering.Forms;
 using Schema.Datafordeler;
 using DimensioneringV2;
 using Microsoft.Win32;
+using Microsoft.VisualBasic.FileIO;
 
 namespace IntersectUtilities.Dimensionering
 {
@@ -1378,7 +1379,7 @@ namespace IntersectUtilities.Dimensionering
             {
                 try
                 {
-                    System.Data.DataTable dt = CsvReader.ReadCsvToDataTable(
+                    System.Data.DataTable dt = ReadCsvToDataTableLocal(
                         @"X:\AutoCAD DRI - QGIS\CSV TIL REST HENTER\AnvendelsesKoderPrivatErhverv.csv", "PrivatErhverv");
 
                     PropertySetManager bbrPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.BBR);
@@ -1974,6 +1975,46 @@ namespace IntersectUtilities.Dimensionering
 
             sb.Append("</ul>");  // Close the top-level list
             return sb.ToString();
+        }
+
+        /// <summary>
+        /// Reads a CSV file into a DataTable. Local helper to replace removed CsvReader.
+        /// </summary>
+        private static System.Data.DataTable ReadCsvToDataTableLocal(string filePath, string tableName)
+        {
+            var dt = new System.Data.DataTable(tableName);
+
+            using (var parser = new TextFieldParser(filePath))
+            {
+                parser.TextFieldType = FieldType.Delimited;
+                parser.SetDelimiters(";");
+                parser.HasFieldsEnclosedInQuotes = true;
+
+                // Read header
+                if (!parser.EndOfData)
+                {
+                    string[]? headers = parser.ReadFields();
+                    if (headers != null)
+                    {
+                        foreach (string header in headers)
+                            dt.Columns.Add(header.Trim());
+                    }
+                }
+
+                // Read data rows
+                while (!parser.EndOfData)
+                {
+                    string[]? fields = parser.ReadFields();
+                    if (fields != null)
+                    {
+                        // Ensure field count matches column count
+                        if (fields.Length == dt.Columns.Count)
+                            dt.Rows.Add(fields);
+                    }
+                }
+            }
+
+            return dt;
         }
     }
 

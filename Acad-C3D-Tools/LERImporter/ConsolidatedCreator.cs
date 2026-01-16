@@ -13,6 +13,7 @@ using Autodesk.AutoCAD.Runtime;
 using Autodesk.AutoCAD.Geometry;
 using IntersectUtilities;
 using IntersectUtilities.UtilsCommon;
+using IntersectUtilities.UtilsCommon.DataManager.CsvData;
 using LERImporter.Schema;
 using Microsoft.VisualBasic.Logging;
 using Log = LERImporter.SimpleLogger;
@@ -30,9 +31,7 @@ namespace LERImporter
     {
         public static void CreateLerData(Database? Db2d, Database? Db3d, FeatureCollection fc)
         {
-            string pathLag = "X:\\AutoCAD DRI - 01 Civil 3D\\Lag-Ler2.0.csv";
-            System.Data.DataTable dtLag = CsvReader.ReadCsvToDataTable(pathLag, "Lag");
-            if (dtLag == null) throw new System.Exception("Lag file could not be read!");
+            var lagLer = Csv.LagLer;
 
             HashSet<UtilityOwner> ownersRegister = new HashSet<UtilityOwner>();
             HashSet<LedningType> ledninger = new HashSet<LedningType>();
@@ -449,7 +448,7 @@ namespace LERImporter
                 //Set up all LER layers
                 foreach (string layerName in layerNames2d)
                 {
-                    string colorString = ReadStringParameterFromDataTable(layerName, dtLag, "Farve", 0);
+                    string colorString = lagLer.Farve(layerName) ?? "";
 
                     Color color;
                     if (colorString.IsNoE())
@@ -487,7 +486,7 @@ namespace LERImporter
                     if (layerName.EndsWith("-3D"))
                         tempLayerName =
                             tempLayerName.Substring(0, tempLayerName.Length - 3);
-                    string colorString = ReadStringParameterFromDataTable(tempLayerName, dtLag, "Farve", 0);
+                    string colorString = lagLer.Farve(tempLayerName) ?? "";
 
                     Color color;
                     if (colorString.IsNoE())
@@ -524,7 +523,7 @@ namespace LERImporter
                 HashSet<string> missingLineTypes = new HashSet<string>();
                 foreach (string layerName in layerNames2d)
                 {
-                    string lineTypeName = ReadStringParameterFromDataTable(layerName, dtLag, "LineType", 0);
+                    string lineTypeName = lagLer.LineType(layerName) ?? "";
                     if (lineTypeName.IsNoE()) continue;
                     else if (!ltt.Has(lineTypeName)) missingLineTypes.Add(lineTypeName);
                 }
@@ -572,7 +571,7 @@ namespace LERImporter
                 Oid lineTypeId;
                 foreach (string layerName in layerNames2d)
                 {
-                    string lineTypeName = ReadStringParameterFromDataTable(layerName, dtLag, "LineType", 0);
+                    string lineTypeName = lagLer.LineType(layerName) ?? "";
                     if (lineTypeName.IsNoE())
                     {
                         Log.log($"WARNING! Layer name {layerName} does not have a line type specified!.");

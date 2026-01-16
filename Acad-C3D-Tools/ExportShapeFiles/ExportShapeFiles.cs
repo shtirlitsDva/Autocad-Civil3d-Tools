@@ -338,7 +338,7 @@ namespace ExportShapeFiles
                     Log.log($"Exporting to {exportDir}.");
 
                     #region Exporting
-                    var dt = ExportShapeFilesEasyGis.Utils.GetFjvBlocksDt();
+                    var fk = ExportShapeFilesEasyGis.Utils.GetFjvComponents();
                     HashSet<Entity> ents = localDb.GetFjvEntities(tx, true, true, true);
 
                     Log.log($"{ents.Count} entit(y/ies) found for export.");
@@ -524,7 +524,7 @@ namespace ExportShapeFiles
 
             Log.log($"-~*~- Starting new BATCH export -~*~-");
 
-            System.Data.DataTable dt = CsvReader.ReadCsvToDataTable(@"X:\AutoCAD DRI - 01 Civil 3D\Stier.csv", "Stier");
+            var stier = Csv.Stier;
 
             string exportDir;
             OpenFolderDialog fsd = new OpenFolderDialog()
@@ -539,31 +539,30 @@ namespace ExportShapeFiles
             }
             else return;
 
-            if (dt == null)
+            if (stier.RowCount == 0)
             {
-                Log.log($"Datatable creation failed (null)! Aborting...");
-                return;
-            }
-            else if (dt.Rows.Count == 0)
-            {
-                Log.log($"Datatable creation failed (0 rows)! Aborting...");
+                Log.log($"Stier CSV has 0 rows! Aborting...");
                 return;
             }
             else
             {
-                Log.log($"Datatable created with {dt.Rows.Count} record(s).");
+                Log.log($"Stier CSV loaded with {stier.RowCount} record(s).");
             }
 
-            var projectList = dt.AsEnumerable()
-                .Select(x => x["PrjId"].ToString()).Distinct().OrderByAlphaNumeric(x => x);
+            var projectList = stier.Rows
+                .Select(row => Stier.Col(row, Stier.Columns.PrjId))
+                .Where(s => !string.IsNullOrEmpty(s))
+                .Distinct()
+                .OrderByAlphaNumeric(x => x);
 
             string projectName =
                 Interaction.GetKeywords("Vælg projekt til eksport: ", projectList.ToArray());
             if (projectName.IsNoE()) return;
 
-            List<string> list = dt.AsEnumerable()
-                .Where(x => x["PrjId"].ToString() == projectName)
-                .Select(x => x["Fremtid"].ToString()).ToList();
+            List<string> list = stier.Rows
+                .Where(row => Stier.Col(row, Stier.Columns.PrjId) == projectName)
+                .Select(row => Stier.Col(row, Stier.Columns.Fremtid))
+                .ToList();
 
             Log.log($"Phases found: {list.Count}.");
 
@@ -594,7 +593,9 @@ namespace ExportShapeFiles
                 Log.log($"Processing " + fileName);
                 count++;
 
-                string phaseNumber = ReadStringParameterFromDataTable(fileName, dt, "Etape", 5);
+                string phaseNumber = stier.Rows
+                    .FirstOrDefault(row => Stier.Col(row, Stier.Columns.Fremtid) == fileName)
+                    is string[] matchedRow ? Stier.Col(matchedRow, Stier.Columns.Etape) : "";
 
                 using (Database extDb = new Database(false, true))
                 {

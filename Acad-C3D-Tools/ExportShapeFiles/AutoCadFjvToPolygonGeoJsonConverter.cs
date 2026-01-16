@@ -127,7 +127,7 @@ namespace ExportShapeFiles
             if (!(entity is BlockReference br))
                 throw new ArgumentException($"Entity {entity.Handle} is not a block!");
 
-            System.Data.DataTable dt = ExportShapeFilesEasyGis.Utils.GetFjvBlocksDt();
+            var fk = ExportShapeFilesEasyGis.Utils.GetFjvComponents();
             Transaction tx = br.Database.TransactionManager.TopTransaction;
 
             string color = "#000000";
@@ -135,13 +135,13 @@ namespace ExportShapeFiles
             var props = new AttributesTable
             {
                 { "BlockName", br.RealName() },
-                { "Type", ComponentSchedule.ReadComponentType(br, dt) },
-                { "Rotation", ComponentSchedule.ReadBlockRotation(br, dt).ToString("0.00") },
-                { "System", ComponentSchedule.ReadComponentSystem(br, dt) },
-                { "DN1", ComponentSchedule.ReadComponentDN1(br, dt) },
-                { "DN2", ComponentSchedule.ReadComponentDN2(br, dt) },
-                { "Serie", PropertyReader.ReadComponentSeries(br, dt) },
-                { "Vinkel", ComponentSchedule.ReadComponentVinkel(br, dt) },
+                { "Type", ComponentSchedule.ReadComponentType(br, fk) },
+                { "Rotation", ComponentSchedule.ReadBlockRotation(br, fk).ToString("0.00") },
+                { "System", ComponentSchedule.ReadComponentSystem(br, fk) },
+                { "DN1", ComponentSchedule.ReadComponentDN1(br, fk) },
+                { "DN2", ComponentSchedule.ReadComponentDN2(br, fk) },
+                { "Serie", PropertyReader.ReadComponentSeries(br, fk) },
+                { "Vinkel", ComponentSchedule.ReadComponentVinkel(br, fk) },
                 { "Kappe", "NULL" },
                 { "color", color }
             };

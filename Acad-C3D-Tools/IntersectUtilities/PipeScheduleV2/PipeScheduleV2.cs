@@ -3,18 +3,16 @@ using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 
 using IntersectUtilities.UtilsCommon;
+using IntersectUtilities.UtilsCommon.DataManager.CsvData;
 using IntersectUtilities.UtilsCommon.Enums;
 
 using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Linq;
 using System.Text.RegularExpressions;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 
-using DataColumn = System.Data.DataColumn;
-using DataTable = System.Data.DataTable;
 using Application = Autodesk.AutoCAD.ApplicationServices.Core.Application;
 
 namespace IntersectUtilities.PipeScheduleV2
@@ -93,14 +91,6 @@ namespace IntersectUtilities.PipeScheduleV2
             {"Logstor", CompanyEnum.Logstor },
             {"Isoplus", CompanyEnum.Isoplus },
         };
-        public static Dictionary<string, Type> radiiColumnTypeDict = new Dictionary<string, Type>()
-        {
-            {"DN", typeof(int)},
-            {"PipeType", typeof(string)},
-            {"PipeLength" , typeof(int)},
-            {"BRpmin", typeof(double)},
-            {"ERpmin", typeof(double)},
-        };
         public static void LoadRadiiData(string pathToPipeTypesStore)
         {
             var csvs = System.IO.Directory.EnumerateFiles(
@@ -170,23 +160,6 @@ namespace IntersectUtilities.PipeScheduleV2
             "|", typeDict.Keys);
         private static Regex layerNameDataParser =
             new Regex($@"FJV-(?<TYPE>{pipeTypes})-(?<DATATYPE>{pipeDataTypes})(?<DN>\d+)");
-        public static Dictionary<string, Type> columnTypeDict = new Dictionary<string, Type>()
-        {
-            {"DN", typeof(int)},
-            {"PipeType", typeof(string)},
-            {"PipeSeries" , typeof(string)},
-            {"pOd", typeof(double)},
-            {"pThk", typeof(double)},
-            {"kOd", typeof(double)},
-            {"kThk", typeof(double)},
-            {"pDst", typeof(double)},
-            {"tWdth", typeof(double)},
-            {"minElasticRadii", typeof(double)},
-            {"VertFactor", typeof(double)},
-            {"color", typeof(short)},
-            {"DefaultL", typeof(double)},
-            {"OffsetUnder7_5", typeof (double)}, //Offset Under eller Lig Med
-        };
         public static void LoadPipeTypeData(string pathToPipeTypesStore)
         {
             var csvs = System.IO.Directory.EnumerateFiles(
@@ -681,12 +654,96 @@ namespace IntersectUtilities.PipeScheduleV2
 
     //All PipeScheduleV2 classes are gathered in here to simplify sharing
 
+    #region POCOs
+    /// <summary>
+    /// Strongly-typed record for pipe schedule CSV data.
+    /// </summary>
+    public sealed record PipeScheduleEntry(
+        int DN,
+        PipeTypeEnum PipeType,
+        PipeSeriesEnum PipeSeries,
+        double pOd,
+        double pThk,
+        double kOd,
+        double kThk,
+        double pDst,
+        double tWdth,
+        double minElasticRadii,
+        double VertFactor,
+        short color,
+        double DefaultL,
+        double OffsetUnder7_5
+    )
+    {
+        /// <summary>
+        /// Parses a string[] row from CSV into a PipeScheduleEntry.
+        /// </summary>
+        public static PipeScheduleEntry Parse(string[] row)
+        {
+            return new PipeScheduleEntry(
+                DN: int.TryParse(row[0], out var dn) ? dn : 0,
+                PipeType: Enum.TryParse<PipeTypeEnum>(row[1], true, out var pt) ? pt : PipeTypeEnum.Ukendt,
+                PipeSeries: Enum.TryParse<PipeSeriesEnum>(row[2], true, out var ps) ? ps : PipeSeriesEnum.Undefined,
+                pOd: double.TryParse(row[3], System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out var pod) ? pod : 0,
+                pThk: double.TryParse(row[4], System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out var pthk) ? pthk : 0,
+                kOd: double.TryParse(row[5], System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out var kod) ? kod : 0,
+                kThk: double.TryParse(row[6], System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out var kthk) ? kthk : 0,
+                pDst: double.TryParse(row[7], System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out var pdst) ? pdst : 0,
+                tWdth: double.TryParse(row[8], System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out var twdth) ? twdth : 0,
+                minElasticRadii: double.TryParse(row[9], System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out var mer) ? mer : 0,
+                VertFactor: double.TryParse(row[10], System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out var vf) ? vf : 0,
+                color: short.TryParse(row[11], out var col) ? col : (short)0,
+                DefaultL: double.TryParse(row[12], System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out var dl) ? dl : 0,
+                OffsetUnder7_5: row.Length > 13 && double.TryParse(row[13], System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out var offset) ? offset : 0
+            );
+        }
+    }
+
+    /// <summary>
+    /// Strongly-typed record for pipe radius CSV data.
+    /// </summary>
+    public sealed record PipeRadiusEntry(
+        int DN,
+        PipeTypeEnum PipeType,
+        int PipeLength,
+        double BRpmin,
+        double ERpmin
+    )
+    {
+        /// <summary>
+        /// Parses a string[] row from CSV into a PipeRadiusEntry.
+        /// </summary>
+        public static PipeRadiusEntry Parse(string[] row)
+        {
+            return new PipeRadiusEntry(
+                DN: int.TryParse(row[0], out var dn) ? dn : 0,
+                PipeType: Enum.TryParse<PipeTypeEnum>(row[1], true, out var pt) ? pt : PipeTypeEnum.Ukendt,
+                PipeLength: int.TryParse(row[2], out var pl) ? pl : 0,
+                BRpmin: double.TryParse(row[3], System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out var br) ? br : 0,
+                ERpmin: double.TryParse(row[4], System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out var er) ? er : 0
+            );
+        }
+    }
+    #endregion
+
     #region All classes
     public interface IPipeType
     {
         string Name { get; }
         PipeSystemEnum System { get; }
-        void Initialize(DataTable table, PipeSystemEnum pipeSystemEnum);
+        void Initialize(IEnumerable<PipeScheduleEntry> entries, PipeSystemEnum pipeSystemEnum);
         double GetPipeOd(int dn);
         double GetPipeThk(int dn);
         double GetPipeId(int dn);
@@ -714,143 +771,124 @@ namespace IntersectUtilities.PipeScheduleV2
     {
         private PipeSystemEnum _system;
         public PipeSystemEnum System => _system;
-        protected DataTable _data;
+        protected List<PipeScheduleEntry> _entries = new();
         public string Name => this.GetType().Name;
+
+        // Lookup indexes for O(1) access
+        private ILookup<int, PipeScheduleEntry>? _byDn;
+        private ILookup<(int, PipeTypeEnum), PipeScheduleEntry>? _byDnType;
+        private Dictionary<(int, PipeTypeEnum, PipeSeriesEnum), PipeScheduleEntry>? _byDnTypeSeries;
+
+        private static PipeTypeEnum NormalizeType(PipeTypeEnum type) =>
+            type == PipeTypeEnum.Retur || type == PipeTypeEnum.Frem ? PipeTypeEnum.Enkelt : type;
+
+        public void Initialize(IEnumerable<PipeScheduleEntry> entries, PipeSystemEnum pipeSystemEnum)
+        {
+            _entries = entries.ToList();
+            _system = pipeSystemEnum;
+
+            // Build lookup indexes
+            _byDn = _entries.ToLookup(e => e.DN);
+            _byDnType = _entries.ToLookup(e => (e.DN, e.PipeType));
+            _byDnTypeSeries = new Dictionary<(int, PipeTypeEnum, PipeSeriesEnum), PipeScheduleEntry>();
+            foreach (var entry in _entries)
+            {
+                var key = (entry.DN, entry.PipeType, entry.PipeSeries);
+                if (!_byDnTypeSeries.ContainsKey(key))
+                    _byDnTypeSeries[key] = entry;
+            }
+        }
+
         public virtual double GetPipeOd(int dn)
         {
-            DataRow[] results = _data.Select($"DN = {dn}");
-            if (results != null && results.Length > 0)
-                return (double)results[0]["pOd"];
-            return 0;
+            var result = _byDn?[dn].FirstOrDefault();
+            return result?.pOd ?? 0;
         }
+
         public virtual double GetPipeThk(int dn)
         {
-            DataRow[] results = _data.Select($"DN = {dn}");
-            if (results != null && results.Length > 0)
-                return (double)results[0]["pThk"];
-            return 0;
+            var result = _byDn?[dn].FirstOrDefault();
+            return result?.pThk ?? 0;
         }
+
         public virtual double GetPipeId(int dn)
         {
-            DataRow[] results = _data.Select($"DN = {dn}");
-            if (results != null && results.Length > 0)
-                return GetPipeOd(dn) - 2 * (double)results[0]["pThk"];
-            return 0;
+            var result = _byDn?[dn].FirstOrDefault();
+            if (result == null) return 0;
+            return result.pOd - 2 * result.pThk;
         }
-        private void ConvertDataTypes()
+
+        public virtual PipeSeriesEnum GetPipeSeries(int dn, PipeTypeEnum type, double realKod)
         {
-            DataTable newTable = _data.Clone();
+            type = NormalizeType(type);
+            var results = _byDnType?[(dn, type)] ?? Enumerable.Empty<PipeScheduleEntry>();
 
-            #region Check if columns are missing from dict
-            // Check for columns in originalTable not present in dictionary
-            List<string> missingColumns = new List<string>();
-            foreach (DataColumn col in _data.Columns)
-                if (!PipeScheduleV2.columnTypeDict.ContainsKey(col.ColumnName))
-                    missingColumns.Add(col.ColumnName);
-
-            if (missingColumns.Count > 0)
-                prdDbg($"Missing data type definitions for columns: " +
-                    $"{string.Join(", ", missingColumns)}");
-            #endregion
-
-            // Set data types based on dictionary
-            foreach (var columnType in PipeScheduleV2.columnTypeDict)
-                if (newTable.Columns.Contains(columnType.Key))
-                    newTable.Columns[columnType.Key].DataType = columnType.Value;
-
-            foreach (DataRow row in _data.Rows) newTable.ImportRow(row);
-
-            _data = newTable;
-        }
-        public void Initialize(DataTable table, PipeSystemEnum pipeSystemEnum)
-        { _data = table; ConvertDataTypes(); _system = pipeSystemEnum; }
-        public virtual PipeSeriesEnum GetPipeSeries(
-            int dn, PipeTypeEnum type, double realKod)
-        {
-            if (type == PipeTypeEnum.Retur ||
-                type == PipeTypeEnum.Frem)
-                type = PipeTypeEnum.Enkelt;
-
-            DataRow[] results = _data.Select($"DN = {dn} AND PipeType = '{type}'");
-
-            foreach (DataRow row in results)
+            foreach (var entry in results)
             {
-                double kOd = (double)row["kOd"];
-                if (kOd.Equalz(realKod, 0.001))
-                {
-                    string sS = (string)row["PipeSeries"];
-                    if (Enum.TryParse(sS, true, out PipeSeriesEnum series)) return series;
-                    return PipeSeriesEnum.Undefined;
-                }
+                if (entry.kOd.Equalz(realKod, 0.001))
+                    return entry.PipeSeries;
             }
             return PipeSeriesEnum.Undefined;
         }
+
         public virtual double GetPipeKOd(int dn, PipeTypeEnum type, PipeSeriesEnum series)
         {
-            if (type == PipeTypeEnum.Retur ||
-                type == PipeTypeEnum.Frem)
-                type = PipeTypeEnum.Enkelt;
-            DataRow[] results = _data.Select($"DN = {dn} AND PipeType = '{type}' AND PipeSeries = '{series}'");
-            if (results != null && results.Length > 0) return (double)results[0]["kOd"];
+            type = NormalizeType(type);
+            if (_byDnTypeSeries != null && _byDnTypeSeries.TryGetValue((dn, type, series), out var entry))
+                return entry.kOd;
             return 0;
         }
+
         public virtual double GetPipekThk(int dn, PipeTypeEnum type, PipeSeriesEnum series)
         {
-            if (type == PipeTypeEnum.Retur ||
-                type == PipeTypeEnum.Frem)
-                type = PipeTypeEnum.Enkelt;
-            DataRow[] results = _data.Select($"DN = {dn} AND PipeType = '{type}' AND PipeSeries = '{series}'");
-            if (results != null && results.Length > 0) return (double)results[0]["kThk"];
+            type = NormalizeType(type);
+            if (_byDnTypeSeries != null && _byDnTypeSeries.TryGetValue((dn, type, series), out var entry))
+                return entry.kThk;
             return 0;
         }
+
         public virtual double GetPipeDistanceForTwin(int dn, PipeTypeEnum type)
         {
             if (type == PipeTypeEnum.Enkelt ||
                 type == PipeTypeEnum.Frem ||
                 type == PipeTypeEnum.Retur) return 0;
 
-            DataRow[] results = _data.Select($"DN = {dn} AND PipeType = '{type}'");
-            if (results != null && results.Length > 0) return (double)results[0]["pDst"];
-            return 0;
+            var result = _byDnType?[(dn, type)].FirstOrDefault();
+            return result?.pDst ?? 0;
         }
+
         public virtual double GetMinElasticRadius(int dn, PipeTypeEnum type)
         {
-            if (type == PipeTypeEnum.Retur ||
-                type == PipeTypeEnum.Frem)
-                type = PipeTypeEnum.Enkelt;
-            DataRow[] results = _data.Select($"DN = {dn} AND PipeType = '{type}'"); // AND PipeSeries = '{series}'"); doesn't use SERIES???
-            if (results != null && results.Length > 0) return (double)results[0]["minElasticRadii"];
-            return 0;
+            type = NormalizeType(type);
+            var result = _byDnType?[(dn, type)].FirstOrDefault();
+            return result?.minElasticRadii ?? 0;
         }
+
         public double GetFactorForVerticalElasticBending(int dn, PipeTypeEnum type)
         {
-            if (type == PipeTypeEnum.Retur ||
-                type == PipeTypeEnum.Frem)
-                type = PipeTypeEnum.Enkelt;
-            DataRow[] results = _data.Select($"DN = {dn} AND PipeType = '{type}'");
-            if (results != null && results.Length > 0) return (double)results[0]["VertFactor"];
-            return 0;
+            type = NormalizeType(type);
+            var result = _byDnType?[(dn, type)].FirstOrDefault();
+            return result?.VertFactor ?? 0;
         }
+
         public double GetPipeStdLength(int dn, PipeTypeEnum type)
         {
-            if (type == PipeTypeEnum.Retur ||
-                type == PipeTypeEnum.Frem)
-                type = PipeTypeEnum.Enkelt;
-
-            DataRow[] results = _data.Select($"DN = {dn} AND PipeType = '{type}'");
-            if (results != null && results.Length > 0) return (double)results[0]["DefaultL"];
-            else return 999;
+            type = NormalizeType(type);
+            var result = _byDnType?[(dn, type)].FirstOrDefault();
+            return result?.DefaultL ?? 999;
         }
+
         public virtual IEnumerable<int> ListAllDnsForPipeTypeSerie(PipeTypeEnum type, PipeSeriesEnum series)
         {
-            if (type == PipeTypeEnum.Retur ||
-                type == PipeTypeEnum.Frem)
-                type = PipeTypeEnum.Enkelt;
-            DataRow[] results = _data.Select($"PipeType = '{type}' AND PipeSeries = '{series}'");
-            if (results != null && results.Length > 0) return results.Select(x => (int)x["DN"]);
-            return null;
+            type = NormalizeType(type);
+            var results = _entries
+                .Where(e => e.PipeType == type && e.PipeSeries == series)
+                .Select(e => e.DN);
+            return results.Any() ? results : null;
         }
+
         public abstract string GetLabel(int DN, PipeTypeEnum type, double od, double kOd);
+
         public virtual short GetLayerColor(PipeTypeEnum type)
         {
             switch (type)
@@ -868,36 +906,26 @@ namespace IntersectUtilities.PipeScheduleV2
                 default: return 0;
             }
         }
+
         public virtual double GetTrenchWidth(int dn, PipeTypeEnum type, PipeSeriesEnum series)
         {
-            if (type == PipeTypeEnum.Retur ||
-                type == PipeTypeEnum.Frem)
-                type = PipeTypeEnum.Enkelt;
-
-            DataRow[] results = _data.Select($"DN = {dn} AND PipeType = '{type}' AND PipeSeries = '{series}'");
-            if (results != null && results.Length > 0) return (double)results[0]["tWdth"];
+            type = NormalizeType(type);
+            if (_byDnTypeSeries != null && _byDnTypeSeries.TryGetValue((dn, type, series), out var entry))
+                return entry.tWdth;
             return 1000000;
         }
+
         public virtual double GetOffset(int dn, PipeTypeEnum type, PipeSeriesEnum series)
         {
-            if (type == PipeTypeEnum.Retur ||
-                type == PipeTypeEnum.Frem)
-                type = PipeTypeEnum.Enkelt;
+            type = NormalizeType(type);
 
             // Normalize requested series to available range for given DN and Type
-            var availableRows = _data.Select($"DN = {dn} AND PipeType = '{type}'");
-            if (availableRows != null && availableRows.Length > 0)
+            var availableEntries = _byDnType?[(dn, type)]?.ToList();
+            if (availableEntries != null && availableEntries.Count > 0)
             {
-                var availableSeries = availableRows
-                    .Select(r => r["PipeSeries"])
-                    .Where(v => v != null)
-                    .Select(v =>
-                    {
-                        if (v is PipeSeriesEnum e) return e;
-                        PipeSeriesEnum parsed;
-                        return Enum.TryParse(v.ToString(), true, out parsed) ? parsed : PipeSeriesEnum.Undefined;
-                    })
-                    .Where(e => e != PipeSeriesEnum.Undefined)
+                var availableSeries = availableEntries
+                    .Where(e => e.PipeSeries != PipeSeriesEnum.Undefined)
+                    .Select(e => e.PipeSeries)
                     .Distinct()
                     .OrderBy(e => e)
                     .ToList();
@@ -911,78 +939,67 @@ namespace IntersectUtilities.PipeScheduleV2
                 }
             }
 
-            DataRow[] results = _data.Select($"DN = {dn} AND PipeType = '{type}' AND PipeSeries = '{series}'");
-            if (results != null && results.Length > 0) return (double)results[0]["OffsetUnder7_5"];
+            if (_byDnTypeSeries != null && _byDnTypeSeries.TryGetValue((dn, type, series), out var entry))
+                return entry.OffsetUnder7_5;
             return 100;
         }
+
         public short GetSizeColor(int dn, PipeTypeEnum type)
         {
-            if (type == PipeTypeEnum.Retur ||
-                type == PipeTypeEnum.Frem)
-                type = PipeTypeEnum.Enkelt;
-
-            DataRow[] results = _data.Select($"DN = {dn} AND PipeType = '{type}'");
-            if (results != null && results.Length > 0) return (short)results[0]["color"];
-            return 0;
+            type = NormalizeType(type);
+            var result = _byDnType?[(dn, type)].FirstOrDefault();
+            return result?.color ?? 0;
         }
+
         public virtual IEnumerable<int> ListAllDnsForPipeType(PipeTypeEnum type)
         {
-            if (type == PipeTypeEnum.Retur ||
-                type == PipeTypeEnum.Frem)
-                type = PipeTypeEnum.Enkelt;
-
-            DataRow[] results = _data.Select($"PipeType = '{type}'");
-            if (results != null && results.Length > 0)
-                return results.Select(x => (int)x["DN"]).Distinct();
-            return null;
+            type = NormalizeType(type);
+            var results = _entries
+                .Where(e => e.PipeType == type)
+                .Select(e => e.DN)
+                .Distinct();
+            return results.Any() ? results : null;
         }
+
         public virtual IEnumerable<PipeTypeEnum> GetAvailableTypes()
         {
-            var typeStrings = _data.Select().Select(x => (string)x["PipeType"])
-                .Distinct().OrderBy(x => x);
-            foreach (var typeString in typeStrings)
-                if (Enum.TryParse(typeString, true, out PipeTypeEnum type))
-                    yield return type;
+            return _entries
+                .Select(e => e.PipeType)
+                .Distinct()
+                .OrderBy(e => e);
         }
+
         public IEnumerable<PipeSeriesEnum> GetAvailableSeriesForType(PipeTypeEnum type)
         {
-            if (type == PipeTypeEnum.Retur ||
-                type == PipeTypeEnum.Frem)
-                type = PipeTypeEnum.Enkelt;
-
-            DataRow[] results = _data.Select($"PipeType = '{type}'");
-            if (results != null && results.Length > 0)
-                return results.Select(x => (string)x["PipeSeries"])
-                    .Distinct().OrderBy(x => x)
-                    .Select(x => (PipeSeriesEnum)Enum.Parse(typeof(PipeSeriesEnum), x));
-            return null;
+            type = NormalizeType(type);
+            var results = _entries
+                .Where(e => e.PipeType == type)
+                .Select(e => e.PipeSeries)
+                .Distinct()
+                .OrderBy(e => e);
+            return results.Any() ? results : null;
         }
+
         public double GetDefaultLengthForDnAndType(int dn, PipeTypeEnum type)
         {
-            //It is assumed that series does not matter for default length
-
-            if (type == PipeTypeEnum.Retur ||
-                type == PipeTypeEnum.Frem)
-                type = PipeTypeEnum.Enkelt;
-
-            DataRow[] results =
-                _data.Select($"DN = {dn} AND PipeType = '{type}'");
-            if (results != null && results.Length > 0) return (double)results[0]["DefaultL"];
-            return 999;
+            type = NormalizeType(type);
+            var result = _byDnType?[(dn, type)].FirstOrDefault();
+            return result?.DefaultL ?? 999;
         }
+
         /// <summary>
         /// Gets pipe type based on availability.
         /// Biased towards Twin if available.
         /// </summary>
         public PipeTypeEnum GetPipeTypeByAvailability(int dn)
         {
-            DataRow[] results = _data.Select($"DN = {dn}");
-
-            if (results != null && results.Length > 0)
+            var results = _byDn?[dn];
+            if (results != null && results.Any())
             {
-                var query = results.Select(x => (string)x["PipeType"]);
-                if (query.Contains("Twin")) return PipeTypeEnum.Twin;
-                else return PipeTypeEnum.Frem;
+                if (results.Any(e => e.PipeType == PipeTypeEnum.Twin))
+                    return PipeTypeEnum.Twin;
+                else
+                    return PipeTypeEnum.Frem;
             }
             return PipeTypeEnum.Ukendt;
         }
@@ -1050,9 +1067,8 @@ namespace IntersectUtilities.PipeScheduleV2
                 type == PipeTypeEnum.Frem)
                 type = PipeTypeEnum.Enkelt;
             if (series == PipeSeriesEnum.S3) series = PipeSeriesEnum.S2;
-            DataRow[] results = _data.Select($"DN = {dn} AND PipeType = '{type}' AND PipeSeries = '{series}'");
-            if (results != null && results.Length > 0) return (double)results[0]["kOd"];
-            return 0;
+            var result = _entries.FirstOrDefault(e => e.DN == dn && e.PipeType == type && e.PipeSeries == series);
+            return result?.kOd ?? 0;
         }
     }
     public class PipeTypePEXU : PipeTypeBase
@@ -1079,9 +1095,8 @@ namespace IntersectUtilities.PipeScheduleV2
                 type == PipeTypeEnum.Frem)
                 type = PipeTypeEnum.Enkelt;
             if (series != PipeSeriesEnum.S3) series = PipeSeriesEnum.S3;
-            var results = _data.Select($"DN = {dn} AND PipeType = '{type}' AND PipeSeries = '{series}'");
-            if (results != null && results.Length > 0) return (double)results[0]["kOd"];
-            return 0;
+            var result = _entries.FirstOrDefault(e => e.DN == dn && e.PipeType == type && e.PipeSeries == series);
+            return result?.kOd ?? 0;
         }
         public override short GetLayerColor(PipeTypeEnum type)
         {
@@ -1127,9 +1142,8 @@ namespace IntersectUtilities.PipeScheduleV2
 
             //We IGNORE the series for this type as it only has ONE series!
 
-            var results = _data.Select($"DN = {dn} AND PipeType = '{type}'");
-            if (results != null && results.Length > 0) return (double)results[0]["kOd"];
-            return 0;
+            var result = _entries.FirstOrDefault(e => e.DN == dn && e.PipeType == type);
+            return result?.kOd ?? 0;
         }
         public override short GetLayerColor(PipeTypeEnum type)
         {
@@ -1175,9 +1189,8 @@ namespace IntersectUtilities.PipeScheduleV2
 
             //We IGNORE the series for this type as it only has ONE series!
 
-            var results = _data.Select($"DN = {dn} AND PipeType = '{type}'");
-            if (results != null && results.Length > 0) return (double)results[0]["kOd"];
-            return 0;
+            var result = _entries.FirstOrDefault(e => e.DN == dn && e.PipeType == type);
+            return result?.kOd ?? 0;
         }
         public override short GetLayerColor(PipeTypeEnum type)
         {
@@ -1223,9 +1236,8 @@ namespace IntersectUtilities.PipeScheduleV2
 
             //We IGNORE the series for this type as it only has ONE series!
 
-            var results = _data.Select($"DN = {dn} AND PipeType = '{type}'");
-            if (results != null && results.Length > 0) return (double)results[0]["kOd"];
-            return 0;
+            var result = _entries.FirstOrDefault(e => e.DN == dn && e.PipeType == type);
+            return result?.kOd ?? 0;
         }
         public override short GetLayerColor(PipeTypeEnum type)
         {
@@ -1284,15 +1296,19 @@ namespace IntersectUtilities.PipeScheduleV2
             foreach (var path in paths)
             {
                 string type = System.IO.Path.GetFileNameWithoutExtension(path);
-                DataTable dataTable = CsvReader.ReadCsvToDataTable(path, type);
                 if (!PipeScheduleV2.typeDict.ContainsKey(type))
                 {
                     prdDbg($"PipeType {type} is not defined in PipeScheduleV2!");
                     continue;
                 }
+
+                // Load CSV using DataManager and parse to POCOs
+                var csvData = PipeScheduleCsv.GetOrLoad(path);
+                var entries = csvData.Rows.Select(PipeScheduleEntry.Parse);
+
                 IPipeType pipeType = Activator.CreateInstance(
                     PipeScheduleV2.typeDict[type]) as IPipeType;
-                pipeType.Initialize(dataTable, PipeScheduleV2.systemDict[type]);
+                pipeType.Initialize(entries, PipeScheduleV2.systemDict[type]);
                 dict.Add(type, pipeType);
             }
 
@@ -1301,47 +1317,38 @@ namespace IntersectUtilities.PipeScheduleV2
     }
     public interface IPipeRadiusData
     {
-        void Initialize(DataTable table, CompanyEnum compType);
+        void Initialize(IEnumerable<PipeRadiusEntry> entries, CompanyEnum compType);
         double GetBuerorMinRadius(int dn, int pipeLength);
         CompanyEnum Company { get; }
     }
     public abstract class PipeRadiusData : IPipeRadiusData
     {
-        protected DataTable _data;
+        protected List<PipeRadiusEntry> _entries = new();
         protected CompanyEnum _company;
         public CompanyEnum Company => _company;
-        private void ConvertDataTypes()
+
+        // Lookup index for O(1) access
+        private Dictionary<(int, int), PipeRadiusEntry>? _byDnLength;
+
+        public void Initialize(IEnumerable<PipeRadiusEntry> entries, CompanyEnum companyEnum)
         {
-            DataTable newTable = _data.Clone();
+            _entries = entries.ToList();
+            _company = companyEnum;
 
-            #region Check if columns are missing from dict
-            // Check for columns in originalTable not present in dictionary
-            List<string> missingColumns = new List<string>();
-            foreach (DataColumn col in _data.Columns)
-                if (!PipeScheduleV2.radiiColumnTypeDict.ContainsKey(col.ColumnName))
-                    missingColumns.Add(col.ColumnName);
-
-            if (missingColumns.Count > 0)
-                throw new Exception($"Missing data type definitions for columns: " +
-                    $"{string.Join(", ", missingColumns)}");
-            #endregion
-
-            // Set data types based on dictionary
-            foreach (var columnType in PipeScheduleV2.radiiColumnTypeDict)
-                if (newTable.Columns.Contains(columnType.Key))
-                    newTable.Columns[columnType.Key].DataType = columnType.Value;
-
-            foreach (DataRow row in _data.Rows) newTable.ImportRow(row);
-
-            _data = newTable;
+            // Build lookup index
+            _byDnLength = new Dictionary<(int, int), PipeRadiusEntry>();
+            foreach (var entry in _entries)
+            {
+                var key = (entry.DN, entry.PipeLength);
+                if (!_byDnLength.ContainsKey(key))
+                    _byDnLength[key] = entry;
+            }
         }
-        public void Initialize(DataTable table, CompanyEnum companyEnum)
-        { _data = table; ConvertDataTypes(); _company = companyEnum; }
+
         public double GetBuerorMinRadius(int dn, int pipeLength)
         {
-            DataRow[] results = _data.Select($"DN = {dn} AND PipeLength = {pipeLength}");
-            if (results != null && results.Length > 0)
-                return (double)results[0]["BRpmin"];
+            if (_byDnLength != null && _byDnLength.TryGetValue((dn, pipeLength), out var entry))
+                return entry.BRpmin;
             return 0;
         }
     }
@@ -1393,22 +1400,24 @@ namespace IntersectUtilities.PipeScheduleV2
             foreach (var path in paths)
             {
                 string company = System.IO.Path.GetFileNameWithoutExtension(path);
-                DataTable dataTable = CsvReader.ReadCsvToDataTable(path, company);
                 if (!PipeScheduleV2.companyDict.ContainsKey(company))
                 {
                     prdDbg($"PipeRadii {company} is not defined in PipeScheduleV2!");
                     continue;
                 }
 
+                // Load CSV using DataManager and parse to POCOs
+                var csvData = PipeRadiusCsv.GetOrLoad(path);
+                var entries = csvData.Rows.Select(PipeRadiusEntry.Parse);
+
                 IPipeRadiusData pipeRadiusData = Activator.CreateInstance(
                     PipeScheduleV2.companyDict[company]) as IPipeRadiusData;
-                pipeRadiusData.Initialize(dataTable, PipeScheduleV2.companyEnumDict[company]);
+                pipeRadiusData.Initialize(entries, PipeScheduleV2.companyEnumDict[company]);
                 dict.Add(company, pipeRadiusData);
             }
 
             return dict;
         }
-
     }
     #endregion
 }

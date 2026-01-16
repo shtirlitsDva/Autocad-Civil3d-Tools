@@ -40,11 +40,6 @@
 			<Private>False</Private>
 		</Reference>
 	</ItemGroup>
-	<ItemGroup>
-		<Compile Include="..\IntersectUtilities\CsvReader.cs">
-			<Link>CsvReader.cs</Link>
-		</Compile>
-	</ItemGroup>
 	<PropertyGroup>
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
 	</PropertyGroup>

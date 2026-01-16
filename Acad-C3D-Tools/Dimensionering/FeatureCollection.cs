@@ -6,7 +6,6 @@ using Newtonsoft.Json;
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.DataManager.CsvData;
 using static IntersectUtilities.UtilsCommon.UtilsDataTables;
-using static IntersectUtilities.CsvReader;
 
 namespace IntersectUtilities.Dimensionering.ImportFraBBR
 {

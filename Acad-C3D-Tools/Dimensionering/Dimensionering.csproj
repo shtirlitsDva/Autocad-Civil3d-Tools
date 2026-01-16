@@ -107,9 +107,6 @@
 		</Reference>
 	</ItemGroup>
 	<ItemGroup>
-		<Compile Include="..\IntersectUtilities\CsvReader.cs">
-			<Link>CsvReader.cs</Link>
-		</Compile>
 		<Compile Include="..\IntersectUtilities\GroupByCluster.cs">
 			<Link>GroupByCluster.cs</Link>
 		</Compile>
