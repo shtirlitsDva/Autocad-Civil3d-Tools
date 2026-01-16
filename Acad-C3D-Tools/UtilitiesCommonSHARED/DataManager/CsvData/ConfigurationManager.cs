@@ -55,6 +55,8 @@ namespace IntersectUtilities.UtilsCommon.DataManager.CsvData
                     }
 
                     // Notify subscribers
+                    int subscriberCount = ConfigurationChanged?.GetInvocationList()?.Length ?? 0;
+                    prdDbg($"ConfigurationManager: Firing ConfigurationChanged event to {subscriberCount} subscriber(s)");
                     ConfigurationChanged?.Invoke(null, EventArgs.Empty);
                 }
             }
@@ -79,9 +81,48 @@ namespace IntersectUtilities.UtilsCommon.DataManager.CsvData
         {
             if (ActiveConfiguration == null)
             {
-                throw new InvalidOperationException(
-                    "No CSV configuration selected. Open the Configuration tab and select a configuration (V1 or V2).");
+                throw new InvalidOperationException(GetConfigurationRequiredMessage());
             }
+        }
+
+        private static string GetConfigurationRequiredMessage()
+        {
+            return @"
+╔═══════════════════════════════════════════════════════════════════════════════════╗
+║                                                                                   ║
+║     ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗                                 ║
+║    ██╔════╝██╔═══██╗████╗  ██║██╔════╝██║██╔════╝                                 ║
+║    ██║     ██║   ██║██╔██╗ ██║█████╗  ██║██║  ███╗                                ║
+║    ██║     ██║   ██║██║╚██╗██║██╔══╝  ██║██║   ██║                                ║
+║    ╚██████╗╚██████╔╝██║ ╚████║██║     ██║╚██████╔╝                                ║
+║     ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝╚═╝     ╚═╝ ╚═════╝                                 ║
+║                                                                                   ║
+║    ███╗   ███╗██╗███████╗███████╗██╗███╗   ██╗ ██████╗ ██╗██╗██╗                  ║
+║    ████╗ ████║██║██╔════╝██╔════╝██║████╗  ██║██╔════╝ ██║██║██║                  ║
+║    ██╔████╔██║██║███████╗███████╗██║██╔██╗ ██║██║  ███╗██║██║██║                  ║
+║    ██║╚██╔╝██║██║╚════██║╚════██║██║██║╚██╗██║██║   ██║╚═╝╚═╝╚═╝                  ║
+║    ██║ ╚═╝ ██║██║███████║███████║██║██║ ╚████║╚██████╔╝██╗██╗██╗                  ║
+║    ╚═╝     ╚═╝╚═╝╚══════╝╚══════╝╚═╝╚═╝  ╚═══╝ ╚═════╝ ╚═╝╚═╝╚═╝                  ║
+║                                                                                   ║
+╠═══════════════════════════════════════════════════════════════════════════════════╣
+║                                                                                   ║
+║   ⚠️  NO CSV CONFIGURATION SELECTED!                                              ║
+║                                                                                   ║
+║   This command requires versioned CSV data, but you haven't selected              ║
+║   a configuration version yet.                                                    ║
+║                                                                                   ║
+║   ┌─────────────────────────────────────────────────────────────────────────┐     ║
+║   │  HOW TO FIX:                                                            │     ║
+║   │                                                                         │     ║
+║   │  1. Run NSCMD                                                           │     ║
+║   │  2. Select V1 or V2 from the dropdown                                   │     ║
+║   │  3. Run this command again                                              │     ║
+║   │                                                                         │     ║
+║   │  Your selection will be saved for future sessions.                      │     ║
+║   └─────────────────────────────────────────────────────────────────────────┘     ║
+║                                                                                   ║
+╚═══════════════════════════════════════════════════════════════════════════════════╝
+";
         }
 
         /// <summary>
@@ -119,8 +160,11 @@ namespace IntersectUtilities.UtilsCommon.DataManager.CsvData
         {
             try
             {
+                prdDbg($"ConfigurationManager: Looking for config file at: {ConfigFilePath}");
+                
                 if (!File.Exists(ConfigFilePath))
                 {
+                    prdDbg($"ConfigurationManager: No persisted configuration found (first run)");
                     return null;
                 }
 
@@ -129,7 +173,7 @@ namespace IntersectUtilities.UtilsCommon.DataManager.CsvData
                 
                 if (config != null && !string.IsNullOrEmpty(config.ActiveConfiguration))
                 {
-                    prdDbg($"CSV Configuration loaded: {config.ActiveConfiguration}");
+                    prdDbg($"ConfigurationManager: Loaded persisted configuration: {config.ActiveConfiguration}");
                     return config.ActiveConfiguration;
                 }
             }

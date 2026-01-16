@@ -2184,9 +2184,8 @@ namespace IntersectUtilities
                     //Lookup linetype specification and link to layer name
                     Dictionary<string, string> layerLineTypeMap = new Dictionary<string, string>();
                     foreach (var layer in layers)
-                    {
-                        string? targetLayerName = krydsninger.Layer(layer.Name);
-                        string lookupKey = StripSuffix(targetLayerName);
+                    {                        
+                        string lookupKey = StripSuffix(layer.Name);
                         string? lineTypeName = lagLer.LineType(lookupKey);
                         if (lineTypeName.IsNoE()) prdDbg($"LineTypeName is missing for {layer.Name}!");
                         layerLineTypeMap.Add(layer.Name, lineTypeName ?? string.Empty);
@@ -2227,18 +2226,18 @@ namespace IntersectUtilities
                         }
                         string? type = krydsninger.Type(layerName);
                         if (type == "IGNORE") { prdDbg($"Layer {layerName} IGNORED!"); continue; }
-                        string? lerLayerName = krydsninger.Layer(layerName);
-                        string lookupKey = StripSuffix(lerLayerName);
+                        
+                        string lookupKey = StripSuffix(layerName);
                         if (!lagLer.HasLayer(lookupKey))
                         {
-                            prdDbg($"Ler layer {lerLayerName} (lookup: {lookupKey}) not found in LagLer! Tilføj laget i LagLer.csv.");
+                            prdDbg($"Ler layer {layerName} (lookup: {lookupKey}) not found in LagLer! Tilføj laget i LagLer.csv.");
                             continue;
                         }
                         string? farveString = lagLer.Farve(lookupKey);
                         Color color = UtilsCommon.Utils.ParseColorString(farveString);
                         if (color == null)
                         {
-                            prdDbg($"Failed to read color for layer name {lerLayerName} with colorstring {farveString}. Skipping!");
+                            prdDbg($"Failed to read color for layer name {layerName} with colorstring {farveString}. Skipping!");
                             continue;
                         }
                         ltr.CheckOrOpenForWrite();

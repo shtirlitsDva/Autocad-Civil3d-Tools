@@ -1,5 +1,7 @@
 using System;
 
+using static IntersectUtilities.UtilsCommon.Utils;
+
 namespace IntersectUtilities.UtilsCommon.DataManager.CsvData
 {
     /// <summary>
@@ -43,6 +45,7 @@ namespace IntersectUtilities.UtilsCommon.DataManager.CsvData
         static Csv()
         {
             // Subscribe to configuration changes to invalidate versioned data sources
+            prdDbg($"Csv static constructor: Subscribing to ConfigurationChanged event");
             ConfigurationManager.ConfigurationChanged += OnConfigurationChanged;
         }
 
@@ -51,6 +54,7 @@ namespace IntersectUtilities.UtilsCommon.DataManager.CsvData
             lock (_lock)
             {
                 // Invalidate versioned data sources when configuration changes
+                prdDbg($"Csv.OnConfigurationChanged: Invalidating versioned data sources. New config: {ConfigurationManager.ActiveConfiguration}");
                 _krydsninger = null;
                 _lagLer = null;
                 _lastConfigForVersioned = null;
@@ -173,6 +177,7 @@ namespace IntersectUtilities.UtilsCommon.DataManager.CsvData
                 // Check if we need to recreate versioned data sources
                 if (_lastConfigForVersioned != currentConfig)
                 {
+                    prdDbg($"Csv.EnsureVersionedDataSources: Creating new data sources for config '{currentConfig}' (was '{_lastConfigForVersioned}')");
                     _krydsninger = new Krydsninger();
                     _lagLer = new LagLer();
                     _lastConfigForVersioned = currentConfig;

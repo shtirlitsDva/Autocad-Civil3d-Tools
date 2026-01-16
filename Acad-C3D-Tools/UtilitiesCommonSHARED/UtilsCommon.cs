@@ -1,4 +1,4 @@
-﻿using Autodesk.Aec.PropertyData.DatabaseServices;
+using Autodesk.Aec.PropertyData.DatabaseServices;
 using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
@@ -332,10 +332,9 @@ namespace IntersectUtilities.UtilsCommon
         /// </summary>
         /// <param name="colorString"></param>
         /// <returns>Autocad Color, null on fail.</returns>
-        public static Color ParseColorString(string colorString)
+        public static Color ParseColorString(string? colorString)
         {
-            if (colorString.IsNoE())
-                return null;
+            if (colorString == null || colorString.IsNoE()) return Color.FromColorIndex(ColorMethod.ByAci, 0);
 
             Regex indexColorRegex = new Regex(@"^\d{1,3}$");
             Regex rgbRegex = new Regex(@"^(?<R>\d+)\*(?<G>\d+)\*(?<B>\d+)$");

@@ -75,15 +75,18 @@ namespace IntersectUtilities.UtilsCommon.DataManager.CsvData
         {
             lock (_lock)
             {
-                if (!File.Exists(FilePath))
+                string filePath = FilePath; // Evaluate once
+                
+                if (!File.Exists(filePath))
                 {
-                    throw new FileNotFoundException($"CSV file not found: {FilePath}");
+                    throw new FileNotFoundException($"CSV file not found: {filePath}");
                 }
 
-                DateTime currentModified = File.GetLastWriteTime(FilePath);
+                DateTime currentModified = File.GetLastWriteTime(filePath);
 
                 if (!_isLoaded || currentModified > _lastFileModified)
                 {
+                    prdDbg($"CsvDataSource: Loading '{Path.GetFileName(filePath)}' (isLoaded={_isLoaded})");
                     LoadData();
                     _lastFileModified = currentModified;
                     _lastLoadTime = DateTime.Now;

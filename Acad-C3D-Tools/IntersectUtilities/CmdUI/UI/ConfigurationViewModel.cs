@@ -25,6 +25,10 @@ namespace IntersectUtilities.CmdUI.UI
 
         public ConfigurationViewModel()
         {
+            // Ensure Csv class is initialized so it subscribes to configuration changes
+            // This is needed because the static constructor won't run until Csv is first accessed
+            _ = Csv.IsVersionedDataAvailable;
+            
             // Load available configurations
             var configs = CsvRegistry.AvailableConfigurations.ToList();
             
