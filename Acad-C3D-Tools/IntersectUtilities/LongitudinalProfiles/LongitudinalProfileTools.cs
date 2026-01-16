@@ -299,8 +299,10 @@ namespace IntersectUtilities
             }
             catch (System.Exception ex)
             {
+                tx.Abort();
                 return;
             }
+            tx.Commit();
         }
 
         private void createsurfaceprofilesmethod(
