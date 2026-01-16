@@ -2,46 +2,40 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
+using NorsynHydraulicCalc.Pipes;
+
 namespace NorsynHydraulicCalc
 {
     /// <summary>
     /// Defines which pipe types are valid for each medium type.
-    /// This is the authoritative source for pipe type restrictions.
+    /// Queries pipe metadata dynamically from PipeTypes instead of hardcoded lists.
     /// </summary>
     public static class MediumPipeTypeRules
     {
+        // Cache to avoid repeated instantiation
+        private static PipeTypes? _pipeTypesCache;
+
+        private static PipeTypes GetPipeTypes()
+        {
+            return _pipeTypesCache ??= new PipeTypes(new DefaultHydraulicSettings());
+        }
+
         /// <summary>
         /// Gets the valid pipe types for supply lines (Fordelingsledninger) for the given medium.
-        /// Water medium: All pipe types EXCEPT Pe
-        /// Water72Ipa28 medium: ONLY Pe
+        /// Queries pipe metadata dynamically - pipe types declare their supported segments and mediums.
         /// </summary>
         public static IEnumerable<PipeType> GetValidPipeTypesForSupply(MediumTypeEnum medium)
         {
-            return medium switch
-            {
-                // Water can use all pipe types except PE
-                MediumTypeEnum.Water => [PipeType.Stål, PipeType.PertFlextra, PipeType.AluPEX, PipeType.Kobber, PipeType.AquaTherm11],
-                // Water72Ipa28 can ONLY use PE
-                MediumTypeEnum.Water72Ipa28 => [PipeType.Pe],
-                _ => throw new NotSupportedException($"Unknown medium: {medium}")
-            };
+            return GetPipeTypes().GetPipeTypesFor(SegmentType.Fordelingsledning, medium);
         }
 
         /// <summary>
         /// Gets the valid pipe types for service lines (Stikledninger) for the given medium.
-        /// Water medium: All pipe types EXCEPT Pe
-        /// Water72Ipa28 medium: ONLY Pe
+        /// Queries pipe metadata dynamically - pipe types declare their supported segments and mediums.
         /// </summary>
         public static IEnumerable<PipeType> GetValidPipeTypesForService(MediumTypeEnum medium)
         {
-            return medium switch
-            {
-                // Water can use all pipe types except PE
-                MediumTypeEnum.Water => new[] { PipeType.AluPEX, PipeType.PertFlextra, PipeType.Kobber, PipeType.Stål, PipeType.AquaTherm11 },
-                // Water72Ipa28 can ONLY use PE
-                MediumTypeEnum.Water72Ipa28 => new[] { PipeType.Pe },
-                _ => throw new NotSupportedException($"Unknown medium: {medium}")
-            };
+            return GetPipeTypes().GetPipeTypesFor(SegmentType.Stikledning, medium);
         }
 
         /// <summary>

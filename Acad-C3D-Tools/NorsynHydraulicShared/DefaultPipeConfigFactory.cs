@@ -8,24 +8,10 @@ namespace NorsynHydraulicCalc
 {
     /// <summary>
     /// Factory for creating default PipeTypeConfiguration based on medium type.
-    /// Provides programmatic creation of configurations for use without UI.
+    /// Default accept criteria values come from each pipe type's GetDefaultAcceptCriteria method.
     /// </summary>
     public static class DefaultPipeConfigFactory
     {
-        #region Default Values
-        // Default velocity values in m/s
-        private const double DefaultVelocitySmall = 1.5;      // DN 20-150
-        private const double DefaultVelocityMedium = 2.5;     // DN 200-300
-        private const double DefaultVelocityLarge = 3.0;      // DN 350+
-        private const double DefaultVelocityFlexible = 1.0;   // Flexible pipes (SL)
-        private const double DefaultVelocitySLSteel = 1.5;    // Steel service lines
-
-        // Default pressure gradient values in Pa/m
-        private const int DefaultGradientFL = 100;            // Fordelingsledninger
-        private const int DefaultGradientFLLarge = 120;       // DN 350+ FL
-        private const int DefaultGradientSL = 600;            // Stikledninger
-        #endregion
-
         /// <summary>
         /// Creates a default FL (Fordelingsledninger) configuration for the specified medium.
         /// </summary>
@@ -35,40 +21,36 @@ namespace NorsynHydraulicCalc
 
             int priority = 1;
 
-            // For Water medium: PertFlextra first (if supported), then Steel
+            // For Water medium: PertFlextraFL first, then Steel
             if (medium == MediumTypeEnum.Water)
             {
-
                 // PertFlextra: DN 50-75 (typical FL range)
-                var pertFlextra = CreatePipeTypePriority(
+                var pertFlextra = CreatePipeTypePriorityWithDefaults(
                     priority++,
-                    PipeType.PertFlextra,
+                    PipeType.PertFlextraFL,
                     50, 75,
-                    pipeTypes,
-                    DefaultVelocitySmall,
-                    DefaultGradientFL);
+                    SegmentType.Fordelingsledning,
+                    pipeTypes);
                 config.Priorities.Add(pertFlextra);
 
                 // Steel: DN 65-600 (overlaps with PertFlextra for transition)
-                var steel = CreatePipeTypePriority(
+                var steel = CreatePipeTypePriorityWithDefaults(
                     priority++,
                     PipeType.Stål,
                     65, 600,
-                    pipeTypes,
-                    GetSteelVelocityFL,
-                    GetSteelGradientFL);
+                    SegmentType.Fordelingsledning,
+                    pipeTypes);
                 config.Priorities.Add(steel);
             }
             else if (medium == MediumTypeEnum.Water72Ipa28)
             {
                 // PE only for this medium
-                var pe = CreatePipeTypePriority(
+                var pe = CreatePipeTypePriorityWithDefaults(
                     priority++,
                     PipeType.Pe,
                     32, 250,
-                    pipeTypes,
-                    DefaultVelocitySmall,
-                    DefaultGradientFL);
+                    SegmentType.Fordelingsledning,
+                    pipeTypes);
                 config.Priorities.Add(pe);
             }
 
@@ -87,35 +69,32 @@ namespace NorsynHydraulicCalc
             if (medium == MediumTypeEnum.Water)
             {
                 // AluPEX: DN 26-32 (highest priority for SL)
-                var aluPex = CreatePipeTypePriority(
+                var aluPex = CreatePipeTypePriorityWithDefaults(
                     priority++,
                     PipeType.AluPEX,
                     26, 32,
-                    pipeTypes,
-                    DefaultVelocityFlexible,
-                    DefaultGradientSL);
+                    SegmentType.Stikledning,
+                    pipeTypes);
                 config.Priorities.Add(aluPex);
 
                 // Steel for larger SL
-                var steel = CreatePipeTypePriority(
+                var steel = CreatePipeTypePriorityWithDefaults(
                     priority++,
                     PipeType.Stål,
                     32, 150,
-                    pipeTypes,
-                    DefaultVelocitySLSteel,
-                    DefaultGradientSL);
+                    SegmentType.Stikledning,
+                    pipeTypes);
                 config.Priorities.Add(steel);
             }
             else if (medium == MediumTypeEnum.Water72Ipa28)
             {
                 // PE only for this medium
-                var pe = CreatePipeTypePriority(
+                var pe = CreatePipeTypePriorityWithDefaults(
                     priority++,
                     PipeType.Pe,
                     32, 75,
-                    pipeTypes,
-                    DefaultVelocityFlexible,
-                    DefaultGradientSL);
+                    SegmentType.Stikledning,
+                    pipeTypes);
                 config.Priorities.Add(pe);
             }
 
@@ -124,7 +103,40 @@ namespace NorsynHydraulicCalc
 
         #region Pipe Type Priority Creation
         /// <summary>
-        /// Creates a PipeTypePriority with uniform velocity and gradient for all DN values.
+        /// Creates a PipeTypePriority using default accept criteria from the pipe type.
+        /// </summary>
+        public static PipeTypePriority CreatePipeTypePriorityWithDefaults(
+            int priority,
+            PipeType pipeType,
+            int minDn,
+            int maxDn,
+            SegmentType segmentType,
+            PipeTypes pipeTypes)
+        {
+            var ptp = new PipeTypePriority(priority, pipeType, minDn, maxDn);
+
+            var pipe = pipeTypes.GetPipeType(pipeType) as PipeBase;
+            if (pipe != null)
+            {
+                // Get default accept criteria from pipe type (uses segment type for FL/SL specific defaults)
+                ptp.AcceptCriteria = pipe.GetAllDefaultAcceptCriteria(segmentType);
+            }
+            else
+            {
+                // Fallback with generic defaults (shouldn't happen)
+                var availableDnValues = pipeTypes.GetAvailableDnValues(pipeType);
+                foreach (var dn in availableDnValues)
+                {
+                    ptp.AcceptCriteria.Add(new DnAcceptCriteria(dn, 2.0, 100, true));
+                }
+            }
+
+            return ptp;
+        }
+
+        /// <summary>
+        /// Creates a PipeTypePriority with explicit velocity and gradient values.
+        /// Use this when you need to override the pipe type defaults.
         /// </summary>
         public static PipeTypePriority CreatePipeTypePriority(
             int priority,
@@ -141,6 +153,7 @@ namespace NorsynHydraulicCalc
 
         /// <summary>
         /// Creates a PipeTypePriority with variable velocity and gradient based on DN.
+        /// Use this when you need DN-specific values that differ from pipe type defaults.
         /// </summary>
         public static PipeTypePriority CreatePipeTypePriority(
             int priority,
@@ -164,27 +177,6 @@ namespace NorsynHydraulicCalc
             }
 
             return ptp;
-        }
-        #endregion
-
-        #region DN-based Default Values
-        /// <summary>
-        /// Gets the default velocity for steel pipes in FL based on DN.
-        /// </summary>
-        public static double GetSteelVelocityFL(int dn)
-        {
-            if (dn <= 150) return DefaultVelocitySmall;
-            if (dn <= 300) return DefaultVelocityMedium;
-            return DefaultVelocityLarge;
-        }
-
-        /// <summary>
-        /// Gets the default pressure gradient for steel pipes in FL based on DN.
-        /// </summary>
-        public static int GetSteelGradientFL(int dn)
-        {
-            if (dn <= 300) return DefaultGradientFL;
-            return DefaultGradientFLLarge;
         }
         #endregion
 

@@ -5,63 +5,221 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:DimensioneringV2.UI"
         mc:Ignorable="d"
-        Title="Pris" Height="450" Width="800"
-        Background="{DynamicResource Background}" Foreground="{DynamicResource Text}">
+        Title="Prisberegning" Height="500" Width="800"
+        MinHeight="300" MinWidth="600"
+        Background="{DynamicResource Background}" Foreground="{DynamicResource Text}"
+        WindowStartupLocation="CenterScreen"
+        SizeToContent="Height">
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="Theme.xaml"/>
             </ResourceDictionary.MergedDictionaries>
-            <Style x:Key="RightAlignedTextBlockStyle" TargetType="TextBlock">
-                <Setter Property="HorizontalAlignment" Value="Right" />
+            
+            <!-- Expander Header Style -->
+            <Style x:Key="ExpanderHeaderStyle" TargetType="Expander">
+                <Setter Property="Background" Value="#FF404040"/>
+                <Setter Property="Foreground" Value="{DynamicResource Text}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Margin" Value="0,0,0,12"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Expander">
+                            <Border Background="{TemplateBinding Background}" 
+                                    BorderBrush="{TemplateBinding BorderBrush}" 
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="6">
+                                <DockPanel>
+                                    <ToggleButton DockPanel.Dock="Top" 
+                                                  IsChecked="{Binding IsExpanded, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                                  OverridesDefaultStyle="True"
+                                                  Cursor="Hand">
+                                        <ToggleButton.Template>
+                                            <ControlTemplate TargetType="ToggleButton">
+                                                <Border Background="#FF505050" CornerRadius="6,6,0,0" Padding="16,12">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsExpanded, RelativeSource={RelativeSource AncestorType=Expander}}" Value="False">
+                                                                    <Setter Property="CornerRadius" Value="6"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <Path x:Name="Arrow" Grid.Column="0"
+                                                              Data="M 0 0 L 6 6 L 12 0 Z"
+                                                              Fill="White"
+                                                              VerticalAlignment="Center"
+                                                              Margin="0,0,12,0"
+                                                              RenderTransformOrigin="0.5,0.5">
+                                                            <Path.RenderTransform>
+                                                                <RotateTransform Angle="-90"/>
+                                                            </Path.RenderTransform>
+                                                        </Path>
+                                                        <ContentPresenter Grid.Column="1" Content="{TemplateBinding Content}"/>
+                                                    </Grid>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsChecked" Value="True">
+                                                        <Setter TargetName="Arrow" Property="RenderTransform">
+                                                            <Setter.Value>
+                                                                <RotateTransform Angle="0"/>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                    </Trigger>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="Background" Value="#FF606060"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </ToggleButton.Template>
+                                        <ContentPresenter ContentSource="Header"/>
+                                    </ToggleButton>
+                                    <ContentPresenter x:Name="ExpandSite" 
+                                                      DockPanel.Dock="Bottom"
+                                                      Visibility="Collapsed"
+                                                      Margin="0"/>
+                                </DockPanel>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsExpanded" Value="True">
+                                    <Setter TargetName="ExpandSite" Property="Visibility" Value="Visible"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+            
+            <!-- DataGrid style that shows all rows -->
+            <Style x:Key="FullHeightDataGrid" TargetType="DataGrid" BasedOn="{StaticResource DarkDataGridStyle}">
+                <Setter Property="AutoGenerateColumns" Value="False"/>
+                <Setter Property="IsReadOnly" Value="True"/>
+                <Setter Property="CanUserAddRows" Value="False"/>
+                <Setter Property="CanUserDeleteRows" Value="False"/>
+                <Setter Property="CanUserSortColumns" Value="False"/>
+                <Setter Property="SelectionMode" Value="Single"/>
+                <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+                <Setter Property="HeadersVisibility" Value="Column"/>
+                <Setter Property="VerticalScrollBarVisibility" Value="Disabled"/>
+                <Setter Property="HorizontalScrollBarVisibility" Value="Disabled"/>
             </Style>
         </ResourceDictionary>
     </Window.Resources>
-    <StackPanel Margin="10">
-        <TextBlock Text="Service Lines" FontWeight="Bold" FontSize="16" Margin="0,10,0,5"/>
-        <DataGrid x:Name="ServiceLinesTable" AutoGenerateColumns="False" IsReadOnly="True" Margin="0,0,0,10">
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="Pipe Dimension" Binding="{Binding DimName}" />
-                <DataGridTextColumn Header="Total Length" Binding="{Binding TotalLength, StringFormat=N2}">
-                    <DataGridTextColumn.ElementStyle>
-                        <Style TargetType="TextBlock" BasedOn="{StaticResource RightAlignedTextBlockStyle}" />
-                    </DataGridTextColumn.ElementStyle>
-                </DataGridTextColumn>
-                <DataGridTextColumn Header="Price" Binding="{Binding Price, StringFormat=N0}">
-                    <DataGridTextColumn.ElementStyle>
-                        <Style TargetType="TextBlock" BasedOn="{StaticResource RightAlignedTextBlockStyle}" />
-                    </DataGridTextColumn.ElementStyle>
-                </DataGridTextColumn>
-                <DataGridTextColumn Header="Service Count" Binding="{Binding ServiceCount}">
-                    <DataGridTextColumn.ElementStyle>
-                        <Style TargetType="TextBlock" BasedOn="{StaticResource RightAlignedTextBlockStyle}" />
-                    </DataGridTextColumn.ElementStyle>
-                </DataGridTextColumn>
-                <DataGridTextColumn Header="Service Price" Binding="{Binding ServicePrice, StringFormat=N0}">
-                    <DataGridTextColumn.ElementStyle>
-                        <Style TargetType="TextBlock" BasedOn="{StaticResource RightAlignedTextBlockStyle}" />
-                    </DataGridTextColumn.ElementStyle>
-                </DataGridTextColumn>
-            </DataGrid.Columns>
-        </DataGrid>
+    
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="20">
+            
+            <!-- Stikledninger Expander -->
+            <Expander x:Name="StikExpander" Style="{StaticResource ExpanderHeaderStyle}" IsExpanded="False">
+                <Expander.Header>
+                    <TextBlock x:Name="StikHeaderText" FontWeight="SemiBold" FontSize="16" Foreground="White"/>
+                </Expander.Header>
+                <Border Background="#FF333333" Padding="12" CornerRadius="0,0,6,6">
+                    <DataGrid x:Name="ServiceLinesTable" Style="{StaticResource FullHeightDataGrid}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Rørdimension" Binding="{Binding DimName}" Width="*">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="Padding" Value="8,0"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Længde [m]" Binding="{Binding TotalLength, StringFormat=N2}" Width="110">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="HorizontalAlignment" Value="Right"/>
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="Padding" Value="8,0"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Pris [kr]" Binding="{Binding Price, StringFormat=N0}" Width="110">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="HorizontalAlignment" Value="Right"/>
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="Padding" Value="8,0"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Antal stik" Binding="{Binding ServiceCount}" Width="90">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="HorizontalAlignment" Value="Right"/>
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="Padding" Value="8,0"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Stikpris [kr]" Binding="{Binding ServicePrice, StringFormat=N0}" Width="110">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="HorizontalAlignment" Value="Right"/>
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="Padding" Value="8,0"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+            </Expander>
 
-        <TextBlock Text="Supply Lines" FontWeight="Bold" FontSize="16" Margin="0,10,0,5"/>
-        <DataGrid x:Name="SupplyLinesTable" AutoGenerateColumns="False" IsReadOnly="True" Margin="0,0,0,10">
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="Pipe Dimension" Binding="{Binding DimName}" />
-                <DataGridTextColumn Header="Total Length" Binding="{Binding TotalLength, StringFormat=N2}">
-                    <DataGridTextColumn.ElementStyle>
-                        <Style TargetType="TextBlock" BasedOn="{StaticResource RightAlignedTextBlockStyle}" />
-                    </DataGridTextColumn.ElementStyle>
-                </DataGridTextColumn>
-                <DataGridTextColumn Header="Price" Binding="{Binding Price, StringFormat=N0}">
-                    <DataGridTextColumn.ElementStyle>
-                        <Style TargetType="TextBlock" BasedOn="{StaticResource RightAlignedTextBlockStyle}" />
-                    </DataGridTextColumn.ElementStyle>
-                </DataGridTextColumn>
-            </DataGrid.Columns>
-        </DataGrid>
+            <!-- Fordelingsledninger Expander -->
+            <Expander x:Name="FlsExpander" Style="{StaticResource ExpanderHeaderStyle}" IsExpanded="False">
+                <Expander.Header>
+                    <TextBlock x:Name="FlsHeaderText" FontWeight="SemiBold" FontSize="16" Foreground="White"/>
+                </Expander.Header>
+                <Border Background="#FF333333" Padding="12" CornerRadius="0,0,6,6">
+                    <DataGrid x:Name="SupplyLinesTable" Style="{StaticResource FullHeightDataGrid}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Rørdimension" Binding="{Binding DimName}" Width="*">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="Padding" Value="8,0"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Længde [m]" Binding="{Binding TotalLength, StringFormat=N2}" Width="110">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="HorizontalAlignment" Value="Right"/>
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="Padding" Value="8,0"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Pris [kr]" Binding="{Binding Price, StringFormat=N0}" Width="110">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="HorizontalAlignment" Value="Right"/>
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="Padding" Value="8,0"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+            </Expander>
 
-        <TextBlock x:Name="GrandTotalTextBlock" FontWeight="Bold" FontSize="18" HorizontalAlignment="Center" Margin="0,10,0,0"/>
-    </StackPanel>
+            <!-- Grand Total Section -->
+            <Border Background="#FF4A7C59" CornerRadius="6" Padding="16,14">
+                <TextBlock x:Name="GrandTotalTextBlock" 
+                           FontWeight="Bold" 
+                           FontSize="18" 
+                           Foreground="White"
+                           HorizontalAlignment="Center"/>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
 </Window>

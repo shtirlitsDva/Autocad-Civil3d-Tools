@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -13,7 +13,8 @@ namespace NorsynHydraulicCalc
     public enum PipeType
     {
         Stål,
-        PertFlextra,
+        PertFlextraFL,
+        PertFlextraSL,
         AquaTherm11,
         AluPEX,
         Kobber,

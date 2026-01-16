@@ -47,7 +47,7 @@ namespace DimensioneringV2.UI.Dialogs
             var types = new NorsynHydraulicCalc.Pipes.PipeTypes(settings);
             PipeTypes.Add(PipeType.Stål);
             PipeTypes.Add(PipeType.AluPEX);
-            PipeTypes.Add(PipeType.PertFlextra);
+            PipeTypes.Add(PipeType.PertFlextraFL);
             PipeTypes.Add(PipeType.Kobber);
             PipeTypes.Add(PipeType.Pe);
             SelectedPipeType = PipeTypes.FirstOrDefault();
@@ -62,7 +62,7 @@ namespace DimensioneringV2.UI.Dialogs
             {
                 PipeType.Stål => types.Stål.GetAllDimsSorted(),
                 PipeType.AluPEX => types.AluPex.GetAllDimsSorted(),
-                PipeType.PertFlextra => types.PertFlextra.GetAllDimsSorted(),
+                PipeType.PertFlextraFL => types.PertFlextraFL.GetAllDimsSorted(),
                 PipeType.Kobber => types.Cu.GetAllDimsSorted(),
                 PipeType.Pe => types.Pe.GetAllDimsSorted(),
                 _ => Enumerable.Empty<Dim>()

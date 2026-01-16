@@ -13,8 +13,21 @@ namespace NorsynHydraulicCalc.Pipes
         protected double Roughness_m { get => _roughness_m; }
         private double _roughness_m;
         abstract protected string DimName { get; }
-        abstract protected int OrderingPriority { get; }
+        /// <summary>
+        /// Priority for ordering pipe types (lower = higher priority).
+        /// </summary>
+        public abstract int OrderingPriority { get; }
         abstract protected double PricePerStk { get; }
+        
+        /// <summary>
+        /// Segment types this pipe supports (FL, SL, or both).
+        /// </summary>
+        public abstract SegmentType[] SupportedSegmentTypes { get; }
+
+        /// <summary>
+        /// Medium types this pipe is valid for.
+        /// </summary>
+        public abstract MediumTypeEnum[] SupportedMediumTypes { get; }
         private protected Dictionary<int, Dim>? Sizes { get; private set; }
         private PipeBase() { }
         public PipeBase(double roughness_mm)
@@ -43,6 +56,39 @@ namespace NorsynHydraulicCalc.Pipes
         public int[] GetAvailableDnValues()
         {
             return Sizes.Keys.OrderBy(k => k).ToArray();
+        }
+
+        /// <summary>
+        /// Gets default accept criteria (velocity, pressure gradient) for the specified DN and segment type.
+        /// Each pipe type implements its own defaults based on DN ranges.
+        /// </summary>
+        /// <param name="dn">Nominal diameter</param>
+        /// <param name="segmentType">FL or SL - determines which default values to use</param>
+        /// <returns>Tuple of (MaxVelocity in m/s, MaxPressureGradient in Pa/m)</returns>
+        public abstract (double Velocity, int PressureGradient) GetDefaultAcceptCriteria(int dn, SegmentType segmentType);
+
+        /// <summary>
+        /// Creates a DnAcceptCriteria with default values for the specified DN and segment type.
+        /// </summary>
+        public DnAcceptCriteria CreateDefaultAcceptCriteria(int dn, SegmentType segmentType)
+        {
+            var (velocity, gradient) = GetDefaultAcceptCriteria(dn, segmentType);
+            return new DnAcceptCriteria(dn, velocity, gradient, isInitialized: true);
+        }
+
+        /// <summary>
+        /// Creates a list of DnAcceptCriteria with default values for all available DNs.
+        /// </summary>
+        public List<DnAcceptCriteria> GetAllDefaultAcceptCriteria(SegmentType segmentType)
+        {
+            return Sizes
+                .OrderBy(kvp => kvp.Key)
+                .Select(kvp =>
+                {
+                    var (velocity, gradient) = GetDefaultAcceptCriteria(kvp.Key, segmentType);
+                    return new DnAcceptCriteria(kvp.Key, velocity, gradient, isInitialized: true);
+                })
+                .ToList();
         }
         
         public Dim GetDim(int dia) => Sizes[dia];

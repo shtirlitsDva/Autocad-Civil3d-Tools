@@ -135,6 +135,7 @@ namespace DimensioneringV2.UI.PipeSettings
                 return;
 
             var selectedType = dialog.SelectedPipeType;
+            var pipe = _pipeTypes.GetPipeType(selectedType) as PipeBase;
             var dnValues = _pipeTypes.GetAvailableDnValues(selectedType);
 
             var newPriority = new PipeTypePriority(
@@ -143,12 +144,18 @@ namespace DimensioneringV2.UI.PipeSettings
                 dnValues.FirstOrDefault(),
                 dnValues.LastOrDefault());
 
-            // Initialize with default accept criteria
-            foreach (var dn in dnValues)
+            // Initialize with default accept criteria from pipe type
+            if (pipe != null)
             {
-                var defaultVelocity = _segmentType == SegmentType.Stikledning ? 1.0 : 1.5;
-                var defaultGradient = _segmentType == SegmentType.Stikledning ? 600 : 100;
-                newPriority.AcceptCriteria.Add(new DnAcceptCriteria(dn, defaultVelocity, defaultGradient, false));
+                newPriority.AcceptCriteria = pipe.GetAllDefaultAcceptCriteria(_segmentType);
+            }
+            else
+            {
+                // Fallback if pipe doesn't inherit from PipeBase (shouldn't happen)
+                foreach (var dn in dnValues)
+                {
+                    newPriority.AcceptCriteria.Add(new DnAcceptCriteria(dn, 2.0, 100, true));
+                }
             }
 
             Priorities.Add(newPriority);
@@ -236,9 +243,11 @@ namespace DimensioneringV2.UI.PipeSettings
         /// <summary>
         /// Ensures that the priority has accept criteria for all available DNs.
         /// This is needed when the user changes the DN range or when loading old data.
+        /// New DNs get default values from CSV; existing DNs are marked uninitialized if they're new to the range.
         /// </summary>
         private void EnsureAcceptCriteriaComplete(PipeTypePriority priority)
         {
+            var pipe = _pipeTypes.GetPipeType(priority.PipeType) as PipeBase;
             var allAvailableDns = _pipeTypes.GetAvailableDnValues(priority.PipeType);
             var existingDns = priority.AcceptCriteria.Select(c => c.NominalDiameter).ToHashSet();
 
@@ -246,9 +255,19 @@ namespace DimensioneringV2.UI.PipeSettings
             {
                 if (!existingDns.Contains(dn))
                 {
-                    var defaultVelocity = _segmentType == SegmentType.Stikledning ? 1.0 : 1.5;
-                    var defaultGradient = _segmentType == SegmentType.Stikledning ? 600 : 100;
-                    priority.AcceptCriteria.Add(new DnAcceptCriteria(dn, defaultVelocity, defaultGradient, false));
+                    // Get default values from pipe type
+                    if (pipe != null)
+                    {
+                        var defaultCriteria = pipe.CreateDefaultAcceptCriteria(dn, _segmentType);
+                        // Mark as not initialized so user sees the orange warning
+                        defaultCriteria.IsInitialized = false;
+                        priority.AcceptCriteria.Add(defaultCriteria);
+                    }
+                    else
+                    {
+                        // Fallback with generic defaults
+                        priority.AcceptCriteria.Add(new DnAcceptCriteria(dn, 2.0, 100, false));
+                    }
                 }
             }
 
@@ -337,9 +356,11 @@ namespace DimensioneringV2.UI.PipeSettings
 
         /// <summary>
         /// Updates the accept criteria when pipe type or DN range changes.
+        /// Preserves existing user-defined criteria; adds defaults from CSV for new DNs.
         /// </summary>
         public void UpdateAcceptCriteriaForPriority(PipeTypePriority priority)
         {
+            var pipe = _pipeTypes.GetPipeType(priority.PipeType) as PipeBase;
             var availableDns = _pipeTypes.GetAvailableDnValues(priority.PipeType);
             var existingCriteria = priority.AcceptCriteria.ToDictionary(c => c.NominalDiameter);
 
@@ -351,11 +372,17 @@ namespace DimensioneringV2.UI.PipeSettings
                 {
                     priority.AcceptCriteria.Add(existing);
                 }
+                else if (pipe != null)
+                {
+                    // Get default values from pipe type, mark as not initialized
+                    var defaultCriteria = pipe.CreateDefaultAcceptCriteria(dn, _segmentType);
+                    defaultCriteria.IsInitialized = false;
+                    priority.AcceptCriteria.Add(defaultCriteria);
+                }
                 else
                 {
-                    var defaultVelocity = _segmentType == SegmentType.Stikledning ? 1.0 : 1.5;
-                    var defaultGradient = _segmentType == SegmentType.Stikledning ? 600 : 100;
-                    priority.AcceptCriteria.Add(new DnAcceptCriteria(dn, defaultVelocity, defaultGradient, false));
+                    // Fallback with generic defaults
+                    priority.AcceptCriteria.Add(new DnAcceptCriteria(dn, 2.0, 100, false));
                 }
             }
         }

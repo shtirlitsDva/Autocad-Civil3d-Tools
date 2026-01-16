@@ -1,18 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Globalization;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Shapes;
 
 namespace DimensioneringV2.UI
 {
@@ -21,15 +10,32 @@ namespace DimensioneringV2.UI
     /// </summary>
     public partial class PriceSummaryWindow : Window
     {
-        public PriceSummaryWindow(IEnumerable<object> stikTable, IEnumerable<object> flsTable, object grandTotal)
+        private static readonly CultureInfo DanishCulture = new CultureInfo("da-DK");
+
+        public PriceSummaryWindow(
+            IEnumerable<object> stikTable, 
+            IEnumerable<object> flsTable, 
+            object grandTotal,
+            double stikTotal,
+            double flsTotal)
         {
             InitializeComponent();
+            
+            // Enable dark title bar
+            Loaded += (s, e) => DarkTitleBarHelper.EnableDarkTitleBar(this);
 
             double gtotal = (double)grandTotal;
 
+            // Set data sources
             ServiceLinesTable.ItemsSource = stikTable;
             SupplyLinesTable.ItemsSource = flsTable;
-            GrandTotalTextBlock.Text = $"Samlet pris: {gtotal.ToString("N0", new CultureInfo("da-DK"))}"; ;
+            
+            // Set expander headers with subtotals
+            StikHeaderText.Text = $"Stikledninger: {stikTotal.ToString("N0", DanishCulture)} kr";
+            FlsHeaderText.Text = $"Fordelingsledninger: {flsTotal.ToString("N0", DanishCulture)} kr";
+            
+            // Set grand total
+            GrandTotalTextBlock.Text = $"Samlet pris: {gtotal.ToString("N0", DanishCulture)} kr";
         }
     }
 }

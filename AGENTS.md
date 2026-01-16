@@ -34,6 +34,7 @@ The repository includes batch files for building projects with MSBuild (required
 | `build-intersectutilities-debug.bat` | IntersectUtilities | Debug |
 | `build-intersectutilities-release.bat` | IntersectUtilities | Release |
 | `build-ntrexport-debug.bat` | NTRExport | Debug |
+| `build-dimensioneringv2-debug.bat` | DimensioneringV2 | Debug |
 
 All scripts use VS 2022 Community MSBuild at `C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe` and output errors only with summary.
 

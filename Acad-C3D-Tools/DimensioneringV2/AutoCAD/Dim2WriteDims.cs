@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -119,7 +119,7 @@ namespace DimensioneringV2.AutoCAD
             {
                 case NorsynHydraulicCalc.PipeType.Stål:
                     return PipeSystemEnum.Stål;
-                case NorsynHydraulicCalc.PipeType.PertFlextra:
+                case NorsynHydraulicCalc.PipeType.PertFlextraFL:
                     return PipeSystemEnum.PertFlextra;
                 case NorsynHydraulicCalc.PipeType.AluPEX:
                     return PipeSystemEnum.AluPex;

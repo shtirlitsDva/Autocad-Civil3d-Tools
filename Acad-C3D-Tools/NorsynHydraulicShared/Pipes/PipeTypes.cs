@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace NorsynHydraulicCalc.Pipes
@@ -13,7 +14,8 @@ namespace NorsynHydraulicCalc.Pipes
             _s = settings;
             _stål = new PipeSteel(_s.RuhedSteel);            
             _aluPex = new PipeAluPex(_s.RuhedAluPEX);
-            _pertFlextra = new PipePertFlextra(_s.RuhedPertFlextra);
+            _pertFlextraFL = new PipePertFlextraFL(_s.RuhedPertFlextra);
+            _pertFlextraSL = new PipePertFlextraSL(_s.RuhedPertFlextra);
             _cu = new PipeCu(_s.RuhedCu);
             _pe = new PipePe(_s.RuhedPe);
             _at11 = new PipeAquaTherm11(_s.RuhedAquaTherm11);
@@ -21,7 +23,8 @@ namespace NorsynHydraulicCalc.Pipes
             {
                 { PipeType.Stål, _stål },
                 { PipeType.AluPEX, _aluPex },
-                { PipeType.PertFlextra, _pertFlextra },
+                { PipeType.PertFlextraFL, _pertFlextraFL },
+                { PipeType.PertFlextraSL, _pertFlextraSL },
                 { PipeType.Kobber, _cu },
                 { PipeType.Pe, _pe },
                 { PipeType.AquaTherm11, _at11 }
@@ -44,14 +47,38 @@ namespace NorsynHydraulicCalc.Pipes
                 return pipeBase.GetAvailableDnValues();
             return Array.Empty<int>();
         }
+
+        /// <summary>
+        /// Gets all pipe types that support the given segment type and medium.
+        /// Ordered by their OrderingPriority.
+        /// </summary>
+        public IEnumerable<PipeType> GetPipeTypesFor(SegmentType segmentType, MediumTypeEnum medium)
+        {
+            if (_allTypes == null)
+                throw new Exception("PipeTypes not initialized");
+
+            return _allTypes
+                .Where(kvp =>
+                {
+                    var pipe = kvp.Value as PipeBase;
+                    return pipe != null
+                        && pipe.SupportedSegmentTypes.Contains(segmentType)
+                        && pipe.SupportedMediumTypes.Contains(medium);
+                })
+                .OrderBy(kvp => (kvp.Value as PipeBase)?.OrderingPriority ?? int.MaxValue)
+                .Select(kvp => kvp.Key);
+        }
         private PipeSteel _stål;
         public PipeSteel Stål => _stål;
 
         private PipeAluPex _aluPex;
         public PipeAluPex AluPex => _aluPex;
 
-        private PipePertFlextra _pertFlextra;
-        public PipePertFlextra PertFlextra => _pertFlextra;
+        private PipePertFlextraFL _pertFlextraFL;
+        public PipePertFlextraFL PertFlextraFL => _pertFlextraFL;
+
+        private PipePertFlextraSL _pertFlextraSL;
+        public PipePertFlextraSL PertFlextraSL => _pertFlextraSL;
 
         private PipeCu _cu;
         public PipeCu Cu => _cu;

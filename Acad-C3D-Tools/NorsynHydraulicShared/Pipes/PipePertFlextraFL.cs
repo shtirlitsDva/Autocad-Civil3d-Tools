@@ -1,28 +1,28 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
 namespace NorsynHydraulicCalc.Pipes
 {
-    public class PipeCu : PipeBase
+    public class PipePertFlextraFL : PipeBase
     {
-        public PipeCu(double roughness_mm) : base(roughness_mm) { }
-        protected override string Name => "PipeCu";
-        protected override PipeType PipeType => PipeType.Kobber;
-        protected override string DimName => "Cu ";
-        public override int OrderingPriority => 0;
+        public PipePertFlextraFL(double roughness_mm) : base(roughness_mm) { }
+        protected override string Name => "PipePertFlextraFL";
+        protected override PipeType PipeType => PipeType.PertFlextraFL;
+        protected override string DimName => "PertFlextra ";
+        public override int OrderingPriority => 1;
         protected override double PricePerStk => 27990;
         public override SegmentType[] SupportedSegmentTypes => 
-            [SegmentType.Stikledning];
+            [SegmentType.Fordelingsledning];
         public override MediumTypeEnum[] SupportedMediumTypes => 
             [MediumTypeEnum.Water];
 
         /// <summary>
-        /// Copper SL: All: V=1.0, ΔP=1000
+        /// PertFlextra FL: All: V=2.0, ΔP=150
         /// </summary>
         public override (double Velocity, int PressureGradient) GetDefaultAcceptCriteria(int dn, SegmentType segmentType)
         {
-            return (1.0, 1000);
+            return (2.0, 150);
         }
     }
 }

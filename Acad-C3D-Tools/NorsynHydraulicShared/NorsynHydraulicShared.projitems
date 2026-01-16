@@ -11,13 +11,15 @@
   <ItemGroup>
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)Pipes\Sizes\PipeAluPexSizes.csv" />
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)Pipes\Sizes\PipeCuSizes.csv" />
-    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Pipes\Sizes\PipePertFlextraSizes.csv" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Pipes\Sizes\PipePertFlextraSLSizes.csv" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Pipes\Sizes\PipePertFlextraFLSizes.csv" />
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)Pipes\Sizes\PipeSteelSizes.csv" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)AsciiTableFormatter.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)CalculationResultFordeling.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Pipes\PipeAquaTherm11.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Pipes\PipePertFlextraSL.cs" />
     <Compile Include="..\NorsynHydraulicShared\CalculationResultClient.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Enums.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)HydraulicCalc.cs" />
@@ -35,7 +37,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Pipes\PipeBase.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Pipes\PipeCu.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Pipes\PipePe.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Pipes\PipePertFlextra.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Pipes\PipePertFlextraFL.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Pipes\PipeSteel.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Pipes\PipeTypes.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)DnAcceptCriteria.cs" />
@@ -43,6 +45,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)PipeTypeConfiguration.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)MediumPipeTypeRules.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)DefaultPipeConfigFactory.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)DefaultHydraulicSettings.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Rules\IPipeRule.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Rules\IRuleEvaluationContext.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Rules\ParentPipeRule.cs" />
