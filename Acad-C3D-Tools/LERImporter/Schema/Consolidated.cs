@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -20,7 +20,7 @@ namespace LERImporter.Schema
         public List<FeatureMember> featureCollection { get; set; }
         public string GetGraveForespBemaerkning() =>
             featureCollection.Where(x => x.item is Graveforesp)
-            .Select(x => x.item as Graveforesp).FirstOrDefault()?.bemaerkning;
+            .Select(x => x.item as Graveforesp).FirstOrDefault()?.bemaerkning;        
     }
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
@@ -215,6 +215,6 @@ namespace LERImporter.Schema
         public string bemaerkning { get; set; }
         public GeometryPropertyType polygonProperty { get; set; }
         [System.Xml.Serialization.XmlElementAttribute(Namespace = "")]
-        public uint orderNo { get; set; }
+        public string orderNo { get; set; }
     }
 }

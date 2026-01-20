@@ -1,29 +1,27 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Collections.Specialized;
-using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using Autodesk.Aec.PropertyData.DatabaseServices;
 using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.DatabaseServices;
-using Autodesk.AutoCAD.Runtime;
 using Autodesk.AutoCAD.Geometry;
+using Autodesk.AutoCAD.Runtime;
+
 using IntersectUtilities;
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.DataManager.CsvData;
+
 using LERImporter.Schema;
-using Microsoft.VisualBasic.Logging;
+
+using System;
+using System.Collections.Generic;
+using System.Collections.Specialized;
+using System.Diagnostics;
+using System.Linq;
+using System.Reflection;
+using System.Text;
+
+using static IntersectUtilities.UtilsCommon.Utils;
+
 using Log = LERImporter.SimpleLogger;
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
-using static IntersectUtilities.UtilsCommon.UtilsDataTables;
-using DataTable = System.Data.DataTable;
-using static IntersectUtilities.UtilsCommon.Utils;
-using Autodesk.AutoCAD.Geometry;
-using System.Runtime.CompilerServices;
-using System.Xml.Linq;
 
 namespace LERImporter
 {
@@ -103,16 +101,83 @@ namespace LERImporter
 
                         var absCurve = ltr.geometri.MultiCurve.curveMember[0].AbstractCurve;
                         if (absCurve is LineStringType ls)
-                        { 
+                        {
                             ledn.geometri = new GeometryPropertyType();
-                            ledn.geometri.Item = ls; 
+                            ledn.geometri.Item = ls;
                         }
                         else throw new System.Exception($"For LedningstraceType {ltr.GmlId} encountered unhandled AbstractCurve type!\n" +
                             $"{absCurve.GetType()}");
                     }
                 }
             }
+            #endregion
 
+            #region Transform Energinet Ledningstrace to Elledning
+            // Energinet Eltransmission A/S uses Ledningstrace incorrectly to represent cables.
+            // We transform these to ElledningType.
+            const uint EnerginetLedningsejer = 39314878;
+            var energinetTraces = ledningstrace
+                .Where(x => x.ledningsejer == EnerginetLedningsejer)
+                .ToList();
+
+            foreach (var trace in energinetTraces)
+            {
+                // Extract geometry from the trace's MultiCurve
+                if (trace.geometri?.MultiCurve?.curveMember == null ||
+                    trace.geometri.MultiCurve.curveMember.Length == 0)
+                {
+                    Log.log($"Energinet Ledningstrace {trace.GmlId} has no geometry, skipping transformation.");
+                    continue;
+                }
+
+                if (trace.geometri.MultiCurve.curveMember.Length > 1)
+                {
+                    Log.log($"WARNING: Energinet Ledningstrace {trace.GmlId} has multiple curves, using first one.");
+                }
+
+                var absCurve = trace.geometri.MultiCurve.curveMember[0].AbstractCurve;
+
+                // Create new ElledningType from the trace
+                var elledning = new ElledningType
+                {
+                    // Copy common properties
+                    ledningsejer = trace.ledningsejer,
+                    indberetningsNr = trace.indberetningsNr,
+                    lerid = trace.lerid,
+                    gmlid = trace.gmlid,
+                    driftsstatus = trace.driftsstatus,
+                    noejagtighedsklasse = trace.noejagtighedsklasse,
+                    etableringstidspunkt = trace.etableringstidspunkt,
+                    registreringFra = trace.registreringFra,
+                    vejledendeDybde = trace.vejledendeDybde,
+                    indtegningsmetode = trace.indtegningsmetode,
+                    sikkerhedshensyn = trace.sikkerhedshensyn,                    
+
+                    // Set Energinet-specific properties
+                    spaendingsniveau = new MeasureType { Value = 136, uom = "kV" },
+                    fareklasse = new FareklasseTypeType { Value = FareklasseType.megetfarlig },
+                    type = "forsyningskabel",
+
+                    // Copy geometry
+                    geometri = new GeometryPropertyType { Item = absCurve }
+                };
+
+                // Copy company name if already populated
+                elledning.LedningsEjersNavn = trace.LedningsEjersNavn;
+
+                // Copy Bemærkning and LerNummer
+                elledning.Bemærkning = trace.Bemærkning;
+                elledning.LerNummer = trace.LerNummer;
+
+                ledninger.Add(elledning);
+                Log.log($"Transformed Energinet Ledningstrace {trace.GmlId} to Elledning.");
+            }
+
+            // Remove transformed traces from ledningstrace to avoid duplicate drawing
+            foreach (var trace in energinetTraces)
+            {
+                ledningstrace.Remove(trace);
+            }
             #endregion
 
             #region Draw graveforesp polygon
@@ -232,87 +297,7 @@ namespace LERImporter
                         AddPropertySetDefinitionToDb(Db3d, propSetDef, psName);
                     }
                 }
-            }
-
-            //Create property sets 3d
-            #region 3D prop sets --> not needed???
-            //if (Db3d != null)
-            //{
-            //    HashSet<Type> allUniqueTypes = ledninger.Select(x => x.GetType()).Distinct().ToHashSet();
-            //    allUniqueTypes.UnionWith(ledningstrace.Select(x => x.GetType()).Distinct().ToHashSet());
-            //    foreach (Type type in allUniqueTypes)
-            //    {
-            //        string psName = type.Name.Replace("Type", "");
-            //        PropertySetDefinition propSetDef3d = new PropertySetDefinition();
-            //        propSetDef3d.SetToStandard(Db3d);
-            //        propSetDef3d.SubSetDatabaseDefaults(Db3d);
-
-            //        propSetDef3d.Description = type.FullName;
-            //        bool isStyle = false;
-            //        var appliedTo = new StringCollection()
-            //    {
-            //        RXClass.GetClass(typeof(Polyline)).Name,
-            //        RXClass.GetClass(typeof(Polyline3d)).Name,
-            //        RXClass.GetClass(typeof(DBPoint)).Name,
-            //        RXClass.GetClass(typeof(Hatch)).Name,
-            //    };
-            //        propSetDef3d.SetAppliesToFilter(appliedTo, isStyle);
-
-            //        var properties = type.GetProperties();
-
-            //        foreach (PropertyInfo prop in properties)
-            //        {
-            //            bool include = prop.CustomAttributes.Any(x => x.AttributeType == typeof(Schema.PsInclude));
-            //            if (include)
-            //            {
-            //                var propDefManual = new PropertyDefinition();
-            //                propDefManual.SetToStandard(Db3d);
-            //                propDefManual.SubSetDatabaseDefaults(Db3d);
-            //                propDefManual.Name = prop.Name;
-            //                propDefManual.Description = prop.Name;
-            //                switch (prop.PropertyType.Name)
-            //                {
-            //                    case nameof(String):
-            //                        propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Text;
-            //                        propDefManual.DefaultData = "";
-            //                        break;
-            //                    case nameof(System.Boolean):
-            //                        propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.TrueFalse;
-            //                        propDefManual.DefaultData = false;
-            //                        break;
-            //                    case nameof(Double):
-            //                        propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Real;
-            //                        propDefManual.DefaultData = 0.0;
-            //                        break;
-            //                    case nameof(Int32):
-            //                        propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Integer;
-            //                        propDefManual.DefaultData = 0;
-            //                        break;
-            //                    default:
-            //                        propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Text;
-            //                        propDefManual.DefaultData = "";
-            //                        break;
-            //                }
-            //                propSetDef3d.Definitions.Add(propDefManual);
-            //            }
-            //        }
-
-            //        using (Transaction tx = Db3d.TransactionManager.StartTransaction())
-            //        {
-            //            //check if prop set already exists
-            //            DictionaryPropertySetDefinitions dictPropSetDef = new DictionaryPropertySetDefinitions(Db3d);
-            //            if (dictPropSetDef.Has(psName, tx))
-            //            {
-            //                tx.Abort();
-            //                continue;
-            //            }
-            //            dictPropSetDef.AddNewRecord(psName, propSetDef3d);
-            //            tx.AddNewlyCreatedDBObject(propSetDef3d, true);
-            //            tx.Commit();
-            //        }
-            //    }
-            //}
-            #endregion
+            }            
             #endregion
 
             #region Create elements
@@ -337,12 +322,18 @@ namespace LERImporter
                         Entity ent = entityId.Go<Entity>(Db2d.TransactionManager.TopTransaction, OpenMode.ForWrite);
                         layerNames2d.Add(ent.Layer);
 
+                        if (ent is Polyline pl) pl.Plinegen = true;
+
                         //Attach the property set
                         PropertySetManager.AttachNonDefinedPropertySet(Db2d, ent, psName);
 
                         //Populate the property set
                         var psData = GmlToPropertySet.TranslateGmlToPs(ledning);
                         PropertySetManager.PopulateNonDefinedPropertySet(Db2d, ent, psName, psData);
+                        PropertySetManager.WriteNonDefinedPropertySetString(
+                            ent, psName, "GmlBemærkning", ledning.Bemærkning);
+                        PropertySetManager.WriteNonDefinedPropertySetString(
+                            ent, psName, "LerNummer", ledning.LerNummer);
                     }
                     catch (System.Exception)
                     {
@@ -365,6 +356,10 @@ namespace LERImporter
                     //Populate the property set
                     var psData = GmlToPropertySet.TranslateGmlToPs(ledning);
                     PropertySetManager.PopulateNonDefinedPropertySet(Db3d, ent, psName, psData);
+                    PropertySetManager.WriteNonDefinedPropertySetString(
+                            ent, psName, "GmlBemærkning", ledning.Bemærkning);
+                    PropertySetManager.WriteNonDefinedPropertySetString(
+                        ent, psName, "LerNummer", ledning.LerNummer);
                 }
             }
             foreach (LedningstraceType trace in ledningstrace)
@@ -382,12 +377,18 @@ namespace LERImporter
                     Entity ent = entityId.Go<Entity>(Db2d.TransactionManager.TopTransaction, OpenMode.ForWrite);
                     layerNames2d.Add(ent.Layer);
 
+                    if (ent is Polyline pl) pl.Plinegen = true;
+
                     //Attach the property set
                     PropertySetManager.AttachNonDefinedPropertySet(Db2d, ent, psName);
 
                     //Populate the property set
                     var psData = GmlToPropertySet.TranslateGmlToPs(trace);
                     PropertySetManager.PopulateNonDefinedPropertySet(Db2d, ent, psName, psData);
+                    PropertySetManager.WriteNonDefinedPropertySetString(
+                            ent, psName, "GmlBemærkning", trace.Bemærkning);
+                    PropertySetManager.WriteNonDefinedPropertySetString(
+                        ent, psName, "LerNummer", trace.LerNummer);
                 }
 
                 //Draw 3d
@@ -404,6 +405,10 @@ namespace LERImporter
                     //Populate the property set
                     var psData = GmlToPropertySet.TranslateGmlToPs(trace);
                     PropertySetManager.PopulateNonDefinedPropertySet(Db3d, ent, psName, psData);
+                    PropertySetManager.WriteNonDefinedPropertySetString(
+                            ent, psName, "GmlBemærkning", trace.Bemærkning);
+                    PropertySetManager.WriteNonDefinedPropertySetString(
+                        ent, psName, "LerNummer", trace.LerNummer);
                 }
             }
             //Create components in 2D
@@ -434,6 +439,10 @@ namespace LERImporter
                     //Populate the property set
                     var psData = GmlToPropertySet.TranslateGmlToPs(komponent);
                     PropertySetManager.PopulateNonDefinedPropertySet(Db2d, ent, psName, psData);
+                    PropertySetManager.WriteNonDefinedPropertySetString(
+                            ent, psName, "GmlBemærkning", komponent.Bemærkning);
+                    PropertySetManager.WriteNonDefinedPropertySetString(
+                        ent, psName, "LerNummer", komponent.LerNummer);
                 }
             }
             #endregion
@@ -543,14 +552,14 @@ namespace LERImporter
 
                     HashSet<string> errorneousLineTypes = new HashSet<string>();
                     foreach (string missingName in missingLineTypes)
-                    { 
+                    {
                         if (!sourceLtt.Has(missingName))
                         {
                             Log.log($"ERROR! Could not find missing linetype {missingName} in Projection_styles.dwg!");
                             errorneousLineTypes.Add(missingName);
                             continue;
                         }
-                        idsToClone.Add(sourceLtt[missingName]); 
+                        idsToClone.Add(sourceLtt[missingName]);
                     }
 
                     if (errorneousLineTypes.Count > 0)
@@ -647,6 +656,26 @@ namespace LERImporter
                     propSetDef.Definitions.Add(propDefManual);
                 }
             }
+
+            //Add property for gml bemærkning
+            var propDefGmlName = new PropertyDefinition();
+            propDefGmlName.SetToStandard(db);
+            propDefGmlName.SubSetDatabaseDefaults(db);
+            propDefGmlName.Name = "GmlBemærkning";
+            propDefGmlName.Description = "The bemærkning for graverforespørgsel.";
+            propDefGmlName.DataType = Autodesk.Aec.PropertyData.DataType.Text;
+            propDefGmlName.DefaultData = "";
+            propSetDef.Definitions.Add(propDefGmlName);
+
+            //Add property for ler nummer
+            var propDefLerNummer = new PropertyDefinition();
+            propDefLerNummer.SetToStandard(db);
+            propDefLerNummer.SubSetDatabaseDefaults(db);
+            propDefLerNummer.Name = "LerNummer";
+            propDefLerNummer.Description = "Ler nummer.";
+            propDefLerNummer.DataType = Autodesk.Aec.PropertyData.DataType.Text;
+            propDefLerNummer.DefaultData = "";
+            propSetDef.Definitions.Add(propDefLerNummer);
 
             return propSetDef;
         }

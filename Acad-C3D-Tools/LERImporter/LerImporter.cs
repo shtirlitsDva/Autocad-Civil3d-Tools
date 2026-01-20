@@ -1,17 +1,13 @@
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
-using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Runtime;
-using Autodesk.Civil.ApplicationServices;
 //using MoreLinq;
 //using GroupByCluster;
-using IntersectUtilities.UtilsCommon;
-
 using LERImporter.Enhancer;
+using LERImporter.Schema;
 
 using System;
 using System.Collections.Generic;
-using System.Data;
 using System.IO;
 using System.Linq;
 using System.Xml;
@@ -25,7 +21,6 @@ using static IntersectUtilities.UtilsCommon.Utils;
 
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Log = LERImporter.SimpleLogger;
-using OpenFileDialog = Microsoft.Win32.OpenFileDialog;
 
 namespace LERImporter
 {
@@ -50,111 +45,14 @@ namespace LERImporter
         }
         #endregion
 
-        public static readonly string ImplementedVersion = "2.0.0";        
-
-        //[CommandMethod("IMPORTCONSOLIDATEDGML")]
-        public void importconsolidated()
-        {
-            try
-            {
-                #region Get file and folder of gml
-                string pathToGml = string.Empty;
-                OpenFileDialog dialog = new OpenFileDialog()
-                {
-                    Title = "Choose gml file:",
-                    DefaultExt = "gml",
-                    Filter = "gml files (*.gml)|*.gml|All files (*.*)|*.*",
-                    FilterIndex = 0
-                };
-                if (dialog.ShowDialog() == true) pathToGml = dialog.FileName;
-                else return;
-                #endregion
-
-                string fileName = Path.GetFileNameWithoutExtension(pathToGml);
-                string extension = Path.GetExtension(pathToGml);
-                string folderPath = Path.GetDirectoryName(pathToGml) + "\\";
-
-                Log.LogFileName = folderPath + "LerImport.log";
-                Log.log($"Importing {pathToGml}");
-
-                #region Handle bad objects
-                string modifiedFileName = Enhance.Run(pathToGml);
-                #endregion
-
-                #region Deserialize gml
-                var serializer = new XmlSerializer(typeof(Schema.FeatureCollection));
-                Schema.FeatureCollection gf;
-
-                using (var fileStream = new FileStream(modifiedFileName, FileMode.Open))
-                {
-                    gf = (Schema.FeatureCollection)serializer.Deserialize(fileStream);
-                }
-                #endregion
-
-                #region Create database for 2D ler
-                using (Database ler2dDb = new Database(false, true))
-                using (Database ler3dDb = new Database(false, true))
-                {
-                    ler2dDb.ReadDwgFile(@"X:\AutoCAD DRI - 01 Civil 3D\LerImport\Support\LerTemplate.dwt",
-                                FileOpenMode.OpenForReadAndAllShare, false, null);
-                    ler3dDb.ReadDwgFile(@"X:\AutoCAD DRI - 01 Civil 3D\LerImport\Support\LerTemplate.dwt",
-                                FileOpenMode.OpenForReadAndAllShare, false, null);
-                    //Build the new future file name of the drawing
-                    var query = gf.featureCollection.Where(x => x.item is Schema.Graveforesp);
-                    string bemaerkning = default;
-                    if (query.Count() > 0)
-                    {
-                        Schema.Graveforesp gfsp = query.First().item as Schema.Graveforesp;
-                        bemaerkning = gfsp.bemaerkning;
-                        if (bemaerkning.IsNotNoE()) bemaerkning += "_";
-                    }
-                    string new2dFilename = $"{folderPath}{bemaerkning ?? ""}LER_2D.dwg";
-                    Log.log($"Writing Ler 2D to new dwg file:\n" + $"{new2dFilename}.");
-                    string new3dFilename = $"{folderPath}{bemaerkning ?? ""}LER_3D_KUN_TIL_TEST.dwg";
-                    Log.log($"Writing Ler 3D to new dwg file:\n" + $"{new3dFilename}.");
-
-                    using (Transaction ler2dTx = ler2dDb.TransactionManager.StartTransaction())
-                    using (Transaction ler3dTx = ler3dDb.TransactionManager.StartTransaction())
-                    {
-                        try
-                        {
-                            LERImporter.ConsolidatedCreator.CreateLerData(ler2dDb, ler3dDb, gf);
-                        }
-                        catch (System.Exception ex)
-                        {
-                            Log.log(ex.ToString());
-                            ler2dTx.Abort();
-                            ler2dDb.Dispose();
-                            ler3dTx.Abort();
-                            ler3dDb.Dispose();
-                            throw;
-                        }
-
-                        ler2dTx.Commit();
-                        ler3dTx.Commit();
-                    }
-
-                    //Save the new dwg file
-                    ler2dDb.SaveAs(new2dFilename, DwgVersion.Current);
-                    ler3dDb.SaveAs(new3dFilename, DwgVersion.Current);
-                    //ler2dDb.Dispose();
-                }
-                #endregion
-
-            }
-            catch (System.Exception ex)
-            {
-                Log.log(ex.ToString());
-                return;
-            }
-        }
+        public static readonly string ImplementedVersion = "2.0.0";
 
         /// <command>IGMLBATCH, IMPORTCONSOLIDATEDGMLBATCH</command>
         /// <summary>
         /// Batch-imports consolidated LER GML files from a chosen top folder. Unzips any archives
         /// in-place, finds all "consolidated.gml" files recursively, enhances each with Enhance.Run,
         /// and for each file creates a 3D LER DWG "{Bemærkning}_3DLER.dwg" using the template at
-        /// X:\AutoCAD DRI - 01 Civil 3D\LerImport\Support\LerTemplate.dwt. Also builds a combined
+        /// X:\AutoCAD DRI - SETUP\Templates\NS_LerTemplate.dwt. Also builds a combined
         /// Schema.FeatureCollection across all files and creates a single 2D LER DWG "2DLER.dwg"
         /// in the top folder. Progress is logged to LerImport.log in the top folder. Intended to convert
         /// all partial LER2 requests into standardized DWGs in one run.
@@ -228,6 +126,15 @@ namespace LERImporter
 
                     var gf = (Schema.FeatureCollection)serializer.Deserialize(reader, null, events);
 
+                    var gfsp = gf.featureCollection.Select(x => x.item).OfType<Schema.Graveforesp>().FirstOrDefault();
+                    if (gfsp == null)                    
+                        Log.log($"No GraveForesp found in {modFile}, WARNING!.");
+                    foreach (var item in gf.featureCollection)
+                    {
+                        AbstractGMLType obj = item.item;
+                        obj.Bemærkning = gfsp?.bemaerkning;
+                        obj.LerNummer = gfsp?.orderNo;
+                    }
 
                     //Gather combined file for Ler 2D
                     gfCombined.featureCollection.AddRange(gf.featureCollection);

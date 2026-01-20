@@ -6,5 +6,6 @@
       "WebSearch",
       "WebFetch(domain:help.autodesk.com)"
     ]
-  }
+  },
+  "outputStyle": "Explanatory"
 }

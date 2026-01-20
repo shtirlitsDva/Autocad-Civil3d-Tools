@@ -1,4 +1,4 @@
-﻿using Autodesk.Aec.DatabaseServices;
+using Autodesk.Aec.DatabaseServices;
 using Autodesk.Aec.PropertyData.DatabaseServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Runtime;
@@ -575,8 +575,8 @@ namespace IntersectUtilities
                 foreach (Oid oid in propertySetIds)
                 {
                     PropertySet ps = oid.Go<PropertySet>(
-                        database.TransactionManager.TopTransaction
-                    );
+                        database.TransactionManager.TopTransaction);
+
                     if (ps.PropertySetDefinitionName == propertySetName)
                     {
                         int i = 0;

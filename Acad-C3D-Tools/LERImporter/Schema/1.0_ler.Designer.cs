@@ -1318,6 +1318,9 @@ namespace LERImporter.Schema
         [XmlIgnore]
         [XmlElement("name")]
         public CodeType[] name { get; set; }
+
+        public string Bemærkning { get; set; }
+        public string LerNummer { get; set; }
     }
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
