@@ -14,6 +14,7 @@ using System.Collections.Specialized;
 using System.Data;
 using System.Linq;
 
+using static IntersectUtilities.PSetDefs;
 using static IntersectUtilities.UtilsCommon.Utils;
 
 using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
@@ -375,7 +376,7 @@ namespace IntersectUtilities
             {
                 PropertySet ps = oid.Go<PropertySet>(tx);
 
-                 if (ps.PropertySetDefinitionName == propertySetName)
+                if (ps.PropertySetDefinitionName == propertySetName)
                 {
                     int id = ps.PropertyNameToId(propertyName);
                     object value = ps.GetAt(id);
@@ -1046,7 +1047,7 @@ namespace IntersectUtilities
             {
                 // Get the property set definition instance
                 PSetDefs.PSetDef pSetDef = defs.GetRequestedDef(propertySetName);
-                
+
                 // Get all properties from this property set definition
                 List<PSetDefs.Property> properties = pSetDef.ListOfProperties();
 
@@ -1520,7 +1521,7 @@ namespace IntersectUtilities
             public Property DistriktetsNavn { get; } =
                 new Property("Distriktets_navn", "Distriktets_navn", PsDataType.Text, "");
             public Property AntalEnheder { get; } =
-                new Property("AntalEnheder", "AntalEnheder", PsDataType.Integer, 1);            
+                new Property("AntalEnheder", "AntalEnheder", PsDataType.Integer, 1);
             public Property TempDeltaVarme { get; } =
                 new Property("TempDeltaVarme", "Afkøling for rumvarme", PsDataType.Real, 0.0);
             public Property TempDeltaBV { get; } =
@@ -1914,6 +1915,7 @@ namespace IntersectUtilities
             _br = (BlockReference)_ent;
         }
 
+        #region Properties
         public string id_lokalId
         {
             get => ReadPropertyString(_ent, _def.id_lokalId);
@@ -2069,7 +2071,7 @@ namespace IntersectUtilities
         {
             get => ReadPropertyInt(_ent, _def.AntalEnheder);
             set => WritePropertyObject(_ent, _def.AntalEnheder, value);
-        }        
+        }
         public double TempDeltaVarme
         {
             get => ReadPropertyDouble(_ent, _def.TempDeltaVarme);
@@ -2088,5 +2090,29 @@ namespace IntersectUtilities
         {
             get => _br.Position.Y;
         }
+        #endregion
     }
+
+    public class DriDimGraph : PropertySetManager
+    {
+        private Entity _ent;
+        private PSetDefs.DriDimGraph _def = new PSetDefs.DriDimGraph();
+        public DriDimGraph(Entity ent)
+            : base(ent.Database, PSetDefs.DefinedSets.DriDimGraph)
+        {
+            _ent = ent;
+            GetOrAttachPropertySet(_ent);
+        }
+        public string Parent
+        {
+            get => ReadPropertyString(_ent, _def.Parent);
+            set => WritePropertyObject(_ent, _def.Parent, value);
+        }
+        public string Children
+        {
+            get => ReadPropertyString(_ent, _def.Children);
+            set => WritePropertyObject(_ent, _def.Children, value);
+        }
+    }
+
 }

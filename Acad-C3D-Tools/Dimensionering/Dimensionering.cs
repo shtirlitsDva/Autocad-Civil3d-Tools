@@ -1,4 +1,4 @@
-﻿using Autodesk.AutoCAD.ApplicationServices;
+using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.ApplicationServices.Core;
 using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.DatabaseServices;
@@ -785,7 +785,7 @@ namespace IntersectUtilities.Dimensionering
 
                         //used to get the line by comparing line's child to block's handle
                         Entity getFirstChild(Line line)
-                        {                            
+                        {
                             string chStr = graphPsm.ReadPropertyString(line, graphDef.Children);
                             string firstChild = chStr.Split(';')[0];
                             if (firstChild.IsNoE()) throw new System.Exception(
@@ -1841,7 +1841,7 @@ namespace IntersectUtilities.Dimensionering
 
                         PrintTable(
                             ["Antal", "Forekomster"],
-                            groupByCount.Select(g => new object[] {g.Antal, g.Forekomst} as IEnumerable<object>)
+                            groupByCount.Select(g => new object[] { g.Antal, g.Forekomst } as IEnumerable<object>)
                             );
 
                         docCol.MdiActiveDocument.Editor.SetImpliedSelection(
@@ -1888,7 +1888,7 @@ namespace IntersectUtilities.Dimensionering
 
                     PrintTable(
                         ["Antal enheder", "Antal forekomster"],
-                        analysis.Select(x => new object[] {x.Value, x.Count} as IEnumerable<object>)
+                        analysis.Select(x => new object[] { x.Value, x.Count } as IEnumerable<object>)
                         );
                 }
                 catch (System.Exception ex)
@@ -1914,6 +1914,67 @@ namespace IntersectUtilities.Dimensionering
             prdDbg("ADVARSEL: ER IKKE TESTET SAMMEN MED DIMCONNECTHUSNR!!!!!!!!!");
         }
 
+        [CommandMethod("DIMFINDERASEDCHILDREN")]
+        public void dimfinderasedchildren()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            PropertySetManager.UpdatePropertySetDefinition(localDb, PSetDefs.DefinedSets.BBR);
+
+            using Transaction tx = localDb.TransactionManager.StartTransaction();
+
+            try
+            {
+                var brs = localDb.HashSetOfTypeWithPs<BlockReference>(tx, PSetDefs.DefinedSets.BBR, true);
+
+                foreach (var br in brs)
+                {
+                    var ddg = new DriDimGraph(br);
+                    var children = ddg.Children;
+                    if (children.IsNoE()) continue;
+
+                    var split = children.Split(';');
+                    HashSet<string> passed = new HashSet<string>();
+                    foreach (var strid in split)
+                    {                        
+                        try
+                        {
+                            Handle h = new Handle(Convert.ToInt64(strid, 16));
+                            var oid = localDb.GetObjectId(false, h, 0);
+                            var ent = oid.Go<Entity>(tx);
+                        }
+                        catch (System.Exception)
+                        {
+                            prdDbg("Removing child: " + strid);
+                            continue;
+                        }
+                        passed.Add(strid);
+                    }
+                    if (passed.Count != split.Length)
+                    {
+                        string newChildren = string.Join(";", passed);
+                        ddg.Children = newChildren;
+                    }
+                }
+            }
+            catch (System.Exception ex)
+            {
+                tx.Abort();
+                prdDbg(ex);
+                return;
+            }
+            finally
+            {
+
+            }
+            tx.Commit();
+
+            //string html = ConvertToHtmlTree(list);
+            //string htmlPath = "C:\\Temp\\" + "enheder.html";
+            //File.WriteAllText(htmlPath, html);
+        }
+
 #if DEBUG
         //[CommandMethod("DIMPROPEENERGY")]
         public void DimPropeEnergy()
@@ -1937,7 +1998,7 @@ namespace IntersectUtilities.Dimensionering
                 // WIP - DML
 
             }
-        } 
+        }
 #endif
 
         public static string ConvertToHtmlTree(List<(string bygning, string adresse, string enhedstype)> tuples)
@@ -2665,7 +2726,7 @@ namespace IntersectUtilities.Dimensionering
                         #region Write node data
                         foreach (Node nd in ordered)
                         {
-                            Polyline curPline = nd.Self;                            
+                            Polyline curPline = nd.Self;
 
                             if (graphPsm.ReadPropertyString(curPline, graphDef.Parent) != "Entry")
                                 graphPsm.WritePropertyString(curPline,
@@ -2851,7 +2912,7 @@ namespace IntersectUtilities.Dimensionering
                             foreach (Entity child in children)
                             {
                                 if (child is Polyline pline)
-                                {                                    
+                                {
                                     string childStrNr = fjvFremPsm.ReadPropertyString(
                                         pline, fjvFremDef.Bemærkninger).Replace("Strækning ", "");
                                     sb.AppendLine($"{strNr} -> {childStrNr}");
@@ -4230,7 +4291,7 @@ namespace IntersectUtilities.Dimensionering
                 }
 
                 //Preapare for linetype creation
-                LinetypeTable ltt = dimDb.LinetypeTableId.Go<LinetypeTable>(dimTx, (OpenMode)1); 
+                LinetypeTable ltt = dimDb.LinetypeTableId.Go<LinetypeTable>(dimTx, (OpenMode)1);
                 #endregion
 
                 #region PropertyData setup
@@ -4431,7 +4492,7 @@ namespace IntersectUtilities.Dimensionering
                             }
                             else if (system == PipeSystemEnum.PertFlextra) type = PipeTypeEnum.Twin;
                             else if (system == PipeSystemEnum.AquaTherm11)
-                            { 
+                            {
                                 if (dn < 160) type = PipeTypeEnum.Twin;
                                 else type = PipeTypeEnum.Frem;
                             }
@@ -4536,7 +4597,7 @@ namespace IntersectUtilities.Dimensionering
                                     newPipe.Layer = layerName;
                                     newPipe.ConstantWidth = sizeArray[i].Kod / 1000.0;
 
-                                    string lineTypeText = 
+                                    string lineTypeText =
                                         PipeScheduleV2.PipeScheduleV2.GetLineTypeLayerPrefix(entry.System) +
                                         entry.DN.ToString();
                                     string lineTypeName = "LT-" + lineTypeText;
