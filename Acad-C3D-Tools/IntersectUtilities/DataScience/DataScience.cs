@@ -1,8 +1,10 @@
-﻿using Autodesk.AutoCAD.ApplicationServices;
+using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.PlottingServices;
 using Autodesk.AutoCAD.Runtime;
+
+using Dreambuild.AutoCAD;
 
 using Fluid;
 
@@ -720,6 +722,13 @@ namespace IntersectUtilities
             throw new InvalidOperationException($"Failed to parse Fluid template: {error}");
         });
 
+        private static readonly Lazy<IFluidTemplate> EnergyFluidTemplate = new Lazy<IFluidTemplate>(() =>
+        {
+            if (FluidParser.TryParse(EnergyReportTemplate.Template, out var template, out var error))
+                return template;
+            throw new InvalidOperationException($"Failed to parse Energy report Fluid template: {error}");
+        });
+
         private static readonly Lazy<TemplateOptions> FluidOptions = new Lazy<TemplateOptions>(() =>
         {
             var options = new TemplateOptions();
@@ -751,6 +760,13 @@ namespace IntersectUtilities
         private static string RenderReport(MergeReportModel model)
         {
             var template = FluidTemplate.Value;
+            var context = new TemplateContext(model, FluidOptions.Value);
+            return template.Render(context);
+        }
+
+        private static string RenderEnergyReport(MergeReportModel model)
+        {
+            var template = EnergyFluidTemplate.Value;
             var context = new TemplateContext(model, FluidOptions.Value);
             return template.Render(context);
         }
@@ -1170,6 +1186,496 @@ namespace IntersectUtilities
             }
 
             tx.Commit();
+        }
+
+        [CommandMethod("DSFORDELFORBRUG")]
+        public void dsfordelforbrug()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            PropertySetManager.UpdatePropertySetDefinition(localDb, PSetDefs.DefinedSets.BBR);
+
+            using Transaction tx = localDb.TransactionManager.StartTransaction();
+
+            try
+            {
+                // Select blocks using window/crossing/lasso selection
+                ObjectId[] blockIds = Interaction.GetSelection(
+                    "\nSelect blocks to distribute demand to: ",
+                    "INSERT");  // DXF name for BlockReference
+
+                if (blockIds.Length == 0)
+                {
+                    prdDbg("\nNo blocks selected. Command cancelled.");
+                    tx.Abort();
+                    return;
+                }
+
+                var selectedBlocks = blockIds
+                    .Select(id => tx.GetObject(id, OpenMode.ForWrite) as BlockReference)
+                    .Where(br => br != null)
+                    .ToList()!;
+
+                prdDbg($"\n{selectedBlocks.Count} blocks selected. Now select a DBPoint with demand data:");
+
+                // Select single DBPoint
+                var pointId = Interaction.GetEntity(
+                    "\nSelect DBPoint with power demand: ",
+                    typeof(DBPoint));
+
+                if (pointId == ObjectId.Null)
+                {
+                    prdDbg("\nNo point selected. Command cancelled.");
+                    tx.Abort();
+                    return;
+                }
+
+                var demandPoint = tx.GetObject(pointId, OpenMode.ForRead) as DBPoint;
+                if (demandPoint == null)
+                {
+                    prdDbg("\nFailed to read point. Command cancelled.");
+                    tx.Abort();
+                    return;
+                }
+
+                var bbrs = selectedBlocks.Select(x => new BBR(x));
+
+                // Read power demand from the point using stub method
+                double totalDemand = PropertySetManager.ReadNonDefinedPropertySetDouble(
+                    demandPoint, "Forbrugsoverblik 2024_merged", "EnergiMWh");
+                prdDbg($"\nTotal power demand from point: {totalDemand:F2}");
+
+                // Calculate total floor space from all selected blocks
+                double totalFloorSpace = bbrs.Sum(br => br.SamletBoligareal);
+
+                if (totalFloorSpace <= 0)
+                {
+                    prdDbg("\nTotal floor space is zero or negative. Cannot distribute demand.");
+                    tx.Abort();
+                    return;
+                }
+
+                prdDbg($"Total floor space: {totalFloorSpace:F2}");
+
+                // Distribute demand to each block based on floor space proportion
+                foreach (var bbr in bbrs)
+                {
+                    double bbrFloorSpace = bbr.SamletBoligareal;
+                    double proportion = bbrFloorSpace / totalFloorSpace;
+                    double distributedDemand = totalDemand * proportion;
+
+                    bbr.EstimeretVarmeForbrug = distributedDemand;
+
+                    prdDbg($"Block {bbr.Adresse}: FloorSpace={bbrFloorSpace:F2}, " +
+                           $"Proportion={proportion:P2}, Demand={distributedDemand:F2}");
+                }
+
+                prdDbg($"\nSuccessfully distributed {totalDemand:F2} demand to {selectedBlocks.Count} blocks.");
+            }
+            catch (System.Exception ex)
+            {
+                tx.Abort();
+                prdDbg(ex);
+                return;
+            }
+
+            tx.Commit();
+        }
+
+        [CommandMethod("DSCLONEBBRFROMPOINT")]
+        public void dsclonebbrfrompoint()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            PropertySetManager.UpdatePropertySetDefinition(localDb, PSetDefs.DefinedSets.BBR);
+
+            using Transaction tx = localDb.TransactionManager.StartTransaction();
+
+            try
+            {
+                // Get model space for adding new blocks
+                BlockTable bt = (BlockTable)tx.GetObject(localDb.BlockTableId, OpenMode.ForRead);
+                BlockTableRecord space = (BlockTableRecord)tx.GetObject(
+                    localDb.CurrentSpaceId, OpenMode.ForWrite);
+
+                // Outer loop: Select BBR template block
+                while (true)
+                {
+                    var templateId = Interaction.GetEntity(
+                        "\nSelect BBR block as template (Space to exit): ",
+                        typeof(BlockReference));
+
+                    if (templateId == ObjectId.Null)
+                    {
+                        prdDbg("\nCommand finished.");
+                        break;
+                    }
+
+                    var templateBlock = tx.GetObject(templateId, OpenMode.ForRead) as BlockReference;
+                    if (templateBlock == null)
+                    {
+                        prdDbg("\nFailed to read block. Try again.");
+                        continue;
+                    }
+
+                    // Verify it has BBR PropertySet attached
+                    if (!PropertySetManager.IsPropertySetAttached(templateBlock, PSetDefs.DefinedSets.BBR))
+                    {
+                        prdDbg("\nSelected block does not have BBR PropertySet attached. Select another.");
+                        continue;
+                    }
+
+                    var templateBbr = new BBR(templateBlock);
+                    prdDbg($"\nTemplate: {templateBbr.Adresse} (Block: {templateBlock.Name})");
+
+                    int cloneCount = 0;
+
+                    // Inner loop: Select DBPoints to place clones
+                    while (true)
+                    {
+                        var pointId = Interaction.GetEntity(
+                            $"\nSelect DBPoint to place clone ({cloneCount} created, Space for new template): ",
+                            typeof(DBPoint));
+
+                        if (pointId == ObjectId.Null)
+                        {
+                            prdDbg($"\n{cloneCount} clones created from this template.");
+                            break; // Back to outer loop
+                        }
+
+                        var sourcePoint = tx.GetObject(pointId, OpenMode.ForRead) as DBPoint;
+                        if (sourcePoint == null)
+                        {
+                            prdDbg("\nFailed to read point. Try again.");
+                            continue;
+                        }
+
+                        // Read data from the DBPoint's PropertySet
+                        string ptAdresse = PropertySetManager.ReadNonDefinedPropertySetString(
+                            sourcePoint, "Forbrugsoverblik 2024_merged", "Adresse");
+                        string ptHusnr = PropertySetManager.ReadNonDefinedPropertySetString(
+                            sourcePoint, "Forbrugsoverblik 2024_merged", "Husnr");
+                        double ptEnergi = PropertySetManager.ReadNonDefinedPropertySetDouble(
+                            sourcePoint, "Forbrugsoverblik 2024_merged", "EnergiMWh");
+
+                        // Create new BlockReference at point location
+                        BlockReference newBlock = new BlockReference(
+                            sourcePoint.Position,
+                            templateBlock.BlockTableRecord);
+                        newBlock.SetDatabaseDefaults(localDb);
+                        newBlock.ScaleFactors = templateBlock.ScaleFactors;
+                        newBlock.Rotation = templateBlock.Rotation;
+                        newBlock.Layer = templateBlock.Layer;
+
+                        space.AppendEntity(newBlock);
+                        tx.AddNewlyCreatedDBObject(newBlock, true);
+
+                        // Create BBR wrapper for new block (this attaches the PropertySet)
+                        var newBbr = new BBR(newBlock);
+
+                        // Copy all properties from template
+                        newBbr.id_lokalId = Guid.NewGuid().ToString(); // New GUID!
+                        newBbr.id_husnummerid = templateBbr.id_husnummerid;
+                        newBbr.Name = $"{ptAdresse} {ptHusnr}, 4000 Roskilde";
+                        newBbr.Bygningsnummer = templateBbr.Bygningsnummer;
+                        newBbr.BygningsAnvendelseNyTekst = templateBbr.BygningsAnvendelseNyTekst;
+                        newBbr.BygningsAnvendelseNyKode = templateBbr.BygningsAnvendelseNyKode;
+                        newBbr.BygningsAnvendelseGlTekst = templateBbr.BygningsAnvendelseGlTekst;
+                        newBbr.BygningsAnvendelseGlKode = templateBbr.BygningsAnvendelseGlKode;
+                        newBbr.Opførelsesår = templateBbr.Opførelsesår;
+                        newBbr.SamletBygningsareal = templateBbr.SamletBygningsareal;
+                        newBbr.SamletBoligareal = templateBbr.SamletBoligareal;
+                        newBbr.SamletErhvervsareal = templateBbr.SamletErhvervsareal;
+                        newBbr.BebyggetAreal = templateBbr.BebyggetAreal;
+                        newBbr.KælderAreal = templateBbr.KælderAreal;
+                        newBbr.VarmeInstallation = templateBbr.VarmeInstallation;
+                        newBbr.OpvarmningsMiddel = templateBbr.OpvarmningsMiddel;
+                        newBbr.Status = templateBbr.Status;
+                        newBbr.Vejklasse = templateBbr.Vejklasse;
+                        newBbr.Postnr = templateBbr.Postnr;
+                        newBbr.By = templateBbr.By;
+                        newBbr.SpecifikVarmeForbrug = templateBbr.SpecifikVarmeForbrug;
+                        newBbr.DistriktetsNavn = templateBbr.DistriktetsNavn;
+                        newBbr.Type = templateBbr.Type;
+                        newBbr.TempDeltaVarme = templateBbr.TempDeltaVarme;
+                        newBbr.TempDeltaBV = templateBbr.TempDeltaBV;
+
+                        // Set address from point data
+                        newBbr.Vejnavn = ptAdresse;
+                        newBbr.Husnummer = ptHusnr;
+                        newBbr.Adresse = $"{ptAdresse} {ptHusnr}";
+                        newBbr.EstimeretVarmeForbrug = ptEnergi;
+
+                        cloneCount++;
+                        prdDbg($"Created: {newBbr.Adresse} (Energy: {ptEnergi:F2} MWh)");
+                    }
+                }
+            }
+            catch (System.Exception ex)
+            {
+                tx.Abort();
+                prdDbg(ex);
+                return;
+            }
+
+            tx.Commit();
+        }
+
+        [CommandMethod("DSSUMENERGITOBR")]
+        public void dssumenergitobr()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            PropertySetManager.UpdatePropertySetDefinition(localDb, PSetDefs.DefinedSets.BBR);
+
+            using Transaction tx = localDb.TransactionManager.StartTransaction();
+
+            try
+            {
+                // Collect all BBR blocks
+                var bbrs = localDb.HashSetOfTypeWithPs<BlockReference>(tx, PSetDefs.DefinedSets.BBR)
+                    .Select(x => new BBR(x))
+                    .ToList();
+
+                // Collect all DBPoints
+                var pts = localDb.HashSetOfType<DBPoint>(tx).ToList();
+
+                prdDbg($"\nFound {bbrs.Count} BBR blocks and {pts.Count} DBPoints.");
+
+                // Data tracking for report
+                var matchedBbrs = new List<(string Address, double PreviousEnergy, double NewEnergy)>();
+                var unmatchedBbrs = new List<(string Address, double ExistingEnergy)>();
+                var usedPointIds = new HashSet<ObjectId>();
+
+                double totalEnergyAssigned = 0;
+
+                var pm = new ProgressMeter();
+                try
+                {
+                    pm.Start($"Processing {bbrs.Count} BBR blocks...");
+                    pm.SetLimit(bbrs.Count);
+
+                    foreach (var bbr in bbrs)
+                    {
+                        var location = new Point3d(bbr.X, bbr.Y, 0);
+
+                        // Find all DBPoints within 1 unit of the BBR location
+                        var nearbyPts = pts
+                            .Where(p => p.Position.DistanceHorizontalTo(location) < 1.0)
+                            .ToList();
+
+                        if (nearbyPts.Count == 0)
+                        {
+                            unmatchedBbrs.Add((bbr.Adresse, bbr.EstimeretVarmeForbrug));
+                            pm.MeterProgress();
+                            continue;
+                        }
+
+                        // Track used points
+                        foreach (var pt in nearbyPts)
+                            usedPointIds.Add(pt.ObjectId);
+
+                        // Sum EnergiMWh from all nearby points
+                        double newEnergy = nearbyPts.Sum(p =>
+                            PropertySetManager.ReadNonDefinedPropertySetDouble(
+                                p, "Forbrugsoverblik 2024_merged", "EnergiMWh"));
+
+                        // Capture previous value before overwriting
+                        double previousEnergy = bbr.EstimeretVarmeForbrug;
+                        bbr.EstimeretVarmeForbrug = newEnergy;
+
+                        matchedBbrs.Add((bbr.Adresse, previousEnergy, newEnergy));
+                        totalEnergyAssigned += newEnergy;
+                        pm.MeterProgress();
+                    }
+                }
+                finally
+                {
+                    pm.Stop();
+                }
+
+                // Find unmatched DBPoints
+                var unmatchedPoints = pts
+                    .Where(p => !usedPointIds.Contains(p.ObjectId))
+                    .Select(p => (
+                        Address: PropertySetManager.ReadNonDefinedPropertySetString(
+                            p, "Forbrugsoverblik 2024_merged", "Adresse") + " " +
+                            PropertySetManager.ReadNonDefinedPropertySetString(
+                            p, "Forbrugsoverblik 2024_merged", "Husnr"),
+                        Energy: PropertySetManager.ReadNonDefinedPropertySetDouble(
+                            p, "Forbrugsoverblik 2024_merged", "EnergiMWh")
+                    ))
+                    .ToList();
+
+                prdDbg($"\nResults:");
+                prdDbg($"  Updated: {matchedBbrs.Count} BBR blocks");
+                prdDbg($"  Skipped (no nearby points): {unmatchedBbrs.Count} BBR blocks");
+                prdDbg($"  Unmatched DBPoints: {unmatchedPoints.Count}");
+                prdDbg($"  Total energy assigned: {totalEnergyAssigned:F2} MWh");
+
+                // Generate HTML report
+                string reportPath = Path.Combine(
+                    Path.GetDirectoryName(localDb.Filename) ?? Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
+                    "DSSUMENERGY_report.html");
+
+                GenerateEnergyReport(reportPath, matchedBbrs, unmatchedBbrs, unmatchedPoints, totalEnergyAssigned);
+                prdDbg($"\nHTML report saved to: {reportPath}");
+            }
+            catch (System.Exception ex)
+            {
+                tx.Abort();
+                prdDbg(ex);
+                return;
+            }
+
+            tx.Commit();
+        }
+
+        private static void GenerateEnergyReport(
+            string reportPath,
+            List<(string Address, double PreviousEnergy, double NewEnergy)> matchedBbrs,
+            List<(string Address, double ExistingEnergy)> unmatchedBbrs,
+            List<(string Address, double Energy)> unmatchedPoints,
+            double totalEnergyAssigned)
+        {
+            var model = new MergeReportModel
+            {
+                Styles = EmbeddedStyles.Value
+            };
+
+            // Summary Cards
+            model.SummaryCards = new List<SummaryCard>
+            {
+                new() { Label = "Matched BBRs", Value = matchedBbrs.Count.ToString(),
+                        CssClass = matchedBbrs.Count > 0 ? "success" : "warning" },
+                new() { Label = "Unmatched BBRs", Value = unmatchedBbrs.Count.ToString(),
+                        CssClass = unmatchedBbrs.Count == 0 ? "success" : "warning" },
+                new() { Label = "Unmatched Points", Value = unmatchedPoints.Count.ToString(),
+                        CssClass = unmatchedPoints.Count == 0 ? "success" : "error" },
+                new() { Label = "Total Energy", Value = $"{totalEnergyAssigned:F2} MWh",
+                        CssClass = "success" }
+            };
+
+            model.Sections = new List<ReportSection>();
+
+            // Section 1: Matched BBRs (sorted ascending by new energy)
+            var matchedSection = new ReportSection
+            {
+                Title = "Matched BBR Blocks",
+                Count = matchedBbrs.Count,
+                BadgeClass = matchedBbrs.Count > 0 ? "success" : "warning",
+                EmptyMessage = "No BBR blocks were matched with DBPoints."
+            };
+
+            if (matchedBbrs.Count > 0)
+            {
+                var sortedMatched = matchedBbrs.OrderBy(x => x.NewEnergy).ToList();
+                var matchedTable = new DataTableModel
+                {
+                    Label = $"Total assigned: {totalEnergyAssigned:F2} MWh",
+                    Columns = new List<string> { "#", "Address", "Previous (MWh)", "New (MWh)" }
+                };
+
+                int idx = 1;
+                foreach (var (address, previousEnergy, newEnergy) in sortedMatched)
+                {
+                    matchedTable.Rows.Add(new List<CellValue>
+                    {
+                        CellValue.Simple(idx.ToString()),
+                        CellValue.Simple(address, 50),
+                        CellValue.Simple(previousEnergy.ToString("F2")),
+                        CellValue.Simple(newEnergy.ToString("F2"))
+                    });
+                    idx++;
+                }
+
+                var group = new SectionGroup();
+                group.Tables.Add(matchedTable);
+                matchedSection.Groups.Add(group);
+            }
+            model.Sections.Add(matchedSection);
+
+            // Section 2: Unmatched BBRs
+            var unmatchedBbrSection = new ReportSection
+            {
+                Title = "Unmatched BBR Blocks (No Nearby Points)",
+                Count = unmatchedBbrs.Count,
+                BadgeClass = unmatchedBbrs.Count == 0 ? "success" : "warning",
+                EmptyMessage = "All BBR blocks were matched with DBPoints."
+            };
+
+            if (unmatchedBbrs.Count > 0)
+            {
+                var unmatchedBbrTable = new DataTableModel
+                {
+                    Columns = new List<string> { "#", "Address", "Existing Energy (MWh)" }
+                };
+
+                int idx = 1;
+                foreach (var (address, existingEnergy) in unmatchedBbrs.OrderBy(x => x.Address))
+                {
+                    unmatchedBbrTable.Rows.Add(new List<CellValue>
+                    {
+                        CellValue.Simple(idx.ToString()),
+                        CellValue.Simple(address, 50),
+                        CellValue.Simple(existingEnergy.ToString("F2"))
+                    });
+                    idx++;
+                }
+
+                var group = new SectionGroup
+                {
+                    Description = "These BBR blocks had no DBPoints within 1 unit distance."
+                };
+                group.Tables.Add(unmatchedBbrTable);
+                unmatchedBbrSection.Groups.Add(group);
+            }
+            model.Sections.Add(unmatchedBbrSection);
+
+            // Section 3: Unmatched DBPoints
+            var unmatchedPointsSection = new ReportSection
+            {
+                Title = "Unmatched DBPoints (No Nearby BBR)",
+                Count = unmatchedPoints.Count,
+                BadgeClass = unmatchedPoints.Count == 0 ? "success" : "error",
+                EmptyMessage = "All DBPoints were matched with BBR blocks."
+            };
+
+            if (unmatchedPoints.Count > 0)
+            {
+                double unmatchedPointsTotal = unmatchedPoints.Sum(x => x.Energy);
+                var unmatchedPointsTable = new DataTableModel
+                {
+                    Label = $"Total unassigned: {unmatchedPointsTotal:F2} MWh",
+                    Columns = new List<string> { "#", "Address", "Energy (MWh)" }
+                };
+
+                int idx = 1;
+                foreach (var (address, energy) in unmatchedPoints.OrderBy(x => x.Address))
+                {
+                    unmatchedPointsTable.Rows.Add(new List<CellValue>
+                    {
+                        CellValue.Simple(idx.ToString()),
+                        CellValue.Simple(address, 50),
+                        CellValue.Simple(energy.ToString("F2"))
+                    });
+                    idx++;
+                }
+
+                var group = new SectionGroup
+                {
+                    Description = "These DBPoints had no BBR block within 1 unit distance. Their energy was not assigned."
+                };
+                group.Tables.Add(unmatchedPointsTable);
+                unmatchedPointsSection.Groups.Add(group);
+            }
+            model.Sections.Add(unmatchedPointsSection);
+
+            string html = RenderEnergyReport(model);
+            File.WriteAllText(reportPath, html, Encoding.UTF8);
         }
     }
 }
