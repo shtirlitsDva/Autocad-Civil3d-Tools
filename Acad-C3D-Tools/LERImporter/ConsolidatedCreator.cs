@@ -154,7 +154,7 @@ namespace LERImporter
                     sikkerhedshensyn = trace.sikkerhedshensyn,                    
 
                     // Set Energinet-specific properties
-                    spaendingsniveau = new MeasureType { Value = 136, uom = "kV" },
+                    spaendingsniveau = new MeasureType { Value = 132, uom = "kV" },
                     fareklasse = new FareklasseTypeType { Value = FareklasseType.megetfarlig },
                     type = "forsyningskabel",
 
