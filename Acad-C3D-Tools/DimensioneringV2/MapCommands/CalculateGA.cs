@@ -112,6 +112,34 @@ namespace DimensioneringV2.MapCommands
                             edge.ApplyResult(result);                            
                         }
 
+                        #region DEBUG
+                        // Check the graph BEFORE CreateSubGraphs
+                        Utils.prtDbg($"graph.VertexCount: {graph.VertexCount}");
+                        Utils.prtDbg($"graph.EdgeCount: {graph.EdgeCount}");
+
+                        // Check for isolated vertices (degree 0)
+                        var isolatedCount = graph.Vertices.Count(v => graph.AdjacentDegree(v) == 0);
+                        Utils.prtDbg($"Isolated vertices (degree 0): {isolatedCount}");
+
+                        // Verify connectivity with BFS from root
+                        var root = graph.GetRoot();
+                        var reachable = new HashSet<BFNode>();
+                        var queue = new Queue<BFNode>();
+                        queue.Enqueue(root);
+                        reachable.Add(root);
+                        while (queue.Count > 0)
+                        {
+                            var node = queue.Dequeue();
+                            foreach (var edge in graph.AdjacentEdges(node))
+                            {
+                                var neighbor = edge.GetOtherVertex(node);
+                                if (reachable.Add(neighbor))
+                                    queue.Enqueue(neighbor);
+                            }
+                        }
+                        Utils.prtDbg($"Vertices reachable from root: {reachable.Count} of {graph.VertexCount}"); 
+                        #endregion
+
                         // Split network into subgraphs (islands of non-bridge edges)
                         var subGraphs = HydraulicCalculationsService.CreateSubGraphs(graph);
 

@@ -317,7 +317,7 @@ namespace IntersectUtilities
         {
             importcivilstylesmethod();
         }
-        public void importcivilstylesmethod(Database db = null)
+        public void importcivilstylesmethod(Database? db = null)
         {
             try
             {
@@ -411,6 +411,11 @@ namespace IntersectUtilities
                             idsToClone.Add(sourceBt["EL 0.4kV"]);
                             idsToClone.Add(sourceBt["VerticeArc"]);
                             idsToClone.Add(sourceBt["VerticeLine"]);
+
+                            TextStyleTable sourceTst = stylesTx.GetObject(
+                                stylesDB.TextStyleTableId, OpenMode.ForRead) as TextStyleTable;
+                            idsToClone.Add(sourceTst["Note_Længdeprofiler"]);
+
                             IdMapping mapping = new IdMapping();
                             stylesDB.WblockCloneObjects(idsToClone, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
                         }
@@ -432,6 +437,43 @@ namespace IntersectUtilities
                 prdDbg(ex);
                 return;
             }
+        }
+
+        /// <command>IMPORTTEXTSTYLES</command>
+        /// <summary>
+        /// Imports text styles from an external drawing into the current drawing.
+        /// </summary>
+        /// <category>Style Management</category>
+        [CommandMethod("IMPORTTEXTSTYLES")]
+        public void importtextstylesmethod(Database? db = null)
+        {
+            DocumentCollection dc = Application.DocumentManager;
+            Database localDb = db ?? dc.MdiActiveDocument.Database;
+            prdDbg("Importing text styles...");
+            string pathToStyles = @"X:\AutoCAD DRI - 01 Civil 3D\Projection_styles.dwg";
+            using var stylesDB = new Database(false, true);
+            stylesDB.ReadDwgFile(pathToStyles, FileOpenMode.OpenForReadAndAllShare, false, null);
+            using var localTx = localDb.TransactionManager.StartTransaction();
+            using var stylesTx = stylesDB.TransactionManager.StartTransaction();
+
+            try
+            {
+                ObjectIdCollection objIds = new ObjectIdCollection();
+                TextStyleTable sourceTst = stylesDB.TextStyleTableId.Go<TextStyleTable>(stylesTx)!; 
+                objIds.Add(sourceTst["Note_Længdeprofiler"]);
+                IdMapping mapping = new IdMapping();
+                stylesDB.WblockCloneObjects(objIds, localDb.TextStyleTableId, mapping, DuplicateRecordCloning.Replace, false);
+            }
+            catch (System.Exception e)
+            {
+                stylesTx.Abort();
+                localTx.Abort();
+                prdDbg(e);
+                throw;
+            }
+
+            stylesTx.Commit();
+            localTx.Commit();
         }
 
         /// <command>REVEALALIGNMENTS, RAL</command>

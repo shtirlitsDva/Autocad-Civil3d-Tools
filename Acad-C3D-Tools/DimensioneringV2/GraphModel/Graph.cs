@@ -151,7 +151,7 @@ namespace DimensioneringV2.GraphModelRoads
             {
                 var startPoint = polyline.GetPoint2dAt(i);
                 var endPoint = polyline.GetPoint2dAt(i + 1);
-                if (startPoint.GetDistanceTo(endPoint) < Tolerance.Default)
+                if (startPoint.GetDistanceTo(endPoint) < Tolerance.Coordinate)
                     continue; // Skip zero-length segments (duplicate points)
                 var segment = new SegmentNode(startPoint, endPoint);
                 segments.Add(segment);
@@ -359,7 +359,7 @@ namespace DimensioneringV2.GraphModelRoads
         }
         public IEnumerable<Point2D> GetLeafNodePoints()
         {
-            var pointToSegments = new Dictionary<Point2D, List<SegmentNode>>();
+            var pointToSegments = new Dictionary<Point2D, List<SegmentNode>>(new Point2DEqualityComparer());
             foreach (var segment in Segments)
             {
                 if (!pointToSegments.ContainsKey(segment.StartPoint))

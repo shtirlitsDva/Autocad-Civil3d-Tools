@@ -100,7 +100,7 @@ namespace DimensioneringV2
         #region Graph extensions
         public static UndirectedGraph<BFNode, BFEdge> CopyToBF(this UndirectedGraph<NodeJunction, EdgePipeSegment> graph)
         {
-            var bfGraph = new UndirectedGraph<BFNode, BFEdge>();
+            var bfGraph = new UndirectedGraph<BFNode, BFEdge>(allowParallelEdges: false);
 
             var nodeMap = new Dictionary<NodeJunction, BFNode>();
 

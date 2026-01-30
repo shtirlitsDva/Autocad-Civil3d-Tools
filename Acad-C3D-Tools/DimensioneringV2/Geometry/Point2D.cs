@@ -14,43 +14,34 @@ namespace DimensioneringV2.Geometry
 {
     internal readonly struct Point2D
     {
-        private static double Tolerance = DimensioneringV2.Tolerance.Default;
-        private static double ScaleFactor = 1e6;
         public double X { get; }
         public double Y { get; }
+
         public Point2D(double x, double y)
         {
             X = x;
             Y = y;
         }
+
         public double DistanceSquaredTo(Point2D other)
         {
             double dx = X - other.X;
             double dy = Y - other.Y;
             return dx * dx + dy * dy;
         }
+
         public override bool Equals(object obj)
         {
             if (obj is Point2D other)
             {
-                return Math.Abs(X - other.X) < Tolerance && Math.Abs(Y - other.Y) < Tolerance;
+                return CoordinateTolerance.ArePointsEqual(X, Y, other.X, other.Y);
             }
             return false;
         }
+
         public override int GetHashCode()
         {
-            unchecked
-            {
-                // Quantize the values to the specified tolerance
-                long xInt = (long)(X * ScaleFactor);
-                long yInt = (long)(Y * ScaleFactor);
-
-                // Combine the hash codes
-                int hash = 17;
-                hash = hash * 23 + xInt.GetHashCode();
-                hash = hash * 23 + yInt.GetHashCode();
-                return hash;
-            }
+            return CoordinateTolerance.ComputeHashCode(X, Y);
         }
         [JsonIgnore]
         public Coordinate Coordinate => new Coordinate(X, Y);

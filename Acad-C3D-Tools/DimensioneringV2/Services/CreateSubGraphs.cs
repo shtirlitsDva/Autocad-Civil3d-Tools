@@ -89,7 +89,7 @@ namespace DimensioneringV2.Services
                         foreach (var edge in g.AdjacentEdges(current))
                         {
                             componentEdges.Add(edge);
-                            var neighbor = (edge.Source == current) ? edge.Target : edge.Source;
+                            var neighbor = edge.GetOtherVertex(current);
                             if (!visited.Contains(neighbor))
                             {
                                 visited.Add(neighbor);

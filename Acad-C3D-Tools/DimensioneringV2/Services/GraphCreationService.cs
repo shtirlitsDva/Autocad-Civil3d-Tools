@@ -1,4 +1,4 @@
-﻿using Autodesk.AutoCAD.Ribbon;
+using Autodesk.AutoCAD.Ribbon;
 
 using DimensioneringV2.AutoCAD;
 using DimensioneringV2.Geometry;
@@ -49,6 +49,42 @@ namespace DimensioneringV2.Services
                     pointToJunctionNodes[endPoint].Degree++;
                 }
             }
+
+            // === DIAGNOSTIC: Detect near-miss junction points ===
+            {
+                var allPoints = pointToJunctionNodes.Keys.ToList();
+                Utils.prtDbg($"Total unique junction points: {allPoints.Count}");
+
+                double searchTolerance = 0.01;  // 1 cm
+                double equalityTolerance = CoordinateTolerance.Current; // The Point2D equality tolerance
+                var nearMisses = new List<(Point2D a, Point2D b, double dist)>();
+
+                for (int i = 0; i < allPoints.Count; i++)
+                {
+                    for (int j = i + 1; j < allPoints.Count; j++)
+                    {
+                        double dx = allPoints[i].X - allPoints[j].X;
+                        double dy = allPoints[i].Y - allPoints[j].Y;
+                        double dist = Math.Sqrt(dx * dx + dy * dy);
+
+                        // Points that are close but NOT equal (would have been caught by ContainsKey)
+                        if (dist > equalityTolerance && dist < searchTolerance)
+                        {
+                            nearMisses.Add((allPoints[i], allPoints[j], dist));
+                        }
+                    }
+                }
+
+                Utils.prtDbg($"Near-miss pairs (within {searchTolerance}m but > {equalityTolerance}m): {nearMisses.Count}");
+                foreach (var (a, b, dist) in nearMisses.OrderBy(x => x.dist).Take(20))
+                {
+                    Utils.prtDbg($"  Distance: {dist:E6}m");
+                    Utils.prtDbg($"    Point A: ({a.X:F10}, {a.Y:F10})");
+                    Utils.prtDbg($"    Point B: ({b.X:F10}, {b.Y:F10})");
+                    Utils.prtDbg($"    Delta: dx={a.X - b.X:E6}, dy={a.Y - b.Y:E6}");
+                }
+            }
+            // === END DIAGNOSTIC ===
 
             var rootNodes = allFeatures.SelectMany(x => x).Where(x => x.IsRootNode);
             foreach (var node in rootNodes)
