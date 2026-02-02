@@ -1,29 +1,38 @@
 using Autodesk.AutoCAD.DatabaseServices;
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 
 namespace IntersectUtilities.UtilsCommon.Collections
 {
-    public class DatabaseList : List<Database>, IDisposable
+    public sealed class DatabaseList : IReadOnlyList<Database>, IDisposable
     {
-        private bool disposed = false;
+        private readonly List<Database> _databases;
+        private bool _disposed;
 
-        public DatabaseList() : base() { }
-        public DatabaseList(int capacity) : base(capacity) { }
-        public DatabaseList(IEnumerable<Database> collection) : base(collection) { }
+        public DatabaseList(IEnumerable<Database> databases)
+        {
+            _databases = [.. databases];
+        }
+
+        public Database this[int index] => _databases[index];
+        public int Count => _databases.Count;
+
+        public IEnumerator<Database> GetEnumerator() => _databases.GetEnumerator();
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
         public void Dispose()
         {
-            if (disposed) return;
-            disposed = true;
+            if (_disposed) return;
+            _disposed = true;
 
-            foreach (var db in this)
+            foreach (var db in _databases)
             {
                 try { db?.Dispose(); }
                 catch { }
             }
-            Clear();
+            _databases.Clear();
         }
     }
 }
