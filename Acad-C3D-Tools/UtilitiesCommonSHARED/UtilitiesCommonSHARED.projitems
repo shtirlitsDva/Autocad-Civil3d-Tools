@@ -9,7 +9,8 @@
     <Import_RootNamespace>UtilitiesCommonSHARED</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="$(MSBuildThisFileDirectory)Collections.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\EntityCollection.cs" />
+    <Compile Include="..\UtilitiesCommonSHARED\Collections\DatabaseList.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ComponentSchedule.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)DataManager\DataManager.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)DataManager\DataReferenceOptions.cs" />

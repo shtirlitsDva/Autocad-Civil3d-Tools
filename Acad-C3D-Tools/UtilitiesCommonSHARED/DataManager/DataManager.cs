@@ -1,5 +1,7 @@
 ﻿using Autodesk.AutoCAD.DatabaseServices;
 
+using IntersectUtilities.UtilsCommon.Collections;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -55,19 +57,19 @@ namespace IntersectUtilities.UtilsCommon.DataManager
             if (dbs.Count() == 0) throw new Exception($"{StierKey} does not have {key} defined!");
             return dbs.First();
         }
-        public List<Database> Ler()
+        public DatabaseList Ler()
         {
             var key = StierDataType.Ler;
             var dbs = getDatabases(key);
             if (dbs.Count() == 0) throw new Exception($"{StierKey} does not have {key} defined!");
-            return dbs.ToList();
+            return new DatabaseList(dbs);
         }
-        public List<Database> Længdeprofiler()
+        public DatabaseList Længdeprofiler()
         {
             var key = StierDataType.Længdeprofiler;
             var dbs = getDatabases(key);
             if (dbs.Count() == 0) throw new Exception($"{StierKey} does not have {key} defined!");
-            return dbs.ToList();
+            return new DatabaseList(dbs);
         }
         public string PathToFremtid()
         {

@@ -65,277 +65,6 @@ namespace IntersectUtilities
 {
     public partial class Intersect
     {
-        /// <command>FINALIZESHEETS</command>
-        /// <summary>
-        /// Finalizes the sheets by creating LER points, populating profile views, applying styles etc.
-        /// DO NOT USE THIS COMMAND. I AM NOT SURE IF IT WORKS.
-        /// </summary>
-        /// <category>Sheet Management</category>
-        [CommandMethod("FINALIZESHEETS")]
-        public void finalizesheets()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor ed = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-
-            DataReferencesOptions dro = new DataReferencesOptions();
-
-            DataManager dm = new DataManager(dro);
-            using var surfaceDb = dm.Surface();
-            using var stx = surfaceDb.TransactionManager.StartTransaction();
-            var surface = surfaceDb.HashSetOfType<TinSurface>(stx).FirstOrDefault();
-            if (surface == null)
-            {
-                prdDbg("\nNo surface found in the specified DataReferencesOptions.");
-                return;
-            }
-
-            //Create crossing points first
-            createlerdatapssmethod2(dro, surface);
-
-            //Populateprofileviews with crossing data
-            populateprofiles();
-
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForWrite) as BlockTable;
-
-                    #region Stylize Profile Views
-                    HashSet<ProfileView> pvs = localDb.HashSetOfType<ProfileView>(tx);
-
-                    Oid pvStyleId = Oid.Null;
-                    try
-                    {
-                        pvStyleId = civilDoc.Styles.ProfileViewStyles["PROFILE VIEW L TO R 1:250:100"];
-                    }
-                    catch (System.Exception)
-                    {
-                        ed.WriteMessage($"\nProfile view style missing! Run IMPORTLABELSTYLES.");
-                        tx.Abort();
-                        return;
-                    }
-
-                    HashSet<Alignment> alss = localDb.HashSetOfType<Alignment>(tx);
-                    foreach (Alignment al in alss)
-                    {
-                        al.CheckOrOpenForWrite();
-                        al.StyleId = civilDoc.Styles.AlignmentStyles["FJV TRACÉ SHOW"];
-                        al.ImportLabelSet("STD 20-5");
-                        al.DowngradeOpen();
-                    }
-
-                    foreach (ProfileView pv in pvs)
-                    {
-                        pv.CheckOrOpenForWrite();
-                        pv.StyleId = pvStyleId;
-
-                        Oid alId = pv.AlignmentId;
-                        Alignment al = alId.Go<Alignment>(tx);
-
-                        ObjectIdCollection psIds = al.GetProfileIds();
-                        HashSet<Profile> ps = new HashSet<Profile>();
-                        foreach (Oid oid in psIds) ps.Add(oid.Go<Profile>(tx));
-
-                        Profile surfaceProfile = ps.Where(x => x.Name.Contains("surface")).FirstOrDefault();
-                        Oid surfaceProfileId = Oid.Null;
-                        if (surfaceProfile != null) surfaceProfileId = surfaceProfile.ObjectId;
-                        else ed.WriteMessage("\nSurface profile not found!");
-
-                        Profile topProfile = ps.Where(x => x.Name.Contains("TOP")).FirstOrDefault();
-                        Oid topProfileId = Oid.Null;
-                        if (topProfile != null) topProfileId = topProfile.ObjectId;
-                        else ed.WriteMessage("\nTop profile not found!");
-
-                        //this doesn't quite work
-                        Oid pvbsId = civilDoc.Styles.ProfileViewBandSetStyles["EG-FG Elevations and Stations"];
-                        ProfileViewBandSet pvbs = pv.Bands;
-                        pvbs.ImportBandSetStyle(pvbsId);
-
-                        //try this
-                        Oid pvBSId1 = civilDoc.Styles.BandStyles.ProfileViewProfileDataBandStyles["Elevations and Stations"];
-                        Oid pvBSId2 = civilDoc.Styles.BandStyles.ProfileViewProfileDataBandStyles["TitleBuffer"];
-                        ProfileViewBandItemCollection pvic = new ProfileViewBandItemCollection(pv.Id, BandLocationType.Bottom);
-                        pvic.Add(pvBSId1);
-                        pvic.Add(pvBSId2);
-                        pvbs.SetBottomBandItems(pvic);
-
-                        ProfileViewBandItemCollection pbic = pvbs.GetBottomBandItems();
-                        for (int i = 0; i < pbic.Count; i++)
-                        {
-                            ProfileViewBandItem pvbi = pbic[i];
-                            if (i == 0) pvbi.Gap = 0;
-                            else if (i == 1) pvbi.Gap = 0.016;
-                            if (surfaceProfileId != Oid.Null) pvbi.Profile1Id = surfaceProfileId;
-                            if (topProfileId != Oid.Null) pvbi.Profile2Id = topProfileId;
-                            pvbi.LabelAtStartStation = true;
-                            pvbi.LabelAtEndStation = true;
-                        }
-                        pvbs.SetBottomBandItems(pbic);
-
-                        #region Scale LER block
-                        if (bt.Has(pv.Name))
-                        {
-                            BlockTableRecord btr = tx.GetObject(bt[pv.Name], OpenMode.ForRead)
-                                as BlockTableRecord;
-                            ObjectIdCollection brefIds = btr.GetBlockReferenceIds(false, true);
-
-                            foreach (Oid oid in brefIds)
-                            {
-                                BlockReference bref = oid.Go<BlockReference>(tx, OpenMode.ForWrite);
-                                bref.ScaleFactors = new Scale3d(1, 2.5, 1);
-                            }
-
-                        }
-                        #endregion
-                    }
-                    #endregion
-
-                    #region ProfileStyles
-                    Oid pPipeStyleKantId = Oid.Null;
-                    try
-                    {
-                        pPipeStyleKantId = civilDoc.Styles.ProfileStyles["PROFIL STYLE MGO KANT"];
-                    }
-                    catch (System.Exception)
-                    {
-                        ed.WriteMessage($"\nPROFIL STYLE MGO KANT style missing! Run IMPORTLABELSTYLES.");
-                        tx.Abort();
-                        return;
-                    }
-
-                    Oid pPipeStyleMidtId = Oid.Null;
-                    try
-                    {
-                        pPipeStyleMidtId = civilDoc.Styles.ProfileStyles["PROFIL STYLE MGO MIDT"];
-                    }
-                    catch (System.Exception)
-                    {
-                        ed.WriteMessage($"\nPROFIL STYLE MGO MIDT style missing! Run IMPORTLABELSTYLES.");
-                        tx.Abort();
-                        return;
-                    }
-
-                    Oid pTerStyleId = Oid.Null;
-                    try
-                    {
-                        pTerStyleId = civilDoc.Styles.ProfileStyles["Terræn"];
-                    }
-                    catch (System.Exception)
-                    {
-                        ed.WriteMessage($"\nTerræn style missing! Run IMPORTLABELSTYLES.");
-                        tx.Abort();
-                        return;
-                    }
-
-                    Oid alStyleId = Oid.Null;
-                    try
-                    {
-                        alStyleId = civilDoc.Styles.AlignmentStyles["FJV TRACÉ SHOW"];
-                    }
-                    catch (System.Exception)
-                    {
-                        ed.WriteMessage($"\nFJV TRACÈ SHOW style missing! Run IMPORTLABELSTYLES.");
-                        tx.Abort();
-                        return;
-                    }
-
-                    Oid alLabelSetStyleId = Oid.Null;
-                    try
-                    {
-                        alLabelSetStyleId = civilDoc.Styles.LabelSetStyles.AlignmentLabelSetStyles["STD 20-5"];
-                    }
-                    catch (System.Exception)
-                    {
-                        ed.WriteMessage($"\nSTD 20-5 style missing! Run IMPORTLABELSTYLES.");
-                        tx.Abort();
-                        return;
-                    }
-
-                    Oid crestCurveLabelId = Oid.Null;
-                    try
-                    {
-                        crestCurveLabelId = civilDoc.Styles.LabelStyles.ProfileLabelStyles.CurveLabelStyles["Radius Crest"];
-                    }
-                    catch (System.Exception)
-                    {
-                        ed.WriteMessage($"\nRADIUS CREST style missing! Run IMPORTLABELSTYLES.");
-                        tx.Abort();
-                        return;
-                    }
-
-                    Oid sagCurveLabelId = Oid.Null;
-                    try
-                    {
-                        sagCurveLabelId = civilDoc.Styles.LabelStyles.ProfileLabelStyles.CurveLabelStyles["Radius Sag"];
-                    }
-                    catch (System.Exception)
-                    {
-                        ed.WriteMessage($"\nRADIUS SAG style missing! Run IMPORTLABELSTYLES.");
-                        tx.Abort();
-                        return;
-                    }
-
-                    HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
-                    foreach (Alignment al in als)
-                    {
-                        al.CheckOrOpenForWrite();
-                        al.StyleId = alStyleId;
-                        al.ImportLabelSet(alLabelSetStyleId);
-
-                        ObjectIdCollection pIds = al.GetProfileIds();
-                        foreach (Oid oid in pIds)
-                        {
-                            Profile p = oid.Go<Profile>(tx);
-                            if (p.Name == $"{al.Name}_surface_P")
-                            {
-                                p.CheckOrOpenForWrite();
-                                p.StyleId = pTerStyleId;
-                            }
-                            else
-                            {
-                                p.CheckOrOpenForWrite();
-                                p.StyleId = pPipeStyleKantId;
-
-                                if (p.Name.Contains("MIDT"))
-                                {
-                                    p.StyleId = pPipeStyleMidtId;
-
-                                    foreach (ProfileView pv in pvs)
-                                    {
-                                        pv.CheckOrOpenForWrite();
-                                        ProfileCrestCurveLabelGroup.Create(pv.ObjectId, p.ObjectId, crestCurveLabelId);
-                                        ProfileSagCurveLabelGroup.Create(pv.ObjectId, p.ObjectId, sagCurveLabelId);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    #endregion
-                }
-                catch (System.Exception ex)
-                {
-                    tx.Abort();
-                    ed.WriteMessage("\n" + ex.ToString());
-                    return;
-                }
-                tx.Commit();
-            }
-
-            //Create detailing blocks on top of exaggerated views
-            createdetailingmethod(dro, localDb);
-            //Auto stagger all labels to right
-            staggerlabelsall();
-            //Draw rectangles representing viewports around longitudinal profiles
-            //Can be used to check if labels are inside
-            drawviewportrectangles();
-            //Colorize layer as per krydsninger table
-            colorizealllerlayersmethod();
-        }
-
         /// <command>FINALIZESHEETSAUTO</command>
         /// <summary>
         /// Automatically finalizes the sheets by resetting profile views, importing styles, and applying styles.
@@ -345,10 +74,32 @@ namespace IntersectUtilities
         [CommandMethod("FINALIZESHEETSAUTO")]
         public void finalizesheetsauto()
         {
+            DataReferencesOptions dro = new DataReferencesOptions();
+            if (!finalizesheetscore(dro)) return;
+            prdDbg("FINISHED!");
+        }
+
+        /// <command>FINALIZESHEETSAHK</command>
+        /// <summary>
+        /// Finalizes the sheets using a specified path for DataReferencesOptions read from temp file.
+        /// THIS IS USED FOR SHEET CREATION AUTOMATION WITH AUTOHOTKEY.
+        /// DO NOT USE THIS COMMAND WITH MANUAL SHEET FINALIZATION.
+        /// </summary>
+        /// <category>Sheet Management</category>
+        [CommandMethod("FINALIZESHEETSAHK")]
+        public void finalizesheetsuipath()
+        {
+            var droText = File.ReadAllLines(Environment.ExpandEnvironmentVariables("%temp%") + "\\DRO.txt");
+            DataReferencesOptions dro = new DataReferencesOptions(droText[0], droText[1]);
+            if (!finalizesheetscore(dro)) return;
+            Interaction.TaskDialog("Finilization finished!", "OK", "Not OK");
+        }
+
+        private bool finalizesheetscore(DataReferencesOptions dro)
+        {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
             Editor ed = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
             resetprofileviews();
@@ -359,21 +110,18 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForWrite) as BlockTable;
-
                     HashSet<ProfileView> pvs = localDb.HashSetOfType<ProfileView>(tx);
 
                     Oid pvStyleId = Oid.Null;
                     try
                     {
                         pvStyleId = civilDoc.Styles.ProfileViewStyles["PROFILE VIEW L TO R NO SCALE"];
-                        //pvStyleId = civilDoc.Styles.ProfileViewStyles["PROFILE VIEW L TO R 1:250:100"];
                     }
                     catch (System.Exception)
                     {
                         ed.WriteMessage($"\nProfile view style missing! Run IMPORTLABELSTYLES.");
                         tx.Abort();
-                        return;
+                        return false;
                     }
 
                     foreach (ProfileView pv in pvs)
@@ -391,14 +139,11 @@ namespace IntersectUtilities
                 {
                     tx.Abort();
                     ed.WriteMessage("\n" + ex.ToString());
-                    return;
+                    return false;
                 }
                 tx.Commit();
             }
             #endregion
-
-            //Create crossing points first
-            DataReferencesOptions dro = new DataReferencesOptions();
 
             DataManager dm = new DataManager(dro);
             using var surfaceDb = dm.Surface();
@@ -407,23 +152,22 @@ namespace IntersectUtilities
             if (surface == null)
             {
                 prdDbg("\nNo surface found in the specified DataReferencesOptions.");
-                return;
+                return false;
             }
 
             createlerdatapssmethod2(dro, surface);
-
-            //Populateprofileviews with crossing data
             populateprofilesmethod(dro);
+
+            using var profs = dm.Længdeprofiler();
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
                 {
                     BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForWrite) as BlockTable;
-
-                    #region Stylize Profile Views
                     HashSet<ProfileView> pvs = localDb.HashSetOfType<ProfileView>(tx);
 
+                    #region Stylize Profile Views
                     Oid pvStyleId = Oid.Null;
                     try
                     {
@@ -433,7 +177,7 @@ namespace IntersectUtilities
                     {
                         ed.WriteMessage($"\nProfile view style missing! Run IMPORTLABELSTYLES.");
                         tx.Abort();
-                        return;
+                        return false;
                     }
 
                     foreach (ProfileView pv in pvs)
@@ -458,12 +202,10 @@ namespace IntersectUtilities
                         if (topProfile != null) topProfileId = topProfile.ObjectId;
                         else ed.WriteMessage("\nTop profile not found!");
 
-                        //this doesn't quite work
                         Oid pvbsId = civilDoc.Styles.ProfileViewBandSetStyles["EG-FG Elevations and Stations"];
                         ProfileViewBandSet pvbs = pv.Bands;
                         pvbs.ImportBandSetStyle(pvbsId);
 
-                        //try this
                         Oid pvBSId1 = civilDoc.Styles.BandStyles.ProfileViewProfileDataBandStyles["Elevations and Stations"];
                         Oid pvBSId2 = civilDoc.Styles.BandStyles.ProfileViewProfileDataBandStyles["TitleBuffer"];
                         ProfileViewBandItemCollection pvic = new ProfileViewBandItemCollection(pv.Id, BandLocationType.Bottom);
@@ -487,8 +229,7 @@ namespace IntersectUtilities
                         #region Scale LER block
                         if (bt.Has(pv.Name))
                         {
-                            BlockTableRecord btr = tx.GetObject(bt[pv.Name], OpenMode.ForRead)
-                                as BlockTableRecord;
+                            BlockTableRecord btr = tx.GetObject(bt[pv.Name], OpenMode.ForRead) as BlockTableRecord;
                             ObjectIdCollection brefIds = btr.GetBlockReferenceIds(false, true);
 
                             foreach (Oid oid in brefIds)
@@ -496,9 +237,147 @@ namespace IntersectUtilities
                                 BlockReference bref = oid.Go<BlockReference>(tx, OpenMode.ForWrite);
                                 bref.ScaleFactors = new Scale3d(1, 2.5, 1);
                             }
-
                         }
                         #endregion
+                    }
+                    #endregion
+
+                    #region Transfer MLeaders to the partial profile views
+                    string mLeaderStyleName = "Note_Længdeprofiler";
+
+                    var localAlignments = localDb.HashSetOfType<Alignment>(tx);
+
+                    var alignmentToDbMap = new Dictionary<string, Database>();
+                    if (profs.Count == 1)
+                    {
+                        foreach (var localAl in localAlignments)
+                            alignmentToDbMap[localAl.Name] = profs[0];
+                    }
+                    else
+                    {
+                        foreach (Database profDb in profs)
+                        {
+                            using var mapTx = profDb.TransactionManager.StartTransaction();
+                            var profAlignments = profDb.HashSetOfType<Alignment>(mapTx);
+                            foreach (var profAl in profAlignments)
+                                alignmentToDbMap[profAl.Name] = profDb;
+                            mapTx.Commit();
+                        }
+                    }
+
+                    foreach (Alignment localAl in localAlignments)
+                    {
+                        if (!alignmentToDbMap.TryGetValue(localAl.Name, out Database profDb))
+                            continue;
+
+                        var localPpvs = pvs
+                            .Where(p => p.AlignmentId == localAl.Id)
+                            .OrderBy(p => p.StationStart)
+                            .ToList();
+
+                        if (localPpvs.Count == 0) continue;
+
+                        using var profTx = profDb.TransactionManager.StartTransaction();
+
+                        DBDictionary mleaderStyleDict = profTx.GetObject(
+                            profDb.MLeaderStyleDictionaryId, OpenMode.ForRead) as DBDictionary;
+
+                        if (!mleaderStyleDict.Contains(mLeaderStyleName))
+                        {
+                            profTx.Commit();
+                            continue;
+                        }
+
+                        Oid targetStyleId = mleaderStyleDict.GetAt(mLeaderStyleName);
+
+                        var profAlignments = profDb.HashSetOfType<Alignment>(profTx);
+                        var matchingProfAl = profAlignments
+                            .FirstOrDefault(a => a.Name == localAl.Name);
+
+                        if (matchingProfAl == null)
+                        {
+                            profTx.Commit();
+                            continue;
+                        }
+
+                        var profPvIds = matchingProfAl.GetProfileViewIds();
+                        if (profPvIds.Count == 0)
+                        {
+                            profTx.Commit();
+                            continue;
+                        }
+
+                        ProfileView opv = profPvIds[0].Go<ProfileView>(profTx);
+                        Extents3d opvBbox = opv.GetBufferedXYGeometricExtents(10.0);
+
+                        var allMLeaders = profDb.HashSetOfType<MLeader>(profTx)
+                            .Where(m => m.MLeaderStyle == targetStyleId)
+                            .Where(m => opvBbox.IsPointInsideXY(m.GetLastVertex(0)))
+                            .ToList();
+
+                        if (allMLeaders.Count == 0)
+                        {
+                            profTx.Commit();
+                            continue;
+                        }
+
+                        ObjectIdCollection idsToClone = new ObjectIdCollection();
+                        var mLeaderData = new List<(Oid OriginalId, double Station, double Elevation)>();
+
+                        foreach (var mldr in allMLeaders)
+                        {
+                            Point3d mLdrLoc = mldr.GetLastVertex(0);
+                            double station = 0, elevation = 0;
+                            opv.FindStationAndElevationAtXY(
+                                mLdrLoc.X, mLdrLoc.Y, ref station, ref elevation);
+
+                            var targetPpv = localPpvs
+                                .FirstOrDefault(p => p.StationStart <= station && p.StationEnd >= station);
+
+                            if (targetPpv == null) continue;
+
+                            idsToClone.Add(mldr.Id);
+                            mLeaderData.Add((mldr.Id, station, elevation));
+                        }
+
+                        if (idsToClone.Count == 0)
+                        {
+                            profTx.Commit();
+                            continue;
+                        }
+
+                        Oid destMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
+                        IdMapping mapping = new IdMapping();
+                        profDb.WblockCloneObjects(
+                            idsToClone, destMsId, mapping,
+                            DuplicateRecordCloning.Replace, false);
+
+                        foreach (var data in mLeaderData)
+                        {
+                            var targetPpv = localPpvs
+                                .FirstOrDefault(p => p.StationStart <= data.Station && p.StationEnd >= data.Station);
+
+                            if (targetPpv == null) continue;
+
+                            double newX = 0, newY = 0;
+                            targetPpv.FindXYAtStationAndElevation(
+                                data.Station, data.Elevation, ref newX, ref newY);
+                            Point3d newLoc = new Point3d(newX, newY, 0);
+
+                            foreach (IdPair pair in mapping)
+                            {
+                                if (!pair.IsCloned || pair.Key != data.OriginalId) continue;
+
+                                MLeader clonedMldr = pair.Value.Go<MLeader>(tx, OpenMode.ForWrite);
+                                Point3d oldLoc = clonedMldr.GetLastVertex(0);
+                                Vector3d displacement = newLoc - oldLoc;
+
+                                clonedMldr.TransformBy(Matrix3d.Displacement(displacement));
+                                break;
+                            }
+                        }
+
+                        profTx.Commit();
                     }
                     #endregion
 
@@ -512,7 +391,7 @@ namespace IntersectUtilities
                     {
                         ed.WriteMessage($"\nPROFIL STYLE MGO KANT style missing! Run IMPORTLABELSTYLES.");
                         tx.Abort();
-                        return;
+                        return false;
                     }
 
                     Oid pPipeStyleMidtId = Oid.Null;
@@ -524,7 +403,7 @@ namespace IntersectUtilities
                     {
                         ed.WriteMessage($"\nPROFIL STYLE MGO MIDT style missing! Run IMPORTLABELSTYLES.");
                         tx.Abort();
-                        return;
+                        return false;
                     }
 
                     Oid pTerStyleId = Oid.Null;
@@ -536,7 +415,7 @@ namespace IntersectUtilities
                     {
                         ed.WriteMessage($"\nTerræn style missing! Run IMPORTLABELSTYLES.");
                         tx.Abort();
-                        return;
+                        return false;
                     }
 
                     Oid alStyleId = Oid.Null;
@@ -548,7 +427,7 @@ namespace IntersectUtilities
                     {
                         ed.WriteMessage($"\nFJV TRACE NO SHOW style missing! Run IMPORTLABELSTYLES.");
                         tx.Abort();
-                        return;
+                        return false;
                     }
 
                     Oid alLabelSetStyleId = Oid.Null;
@@ -560,7 +439,7 @@ namespace IntersectUtilities
                     {
                         ed.WriteMessage($"\nSTD 20-5 style missing! Run IMPORTLABELSTYLES.");
                         tx.Abort();
-                        return;
+                        return false;
                     }
 
                     Oid crestCurveLabelId = Oid.Null;
@@ -572,7 +451,7 @@ namespace IntersectUtilities
                     {
                         ed.WriteMessage($"\nRADIUS CREST style missing! Run IMPORTLABELSTYLES.");
                         tx.Abort();
-                        return;
+                        return false;
                     }
 
                     Oid sagCurveLabelId = Oid.Null;
@@ -584,7 +463,7 @@ namespace IntersectUtilities
                     {
                         ed.WriteMessage($"\nRADIUS SAG style missing! Run IMPORTLABELSTYLES.");
                         tx.Abort();
-                        return;
+                        return false;
                     }
 
                     HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
@@ -628,13 +507,11 @@ namespace IntersectUtilities
                 {
                     tx.Abort();
                     ed.WriteMessage("\n" + ex.ToString());
-                    return;
+                    return false;
                 }
                 tx.Commit();
             }
 
-            //Create detailing blocks on top of exaggerated views
-            //Detect if drawing has "MIDT" profile
             bool hasMidt = false;
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
@@ -644,296 +521,11 @@ namespace IntersectUtilities
             if (hasMidt) createdetailingmethod(dro, localDb);
             else createdetailingpreliminarymethod(dro, localDb);
 
-            //Auto stagger all labels to right
             staggerlabelsall();
-            //Draw rectangles representing viewports around longitudinal profiles
-            //Can be used to check if labels are inside
             drawviewportrectangles();
-            //Colorize layer as per krydsninger table
             colorizealllerlayersmethod();
 
-            prdDbg("FINISHED!");
-        }
-
-        /// <command>FINALIZESHEETSUIPATH</command>
-        /// <summary>
-        /// Finalizes the sheets using a specified path for DataReferencesOptions.
-        /// THIS IS USED FOR SHEET CREATION AUTOMATION WITH AUTOHOTKEY.
-        /// DO NOT USE THIS COMMAND WITH MANUAL SHEET FINALIZATION.
-        /// </summary>
-        /// <category>Sheet Management</category>
-        [CommandMethod("FINALIZESHEETSUIPATH")]
-        public void finalizesheetsuipath()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor ed = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-
-            resetprofileviews();
-            importcivilstyles();
-
-            var droText = File.ReadAllLines(Environment.ExpandEnvironmentVariables("%temp%") + "\\DRO.txt");
-
-            //Create crossing points first
-            DataReferencesOptions dro = new DataReferencesOptions(droText[0], droText[1]);
-            #region The whole sequence
-
-            DataManager dm = new DataManager(dro);
-            using var surfaceDb = dm.Surface();
-            using var stx = surfaceDb.TransactionManager.StartTransaction();
-            var surface = surfaceDb.HashSetOfType<TinSurface>(stx).FirstOrDefault();
-            if (surface == null)
-            {
-                prdDbg("\nNo surface found in the specified DataReferencesOptions.");
-                return;
-            }
-
-            createlerdatapssmethod2(dro, surface);
-
-            //Populateprofileviews with crossing data
-            populateprofilesmethod(dro);
-
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForWrite) as BlockTable;
-
-                    #region Stylize Profile Views
-                    HashSet<ProfileView> pvs = localDb.HashSetOfType<ProfileView>(tx);
-
-                    Oid pvStyleId = Oid.Null;
-                    try
-                    {
-                        pvStyleId = civilDoc.Styles.ProfileViewStyles["PROFILE VIEW L TO R 1:250:100"];
-                    }
-                    catch (System.Exception)
-                    {
-                        ed.WriteMessage($"\nProfile view style missing! Run IMPORTLABELSTYLES.");
-                        tx.Abort();
-                        return;
-                    }
-
-                    foreach (ProfileView pv in pvs)
-                    {
-                        pv.CheckOrOpenForWrite();
-                        pv.StyleId = pvStyleId;
-
-                        Oid alId = pv.AlignmentId;
-                        Alignment al = alId.Go<Alignment>(tx);
-
-                        ObjectIdCollection psIds = al.GetProfileIds();
-                        HashSet<Profile> ps = new HashSet<Profile>();
-                        foreach (Oid oid in psIds) ps.Add(oid.Go<Profile>(tx));
-
-                        Profile surfaceProfile = ps.Where(x => x.Name.Contains("surface")).FirstOrDefault();
-                        Oid surfaceProfileId = Oid.Null;
-                        if (surfaceProfile != null) surfaceProfileId = surfaceProfile.ObjectId;
-                        else ed.WriteMessage("\nSurface profile not found!");
-
-                        Profile topProfile = ps.Where(x => x.Name.Contains("TOP")).FirstOrDefault();
-                        Oid topProfileId = Oid.Null;
-                        if (topProfile != null) topProfileId = topProfile.ObjectId;
-                        else ed.WriteMessage("\nTop profile not found!");
-
-                        //this doesn't quite work
-                        Oid pvbsId = civilDoc.Styles.ProfileViewBandSetStyles["EG-FG Elevations and Stations"];
-                        ProfileViewBandSet pvbs = pv.Bands;
-                        pvbs.ImportBandSetStyle(pvbsId);
-
-                        //try this
-                        Oid pvBSId1 = civilDoc.Styles.BandStyles.ProfileViewProfileDataBandStyles["Elevations and Stations"];
-                        Oid pvBSId2 = civilDoc.Styles.BandStyles.ProfileViewProfileDataBandStyles["TitleBuffer"];
-                        ProfileViewBandItemCollection pvic = new ProfileViewBandItemCollection(pv.Id, BandLocationType.Bottom);
-                        pvic.Add(pvBSId1);
-                        pvic.Add(pvBSId2);
-                        pvbs.SetBottomBandItems(pvic);
-
-                        ProfileViewBandItemCollection pbic = pvbs.GetBottomBandItems();
-                        for (int i = 0; i < pbic.Count; i++)
-                        {
-                            ProfileViewBandItem pvbi = pbic[i];
-                            if (i == 0) pvbi.Gap = 0;
-                            else if (i == 1) pvbi.Gap = 0.016;
-                            if (surfaceProfileId != Oid.Null) pvbi.Profile1Id = surfaceProfileId;
-                            if (topProfileId != Oid.Null) pvbi.Profile2Id = topProfileId;
-                            pvbi.LabelAtStartStation = true;
-                            pvbi.LabelAtEndStation = true;
-                        }
-                        pvbs.SetBottomBandItems(pbic);
-
-                        #region Scale LER block
-                        if (bt.Has(pv.Name))
-                        {
-                            BlockTableRecord btr = tx.GetObject(bt[pv.Name], OpenMode.ForRead)
-                                as BlockTableRecord;
-                            ObjectIdCollection brefIds = btr.GetBlockReferenceIds(false, true);
-
-                            foreach (Oid oid in brefIds)
-                            {
-                                BlockReference bref = oid.Go<BlockReference>(tx, OpenMode.ForWrite);
-                                bref.ScaleFactors = new Scale3d(1, 2.5, 1);
-                            }
-
-                        }
-                        #endregion
-                    }
-                    #endregion
-
-                    #region ProfileStyles
-                    Oid pPipeStyleKantId = Oid.Null;
-                    try
-                    {
-                        pPipeStyleKantId = civilDoc.Styles.ProfileStyles["PROFIL STYLE MGO KANT"];
-                    }
-                    catch (System.Exception)
-                    {
-                        ed.WriteMessage($"\nPROFIL STYLE MGO KANT style missing! Run IMPORTLABELSTYLES.");
-                        tx.Abort();
-                        return;
-                    }
-
-                    Oid pPipeStyleMidtId = Oid.Null;
-                    try
-                    {
-                        pPipeStyleMidtId = civilDoc.Styles.ProfileStyles["PROFIL STYLE MGO MIDT"];
-                    }
-                    catch (System.Exception)
-                    {
-                        ed.WriteMessage($"\nPROFIL STYLE MGO MIDT style missing! Run IMPORTLABELSTYLES.");
-                        tx.Abort();
-                        return;
-                    }
-
-                    Oid pTerStyleId = Oid.Null;
-                    try
-                    {
-                        pTerStyleId = civilDoc.Styles.ProfileStyles["Terræn"];
-                    }
-                    catch (System.Exception)
-                    {
-                        ed.WriteMessage($"\nTerræn style missing! Run IMPORTLABELSTYLES.");
-                        tx.Abort();
-                        return;
-                    }
-
-                    Oid alStyleId = Oid.Null;
-                    try
-                    {
-                        alStyleId = civilDoc.Styles.AlignmentStyles["FJV TRACE NO SHOW"];
-                    }
-                    catch (System.Exception)
-                    {
-                        ed.WriteMessage($"\nFJV TRACE NO SHOW style missing! Run IMPORTLABELSTYLES.");
-                        tx.Abort();
-                        return;
-                    }
-
-                    Oid alLabelSetStyleId = Oid.Null;
-                    try
-                    {
-                        alLabelSetStyleId = civilDoc.Styles.LabelSetStyles.AlignmentLabelSetStyles["STD 20-5"];
-                    }
-                    catch (System.Exception)
-                    {
-                        ed.WriteMessage($"\nSTD 20-5 style missing! Run IMPORTLABELSTYLES.");
-                        tx.Abort();
-                        return;
-                    }
-
-                    Oid crestCurveLabelId = Oid.Null;
-                    try
-                    {
-                        crestCurveLabelId = civilDoc.Styles.LabelStyles.ProfileLabelStyles.CurveLabelStyles["Radius Crest"];
-                    }
-                    catch (System.Exception)
-                    {
-                        ed.WriteMessage($"\nRADIUS CREST style missing! Run IMPORTLABELSTYLES.");
-                        tx.Abort();
-                        return;
-                    }
-
-                    Oid sagCurveLabelId = Oid.Null;
-                    try
-                    {
-                        sagCurveLabelId = civilDoc.Styles.LabelStyles.ProfileLabelStyles.CurveLabelStyles["Radius Sag"];
-                    }
-                    catch (System.Exception)
-                    {
-                        ed.WriteMessage($"\nRADIUS SAG style missing! Run IMPORTLABELSTYLES.");
-                        tx.Abort();
-                        return;
-                    }
-
-                    HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
-                    foreach (Alignment al in als)
-                    {
-                        al.CheckOrOpenForWrite();
-                        al.StyleId = alStyleId;
-                        al.ImportLabelSet(alLabelSetStyleId);
-
-                        ObjectIdCollection pIds = al.GetProfileIds();
-                        foreach (Oid oid in pIds)
-                        {
-                            Profile p = oid.Go<Profile>(tx);
-                            if (p.Name == $"{al.Name}_surface_P")
-                            {
-                                p.CheckOrOpenForWrite();
-                                p.StyleId = pTerStyleId;
-                            }
-                            else
-                            {
-                                p.CheckOrOpenForWrite();
-                                p.StyleId = pPipeStyleKantId;
-
-                                if (p.Name.Contains("MIDT"))
-                                {
-                                    p.StyleId = pPipeStyleMidtId;
-
-                                    foreach (ProfileView pv in pvs)
-                                    {
-                                        pv.CheckOrOpenForWrite();
-                                        ProfileCrestCurveLabelGroup.Create(pv.ObjectId, p.ObjectId, crestCurveLabelId);
-                                        ProfileSagCurveLabelGroup.Create(pv.ObjectId, p.ObjectId, sagCurveLabelId);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    #endregion
-                }
-                catch (System.Exception ex)
-                {
-                    tx.Abort();
-                    ed.WriteMessage("\n" + ex.ToString());
-                    return;
-                }
-                tx.Commit();
-            }
-
-            //Create detailing blocks on top of exaggerated views
-            //Detect if drawing has "MIDT" profile
-            bool hasMidt = false;
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                var profiles = localDb.HashSetOfType<Profile>(tx);
-                if (profiles.Any(x => x.Name.Contains("MIDT"))) hasMidt = true;
-            }
-            if (hasMidt) createdetailingmethod(dro, localDb);
-            else createdetailingpreliminarymethod(dro, localDb);
-
-            //Auto stagger all labels to right
-            staggerlabelsall();
-            //Draw rectangles representing viewports around longitudinal profiles
-            //Can be used to check if labels are inside
-            drawviewportrectangles();
-            //Colorize layer as per krydsninger table
-            colorizealllerlayersmethod();
-            #endregion
-
-            Interaction.TaskDialog("Finilization finished!", "OK", "Not OK");
+            return true;
         }
 
         /// <command>LISTNUMBEROFPROFILEVIEWS</command>
