@@ -1483,7 +1483,7 @@ namespace IntersectUtilities
             string dbFilename = localDb.OriginalFileName;
             string fileName = Path.GetFileNameWithoutExtension(dbFilename);
             string path = Path.GetDirectoryName(dbFilename);
-            string poly3dExportFile = path + "\\" + fileName + "_3D_Bundprofil.dwg";
+            string poly3dExportFile = path + "\\Bundprofil\\" + fileName + "_3D_Bundprofil.dwg";
             Database poly3dDb = new Database(true, true);
             using (Transaction poly3dTx = poly3dDb.TransactionManager.StartTransaction())
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
