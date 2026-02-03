@@ -4,7 +4,8 @@
              xmlns:wpfMath="clr-namespace:WpfMath.Controls;assembly=WpfMath">
 
     <Grid>
-        <StackPanel>
+        <!-- Normal Step View -->
+        <StackPanel Visibility="{Binding IsSummary, Converter={StaticResource InverseBoolToVisibilityConverter}}">
             <TextBlock Text="{Binding Name}"
                        Style="{StaticResource StepHeaderStyle}"
                        FontSize="18"/>
@@ -17,22 +18,22 @@
 
             <Border Style="{StaticResource FormulaBoxStyle}">
                 <StackPanel>
-                    <TextBlock Text="Formel (symbolsk):" Style="{StaticResource FieldLabelStyle}"/>
-                    <wpfMath:FormulaControl Formula="{Binding FormulaSymbolic}"
+                    <TextBlock Text="Formel:" Style="{StaticResource FieldLabelStyle}"/>
+                    <wpfMath:FormulaControl Formula="{Binding FormulaSymbolic, Converter={StaticResource LaTeXSanitizeConverter}}"
                                             Foreground="White"
-                                            FontSize="18"
-                                            Margin="0,4,0,0"/>
+                                            FontSize="16"
+                                            Margin="0,8,0,0"/>
                 </StackPanel>
             </Border>
 
             <Border Style="{StaticResource FormulaBoxStyle}">
                 <StackPanel>
-                    <TextBlock Text="Med værdier:" Style="{StaticResource FieldLabelStyle}"/>
-                    <TextBlock Text="{Binding FormulaWithValues}"
-                               FontFamily="Consolas"
-                               FontSize="14"
-                               Foreground="{DynamicResource Text}"
-                               TextWrapping="Wrap"/>
+                    <TextBlock Text="Beregning:" Style="{StaticResource FieldLabelStyle}"/>
+                    <wpfMath:FormulaControl x:Name="BeregningFormula"
+                                            Formula="{Binding FormulaWithValues, Converter={StaticResource LaTeXSanitizeConverter}}"
+                                            Foreground="White"
+                                            FontSize="13"
+                                            Margin="0,8,0,0"/>
                 </StackPanel>
             </Border>
 
@@ -109,6 +110,56 @@
                     </ItemsControl>
                 </StackPanel>
             </Border>
+        </StackPanel>
+
+        <!-- Summary View -->
+        <StackPanel Visibility="{Binding IsSummary, Converter={StaticResource BoolToVisibilityConverter}}">
+            <TextBlock Text="{Binding Name}"
+                       Style="{StaticResource StepHeaderStyle}"
+                       FontSize="18"/>
+
+            <TextBlock Text="{Binding Description}"
+                       Foreground="{DynamicResource Text}"
+                       TextWrapping="Wrap"
+                       Margin="0,0,0,12"
+                       Opacity="0.8"/>
+
+            <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="600">
+                <ItemsControl ItemsSource="{Binding SummaryLines}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="#FF1E1E1E"
+                                    BorderBrush="#FF3A3A3A"
+                                    BorderThickness="0,0,0,1"
+                                    Padding="8,6"
+                                    Margin="0,0,0,2">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="30"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0"
+                                               Text="{Binding StepNumber, StringFormat={}{0}.}"
+                                               Foreground="#FF888888"
+                                               FontSize="10"
+                                               VerticalAlignment="Top"
+                                               Margin="0,2,0,0"/>
+                                    <StackPanel Grid.Column="1">
+                                        <wpfMath:FormulaControl Formula="{Binding Formula, Converter={StaticResource LaTeXSanitizeConverter}}"
+                                                                Foreground="White"
+                                                                FontSize="11"/>
+                                        <wpfMath:FormulaControl Formula="{Binding FormulaReturn, Converter={StaticResource LaTeXSanitizeConverter}}"
+                                                                Foreground="#FFAAAAAA"
+                                                                FontSize="11"
+                                                                Margin="0,2,0,0"
+                                                                Visibility="{Binding HasReturn, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
         </StackPanel>
     </Grid>
 </UserControl>

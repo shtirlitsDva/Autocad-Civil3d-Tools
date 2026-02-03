@@ -13,6 +13,7 @@ public class CalculationStep
     public string Description { get; set; } = string.Empty;
     public string FormulaSymbolic { get; set; } = string.Empty;
     public string FormulaWithValues { get; set; } = string.Empty;
+    public string? FormulaWithValuesReturn { get; set; }
     public List<FormulaValue> Inputs { get; } = new();
     public List<FormulaValue> Intermediates { get; } = new();
     public List<FormulaValue> Results { get; } = new();
@@ -20,6 +21,18 @@ public class CalculationStep
     public string ResultUnit { get; set; } = string.Empty;
     public bool IsIterative { get; set; }
     public List<IterationData> Iterations { get; } = new();
+
+    public bool IsSummary { get; set; }
+    public List<SummaryLine> SummaryLines { get; } = new();
+}
+
+public class SummaryLine
+{
+    public int StepNumber { get; set; }
+    public string Label { get; set; } = string.Empty;
+    public string Formula { get; set; } = string.Empty;
+    public string? FormulaReturn { get; set; }
+    public bool HasReturn => !string.IsNullOrEmpty(FormulaReturn);
 }
 
 public class FormulaValue

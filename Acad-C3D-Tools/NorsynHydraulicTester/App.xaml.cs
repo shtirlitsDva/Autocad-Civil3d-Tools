@@ -13,6 +13,10 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
+#if DEBUG
+        Tests.LaTeXValidatorTest.TestFormulas();
+#endif
+
         var services = new ServiceCollection();
         ConfigureServices(services);
         Services = services.BuildServiceProvider();

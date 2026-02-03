@@ -11,6 +11,7 @@
             <converters:DanishNumberConverter x:Key="DanishNumberConverter"/>
             <converters:UnitDisplayConverter x:Key="UnitDisplayConverter"/>
             <converters:InverseBoolConverter x:Key="InverseBoolConverter"/>
+            <converters:LaTeXSanitizeConverter x:Key="LaTeXSanitizeConverter"/>
             <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
             <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
             <converters:ZeroToVisibilityConverter x:Key="ZeroToVisibilityConverter"/>

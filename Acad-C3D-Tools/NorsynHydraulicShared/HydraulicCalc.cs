@@ -1153,6 +1153,20 @@ namespace NorsynHydraulicCalc
 
             return result;
         }
+
+        public Dim TestingDetermineDim(double flow, TempSetType tst, SegmentType st)
+            => determineDim(flow, tst, st);
+
+        public Dim TestingDetermineDimForBothFlows(double flowSupply, double flowReturn, SegmentType st)
+        {
+            var dimSupply = determineDim(flowSupply, TempSetType.Supply, st);
+            var dimReturn = determineDim(flowReturn, TempSetType.Return, st);
+            return new[] { dimSupply, dimReturn }.MaxBy(x => x.OuterDiameter);
+        }
+
+        public (double reynolds, double gradient, double velocity) TestingCalculateGradientAndVelocity(
+            double flow, Dim dim, TempSetType tst, IHydraulicSegment segment)
+            => CalculateGradientAndVelocity(flow, dim, tst, segment);
         #endregion
 
         //Debug and testing (legacy)

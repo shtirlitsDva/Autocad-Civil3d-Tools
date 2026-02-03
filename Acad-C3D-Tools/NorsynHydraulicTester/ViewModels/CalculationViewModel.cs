@@ -37,9 +37,17 @@ public partial class CalculationViewModel : ObservableObject
 
         try
         {
-            var result = segment.SegmentType == SegmentType.Stikledning
-                ? await _calculationService.CalculateClientSegmentAsync(segment, settings)
-                : await _calculationService.CalculateDistributionSegmentAsync(segment, settings);
+            CalculationResult result;
+            if (segment.SegmentType == SegmentType.Stikledning)
+            {
+                result = await _calculationService.CalculateClientSegmentAsync(segment, settings);
+            }
+            else
+            {
+                result = segment.HeatingDemandConnected > 0
+                    ? await _calculationService.CalculateDistributionFromHeatDemandAsync(segment, settings)
+                    : await _calculationService.CalculateDistributionSegmentAsync(segment, settings);
+            }
 
             if (result.IsSuccess)
             {

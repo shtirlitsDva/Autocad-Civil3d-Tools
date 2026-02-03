@@ -12,4 +12,8 @@ public interface ICalculationService
     Task<CalculationResult> CalculateDistributionSegmentAsync(
         TestSegment segment,
         IHydraulicSettings settings);
+
+    Task<CalculationResult> CalculateDistributionFromHeatDemandAsync(
+        TestSegment segment,
+        IHydraulicSettings settings);
 }
