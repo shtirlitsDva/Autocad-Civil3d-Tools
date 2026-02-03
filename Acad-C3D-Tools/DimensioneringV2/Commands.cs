@@ -64,8 +64,23 @@ namespace DimensioneringV2
             Document doc = AcApp.DocumentManager.MdiActiveDocument;
             doc.Editor.WriteMessage("\nVelkommen til Dimensionering v2.0!");
 
-            Assembly.LoadFrom(@"X:\AutoCAD DRI - 01 Civil 3D\NetloadV2\2025\DimensioneringV2\OxyPlot.dll");
-            Assembly.LoadFrom(@"X:\AutoCAD DRI - 01 Civil 3D\NetloadV2\2025\DimensioneringV2\OxyPlot.Wpf.dll");
+            string basePath = @"X:\AutoCAD DRI - 01 Civil 3D\NetloadV2\2025\DimensioneringV2\";
+            List<string> dlls = [
+                "OxyPlot.dll",
+                "OxyPlot.Wpf.dll",
+                "SharpVectors.Core.dll",
+                "SharpVectors.Model.dll",
+                "SharpVectors.Dom.dll",
+                "SharpVectors.CSS.dll",
+                "SharpVectors.Runtime.Wpf.dll",
+                "SharpVectors.Converters.Wpf.dll",
+                "SharpVectors.Rendering.Wpf.dll"
+                ];
+
+            foreach (string dll in dlls)
+            { 
+                Assembly.LoadFrom(Path.Combine(basePath, dll));
+            }
             
 #if DEBUG
             AppDomain.CurrentDomain.AssemblyResolve +=
@@ -438,8 +453,9 @@ namespace DimensioneringV2
                         .Select(x => new Point2D(x.Position.X, x.Position.Y))
                         .ToList();
 
+                    var acceptedTypes = HydraulicSettingsService.Instance.Settings.GetAcceptedBlockTypes();
                     var brs = localDb.HashSetOfType<BlockReference>(tx, true)
-                        .Where(x => cv.AcceptedBlockTypes.Contains(
+                        .Where(x => acceptedTypes.Contains(
                             PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "Type")));
 
                     var noCrossLines = localDb.HashSetOfType<Line>(tx)
@@ -535,8 +551,9 @@ namespace DimensioneringV2
                         .Select(x => new Point2D(x.Position.X, x.Position.Y))
                         .ToList();
 
+                    var acceptedTypes = HydraulicSettingsService.Instance.Settings.GetAcceptedBlockTypes();
                     var brs = localDb.HashSetOfType<BlockReference>(tx, true)
-                        .Where(x => cv.AcceptedBlockTypes.Contains(
+                        .Where(x => acceptedTypes.Contains(
                             PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "Type")));
 
                     var noCrossLines = localDb.HashSetOfType<Line>(tx)
@@ -642,7 +659,7 @@ namespace DimensioneringV2
                             .ToList();
 
                 var brs = localDb.ListOfType<BlockReference>(tx, true)
-                    .Where(x => cv.AcceptedBlockTypes.Contains(
+                    .Where(x => cv.AllBlockTypes.Contains(
                         PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "Type")));
 
                 var xs = (Polyline pl) => pl.GetPolyPoints().Select(x => x.X);
@@ -889,7 +906,7 @@ namespace DimensioneringV2
             try
             {
                 var brs = localDb.HashSetOfType<BlockReference>(tx, true)
-                    .Where(x => cv.AcceptedBlockTypes.Contains(
+                    .Where(x => cv.AllBlockTypes.Contains(
                         PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "Type")));
 
                 var bbrs = brs.Select(x => new BBR(x));
@@ -1144,8 +1161,9 @@ namespace DimensioneringV2
                         .Select(x => new Point2D(x.Position.X, x.Position.Y))
                         .ToList();
 
+                    var acceptedTypes = HydraulicSettingsService.Instance.Settings.GetAcceptedBlockTypes();
                     var brs = localDb.HashSetOfType<BlockReference>(tx, true)
-                        .Where(x => cv.AcceptedBlockTypes.Contains(
+                        .Where(x => acceptedTypes.Contains(
                             PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "Type")));
 
                     var noCrossLines = localDb.HashSetOfType<Line>(tx)

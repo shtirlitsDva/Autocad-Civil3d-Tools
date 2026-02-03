@@ -1,26 +1,33 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using System.Collections.Generic;
 using System.Windows.Media;
 
 namespace DimensioneringV2.UI
 {
     public partial class BlockTypeFilterItem : ObservableObject
     {
-        private readonly string _typeName;
+        private readonly string[] _typeNames;
         private readonly string _displayName;
-        private readonly string _iconKey;
+        private readonly DrawingImage? _icon;
 
         [ObservableProperty]
         private bool isActive = true;
 
-        public string TypeName => _typeName;
+        public IReadOnlyList<string> TypeNames => _typeNames;
         public string DisplayName => _displayName;
-        public string IconKey => _iconKey;
+        public DrawingImage? Icon => _icon;
 
-        public BlockTypeFilterItem(string typeName, string displayName, string iconKey)
+        public BlockTypeFilterItem(string typeName, string displayName, string svgFileName, bool initiallyActive = true)
+            : this(new[] { typeName }, displayName, svgFileName, initiallyActive)
         {
-            _typeName = typeName;
+        }
+
+        public BlockTypeFilterItem(string[] typeNames, string displayName, string svgFileName, bool initiallyActive = true)
+        {
+            _typeNames = typeNames;
             _displayName = displayName;
-            _iconKey = iconKey;
+            _icon = EmbeddedSvgLoader.LoadSvg(svgFileName);
+            isActive = initiallyActive;
         }
 
         public void Toggle()

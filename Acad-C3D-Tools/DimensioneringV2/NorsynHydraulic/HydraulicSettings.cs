@@ -227,6 +227,65 @@ public partial class HydraulicSettings : ObservableObject, IVersionedSettings, I
     private double maxPressureLossStikSL = 0.3;
     #endregion
 
+    #region Block Type Filter Settings
+    /// <summary>
+    /// Filter toggles for block types. When true, that type is INCLUDED in calculations.
+    /// Stored as individual bools to minimize DWG storage (7 bools vs string collection).
+    /// </summary>
+    [ObservableProperty]
+    private bool filterEl = true;
+
+    [ObservableProperty]
+    private bool filterNaturgas = true;
+
+    [ObservableProperty]
+    private bool filterVarmepumpe = true;
+
+    [ObservableProperty]
+    private bool filterFastBrændsel = true;
+
+    [ObservableProperty]
+    private bool filterOlie = true;
+
+    [ObservableProperty]
+    private bool filterFjernvarme = true;
+
+    /// <summary>
+    /// Combined filter for "Andet", "Ingen", and "UDGÅR" types.
+    /// </summary>
+    [ObservableProperty]
+    private bool filterAndetIngenUdgår = false;
+
+    /// <summary>
+    /// Gets the set of accepted block types based on filter bool settings.
+    /// Generated on-the-fly to avoid storing string collections in DWG.
+    /// If no filters are active, returns all block types (no filtering).
+    /// </summary>
+    public HashSet<string> GetAcceptedBlockTypes()
+    {
+        var accepted = new HashSet<string>();
+
+        if (FilterEl) accepted.Add("El");
+        if (FilterNaturgas) accepted.Add("Naturgas");
+        if (FilterVarmepumpe) accepted.Add("Varmepumpe");
+        if (FilterFastBrændsel) accepted.Add("Fast brændsel");
+        if (FilterOlie) accepted.Add("Olie");
+        if (FilterFjernvarme) accepted.Add("Fjernvarme");
+        if (FilterAndetIngenUdgår)
+        {
+            accepted.Add("Andet");
+            accepted.Add("Ingen");
+            accepted.Add("UDGÅR");
+        }
+
+        // If nothing is selected, accept all (no filtering)
+        if (accepted.Count == 0)
+            return DimensioneringV2.CommonVariables.AllBlockTypes;
+
+        return accepted;
+    }
+    #endregion
+
     #region Initialization
     /// <summary>
     /// Ensures pipe configurations are initialized with defaults if null.

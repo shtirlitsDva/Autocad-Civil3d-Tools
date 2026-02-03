@@ -26,9 +26,20 @@ namespace DimensioneringV2
 
         internal static readonly string LayerDebugLines = "0-FJV_Debug";
 
-        internal static HashSet<string> AcceptedBlockTypes =
-            new HashSet<string>() { "El", "Naturgas", "Varmepumpe", "Fast brændsel", "Olie", "Andet", "Fjernvarme" };
-        internal static HashSet<string> AllBlockTypes =
-            new HashSet<string>() { "El", "Naturgas", "Varmepumpe", "Fast brændsel", "Olie", "Andet", "Fjernvarme", "Ingen", "UDGÅR" };
+        // ═══════════════════════════════════════════════════════════════════════════════════════
+        // BLOCK TYPE FILTERING
+        // ═══════════════════════════════════════════════════════════════════════════════════════
+        // AcceptedBlockTypes is now controlled via filter toggles in the Settings UI.
+        // The filters are persisted as individual bool properties in HydraulicSettings:
+        //   - FilterEl, FilterNaturgas, FilterVarmepumpe, FilterFastBrændsel,
+        //     FilterOlie, FilterFjernvarme, FilterAndetIngenUdgår
+        //
+        // To get the effective accepted types at runtime, use:
+        //   HydraulicSettingsService.Instance.Settings.GetAcceptedBlockTypes()
+        // ═══════════════════════════════════════════════════════════════════════════════════════
+        internal static readonly HashSet<string> AllBlockTypes = new HashSet<string>
+        {
+            "El", "Naturgas", "Varmepumpe", "Fast brændsel", "Olie", "Andet", "Fjernvarme", "Ingen", "UDGÅR"
+        };
     }
 }

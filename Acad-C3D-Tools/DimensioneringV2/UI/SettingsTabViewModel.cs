@@ -63,15 +63,42 @@ namespace DimensioneringV2.UI
 
         private void InitializeBlockTypeFilters()
         {
-            BlockTypeFilters.Add(new BlockTypeFilterItem("El", "El", "_El"));
-            BlockTypeFilters.Add(new BlockTypeFilterItem("Naturgas", "Naturgas", "_Naturgas"));
-            BlockTypeFilters.Add(new BlockTypeFilterItem("Varmepumpe", "Varmepumpe", "_Varmepumpe"));
-            BlockTypeFilters.Add(new BlockTypeFilterItem("Fast brændsel", "Fast brændsel", "_Fast brændsel"));
-            BlockTypeFilters.Add(new BlockTypeFilterItem("Olie", "Olie", "_Olie"));
-            BlockTypeFilters.Add(new BlockTypeFilterItem("Andet", "Andet", "_Ingen"));
-            BlockTypeFilters.Add(new BlockTypeFilterItem("Fjernvarme", "Fjernvarme", "_Fjernvarme"));
-            BlockTypeFilters.Add(new BlockTypeFilterItem("Ingen", "Ingen", "_Ingen"));
-            BlockTypeFilters.Add(new BlockTypeFilterItem("UDGÅR", "UDGÅR", "_Ingen"));
+            BlockTypeFilters.Add(CreateFilterItem("El", "El", "El.svg", () => Settings.FilterEl, v => Settings.FilterEl = v));
+            BlockTypeFilters.Add(CreateFilterItem("Naturgas", "Naturgas", "Naturgas.svg", () => Settings.FilterNaturgas, v => Settings.FilterNaturgas = v));
+            BlockTypeFilters.Add(CreateFilterItem("Varmepumpe", "Varmepumpe", "Varmepumpe.svg", () => Settings.FilterVarmepumpe, v => Settings.FilterVarmepumpe = v));
+            BlockTypeFilters.Add(CreateFilterItem("Fast brændsel", "Fast brændsel", "Fast brændsel.svg", () => Settings.FilterFastBrændsel, v => Settings.FilterFastBrændsel = v));
+            BlockTypeFilters.Add(CreateFilterItem("Olie", "Olie", "Olie.svg", () => Settings.FilterOlie, v => Settings.FilterOlie = v));
+            BlockTypeFilters.Add(CreateFilterItem("Fjernvarme", "Fjernvarme", "Fjernvarme.svg", () => Settings.FilterFjernvarme, v => Settings.FilterFjernvarme = v));
+            BlockTypeFilters.Add(CreateFilterItem(
+                new[] { "Andet", "Ingen", "UDGÅR" },
+                "Andet / Ingen / UDGÅR",
+                "Ingen.svg",
+                () => Settings.FilterAndetIngenUdgår,
+                v => Settings.FilterAndetIngenUdgår = v));
+        }
+
+        private BlockTypeFilterItem CreateFilterItem(string typeName, string displayName, string svgFileName,
+            Func<bool> getter, Action<bool> setter)
+        {
+            var item = new BlockTypeFilterItem(typeName, displayName, svgFileName, getter());
+            item.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName == nameof(BlockTypeFilterItem.IsActive))
+                    setter(item.IsActive);
+            };
+            return item;
+        }
+
+        private BlockTypeFilterItem CreateFilterItem(string[] typeNames, string displayName, string svgFileName,
+            Func<bool> getter, Action<bool> setter)
+        {
+            var item = new BlockTypeFilterItem(typeNames, displayName, svgFileName, getter());
+            item.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName == nameof(BlockTypeFilterItem.IsActive))
+                    setter(item.IsActive);
+            };
+            return item;
         }
 
         public RelayCommand<BlockTypeFilterItem> ToggleBlockTypeCommand => new RelayCommand<BlockTypeFilterItem>(ToggleBlockType);
@@ -80,7 +107,7 @@ namespace DimensioneringV2.UI
             item?.Toggle();
         }
 
-        public IEnumerable<string> GetActiveBlockTypes() => BlockTypeFilters.Where(f => f.IsActive).Select(f => f.TypeName);
+        public IEnumerable<string> GetActiveBlockTypes() => Settings.GetAcceptedBlockTypes();
         #endregion
 
         #region Save/Observe Commands

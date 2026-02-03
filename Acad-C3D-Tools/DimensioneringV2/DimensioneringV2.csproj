@@ -10,6 +10,8 @@
 		<ImportWindowsDesktopTargets>true</ImportWindowsDesktopTargets>
 		<Nullable>enable</Nullable>
 		<Platforms>x64</Platforms>
+		<NoWarn>$(NoWarn);CS1570;CS1591;CS1573;CS1572;CS1574;CA1416;MVVMTK0034;CS8600;CS8601;CS8602;CS8603;CS8604;CS8618;CS8619;CS8620;CS8622;CS8625;CS8629;CS8714;CS8765;CS8767;CS8981;CS8073;CS0105;CS0162;CS0168;CS0169;CS0219;CS0252;CS0618;CS0660</NoWarn>
+		<MSBuildWarningsAsMessages>MSB3245</MSBuildWarningsAsMessages>
 	</PropertyGroup>
 	<PropertyGroup>
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
@@ -21,7 +23,7 @@
 	<PropertyGroup>
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
 		<GenerateDocumentationFile>True</GenerateDocumentationFile>
-		<AssemblyName>0s52epu4.efe</AssemblyName>
+		<AssemblyName>sczwr5pv.5nt</AssemblyName>
 	</PropertyGroup>
 	<PropertyGroup Condition=" '$(Platform)' == 'x64' ">
 		<DebugSymbols>true</DebugSymbols>
@@ -185,6 +187,7 @@
 		<PackageReference Include="System.Text.Json" Version="8.0.5" />
 		<PackageReference Include="QuikGraph" Version="2.5.0" />
 		<PackageReference Include="QuikGraph.Graphviz" Version="2.5.0" />
+		<PackageReference Include="SharpVectors.Wpf" Version="1.8.5" />
 	</ItemGroup>
 	<ItemGroup>
 		<Folder Include="Links\" />		
