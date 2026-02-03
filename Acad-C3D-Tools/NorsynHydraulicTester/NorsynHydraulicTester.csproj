@@ -7,7 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <Platforms>x64</Platforms>
-    <AssemblyName>famqaugx.tgk</AssemblyName>
+    <AssemblyName>NorsynHydraulicTester</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>
