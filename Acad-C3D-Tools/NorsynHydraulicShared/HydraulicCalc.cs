@@ -305,6 +305,7 @@ namespace NorsynHydraulicCalc
             //    f = f_new;
             //}
 
+            //double f1 = CalculateFrictionFactorTkachenkoMileikovskyi(Re, relativeRoughness);
             double f1 = CalculateFrictionFactorTkachenkoMileikovskyi(Re, relativeRoughness);
             double f2 = f1 + 0.05;
 
@@ -1042,7 +1043,119 @@ namespace NorsynHydraulicCalc
             return res;
         }
 
-        //Debug and testing
+        #region Testing API - Exposed for NorsynHydraulicTester
+        public double TestingGetVolume(double temp, double deltaT) => volume(temp, deltaT);
+
+        public double TestingGetReynolds(double density, double velocity, double diameter, double viscosity)
+            => Reynolds(density, velocity, diameter, viscosity);
+
+        public double TestingGetFrictionFactorCW(double Re, double relativeRoughness, double tolerance = 1e-6)
+            => CalculateFrictionFactorColebrookWhite(Re, relativeRoughness, tolerance);
+
+        public (double frictionFactor, List<(int iteration, double value, double error)> iterations)
+            TestingGetFrictionFactorCWWithIterations(double Re, double relativeRoughness, double tolerance = 1e-6)
+        {
+            return CalculateFrictionFactorColebrookWhiteWithIterations(Re, relativeRoughness, tolerance);
+        }
+
+        private (double frictionFactor, List<(int iteration, double value, double error)> iterations)
+            CalculateFrictionFactorColebrookWhiteWithIterations(double Re, double relativeRoughness, double tolerance)
+        {
+            var iterations = new List<(int iteration, double value, double error)>();
+
+            double f1 = CalculateFrictionFactorTkachenkoMileikovskyi(Re, relativeRoughness);
+            double f2 = f1 + 0.05;
+
+            iterations.Add((0, f1, double.NaN));
+
+            var A = relativeRoughness / 3.7;
+            for (int i = 0; i < 100; i++)
+            {
+                double g1 = 1.0 / Math.Sqrt(f1) + 2.0 * Math.Log10(A + (2.51 / (Re * Math.Sqrt(f1))));
+                double g2 = 1.0 / Math.Sqrt(f2) + 2.0 * Math.Log10(A + (2.51 / (Re * Math.Sqrt(f2))));
+                double f_new = f2 - (f2 - f1) * g2 / (g2 - g1);
+                double error = Math.Abs(f_new - f2);
+
+                iterations.Add((i + 1, f_new, error));
+
+                if (error < tolerance)
+                    return (f_new, iterations);
+
+                f1 = f2;
+                f2 = f_new;
+            }
+
+            return (f2, iterations);
+        }
+
+        public double TestingGetFrictionFactorTM(double Re, double relativeRoughness)
+            => CalculateFrictionFactorTkachenkoMileikovskyi(Re, relativeRoughness);
+
+        public double TestingGetPressureGradient(double frictionFactor, double density, double velocity, double diameter)
+            => frictionFactor * density * velocity * velocity / (2 * diameter);
+
+        public (double s_heat, double s_hw) TestingGetSimultaneityFactors(int numberOfBuildings, int numberOfUnits)
+        {
+            double s_heat = (double)SN1 / SN50 + (1.0 - (double)SN1 / SN50) / numberOfBuildings;
+            double s_hw = (51.0 - numberOfUnits) / (50.0 * Math.Sqrt(numberOfUnits));
+            s_hw = s_hw < 0 ? 0 : s_hw;
+            return (s_heat, s_hw);
+        }
+
+        public double TestingGetRho(double temp) => rho(temp);
+        public double TestingGetCp(double temp) => cp(temp);
+        public double TestingGetMu(double temp) => mu(temp);
+
+        public double TestingGetDeltaT(IHydraulicSegment segment, bool isHeating)
+            => isHeating ? dTHeating(segment) : dTBV(segment);
+
+        public double TestingGetTempReturVarme(IHydraulicSegment segment)
+            => tempReturVarme(segment);
+
+        public double TestingGetTempReturBV(IHydraulicSegment segment)
+            => tempReturBV(segment);
+
+        public double TestingGetTempFrem() => tempFrem;
+
+        public DnAcceptCriteria? TestingGetAcceptCriteria(Dim dim, SegmentType segmentType)
+            => GetAcceptCriteria(dim, segmentType);
+
+        public List<(string PipeType, int DN, double InnerDiameter, double MaxVelocity, int MaxPressureGradient, double? MaxFlowSupply, double? MaxFlowReturn)>
+            TestingGetLookupTable(SegmentType segmentType)
+        {
+            var result = new List<(string, int, double, double, int, double?, double?)>();
+            var config = segmentType == SegmentType.Fordelingsledning ? s.PipeConfigFL : s.PipeConfigSL;
+
+            if (config == null) return result;
+
+            foreach (var priority in config.Priorities.OrderBy(p => p.Priority))
+            {
+                IPipe pipe = pipeTypes.GetPipeType(priority.PipeType);
+                var dims = pipe.GetDimsRange(priority.MinDn, priority.MaxDn);
+
+                foreach (var dim in dims)
+                {
+                    var criteria = priority.GetCriteriaForDn(dim.NominalDiameter);
+                    if (criteria != null)
+                    {
+                        result.Add((
+                            priority.PipeType.ToString(),
+                            dim.NominalDiameter,
+                            dim.InnerDiameter_m * 1000,
+                            criteria.MaxVelocity,
+                            criteria.MaxPressureGradient,
+                            criteria.MaxFlowSupply,
+                            criteria.MaxFlowReturn
+                        ));
+                    }
+                }
+            }
+
+            return result;
+        }
+        #endregion
+
+        //Debug and testing (legacy)
         public double f(double reynolds, double relativeRoughness, double tol)
         {
             double f = CalculateFrictionFactorColebrookWhite(reynolds, relativeRoughness, tol);
