@@ -11,8 +11,12 @@
     <UserControl.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-        <ResourceDictionary Source="Theme.xaml"/>
+                <ResourceDictionary Source="Theme.xaml"/>
+                <ResourceDictionary Source="../Resources/Icons/BlockTypeIcons.xaml"/>
             </ResourceDictionary.MergedDictionaries>
+
+            <!-- Converter for DrawingGroup key to DrawingImage -->
+            <local:DrawingKeyToImageConverter x:Key="DrawingKeyToImageConverter"/>
 
             <!-- Map Theme Styles to Implicit Styles for this view -->
             <Style TargetType="Grid" x:Key="RowStyle" BasedOn="{StaticResource FormRowStyle}"/>
@@ -206,6 +210,33 @@
                         </Grid.ColumnDefinitions>
                         <Label Content="Præcision for caching [Heltal]:"/>
                         <TextBox Grid.Column="1" Width="50" Text="{Binding Settings.CachePrecision, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
+
+                    <!-- Block Type Filter -->
+                    <Grid Style="{StaticResource RowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelColumn"/>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="InputColumn"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Medtag varmekilde typer:"/>
+                        <ItemsControl Grid.Column="1" ItemsSource="{Binding BlockTypeFilters}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <ToggleButton Style="{StaticResource TypeFilterToggleStyle}"
+                                                  IsChecked="{Binding IsActive, Mode=TwoWay}"
+                                                  ToolTip="{Binding DisplayName}">
+                                        <Image Source="{Binding IconKey, Converter={StaticResource DrawingKeyToImageConverter}}"
+                                               Width="32" Height="32"
+                                               Stretch="Uniform"/>
+                                    </ToggleButton>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                     </Grid>
 
                     <!-- Separator for Nyttetimer section -->

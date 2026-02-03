@@ -446,4 +446,72 @@
         </Setter>
     </Style>
 
+    <!-- Block Type Filter Toggle Button Style -->
+    <Style x:Key="TypeFilterToggleStyle" TargetType="ToggleButton">
+        <Setter Property="Width" Value="44"/>
+        <Setter Property="Height" Value="44"/>
+        <Setter Property="Margin" Value="3,0"/>
+        <Setter Property="Padding" Value="4"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Background" Value="#FF2D2D30"/>
+        <Setter Property="BorderBrush" Value="#FF505050"/>
+        <Setter Property="BorderThickness" Value="2"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Border x:Name="MainBorder"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="6"
+                            Padding="{TemplateBinding Padding}">
+                        <Grid>
+                            <ContentPresenter x:Name="IconContent"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                            <Border x:Name="InactiveOverlay"
+                                    Background="#DD1E1E1E"
+                                    CornerRadius="2"
+                                    Visibility="Collapsed"/>
+                            <TextBlock x:Name="CrossMark"
+                                       Text="✕"
+                                       FontSize="20"
+                                       FontWeight="Bold"
+                                       Foreground="#FF808080"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       Visibility="Collapsed"/>
+                        </Grid>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="False">
+                            <Setter TargetName="InactiveOverlay" Property="Visibility" Value="Visible"/>
+                            <Setter TargetName="CrossMark" Property="Visibility" Value="Visible"/>
+                            <Setter TargetName="MainBorder" Property="BorderBrush" Value="#FF404040"/>
+                            <Setter TargetName="MainBorder" Property="Background" Value="#FF1E1E1E"/>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="MainBorder" Property="BorderBrush" Value="#FF707070"/>
+                        </Trigger>
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsChecked" Value="False"/>
+                                <Condition Property="IsMouseOver" Value="True"/>
+                            </MultiTrigger.Conditions>
+                            <Setter TargetName="InactiveOverlay" Property="Background" Value="#BB1E1E1E"/>
+                            <Setter TargetName="CrossMark" Property="Foreground" Value="#FFB0B0B0"/>
+                        </MultiTrigger>
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsChecked" Value="True"/>
+                                <Condition Property="IsMouseOver" Value="True"/>
+                            </MultiTrigger.Conditions>
+                            <Setter TargetName="MainBorder" Property="Background" Value="#FF3D3D40"/>
+                        </MultiTrigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
 </ResourceDictionary>

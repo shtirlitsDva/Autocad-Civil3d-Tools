@@ -21,7 +21,7 @@
 	<PropertyGroup>
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
 		<GenerateDocumentationFile>True</GenerateDocumentationFile>
-		<AssemblyName>DimensioneringV2</AssemblyName>
+		<AssemblyName>0s52epu4.efe</AssemblyName>
 	</PropertyGroup>
 	<PropertyGroup Condition=" '$(Platform)' == 'x64' ">
 		<DebugSymbols>true</DebugSymbols>
@@ -152,6 +152,15 @@
 	</ItemGroup>	
 	<ItemGroup>
 	  <EmbeddedResource Include="Models\Nyttetimer\Anvendelseskoder.csv" />
+	</ItemGroup>
+	<ItemGroup>
+	  <EmbeddedResource Include="Resources\Icons\El.svg" />
+	  <EmbeddedResource Include="Resources\Icons\Naturgas.svg" />
+	  <EmbeddedResource Include="Resources\Icons\Varmepumpe.svg" />
+	  <EmbeddedResource Include="Resources\Icons\Fast brændsel.svg" />
+	  <EmbeddedResource Include="Resources\Icons\Olie.svg" />
+	  <EmbeddedResource Include="Resources\Icons\Fjernvarme.svg" />
+	  <EmbeddedResource Include="Resources\Icons\Ingen.svg" />
 	</ItemGroup>
 	<ItemGroup>
 		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />

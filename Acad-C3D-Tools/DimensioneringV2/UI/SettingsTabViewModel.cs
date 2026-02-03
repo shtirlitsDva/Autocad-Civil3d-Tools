@@ -14,6 +14,7 @@ using NorsynHydraulicCalc.Rules;
 
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
@@ -54,7 +55,33 @@ namespace DimensioneringV2.UI
         public SettingsTabViewModel()
         {
             Settings = Services.HydraulicSettingsService.Instance.Settings;
+            InitializeBlockTypeFilters();
         }
+
+        #region Block Type Filter
+        public ObservableCollection<BlockTypeFilterItem> BlockTypeFilters { get; } = new();
+
+        private void InitializeBlockTypeFilters()
+        {
+            BlockTypeFilters.Add(new BlockTypeFilterItem("El", "El", "_El"));
+            BlockTypeFilters.Add(new BlockTypeFilterItem("Naturgas", "Naturgas", "_Naturgas"));
+            BlockTypeFilters.Add(new BlockTypeFilterItem("Varmepumpe", "Varmepumpe", "_Varmepumpe"));
+            BlockTypeFilters.Add(new BlockTypeFilterItem("Fast brændsel", "Fast brændsel", "_Fast brændsel"));
+            BlockTypeFilters.Add(new BlockTypeFilterItem("Olie", "Olie", "_Olie"));
+            BlockTypeFilters.Add(new BlockTypeFilterItem("Andet", "Andet", "_Ingen"));
+            BlockTypeFilters.Add(new BlockTypeFilterItem("Fjernvarme", "Fjernvarme", "_Fjernvarme"));
+            BlockTypeFilters.Add(new BlockTypeFilterItem("Ingen", "Ingen", "_Ingen"));
+            BlockTypeFilters.Add(new BlockTypeFilterItem("UDGÅR", "UDGÅR", "_Ingen"));
+        }
+
+        public RelayCommand<BlockTypeFilterItem> ToggleBlockTypeCommand => new RelayCommand<BlockTypeFilterItem>(ToggleBlockType);
+        private void ToggleBlockType(BlockTypeFilterItem? item)
+        {
+            item?.Toggle();
+        }
+
+        public IEnumerable<string> GetActiveBlockTypes() => BlockTypeFilters.Where(f => f.IsActive).Select(f => f.TypeName);
+        #endregion
 
         #region Save/Observe Commands
         public AsyncRelayCommand SaveSettingsCommand => new AsyncRelayCommand(SaveSettings);
