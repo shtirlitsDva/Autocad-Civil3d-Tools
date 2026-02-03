@@ -23,7 +23,7 @@
 	<PropertyGroup>
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
 		<GenerateDocumentationFile>True</GenerateDocumentationFile>
-		<AssemblyName>e4qltbd1.1hr</AssemblyName>
+		<AssemblyName>DimensioneringV2</AssemblyName>
 	</PropertyGroup>
 	<PropertyGroup Condition=" '$(Platform)' == 'x64' ">
 		<DebugSymbols>true</DebugSymbols>
@@ -37,9 +37,6 @@
 		<DebugType>full</DebugType>
 	</PropertyGroup>
 	<ItemGroup>
-	  <None Remove="Models\Nyttetimer\Anvendelseskoder.csv" />
-	</ItemGroup>	
-		<ItemGroup>
 		<Reference Include="accoremgd">
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\accoremgd.dll</HintPath>
 			<Private>False</Private>
@@ -93,7 +90,7 @@
 			<Private>False</Private>
 		</Reference>
 		<Reference Include="AecArchMgd">
-		  <HintPath>C:\Program Files\Autodesk\AutoCAD 2025\ACA\AecArchMgd.dll</HintPath>
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\ACA\AecArchMgd.dll</HintPath>
 		</Reference>
 		<Reference Include="AecBaseMgd">
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\ACA\AecBaseMgd.dll</HintPath>
@@ -112,26 +109,26 @@
 			<Private>False</Private>
 		</Reference>
 		<Reference Include="gdalconst_csharp">
-		  <HintPath>..\..\..\..\..\AutoCAD DRI - 01 Civil 3D\NetloadV2\Dependencies\Gdal\gdalconst_csharp.dll</HintPath>
-		  <Private>True</Private>
+			<HintPath>..\..\..\..\..\AutoCAD DRI - 01 Civil 3D\NetloadV2\Dependencies\Gdal\gdalconst_csharp.dll</HintPath>
+			<Private>True</Private>
 		</Reference>
 		<Reference Include="gdal_csharp">
-		  <HintPath>..\..\..\..\..\AutoCAD DRI - 01 Civil 3D\NetloadV2\Dependencies\Gdal\gdal_csharp.dll</HintPath>
-		  <Private>True</Private>
+			<HintPath>..\..\..\..\..\AutoCAD DRI - 01 Civil 3D\NetloadV2\Dependencies\Gdal\gdal_csharp.dll</HintPath>
+			<Private>True</Private>
 		</Reference>
 		<Reference Include="ManagedMapApi">
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\Map\ManagedMapApi.dll</HintPath>
 			<Private>False</Private>
 		</Reference>
 		<Reference Include="ogr_csharp">
-		  <HintPath>..\..\..\..\..\AutoCAD DRI - 01 Civil 3D\NetloadV2\Dependencies\Gdal\ogr_csharp.dll</HintPath>
-		  <Private>True</Private>
+			<HintPath>..\..\..\..\..\AutoCAD DRI - 01 Civil 3D\NetloadV2\Dependencies\Gdal\ogr_csharp.dll</HintPath>
+			<Private>True</Private>
 		</Reference>
 		<Reference Include="osr_csharp">
-		  <HintPath>..\..\..\..\..\AutoCAD DRI - 01 Civil 3D\NetloadV2\Dependencies\Gdal\osr_csharp.dll</HintPath>
-		  <Private>True</Private>
+			<HintPath>..\..\..\..\..\AutoCAD DRI - 01 Civil 3D\NetloadV2\Dependencies\Gdal\osr_csharp.dll</HintPath>
+			<Private>True</Private>
 		</Reference>
-	</ItemGroup>	
+	</ItemGroup>
 	<ItemGroup>
 		<Compile Include="..\IntersectUtilities\GroupByCluster.cs">
 			<Link>Links\GroupByCluster.cs</Link>
@@ -151,18 +148,18 @@
 		<Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeScheduleV2.cs">
 			<Link>Links\PipeScheduleV2\PipeScheduleV2.cs</Link>
 		</Compile>
-	</ItemGroup>	
-	<ItemGroup>
-	  <EmbeddedResource Include="Models\Nyttetimer\Anvendelseskoder.csv" />
 	</ItemGroup>
 	<ItemGroup>
-	  <EmbeddedResource Include="Resources\Icons\El.svg" />
-	  <EmbeddedResource Include="Resources\Icons\Naturgas.svg" />
-	  <EmbeddedResource Include="Resources\Icons\Varmepumpe.svg" />
-	  <EmbeddedResource Include="Resources\Icons\Fast brændsel.svg" />
-	  <EmbeddedResource Include="Resources\Icons\Olie.svg" />
-	  <EmbeddedResource Include="Resources\Icons\Fjernvarme.svg" />
-	  <EmbeddedResource Include="Resources\Icons\Ingen.svg" />
+		<EmbeddedResource Include="Models\Nyttetimer\Anvendelseskoder.csv" />
+	</ItemGroup>
+	<ItemGroup>
+		<EmbeddedResource Include="Resources\Icons\El.svg" />
+		<EmbeddedResource Include="Resources\Icons\Naturgas.svg" />
+		<EmbeddedResource Include="Resources\Icons\Varmepumpe.svg" />
+		<EmbeddedResource Include="Resources\Icons\Fast brændsel.svg" />
+		<EmbeddedResource Include="Resources\Icons\Olie.svg" />
+		<EmbeddedResource Include="Resources\Icons\Fjernvarme.svg" />
+		<EmbeddedResource Include="Resources\Icons\Ingen.svg" />
 	</ItemGroup>
 	<ItemGroup>
 		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
@@ -190,7 +187,7 @@
 		<PackageReference Include="SharpVectors.Wpf" Version="1.8.5" />
 	</ItemGroup>
 	<ItemGroup>
-		<Folder Include="Links\" />		
+		<Folder Include="Links\" />
 	</ItemGroup>
 	<ItemGroup>
 		<Compile Update="Properties\Settings.Designer.cs">
