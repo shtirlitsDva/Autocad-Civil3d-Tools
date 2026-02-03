@@ -607,6 +607,17 @@ namespace DimensioneringV2
                     if (features != null)
                     {
                         Services.DataService.Instance.LoadData(features);
+
+                        try
+                        {
+                            prdDbg("Starting BBR layer loading...");
+                            Services.BBRLayerService.Instance.LoadBBRFeatures(localDb, tx);
+                            prdDbg($"BBR layer loading complete. Active: {Services.BBRLayerService.Instance.ActiveFeatures.Count()}, Inactive: {Services.BBRLayerService.Instance.InactiveFeatures.Count()}");
+                        }
+                        catch (System.Exception bbrEx)
+                        {
+                            prdDbg($"BBR layer loading failed: {bbrEx.Message}\n{bbrEx.StackTrace}");
+                        }
                     }
                     //else fall through and if any errors where marked with debug lines
                     //they will be shown in the drawing

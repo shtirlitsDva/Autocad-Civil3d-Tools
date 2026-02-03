@@ -48,6 +48,107 @@ namespace DimensioneringV2.UI
             _dataService = DataService.Instance;
             _dataService.DataLoaded += OnDataLoadedFirstTime;
             _dataService.CalculationsFinishedEvent += OnCalculationsCompleted;
+
+            BBRLayerService.Instance.BBRDataLoaded += OnBBRDataLoaded;
+
+            //HydraulicSettingsService.Instance.Settings.PropertyChanged += OnSettingsPropertyChanged;
+        }
+
+        private void OnBBRDataLoaded(object? sender, EventArgs e)
+        {
+            RefreshBBRLayers();
+        }
+
+        private void OnSettingsPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName != null && e.PropertyName.StartsWith("Filter"))
+            {
+                if (BBRLayerService.Instance.ActiveFeatures.Any() || BBRLayerService.Instance.InactiveFeatures.Any())
+                {
+                    BBRLayerService.Instance.RefreshFiltering();
+                }
+            }
+        }
+
+        private void RefreshBBRLayers()
+        {
+            Utils.prtDbg("RefreshBBRLayers called");
+            if (Mymap == null)
+            {
+                Utils.prtDbg("RefreshBBRLayers: Mymap is null, returning");
+                return;
+            }
+
+            var bbrService = BBRLayerService.Instance;
+            Utils.prtDbg($"RefreshBBRLayers: Active={bbrService.ActiveFeatures.Count()}, Inactive={bbrService.InactiveFeatures.Count()}");
+
+            var activeLayer = Mymap.Layers.FirstOrDefault(x => x.Name == "BBR_Active");
+            var inactiveLayer = Mymap.Layers.FirstOrDefault(x => x.Name == "BBR_Inactive");
+
+            if (activeLayer != null) Mymap.Layers.Remove(activeLayer);
+            if (inactiveLayer != null) Mymap.Layers.Remove(inactiveLayer);
+
+            if (!bbrService.ActiveFeatures.Any() && !bbrService.InactiveFeatures.Any())
+            {
+                Utils.prtDbg("RefreshBBRLayers: No features, returning");
+                return;
+            }
+
+            try
+            {
+                var activeFeatures = bbrService.ActiveFeatures.ToList();
+                var inactiveFeatures = bbrService.InactiveFeatures.ToList();
+
+                Utils.prtDbg($"RefreshBBRLayers: Materialized - Active={activeFeatures.Count}, Inactive={inactiveFeatures.Count}");
+
+                if (activeFeatures.Count > 0)
+                {
+                    var first = activeFeatures[0];
+                    var geom = first.Geometry;
+                    Utils.prtDbg($"RefreshBBRLayers: First feature geometry: {geom?.GetType().Name ?? "null"}, Coords: {geom?.Coordinate?.X ?? 0}, {geom?.Coordinate?.Y ?? 0}");
+                    Utils.prtDbg($"RefreshBBRLayers: Original coords: {first.OriginalX}, {first.OriginalY}");
+                }
+
+                if (activeFeatures.Count == 0 && inactiveFeatures.Count == 0)
+                {
+                    Utils.prtDbg("RefreshBBRLayers: No features after materialization");
+                    return;
+                }
+
+                var inactiveProvider = new MemoryProvider(inactiveFeatures.Cast<IFeature>())
+                {
+                    CRS = "EPSG:3857"
+                };
+                Func<double> getResolution = () => Mymap.Navigator.Viewport.Resolution;
+
+                var newInactiveLayer = new Layer
+                {
+                    DataSource = inactiveProvider,
+                    Name = "BBR_Inactive",
+                    Style = new Themes.BBRTheme(isActive: false, getResolution)
+                };
+
+                var activeProvider = new MemoryProvider(activeFeatures.Cast<IFeature>())
+                {
+                    CRS = "EPSG:3857"
+                };
+                var newActiveLayer = new Layer
+                {
+                    DataSource = activeProvider,
+                    Name = "BBR_Active",
+                    IsMapInfoLayer = false,
+                    Style = new Themes.BBRTheme(isActive: true, getResolution)
+                };
+
+                Mymap.Layers.Add(newInactiveLayer);
+                Mymap.Layers.Add(newActiveLayer);
+
+                Utils.prtDbg($"RefreshBBRLayers: Done, layer count now: {Mymap.Layers.Count}");
+            }
+            catch (System.Exception ex)
+            {
+                Utils.prtDbg($"RefreshBBRLayers ERROR: {ex.Message}\n{ex.StackTrace}");
+            }
         }
 
         private IEnumerable<MapPropertyWrapper> GetMapProperties(Type type)
@@ -179,6 +280,8 @@ namespace DimensioneringV2.UI
         {
             if (Mymap == null) return;
 
+            MapSuiSvgIconCache.Initialize();
+
             SelectedMapPropertyWrapper = new MapPropertyWrapper(MapPropertyEnum.Default, "Default");
             _themeManager.SetTheme(MapPropertyEnum.Default);
 
@@ -230,6 +333,8 @@ namespace DimensioneringV2.UI
             //Add the features layer
             Mymap.Layers.Add(layer);
 
+            //RefreshBBRLayers();
+
             Mymap.Navigator.ZoomToBox(extent);
 
             //Legends
@@ -268,6 +373,8 @@ namespace DimensioneringV2.UI
             }
 
             Mymap.Layers.Add(layer);
+
+            //RefreshBBRLayers();
 
             if (_legendWidget != null)
             {
