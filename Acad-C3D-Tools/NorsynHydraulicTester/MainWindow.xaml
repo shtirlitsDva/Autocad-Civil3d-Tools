@@ -1,0 +1,360 @@
+<Window x:Class="NorsynHydraulicTester.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:NorsynHydraulicTester.ViewModels"
+        xmlns:controls="clr-namespace:NorsynHydraulicTester.Views.Controls"
+        mc:Ignorable="d"
+        Title="Norsyn Hydraulic Tester"
+        Height="800" Width="1200"
+        Background="{DynamicResource Background}"
+        d:DataContext="{d:DesignInstance vm:MainViewModel}">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Background="{DynamicResource DarkHeaderBackground}" Padding="16,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0"
+                           Text="Norsyn Hydraulic Calculation Tester"
+                           FontSize="20"
+                           FontWeight="SemiBold"
+                           Foreground="{DynamicResource Text}"
+                           VerticalAlignment="Center"/>
+
+                <Button Grid.Column="2"
+                        Content="Beregn"
+                        Command="{Binding RunCalculationCommand}"
+                        Style="{StaticResource PrimaryButtonStyle}"
+                        IsEnabled="{Binding IsCalculating, Converter={StaticResource InverseBoolConverter}}"/>
+            </Grid>
+        </Border>
+
+        <TabControl Grid.Row="1"
+                    SelectedIndex="{Binding SelectedTabIndex}"
+                    Background="{DynamicResource Background}">
+
+            <TabItem Header="Indstillinger" Style="{StaticResource TabItemStyle}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                              Background="{DynamicResource Background}"
+                              Padding="16">
+                    <StackPanel DataContext="{Binding Settings}">
+
+                        <GroupBox Header="Medietype" Style="{StaticResource ModernGroupBox}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" MinWidth="250"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Text="Medietype:" Style="{StaticResource FieldLabelStyle}" VerticalAlignment="Center"/>
+                                <ComboBox Grid.Column="1" Width="200"
+                                          ItemsSource="{Binding AvailableMediumTypes}"
+                                          SelectedItem="{Binding MedieType}"
+                                          Style="{StaticResource FormComboBoxStyle}"/>
+                            </Grid>
+                        </GroupBox>
+
+                        <GroupBox Header="Rørtyper til test" Style="{StaticResource ModernGroupBox}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" MinWidth="250"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Text="Fordelingsledning (FL):" Style="{StaticResource FieldLabelStyle}" VerticalAlignment="Center"/>
+                                <ComboBox Grid.Row="0" Grid.Column="1" Width="200"
+                                          ItemsSource="{Binding AvailablePipeTypesFL}"
+                                          SelectedItem="{Binding SelectedPipeTypeFL}"
+                                          Style="{StaticResource FormComboBoxStyle}"/>
+
+                                <TextBlock Grid.Row="1" Text="Stikledning (SL):" Style="{StaticResource FieldLabelStyle}" VerticalAlignment="Center" Margin="0,8,0,0"/>
+                                <ComboBox Grid.Row="1" Grid.Column="1" Width="200"
+                                          ItemsSource="{Binding AvailablePipeTypesSL}"
+                                          SelectedItem="{Binding SelectedPipeTypeSL}"
+                                          Style="{StaticResource FormComboBoxStyle}" Margin="0,8,0,0"/>
+                            </Grid>
+                        </GroupBox>
+
+                        <GroupBox Header="Temperatur" Style="{StaticResource ModernGroupBox}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" MinWidth="250"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Text="Temperatur frem:" Style="{StaticResource FieldLabelStyle}" VerticalAlignment="Center"/>
+                                <TextBox Grid.Row="0" Grid.Column="1" Width="80" Text="{Binding TempFrem, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormTextBoxStyle}"/>
+                                <TextBlock Grid.Row="0" Grid.Column="2" Text="°C" Style="{StaticResource UnitStyle}" VerticalAlignment="Center"/>
+
+                                <TextBlock Grid.Row="1" Text="Afkøling varme:" Style="{StaticResource FieldLabelStyle}" VerticalAlignment="Center" Margin="0,8,0,0"/>
+                                <TextBox Grid.Row="1" Grid.Column="1" Width="80" Text="{Binding AfkølingVarme, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormTextBoxStyle}" Margin="0,8,0,0"/>
+                                <TextBlock Grid.Row="1" Grid.Column="2" Text="°C" Style="{StaticResource UnitStyle}" VerticalAlignment="Center" Margin="0,8,0,0"/>
+
+                                <TextBlock Grid.Row="2" Text="Afkøling brugsvand:" Style="{StaticResource FieldLabelStyle}" VerticalAlignment="Center" Margin="0,8,0,0"/>
+                                <TextBox Grid.Row="2" Grid.Column="1" Width="80" Text="{Binding AfkølingBrugsvand, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormTextBoxStyle}" Margin="0,8,0,0"/>
+                                <TextBlock Grid.Row="2" Grid.Column="2" Text="°C" Style="{StaticResource UnitStyle}" VerticalAlignment="Center" Margin="0,8,0,0"/>
+                            </Grid>
+                        </GroupBox>
+
+                        <GroupBox Header="Nyttetimer" Style="{StaticResource ModernGroupBox}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" MinWidth="250"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Text="Systemnyttetimer ved 1 forbruger:" Style="{StaticResource FieldLabelStyle}" VerticalAlignment="Center"/>
+                                <TextBox Grid.Row="0" Grid.Column="1" Width="80" Text="{Binding SystemnyttetimerVed1Forbruger, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormTextBoxStyle}"/>
+                                <TextBlock Grid.Row="0" Grid.Column="2" Text="timer" Style="{StaticResource UnitStyle}" VerticalAlignment="Center"/>
+
+                                <TextBlock Grid.Row="1" Text="Systemnyttetimer ved 50+ forbrugere:" Style="{StaticResource FieldLabelStyle}" VerticalAlignment="Center" Margin="0,8,0,0"/>
+                                <TextBox Grid.Row="1" Grid.Column="1" Width="80" Text="{Binding SystemnyttetimerVed50PlusForbrugere, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormTextBoxStyle}" Margin="0,8,0,0"/>
+                                <TextBlock Grid.Row="1" Grid.Column="2" Text="timer" Style="{StaticResource UnitStyle}" VerticalAlignment="Center" Margin="0,8,0,0"/>
+                            </Grid>
+                        </GroupBox>
+
+                        <GroupBox Header="Beregningstype" Style="{StaticResource ModernGroupBox}">
+                            <StackPanel>
+                                <RadioButton Content="Colebrook-White (CW)"
+                                             IsChecked="{Binding IsColebrookWhite}"
+                                             Foreground="{DynamicResource Text}"
+                                             Margin="0,4"/>
+                                <RadioButton Content="Tkachenko-Mileikovskyi (TM)"
+                                             IsChecked="{Binding IsTkachenkoMileikovskyi}"
+                                             Foreground="{DynamicResource Text}"
+                                             Margin="0,4"/>
+                            </StackPanel>
+                        </GroupBox>
+
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="Segment Input" Style="{StaticResource TabItemStyle}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                              Background="{DynamicResource Background}"
+                              Padding="16">
+                    <StackPanel DataContext="{Binding SegmentInput}">
+
+                        <GroupBox Header="Segment Type" Style="{StaticResource ModernGroupBox}">
+                            <StackPanel>
+                                <RadioButton Content="Stikledning (Service Line)"
+                                             IsChecked="{Binding IsStikledning}"
+                                             Foreground="{DynamicResource Text}"
+                                             Margin="0,4"/>
+                                <RadioButton Content="Fordelingsledning (Distribution Line)"
+                                             IsChecked="{Binding IsFordelingsledning}"
+                                             Foreground="{DynamicResource Text}"
+                                             Margin="0,4"/>
+                            </StackPanel>
+                        </GroupBox>
+
+                        <GroupBox Header="Segment Data" Style="{StaticResource ModernGroupBox}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" MinWidth="200"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Text="Varmebehov:" Style="{StaticResource FieldLabelStyle}" VerticalAlignment="Center"/>
+                                <TextBox Grid.Row="0" Grid.Column="1" Width="80" Text="{Binding HeatingDemand, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormTextBoxStyle}"/>
+                                <TextBlock Grid.Row="0" Grid.Column="2" Text="MWh/år" Style="{StaticResource UnitStyle}" VerticalAlignment="Center"/>
+
+                                <TextBlock Grid.Row="1" Text="Antal bygninger:" Style="{StaticResource FieldLabelStyle}" VerticalAlignment="Center" Margin="0,8,0,0"/>
+                                <TextBox Grid.Row="1" Grid.Column="1" Width="80" Text="{Binding NumberOfBuildings, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormTextBoxStyle}" Margin="0,8,0,0"/>
+
+                                <TextBlock Grid.Row="2" Text="Antal enheder:" Style="{StaticResource FieldLabelStyle}" VerticalAlignment="Center" Margin="0,8,0,0"/>
+                                <TextBox Grid.Row="2" Grid.Column="1" Width="80" Text="{Binding NumberOfUnits, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormTextBoxStyle}" Margin="0,8,0,0"/>
+
+                                <TextBlock Grid.Row="3" Text="Længde:" Style="{StaticResource FieldLabelStyle}" VerticalAlignment="Center" Margin="0,8,0,0"/>
+                                <TextBox Grid.Row="3" Grid.Column="1" Width="80" Text="{Binding Length, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormTextBoxStyle}" Margin="0,8,0,0"/>
+                                <TextBlock Grid.Row="3" Grid.Column="2" Text="m" Style="{StaticResource UnitStyle}" VerticalAlignment="Center" Margin="0,8,0,0"/>
+
+                                <TextBlock Grid.Row="4" Text="Nyttetimer:" Style="{StaticResource FieldLabelStyle}" VerticalAlignment="Center" Margin="0,8,0,0"/>
+                                <TextBox Grid.Row="4" Grid.Column="1" Width="80" Text="{Binding Nyttetimer, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormTextBoxStyle}" Margin="0,8,0,0"/>
+                                <TextBlock Grid.Row="4" Grid.Column="2" Text="timer" Style="{StaticResource UnitStyle}" VerticalAlignment="Center" Margin="0,8,0,0"/>
+                            </Grid>
+                        </GroupBox>
+
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="Dimensioneringstabel" Style="{StaticResource TabItemStyle}">
+                <Grid DataContext="{Binding LookupTable}" Background="{DynamicResource Background}">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Background="{DynamicResource DarkRowBackground}" Padding="16,12">
+                        <StackPanel>
+                            <TextBlock Text="Initialiseret lookup-tabel for dimensionsvalg"
+                                       FontSize="16" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource Text}"/>
+                            <TextBlock Text="{Binding InitializationTime}"
+                                       Foreground="{DynamicResource Text}"
+                                       Opacity="0.7" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="16">
+                        <StackPanel Visibility="{Binding IsInitialized, Converter={StaticResource BoolToVisibilityConverter}}">
+
+                            <TextBlock Text="Fordelingsledninger (FL)"
+                                       FontSize="16" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource Text}" Margin="0,0,0,8"/>
+                            <DataGrid ItemsSource="{Binding FlRows}"
+                                      AutoGenerateColumns="False"
+                                      CanUserAddRows="False"
+                                      IsReadOnly="True"
+                                      Style="{StaticResource DarkDataGridStyle}"
+                                      MaxHeight="300">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Rørtype" Binding="{Binding PipeType}" Width="120"/>
+                                    <DataGridTextColumn Header="DN" Binding="{Binding DN}" Width="60"/>
+                                    <DataGridTextColumn Header="Di [mm]" Binding="{Binding InnerDiameter, Converter={StaticResource DanishNumberConverter}, ConverterParameter=N1}" Width="80"/>
+                                    <DataGridTextColumn Header="v_max [m/s]" Binding="{Binding MaxVelocity, Converter={StaticResource DanishNumberConverter}, ConverterParameter=N2}" Width="90"/>
+                                    <DataGridTextColumn Header="dp/dx_max [Pa/m]" Binding="{Binding MaxPressureGradient}" Width="110"/>
+                                    <DataGridTextColumn Header="Q_max,supply [m³/h]" Binding="{Binding MaxFlowSupply, Converter={StaticResource DanishNumberConverter}, ConverterParameter=N3}" Width="130"/>
+                                    <DataGridTextColumn Header="Q_max,return [m³/h]" Binding="{Binding MaxFlowReturn, Converter={StaticResource DanishNumberConverter}, ConverterParameter=N3}" Width="130"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                            <TextBlock Text="Stikledninger (SL)"
+                                       FontSize="16" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource Text}" Margin="0,24,0,8"/>
+                            <DataGrid ItemsSource="{Binding SlRows}"
+                                      AutoGenerateColumns="False"
+                                      CanUserAddRows="False"
+                                      IsReadOnly="True"
+                                      Style="{StaticResource DarkDataGridStyle}"
+                                      MaxHeight="300">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Rørtype" Binding="{Binding PipeType}" Width="120"/>
+                                    <DataGridTextColumn Header="DN" Binding="{Binding DN}" Width="60"/>
+                                    <DataGridTextColumn Header="Di [mm]" Binding="{Binding InnerDiameter, Converter={StaticResource DanishNumberConverter}, ConverterParameter=N1}" Width="80"/>
+                                    <DataGridTextColumn Header="v_max [m/s]" Binding="{Binding MaxVelocity, Converter={StaticResource DanishNumberConverter}, ConverterParameter=N2}" Width="90"/>
+                                    <DataGridTextColumn Header="dp/dx_max [Pa/m]" Binding="{Binding MaxPressureGradient}" Width="110"/>
+                                    <DataGridTextColumn Header="Q_max,supply [m³/h]" Binding="{Binding MaxFlowSupply, Converter={StaticResource DanishNumberConverter}, ConverterParameter=N3}" Width="130"/>
+                                    <DataGridTextColumn Header="Q_max,return [m³/h]" Binding="{Binding MaxFlowReturn, Converter={StaticResource DanishNumberConverter}, ConverterParameter=N3}" Width="130"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <TextBlock Grid.Row="1"
+                               Text="Klik 'Beregn' for at initialisere tabellen."
+                               Foreground="{DynamicResource Text}"
+                               FontSize="16"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               Visibility="{Binding IsInitialized, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Beregningsresultater" Style="{StaticResource TabItemStyle}">
+                <Grid DataContext="{Binding Calculation}" Background="{DynamicResource Background}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="300"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Column="0" Background="{DynamicResource DarkRowBackground}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,0">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Text="Beregningsskridt" FontWeight="SemiBold" Foreground="{DynamicResource Text}" Margin="16,12"/>
+
+                            <ListBox Grid.Row="1"
+                                     ItemsSource="{Binding Steps}"
+                                     SelectedItem="{Binding SelectedStep}"
+                                     Background="Transparent"
+                                     BorderThickness="0">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Padding="12,8" Margin="4,2" CornerRadius="4" Background="{DynamicResource DarkAltRowBackground}">
+                                            <TextBlock Text="{Binding Name}" Foreground="{DynamicResource Text}"/>
+                                        </Border>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Grid>
+                    </Border>
+
+                    <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" Padding="16">
+                        <StackPanel>
+                            <TextBlock Text="Vælg et beregningsskridt fra listen"
+                                       Foreground="{DynamicResource Text}"
+                                       FontSize="16"
+                                       Visibility="{Binding SelectedStep, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
+
+                            <controls:FormulaDisplayControl
+                                DataContext="{Binding SelectedStep}"
+                                Visibility="{Binding DataContext.SelectedStep, RelativeSource={RelativeSource AncestorType=ScrollViewer}, Converter={StaticResource NullToVisibilityConverter}}"/>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <StackPanel Grid.ColumnSpan="2"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Visibility="{Binding HasResults, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                        <TextBlock Text="{Binding ErrorMessage}"
+                                   Foreground="#FFFF6B6B"
+                                   FontSize="14"
+                                   FontWeight="SemiBold"
+                                   TextWrapping="Wrap"
+                                   TextAlignment="Center"
+                                   MaxWidth="600"
+                                   Visibility="{Binding ErrorMessage, Converter={StaticResource NullToVisibilityConverter}}"
+                                   Margin="0,0,0,12"/>
+                        <TextBlock Text="Ingen resultater endnu. Klik 'Beregn' for at starte."
+                                   Foreground="{DynamicResource Text}"
+                                   FontSize="16"
+                                   HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
+            </TabItem>
+
+        </TabControl>
+    </Grid>
+</Window>
