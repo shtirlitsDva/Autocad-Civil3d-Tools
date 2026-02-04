@@ -1,4 +1,4 @@
-﻿using NorsynHydraulicCalc.LookupData;
+using NorsynHydraulicCalc.LookupData;
 using NorsynHydraulicCalc.Pipes;
 using NorsynHydraulicCalc.Rules;
 

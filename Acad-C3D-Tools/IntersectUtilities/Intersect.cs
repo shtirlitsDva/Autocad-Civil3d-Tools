@@ -445,6 +445,10 @@ namespace IntersectUtilities
         /// </summary>
         /// <category>Style Management</category>
         [CommandMethod("IMPORTTEXTSTYLES")]
+        public void importtextstyles()
+        {
+            importtextstylesmethod();
+        }
         public void importtextstylesmethod(Database? db = null)
         {
             DocumentCollection dc = Application.DocumentManager;
@@ -459,8 +463,13 @@ namespace IntersectUtilities
             try
             {
                 ObjectIdCollection objIds = new ObjectIdCollection();
-                TextStyleTable sourceTst = stylesDB.TextStyleTableId.Go<TextStyleTable>(stylesTx)!; 
-                objIds.Add(sourceTst["Note_Længdeprofiler"]);
+                
+                //TextStyleTable sourceTst = stylesDB.TextStyleTableId.Go<TextStyleTable>(stylesTx)!; 
+                //objIds.Add(sourceTst["Note_Længdeprofiler"]);
+
+                DBDictionary mlsd = stylesDB.MLeaderStyleDictionaryId.Go<DBDictionary>(stylesTx)!;
+                objIds.Add(mlsd.GetAt("Note_Længdeprofiler"));
+
                 IdMapping mapping = new IdMapping();
                 stylesDB.WblockCloneObjects(objIds, localDb.TextStyleTableId, mapping, DuplicateRecordCloning.Replace, false);
             }
