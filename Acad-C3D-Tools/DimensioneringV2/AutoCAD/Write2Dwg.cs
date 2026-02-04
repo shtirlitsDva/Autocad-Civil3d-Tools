@@ -93,10 +93,11 @@ namespace DimensioneringV2.AutoCAD
                         continue;
                     }
                     
-                    if (feature.OriginalGeometry.Stik != null)
+                    var isBuildingConnection = (feature["IsBuildingConnection"] as bool?) ?? false;
+                    if (isBuildingConnection)
                     {
-                        var ntssp = feature.OriginalGeometry.Stik.StartPoint;
-                        var ntsep = feature.OriginalGeometry.Stik.EndPoint;
+                        var ntssp = lineString.StartPoint;
+                        var ntsep = lineString.EndPoint;
 
                         Line stik = new Line(
                             new Point3d(ntssp.X, ntssp.Y, 0),
@@ -104,11 +105,9 @@ namespace DimensioneringV2.AutoCAD
                         stik.AddEntityToDbModelSpace(dimDb);
                         stik.Layer = cv.LayerConnectionLine;
                     }
-
-                    if (feature.OriginalGeometry.Vej != null)
+                    else
                     {
-                        var pline = NTSConversion.ConvertNTSLineStringToPline(
-                            feature.OriginalGeometry.Vej);
+                        var pline = NTSConversion.ConvertNTSLineStringToPline(lineString);
 
                         pline.AddEntityToDbModelSpace(dimDb);
                         if (feature.NumberOfBuildingsSupplied == 0)

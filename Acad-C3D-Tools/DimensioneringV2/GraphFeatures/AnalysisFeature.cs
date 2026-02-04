@@ -32,32 +32,32 @@ namespace DimensioneringV2.GraphFeatures
         public AnalysisFeature(AnalysisFeature analysisFeature) : base(analysisFeature)
         {
             foreach (var field in analysisFeature.Fields) this[field] = analysisFeature[field];
-            this.OriginalGeometry = analysisFeature.OriginalGeometry;
-            this.Elevations = new ElevationProfileCache(this, OriginalGeometry);
+            this.Geometry25832 = analysisFeature.Geometry25832;
+            this.Elevations = new ElevationProfileCache(this, Geometry25832);
         }
         public AnalysisFeature(
             NetTopologySuite.Geometries.Geometry? geometry,
-            OriginalGeometry originalGeometry) : base(geometry)
+            LineString geometry25832) : base(geometry)
         {
-            OriginalGeometry = originalGeometry;
-            Elevations = new ElevationProfileCache(this, originalGeometry);
+            Geometry25832 = geometry25832;
+            Elevations = new ElevationProfileCache(this, geometry25832);
         }
         public AnalysisFeature(
             NetTopologySuite.Geometries.Geometry geometry,
-            OriginalGeometry originalGeometry,
+            LineString geometry25832,
             Dictionary<string, object> attributes) : base(geometry)
         {
             foreach (var attribute in attributes)
             {
                 this[attribute.Key] = attribute.Value;
             }
-            this.OriginalGeometry = originalGeometry;
-            this.Elevations = new ElevationProfileCache(this, originalGeometry);
+            this.Geometry25832 = geometry25832;
+            this.Elevations = new ElevationProfileCache(this, geometry25832);
         }
         #endregion
 
         #region Spatial data storage
-        public OriginalGeometry OriginalGeometry { get; }
+        public LineString Geometry25832 { get; }
         internal ElevationProfileCache Elevations { get; }
         #endregion
 
@@ -149,7 +149,7 @@ namespace DimensioneringV2.GraphFeatures
         /// <summary>
         /// Length of the segment
         /// </summary>
-        public double Length => OriginalGeometry.Length;
+        public double Length => Geometry25832.Length;
 
         /// <summary>
         /// Is the segment a service line, then returns 1, else 0
@@ -483,7 +483,7 @@ namespace DimensioneringV2.GraphFeatures
         {
             "BoundingBox",
             "Attributes",
-            "OriginalGeometry",
+            "Geometry25832",
             "Elevations"
         };
         IEnumerable<PropertyItem> IInfoForFeature.PropertiesToDataGrid()

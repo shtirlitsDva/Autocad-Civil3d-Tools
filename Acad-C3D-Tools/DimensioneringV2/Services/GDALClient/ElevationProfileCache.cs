@@ -14,19 +14,19 @@ namespace DimensioneringV2.Services.GDALClient
     internal sealed class ElevationProfileCache
     {
         public AnalysisFeature Owner { get; init; }
-        private readonly OriginalGeometry _og;   // FullGeometry in EPSG:25832
+        private readonly LineString _geometry25832;
         private readonly object _lock = new();
         private List<ElevationSample>? _forward;
         public bool Sampled => _forward != null && _forward.Count != 0;
 
-        public ElevationProfileCache(AnalysisFeature owner, OriginalGeometry og)
+        public ElevationProfileCache(AnalysisFeature owner, LineString geometry25832)
         {
             this.Owner = owner;
-            _og = og ?? throw new ArgumentNullException(nameof(og));
+            _geometry25832 = geometry25832 ?? throw new ArgumentNullException(nameof(geometry25832));
         }
 
-        public LineString FullGeometry25832 => _og.FullGeometry;
-        public double LengthMeters => _og.Length;
+        public LineString FullGeometry25832 => _geometry25832;
+        public double LengthMeters => _geometry25832.Length;
         public void AcceptElevationProfile(IReadOnlyList<ElevationSample> forward)
         {
             lock (_lock) { _forward = [.. forward]; }
@@ -34,10 +34,10 @@ namespace DimensioneringV2.Services.GDALClient
         public IReadOnlyList<ElevationSample> GetProfile(Coordinate start, Coordinate end)
         {            
             var fwd = _forward!;
-            var len = _og.Length;
+            var len = _geometry25832.Length;
 
-            var gs = _og.FullGeometry.StartPoint.Coordinate;
-            var ge = _og.FullGeometry.EndPoint.Coordinate;
+            var gs = _geometry25832.StartPoint.Coordinate;
+            var ge = _geometry25832.EndPoint.Coordinate;
             var (ex, ey) = Normalize(ge.X - gs.X, ge.Y - gs.Y);
             var (vx, vy) = Normalize(end.X - start.X, end.Y - start.Y);
             double dot = ex * vx + ey * vy;
