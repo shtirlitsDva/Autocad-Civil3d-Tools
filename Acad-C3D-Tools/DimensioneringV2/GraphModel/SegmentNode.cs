@@ -105,6 +105,29 @@ namespace DimensioneringV2.GraphModelRoads
             var line = ToLineString();
             return line.Distance(pointGeometry);
         }
+        /// <summary>
+        /// Calculates the distance between this segment and another, with optional filtering
+        /// for projection lines that cross forbidden segments.
+        /// </summary>
+        /// <param name="other">The other segment to calculate distance to.</param>
+        /// <param name="noCrossIndex">
+        /// Optional spatial index containing forbidden segments. If provided, the method checks
+        /// whether the "projection line" (the line connecting the nearest points between this
+        /// segment and <paramref name="other"/>) intersects any segment in this index.
+        /// </param>
+        /// <returns>
+        /// The geometric distance between the two segments, or <see cref="double.MaxValue"/> if
+        /// the projection line crosses any segment in <paramref name="noCrossIndex"/>.
+        /// Returning MaxValue effectively disqualifies this candidate during R-tree nearest
+        /// neighbor searches, causing the algorithm to find the next nearest valid segment.
+        /// </returns>
+        /// <remarks>
+        /// The crossing check works by:
+        /// 1. Computing the nearest points between the two line segments using DistanceOp
+        /// 2. Creating a temporary segment from these two closest points (the "projection line")
+        /// 3. Finding the nearest segment in noCrossIndex to this projection line
+        /// 4. If distance to nearest forbidden segment is 0 (they touch/cross), return MaxValue
+        /// </remarks>
         public double DistanceToSegment(SegmentNode other, SpatialIndex noCrossIndex)
         {
             var line1 = ToLineString();
@@ -112,28 +135,27 @@ namespace DimensioneringV2.GraphModelRoads
 
             if (noCrossIndex != null)
             {
+                // Step 1: Find the nearest points between the two segments
                 DistanceOp dOp = new DistanceOp(line1, line2);
                 Coordinate[] closestPt = dOp.NearestPoints();
-                //var nLine = new LineString([closestPt[0], closestPt[1]]);
+
+                // Step 2: Create a "projection line" segment from query to candidate
                 var seg = new SegmentNode(
                     new Point2D(closestPt[0].X, closestPt[0].Y),
                     new Point2D(closestPt[1].X, closestPt[1].Y));
 
-                //Line line = new Line(
-                //    new Point3d(closestPt[0].X, closestPt[0].Y, 0),
-                //    new Point3d(closestPt[1].X, closestPt[1].Y, 0));
-                //line.AddEntityToDbModelSpace(HostApplicationServices.WorkingDatabase);
-
+                // Step 3: Check if projection line crosses any forbidden segment
                 var nearestNoCross = noCrossIndex.FindNearest(seg);
                 if (nearestNoCross != null)
                 {
+                    // Step 4: Distance of 0 means they touch/cross - disqualify this candidate
                     if (nearestNoCross.DistanceToSegment(seg, null) == 0)
                     {
                         return double.MaxValue;
                     }
                 }
             }
-            
+
             return line1.Distance(line2);
         }
         public double GetParameterAtPoint(Point2D point)
