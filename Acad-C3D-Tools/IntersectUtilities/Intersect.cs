@@ -410,11 +410,7 @@ namespace IntersectUtilities
                             idsToClone.Add(sourceBt["EL 10kV"]);
                             idsToClone.Add(sourceBt["EL 0.4kV"]);
                             idsToClone.Add(sourceBt["VerticeArc"]);
-                            idsToClone.Add(sourceBt["VerticeLine"]);
-
-                            TextStyleTable sourceTst = stylesTx.GetObject(
-                                stylesDB.TextStyleTableId, OpenMode.ForRead) as TextStyleTable;
-                            idsToClone.Add(sourceTst["Note_Længdeprofiler"]);
+                            idsToClone.Add(sourceBt["VerticeLine"]);                            
 
                             IdMapping mapping = new IdMapping();
                             stylesDB.WblockCloneObjects(idsToClone, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
@@ -457,32 +453,57 @@ namespace IntersectUtilities
             string pathToStyles = @"X:\AutoCAD DRI - 01 Civil 3D\Projection_styles.dwg";
             using var stylesDB = new Database(false, true);
             stylesDB.ReadDwgFile(pathToStyles, FileOpenMode.OpenForReadAndAllShare, false, null);
-            using var localTx = localDb.TransactionManager.StartTransaction();
-            using var stylesTx = stylesDB.TransactionManager.StartTransaction();
-
-            try
+            
+            using (var localTx = localDb.TransactionManager.StartTransaction())
+            using (var stylesTx = stylesDB.TransactionManager.StartTransaction())
             {
-                ObjectIdCollection objIds = new ObjectIdCollection();
-                
-                //TextStyleTable sourceTst = stylesDB.TextStyleTableId.Go<TextStyleTable>(stylesTx)!; 
-                //objIds.Add(sourceTst["Note_Længdeprofiler"]);
+                try
+                {
+                    ObjectIdCollection objIds = new ObjectIdCollection();
 
-                DBDictionary mlsd = stylesDB.MLeaderStyleDictionaryId.Go<DBDictionary>(stylesTx)!;
-                objIds.Add(mlsd.GetAt("Note_Længdeprofiler"));
+                    TextStyleTable sourceTst = stylesDB.TextStyleTableId.Go<TextStyleTable>(stylesTx)!;
+                    objIds.Add(sourceTst["Note_Længdeprofiler"]);                    
 
-                IdMapping mapping = new IdMapping();
-                stylesDB.WblockCloneObjects(objIds, localDb.TextStyleTableId, mapping, DuplicateRecordCloning.Replace, false);
+                    IdMapping mapping = new IdMapping();
+                    stylesDB.WblockCloneObjects(objIds, localDb.TextStyleTableId, mapping, DuplicateRecordCloning.Replace, false);
+                }
+                catch (System.Exception e)
+                {
+                    stylesTx.Abort();
+                    localTx.Abort();
+                    prdDbg(e);
+                    throw;
+                }
+
+                stylesTx.Commit();
+                localTx.Commit();
             }
-            catch (System.Exception e)
+
+            using (var localTx = localDb.TransactionManager.StartTransaction())
+            using (var stylesTx = stylesDB.TransactionManager.StartTransaction())
             {
-                stylesTx.Abort();
-                localTx.Abort();
-                prdDbg(e);
-                throw;
-            }
+                try
+                {
+                    ObjectIdCollection objIds = new ObjectIdCollection();
 
-            stylesTx.Commit();
-            localTx.Commit();
+                    DBDictionary mlsd = stylesDB.MLeaderStyleDictionaryId.Go<DBDictionary>(stylesTx)!;
+                    objIds.Add(mlsd.GetAt("Note_Længdeprofiler"));
+
+                    IdMapping mapping = new IdMapping();
+                    stylesDB.WblockCloneObjects(
+                        objIds, localDb.MLeaderStyleDictionaryId, mapping, DuplicateRecordCloning.Replace, false);
+                }
+                catch (System.Exception e)
+                {
+                    stylesTx.Abort();
+                    localTx.Abort();
+                    prdDbg(e);
+                    throw;
+                }
+
+                stylesTx.Commit();
+                localTx.Commit();
+            }
         }
 
         /// <command>REVEALALIGNMENTS, RAL</command>

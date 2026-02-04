@@ -1,4 +1,4 @@
-﻿using Autodesk.AutoCAD.ApplicationServices;
+using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
@@ -87,7 +87,7 @@ namespace IntersectUtilities
         /// </summary>
         /// <category>Sheet Management</category>
         [CommandMethod("FINALIZESHEETSAHK")]
-        public void finalizesheetsuipath()
+        public void finalizesheetsahk()
         {
             var droText = File.ReadAllLines(Environment.ExpandEnvironmentVariables("%temp%") + "\\DRO.txt");
             DataReferencesOptions dro = new DataReferencesOptions(droText[0], droText[1]);
@@ -312,7 +312,7 @@ namespace IntersectUtilities
 
                         var allMLeaders = profDb.HashSetOfType<MLeader>(profTx)
                             .Where(m => m.MLeaderStyle == targetStyleId)
-                            .Where(m => opvBbox.IsPointInsideXY(m.GetLastVertex(0)))
+                            .Where(m => opvBbox.IsPointInsideXY(m.GetFirstVertex(0)))
                             .ToList();
 
                         if (allMLeaders.Count == 0)
@@ -326,7 +326,7 @@ namespace IntersectUtilities
 
                         foreach (var mldr in allMLeaders)
                         {
-                            Point3d mLdrLoc = mldr.GetLastVertex(0);
+                            Point3d mLdrLoc = mldr.GetFirstVertex(0);
                             double station = 0, elevation = 0;
                             opv.FindStationAndElevationAtXY(
                                 mLdrLoc.X, mLdrLoc.Y, ref station, ref elevation);
@@ -369,10 +369,10 @@ namespace IntersectUtilities
                                 if (!pair.IsCloned || pair.Key != data.OriginalId) continue;
 
                                 MLeader clonedMldr = pair.Value.Go<MLeader>(tx, OpenMode.ForWrite);
-                                Point3d oldLoc = clonedMldr.GetLastVertex(0);
+                                Point3d oldLoc = clonedMldr.GetFirstVertex(0);
                                 Vector3d displacement = newLoc - oldLoc;
 
-                                clonedMldr.TransformBy(Matrix3d.Displacement(displacement));
+                                clonedMldr.Move(displacement);
                                 break;
                             }
                         }
@@ -649,6 +649,20 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Delete Note_Længdeprofiler
+                    var mlrs = localDb.HashSetOfType<MLeader>(tx);
+                    foreach (var mlr in mlrs)
+                    {
+                        Oid sId = mlr.MLeaderStyle;
+                        var s = sId.Go<MLeaderStyle>(tx)!;
+                        if (s.Name == "Note_Længdeprofiler")
+                        {
+                            mlr.CheckOrOpenForWrite();
+                            mlr.Erase(true);
+                        }
+                    }
+                    #endregion
+
                     #region Delete cogo points
                     CogoPointCollection cogoPoints = civilDoc.CogoPoints;
                     ObjectIdCollection cpIds = new ObjectIdCollection();
