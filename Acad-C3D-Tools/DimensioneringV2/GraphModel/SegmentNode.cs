@@ -164,8 +164,7 @@ namespace DimensioneringV2.GraphModelRoads
             double dy = EndPoint.Y - StartPoint.Y;
             double lenSq = dx * dx + dy * dy;
 
-            if (lenSq == 0)
-                return 0;
+            if (lenSq == 0) return 0;
 
             double t = ((point.X - StartPoint.X) * dx + (point.Y - StartPoint.Y) * dy) / lenSq;
             return t;

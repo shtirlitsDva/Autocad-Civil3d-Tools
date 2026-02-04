@@ -82,6 +82,11 @@ namespace DimensioneringV2.GraphFeatures
                                     if (!visited.Contains(neighbor) && neighbor.HasPoint(exitPt))
                                     {
                                         stack.Push((neighbor, exitPt));
+
+                                        if (node.seg.IsBuildingConnection != neighbor.IsBuildingConnection)
+                                        {
+                                            startNew = true;
+                                        }
                                     }
                                 }
                                 break;

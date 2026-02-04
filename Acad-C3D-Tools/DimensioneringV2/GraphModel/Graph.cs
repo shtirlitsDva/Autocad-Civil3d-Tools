@@ -61,8 +61,10 @@ namespace DimensioneringV2.GraphModelRoads
             if (buildings != null)
                 ProjectBuildingsOntoGraph(buildings, NoCrossIndex);
 
+            //For each segment finds neighbouring segments
             BuildNeighbors();
 
+            //Marks the root segments as such
             MarkRootSegmentsAsSuch(rootPoints);
 
             if (buildings != null) PruneNonBuildingLeafNodes();
@@ -325,9 +327,14 @@ namespace DimensioneringV2.GraphModelRoads
                 projectedPoints.Add(segment.EndPoint);
 
                 // Remove duplicates and sort points along the segment
-                projectedPoints = projectedPoints.Distinct().ToList();
-                if (projectedPoints.Count == 2) continue; //This indicates that only start and end points are left.
-                projectedPoints.Sort((a, b) => segment.GetParameterAtPoint(a).CompareTo(segment.GetParameterAtPoint(b)));
+                // TODO: Added EqualityComparer -> remove if gives problems
+                projectedPoints = projectedPoints.Distinct(
+                    new Point2DEqualityComparer()).ToList();
+                //This indicates that only start and end points are left.
+                if (projectedPoints.Count == 2) continue;
+                projectedPoints.Sort(
+                    (a, b) => segment.GetParameterAtPoint(a)
+                    .CompareTo(segment.GetParameterAtPoint(b)));
 
                 // Remove the original segment
                 Segments.Remove(segment);
