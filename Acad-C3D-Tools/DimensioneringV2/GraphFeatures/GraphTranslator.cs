@@ -229,7 +229,7 @@ namespace DimensioneringV2.GraphFeatures
                             attributes["IsRootNode"] = true;
                         }
 
-                        AnalysisFeature fn = new AnalysisFeature(fullGeometry, fullGeometry as LineString, attributes);
+                        AnalysisFeature fn = new AnalysisFeature(fullGeometry as LineString, attributes);
                         nodes.Add(fn);
                     }
                 }

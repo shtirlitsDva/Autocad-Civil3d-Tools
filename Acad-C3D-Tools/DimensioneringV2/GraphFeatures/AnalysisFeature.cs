@@ -36,23 +36,27 @@ namespace DimensioneringV2.GraphFeatures
             this.Elevations = new ElevationProfileCache(this, Geometry25832);
         }
         public AnalysisFeature(
-            NetTopologySuite.Geometries.Geometry? geometry,
-            LineString geometry25832) : base(geometry)
-        {
-            Geometry25832 = geometry25832;
-            Elevations = new ElevationProfileCache(this, geometry25832);
-        }
-        public AnalysisFeature(
-            NetTopologySuite.Geometries.Geometry geometry,
             LineString geometry25832,
-            Dictionary<string, object> attributes) : base(geometry)
+            Dictionary<string, object> attributes) : base(geometry25832)
         {
+            Geometry25832 = (LineString)geometry25832.Copy();
             foreach (var attribute in attributes)
             {
                 this[attribute.Key] = attribute.Value;
             }
-            this.Geometry25832 = geometry25832;
-            this.Elevations = new ElevationProfileCache(this, geometry25832);
+            Elevations = new ElevationProfileCache(this, Geometry25832);
+        }
+        internal AnalysisFeature(
+            NetTopologySuite.Geometries.Geometry displayGeometry,
+            LineString geometry25832,
+            Dictionary<string, object> attributes) : base(displayGeometry)
+        {
+            Geometry25832 = geometry25832;
+            foreach (var attribute in attributes)
+            {
+                this[attribute.Key] = attribute.Value;
+            }
+            Elevations = new ElevationProfileCache(this, Geometry25832);
         }
         #endregion
 
