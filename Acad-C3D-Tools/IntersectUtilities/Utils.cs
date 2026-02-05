@@ -235,57 +235,7 @@ namespace IntersectUtilities
 
             return (default, default);
         }
-        public static object ReadPropertyValueFromPS(
-            List<PropertySet> pss, Entity ent, string tableName, string fieldName
-            )
-        {
-            //Assume only one result
-            PropertySet ps = pss.Find(x => x.PropertySetDefinitionName == tableName);
-            if (ps == default)
-            {
-                prdDbg($"PropertySet {tableName} could not be found for entity handle {ent.Handle}.");
-                return "";
-            }
-            int propertyId = ps.PropertyNameToId(fieldName);
-            object value = ps.GetAt(propertyId);
-            if (value != null) return value;
-            else return default;
-
-            //PropertySetDefinition psDef = ps.PropertySetDefinition.Go<PropertySetDefinition>(
-            //    ps.Database.TransactionManager.TopTransaction);
-
-            //PropertyDefinitionCollection defs = psDef.Definitions;
-            //int defIdx = defs.IndexOf(fieldName);
-            //PropertyDefinition def = defs[defIdx];
-            //Autodesk.Aec.PropertyData.DataType t = def.DataType;
-
-            //string valueString = PropertySetPropertyValueToString(value, t);
-            //if (valueString.IsNotNoE())
-            //{
-            //    string result = readStructure.Replace(list[0].ToReplace, valueString);
-            //    return result;
-            //}
-            //return "";
-        }
-        //public static object ReadPropertyValueFromPS(Entity ent, string tableName, string fieldName)
-        //{
-        //    ObjectIdCollection propertySetIds = PropertyDataServices.GetPropertySets(ent);
-        //    List<PropertySet> pss = new List<PropertySet>();
-        //    foreach (Oid oid in propertySetIds) pss.Add(oid.Go<PropertySet>(
-        //        ent.Database.TransactionManager.TopTransaction));
-
-        //    //Assume only one result
-        //    PropertySet ps = pss.Find(x => x.PropertySetDefinitionName == tableName);
-        //    if (ps == default)
-        //    {
-        //        prdDbg($"PropertySet {tableName} could not be found for entity handle {ent.Handle}.");
-        //        return "";
-        //    }
-        //    int propertyId = ps.PropertyNameToId(fieldName);
-        //    object value = ps.GetAt(propertyId);
-        //    if (value != null) return value;
-        //    else return default;
-        //}
+        
         public static MapValue MapValueFromObject(object input, Autodesk.Gis.Map.Constants.DataType type)
         {
             switch (type)
@@ -304,87 +254,8 @@ namespace IntersectUtilities
                     break;
             }
             return default;
-        }
-        public static string PropertySetPropertyValueToString(object value, Autodesk.Aec.PropertyData.DataType type)
-        {
-            switch (type)
-            {
-                case Autodesk.Aec.PropertyData.DataType.Integer:
-                    return ((int)value).ToString();
-                case Autodesk.Aec.PropertyData.DataType.Real:
-                    return ((double)value).ToString();
-                case Autodesk.Aec.PropertyData.DataType.Text:
-                    return ((string)value);
-                case Autodesk.Aec.PropertyData.DataType.TrueFalse:
-                    return ((bool)value).ToString();
-                case Autodesk.Aec.PropertyData.DataType.AutoIncrement:
-                    prdDbg("PropertyValueToString: DataType.AutoIncrement not implemented!");
-                    return "";
-                case Autodesk.Aec.PropertyData.DataType.AlphaIncrement:
-                    prdDbg("PropertyValueToString: DataType.AlphaIncrement not implemented!");
-                    return "";
-                case Autodesk.Aec.PropertyData.DataType.List:
-                    prdDbg("PropertyValueToString: DataType.List not implemented!");
-                    return "";
-                case Autodesk.Aec.PropertyData.DataType.Graphic:
-                    prdDbg("PropertyValueToString: DataType.Graphic not implemented!");
-                    return "";
-                default:
-                    return "";
-            }
-        }
-        public static void PropertySetCopyFromEntToEnt(Entity source, Entity target)
-        {
-            //Only works within drawing
-            //ToDo: implement copying from drawing to drawing
-            try
-            {
-                List<PropertySet> sourcePss = source.GetPropertySets();
-                DictionaryPropertySetDefinitions sourcePropDefDict
-                    = new DictionaryPropertySetDefinitions(source.Database);
-                DictionaryPropertySetDefinitions targetPropDefDict
-                    = new DictionaryPropertySetDefinitions(target.Database);
-
-                foreach (PropertySet sourcePs in sourcePss)
-                {
-                    PropertySetDefinition sourcePropSetDef =
-                        sourcePs.PropertySetDefinition.Go<PropertySetDefinition>(source.GetTopTx());
-                    //Check to see if table is already attached
-                    if (!target.GetPropertySets().Contains(sourcePs, new PropertySetNameComparer()))
-                    {
-                        //If target entity does not have property set attached -> attach
-                        //Here can creating the property set definition in the target database be implemented
-                        target.CheckOrOpenForWrite();
-                        PropertyDataServices.AddPropertySet(target, sourcePropSetDef.Id);
-                    }
-
-                    PropertySet targetPs = target.GetPropertySets()
-                        .Find(x => x.PropertySetDefinitionName == sourcePs.PropertySetDefinitionName);
-
-                    if (targetPs == null)
-                    {
-                        prdDbg("PropertySet attachment failed in PropertySetCopyFromEntToEnt!");
-                        throw new System.Exception();
-                    }
-
-                    foreach (PropertyDefinition pd in sourcePropSetDef.Definitions)
-                    {
-                        int sourceId = sourcePs.PropertyNameToId(pd.Name);
-                        object value = sourcePs.GetAt(sourceId);
-
-                        int targetId = targetPs.PropertyNameToId(pd.Name);
-                        targetPs.CheckOrOpenForWrite();
-                        targetPs.SetAt(targetId, value);
-                        targetPs.DowngradeOpen();
-                    }
-                }
-            }
-            catch (System.Exception ex)
-            {
-                prdDbg(ex);
-                throw;
-            }
-        }
+        }        
+        
         public static ObjectId AddToBlock(Entity entity, ObjectId btrId)
         {
             using (Transaction tr = btrId.Database.TransactionManager.StartTransaction())
