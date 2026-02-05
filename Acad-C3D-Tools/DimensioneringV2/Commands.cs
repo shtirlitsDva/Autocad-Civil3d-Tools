@@ -183,7 +183,7 @@ namespace DimensioneringV2
         /// attributes into the BBR property set. Intended to populate the drawing with building points
         /// carrying BBR data for subsequent graph and reporting workflows.
         /// </summary>
-        /// <category>DimensioneringV2</category>
+        /// <category>DIMENSIONERING V2</category>
         [CommandMethod("DIM2IMPORTBBRBLOCKS")]
         public void dim2importbbrblocks()
         {
@@ -318,7 +318,7 @@ namespace DimensioneringV2
         /// property set to ensure unique address labels, and exports a CSV report. Intended to normalize
         /// duplicate addresses before Excel generation and other downstream processes.
         /// </summary>
-        /// <category>DimensioneringV2</category>
+        /// <category>DIMENSIONERING V2</category>
         [CommandMethod("DIM2ANALYZEDUPLICATEADDR")]
         public void dim2analyzeduplicateaddr()
         {
@@ -480,7 +480,7 @@ namespace DimensioneringV2
         /// Blocks outside the boundary are deleted. Polylines wholly outside are deleted,
         /// wholly inside are kept, and crossing polylines are split at the boundary.
         /// </summary>
-        /// <category>DimensioneringV2</category>
+        /// <category>DIMENSIONERING V2</category>
         [CommandMethod("DIM2AREACROP")]
         public void dim2areacrop()
         {
