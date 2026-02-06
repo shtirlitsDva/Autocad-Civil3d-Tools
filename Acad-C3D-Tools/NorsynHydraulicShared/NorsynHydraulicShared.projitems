@@ -9,7 +9,8 @@
     <Import_RootNamespace>NorsynHydraulicShared</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Pipes\Sizes\PipeAluPexSizes.csv" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Pipes\Sizes\PipeAluPexFLSizes.csv" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Pipes\Sizes\PipeAluPexSLSizes.csv" />
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)Pipes\Sizes\PipeCuSizes.csv" />
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)Pipes\Sizes\PipePertFlextraSLSizes.csv" />
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)Pipes\Sizes\PipePertFlextraFLSizes.csv" />
@@ -18,6 +19,7 @@
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)AsciiTableFormatter.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)CalculationResultFordeling.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Pipes\PipeAluPexFL.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Pipes\PipeAquaTherm11.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Pipes\PipePertFlextraSL.cs" />
     <Compile Include="..\NorsynHydraulicShared\CalculationResultClient.cs" />
@@ -33,7 +35,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)LookupData\LookupDataWater72Ipa28.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Pipes\Dim.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Pipes\IPipe.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Pipes\PipeAluPex.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Pipes\PipeAluPexSL.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Pipes\PipeBase.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Pipes\PipeCu.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Pipes\PipePe.cs" />

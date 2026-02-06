@@ -121,7 +121,7 @@ namespace DimensioneringV2.AutoCAD
                     return PipeSystemEnum.Stål;
                 case NorsynHydraulicCalc.PipeType.PertFlextraFL:
                     return PipeSystemEnum.PertFlextra;
-                case NorsynHydraulicCalc.PipeType.AluPEX:
+                case NorsynHydraulicCalc.PipeType.AluPEXSL:
                     return PipeSystemEnum.AluPex;
                 case NorsynHydraulicCalc.PipeType.Kobber:
                     return PipeSystemEnum.Kobberflex;

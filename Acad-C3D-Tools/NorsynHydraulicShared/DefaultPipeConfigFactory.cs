@@ -28,7 +28,7 @@ namespace NorsynHydraulicCalc
                 var pertFlextra = CreatePipeTypePriorityWithDefaults(
                     priority++,
                     PipeType.PertFlextraFL,
-                    50, 75,
+                    50, 110,
                     SegmentType.Fordelingsledning,
                     pipeTypes);
                 config.Priorities.Add(pertFlextra);
@@ -71,7 +71,7 @@ namespace NorsynHydraulicCalc
                 // AluPEX: DN 26-32 (highest priority for SL)
                 var aluPex = CreatePipeTypePriorityWithDefaults(
                     priority++,
-                    PipeType.AluPEX,
+                    PipeType.AluPEXSL,
                     26, 32,
                     SegmentType.Stikledning,
                     pipeTypes);

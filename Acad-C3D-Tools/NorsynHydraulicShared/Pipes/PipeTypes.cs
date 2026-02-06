@@ -13,7 +13,8 @@ namespace NorsynHydraulicCalc.Pipes
         {
             _s = settings;
             _stål = new PipeSteel(_s.RuhedSteel);            
-            _aluPex = new PipeAluPex(_s.RuhedAluPEX);
+            _aluPexSL = new PipeAluPexSL(_s.RuhedAluPEX);
+            _aluPexFL = new PipeAluPexFL(_s.RuhedAluPEX);
             _pertFlextraFL = new PipePertFlextraFL(_s.RuhedPertFlextra);
             _pertFlextraSL = new PipePertFlextraSL(_s.RuhedPertFlextra);
             _cu = new PipeCu(_s.RuhedCu);
@@ -22,7 +23,8 @@ namespace NorsynHydraulicCalc.Pipes
             _allTypes = new Dictionary<PipeType, IPipe>
             {
                 { PipeType.Stål, _stål },
-                { PipeType.AluPEX, _aluPex },
+                { PipeType.AluPEXFL, _aluPexFL },
+                { PipeType.AluPEXSL, _aluPexSL },
                 { PipeType.PertFlextraFL, _pertFlextraFL },
                 { PipeType.PertFlextraSL, _pertFlextraSL },
                 { PipeType.Kobber, _cu },
@@ -71,8 +73,11 @@ namespace NorsynHydraulicCalc.Pipes
         private PipeSteel _stål;
         public PipeSteel Stål => _stål;
 
-        private PipeAluPex _aluPex;
-        public PipeAluPex AluPex => _aluPex;
+        private PipeAluPexFL _aluPexFL;
+        public PipeAluPexFL AluPexFL => _aluPexFL;
+
+        private PipeAluPexSL _aluPexSL;
+        public PipeAluPexSL AluPexSL => _aluPexSL;        
 
         private PipePertFlextraFL _pertFlextraFL;
         public PipePertFlextraFL PertFlextraFL => _pertFlextraFL;
