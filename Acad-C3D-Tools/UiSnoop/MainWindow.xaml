@@ -1,0 +1,99 @@
+<Window x:Class="UiSnoop.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="UiSnoop - Window Spy for LLM"
+        Height="920"
+        Width="1360"
+        MinHeight="720"
+        MinWidth="1100"
+        Background="{DynamicResource BackgroundBrush}"
+        Foreground="{DynamicResource TextBrush}">
+    <Grid Margin="10" Background="{DynamicResource BackgroundBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0"
+                Padding="10"
+                CornerRadius="6"
+                Background="{DynamicResource SurfaceBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="1">
+            <WrapPanel VerticalAlignment="Center">
+                <CheckBox Content="Follow mouse"
+                          IsChecked="{Binding FollowMouse, Mode=TwoWay}"
+                          Margin="0,0,12,0" />
+                <CheckBox Content="Suspend updates"
+                          IsChecked="{Binding SuspendUpdates, Mode=TwoWay}"
+                          Margin="0,0,12,0" />
+                <TextBlock Text="Interval (ms):" VerticalAlignment="Center" Margin="0,0,6,0" />
+                <TextBox Width="70"
+                         Text="{Binding IntervalMillisecondsText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                         Margin="0,0,6,0" />
+                <Button Content="Apply" Command="{Binding ApplyIntervalCommand}" Margin="0,0,12,0" />
+                <Button Content="Capture now" Command="{Binding CaptureNowCommand}" Margin="0,0,12,0" />
+                <Button Content="Copy LLM block" Command="{Binding CopyLlmBlockCommand}" Margin="0,0,6,0" />
+                <Button Content="Copy JSON" Command="{Binding CopyJsonCommand}" Margin="0,0,6,0" />
+                <Button Content="Copy Snapshot" Command="{Binding CopySnapshotCommand}" Margin="0,0,12,0" />
+                <TextBlock VerticalAlignment="Center"
+                           Foreground="{DynamicResource MutedTextBrush}"
+                           Margin="0,0,12,0"
+                           Text="Hold Ctrl to freeze" />
+                <TextBlock VerticalAlignment="Center"
+                           Foreground="{DynamicResource MutedTextBrush}"
+                           Text="{Binding StatusText}" />
+            </WrapPanel>
+        </Border>
+
+        <Grid Grid.Row="1" Margin="0,10,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="3*" />
+                <ColumnDefinition Width="2*" />
+            </Grid.ColumnDefinitions>
+
+            <GroupBox Grid.Column="0" Header="Technical Live Snapshot" Margin="0,0,6,0">
+                <TextBox Text="{Binding HumanOutput, Mode=OneWay}"
+                         FontFamily="Consolas"
+                         FontSize="13"
+                         IsReadOnly="True"
+                         TextWrapping="NoWrap"
+                         AcceptsReturn="True"
+                         VerticalScrollBarVisibility="Auto"
+                         HorizontalScrollBarVisibility="Auto" />
+            </GroupBox>
+
+            <Grid Grid.Column="1" Margin="6,0,0,0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="3*" />
+                    <RowDefinition Height="2*" />
+                </Grid.RowDefinitions>
+
+                <GroupBox Grid.Row="0" Header="LLM-friendly Block" Margin="0,0,0,6">
+                    <TextBox Text="{Binding LlmOutput, Mode=OneWay}"
+                             FontFamily="Consolas"
+                             FontSize="12"
+                             IsReadOnly="True"
+                             TextWrapping="NoWrap"
+                             AcceptsReturn="True"
+                             VerticalScrollBarVisibility="Auto"
+                             HorizontalScrollBarVisibility="Auto" />
+                </GroupBox>
+
+                <GroupBox Grid.Row="1" Header="JSON" Margin="0,6,0,0">
+                    <TextBox Text="{Binding JsonOutput, Mode=OneWay}"
+                             FontFamily="Consolas"
+                             FontSize="11"
+                             IsReadOnly="True"
+                             TextWrapping="NoWrap"
+                             AcceptsReturn="True"
+                             VerticalScrollBarVisibility="Auto"
+                             HorizontalScrollBarVisibility="Auto" />
+                </GroupBox>
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>

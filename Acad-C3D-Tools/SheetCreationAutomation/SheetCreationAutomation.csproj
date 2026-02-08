@@ -2,13 +2,13 @@
 	<PropertyGroup>
 		<TargetFramework>net8.0-windows</TargetFramework>
 		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
-		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+		<GenerateAssemblyInfo>true</GenerateAssemblyInfo>
 		<UseWindowsForms>true</UseWindowsForms>
 		<UseWPF>true</UseWPF>
 		<ImportWindowsDesktopTargets>true</ImportWindowsDesktopTargets>
 		<Nullable>enable</Nullable>
-		<Platforms>x64</Platforms>
-	</PropertyGroup>
+		<Platforms>x64</Platforms>		
+	</PropertyGroup>	
 	<PropertyGroup>
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 		<AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
@@ -26,10 +26,7 @@
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
 		<OutputPath>bin\Release\</OutputPath>
 		<DebugType>full</DebugType>
-	</PropertyGroup>
-	<PropertyGroup>
-		<RunPostBuildEvent>OnOutputUpdated</RunPostBuildEvent>
-	</PropertyGroup>
+	</PropertyGroup>	
 	<ItemGroup>
 		<Reference Include="accoremgd">
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\accoremgd.dll</HintPath>
@@ -78,8 +75,10 @@
 	<PropertyGroup>
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
 		<GenerateDocumentationFile>True</GenerateDocumentationFile>
+		<AssemblyName>SheetCreationAutomation</AssemblyName>
 	</PropertyGroup>
 	<ItemGroup>
+		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
 		<PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
 		<PackageReference Include="Microsoft.VisualBasic" Version="10.3.0" />
 		<PackageReference Include="System.Data.DataSetExtensions" Version="4.5.0" />

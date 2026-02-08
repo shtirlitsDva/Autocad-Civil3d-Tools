@@ -1,0 +1,75 @@
+<UserControl x:Class="SheetCreationAutomation.UI.DebugVisualTreeControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:SheetCreationAutomation.ViewModels"
+             Background="{DynamicResource BackgroundBrush}">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Theme.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,12">
+            <TextBlock Text="Runtime Window Inspector"
+                       FontSize="18"
+                       FontWeight="SemiBold"
+                       Margin="0,0,0,2" />
+            <TextBlock Text="Inspects Civil 3D runtime HWND tree and UIA patterns."
+                       Style="{StaticResource LabelStyle}"
+                       Margin="0,0,0,8" />
+            <Button Content="Refresh Window Tree"
+                    Command="{Binding RefreshCommand}"
+                    Width="180" />
+        </StackPanel>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*" />
+                <ColumnDefinition Width="12" />
+                <ColumnDefinition Width="3*" />
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0"
+                    CornerRadius="6"
+                    BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="1">
+                <TreeView ItemsSource="{Binding Nodes}" SelectedItemChanged="TreeView_SelectedItemChanged">
+                    <TreeView.ItemTemplate>
+                        <HierarchicalDataTemplate DataType="{x:Type vm:WindowNodeViewModel}"
+                                                  ItemsSource="{Binding Children}">
+                            <TextBlock Text="{Binding Display}" Margin="2,1" />
+                        </HierarchicalDataTemplate>
+                    </TreeView.ItemTemplate>
+                </TreeView>
+            </Border>
+
+            <Border Grid.Column="2"
+                    CornerRadius="6"
+                    BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="1">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <TextBlock Text="{Binding SelectedDetails}"
+                               FontFamily="Consolas"
+                               FontSize="12"
+                               TextWrapping="Wrap"
+                               Margin="8" />
+                </ScrollViewer>
+            </Border>
+        </Grid>
+
+        <TextBlock Grid.Row="2"
+                   Margin="0,8,0,0"
+                   Text="{Binding LastError}"
+                   Foreground="{StaticResource WarningBrush}"
+                   TextWrapping="Wrap" />
+    </Grid>
+</UserControl>

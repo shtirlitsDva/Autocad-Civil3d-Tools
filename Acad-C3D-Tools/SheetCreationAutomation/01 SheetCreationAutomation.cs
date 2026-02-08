@@ -23,6 +23,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using IntersectUtilities;
 using IntersectUtilities.UtilsCommon;
+using SheetCreationAutomation.UI;
 using static IntersectUtilities.UtilsCommon.Utils;
 using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
 using CivSurface = Autodesk.Civil.DatabaseServices.Surface;
@@ -37,13 +38,20 @@ using Microsoft.Win32;
 
 namespace SheetCreationAutomation
 {
-    public class SheetCreationAutomation : IExtensionApplication
+    public class Commands : IExtensionApplication
     {
+        private static SheetAutomationPaletteSet? _paletteSet;
+
         #region IExtensionApplication members
         public void Initialize()
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
             doc.Editor.WriteMessage("\nLoaded Sheet Creation Automation commands.");
+
+#if DEBUG
+            AppDomain.CurrentDomain.AssemblyResolve +=
+        new ResolveEventHandler(Debug.MissingAssemblyLoader.Debug_AssemblyResolveV2);
+#endif
         }
 
         public void Terminate()
@@ -140,10 +148,7 @@ namespace SheetCreationAutomation
 
         /// <command>LISTNUMBEROFVIEWFRAMES</command>
         /// <summary>
-        /// Counts Civil 3D ViewFrames in the current drawing and writes the count to the command line
-        /// and to a temporary text file (%TEMP%\\vfCount.txt). Intended for
-        /// external automation that needs to read the number of generated sheets.
-        /// Critical for sheet production automation.
+        /// Counts Civil 3D ViewFrames in the current drawing and writes the count to the command line.
         /// </summary>
         /// <category>Sheet Production</category>
         [CommandMethod("LISTNUMBEROFVIEWFRAMES")]
@@ -161,10 +166,6 @@ namespace SheetCreationAutomation
                     #region List number of Vframes
                     HashSet<ViewFrame> vfs = localDb.HashSetOfType<ViewFrame>(tx);
                     prdDbg($"Number of VFs: {{{vfs.Count}}}");
-
-                    var path = Environment.ExpandEnvironmentVariables("%temp%");
-                    string fileName = path + "\\vfCount.txt";
-                    File.WriteAllText(fileName, vfs.Count.ToString());
 
                     System.Windows.Forms.Application.DoEvents();
 
@@ -275,6 +276,26 @@ namespace SheetCreationAutomation
                 }
                 tx.Commit();
             }
-        }        
+        }
+
+        /// <command>SCAUI</command>
+        /// <summary>
+        /// Opens the Sheet Creation Automation palette for native View Frame automation.
+        /// </summary>
+        /// <category>Sheet Production</category>
+        [CommandMethod("SCAUI", CommandFlags.Session)]
+        public void openSheetCreationAutomationUi()
+        {
+            try
+            {
+                AcContext.Current = System.Threading.SynchronizationContext.Current;
+                _paletteSet ??= new SheetAutomationPaletteSet();
+                _paletteSet.Visible = true;
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg(ex);
+            }
+        }
     }
 }
