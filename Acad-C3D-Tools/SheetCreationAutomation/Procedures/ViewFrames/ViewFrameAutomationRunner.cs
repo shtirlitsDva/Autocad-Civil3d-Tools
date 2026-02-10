@@ -1,5 +1,7 @@
 using Autodesk.AutoCAD.ApplicationServices;
 using SheetCreationAutomation.Models;
+using SheetCreationAutomation.Procedures.Common;
+using SheetCreationAutomation.Services;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -7,23 +9,22 @@ using System.Threading;
 using System.Threading.Tasks;
 using AcApp = Autodesk.AutoCAD.ApplicationServices.Application;
 
-namespace SheetCreationAutomation.Services
+namespace SheetCreationAutomation.Procedures.ViewFrames
 {
-    internal sealed class ViewFrameAutomationRunner : IViewFrameAutomationRunner
+    internal sealed class ViewFrameAutomationRunner : DrawingAutomationRunnerBase
     {
-        private readonly IViewFrameCountService viewFrameCountService;
-        private readonly IWizardUiDriver wizardUiDriver;
-        private readonly AutomationWaiter waiter;
+        private readonly ViewFrameCountService viewFrameCountService;
+        private readonly Civil3dWizardUiDriver wizardUiDriver;
 
         public ViewFrameAutomationRunner(
-            IViewFrameCountService viewFrameCountService,
-            IWizardUiDriver wizardUiDriver,
+            ViewFrameCountService viewFrameCountService,
+            Civil3dWizardUiDriver wizardUiDriver,
             WaitPolicy waitPolicy,
             IWaitOverlayPresenter overlayPresenter)
+            : base(waitPolicy, overlayPresenter)
         {
             this.viewFrameCountService = viewFrameCountService;
             this.wizardUiDriver = wizardUiDriver;
-            waiter = new AutomationWaiter(waitPolicy, overlayPresenter);
         }
 
         public async Task<AutomationRunResult> RunAsync(
@@ -31,16 +32,11 @@ namespace SheetCreationAutomation.Services
             IProgress<string> progress,
             CancellationToken cancellationToken)
         {
-            // TEMP DEBUG MODE:
-            // - Run only the first drawing in the list
-            // - Close drawing without saving changes
-            const bool debugFirstDrawingOnly = true;
-            const bool debugCloseWithoutSaving = true;
-
             int nextCounter = context.NextViewFrameCounterNumber;
             string activeFile = string.Empty;
             string activeStep = string.Empty;
             Stopwatch activeStepStopwatch = new Stopwatch();
+            string? hardFailureMessage = null;
 
             try
             {
@@ -48,12 +44,6 @@ namespace SheetCreationAutomation.Services
                 {
                     for (int index = 0; index < context.DrawingPaths.Count; index++)
                     {
-                        if (debugFirstDrawingOnly && index > 0)
-                        {
-                            progress.Report("[DEBUG] First-drawing mode active. Stopping before next drawing.");
-                            break;
-                        }
-
                         cancellationToken.ThrowIfCancellationRequested();
 
                         string drawingPath = context.DrawingPaths[index];
@@ -68,12 +58,15 @@ namespace SheetCreationAutomation.Services
                         activeStepStopwatch.Restart();
                         int beforeCount = viewFrameCountService.GetViewFrameCount(doc.Database);
                         activeStepStopwatch.Stop();
+                        progress.Report($"DEBUG: before view-frame count={beforeCount}");
 
                         if (beforeCount > 0)
                         {
-                            throw new InvalidOperationException(
+                            hardFailureMessage =
                                 $"Drawing already contains {beforeCount} view frame(s). " +
-                                "This run requires zero pre-existing view frames.");
+                                "This run requires zero pre-existing view frames.";
+                            activeStep = "Pre-check view frame count";
+                            return;
                         }
 
                         activeStep = "Launch _aecccreateviewframes";
@@ -88,7 +81,7 @@ namespace SheetCreationAutomation.Services
                             {
                                 IsFirstFile = index == 0,
                                 PlanOnly = context.PlanOnly,
-                                TemplateFileName = context.TemplateFileName,
+                                TemplateFilePath = context.TemplateFilePath,
                                 NextViewFrameCounterNumber = nextCounter,
                                 ViewOverlap = context.ViewOverlap
                             },
@@ -105,13 +98,17 @@ namespace SheetCreationAutomation.Services
                         activeStepStopwatch.Restart();
                         int afterCount = viewFrameCountService.GetViewFrameCount(doc.Database);
                         activeStepStopwatch.Stop();
+                        progress.Report($"DEBUG: after view-frame count={afterCount}");
 
                         int delta = afterCount - beforeCount;
+                        progress.Report($"DEBUG: view-frame delta={delta}");
                         if (delta <= 0)
                         {
-                            throw new InvalidOperationException(
+                            hardFailureMessage =
                                 $"No new view frames detected in drawing '{Path.GetFileName(drawingPath)}'. " +
-                                $"Before={beforeCount}, After={afterCount}.");
+                                $"Before={beforeCount}, After={afterCount}.";
+                            activeStep = "Post-check view frame count";
+                            return;
                         }
 
                         nextCounter += delta;
@@ -119,23 +116,30 @@ namespace SheetCreationAutomation.Services
                             $"[{index + 1}/{context.DrawingPaths.Count}] " +
                             $"Created {delta} view frame(s), next counter = {nextCounter}.");
 
-                        activeStep = debugCloseWithoutSaving
-                            ? "Close drawing without saving (debug)"
-                            : "Save and close drawing";
+                        activeStep = "Save and close drawing";
                         activeStepStopwatch.Restart();
-                        if (debugCloseWithoutSaving)
-                        {
-                            doc.CloseAndDiscard();
-                            progress.Report("[DEBUG] Closed drawing without saving.");
-                        }
-                        else
-                        {
-                            string fullPath = doc.Name;
-                            doc.CloseAndSave(fullPath);
-                        }
+                        string fullPath = doc.Name;
+                        doc.CloseAndSave(fullPath);
                         activeStepStopwatch.Stop();
                     }
                 }, null);
+
+                if (!string.IsNullOrWhiteSpace(hardFailureMessage))
+                {
+                    return new AutomationRunResult
+                    {
+                        Succeeded = false,
+                        FinalNextViewFrameCounter = nextCounter,
+                        Failure = new AutomationFailureInfo
+                        {
+                            DrawingPath = activeFile,
+                            StepName = activeStep,
+                            Elapsed = activeStepStopwatch.Elapsed,
+                            Message = hardFailureMessage,
+                            SelectorSnapshot = wizardUiDriver.LastSelectorSnapshot
+                        }
+                    };
+                }
 
                 return new AutomationRunResult
                 {
@@ -165,40 +169,5 @@ namespace SheetCreationAutomation.Services
             }
         }
 
-        private async Task WaitForDocumentActiveAsync(Document doc, CancellationToken cancellationToken)
-        {
-            RequestDocumentActivation(doc);
-
-            await waiter.WaitUntilAsync($"Document active: {Path.GetFileName(doc.Name)}", () =>
-            {
-                if (AcApp.DocumentManager.MdiActiveDocument == doc)
-                {
-                    return true;
-                }
-
-                RequestDocumentActivation(doc);
-                return false;
-            }, cancellationToken);
-        }
-
-        private static void RequestDocumentActivation(Document doc)
-        {
-            if (AcApp.DocumentManager.MdiActiveDocument == doc)
-            {
-                return;
-            }
-
-            AcApp.DocumentManager.MdiActiveDocument = doc;
-        }
-
-        private async Task WaitForIdleAsync(CancellationToken cancellationToken)
-        {
-            await waiter.WaitUntilAsync("AutoCAD command idle", () =>
-            {
-                object? cmdNames = AcApp.GetSystemVariable("CMDNAMES");
-                string activeCommands = cmdNames?.ToString() ?? string.Empty;
-                return string.IsNullOrWhiteSpace(activeCommands);
-            }, cancellationToken);
-        }
     }
 }

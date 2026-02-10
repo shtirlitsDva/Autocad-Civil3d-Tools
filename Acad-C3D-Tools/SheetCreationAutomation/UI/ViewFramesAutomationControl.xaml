@@ -131,7 +131,7 @@
                 </Grid.ColumnDefinitions>
                 <Button Grid.Column="0"
                         Style="{StaticResource PrimaryButton}"
-                        Content="START VIEW FRAME AUTOMATION"
+                        Content="START"
                         FontSize="14"
                         Height="44"
                         Command="{Binding StartScriptCommand}" />

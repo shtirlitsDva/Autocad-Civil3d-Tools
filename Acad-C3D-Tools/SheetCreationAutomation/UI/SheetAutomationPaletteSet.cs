@@ -22,9 +22,13 @@ namespace SheetCreationAutomation.UI
 
             var viewFramesVm = new ViewFramesAutomationViewModel();
             var viewFramesControl = new ViewFramesAutomationControl(viewFramesVm);
+            var sheetsControl = new SheetsAutomationControl(new SheetsAutomationViewModel());
+            var finalizeControl = new FinalizeAutomationControl(new FinalizeAutomationViewModel());
             var debugControl = new DebugVisualTreeControl(new DebugVisualTreeViewModel());
 
             AddVisual("VIEW FRAMES", viewFramesControl);
+            AddVisual("SHEETS", sheetsControl);
+            AddVisual("FINALIZE", finalizeControl);
             AddVisual("DEBUG", debugControl);
             Activate(0);
         }

@@ -18,6 +18,13 @@ namespace SheetCreationAutomation.Services
         }
 
         public async Task WaitUntilAsync(string stepName, Func<bool> condition, CancellationToken cancellationToken)
+            => await WaitUntilAsync(stepName, condition, cancellationToken, continueOnCapturedContext: true);
+
+        public async Task WaitUntilAsync(
+            string stepName,
+            Func<bool> condition,
+            CancellationToken cancellationToken,
+            bool continueOnCapturedContext)
         {
             Stopwatch sw = Stopwatch.StartNew();
 
@@ -42,7 +49,8 @@ namespace SheetCreationAutomation.Services
                         overlayPresenter.Show(stepName, sw.Elapsed);
                     }
 
-                    await Task.Delay(waitPolicy.PollInterval, cancellationToken);
+                    await Task.Delay(waitPolicy.PollInterval, cancellationToken)
+                        .ConfigureAwait(continueOnCapturedContext);
                 }
             }
             finally

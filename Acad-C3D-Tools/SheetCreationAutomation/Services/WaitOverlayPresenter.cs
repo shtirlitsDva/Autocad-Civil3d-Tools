@@ -1,7 +1,9 @@
 using System;
 using System.Drawing;
+using System.Threading;
 using System.Windows.Forms;
 using AcApp = Autodesk.AutoCAD.ApplicationServices.Application;
+using SheetCreationAutomation.UI;
 
 namespace SheetCreationAutomation.Services
 {
@@ -16,30 +18,36 @@ namespace SheetCreationAutomation.Services
 
         public void Show(string stepName, TimeSpan elapsed)
         {
-            EnsureForm();
-            if (overlayForm == null || overlayForm.IsDisposed)
-            {
-                return;
-            }
-
             string message =
                 "AUTOMATION WAIT\n" +
                 $"Step: {stepName}\n" +
                 $"Elapsed: {elapsed:hh\\:mm\\:ss}\n" +
                 $"Updated: {DateTime.Now:HH:mm:ss}";
 
-            overlayForm.SafeSetMessage(message);
-            overlayForm.SafeShow();
+            RunOnCadUiContext(() =>
+            {
+                EnsureForm();
+                if (overlayForm == null || overlayForm.IsDisposed)
+                {
+                    return;
+                }
+
+                overlayForm.SafeSetMessage(message);
+                overlayForm.SafeShow();
+            });
         }
 
         public void Hide()
         {
-            if (overlayForm == null || overlayForm.IsDisposed)
+            RunOnCadUiContext(() =>
             {
-                return;
-            }
+                if (overlayForm == null || overlayForm.IsDisposed)
+                {
+                    return;
+                }
 
-            overlayForm.SafeHide();
+                overlayForm.SafeHide();
+            });
         }
 
         private void EnsureForm()
@@ -60,6 +68,18 @@ namespace SheetCreationAutomation.Services
             overlayForm.Location = new Point(
                 Math.Max(bounds.Left + ScreenMargin, bounds.Right - overlayForm.Width - ScreenMargin),
                 Math.Max(bounds.Top + ScreenMargin, bounds.Top + ScreenMargin));
+        }
+
+        private static void RunOnCadUiContext(Action action)
+        {
+            SynchronizationContext? context = AcContext.Current;
+            if (context == null || SynchronizationContext.Current == context)
+            {
+                action();
+                return;
+            }
+
+            context.Post(_ => action(), null);
         }
 
         private sealed class OverlayForm : Form

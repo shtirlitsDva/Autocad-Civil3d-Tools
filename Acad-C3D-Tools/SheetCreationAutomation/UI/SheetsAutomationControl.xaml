@@ -1,0 +1,132 @@
+<UserControl x:Class="SheetCreationAutomation.UI.SheetsAutomationControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="{DynamicResource BackgroundBrush}">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Theme.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="16">
+            <TextBlock Text="Sheet Creation Automation"
+                       FontSize="20"
+                       FontWeight="SemiBold"
+                       Margin="0,0,0,2" />
+            <TextBlock Text="Civil 3D native automation  ·  Step 2"
+                       Style="{StaticResource LabelStyle}"
+                       Margin="0,0,0,16" />
+
+            <GroupBox Header="Workflow">
+                <TextBlock TextWrapping="Wrap" LineHeight="22"
+                           Foreground="{StaticResource ForegroundMutedBrush}">
+                    <Run Foreground="{StaticResource AccentBrush}" Text="1."/><Run Text=" Open Civil 3D."/><LineBreak/>
+                    <Run Foreground="{StaticResource WarningBrush}" Text="1a."/><Run Text=" Open empty drawing and set DYNMODE to 3."/><LineBreak/>
+                    <Run Foreground="{StaticResource AccentBrush}" Text="2."/><Run Text=" Select the same View Frame folder used in step 1."/><LineBreak/>
+                    <Run Foreground="{StaticResource AccentBrush}" Text="3."/><Run Text=" Configure file list, sheet set and profile origin coordinates."/>
+                </TextBlock>
+            </GroupBox>
+
+            <GroupBox Header="Plan/Profile">
+                <CheckBox IsChecked="{Binding PlanOnly, Mode=TwoWay}"
+                          Content="Plan only (no profile views)"
+                          Margin="0,2,0,0" />
+            </GroupBox>
+
+            <GroupBox Header="View Frame Folder">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Button Content="Select folder"
+                            Command="{Binding BrowseFolderCommand}"
+                            Padding="12,6" />
+                    <TextBox Grid.Column="1"
+                             Text="{Binding ViewFrameFolder, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             IsReadOnly="True"
+                             Margin="8,0,0,0" />
+                </Grid>
+            </GroupBox>
+
+            <GroupBox Header="fileList.txt">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Button Content="Create file list"
+                            Command="{Binding CreateFileListCommand}"
+                            Padding="12,6" />
+                    <TextBox Grid.Column="1"
+                             Text="{Binding FileListStatus, Mode=OneWay}"
+                             IsReadOnly="True"
+                             Cursor="Hand"
+                             Margin="8,0,0,0"
+                             ToolTip="Click to open in Notepad">
+                        <TextBox.InputBindings>
+                            <MouseBinding MouseAction="LeftClick"
+                                          Command="{Binding OpenFileListCommand}" />
+                        </TextBox.InputBindings>
+                    </TextBox>
+                </Grid>
+            </GroupBox>
+
+            <GroupBox Header="Sheet Set location">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Button Content="Select Sheet Set"
+                            Command="{Binding SelectSheetSetCommand}"
+                            Padding="12,6" />
+                    <TextBox Grid.Column="1"
+                             Text="{Binding SheetSetLocation, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             IsReadOnly="True"
+                             Margin="8,0,0,0" />
+                </Grid>
+            </GroupBox>
+
+            <GroupBox Header="Profile View Origin coordinates">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Input coordinates (X,Y):"
+                               VerticalAlignment="Center"
+                               Foreground="{StaticResource ForegroundMutedBrush}"
+                               Margin="0,0,12,0" />
+                    <TextBox Text="{Binding Coordinates, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             PreviewTextInput="CoordinatesOnly_PreviewTextInput"
+                             Width="200"
+                             TextAlignment="Right" />
+                </StackPanel>
+            </GroupBox>
+
+            <TextBlock Text="{Binding LastStatus}"
+                       TextWrapping="Wrap"
+                       Foreground="{StaticResource WarningBrush}"
+                       Margin="0,4,0,12" />
+            <Grid Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="8" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Button Grid.Column="0"
+                    Style="{StaticResource PrimaryButton}"
+                    Content="START"                  
+                    FontSize="14"
+                    Height="44"
+                    Command="{Binding StartSheetsScriptCommand}" />
+                <Button Grid.Column="2"
+                    Style="{StaticResource DangerButton}"
+                    Content="CANCEL"
+                    FontSize="14"
+                    Height="44"
+                    Command="{Binding CancelScriptCommand}" />
+            </Grid>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

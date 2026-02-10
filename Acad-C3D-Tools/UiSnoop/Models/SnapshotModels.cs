@@ -10,6 +10,26 @@ internal sealed record SnoopRenderResult
     public string JsonOutput { get; init; } = string.Empty;
 }
 
+internal enum InspectorAction
+{
+    Focus = 0,
+    SetText = 1,
+    SendEnterSendMessage = 2,
+    SendEnterPostMessage = 3,
+    SendEnterSendInput = 4,
+    NotifyEnUpdate = 5,
+    NotifyEnChange = 6,
+    NotifyEnKillFocus = 7,
+    SendDialogIdOk = 8,
+    ClickButton = 9
+}
+
+internal sealed record InspectorActionResult
+{
+    public bool Succeeded { get; init; }
+    public string Message { get; init; } = string.Empty;
+}
+
 internal sealed record SnapshotData
 {
     public string TimestampLocal { get; init; } = string.Empty;

@@ -14,6 +14,7 @@ set "PROJECT_PATH=%SCRIPT_DIR%Acad-C3D-Tools\SheetCreationAutomation\SheetCreati
 set "NUGET_CONFIG=%SCRIPT_DIR%sheetcreationautomation.nuget.config"
 set "NUGET_PACKAGES=C:\Users\mgo\.nuget\packages"
 set "RESTORE_SOURCES=https://api.nuget.org/v3/index.json;C:\Program Files (x86)\Microsoft SDKs\NuGetPackages\"
+set "BUILD_LOG=%TEMP%\sheetcreationautomation-build.log"
 
 REM Configuration and platform
 set "CONFIGURATION=Debug"
@@ -33,17 +34,20 @@ echo.
 echo Building SheetCreationAutomation...
 echo ==================================
 
-"%MSBUILD_PATH%" "%PROJECT_PATH%" /t:Build /p:Configuration=%CONFIGURATION% /p:Platform=%PLATFORM% /p:RestoreIgnoreFailedSources=true /p:RestoreSources="%RESTORE_SOURCES%" /p:RestoreConfigFile=%NUGET_CONFIG% /p:NuGetConfigFile=%NUGET_CONFIG% /clp:ErrorsOnly;Summary
+if exist "%BUILD_LOG%" del "%BUILD_LOG%" >nul 2>&1
+"%MSBUILD_PATH%" "%PROJECT_PATH%" /t:Build /nologo /v:m /p:Configuration=%CONFIGURATION% /p:Platform=%PLATFORM% /p:RestoreIgnoreFailedSources=true /p:RestoreSources="%RESTORE_SOURCES%" /p:RestoreConfigFile=%NUGET_CONFIG% /p:NuGetConfigFile=%NUGET_CONFIG% > "%BUILD_LOG%" 2>&1
 set "EXITCODE=%ERRORLEVEL%"
 
 echo.
 if %EXITCODE% NEQ 0 (
+    findstr /R /I /C:": error " "%BUILD_LOG%"
     echo Build failed. See errors above.
 ) else (
     echo Build completed successfully.
 )
 
 if exist "%NUGET_CONFIG%" del "%NUGET_CONFIG%" >nul 2>&1
+if exist "%BUILD_LOG%" del "%BUILD_LOG%" >nul 2>&1
 
 endlocal
 exit /b %EXITCODE%

@@ -31,6 +31,55 @@ internal sealed class UiSnoopCaptureService : IUiSnoopCaptureService
         Clipboard.SetText(text ?? string.Empty);
     }
 
+    public WindowInfo InspectHandle(IntPtr hwnd) => CaptureWindowInfo(hwnd);
+
+    public InspectorActionResult ExecuteInspectorAction(IntPtr targetHwnd, InspectorAction action, string textPayload)
+    {
+        if (targetHwnd == IntPtr.Zero || !IsWindow(targetHwnd))
+        {
+            return new InspectorActionResult
+            {
+                Succeeded = false,
+                Message = "Target HWND is not a valid window."
+            };
+        }
+
+        IntPtr parent = GetParent(targetHwnd);
+        int controlId = GetDlgCtrlID(targetHwnd);
+        string className = GetClassNameRaw(targetHwnd);
+        string title = GetWindowTextRaw(targetHwnd);
+
+        try
+        {
+            return action switch
+            {
+                InspectorAction.Focus => ExecuteFocus(targetHwnd),
+                InspectorAction.SetText => ExecuteSetText(targetHwnd, textPayload),
+                InspectorAction.SendEnterSendMessage => ExecuteEnterSendMessage(targetHwnd),
+                InspectorAction.SendEnterPostMessage => ExecuteEnterPostMessage(targetHwnd),
+                InspectorAction.SendEnterSendInput => ExecuteEnterSendInput(targetHwnd),
+                InspectorAction.NotifyEnUpdate => ExecuteNotifyCommand(parent, targetHwnd, controlId, EN_UPDATE, "EN_UPDATE"),
+                InspectorAction.NotifyEnChange => ExecuteNotifyCommand(parent, targetHwnd, controlId, EN_CHANGE, "EN_CHANGE"),
+                InspectorAction.NotifyEnKillFocus => ExecuteNotifyCommand(parent, targetHwnd, controlId, EN_KILLFOCUS, "EN_KILLFOCUS"),
+                InspectorAction.SendDialogIdOk => ExecuteSendDialogIdOk(parent),
+                InspectorAction.ClickButton => ExecuteClickButton(targetHwnd),
+                _ => new InspectorActionResult
+                {
+                    Succeeded = false,
+                    Message = $"Unsupported action: {action}."
+                }
+            };
+        }
+        catch (Exception ex)
+        {
+            return new InspectorActionResult
+            {
+                Succeeded = false,
+                Message = $"Action failed ({action}) on hwnd={ToHex(targetHwnd)}, class={className}, title='{title}': {ex.Message}"
+            };
+        }
+    }
+
     private static SnapshotData CaptureSnapshot(bool followMouse)
     {
         _ = GetCursorPos(out POINT cursor);
@@ -92,12 +141,23 @@ internal sealed class UiSnoopCaptureService : IUiSnoopCaptureService
         };
     }
 
-    private static IntPtr ResolveControlUnderPoint(IntPtr rootWindow, POINT screenPoint, IntPtr fallbackHandle)
+    private static IntPtr ResolveControlUnderPoint(IntPtr rootWindow, POINT screenPoint, IntPtr windowFromPointHandle)
     {
-        IntPtr deepest = GetDeepestChildAtPoint(rootWindow, screenPoint);
-        if (deepest != IntPtr.Zero)
+        if (windowFromPointHandle != IntPtr.Zero && IsDescendantOf(rootWindow, windowFromPointHandle))
         {
-            return deepest;
+            return windowFromPointHandle;
+        }
+
+        IntPtr deepestByChild = GetDeepestChildAtPoint(rootWindow, screenPoint);
+        if (deepestByChild != IntPtr.Zero)
+        {
+            return deepestByChild;
+        }
+
+        IntPtr deepestBySkip = GetDeepestChildAtPointSkipTransparent(rootWindow, screenPoint);
+        if (deepestBySkip != IntPtr.Zero)
+        {
+            return deepestBySkip;
         }
 
         IntPtr uiaHandle = TryGetAutomationWindowHandleAtPoint(screenPoint);
@@ -106,7 +166,7 @@ internal sealed class UiSnoopCaptureService : IUiSnoopCaptureService
             return uiaHandle;
         }
 
-        return fallbackHandle;
+        return windowFromPointHandle;
     }
 
     private static IntPtr GetDeepestChildAtPoint(IntPtr rootWindow, POINT screenPoint)
@@ -135,6 +195,59 @@ internal sealed class UiSnoopCaptureService : IUiSnoopCaptureService
         }
 
         return current;
+    }
+
+    private static IntPtr GetDeepestChildAtPointSkipTransparent(IntPtr rootWindow, POINT screenPoint)
+    {
+        if (rootWindow == IntPtr.Zero)
+        {
+            return IntPtr.Zero;
+        }
+
+        IntPtr current = rootWindow;
+        for (int i = 0; i < 64; i++)
+        {
+            POINT clientPoint = screenPoint;
+            if (!ScreenToClient(current, ref clientPoint))
+            {
+                break;
+            }
+
+            IntPtr child = ChildWindowFromPointEx(
+                current,
+                clientPoint,
+                CwpSkipInvisible | CwpSkipDisabled | CwpSkipTransparent);
+
+            if (child == IntPtr.Zero || child == current || !IsWindow(child))
+            {
+                break;
+            }
+
+            current = child;
+        }
+
+        return current;
+    }
+
+    private static bool IsDescendantOf(IntPtr root, IntPtr candidate)
+    {
+        if (root == IntPtr.Zero || candidate == IntPtr.Zero)
+        {
+            return false;
+        }
+
+        IntPtr current = candidate;
+        while (current != IntPtr.Zero)
+        {
+            if (current == root)
+            {
+                return true;
+            }
+
+            current = GetParent(current);
+        }
+
+        return false;
     }
 
     private static IntPtr TryGetAutomationWindowHandleAtPoint(POINT screenPoint)
@@ -293,39 +406,7 @@ internal sealed class UiSnoopCaptureService : IUiSnoopCaptureService
             return className + ordinal;
         }
 
-        // Fallback: old parent-scoped ordinal when root-scoped enumeration cannot locate the control.
-        IntPtr parent = GetParent(hwnd);
-        if (parent == IntPtr.Zero)
-        {
-            return className + "1";
-        }
-
-        ordinal = 0;
-        EnumChildWindows(parent, (child, _) =>
-        {
-            if (GetParent(child) != parent)
-            {
-                return true;
-            }
-
-            if (string.Equals(GetClassNameRaw(child), className, StringComparison.OrdinalIgnoreCase))
-            {
-                ordinal++;
-                if (child == hwnd)
-                {
-                    return false;
-                }
-            }
-
-            return true;
-        }, IntPtr.Zero);
-
-        if (ordinal <= 0)
-        {
-            ordinal = 1;
-        }
-
-        return className + ordinal;
+        return className + "1";
     }
 
     private static TextCollection CollectWindowTexts(IntPtr root, bool visibleOnly, int maxLines)
@@ -675,6 +756,233 @@ internal sealed class UiSnoopCaptureService : IUiSnoopCaptureService
 
     private static string ToHex(IntPtr handle) => $"0x{handle.ToInt64():X}";
 
+    private static InspectorActionResult ExecuteFocus(IntPtr targetHwnd)
+    {
+        bool focused = FocusWindow(targetHwnd, out string detail);
+        return new InspectorActionResult
+        {
+            Succeeded = focused,
+            Message = $"{(focused ? "OK" : "FAIL")} Focus target {ToHex(targetHwnd)}. {detail}"
+        };
+    }
+
+    private static InspectorActionResult ExecuteSetText(IntPtr targetHwnd, string textPayload)
+    {
+        bool focused = FocusWindow(targetHwnd, out string detail);
+        IntPtr result = SendMessage(targetHwnd, WM_SETTEXT, IntPtr.Zero, textPayload ?? string.Empty);
+        return new InspectorActionResult
+        {
+            Succeeded = focused,
+            Message = $"OK WM_SETTEXT -> {ToHex(targetHwnd)} text='{textPayload}'. focus={focused}. detail='{detail}'. result=0x{result.ToInt64():X}"
+        };
+    }
+
+    private static InspectorActionResult ExecuteEnterSendMessage(IntPtr targetHwnd)
+    {
+        _ = FocusWindow(targetHwnd, out string detail);
+        SendEnterWithSendMessage(targetHwnd);
+        return new InspectorActionResult
+        {
+            Succeeded = true,
+            Message = $"OK Enter via SendMessage -> {ToHex(targetHwnd)}. {detail}"
+        };
+    }
+
+    private static InspectorActionResult ExecuteEnterPostMessage(IntPtr targetHwnd)
+    {
+        _ = FocusWindow(targetHwnd, out string detail);
+        SendEnterWithPostMessage(targetHwnd);
+        return new InspectorActionResult
+        {
+            Succeeded = true,
+            Message = $"OK Enter via PostMessage -> {ToHex(targetHwnd)}. {detail}"
+        };
+    }
+
+    private static InspectorActionResult ExecuteEnterSendInput(IntPtr targetHwnd)
+    {
+        bool focused = FocusWindow(targetHwnd, out string detail);
+        uint sent = SendEnterWithSendInput();
+        bool ok = focused && sent >= 2;
+        return new InspectorActionResult
+        {
+            Succeeded = ok,
+            Message = $"{(ok ? "OK" : "FAIL")} Enter via SendInput -> {ToHex(targetHwnd)}. Sent={sent}/2. {detail}"
+        };
+    }
+
+    private static InspectorActionResult ExecuteNotifyCommand(
+        IntPtr parent,
+        IntPtr targetHwnd,
+        int controlId,
+        int notificationCode,
+        string notificationName)
+    {
+        if (parent == IntPtr.Zero)
+        {
+            return new InspectorActionResult
+            {
+                Succeeded = false,
+                Message = $"FAIL {notificationName}: parent dialog not found for target {ToHex(targetHwnd)}."
+            };
+        }
+
+        IntPtr wParam = MakeWParam(controlId, notificationCode);
+        IntPtr result = SendMessage(parent, WM_COMMAND, wParam, targetHwnd);
+        return new InspectorActionResult
+        {
+            Succeeded = true,
+            Message = $"OK WM_COMMAND {notificationName} -> parent={ToHex(parent)}, control={ToHex(targetHwnd)}, id={controlId}, result=0x{result.ToInt64():X}"
+        };
+    }
+
+    private static InspectorActionResult ExecuteSendDialogIdOk(IntPtr parent)
+    {
+        if (parent == IntPtr.Zero)
+        {
+            return new InspectorActionResult
+            {
+                Succeeded = false,
+                Message = "FAIL IDOK: parent dialog not found."
+            };
+        }
+
+        IntPtr result = SendMessage(parent, WM_COMMAND, MakeWParam(IdOk, 0), IntPtr.Zero);
+        return new InspectorActionResult
+        {
+            Succeeded = true,
+            Message = $"OK WM_COMMAND IDOK -> parent={ToHex(parent)}, result=0x{result.ToInt64():X}"
+        };
+    }
+
+    private static InspectorActionResult ExecuteClickButton(IntPtr targetHwnd)
+    {
+        IntPtr result = SendMessage(targetHwnd, BM_CLICK, IntPtr.Zero, IntPtr.Zero);
+        return new InspectorActionResult
+        {
+            Succeeded = true,
+            Message = $"OK BM_CLICK -> {ToHex(targetHwnd)} result=0x{result.ToInt64():X}"
+        };
+    }
+
+    private static bool FocusWindow(IntPtr targetHwnd, out string detail)
+    {
+        IntPtr root = GetAncestor(targetHwnd, GA_ROOT);
+        if (root == IntPtr.Zero)
+        {
+            root = targetHwnd;
+        }
+
+        uint currentTid = GetCurrentThreadId();
+        uint targetTid = GetWindowThreadProcessId(root, out _);
+        bool attached = false;
+        try
+        {
+            if (currentTid != targetTid && targetTid != 0)
+            {
+                attached = AttachThreadInput(currentTid, targetTid, true);
+            }
+
+            _ = SetForegroundWindow(root);
+            _ = SetActiveWindow(root);
+            IntPtr parent = GetParent(targetHwnd);
+            if (parent != IntPtr.Zero)
+            {
+                _ = SendMessage(parent, WM_NEXTDLGCTL, targetHwnd, new IntPtr(1));
+            }
+
+            IntPtr previous = SetFocus(targetHwnd);
+            detail = $"root={ToHex(root)}, previousFocus={ToHex(previous)}, tid(current={currentTid}, target={targetTid}, attached={attached})";
+            return true;
+        }
+        finally
+        {
+            if (attached)
+            {
+                _ = AttachThreadInput(currentTid, targetTid, false);
+            }
+        }
+    }
+
+    private static void SendEnterWithSendMessage(IntPtr targetHwnd)
+    {
+        uint scanCode = MapVirtualKey((uint)VkReturn, MapvkVkToVsc);
+        IntPtr keyDownLParam = BuildKeyLParam(scanCode, isKeyUp: false);
+        IntPtr keyUpLParam = BuildKeyLParam(scanCode, isKeyUp: true);
+
+        _ = SendMessage(targetHwnd, WM_KEYDOWN, new IntPtr(VkReturn), keyDownLParam);
+        _ = SendMessage(targetHwnd, WM_CHAR, new IntPtr(VkReturn), keyDownLParam);
+        _ = SendMessage(targetHwnd, WM_KEYUP, new IntPtr(VkReturn), keyUpLParam);
+    }
+
+    private static void SendEnterWithPostMessage(IntPtr targetHwnd)
+    {
+        uint scanCode = MapVirtualKey((uint)VkReturn, MapvkVkToVsc);
+        IntPtr keyDownLParam = BuildKeyLParam(scanCode, isKeyUp: false);
+        IntPtr keyUpLParam = BuildKeyLParam(scanCode, isKeyUp: true);
+
+        _ = PostMessage(targetHwnd, WM_KEYDOWN, new IntPtr(VkReturn), keyDownLParam);
+        _ = PostMessage(targetHwnd, WM_CHAR, new IntPtr(VkReturn), keyDownLParam);
+        _ = PostMessage(targetHwnd, WM_KEYUP, new IntPtr(VkReturn), keyUpLParam);
+    }
+
+    private static uint SendEnterWithSendInput()
+    {
+        INPUT[] inputs =
+        [
+            new INPUT
+            {
+                type = InputKeyboard,
+                U = new InputUnion
+                {
+                    ki = new KEYBDINPUT
+                    {
+                        wVk = VkReturn,
+                        wScan = 0,
+                        dwFlags = 0,
+                        time = 0,
+                        dwExtraInfo = IntPtr.Zero
+                    }
+                }
+            },
+            new INPUT
+            {
+                type = InputKeyboard,
+                U = new InputUnion
+                {
+                    ki = new KEYBDINPUT
+                    {
+                        wVk = VkReturn,
+                        wScan = 0,
+                        dwFlags = KeyeventfKeyup,
+                        time = 0,
+                        dwExtraInfo = IntPtr.Zero
+                    }
+                }
+            }
+        ];
+
+        return SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<INPUT>());
+    }
+
+    private static IntPtr BuildKeyLParam(uint scanCode, bool isKeyUp)
+    {
+        long value = 1L | ((long)scanCode << 16);
+        if (isKeyUp)
+        {
+            value |= 1L << 30;
+            value |= 1L << 31;
+        }
+
+        return new IntPtr(value);
+    }
+
+    private static IntPtr MakeWParam(int lowWord, int highWord)
+    {
+        long value = ((long)highWord << 16) | ((long)lowWord & 0xFFFF);
+        return new IntPtr(value);
+    }
+
     private static string GetWindowTextRaw(IntPtr hwnd)
     {
         var sb = new StringBuilder(2048);
@@ -690,6 +998,24 @@ internal sealed class UiSnoopCaptureService : IUiSnoopCaptureService
     }
 
     private const uint GA_ROOT = 2;
+    private const uint CwpSkipInvisible = 0x0001;
+    private const uint CwpSkipDisabled = 0x0002;
+    private const uint CwpSkipTransparent = 0x0004;
+    private const uint WM_SETTEXT = 0x000C;
+    private const uint WM_COMMAND = 0x0111;
+    private const uint WM_NEXTDLGCTL = 0x0028;
+    private const uint WM_KEYDOWN = 0x0100;
+    private const uint WM_KEYUP = 0x0101;
+    private const uint WM_CHAR = 0x0102;
+    private const uint BM_CLICK = 0x00F5;
+    private const int EN_KILLFOCUS = 0x0200;
+    private const int EN_CHANGE = 0x0300;
+    private const int EN_UPDATE = 0x0400;
+    private const int IdOk = 1;
+    private const ushort VkReturn = 0x0D;
+    private const uint MapvkVkToVsc = 0;
+    private const uint InputKeyboard = 1;
+    private const uint KeyeventfKeyup = 0x0002;
 
     [StructLayout(LayoutKind.Sequential)]
     private struct POINT
@@ -707,6 +1033,30 @@ internal sealed class UiSnoopCaptureService : IUiSnoopCaptureService
         public int Bottom;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    private struct INPUT
+    {
+        public uint type;
+        public InputUnion U;
+    }
+
+    [StructLayout(LayoutKind.Explicit)]
+    private struct InputUnion
+    {
+        [FieldOffset(0)]
+        public KEYBDINPUT ki;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct KEYBDINPUT
+    {
+        public ushort wVk;
+        public ushort wScan;
+        public uint dwFlags;
+        public uint time;
+        public IntPtr dwExtraInfo;
+    }
+
     private delegate bool EnumWindowsProc(IntPtr hwnd, IntPtr lParam);
 
     [DllImport("user32.dll")]
@@ -717,6 +1067,9 @@ internal sealed class UiSnoopCaptureService : IUiSnoopCaptureService
 
     [DllImport("user32.dll")]
     private static extern IntPtr RealChildWindowFromPoint(IntPtr hWndParent, POINT ptParentClientCoords);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr ChildWindowFromPointEx(IntPtr hWndParent, POINT pt, uint uFlags);
 
     [DllImport("user32.dll")]
     private static extern IntPtr GetAncestor(IntPtr hWnd, uint gaFlags);
@@ -761,6 +1114,36 @@ internal sealed class UiSnoopCaptureService : IUiSnoopCaptureService
     private static extern IntPtr GetParent(IntPtr hWnd);
 
     [DllImport("user32.dll")]
+    private static extern int GetDlgCtrlID(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr SendMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern IntPtr SendMessage(IntPtr hWnd, uint msg, IntPtr wParam, string lParam);
+
+    [DllImport("user32.dll")]
+    private static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr SetFocus(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr SetActiveWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
+
+    [DllImport("kernel32.dll")]
+    private static extern uint GetCurrentThreadId();
+
+    [DllImport("user32.dll")]
+    private static extern uint MapVirtualKey(uint uCode, uint uMapType);
+
+    [DllImport("user32.dll")]
     private static extern IntPtr GetDC(IntPtr hWnd);
 
     [DllImport("user32.dll")]
@@ -768,4 +1151,7 @@ internal sealed class UiSnoopCaptureService : IUiSnoopCaptureService
 
     [DllImport("gdi32.dll")]
     private static extern uint GetPixel(IntPtr hdc, int nXPos, int nYPos);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
 }

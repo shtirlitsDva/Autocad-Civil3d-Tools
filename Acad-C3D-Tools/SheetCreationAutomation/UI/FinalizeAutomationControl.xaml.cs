@@ -3,9 +3,9 @@ using System.Windows.Controls;
 
 namespace SheetCreationAutomation.UI
 {
-    public partial class DebugVisualTreeControl : UserControl
+    public partial class FinalizeAutomationControl : UserControl
     {
-        public DebugVisualTreeControl(DebugVisualTreeViewModel viewModel)
+        public FinalizeAutomationControl(FinalizeAutomationViewModel viewModel)
         {
             InitializeComponent();
             DataContext = viewModel;

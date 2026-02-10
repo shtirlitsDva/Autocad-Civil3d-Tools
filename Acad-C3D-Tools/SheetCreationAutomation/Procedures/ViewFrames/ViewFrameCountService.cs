@@ -1,9 +1,9 @@
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.Civil.DatabaseServices;
 
-namespace SheetCreationAutomation.Services
+namespace SheetCreationAutomation.Procedures.ViewFrames
 {
-    internal sealed class ViewFrameCountService : IViewFrameCountService
+    internal sealed class ViewFrameCountService
     {
         public int GetViewFrameCount(Database database)
         {

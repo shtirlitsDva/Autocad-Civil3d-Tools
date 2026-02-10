@@ -68,8 +68,9 @@
 
             <Grid Grid.Column="1" Margin="6,0,0,0">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="3*" />
                     <RowDefinition Height="2*" />
+                    <RowDefinition Height="2*" />
+                    <RowDefinition Height="3*" />
                 </Grid.RowDefinitions>
 
                 <GroupBox Grid.Row="0" Header="LLM-friendly Block" Margin="0,0,0,6">
@@ -92,6 +93,85 @@
                              AcceptsReturn="True"
                              VerticalScrollBarVisibility="Auto"
                              HorizontalScrollBarVisibility="Auto" />
+                </GroupBox>
+
+                <GroupBox Grid.Row="2" Header="MFC Event Inspector" Margin="0,6,0,0">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+
+                        <WrapPanel Grid.Row="0" Margin="0,0,0,6">
+                            <Button Content="Use control"
+                                    Command="{Binding UseControlAsTargetCommand}"
+                                    Margin="0,0,6,6" />
+                            <Button Content="Use window"
+                                    Command="{Binding UseWindowAsTargetCommand}"
+                                    Margin="0,0,6,6" />
+                            <Button Content="Use active"
+                                    Command="{Binding UseActiveAsTargetCommand}"
+                                    Margin="0,0,6,6" />
+                            <TextBox Width="170"
+                                     Margin="0,0,6,6"
+                                     ToolTip="Target HWND (0xHEX or decimal)"
+                                     Text="{Binding TargetHandleText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                            <Button Content="Probe"
+                                    Command="{Binding ProbeTargetCommand}"
+                                    Margin="0,0,6,6" />
+                            <TextBox Width="220"
+                                     Margin="0,0,6,6"
+                                     ToolTip="Text payload for WM_SETTEXT"
+                                     Text="{Binding InspectorTextPayload, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                            <Button Content="SetText"
+                                    Command="{Binding InspectorSetTextCommand}"
+                                    Margin="0,0,6,6" />
+                        </WrapPanel>
+
+                        <WrapPanel Grid.Row="1" Margin="0,0,0,6">
+                            <Button Content="Focus"
+                                    Command="{Binding InspectorFocusCommand}"
+                                    Margin="0,0,6,6" />
+                            <Button Content="Enter SendMessage"
+                                    Command="{Binding InspectorEnterSendMessageCommand}"
+                                    Margin="0,0,6,6" />
+                            <Button Content="Enter PostMessage"
+                                    Command="{Binding InspectorEnterPostMessageCommand}"
+                                    Margin="0,0,6,6" />
+                            <Button Content="Enter SendInput"
+                                    Command="{Binding InspectorEnterSendInputCommand}"
+                                    Margin="0,0,6,6" />
+                            <Button Content="Notify EN_UPDATE"
+                                    Command="{Binding InspectorNotifyEnUpdateCommand}"
+                                    Margin="0,0,6,6" />
+                            <Button Content="Notify EN_CHANGE"
+                                    Command="{Binding InspectorNotifyEnChangeCommand}"
+                                    Margin="0,0,6,6" />
+                            <Button Content="Notify EN_KILLFOCUS"
+                                    Command="{Binding InspectorNotifyEnKillFocusCommand}"
+                                    Margin="0,0,6,6" />
+                            <Button Content="Send IDOK"
+                                    Command="{Binding InspectorSendIdOkCommand}"
+                                    Margin="0,0,6,6" />
+                            <Button Content="Click target"
+                                    Command="{Binding InspectorClickButtonCommand}"
+                                    Margin="0,0,6,6" />
+                            <Button Content="Copy log"
+                                    Command="{Binding CopyInspectorLogCommand}"
+                                    Margin="0,0,6,6" />
+                        </WrapPanel>
+
+                        <TextBox Grid.Row="2"
+                                 Text="{Binding InspectorOutput, Mode=OneWay}"
+                                 FontFamily="Consolas"
+                                 FontSize="11"
+                                 IsReadOnly="True"
+                                 TextWrapping="NoWrap"
+                                 AcceptsReturn="True"
+                                 VerticalScrollBarVisibility="Auto"
+                                 HorizontalScrollBarVisibility="Auto" />
+                    </Grid>
                 </GroupBox>
             </Grid>
         </Grid>

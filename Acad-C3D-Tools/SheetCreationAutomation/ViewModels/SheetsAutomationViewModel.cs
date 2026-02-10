@@ -1,8 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using IntersectUtilities.UtilsCommon;
 using SheetCreationAutomation.Models;
-using SheetCreationAutomation.Procedures.ViewFrames;
+using SheetCreationAutomation.Procedures.Sheets;
 using SheetCreationAutomation.Services;
 using SheetCreationAutomation.UI;
 using System;
@@ -18,16 +17,20 @@ using OpenFileDialog = Microsoft.Win32.OpenFileDialog;
 
 namespace SheetCreationAutomation.ViewModels
 {
-    public partial class ViewFramesAutomationViewModel : ObservableObject
+    public partial class SheetsAutomationViewModel : ObservableObject
     {
         private static readonly Regex PipelineNumberRegexOld = new Regex(@"(?<number>\d{2,3}?\s)", RegexOptions.Compiled);
         private static readonly Regex PipelineNumberRegexNew = new Regex(@"(?<number>\d{2,3})", RegexOptions.Compiled);
 
-        private readonly ViewFrameAutomationRunner automationRunner;
+        private readonly SheetAutomationRunner automationRunner;
         private CancellationTokenSource? runCts;
 
         [ObservableProperty]
-        [NotifyCanExecuteChangedFor(nameof(StartScriptCommand))]
+        [NotifyCanExecuteChangedFor(nameof(StartSheetsScriptCommand))]
+        private bool _planOnly;
+
+        [ObservableProperty]
+        [NotifyCanExecuteChangedFor(nameof(StartSheetsScriptCommand))]
         private string _viewFrameFolder = string.Empty;
 
         [ObservableProperty]
@@ -37,34 +40,27 @@ namespace SheetCreationAutomation.ViewModels
         private string _fileListPath = string.Empty;
 
         [ObservableProperty]
-        [NotifyCanExecuteChangedFor(nameof(StartScriptCommand))]
-        private string _templateFileName = string.Empty;
+        [NotifyCanExecuteChangedFor(nameof(StartSheetsScriptCommand))]
+        private string _sheetSetLocation = string.Empty;
 
         [ObservableProperty]
-        [NotifyCanExecuteChangedFor(nameof(StartScriptCommand))]
-        private string _vfNumber = "1";
-
-        [ObservableProperty]
-        [NotifyCanExecuteChangedFor(nameof(StartScriptCommand))]
-        private string _viewOverlap = "40";
-
-        [ObservableProperty]
-        private bool _planOnly;
+        [NotifyCanExecuteChangedFor(nameof(StartSheetsScriptCommand))]
+        private string _coordinates = string.Empty;
 
         [ObservableProperty]
         private string _lastStatus = string.Empty;
 
         [ObservableProperty]
-        [NotifyCanExecuteChangedFor(nameof(StartScriptCommand))]
-        [NotifyCanExecuteChangedFor(nameof(CancelScriptCommand))]
+        [NotifyCanExecuteChangedFor(nameof(StartSheetsScriptCommand))]
+        [NotifyCanExecuteChangedFor(nameof(CancelSheetsScriptCommand))]
         private bool _isRunning;
 
-        public ViewFramesAutomationViewModel()
+        public SheetsAutomationViewModel()
         {
             var waitPolicy = new WaitPolicy();
             var overlay = new WaitOverlayPresenter();
-            var wizardDriver = new Civil3dWizardUiDriver(overlay, waitPolicy);
-            automationRunner = new ViewFrameAutomationRunner(new ViewFrameCountService(), wizardDriver, waitPolicy, overlay);
+            var wizardDriver = new Civil3dCreateSheetsUiDriver(overlay, waitPolicy);
+            automationRunner = new SheetAutomationRunner(wizardDriver, waitPolicy, overlay);
 
             LoadState();
         }
@@ -89,7 +85,7 @@ namespace SheetCreationAutomation.ViewModels
             }
             catch (Exception ex)
             {
-                LastStatus = $"Browse failed: {ex.Message}";
+                LastStatus = $"Browse folder failed: {ex.Message}";
             }
         }
 
@@ -105,8 +101,7 @@ namespace SheetCreationAutomation.ViewModels
                 }
 
                 string outputPath = Path.Combine(ViewFrameFolder, "fileList.txt");
-                var list = Directory.EnumerateFiles(ViewFrameFolder, "*_VF.dwg");
-                var fileNames = list
+                var fileNames = Directory.EnumerateFiles(ViewFrameFolder, "*_VF.dwg")
                     .Select(Path.GetFileName)
                     .Where(name => !string.IsNullOrWhiteSpace(name))
                     .Where(name => GetPipelineNumber(name!) != 0)
@@ -158,16 +153,16 @@ namespace SheetCreationAutomation.ViewModels
         }
 
         [RelayCommand]
-        private void SelectTemplate()
+        private void SelectSheetSet()
         {
             try
             {
                 var dialog = new OpenFileDialog
                 {
-                    Filter = "AutoCAD Templates|*.dwt"
+                    Filter = "Sheet Set Files|*.dst|All files|*.*"
                 };
 
-                string? folder = Path.GetDirectoryName(TemplateFileName);
+                string? folder = Path.GetDirectoryName(SheetSetLocation);
                 if (!string.IsNullOrWhiteSpace(folder) && Directory.Exists(folder))
                 {
                     dialog.InitialDirectory = folder;
@@ -175,18 +170,18 @@ namespace SheetCreationAutomation.ViewModels
 
                 if (dialog.ShowDialog() == true)
                 {
-                    TemplateFileName = dialog.FileName;
+                    SheetSetLocation = dialog.FileName;
                     SaveState();
                 }
             }
             catch (Exception ex)
             {
-                LastStatus = $"Select template failed: {ex.Message}";
+                LastStatus = $"Select Sheet Set failed: {ex.Message}";
             }
         }
 
-        [RelayCommand(CanExecute = nameof(CanStartScript))]
-        private async Task StartScript()
+        [RelayCommand(CanExecute = nameof(CanStartSheetsScript))]
+        private async Task StartSheetsScript()
         {
             if (IsRunning)
             {
@@ -196,7 +191,7 @@ namespace SheetCreationAutomation.ViewModels
             try
             {
                 AutomationRunLog.Clear();
-                AutomationRunLog.Append("Run requested.");
+                AutomationRunLog.Append("Sheets run requested.");
 
                 if (!ValidateInputs(out List<string> errors))
                 {
@@ -212,33 +207,18 @@ namespace SheetCreationAutomation.ViewModels
                     return;
                 }
 
-                if (!int.TryParse(VfNumber, out int nextCounter))
-                {
-                    LastStatus = "View frame number must be integer.";
-                    AutomationRunLog.Append(LastStatus);
-                    return;
-                }
-
-                if (!int.TryParse(ViewOverlap, out int viewOverlap))
-                {
-                    LastStatus = "View overlap must be integer.";
-                    AutomationRunLog.Append(LastStatus);
-                    return;
-                }
-
                 IsRunning = true;
                 runCts = new CancellationTokenSource();
-                LastStatus = $"Starting native View Frame automation for {drawingsToProcess.Count} drawing(s)...";
+                LastStatus = $"Starting native Sheet Creation automation for {drawingsToProcess.Count} drawing(s)...";
                 AutomationRunLog.Append(LastStatus);
 
-                var context = new ViewFrameAutomationContext
+                var context = new SheetAutomationContext
                 {
                     ViewFrameFolder = ViewFrameFolder,
                     FileListPath = FileListPath,
-                    TemplateFilePath = ResolveTemplatePath(TemplateFileName),
-                    NextViewFrameCounterNumber = nextCounter,
+                    SheetSetFilePath = ResolveAbsolutePath(SheetSetLocation),
+                    ProfileViewOrigin = Coordinates.Trim(),
                     PlanOnly = PlanOnly,
-                    ViewOverlap = viewOverlap,
                     DrawingPaths = drawingsToProcess
                 };
 
@@ -247,14 +227,14 @@ namespace SheetCreationAutomation.ViewModels
                     LastStatus = message;
                     AutomationRunLog.Append(message);
                 });
-                AutomationRunResult result = await ExecuteOnAcContextAsync(() =>
+
+                SheetAutomationRunResult result = await ExecuteOnAcContextAsync(() =>
                     automationRunner.RunAsync(context, progress, runCts.Token));
 
                 if (result.Succeeded)
                 {
-                    VfNumber = result.FinalNextViewFrameCounter.ToString();
                     SaveState();
-                    LastStatus = $"Completed successfully. Next View Frame counter: {VfNumber}.";
+                    LastStatus = "Completed successfully.";
                     AutomationRunLog.Append(LastStatus);
                 }
                 else
@@ -286,7 +266,7 @@ namespace SheetCreationAutomation.ViewModels
             }
             catch (Exception ex)
             {
-                LastStatus = $"Start script failed: {ex.Message}";
+                LastStatus = $"Start sheet script failed: {ex.Message}";
                 AutomationRunLog.Append(LastStatus);
                 AutomationRunLog.Append(ex.ToString());
                 AcDebug.Print(ex);
@@ -299,8 +279,8 @@ namespace SheetCreationAutomation.ViewModels
             }
         }
 
-        [RelayCommand(CanExecute = nameof(CanCancelScript))]
-        private void CancelScript()
+        [RelayCommand(CanExecute = nameof(CanCancelSheetsScript))]
+        private void CancelSheetsScript()
         {
             if (!IsRunning || runCts == null)
             {
@@ -312,16 +292,30 @@ namespace SheetCreationAutomation.ViewModels
             runCts.Cancel();
         }
 
-        private bool CanStartScript()
+        private bool CanStartSheetsScript()
         {
-            return !IsRunning
-                && !string.IsNullOrWhiteSpace(ViewFrameFolder)
-                && !string.IsNullOrWhiteSpace(TemplateFileName)
-                && !string.IsNullOrWhiteSpace(VfNumber)
-                && !string.IsNullOrWhiteSpace(ViewOverlap);
+            if (IsRunning)
+            {
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(ViewFrameFolder)
+                || string.IsNullOrWhiteSpace(FileListPath)
+                || string.IsNullOrWhiteSpace(SheetSetLocation))
+            {
+                return false;
+            }
+
+            return PlanOnly || !string.IsNullOrWhiteSpace(Coordinates);
         }
 
-        private bool CanCancelScript() => IsRunning;
+        private bool CanCancelSheetsScript() => IsRunning;
+
+        partial void OnPlanOnlyChanged(bool value)
+        {
+            SaveState();
+            StartSheetsScriptCommand.NotifyCanExecuteChanged();
+        }
 
         partial void OnViewFrameFolderChanged(string value)
         {
@@ -330,36 +324,32 @@ namespace SheetCreationAutomation.ViewModels
             SaveState();
         }
 
-        partial void OnTemplateFileNameChanged(string value) => SaveState();
-        partial void OnVfNumberChanged(string value) => SaveState();
-        partial void OnViewOverlapChanged(string value) => SaveState();
-        partial void OnPlanOnlyChanged(bool value) => SaveState();
+        partial void OnSheetSetLocationChanged(string value) => SaveState();
+        partial void OnCoordinatesChanged(string value) => SaveState();
 
         private void LoadState()
         {
-            ViewFramesUiState state = AutomationSettingsStore.LoadViewFramesState();
+            SheetsUiState state = AutomationSettingsStore.LoadSheetsState();
+            PlanOnly = state.PlanOnly;
             ViewFrameFolder = EnsureTrailingSlash(state.ViewFrameFolder);
             FileListPath = state.FileListPath ?? string.Empty;
-            TemplateFileName = state.TemplateFileName ?? string.Empty;
-            VfNumber = string.IsNullOrWhiteSpace(state.VfNumber) ? "1" : state.VfNumber;
-            ViewOverlap = string.IsNullOrWhiteSpace(state.ViewOverlap) ? "40" : state.ViewOverlap;
-            PlanOnly = state.PlanOnly;
+            SheetSetLocation = state.SheetSetLocation ?? string.Empty;
+            Coordinates = state.Coordinates ?? string.Empty;
             UpdateFileListStatus();
         }
 
         private void SaveState()
         {
-            var state = new ViewFramesUiState
+            var state = new SheetsUiState
             {
+                PlanOnly = PlanOnly,
                 ViewFrameFolder = ViewFrameFolder,
                 FileListPath = FileListPath,
-                TemplateFileName = TemplateFileName,
-                VfNumber = VfNumber,
-                ViewOverlap = ViewOverlap,
-                PlanOnly = PlanOnly
+                SheetSetLocation = SheetSetLocation,
+                Coordinates = Coordinates
             };
 
-            AutomationSettingsStore.SaveViewFramesState(state);
+            AutomationSettingsStore.SaveSheetsState(state);
         }
 
         private void UpdateFileListStatus()
@@ -401,19 +391,14 @@ namespace SheetCreationAutomation.ViewModels
                 errors.Add($"Missing fileList.txt: {FileListPath}");
             }
 
-            if (!File.Exists(TemplateFileName))
+            if (!File.Exists(SheetSetLocation))
             {
-                errors.Add($"Missing template: {TemplateFileName}");
+                errors.Add($"Missing sheet set file: {SheetSetLocation}");
             }
 
-            if (!int.TryParse(VfNumber, out _))
+            if (!PlanOnly && string.IsNullOrWhiteSpace(Coordinates))
             {
-                errors.Add("View frame number must be integer.");
-            }
-
-            if (!int.TryParse(ViewOverlap, out _))
-            {
-                errors.Add("View overlap must be integer.");
+                errors.Add("Profile View Origin coordinates are required when Plan only is unchecked.");
             }
 
             return errors.Count == 0;
@@ -476,9 +461,9 @@ namespace SheetCreationAutomation.ViewModels
             return path.EndsWith("\\", StringComparison.Ordinal) ? path : path + "\\";
         }
 
-        private static string ResolveTemplatePath(string templateFileNameOrPath)
+        private static string ResolveAbsolutePath(string inputPath)
         {
-            string candidate = templateFileNameOrPath?.Trim() ?? string.Empty;
+            string candidate = inputPath?.Trim() ?? string.Empty;
             if (string.IsNullOrWhiteSpace(candidate))
             {
                 return string.Empty;
