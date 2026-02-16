@@ -262,6 +262,33 @@ namespace IntersectUtilities
             filter: invert(1) hue-rotate(180deg);
         }}
     </style>
+    <script>
+document.addEventListener(""DOMContentLoaded"", () => {{
+  const toggled = new Set();
+  const clusters = document.querySelectorAll(""g.cluster"");
+
+  clusters.forEach(cluster => {{
+    const polygon = cluster.querySelector(""polygon"");
+    if (!polygon) return;
+
+    // fill=""none"" blocks interior clicks; override so entire rectangle is clickable
+    polygon.style.pointerEvents = ""all"";
+    cluster.style.cursor = ""pointer"";
+
+    cluster.addEventListener(""click"", (e) => {{
+      e.stopPropagation();
+
+      if (toggled.has(polygon)) {{
+        toggled.delete(polygon);
+        polygon.style.stroke = ""red"";
+      }} else {{
+        toggled.add(polygon);
+        polygon.style.stroke = ""green"";
+      }}
+    }});
+  }});
+}});
+    </script>
 </head>
 <body>
     {svgContent}
