@@ -22,16 +22,14 @@ namespace DimensioneringV2.Genetic
     /// Strict graph chromosome that validates every mutation to ensure terminal connectivity.
     /// 1 = edge is off, 0 = edge is on
     /// </summary>
-    internal class StrictGraphChromosome : BinaryChromosomeBase
+    internal class StrictGraphChromosome : GraphChromosomeBase
     {
         private UndirectedGraph<BFNode, BFEdge> _localGraph;
         private readonly HashSet<int> _removedEdges = new HashSet<int>();
         private Dictionary<int, BFEdge> _edgeByIndex = new();
-        private CoherencyManager _chm;
 
         public UndirectedGraph<BFNode, BFEdge> LocalGraph { get => _localGraph; set => _localGraph = value; }
         public HashSet<int> RemovedEdges => _removedEdges;
-        public CoherencyManager CoherencyManager => _chm;
 
         /// <summary>
         /// Fast O(1) edge lookup by NonBridgeChromosomeIndex.
@@ -56,25 +54,24 @@ namespace DimensioneringV2.Genetic
             }
         }
 
-        public StrictGraphChromosome(CoherencyManager coherencyManager) : base(coherencyManager.ChromosomeLength)
+        public StrictGraphChromosome(CoherencyManager coherencyManager) : base(coherencyManager)
         {
-            _chm = coherencyManager;
-            _localGraph = _chm.OriginalGraph.CopyWithNewEdges();
+            _localGraph = CoherencyManager.OriginalGraph.CopyWithNewEdges();
             RebuildEdgeIndex();
 
             var random = RandomizationProvider.Current;
 
             // Thread-safe seeding: only the first chromosome gets the seed
-            if (_chm.TryClaimSeed())
+            if (CoherencyManager.TryClaimSeed())
             {
-                _localGraph = _chm.Seed.CopyWithNewEdges();
+                _localGraph = CoherencyManager.Seed.CopyWithNewEdges();
                 RebuildEdgeIndex();
 
                 var set = _localGraph.Edges
                     .Select(x => x.NonBridgeChromosomeIndex)
                     .ToHashSet();
 
-                for (int i = 0; i < _chm.ChromosomeLength; i++)
+                for (int i = 0; i < CoherencyManager.ChromosomeLength; i++)
                 {
                     if (set.Contains(i))
                     {
@@ -87,7 +84,7 @@ namespace DimensioneringV2.Genetic
                     }
                 }
 
-                if (!_localGraph.AreTerminalNodesConnected(_chm.RootNode, _chm.Terminals))
+                if (!_localGraph.AreTerminalNodesConnected(CoherencyManager.RootNode, CoherencyManager.Terminals))
                 {
                     throw new Exception("Seeds' terminals are not connected!");
                 }
@@ -97,7 +94,7 @@ namespace DimensioneringV2.Genetic
                 do
                 {
                     // Fisher-Yates shuffle: O(n) instead of O(n log n) OrderBy
-                    var randomizedIndici = new int[_chm.ChromosomeLength];
+                    var randomizedIndici = new int[CoherencyManager.ChromosomeLength];
                     for (int i = 0; i < randomizedIndici.Length; i++)
                         randomizedIndici[i] = i;
                     for (int i = randomizedIndici.Length - 1; i > 0; i--)
@@ -129,18 +126,18 @@ namespace DimensioneringV2.Genetic
                         }
                     }
                 }
-                while (!_localGraph.AreTerminalNodesConnected(_chm.RootNode, _chm.Terminals));
+                while (!_localGraph.AreTerminalNodesConnected(CoherencyManager.RootNode, CoherencyManager.Terminals));
             }
         }
 
         public override IChromosome CreateNew()
         {
-            return new StrictGraphChromosome(_chm);
+            return new StrictGraphChromosome(CoherencyManager);
         }
 
         public void ResetChromosome()
         {
-            _localGraph = _chm.OriginalGraph.CopyWithNewEdges();
+            _localGraph = CoherencyManager.OriginalGraph.CopyWithNewEdges();
             RebuildEdgeIndex();
             _removedEdges.Clear();
             for (int i = 0; i < Length; i++)
@@ -182,7 +179,7 @@ namespace DimensioneringV2.Genetic
             else if (curValue == 1)
             {
                 _removedEdges.Remove(index);
-                var originalEdge = _chm.OriginalNonBridgeEdgeFromIndex(index);
+                var originalEdge = CoherencyManager.OriginalNonBridgeEdgeFromIndex(index);
                 var newEdge = new BFEdge(originalEdge.Source, originalEdge.Target, originalEdge);
                 newEdge.NonBridgeChromosomeIndex = originalEdge.NonBridgeChromosomeIndex;
                 _localGraph.AddVerticesAndEdge(newEdge);

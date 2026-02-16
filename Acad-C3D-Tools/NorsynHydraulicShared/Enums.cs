@@ -16,7 +16,8 @@ namespace NorsynHydraulicCalc
         PertFlextraFL,
         PertFlextraSL,
         AquaTherm11,
-        AluPEX,
+        AluPEXFL,
+        AluPEXSL,
         Kobber,
         Pe,
     }

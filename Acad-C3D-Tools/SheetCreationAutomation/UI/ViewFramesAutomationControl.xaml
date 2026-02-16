@@ -1,0 +1,148 @@
+<UserControl x:Class="SheetCreationAutomation.UI.ViewFramesAutomationControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="{DynamicResource BackgroundBrush}">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Theme.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="16">
+
+            <!-- Header -->
+            <TextBlock Text="View Frame Automation"
+                       FontSize="20"
+                       FontWeight="SemiBold"
+                       Margin="0,0,0,2" />
+            <TextBlock Text="Civil 3D native automation  ·  Step 1"
+                       Style="{StaticResource LabelStyle}"
+                       Margin="0,0,0,16" />
+
+            <!-- Workflow instructions -->
+            <GroupBox Header="Workflow">
+                <TextBlock TextWrapping="Wrap" LineHeight="22"
+                           Foreground="{StaticResource ForegroundMutedBrush}"><Run Foreground="#FF63B3ED" Text="1."/><Run Text=" "/><Run Text="Open Civil 3D and run "/><Run Language="da-dk" Text="VIEWFRAMESCREATEALLDRAWINGS"/><Run Text="."/><LineBreak/><Run Foreground="#FF63B3ED" Text="2."/><Run Text=" "/><Run Text="Choose a View Frame folder and keep it for this run."/><LineBreak/><Run Foreground="#FF63B3ED" Text="3."/><Run Text=" "/><Run Text="Configure inputs below and run native automation."/></TextBlock>
+            </GroupBox>
+
+            <!-- Configuration -->
+            <GroupBox Header="Configuration">
+                <StackPanel>
+                    <CheckBox IsChecked="{Binding PlanOnly, Mode=TwoWay}"
+                              Content="Plan only (no profile views)"
+                              Margin="0,0,0,14" />
+
+                    <TextBlock Text="VIEW FRAME FOLDER" Style="{StaticResource LabelStyle}" />
+                    <Grid Margin="0,0,0,14">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox Text="{Binding ViewFrameFolder, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 IsReadOnly="True"
+                                 VerticalAlignment="Center" />
+                        <Button Grid.Column="1"
+                                Content="Browse"
+                                Command="{Binding BrowseFolderCommand}"
+                                Margin="8,0,0,0"
+                                HorizontalAlignment="Right" />
+                    </Grid>
+
+                    <TextBlock Text="FILE LIST" Style="{StaticResource LabelStyle}" />
+                    <Grid Margin="0,0,0,14">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox Text="{Binding FileListStatus, Mode=OneWay}"
+                                 IsReadOnly="True"
+                                 Cursor="Hand"
+                                 VerticalAlignment="Center"
+                                 ToolTip="Click to open in Notepad">
+                            <TextBox.InputBindings>
+                                <MouseBinding MouseAction="LeftClick"
+                                              Command="{Binding OpenFileListCommand}" />
+                            </TextBox.InputBindings>
+                        </TextBox>
+                        <Button Grid.Column="1"
+                                Content="Create"
+                                Command="{Binding CreateFileListCommand}"
+                                Margin="8,0,0,0"
+                                HorizontalAlignment="Right" />
+                    </Grid>
+
+                    <TextBlock Text="SHEET TEMPLATE (.DWT)" Style="{StaticResource LabelStyle}" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox Text="{Binding TemplateFileName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 IsReadOnly="True"
+                                 VerticalAlignment="Center" />
+                        <Button Grid.Column="1"
+                                Content="Browse"
+                                Command="{Binding SelectTemplateCommand}"
+                                Margin="8,0,0,0"
+                                HorizontalAlignment="Right" />
+                    </Grid>
+                </StackPanel>
+            </GroupBox>
+
+            <!-- Parameters -->
+            <GroupBox Header="Parameters">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="12" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel>
+                        <TextBlock Text="FIRST / NEXT VF NUMBER" Style="{StaticResource LabelStyle}" />
+                        <TextBox Text="{Binding VfNumber, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 PreviewTextInput="NumericOnly_PreviewTextInput"
+                                 TextAlignment="Center" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="VIEW OVERLAP (M)" Style="{StaticResource LabelStyle}" />
+                        <TextBox Text="{Binding ViewOverlap, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 PreviewTextInput="NumericOnly_PreviewTextInput"
+                                 TextAlignment="Center" />
+                    </StackPanel>
+                </Grid>
+            </GroupBox>
+
+            <!-- Status -->
+            <TextBlock Text="{Binding LastStatus}"
+                       TextWrapping="Wrap"
+                       Foreground="{StaticResource WarningBrush}"
+                       Margin="0,4,0,12" />
+
+            <Grid Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="8" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Button Grid.Column="0"
+                        Style="{StaticResource PrimaryButton}"
+                        Content="START"
+                        FontSize="14"
+                        Height="44"
+                        Command="{Binding StartScriptCommand}" />
+                <Button Grid.Column="2"
+                        Style="{StaticResource DangerButton}"
+                        Content="CANCEL"
+                        FontSize="14"
+                        Height="44"
+                        Command="{Binding CancelScriptCommand}" />
+            </Grid>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

@@ -4,11 +4,11 @@ using System.Text;
 
 namespace NorsynHydraulicCalc.Pipes
 {
-    public class PipeAluPex : PipeBase
+    public class PipeAluPexSL : PipeBase
     {
-        public PipeAluPex(double roughness_mm) : base(roughness_mm) { }
-        protected override string Name => "PipeAluPex";
-        protected override PipeType PipeType => PipeType.AluPEX;
+        public PipeAluPexSL(double roughness_mm) : base(roughness_mm) { }
+        protected override string Name => "PipeAluPexSL";
+        protected override PipeType PipeType => PipeType.AluPEXSL;
         protected override string DimName => "AluPEX ";
         public override int OrderingPriority => 0;
         protected override double PricePerStk => 27990;

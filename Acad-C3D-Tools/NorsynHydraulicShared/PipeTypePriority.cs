@@ -35,14 +35,14 @@ namespace NorsynHydraulicCalc
         /// <summary>
         /// Accept criteria for each DN size.
         /// </summary>
-        public List<DnAcceptCriteria> AcceptCriteria { get; set; } = new List<DnAcceptCriteria>();
+        public List<DnAcceptCriteria> AcceptCriteria { get; set; } = [];
 
         /// <summary>
         /// Rules that must be satisfied for this priority to be used (SL only).
         /// Empty list means no rules - priority executes in sequence.
         /// Multiple rules are evaluated with OR logic (any match = priority applies).
         /// </summary>
-        public List<IPipeRule> Rules { get; set; } = new List<IPipeRule>();
+        public List<IPipeRule> Rules { get; set; } = [];
 
         /// <summary>
         /// Parameterless constructor for serialization.

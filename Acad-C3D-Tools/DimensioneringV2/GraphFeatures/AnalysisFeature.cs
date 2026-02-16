@@ -32,32 +32,36 @@ namespace DimensioneringV2.GraphFeatures
         public AnalysisFeature(AnalysisFeature analysisFeature) : base(analysisFeature)
         {
             foreach (var field in analysisFeature.Fields) this[field] = analysisFeature[field];
-            this.OriginalGeometry = analysisFeature.OriginalGeometry;
-            this.Elevations = new ElevationProfileCache(this, OriginalGeometry);
+            this.Geometry25832 = analysisFeature.Geometry25832;
+            this.Elevations = new ElevationProfileCache(this, Geometry25832);
         }
         public AnalysisFeature(
-            NetTopologySuite.Geometries.Geometry? geometry,
-            OriginalGeometry originalGeometry) : base(geometry)
+            LineString geometry25832,
+            Dictionary<string, object> attributes) : base(geometry25832)
         {
-            OriginalGeometry = originalGeometry;
-            Elevations = new ElevationProfileCache(this, originalGeometry);
-        }
-        public AnalysisFeature(
-            NetTopologySuite.Geometries.Geometry geometry,
-            OriginalGeometry originalGeometry,
-            Dictionary<string, object> attributes) : base(geometry)
-        {
+            Geometry25832 = (LineString)geometry25832.Copy();
             foreach (var attribute in attributes)
             {
                 this[attribute.Key] = attribute.Value;
             }
-            this.OriginalGeometry = originalGeometry;
-            this.Elevations = new ElevationProfileCache(this, originalGeometry);
+            Elevations = new ElevationProfileCache(this, Geometry25832);
+        }
+        internal AnalysisFeature(
+            NetTopologySuite.Geometries.Geometry displayGeometry,
+            LineString geometry25832,
+            Dictionary<string, object> attributes) : base(displayGeometry)
+        {
+            Geometry25832 = geometry25832;
+            foreach (var attribute in attributes)
+            {
+                this[attribute.Key] = attribute.Value;
+            }
+            Elevations = new ElevationProfileCache(this, Geometry25832);
         }
         #endregion
 
         #region Spatial data storage
-        public OriginalGeometry OriginalGeometry { get; }
+        public LineString Geometry25832 { get; }
         internal ElevationProfileCache Elevations { get; }
         #endregion
 
@@ -149,7 +153,7 @@ namespace DimensioneringV2.GraphFeatures
         /// <summary>
         /// Length of the segment
         /// </summary>
-        public double Length => OriginalGeometry.Length;
+        public double Length => Geometry25832.Length;
 
         /// <summary>
         /// Is the segment a service line, then returns 1, else 0
@@ -483,7 +487,7 @@ namespace DimensioneringV2.GraphFeatures
         {
             "BoundingBox",
             "Attributes",
-            "OriginalGeometry",
+            "Geometry25832",
             "Elevations"
         };
         IEnumerable<PropertyItem> IInfoForFeature.PropertiesToDataGrid()

@@ -1,6 +1,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.14.36915.13 d17.14
+VisualStudioVersion = 17.14.36915.13
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IntersectUtilities", "IntersectUtilities\IntersectUtilities.csproj", "{3DBCDE07-D2C7-45A3-9BD6-5B7873A85166}"
 EndProject
@@ -68,6 +68,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NTRExport.ConsoleTests", "NTRExport.ConsoleTests\NTRExport.ConsoleTests.csproj", "{FF461586-D799-1BFA-EB63-2D01AC25672D}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NorsynHydraulicTester", "NorsynHydraulicTester\NorsynHydraulicTester.csproj", "{E12A1099-C622-D95D-7788-5FF10D423DDA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UiSnoop", "UiSnoop\UiSnoop.csproj", "{24654C72-79F9-4625-BF8C-F8B8D76DD805}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -179,6 +181,10 @@ Global
 		{E12A1099-C622-D95D-7788-5FF10D423DDA}.Debug|x64.Build.0 = Debug|x64
 		{E12A1099-C622-D95D-7788-5FF10D423DDA}.Release|x64.ActiveCfg = Release|x64
 		{E12A1099-C622-D95D-7788-5FF10D423DDA}.Release|x64.Build.0 = Release|x64
+		{24654C72-79F9-4625-BF8C-F8B8D76DD805}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{24654C72-79F9-4625-BF8C-F8B8D76DD805}.Debug|x64.Build.0 = Debug|Any CPU
+		{24654C72-79F9-4625-BF8C-F8B8D76DD805}.Release|x64.ActiveCfg = Release|Any CPU
+		{24654C72-79F9-4625-BF8C-F8B8D76DD805}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

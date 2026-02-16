@@ -43,7 +43,7 @@ namespace DimensioneringV2.AutoCAD
             {
                 foreach (AnalysisFeature feature in features)
                 {
-                    var lineString = feature.OriginalGeometry.FullGeometry as LineString;
+                    var lineString = feature.Geometry25832;
                     if (lineString == null)
                     {
                         prdDbg($"Feature is not a LineString! Check your geometry.");

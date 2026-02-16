@@ -38,24 +38,24 @@ namespace DimensioneringV2.AutoCAD
         public static HydraulicSettings Load(Document doc)
         {
             if (doc == null) return new HydraulicSettings();
-            using (var docLock = doc.LockDocument())
+            try
             {
-                var db = doc.Database;
-                var store = FlexDataStoreExtensions.FlexDataStore(db);
-                if (store.Has("HydraulicSettings"))
+                using (var docLock = doc.LockDocument())
                 {
-                    try
+                    var db = doc.Database;
+                    var store = FlexDataStoreExtensions.FlexDataStore(db);
+                    if (store.Has("HydraulicSettings"))
                     {
-                        return store.GetObject<HydraulicSettings>("HydraulicSettings");
+                        return store.GetObject<HydraulicSettings>("HydraulicSettings")
+                            ?? new HydraulicSettings();
                     }
-                    catch (System.Exception ex)
-                    {
-                        Utils.prtDbg("Error loading HydraulicSettings from FlexDataStore.");
-                        Utils.prtDbg(ex);
-                        throw;
-                    }
+                    return new HydraulicSettings();
                 }
-                Utils.prtDbg($"Store does not have requested key: \"HydraulicSettings\"");
+            }
+            catch (System.Exception ex)
+            {
+                Utils.prtDbg("Error loading HydraulicSettings, using defaults.");
+                Utils.prtDbg(ex);
                 return new HydraulicSettings();
             }
         }

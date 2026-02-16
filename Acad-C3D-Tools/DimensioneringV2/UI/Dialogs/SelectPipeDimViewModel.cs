@@ -46,10 +46,13 @@ namespace DimensioneringV2.UI.Dialogs
             var settings = HydraulicSettingsService.Instance.Settings;
             var types = new NorsynHydraulicCalc.Pipes.PipeTypes(settings);
             PipeTypes.Add(PipeType.Stål);
-            PipeTypes.Add(PipeType.AluPEX);
+            PipeTypes.Add(PipeType.AluPEXFL);
+            PipeTypes.Add(PipeType.AluPEXSL);
             PipeTypes.Add(PipeType.PertFlextraFL);
+            PipeTypes.Add(PipeType.PertFlextraSL);
             PipeTypes.Add(PipeType.Kobber);
             PipeTypes.Add(PipeType.Pe);
+            PipeTypes.Add(PipeType.AquaTherm11);
             SelectedPipeType = PipeTypes.FirstOrDefault();
         }
 
@@ -61,10 +64,13 @@ namespace DimensioneringV2.UI.Dialogs
             IEnumerable<Dim> dims = SelectedPipeType switch
             {
                 PipeType.Stål => types.Stål.GetAllDimsSorted(),
-                PipeType.AluPEX => types.AluPex.GetAllDimsSorted(),
+                PipeType.AluPEXFL => types.AluPexFL.GetAllDimsSorted(),
+                PipeType.AluPEXSL => types.AluPexSL.GetAllDimsSorted(),
                 PipeType.PertFlextraFL => types.PertFlextraFL.GetAllDimsSorted(),
+                PipeType.PertFlextraSL => types.PertFlextraSL.GetAllDimsSorted(),
                 PipeType.Kobber => types.Cu.GetAllDimsSorted(),
                 PipeType.Pe => types.Pe.GetAllDimsSorted(),
+                PipeType.AquaTherm11 => types.AT11.GetAllDimsSorted(),
                 _ => Enumerable.Empty<Dim>()
             };
             foreach (var d in dims) NominalDiameters.Add(d.NominalDiameter);

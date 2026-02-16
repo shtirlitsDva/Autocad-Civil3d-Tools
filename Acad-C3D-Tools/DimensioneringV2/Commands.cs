@@ -4,17 +4,15 @@ using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
-using Autodesk.Internal.Windows;
 
-using DimensioneringV2.AutoCAD;
 using DimensioneringV2.Geometry;
 using DimensioneringV2.GraphFeatures;
 using DimensioneringV2.GraphModelRoads;
+using DimensioneringV2.Schema;
 using DimensioneringV2.Serialization;
 using DimensioneringV2.Services;
 using DimensioneringV2.Services.GDALClient;
 using DimensioneringV2.UI;
-using DimensioneringV2.Vejklasser.Interfaces;
 using DimensioneringV2.Vejklasser.Models;
 using DimensioneringV2.Vejklasser.Views;
 
@@ -41,7 +39,6 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
-using System.Threading.Tasks;
 using System.Windows;
 
 using static IntersectUtilities.UtilsCommon.Utils;
@@ -49,7 +46,6 @@ using static IntersectUtilities.UtilsCommon.Utils;
 using AcApp = Autodesk.AutoCAD.ApplicationServices.Application;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using cv = DimensioneringV2.CommonVariables;
-using dbg = IntersectUtilities.UtilsCommon.Utils.DebugHelper;
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 
 [assembly: CommandClass(typeof(DimensioneringV2.Commands))]
@@ -78,10 +74,10 @@ namespace DimensioneringV2
                 ];
 
             foreach (string dll in dlls)
-            { 
+            {
                 Assembly.LoadFrom(Path.Combine(basePath, dll));
             }
-            
+
 #if DEBUG
             AppDomain.CurrentDomain.AssemblyResolve +=
         new ResolveEventHandler(MissingAssemblyLoaderDimV2.Debug_AssemblyResolveV2);
@@ -168,6 +164,410 @@ namespace DimensioneringV2
                     }
                     #endregion
 
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex);
+                    tx.Abort();
+                    return;
+                }
+                tx.Commit();
+            }
+
+            prdDbg("Finished!");
+        }
+
+        /// <command>DIM2IMPORTBBRBLOCKS</command>
+        /// <summary>
+        /// Imports BBR features from a selected GeoJSON file as block references and writes their
+        /// attributes into the BBR property set. Intended to populate the drawing with building points
+        /// carrying BBR data for subsequent graph and reporting workflows.
+        /// </summary>
+        /// <category>DIMENSIONERING V2</category>
+        [CommandMethod("DIM2IMPORTBBRBLOCKS")]
+        public void dim2importbbrblocks()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+
+            PropertySetManager.UpdatePropertySetDefinition(
+                Application.DocumentManager.MdiActiveDocument.Database,
+                PSetDefs.DefinedSets.BBR);
+
+            #region Dialog box for selecting the geojson file
+            string dbFilename = localDb.OriginalFileName;
+            string path = System.IO.Path.GetDirectoryName(dbFilename);
+            string fileName = string.Empty;
+            string bbrString = "";
+            OpenFileDialog dialog = new OpenFileDialog()
+            {
+                Title = "Choose BBR file:",
+                DefaultExt = "geojson",
+                Filter = "Geojson files (*.geojson)|*.geojson|All files (*.*)|*.*",
+                FilterIndex = 0
+            };
+            if (dialog.ShowDialog() == true)
+            {
+                fileName = dialog.FileName;
+                bbrString = File.ReadAllText(fileName);
+            }
+            else { throw new System.Exception("Cannot find BBR file!"); }
+
+            BBRFeatureCollection BBR = JsonSerializer.Deserialize<BBRFeatureCollection>(bbrString);
+            #endregion
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                PropertySetManager bbrPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.BBR);
+                PSetDefs.BBR bbrDef = new PSetDefs.BBR();
+
+                try
+                {
+                    var pm = new ProgressMeter();
+                    pm.Start("Importing BBR features...");
+                    pm.SetLimit(BBR.features.Count);
+                    foreach (Schema.Feature feature in BBR.features)
+                    {
+                        try
+                        {
+                            var test = feature.geometry.coordinates as IEnumerable;
+                        }
+                        catch (System.Exception ex)
+                        {
+                            prdDbg("Feature " + feature.properties.id_lokalId + " mangler geometry!1");
+                            throw;
+                        }
+                        var source = feature.geometry.coordinates as IEnumerable;
+                        double[] coords = new double[2];
+                        int i = 0;
+                        if (source != null)
+                        {
+                            foreach (double d in source)
+                            {
+                                if (i == 0) coords[0] = d;
+                                else coords[1] = d;
+                                i++;
+                            }
+                        }
+
+                        Point3d position = new Point3d(coords[0], coords[1], 0);
+
+                        BlockReference bbrBlock = null;
+                        try
+                        {
+                            bbrBlock = localDb.CreateBlockWithAttributes(feature.properties.Type, position);
+                        }
+                        catch (System.Exception ex)
+                        {
+                            if (ex.Message == "eKeyNotFound") prdDbg("Tegningen mangler BBR blokke!");
+                            else prdDbg("Failed block name: " + feature.properties.Type + "\n" + ex.ToString());
+                            tx.Abort();
+                            return;
+                        }
+
+                        var properties = feature.properties.GetType().GetRuntimeProperties()
+                            .Where(p => p.GetMethod != null && p.GetMethod.IsPublic && p.GetMethod.IsStatic == false)
+                            .ToList();
+
+                        var dict = bbrDef.ToPropertyDictionary();
+                        foreach (PropertyInfo pinfo in properties)
+                        {
+                            if (dict.ContainsKey(pinfo.Name))
+                            {
+                                var value = TryGetValue(pinfo, feature.properties);
+                                try
+                                {
+                                    bbrPsm.WritePropertyObject(bbrBlock, dict[pinfo.Name] as PSetDefs.Property, value);
+                                }
+                                catch (System.Exception)
+                                {
+                                    prdDbg($"Property not found: {(dict[pinfo.Name] as PSetDefs.Property).Name}");
+                                    throw;
+                                }
+                            }
+                        }
+
+                        pm.MeterProgress();
+                    }
+                    pm.Stop();
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.ToString());
+                    return;
+                }
+                finally
+                {
+
+                }
+                tx.Commit();
+            }
+
+            dim2analyzeduplicateaddr();
+
+            prdDbg("Finished!");
+
+        }
+
+        /// <command>DIM2ANALYZEDUPLICATEADDR</command>
+        /// <summary>
+        /// Analyzes buildings with identical addresses, assigns or repairs duplicate numbers in the BBR
+        /// property set to ensure unique address labels, and exports a CSV report. Intended to normalize
+        /// duplicate addresses before Excel generation and other downstream processes.
+        /// </summary>
+        /// <category>DIMENSIONERING V2</category>
+        [CommandMethod("DIM2ANALYZEDUPLICATEADDR")]
+        public void dim2analyzeduplicateaddr()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+
+            PropertySetManager.UpdatePropertySetDefinition(localDb, PSetDefs.DefinedSets.BBR);
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    PropertySetManager bbrPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.BBR);
+                    PSetDefs.BBR bbrDef = new PSetDefs.BBR();
+
+                    HashSet<BlockReference> brs =
+                        localDb
+                        .HashSetOfType<BlockReference>(tx)
+                        .Where(x => cv.AllBlockTypes.Contains(
+                            bbrPsm.ReadPropertyString(x, bbrDef.Type)))
+                        .ToHashSet();
+
+                    var groups = brs.GroupBy(x => bbrPsm.ReadPropertyString(x, bbrDef.Adresse))
+                        .Where(x => x.Count() > 1);
+
+                    StringBuilder sb = new StringBuilder();
+                    sb.AppendLine("Adresse;Område;Forbrug;Ny adresse");
+
+                    foreach (var group in groups)
+                    {
+                        //Handle a case where a building is added with same address after an analyzis have already been carried out
+                        if (group.All(x => bbrPsm.ReadPropertyInt(x, bbrDef.AdresseDuplikatNr) == 0))
+                        {
+                            int count = 0;
+                            foreach (var br in group.OrderBy(x => x.Position.X).ThenBy(x => x.Position.Y))
+                            {
+                                count++;
+                                sb.AppendLine(
+                                    $"{bbrPsm.ReadPropertyString(br, bbrDef.Adresse)};" +
+                                    $"{bbrPsm.ReadPropertyString(br, bbrDef.DistriktetsNavn)};" +
+                                    $"{bbrPsm.ReadPropertyDouble(br, bbrDef.EstimeretVarmeForbrug)};" +
+                                    $"{bbrPsm.ReadPropertyString(br, bbrDef.Adresse)} {count}");
+
+                                bbrPsm.WritePropertyObject(br, bbrDef.AdresseDuplikatNr, count);
+                            }
+                        }
+                        else if (group.All(x => bbrPsm.ReadPropertyInt(x, bbrDef.AdresseDuplikatNr) != 0))
+                        {
+                            foreach (var br in group.OrderBy(x => x.Position.X).ThenBy(x => x.Position.Y))
+                            {
+                                sb.AppendLine(
+                                    $"{bbrPsm.ReadPropertyString(br, bbrDef.Adresse)};" +
+                                    $"{bbrPsm.ReadPropertyString(br, bbrDef.DistriktetsNavn)};" +
+                                    $"{bbrPsm.ReadPropertyDouble(br, bbrDef.EstimeretVarmeForbrug)};" +
+                                    $"{bbrPsm.ReadPropertyString(br, bbrDef.Adresse)} {bbrPsm.ReadPropertyInt(br, bbrDef.AdresseDuplikatNr)}");
+                            }
+                        }
+                        else if (group.Any(x => bbrPsm.ReadPropertyInt(x, bbrDef.AdresseDuplikatNr) != 0))
+                        {
+                            List<int> existingNumbers =
+                                group.Select(x => bbrPsm.ReadPropertyInt(x, bbrDef.AdresseDuplikatNr))
+                                .OrderBy(x => x).ToList();
+
+                            foreach (var br in group
+                                .Where(x => bbrPsm.ReadPropertyInt(x, bbrDef.AdresseDuplikatNr) == 0)
+                                .OrderBy(x => x.Position.X).ThenBy(x => x.Position.Y))
+                            {
+                                int nextNumber = 0;
+                                var missing = FindMissing(existingNumbers);
+                                if (missing.Count() > 0) nextNumber = missing.Min();
+                                else nextNumber = existingNumbers.Max() + 1;
+                                existingNumbers.Add(nextNumber);
+
+                                bbrPsm.WritePropertyObject(br, bbrDef.AdresseDuplikatNr, nextNumber);
+                            }
+
+                            foreach (var br in group.OrderBy(x => bbrPsm.ReadPropertyInt(x, bbrDef.AdresseDuplikatNr)))
+                            {
+                                sb.AppendLine(
+                                    $"{bbrPsm.ReadPropertyString(br, bbrDef.Adresse)};" +
+                                    $"{bbrPsm.ReadPropertyString(br, bbrDef.DistriktetsNavn)};" +
+                                    $"{bbrPsm.ReadPropertyDouble(br, bbrDef.EstimeretVarmeForbrug)};" +
+                                    $"{bbrPsm.ReadPropertyString(br, bbrDef.Adresse)} {bbrPsm.ReadPropertyInt(br, bbrDef.AdresseDuplikatNr)}");
+                            }
+                        }
+                        sb.AppendLine();
+                    }
+
+                    IEnumerable<int> FindMissing(IEnumerable<int> values)
+                    {
+                        HashSet<int> myRange = new HashSet<int>(Enumerable.Range(values.Min(), values.Max()));
+                        myRange.ExceptWith(values);
+                        return myRange;
+                    }
+
+                    //Build file name
+                    string dbFilename = localDb.OriginalFileName;
+                    string path = System.IO.Path.GetDirectoryName(dbFilename);
+                    string dumpExportFileName = path + "\\duplikater.csv";
+
+                    Utils.OutputWriter(dumpExportFileName, sb.ToString(), true);
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.ToString());
+                    return;
+                }
+                finally
+                {
+
+                }
+                tx.Commit();
+            }
+        }
+
+        private static object TryGetValue(PropertyInfo property, object element)
+        {
+            object value;
+            try
+            {
+                value = property.GetValue(element);
+
+                if (value == null)
+                {
+                    switch (property.PropertyType.Name)
+                    {
+                        case nameof(String):
+                            value = "";
+                            break;
+                        case nameof(Boolean):
+                            value = false;
+                            break;
+                        case nameof(Double):
+                            value = 0.0;
+                            break;
+                        case nameof(Int32):
+                            value = 0;
+                            break;
+                        default:
+                            value = "";
+                            break;
+                    }
+                }
+            }
+            catch (System.Exception ex)
+            {
+                value = $"{{{ex.Message}}}";
+            }
+
+            return value;
+        }
+
+        /// <command>DIM2AREACROP</command>
+        /// <summary>
+        /// Crops BBR blocks and vejmidte polylines to an area delimited by a closed polyline.
+        /// Blocks outside the boundary are deleted. Polylines wholly outside are deleted,
+        /// wholly inside are kept, and crossing polylines are split at the boundary.
+        /// </summary>
+        /// <category>DIMENSIONERING V2</category>
+        [CommandMethod("DIM2AREACROP")]
+        public void dim2areacrop()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+
+            PropertySetManager.UpdatePropertySetDefinition(localDb, PSetDefs.DefinedSets.BBR);
+
+            PromptEntityOptions peo = new PromptEntityOptions(
+                "\nVælg lukket POLYLINE til beskæring: ");
+            peo.SetRejectMessage("\n Ikke en POLYLINE!");
+            peo.AddAllowedClass(typeof(Polyline), true);
+            PromptEntityResult res = editor.GetEntity(peo);
+            if (res.Status != PromptStatus.OK) return;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    Polyline boundary = res.ObjectId.Go<Polyline>(tx);
+                    if (!boundary.Closed)
+                    {
+                        prdDbg("Selected polyline is not closed!");
+                        return;
+                    }
+
+                    Polygon cropPolygon = NTSConversion
+                        .ConvertClosedPlineToNTSPolygon(boundary);
+                    var geomFactory = cropPolygon.Factory;
+                    
+                    var brs = localDb.HashSetOfType<BlockReference>(tx, true)
+                        .Where(x => cv.AllBlockTypes.Contains(new BBR(x).Type))
+                        .ToList();
+
+                    int deletedBlocks = 0;
+                    foreach (var br in brs)
+                    {
+                        var point = geomFactory.CreatePoint(
+                            new Coordinate(br.Position.X, br.Position.Y));
+                        if (!cropPolygon.Covers(point))
+                        {
+                            br.CheckOrOpenForWrite();
+                            br.Erase(true);
+                            deletedBlocks++;
+                        }
+                    }
+                    prdDbg($"Blocks: kept {brs.Count - deletedBlocks}, deleted {deletedBlocks}");
+
+                    var pls = localDb.HashSetOfType<Polyline>(tx)
+                        .Where(x => x.Layer == cv.LayerVejmidteTændt)
+                        .ToList();
+
+                    int kept = 0, deleted = 0, split = 0;
+                    foreach (var pl in pls)
+                    {
+                        if (pl.Id == boundary.Id) continue;
+
+                        LineString ls = NTSConversion.ConvertPlineToNTSLineString(pl);
+
+                        if (cropPolygon.Covers(ls)) { kept++; continue; }
+
+                        if (!cropPolygon.Intersects(ls))
+                        {
+                            pl.CheckOrOpenForWrite();
+                            pl.Erase(true);
+                            deleted++;
+                            continue;
+                        }
+
+                        NetTopologySuite.Geometries.Geometry clipped = 
+                            cropPolygon.Intersection(ls);
+
+                        pl.CheckOrOpenForWrite();
+                        pl.Erase(true);
+
+                        for (int i = 0; i < clipped.NumGeometries; i++)
+                        {
+                            if (clipped.GetGeometryN(i) is not LineString line) continue;
+                            if (line.IsEmpty || line.Length < tol) continue;
+                            Polyline newPl = NTSConversion.ConvertNTSLineStringToPline(line);
+                            newPl.Layer = cv.LayerVejmidteTændt;
+                            newPl.AddEntityToDbModelSpace(localDb);
+                        }
+                        split++;
+                    }
+                    prdDbg($"Polylines: kept {kept}, deleted {deleted}, split {split}");
                 }
                 catch (System.Exception ex)
                 {
@@ -501,7 +901,7 @@ namespace DimensioneringV2
 
             if (Services.PaletteSetCache.paletteSet == null) Services.PaletteSetCache.paletteSet = new CustomPaletteSet();
             Services.PaletteSetCache.paletteSet.Visible = true;
-            Services.PaletteSetCache.paletteSet.WasVisible = true;            
+            Services.PaletteSetCache.paletteSet.WasVisible = true;
 
             //var events = PaletteSetCache.paletteSet.GetType().GetEvents(BindingFlags.Public | BindingFlags.Instance);
             //foreach (var ev in events)
@@ -707,7 +1107,7 @@ namespace DimensioneringV2
                 var extents = new Extents3d(
                     new Point3d(
                     Math.Min(pls.Select(x => minX(x)).Min(), brs.Select(x => minX(x)).Min()) - 2,
-                    Math.Min(pls.Select(x => minY(x)).Min(), brs.Select(x => minY(x)).Min()) - 2, 0),                
+                    Math.Min(pls.Select(x => minY(x)).Min(), brs.Select(x => minY(x)).Min()) - 2, 0),
                 new Point3d(
                     Math.Max(pls.Select(x => maxX(x)).Max(), brs.Select(x => maxX(x)).Max()) + 2,
                     Math.Max(pls.Select(x => maxY(x)).Max(), brs.Select(x => maxY(x)).Max()) + 2, 0));

@@ -60,35 +60,19 @@ namespace DimensioneringV2.Services
                 return null;
             }
 
-            // Get the CoherencyManager from the chromosome
-            var chm = GetCoherencyManagerFromChromosome(bestChromosome);
+            var chm = (bestChromosome as GraphChromosomeBase)?.CoherencyManager;
             if (chm == null)
             {
                 MessageBox.Show("Could not extract CoherencyManager from chromosome!");
                 return null;
             }
 
-            // Always rebuild graph from genes - works with any chromosome type
             var localGraph = chm.RebuildGraphFromChromosome(bestChromosome);
 
-            // Calculate final results with the graph
             var result = HCS_SGC_CalculateSumsAndCost.CalculateSumsAndCostWithGraph(
                 localGraph, subGraph, props, metaGraph, flCache, slCache);
 
             return result.graph;
-        }
-
-        /// <summary>
-        /// Extracts the CoherencyManager from any supported chromosome type.
-        /// </summary>
-        private static CoherencyManager? GetCoherencyManagerFromChromosome(IChromosome chromosome)
-        {
-            return chromosome switch
-            {
-                StrictGraphChromosome strict => strict.CoherencyManager,
-                RelaxedGraphChromosome relaxed => relaxed.CoherencyManager,
-                _ => null
-            };
         }
     }
 }
