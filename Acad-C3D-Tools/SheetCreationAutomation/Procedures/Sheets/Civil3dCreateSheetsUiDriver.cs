@@ -10,8 +10,7 @@ using System.Threading.Tasks;
 namespace SheetCreationAutomation.Procedures.Sheets
 {
     internal sealed class Civil3dCreateSheetsUiDriver : WizardUiDriverBase
-    {
-        private static readonly int[] LayoutNameMsaaPath = { 4, 11, 4, 18, 4 };
+    {        
         private static readonly int[] NorthArrowMsaaPath = { 4, 11, 4, 20, 4, 1, 4 };
         private static readonly int[] SheetFileNameMsaaPath = { 4, 12, 4, 18, 4 };
 
@@ -34,8 +33,8 @@ namespace SheetCreationAutomation.Procedures.Sheets
             progress.Report("Wizard: View Frame Group and Layouts");
 
             ClickButtonByClassNN(layoutsDialog, "Button13");
-            SetValueByMsaaPath(layoutsDialog, LayoutNameMsaaPath, options.LayoutNamePattern, "Layout name");
-            SetValueByMsaaPath(layoutsDialog, NorthArrowMsaaPath, options.NorthArrowBlockName, "North arrow block");
+            SetTextByClassNN(layoutsDialog, "Edit2",  options.LayoutNamePattern);
+            SetTextByClassNN(layoutsDialog, "Edit3", options.NorthArrowBlockName);
             ClickButtonByClassNN(layoutsDialog, "Button2");
 
             IntPtr sheetSetDialog = await WaitForDialogAsync(mainHwnd, "Create Sheets - Sheet Set", cancellationToken);
@@ -50,7 +49,7 @@ namespace SheetCreationAutomation.Procedures.Sheets
             ClickButtonByClassNN(browseDialog, "Button7");
             await WaitForDialogClosedAsync(mainHwnd, "Browse the Sheet set file", cancellationToken);
 
-            sheetSetDialog = await WaitForDialogAsync(mainHwnd, "Create Sheets - Sheet Set", cancellationToken);
+            //sheetSetDialog = await WaitForDialogAsync(mainHwnd, "Create Sheets - Sheet Set", cancellationToken);
             SetValueByMsaaPath(sheetSetDialog, SheetFileNameMsaaPath, options.SheetFileNamePattern, "Sheet file name");
 
             IntPtr createSheetsDialog = sheetSetDialog;

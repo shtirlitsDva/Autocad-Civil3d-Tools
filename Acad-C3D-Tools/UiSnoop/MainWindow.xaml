@@ -38,7 +38,8 @@
                 <Button Content="Capture now" Command="{Binding CaptureNowCommand}" Margin="0,0,12,0" />
                 <Button Content="Copy LLM block" Command="{Binding CopyLlmBlockCommand}" Margin="0,0,6,0" />
                 <Button Content="Copy JSON" Command="{Binding CopyJsonCommand}" Margin="0,0,6,0" />
-                <Button Content="Copy Snapshot" Command="{Binding CopySnapshotCommand}" Margin="0,0,12,0" />
+                <Button Content="Copy Snapshot" Command="{Binding CopySnapshotCommand}" Margin="0,0,6,0" />
+                <Button Content="Pick &amp; Tree" Click="OnPickAndTreeClick" Margin="0,0,12,0" />
                 <TextBlock VerticalAlignment="Center"
                            Foreground="{DynamicResource MutedTextBrush}"
                            Margin="0,0,12,0"

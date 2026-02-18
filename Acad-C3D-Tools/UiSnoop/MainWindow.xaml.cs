@@ -1,15 +1,18 @@
 using System;
 using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Interop;
 using UiSnoop.Services;
 using UiSnoop.ViewModels;
+using UiSnoop.Views;
 
 namespace UiSnoop;
 
 public partial class MainWindow : Window
 {
     private readonly MainWindowViewModel viewModel;
+    private bool isPickMode;
 
     public MainWindow()
     {
@@ -29,6 +32,69 @@ public partial class MainWindow : Window
     {
         SourceInitialized -= OnSourceInitialized;
         viewModel.Dispose();
+    }
+
+    private void OnPickAndTreeClick(object sender, RoutedEventArgs e)
+    {
+        if (isPickMode)
+        {
+            return;
+        }
+
+        isPickMode = true;
+        Cursor = Cursors.Cross;
+        Mouse.Capture(this, CaptureMode.Element);
+        PreviewMouseLeftButtonDown += OnPickMouseDown;
+        PreviewKeyDown += OnPickKeyDown;
+    }
+
+    private void OnPickMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        ExitPickMode();
+
+        GetCursorPos(out POINT pt);
+        IntPtr hit = WindowFromPoint(pt);
+        if (hit == IntPtr.Zero)
+        {
+            return;
+        }
+
+        IntPtr root = GetAncestor(hit, GA_ROOT);
+        if (root == IntPtr.Zero)
+        {
+            root = hit;
+        }
+
+        IntPtr ownHwnd = new WindowInteropHelper(this).Handle;
+        if (root == ownHwnd)
+        {
+            return;
+        }
+
+        var treeWindow = new WindowTreeWindow(root)
+        {
+            Owner = this
+        };
+        treeWindow.Show();
+    }
+
+    private void OnPickKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape)
+        {
+            e.Handled = true;
+            ExitPickMode();
+        }
+    }
+
+    private void ExitPickMode()
+    {
+        isPickMode = false;
+        Cursor = Cursors.Arrow;
+        Mouse.Capture(null);
+        PreviewMouseLeftButtonDown -= OnPickMouseDown;
+        PreviewKeyDown -= OnPickKeyDown;
     }
 
     private void ApplyDarkTitleBar()
@@ -54,12 +120,28 @@ public partial class MainWindow : Window
         _ = DwmSetWindowAttribute(hwnd, attribute, ref value, Marshal.SizeOf<int>());
     }
 
+    private const uint GA_ROOT = 2;
     private const int DwmaUseImmersiveDarkModeBefore20H1 = 19;
     private const int DwmaUseImmersiveDarkMode = 20;
     private const int DwmaBorderColor = 34;
     private const int DwmaCaptionColor = 35;
     private const int DwmaTextColor = 36;
 
+    [StructLayout(LayoutKind.Sequential)]
+    private struct POINT
+    {
+        public int X, Y;
+    }
+
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int pvAttribute, int cbAttribute);
+
+    [DllImport("user32.dll")]
+    private static extern bool GetCursorPos(out POINT lpPoint);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr WindowFromPoint(POINT point);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetAncestor(IntPtr hwnd, uint gaFlags);
 }
