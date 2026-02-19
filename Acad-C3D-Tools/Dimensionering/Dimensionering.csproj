@@ -110,9 +110,6 @@
 		<Compile Include="..\IntersectUtilities\GroupByCluster.cs">
 			<Link>GroupByCluster.cs</Link>
 		</Compile>
-		<Compile Include="..\IntersectUtilities\Json.cs">
-			<Link>Json.cs</Link>
-		</Compile>
 		<Compile Include="..\IntersectUtilities\PipelineSizeArray.cs">
 			<Link>PipelineSizeArray.cs</Link>
 		</Compile>

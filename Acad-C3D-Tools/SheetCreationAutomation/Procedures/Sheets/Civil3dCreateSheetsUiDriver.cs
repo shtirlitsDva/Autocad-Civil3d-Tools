@@ -40,14 +40,22 @@ namespace SheetCreationAutomation.Procedures.Sheets
             IntPtr sheetSetDialog = await WaitForDialogAsync(mainHwnd, "Create Sheets - Sheet Set", cancellationToken);
             progress.Report("Wizard: Sheet Set");
 
-            ClickButtonByClassNN(sheetSetDialog, "Button19");
-            ClickButtonByClassNN(sheetSetDialog, "Button20");
+            ClickButtonByTitle(sheetSetDialog, "Add to existing sheet set:");
+            Trace("DEBUG: clicked 'Add to existing sheet set:', now post-clicking Button20 (browse)...");
+            PostClickButtonByClassNN(sheetSetDialog, "Button20");
+            Trace("DEBUG: Button20 post-clicked, waiting for Browse dialog...");
 
             IntPtr browseDialog = await WaitForDialogAsync(mainHwnd, "Browse the Sheet set file", cancellationToken);
+            Trace($"DEBUG: Browse dialog found => 0x{browseDialog.ToInt64():X}");
             progress.Report("Wizard: Browse Sheet Set");
+
+            Trace($"DEBUG: Setting Edit1 to '{options.SheetSetFilePath}'...");
             SetTextAsUserInputByClassNN(browseDialog, "Edit1", options.SheetSetFilePath);
+            Trace("DEBUG: Edit1 text set, clicking Button7 (Open)...");
             ClickButtonByClassNN(browseDialog, "Button7");
+            Trace("DEBUG: Button7 clicked, waiting for Browse dialog to close...");
             await WaitForDialogClosedAsync(mainHwnd, "Browse the Sheet set file", cancellationToken);
+            Trace("DEBUG: Browse dialog closed.");
 
             //sheetSetDialog = await WaitForDialogAsync(mainHwnd, "Create Sheets - Sheet Set", cancellationToken);
             SetValueByMsaaPath(sheetSetDialog, SheetFileNameMsaaPath, options.SheetFileNamePattern, "Sheet file name");

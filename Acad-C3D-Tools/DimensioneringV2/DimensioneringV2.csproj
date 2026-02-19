@@ -133,9 +133,6 @@
 		<Compile Include="..\IntersectUtilities\GroupByCluster.cs">
 			<Link>Links\GroupByCluster.cs</Link>
 		</Compile>
-		<Compile Include="..\IntersectUtilities\Json.cs">
-			<Link>Links\Json.cs</Link>
-		</Compile>
 		<Compile Include="..\IntersectUtilities\MoreLinq\DistinctBy.cs">
 			<Link>Links\MoreLinq\DistinctBy.cs</Link>
 		</Compile>
@@ -190,6 +187,9 @@
 		<Folder Include="Links\" />
 	</ItemGroup>
 	<ItemGroup>
+		<Compile Update="Forms\ChoosePath.cs">
+		  <SubType>Form</SubType>
+		</Compile>
 		<Compile Update="Properties\Settings.Designer.cs">
 			<DesignTimeSharedInput>True</DesignTimeSharedInput>
 			<AutoGen>True</AutoGen>

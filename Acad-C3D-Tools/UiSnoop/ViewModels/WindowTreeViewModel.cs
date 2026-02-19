@@ -17,6 +17,7 @@ internal sealed class WindowTreeViewModel : ObservableObject
     {
         this.rootHwnd = rootHwnd;
         RefreshCommand = new RelayCommand(Refresh);
+        CopyTreeCommand = new RelayCommand(CopyTreeToClipboard);
         Refresh();
     }
 
@@ -29,6 +30,7 @@ internal sealed class WindowTreeViewModel : ObservableObject
     }
 
     public IRelayCommand RefreshCommand { get; }
+    public IRelayCommand CopyTreeCommand { get; }
 
     private void Refresh()
     {
@@ -140,6 +142,48 @@ internal sealed class WindowTreeViewModel : ObservableObject
         }
 
         return className + "1";
+    }
+
+    private void CopyTreeToClipboard()
+    {
+        if (RootNodes.Count == 0)
+        {
+            return;
+        }
+
+        var sb = new StringBuilder();
+        foreach (WindowNode root in RootNodes)
+        {
+            AppendNodeLlmFormat(sb, root, depth: 0);
+        }
+
+        System.Windows.Clipboard.SetText(sb.ToString());
+        StatusText = $"Copied {CountNodes(RootNodes[0])} node(s) to clipboard.";
+    }
+
+    private static void AppendNodeLlmFormat(StringBuilder sb, WindowNode node, int depth)
+    {
+        sb.Append(' ', depth * 2);
+
+        sb.Append('[').Append(node.ClassName).Append(']');
+
+        if (!string.IsNullOrEmpty(node.Title))
+        {
+            sb.Append(" \"").Append(node.Title).Append('"');
+        }
+
+        sb.Append(" — ").Append(node.HandleHex);
+        sb.Append("  ClassNN: ").Append(node.ClassNN);
+        sb.Append("  Vis: ").Append(node.IsVisible ? "Y" : "N");
+        sb.Append("  En: ").Append(node.IsEnabled ? "Y" : "N");
+        sb.Append("  Rect: ").Append(node.RectX).Append(',').Append(node.RectY)
+          .Append(' ').Append(node.RectWidth).Append('x').Append(node.RectHeight);
+        sb.AppendLine();
+
+        foreach (WindowNode child in node.Children)
+        {
+            AppendNodeLlmFormat(sb, child, depth + 1);
+        }
     }
 
     private static int CountNodes(WindowNode node)

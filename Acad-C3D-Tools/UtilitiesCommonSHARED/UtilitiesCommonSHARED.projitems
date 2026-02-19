@@ -10,6 +10,11 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)Collections\EntityCollection.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Serialization.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Schema\DF BBR Bygning Class.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Schema\DF BBR Enhed Class.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Schema\DF DAR Adresse Class.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Schema\DF DAR Husnummer Class.cs" />
     <Compile Include="..\UtilitiesCommonSHARED\Collections\DatabaseList.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ComponentSchedule.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)DataManager\DataManager.cs" />

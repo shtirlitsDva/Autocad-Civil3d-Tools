@@ -1638,11 +1638,11 @@ namespace IntersectUtilities.Dimensionering
             string adresserPath = path + "DAR_adresse.json";
             if (!File.Exists(adresserPath)) { prdDbg("DAR_adresse.json does not exist!"); return; }
 
-            var bygninger = UtilsCommon.Json.Deserialize<HashSet<BBRBygning.Bygning>>(bygningerPath)
+            var bygninger = UtilsCommon.Serialization.Json.Deserialize<HashSet<BBRBygning.Bygning>>(bygningerPath)
                 .Where(x => x.status == "6");
-            var adresser = UtilsCommon.Json.Deserialize<HashSet<DARAdresse.Adresse>>(adresserPath)
+            var adresser = UtilsCommon.Serialization.Json.Deserialize<HashSet<DARAdresse.Adresse>>(adresserPath)
                 .Where(x => x.status == "3");
-            var enheder = UtilsCommon.Json.ReadJson(enhederPath);
+            var enheder = UtilsCommon.Serialization.Json.ReadJson(enhederPath);
             #endregion
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())

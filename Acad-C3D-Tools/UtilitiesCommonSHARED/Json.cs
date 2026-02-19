@@ -1,10 +1,10 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-namespace IntersectUtilities.UtilsCommon
+namespace IntersectUtilities.UtilsCommon.Serialization
 {
     public static class Json
     {

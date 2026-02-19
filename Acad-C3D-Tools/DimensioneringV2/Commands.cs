@@ -1,10 +1,11 @@
-﻿using Autodesk.AutoCAD.ApplicationServices;
+using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
 
+using DimensioneringV2.Forms;
 using DimensioneringV2.Geometry;
 using DimensioneringV2.GraphFeatures;
 using DimensioneringV2.GraphModelRoads;
@@ -21,15 +22,18 @@ using Dreambuild.AutoCAD;
 using IntersectUtilities;
 using IntersectUtilities.NTS;
 using IntersectUtilities.UtilsCommon;
+using IntersectUtilities.UtilsCommon.DataManager.CsvData;
+using IntersectUtilities.UtilsCommon.Serialization;
 
 using Microsoft.Win32;
 
 using NetTopologySuite;
 using NetTopologySuite.Features;
 using NetTopologySuite.Geometries;
-using NetTopologySuite.IO.Esri;
 
 using QuikGraph;
+
+using Schema.Datafordeler;
 
 using System;
 using System.Collections;
@@ -196,26 +200,23 @@ namespace DimensioneringV2
                 Application.DocumentManager.MdiActiveDocument.Database,
                 PSetDefs.DefinedSets.BBR);
 
-            #region Dialog box for selecting the geojson file
-            string dbFilename = localDb.OriginalFileName;
-            string path = System.IO.Path.GetDirectoryName(dbFilename);
-            string fileName = string.Empty;
-            string bbrString = "";
-            OpenFileDialog dialog = new OpenFileDialog()
-            {
-                Title = "Choose BBR file:",
-                DefaultExt = "geojson",
-                Filter = "Geojson files (*.geojson)|*.geojson|All files (*.*)|*.*",
-                FilterIndex = 0
-            };
-            if (dialog.ShowDialog() == true)
-            {
-                fileName = dialog.FileName;
-                bbrString = File.ReadAllText(fileName);
-            }
-            else { throw new System.Exception("Cannot find BBR file!"); }
+            #region Get path
+            ChoosePath cp = new ChoosePath();
+            cp.ShowDialog();
+            cp.Close();
+            if (cp.Path.IsNoE()) return;
+            #endregion
 
-            BBRFeatureCollection BBR = JsonSerializer.Deserialize<BBRFeatureCollection>(bbrString);
+            #region Read BBR data
+            string basePath = @"X:\AutoCAD DRI - QGIS\BBR UDTRÆK";
+            string path = basePath + "\\" + cp.Path + "\\";
+
+            string bbrPath = path + "BBR.geojson";
+            if (!File.Exists(bbrPath))
+            { prdDbg("BBR_enhed.json does not exist! Download med RestHenter!"); return; }            
+
+            BBRFeatureCollection BBR = IntersectUtilities.UtilsCommon.Serialization
+                .Json.Deserialize<BBRFeatureCollection>(bbrPath);
             #endregion
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
@@ -481,8 +482,8 @@ namespace DimensioneringV2
         /// wholly inside are kept, and crossing polylines are split at the boundary.
         /// </summary>
         /// <category>DIMENSIONERING V2</category>
-        [CommandMethod("DIM2AREACROP")]
-        public void dim2areacrop()
+        [CommandMethod("DIM2CROPAREA")]
+        public void dim2croparea()
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
@@ -511,7 +512,7 @@ namespace DimensioneringV2
                     Polygon cropPolygon = NTSConversion
                         .ConvertClosedPlineToNTSPolygon(boundary);
                     var geomFactory = cropPolygon.Factory;
-                    
+
                     var brs = localDb.HashSetOfType<BlockReference>(tx, true)
                         .Where(x => cv.AllBlockTypes.Contains(new BBR(x).Type))
                         .ToList();
@@ -531,7 +532,10 @@ namespace DimensioneringV2
                     prdDbg($"Blocks: kept {brs.Count - deletedBlocks}, deleted {deletedBlocks}");
 
                     var pls = localDb.HashSetOfType<Polyline>(tx)
-                        .Where(x => x.Layer == cv.LayerVejmidteTændt)
+                        .Where(x =>
+                        x.Layer == cv.LayerVejmidteTændt ||
+                        x.Layer == cv.LayerVejmidteSlukket ||
+                        x.Layer == "Vejmidte")
                         .ToList();
 
                     int kept = 0, deleted = 0, split = 0;
@@ -551,21 +555,21 @@ namespace DimensioneringV2
                             continue;
                         }
 
-                        NetTopologySuite.Geometries.Geometry clipped = 
-                            cropPolygon.Intersection(ls);
-
-                        pl.CheckOrOpenForWrite();
-                        pl.Erase(true);
+                        NetTopologySuite.Geometries.Geometry clipped =
+                            cropPolygon.Intersection(ls);                        
 
                         for (int i = 0; i < clipped.NumGeometries; i++)
                         {
                             if (clipped.GetGeometryN(i) is not LineString line) continue;
                             if (line.IsEmpty || line.Length < tol) continue;
                             Polyline newPl = NTSConversion.ConvertNTSLineStringToPline(line);
-                            newPl.Layer = cv.LayerVejmidteTændt;
+                            newPl.Layer = pl.Layer;
                             newPl.AddEntityToDbModelSpace(localDb);
                         }
                         split++;
+
+                        pl.CheckOrOpenForWrite();
+                        pl.Erase(true);
                     }
                     prdDbg($"Polylines: kept {kept}, deleted {deleted}, split {split}");
                 }
@@ -1458,6 +1462,170 @@ namespace DimensioneringV2
             prdDbg($"Results saved to {newFileName}");
 
             prdDbg("Finished!");
+        }
+
+        /// <command>DIM2ENHEDERANALYZE</command>
+        /// <summary>
+        /// Analyzes BBR unit data to count residential units per building and writes results back to
+        /// the drawing (e.g., AntalEnheder). Intended to quantify demand per building for planning.
+        /// </summary>
+        /// <category>DIMENSIONERING V2</category>
+        [CommandMethod("DIM2ENHEDERANALYZE")]
+        public void dimenhederanalyze()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            PropertySetManager.UpdatePropertySetDefinition(localDb, PSetDefs.DefinedSets.BBR);
+
+            #region Get path
+            ChoosePath cp = new ChoosePath();
+            cp.ShowDialog();
+            cp.Close();
+            if (cp.Path.IsNoE()) return;
+            #endregion
+
+            #region Read data
+            string basePath = @"X:\AutoCAD DRI - QGIS\BBR UDTRÆK";
+            string path = basePath + "\\" + cp.Path + "\\";
+
+            string enhederPath = path + "BBR_enhed.json";
+            if (!File.Exists(enhederPath))
+            { prdDbg("BBR_enhed.json does not exist! Download med RestHenter!"); return; }
+
+            var enheder = IntersectUtilities.UtilsCommon.Serialization.Json
+                .Deserialize<HashSet<BBREnhed.Enhed>>(enhederPath)
+                .Where(x => x.status == "6" || x.status == "7");
+
+            var enhedsDict = enheder
+                .Where(x => x.status.IsNotNoE())
+                .Where(x => x.enh020EnhedensAnvendelse.IsNotNoE())
+                .GroupBy(x => x.bygning)
+                .ToDictionary(x => x.Key, x => x.ToHashSet());
+            #endregion
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                PropertySetManager bbrPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.BBR);
+                PSetDefs.BBR bbrDef = new PSetDefs.BBR();
+
+                var enhKoder = Csv.EnhKoder;
+                var enhKoderDict = new Dictionary<string, bool>();
+                foreach (var row in enhKoder.Rows)
+                {
+                    //Column "Nr."
+                    string key = EnhKoder.Col(row, EnhKoder.Columns.Nr);
+                    //Column "Beboelse"
+                    bool result = int.TryParse(EnhKoder.Col(row, EnhKoder.Columns.Beboelse), out int val) && val == 1;
+                    if (!enhKoderDict.ContainsKey(key))
+                        enhKoderDict.Add(key, result);
+                }
+
+                //PrintTable(
+                //    new string[] { "Anvendelseskode", "Beboelse" },
+                //    enhKoderDict.Select(x => new object[] { x.Key, x.Value } as IEnumerable<object>)
+                //    );
+
+                var brs = localDb.HashSetOfType<BlockReference>(tx, true)
+                    .Where(x => !x.BlockTableRecord.Go<BlockTableRecord>(tx).IsFromExternalReference);
+
+                var pm = new ProgressMeter();
+                pm.Start("Processing...");
+                pm.SetLimit(brs.Count());
+
+                try
+                {
+                    //Test to see if there are multiple bygninger with same id_lokalId
+                    var test = brs.GroupBy(x => bbrPsm.ReadPropertyString(x, bbrDef.id_lokalId))
+                        .Where(x => x.Count() > 1);
+
+                    if (test.Count() > 0)
+                    {
+                        prdDbg(
+                            $"Buildings with non-unique id_lokalId present!" +
+                            $"Analysis cannot continue!");
+                        prdDbg(string.Join("\n", test.Select(x => x.Key)));
+
+                        prdDbg("Bygninger med samme bygningsnummer:");
+                        var groupByCount = test
+                            .Select(g => g.Count())
+                            .GroupBy(count => count)
+                            .Select(g => new { Antal = g.Key, Forekomst = g.Count() })
+                            .OrderBy(x => x.Antal);
+
+                        PrintTable(
+                            ["Antal", "Forekomster"],
+                            groupByCount.Select(g => new object[] { g.Antal, g.Forekomst } as IEnumerable<object>)
+                            );
+
+                        docCol.MdiActiveDocument.Editor.SetImpliedSelection(
+                            test.SelectMany(x => x.Select(y => y.Id)).ToArray()
+                            );
+
+                        throw new System.Exception(
+                            $"Buildings with non-unique id_lokalId present!" +
+                            $"Analysis cannot continue!");
+                    }
+
+                    var results = new HashSet<(string, int)>();
+
+                    foreach (var br in brs)
+                    {
+                        string brId = bbrPsm.ReadPropertyString(br, bbrDef.id_lokalId).ToLower();
+                        if (brId.IsNoE())
+                        {
+                            if (br.BlockTableRecord.Go<BlockTableRecord>(tx).IsFromExternalReference)
+                                continue;
+
+                            prdDbg($"WARNING! id_lokalId is empty for block {br.Handle}!");
+                        }
+
+                        if (enhedsDict.TryGetValue(brId, out HashSet<BBREnhed.Enhed> units))
+                        {
+                            int count = units.Count(x => enhKoderDict[x.enh020EnhedensAnvendelse]);
+                            if (count > 1)
+                                bbrPsm.WritePropertyObject(br, bbrDef.AntalEnheder, count);
+
+                            results.Add((brId, count == 0 ? 1 : count));
+                        }
+
+                        pm.MeterProgress();
+                    }
+
+                    pm.Stop();
+                    pm.Dispose();
+
+                    var analysis = results
+                        .GroupBy(tuple => tuple.Item2)
+                        .Select(group => new { Value = group.Key, Count = group.Select(x => x.Item1).Count() })
+                        .OrderByDescending(x => x.Count);
+
+                    PrintTable(
+                        ["Antal enheder", "Antal forekomster"],
+                        analysis.Select(x => new object[] { x.Value, x.Count } as IEnumerable<object>)
+                        );
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    pm.Stop();
+                    pm.Dispose();
+                    return;
+                }
+                finally
+                {
+
+                }
+                tx.Commit();
+
+                //string html = ConvertToHtmlTree(list);
+                //string htmlPath = "C:\\Temp\\" + "enheder.html";
+                //File.WriteAllText(htmlPath, html);
+            }
+
+            prdDbg("Finished!");
+            prdDbg("ADVARSEL: ER IKKE TESTET SAMMEN MED DIMCONNECTHUSNR!!!!!!!!!");
         }
 
         //[CommandMethod("DIM2TESTNAMING")]

@@ -33,6 +33,114 @@ internal sealed class UiSnoopCaptureService : IUiSnoopCaptureService
 
     public WindowInfo InspectHandle(IntPtr hwnd) => CaptureWindowInfo(hwnd);
 
+    public string DebugFindChildByClassNN(IntPtr parentHwnd, string classNN)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine($"FIND_CLASSNN_DEBUG: parent={ToHex(parentHwnd)} classNN=\"{classNN}\"");
+
+        // Parse the ClassNN string using the same logic as Win32WindowTools.FindChildByClassNN
+        int splitIndex = classNN.Length - 1;
+        while (splitIndex >= 0 && char.IsDigit(classNN[splitIndex]))
+            splitIndex--;
+        string className = classNN.Substring(0, splitIndex + 1);
+        int ordinal = 0;
+        string ordinalStr = classNN.Substring(splitIndex + 1);
+        if (!string.IsNullOrEmpty(ordinalStr))
+            ordinal = int.Parse(ordinalStr);
+
+        sb.AppendLine($"Parsed: className=\"{className}\" ordinal={ordinal}");
+
+        // Parent info
+        string parentClass = GetClassNameRaw(parentHwnd);
+        string parentTitle = GetWindowTextRaw(parentHwnd);
+        bool parentVisible = IsWindowVisible(parentHwnd);
+        bool parentEnabled = IsWindowEnabled(parentHwnd);
+        sb.AppendLine($"Parent info: class={parentClass} title=\"{parentTitle}\" visible={parentVisible} enabled={parentEnabled}");
+        sb.AppendLine();
+        sb.AppendLine($"Enumerating children with class \"{className}\":");
+
+        int matchCount = 0;
+        IntPtr matchedHandle = IntPtr.Zero;
+        var allMatches = new List<(int Ordinal, IntPtr Hwnd, string Title, bool Visible, bool Enabled)>();
+
+        EnumChildWindows(parentHwnd, (child, _) =>
+        {
+            string childClass = GetClassNameRaw(child);
+            if (string.Equals(childClass, className, StringComparison.OrdinalIgnoreCase))
+            {
+                matchCount++;
+                string childTitle = GetWindowTextRaw(child);
+                bool childVisible = IsWindowVisible(child);
+                bool childEnabled = IsWindowEnabled(child);
+                allMatches.Add((matchCount, child, childTitle, childVisible, childEnabled));
+
+                if (matchCount == ordinal)
+                {
+                    matchedHandle = child;
+                }
+            }
+
+            return true;
+        }, IntPtr.Zero);
+
+        foreach (var m in allMatches)
+        {
+            string marker = m.Ordinal == ordinal ? "  <-- MATCH" : "";
+            sb.AppendLine($"  #{m.Ordinal,-4} {ToHex(m.Hwnd),-12} \"{m.Title}\"  Vis={BoolChar(m.Visible)} En={BoolChar(m.Enabled)}{marker}");
+        }
+
+        sb.AppendLine($"Total \"{className}\" children: {matchCount}");
+        sb.AppendLine();
+
+        if (matchedHandle != IntPtr.Zero)
+        {
+            sb.AppendLine($"RESULT: Found at ordinal {ordinal} => {ToHex(matchedHandle)}");
+        }
+        else if (ordinal > matchCount)
+        {
+            sb.AppendLine($"RESULT: NOT FOUND. Ordinal {ordinal} exceeds total count {matchCount}.");
+        }
+        else
+        {
+            sb.AppendLine($"RESULT: NOT FOUND. Ordinal {ordinal} was not reached (total={matchCount}).");
+        }
+
+        // Also try FindDescendantByTitle approach: search for a child with matching className
+        // whose title contains some text (useful for matching buttons by their label)
+        sb.AppendLine();
+        sb.AppendLine("Also searching by title (text payload field):");
+        var titleMatches = new List<(IntPtr Hwnd, string Title)>();
+        EnumChildWindows(parentHwnd, (child, _) =>
+        {
+            string childClass = GetClassNameRaw(child);
+            if (string.Equals(childClass, className, StringComparison.OrdinalIgnoreCase))
+            {
+                string childTitle = GetWindowTextRaw(child);
+                if (!string.IsNullOrEmpty(childTitle))
+                {
+                    titleMatches.Add((child, childTitle));
+                }
+            }
+            return true;
+        }, IntPtr.Zero);
+
+        if (titleMatches.Count > 0)
+        {
+            foreach (var tm in titleMatches)
+            {
+                sb.AppendLine($"  Found {className} with title \"{tm.Title}\" => {ToHex(tm.Hwnd)}");
+            }
+        }
+        else
+        {
+            sb.AppendLine($"  No {className} children with non-empty titles found.");
+        }
+
+        return sb.ToString();
+    }
+
+    private static string BoolChar(bool value) => value ? "Y" : "N";
+
     public InspectorActionResult ExecuteInspectorAction(IntPtr targetHwnd, InspectorAction action, string textPayload)
     {
         if (targetHwnd == IntPtr.Zero || !IsWindow(targetHwnd))

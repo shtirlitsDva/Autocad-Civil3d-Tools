@@ -19,10 +19,10 @@
                     Margin="2" Command="{Binding CollectFeaturesCommand}"/>
                 <Button x:Name="btnLoadElevationData" Content="Load elevations" FontSize="9" Width="70" Height="20" 
                     Margin="2" Command="{Binding LoadElevationsCommand}"/>
-                <Button x:Name="btnCalcSPD" Content="Calc SPD" FontSize="10" Width="70" Height="20" 
-                    Margin="2" Command="{Binding PerformCalculationsSPDCommand}"/>
-                <Button x:Name="btnCalcSTP" Content="BRUTE FORCE" FontSize="10" Width="70" Height="20" 
-                        Margin="2" Command="{Binding PerformCalculationsBFCommand}"/>
+                <!--<Button x:Name="btnCalcSPD" Content="Calc SPD" FontSize="10" Width="70" Height="20" 
+                    Margin="2" Command="{Binding PerformCalculationsSPDCommand}"/>-->
+                <!--<Button x:Name="btnCalcSTP" Content="BRUTE FORCE" FontSize="10" Width="70" Height="20" 
+                        Margin="2" Command="{Binding PerformCalculationsBFCommand}"/>-->
                 <Button x:Name="btnCalcGAOpt" Content="Optmized GA" FontSize="10" Width="70" Height="20" 
                         Margin="2" Command="{Binding PerformCalculationsGAOptimizedCommand}"/>
                 <!--<Button x:Name="btnCalcPhysarum" Content="Physarum" FontSize="10" Width="70" Height="20" 

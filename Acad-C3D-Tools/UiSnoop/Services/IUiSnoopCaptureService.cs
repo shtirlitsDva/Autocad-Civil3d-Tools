@@ -8,4 +8,5 @@ internal interface IUiSnoopCaptureService
     void CopyToClipboard(string text);
     WindowInfo InspectHandle(IntPtr hwnd);
     InspectorActionResult ExecuteInspectorAction(IntPtr targetHwnd, InspectorAction action, string textPayload);
+    string DebugFindChildByClassNN(IntPtr parentHwnd, string classNN);
 }

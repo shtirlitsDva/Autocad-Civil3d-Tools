@@ -179,6 +179,30 @@ namespace SheetCreationAutomation.Services
             return IntPtr.Zero;
         }
 
+        public static IntPtr FindDescendantByClassAndTitle(IntPtr root, string className, string windowTitle)
+        {
+            foreach (IntPtr hwnd in EnumerateChildWindows(root, includeRoot: true))
+            {
+                if (!IsWindow(hwnd))
+                {
+                    continue;
+                }
+
+                if (!string.Equals(GetClassNameRaw(hwnd), className, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                string title = GetWindowTextRaw(hwnd);
+                if (string.Equals(title, windowTitle, StringComparison.OrdinalIgnoreCase))
+                {
+                    return hwnd;
+                }
+            }
+
+            return IntPtr.Zero;
+        }
+
         public static IntPtr FindTopLevelByTitle(string windowTitle, uint processId = 0)
         {
             foreach (IntPtr hwnd in EnumerateTopLevelWindows())
@@ -304,6 +328,23 @@ namespace SheetCreationAutomation.Services
             }
 
             SendMessage(hwnd, BM_CLICK, IntPtr.Zero, IntPtr.Zero);
+            return true;
+        }
+
+        /// <summary>
+        /// Posts a BM_CLICK message instead of sending it synchronously.
+        /// Use this for buttons whose click handler opens a modal dialog
+        /// (e.g. file browse), because SendMessage would block the calling
+        /// thread for the entire duration of the modal dialog.
+        /// </summary>
+        public static bool PostClick(IntPtr hwnd)
+        {
+            if (hwnd == IntPtr.Zero)
+            {
+                return false;
+            }
+
+            PostMessage(hwnd, BM_CLICK, IntPtr.Zero, IntPtr.Zero);
             return true;
         }
 

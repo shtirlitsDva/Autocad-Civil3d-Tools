@@ -22,7 +22,8 @@
                 BorderBrush="{DynamicResource BorderBrush}"
                 BorderThickness="1">
             <WrapPanel VerticalAlignment="Center">
-                <Button Content="Refresh" Command="{Binding RefreshCommand}" Margin="0,0,12,0" />
+                <Button Content="Refresh" Command="{Binding RefreshCommand}" Margin="0,0,8,0" />
+                <Button Content="Copy Tree" Command="{Binding CopyTreeCommand}" Margin="0,0,12,0" />
                 <TextBlock VerticalAlignment="Center"
                            Foreground="{DynamicResource MutedTextBrush}"
                            Text="{Binding StatusText}" />

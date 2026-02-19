@@ -51,6 +51,7 @@ internal class MainWindowViewModel : ObservableObject, IDisposable
         InspectorNotifyEnKillFocusCommand = new RelayCommand(() => ExecuteInspectorAction(InspectorAction.NotifyEnKillFocus));
         InspectorSendIdOkCommand = new RelayCommand(() => ExecuteInspectorAction(InspectorAction.SendDialogIdOk));
         InspectorClickButtonCommand = new RelayCommand(() => ExecuteInspectorAction(InspectorAction.ClickButton));
+        FindClassNNCommand = new RelayCommand(FindClassNN);
         CopyInspectorLogCommand = new RelayCommand(CopyInspectorLog);
 
         timer = new DispatcherTimer
@@ -160,6 +161,7 @@ internal class MainWindowViewModel : ObservableObject, IDisposable
     public IRelayCommand InspectorNotifyEnKillFocusCommand { get; }
     public IRelayCommand InspectorSendIdOkCommand { get; }
     public IRelayCommand InspectorClickButtonCommand { get; }
+    public IRelayCommand FindClassNNCommand { get; }
     public IRelayCommand CopyInspectorLogCommand { get; }
 
     public void Dispose()
@@ -280,6 +282,25 @@ internal class MainWindowViewModel : ObservableObject, IDisposable
         string actionName = action.ToString();
         AppendInspectorLog(actionName, result.Succeeded, result.Message);
         StatusText = result.Succeeded ? $"Inspector action OK: {actionName}." : $"Inspector action failed: {actionName}.";
+    }
+
+    private void FindClassNN()
+    {
+        if (!TryParseHandle(TargetHandleText, out IntPtr hwnd, out string error))
+        {
+            StatusText = error;
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(InspectorTextPayload))
+        {
+            StatusText = "Text payload is empty. Enter a ClassNN string (e.g. Button19).";
+            return;
+        }
+
+        string result = captureService.DebugFindChildByClassNN(hwnd, InspectorTextPayload.Trim());
+        AppendInspectorLog("FindClassNN", true, result);
+        StatusText = $"FindClassNN completed for \"{InspectorTextPayload}\" on {TargetHandleText}.";
     }
 
     private void CopyInspectorLog()
