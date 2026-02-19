@@ -10,8 +10,7 @@ using System.Threading.Tasks;
 namespace SheetCreationAutomation.Procedures.Sheets
 {
     internal sealed class Civil3dCreateSheetsUiDriver : WizardUiDriverBase
-    {        
-        private static readonly int[] NorthArrowMsaaPath = { 4, 11, 4, 20, 4, 1, 4 };
+    {           
         private static readonly int[] SheetFileNameMsaaPath = { 4, 12, 4, 18, 4 };
 
         public Civil3dCreateSheetsUiDriver(IWaitOverlayPresenter overlayPresenter, WaitPolicy waitPolicy)
@@ -57,8 +56,8 @@ namespace SheetCreationAutomation.Procedures.Sheets
             await WaitForDialogClosedAsync(mainHwnd, "Browse the Sheet set file", cancellationToken);
             Trace("DEBUG: Browse dialog closed.");
 
-            //sheetSetDialog = await WaitForDialogAsync(mainHwnd, "Create Sheets - Sheet Set", cancellationToken);
-            SetValueByMsaaPath(sheetSetDialog, SheetFileNameMsaaPath, options.SheetFileNamePattern, "Sheet file name");
+            sheetSetDialog = await WaitForDialogAsync(mainHwnd, "Create Sheets - Sheet Set", cancellationToken);
+            SetTextByClassNN(sheetSetDialog, "Edit8", options.SheetFileNamePattern);            
 
             IntPtr createSheetsDialog = sheetSetDialog;
             if (!options.PlanOnly)
