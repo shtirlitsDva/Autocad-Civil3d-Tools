@@ -328,6 +328,10 @@ namespace DimensioneringV2.BBRData.ViewModels
                 HasError = !HasBbrBlocks;
                 ErrorMessage = HasBbrBlocks ? string.Empty : "No BBR blocks found in the current drawing.";
                 StatusMessage = HasBbrBlocks ? $"Loaded {BbrBlockCount} BBR block(s)." : string.Empty;
+
+                OnPropertyChanged(nameof(AvailableBbrPropsForKey));
+                OnPropertyChanged(nameof(AvailableBbrPropsForTransfer));
+                OnPropertyChanged(nameof(AvailableBbrPropsForDisplay));
             }
             catch (Exception ex)
             {
@@ -376,6 +380,10 @@ namespace DimensioneringV2.BBRData.ViewModels
             HasCsvData = true;
             CsvRowCount = _csvRows.Count;
             StatusMessage = $"Loaded {BbrBlockCount} BBR block(s), {CsvRowCount} CSV row(s).";
+
+            OnPropertyChanged(nameof(AvailableCsvColsForKey));
+            OnPropertyChanged(nameof(AvailableCsvColsForTransfer));
+            OnPropertyChanged(nameof(AvailableCsvColsForDisplay));
 
             RecomputeMatches();
         }
