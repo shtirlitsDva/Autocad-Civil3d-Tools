@@ -395,10 +395,11 @@
                        Margin="0,0,10,0"
                        FontSize="14"/>
 
-            <TextBox Grid.Column="1" 
+            <TextBox Grid.Column="1"
                      x:Name="SearchTextBox"
                      Style="{StaticResource SearchTextBoxStyle}"
-                     Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
+                     Text="{Binding FilterText, UpdateSourceTrigger=Explicit}"
+                     KeyDown="SearchTextBox_KeyDown"
                      IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}"/>
         </Grid>
 

@@ -505,4 +505,10 @@
         </Setter>
     </Style>
 
+    <!-- Match Category Colors (BBR Data Window) -->
+    <SolidColorBrush x:Key="MatchGreenBg" Color="#FF2D4A2D"/>
+    <SolidColorBrush x:Key="MatchYellowBg" Color="#FF4A4A2D"/>
+    <SolidColorBrush x:Key="MatchRedBg" Color="#FF5A2D2D"/>
+    <SolidColorBrush x:Key="MatchErrorBg" Color="#FF6A2D2D"/>
+
 </ResourceDictionary>

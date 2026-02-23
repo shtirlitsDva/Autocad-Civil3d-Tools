@@ -185,6 +185,11 @@ namespace DimensioneringV2.UI
         public AsyncRelayCommand TrykprofilCommand => new(async () => { await new Trykprofil().Execute(SelectedFeature); });
         public AsyncRelayCommand SampleGridCommand => new AsyncRelayCommand(new SampleGrid().Execute);
         public AsyncRelayCommand TestCacheCommand => new AsyncRelayCommand(new TestCache().Execute);
+        public RelayCommand OpenBbrDataCommand => new RelayCommand(() =>
+        {
+            var window = new BBRData.Views.BbrDataWindow();
+            window.Show();
+        });
         #endregion
 
         #region ZoomToExtents

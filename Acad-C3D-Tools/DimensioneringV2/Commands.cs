@@ -955,7 +955,7 @@ namespace DimensioneringV2
                         .Select(x => new Point2D(x.Position.X, x.Position.Y))
                         .ToList();
 
-                    var acceptedTypes = HydraulicSettingsService.Instance.Settings.GetAcceptedBlockTypes();
+                    var acceptedTypes = HydraulicSettingsService.Instance.Settings.GetAcceptedBlockTypes();                    
                     var brs = localDb.HashSetOfType<BlockReference>(tx, true)
                         .Where(x => acceptedTypes.Contains(
                             PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "Type")));

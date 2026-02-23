@@ -1,0 +1,321 @@
+<Window x:Class="DimensioneringV2.BBRData.Views.BbrDataWindow"
+        x:ClassModifier="internal"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="BBR Data - CSV Matcher"
+        Height="800" Width="1400" MinHeight="600" MinWidth="1000"
+        Background="{DynamicResource Background}"
+        Foreground="{DynamicResource Text}">
+    <Window.Resources>
+        <ResourceDictionary Source="../../UI/Theme.xaml"/>
+    </Window.Resources>
+
+    <Grid Margin="8">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <GroupBox Grid.Column="0" Header="BBR Data (AutoCAD)" Style="{StaticResource ModernGroupBox}" Padding="6,2,6,4">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
+                        <TextBlock Text="{Binding StatusMessage}" Foreground="White"/>
+                        <TextBlock Text="  BBR Keys:" FontWeight="SemiBold" Margin="12,0,0,0"/>
+                        <Button Content="+ Key" Command="{Binding AddBbrKeyCommand}" Style="{StaticResource SecondaryButtonStyle}" Margin="8,0,4,0"/>
+                        <Button Content="+ Compound" Click="AddBbrCompoundKey_Click" Style="{StaticResource SecondaryButtonStyle}"/>
+                    </StackPanel>
+                    <ItemsControl ItemsSource="{Binding BbrKeys}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal" Margin="0,1">
+                                    <TextBlock Text="{Binding Order, StringFormat=#\{0\}}" Width="24" VerticalAlignment="Center"/>
+                                    <ComboBox Style="{StaticResource ModernDarkComboBox}"
+                                              Width="160"
+                                              ItemsSource="{Binding DataContext.AvailableBbrPropsForKey, RelativeSource={RelativeSource AncestorType=Window}}"
+                                              DisplayMemberPath="Name"
+                                              SelectionChanged="BbrKeyPropCombo_SelectionChanged"/>
+                                    <TextBlock Text="{Binding Description}" Margin="4,0,0,0" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource Text}"/>
+                                    <Button Content="&#xE711;"
+                                            Style="{StaticResource IconButtonStyle}"
+                                            Margin="6,0,0,0"
+                                            Command="{Binding DataContext.RemoveBbrKeyCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <Grid Margin="0,4,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                            <TextBlock Text="Transfer Mappings:" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                            <ItemsControl ItemsSource="{Binding TransferMappings}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" Margin="0,1">
+                                            <TextBlock VerticalAlignment="Center" Width="280">
+                                                <Run Text="{Binding BbrProperty.Name, Mode=OneWay}"/>
+                                                <Run Text=" &lt;- " Foreground="#FF888888"/>
+                                                <Run Text="{Binding CsvColumnName, Mode=OneWay}"/>
+                                            </TextBlock>
+                                            <TextBlock Text="{Binding DataType}" VerticalAlignment="Center" FontStyle="Italic" Opacity="0.7"/>
+                                            <Button Content="&#xE711;"
+                                                    Style="{StaticResource IconButtonStyle}"
+                                                    Margin="6,0,0,0"
+                                                    Command="{Binding DataContext.RemoveTransferMappingCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                    CommandParameter="{Binding}"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                <ComboBox x:Name="TransferBbrPropCombo"
+                                          Style="{StaticResource ModernDarkComboBox}"
+                                          Width="140"
+                                          ItemsSource="{Binding AvailableBbrPropsForTransfer}"
+                                          DisplayMemberPath="Name"/>
+                                <TextBlock Text="&lt;-" VerticalAlignment="Center" Margin="4,0" Foreground="#FF888888"/>
+                                <ComboBox x:Name="TransferCsvColCombo"
+                                          Style="{StaticResource ModernDarkComboBox}"
+                                          Width="120"
+                                          ItemsSource="{Binding AvailableCsvColsForTransfer}"/>
+                                <Button Content="Add" Click="AddTransferMapping_Click" Style="{StaticResource SecondaryButtonStyle}" Margin="6,0,0,0"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Margin="6,0,0,0">
+                            <TextBlock Text="Display Only:" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                            <ItemsControl ItemsSource="{Binding DisplayBbrProps}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" Margin="0,1">
+                                            <TextBlock Text="{Binding Name}" Width="140" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding DataType}" VerticalAlignment="Center" FontStyle="Italic" Opacity="0.7"/>
+                                            <Button Content="&#xE711;"
+                                                    Style="{StaticResource IconButtonStyle}"
+                                                    Margin="6,0,0,0"
+                                                    Command="{Binding DataContext.RemoveDisplayBbrPropCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                    CommandParameter="{Binding}"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                <ComboBox x:Name="BbrDisplayPropCombo"
+                                          Style="{StaticResource ModernDarkComboBox}"
+                                          Width="180"
+                                          ItemsSource="{Binding AvailableBbrPropsForDisplay}"
+                                          DisplayMemberPath="Name"/>
+                                <Button Content="Add" Click="AddBbrDisplayProp_Click" Style="{StaticResource SecondaryButtonStyle}" Margin="6,0,0,0"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </GroupBox>
+
+            <GroupBox Grid.Column="1" Header="CSV Data" Style="{StaticResource ModernGroupBox}" Padding="6,2,6,4">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
+                        <Button Content="Browse..." Command="{Binding LoadCsvCommand}" Style="{StaticResource SecondaryButtonStyle}" Margin="0,0,8,0"/>
+                        <TextBlock Text="{Binding CsvFilePath}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="300"/>
+                        <TextBlock Text="{Binding CsvRowCount, StringFormat=  ({0} rows)}" VerticalAlignment="Center" Opacity="0.7"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
+                        <TextBlock Text="Delimiter:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                        <ComboBox Style="{StaticResource ModernDarkComboBox}" Width="60"
+                                  SelectedValue="{Binding SelectedDelimiter}" SelectedValuePath="Tag">
+                            <ComboBoxItem Content=";" Tag=";"/>
+                            <ComboBoxItem Content="," Tag=","/>
+                            <ComboBoxItem Content="Tab" Tag="\t"/>
+                        </ComboBox>
+                        <TextBlock Text="Decimal:" VerticalAlignment="Center" Margin="10,0,4,0"/>
+                        <ComboBox Style="{StaticResource ModernDarkComboBox}" Width="60"
+                                  SelectedValue="{Binding SelectedDecimalSeparator}" SelectedValuePath="Tag">
+                            <ComboBoxItem Content="." Tag="."/>
+                            <ComboBoxItem Content="," Tag=","/>
+                        </ComboBox>
+
+                        <TextBlock Text="{Binding ValidationMessage}" Foreground="#FFFF4444" Margin="12,0,0,0" VerticalAlignment="Center">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasCsvData}" Value="True">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding CsvFilePath}" Value="">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
+                        <TextBlock Text="CSV Keys:" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <Button Content="+ Key" Command="{Binding AddCsvKeyCommand}" Style="{StaticResource SecondaryButtonStyle}" Margin="8,0,4,0"/>
+                        <Button Content="+ Compound" Click="AddCsvCompoundKey_Click" Style="{StaticResource SecondaryButtonStyle}"/>
+                    </StackPanel>
+                    <ItemsControl ItemsSource="{Binding CsvKeys}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal" Margin="0,1">
+                                    <TextBlock Text="{Binding Order, StringFormat=#\{0\}}" Width="24" VerticalAlignment="Center"/>
+                                    <ComboBox Style="{StaticResource ModernDarkComboBox}"
+                                              Width="160"
+                                              ItemsSource="{Binding DataContext.CsvHeaders, RelativeSource={RelativeSource AncestorType=Window}}"
+                                              SelectionChanged="CsvKeyColCombo_SelectionChanged"/>
+                                    <TextBlock Text="{Binding Description}" Margin="4,0,0,0" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource Text}"/>
+                                    <ComboBox Style="{StaticResource ModernDarkComboBox}"
+                                              Width="80" Margin="6,0,0,0"
+                                              Loaded="CsvKeyTypeCombo_Loaded"
+                                              SelectionChanged="CsvKeyTypeCombo_SelectionChanged"
+                                              SelectedIndex="0">
+                                        <ComboBoxItem Content="String"/>
+                                        <ComboBoxItem Content="Int"/>
+                                        <ComboBoxItem Content="Double"/>
+                                    </ComboBox>
+                                    <Button Content="&#xE711;"
+                                            Style="{StaticResource IconButtonStyle}"
+                                            Margin="6,0,0,0"
+                                            Command="{Binding DataContext.RemoveCsvKeyCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <StackPanel Margin="0,4,0,0">
+                        <TextBlock Text="Display Columns:" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                        <ItemsControl ItemsSource="{Binding DisplayCsvCols}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" Margin="0,1">
+                                        <TextBlock Text="{Binding ColumnName}" Width="120" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding DataType}" VerticalAlignment="Center" FontStyle="Italic" Opacity="0.7"/>
+                                        <Button Content="&#xE711;"
+                                                Style="{StaticResource IconButtonStyle}"
+                                                Margin="6,0,0,0"
+                                                Command="{Binding DataContext.RemoveDisplayCsvColCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                CommandParameter="{Binding}"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                            <ComboBox x:Name="CsvDisplayColCombo"
+                                      Style="{StaticResource ModernDarkComboBox}"
+                                      Width="130"
+                                      ItemsSource="{Binding AvailableCsvColsForDisplay}"/>
+                            <ComboBox x:Name="CsvDisplayTypeCombo"
+                                      Style="{StaticResource ModernDarkComboBox}"
+                                      Width="70" Margin="4,0,0,0"
+                                      SelectedIndex="0">
+                                <ComboBoxItem Content="String"/>
+                                <ComboBoxItem Content="Int"/>
+                                <ComboBoxItem Content="Double"/>
+                            </ComboBox>
+                            <Button Content="Add" Click="AddCsvDisplayCol_Click" Style="{StaticResource SecondaryButtonStyle}" Margin="4,0,0,0"/>
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+            </GroupBox>
+        </Grid>
+
+        <DataGrid x:Name="MatchDataGrid"
+                  Grid.Row="1"
+                  AutoGenerateColumns="False"
+                  CanUserAddRows="False"
+                  IsReadOnly="False"
+                  SelectionMode="Single"
+                  SelectionUnit="FullRow"
+                  ItemsSource="{Binding DisplayRows}"
+                  Background="{DynamicResource DarkBackground}"
+                  Foreground="{DynamicResource Text}"
+                  BorderThickness="0"
+                  GridLinesVisibility="All"
+                  HorizontalGridLinesBrush="#FF666666"
+                  VerticalGridLinesBrush="#FF555555"
+                  RowHeaderWidth="0"
+                  HeadersVisibility="Column"
+                  Style="{StaticResource DarkDataGridStyle}">
+            <DataGrid.ColumnHeaderStyle>
+                <Style TargetType="DataGridColumnHeader">
+                    <Setter Property="FontSize" Value="18"/>
+                    <Setter Property="Background" Value="{DynamicResource DarkHeaderBackground}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource Text}"/>
+                    <Setter Property="BorderBrush" Value="#FF666666"/>
+                    <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                    <Setter Property="FontWeight" Value="Bold"/>
+                    <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                    <Setter Property="Padding" Value="6,4"/>
+                </Style>
+            </DataGrid.ColumnHeaderStyle>
+            <DataGrid.RowStyle>
+                <Style TargetType="DataGridRow">
+                    <Setter Property="Background" Value="{Binding RowBackground}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource Text}"/>
+                </Style>
+            </DataGrid.RowStyle>
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Match" Binding="{Binding CategoryLabel}" Width="50"/>
+                <DataGridTextColumn Header="Key" Binding="{Binding KeyValue}" Width="SizeToHeader"/>
+                <DataGridTemplateColumn Header="Ignore" Width="60">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <CheckBox IsChecked="{Binding IsIgnored, Mode=TwoWay}"
+                                      IsEnabled="{Binding CanIgnore}"
+                                      Visibility="{Binding CanIgnore, Converter={StaticResource BoolToVisibilityConverter}}"
+                                      HorizontalAlignment="Center"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <DockPanel Grid.Row="2" Margin="0,8,0,0" LastChildFill="True">
+            <Button DockPanel.Dock="Right"
+                    Content="Update BBR Blocks"
+                    Command="{Binding UpdateBlocksCommand}"
+                    Style="{StaticResource PrimaryButtonStyle}"
+                    Margin="8,0,0,0"/>
+            <CheckBox DockPanel.Dock="Right" Content="Hide unmatched CSV"
+                      IsChecked="{Binding HideCsvUnmatched}"
+                      VerticalAlignment="Center" Margin="12,0,0,0"
+                      Foreground="{DynamicResource Text}"/>
+            <CheckBox DockPanel.Dock="Right" Content="Hide unmatched BBR"
+                      IsChecked="{Binding HideBbrUnmatched}"
+                      VerticalAlignment="Center" Margin="8,0,0,0"
+                      Foreground="{DynamicResource Text}"/>
+            <TextBlock DockPanel.Dock="Left"
+                       Text="{Binding ValidationMessage}"
+                       Foreground="#FFFFAA00"
+                       VerticalAlignment="Center"/>
+        </DockPanel>
+
+        <Grid Grid.RowSpan="3"
+              Background="{DynamicResource Background}"
+              Visibility="{Binding HasError, Converter={StaticResource BoolToVisibilityConverter}}">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <TextBlock Text="&#x26A0;" FontSize="48" HorizontalAlignment="Center" Foreground="#FFFF4444"/>
+                <TextBlock Text="{Binding ErrorMessage}" FontSize="16" HorizontalAlignment="Center"
+                           Foreground="#FFFF4444" Margin="0,10"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

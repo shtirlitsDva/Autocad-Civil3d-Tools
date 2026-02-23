@@ -118,6 +118,16 @@ namespace IntersectUtilities.DataScience.PropertySetBrowser
             return template;
         }
 
+        private void SearchTextBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                // Push the TextBox value to the ViewModel's FilterText property
+                var binding = SearchTextBox.GetBindingExpression(System.Windows.Controls.TextBox.TextProperty);
+                binding?.UpdateSource();
+            }
+        }
+
         private void ListView_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
             // Zoom to entity on double-click (only if clicking on an item, not header)

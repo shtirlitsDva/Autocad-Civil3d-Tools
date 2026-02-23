@@ -53,6 +53,8 @@
                         Margin="2" Command="{Binding SampleGridCommand}"/>
                 <Button x:Name="btnTestCache" Content="Test cache" FontSize="10" Width="70" Height="20"
                         Margin="2" Command="{Binding TestCacheCommand}"/>
+                <Button x:Name="btnBbrData" Content="BBR Data" FontSize="10" Width="70" Height="20"
+                        Margin="2" Command="{Binding OpenBbrDataCommand}"/>
             </StackPanel>
 
             <!-- Main Content Area -->
