@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Linq;
 using System.Windows;
 using System.Windows.Media;
@@ -588,11 +589,12 @@ namespace DimensioneringV2.BBRData.ViewModels
                     row.BbrValues[prop.Name] = bbrRow.GetDisplayValue(prop.Name);
             }
 
-            // Display-only CSV columns
+            // Display-only CSV columns — normalize to '.' decimals
             if (csvRow != null)
             {
                 foreach (var col in DisplayCsvCols)
-                    row.CsvValues[col.ColumnName] = csvRow.GetDisplayValue(col.ColumnName);
+                    row.CsvValues[col.ColumnName] = FormatCsvValueInvariant(
+                        GetCsvRawValue(csvRow, col.ColumnName), col.DataType);
             }
 
             // Transfer comparison cells
@@ -603,7 +605,8 @@ namespace DimensioneringV2.BBRData.ViewModels
                 if (bbrRow != null)
                     cell.BbrValue = bbrRow.GetDisplayValue(mapping.BbrProperty.Name);
                 if (csvRow != null)
-                    cell.CsvValue = csvRow.GetDisplayValue(mapping.CsvColumnName);
+                    cell.CsvValue = FormatCsvValueInvariant(
+                        GetCsvRawValue(csvRow, mapping.CsvColumnName), mapping.DataType);
 
                 // Per-cell color: only meaningful for 1:1 groups with both sides present
                 if (group.Category == MatchCategory.OneToOne && bbrRow != null && csvRow != null)
@@ -626,24 +629,14 @@ namespace DimensioneringV2.BBRData.ViewModels
 
         /// <summary>
         /// Compares a BBR value with a CSV value using typed comparison.
-        /// CRITICAL: Do NOT use string comparison — double.ToString() uses CurrentCulture
-        /// which can produce "3,14" vs "3.14" false mismatches.
+        /// Uses the selected decimal separator to parse CSV, then compares typed objects.
         /// </summary>
         private bool AreValuesEqual(BbrRowData? bbrRow, CsvRowData? csvRow, TransferMapping mapping)
         {
             if (bbrRow == null || csvRow == null) return false;
 
-            // Get typed BBR value
             bbrRow.Values.TryGetValue(mapping.BbrProperty.Name, out var bbrVal);
-
-            // Get raw CSV string and convert to target type
-            string csvRaw = string.Empty;
-            if (_csvHeadersArray != null)
-            {
-                int colIndex = Array.IndexOf(_csvHeadersArray, mapping.CsvColumnName);
-                if (colIndex >= 0 && colIndex < csvRow.RawFields.Length)
-                    csvRaw = csvRow.RawFields[colIndex];
-            }
+            string csvRaw = GetCsvRawValue(csvRow, mapping.CsvColumnName);
 
             object? csvTyped = GenericCsvReader.ConvertValue(
                 csvRaw, mapping.DataType, SelectedDecimalSeparator);
@@ -651,6 +644,41 @@ namespace DimensioneringV2.BBRData.ViewModels
             if (bbrVal == null && csvTyped == null) return true;
             if (bbrVal == null || csvTyped == null) return false;
             return bbrVal.Equals(csvTyped);
+        }
+
+        /// <summary>
+        /// Extracts raw string value from a CSV row by column name.
+        /// </summary>
+        private string GetCsvRawValue(CsvRowData csvRow, string columnName)
+        {
+            if (_csvHeadersArray == null) return string.Empty;
+            int colIndex = Array.IndexOf(_csvHeadersArray, columnName);
+            if (colIndex >= 0 && colIndex < csvRow.RawFields.Length)
+                return csvRow.RawFields[colIndex];
+            return string.Empty;
+        }
+
+        /// <summary>
+        /// Converts a raw CSV value to the target type using the selected decimal separator,
+        /// then formats it with InvariantCulture (always '.') for display.
+        /// Falls back to the raw string if conversion fails.
+        /// </summary>
+        private string FormatCsvValueInvariant(string rawValue, BbrDataType dataType)
+        {
+            if (string.IsNullOrWhiteSpace(rawValue)) return rawValue;
+
+            object? converted = GenericCsvReader.ConvertValue(
+                rawValue, dataType, SelectedDecimalSeparator);
+
+            if (converted == null) return rawValue.Trim();
+
+            return converted switch
+            {
+                double d => d.ToString(CultureInfo.InvariantCulture),
+                int i => i.ToString(CultureInfo.InvariantCulture),
+                string s => s,
+                _ => converted.ToString() ?? rawValue
+            };
         }
 
         #endregion

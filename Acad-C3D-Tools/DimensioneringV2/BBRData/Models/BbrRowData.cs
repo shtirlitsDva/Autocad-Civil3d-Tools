@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Globalization;
 
 using Autodesk.AutoCAD.DatabaseServices;
 
@@ -16,10 +17,21 @@ namespace DimensioneringV2.BBRData.Models
             Values = values;
         }
 
+        /// <summary>
+        /// Returns display value always using '.' for decimals (InvariantCulture).
+        /// AutoCAD internally uses dot decimals.
+        /// </summary>
         public string GetDisplayValue(string propertyName)
         {
             if (Values.TryGetValue(propertyName, out var val))
-                return val?.ToString() ?? string.Empty;
+            {
+                return val switch
+                {
+                    double d => d.ToString(CultureInfo.InvariantCulture),
+                    int i => i.ToString(CultureInfo.InvariantCulture),
+                    _ => val?.ToString() ?? string.Empty
+                };
+            }
             return string.Empty;
         }
     }
