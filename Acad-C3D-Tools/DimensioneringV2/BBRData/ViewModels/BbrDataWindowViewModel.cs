@@ -62,8 +62,27 @@ namespace DimensioneringV2.BBRData.ViewModels
         [ObservableProperty]
         private bool _hideCsvUnmatched;
 
-        partial void OnHideBbrUnmatchedChanged(bool value) => RebuildDisplayFromCache();
-        partial void OnHideCsvUnmatchedChanged(bool value) => RebuildDisplayFromCache();
+        partial void OnHideBbrUnmatchedChanged(bool value)
+        {
+            // Auto-ignore hidden groups so they don't block validation
+            if (MatchResult != null)
+            {
+                foreach (var g in MatchResult.Groups.Where(g => g.Category == MatchCategory.BbrUnmatched))
+                    g.IsIgnored = value;
+            }
+            RebuildDisplayFromCache();
+        }
+
+        partial void OnHideCsvUnmatchedChanged(bool value)
+        {
+            // Auto-ignore hidden groups so they don't block validation
+            if (MatchResult != null)
+            {
+                foreach (var g in MatchResult.Groups.Where(g => g.Category == MatchCategory.CsvUnmatched))
+                    g.IsIgnored = value;
+            }
+            RebuildDisplayFromCache();
+        }
 
         // Separate key collections — matched by order (BBR key[0] ↔ CSV key[0])
         public ObservableCollection<BbrMatchKey> BbrKeys { get; } = new();
@@ -243,9 +262,18 @@ namespace DimensioneringV2.BBRData.ViewModels
             if (MatchResult == null) return;
 
             // Step 1: Save ignore states before reload
-            var savedIgnoreStates = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+            var savedGroupIgnoreStates = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+            var savedRowIgnoreStates = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
             foreach (var group in MatchResult.Groups)
-                savedIgnoreStates[group.KeyValue] = group.IsIgnored;
+            {
+                savedGroupIgnoreStates[group.KeyValue] = group.IsIgnored;
+                // For N:1 groups, also save per-row ignore state
+                if (group.Category == MatchCategory.ManyToOne)
+                {
+                    foreach (var bbrRow in group.BbrRows)
+                        savedRowIgnoreStates[$"{group.KeyValue}|{bbrRow.EntityId}"] = bbrRow.IsIgnored;
+                }
+            }
 
             // Step 2: Write only changed blocks (skip-if-equal)
             var transferableGroups = MatchResult.TransferableGroups;
@@ -269,15 +297,33 @@ namespace DimensioneringV2.BBRData.ViewModels
             {
                 foreach (var group in MatchResult.Groups)
                 {
-                    if (savedIgnoreStates.TryGetValue(group.KeyValue, out bool wasIgnored))
+                    if (savedGroupIgnoreStates.TryGetValue(group.KeyValue, out bool wasIgnored))
                         group.IsIgnored = wasIgnored;
+
+                    // Restore per-row ignore state for N:1 groups
+                    if (group.Category == MatchCategory.ManyToOne)
+                    {
+                        foreach (var bbrRow in group.BbrRows)
+                        {
+                            if (savedRowIgnoreStates.TryGetValue(
+                                $"{group.KeyValue}|{bbrRow.EntityId}", out bool wasRowIgnored))
+                                bbrRow.IsIgnored = wasRowIgnored;
+                        }
+                    }
                 }
                 // Sync display row ignore states
                 foreach (var row in DisplayRows)
                 {
-                    if (row.MatchGroup != null &&
-                        savedIgnoreStates.TryGetValue(row.MatchGroup.KeyValue, out bool wasIgnored))
+                    if (row.Category == MatchCategory.ManyToOne && row.BbrRow != null)
+                    {
+                        // For N:1, sync from BbrRowData (source of truth)
+                        row.IsIgnored = row.BbrRow.IsIgnored;
+                    }
+                    else if (row.MatchGroup != null &&
+                        savedGroupIgnoreStates.TryGetValue(row.MatchGroup.KeyValue, out bool wasIgnored))
+                    {
                         row.IsIgnored = wasIgnored;
+                    }
                 }
             }
 
@@ -295,17 +341,23 @@ namespace DimensioneringV2.BBRData.ViewModels
         {
             foreach (var row in DisplayRows)
             {
-                if (row.Category != MatchCategory.OneToOne) continue;
+                if (row.Category != MatchCategory.OneToOne && row.Category != MatchCategory.ManyToOne)
+                    continue;
+
+                // Skip ignored rows/groups
+                if (row.Category == MatchCategory.ManyToOne && row.BbrRow?.IsIgnored == true) continue;
+                if (row.Category == MatchCategory.OneToOne && row.MatchGroup?.IsIgnored == true) continue;
 
                 foreach (var mapping in TransferMappings)
                 {
                     if (!row.TransferCells.TryGetValue(mapping.Key, out var cell))
                         continue;
 
-                    bool match = AreValuesEqual(
-                        row.MatchGroup?.BbrRows.FirstOrDefault(),
-                        row.MatchGroup?.CsvRows.FirstOrDefault(),
-                        mapping);
+                    // Use the specific BbrRow for this display row
+                    var bbrRow = row.BbrRow ?? row.MatchGroup?.BbrRows.FirstOrDefault();
+                    var csvRow = row.MatchGroup?.CsvRows.FirstOrDefault();
+
+                    bool match = AreValuesEqual(bbrRow, csvRow, mapping);
 
                     cell.CellBackground = match
                         ? TransferCellBrushes.PostTransferSuccess
@@ -453,6 +505,19 @@ namespace DimensioneringV2.BBRData.ViewModels
                     if (e.PropertyName == nameof(MatchGroup.IsIgnored))
                         Revalidate();
                 };
+
+                // For N:1 groups, also listen to per-row ignore changes
+                if (group.Category == MatchCategory.ManyToOne)
+                {
+                    foreach (var bbrRow in group.BbrRows)
+                    {
+                        bbrRow.PropertyChanged += (s, e) =>
+                        {
+                            if (e.PropertyName == nameof(BbrRowData.IsIgnored))
+                                Revalidate();
+                        };
+                    }
+                }
             }
 
             BuildDisplayRows();
@@ -514,7 +579,12 @@ namespace DimensioneringV2.BBRData.ViewModels
                     {
                         foreach (var csvRow in group.CsvRows)
                         {
-                            var row = CreateDisplayRow(group, bbrRow, csvRow, isFirst);
+                            // N:1: every BBR row gets its own ignore checkbox
+                            bool canIgnore = group.Category == MatchCategory.ManyToOne || isFirst;
+                            var row = CreateDisplayRow(group, bbrRow, csvRow, isFirst, canIgnore);
+                            // Initialize per-row ignore state from BbrRowData
+                            if (group.Category == MatchCategory.ManyToOne)
+                                row.IsIgnored = bbrRow.IsIgnored;
                             isFirst = false;
                             DisplayRows.Add(row);
                         }
@@ -579,15 +649,17 @@ namespace DimensioneringV2.BBRData.ViewModels
         }
 
         private DisplayRowViewModel CreateDisplayRow(
-            MatchGroup group, BbrRowData? bbrRow, CsvRowData? csvRow, bool isGroupHeader)
+            MatchGroup group, BbrRowData? bbrRow, CsvRowData? csvRow,
+            bool isGroupHeader, bool? canIgnoreOverride = null)
         {
             var row = new DisplayRowViewModel
             {
                 Category = group.Category,
                 KeyValue = group.KeyValue,
-                CanIgnore = isGroupHeader,
+                CanIgnore = canIgnoreOverride ?? isGroupHeader,
                 IsGroupHeader = isGroupHeader,
-                MatchGroup = group
+                MatchGroup = group,
+                BbrRow = bbrRow
             };
 
             // Display-only BBR columns
@@ -616,8 +688,9 @@ namespace DimensioneringV2.BBRData.ViewModels
                     cell.CsvValue = FormatCsvValueInvariant(
                         GetCsvRawValue(csvRow, mapping.CsvColumnName), mapping.DataType);
 
-                // Per-cell color: only meaningful for 1:1 groups with both sides present
-                if (group.Category == MatchCategory.OneToOne && bbrRow != null && csvRow != null)
+                // Per-cell color: meaningful for 1:1 and N:1 groups with both sides present
+                if ((group.Category == MatchCategory.OneToOne || group.Category == MatchCategory.ManyToOne)
+                    && bbrRow != null && csvRow != null)
                 {
                     bool equal = AreValuesEqual(bbrRow, csvRow, mapping);
                     cell.CellBackground = equal
@@ -763,13 +836,17 @@ namespace DimensioneringV2.BBRData.ViewModels
         public bool CanIgnore { get; set; }
         public bool IsGroupHeader { get; set; }
         public MatchGroup? MatchGroup { get; set; }
+        public BbrRowData? BbrRow { get; set; }
 
         [ObservableProperty]
         private bool _isIgnored;
 
         partial void OnIsIgnoredChanged(bool value)
         {
-            if (MatchGroup != null)
+            // For N:1 groups, sync to the individual BbrRowData
+            if (Category == MatchCategory.ManyToOne && BbrRow != null)
+                BbrRow.IsIgnored = value;
+            else if (MatchGroup != null)
                 MatchGroup.IsIgnored = value;
         }
 

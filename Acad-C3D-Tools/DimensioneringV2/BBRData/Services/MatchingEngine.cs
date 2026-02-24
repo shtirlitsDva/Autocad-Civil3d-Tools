@@ -132,8 +132,10 @@ namespace DimensioneringV2.BBRData.Services
                 return (false, $"{count} non-1:1 group(s) not ignored (first: {firstCategory}). Ignore them to proceed.");
             }
 
-            int transferCount = matchResult.TransferableGroups.Count;
-            return (true, $"Ready — {transferCount} block(s) will be updated.");
+            var transferable = matchResult.TransferableGroups;
+            int totalBbrBlocks = transferable.Sum(g =>
+                g.Category == MatchCategory.ManyToOne ? g.NonIgnoredBbrRows.Count : g.BbrRows.Count);
+            return (true, $"Ready — {totalBbrBlocks} block(s) will be updated ({transferable.Count} group(s)).");
         }
 
         private static string ComputeBbrCompositeKey(

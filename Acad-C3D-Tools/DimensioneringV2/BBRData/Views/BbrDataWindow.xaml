@@ -278,7 +278,7 @@
                 <DataGridTemplateColumn Header="Ignore" Width="60">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <CheckBox IsChecked="{Binding IsIgnored, Mode=TwoWay}"
+                            <CheckBox IsChecked="{Binding IsIgnored, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                       IsEnabled="{Binding CanIgnore}"
                                       Visibility="{Binding CanIgnore, Converter={StaticResource BoolToVisibilityConverter}}"
                                       HorizontalAlignment="Center"/>

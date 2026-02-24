@@ -3,13 +3,18 @@ using System.Globalization;
 
 using Autodesk.AutoCAD.DatabaseServices;
 
+using CommunityToolkit.Mvvm.ComponentModel;
+
 namespace DimensioneringV2.BBRData.Models
 {
-    internal class BbrRowData
+    internal partial class BbrRowData : ObservableObject
     {
         public ObjectId EntityId { get; }
         public Dictionary<string, object?> Values { get; }
         public string ComputedKey { get; set; } = string.Empty;
+
+        [ObservableProperty]
+        private bool _isIgnored;
 
         public BbrRowData(ObjectId entityId, Dictionary<string, object?> values)
         {
