@@ -7,29 +7,15 @@ using Mapsui.Styles.Thematics;
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace DimensioneringV2.Themes
 {
-    class CategoryTheme<T> : StyleBase, IThemeStyle, IStyle, ILegendData
+    class CategoryTheme<T> : StyleBase, IThemeStyle, IStyle, ILegendSource
     {
         private Func<AnalysisFeature, T> _valueSelector { get; }
 
-        public LegendType LegendType => LegendType.Categorical;
-
         private string _legendTitle;
-        public string LegendTitle => _legendTitle;
-
-        public IList<LegendItem> Items => _legendItems;
-
-        public double Max => throw new NotImplementedException();
-
-        public double Min => throw new NotImplementedException();
-
         private IDictionary<T, IStyle> _stylesMap;
-
         private IList<LegendItem> _legendItems;
 
         public CategoryTheme(
@@ -54,6 +40,22 @@ namespace DimensioneringV2.Themes
             T key = _valueSelector(afeature);
             if (_stylesMap.TryGetValue(key, out var style)) return style;
             return StyleProvider.BasicStyle;
-        }        
+        }
+
+        public LegendElement? BuildLegendPanel() => new StackPanel
+        {
+            Background = new Color(255, 255, 255, 200),
+            Padding = new Thickness(10, 5, 10, 5),
+            Children = [
+                new TextBlock
+                {
+                    Text = _legendTitle,
+                    FontSize = 16,
+                    Align = LegendTextAlign.Center,
+                },
+                new Spacer { Height = 4 },
+                new ItemList { Items = _legendItems },
+            ]
+        };
     }
 }

@@ -5,15 +5,11 @@ using Mapsui;
 using Mapsui.Styles;
 using Mapsui.Styles.Thematics;
 
-using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace DimensioneringV2.Themes
 {
-    class DefaultTheme : StyleBase, IThemeStyle, IStyle, ILegendData
+    class DefaultTheme : StyleBase, IThemeStyle, IStyle, ILegendSource
     {
         readonly IStyle _red = new VectorStyle
         {
@@ -24,36 +20,39 @@ namespace DimensioneringV2.Themes
             Line = new Pen(Color.DarkOrange) { Width = 3 }
         };
 
-        public DefaultTheme() {}
+        public DefaultTheme() { }
 
-        public LegendType LegendType => LegendType.Categorical;
-
-        public string LegendTitle => LegendTitleProvider.GetTitle(UI.MapPropertyEnum.Default);
-
-        public IList<LegendItem> Items => GetLegendItems();
-
-        public double Max => throw new NotImplementedException();
-
-        public double Min => throw new NotImplementedException();
-
-        private IList<LegendItem> GetLegendItems()
-        {
-            return new List<LegendItem>()
+        private static IList<LegendItem> GetLegendItems() =>
+        [
+            new LegendItem
             {
-                new LegendItem
+                Label = "Forsyningsrør",
+                SymbolColor = Color.Red,
+                SymbolLineWidth = 3
+            },
+            new LegendItem
+            {
+                Label = "Stikrør",
+                SymbolColor = Color.DarkOrange,
+                SymbolLineWidth = 3
+            }
+        ];
+
+        public LegendElement? BuildLegendPanel() => new StackPanel
+        {
+            Background = new Color(255, 255, 255, 200),
+            Padding = new Thickness(10, 5, 10, 5),
+            Children = [
+                new TextBlock
                 {
-                    Label = "Forsyningsrør",
-                    SymbolColor = Color.Red,
-                    SymbolLineWidth = 3
+                    Text = LegendTitleProvider.GetTitle(UI.MapPropertyEnum.Default),
+                    FontSize = 16,
+                    Align = LegendTextAlign.Center,
                 },
-                new LegendItem
-                {
-                    Label = "Stikrør",
-                    SymbolColor = Color.DarkOrange,
-                    SymbolLineWidth = 3
-                }
-            };
-        }
+                new Spacer { Height = 4 },
+                new ItemList { Items = GetLegendItems() },
+            ]
+        };
 
         public IStyle? GetStyle(IFeature feature)
         {

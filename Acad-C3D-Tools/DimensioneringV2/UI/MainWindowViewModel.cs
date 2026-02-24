@@ -176,6 +176,7 @@ namespace DimensioneringV2.UI
         public RelayCommand PerformCalculationsBFCommand => new(async () => await new CalculateBF().Execute());
         public AsyncRelayCommand PerformCalculationsGAOptimizedCommand => new(new CalculateGA().Execute);
         public RelayCommand PerformPriceCalc => new RelayCommand(() => new CalculatePrice().Execute(Features));
+        public RelayCommand ShowForbrugereCommand => new RelayCommand(() => new ShowForbrugere().Execute(Features));
         public RelayCommand Dim2ImportDimsCommand => new RelayCommand(() => new Dim2ImportDims().Execute());
         public RelayCommand SaveResultCommand => new RelayCommand(() => new SaveResult().Execute());
         public RelayCommand LoadResultCommand => new RelayCommand(() => new LoadResult().Execute());
@@ -345,7 +346,7 @@ namespace DimensioneringV2.UI
             //Legends
             _legendWidget = new LegendWidget()
             {
-                LegendData = _themeManager.GetTheme(),
+                Content = _themeManager.GetLegendContent(),
                 Enabled = IsLegendVisible
             };
             Mymap.Widgets.Enqueue(_legendWidget);
@@ -383,13 +384,8 @@ namespace DimensioneringV2.UI
 
             if (_legendWidget != null)
             {
-                var ldp = _themeManager.GetTheme() as ILegendData;
-
-                if (ldp != null)
-                {
-                    _legendWidget.LegendData = ldp;
-                    Mymap.RefreshData();
-                }
+                _legendWidget.Content = _themeManager.GetLegendContent();
+                Mymap.RefreshData();
             }
         }
 

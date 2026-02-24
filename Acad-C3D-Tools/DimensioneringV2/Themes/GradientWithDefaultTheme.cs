@@ -1,11 +1,7 @@
-﻿using Mapsui.Styles.Thematics;
-using Mapsui.Styles;
+﻿using Mapsui.Styles;
+using Mapsui.Styles.Thematics;
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Mapsui;
 using DimensioneringV2.Legend;
 using DimensioneringV2.UI;
@@ -13,7 +9,7 @@ using DimensioneringV2.GraphFeatures;
 
 namespace DimensioneringV2.Themes
 {
-    class GradientWithDefaultTheme : StyleBase, IThemeStyle, ILegendData
+    class GradientWithDefaultTheme : StyleBase, IThemeStyle, ILegendSource
     {
         /// <summary>
         /// Gets the property enum used to retrieve the attribute value via property getter.
@@ -41,19 +37,19 @@ namespace DimensioneringV2.Themes
         public IStyle MaxStyle { get; init; }
 
         /// <summary>
-        /// Gets or sets the <see cref="ColorBlend"/> used on labels
+        /// Gets or sets the <see cref="OklchGradient"/> used on labels
         /// </summary>
-        public ColorBlend? TextColorBlend { get; init; }
+        public OklchGradient? TextColorBlend { get; init; }
 
         /// <summary>
-        /// Gets or sets the <see cref="ColorBlend"/> used on lines
+        /// Gets or sets the <see cref="OklchGradient"/> used on lines
         /// </summary>
-        public ColorBlend? LineColorBlend { get; init; }
+        public OklchGradient? LineColorBlend { get; init; }
 
         /// <summary>
-        /// Gets or sets the <see cref="ColorBlend"/> used as Fill
+        /// Gets or sets the <see cref="OklchGradient"/> used as Fill
         /// </summary>
-        public ColorBlend? FillColorBlend { get; init; }        
+        public OklchGradient? FillColorBlend { get; init; }        
 
         /// <summary>
         /// Initializes a new instance of the GradientTheme class
@@ -228,10 +224,37 @@ namespace DimensioneringV2.Themes
         }
 
         #region Legend
-        public LegendType LegendType => LegendType.Gradient;
         private string _legendTitle;
-        public string LegendTitle => _legendTitle;
-        public IList<LegendItem> Items => throw new NotImplementedException();
+
+        public LegendElement? BuildLegendPanel()
+        {
+            bool hasDecimals = Min % 1 != 0 || Max % 1 != 0;
+            var minLabel = hasDecimals ? Min.ToString("F2") : Min.ToString("F0");
+            var maxLabel = hasDecimals ? Max.ToString("F2") : Max.ToString("F0");
+
+            return new StackPanel
+            {
+                Background = new Color(255, 255, 255, 200),
+                Padding = new Thickness(10, 5, 10, 5),
+                Children = [
+                    new TextBlock
+                    {
+                        Text = _legendTitle,
+                        FontSize = 16,
+                        Align = LegendTextAlign.Center,
+                    },
+                    new Spacer { Height = 4 },
+                    new GradientBar
+                    {
+                        Min = Min,
+                        Max = Max,
+                        MinLabel = minLabel,
+                        MaxLabel = maxLabel,
+                        ColorGradient = LineColorBlend ?? ColorBlendProvider.Standard,
+                    },
+                ]
+            };
+        }
         #endregion
     }
 }

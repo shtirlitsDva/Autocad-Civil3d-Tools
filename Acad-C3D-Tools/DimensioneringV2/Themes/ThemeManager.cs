@@ -18,7 +18,7 @@ namespace DimensioneringV2.Themes
     {
         private readonly IEnumerable<AnalysisFeature> _allFeatures;
         public IStyle? CurrentTheme { get; private set; }
-        private ColorBlend _cb = ColorBlendProvider.Standard;
+        private OklchGradient _cb = ColorBlendProvider.Standard;
 
         public ThemeManager(IEnumerable<AnalysisFeature> allFeatures)
         {
@@ -118,10 +118,12 @@ namespace DimensioneringV2.Themes
                 CurrentTheme = theme;
             }
         }
-        public ILegendData? GetTheme()
+        public LegendElement? GetLegendContent()
         {
-            if (CurrentTheme is StyleCollection col) return col.Styles[0] as ILegendData;
-            else return CurrentTheme as ILegendData;
+            ILegendSource? source = CurrentTheme is StyleCollection col
+                ? col.Styles[0] as ILegendSource
+                : CurrentTheme as ILegendSource;
+            return source?.BuildLegendPanel();
         }
 
         private IStyle BuildGradientTheme(MapPropertyEnum prop)

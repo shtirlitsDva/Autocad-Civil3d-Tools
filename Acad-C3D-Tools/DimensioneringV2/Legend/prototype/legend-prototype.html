@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Legend Element Tree Prototype</title>
+<style>
+  /* ============================================================
+     RESET & PAGE
+     ============================================================ */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: #1a1a2e;
+    color: #e0e0e0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ============================================================
+     HEADER / CONTROLS
+     ============================================================ */
+  .controls {
+    background: #16213e;
+    border-bottom: 1px solid #0f3460;
+    padding: 16px 24px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: center;
+  }
+  .controls h1 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #e94560;
+    margin-right: auto;
+  }
+  .controls label {
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+  }
+  .controls select, .controls input[type="number"] {
+    background: #0f3460;
+    border: 1px solid #533483;
+    color: #e0e0e0;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 13px;
+  }
+  .controls button {
+    background: #e94560;
+    color: white;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .controls button:hover { background: #c73e54; }
+
+  /* ============================================================
+     CANVAS AREA — simulates the map background
+     ============================================================ */
+  .canvas-area {
+    flex: 1;
+    background: #2a2a4a;
+    background-image:
+      radial-gradient(circle at 20% 50%, rgba(83, 52, 131, 0.15) 0%, transparent 50%),
+      radial-gradient(circle at 80% 30%, rgba(15, 52, 96, 0.2) 0%, transparent 50%);
+    padding: 20px;
+    position: relative;
+    overflow: auto;
+  }
+
+  .legend-container {
+    /* This positions the legend on the "map" — corresponds to LegendWidget.MarginX/Y */
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 0px; /* Gap between multiple legend panels — controlled by Spacer elements */
+  }
+
+  /* ============================================================
+     ELEMENT TREE → CSS MAPPING
+     Each CSS class corresponds 1:1 to a C# LegendElement subclass.
+     ============================================================ */
+
+  /* --- StackPanel ---
+     Maps to: StackPanel { Orientation, Padding, Background, Children }
+     CSS: display:flex with flex-direction based on orientation */
+  .stack-panel {
+    display: flex;
+    /* Default: vertical */
+    flex-direction: column;
+    /* Padding and background set via inline styles */
+  }
+  .stack-panel.horizontal {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  /* --- TextBlock ---
+     Maps to: TextBlock { Text, FontSize, Bold, Align, Color }
+     CSS: div with font properties */
+  .text-block {
+    font-family: Arial, sans-serif;
+    font-weight: bold;
+    white-space: pre-line; /* Preserves \n line breaks */
+    line-height: 1.2;
+  }
+  .text-block.align-center { text-align: center; }
+  .text-block.align-left   { text-align: left; }
+  .text-block.align-right  { text-align: right; }
+
+  /* --- Spacer ---
+     Maps to: Spacer { Width, Height }
+     CSS: empty div with explicit dimensions */
+  .spacer {
+    flex-shrink: 0;
+  }
+
+  /* --- ColorSwatch ---
+     Maps to: ColorSwatch { SwatchColor, LineWidth, Length }
+     CSS: div styled as a horizontal line */
+  .color-swatch {
+    flex-shrink: 0;
+    border-radius: 1px;
+  }
+
+  /* --- ItemList ---
+     Maps to: ItemList { Items, ItemHeight, LineLength, LabelGap }
+     CSS: flex column of item rows */
+  .item-list {
+    display: flex;
+    flex-direction: column;
+  }
+  .item-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+  }
+  .item-row .item-label {
+    font-family: Arial, sans-serif;
+    font-weight: bold;
+    font-size: 14px;
+    color: black;
+  }
+
+  /* --- GradientBar ---
+     Maps to: GradientBar { Min, Max, MinLabel, MaxLabel, BarWidth, BarHeight, LabelGap, ColorGradient }
+     CSS: flex row with gradient div + labels column */
+  .gradient-bar-container {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+  }
+  .gradient-rect {
+    border-radius: 1px;
+    flex-shrink: 0;
+  }
+  .gradient-labels {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .gradient-labels .text-block {
+    font-size: 14px;
+  }
+
+  /* ============================================================
+     ELEMENT TREE INSPECTOR (right side)
+     ============================================================ */
+  .inspector {
+    position: fixed;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 360px;
+    background: #16213e;
+    border-left: 1px solid #0f3460;
+    padding: 16px;
+    overflow-y: auto;
+    font-size: 12px;
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+    color: #a0c4ff;
+    z-index: 10;
+  }
+  .inspector h2 {
+    color: #e94560;
+    font-size: 14px;
+    margin-bottom: 12px;
+  }
+  .inspector pre {
+    white-space: pre-wrap;
+    line-height: 1.5;
+  }
+  .inspector .kw { color: #c792ea; }
+  .inspector .type { color: #82aaff; }
+  .inspector .prop { color: #f78c6c; }
+  .inspector .str { color: #c3e88d; }
+  .inspector .num { color: #f78c6c; }
+  .inspector .comment { color: #546e7a; font-style: italic; }
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     CONTROLS
+     ============================================================ -->
+<div class="controls">
+  <h1>Legend Element Tree Prototype</h1>
+
+  <label>
+    Layout:
+    <select id="layoutSelect">
+      <option value="categorical">Categorical Legend (Rørdimensioner)</option>
+      <option value="gradient">Gradient Legend (Varmebehov)</option>
+      <option value="default">Default Theme (Forsyningsrør/Stikrør)</option>
+      <option value="multi">Multi-Legend (Categorical + Gradient)</option>
+      <option value="multi-categorical">Multi-Legend (Two Categorical)</option>
+    </select>
+  </label>
+
+  <label>
+    Panel Gap:
+    <input type="number" id="panelGap" value="8" min="0" max="40" style="width:60px"> px
+  </label>
+
+  <label>
+    <input type="checkbox" id="showOutlines"> Show element outlines
+  </label>
+
+  <label>
+    <input type="checkbox" id="showInspector" checked> Show element tree
+  </label>
+</div>
+
+<!-- ============================================================
+     CANVAS AREA (simulates the map)
+     ============================================================ -->
+<div class="canvas-area" style="margin-right: 360px;">
+  <div class="legend-container" id="legendContainer">
+    <!-- Legend panels rendered here by JS -->
+  </div>
+</div>
+
+<!-- ============================================================
+     INSPECTOR — shows the C# element tree
+     ============================================================ -->
+<div class="inspector" id="inspector">
+  <h2>C# Element Tree</h2>
+  <pre id="treeCode"></pre>
+</div>
+
+<script>
+// ============================================================
+// DATA: Simulated legend data matching current DimensioneringV2
+// ============================================================
+
+const OKLCH_GRADIENT_CSS = 'linear-gradient(to bottom, rgb(220, 50, 47), rgb(230, 140, 50), rgb(200, 200, 50), rgb(80, 180, 80), rgb(50, 180, 180), rgb(50, 100, 200))';
+
+// Categorical items — pipe dimensions (Rørdimensioner)
+const pipeItems = [
+  { label: 'NA 000',    color: 'black',       lineWidth: 1.5 },
+  { label: 'DN 20/110', color: 'rgb(50,100,200)',  lineWidth: 4 },
+  { label: 'DN 25/110', color: 'rgb(50,160,180)',  lineWidth: 4 },
+  { label: 'DN 32/110', color: 'rgb(70,180,100)',  lineWidth: 4 },
+  { label: 'DN 40/110', color: 'rgb(160,190,50)',  lineWidth: 4 },
+  { label: 'DN 50/125', color: 'rgb(210,180,40)',  lineWidth: 4 },
+  { label: 'DN 65/140', color: 'rgb(230,130,40)',  lineWidth: 4 },
+  { label: 'DN 80/160', color: 'rgb(220,60,50)',   lineWidth: 4 },
+];
+
+// Default theme items
+const defaultItems = [
+  { label: 'Forsyningsrør', color: 'red',        lineWidth: 3 },
+  { label: 'Stikrør',       color: 'darkorange',  lineWidth: 3 },
+];
+
+// Bridge categorical
+const bridgeItems = [
+  { label: 'Bro',      color: 'rgb(50,100,200)',  lineWidth: 4 },
+  { label: 'Ikke bro', color: 'black',            lineWidth: 1.5 },
+];
+
+// ============================================================
+// ELEMENT BUILDERS — correspond 1:1 to C# element constructors
+// Each returns an HTML string + a C# code string
+// ============================================================
+
+function buildStackPanel(opts) {
+  // opts: { orientation, padding, background, children, margin }
+  const dir = opts.orientation === 'horizontal' ? 'horizontal' : '';
+  const pad = opts.padding || { top: 0, right: 0, bottom: 0, left: 0 };
+  const bg = opts.background || 'transparent';
+  const margin = opts.margin || { top: 0, right: 0, bottom: 0, left: 0 };
+
+  const style = [
+    `padding: ${pad.top}px ${pad.right}px ${pad.bottom}px ${pad.left}px`,
+    `background: ${bg}`,
+    `margin: ${margin.top}px ${margin.right}px ${margin.bottom}px ${margin.left}px`,
+  ].join('; ');
+
+  const childrenHtml = opts.children.map(c => c.html).join('\n');
+
+  return {
+    html: `<div class="stack-panel ${dir} element" style="${style}">${childrenHtml}</div>`,
+    code: opts.code, // code is built externally for readability
+  };
+}
+
+function buildTextBlock(opts) {
+  // opts: { text, fontSize, bold, align, color, margin }
+  const fs = opts.fontSize || 14;
+  const bold = opts.bold !== false;
+  const align = opts.align || 'left';
+  const color = opts.color || 'black';
+  const margin = opts.margin || { top: 0, right: 0, bottom: 0, left: 0 };
+
+  const style = [
+    `font-size: ${fs}px`,
+    `font-weight: ${bold ? 'bold' : 'normal'}`,
+    `color: ${color}`,
+    `margin: ${margin.top}px ${margin.right}px ${margin.bottom}px ${margin.left}px`,
+  ].join('; ');
+
+  const alignClass = `align-${align}`;
+  const displayText = opts.text.replace(/\n/g, '<br>');
+
+  return {
+    html: `<div class="text-block ${alignClass} element" style="${style}">${displayText}</div>`,
+  };
+}
+
+function buildSpacer(opts) {
+  // opts: { width, height }
+  const w = opts.width || 0;
+  const h = opts.height || 0;
+  return {
+    html: `<div class="spacer element" style="width:${w}px; height:${h}px; min-width:${w}px; min-height:${h}px;"></div>`,
+  };
+}
+
+function buildColorSwatch(opts) {
+  // opts: { color, lineWidth, length }
+  const len = opts.length || 30;
+  const lw = opts.lineWidth || 3;
+  return {
+    html: `<div class="color-swatch element" style="width:${len}px; height:${lw}px; background:${opts.color};"></div>`,
+  };
+}
+
+function buildItemList(opts) {
+  // opts: { items, itemHeight, lineLength, labelGap }
+  const ih = opts.itemHeight || 18;
+  const ll = opts.lineLength || 30;
+  const lg = opts.labelGap || 10;
+
+  const rows = opts.items
+    .filter(item => item.label && item.label.trim() !== '')
+    .map(item => {
+      const swatch = buildColorSwatch({ color: item.color, lineWidth: item.lineWidth, length: ll });
+      const spacer = buildSpacer({ width: lg });
+      return `<div class="item-row element" style="height:${ih}px;">
+        ${swatch.html}
+        ${spacer.html}
+        <div class="item-label">${item.label}</div>
+      </div>`;
+    }).join('\n');
+
+  return {
+    html: `<div class="item-list element">${rows}</div>`,
+  };
+}
+
+function buildGradientBar(opts) {
+  // opts: { min, max, minLabel, maxLabel, barWidth, barHeight, labelGap, gradient }
+  const bw = opts.barWidth || 35;
+  const bh = opts.barHeight || 100;
+  const lg = opts.labelGap || 10;
+  const gradient = opts.gradient || OKLCH_GRADIENT_CSS;
+
+  return {
+    html: `<div class="gradient-bar-container element">
+      <div class="gradient-rect element" style="width:${bw}px; height:${bh}px; background:${gradient};"></div>
+      <div class="spacer element" style="width:${lg}px;"></div>
+      <div class="gradient-labels">
+        <div class="text-block align-left element" style="font-size:14px; font-weight:bold; color:black;">${opts.maxLabel}</div>
+        <div class="text-block align-left element" style="font-size:14px; font-weight:bold; color:black;">${opts.minLabel}</div>
+      </div>
+    </div>`,
+  };
+}
+
+// ============================================================
+// LEGEND PANEL BUILDERS — compose elements into full panels
+// ============================================================
+
+function buildCategoricalPanel(title, items) {
+  const titleEl = buildTextBlock({ text: title, fontSize: 16, align: 'center', color: 'black' });
+  const spacer = buildSpacer({ height: 4 });
+  const itemList = buildItemList({ items: items });
+
+  return buildStackPanel({
+    padding: { top: 5, right: 10, bottom: 5, left: 10 },
+    background: 'rgba(255, 255, 255, 0.78)',
+    children: [titleEl, spacer, itemList],
+  });
+}
+
+function buildGradientPanel(title, min, max) {
+  const c = min % 1 !== 0 || max % 1 !== 0;
+  const minLabel = c ? min.toFixed(2) : min.toFixed(0);
+  const maxLabel = c ? max.toFixed(2) : max.toFixed(0);
+
+  const titleEl = buildTextBlock({ text: title, fontSize: 16, align: 'center', color: 'black' });
+  const spacer = buildSpacer({ height: 4 });
+  const bar = buildGradientBar({
+    min, max, minLabel, maxLabel,
+    barWidth: 35, barHeight: 100, labelGap: 10,
+  });
+
+  return buildStackPanel({
+    padding: { top: 5, right: 10, bottom: 5, left: 10 },
+    background: 'rgba(255, 255, 255, 0.78)',
+    children: [titleEl, spacer, bar],
+  });
+}
+
+// ============================================================
+// C# CODE GENERATORS — show the equivalent C# element tree
+// ============================================================
+
+function codeCategorical(title, itemsName) {
+  return `<span class="comment">// Categorical legend panel</span>
+<span class="kw">new</span> <span class="type">StackPanel</span> {
+    <span class="prop">Background</span> = <span class="kw">new</span> <span class="type">Color</span>(<span class="num">255</span>, <span class="num">255</span>, <span class="num">255</span>, <span class="num">200</span>),
+    <span class="prop">Padding</span> = <span class="kw">new</span> <span class="type">Thickness</span>(<span class="num">10</span>, <span class="num">5</span>, <span class="num">10</span>, <span class="num">5</span>),
+    <span class="prop">Children</span> = [
+        <span class="kw">new</span> <span class="type">TextBlock</span> {
+            <span class="prop">Text</span> = <span class="str">"${title.replace(/\n/g, '\\n')}"</span>,
+            <span class="prop">FontSize</span> = <span class="num">16</span>,
+            <span class="prop">Align</span> = <span class="type">LegendTextAlign</span>.Center
+        },
+        <span class="kw">new</span> <span class="type">Spacer</span> { <span class="prop">Height</span> = <span class="num">4</span> },
+        <span class="kw">new</span> <span class="type">ItemList</span> {
+            <span class="prop">Items</span> = ${itemsName}
+        }
+    ]
+}`;
+}
+
+function codeGradient(title, min, max) {
+  const c = min % 1 !== 0 || max % 1 !== 0;
+  const minLabel = c ? min.toFixed(2) : min.toFixed(0);
+  const maxLabel = c ? max.toFixed(2) : max.toFixed(0);
+
+  return `<span class="comment">// Gradient legend panel</span>
+<span class="kw">new</span> <span class="type">StackPanel</span> {
+    <span class="prop">Background</span> = <span class="kw">new</span> <span class="type">Color</span>(<span class="num">255</span>, <span class="num">255</span>, <span class="num">255</span>, <span class="num">200</span>),
+    <span class="prop">Padding</span> = <span class="kw">new</span> <span class="type">Thickness</span>(<span class="num">10</span>, <span class="num">5</span>, <span class="num">10</span>, <span class="num">5</span>),
+    <span class="prop">Children</span> = [
+        <span class="kw">new</span> <span class="type">TextBlock</span> {
+            <span class="prop">Text</span> = <span class="str">"${title.replace(/\n/g, '\\n')}"</span>,
+            <span class="prop">FontSize</span> = <span class="num">16</span>,
+            <span class="prop">Align</span> = <span class="type">LegendTextAlign</span>.Center
+        },
+        <span class="kw">new</span> <span class="type">Spacer</span> { <span class="prop">Height</span> = <span class="num">4</span> },
+        <span class="kw">new</span> <span class="type">GradientBar</span> {
+            <span class="prop">Min</span> = <span class="num">${min}</span>,
+            <span class="prop">Max</span> = <span class="num">${max}</span>,
+            <span class="prop">MinLabel</span> = <span class="str">"${minLabel}"</span>,
+            <span class="prop">MaxLabel</span> = <span class="str">"${maxLabel}"</span>,
+            <span class="prop">BarWidth</span> = <span class="num">35</span>,
+            <span class="prop">BarHeight</span> = <span class="num">100</span>,
+            <span class="prop">LabelGap</span> = <span class="num">10</span>,
+            <span class="prop">ColorGradient</span> = <span class="type">ColorBlendProvider</span>.Standard
+        }
+    ]
+}`;
+}
+
+function codeMulti(code1, code2, gap) {
+  return `<span class="comment">// Multi-legend: root StackPanel with two panels</span>
+<span class="kw">new</span> <span class="type">StackPanel</span> {
+    <span class="prop">Children</span> = [
+${code1.split('\n').map(l => '        ' + l).join('\n')},
+        <span class="kw">new</span> <span class="type">Spacer</span> { <span class="prop">Height</span> = <span class="num">${gap}</span> },
+${code2.split('\n').map(l => '        ' + l).join('\n')}
+    ]
+}`;
+}
+
+// ============================================================
+// RENDER LOGIC
+// ============================================================
+
+function render() {
+  const layout = document.getElementById('layoutSelect').value;
+  const panelGap = parseInt(document.getElementById('panelGap').value) || 8;
+  const showOutlines = document.getElementById('showOutlines').checked;
+  const showInspector = document.getElementById('showInspector').checked;
+
+  const container = document.getElementById('legendContainer');
+  const inspector = document.getElementById('inspector');
+  const treeCode = document.getElementById('treeCode');
+  const canvasArea = document.querySelector('.canvas-area');
+
+  inspector.style.display = showInspector ? 'block' : 'none';
+  canvasArea.style.marginRight = showInspector ? '360px' : '0';
+
+  let html = '';
+  let code = '';
+
+  switch (layout) {
+    case 'categorical': {
+      const panel = buildCategoricalPanel('Rordimensioner', pipeItems);
+      html = panel.html;
+      code = codeCategorical('Rordimensioner', '_legendItems');
+      break;
+    }
+    case 'gradient': {
+      const panel = buildGradientPanel('Estimeret\nvarmebehov\n[MWh/ar]', 0.5, 12.3);
+      html = panel.html;
+      code = codeGradient('Estimeret\\nvarmebehov\\n[MWh/ar]', 0.5, 12.3);
+      break;
+    }
+    case 'default': {
+      const panel = buildCategoricalPanel('Default', defaultItems);
+      html = panel.html;
+      code = codeCategorical('Default', '_legendItems');
+      break;
+    }
+    case 'multi': {
+      const p1 = buildCategoricalPanel('Rordimensioner', pipeItems);
+      const p2 = buildGradientPanel('Estimeret\nvarmebehov\n[MWh/ar]', 0.5, 12.3);
+      const spacer = buildSpacer({ height: panelGap });
+      html = `<div class="stack-panel element">${p1.html}${spacer.html}${p2.html}</div>`;
+      const c1 = codeCategorical('Rordimensioner', '_legendItems');
+      const c2 = codeGradient('Estimeret\\nvarmebehov\\n[MWh/ar]', 0.5, 12.3);
+      code = codeMulti(c1, c2, panelGap);
+      break;
+    }
+    case 'multi-categorical': {
+      const p1 = buildCategoricalPanel('Stikledninger', defaultItems);
+      const p2 = buildCategoricalPanel('Fordelingsledninger\n(broer)', bridgeItems);
+      const spacer = buildSpacer({ height: panelGap });
+      html = `<div class="stack-panel element">${p1.html}${spacer.html}${p2.html}</div>`;
+      const c1 = codeCategorical('Stikledninger', '_stikItems');
+      const c2 = codeCategorical('Fordelingsledninger\\n(broer)', '_broItems');
+      code = codeMulti(c1, c2, panelGap);
+      break;
+    }
+  }
+
+  container.innerHTML = html;
+  treeCode.innerHTML = code;
+
+  // Toggle element outlines
+  const allElements = container.querySelectorAll('.element');
+  allElements.forEach(el => {
+    if (showOutlines) {
+      el.style.outline = '1px dashed rgba(233, 69, 96, 0.5)';
+      el.style.outlineOffset = '-1px';
+    } else {
+      el.style.outline = 'none';
+    }
+  });
+}
+
+// ============================================================
+// EVENT BINDINGS
+// ============================================================
+
+document.getElementById('layoutSelect').addEventListener('change', render);
+document.getElementById('panelGap').addEventListener('input', render);
+document.getElementById('showOutlines').addEventListener('change', render);
+document.getElementById('showInspector').addEventListener('change', render);
+
+// Initial render
+render();
+</script>
+</body>
+</html>
