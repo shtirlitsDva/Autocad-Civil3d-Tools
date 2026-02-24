@@ -23,7 +23,7 @@ namespace DimensioneringV2.MapCommands
                     Adresse = f.Adresse,
                     Type = f.BygningsAnvendelseNyTekst,
                     BBRAreal = f["BeregningsAreal"] as double? ?? 0,
-                    Effekt = 0, // TODO: implement Effekt calculation
+                    Effekt = f.Effekt,
                     Aarsforbrug = f.HeatingDemandConnected,
                     Stiklaengde = f.Length,
                     DN = f.Dim.DimName,

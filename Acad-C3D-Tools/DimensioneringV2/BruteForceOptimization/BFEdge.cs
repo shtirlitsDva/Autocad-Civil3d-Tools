@@ -64,6 +64,7 @@ namespace DimensioneringV2.BruteForceOptimization
         public double VelocitySupply { get; set; }
         public double VelocityReturn { get; set; }
         public double UtilizationRate { get; set; }
+        public double Effekt { get; set; }
         public EdgePipeSegment OriginalEdge { get; }
         public int NonBridgeChromosomeIndex { get; internal set; } = -1;
         public double TempDeltaVarme => _tempDeltaVarme;
@@ -104,6 +105,7 @@ namespace DimensioneringV2.BruteForceOptimization
             VelocitySupply = edge.VelocitySupply;
             VelocityReturn = edge.VelocityReturn;
             UtilizationRate = edge.UtilizationRate;
+            Effekt = edge.Effekt;
             IsBridge = edge.IsBridge;
             SubGraphId = edge.SubGraphId;
             NonBridgeChromosomeIndex = edge.NonBridgeChromosomeIndex;
@@ -138,6 +140,7 @@ namespace DimensioneringV2.BruteForceOptimization
             VelocitySupply = edge.VelocitySupply;
             VelocityReturn = edge.VelocityReturn;
             UtilizationRate = edge.UtilizationRate;
+            Effekt = edge.Effekt;
             IsBridge = edge.IsBridge;
             SubGraphId = edge.SubGraphId;
             NonBridgeChromosomeIndex = edge.NonBridgeChromosomeIndex;
@@ -176,6 +179,7 @@ namespace DimensioneringV2.BruteForceOptimization
             OriginalEdge.PipeSegment.VelocitySupply = VelocitySupply;
             OriginalEdge.PipeSegment.VelocityReturn = VelocityReturn;
             OriginalEdge.PipeSegment.UtilizationRate = UtilizationRate;
+            OriginalEdge.PipeSegment.Effekt = Effekt;
             OriginalEdge.PipeSegment.IsBridge = IsBridge;
             OriginalEdge.PipeSegment.SubGraphId = SubGraphId;
         }
@@ -211,6 +215,7 @@ namespace DimensioneringV2.BruteForceOptimization
             VelocitySupply = OriginalEdge.PipeSegment.VelocitySupply;
             VelocityReturn = OriginalEdge.PipeSegment.VelocityReturn;
             UtilizationRate = OriginalEdge.PipeSegment.UtilizationRate;
+            Effekt = OriginalEdge.PipeSegment.Effekt;
             IsBridge = OriginalEdge.PipeSegment.IsBridge;
             SubGraphId = OriginalEdge.PipeSegment.SubGraphId;
         }
@@ -232,6 +237,7 @@ namespace DimensioneringV2.BruteForceOptimization
             VelocitySupply = result.VelocitySupply;
             VelocityReturn = result.VelocityReturn;
             UtilizationRate = result.UtilizationRate;
+            Effekt = result.Effekt;
         }
         internal void ApplyResult(CalculationResultFordeling result)
         {

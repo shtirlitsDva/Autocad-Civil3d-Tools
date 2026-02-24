@@ -9,7 +9,8 @@ namespace NorsynHydraulicCalc
         double karFlowHeatReturn, double karFlowBVReturn,
         double dimFlowSupply, double dimFlowReturn,
         double pressureGradientSupply, double pressureGradientReturn,
-        double velocitySupply, double velocityReturn, double utilizationRate)
+        double velocitySupply, double velocityReturn, double utilizationRate,
+        double effekt)
     {
         public string SegmentType { get; } = segmentType;
         public Dim Dim { get; } = dim;
@@ -26,5 +27,6 @@ namespace NorsynHydraulicCalc
         public double VelocitySupply { get; } = velocitySupply;
         public double VelocityReturn { get; } = velocityReturn;
         public double UtilizationRate { get; } = utilizationRate;
+        public double Effekt { get; } = effekt;
     }
 }

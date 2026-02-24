@@ -325,6 +325,16 @@ namespace DimensioneringV2.GraphFeatures
         }
 
         /// <summary>
+        /// Dimensioning power [kW] - max of the four calculated power scenarios.
+        /// Only meaningful for Stikledning segments.
+        /// </summary>
+        public double Effekt
+        {
+            get => this["Effekt"] as double? ?? 0;
+            set => this["Effekt"] = value;
+        }
+
+        /// <summary>
         /// Marks a segment as a bridge (ie. cannot be removed without disconnecting the network)
         /// </summary>
         [MapProperty(MapPropertyEnum.Bridge)]
@@ -465,6 +475,7 @@ namespace DimensioneringV2.GraphFeatures
             VelocitySupply = 0;
             VelocityReturn = 0;
             UtilizationRate = 0;
+            Effekt = 0;
             IsCriticalPath = false;
             PressureLossAtClientSupply = 0;
             PressureLossAtClientReturn = 0;

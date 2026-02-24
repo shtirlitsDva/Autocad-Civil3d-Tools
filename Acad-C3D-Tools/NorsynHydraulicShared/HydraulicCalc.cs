@@ -619,7 +619,7 @@ namespace NorsynHydraulicCalc
             }
 
             double dimFlowSupply = Math.Max(dimFlowHeatFrem, dimFlowBVFrem);
-            double dimFlowReturn = Math.Max(dimFlowHeatRetur, dimFlowBVRetur);
+            double dimFlowReturn = Math.Max(dimFlowHeatRetur, dimFlowBVRetur);                           
 
             Dim dim;
             if (segment.ManualDim)
@@ -684,6 +684,14 @@ namespace NorsynHydraulicCalc
             //AS UTIL RATE IS NOT USED FOR ANYTHING CURRENTLY THIS IS NOT CRITICAL
             var utilRate = determineUtilizationRate(dim, dimFlowSupply, dimFlowReturn, st);
 
+            // Power [kW] for each of the four scenarios,
+            // computed directly from inputs before volume conversion.
+            double baseHeatPower = (totalHeatingDemand * 1000.0 / BN) * s_heat;
+            double bvPower = numberOfUnits * 33 * f_b(st) * s_hw;
+            double effektHeat = baseHeatPower;
+            double effektBV = baseHeatPower * KX + bvPower;
+            double effekt = Math.Max(effektHeat, effektBV);
+
             var r = new CalculationResultClient(
                 st.ToString(),
                 dim,
@@ -699,7 +707,8 @@ namespace NorsynHydraulicCalc
                 resReturn.gradient,
                 resSupply.velocity,
                 resReturn.velocity,
-                utilRate
+                utilRate,
+                effekt
             );
 
             if (reportToConsole)
