@@ -1,6 +1,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.14.36915.13
+# Visual Studio Version 18
+VisualStudioVersion = 18.3.11512.155 d18.3
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IntersectUtilities", "IntersectUtilities\IntersectUtilities.csproj", "{3DBCDE07-D2C7-45A3-9BD6-5B7873A85166}"
 EndProject
@@ -70,6 +70,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NorsynHydraulicTester", "NorsynHydraulicTester\NorsynHydraulicTester.csproj", "{E12A1099-C622-D95D-7788-5FF10D423DDA}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UiSnoop", "UiSnoop\UiSnoop.csproj", "{24654C72-79F9-4625-BF8C-F8B8D76DD805}"
+EndProject
+Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "DevReload", "DevReload\DevReload.shproj", "{5710E0BC-98BB-4F29-A935-D31228FA15C8}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -204,6 +206,7 @@ Global
 		PipelineSHARED\PipelineSHARED.projitems*{3dbcde07-d2c7-45a3-9bd6-5b7873a85166}*SharedItemsImports = 5
 		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{3dbcde07-d2c7-45a3-9bd6-5b7873a85166}*SharedItemsImports = 5
 		FormsSHARED\FormsSHARED.projitems*{48b5495f-32d5-45f9-b9f8-2e133d33653f}*SharedItemsImports = 5
+		DevReload\DevReload.projitems*{5710e0bc-98bb-4f29-a935-d31228fa15c8}*SharedItemsImports = 13
 		AutoCADCommandsSHARED\AutoCADCommandsSHARED.projitems*{59efb8f9-2016-4915-a115-d5f902e60ef3}*SharedItemsImports = 5
 		FormsSHARED\FormsSHARED.projitems*{59efb8f9-2016-4915-a115-d5f902e60ef3}*SharedItemsImports = 5
 		PipelineSHARED\PipelineSHARED.projitems*{59efb8f9-2016-4915-a115-d5f902e60ef3}*SharedItemsImports = 5
