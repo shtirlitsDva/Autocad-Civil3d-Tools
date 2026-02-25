@@ -383,25 +383,42 @@
         </Grid>
 
         <!-- Search Bar -->
-        <Grid Grid.Row="1" Margin="0,0,0,10">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
-
-            <TextBlock Grid.Column="0" 
-                       Text="🔍 Search:" 
-                       VerticalAlignment="Center" 
-                       Margin="0,0,10,0"
-                       FontSize="14"/>
-
-            <TextBox Grid.Column="1"
-                     x:Name="SearchTextBox"
-                     Style="{StaticResource SearchTextBoxStyle}"
-                     Text="{Binding FilterText, UpdateSourceTrigger=Explicit}"
-                     KeyDown="SearchTextBox_KeyDown"
-                     IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}"/>
-        </Grid>
+        <Border Grid.Row="1" Margin="0,0,0,10"
+                Background="{StaticResource DarkRowBackground}"
+                BorderBrush="{StaticResource BorderBrush}"
+                BorderThickness="1" CornerRadius="3" Padding="0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <!-- Search icon -->
+                <TextBlock Grid.Column="0" Text="&#x1F50D;" FontSize="13"
+                           Foreground="#FF888888" VerticalAlignment="Center"
+                           Margin="8,0,4,0" IsHitTestVisible="False"/>
+                <!-- Text input -->
+                <TextBox x:Name="SearchBox" Grid.Column="1"
+                         Background="Transparent" Foreground="{StaticResource TextBrush}"
+                         BorderThickness="0" VerticalAlignment="Center"
+                         Padding="2,4" FontSize="14" CaretBrush="White"
+                         TextChanged="SearchBox_TextChanged"
+                         KeyDown="SearchBox_KeyDown"
+                         IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}"/>
+                <!-- Watermark -->
+                <TextBlock x:Name="SearchWatermark" Grid.Column="1"
+                           Text="S&#248;g..." FontSize="14"
+                           Foreground="#FF666666" VerticalAlignment="Center"
+                           Margin="4,0,0,0" IsHitTestVisible="False"/>
+                <!-- Clear button -->
+                <Button x:Name="ClearSearchButton" Grid.Column="2"
+                        Content="&#x2715;" FontSize="11"
+                        Background="Transparent" Foreground="#FF888888"
+                        BorderThickness="0" Cursor="Hand"
+                        VerticalAlignment="Center" Padding="6,2"
+                        Click="ClearSearch_Click" Visibility="Collapsed"/>
+            </Grid>
+        </Border>
 
         <!-- ListView with GridView - lighter weight than DataGrid -->
         <ListView Grid.Row="2" 

@@ -4,7 +4,7 @@ namespace DimensioneringV2.UI
     {
         public string Adresse { get; set; } = string.Empty;
         public string Type { get; set; } = string.Empty;
-        public double BBRAreal { get; set; }
+        public int BBRAreal { get; set; }
         public double Effekt { get; set; }
         public double Aarsforbrug { get; set; }
         public double Stiklaengde { get; set; }

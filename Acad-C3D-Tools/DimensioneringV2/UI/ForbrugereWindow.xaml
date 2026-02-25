@@ -13,20 +13,148 @@
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="Theme.xaml"/>
             </ResourceDictionary.MergedDictionaries>
+
+            <!-- Caption button style -->
+            <Style x:Key="CaptionButtonStyle" TargetType="Button">
+                <Setter Property="Width" Value="46"/>
+                <Setter Property="Height" Value="36"/>
+                <Setter Property="Foreground" Value="{DynamicResource Text}"/>
+                <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+                <Setter Property="FontSize" Value="10"/>
+                <Setter Property="WindowChrome.IsHitTestVisibleInChrome" Value="True"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="Bg" Background="Transparent">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Bg" Property="Background" Value="#26FFFFFF"/>
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="Bg" Property="Background" Value="#33FFFFFF"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- Close button with red hover -->
+            <Style x:Key="CaptionCloseButtonStyle" TargetType="Button">
+                <Setter Property="Width" Value="46"/>
+                <Setter Property="Height" Value="36"/>
+                <Setter Property="Foreground" Value="{DynamicResource Text}"/>
+                <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+                <Setter Property="FontSize" Value="10"/>
+                <Setter Property="WindowChrome.IsHitTestVisibleInChrome" Value="True"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="Bg" Background="Transparent">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Bg" Property="Background" Value="#FFE81123"/>
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="Bg" Property="Background" Value="#FFB2001A"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
         </ResourceDictionary>
     </Window.Resources>
 
-    <DockPanel Margin="8">
-        <!-- Toolbar -->
-        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
-            <Button Content="Export Excel" Click="ExportExcel_Click"
-                    Style="{StaticResource SecondaryButtonStyle}" Margin="0,0,8,0"/>
-            <Button Content="Export PDF" Click="ExportPdf_Click"
-                    Style="{StaticResource SecondaryButtonStyle}"/>
-        </StackPanel>
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="36"
+                      ResizeBorderThickness="5"
+                      GlassFrameThickness="0"/>
+    </WindowChrome.WindowChrome>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="36"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Title bar: title, export button, search bar -->
+        <Grid Grid.Row="0" Background="{DynamicResource Background}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Column="1" Text="Forbrugere"
+                       VerticalAlignment="Center" FontSize="13"
+                       Foreground="{DynamicResource Text}" Margin="0,0,16,0"/>
+
+            <Button Grid.Column="2" Content="Export Excel"
+                    Click="ExportExcel_Click"
+                    Style="{StaticResource SecondaryButtonStyle}"
+                    WindowChrome.IsHitTestVisibleInChrome="True"
+                    VerticalAlignment="Center"/>
+
+            <!-- Search box -->
+            <Border Grid.Column="4"
+                    Background="#FF1E1E1E" BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="1" CornerRadius="3" MinWidth="260" Padding="0"
+                    VerticalAlignment="Center"
+                    WindowChrome.IsHitTestVisibleInChrome="True">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <!-- Search icon -->
+                    <TextBlock Grid.Column="0" Text="&#x1F50D;" FontSize="13"
+                               Foreground="#FF888888" VerticalAlignment="Center"
+                               Margin="8,0,4,0" IsHitTestVisible="False"/>
+                    <!-- Text input -->
+                    <TextBox x:Name="SearchBox" Grid.Column="1"
+                             Background="Transparent" Foreground="{DynamicResource Text}"
+                             BorderThickness="0" VerticalAlignment="Center"
+                             Padding="2,4" FontSize="14"
+                             TextChanged="SearchBox_TextChanged"
+                             KeyDown="SearchBox_KeyDown"/>
+                    <!-- Watermark -->
+                    <TextBlock x:Name="SearchWatermark" Grid.Column="1"
+                               Text="S&#248;g forbrugere..." FontSize="14"
+                               Foreground="#FF666666" VerticalAlignment="Center"
+                               Margin="4,0,0,0" IsHitTestVisible="False"/>
+                    <!-- Clear button -->
+                    <Button x:Name="ClearSearchButton" Grid.Column="2"
+                            Content="&#x2715;" FontSize="11"
+                            Background="Transparent" Foreground="#FF888888"
+                            BorderThickness="0" Cursor="Hand"
+                            VerticalAlignment="Center" Padding="6,2"
+                            Click="ClearSearch_Click" Visibility="Collapsed"/>
+                </Grid>
+            </Border>
+
+            <!-- Caption buttons -->
+            <StackPanel Grid.Column="5" Orientation="Horizontal">
+                <Button Content="&#xE921;" Click="MinimizeButton_Click"
+                        Style="{StaticResource CaptionButtonStyle}"/>
+                <Button x:Name="MaximizeButton" Content="&#xE922;" Click="MaximizeButton_Click"
+                        Style="{StaticResource CaptionButtonStyle}"/>
+                <Button Content="&#xE8BB;" Click="CloseButton_Click"
+                        Style="{StaticResource CaptionCloseButtonStyle}"/>
+            </StackPanel>
+        </Grid>
 
         <!-- DataGrid -->
-        <DataGrid x:Name="ForbrugereGrid"
+        <DataGrid Grid.Row="1" Margin="8,4,8,8"
+                  x:Name="ForbrugereGrid"
                   Style="{StaticResource DarkDataGridStyle}"
                   AutoGenerateColumns="False"
                   IsReadOnly="True"
@@ -35,9 +163,23 @@
                   CanUserSortColumns="True"
                   SelectionMode="Single"
                   GridLinesVisibility="Horizontal"
-                  HeadersVisibility="Column">
+                  HeadersVisibility="Column"
+                  Sorting="ForbrugereGrid_Sorting">
+            <DataGrid.ColumnHeaderStyle>
+                <Style TargetType="DataGridColumnHeader">
+                    <Setter Property="FontSize" Value="18"/>
+                    <Setter Property="Background" Value="{DynamicResource DarkHeaderBackground}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource Text}"/>
+                    <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+                    <Setter Property="FontWeight" Value="Bold"/>
+                    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                    <Setter Property="Padding" Value="8,4"/>
+                </Style>
+            </DataGrid.ColumnHeaderStyle>
+
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Adresse" Binding="{Binding Adresse}" Width="*">
+                <DataGridTextColumn Header="Adresse" Binding="{Binding Adresse}" Width="*"
+                                    SortMemberPath="Adresse">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="VerticalAlignment" Value="Center"/>
@@ -45,7 +187,9 @@
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="160">
+
+                <DataGridTextColumn Header="Anvendelse" Binding="{Binding Type}" Width="190"
+                                    SortMemberPath="Type">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="VerticalAlignment" Value="Center"/>
@@ -53,25 +197,14 @@
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <DataGridTextColumn Header="BBR-areal [m&#178;]" Binding="{Binding BBRAreal, StringFormat=N0}" Width="110">
-                    <DataGridTextColumn.ElementStyle>
-                        <Style TargetType="TextBlock">
-                            <Setter Property="HorizontalAlignment" Value="Right"/>
-                            <Setter Property="VerticalAlignment" Value="Center"/>
-                            <Setter Property="Padding" Value="8,0"/>
-                        </Style>
-                    </DataGridTextColumn.ElementStyle>
-                </DataGridTextColumn>
-                <DataGridTextColumn Header="Effekt [kW]" Binding="{Binding Effekt, StringFormat=N2}" Width="100">
-                    <DataGridTextColumn.ElementStyle>
-                        <Style TargetType="TextBlock">
-                            <Setter Property="HorizontalAlignment" Value="Right"/>
-                            <Setter Property="VerticalAlignment" Value="Center"/>
-                            <Setter Property="Padding" Value="8,0"/>
-                        </Style>
-                    </DataGridTextColumn.ElementStyle>
-                </DataGridTextColumn>
-                <DataGridTextColumn Header="&#197;rsforbrug [MWh]" Binding="{Binding Aarsforbrug, StringFormat=N2}" Width="120">
+
+                <DataGridTextColumn Binding="{Binding BBRAreal, StringFormat=N0}" Width="Auto"
+                                    SortMemberPath="BBRAreal">
+                    <DataGridTextColumn.Header>
+                        <TextBlock TextAlignment="Center">
+                            <Run Text="BBR-areal"/><LineBreak/><Run Text="[m&#178;]"/>
+                        </TextBlock>
+                    </DataGridTextColumn.Header>
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -80,7 +213,14 @@
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <DataGridTextColumn Header="Stikl&#230;ngde [m]" Binding="{Binding Stiklaengde, StringFormat=N2}" Width="110">
+
+                <DataGridTextColumn Binding="{Binding Effekt, StringFormat=N2}" Width="Auto"
+                                    SortMemberPath="Effekt">
+                    <DataGridTextColumn.Header>
+                        <TextBlock TextAlignment="Center">
+                            <Run Text="Effekt"/><LineBreak/><Run Text="[kW]"/>
+                        </TextBlock>
+                    </DataGridTextColumn.Header>
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -89,7 +229,41 @@
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <DataGridTextColumn Header="DN" Binding="{Binding DN}" Width="100">
+
+                <DataGridTextColumn Binding="{Binding Aarsforbrug, StringFormat=N2}" Width="Auto"
+                                    SortMemberPath="Aarsforbrug">
+                    <DataGridTextColumn.Header>
+                        <TextBlock TextAlignment="Center">
+                            <Run Text="&#197;rsforbrug"/><LineBreak/><Run Text="[MWh]"/>
+                        </TextBlock>
+                    </DataGridTextColumn.Header>
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                            <Setter Property="VerticalAlignment" Value="Center"/>
+                            <Setter Property="Padding" Value="8,0"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+
+                <DataGridTextColumn Binding="{Binding Stiklaengde, StringFormat=N2}" Width="Auto"
+                                    SortMemberPath="Stiklaengde">
+                    <DataGridTextColumn.Header>
+                        <TextBlock TextAlignment="Center">
+                            <Run Text="Stikl&#230;ngde"/><LineBreak/><Run Text="[m]"/>
+                        </TextBlock>
+                    </DataGridTextColumn.Header>
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                            <Setter Property="VerticalAlignment" Value="Center"/>
+                            <Setter Property="Padding" Value="8,0"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+
+                <DataGridTextColumn Header="DN" Binding="{Binding DN}" Width="Auto"
+                                    SortMemberPath="DN">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="VerticalAlignment" Value="Center"/>
@@ -97,7 +271,14 @@
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <DataGridTextColumn Header="Tryktab [bar]" Binding="{Binding Tryktab, StringFormat=N4}" Width="100">
+
+                <DataGridTextColumn Binding="{Binding Tryktab, StringFormat=N4}" Width="Auto"
+                                    SortMemberPath="Tryktab">
+                    <DataGridTextColumn.Header>
+                        <TextBlock TextAlignment="Center">
+                            <Run Text="Tryktab i"/><LineBreak/><Run Text="stikledning"/><LineBreak/><Run Text="[bar]"/>
+                        </TextBlock>
+                    </DataGridTextColumn.Header>
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -108,5 +289,5 @@
                 </DataGridTextColumn>
             </DataGrid.Columns>
         </DataGrid>
-    </DockPanel>
+    </Grid>
 </Window>

@@ -118,15 +118,33 @@ namespace IntersectUtilities.DataScience.PropertySetBrowser
             return template;
         }
 
-        private void SearchTextBox_KeyDown(object sender, KeyEventArgs e)
+        #region Search
+        private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
         {
-            if (e.Key == Key.Enter)
+            bool hasText = !string.IsNullOrEmpty(SearchBox.Text);
+            SearchWatermark.Visibility = hasText
+                ? System.Windows.Visibility.Collapsed : System.Windows.Visibility.Visible;
+            ClearSearchButton.Visibility = hasText
+                ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+            _viewModel.FilterText = SearchBox.Text;
+            _viewModel.ApplyFilter();
+        }
+
+        private void SearchBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Escape)
             {
-                // Push the TextBox value to the ViewModel's FilterText property
-                var binding = SearchTextBox.GetBindingExpression(System.Windows.Controls.TextBox.TextProperty);
-                binding?.UpdateSource();
+                SearchBox.Text = "";
+                ListViewData.Focus();
             }
         }
+
+        private void ClearSearch_Click(object sender, RoutedEventArgs e)
+        {
+            SearchBox.Text = "";
+            SearchBox.Focus();
+        }
+        #endregion
 
         private void ListView_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {

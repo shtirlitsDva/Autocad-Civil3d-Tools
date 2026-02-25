@@ -49,11 +49,6 @@ namespace IntersectUtilities.DataScience.PropertySetBrowser
         public ICollectionView RowsView => _rowsView ??= CreateRowsView();
 
         /// <summary>
-        /// Gets the count of filtered (visible) rows.
-        /// </summary>
-        public int FilteredCount => _rowsView?.Cast<object>().Count() ?? 0;
-
-        /// <summary>
         /// Gets the total count of all rows.
         /// </summary>
         public int TotalCount => _allRows.Count;
@@ -78,16 +73,7 @@ namespace IntersectUtilities.DataScience.PropertySetBrowser
 
         private ICollectionView CreateRowsView()
         {
-            var view = CollectionViewSource.GetDefaultView(_allRows);
-            view.Filter = FilterPredicate;
-            return view;
-        }
-
-        private bool FilterPredicate(object obj)
-        {
-            if (obj is not PropertySetEntityRow row)
-                return false;
-            return row.MatchesSearch(FilterText);
+            return CollectionViewSource.GetDefaultView(_allRows);
         }
 
         private void LoadPropertySetNames()
@@ -115,10 +101,6 @@ namespace IntersectUtilities.DataScience.PropertySetBrowser
             }
         }
 
-        partial void OnFilterTextChanged(string value)
-        {
-            ApplyFilter();
-        }
 
         private void LoadPropertySetData(string propertySetName)
         {
@@ -211,13 +193,24 @@ namespace IntersectUtilities.DataScience.PropertySetBrowser
             };
         }
 
-        private void ApplyFilter()
+        internal void ApplyFilter()
         {
-            // Just refresh the view - the filter predicate will be re-evaluated
-            // This is much faster than creating a new ObservableCollection
-            RowsView.Refresh();
-            
-            StatusText = $"Showing {FilteredCount} of {TotalCount} entities.";
+            if (_rowsView == null) return;
+
+            var text = FilterText?.Trim() ?? "";
+
+            if (string.IsNullOrEmpty(text))
+            {
+                _rowsView.Filter = null;
+            }
+            else
+            {
+                _rowsView.Filter = obj =>
+                    obj is PropertySetEntityRow row && row.MatchesSearch(text);
+            }
+
+            int filtered = _rowsView is ListCollectionView lcv ? lcv.Count : TotalCount;
+            StatusText = $"Showing {filtered} of {TotalCount} entities.";
         }
 
         [RelayCommand]

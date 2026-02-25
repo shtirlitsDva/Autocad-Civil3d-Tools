@@ -157,7 +157,7 @@ namespace DimensioneringV2.GraphFeatures
                             { "BygningsAnvendelseNyKode", "" },
                             { "BygningsAnvendelseNyTekst", "" },
                             { "Opførelsesår", 0 },
-                            { "BeregningsAreal", 0.0 },
+                            { "BeregningsAreal", 0 },
                             { "KælderAreal", 0.0 },
                             { "VarmeType", "" },
                             { "VarmeInstallation", "" },

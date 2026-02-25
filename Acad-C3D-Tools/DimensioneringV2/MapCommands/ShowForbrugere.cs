@@ -17,12 +17,11 @@ namespace DimensioneringV2.MapCommands
             var rows = features
                 .Cast<AnalysisFeature>()
                 .Where(f => f.SegmentType == SegmentType.Stikledning)
-                .OrderBy(f => f.Adresse)
                 .Select(f => new ForbrugerRow
                 {
                     Adresse = f.Adresse,
                     Type = f.BygningsAnvendelseNyTekst,
-                    BBRAreal = f["BeregningsAreal"] as double? ?? 0,
+                    BBRAreal = f["BeregningsAreal"] as int? ?? 0,
                     Effekt = f.Effekt,
                     Aarsforbrug = f.HeatingDemandConnected,
                     Stiklaengde = f.Length,
