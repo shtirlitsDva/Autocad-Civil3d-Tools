@@ -442,7 +442,7 @@
                                                 <ColumnDefinition Width="20"/>
                                             </Grid.ColumnDefinitions>
                                             <ContentPresenter Grid.Column="0"/>
-                                            <Path Grid.Column="1" 
+                                            <Path Grid.Column="1"
                                                   Data="M 0 0 L 4 4 L 8 0 Z"
                                                   Fill="White"
                                                   HorizontalAlignment="Center"
@@ -466,7 +466,7 @@
                                 </Style>
                             </ContentPresenter.Resources>
                         </ContentPresenter>
-                        <Popup x:Name="PART_Popup"
+                        <Popup x:Name="Popup"
                                Placement="Bottom"
                                IsOpen="{TemplateBinding IsDropDownOpen}"
                                AllowsTransparency="True"
@@ -478,69 +478,8 @@
                                     BorderThickness="1"
                                     CornerRadius="3"
                                     MinWidth="{TemplateBinding ActualWidth}"
-                                    MaxHeight="500">
-                                <ScrollViewer VerticalScrollBarVisibility="Auto"
-                                              HorizontalScrollBarVisibility="Disabled">
-                                    <ScrollViewer.Resources>
-                                        <!-- Self-contained scrollbar for ComboBox dropdown only -->
-                                        <Style TargetType="ScrollBar">
-                                            <Setter Property="OverridesDefaultStyle" Value="True"/>
-                                            <Setter Property="Width" Value="10"/>
-                                            <Setter Property="MinWidth" Value="10"/>
-                                            <Setter Property="Template">
-                                                <Setter.Value>
-                                                    <ControlTemplate TargetType="ScrollBar">
-                                                        <Grid>
-                                                            <Border Background="#FF2D2D30" CornerRadius="4"/>
-                                                            <Track x:Name="PART_Track" IsDirectionReversed="True">
-                                                                <Track.DecreaseRepeatButton>
-                                                                    <RepeatButton Command="ScrollBar.PageUpCommand" Opacity="0"/>
-                                                                </Track.DecreaseRepeatButton>
-                                                                <Track.Thumb>
-                                                                    <Thumb>
-                                                                        <Thumb.Template>
-                                                                            <ControlTemplate TargetType="Thumb">
-                                                                                <Border Background="#FF585858" CornerRadius="4" Margin="1">
-                                                                                    <Border.Triggers>
-                                                                                        <EventTrigger RoutedEvent="MouseEnter">
-                                                                                            <BeginStoryboard>
-                                                                                                <Storyboard>
-                                                                                                    <ColorAnimation Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
-                                                                                                                    To="#FF787878" Duration="0:0:0.1"/>
-                                                                                                </Storyboard>
-                                                                                            </BeginStoryboard>
-                                                                                        </EventTrigger>
-                                                                                        <EventTrigger RoutedEvent="MouseLeave">
-                                                                                            <BeginStoryboard>
-                                                                                                <Storyboard>
-                                                                                                    <ColorAnimation Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
-                                                                                                                    To="#FF585858" Duration="0:0:0.1"/>
-                                                                                                </Storyboard>
-                                                                                            </BeginStoryboard>
-                                                                                        </EventTrigger>
-                                                                                    </Border.Triggers>
-                                                                                </Border>
-                                                                            </ControlTemplate>
-                                                                        </Thumb.Template>
-                                                                    </Thumb>
-                                                                </Track.Thumb>
-                                                                <Track.IncreaseRepeatButton>
-                                                                    <RepeatButton Command="ScrollBar.PageDownCommand" Opacity="0"/>
-                                                                </Track.IncreaseRepeatButton>
-                                                            </Track>
-                                                        </Grid>
-                                                    </ControlTemplate>
-                                                </Setter.Value>
-                                            </Setter>
-                                            <Style.Triggers>
-                                                <Trigger Property="Orientation" Value="Horizontal">
-                                                    <Setter Property="Width" Value="Auto"/>
-                                                    <Setter Property="Height" Value="10"/>
-                                                    <Setter Property="MinHeight" Value="10"/>
-                                                </Trigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </ScrollViewer.Resources>
+                                    MaxHeight="{TemplateBinding MaxDropDownHeight}">
+                                <ScrollViewer Margin="2" SnapsToDevicePixels="True">
                                     <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Contained"/>
                                 </ScrollViewer>
                             </Border>
