@@ -1,7 +1,8 @@
-﻿using DimensioneringV2.GraphFeatures;
+using DimensioneringV2.GraphFeatures;
 using DimensioneringV2.Services;
 using DimensioneringV2.UI;
 
+using DimensioneringV2.UI.Infrastructure;
 using System;
 using System.Collections.Generic;
 using System.Linq;

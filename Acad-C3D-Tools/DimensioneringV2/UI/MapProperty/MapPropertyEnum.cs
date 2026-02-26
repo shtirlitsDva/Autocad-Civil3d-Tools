@@ -1,0 +1,32 @@
+namespace DimensioneringV2.UI.MapProperty
+{
+    public enum MapPropertyEnum
+    {
+        Default,
+        Basic,
+        Bygninger,
+        Units,
+        HeatingDemand,
+        KarFlowSupply,
+        KarFlowReturn,
+        DimFlowSupply,
+        DimFlowReturn,
+        PressureGradientSupply,
+        PressureGradientReturn,
+        VelocitySupply,
+        VelocityReturn,
+        UtilizationRate,
+        Pipe,
+        Bridge,
+        SubGraphId,
+        CriticalPath,
+        ManualDim,
+        TempDeltaVarme,
+        TempDeltaBV,
+        Address,
+        BygningsAnvendelseNyTekst,
+        BygningsAnvendelseNyKode,
+        Nyttetimer,
+        RequiredDifferentialPressure
+    }
+}

@@ -1,6 +1,7 @@
 using DimensioneringV2.AutoCAD;
 using DimensioneringV2.GraphFeatures;
 using DimensioneringV2.UI;
+using DimensioneringV2.UI.MapProperty;
 
 using System;
 using System.Collections.Generic;

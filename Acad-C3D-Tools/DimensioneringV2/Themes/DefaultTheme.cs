@@ -1,4 +1,4 @@
-﻿using DimensioneringV2.GraphFeatures;
+using DimensioneringV2.GraphFeatures;
 using DimensioneringV2.Legend;
 
 using Mapsui;
@@ -7,6 +7,7 @@ using Mapsui.Styles.Thematics;
 
 using System.Collections.Generic;
 
+using DimensioneringV2.UI.MapProperty;
 namespace DimensioneringV2.Themes
 {
     class DefaultTheme : StyleBase, IThemeStyle, IStyle, ILegendSource
@@ -45,7 +46,7 @@ namespace DimensioneringV2.Themes
             Children = [
                 new TextBlock
                 {
-                    Text = LegendTitleProvider.GetTitle(UI.MapPropertyEnum.Default),
+                    Text = LegendTitleProvider.GetTitle(UI.MapProperty.MapPropertyEnum.Default),
                     FontSize = 16,
                     Align = LegendTextAlign.Center,
                 },

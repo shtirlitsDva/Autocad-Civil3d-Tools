@@ -14,6 +14,7 @@ using DimensioneringV2.Serialization;
 using DimensioneringV2.Services;
 using DimensioneringV2.Services.GDALClient;
 using DimensioneringV2.UI;
+using DimensioneringV2.UI.Infrastructure;
 using DimensioneringV2.Vejklasser.Models;
 using DimensioneringV2.Vejklasser.Views;
 

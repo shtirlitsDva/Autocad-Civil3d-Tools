@@ -9,6 +9,9 @@ using DimensioneringV2.Services;
 using DimensioneringV2.Services.SubGraphs;
 using DimensioneringV2.UI;
 
+using DimensioneringV2.UI.CacheStatistics;
+using DimensioneringV2.UI.GeneticOptimizedReporting;
+using DimensioneringV2.UI.GeneticOptimizedReporting.Cards;
 using NorsynHydraulicCalc;
 
 using QuikGraph;

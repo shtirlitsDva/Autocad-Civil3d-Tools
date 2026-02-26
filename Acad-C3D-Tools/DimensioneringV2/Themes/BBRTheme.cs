@@ -1,6 +1,7 @@
 using DimensioneringV2.GraphFeatures;
 using DimensioneringV2.UI;
 
+using DimensioneringV2.UI.Infrastructure;
 using Mapsui;
 using Mapsui.Styles;
 using Mapsui.Styles.Thematics;

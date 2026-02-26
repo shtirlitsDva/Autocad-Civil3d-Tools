@@ -9,6 +9,7 @@ using DimensioneringV2.Services;
 using DimensioneringV2.UI.Nyttetimer;
 using DimensioneringV2.UI.PipeSettings;
 
+using DimensioneringV2.UI.SettingsObserver;
 using NorsynHydraulicCalc;
 using NorsynHydraulicCalc.Rules;
 

@@ -1,4 +1,4 @@
-﻿using DimensioneringV2.BruteForceOptimization;
+using DimensioneringV2.BruteForceOptimization;
 using DimensioneringV2.Common;
 using DimensioneringV2.GraphFeatures;
 using DimensioneringV2.Models.Trykprofil;
@@ -6,6 +6,7 @@ using DimensioneringV2.Services;
 using DimensioneringV2.Services.GDALClient;
 using DimensioneringV2.UI;
 
+using DimensioneringV2.UI.Trykprofil;
 using NorsynHydraulicCalc.LookupData;
 
 using QuikGraph;

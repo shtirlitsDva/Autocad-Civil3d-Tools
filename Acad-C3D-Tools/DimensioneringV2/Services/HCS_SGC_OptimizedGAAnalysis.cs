@@ -10,6 +10,8 @@ using DimensioneringV2.GraphModel;
 using DimensioneringV2.ResultCache;
 using DimensioneringV2.UI;
 
+using DimensioneringV2.UI.GeneticOptimizedReporting;
+using DimensioneringV2.UI.GeneticOptimizedReporting.Cards;
 using GeneticSharp;
 
 using QuikGraph;

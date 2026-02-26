@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using DimensioneringV2.GraphFeatures;
 using DimensioneringV2.UI;
 
+using DimensioneringV2.UI.MapProperty;
 using Mapsui;
 using Mapsui.Styles;
 

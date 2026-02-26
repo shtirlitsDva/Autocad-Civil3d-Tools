@@ -1,8 +1,9 @@
-﻿using DimensioneringV2.Common;
+using DimensioneringV2.Common;
 using DimensioneringV2.Services;
 using DimensioneringV2.Services.GDALClient;
 using DimensioneringV2.UI;
 
+using DimensioneringV2.UI.Infrastructure;
 using System;
 using System.Collections.Generic;
 using System.Globalization;

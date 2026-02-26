@@ -1,0 +1,52 @@
+﻿<Window x:Class="DimensioneringV2.UI.GeneticReporting.GeneticReporting"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:DimensioneringV2.UI"
+        xmlns:oxy="http://oxyplot.org/wpf"
+        mc:Ignorable="d"
+        Title="GA Optimization Progress"
+        Height="600" Width="800"
+        Background="{DynamicResource Background}" Foreground="{DynamicResource Text}">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="../Theme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            <Style x:Key="RightAlignedTextBlockStyle" TargetType="TextBlock">
+                <Setter Property="HorizontalAlignment" Value="Right" />
+            </Style>
+        </ResourceDictionary>
+    </Window.Resources>
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="0*"/>
+            <ColumnDefinition/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- OxyPlot Graph -->
+        <oxy:PlotView Grid.Row="0" Model="{Binding PlotModel}" Grid.ColumnSpan="2" />
+
+        <!-- Info Panel -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,10" Grid.Column="1">
+            <TextBlock Text="Generation:" Margin="5" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding GenerationCounter}" Margin="5" VerticalAlignment="Center" />
+
+            <TextBlock Text="GSLU:" Margin="5" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding SinceLastUpdateCounter}" Margin="5" VerticalAlignment="Center" />
+
+            <TextBlock Text="Current Cost:" Margin="15,5,5,5" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding CurrentCost, StringFormat={}{0:N0}}" Margin="5" VerticalAlignment="Center" />
+        </StackPanel>
+
+        <!-- Stop Button -->
+        <Button Grid.Row="2" Content="Stop" Command="{Binding StopCommand}" Width="100" Height="30" HorizontalAlignment="Center" Margin="0,10,0,10" Grid.Column="1" />
+
+    </Grid>
+</Window>
