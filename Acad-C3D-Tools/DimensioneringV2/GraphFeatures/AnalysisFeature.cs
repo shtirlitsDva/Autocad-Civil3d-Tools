@@ -298,7 +298,10 @@ namespace DimensioneringV2.GraphFeatures
         /// <summary>
         /// Flow rate for return
         /// </summary>
-        [MapPropertyAttribute(MapPropertyEnum.DimFlowReturn)]
+        [MapProperty(MapPropertyEnum.DimFlowReturn,
+            Description = "Dim. flow for retur",
+            Theme = ThemeKind.Gradient,
+            LegendTitle = "Vandflow\nretur [m³/h]")]
         [DisplayCategory(DisplayCategoryEnum.Hydraulik)]
         public double DimFlowReturn
         {
@@ -309,7 +312,10 @@ namespace DimensioneringV2.GraphFeatures
         /// <summary>
         /// Pressure gradient for supply
         /// </summary>
-        [MapPropertyAttribute(MapPropertyEnum.PressureGradientSupply)]
+        [MapProperty(MapPropertyEnum.PressureGradientSupply,
+            Description = "Trykgradient for frem",
+            Theme = ThemeKind.Gradient,
+            LegendTitle = "Trykgradient\nfrem [Pa/m]")]
         [DisplayCategory(DisplayCategoryEnum.Tryktab)]
         public double PressureGradientSupply
         {
@@ -321,7 +327,10 @@ namespace DimensioneringV2.GraphFeatures
         /// <summary>
         /// Pressure gradient for return
         /// </summary>
-        [MapPropertyAttribute(MapPropertyEnum.PressureGradientReturn)]
+        [MapProperty(MapPropertyEnum.PressureGradientReturn,
+            Description = "Trykgradient for retur",
+            Theme = ThemeKind.Gradient,
+            LegendTitle = "Trykgradient\nretur [Pa/m]")]
         [DisplayCategory(DisplayCategoryEnum.Tryktab)]
         public double PressureGradientReturn
         {
@@ -332,7 +341,10 @@ namespace DimensioneringV2.GraphFeatures
         /// <summary>
         /// Velocity for supply
         /// </summary>
-        [MapPropertyAttribute(MapPropertyEnum.VelocitySupply)]
+        [MapProperty(MapPropertyEnum.VelocitySupply,
+            Description = "Hastighed for frem",
+            Theme = ThemeKind.Gradient,
+            LegendTitle = "Hastighed\nfrem [m/s]")]
         [DisplayCategory(DisplayCategoryEnum.Hydraulik)]
         public double VelocitySupply
         {
@@ -343,7 +355,10 @@ namespace DimensioneringV2.GraphFeatures
         /// <summary>
         /// Velocity for return
         /// </summary>
-        [MapPropertyAttribute(MapPropertyEnum.VelocityReturn)]
+        [MapProperty(MapPropertyEnum.VelocityReturn,
+            Description = "Hastighed for retur",
+            Theme = ThemeKind.Gradient,
+            LegendTitle = "Hastighed\nretur [m/s]")]
         [DisplayCategory(DisplayCategoryEnum.Hydraulik)]
         public double VelocityReturn
         {
@@ -354,7 +369,10 @@ namespace DimensioneringV2.GraphFeatures
         /// <summary>
         /// Utilization rate
         /// </summary>
-        [MapPropertyAttribute(MapPropertyEnum.UtilizationRate)]
+        [MapProperty(MapPropertyEnum.UtilizationRate,
+            Description = "Udnyttelsesfaktor",
+            Theme = ThemeKind.Gradient,
+            LegendTitle = "Udnyttelses-\nfaktor [%]")]
         [DisplayCategory(DisplayCategoryEnum.Rørtype)]
         public double UtilizationRate
         {
@@ -376,7 +394,13 @@ namespace DimensioneringV2.GraphFeatures
         /// <summary>
         /// Marks a segment as a bridge (ie. cannot be removed without disconnecting the network)
         /// </summary>
-        [MapProperty(MapPropertyEnum.Bridge)]
+        [MapProperty(MapPropertyEnum.Bridge,
+            Description = "Vis non-bridges",
+            Theme = ThemeKind.Category,
+            LegendTitle = "Bridges/\nnon-bridges",
+            BasicStyleValues = ["True"],
+            LegendLabel = LegendLabelFormat.BoolTrueFalse,
+            LegendLabelTemplate = "Bridge edge|Non-bridge edge")]
         [DisplayCategory(DisplayCategoryEnum.Grunddata)]
         public bool IsBridge
         {
@@ -387,7 +411,12 @@ namespace DimensioneringV2.GraphFeatures
         /// <summary>
         /// Stores the current subgraph id
         /// </summary>
-        [MapProperty(MapPropertyEnum.SubGraphId)]
+        [MapProperty(MapPropertyEnum.SubGraphId,
+            Description = "Vis delgrafer",
+            Theme = ThemeKind.Category,
+            LegendTitle = "Sub-graphs",
+            LegendLabel = LegendLabelFormat.Template,
+            LegendLabelTemplate = "Sub-graph {0}")]
         [DisplayCategory(DisplayCategoryEnum.Grunddata)]
         public int SubGraphId
         {
@@ -429,7 +458,7 @@ namespace DimensioneringV2.GraphFeatures
             Description = "Disponibelt tryk påkrævet",
             Theme = ThemeKind.Gradient,
             LegendTitle = "Disponibelt\ntryk påkrævet\n[bar]")]
-        [DisplayCategory(DisplayCategoryEnum.Hydraulik)]
+        [DisplayCategory(DisplayCategoryEnum.Tryktab)]
         public double RequiredDifferentialPressure
         {
             get => PressureLossAtClientReturn + PressureLossAtClientSupply + HydraulicSettingsService.Instance.Settings.MinDifferentialPressureOverHovedHaner;
@@ -452,7 +481,13 @@ namespace DimensioneringV2.GraphFeatures
         /// <summary>
         /// Marks the segment as a part of a critical path.
         /// </summary>
-        [MapProperty(MapPropertyEnum.CriticalPath)]
+        [MapProperty(MapPropertyEnum.CriticalPath,
+            Description = "Vis kritisk kunde",
+            Theme = ThemeKind.Category,
+            LegendTitle = "Kritisk\nforbruger",
+            BasicStyleValues = ["False"],
+            LegendLabel = LegendLabelFormat.BoolTrueFalse,
+            LegendLabelTemplate = "Kritisk forbruger|")]
         [DisplayCategory(DisplayCategoryEnum.Tryktab)]
         public bool IsCriticalPath
         {
@@ -464,7 +499,13 @@ namespace DimensioneringV2.GraphFeatures
         /// Marks the segment as manually assigned dimension.
         /// It may not be overriden by automatic dimensioning.
         /// </summary>
-        [MapProperty(MapPropertyEnum.ManualDim)]
+        [MapProperty(MapPropertyEnum.ManualDim,
+            Description = "Manuel dimension",
+            Theme = ThemeKind.Category,
+            LegendTitle = "Manuelt\ndimensionerede\nrør",
+            BasicStyleValues = ["False"],
+            LegendLabel = LegendLabelFormat.BoolTrueFalse,
+            LegendLabelTemplate = "Manuel dim|Auto dim")]
         [DisplayCategory(DisplayCategoryEnum.Rørtype)]
         public bool ManualDim
         {
@@ -475,7 +516,10 @@ namespace DimensioneringV2.GraphFeatures
         /// <summary>
         /// The temperature delta at the client connection for heating.
         /// </summary>
-        [MapProperty(MapPropertyEnum.TempDeltaVarme)]
+        [MapProperty(MapPropertyEnum.TempDeltaVarme,
+            Description = "Afkøling rumvarme",
+            Theme = ThemeKind.Gradient,
+            LegendTitle = "Afkøling rumvarme [°C]")]
         [DisplayCategory(DisplayCategoryEnum.Beregningsforudsætninger)]
         public double TempDeltaVarme
         {
@@ -486,7 +530,10 @@ namespace DimensioneringV2.GraphFeatures
         /// <summary>
         /// The temperature delta at the client connection for water.
         /// </summary>
-        [MapProperty(MapPropertyEnum.TempDeltaBV)]
+        [MapProperty(MapPropertyEnum.TempDeltaBV,
+            Description = "Afkøling brugsvand",
+            Theme = ThemeKind.Gradient,
+            LegendTitle = "Afkøling brugsvand [°C]")]
         [DisplayCategory(DisplayCategoryEnum.Beregningsforudsætninger)]
         public double TempDeltaBV
         {
@@ -497,7 +544,13 @@ namespace DimensioneringV2.GraphFeatures
         /// <summary>
         /// Anvendelseskode for the feature.
         /// </summary>
-        [MapProperty(MapPropertyEnum.BygningsAnvendelseNyKode)]
+        [MapProperty(MapPropertyEnum.BygningsAnvendelseNyKode,
+            Description = "Anvendelse, kode",
+            Theme = ThemeKind.Category,
+            LegendTitle = "Anvendelse, kode",
+            BasicStyleValues = [""],
+            LegendLabel = LegendLabelFormat.ShowOrFallback,
+            LegendLabelFallback = "Ukendt")]
         [DisplayCategory(DisplayCategoryEnum.Grunddata)]
         public string BygningsAnvendelseNyKode
         {
@@ -510,7 +563,12 @@ namespace DimensioneringV2.GraphFeatures
         /// This property dynamically reads from NyttetimerService so changes in settings
         /// are reflected when the map is refreshed.
         /// </summary>
-        [MapProperty(MapPropertyEnum.Nyttetimer)]
+        [MapProperty(MapPropertyEnum.Nyttetimer,
+            Description = "Nyttetimer",
+            Theme = ThemeKind.Category,
+            LegendTitle = "Nyttetimer",
+            BasicStyleValues = ["0"],
+            LegendLabel = LegendLabelFormat.HideBasicShowRest)]
         [DisplayCategory(DisplayCategoryEnum.Beregningsforudsætninger)]
         public int Nyttetimer
         {
@@ -600,7 +658,13 @@ namespace DimensioneringV2.GraphFeatures
         /// <summary>
         /// The address of the feature.
         /// </summary>
-        [MapProperty(MapPropertyEnum.Address)]
+        [MapProperty(MapPropertyEnum.Address,
+            Description = "Adresse",
+            Theme = ThemeKind.Category,
+            LegendTitle = "Adresser",
+            BasicStyleValues = [""],
+            LegendLabel = LegendLabelFormat.ShowOrFallback,
+            LegendLabelFallback = "Ukendt")]
         [DisplayCategory(DisplayCategoryEnum.Grunddata)]
         public string Adresse
         {
@@ -617,7 +681,13 @@ namespace DimensioneringV2.GraphFeatures
         /// <summary>
         /// The anvendelse text of the feature.
         /// </summary>
-        [MapProperty(MapPropertyEnum.BygningsAnvendelseNyTekst)]
+        [MapProperty(MapPropertyEnum.BygningsAnvendelseNyTekst,
+            Description = "Anvendelse, tekst",
+            Theme = ThemeKind.Category,
+            LegendTitle = "Anvendelse, tekst",
+            BasicStyleValues = [""],
+            LegendLabel = LegendLabelFormat.ShowOrFallback,
+            LegendLabelFallback = "Ukendt")]
         [DisplayCategory(DisplayCategoryEnum.Grunddata)]
         public string BygningsAnvendelseNyTekst
         {
