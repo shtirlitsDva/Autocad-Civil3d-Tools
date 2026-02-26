@@ -1,10 +1,6 @@
-﻿using DimensioneringV2.UI;
+using DimensioneringV2.UI;
 
-using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace DimensioneringV2.Legend
 {
@@ -12,28 +8,50 @@ namespace DimensioneringV2.Legend
     {
         public static string GetLabel(MapPropertyEnum property, object? value)
         {
+            if (!MapPropertyMetadata.TryGet(property, out var meta))
+                return value?.ToString() ?? "Unknown";
+
+            return GetLabel(meta, value);
+        }
+
+        public static string GetLabel(PropertyMeta meta, object? value)
+        {
             if (value == null) return "NULL";
 
-            return property switch
+            return meta.LegendLabel switch
             {
-                //Categorical theme
-                MapPropertyEnum.Bridge => (value is bool b && b) ? "Bridge edge" : "Non-bridge edge",
-                MapPropertyEnum.CriticalPath => (value is bool b && b) ? "Kritisk forbruger" : "",
-                MapPropertyEnum.SubGraphId => $"Sub-graph {value}",
-                MapPropertyEnum.Pipe => value is string s ? s == "NA 000" ? "" : s.ToString() : "",
-                MapPropertyEnum.Address => value is string addr && !string.IsNullOrEmpty(addr) ? addr : "Ukendt",
-                MapPropertyEnum.BygningsAnvendelseNyTekst => value is string anvt && !string.IsNullOrEmpty(anvt) ? anvt : "Ukendt",
-                MapPropertyEnum.BygningsAnvendelseNyKode => value is string anvk && !string.IsNullOrEmpty(anvk) ? anvk : "Ukendt",
-                MapPropertyEnum.Nyttetimer => value is int nt && nt > 0 ? nt.ToString() : "",
-
-                //Not used for gradient legend
-
-                //Not used
-                MapPropertyEnum.Default => "",
-                MapPropertyEnum.Basic => "",
-
-                _ => value.ToString() ?? "Unknown",
+                LegendLabelFormat.BoolTrueFalse => FormatBoolLabel(value, meta.LegendLabelTemplate),
+                LegendLabelFormat.Template => string.Format(meta.LegendLabelTemplate, value),
+                LegendLabelFormat.ShowOrFallback => IsEmpty(value)
+                    ? meta.LegendLabelFallback
+                    : value.ToString() ?? meta.LegendLabelFallback,
+                LegendLabelFormat.HideBasicShowRest => IsBasicValue(meta, value)
+                    ? ""
+                    : value.ToString() ?? "",
+                _ => value.ToString() ?? "Unknown"
             };
+        }
+
+        private static string FormatBoolLabel(object value, string template)
+        {
+            var parts = template.Split('|');
+            if (value is bool b)
+                return b ? parts[0] : (parts.Length > 1 ? parts[1] : "");
+            return value.ToString() ?? "";
+        }
+
+        private static bool IsEmpty(object? value) => value switch
+        {
+            null => true,
+            string s => string.IsNullOrEmpty(s),
+            int i => i == 0,
+            _ => false
+        };
+
+        private static bool IsBasicValue(PropertyMeta meta, object value)
+        {
+            var valueStr = value.ToString();
+            return meta.BasicStyleValues.Any(bv => valueStr == bv);
         }
     }
 }

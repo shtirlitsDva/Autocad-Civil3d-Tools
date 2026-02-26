@@ -140,6 +140,7 @@ namespace DimensioneringV2.UI
                 "Stiklaengde" => row.Stiklaengde,
                 "DN" => row.DN,
                 "Tryktab" => row.Tryktab,
+                "NødvendigtDisponibeltTryk" => row.NødvendigtDisponibeltTryk,
                 _ => row.Adresse
             };
 

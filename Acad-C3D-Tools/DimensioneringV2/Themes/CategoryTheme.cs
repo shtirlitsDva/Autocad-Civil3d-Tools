@@ -1,4 +1,4 @@
-﻿using DimensioneringV2.GraphFeatures;
+using DimensioneringV2.GraphFeatures;
 using DimensioneringV2.Legend;
 
 using Mapsui;
@@ -10,17 +10,17 @@ using System.Collections.Generic;
 
 namespace DimensioneringV2.Themes
 {
-    class CategoryTheme<T> : StyleBase, IThemeStyle, IStyle, ILegendSource
+    class CategoryTheme : StyleBase, IThemeStyle, IStyle, ILegendSource
     {
-        private Func<AnalysisFeature, T> _valueSelector { get; }
+        private Func<AnalysisFeature, object?> _valueSelector { get; }
 
         private string _legendTitle;
-        private IDictionary<T, IStyle> _stylesMap;
+        private IDictionary<object, IStyle> _stylesMap;
         private IList<LegendItem> _legendItems;
 
         public CategoryTheme(
-            Func<AnalysisFeature, T> valueSelector,
-            IDictionary<T, IStyle> stylesMap,
+            Func<AnalysisFeature, object?> valueSelector,
+            IDictionary<object, IStyle> stylesMap,
             IList<LegendItem> legendItems,
             string legendTitle)
         {
@@ -37,8 +37,8 @@ namespace DimensioneringV2.Themes
             var afeature = feature as AnalysisFeature;
             if (afeature == null) return StyleProvider.BasicStyle;
 
-            T key = _valueSelector(afeature);
-            if (_stylesMap.TryGetValue(key, out var style)) return style;
+            var key = _valueSelector(afeature);
+            if (key != null && _stylesMap.TryGetValue(key, out var style)) return style;
             return StyleProvider.BasicStyle;
         }
 

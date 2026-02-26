@@ -34,6 +34,49 @@
         </Setter>
     </Style>
 
+    <!-- ============================================== -->
+    <!-- Implicit Dark Button (auto-applies to ALL)   -->
+    <!-- ============================================== -->
+    <Style TargetType="Button">
+        <Setter Property="Background" Value="#FF505050"/>
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="Padding" Value="10,5"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border Background="{TemplateBinding Background}"
+                            CornerRadius="4"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Background" Value="#FF606060"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter Property="Background" Value="#FF707070"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.5"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Compact sidebar button for MainWindow left panel -->
+    <Style x:Key="SidebarButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Width" Value="96"/>
+        <Setter Property="Height" Value="28"/>
+        <Setter Property="FontSize" Value="12.5"/>
+        <Setter Property="Padding" Value="4,2"/>
+        <Setter Property="Margin" Value="2"/>
+    </Style>
+
     <!-- Unified Form Styles -->
     <Style x:Key="FormRowStyle" TargetType="Grid">
         <Setter Property="Margin" Value="0,4"/>
@@ -70,7 +113,7 @@
         <Setter Property="Foreground" Value="{DynamicResource Text}"/>
     </Style>
 
-    <Style x:Key="ActionButtonStyle" TargetType="Button">
+    <Style x:Key="ActionButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
         <Setter Property="Margin" Value="0,0"/>
         <Setter Property="Padding" Value="15,2"/>
     </Style>
@@ -136,7 +179,7 @@
     </Style>
 
     <!-- OK/Cancel Button Style -->
-    <Style x:Key="DialogButtonStyle" TargetType="Button">
+    <Style x:Key="DialogButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
         <Setter Property="MinWidth" Value="80"/>
         <Setter Property="Padding" Value="12,6"/>
         <Setter Property="Margin" Value="4,0"/>
@@ -357,6 +400,7 @@
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Padding" Value="6,4"/>
         <Setter Property="MinWidth" Value="70"/>
+        <Setter Property="MaxDropDownHeight" Value="500"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
         <Setter Property="ItemContainerStyle">
             <Setter.Value>
@@ -422,7 +466,7 @@
                                 </Style>
                             </ContentPresenter.Resources>
                         </ContentPresenter>
-                        <Popup x:Name="Popup"
+                        <Popup x:Name="PART_Popup"
                                Placement="Bottom"
                                IsOpen="{TemplateBinding IsDropDownOpen}"
                                AllowsTransparency="True"
@@ -434,8 +478,69 @@
                                     BorderThickness="1"
                                     CornerRadius="3"
                                     MinWidth="{TemplateBinding ActualWidth}"
-                                    MaxHeight="{TemplateBinding MaxDropDownHeight}">
-                                <ScrollViewer Margin="2" SnapsToDevicePixels="True">
+                                    MaxHeight="500">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Disabled">
+                                    <ScrollViewer.Resources>
+                                        <!-- Self-contained scrollbar for ComboBox dropdown only -->
+                                        <Style TargetType="ScrollBar">
+                                            <Setter Property="OverridesDefaultStyle" Value="True"/>
+                                            <Setter Property="Width" Value="10"/>
+                                            <Setter Property="MinWidth" Value="10"/>
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="ScrollBar">
+                                                        <Grid>
+                                                            <Border Background="#FF2D2D30" CornerRadius="4"/>
+                                                            <Track x:Name="PART_Track" IsDirectionReversed="True">
+                                                                <Track.DecreaseRepeatButton>
+                                                                    <RepeatButton Command="ScrollBar.PageUpCommand" Opacity="0"/>
+                                                                </Track.DecreaseRepeatButton>
+                                                                <Track.Thumb>
+                                                                    <Thumb>
+                                                                        <Thumb.Template>
+                                                                            <ControlTemplate TargetType="Thumb">
+                                                                                <Border Background="#FF585858" CornerRadius="4" Margin="1">
+                                                                                    <Border.Triggers>
+                                                                                        <EventTrigger RoutedEvent="MouseEnter">
+                                                                                            <BeginStoryboard>
+                                                                                                <Storyboard>
+                                                                                                    <ColorAnimation Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
+                                                                                                                    To="#FF787878" Duration="0:0:0.1"/>
+                                                                                                </Storyboard>
+                                                                                            </BeginStoryboard>
+                                                                                        </EventTrigger>
+                                                                                        <EventTrigger RoutedEvent="MouseLeave">
+                                                                                            <BeginStoryboard>
+                                                                                                <Storyboard>
+                                                                                                    <ColorAnimation Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
+                                                                                                                    To="#FF585858" Duration="0:0:0.1"/>
+                                                                                                </Storyboard>
+                                                                                            </BeginStoryboard>
+                                                                                        </EventTrigger>
+                                                                                    </Border.Triggers>
+                                                                                </Border>
+                                                                            </ControlTemplate>
+                                                                        </Thumb.Template>
+                                                                    </Thumb>
+                                                                </Track.Thumb>
+                                                                <Track.IncreaseRepeatButton>
+                                                                    <RepeatButton Command="ScrollBar.PageDownCommand" Opacity="0"/>
+                                                                </Track.IncreaseRepeatButton>
+                                                            </Track>
+                                                        </Grid>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                            <Style.Triggers>
+                                                <Trigger Property="Orientation" Value="Horizontal">
+                                                    <Setter Property="Width" Value="Auto"/>
+                                                    <Setter Property="Height" Value="10"/>
+                                                    <Setter Property="MinHeight" Value="10"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </ScrollViewer.Resources>
                                     <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Contained"/>
                                 </ScrollViewer>
                             </Border>
@@ -503,6 +608,116 @@
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
+    </Style>
+
+    <!-- ============================================== -->
+    <!-- Dark ScrollBar                                -->
+    <!-- ============================================== -->
+
+    <!-- Thumb (the draggable part) -->
+    <Style x:Key="DarkScrollBarThumb" TargetType="Thumb">
+        <Setter Property="OverridesDefaultStyle" Value="True"/>
+        <Setter Property="IsTabStop" Value="False"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Thumb">
+                    <Border x:Name="ThumbBorder"
+                            Background="#FF585858"
+                            CornerRadius="4"
+                            Margin="1"/>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="ThumbBorder" Property="Background" Value="#FF787878"/>
+                        </Trigger>
+                        <Trigger Property="IsDragging" Value="True">
+                            <Setter TargetName="ThumbBorder" Property="Background" Value="#FF909090"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Repeat buttons (line + page areas) — invisible -->
+    <Style x:Key="DarkScrollBarLineButton" TargetType="RepeatButton">
+        <Setter Property="OverridesDefaultStyle" Value="True"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RepeatButton">
+                    <Border Background="Transparent" Height="0" Width="0"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="DarkScrollBarPageButton" TargetType="RepeatButton">
+        <Setter Property="OverridesDefaultStyle" Value="True"/>
+        <Setter Property="IsTabStop" Value="False"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RepeatButton">
+                    <Border Background="Transparent"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Vertical ScrollBar template -->
+    <ControlTemplate x:Key="DarkVerticalScrollBar" TargetType="ScrollBar">
+        <Grid>
+            <Border Background="#FF2D2D30" CornerRadius="4"/>
+            <Track x:Name="PART_Track" IsDirectionReversed="True">
+                <Track.DecreaseRepeatButton>
+                    <RepeatButton Style="{StaticResource DarkScrollBarPageButton}"
+                                  Command="ScrollBar.PageUpCommand"/>
+                </Track.DecreaseRepeatButton>
+                <Track.Thumb>
+                    <Thumb Style="{StaticResource DarkScrollBarThumb}"/>
+                </Track.Thumb>
+                <Track.IncreaseRepeatButton>
+                    <RepeatButton Style="{StaticResource DarkScrollBarPageButton}"
+                                  Command="ScrollBar.PageDownCommand"/>
+                </Track.IncreaseRepeatButton>
+            </Track>
+        </Grid>
+    </ControlTemplate>
+
+    <!-- Horizontal ScrollBar template -->
+    <ControlTemplate x:Key="DarkHorizontalScrollBar" TargetType="ScrollBar">
+        <Grid>
+            <Border Background="#FF2D2D30" CornerRadius="4"/>
+            <Track x:Name="PART_Track" IsDirectionReversed="False">
+                <Track.DecreaseRepeatButton>
+                    <RepeatButton Style="{StaticResource DarkScrollBarPageButton}"
+                                  Command="ScrollBar.PageLeftCommand"/>
+                </Track.DecreaseRepeatButton>
+                <Track.Thumb>
+                    <Thumb Style="{StaticResource DarkScrollBarThumb}"/>
+                </Track.Thumb>
+                <Track.IncreaseRepeatButton>
+                    <RepeatButton Style="{StaticResource DarkScrollBarPageButton}"
+                                  Command="ScrollBar.PageRightCommand"/>
+                </Track.IncreaseRepeatButton>
+            </Track>
+        </Grid>
+    </ControlTemplate>
+
+    <!-- Default dark ScrollBar style (applies to ALL ScrollBars in the app) -->
+    <Style TargetType="ScrollBar">
+        <Setter Property="OverridesDefaultStyle" Value="True"/>
+        <Setter Property="Width" Value="10"/>
+        <Setter Property="MinWidth" Value="10"/>
+        <Setter Property="Template" Value="{StaticResource DarkVerticalScrollBar}"/>
+        <Style.Triggers>
+            <Trigger Property="Orientation" Value="Horizontal">
+                <Setter Property="Width" Value="Auto"/>
+                <Setter Property="Height" Value="10"/>
+                <Setter Property="MinHeight" Value="10"/>
+                <Setter Property="Template" Value="{StaticResource DarkHorizontalScrollBar}"/>
+            </Trigger>
+        </Style.Triggers>
     </Style>
 
     <!-- Match Category Colors (BBR Data Window) -->

@@ -1,4 +1,4 @@
-﻿using DimensioneringV2.Services;
+using DimensioneringV2.Services;
 using DimensioneringV2.Services.GDALClient;
 using DimensioneringV2.UI;
 
@@ -144,6 +144,7 @@ namespace DimensioneringV2.GraphFeatures
         /// <summary>
         /// Is the segment a root node, then returns true, else false
         /// </summary>
+        [DisplayCategory(DisplayCategoryEnum.Grunddata)]
         public bool IsRootNode
         {
             get => this["IsRootNode"] is bool value ? value : false;
@@ -153,11 +154,13 @@ namespace DimensioneringV2.GraphFeatures
         /// <summary>
         /// Length of the segment
         /// </summary>
+        [DisplayCategory(DisplayCategoryEnum.Beregningsforudsætninger)]
         public double Length => Geometry25832.Length;
 
         /// <summary>
         /// Is the segment a service line, then returns 1, else 0
         /// </summary>
+        [DisplayCategory(DisplayCategoryEnum.Beregningsforudsætninger)]
         public int NumberOfBuildingsConnected
         {
             get => (this["IsBuildingConnection"] as bool? ?? false) ? 1 : 0;
@@ -166,6 +169,7 @@ namespace DimensioneringV2.GraphFeatures
         /// <summary>
         /// Lists the number of units connected to the segment
         /// </summary>
+        [DisplayCategory(DisplayCategoryEnum.Beregningsforudsætninger)]
         public int NumberOfUnitsConnected
         {
             get => this["AntalEnheder"] as int? ?? 0;
@@ -175,6 +179,7 @@ namespace DimensioneringV2.GraphFeatures
         /// <summary>
         /// Lists the heating demand of the building connected to the segment
         /// </summary>
+        [DisplayCategory(DisplayCategoryEnum.Beregningsforudsætninger)]
         public double HeatingDemandConnected
         {
             get => this["EstimeretVarmeForbrug"] as double? ?? 0;
@@ -184,6 +189,7 @@ namespace DimensioneringV2.GraphFeatures
         /// <summary>
         /// Signifies what type of segment the feature represents.
         /// </summary>
+        [DisplayCategory(DisplayCategoryEnum.Beregningsforudsætninger)]
         public SegmentType SegmentType =>
             NumberOfBuildingsConnected == 1 ?
             SegmentType.Stikledning :
@@ -192,7 +198,11 @@ namespace DimensioneringV2.GraphFeatures
         /// <summary>
         /// Is used to sum all the buildins supplied by the segment
         /// </summary>
-        [MapPropertyAttribute(MapPropertyEnum.Bygninger)]
+        [MapProperty(MapPropertyEnum.Bygninger,
+            Description = "Antal af bygninger",
+            Theme = ThemeKind.Gradient,
+            LegendTitle = "Bygninger\nforsynet\n[stk]")]
+        [DisplayCategory(DisplayCategoryEnum.Beregningsforudsætninger)]
         public int NumberOfBuildingsSupplied
         {
             get => GetAttributeValue<int>(MapPropertyEnum.Bygninger);
@@ -202,7 +212,11 @@ namespace DimensioneringV2.GraphFeatures
         /// <summary>
         /// Is used to sum all the units (enheder for HWS (hot water supply)) supplied by the segment
         /// </summary>
-        [MapPropertyAttribute(MapPropertyEnum.Units)]
+        [MapProperty(MapPropertyEnum.Units,
+            Description = "Antal af enheder",
+            Theme = ThemeKind.Gradient,
+            LegendTitle = "Enheder\nforsynet\n[stk]")]
+        [DisplayCategory(DisplayCategoryEnum.Beregningsforudsætninger)]
         public int NumberOfUnitsSupplied
         {
             get => GetAttributeValue<int>(MapPropertyEnum.Units);
@@ -212,7 +226,11 @@ namespace DimensioneringV2.GraphFeatures
         /// <summary>
         /// Is used to sum all the heating demand of the buildings supplied by the segment
         /// </summary>
-        [MapPropertyAttribute(MapPropertyEnum.HeatingDemand)]
+        [MapProperty(MapPropertyEnum.HeatingDemand,
+            Description = "Estimeret varmebehov",
+            Theme = ThemeKind.Gradient,
+            LegendTitle = "Estimeret\nvarmebehov\n[MWh/år]")]
+        [DisplayCategory(DisplayCategoryEnum.Beregningsforudsætninger)]
         public double HeatingDemandSupplied
         {
             get => GetAttributeValue<double>(MapPropertyEnum.HeatingDemand);
@@ -222,7 +240,15 @@ namespace DimensioneringV2.GraphFeatures
         /// <summary>
         /// Dimension
         /// </summary>
-        [MapPropertyAttribute(MapPropertyEnum.Pipe)]
+        [MapProperty(MapPropertyEnum.Pipe,
+            Description = "Rørdimension",
+            Theme = ThemeKind.Category,
+            LegendTitle = "Rørdimensioner",
+            BasicStyleValues = ["NA 000"],
+            DisplayValuePath = "DimName",
+            OrderingPropertyPath = "OrderingPriority",
+            LegendLabel = LegendLabelFormat.HideBasicShowRest)]
+        [DisplayCategory(DisplayCategoryEnum.Rørtype)]
         public Dim Dim
         {
             get => GetAttributeValue<Dim>(MapPropertyEnum.Pipe);
@@ -238,6 +264,7 @@ namespace DimensioneringV2.GraphFeatures
         /// <summary>
         /// Reynolds number for supply
         /// </summary>
+        [DisplayCategory(DisplayCategoryEnum.Hydraulik)]
         public double ReynoldsSupply
         {
             get => this["ReynoldsSupply"] as double? ?? 0;
@@ -247,6 +274,7 @@ namespace DimensioneringV2.GraphFeatures
         /// <summary>
         /// Reynolds number for return
         /// </summary>
+        [DisplayCategory(DisplayCategoryEnum.Hydraulik)]
         public double ReynoldsReturn
         {
             get => this["ReynoldsReturn"] as double? ?? 0;
@@ -256,7 +284,11 @@ namespace DimensioneringV2.GraphFeatures
         /// <summary>
         /// Flow rate for supply
         /// </summary>
-        [MapPropertyAttribute(MapPropertyEnum.DimFlowSupply)]
+        [MapProperty(MapPropertyEnum.DimFlowSupply,
+            Description = "Dim. flow for frem",
+            Theme = ThemeKind.Gradient,
+            LegendTitle = "Vandflow\nfrem [m³/h]")]
+        [DisplayCategory(DisplayCategoryEnum.Hydraulik)]
         public double DimFlowSupply
         {
             get => GetAttributeValue<double>(MapPropertyEnum.DimFlowSupply);
@@ -267,6 +299,7 @@ namespace DimensioneringV2.GraphFeatures
         /// Flow rate for return
         /// </summary>
         [MapPropertyAttribute(MapPropertyEnum.DimFlowReturn)]
+        [DisplayCategory(DisplayCategoryEnum.Hydraulik)]
         public double DimFlowReturn
         {
             get => GetAttributeValue<double>(MapPropertyEnum.DimFlowReturn);
@@ -277,6 +310,7 @@ namespace DimensioneringV2.GraphFeatures
         /// Pressure gradient for supply
         /// </summary>
         [MapPropertyAttribute(MapPropertyEnum.PressureGradientSupply)]
+        [DisplayCategory(DisplayCategoryEnum.Tryktab)]
         public double PressureGradientSupply
         {
             get => GetAttributeValue<double>(MapPropertyEnum.PressureGradientSupply) * pct;
@@ -288,6 +322,7 @@ namespace DimensioneringV2.GraphFeatures
         /// Pressure gradient for return
         /// </summary>
         [MapPropertyAttribute(MapPropertyEnum.PressureGradientReturn)]
+        [DisplayCategory(DisplayCategoryEnum.Tryktab)]
         public double PressureGradientReturn
         {
             get => GetAttributeValue<double>(MapPropertyEnum.PressureGradientReturn) * pct;
@@ -298,6 +333,7 @@ namespace DimensioneringV2.GraphFeatures
         /// Velocity for supply
         /// </summary>
         [MapPropertyAttribute(MapPropertyEnum.VelocitySupply)]
+        [DisplayCategory(DisplayCategoryEnum.Hydraulik)]
         public double VelocitySupply
         {
             get => GetAttributeValue<double>(MapPropertyEnum.VelocitySupply);
@@ -308,6 +344,7 @@ namespace DimensioneringV2.GraphFeatures
         /// Velocity for return
         /// </summary>
         [MapPropertyAttribute(MapPropertyEnum.VelocityReturn)]
+        [DisplayCategory(DisplayCategoryEnum.Hydraulik)]
         public double VelocityReturn
         {
             get => GetAttributeValue<double>(MapPropertyEnum.VelocityReturn);
@@ -318,6 +355,7 @@ namespace DimensioneringV2.GraphFeatures
         /// Utilization rate
         /// </summary>
         [MapPropertyAttribute(MapPropertyEnum.UtilizationRate)]
+        [DisplayCategory(DisplayCategoryEnum.Rørtype)]
         public double UtilizationRate
         {
             get => GetAttributeValue<double>(MapPropertyEnum.UtilizationRate);
@@ -328,6 +366,7 @@ namespace DimensioneringV2.GraphFeatures
         /// Dimensioning power [kW] - max of the four calculated power scenarios.
         /// Only meaningful for Stikledning segments.
         /// </summary>
+        [DisplayCategory(DisplayCategoryEnum.Beregningsforudsætninger)]
         public double Effekt
         {
             get => this["Effekt"] as double? ?? 0;
@@ -338,6 +377,7 @@ namespace DimensioneringV2.GraphFeatures
         /// Marks a segment as a bridge (ie. cannot be removed without disconnecting the network)
         /// </summary>
         [MapProperty(MapPropertyEnum.Bridge)]
+        [DisplayCategory(DisplayCategoryEnum.Grunddata)]
         public bool IsBridge
         {
             get => GetAttributeValue<bool>(MapPropertyEnum.Bridge);
@@ -348,6 +388,7 @@ namespace DimensioneringV2.GraphFeatures
         /// Stores the current subgraph id
         /// </summary>
         [MapProperty(MapPropertyEnum.SubGraphId)]
+        [DisplayCategory(DisplayCategoryEnum.Grunddata)]
         public int SubGraphId
         {
             get => GetAttributeValue<int>(MapPropertyEnum.SubGraphId);
@@ -360,6 +401,7 @@ namespace DimensioneringV2.GraphFeatures
         /// where the pressure loss is calculated for the whole path.
         /// It should NOT include the allowed client loss from HydraulicCalculationSettings
         /// </summary>
+        [DisplayCategory(DisplayCategoryEnum.Tryktab)]
         public double PressureLossAtClientSupply
         {
             get => this["PressureLossAtClientSupply"] as double? ?? 0;
@@ -372,10 +414,25 @@ namespace DimensioneringV2.GraphFeatures
         /// where the pressure loss is calculated for the whole path.
         /// It should NOT include the allowed client loss from HydraulicCalculationSettings
         /// </summary>
+        [DisplayCategory(DisplayCategoryEnum.Tryktab)]
         public double PressureLossAtClientReturn
         {
             get => this["PressureLossAtClientReturn"] as double? ?? 0;
             set => this["PressureLossAtClientReturn"] = value;
+        }
+
+        /// <summary>
+        /// Nødvendigt disponibelt tryk ved klienten, beregnet som tryktab i frem og retur
+        /// plus et tillæg for at sikre tilstrækkeligt tryk ved klienten.
+        /// </summary>
+        [MapProperty(MapPropertyEnum.RequiredDifferentialPressure,
+            Description = "Disponibelt tryk påkrævet",
+            Theme = ThemeKind.Gradient,
+            LegendTitle = "Disponibelt\ntryk påkrævet\n[bar]")]
+        [DisplayCategory(DisplayCategoryEnum.Hydraulik)]
+        public double RequiredDifferentialPressure
+        {
+            get => PressureLossAtClientReturn + PressureLossAtClientSupply + HydraulicSettingsService.Instance.Settings.MinDifferentialPressureOverHovedHaner;
         }
 
         /// <summary>
@@ -385,6 +442,7 @@ namespace DimensioneringV2.GraphFeatures
         /// using the max pressure for network minus
         /// pressure loss for the whole path in both dirs.
         /// </summary>
+        [DisplayCategory(DisplayCategoryEnum.Tryktab)]
         public double DifferentialPressureAtClient
         {
             get => this["DifferentialPressureAtClient"] as double? ?? 0;
@@ -395,6 +453,7 @@ namespace DimensioneringV2.GraphFeatures
         /// Marks the segment as a part of a critical path.
         /// </summary>
         [MapProperty(MapPropertyEnum.CriticalPath)]
+        [DisplayCategory(DisplayCategoryEnum.Tryktab)]
         public bool IsCriticalPath
         {
             get => GetAttributeValue<bool>(MapPropertyEnum.CriticalPath);
@@ -406,6 +465,7 @@ namespace DimensioneringV2.GraphFeatures
         /// It may not be overriden by automatic dimensioning.
         /// </summary>
         [MapProperty(MapPropertyEnum.ManualDim)]
+        [DisplayCategory(DisplayCategoryEnum.Rørtype)]
         public bool ManualDim
         {
             get => GetAttributeValue<bool>(MapPropertyEnum.ManualDim);
@@ -416,6 +476,7 @@ namespace DimensioneringV2.GraphFeatures
         /// The temperature delta at the client connection for heating.
         /// </summary>
         [MapProperty(MapPropertyEnum.TempDeltaVarme)]
+        [DisplayCategory(DisplayCategoryEnum.Beregningsforudsætninger)]
         public double TempDeltaVarme
         {
             get => GetAttributeValue<double>(MapPropertyEnum.TempDeltaVarme);
@@ -426,6 +487,7 @@ namespace DimensioneringV2.GraphFeatures
         /// The temperature delta at the client connection for water.
         /// </summary>
         [MapProperty(MapPropertyEnum.TempDeltaBV)]
+        [DisplayCategory(DisplayCategoryEnum.Beregningsforudsætninger)]
         public double TempDeltaBV
         {
             get => GetAttributeValue<double>(MapPropertyEnum.TempDeltaBV);
@@ -436,6 +498,7 @@ namespace DimensioneringV2.GraphFeatures
         /// Anvendelseskode for the feature.
         /// </summary>
         [MapProperty(MapPropertyEnum.BygningsAnvendelseNyKode)]
+        [DisplayCategory(DisplayCategoryEnum.Grunddata)]
         public string BygningsAnvendelseNyKode
         {
             get => GetAttributeValue<string>(MapPropertyEnum.BygningsAnvendelseNyKode);
@@ -448,6 +511,7 @@ namespace DimensioneringV2.GraphFeatures
         /// are reflected when the map is refreshed.
         /// </summary>
         [MapProperty(MapPropertyEnum.Nyttetimer)]
+        [DisplayCategory(DisplayCategoryEnum.Beregningsforudsætninger)]
         public int Nyttetimer
         {
             get
@@ -504,13 +568,27 @@ namespace DimensioneringV2.GraphFeatures
         IEnumerable<PropertyItem> IInfoForFeature.PropertiesToDataGrid()
         {
             var props = GetType()
-            .GetProperties(System.Reflection.BindingFlags.Public |
-                           System.Reflection.BindingFlags.Instance |
-                           System.Reflection.BindingFlags.DeclaredOnly)
-            .Where(p => p.GetIndexParameters().Length == 0)
-            .OrderBy(p => p.MetadataToken)
-            .Where(p => !ignoreProps.Contains(p.Name))
-            .Select(pi => new PropertyItem(pi.Name, pi.GetValue(this)?.ToString() ?? "null"));
+                .GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+                .Where(p => p.GetIndexParameters().Length == 0)
+                .Where(p => !ignoreProps.Contains(p.Name))
+                .Select(p =>
+                {
+                    var cat = p.GetCustomAttribute<DisplayCategoryAttribute>();
+                    return new
+                    {
+                        Prop = p,
+                        Category = cat?.Category.ToString() ?? "",
+                        Order = cat != null ? (int)cat.Category : int.MaxValue
+                    };
+                })
+                .Where(x => x.Order != int.MaxValue) // only show properties with a category
+                .OrderBy(x => x.Order)
+                .ThenBy(x => x.Prop.MetadataToken)
+                .Select(x => new PropertyItem(
+                    x.Prop.Name,
+                    x.Prop.GetValue(this)?.ToString() ?? "null",
+                    x.Category,
+                    x.Order));
 
             return props;
         }
@@ -523,6 +601,7 @@ namespace DimensioneringV2.GraphFeatures
         /// The address of the feature.
         /// </summary>
         [MapProperty(MapPropertyEnum.Address)]
+        [DisplayCategory(DisplayCategoryEnum.Grunddata)]
         public string Adresse
         {
             get
@@ -539,6 +618,7 @@ namespace DimensioneringV2.GraphFeatures
         /// The anvendelse text of the feature.
         /// </summary>
         [MapProperty(MapPropertyEnum.BygningsAnvendelseNyTekst)]
+        [DisplayCategory(DisplayCategoryEnum.Grunddata)]
         public string BygningsAnvendelseNyTekst
         {
             get => GetAttributeValue<string>(MapPropertyEnum.BygningsAnvendelseNyTekst);
@@ -547,6 +627,7 @@ namespace DimensioneringV2.GraphFeatures
         /// <summary>
         /// The pressure loss in this pipe segment.
         /// </summary>
+        [DisplayCategory(DisplayCategoryEnum.Tryktab)]
         public double PressureLossBAR
         {
             get

@@ -287,6 +287,22 @@
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
+
+                <DataGridTextColumn Binding="{Binding NødvendigtDisponibeltTryk, StringFormat=N2}" Width="Auto"
+                    SortMemberPath="NødvendigtDisponibeltTryk">
+                    <DataGridTextColumn.Header>
+                        <TextBlock TextAlignment="Center">
+            <Run Text="Nødvendigt"/><LineBreak/><Run Text="disponibelt"/><LineBreak/><Run Text="tryk"/><LineBreak/><Run Text="[bar]"/>
+                        </TextBlock>
+                    </DataGridTextColumn.Header>
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                            <Setter Property="VerticalAlignment" Value="Center"/>
+                            <Setter Property="Padding" Value="8,0"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
             </DataGrid.Columns>
         </DataGrid>
     </Grid>

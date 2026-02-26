@@ -1,4 +1,4 @@
-﻿using DimensioneringV2.AutoCAD;
+using DimensioneringV2.AutoCAD;
 using DimensioneringV2.GraphFeatures;
 using DimensioneringV2.UI;
 
@@ -10,49 +10,76 @@ namespace DimensioneringV2.Themes
 {
     class ValueListProvider
     {
-        public static List<T> GetValues<T>(
-            MapPropertyEnum property,
+        public static List<object> GetValues(
+            PropertyMeta meta,
             IEnumerable<AnalysisFeature> features,
-            Func<AnalysisFeature, T> selector,
-            T[] basicStyleValues)
+            Func<AnalysisFeature, object?> selector,
+            object[] basicStyleValues)
         {
             if (features == null) throw new ArgumentNullException(nameof(features));
             if (selector == null) throw new ArgumentNullException(nameof(selector));
             if (basicStyleValues == null) throw new ArgumentNullException(nameof(basicStyleValues));
 
-            switch (property)
+            var basicSet = new HashSet<object>(basicStyleValues, ObjectKeyComparer.Instance);
+
+            // When DisplayValuePath is set, the property is a complex object (e.g., Dim).
+            // We may need custom ordering and null-checking.
+            if (!string.IsNullOrEmpty(meta.DisplayValuePath))
             {
-                case MapPropertyEnum.Pipe:
-                    {
-                        if (basicStyleValues is not string[] temp)
-                            throw new ArgumentException(
-                                "Basic style values must be of type string[] for Pipe property.");
-                        
-                        var query = features
-                            .DistinctBy(x => x.Dim.DimName)
-                            .Where(x => !temp.Contains(x.Dim.DimName))                        
-                            .OrderBy(x => x.Dim.OrderingPriority)
-                            .ThenBy(x => x.Dim.DimName)
-                            .Select(selector)
-                            .ToList();
-
-                        if (query.Count != 0 && query.Any(x => x == null))
-                        {
-                            var nulls = features.Where(x => selector(x) == null).ToList();
-                            MarkNullEdges.Mark(nulls);
-                        }
-
-                        return query;
-                    }
-
-                default:
-                    return features
-                        .Select(selector)
-                        .Distinct()
-                        .Where(x => !basicStyleValues.Contains(x))
-                        .OrderBy(x => x)
-                        .ToList();
+                return GetValuesWithDisplayPath(meta, features, selector, basicSet);
             }
+
+            // Default path: simple distinct + natural ordering
+            return features
+                .Select(selector)
+                .Where(x => x != null)
+                .Distinct()
+                .Where(x => !basicSet.Contains(x!))
+                .OrderBy(x => x)
+                .ToList()!;
+        }
+
+        private static List<object> GetValuesWithDisplayPath(
+            PropertyMeta meta,
+            IEnumerable<AnalysisFeature> features,
+            Func<AnalysisFeature, object?> selector,
+            HashSet<object> basicSet)
+        {
+            bool hasOrderingPath = !string.IsNullOrEmpty(meta.OrderingPropertyPath);
+
+            var items = features
+                .Select(f => (
+                    resolved: selector(f),
+                    ordering: hasOrderingPath ? meta.GetOrderingValue(f) : null,
+                    feature: f))
+                .ToList();
+
+            // Check for null resolved values (like null Dim) and mark them for debugging
+            var nullItems = items.Where(x => x.resolved == null).ToList();
+            if (nullItems.Count > 0)
+            {
+                MarkNullEdges.Mark(nullItems.Select(x => x.feature));
+            }
+
+            var query = items
+                .Where(x => x.resolved != null)
+                .DistinctBy(x => x.resolved)
+                .Where(x => !basicSet.Contains(x.resolved!));
+
+            if (hasOrderingPath)
+            {
+                query = query
+                    .OrderBy(x => x.ordering)
+                    .ThenBy(x => x.resolved);
+            }
+            else
+            {
+                query = query.OrderBy(x => x.resolved);
+            }
+
+            return query
+                .Select(x => x.resolved!)
+                .ToList();
         }
     }
 }

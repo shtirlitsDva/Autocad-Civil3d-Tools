@@ -1,10 +1,5 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-using Accessibility;
 
 using DimensioneringV2.GraphFeatures;
 using DimensioneringV2.UI;
@@ -16,35 +11,51 @@ namespace DimensioneringV2.Labels
 {
     class LabelManager
     {
+        // Escape hatch: custom formatters for properties with genuinely complex logic
+        private static readonly Dictionary<MapPropertyEnum, Func<AnalysisFeature, string?>>
+            _customFormatters = new()
+        {
+            [MapPropertyEnum.CriticalPath] = af =>
+            {
+                if (af.SegmentType != NorsynHydraulicCalc.SegmentType.Stikledning) return null;
+                return af.DifferentialPressureAtClient.ToString("F2");
+            }
+        };
+
         public static LabelStyle? GetLabelStyle(MapPropertyEnum prop)
         {
             if (prop == MapPropertyEnum.Default) return null;
 
+            if (!MapPropertyMetadata.TryGet(prop, out var meta))
+                return null;
+
             var labelStyle = new LabelStyle
             {
-                //LabelColumn = AnalysisFeature.GetAttributeName(prop),
-
                 LabelMethod = (feature) =>
                 {
-                    // Use GetDisplayValue to invoke property getter with any custom logic,
-                    // rather than direct attribute access which bypasses property logic.
-                    var value = feature is AnalysisFeature af
-                        ? af.GetDisplayValue(prop)
-                        : feature[AnalysisFeature.GetAttributeName(prop)];
+                    if (feature is not AnalysisFeature af) return null;
 
-                    return prop switch
+                    // Check for custom formatter first (escape hatch)
+                    if (meta.LabelFormat == LabelFormat.Custom
+                        && _customFormatters.TryGetValue(prop, out var custom))
                     {
-                        MapPropertyEnum.CriticalPath => formatCriticalPath(feature),
-                        MapPropertyEnum.UtilizationRate => value is double d ? $"{d * 100:F0}%" : value?.ToString(),
-                        MapPropertyEnum.Nyttetimer => value is int nt && nt > 0 ? nt.ToString() : null,
-                        _ => value switch
+                        return custom(af);
+                    }
+
+                    var value = af.GetDisplayValue(prop);
+
+                    return meta.LabelFormat switch
+                    {
+                        LabelFormat.Percentage => value is double d
+                            ? $"{d * 100:F0}%"
+                            : value?.ToString(),
+                        LabelFormat.HideIfZeroOrLess => value switch
                         {
-                            double d => d.ToString("F2"),
-                            float f => f.ToString("F2"),
-                            int i => i.ToString(),
-                            string s => s,
+                            int i when i <= 0 => null,
+                            double d when d <= 0 => null,
                             _ => value?.ToString()
-                        }
+                        },
+                        _ => DefaultFormat(value)
                     };
                 },
 
@@ -55,17 +66,18 @@ namespace DimensioneringV2.Labels
                 HorizontalAlignment = LabelStyle.HorizontalAlignmentEnum.Center,
                 VerticalAlignment = LabelStyle.VerticalAlignmentEnum.Center,
                 CollisionDetection = true,
-            };            
-
-            //Efter ønske fra JJR skal kritisk kort vise diff tryk
-            string? formatCriticalPath(IFeature feature)
-            {
-                if (feature is not AnalysisFeature af) return null;
-                if (af.SegmentType != NorsynHydraulicCalc.SegmentType.Stikledning) return null;
-                return af.DifferentialPressureAtClient.ToString("F2");
-            }
+            };
 
             return labelStyle;
         }
+
+        private static string? DefaultFormat(object? value) => value switch
+        {
+            double d => d.ToString("F2"),
+            float f => f.ToString("F2"),
+            int i => i.ToString(),
+            string s => s,
+            _ => value?.ToString()
+        };
     }
 }

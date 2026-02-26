@@ -14,7 +14,8 @@ namespace DimensioneringV2.UI
         private static readonly string[] Headers =
         {
             "Adresse", "Anvendelse", "BBR-areal [m\u00B2]", "Effekt [kW]",
-            "\u00C5rsforbrug [MWh]", "Stikl\u00E6ngde [m]", "DN", "Tryktab i stikledning [bar]"
+            "\u00C5rsforbrug [MWh]", "Stikl\u00E6ngde [m]", "DN", 
+            "Tryktab i stikledning [bar]", "Nødvendigt disponibelt tryk [bar]"
         };
 
         internal static void ExportToExcel(List<ForbrugerRow> rows)
@@ -46,6 +47,7 @@ namespace DimensioneringV2.UI
                 ws.Cell(r + 2, 6).Value = row.Stiklaengde;
                 ws.Cell(r + 2, 7).Value = row.DN;
                 ws.Cell(r + 2, 8).Value = row.Tryktab;
+                ws.Cell(r + 2, 9).Value = row.NødvendigtDisponibeltTryk;
             }
 
             ws.Columns().AdjustToContents();

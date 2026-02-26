@@ -26,7 +26,8 @@ namespace DimensioneringV2.MapCommands
                     Aarsforbrug = f.HeatingDemandConnected,
                     Stiklaengde = f.Length,
                     DN = f.Dim.DimName,
-                    Tryktab = f.PressureLossBAR
+                    Tryktab = f.PressureLossBAR,
+                    NødvendigtDisponibeltTryk = f.RequiredDifferentialPressure
                 })
                 .ToList();
 

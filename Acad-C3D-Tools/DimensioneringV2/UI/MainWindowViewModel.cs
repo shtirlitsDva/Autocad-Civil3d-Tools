@@ -39,7 +39,7 @@ namespace DimensioneringV2.UI
 {
     internal partial class MainWindowViewModel : ObservableObject
     {
-        public IEnumerable<MapPropertyWrapper> MapProperties => GetMapProperties(typeof(AnalysisFeature));
+        public IEnumerable<MapPropertyWrapper> MapProperties => GetMapProperties();
         [ObservableProperty]
         private MapPropertyWrapper selectedMapPropertyWrapper;
 
@@ -151,16 +151,10 @@ namespace DimensioneringV2.UI
             }
         }
 
-        private IEnumerable<MapPropertyWrapper> GetMapProperties(Type type)
+        private IEnumerable<MapPropertyWrapper> GetMapProperties()
         {
-            return type.GetProperties()
-                .Where(prop => Attribute.IsDefined(prop, typeof(MapPropertyAttribute)))
-                .Select(prop =>
-                {
-                    var attr = (MapPropertyAttribute)Attribute.GetCustomAttribute(prop, typeof(MapPropertyAttribute));
-                    var description = attr.Property.GetDescription();
-                    return new MapPropertyWrapper(attr.Property, description);
-                });
+            return MapPropertyMetadata.Themed
+                .Select(m => new MapPropertyWrapper(m.Enum, m.Description));
         }
 
         partial void OnSelectedMapPropertyWrapperChanged(MapPropertyWrapper value)
@@ -183,7 +177,6 @@ namespace DimensioneringV2.UI
         public RelayCommand WriteToDwgCommand => new RelayCommand(() => new MapCommands.Write2Dwg().Execute());
         public RelayCommand WriteStikOgVejklasserCommand => new RelayCommand(() => new WriteStikOgVejklasser().Execute());
         public AsyncRelayCommand TestElevationsCommand => new AsyncRelayCommand(new TestElevations().Execute);
-        public AsyncRelayCommand TrykprofilCommand => new(async () => { await new Trykprofil().Execute(SelectedFeature); });
         public AsyncRelayCommand SampleGridCommand => new AsyncRelayCommand(new SampleGrid().Execute);
         public AsyncRelayCommand TestCacheCommand => new AsyncRelayCommand(new TestCache().Execute);
         public RelayCommand OpenBbrDataCommand => new RelayCommand(() =>
@@ -390,75 +383,31 @@ namespace DimensioneringV2.UI
         }
 
         #region Popup setup
+        private FeaturePopupWindow? _popupWindow;
+        private readonly FeaturePopupViewModel _popupVm = new();
 
-        [ObservableProperty]
-        private bool isPopupOpen;
-
-        [ObservableProperty]
-        private string popupText = "";
-
-        [ObservableProperty]
-        private double popupX;
-
-        [ObservableProperty]
-        private double popupY;
-
-        [ObservableProperty]
-        private AnalysisFeature? _selectedFeature;
-
-        [ObservableProperty]
-        private bool isSelectedFeatureServiceLine = false;
-
-        public ObservableCollection<PropertyItem> FeatureProperties { get; } = new();
-
-        //PopUp is defined inside the mainwindow.xaml
         public void OnMapInfo(object? sender, MapInfoEventArgs e)
         {
             if (_angivDim != null || _resetDim != null)
             {
-                // Suppress popup while in AngivDim mode
-                IsPopupOpen = false;
-                return;
-            }
-            if (e.MapInfo?.Feature == null)
-            {
-                IsPopupOpen = false;
-                SelectedFeature = null;
-                IsSelectedFeatureServiceLine = false;
+                _popupWindow?.HidePopup();
                 return;
             }
 
-            var infoFeature = e.MapInfo.Feature as IInfoForFeature;
-            if (infoFeature == null)
+            if (e.MapInfo?.Feature is not AnalysisFeature feature)
             {
-                IsPopupOpen = false;
-                SelectedFeature = null;
-                IsSelectedFeatureServiceLine = false;
+                _popupWindow?.HidePopup();
                 return;
             }
 
-            #region Set the selected feature for use elsewhere
-            //Prepare for trykprofil
-            SelectedFeature = e.MapInfo.Feature as AnalysisFeature;
-            if (SelectedFeature == null) IsSelectedFeatureServiceLine = false;
-            else
+            _popupVm.Update(feature);
+
+            if (_popupWindow == null)
             {
-                if (SelectedFeature.SegmentType == NorsynHydraulicCalc.SegmentType.Stikledning)
-                    IsSelectedFeatureServiceLine = true;
-                else
-                    IsSelectedFeatureServiceLine = false;
+                _popupWindow = new FeaturePopupWindow();
             }
-            #endregion
 
-            var items = infoFeature.PropertiesToDataGrid();
-
-            FeatureProperties.Clear();
-            foreach (var item in items.OrderBy(x => x.Name))
-                FeatureProperties.Add(item);
-
-            PopupX = e.MapInfo?.ScreenPosition?.X ?? 0.0;
-            PopupY = e.MapInfo?.ScreenPosition?.Y ?? 0.0;
-            IsPopupOpen = true;
+            _popupWindow.ShowPopup(_popupVm);
         }
         #endregion
 

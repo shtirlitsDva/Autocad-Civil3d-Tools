@@ -1,4 +1,4 @@
-﻿using DimensioneringV2.UI;
+using DimensioneringV2.UI;
 using DimensioneringV2.GraphFeatures;
 using Mapsui.Styles.Thematics;
 using Mapsui.Styles;
@@ -6,8 +6,6 @@ using Mapsui.Styles;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using DimensioneringV2.Legend;
 using Mapsui.Extensions;
 using DimensioneringV2.Labels;
@@ -23,88 +21,28 @@ namespace DimensioneringV2.Themes
         public ThemeManager(IEnumerable<AnalysisFeature> allFeatures)
         {
             _allFeatures = allFeatures;
-            RegisterCategoryThemes();
-        }
-
-        private readonly Dictionary<MapPropertyEnum, Func<IStyle>> _categoryThemeBuilders = new();
-
-        private void RegisterCategoryThemes()
-        {
-            _categoryThemeBuilders[MapPropertyEnum.SubGraphId] =
-                () => BuildCategoryTheme(
-                    MapPropertyEnum.SubGraphId, f => f.SubGraphId, []);
-
-            _categoryThemeBuilders[MapPropertyEnum.CriticalPath] =
-                () => BuildCategoryTheme(
-                    MapPropertyEnum.CriticalPath, f => f.IsCriticalPath, [false]);
-
-            _categoryThemeBuilders[MapPropertyEnum.ManualDim] =
-                () => BuildCategoryTheme(
-                    MapPropertyEnum.ManualDim, f => f.ManualDim, [false]);
-
-            _categoryThemeBuilders[MapPropertyEnum.Bridge] =
-                () => BuildCategoryTheme(
-                    MapPropertyEnum.Bridge, f => f.IsBridge, [true]);
-
-            _categoryThemeBuilders[MapPropertyEnum.Pipe] =
-                () => BuildCategoryTheme(
-                    MapPropertyEnum.Pipe, f => f.Dim.DimName, ["NA 000"]);
-
-            _categoryThemeBuilders[MapPropertyEnum.Address] =
-                () => BuildCategoryTheme(
-                    MapPropertyEnum.Address, f => f.Adresse, [""]);
-
-            _categoryThemeBuilders[MapPropertyEnum.BygningsAnvendelseNyTekst] =
-                () => BuildCategoryTheme(
-                    MapPropertyEnum.BygningsAnvendelseNyTekst, f => f.BygningsAnvendelseNyTekst, [""]);
-
-            _categoryThemeBuilders[MapPropertyEnum.BygningsAnvendelseNyKode] =
-                () => BuildCategoryTheme(
-                    MapPropertyEnum.BygningsAnvendelseNyKode, f => f.BygningsAnvendelseNyKode, [""]);
-
-            _categoryThemeBuilders[MapPropertyEnum.Nyttetimer] =
-                () => BuildCategoryTheme(
-                    MapPropertyEnum.Nyttetimer, f => f.Nyttetimer, [0]);
         }
 
         public void SetTheme(MapPropertyEnum property, bool labelsEnabled = false)
         {
-            IStyle theme = null;
-
-            switch (property)
+            if (property == MapPropertyEnum.Default || property == MapPropertyEnum.Basic)
             {
-                case MapPropertyEnum.DimFlowSupply:
-                case MapPropertyEnum.DimFlowReturn:
-                case MapPropertyEnum.PressureGradientSupply:
-                case MapPropertyEnum.PressureGradientReturn:
-                case MapPropertyEnum.VelocitySupply:
-                case MapPropertyEnum.VelocityReturn:
-                case MapPropertyEnum.UtilizationRate:
-                case MapPropertyEnum.HeatingDemand:
-                case MapPropertyEnum.Bygninger:
-                case MapPropertyEnum.Units:
-                case MapPropertyEnum.TempDeltaVarme:
-                case MapPropertyEnum.TempDeltaBV:
-                    theme = BuildGradientTheme(property);
-                    break;
-
-                case MapPropertyEnum.SubGraphId:
-                case MapPropertyEnum.CriticalPath:
-                case MapPropertyEnum.ManualDim:
-                case MapPropertyEnum.Bridge:
-                case MapPropertyEnum.Pipe:
-                case MapPropertyEnum.Address:
-                case MapPropertyEnum.BygningsAnvendelseNyTekst:
-                case MapPropertyEnum.BygningsAnvendelseNyKode:
-                case MapPropertyEnum.Nyttetimer:
-                    theme = _categoryThemeBuilders[property]();
-                    break;
-
-                // Fallback or default
-                default:
-                    CurrentTheme = new StyleCollection() { Styles = [new DefaultTheme()] };
-                    return;
+                CurrentTheme = new StyleCollection() { Styles = [new DefaultTheme()] };
+                return;
             }
+
+            if (!MapPropertyMetadata.TryGet(property, out var meta) || meta.ThemeKind == ThemeKind.None)
+            {
+                CurrentTheme = new StyleCollection() { Styles = [new DefaultTheme()] };
+                return;
+            }
+
+            IStyle theme = meta.ThemeKind switch
+            {
+                ThemeKind.Gradient => BuildGradientTheme(meta),
+                ThemeKind.Category => BuildCategoryTheme(meta),
+                _ => new DefaultTheme()
+            };
 
             if (labelsEnabled && property != MapPropertyEnum.Default)
             {
@@ -118,6 +56,7 @@ namespace DimensioneringV2.Themes
                 CurrentTheme = theme;
             }
         }
+
         public LegendElement? GetLegendContent()
         {
             ILegendSource? source = CurrentTheme is StyleCollection col
@@ -126,11 +65,11 @@ namespace DimensioneringV2.Themes
             return source?.BuildLegendPanel();
         }
 
-        private IStyle BuildGradientTheme(MapPropertyEnum prop)
+        private IStyle BuildGradientTheme(PropertyMeta meta)
         {
             // Use GetDisplayValue to invoke property getter with any custom logic
             var values = _allFeatures
-                .Select(f => Convert.ToDouble(f.GetDisplayValue(prop)))
+                .Select(f => Convert.ToDouble(f.GetDisplayValue(meta.Enum)))
                 .Where(v => !double.IsNaN(v))
                 .ToList();
 
@@ -143,12 +82,12 @@ namespace DimensioneringV2.Themes
             double max = query.Count() > 0 ? values.Max() : 1;
 
             var theme = new GradientWithDefaultTheme(
-                property: prop,
+                property: meta.Enum,
                 minValue: min,
                 maxValue: max,
                 minStyle: new VectorStyle { Line = new Pen(Color.Blue, 2) },
                 maxStyle: new VectorStyle { Line = new Pen(Color.Red, 10) },
-                legendTitle: LegendTitleProvider.GetTitle(prop)
+                legendTitle: meta.LegendTitle
             )
             {
                 LineColorBlend = _cb
@@ -157,21 +96,20 @@ namespace DimensioneringV2.Themes
             return theme;
         }
 
-        private IStyle BuildCategoryTheme<T>(
-            MapPropertyEnum prop,
-            Func<AnalysisFeature, T> selector,
-            T[] basicStyleValues)
+        private IStyle BuildCategoryTheme(PropertyMeta meta)
         {
-            // Gather distinct category values
+            var basicStyleValues = meta.GetTypedBasicStyleValues();
+            Func<AnalysisFeature, object?> selector = f => meta.ResolveDisplayValue(f);
+
             var values = ValueListProvider.GetValues(
-                prop, _allFeatures.Cast<AnalysisFeature>(), selector, basicStyleValues);
+                meta, _allFeatures, selector, basicStyleValues);
 
             if (values.Count == 0) return new DefaultTheme();
 
             var colorBlend = _cb;
 
             int count = values.Count;
-            var styles = new Dictionary<T, IStyle>(count);
+            var styles = new Dictionary<object, IStyle>(count, ObjectKeyComparer.Instance);
 
             //Create legend items
             var legendItems = new List<LegendItem>(count);
@@ -182,7 +120,7 @@ namespace DimensioneringV2.Themes
                 styles[value] = StyleProvider.BasicStyle;
                 var li = new LegendItem()
                 {
-                    Label = LegendLabelProvider.GetLabel(prop, value),
+                    Label = LegendLabelProvider.GetLabel(meta, value),
                     SymbolColor = Color.Black,
                     SymbolLineWidth = 1.5f
                 };
@@ -201,16 +139,15 @@ namespace DimensioneringV2.Themes
 
                 var li = new LegendItem()
                 {
-                    Label = LegendLabelProvider.GetLabel(prop, values[i]),
+                    Label = LegendLabelProvider.GetLabel(meta, values[i]),
                     SymbolColor = color,
                     SymbolLineWidth = 4
                 };
                 legendItems.Add(li);
             }
 
-            return new CategoryTheme<T>(
-                selector, styles, legendItems,
-                LegendTitleProvider.GetTitle(prop));
+            return new CategoryTheme(
+                selector, styles, legendItems, meta.LegendTitle);
         }
     }
 }

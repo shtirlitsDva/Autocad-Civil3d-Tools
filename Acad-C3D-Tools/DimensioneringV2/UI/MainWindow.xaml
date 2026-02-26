@@ -14,49 +14,43 @@
     <Grid>
         <DockPanel Background="{DynamicResource Background}" Margin="2">
             <!-- Vertical Panel for Buttons on the Left -->
-            <StackPanel Orientation="Vertical" DockPanel.Dock="Left" Margin="2" Width="80">
-                <Button x:Name="btnLoadData" Content="Load Civil 3D" FontSize="10" Width="70" Height="20" 
-                    Margin="2" Command="{Binding CollectFeaturesCommand}"/>
-                <Button x:Name="btnLoadElevationData" Content="Load elevations" FontSize="9" Width="70" Height="20" 
-                    Margin="2" Command="{Binding LoadElevationsCommand}"/>
-                <!--<Button x:Name="btnCalcSPD" Content="Calc SPD" FontSize="10" Width="70" Height="20" 
-                    Margin="2" Command="{Binding PerformCalculationsSPDCommand}"/>-->
-                <!--<Button x:Name="btnCalcSTP" Content="BRUTE FORCE" FontSize="10" Width="70" Height="20" 
-                        Margin="2" Command="{Binding PerformCalculationsBFCommand}"/>-->
-                <Button x:Name="btnCalcGAOpt" Content="Optmized GA" FontSize="10" Width="70" Height="20" 
-                        Margin="2" Command="{Binding PerformCalculationsGAOptimizedCommand}"/>
-                <!--<Button x:Name="btnCalcPhysarum" Content="Physarum" FontSize="10" Width="70" Height="20" 
-                        Margin="2" Command="{Binding PerformCalculationsPhysarumCommand}"/>-->
-                <Button x:Name="btnPrice" Content="Calculate price" FontSize="10" Width="70" Height="20"
-                        Margin="2" Command="{Binding PerformPriceCalc}" IsEnabled="true"/>
-                <Button x:Name="btnForbrugere" Content="Forbrugere" FontSize="10" Width="70" Height="20"
-                        Margin="2" Command="{Binding ShowForbrugereCommand}"/>
-                <Button x:Name="btnZoomExt" Content="Zoom Ext" FontSize="10" Width="70" Height="20"
-                        Margin="2" Command="{Binding PerformZoomToExtents}"/>
-                <Button x:Name="btnSyncAC" Content="Sync AC" FontSize="10" Width="70" Height="20"
-                        Margin="2" Command="{Binding SyncACWindowCommand}"/>
-                <Button x:Name="btnWriteAC" Content="Export DIMS" FontSize="10" Width="70" Height="20"
-                        Margin="2" Command="{Binding Dim2ImportDimsCommand}"/>
-                <Button x:Name="btnSaveResult" Content="Save Result" FontSize="10" Width="70" Height="20" 
-                        Margin="2" Command="{Binding SaveResultCommand}"/>
-                <Button x:Name="btnLoadResult" Content="Load Result" FontSize="10" Width="70" Height="20" 
-                        Margin="2" Command="{Binding LoadResultCommand}"/>
-                <Button x:Name="btnWriteToDwg" Content="Write to DWG" FontSize="10" Width="70" Height="20" 
-                        Margin="2" Command="{Binding WriteToDwgCommand}"/>
-                <Button x:Name="btnCreateVejklasserSchedule" Content="Stik og vejklasser" FontSize="8.5" Width="70" Height="20"
-                        Margin="2" Command="{Binding WriteStikOgVejklasserCommand}"/>
-                <Button x:Name="btnAssignUserDefinedSize" Content="Angiv Dim" FontSize="10" Width="70" Height="20"
-                        Margin="2" Command="{Binding AngivDimCommand}"/>
-                <Button x:Name="btnResetUserDefinedSize" Content="Reset Dim" FontSize="10" Width="70" Height="20"
-                        Margin="2" Command="{Binding ResetDimCommand}"/>
-                <Button x:Name="btnTestElevations" Content="Test koter" FontSize="10" Width="70" Height="20"
-                        Margin="2" Command="{Binding TestElevationsCommand}"/>
-                <Button x:Name="btnSampleElevations" Content="Sample grid" FontSize="10" Width="70" Height="20"
-                        Margin="2" Command="{Binding SampleGridCommand}"/>
-                <Button x:Name="btnTestCache" Content="Test cache" FontSize="10" Width="70" Height="20"
-                        Margin="2" Command="{Binding TestCacheCommand}"/>
-                <Button x:Name="btnBbrData" Content="BBR Updater" FontSize="10" Width="70" Height="20"
-                        Margin="2" Command="{Binding OpenBbrDataCommand}"/>
+            <StackPanel Orientation="Vertical" DockPanel.Dock="Left" Margin="2" Width="100">
+                <Button x:Name="btnLoadData" Content="Load Civil 3D"
+                        Style="{StaticResource SidebarButtonStyle}" Command="{Binding CollectFeaturesCommand}"/>
+                <Button x:Name="btnLoadElevationData" Content="Load elevations" FontSize="11"
+                        Style="{StaticResource SidebarButtonStyle}" Command="{Binding LoadElevationsCommand}"/>
+                <Button x:Name="btnCalcGAOpt" Content="Optmized GA"
+                        Style="{StaticResource SidebarButtonStyle}" Command="{Binding PerformCalculationsGAOptimizedCommand}"/>
+                <Button x:Name="btnPrice" Content="Calculate price"
+                        Style="{StaticResource SidebarButtonStyle}" Command="{Binding PerformPriceCalc}"/>
+                <Button x:Name="btnForbrugere" Content="Forbrugere"
+                        Style="{StaticResource SidebarButtonStyle}" Command="{Binding ShowForbrugereCommand}"/>
+                <Button x:Name="btnZoomExt" Content="Zoom Ext"
+                        Style="{StaticResource SidebarButtonStyle}" Command="{Binding PerformZoomToExtents}"/>
+                <Button x:Name="btnSyncAC" Content="Sync AC"
+                        Style="{StaticResource SidebarButtonStyle}" Command="{Binding SyncACWindowCommand}"/>
+                <Button x:Name="btnWriteAC" Content="Export DIMS"
+                        Style="{StaticResource SidebarButtonStyle}" Command="{Binding Dim2ImportDimsCommand}"/>
+                <Button x:Name="btnSaveResult" Content="Save Result"
+                        Style="{StaticResource SidebarButtonStyle}" Command="{Binding SaveResultCommand}"/>
+                <Button x:Name="btnLoadResult" Content="Load Result"
+                        Style="{StaticResource SidebarButtonStyle}" Command="{Binding LoadResultCommand}"/>
+                <Button x:Name="btnWriteToDwg" Content="Write to DWG"
+                        Style="{StaticResource SidebarButtonStyle}" Command="{Binding WriteToDwgCommand}"/>
+                <Button x:Name="btnCreateVejklasserSchedule" Content="Stik og vejklasser" FontSize="10.5"
+                        Style="{StaticResource SidebarButtonStyle}" Command="{Binding WriteStikOgVejklasserCommand}"/>
+                <Button x:Name="btnAssignUserDefinedSize" Content="Angiv Dim"
+                        Style="{StaticResource SidebarButtonStyle}" Command="{Binding AngivDimCommand}"/>
+                <Button x:Name="btnResetUserDefinedSize" Content="Reset Dim"
+                        Style="{StaticResource SidebarButtonStyle}" Command="{Binding ResetDimCommand}"/>
+                <Button x:Name="btnTestElevations" Content="Test koter"
+                        Style="{StaticResource SidebarButtonStyle}" Command="{Binding TestElevationsCommand}"/>
+                <Button x:Name="btnSampleElevations" Content="Sample grid"
+                        Style="{StaticResource SidebarButtonStyle}" Command="{Binding SampleGridCommand}"/>
+                <Button x:Name="btnTestCache" Content="Test cache"
+                        Style="{StaticResource SidebarButtonStyle}" Command="{Binding TestCacheCommand}"/>
+                <Button x:Name="btnBbrData" Content="BBR Updater"
+                        Style="{StaticResource SidebarButtonStyle}" Command="{Binding OpenBbrDataCommand}"/>
             </StackPanel>
 
             <!-- Main Content Area -->
@@ -65,16 +59,17 @@
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Top" Height="28" Margin="2">
                     <Label Content="Vælg egenskab til afbildning:" FontSize="10" VerticalAlignment="Center" Margin="2" Foreground="{DynamicResource Text}"/>
                     <ComboBox x:Name="propertyDropdown" Width="200" Height="24" VerticalAlignment="Center"
+                              Style="{StaticResource ModernDarkComboBox}"
                               ItemsSource="{Binding MapProperties}" SelectedItem="{Binding SelectedMapPropertyWrapper}"
                               IsEnabled="true">
                         <ComboBox.ItemTemplate>
                             <DataTemplate>
-                                <TextBlock Text="{Binding Description}" Foreground="Black"/>
+                                <TextBlock Text="{Binding Description}"/>
                             </DataTemplate>
                         </ComboBox.ItemTemplate>
                     </ComboBox>
-                    <Button x:Name="btnToggleLabels" Content="Toggle Labels" FontSize="10" Width="70" Height="20" 
-                            Margin="2" Command="{Binding PerformLabelToggle}"/>
+                    <Button x:Name="btnToggleLabels" Content="Toggle Labels"
+                            Style="{StaticResource SidebarButtonStyle}" Command="{Binding PerformLabelToggle}"/>
                     <CheckBox Content="Legend" FontSize="10" Margin="10,0,0,0" VerticalAlignment="Center" 
                               IsChecked="{Binding IsLegendVisible, Mode=TwoWay}" Foreground="{DynamicResource Text}" />
                 </StackPanel>
@@ -83,103 +78,6 @@
                 <mapsui:MapControl x:Name="mapControl" Margin="2"/>
             </DockPanel>
         </DockPanel>
-        <!-- Popup declared as sibling so it can overlay the Map -->
-        <Popup x:Name="FeaturePopup"
-       IsOpen="{Binding IsPopupOpen}"
-       HorizontalOffset="{Binding PopupX}"
-       VerticalOffset="{Binding PopupY}"
-       Placement="Absolute"
-       StaysOpen="False"
-       AllowsTransparency="True">
-
-            <Border CornerRadius="3"
-            BorderThickness="1"
-            BorderBrush="Black"
-            Background="{DynamicResource Background}">
-
-                <StackPanel>
-
-                    <StackPanel Margin="5" Orientation="Horizontal">
-                        <StackPanel.Style>
-                            <Style TargetType="StackPanel">
-                                <Setter Property="Visibility" Value="Collapsed"/>
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsSelectedFeatureServiceLine}" Value="True">
-                                        <Setter Property="Visibility" Value="Visible"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </StackPanel.Style>
-                        <Button Content="Trykprofil" Margin="0,0,5,5" Padding="5,2"
-                                Command="{Binding TrykprofilCommand}"/>
-                    </StackPanel>
-
-                  <DataGrid ItemsSource="{Binding FeatureProperties}"
-                  AutoGenerateColumns="False"
-                  CanUserAddRows="False"
-                  CanUserDeleteRows="False"
-                  IsReadOnly="True"
-                  HeadersVisibility="Column"
-                  RowHeaderWidth="0"
-                  BorderThickness="0"
-                  GridLinesVisibility="None"
-                  Background="{DynamicResource Background}"
-                  Foreground="{DynamicResource Text}"
-                  FontSize="12"
-                  Margin="5"
-                    ColumnWidth="SizeToCells"
-                    HorizontalAlignment="Left"
-                  VerticalAlignment="Top"
-                    ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                  ScrollViewer.VerticalScrollBarVisibility="Disabled">
-
-                        <!-- Remove row borders -->
-                        <DataGrid.RowStyle>
-                            <Style TargetType="DataGridRow">
-                                <Setter Property="BorderBrush" Value="Transparent"/>
-                                <Setter Property="BorderThickness" Value="0"/>
-                            </Style>
-                        </DataGrid.RowStyle>
-
-                        <!-- Uniform dark cell background, no grid lines -->
-                        <DataGrid.CellStyle>
-                            <Style TargetType="DataGridCell">
-                                <Setter Property="Background" Value="{DynamicResource Background}"/>
-                                <Setter Property="Foreground" Value="{DynamicResource Text}"/>
-                                <Setter Property="Padding" Value="5,2,5,2"/>
-                                <Setter Property="BorderBrush" Value="Transparent"/>
-                                <Setter Property="BorderThickness" Value="0"/>
-                                <Setter Property="HorizontalContentAlignment" Value="Left"/>
-                            </Style>
-                        </DataGrid.CellStyle>
-
-                        <!-- Dark theme column headers -->
-                        <DataGrid.ColumnHeaderStyle>
-                            <Style TargetType="DataGridColumnHeader">
-                                <Setter Property="Background" Value="{DynamicResource Background}"/>
-                                <Setter Property="Foreground" Value="{DynamicResource Text}"/>
-                                <Setter Property="FontWeight" Value="Bold"/>
-                                <Setter Property="Padding" Value="5,2,5,2"/>
-                                <Setter Property="BorderBrush" Value="Transparent"/>
-                                <Setter Property="BorderThickness" Value="0"/>
-                            </Style>
-                        </DataGrid.ColumnHeaderStyle>
-
-                        <DataGrid.Columns>
-                            <!-- Left-aligned name column -->
-                            <DataGridTextColumn Header="Property"
-                                    Binding="{Binding Name}"
-                                    Width="SizeToCells" />
-                            <!-- Right-aligned value column -->
-                            <DataGridTextColumn Header="Value"
-                                    Binding="{Binding Value}"
-                                    Width="SizeToCells">
-                            </DataGridTextColumn>
-                        </DataGrid.Columns>
-                    </DataGrid>
-                </StackPanel>
-            </Border>
-        </Popup>
     </Grid>
 
 </UserControl>
