@@ -64,32 +64,23 @@ namespace DevReload
             }
             else
             {
-                // Multiple matches - ask user via AutoCAD Editor keywords
-                var options = new PromptKeywordOptions(
-                    $"\nProject '{projectName}' found in {matches.Count} instances. Select:");
+                // Multiple matches - ask user via StringGridForm
+                var solNames = matches.Select(m => m.solutionName).ToList();
+                string selection = IntersectUtilities.StringGridFormCaller.Call(
+                    solNames,
+                    $"Project '{projectName}' found in {matches.Count} instances. Select:");
 
-                for (int i = 0; i < matches.Count; i++)
+                if (string.IsNullOrEmpty(selection))
                 {
-                    string keyword = SanitizeKeyword(matches[i].solutionName);
-                    options.Keywords.Add(keyword);
-                    ed?.WriteMessage($"\n  [{keyword}] {matches[i].solutionName}");
-                }
-
-                options.AllowNone = false;
-
-                PromptResult result = ed!.GetKeywords(options);
-                if (result.Status != PromptStatus.OK)
-                {
-                    ed.WriteMessage("\nCancelled.");
+                    ed?.WriteMessage("\nCancelled.");
                     return null;
                 }
 
-                var selected = matches.FirstOrDefault(m =>
-                    SanitizeKeyword(m.solutionName) == result.StringResult);
+                var selected = matches.FirstOrDefault(m => m.solutionName == selection);
 
                 if (selected.dte == null)
                 {
-                    ed.WriteMessage("\nInvalid selection.");
+                    ed?.WriteMessage("\nInvalid selection.");
                     return null;
                 }
 
@@ -174,12 +165,6 @@ namespace DevReload
             {
                 // Skip inaccessible projects
             }
-        }
-
-        private static string SanitizeKeyword(string name)
-        {
-            // AutoCAD keywords must be alphabetic
-            return new string(name.Where(char.IsLetter).ToArray());
         }
 
         private class WaitCursorScope : IDisposable
