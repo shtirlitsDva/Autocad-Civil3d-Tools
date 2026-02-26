@@ -1,0 +1,15 @@
+namespace DimensioneringV2.UI.Forbrugere
+{
+    public class ForbrugerRow
+    {
+        public string Adresse { get; set; } = string.Empty;
+        public string Type { get; set; } = string.Empty;
+        public int BBRAreal { get; set; }
+        public double Effekt { get; set; }
+        public double Aarsforbrug { get; set; }
+        public double Stiklaengde { get; set; }
+        public string DN { get; set; } = string.Empty;
+        public double Tryktab { get; set; }
+        public double NødvendigtDisponibeltTryk { get; set; }
+    }
+}

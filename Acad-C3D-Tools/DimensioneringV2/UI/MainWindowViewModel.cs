@@ -15,6 +15,9 @@ using DimensioneringV2.Themes;
 using DimensioneringV2.UI.ApplyDim;
 using DimensioneringV2.UI.MapOverlay;
 
+using DimensioneringV2.UI.FeaturePopup;
+using DimensioneringV2.UI.Infrastructure;
+using DimensioneringV2.UI.MapProperty;
 using IntersectUtilities.UtilsCommon;
 
 using Mapsui;

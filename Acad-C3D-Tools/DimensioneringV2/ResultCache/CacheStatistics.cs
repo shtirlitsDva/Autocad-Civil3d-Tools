@@ -41,7 +41,7 @@ namespace DimensioneringV2.ResultCache
         /// Whether debug mode is enabled. 
         /// Reads directly from CacheStatisticsContext.EnableDebugMode.
         /// </summary>
-        public bool DebugMode => UI.CacheStatisticsContext.EnableDebugMode;
+        public bool DebugMode => UI.CacheStatistics.CacheStatisticsContext.EnableDebugMode;
 
         /// <summary>
         /// Number of debug entries recorded.

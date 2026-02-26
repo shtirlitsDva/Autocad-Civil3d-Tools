@@ -1,10 +1,11 @@
-﻿using Mapsui.Styles;
+using Mapsui.Styles;
 using Mapsui.Styles.Thematics;
 
 using System;
 using Mapsui;
 using DimensioneringV2.Legend;
 using DimensioneringV2.UI;
+using DimensioneringV2.UI.MapProperty;
 using DimensioneringV2.GraphFeatures;
 
 namespace DimensioneringV2.Themes

@@ -1,5 +1,6 @@
 using DimensioneringV2.UI;
 
+using DimensioneringV2.UI.CacheTest;
 using System.Threading.Tasks;
 
 namespace DimensioneringV2.MapCommands

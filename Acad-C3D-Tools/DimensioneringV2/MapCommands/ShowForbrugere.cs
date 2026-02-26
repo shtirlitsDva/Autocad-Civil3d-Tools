@@ -1,5 +1,5 @@
 using DimensioneringV2.GraphFeatures;
-using DimensioneringV2.UI;
+using DimensioneringV2.UI.Forbrugere;
 
 using Mapsui;
 

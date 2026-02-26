@@ -1,5 +1,6 @@
 using DimensioneringV2.UI;
 
+using DimensioneringV2.UI.MapProperty;
 namespace DimensioneringV2.Legend
 {
     internal static class LegendTitleProvider

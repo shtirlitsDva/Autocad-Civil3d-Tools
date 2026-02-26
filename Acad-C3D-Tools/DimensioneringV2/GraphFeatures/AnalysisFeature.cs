@@ -2,6 +2,7 @@ using DimensioneringV2.Services;
 using DimensioneringV2.Services.GDALClient;
 using DimensioneringV2.UI;
 
+using DimensioneringV2.UI.MapProperty;
 using Mapsui.Nts;
 
 using NetTopologySuite.Features;

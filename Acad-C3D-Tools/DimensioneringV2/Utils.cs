@@ -1,5 +1,6 @@
-﻿using DimensioneringV2.UI;
+using DimensioneringV2.UI;
 
+using DimensioneringV2.UI.Infrastructure;
 using IntersectUtilities.UtilsCommon;
 
 using System;

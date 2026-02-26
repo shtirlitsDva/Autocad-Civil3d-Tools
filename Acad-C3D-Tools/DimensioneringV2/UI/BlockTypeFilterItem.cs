@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using System.Collections.Generic;
 using System.Windows.Media;
 
+using DimensioneringV2.UI.Infrastructure;
 namespace DimensioneringV2.UI
 {
     public partial class BlockTypeFilterItem : ObservableObject

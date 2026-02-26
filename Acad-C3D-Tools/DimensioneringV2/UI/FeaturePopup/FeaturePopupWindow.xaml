@@ -1,0 +1,97 @@
+<Window x:Class="DimensioneringV2.UI.FeaturePopup.FeaturePopupWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:DimensioneringV2.UI"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        SizeToContent="WidthAndHeight"
+        ShowInTaskbar="False"
+        Topmost="True"
+        ResizeMode="NoResize"
+        PreviewMouseLeftButtonDown="Window_PreviewMouseLeftButtonDown">
+
+    <Window.Resources>
+        <ResourceDictionary Source="../Theme.xaml"/>
+    </Window.Resources>
+
+    <Border Background="{DynamicResource DarkBackground}"
+            BorderBrush="{DynamicResource BorderBrush}"
+            BorderThickness="1"
+            CornerRadius="6"
+            Padding="0"
+            MaxHeight="600">
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+
+            <StackPanel Margin="8">
+
+                <!-- Trykprofil button - only for Stikledning -->
+                <Button Content="Trykprofil"
+                        Margin="0,0,0,6"
+                        Padding="8,4"
+                        HorizontalAlignment="Left"
+                        Style="{DynamicResource SecondaryButtonStyle}"
+                        Command="{Binding TrykprofilCommand}"
+                        Visibility="{Binding IsServiceLine, Converter={StaticResource BoolToVisibilityConverter}}"/>
+
+                <!-- Grouped properties -->
+                <ItemsControl ItemsSource="{Binding GroupedProperties}"
+                              Grid.IsSharedSizeScope="True">
+                    <ItemsControl.GroupStyle>
+                        <GroupStyle>
+                            <GroupStyle.HeaderTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Name}"
+                                               FontWeight="Bold"
+                                               FontSize="13"
+                                               Foreground="{DynamicResource Text}"
+                                               Background="#FF404040"
+                                               Padding="6,4"
+                                               Margin="0,8,0,2"/>
+                                </DataTemplate>
+                            </GroupStyle.HeaderTemplate>
+                        </GroupStyle>
+                    </ItemsControl.GroupStyle>
+
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Margin="4,1,4,1">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" SharedSizeGroup="Name"/>
+                                    <ColumnDefinition Width="12"/>
+                                    <ColumnDefinition Width="Auto" SharedSizeGroup="Value"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Property name -->
+                                <TextBlock Grid.Column="0"
+                                           Text="{Binding Name}"
+                                           Foreground="#FFB0B0B0"
+                                           FontSize="12"
+                                           VerticalAlignment="Center"/>
+
+                                <!-- Value with copy context menu -->
+                                <TextBlock Grid.Column="2"
+                                           Text="{Binding Value}"
+                                           Foreground="{DynamicResource Text}"
+                                           FontSize="12"
+                                           VerticalAlignment="Center">
+                                    <TextBlock.ContextMenu>
+                                        <ContextMenu DataContext="{Binding PlacementTarget.DataContext,
+                                                        RelativeSource={RelativeSource Self}}">
+                                            <MenuItem Header="Kopier værdi"
+                                                      Click="CopyValue_Click"
+                                                      Tag="{Binding Value}"/>
+                                        </ContextMenu>
+                                    </TextBlock.ContextMenu>
+                                </TextBlock>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+            </StackPanel>
+        </ScrollViewer>
+    </Border>
+</Window>
