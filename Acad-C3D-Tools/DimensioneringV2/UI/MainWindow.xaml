@@ -70,8 +70,22 @@
                     </ComboBox>
                     <Button x:Name="btnToggleLabels" Content="Toggle Labels"
                             Style="{StaticResource SidebarButtonStyle}" Command="{Binding PerformLabelToggle}"/>
-                    <CheckBox Content="Legend" FontSize="10" Margin="10,0,0,0" VerticalAlignment="Center" 
+                    <CheckBox Content="Legend" FontSize="10" Margin="10,0,0,0" VerticalAlignment="Center"
                               IsChecked="{Binding IsLegendVisible, Mode=TwoWay}" Foreground="{DynamicResource Text}" />
+                    <!-- Base Map Selector -->
+                    <Label Content="Baggrundskort:" FontSize="10" VerticalAlignment="Center"
+                           Margin="10,0,2,0" Foreground="{DynamicResource Text}"/>
+                    <ComboBox x:Name="baseMapDropdown" Width="150" Height="24"
+                              VerticalAlignment="Center"
+                              Style="{StaticResource ModernDarkComboBox}"
+                              ItemsSource="{Binding BaseMapOptions}"
+                              SelectedItem="{Binding SelectedBaseMap}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding DisplayName}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
                 </StackPanel>
 
                 <!-- Map Control -->

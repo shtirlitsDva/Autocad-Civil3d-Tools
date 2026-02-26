@@ -1,7 +1,5 @@
 using Autodesk.AutoCAD.Geometry;
 
-using BruTile.Cache;
-
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -46,8 +44,29 @@ namespace DimensioneringV2.UI
         [ObservableProperty]
         private MapPropertyWrapper selectedMapPropertyWrapper;
 
+        public IReadOnlyList<BaseMapOption> BaseMapOptions { get; } = new[]
+        {
+            new BaseMapOption(BaseMapType.OpenStreetMap, "OpenStreetMap"),
+            new BaseMapOption(BaseMapType.Dark, "Dark"),
+            new BaseMapOption(BaseMapType.Ortofoto, "Ortofoto"),
+            new BaseMapOption(BaseMapType.Hybrid, "Hybrid"),
+            new BaseMapOption(BaseMapType.Off, "Off"),
+        };
+
+        [ObservableProperty]
+        private BaseMapOption _selectedBaseMap;
+
+        partial void OnSelectedBaseMapChanged(BaseMapOption value)
+        {
+            if (value == null || Mymap == null) return;
+            BaseMapLayerFactory.ApplyBaseMap(Mymap, value.Type);
+            Mymap.RefreshData();
+        }
+
         public MainWindowViewModel()
         {
+            _selectedBaseMap = BaseMapOptions[0];
+
             _dataService = DataService.Instance;
             _dataService.DataLoaded += OnDataLoadedFirstTime;
             _dataService.CalculationsFinishedEvent += OnCalculationsCompleted;
@@ -276,8 +295,6 @@ namespace DimensioneringV2.UI
             SelectedMapPropertyWrapper = MapProperties.First();
         }
 
-        private static IPersistentCache<byte[]>? _defaultCache;
-        private static BruTile.Attribution _stadiaAttribution = new("© Stadia Maps", "https://stadiamaps.com/");
         private void CreateMapFirstTime()
         {
             if (Mymap == null) return;
@@ -304,33 +321,7 @@ namespace DimensioneringV2.UI
 
             Mymap.Layers.Clear();
 
-            //OSM map
-            Mymap.Layers.Add(Mapsui.Tiling.OpenStreetMap.CreateTileLayer());
-
-            #region Attempt to add Stadia map tiles -> success
-            ////Stadia maps tiles
-            //string userAgent =
-            //    $"user-agent-of-{Path.GetFileNameWithoutExtension(
-            //        System.AppDomain.CurrentDomain.FriendlyName)}";
-
-            //var httpTileSource = new HttpTileSource(
-            //    new GlobalSphericalMercator(),
-            //    "https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}@2x.png",
-            //    ["a", "b", "c"],
-            //    name: "Stadia Maps",
-            //    attribution: _stadiaAttribution,
-            //    //configureHttpRequestMessage: (r) => r.Headers.TryAddWithoutValidation("User-Agent", userAgent),
-            //    persistentCache: _defaultCache
-            //    );
-
-            //httpTileSource.AddHeader("User-Agent", userAgent);
-            //httpTileSource.AddHeader("Stadia-Auth", "enter api key here");
-
-            //var stadiaLayer = new TileLayer(httpTileSource) { Name = "Stadia" };
-
-            //// Add the custom tile layer to the map
-            //Mymap.Layers.Add(stadiaLayer);
-            #endregion
+            BaseMapLayerFactory.ApplyBaseMap(Mymap, SelectedBaseMap.Type);
 
             //Add the features layer
             Mymap.Layers.Add(layer);
