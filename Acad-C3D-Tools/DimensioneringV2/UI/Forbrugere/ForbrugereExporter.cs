@@ -1,58 +1,62 @@
-using ClosedXML.Excel;
-
 using Microsoft.Win32;
 
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
+using System.Text;
 
 namespace DimensioneringV2.UI.Forbrugere
 {
     internal static class ForbrugereExporter
     {
-        private static readonly CultureInfo DanishCulture = new CultureInfo("da-DK");
+        private static readonly NumberFormatInfo DotFormat = new NumberFormatInfo { NumberDecimalSeparator = "." };
+        private static readonly NumberFormatInfo CommaFormat = new NumberFormatInfo { NumberDecimalSeparator = "," };
 
         private static readonly string[] Headers =
         {
             "Adresse", "Anvendelse", "BBR-areal [m\u00B2]", "Effekt [kW]",
-            "\u00C5rsforbrug [MWh]", "Stikl\u00E6ngde [m]", "DN", 
-            "Tryktab i stikledning [bar]", "Nødvendigt disponibelt tryk [bar]"
+            "\u00C5rsforbrug [MWh]", "Stikl\u00E6ngde [m]", "DN",
+            "Tryktab i stikledning [bar]", "N\u00F8dvendigt disponibelt tryk [bar]"
         };
 
-        internal static void ExportToExcel(List<ForbrugerRow> rows)
+        internal static void ExportToCsv(List<ForbrugerRow> rows, bool useComma = false)
         {
             var sfd = new SaveFileDialog
             {
-                Filter = "Excel Files (*.xlsx)|*.xlsx",
-                DefaultExt = "xlsx",
+                Filter = "CSV Files (*.csv)|*.csv",
+                DefaultExt = "csv",
                 FileName = "Forbrugere",
-                Title = "Export Forbrugere til Excel"
+                Title = "Export Forbrugere til CSV"
             };
             if (sfd.ShowDialog() != true) return;
 
-            using var wb = new XLWorkbook();
-            var ws = wb.Worksheets.Add("Forbrugere");
+            var nf = useComma ? CommaFormat : DotFormat;
 
-            for (int i = 0; i < Headers.Length; i++)
-                ws.Cell(1, i + 1).Value = Headers[i];
-            ws.Row(1).Style.Font.Bold = true;
+            var sb = new StringBuilder();
+            sb.AppendLine(string.Join(";", Headers));
 
-            for (int r = 0; r < rows.Count; r++)
+            foreach (var row in rows)
             {
-                var row = rows[r];
-                ws.Cell(r + 2, 1).Value = row.Adresse;
-                ws.Cell(r + 2, 2).Value = row.Type;
-                ws.Cell(r + 2, 3).Value = row.BBRAreal;
-                ws.Cell(r + 2, 4).Value = row.Effekt;
-                ws.Cell(r + 2, 5).Value = row.Aarsforbrug;
-                ws.Cell(r + 2, 6).Value = row.Stiklaengde;
-                ws.Cell(r + 2, 7).Value = row.DN;
-                ws.Cell(r + 2, 8).Value = row.Tryktab;
-                ws.Cell(r + 2, 9).Value = row.NødvendigtDisponibeltTryk;
+                sb.AppendLine(string.Join(";",
+                    Escape(row.Adresse),
+                    Escape(row.Type),
+                    row.BBRAreal.ToString("F0", nf),
+                    row.Effekt.ToString("F2", nf),
+                    row.Aarsforbrug.ToString("F2", nf),
+                    row.Stiklaengde.ToString("F2", nf),
+                    Escape(row.DN),
+                    row.Tryktab.ToString("F4", nf),
+                    row.NødvendigtDisponibeltTryk.ToString("F2", nf)));
             }
 
-            ws.Columns().AdjustToContents();
-            wb.SaveAs(sfd.FileName);
+            File.WriteAllText(sfd.FileName, sb.ToString(), new UTF8Encoding(true));
         }
 
+        private static string Escape(string value)
+        {
+            if (value.Contains(';') || value.Contains('"') || value.Contains('\n'))
+                return "\"" + value.Replace("\"", "\"\"") + "\"";
+            return value;
+        }
     }
 }

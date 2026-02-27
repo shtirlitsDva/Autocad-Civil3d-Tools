@@ -20,11 +20,11 @@
 		<DebugSymbols>true</DebugSymbols>
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
-		<OutputPath>..\NSPalette.Loader\bin\Debug\Isolated\</OutputPath>
+		<OutputPath>bin\Debug\</OutputPath>
 		<DebugType>full</DebugType>
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
-		<OutputPath>..\NSPalette.Loader\bin\Release\Isolated\</OutputPath>
+		<OutputPath>bin\Release\</OutputPath>
 		<DebugType>full</DebugType>
 	</PropertyGroup>
 	<ItemGroup>

@@ -157,9 +157,10 @@ namespace DimensioneringV2.UI.Forbrugere
         #endregion
 
         #region Export
-        private void ExportExcel_Click(object sender, RoutedEventArgs e)
+        private void ExportCsv_Click(object sender, RoutedEventArgs e)
         {
-            ForbrugereExporter.ExportToExcel(_rows);
+            bool useComma = RadioKomma.IsChecked == true;
+            ForbrugereExporter.ExportToCsv(_rows, useComma);
         }
         #endregion
 

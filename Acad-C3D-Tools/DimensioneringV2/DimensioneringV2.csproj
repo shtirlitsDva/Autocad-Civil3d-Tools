@@ -182,7 +182,6 @@
 		<PackageReference Include="QuikGraph" Version="2.5.0" />
 		<PackageReference Include="QuikGraph.Graphviz" Version="2.5.0" />
 		<PackageReference Include="SharpVectors.Wpf" Version="1.8.5" />
-		<PackageReference Include="ClosedXML" Version="0.104.2" />
 	</ItemGroup>
 	<ItemGroup>
 		<Folder Include="Links\" />

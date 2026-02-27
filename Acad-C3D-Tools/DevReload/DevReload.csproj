@@ -11,7 +11,7 @@
 		<AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
 		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
 		<OutputType>Library</OutputType>
-		<AssemblyName>DEVRELOADTEST</AssemblyName>
+		<AssemblyName>DevReload</AssemblyName>
 		<SupportedOSPlatformVersion>8.0</SupportedOSPlatformVersion>
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
@@ -41,17 +41,11 @@
 		</Reference>
 	</ItemGroup>
 	<ItemGroup>
+		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
 		<PackageReference Include="Microsoft.VisualStudio.Interop" Version="17.10.40170" />
 	</ItemGroup>
 	<ItemGroup>
 		<ProjectReference Include="..\DevReload.Interface\DevReload.Interface.csproj" />
-		<!-- Build-order dependency: triggers Core build, but doesn't reference its output.
-		     The Core's OutputPath places files into our bin/$(Configuration)/Isolated/ folder. -->
-		<ProjectReference Include="..\DevReloadTest\DevReloadTest.csproj">
-			<ReferenceOutputAssembly>false</ReferenceOutputAssembly>
-			<Private>false</Private>
-		</ProjectReference>
 	</ItemGroup>
-	<Import Project="..\DevReload\DevReload.projitems" Label="Shared" />
 	<Import Project="..\FormsSHARED\FormsSHARED.projitems" Label="Shared" />
 </Project>

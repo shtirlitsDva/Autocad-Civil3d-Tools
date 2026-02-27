@@ -6,11 +6,11 @@
     
     <SolidColorBrush Color="#3b4453" x:Key="Background"></SolidColorBrush>
     <SolidColorBrush Color="White" x:Key="Text"></SolidColorBrush>
-    <SolidColorBrush x:Key="DarkBackground" Color="#FF2D2D30"/>
-    <SolidColorBrush x:Key="DarkRowBackground" Color="#FF1E1E1E"/>
-    <SolidColorBrush x:Key="DarkAltRowBackground" Color="#FF252526"/>
-    <SolidColorBrush x:Key="DarkHeaderBackground" Color="#FF3C3C3C"/>
-    <SolidColorBrush x:Key="BorderBrush" Color="#FF444444"/>
+    <SolidColorBrush x:Key="DarkBackground" Color="#FF2D3442"/>
+    <SolidColorBrush x:Key="DarkRowBackground" Color="#FF252D3A"/>
+    <SolidColorBrush x:Key="DarkAltRowBackground" Color="#FF303847"/>
+    <SolidColorBrush x:Key="DarkHeaderBackground" Color="#FF4A5568"/>
+    <SolidColorBrush x:Key="BorderBrush" Color="#FF5A6A80"/>
     <Style TargetType="DataGrid" x:Key="DarkDataGridStyle">
         <Setter Property="FontSize" Value="16" />
         <Setter Property="Background" Value="{DynamicResource DarkBackground}" />
@@ -38,7 +38,7 @@
     <!-- Implicit Dark Button (auto-applies to ALL)   -->
     <!-- ============================================== -->
     <Style TargetType="Button">
-        <Setter Property="Background" Value="#FF505050"/>
+        <Setter Property="Background" Value="#FF4A5568"/>
         <Setter Property="Foreground" Value="White"/>
         <Setter Property="BorderThickness" Value="0"/>
         <Setter Property="FontSize" Value="11"/>
@@ -54,10 +54,10 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter Property="Background" Value="#FF606060"/>
+                            <Setter Property="Background" Value="#FF5A6A80"/>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter Property="Background" Value="#FF707070"/>
+                            <Setter Property="Background" Value="#FF6A7A90"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.5"/>
@@ -125,7 +125,7 @@
         <Setter Property="Padding" Value="6,4"/>
         <Setter Property="Margin" Value="2,0"/>
         <Setter Property="MinWidth" Value="32"/>
-        <Setter Property="Background" Value="#FF3C3C3C"/>
+        <Setter Property="Background" Value="#FF3B4453"/>
         <Setter Property="Foreground" Value="{DynamicResource Text}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
@@ -141,10 +141,10 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter Property="Background" Value="#FF505050"/>
+                            <Setter Property="Background" Value="#FF4A5568"/>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter Property="Background" Value="#FF606060"/>
+                            <Setter Property="Background" Value="#FF5A6A80"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.5"/>
@@ -198,10 +198,10 @@
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
-                        <Border Grid.Row="0" Background="#FF404040" CornerRadius="4,4,0,0" Padding="10,6">
+                        <Border Grid.Row="0" Background="#FF3B4453" CornerRadius="4,4,0,0" Padding="10,6">
                             <TextBlock Text="{TemplateBinding Header}" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource Text}"/>
                         </Border>
-                        <Border Grid.Row="1" Background="#FF333333" BorderBrush="#FF555555" BorderThickness="1,0,1,1" CornerRadius="0,0,4,4" Padding="10,8">
+                        <Border Grid.Row="1" Background="#FF2D3442" BorderBrush="#FF5A6A80" BorderThickness="1,0,1,1" CornerRadius="0,0,4,4" Padding="10,8">
                             <ContentPresenter/>
                         </Border>
                     </Grid>
@@ -264,7 +264,7 @@
 
     <!-- Secondary Button (Gray) -->
     <Style x:Key="SecondaryButtonStyle" TargetType="Button">
-        <Setter Property="Background" Value="#FF505050"/>
+        <Setter Property="Background" Value="#FF4A5568"/>
         <Setter Property="Foreground" Value="White"/>
         <Setter Property="BorderThickness" Value="0"/>
         <Setter Property="Padding" Value="20,10"/>
@@ -279,10 +279,10 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter Property="Background" Value="#FF606060"/>
+                            <Setter Property="Background" Value="#FF5A6A80"/>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter Property="Background" Value="#FF707070"/>
+                            <Setter Property="Background" Value="#FF6A7A90"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -292,7 +292,7 @@
 
     <!-- Small Edit Button -->
     <Style x:Key="SmallEditButtonStyle" TargetType="Button">
-        <Setter Property="Background" Value="#FF505050"/>
+        <Setter Property="Background" Value="#FF4A5568"/>
         <Setter Property="Foreground" Value="White"/>
         <Setter Property="BorderThickness" Value="0"/>
         <Setter Property="Padding" Value="12,8"/>
@@ -308,10 +308,10 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter Property="Background" Value="#FF606060"/>
+                            <Setter Property="Background" Value="#FF5A6A80"/>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter Property="Background" Value="#FF707070"/>
+                            <Setter Property="Background" Value="#FF6A7A90"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -323,7 +323,7 @@
     <Style x:Key="ToolbarIconButton" TargetType="Button">
         <Setter Property="Width" Value="40"/>
         <Setter Property="Height" Value="40"/>
-        <Setter Property="Background" Value="#FF404040"/>
+        <Setter Property="Background" Value="#FF3B4453"/>
         <Setter Property="Foreground" Value="White"/>
         <Setter Property="BorderThickness" Value="0"/>
         <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
@@ -338,10 +338,10 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter Property="Background" Value="#FF505050"/>
+                            <Setter Property="Background" Value="#FF4A5568"/>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter Property="Background" Value="#FF606060"/>
+                            <Setter Property="Background" Value="#FF5A6A80"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.4"/>
@@ -354,8 +354,8 @@
 
     <!-- Priority Card Style -->
     <Style x:Key="PriorityCardStyle" TargetType="Border">
-        <Setter Property="Background" Value="#FF383838"/>
-        <Setter Property="BorderBrush" Value="#FF505050"/>
+        <Setter Property="Background" Value="#FF2D3442"/>
+        <Setter Property="BorderBrush" Value="#FF4A5568"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="CornerRadius" Value="6"/>
         <Setter Property="Margin" Value="0,0,0,8"/>
@@ -379,7 +379,7 @@
 
     <!-- Field Label (small gray text) -->
     <Style x:Key="FieldLabelStyle" TargetType="TextBlock">
-        <Setter Property="Foreground" Value="#FFB0B0B0"/>
+        <Setter Property="Foreground" Value="#FFA0AEC0"/>
         <Setter Property="FontSize" Value="11"/>
         <Setter Property="Margin" Value="0,0,0,4"/>
     </Style>
@@ -394,9 +394,9 @@
 
     <!-- Dark ComboBox with proper styling -->
     <Style x:Key="ModernDarkComboBox" TargetType="ComboBox">
-        <Setter Property="Background" Value="#FF2A2A2A"/>
+        <Setter Property="Background" Value="#FF2D3442"/>
         <Setter Property="Foreground" Value="White"/>
-        <Setter Property="BorderBrush" Value="#FF555555"/>
+        <Setter Property="BorderBrush" Value="#FF5A6A80"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Padding" Value="6,4"/>
         <Setter Property="MinWidth" Value="70"/>
@@ -405,7 +405,7 @@
         <Setter Property="ItemContainerStyle">
             <Setter.Value>
                 <Style TargetType="ComboBoxItem">
-                    <Setter Property="Background" Value="#FF2A2A2A"/>
+                    <Setter Property="Background" Value="#FF2D3442"/>
                     <Setter Property="Foreground" Value="White"/>
                     <Setter Property="Padding" Value="8,4"/>
                     <Style.Triggers>
@@ -473,8 +473,8 @@
                                Focusable="False"
                                PopupAnimation="Slide">
                             <Border x:Name="DropDownBorder"
-                                    Background="#FF2A2A2A"
-                                    BorderBrush="#FF555555"
+                                    Background="#FF2D3442"
+                                    BorderBrush="#FF5A6A80"
                                     BorderThickness="1"
                                     CornerRadius="3"
                                     MinWidth="{TemplateBinding ActualWidth}"
@@ -520,7 +520,7 @@
                                        Text="✕"
                                        FontSize="14"
                                        FontWeight="Bold"
-                                       Foreground="#FF808080"
+                                       Foreground="#FFA0AEC0"
                                        HorizontalAlignment="Center"
                                        VerticalAlignment="Center"
                                        Visibility="Collapsed"/>
@@ -541,7 +541,7 @@
                                 <Condition Property="IsMouseOver" Value="True"/>
                             </MultiTrigger.Conditions>
                             <Setter TargetName="IconContent" Property="Opacity" Value="0.5"/>
-                            <Setter TargetName="CrossMark" Property="Foreground" Value="#FFB0B0B0"/>
+                            <Setter TargetName="CrossMark" Property="Foreground" Value="#FFA0AEC0"/>
                         </MultiTrigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -561,15 +561,15 @@
             <Setter.Value>
                 <ControlTemplate TargetType="Thumb">
                     <Border x:Name="ThumbBorder"
-                            Background="#FF585858"
+                            Background="#FF4A5568"
                             CornerRadius="4"
                             Margin="1"/>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="ThumbBorder" Property="Background" Value="#FF787878"/>
+                            <Setter TargetName="ThumbBorder" Property="Background" Value="#FF5A6A80"/>
                         </Trigger>
                         <Trigger Property="IsDragging" Value="True">
-                            <Setter TargetName="ThumbBorder" Property="Background" Value="#FF909090"/>
+                            <Setter TargetName="ThumbBorder" Property="Background" Value="#FF6A7A90"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -606,7 +606,7 @@
     <!-- Vertical ScrollBar template -->
     <ControlTemplate x:Key="DarkVerticalScrollBar" TargetType="ScrollBar">
         <Grid>
-            <Border Background="#FF2D2D30" CornerRadius="4"/>
+            <Border Background="#FF2D3442" CornerRadius="4"/>
             <Track x:Name="PART_Track" IsDirectionReversed="True">
                 <Track.DecreaseRepeatButton>
                     <RepeatButton Style="{StaticResource DarkScrollBarPageButton}"
@@ -626,7 +626,7 @@
     <!-- Horizontal ScrollBar template -->
     <ControlTemplate x:Key="DarkHorizontalScrollBar" TargetType="ScrollBar">
         <Grid>
-            <Border Background="#FF2D2D30" CornerRadius="4"/>
+            <Border Background="#FF2D3442" CornerRadius="4"/>
             <Track x:Name="PART_Track" IsDirectionReversed="False">
                 <Track.DecreaseRepeatButton>
                     <RepeatButton Style="{StaticResource DarkScrollBarPageButton}"

@@ -88,6 +88,7 @@
                 <ColumnDefinition Width="12"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
@@ -97,15 +98,32 @@
                        VerticalAlignment="Center" FontSize="13"
                        Foreground="{DynamicResource Text}" Margin="0,0,16,0"/>
 
-            <Button Grid.Column="2" Content="Export Excel"
-                    Click="ExportExcel_Click"
+            <Button Grid.Column="2" Content="Export CSV"
+                    Click="ExportCsv_Click"
                     Style="{StaticResource SecondaryButtonStyle}"
                     WindowChrome.IsHitTestVisibleInChrome="True"
                     VerticalAlignment="Center"/>
 
+            <!-- Decimal separator selector -->
+            <StackPanel Grid.Column="3" Orientation="Horizontal"
+                        VerticalAlignment="Center" Margin="12,0,0,0"
+                        WindowChrome.IsHitTestVisibleInChrome="True">
+                <TextBlock Text="CSV eksporteres med: "
+                           Foreground="{DynamicResource Text}" FontSize="13"
+                           VerticalAlignment="Center"/>
+                <RadioButton x:Name="RadioPunktum" Content="Punktum"
+                             GroupName="DecimalSeparator" IsChecked="True"
+                             Foreground="{DynamicResource Text}" FontSize="13"
+                             VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <RadioButton x:Name="RadioKomma" Content="Komma"
+                             GroupName="DecimalSeparator"
+                             Foreground="{DynamicResource Text}" FontSize="13"
+                             VerticalAlignment="Center"/>
+            </StackPanel>
+
             <!-- Search box -->
-            <Border Grid.Column="4"
-                    Background="#FF1E1E1E" BorderBrush="{DynamicResource BorderBrush}"
+            <Border Grid.Column="5"
+                    Background="#FF252D3A" BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="1" CornerRadius="3" MinWidth="260" Padding="0"
                     VerticalAlignment="Center"
                     WindowChrome.IsHitTestVisibleInChrome="True">
@@ -142,7 +160,7 @@
             </Border>
 
             <!-- Caption buttons -->
-            <StackPanel Grid.Column="5" Orientation="Horizontal">
+            <StackPanel Grid.Column="6" Orientation="Horizontal">
                 <Button Content="&#xE921;" Click="MinimizeButton_Click"
                         Style="{StaticResource CaptionButtonStyle}"/>
                 <Button x:Name="MaximizeButton" Content="&#xE922;" Click="MaximizeButton_Click"
