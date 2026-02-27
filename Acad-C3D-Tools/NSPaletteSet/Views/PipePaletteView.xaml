@@ -1,0 +1,91 @@
+<UserControl x:Class="NSPaletteSet.Views.PipePaletteView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             Background="{StaticResource BackgroundBrush}"
+             d:DesignWidth="400" d:DesignHeight="800">
+
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/NSPalette;component/Themes/DarkTheme.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="8">
+
+            <!-- ===== System/Type Selector ===== -->
+            <GroupBox Header="Vælg system:">
+                <ComboBox ItemsSource="{Binding PipeSystemTypes}"
+                          SelectedItem="{Binding SelectedPipeSystemType}" />
+            </GroupBox>
+
+            <!-- ===== Label Button ===== -->
+            <GroupBox Header="Sæt label">
+                <Button Content="Label"
+                        Style="{StaticResource PrimaryButton}"
+                        Command="{Binding SetLabelCommand}" />
+            </GroupBox>
+
+            <!-- ===== Width Management ===== -->
+            <GroupBox Header="Polylinjer bredde">
+                <UniformGrid Columns="2">
+                    <Button Content="Opdater"
+                            Margin="0,0,4,0"
+                            Command="{Binding UpdateWidthsCommand}" />
+                    <Button Content="Nulstil"
+                            Margin="4,0,0,0"
+                            Command="{Binding ResetWidthsCommand}" />
+                </UniformGrid>
+            </GroupBox>
+
+            <!-- ===== Series Selection (conditional) ===== -->
+            <GroupBox Header="Serie"
+                      Visibility="{Binding HasMultipleSeries, Converter={StaticResource BoolToVis}}">
+                <ListBox ItemsSource="{Binding AvailableSeries}"
+                         SelectedItem="{Binding SelectedSeries}"
+                         Style="{StaticResource SelectableButtonListBoxStyle}">
+                    <ListBox.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <UniformGrid Columns="3" />
+                        </ItemsPanelTemplate>
+                    </ListBox.ItemsPanel>
+                </ListBox>
+            </GroupBox>
+
+            <!-- ===== Frem/Retur Toggle (conditional) ===== -->
+            <GroupBox Header="Frem/Retur"
+                      Visibility="{Binding HasFremRetur, Converter={StaticResource BoolToVis}}">
+                <UniformGrid Columns="2">
+                    <RadioButton Content="Frem"
+                                 GroupName="FremRetur"
+                                 IsChecked="{Binding IsFremSelected}"
+                                 Style="{StaticResource ToggleRadioButtonStyle}" />
+                    <RadioButton Content="Retur"
+                                 GroupName="FremRetur"
+                                 Style="{StaticResource ToggleRadioButtonStyle}" />
+                </UniformGrid>
+            </GroupBox>
+
+            <!-- ===== DN Buttons ===== -->
+            <GroupBox Header="{Binding DnGroupHeader}">
+                <ListBox ItemsSource="{Binding AvailableDns}"
+                         SelectedItem="{Binding SelectedDn}"
+                         Style="{StaticResource SelectableButtonListBoxStyle}">
+                    <ListBox.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <UniformGrid Columns="4" />
+                        </ItemsPanelTemplate>
+                    </ListBox.ItemsPanel>
+                </ListBox>
+            </GroupBox>
+
+        </StackPanel>
+    </ScrollViewer>
+
+</UserControl>
