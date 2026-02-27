@@ -7,14 +7,6 @@
              Background="{StaticResource BackgroundBrush}"
              d:DesignWidth="400" d:DesignHeight="800">
 
-    <UserControl.Resources>
-        <ResourceDictionary>
-            <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="/NSPalette;component/Themes/DarkTheme.xaml" />
-            </ResourceDictionary.MergedDictionaries>
-        </ResourceDictionary>
-    </UserControl.Resources>
-
     <ScrollViewer VerticalScrollBarVisibility="Auto"
                   HorizontalScrollBarVisibility="Disabled">
         <StackPanel Margin="8">
@@ -25,23 +17,17 @@
                           SelectedItem="{Binding SelectedPipeSystemType}" />
             </GroupBox>
 
-            <!-- ===== Label Button ===== -->
-            <GroupBox Header="Sæt label">
-                <Button Content="Label"
-                        Style="{StaticResource PrimaryButton}"
-                        Command="{Binding SetLabelCommand}" />
-            </GroupBox>
-
-            <!-- ===== Width Management ===== -->
-            <GroupBox Header="Polylinjer bredde">
-                <UniformGrid Columns="2">
-                    <Button Content="Opdater"
-                            Margin="0,0,4,0"
-                            Command="{Binding UpdateWidthsCommand}" />
-                    <Button Content="Nulstil"
-                            Margin="4,0,0,0"
-                            Command="{Binding ResetWidthsCommand}" />
-                </UniformGrid>
+            <!-- ===== DN Buttons ===== -->
+            <GroupBox Header="{Binding DnGroupHeader}">
+                <ListBox ItemsSource="{Binding AvailableDns}"
+                         SelectedItem="{Binding SelectedDn}"
+                         Style="{StaticResource SelectableButtonListBoxStyle}">
+                    <ListBox.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <UniformGrid Columns="4" />
+                        </ItemsPanelTemplate>
+                    </ListBox.ItemsPanel>
+                </ListBox>
             </GroupBox>
 
             <!-- ===== Series Selection (conditional) ===== -->
@@ -72,17 +58,23 @@
                 </UniformGrid>
             </GroupBox>
 
-            <!-- ===== DN Buttons ===== -->
-            <GroupBox Header="{Binding DnGroupHeader}">
-                <ListBox ItemsSource="{Binding AvailableDns}"
-                         SelectedItem="{Binding SelectedDn}"
-                         Style="{StaticResource SelectableButtonListBoxStyle}">
-                    <ListBox.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <UniformGrid Columns="4" />
-                        </ItemsPanelTemplate>
-                    </ListBox.ItemsPanel>
-                </ListBox>
+            <!-- ===== Label Button ===== -->
+            <GroupBox Header="Sæt label">
+                <Button Content="Label"
+                        Style="{StaticResource PrimaryButton}"
+                        Command="{Binding SetLabelCommand}" />
+            </GroupBox>
+
+            <!-- ===== Width Management ===== -->
+            <GroupBox Header="Polylinjer bredde">
+                <UniformGrid Columns="2">
+                    <Button Content="Opdater"
+                            Margin="0,0,4,0"
+                            Command="{Binding UpdateWidthsCommand}" />
+                    <Button Content="Nulstil"
+                            Margin="4,0,0,0"
+                            Command="{Binding ResetWidthsCommand}" />
+                </UniformGrid>
             </GroupBox>
 
         </StackPanel>

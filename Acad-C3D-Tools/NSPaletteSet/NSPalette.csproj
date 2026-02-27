@@ -1,8 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<TargetFramework>net8.0-windows8.0</TargetFramework>
-		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
-		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+		<PlatformTarget>x64</PlatformTarget>
+		<GenerateAssemblyInfo>True</GenerateAssemblyInfo>
 		<UseWindowsForms>true</UseWindowsForms>
 		<UseWPF>true</UseWPF>
 		<ImportWindowsDesktopTargets>true</ImportWindowsDesktopTargets>
@@ -20,11 +20,11 @@
 		<DebugSymbols>true</DebugSymbols>
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
-		<OutputPath>bin\Debug\</OutputPath>
+		<OutputPath>..\NSPalette.Loader\bin\Debug\Isolated\</OutputPath>
 		<DebugType>full</DebugType>
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
-		<OutputPath>bin\Release\</OutputPath>
+		<OutputPath>..\NSPalette.Loader\bin\Release\Isolated\</OutputPath>
 		<DebugType>full</DebugType>
 	</PropertyGroup>
 	<ItemGroup>
@@ -81,7 +81,8 @@
 			<Private>False</Private>
 		</Reference>
 		<Reference Include="AecArchMgd">
-		  <HintPath>C:\Program Files\Autodesk\AutoCAD 2025\ACA\AecArchMgd.dll</HintPath>
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\ACA\AecArchMgd.dll</HintPath>
+			<Private>False</Private>
 		</Reference>
 		<Reference Include="AecBaseMgd">
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\ACA\AecBaseMgd.dll</HintPath>
@@ -113,9 +114,9 @@
 		</Compile>
 	</ItemGroup>
 	<PropertyGroup>
+		<AssemblyName>NSPalette.Core</AssemblyName>
+		<EnableDynamicLoading>true</EnableDynamicLoading>
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-		<GenerateDocumentationFile>True</GenerateDocumentationFile>
-		<AssemblyName>NSPalette</AssemblyName>
 		<SupportedOSPlatformVersion>8.0</SupportedOSPlatformVersion>
 	</PropertyGroup>
 	<ItemGroup>
@@ -127,6 +128,17 @@
 		<PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0" />
 		<PackageReference Include="System.Text.Encodings.Web" Version="8.0.0" />
 		<PackageReference Include="System.Text.Json" Version="8.0.5" />
+	</ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\DevReload.Interface\DevReload.Interface.csproj">
+			<Private>false</Private>
+		</ProjectReference>
+	</ItemGroup>
+	<ItemGroup>
+		<Page Remove="Views\DarkTheme.xaml" />
+		<EmbeddedResource Include="Views\DarkTheme.xaml">
+			<LogicalName>DarkTheme.xaml</LogicalName>
+		</EmbeddedResource>
 	</ItemGroup>
 	<Import Project="..\UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems" Label="Shared" />
 	<Import Project="..\AutoCADCommandsSHARED\AutoCADCommandsSHARED.projitems" Label="Shared" />

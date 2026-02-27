@@ -47,6 +47,7 @@ namespace NSPaletteSet.ViewModels
 
             PopulatePipeSystemTypes();
             RestoreSelectedIndex();
+            RebuildForCurrentSelection();
         }
 
         private void PopulatePipeSystemTypes()

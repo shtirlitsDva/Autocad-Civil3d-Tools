@@ -544,17 +544,7 @@
     <!-- ===== NSPalette Custom Styles (Selectable Button Grid) ===== -->
     <!-- ============================================================ -->
 
-    <!-- ListBox container style: transparent, no border, no selection rectangle -->
-    <Style x:Key="SelectableButtonListBoxStyle" TargetType="ListBox">
-        <Setter Property="Background" Value="Transparent" />
-        <Setter Property="BorderThickness" Value="0" />
-        <Setter Property="Padding" Value="0" />
-        <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
-        <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Disabled" />
-        <Setter Property="ItemContainerStyle" Value="{StaticResource SelectableButtonItemStyle}" />
-    </Style>
-
-    <!-- ListBoxItem styled as a toggle button -->
+    <!-- ListBoxItem styled as a toggle button (must be defined before ListBox style that references it) -->
     <Style x:Key="SelectableButtonItemStyle" TargetType="ListBoxItem">
         <Setter Property="Background" Value="{StaticResource SurfaceLightBrush}" />
         <Setter Property="Foreground" Value="{StaticResource ForegroundBrush}" />
@@ -606,6 +596,16 @@
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
+    </Style>
+
+    <!-- ListBox container style: transparent, no border, no selection rectangle -->
+    <Style x:Key="SelectableButtonListBoxStyle" TargetType="ListBox">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+        <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Disabled" />
+        <Setter Property="ItemContainerStyle" Value="{StaticResource SelectableButtonItemStyle}" />
     </Style>
 
     <!-- RadioButton styled as a toggle button (for Frem/Retur) -->

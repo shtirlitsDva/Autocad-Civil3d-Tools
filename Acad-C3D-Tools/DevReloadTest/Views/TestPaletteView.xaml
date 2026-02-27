@@ -1,0 +1,25 @@
+<UserControl x:Class="DevReloadTest.Views.TestPaletteView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="#FF2D2D30">
+    <StackPanel Margin="10">
+        <TextBlock Text="DevReload Test Palette"
+                   FontSize="16" FontWeight="Bold"
+                   Foreground="#FFD4D4D4"
+                   Margin="0,0,0,10" />
+
+        <TextBlock Text="If you can see this, the WPF UserControl loaded successfully from the isolated ALC."
+                   Foreground="#FF9CDCFE"
+                   TextWrapping="Wrap"
+                   Margin="0,0,0,10" />
+
+        <TextBlock Text="Try changing this text, running TESTDEV, and verifying the palette updates."
+                   Foreground="#FFCE9178"
+                   TextWrapping="Wrap"
+                   Margin="0,0,0,15" />
+
+        <Button Content="Test Button"
+                Padding="8,4"
+                Click="TestButton_Click" />
+    </StackPanel>
+</UserControl>

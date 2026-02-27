@@ -13,5 +13,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)PluginHost.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)VsInstanceFinder.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)DevReloadService.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)CommandRegistrar.cs" />
   </ItemGroup>
 </Project>

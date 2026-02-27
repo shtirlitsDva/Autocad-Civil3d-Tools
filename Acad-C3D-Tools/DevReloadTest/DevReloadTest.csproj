@@ -1,0 +1,53 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<TargetFramework>net8.0-windows8.0</TargetFramework>
+		<PlatformTarget>x64</PlatformTarget>
+		<Platforms>x64</Platforms>
+		<Nullable>enable</Nullable>
+		<UseWPF>true</UseWPF>
+		<UseWindowsForms>true</UseWindowsForms>
+		<ImportWindowsDesktopTargets>true</ImportWindowsDesktopTargets>
+		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+		<AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+		<GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+		<OutputType>Library</OutputType>
+		<AssemblyName>DevReloadTest.Core</AssemblyName>
+		<EnableDynamicLoading>true</EnableDynamicLoading>
+		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+		<SupportedOSPlatformVersion>8.0</SupportedOSPlatformVersion>
+	</PropertyGroup>
+	<PropertyGroup Condition=" '$(Platform)' == 'x64' ">
+		<DebugSymbols>true</DebugSymbols>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+		<OutputPath>..\DevReloadTest.Loader\bin\Debug\Isolated\</OutputPath>
+		<DebugType>full</DebugType>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+		<OutputPath>..\DevReloadTest.Loader\bin\Release\Isolated\</OutputPath>
+		<DebugType>full</DebugType>
+	</PropertyGroup>
+	<ItemGroup>
+		<Reference Include="accoremgd">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\accoremgd.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="acdbmgd">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\acdbmgd.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="acmgd">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\acmgd.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AdWindows">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AdWindows.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+	</ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\DevReload.Interface\DevReload.Interface.csproj">
+			<Private>false</Private>
+		</ProjectReference>
+	</ItemGroup>
+</Project>
