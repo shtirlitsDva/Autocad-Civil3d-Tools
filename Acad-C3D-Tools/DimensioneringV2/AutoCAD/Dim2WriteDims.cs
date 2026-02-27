@@ -120,8 +120,10 @@ namespace DimensioneringV2.AutoCAD
                 case NorsynHydraulicCalc.PipeType.Stål:
                     return PipeSystemEnum.Stål;
                 case NorsynHydraulicCalc.PipeType.PertFlextraFL:
+                case NorsynHydraulicCalc.PipeType.PertFlextraSL:
                     return PipeSystemEnum.PertFlextra;
                 case NorsynHydraulicCalc.PipeType.AluPEXSL:
+                case NorsynHydraulicCalc.PipeType.AluPEXFL:
                     return PipeSystemEnum.AluPex;
                 case NorsynHydraulicCalc.PipeType.Kobber:
                     return PipeSystemEnum.Kobberflex;
@@ -130,7 +132,7 @@ namespace DimensioneringV2.AutoCAD
                 case NorsynHydraulicCalc.PipeType.Pe:
                     return PipeSystemEnum.PE;
                 default:
-                    return PipeSystemEnum.Ukendt;
+                    throw new Exception($"Unknown pipe type {type}!\nAdd case to the switch!");
             }
         }
 
