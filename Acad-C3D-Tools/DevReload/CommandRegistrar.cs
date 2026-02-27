@@ -10,12 +10,6 @@ namespace DevReload
     /// <summary>
     /// Registers [CommandMethod]s from a loaded assembly via Utils.AddCommand
     /// and unregisters them via Utils.RemoveCommand before ALC unload.
-    ///
-    /// IMPORTANT: Core assemblies must include:
-    ///   [assembly: CommandClass(typeof(SomeEmptyClass))]
-    /// to suppress AutoCAD's built-in ExtensionLoader from auto-registering
-    /// commands via CommandClass.AddCommand (a separate registry that
-    /// Utils.RemoveCommand cannot clean up).
     /// </summary>
     public class CommandRegistrar
     {

@@ -15,8 +15,7 @@ namespace DevReload
     public class PluginEntry
     {
         public string Name { get; set; } = "";
-        public string? Dll { get; set; }
-        public string? Subfolder { get; set; }
+        public string? DllPath { get; set; }
         public string? VsProject { get; set; }
         public bool Commands { get; set; }
         public string? CommandPrefix { get; set; }

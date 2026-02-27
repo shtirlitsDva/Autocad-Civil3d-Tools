@@ -91,8 +91,7 @@ namespace DevReload
         {
             var builder = PluginManager.Register(entry.Name);
 
-            if (entry.Dll != null) builder.WithDll(entry.Dll);
-            if (entry.Subfolder != null) builder.WithSubfolder(entry.Subfolder);
+            if (entry.DllPath != null) builder.WithDllPath(entry.DllPath);
             if (entry.VsProject != null) builder.WithVsProject(entry.VsProject);
             if (entry.Commands) builder.WithCommands();
 

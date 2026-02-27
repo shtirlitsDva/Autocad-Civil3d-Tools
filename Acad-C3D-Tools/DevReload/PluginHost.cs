@@ -19,8 +19,6 @@ namespace DevReload
 
             _context = new IsolatedPluginContext(assemblyPath, sharedAssemblyNames);
 
-            // Load main DLL from stream — file is NOT locked after reading
-            // AssemblyDependencyResolver still resolves NuGet deps via .deps.json on disk
             byte[] asmBytes = File.ReadAllBytes(assemblyPath);
             Assembly pluginAssembly;
 

@@ -148,17 +148,17 @@
                 <TextBox Text="{Binding NewPluginPrefix, UpdateSourceTrigger=PropertyChanged}"
                          Margin="0,0,0,6"/>
 
-                <TextBlock Text="DLL Filename (default: {Name}.Core.dll)"
+                <TextBlock Text="DLL Path *"
                            Foreground="{StaticResource MutedBrush}"
                            FontSize="11" Margin="0,0,0,2"/>
-                <TextBox Text="{Binding NewPluginDll, UpdateSourceTrigger=PropertyChanged}"
-                         Margin="0,0,0,6"/>
-
-                <TextBlock Text="Subfolder (default: {Name})"
-                           Foreground="{StaticResource MutedBrush}"
-                           FontSize="11" Margin="0,0,0,2"/>
-                <TextBox Text="{Binding NewPluginSubfolder, UpdateSourceTrigger=PropertyChanged}"
-                         Margin="0,0,0,6"/>
+                <DockPanel Margin="0,0,0,6">
+                    <Button DockPanel.Dock="Right"
+                            Style="{StaticResource SurfaceBtn}"
+                            Content="Browse..."
+                            Padding="8,4" Margin="4,0,0,0"
+                            Command="{Binding BrowseDllCommand}"/>
+                    <TextBox Text="{Binding NewPluginDllPath, UpdateSourceTrigger=PropertyChanged}"/>
+                </DockPanel>
 
                 <TextBlock Text="VS Project Name (default: {Name})"
                            Foreground="{StaticResource MutedBrush}"

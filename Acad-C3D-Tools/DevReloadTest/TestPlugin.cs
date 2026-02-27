@@ -1,22 +1,36 @@
+using System;
+
+using Autodesk.AutoCAD.ApplicationServices;
+using Autodesk.AutoCAD.Runtime;
+
 using DevReload;
+
+[assembly: ExtensionApplication(typeof(DevReloadTest.TestPlugin))]
 
 namespace DevReloadTest
 {
-    public class TestPlugin : IPlugin
+    public class TestPlugin : IPlugin, IExtensionApplication
     {
         public void Initialize()
         {
-            // Subscribe to events or perform one-time setup here
-        }
-
-        public object CreatePaletteSet()
-        {
-            return new TestPaletteSet();
+            Log("Initialize() called");
         }
 
         public void Terminate()
         {
-            // Unsubscribe from events or cleanup here
+            Log("Terminate() called");
+        }
+
+        public object CreatePaletteSet()
+        {
+            Log("CreatePaletteSet() called");
+            return new TestPaletteSet();
+        }
+
+        private static void Log(string msg)
+        {
+            var ed = Application.DocumentManager.MdiActiveDocument?.Editor;
+            ed?.WriteMessage($"\n[DevReloadTest] {msg} @ {DateTime.Now:HH:mm:ss}");
         }
     }
 }

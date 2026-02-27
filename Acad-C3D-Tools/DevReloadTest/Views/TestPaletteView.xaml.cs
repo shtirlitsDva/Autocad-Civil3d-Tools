@@ -15,7 +15,7 @@ namespace DevReloadTest.Views
         {
             var ed = Autodesk.AutoCAD.ApplicationServices.Application
                 .DocumentManager.MdiActiveDocument?.Editor;
-            ed?.WriteMessage($"\nButton clicked from isolated ALC! *V10* Time: {DateTime.Now:HH:mm:ss}");
+            ed?.WriteMessage($"\nButton clicked from isolated ALC! *{TestVersion.Tag}* Time: {DateTime.Now:HH:mm:ss}");
         }
     }
 }

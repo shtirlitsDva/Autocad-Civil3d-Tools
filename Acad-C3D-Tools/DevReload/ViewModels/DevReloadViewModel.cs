@@ -2,11 +2,15 @@ using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Globalization;
+using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Windows.Data;
 
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+
+using Microsoft.Win32;
 
 namespace DevReload.ViewModels
 {
@@ -23,8 +27,7 @@ namespace DevReload.ViewModels
 
         [ObservableProperty] private string _newPluginName = "";
         [ObservableProperty] private string _newPluginPrefix = "";
-        [ObservableProperty] private string _newPluginDll = "";
-        [ObservableProperty] private string _newPluginSubfolder = "";
+        [ObservableProperty] private string _newPluginDllPath = "";
         [ObservableProperty] private string _newPluginVsProject = "";
         [ObservableProperty] private bool _newPluginHasCommands;
         [ObservableProperty] private bool _newPluginLoadOnStartup;
@@ -91,12 +94,35 @@ namespace DevReload.ViewModels
         {
             NewPluginName = "";
             NewPluginPrefix = "";
-            NewPluginDll = "";
-            NewPluginSubfolder = "";
+            NewPluginDllPath = "";
             NewPluginVsProject = "";
             NewPluginHasCommands = false;
             NewPluginLoadOnStartup = false;
             IsAddingPlugin = true;
+        }
+
+        [RelayCommand]
+        private void BrowseDll()
+        {
+            var dlg = new OpenFileDialog
+            {
+                Title = "Select plugin DLL",
+                Filter = "DLL files (*.dll)|*.dll",
+                CheckFileExists = true,
+            };
+
+            if (dlg.ShowDialog() != true)
+                return;
+
+            NewPluginDllPath = dlg.FileName;
+
+            if (string.IsNullOrWhiteSpace(NewPluginName))
+            {
+                string baseName = Path.GetFileNameWithoutExtension(dlg.FileName);
+                if (baseName.EndsWith(".Core", StringComparison.OrdinalIgnoreCase))
+                    baseName = baseName[..^5];
+                NewPluginName = baseName;
+            }
         }
 
         [RelayCommand]
@@ -117,9 +143,8 @@ namespace DevReload.ViewModels
                 Name = name,
                 CommandPrefix = string.IsNullOrWhiteSpace(NewPluginPrefix)
                     ? null : NewPluginPrefix.Trim().ToUpperInvariant(),
-                Dll = string.IsNullOrWhiteSpace(NewPluginDll) ? null : NewPluginDll.Trim(),
-                Subfolder = string.IsNullOrWhiteSpace(NewPluginSubfolder)
-                    ? null : NewPluginSubfolder.Trim(),
+                DllPath = string.IsNullOrWhiteSpace(NewPluginDllPath)
+                    ? null : NewPluginDllPath.Trim(),
                 VsProject = string.IsNullOrWhiteSpace(NewPluginVsProject)
                     ? null : NewPluginVsProject.Trim(),
                 Commands = NewPluginHasCommands,

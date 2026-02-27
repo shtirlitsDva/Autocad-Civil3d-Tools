@@ -5,6 +5,7 @@ using System.Linq;
 using System.Windows.Forms;
 using Autodesk.AutoCAD.EditorInput;
 using EnvDTE;
+using EnvDTE80;
 
 namespace DevReload
 {
@@ -102,27 +103,86 @@ namespace DevReload
             // 5. Build the project (+ dependencies)
             ed?.WriteMessage($"\nBuilding '{projectName}'...");
 
-            SolutionBuild solBuild = targetDte.Solution.SolutionBuild;
-            string solutionConfig = solBuild.ActiveConfiguration.Name;
-            solBuild.BuildProject(solutionConfig, targetProject.UniqueName, true);
+            SolutionBuild solBuild;
+            string solutionConfig;
+            try
+            {
+                solBuild = targetDte.Solution.SolutionBuild;
+                solutionConfig = solBuild.ActiveConfiguration.Name;
+            }
+            catch (Exception ex)
+            {
+                ed?.WriteMessage($"\nFailed to access VS build system: {ex.Message}");
+                return null;
+            }
+
+            try
+            {
+                solBuild.BuildProject(solutionConfig, targetProject.UniqueName, true);
+            }
+            catch (Exception ex)
+            {
+                ed?.WriteMessage(
+                    $"\nBuildProject COM call failed: {ex.GetType().Name}: {ex.Message}");
+                return null;
+            }
 
             if (solBuild.LastBuildInfo != 0)
             {
                 ed?.WriteMessage(
                     $"\nBuild failed ({solBuild.LastBuildInfo} project(s) failed).");
+
+                try
+                {
+                    if (targetDte is DTE2 dte2)
+                    {
+                        foreach (OutputWindowPane pane in dte2.ToolWindows.OutputWindow.OutputWindowPanes)
+                        {
+                            if (pane.Name != "Build") continue;
+                            var doc = pane.TextDocument;
+                            var sel = doc.Selection;
+                            sel.SelectAll();
+                            string buildLog = sel.Text ?? "";
+                            var errorLines = buildLog
+                                .Split('\n')
+                                .Where(l => l.Contains(": error "))
+                                .Take(10)
+                                .ToList();
+                            foreach (var line in errorLines)
+                                ed?.WriteMessage($"\n  {line.Trim()}");
+                            break;
+                        }
+                    }
+                }
+                catch
+                {
+                }
+
                 return null;
             }
 
             ed?.WriteMessage("\nBuild succeeded.");
 
             // 6. Get output DLL path
-            string projectDir = Path.GetDirectoryName(targetProject.FullName)!;
+            string projectDir;
+            string outputPath;
+            string assemblyName;
+            try
+            {
+                projectDir = Path.GetDirectoryName(targetProject.FullName)!;
 
-            string outputPath = targetProject.ConfigurationManager
-                .ActiveConfiguration.Properties.Item("OutputPath").Value.ToString()!;
+                outputPath = targetProject.ConfigurationManager
+                    .ActiveConfiguration.Properties.Item("OutputPath").Value.ToString()!;
 
-            string assemblyName = targetProject.Properties
-                .Item("AssemblyName").Value.ToString()!;
+                assemblyName = targetProject.Properties
+                    .Item("AssemblyName").Value.ToString()!;
+            }
+            catch (Exception ex)
+            {
+                ed?.WriteMessage(
+                    $"\nFailed to read project output properties: {ex.GetType().Name}: {ex.Message}");
+                return null;
+            }
 
             string dllPath = Path.GetFullPath(
                 Path.Combine(projectDir, outputPath, assemblyName + ".dll"));
