@@ -111,15 +111,6 @@
 		<Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeScheduleV2.cs">
 			<Link>PipeScheduleV2\PipeScheduleV2.cs</Link>
 		</Compile>
-		<Compile Update="PipePalette.cs">
-			<SubType>UserControl</SubType>
-		</Compile>
-		<Compile Update="TwinPalette.cs">
-			<SubType>UserControl</SubType>
-		</Compile>
-		<Compile Update="EnkeltPalette.cs">
-			<SubType>UserControl</SubType>
-		</Compile>
 	</ItemGroup>
 	<PropertyGroup>
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
@@ -128,6 +119,7 @@
 		<SupportedOSPlatformVersion>8.0</SupportedOSPlatformVersion>
 	</PropertyGroup>
 	<ItemGroup>
+		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
 		<PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
 		<PackageReference Include="Microsoft.VisualBasic" Version="10.3.0" />
 		<PackageReference Include="System.Data.DataSetExtensions" Version="4.5.0" />
