@@ -48,7 +48,22 @@ namespace DevReload
                     return;
                 }
 
-                LoadCore(reg, reg.DllPath);
+                string dllPath = reg.DllPath;
+
+                if (!File.Exists(dllPath))
+                {
+                    if (reg.VsProjectName == null)
+                    {
+                        ed?.WriteMessage($"\n{pluginName} DLL not found and no VS project configured.");
+                        return;
+                    }
+                    ed?.WriteMessage($"\n{pluginName} DLL not found, building...");
+                    string? builtPath = DevReloadService.FindAndBuild(reg.VsProjectName, ed);
+                    if (builtPath == null) return;
+                    dllPath = builtPath;
+                }
+
+                LoadCore(reg, dllPath);
 
                 string cmdMsg = reg.Registrar != null
                     ? $" {reg.Registrar.CommandCount} commands registered."
@@ -196,7 +211,7 @@ namespace DevReload
                 reg.Registrar.RegisterFromAssembly(reg.Host.LoadedAssembly!);
             }
 
-            var paletteObj = plugin.CreatePaletteSet();
+            var paletteObj = (plugin as IPluginPalette)?.CreatePaletteSet();
             if (paletteObj is PaletteSet ps)
             {
                 reg.PaletteSet = ps;

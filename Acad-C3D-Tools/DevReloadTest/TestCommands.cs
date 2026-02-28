@@ -8,8 +8,16 @@ using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 
+#if DEBUG
+[assembly: CommandClass(typeof(DevReloadTest.NoAutoCommands))]
+#endif
+
 namespace DevReloadTest
 {
+#if DEBUG
+    public class NoAutoCommands { }
+#endif
+
     public class TestCommands
     {
         [CommandMethod("TESTCMD")]

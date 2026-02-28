@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 
 namespace DevReload
@@ -40,7 +41,17 @@ namespace DevReload
             LoadedAssembly = pluginAssembly;
 
             Type? pluginType = null;
-            foreach (Type type in pluginAssembly.GetExportedTypes())
+            Type[] exportedTypes;
+            try
+            {
+                exportedTypes = pluginAssembly.GetExportedTypes();
+            }
+            catch (ReflectionTypeLoadException ex)
+            {
+                exportedTypes = ex.Types.Where(t => t != null).ToArray()!;
+            }
+
+            foreach (Type type in exportedTypes)
             {
                 if (typeof(TPlugin).IsAssignableFrom(type) && !type.IsAbstract)
                 {
@@ -50,8 +61,16 @@ namespace DevReload
             }
 
             if (pluginType == null)
-                throw new InvalidOperationException(
-                    $"Could not find {typeof(TPlugin).Name} implementation in {Path.GetFileName(assemblyPath)}");
+            {
+                bool nameMatch = exportedTypes.Any(t =>
+                    t.GetInterfaces().Any(i => i.Name == typeof(TPlugin).Name));
+                string msg = nameMatch
+                    ? $"Found {typeof(TPlugin).Name} by name but type identity mismatch — " +
+                      $"restart AutoCAD to pick up new DevReload.Interface.dll"
+                    : $"Could not find {typeof(TPlugin).Name} implementation in " +
+                      $"{Path.GetFileName(assemblyPath)}";
+                throw new InvalidOperationException(msg);
+            }
 
             Plugin = (TPlugin)Activator.CreateInstance(pluginType)!;
             return Plugin;

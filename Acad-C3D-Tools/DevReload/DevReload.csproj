@@ -48,5 +48,5 @@
 	<ItemGroup>
 		<ProjectReference Include="..\DevReload.Interface\DevReload.Interface.csproj" />
 	</ItemGroup>
-	<Import Project="..\FormsSHARED\FormsSHARED.projitems" Label="Shared" />
+	<Import Project="..\WpfSHARED\WpfSHARED.projitems" Label="Shared" />
 </Project>

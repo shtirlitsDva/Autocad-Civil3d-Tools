@@ -9,7 +9,7 @@ using DevReload;
 
 namespace DevReloadTest
 {
-    public class TestPlugin : IPlugin, IExtensionApplication
+    public class TestPlugin : IPlugin, IPluginPalette, IExtensionApplication
     {
         public void Initialize()
         {

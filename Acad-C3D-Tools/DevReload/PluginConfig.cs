@@ -17,7 +17,6 @@ namespace DevReload
         public string Name { get; set; } = "";
         public string? DllPath { get; set; }
         public string? VsProject { get; set; }
-        public bool Commands { get; set; }
         public string? CommandPrefix { get; set; }
         public bool LoadOnStartup { get; set; }
         public int PaletteWidth { get; set; } = 400;

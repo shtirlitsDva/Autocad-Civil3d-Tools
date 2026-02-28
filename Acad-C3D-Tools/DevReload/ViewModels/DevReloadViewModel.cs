@@ -1,16 +1,15 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Globalization;
-using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Windows.Data;
+
+using Autodesk.AutoCAD.ApplicationServices;
 
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-
-using Microsoft.Win32;
 
 namespace DevReload.ViewModels
 {
@@ -27,10 +26,9 @@ namespace DevReload.ViewModels
 
         [ObservableProperty] private string _newPluginName = "";
         [ObservableProperty] private string _newPluginPrefix = "";
-        [ObservableProperty] private string _newPluginDllPath = "";
-        [ObservableProperty] private string _newPluginVsProject = "";
-        [ObservableProperty] private bool _newPluginHasCommands;
         [ObservableProperty] private bool _newPluginLoadOnStartup;
+
+        private VsProjectInfo? _selectedProject;
 
         // ── Construction ──────────────────────────────────────────────
 
@@ -92,48 +90,36 @@ namespace DevReload.ViewModels
         [RelayCommand]
         private void ShowAddPlugin()
         {
-            NewPluginName = "";
+            var ed = Application.DocumentManager.MdiActiveDocument?.Editor;
+            var projects = DevReloadService.GetAvailableProjects(ed);
+            if (projects.Count == 0) return;
+
+            bool multipleInstances = projects.Select(p => p.SolutionName).Distinct().Count() > 1;
+            var displayNames = projects.Select(p =>
+                multipleInstances ? $"{p.SolutionName}:{p.Name}" : p.Name).ToList();
+
+            string selection = IntersectUtilities.StringGridFormCaller.Call(
+                displayNames, "Select a project to register:");
+            if (string.IsNullOrEmpty(selection)) return;
+
+            int idx = displayNames.IndexOf(selection);
+            if (idx < 0) return;
+
+            _selectedProject = projects[idx];
+            NewPluginName = _selectedProject.Name;
             NewPluginPrefix = "";
-            NewPluginDllPath = "";
-            NewPluginVsProject = "";
-            NewPluginHasCommands = false;
             NewPluginLoadOnStartup = false;
             IsAddingPlugin = true;
         }
 
         [RelayCommand]
-        private void BrowseDll()
-        {
-            var dlg = new OpenFileDialog
-            {
-                Title = "Select plugin DLL",
-                Filter = "DLL files (*.dll)|*.dll",
-                CheckFileExists = true,
-            };
-
-            if (dlg.ShowDialog() != true)
-                return;
-
-            NewPluginDllPath = dlg.FileName;
-
-            if (string.IsNullOrWhiteSpace(NewPluginName))
-            {
-                string baseName = Path.GetFileNameWithoutExtension(dlg.FileName);
-                if (baseName.EndsWith(".Core", StringComparison.OrdinalIgnoreCase))
-                    baseName = baseName[..^5];
-                NewPluginName = baseName;
-            }
-        }
-
-        [RelayCommand]
         private void ConfirmAddPlugin()
         {
-            if (string.IsNullOrWhiteSpace(NewPluginName))
+            if (_selectedProject == null || string.IsNullOrWhiteSpace(NewPluginName))
                 return;
 
             string name = NewPluginName.Trim();
 
-            // Prevent duplicates
             if (_config.Plugins.Any(p =>
                     p.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
                 return;
@@ -143,11 +129,8 @@ namespace DevReload.ViewModels
                 Name = name,
                 CommandPrefix = string.IsNullOrWhiteSpace(NewPluginPrefix)
                     ? null : NewPluginPrefix.Trim().ToUpperInvariant(),
-                DllPath = string.IsNullOrWhiteSpace(NewPluginDllPath)
-                    ? null : NewPluginDllPath.Trim(),
-                VsProject = string.IsNullOrWhiteSpace(NewPluginVsProject)
-                    ? null : NewPluginVsProject.Trim(),
-                Commands = NewPluginHasCommands,
+                DllPath = _selectedProject.DebugDllPath,
+                VsProject = _selectedProject.Name,
                 LoadOnStartup = NewPluginLoadOnStartup,
             };
 

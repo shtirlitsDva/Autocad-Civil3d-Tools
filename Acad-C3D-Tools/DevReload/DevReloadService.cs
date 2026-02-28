@@ -9,9 +9,100 @@ using EnvDTE80;
 
 namespace DevReload
 {
+    public record VsProjectInfo(string Name, string DebugDllPath, string SolutionName);
+
     public static class DevReloadService
     {
         private const string SolutionFolderKind = "{66A26720-8FB5-11D2-AA7E-00C04F688DDE}";
+
+        public static List<VsProjectInfo> GetAvailableProjects(Editor? ed)
+        {
+            var result = new List<VsProjectInfo>();
+            var vsInstances = VsInstanceFinder.GetRunningVSInstances();
+            if (vsInstances.Count == 0)
+            {
+                ed?.WriteMessage("\nNo running Visual Studio instances found.");
+                return result;
+            }
+
+            foreach (var kvp in vsInstances)
+            {
+                _DTE dte = kvp.Value;
+                try
+                {
+                    if (string.IsNullOrEmpty(dte.Solution?.FullName))
+                        continue;
+
+                    string solName = Path.GetFileNameWithoutExtension(dte.Solution.FullName);
+                    CollectProjects(dte.Solution, solName, result);
+                }
+                catch { }
+            }
+
+            return result;
+        }
+
+        private static void CollectProjects(Solution solution, string solName, List<VsProjectInfo> result)
+        {
+            foreach (Project prj in solution.Projects)
+                CollectProject(prj, solName, result);
+        }
+
+        private static void CollectProject(Project prj, string solName, List<VsProjectInfo> result)
+        {
+            try
+            {
+                if (prj.Kind == SolutionFolderKind)
+                {
+                    foreach (ProjectItem item in prj.ProjectItems)
+                    {
+                        if (item.SubProject != null)
+                            CollectProject(item.SubProject, solName, result);
+                    }
+                    return;
+                }
+
+                string projectDir = Path.GetDirectoryName(prj.FullName)!;
+                string assemblyName = prj.Properties.Item("AssemblyName").Value.ToString()!;
+
+                string? debugOutputPath = null;
+                var configMgr = prj.ConfigurationManager;
+                if (configMgr != null)
+                {
+                    for (int i = 1; i <= configMgr.Count; i++)
+                    {
+                        try
+                        {
+                            var cfg = configMgr.Item(i);
+                            if (cfg.ConfigurationName.Equals("Debug", StringComparison.OrdinalIgnoreCase))
+                            {
+                                debugOutputPath = cfg.Properties.Item("OutputPath").Value.ToString();
+                                break;
+                            }
+                        }
+                        catch { }
+                    }
+
+                    if (debugOutputPath == null)
+                    {
+                        try
+                        {
+                            debugOutputPath = configMgr.ActiveConfiguration
+                                .Properties.Item("OutputPath").Value.ToString();
+                        }
+                        catch { }
+                    }
+                }
+
+                if (debugOutputPath == null) return;
+
+                string dllPath = Path.GetFullPath(
+                    Path.Combine(projectDir, debugOutputPath, assemblyName + ".dll"));
+
+                result.Add(new VsProjectInfo(prj.Name, dllPath, solName));
+            }
+            catch { }
+        }
 
         public static string? FindAndBuild(string projectName, Editor? ed)
         {

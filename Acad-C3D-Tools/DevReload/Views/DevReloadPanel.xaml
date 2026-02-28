@@ -137,42 +137,21 @@
                 <TextBlock Text="Add New Plugin" FontSize="14" FontWeight="SemiBold"
                            Foreground="{StaticResource FgBrush}" Margin="0,0,0,8"/>
 
-                <TextBlock Text="Name *" Foreground="{StaticResource MutedBrush}"
+                <TextBlock Text="Project" Foreground="{StaticResource MutedBrush}"
                            FontSize="11" Margin="0,0,0,2"/>
-                <TextBox Text="{Binding NewPluginName, UpdateSourceTrigger=PropertyChanged}"
+                <TextBox Text="{Binding NewPluginName, Mode=OneWay}"
+                         IsReadOnly="True" Opacity="0.7"
                          Margin="0,0,0,6"/>
 
                 <TextBlock Text="Command Prefix (default: Name)"
                            Foreground="{StaticResource MutedBrush}"
                            FontSize="11" Margin="0,0,0,2"/>
                 <TextBox Text="{Binding NewPluginPrefix, UpdateSourceTrigger=PropertyChanged}"
-                         Margin="0,0,0,6"/>
-
-                <TextBlock Text="DLL Path *"
-                           Foreground="{StaticResource MutedBrush}"
-                           FontSize="11" Margin="0,0,0,2"/>
-                <DockPanel Margin="0,0,0,6">
-                    <Button DockPanel.Dock="Right"
-                            Style="{StaticResource SurfaceBtn}"
-                            Content="Browse..."
-                            Padding="8,4" Margin="4,0,0,0"
-                            Command="{Binding BrowseDllCommand}"/>
-                    <TextBox Text="{Binding NewPluginDllPath, UpdateSourceTrigger=PropertyChanged}"/>
-                </DockPanel>
-
-                <TextBlock Text="VS Project Name (default: {Name})"
-                           Foreground="{StaticResource MutedBrush}"
-                           FontSize="11" Margin="0,0,0,2"/>
-                <TextBox Text="{Binding NewPluginVsProject, UpdateSourceTrigger=PropertyChanged}"
                          Margin="0,0,0,8"/>
 
-                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                    <CheckBox Content="Has Commands"
-                              IsChecked="{Binding NewPluginHasCommands}"
-                              Margin="0,0,16,0"/>
-                    <CheckBox Content="Load on Startup"
-                              IsChecked="{Binding NewPluginLoadOnStartup}"/>
-                </StackPanel>
+                <CheckBox Content="Load on Startup"
+                          IsChecked="{Binding NewPluginLoadOnStartup}"
+                          Margin="0,0,0,8"/>
 
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button Style="{StaticResource SurfaceBtn}" Content="Cancel"
@@ -283,19 +262,12 @@
                                         <!-- Action buttons -->
                                         <StackPanel Orientation="Horizontal">
                                             <Button Style="{StaticResource AccentBtn}"
-                                                    Content="Load" FontSize="11"
-                                                    Padding="8,3" Margin="0,0,4,0"
-                                                    Command="{Binding DataContext.LoadPluginCommand,
-                                                        RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                    CommandParameter="{Binding Name}"
-                                                    IsEnabled="{Binding IsLoaded, Converter={x:Static vm:InvertBoolConverter.Instance}}"/>
-                                            <Button Style="{StaticResource AccentBtn}"
-                                                    Content="Dev" FontSize="11"
+                                                    Content="Reload" FontSize="11"
                                                     Padding="8,3" Margin="0,0,4,0"
                                                     Command="{Binding DataContext.DevReloadPluginCommand,
                                                         RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                     CommandParameter="{Binding Name}"/>
-                                            <Button Style="{StaticResource SurfaceBtn}"
+                                            <Button Style="{StaticResource DangerBtn}"
                                                     Content="Unload" FontSize="11"
                                                     Padding="8,3"
                                                     Command="{Binding DataContext.UnloadPluginCommand,

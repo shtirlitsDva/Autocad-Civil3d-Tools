@@ -114,7 +114,7 @@
 		</Compile>
 	</ItemGroup>
 	<PropertyGroup>
-		<AssemblyName>NSPalette.Core</AssemblyName>
+		<AssemblyName>NSPalette</AssemblyName>
 		<EnableDynamicLoading>true</EnableDynamicLoading>
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
 		<SupportedOSPlatformVersion>8.0</SupportedOSPlatformVersion>

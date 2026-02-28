@@ -93,7 +93,7 @@ namespace DevReload
 
             if (entry.DllPath != null) builder.WithDllPath(entry.DllPath);
             if (entry.VsProject != null) builder.WithVsProject(entry.VsProject);
-            if (entry.Commands) builder.WithCommands();
+            builder.WithCommands();
 
             builder.WithPaletteSize(entry.PaletteWidth, entry.PaletteHeight);
 
