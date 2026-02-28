@@ -5,6 +5,11 @@ using System.Reflection;
 
 namespace DevReload
 {
+    public class StalePluginException : Exception
+    {
+        public StalePluginException(string message) : base(message) { }
+    }
+
     public class PluginHost<TPlugin> where TPlugin : class
     {
         private IsolatedPluginContext? _context;
@@ -64,12 +69,13 @@ namespace DevReload
             {
                 bool nameMatch = exportedTypes.Any(t =>
                     t.GetInterfaces().Any(i => i.Name == typeof(TPlugin).Name));
-                string msg = nameMatch
-                    ? $"Found {typeof(TPlugin).Name} by name but type identity mismatch — " +
-                      $"restart AutoCAD to pick up new DevReload.Interface.dll"
-                    : $"Could not find {typeof(TPlugin).Name} implementation in " +
-                      $"{Path.GetFileName(assemblyPath)}";
-                throw new InvalidOperationException(msg);
+                if (nameMatch)
+                    throw new StalePluginException(
+                        $"{typeof(TPlugin).Name} found by name but compiled against a different " +
+                        $"DevReload.Interface version — rebuilding.");
+                throw new InvalidOperationException(
+                    $"Could not find {typeof(TPlugin).Name} implementation in " +
+                    $"{Path.GetFileName(assemblyPath)}");
             }
 
             Plugin = (TPlugin)Activator.CreateInstance(pluginType)!;

@@ -63,7 +63,18 @@ namespace DevReload
                     dllPath = builtPath;
                 }
 
-                LoadCore(reg, dllPath);
+                try
+                {
+                    LoadCore(reg, dllPath);
+                }
+                catch (StalePluginException ex) when (reg.VsProjectName != null)
+                {
+                    ed?.WriteMessage($"\n{ex.Message}");
+                    string? rebuilt = DevReloadService.FindAndBuild(reg.VsProjectName, ed);
+                    if (rebuilt == null) return;
+                    dllPath = rebuilt;
+                    LoadCore(reg, dllPath);
+                }
 
                 string cmdMsg = reg.Registrar != null
                     ? $" {reg.Registrar.CommandCount} commands registered."
@@ -94,7 +105,16 @@ namespace DevReload
                 string? dllPath = DevReloadService.FindAndBuild(reg.VsProjectName, ed);
                 if (dllPath == null) return;
 
-                LoadCore(reg, dllPath);
+                try
+                {
+                    LoadCore(reg, dllPath);
+                }
+                catch (StalePluginException)
+                {
+                    ed?.WriteMessage(
+                        $"\n{pluginName}: DevReload.Interface has changed. Restart AutoCAD.");
+                    return;
+                }
 
                 string cmdMsg = reg.Registrar != null
                     ? $" {reg.Registrar.CommandCount} commands registered."
