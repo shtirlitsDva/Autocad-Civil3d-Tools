@@ -10,8 +10,6 @@ using Autodesk.Civil.ApplicationServices;
 using Autodesk.Civil.DatabaseServices;
 using Autodesk.Civil.DatabaseServices.Styles;
 using Autodesk.Civil.DataShortcuts;
-using Autodesk.Aec.PropertyData;
-using Autodesk.Aec.PropertyData.DatabaseServices;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -24,7 +22,6 @@ using System.Text.RegularExpressions;
 using System.Text.Json;
 using System.Windows.Forms;
 using System.Data;
-using System.Data.SqlClient;
 using System.Reflection;
 using GroupByCluster;
 using IntersectUtilities.UtilsCommon;
@@ -56,10 +53,8 @@ using OpenFileDialog = Microsoft.Win32.OpenFileDialog;
 using Newtonsoft.Json;
 using Autodesk.Gis.Map;
 using Autodesk.Gis.Map.ObjectData;
-using IntersectUtilities.PipeScheduleV2;
 using IntersectUtilities.Dimensionering.Forms;
 using Schema.Datafordeler;
-using DimensioneringV2;
 using Microsoft.Win32;
 using Microsoft.VisualBasic.FileIO;
 
@@ -1779,7 +1774,7 @@ namespace IntersectUtilities.Dimensionering
             if (!File.Exists(enhederPath))
             { prdDbg("BBR_enhed.json does not exist! Download med RestHenter!"); return; }
 
-            var enheder = UtilsCommon.Json.Deserialize<HashSet<BBREnhed.Enhed>>(enhederPath)
+            var enheder = UtilsCommon.Serialization.Json.Deserialize<HashSet<BBREnhed.Enhed>>(enhederPath)
                 .Where(x => x.status == "6" || x.status == "7");
 
             var enhedsDict = enheder
