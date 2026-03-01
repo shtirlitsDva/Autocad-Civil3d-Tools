@@ -14,6 +14,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+using EventManager;
+
 using AcAp = Autodesk.AutoCAD.ApplicationServices.Application;
 
 namespace DimensioneringV2.Services
@@ -21,18 +23,18 @@ namespace DimensioneringV2.Services
     internal partial class HydraulicSettingsService : ObservableObject
     {
         private static HydraulicSettingsService? _instance;
-        public static HydraulicSettingsService Instance => _instance ??= new HydraulicSettingsService();
+        public static HydraulicSettingsService Instance => _instance ??= new HydraulicSettingsService(Commands.Events!);
+        internal static void Reset() => _instance = null;
         [ObservableProperty]
         private HydraulicSettings settings;
-        private HydraulicSettingsService()
+        private HydraulicSettingsService(AcadEventManager events)
         {
             settings = HydraulicSettingsSerializer.Load(
                 AcAp.DocumentManager.MdiActiveDocument);
 
-            // Subscribe to DocumentManager events
-            AcAp.DocumentManager.DocumentActivated += DocumentManager_DocumentActivated;
-            AcAp.DocumentManager.DocumentToBeDeactivated += DocumentManager_DocumentToBeDeactivated;
-            AcAp.DocumentManager.DocumentToBeDestroyed += DocumentManager_DocumentToBeDestroyed;
+            events.DocumentActivated += DocumentManager_DocumentActivated;
+            events.DocumentToBeDeactivated += DocumentManager_DocumentToBeDeactivated;
+            events.DocumentToBeDestroyed += DocumentManager_DocumentToBeDestroyed;
             //Saving of settings when the palette is made invisible
             //must be handled by the PaletteSet as this service does not know
             //when the palette is instatiated

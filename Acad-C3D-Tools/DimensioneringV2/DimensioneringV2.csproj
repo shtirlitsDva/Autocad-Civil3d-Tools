@@ -206,4 +206,5 @@
 	<Import Project="..\AutoCADCommandsSHARED\AutoCADCommandsSHARED.projitems" Label="Shared" />
 	<Import Project="..\NorsynHydraulicShared\NorsynHydraulicShared.projitems" Label="Shared" />
 	<Import Project="..\FormsSHARED\FormsSHARED.projitems" Label="Shared" />
+	<Import Project="..\EventManager\EventManager.projitems" Label="Shared" />
 </Project>

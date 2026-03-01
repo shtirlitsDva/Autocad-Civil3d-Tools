@@ -12,6 +12,8 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 
+using EventManager;
+
 using AcAp = Autodesk.AutoCAD.ApplicationServices.Application;
 
 namespace DimensioneringV2.Services
@@ -23,7 +25,8 @@ namespace DimensioneringV2.Services
     internal partial class NyttetimerService : ObservableObject
     {
         private static NyttetimerService? _instance;
-        public static NyttetimerService Instance => _instance ??= new NyttetimerService();
+        public static NyttetimerService Instance => _instance ??= new NyttetimerService(Commands.Events!);
+        internal static void Reset() => _instance = null;
 
         private const string EmbeddedResourceName = "DimensioneringV2.Models.Nyttetimer.Anvendelseskoder.csv";
 
@@ -49,24 +52,16 @@ namespace DimensioneringV2.Services
         [ObservableProperty]
         private NyttetimerConfigurationStore store;
 
-        private NyttetimerService()
+        private NyttetimerService(AcadEventManager events)
         {
-            // Load default configuration from embedded CSV
             DefaultConfiguration = LoadDefaultConfiguration();
-            
-            // Load store from current document
             store = LoadStore(AcAp.DocumentManager.MdiActiveDocument);
-            
-            // Build all configurations
             RebuildAllConfigurations();
-            
-            // Set current configuration
             currentConfiguration = GetConfigurationByName(store.SelectedConfigurationName) ?? DefaultConfiguration;
 
-            // Subscribe to document events
-            AcAp.DocumentManager.DocumentActivated += DocumentManager_DocumentActivated;
-            AcAp.DocumentManager.DocumentToBeDeactivated += DocumentManager_DocumentToBeDeactivated;
-            AcAp.DocumentManager.DocumentToBeDestroyed += DocumentManager_DocumentToBeDestroyed;
+            events.DocumentActivated += DocumentManager_DocumentActivated;
+            events.DocumentToBeDeactivated += DocumentManager_DocumentToBeDeactivated;
+            events.DocumentToBeDestroyed += DocumentManager_DocumentToBeDestroyed;
         }
 
         private void DocumentManager_DocumentActivated(object sender, DocumentCollectionEventArgs e)

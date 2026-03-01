@@ -48,6 +48,8 @@ using System.Windows;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 
+using EventManager;
+
 using AcApp = Autodesk.AutoCAD.ApplicationServices.Application;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using cv = DimensioneringV2.CommonVariables;
@@ -59,9 +61,13 @@ namespace DimensioneringV2
 {
     public class Commands : IExtensionApplication
     {
+        internal static AcadEventManager? Events { get; private set; }
+
         #region IExtensionApplication members
         public void Initialize()
         {
+            Events = new AcadEventManager();
+
             Document doc = AcApp.DocumentManager.MdiActiveDocument;
             doc.Editor.WriteMessage("\nVelkommen til Dimensionering v2.0!");
 
@@ -87,7 +93,13 @@ namespace DimensioneringV2
 
         public void Terminate()
         {
-            //Add your termination code here
+            Events?.Dispose();
+            Events = null;
+
+            HydraulicSettingsService.Reset();
+            GASettingsService.Reset();
+            GraphSettingsService.Reset();
+            NyttetimerService.Reset();
         }
         #endregion
 

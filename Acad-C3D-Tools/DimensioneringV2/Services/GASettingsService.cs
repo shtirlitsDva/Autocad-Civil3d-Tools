@@ -6,6 +6,8 @@ using DimensioneringV2.Genetic;
 
 using System;
 
+using EventManager;
+
 using AcAp = Autodesk.AutoCAD.ApplicationServices.Application;
 
 namespace DimensioneringV2.Services
@@ -21,20 +23,20 @@ namespace DimensioneringV2.Services
         /// <summary>
         /// Gets the singleton instance of the GASettingsService.
         /// </summary>
-        public static GASettingsService Instance => _instance ??= new GASettingsService();
+        public static GASettingsService Instance => _instance ??= new GASettingsService(Commands.Events!);
+        internal static void Reset() => _instance = null;
 
         [ObservableProperty]
         private GASettings settings;
 
-        private GASettingsService()
+        private GASettingsService(AcadEventManager events)
         {
             settings = SettingsSerializer<GASettings>.Load(
                 AcAp.DocumentManager.MdiActiveDocument);
 
-            // Subscribe to DocumentManager events
-            AcAp.DocumentManager.DocumentActivated += DocumentManager_DocumentActivated;
-            AcAp.DocumentManager.DocumentToBeDeactivated += DocumentManager_DocumentToBeDeactivated;
-            AcAp.DocumentManager.DocumentToBeDestroyed += DocumentManager_DocumentToBeDestroyed;
+            events.DocumentActivated += DocumentManager_DocumentActivated;
+            events.DocumentToBeDeactivated += DocumentManager_DocumentToBeDeactivated;
+            events.DocumentToBeDestroyed += DocumentManager_DocumentToBeDestroyed;
         }
 
         private void DocumentManager_DocumentActivated(object sender, DocumentCollectionEventArgs e)
