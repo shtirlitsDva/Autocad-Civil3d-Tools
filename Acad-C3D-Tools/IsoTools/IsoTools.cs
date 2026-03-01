@@ -23,10 +23,6 @@ namespace IsoTools
         public void Initialize()
         {
             prdDbg("\nIsoTools loaded!");
-
-#if DEBUG
-            AppDomain.CurrentDomain.AssemblyResolve += new ResolveEventHandler(Debug_AssemblyResolve);
-#endif
         }
 
         public void Terminate()

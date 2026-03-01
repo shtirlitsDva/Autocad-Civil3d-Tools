@@ -52,6 +52,8 @@ using NetTopologySuite.Geometries;
 using Point = NetTopologySuite.Geometries.Point;
 using IntersectUtilities.UtilsCommon.DataManager;
 
+[assembly: CommandClass(typeof(IntersectUtilities.NSTBL.NoCommands))]
+
 namespace IntersectUtilities.NSTBL
 {
     public class DimensioneringExtension : IExtensionApplication
@@ -455,4 +457,6 @@ namespace IntersectUtilities.NSTBL
             #endregion
         }
     }
+
+    public class NoCommands { }
 }

@@ -53,7 +53,7 @@ using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using cv = DimensioneringV2.CommonVariables;
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 
-[assembly: CommandClass(typeof(DimensioneringV2.Commands))]
+[assembly: CommandClass(typeof(DimensioneringV2.NoCommands))]
 
 namespace DimensioneringV2
 {
@@ -83,10 +83,6 @@ namespace DimensioneringV2
                 Assembly.LoadFrom(Path.Combine(basePath, dll));
             }
 
-#if DEBUG
-            AppDomain.CurrentDomain.AssemblyResolve +=
-        new ResolveEventHandler(MissingAssemblyLoaderDimV2.Debug_AssemblyResolveV2);
-#endif
         }
 
         public void Terminate()
@@ -1798,4 +1794,6 @@ namespace DimensioneringV2
             prdDbg("Finished!");
         }
     }
+
+    public class NoCommands { }
 }

@@ -129,11 +129,7 @@
 		<PackageReference Include="System.Text.Encodings.Web" Version="8.0.0" />
 		<PackageReference Include="System.Text.Json" Version="8.0.5" />
 	</ItemGroup>
-	<ItemGroup>
-		<ProjectReference Include="..\DevReload.Interface\DevReload.Interface.csproj">
-			<Private>false</Private>
-		</ProjectReference>
-	</ItemGroup>
+
 	<ItemGroup>
 		<Page Remove="Views\DarkTheme.xaml" />
 		<EmbeddedResource Include="Views\DarkTheme.xaml">

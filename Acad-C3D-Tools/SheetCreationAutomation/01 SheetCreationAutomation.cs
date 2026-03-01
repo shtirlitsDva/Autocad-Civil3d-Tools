@@ -36,6 +36,8 @@ using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using Microsoft.Win32;
 
+[assembly: CommandClass(typeof(SheetCreationAutomation.NoCommands))]
+
 namespace SheetCreationAutomation
 {
     public class Commands : IExtensionApplication
@@ -47,11 +49,6 @@ namespace SheetCreationAutomation
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
             doc.Editor.WriteMessage("\nLoaded Sheet Creation Automation commands.");
-
-#if DEBUG
-            AppDomain.CurrentDomain.AssemblyResolve +=
-        new ResolveEventHandler(Debug.MissingAssemblyLoader.Debug_AssemblyResolveV2);
-#endif
         }
 
         public void Terminate()
@@ -298,4 +295,6 @@ namespace SheetCreationAutomation
             }
         }
     }
+
+    public class NoCommands { }
 }

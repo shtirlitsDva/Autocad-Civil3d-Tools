@@ -40,10 +40,6 @@ namespace NTRExport
         {
             Document doc = AcApp.DocumentManager.MdiActiveDocument;
             doc.Editor.WriteMessage("\nVelkommen til NTR Export!\n");
-#if DEBUG
-            AppDomain.CurrentDomain.AssemblyResolve +=
-        new ResolveEventHandler(MissingAssemblyLoader.Debug_AssemblyResolve);
-#endif
         }
 
         public void Terminate()

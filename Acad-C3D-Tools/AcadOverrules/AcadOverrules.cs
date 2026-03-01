@@ -8,6 +8,8 @@ using System;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 
+[assembly: CommandClass(typeof(AcadOverrules.NoCommands))]
+
 namespace AcadOverrules
 {
     public class Commands : IExtensionApplication
@@ -16,10 +18,6 @@ namespace AcadOverrules
         public void Initialize()
         {
             prdDbg("AcadOverrules Initializing!");
-#if DEBUG
-            AppDomain.CurrentDomain.AssemblyResolve += new ResolveEventHandler(
-                IntersectUtilities.EventHandlers.Debug_AssemblyResolve);
-#endif
         }
 
         public void Terminate()
@@ -197,4 +195,6 @@ namespace AcadOverrules
         }
 #endif
     }
+
+    public class NoCommands { }
 }

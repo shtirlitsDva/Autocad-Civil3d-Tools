@@ -55,7 +55,7 @@ using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using OpenFileDialog = Microsoft.Win32.OpenFileDialog;
 using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 
-[assembly: CommandClass(typeof(IntersectUtilities.Intersect))]
+[assembly: CommandClass(typeof(IntersectUtilities.NoCommands))]
 namespace IntersectUtilities
 {
     public partial class Intersect : IExtensionApplication
@@ -73,10 +73,6 @@ namespace IntersectUtilities
             prdDbg($" IntersectUtilites loaded!");
             prdDbg("(❁´◡`❁) (っ °Д °;)っ (●'◡'●)");
             prdDbg();
-#if DEBUG
-            AppDomain.CurrentDomain.AssemblyResolve +=
-                new ResolveEventHandler(EventHandlers.Debug_AssemblyResolve);
-#endif
         }
         public void Terminate()
         {
@@ -5698,4 +5694,6 @@ namespace IntersectUtilities
         }
 
     }
+
+    public class NoCommands { }
 }

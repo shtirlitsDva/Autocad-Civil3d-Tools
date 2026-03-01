@@ -26,6 +26,8 @@ using IntersectUtilities.UtilsCommon.DataManager.CsvData;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Log = ExportShapeFiles.ExportShapeFiles.SimpleLogger;
 
+[assembly: CommandClass(typeof(ExportShapeFiles.NoCommands))]
+
 namespace ExportShapeFiles
 {
     public class ExportShapeFiles : IExtensionApplication
@@ -38,17 +40,10 @@ namespace ExportShapeFiles
             doc.Editor.WriteMessage("\nExport Fjernvarme to shapefiles for many drawings (original): EXPORTSHAPEFILESBATCH");
             doc.Editor.WriteMessage("\nExport Fjernvarme to shapefiles (flotte polygoner): EXPORTFJVTOSHAPE\n");
             doc.Editor.WriteMessage("\nExport BBR to shapefiles (punkter): EXPORTBBRTOSHAPE\n");
-
-#if DEBUG
-            AppDomain.CurrentDomain.AssemblyResolve += new ResolveEventHandler(EventHandlers.Debug_AssemblyResolve);
-#endif
         }
 
         public void Terminate()
         {
-#if DEBUG
-            AppDomain.CurrentDomain.AssemblyResolve -= new ResolveEventHandler(EventHandlers.Debug_AssemblyResolve);
-#endif
         }
         #endregion
 
@@ -924,4 +919,6 @@ namespace ExportShapeFiles
             }
         }
     }
+
+    public class NoCommands { }
 }

@@ -63,6 +63,8 @@ using DimensioneringV2;
 using Microsoft.Win32;
 using Microsoft.VisualBasic.FileIO;
 
+[assembly: CommandClass(typeof(IntersectUtilities.Dimensionering.NoCommands))]
+
 namespace IntersectUtilities.Dimensionering
 {
     /// <summary>
@@ -91,10 +93,6 @@ namespace IntersectUtilities.Dimensionering
             doc.Editor.WriteMessage("\n-> Write data to excel: DIMWRITEEXCEL");
             doc.Editor.WriteMessage("\n-> 1) Prepare 2) Import BBR 3) Intersect 4) Husnr 5) Populate 6) Dump adresser 7) Write excel");
 
-#if DEBUG
-            AppDomain.CurrentDomain.AssemblyResolve +=
-                new ResolveEventHandler(MissingAssemblyLoader.Debug_AssemblyResolve);
-#endif
         }
 
         public void Terminate()
@@ -5117,4 +5115,6 @@ namespace IntersectUtilities.Dimensionering
             }
         }
     }
+
+    public class NoCommands { }
 }

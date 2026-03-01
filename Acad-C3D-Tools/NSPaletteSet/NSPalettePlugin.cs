@@ -1,14 +1,14 @@
-using DevReload;
+using Autodesk.AutoCAD.Runtime;
+
+[assembly: CommandClass(typeof(NSPaletteSet.NoCommands))]
 
 namespace NSPaletteSet
 {
-    public class NSPalettePlugin : IPlugin, IPluginPalette
+    public class NSPalettePlugin : IExtensionApplication
     {
-        public object CreatePaletteSet()
-        {
-            return new MyPaletteSet();
-        }
-
+        public void Initialize() { }
         public void Terminate() { }
     }
+
+    public class NoCommands { }
 }

@@ -112,9 +112,6 @@
 		<Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeScheduleV2.cs">
 			<Link>PipeScheduleV2\PipeScheduleV2.cs</Link>
 		</Compile>
-		<Compile Include="..\IntersectUtilities\DebugHelpers\AssemblyResolveEvents.cs">
-			<Link>DebugHelpers\AssemblyResolveEvents.cs</Link>
-		</Compile>
 	</ItemGroup>
 	<PropertyGroup>
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
