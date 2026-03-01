@@ -10,6 +10,7 @@
 		<NoWarn>$(NoWarn);CA1416</NoWarn>
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 		<AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
 		<OutputPath>bin\x64\Debug\</OutputPath>
@@ -18,6 +19,10 @@
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
 		<OutputPath>bin\x64\Release\</OutputPath>
 		<DebugType>full</DebugType>
+	</PropertyGroup>
+	<PropertyGroup>
+		<BundleDir>$(MSBuildProjectDirectory)\..\..\Deploy\NSLOAD.bundle</BundleDir>
+		<BundleContentsDir>$(BundleDir)\Contents\Win64</BundleContentsDir>
 	</PropertyGroup>
 	<ItemGroup>
 		<Reference Include="accoremgd">
@@ -42,5 +47,27 @@
 		<PackageReference Include="Microsoft.VisualBasic" Version="10.3.0" />
 		<PackageReference Include="System.Text.Json" Version="8.0.4" />
 	</ItemGroup>
+	<ItemGroup>
+		<None Include="PackageContents.xml" CopyToOutputDirectory="Never" />
+	</ItemGroup>
 	<Import Project="..\FormsSHARED\FormsSHARED.projitems" Label="Shared" />
+
+	<Target Name="CreateBundle" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
+		<MakeDir Directories="$(BundleContentsDir)" />
+
+		<ItemGroup>
+			<BundleDlls Include="$(TargetDir)*.dll"
+				Exclude="$(TargetDir)accoremgd.dll;
+				         $(TargetDir)acdbmgd.dll;
+				         $(TargetDir)acmgd.dll;
+				         $(TargetDir)AdWindows.dll" />
+		</ItemGroup>
+
+		<Copy SourceFiles="@(BundleDlls)" DestinationFolder="$(BundleContentsDir)"
+		      SkipUnchangedFiles="true" />
+		<Copy SourceFiles="$(MSBuildProjectDirectory)\PackageContents.xml"
+		      DestinationFolder="$(BundleDir)" SkipUnchangedFiles="true" />
+
+		<Message Importance="high" Text="Bundle created at $(BundleDir)" />
+	</Target>
 </Project>

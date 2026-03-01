@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ApplicationPackage
+    SchemaVersion="1.0"
+    Name="NSLOAD"
+    AppVersion="1.0.0"
+    Description="NS Plugin Loader for AutoCAD 2025"
+    Author="shtirlitsDva"
+    ProductCode="{A7E3F1B2-9C4D-4E8A-B6D5-2F1A3C7E9B04}">
+
+  <Components>
+    <ComponentEntry
+        AppName="NSLOAD"
+        ModuleName="./Contents/Win64/NSLOAD.dll"
+        AppDescription="NS Plugin Loader"
+        AppType=".Net"
+        LoadOnAutoCADStartup="True">
+      <RuntimeRequirements OS="Win64" SeriesMin="R25.0" SeriesMax="R25.0" />
+    </ComponentEntry>
+  </Components>
+</ApplicationPackage>

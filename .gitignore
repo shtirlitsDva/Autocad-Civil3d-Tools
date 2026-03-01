@@ -16,6 +16,9 @@
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 
+# Bundle deploy output
+Deploy/
+
 # Build results
 [Dd]ebug/
 [Dd]ebugPublic/
