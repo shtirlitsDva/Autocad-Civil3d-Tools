@@ -61,13 +61,8 @@ namespace IntersectUtilities.NSTBL
         #region IExtensionApplication members
         public void Initialize()
         {
-            //Document doc = Application.DocumentManager.MdiActiveDocument;
-            //if (doc != null)
-            //{
-            //    SystemObjects.DynamicLinker.LoadModule(
-            //        "AcMPolygonObj" + Application.Version.Major + ".dbx", false, false);
-            //}
-
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+            doc.Editor.WriteMessage("\n(◠‿◠) NSTBL loaded! (◠‿◠)\n");
         }
 
         public void Terminate()

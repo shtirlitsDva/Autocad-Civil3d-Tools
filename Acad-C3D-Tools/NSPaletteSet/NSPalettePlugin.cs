@@ -9,7 +9,11 @@ namespace NSPaletteSet
     {
         private static MyPaletteSet? _palette;
 
-        public void Initialize() { }
+        public void Initialize()
+        {
+            var doc = Autodesk.AutoCAD.ApplicationServices.Core.Application.DocumentManager.MdiActiveDocument;
+            doc.Editor.WriteMessage("\n(づ￣ ³￣)づ NSPaletteSet loaded! ヾ(＾∇＾)\n");
+        }
 
         public void Terminate()
         {

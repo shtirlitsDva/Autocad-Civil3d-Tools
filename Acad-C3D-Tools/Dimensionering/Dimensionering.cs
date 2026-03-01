@@ -82,6 +82,7 @@ namespace IntersectUtilities.Dimensionering
                     "AcMPolygonObj" + Application.Version.Major + ".dbx", false, false);
             }
 
+            doc.Editor.WriteMessage("\n٩(ˊᗜˋ*)و Dimensionering v1 loaded! (◕‿◕✿)\n");
             doc.Editor.WriteMessage("\n-> Import SYMBOL blocks ved opstart på ny tegning: DIMPREPAREDWG");
             doc.Editor.WriteMessage("\n-> Import BBR data to blocks: DIMIMPORTBBRBLOCKS");
             doc.Editor.WriteMessage("\n-> Assign areas to BBR blocks and delete the rest: DIMINTERSECTAREAS");

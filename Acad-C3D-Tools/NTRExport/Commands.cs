@@ -39,7 +39,7 @@ namespace NTRExport
         public void Initialize()
         {
             Document doc = AcApp.DocumentManager.MdiActiveDocument;
-            doc.Editor.WriteMessage("\nVelkommen til NTR Export!\n");
+            doc.Editor.WriteMessage("\nʕ•ᴥ•ʔ Velkommen til NTR Export! ʕ•ᴥ•ʔ\n");
         }
 
         public void Terminate()

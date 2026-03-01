@@ -39,7 +39,7 @@ namespace Ler2PolygonSplitting
                     "AcMPolygonObj" + Application.Version.Major + ".dbx", false, false);
             }
 
-            prdDbg("Ler2PolygonSplitting loaded!\n");
+            doc.Editor.WriteMessage("\n⊂(◉‿◉)つ Ler2PolygonSplitting loaded! ⊂(◉‿◉)つ\n");
         }
 
         public void Terminate()

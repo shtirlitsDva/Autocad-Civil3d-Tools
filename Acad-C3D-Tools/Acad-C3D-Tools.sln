@@ -74,8 +74,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UiSnoop", "UiSnoop\UiSnoop.
 EndProject
 Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "WpfSHARED", "WpfSHARED\WpfSHARED.shproj", "{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DevReload.Interface", "DevReload.Interface\DevReload.Interface.csproj", "{CCBFF1C5-5CBC-5001-2DC7-8EEE8F11B3B8}"
-EndProject
 Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "EventManager", "EventManager\EventManager.shproj", "{B2C3D4E5-F6A7-8901-BCDE-F23456789012}"
 EndProject
 Global
@@ -412,18 +410,6 @@ Global
 		{24654C72-79F9-4625-BF8C-F8B8D76DD805}.Release|x64.Build.0 = Release|Any CPU
 		{24654C72-79F9-4625-BF8C-F8B8D76DD805}.Release|x86.ActiveCfg = Release|Any CPU
 		{24654C72-79F9-4625-BF8C-F8B8D76DD805}.Release|x86.Build.0 = Release|Any CPU
-		{CCBFF1C5-5CBC-5001-2DC7-8EEE8F11B3B8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{CCBFF1C5-5CBC-5001-2DC7-8EEE8F11B3B8}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{CCBFF1C5-5CBC-5001-2DC7-8EEE8F11B3B8}.Debug|x64.ActiveCfg = Debug|x64
-		{CCBFF1C5-5CBC-5001-2DC7-8EEE8F11B3B8}.Debug|x64.Build.0 = Debug|x64
-		{CCBFF1C5-5CBC-5001-2DC7-8EEE8F11B3B8}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{CCBFF1C5-5CBC-5001-2DC7-8EEE8F11B3B8}.Debug|x86.Build.0 = Debug|Any CPU
-		{CCBFF1C5-5CBC-5001-2DC7-8EEE8F11B3B8}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{CCBFF1C5-5CBC-5001-2DC7-8EEE8F11B3B8}.Release|Any CPU.Build.0 = Release|Any CPU
-		{CCBFF1C5-5CBC-5001-2DC7-8EEE8F11B3B8}.Release|x64.ActiveCfg = Release|x64
-		{CCBFF1C5-5CBC-5001-2DC7-8EEE8F11B3B8}.Release|x64.Build.0 = Release|x64
-		{CCBFF1C5-5CBC-5001-2DC7-8EEE8F11B3B8}.Release|x86.ActiveCfg = Release|Any CPU
-		{CCBFF1C5-5CBC-5001-2DC7-8EEE8F11B3B8}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -469,6 +455,7 @@ Global
 		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{db2cde26-a283-45d0-a170-7645cf29c507}*SharedItemsImports = 13
 		NorsynHydraulicShared\NorsynHydraulicShared.projitems*{e12a1099-c622-d95d-7788-5ff10d423dda}*SharedItemsImports = 5
 		AutoCADCommandsSHARED\AutoCADCommandsSHARED.projitems*{e5fa3287-b46f-41bb-a860-79f03b57b411}*SharedItemsImports = 5
+		EventManager\EventManager.projitems*{e5fa3287-b46f-41bb-a860-79f03b57b411}*SharedItemsImports = 5
 		FormsSHARED\FormsSHARED.projitems*{e5fa3287-b46f-41bb-a860-79f03b57b411}*SharedItemsImports = 5
 		NorsynHydraulicShared\NorsynHydraulicShared.projitems*{e5fa3287-b46f-41bb-a860-79f03b57b411}*SharedItemsImports = 5
 		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{e5fa3287-b46f-41bb-a860-79f03b57b411}*SharedItemsImports = 5

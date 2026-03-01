@@ -32,7 +32,7 @@ namespace LERImporter
         public void Initialize()
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
-            doc.Editor.WriteMessage("\nLER Import Application indlæst.");
+            doc.Editor.WriteMessage("\n┗(•ˇ_ˇ•)―→ LER Import Application indlæst! ←(•ˇ_ˇ•)┛");
             doc.Editor.WriteMessage("\nKommando til LER 2.0 -> IGMLBATCH.");
 
             if (doc != null)

@@ -48,7 +48,7 @@ namespace SheetCreationAutomation
         public void Initialize()
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
-            doc.Editor.WriteMessage("\nLoaded Sheet Creation Automation commands.");
+            doc.Editor.WriteMessage("\n♪(´▽`) SheetCreationAutomation loaded! (´▽`)♪\n");
         }
 
         public void Terminate()

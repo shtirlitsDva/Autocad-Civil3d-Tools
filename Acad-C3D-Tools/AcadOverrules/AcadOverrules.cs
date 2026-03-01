@@ -1,4 +1,5 @@
-﻿using Autodesk.AutoCAD.DatabaseServices;
+﻿using Autodesk.AutoCAD.ApplicationServices;
+using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Runtime;
 
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
@@ -17,7 +18,8 @@ namespace AcadOverrules
         #region Interface memebers
         public void Initialize()
         {
-            prdDbg("AcadOverrules Initializing!");
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+            doc.Editor.WriteMessage("\n(ノ◕ヮ◕)ノ*:・゚✧ AcadOverrules loaded! ✧゚・:*ヽ(◕ヮ◕ヽ)\n");
         }
 
         public void Terminate()
