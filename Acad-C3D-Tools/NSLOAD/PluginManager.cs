@@ -118,7 +118,8 @@ namespace NSLOAD
             if (reg.Registrar != null)
                 reg.Registrar.RegisterFromAssembly(reg.Host.LoadedAssembly!);
 
-            plugin.Initialize();
+            //Don't call Initialize here; the plugin will be initialized by AutoCAD!            
+            //plugin.Initialize();
         }
 
         private static void TearDown(PluginRegistration reg)
