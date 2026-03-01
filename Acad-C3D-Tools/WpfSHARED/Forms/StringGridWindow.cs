@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 
 namespace IntersectUtilities.Forms
@@ -87,6 +88,18 @@ namespace IntersectUtilities.Forms
 
             Content = root;
 
+            SourceInitialized += (_, _) =>
+            {
+                if (PresentationSource.FromVisual(this) is HwndSource source)
+                {
+                    double wpfDpi = 96.0 * source.CompositionTarget.TransformToDevice.M11;
+                    double monitorDpi = DpiNative.GetDpiForWindow(source.Handle);
+                    double scale = monitorDpi / wpfDpi;
+                    if (Math.Abs(scale - 1.0) > 0.01)
+                        root.LayoutTransform = new ScaleTransform(scale, scale);
+                }
+            };
+
             PreviewKeyDown += OnPreviewKeyDown;
             Loaded += OnLoaded;
             ContentRendered += OnContentRendered;
@@ -129,21 +142,28 @@ namespace IntersectUtilities.Forms
 
         private void OnLoaded(object sender, RoutedEventArgs e)
         {
-            var point = PointFromScreen(new Point(
-                System.Windows.Forms.Cursor.Position.X,
-                System.Windows.Forms.Cursor.Position.Y));
+            double dpiScale = 1.0;
+            if (PresentationSource.FromVisual(this) is HwndSource source)
+                dpiScale = source.CompositionTarget.TransformToDevice.M11;
 
             var screen = System.Windows.Forms.Screen.FromPoint(
                 System.Windows.Forms.Cursor.Position);
             var workArea = screen.WorkingArea;
 
-            double x = System.Windows.Forms.Cursor.Position.X - ActualWidth / 2;
-            double y = System.Windows.Forms.Cursor.Position.Y - ActualHeight / 2;
+            double cx = System.Windows.Forms.Cursor.Position.X / dpiScale;
+            double cy = System.Windows.Forms.Cursor.Position.Y / dpiScale;
+            double waL = workArea.Left / dpiScale;
+            double waT = workArea.Top / dpiScale;
+            double waR = workArea.Right / dpiScale;
+            double waB = workArea.Bottom / dpiScale;
 
-            if (x < workArea.Left) x = workArea.Left;
-            if (y < workArea.Top) y = workArea.Top;
-            if (x + ActualWidth > workArea.Right) x = workArea.Right - ActualWidth;
-            if (y + ActualHeight > workArea.Bottom) y = workArea.Bottom - ActualHeight;
+            double x = cx - ActualWidth / 2;
+            double y = cy - ActualHeight / 2;
+
+            if (x < waL) x = waL;
+            if (y < waT) y = waT;
+            if (x + ActualWidth > waR) x = waR - ActualWidth;
+            if (y + ActualHeight > waB) y = waB - ActualHeight;
 
             Left = x;
             Top = y;
