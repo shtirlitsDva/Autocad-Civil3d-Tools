@@ -23,7 +23,7 @@ namespace DimensioneringV2.Services
         internal static UndirectedGraph<BFNode, BFEdge>? CalculateOptimizedGAAnalysis(
             MetaGraph<UndirectedGraph<BFNode, BFEdge>> metaGraph,
             UndirectedGraph<BFNode, BFEdge> subGraph,
-            UndirectedGraph<BFNode, BFEdge> seed,
+            UndirectedGraph<BFNode, BFEdge>? seed,
             List<SumProperty<BFEdge>> props,
             GeneticAlgorithmCalculationViewModel gaVM,
             CancellationToken token,

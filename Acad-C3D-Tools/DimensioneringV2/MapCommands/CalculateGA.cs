@@ -1,5 +1,6 @@
 using DimensioneringV2.BruteForceOptimization;
 using DimensioneringV2.Common;
+using DimensioneringV2.Genetic;
 using DimensioneringV2.GraphFeatures;
 using DimensioneringV2.GraphModel;
 using DimensioneringV2.GraphUtilities;
@@ -182,7 +183,7 @@ namespace DimensioneringV2.MapCommands
                                 RemainingTime = timeToEnumerate
                             };
 
-                            dispatcher.Invoke(() =>
+                            dispatcher.BeginInvoke(() =>
                             {
                                 GeneticOptimizedReportingContext.VM.GraphCalculations.Add(placeholderVM);
                                 placeholderVM.StartCountdown(dispatcher);
@@ -203,7 +204,7 @@ namespace DimensioneringV2.MapCommands
                             }
 
                             // Remove the countdown placeholder
-                            dispatcher.Invoke(() =>
+                            dispatcher.BeginInvoke(() =>
                             {
                                 GeneticOptimizedReportingContext.VM.GraphCalculations.Remove(placeholderVM);
                             });
@@ -291,7 +292,7 @@ namespace DimensioneringV2.MapCommands
                 TimeToEnumerate = 0
             };
 
-            dispatcher.Invoke(() =>
+            dispatcher.BeginInvoke(() =>
             {
                 GeneticOptimizedReportingContext.VM.GraphCalculations.Add(bfVM);
                 bfVM.ShowCountdownOverlay = false;
@@ -323,12 +324,13 @@ namespace DimensioneringV2.MapCommands
                 bag.Add((cost, st));
 
                 int count = Interlocked.Increment(ref enumeratedCount);
-                dispatcher.Invoke(() => bfVM.CalculatedTrees = count);
+                if (count % 10 == 0 || count == solutions.Count)
+                    dispatcher.BeginInvoke(() => bfVM.CalculatedTrees = count);
             });
 
             var best = bag.MinBy(x => x.cost);
 
-            dispatcher.Invoke(() =>
+            dispatcher.BeginInvoke(() =>
             {
                 bfVM.CalculatedTrees = enumeratedCount;
                 bfVM.Cost = best.cost;
@@ -362,13 +364,22 @@ namespace DimensioneringV2.MapCommands
                 Cost = 0,
             };
 
-            dispatcher.Invoke(() =>
+            dispatcher.BeginInvoke(() =>
             {
                 GeneticOptimizedReportingContext.VM.GraphCalculations.Add(gaVM);
             });
 
-            // Phase 1: Greedy optimization (remove non-bridges one by one)
-            var seed = GreedyOptimization(subGraph, rootNode, metaGraph, props, flCache, slCache, gaVM, dispatcher);
+            // Phase 1: Seeding (depends on SeedingType setting)
+            var seedingType = GASettingsService.Instance.Settings.SeedingType;
+            UndirectedGraph<BFNode, BFEdge>? seed = seedingType switch
+            {
+                SeedingType.Greedy => GreedyOptimization(
+                    subGraph, rootNode, metaGraph, props, flCache, slCache, gaVM, dispatcher),
+                SeedingType.FirstSteiner => FirstSteinerSeedGenerator.Generate(subGraph),
+                SeedingType.None => null,
+                _ => GreedyOptimization(
+                    subGraph, rootNode, metaGraph, props, flCache, slCache, gaVM, dispatcher),
+            };
 
             // Phase 2: Genetic algorithm refinement
             var result = HydraulicCalculationsService.CalculateOptimizedGAAnalysis(
@@ -406,7 +417,7 @@ namespace DimensioneringV2.MapCommands
                 if (gaVM.StopRequested) break;
 
                 optimizationCounter++;
-                dispatcher.Invoke(() => gaVM.BruteForceCount = optimizationCounter);
+                dispatcher.BeginInvoke(() => gaVM.BruteForceCount = optimizationCounter);
 
                 var bridges = FindBridges.DoFindThem(seed);
 
@@ -446,7 +457,7 @@ namespace DimensioneringV2.MapCommands
                 var bestResult = results.MinBy(x => x.cost);
                 seed = bestResult.graph;
 
-                dispatcher.Invoke(() => gaVM.Cost = bestResult.cost);
+                dispatcher.BeginInvoke(() => gaVM.Cost = bestResult.cost);
             }
 
             return seed;

@@ -94,6 +94,29 @@ namespace DimensioneringV2.Genetic
     }
 
     /// <summary>
+    /// Enumeration of available seeding strategies for the GA.
+    /// </summary>
+    public enum SeedingType
+    {
+        /// <summary>
+        /// Uses greedy optimization (iteratively remove most expensive non-bridge) as seed.
+        /// This is the original/default behavior.
+        /// </summary>
+        Greedy,
+
+        /// <summary>
+        /// Uses the first minimal Steiner tree found as seed.
+        /// Faster than greedy but may produce a less optimal initial seed.
+        /// </summary>
+        FirstSteiner,
+
+        /// <summary>
+        /// No seeding - all chromosomes initialize randomly.
+        /// </summary>
+        None
+    }
+
+    /// <summary>
     /// Settings model for Genetic Algorithm configuration.
     /// Uses CommunityToolkit.Mvvm for observable properties.
     /// </summary>
@@ -118,6 +141,11 @@ namespace DimensioneringV2.Genetic
         /// </summary>
         [ObservableProperty]
         private bool useGraduatedPenalty = true;
+        #endregion
+
+        #region Seeding Settings
+        [ObservableProperty]
+        private SeedingType seedingType = SeedingType.Greedy;
         #endregion
 
         #region Selection Settings

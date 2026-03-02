@@ -19,13 +19,15 @@ namespace DimensioneringV2.Services
         internal static GeneticAlgorithm SetupOptimizedGAAnalysis(
             MetaGraph<UndirectedGraph<BFNode, BFEdge>> metaGraph,
             UndirectedGraph<BFNode, BFEdge> subGraph,
-            UndirectedGraph<BFNode, BFEdge> seed,
+            UndirectedGraph<BFNode, BFEdge>? seed,
             List<SumProperty<BFEdge>> props,
             HydraulicCalculationCache<BFEdge> flCache,
             ClientCalculationCache<BFEdge>? slCache = null)
         {
             var gaSettings = GASettingsService.Instance.Settings;
-            CoherencyManager chm = new CoherencyManager(metaGraph, subGraph, seed);
+            CoherencyManager chm = seed != null
+                ? new CoherencyManager(metaGraph, subGraph, seed)
+                : new CoherencyManager(metaGraph, subGraph);
 
             // Create chromosome based on settings
             IChromosome adamChromosome = gaSettings.ChromosomeType switch

@@ -22,6 +22,7 @@ namespace DimensioneringV2.UI
         public Array ReinsertionTypes => Enum.GetValues(typeof(ReinsertionType));
         public Array TerminationTypes => Enum.GetValues(typeof(TerminationType));
         public Array TaskExecutorTypes => Enum.GetValues(typeof(TaskExecutorType));
+        public Array SeedingTypes => Enum.GetValues(typeof(SeedingType));
 
         /// <summary>
         /// Gets available crossover types based on selected chromosome.

@@ -62,6 +62,17 @@
                 </StackPanel>
             </GroupBox>
 
+            <GroupBox Header="Seeding" Style="{StaticResource ModernGroupBox}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Label Content="Strategy:" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
+                    <ComboBox Grid.Column="1" ItemsSource="{Binding SeedingTypes}" SelectedItem="{Binding Settings.SeedingType, UpdateSourceTrigger=PropertyChanged}" Margin="4,0"/>
+                </Grid>
+            </GroupBox>
+
             <GroupBox Header="Selection" Style="{StaticResource ModernGroupBox}">
                 <StackPanel>
                     <Grid>

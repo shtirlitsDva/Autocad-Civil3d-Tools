@@ -66,6 +66,20 @@ namespace DimensioneringV2.Genetic
         internal HashSet<BFNode> Terminals => _terminals;
         internal BFNode RootNode => _rootNode;
 
+        /// <summary>
+        /// Creates a CoherencyManager with no seed.
+        /// All chromosomes will initialize randomly (TryClaimSeed always returns false).
+        /// Chains to the seed constructor with subGraph as both source and seed (harmless no-op),
+        /// then disables seeding by setting _seeded = 1.
+        /// </summary>
+        public CoherencyManager(
+            MetaGraph<UndirectedGraph<BFNode, BFEdge>> metaGraph,
+            UndirectedGraph<BFNode, BFEdge> subGraph)
+            : this(metaGraph, subGraph, subGraph)
+        {
+            _seeded = 1;
+        }
+
         public CoherencyManager(
             MetaGraph<UndirectedGraph<BFNode, BFEdge>> metaGraph,
             UndirectedGraph<BFNode, BFEdge> subGraph,

@@ -41,7 +41,7 @@ namespace DimensioneringV2.UI.GeneticOptimizedReporting.Cards
         {
             countdownTimer = new Timer(_ =>
             {
-                dispatcher.Invoke(() =>
+                dispatcher.BeginInvoke(() =>
                 {
                     if (RemainingTime > 0)
                     {

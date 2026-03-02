@@ -142,7 +142,7 @@ namespace DimensioneringV2.MapCommands
                                 RemainingTime = timeToEnumerate
                             };
 
-                            dispatcher.Invoke(() =>
+                            dispatcher.BeginInvoke(() =>
                             {
                                 GeneticOptimizedReportingContext.VM.GraphCalculations.Add(bfVM);
                                 bfVM.StartCountdown(dispatcher);
@@ -153,7 +153,7 @@ namespace DimensioneringV2.MapCommands
                                 subGraph, terminals.ToHashSet(), TimeSpan.FromSeconds(timeToEnumerate));
                             var solutions = stev3.Enumerate();
 
-                            dispatcher.Invoke(() =>
+                            dispatcher.BeginInvoke(() =>
                             {
                                 bfVM.ShowCountdownOverlay = false;
                                 bfVM.SteinerTreesFound = solutions.Count;
@@ -249,12 +249,13 @@ namespace DimensioneringV2.MapCommands
                 bag.Add((cost, st));
 
                 int count = Interlocked.Increment(ref enumeratedCount);
-                dispatcher.Invoke(() => bfVM.CalculatedTrees = count);
+                if (count % 10 == 0 || count == solutions.Count)
+                    dispatcher.BeginInvoke(() => bfVM.CalculatedTrees = count);
             });
 
             var best = bag.MinBy(x => x.cost);
 
-            dispatcher.Invoke(() =>
+            dispatcher.BeginInvoke(() =>
             {
                 bfVM.CalculatedTrees = enumeratedCount;
                 bfVM.Cost = best.cost;
@@ -282,7 +283,7 @@ namespace DimensioneringV2.MapCommands
             while (true)
             {
                 optimizationCounter++;
-                dispatcher.Invoke(() => bfVM.CalculatedTrees = optimizationCounter);
+                dispatcher.BeginInvoke(() => bfVM.CalculatedTrees = optimizationCounter);
 
                 var bridges = FindBridges.DoFindThem(seed);
 
@@ -321,7 +322,7 @@ namespace DimensioneringV2.MapCommands
                 var bestResult = results.MinBy(x => x.cost);
                 seed = bestResult.graph;
 
-                dispatcher.Invoke(() => bfVM.Cost = bestResult.cost);
+                dispatcher.BeginInvoke(() => bfVM.Cost = bestResult.cost);
             }
 
             return seed;

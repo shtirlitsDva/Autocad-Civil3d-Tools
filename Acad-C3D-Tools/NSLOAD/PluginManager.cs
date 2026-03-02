@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.EditorInput;
@@ -113,7 +114,20 @@ namespace NSLOAD
         {
             TearDown(reg);
 
-            var plugin = reg.Host.Load(reg.DllPath, reg.SharedAssemblyNames);
+            // Read developer-managed shared assembly config from plugin directory.
+            // SharedAssemblies.Config.json is created by DevReload's "Push to Production".
+            string pluginDir = Path.GetDirectoryName(reg.DllPath)!;
+            string[] sharedNames = SharedAssembliesConfigLoader.Load(pluginDir);
+
+            // Pre-load shared assemblies into default ALC so WPF XAML can resolve them.
+            foreach (string asmName in sharedNames)
+            {
+                string dllPath = Path.Combine(pluginDir, asmName + ".dll");
+                if (File.Exists(dllPath))
+                    Assembly.LoadFrom(dllPath);
+            }
+
+            var plugin = reg.Host.Load(reg.DllPath, sharedNames);
 
             if (reg.Registrar != null)
                 reg.Registrar.RegisterFromAssembly(reg.Host.LoadedAssembly!);
