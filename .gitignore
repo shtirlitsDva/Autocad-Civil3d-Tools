@@ -340,3 +340,4 @@ ASALocalRun/
 /nul
 /.dotnet/TelemetryStorageService
 /.dotnet
+/.claude/worktrees
