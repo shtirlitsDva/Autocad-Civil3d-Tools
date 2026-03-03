@@ -39,6 +39,9 @@ namespace DimensioneringV2.AutoCAD
             string dimDbFilename = basePath + "Fjernvarme DIM.dwg";
 
             using Database dimDb = new Database(true, true);
+            dimDb.Insunits = UnitsValue.Meters;
+            dimDb.Measurement = MeasurementValue.Metric;
+
             using Transaction dimTx = dimDb.TransactionManager.StartTransaction();
 
             try
@@ -86,7 +89,8 @@ namespace DimensioneringV2.AutoCAD
                     #endregion
 
                     //Determine twin or single pipe
-                    PipeTypeEnum pt = PipeScheduleV2.GetPipeTypeByAvailability(ps, feature.Dim.NominalDiameter);
+                    PipeTypeEnum pt = PipeScheduleV2.GetPipeTypeByAvailability(
+                        ps, feature.Dim.NominalDiameter);
 
                     //Determine layer
                     string systemString = PipeScheduleV2.GetSystemString(ps);
