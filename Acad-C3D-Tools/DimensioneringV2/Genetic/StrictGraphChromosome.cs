@@ -75,11 +75,11 @@ namespace DimensioneringV2.Genetic
                 {
                     if (set.Contains(i))
                     {
-                        ReplaceGene(i, new Gene(0));
+                        SetBinaryGene(i, 0);
                     }
                     else
                     {
-                        ReplaceGene(i, new Gene(1));
+                        SetBinaryGene(i, 1);
                         RemovedEdges.Add(i);
                     }
                 }
@@ -118,11 +118,11 @@ namespace DimensioneringV2.Genetic
                             _localGraph.RemoveEdge(edge);
                             _edgeByIndex.Remove(rIdx); // Keep index in sync
                             _removedEdges.Add(rIdx);
-                            ReplaceGene(rIdx, new Gene(1));
+                            SetBinaryGene(rIdx, 1);
                         }
                         else
                         {
-                            ReplaceGene(rIdx, new Gene(0));
+                            SetBinaryGene(rIdx, 0);
                         }
                     }
                 }
@@ -142,7 +142,7 @@ namespace DimensioneringV2.Genetic
             _removedEdges.Clear();
             for (int i = 0; i < Length; i++)
             {
-                ReplaceGene(i, new Gene(0));
+                SetBinaryGene(i, 0);
             }
         }
 
@@ -158,7 +158,7 @@ namespace DimensioneringV2.Genetic
 
         public bool TryMutate(int index)
         {
-            int curValue = (int)GetGene(index).Value;
+            byte curValue = GetBinaryGene(index);
 
             //current value 0 means edge is on
             //case 0 (means mutates to 1 -> remove edge):
@@ -166,9 +166,9 @@ namespace DimensioneringV2.Genetic
             {
                 var edge = GetEdgeByIndex(index); // O(1) lookup
                 if (edge == null) return false; // Edge not in graph
-                
+
                 if (_localGraph.IsBridgeEdge(edge)) return false; // Can't remove bridge
-                
+
                 _localGraph.RemoveEdge(edge);
                 _edgeByIndex.Remove(index); // Keep index in sync
                 _removedEdges.Add(index);
@@ -193,9 +193,10 @@ namespace DimensioneringV2.Genetic
         }
 
         /// <summary>
-        /// This must be done on a Reset Chromosome
+        /// This must be done on a Reset Chromosome.
+        /// Uses binary gene values directly — no Gene boxing.
         /// </summary>
-        public void ReplaceGraphChromosomeGene(int index, Gene foreignGene)
+        public void ReplaceGraphChromosomeGene(int index, byte foreignGeneValue)
         {
             if (index < 0 || index >= this.Length)
             {
@@ -203,15 +204,14 @@ namespace DimensioneringV2.Genetic
                     "There is no Gene on index {0} to be replaced.".With(index));
             }
 
-            int foreignGeneValue = (int)foreignGene.Value;
-            int localGeneValue = (int)GetGene(index).Value;
+            byte localGeneValue = GetBinaryGene(index);
 
             if (foreignGeneValue == localGeneValue)
             {
                 return;
             }
 
-            if (TryMutate(index)) ReplaceGene(index, foreignGene);
+            if (TryMutate(index)) SetBinaryGene(index, foreignGeneValue);
         }
 
         internal void UpdateChromosome(UndirectedGraph<BFNode, BFEdge> graph)
@@ -219,7 +219,7 @@ namespace DimensioneringV2.Genetic
             _localGraph = graph;
             RebuildEdgeIndex();
 
-            HashSet<int> newTurnedOnEdges = 
+            HashSet<int> newTurnedOnEdges =
                 graph.Edges.Select(x => x.NonBridgeChromosomeIndex)
                 .ToHashSet();
 
@@ -229,11 +229,11 @@ namespace DimensioneringV2.Genetic
             {
                 if (newTurnedOnEdges.Contains(i))
                 {
-                    ReplaceGene(i, new Gene(0));
+                    SetBinaryGene(i, 0);
                 }
                 else
                 {
-                    ReplaceGene(i, new Gene(1));
+                    SetBinaryGene(i, 1);
                     _removedEdges.Add(i);
                 }
             }

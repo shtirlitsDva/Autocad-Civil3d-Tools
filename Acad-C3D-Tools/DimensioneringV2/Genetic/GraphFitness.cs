@@ -36,9 +36,8 @@ namespace DimensioneringV2.Genetic
 
         public double Evaluate(IChromosome chromosome)
         {
-            // Always rebuild graph from genes using interface methods.
-            // This allows any chromosome type to work with any crossover/mutation operator.
-            var localGraph = _chm.RebuildGraphFromChromosome(chromosome);
+            // Rebuild graph from binary genes — no Gene boxing in hot path.
+            var localGraph = _chm.RebuildGraphFromChromosome((BinaryChromosomeBase)chromosome);
             
             // Check terminal connectivity - apply penalty if disconnected
             if (!localGraph.AreTerminalNodesConnected(_chm.RootNode, _chm.Terminals))

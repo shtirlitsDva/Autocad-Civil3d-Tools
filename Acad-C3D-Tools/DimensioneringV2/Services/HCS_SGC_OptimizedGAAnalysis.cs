@@ -69,7 +69,7 @@ namespace DimensioneringV2.Services
                 return null;
             }
 
-            var localGraph = chm.RebuildGraphFromChromosome(bestChromosome);
+            var localGraph = chm.RebuildGraphFromChromosome((BinaryChromosomeBase)bestChromosome);
 
             var result = HCS_SGC_CalculateSumsAndCost.CalculateSumsAndCostWithGraph(
                 localGraph, subGraph, props, metaGraph, flCache, slCache);

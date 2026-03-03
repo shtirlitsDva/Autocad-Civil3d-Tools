@@ -143,11 +143,10 @@ namespace DimensioneringV2.Genetic
         }
 
         /// <summary>
-        /// Rebuilds a graph from chromosome genes using only IChromosome interface methods.
+        /// Rebuilds a graph from chromosome binary genes — no Gene boxing.
         /// Gene value 0 = edge is ON (included), 1 = edge is OFF (excluded).
-        /// Works with any IChromosome implementation.
         /// </summary>
-        public UndirectedGraph<BFNode, BFEdge> RebuildGraphFromChromosome(IChromosome chromosome)
+        public UndirectedGraph<BFNode, BFEdge> RebuildGraphFromChromosome(BinaryChromosomeBase chromosome)
         {
             var graph = new UndirectedGraph<BFNode, BFEdge>();
 
@@ -162,14 +161,12 @@ namespace DimensioneringV2.Genetic
                 graph.AddEdge(newEdge);
             }
 
-            // Add non-bridge edges based on gene values (using interface method)
-            for (int i = 0; i < chromosome.Length; i++)
+            // Add non-bridge edges based on binary gene values — zero allocation
+            var genes = chromosome.GetBinaryGenesSpan();
+            for (int i = 0; i < genes.Length; i++)
             {
-                var gene = chromosome.GetGene(i);
-                int geneValue = (int)gene.Value;
-
                 // 0 = edge ON, 1 = edge OFF
-                if (geneValue == 0)
+                if (genes[i] == 0)
                 {
                     var originalEdge = OriginalNonBridgeEdgeFromIndex(i);
                     var newEdge = new BFEdge(originalEdge);

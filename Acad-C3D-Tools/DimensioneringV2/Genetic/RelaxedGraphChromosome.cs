@@ -1,7 +1,5 @@
 using GeneticSharp;
 
-using System;
-
 namespace DimensioneringV2.Genetic
 {
     /// <summary>
@@ -30,7 +28,7 @@ namespace DimensioneringV2.Genetic
                 for (int i = 0; i < CoherencyManager.ChromosomeLength; i++)
                 {
                     // 0 = edge on, 1 = edge off
-                    ReplaceGene(i, new Gene(seedEdgeIndices.Contains(i) ? 0 : 1));
+                    SetBinaryGene(i, seedEdgeIndices.Contains(i) ? (byte)0 : (byte)1);
                 }
             }
             else
@@ -38,7 +36,7 @@ namespace DimensioneringV2.Genetic
                 // Random initialization - just flip bits randomly
                 for (int i = 0; i < CoherencyManager.ChromosomeLength; i++)
                 {
-                    ReplaceGene(i, new Gene(random.GetDouble() >= 0.5 ? 1 : 0));
+                    SetBinaryGene(i, random.GetDouble() >= 0.5 ? (byte)1 : (byte)0);
                 }
             }
         }

@@ -52,19 +52,22 @@ namespace DimensioneringV2.Genetic
                 (indices[i], indices[j]) = (indices[j], indices[i]);
             }
 
+            var fp = (BinaryChromosomeBase)firstParent;
+            var sp = (BinaryChromosomeBase)secondParent;
+
             for (int i = 0; i < indices.Length; i++)
             {
                 int rIdx = indices[i];
 
                 if (rnd.GetDouble() < this.MixProbability)
                 {
-                    fc.ReplaceGraphChromosomeGene(rIdx, firstParent.GetGene(rIdx));
-                    sc.ReplaceGraphChromosomeGene(rIdx, secondParent.GetGene(rIdx));
+                    fc.ReplaceGraphChromosomeGene(rIdx, fp.GetBinaryGene(rIdx));
+                    sc.ReplaceGraphChromosomeGene(rIdx, sp.GetBinaryGene(rIdx));
                 }
                 else
                 {
-                    fc.ReplaceGraphChromosomeGene(rIdx, secondParent.GetGene(rIdx));
-                    sc.ReplaceGraphChromosomeGene(rIdx, firstParent.GetGene(rIdx));
+                    fc.ReplaceGraphChromosomeGene(rIdx, sp.GetBinaryGene(rIdx));
+                    sc.ReplaceGraphChromosomeGene(rIdx, fp.GetBinaryGene(rIdx));
                 }
             }
 
