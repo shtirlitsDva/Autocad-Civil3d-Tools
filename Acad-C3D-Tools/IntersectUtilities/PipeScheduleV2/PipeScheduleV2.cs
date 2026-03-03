@@ -1,4 +1,4 @@
-﻿using Autodesk.AutoCAD.ApplicationServices;
+using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 
@@ -146,7 +146,7 @@ namespace IntersectUtilities.PipeScheduleV2
         private static Dictionary<PipeSystemEnum, double[]> availableStdLengths = new()
         {
             {PipeSystemEnum.Stål, new double[] {12, 16}},
-            {PipeSystemEnum.AluPex, new double[] {100}},
+            {PipeSystemEnum.AluPex, new double[] {12, 100}},
             {PipeSystemEnum.Kobberflex, new double[] { 100 }},
             //{PipeSystemEnum.PexU, new[] {100}},
             {PipeSystemEnum.PertFlextra, new double[] {12, 16, 100}},
