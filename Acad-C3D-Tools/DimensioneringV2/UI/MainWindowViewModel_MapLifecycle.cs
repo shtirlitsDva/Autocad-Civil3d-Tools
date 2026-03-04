@@ -10,7 +10,6 @@ using DimensioneringV2.UI.MapProperty;
 using Mapsui;
 using Mapsui.Layers;
 using Mapsui.Providers;
-using Mapsui.UI.Wpf;
 
 using System.Collections.Generic;
 using System.Linq;
@@ -77,7 +76,9 @@ namespace DimensioneringV2.UI
 
             MapSuiSvgIconCache.Initialize();
 
-            SelectedMapPropertyWrapper = new MapPropertyWrapper(MapPropertyEnum.Default, "Default");
+            selectedMapPropertyWrapper = new MapPropertyWrapper(MapPropertyEnum.Default, "Default");
+            OnPropertyChanged(nameof(SelectedMapPropertyWrapper));
+
             _themeManager.SetTheme(MapPropertyEnum.Default);
 
             var provider = new MemoryProvider(Features)
@@ -103,19 +104,11 @@ namespace DimensioneringV2.UI
 
             Mymap.Navigator.ZoomToBox(extent);
 
-            // Legend widget
-            _legendWidget = new LegendWidget()
-            {
-                Content = _themeManager.GetLegendContent(),
-                Enabled = IsLegendVisible
-            };
-            Mymap.Widgets.Enqueue(_legendWidget);
-            _mapControl.Renderer.WidgetRenders[typeof(LegendWidget)] = new LegendWidgetSkiaRenderer();
+            var legend = _widgetManager.Get<LegendWidget>();
+            legend.Content = _themeManager.GetLegendContent();
+            legend.Enabled = IsLegendVisible;
 
-            // Status widget
-            _statusWidget = new StatusWidget();
-            Mymap.Widgets.Enqueue(_statusWidget);
-            _mapControl.Renderer.WidgetRenders[typeof(StatusWidget)] = new StatusWidgetSkiaRenderer();
+            Mymap.RefreshData();
         }
 
         private void UpdateMap()
@@ -146,11 +139,10 @@ namespace DimensioneringV2.UI
 
             Mymap.Layers.Add(layer);
 
-            if (_legendWidget != null)
-            {
-                _legendWidget.Content = _themeManager.GetLegendContent();
-                Mymap.RefreshData();
-            }
+            var legend = _widgetManager.Get<LegendWidget>();
+            legend.Content = _themeManager.GetLegendContent();
+            legend.Enabled = IsLegendVisible;
+            Mymap.RefreshData();
         }
         #endregion
     }

@@ -45,34 +45,28 @@ namespace DimensioneringV2.UI
         #region Legend
         [ObservableProperty]
         private bool isLegendVisible;
-        private LegendWidget? _legendWidget;
-        private StatusWidget? _statusWidget;
 
         partial void OnIsLegendVisibleChanged(bool value)
         {
-            UpdateLegendVisibility();
-        }
-
-        private void UpdateLegendVisibility()
-        {
-            if (_legendWidget == null) return;
-            _legendWidget.Enabled = IsLegendVisible;
-            _mymap.RefreshData();
+            if (_widgetManager == null) return;
+            _widgetManager.Get<LegendWidget>().Enabled = value;
+            Mymap?.RefreshData();
         }
         #endregion
 
         #region Status widget helpers
         private void UpdateStatusWidget(string? instruction)
         {
-            if (_statusWidget == null) return;
+            if (_widgetManager == null) return;
+            var status = _widgetManager.Get<StatusWidget>();
             if (instruction == null)
             {
-                _statusWidget.Enabled = false;
+                status.Enabled = false;
             }
             else
             {
-                _statusWidget.Content = BuildStatusContent(instruction);
-                _statusWidget.Enabled = true;
+                status.Content = BuildStatusContent(instruction);
+                status.Enabled = true;
             }
             Mymap?.RefreshData();
         }

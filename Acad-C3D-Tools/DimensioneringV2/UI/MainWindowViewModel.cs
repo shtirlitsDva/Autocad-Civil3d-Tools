@@ -24,8 +24,16 @@ namespace DimensioneringV2.UI
         internal void SetMapControl(MapControl mapControl)
         {
             _mapControl = mapControl;
+            _widgetManager = new MapWidgetManager(Mymap, _mapControl);
+            _widgetManager.Register(
+                new Legend.LegendWidget { Enabled = false },
+                new Legend.LegendWidgetSkiaRenderer());
+            _widgetManager.Register(
+                new Legend.StatusWidget { Enabled = false },
+                new Legend.StatusWidgetSkiaRenderer());
         }
 
+        private MapWidgetManager _widgetManager;
         private ThemeManager _themeManager;
         private MapPropertyWrapper _prevSelectedProperty;
 
@@ -38,7 +46,7 @@ namespace DimensioneringV2.UI
             _selectedBaseMap = BaseMapOptions[0];
 
             _dataService = DataService.Instance;
-            _dataService.DataLoaded += OnDataLoadedFirstTime;
+            _dataService.DataLoaded += OnDataLoaded;
             _dataService.CalculationsFinishedEvent += OnCalculationsCompleted;
 
             BBRLayerService.Instance.BBRDataLoaded += OnBBRDataLoaded;
@@ -46,7 +54,7 @@ namespace DimensioneringV2.UI
             //HydraulicSettingsService.Instance.Settings.PropertyChanged += OnSettingsPropertyChanged;
         }
 
-        private void OnDataLoadedFirstTime(object sender, EventArgs e)
+        private void OnDataLoaded(object sender, EventArgs e)
         {
             Features = new(_dataService!.Features.SelectMany(x => x));
 

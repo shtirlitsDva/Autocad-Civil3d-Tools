@@ -172,17 +172,20 @@ namespace DimensioneringV2.UI
 
             foreach (var ograph in graphs)
             {
-                var graph = ograph.CopyToBF();
+                var graph = ograph.CopyToBFConditional(
+                    x => x.PipeSegment.Dim != NorsynHydraulicCalc.Pipes.Dim.NA);
 
                 foreach (var edge in graph.Edges)
                 {
                     switch (edge.SegmentType)
                     {
                         case SegmentType.Fordelingsledning:
-                            edge.ApplyResult(hc.CalculateDistributionSegment(edge));                            
+                            edge.ApplyResult(hc.CalculateDistributionSegment(edge));
+                            edge.PushAllResults();
                             break;
                         case SegmentType.Stikledning:
                             edge.ApplyResult(hc.CalculateClientSegment(edge));
+                            edge.PushAllResults();
                             break;
                     }
                 }
