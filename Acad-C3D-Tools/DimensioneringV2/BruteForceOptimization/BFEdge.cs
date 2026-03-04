@@ -203,6 +203,8 @@ namespace DimensioneringV2.BruteForceOptimization
             NumberOfBuildingsSupplied = OriginalEdge.PipeSegment.NumberOfBuildingsSupplied;
             NumberOfUnitsSupplied = OriginalEdge.PipeSegment.NumberOfUnitsSupplied;
             HeatingDemandSupplied = OriginalEdge.PipeSegment.HeatingDemandSupplied;
+            DimFlowSupply = OriginalEdge.PipeSegment.DimFlowSupply;
+            DimFlowReturn = OriginalEdge.PipeSegment.DimFlowReturn;
             Dim = OriginalEdge.PipeSegment.Dim;
             ReynoldsSupply = OriginalEdge.PipeSegment.ReynoldsSupply;
             ReynoldsReturn = OriginalEdge.PipeSegment.ReynoldsReturn;

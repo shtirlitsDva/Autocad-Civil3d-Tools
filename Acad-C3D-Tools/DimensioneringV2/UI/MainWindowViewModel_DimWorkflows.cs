@@ -173,10 +173,12 @@ namespace DimensioneringV2.UI
             foreach (var ograph in graphs)
             {
                 var graph = ograph.CopyToBFConditional(
-                    x => x.PipeSegment.Dim != NorsynHydraulicCalc.Pipes.Dim.NA);
+                    x => x.PipeSegment.NumberOfBuildingsSupplied > 0);
 
                 foreach (var edge in graph.Edges)
                 {
+                    edge.YankAllResults();
+
                     switch (edge.SegmentType)
                     {
                         case SegmentType.Fordelingsledning:
