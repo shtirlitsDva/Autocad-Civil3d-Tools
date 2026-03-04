@@ -6,6 +6,7 @@ using Mapsui.UI.Wpf;
 
 using System;
 using System.Windows.Input;
+using System.Windows.Interop;
 
 namespace DimensioneringV2.UI.ApplyDim
 {
@@ -27,28 +28,30 @@ namespace DimensioneringV2.UI.ApplyDim
 
             _mapControl.MouseLeave += OnMouseLeave;
             _mapControl.MouseLeftButtonUp += OnMouseLeftButtonUp;
-            _mapControl.PreviewKeyDown += OnPreviewKeyDown;
-
-            _mapControl.Focusable = true;
-            _mapControl.Focus();
+            // Hook into Win32 message loop to intercept ESC before AutoCAD steals it
+            ComponentDispatcher.ThreadFilterMessage += OnThreadFilterMessage;
         }
 
         public void Stop()
         {
             _mapControl.MouseLeave -= OnMouseLeave;
             _mapControl.MouseLeftButtonUp -= OnMouseLeftButtonUp;
-            _mapControl.PreviewKeyDown -= OnPreviewKeyDown;
+            ComponentDispatcher.ThreadFilterMessage -= OnThreadFilterMessage;
 
             _fsm = null;
             Stopped?.Invoke();
         }
 
-        private void OnPreviewKeyDown(object sender, KeyEventArgs e)
+        private const int WM_KEYDOWN = 0x0100;
+        private const int VK_ESCAPE = 0x1B;
+
+        private void OnThreadFilterMessage(ref MSG msg, ref bool handled)
         {
-            if (e.Key == Key.Escape)
-            {
-                _fsm?.Fire(FsmEvent.Esc);
-            }
+            if (msg.message != WM_KEYDOWN || (int)msg.wParam != VK_ESCAPE) return;
+            if (!_mapControl.IsMouseOver) return;
+
+            _fsm?.Fire(FsmEvent.Esc);
+            handled = true;
         }
 
         private void OnMouseLeave(object sender, MouseEventArgs e)

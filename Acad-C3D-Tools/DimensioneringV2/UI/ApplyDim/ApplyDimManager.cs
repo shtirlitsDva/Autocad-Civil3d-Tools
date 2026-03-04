@@ -18,12 +18,15 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Threading;
 
 using DimensioneringV2.StateMachine;
 
 namespace DimensioneringV2.UI.ApplyDim
 {
+    internal enum AngivDimPhase { PickFirst, PickSecond }
+
     internal class ApplyDimManager : IDisposable
     {
         private readonly MapControl _mapControl;
@@ -40,6 +43,7 @@ namespace DimensioneringV2.UI.ApplyDim
 
         public event Action<IEnumerable<AnalysisFeature>>? PathFinalized;
         public event Action? Stopped;
+        public event Action<AngivDimPhase>? PhaseChanged;
 
         public ApplyDimManager(
             MapControl mapControl,
@@ -72,10 +76,8 @@ namespace DimensioneringV2.UI.ApplyDim
             _mapControl.MouseMove += OnMouseMove;
             _mapControl.MouseLeave += OnMouseLeave;
             _mapControl.MouseLeftButtonUp += OnMouseLeftButtonUp;
-            _mapControl.PreviewKeyDown += OnPreviewKeyDown;
-            // Ensure we receive keyboard events (ESC)
-            _mapControl.Focusable = true;
-            _mapControl.Focus();
+            // Hook into Win32 message loop to intercept ESC before AutoCAD steals it
+            ComponentDispatcher.ThreadFilterMessage += OnThreadFilterMessage;
         }
 
         public void Stop()
@@ -87,7 +89,7 @@ namespace DimensioneringV2.UI.ApplyDim
             _mapControl.MouseMove -= OnMouseMove;
             _mapControl.MouseLeave -= OnMouseLeave;
             _mapControl.MouseLeftButtonUp -= OnMouseLeftButtonUp;
-            _mapControl.PreviewKeyDown -= OnPreviewKeyDown;
+            ComponentDispatcher.ThreadFilterMessage -= OnThreadFilterMessage;
 
             _overlay.RemoveLayer();
             _startFeature = null;
@@ -113,13 +115,19 @@ namespace DimensioneringV2.UI.ApplyDim
                 _overlay.SetFeatures([_startFeature]);
         }
 
-        private void OnPreviewKeyDown(object sender, KeyEventArgs e)
+        private const int WM_KEYDOWN = 0x0100;
+        private const int VK_ESCAPE = 0x1B;
+
+        private void OnThreadFilterMessage(ref MSG msg, ref bool handled)
         {
             if (!_isActive) return;
-            if (e.Key == Key.Escape)
-            {
-                _fsm?.Fire(FsmEvent.Esc);
-            }
+            if (msg.message != WM_KEYDOWN || (int)msg.wParam != VK_ESCAPE) return;
+            // Only intercept ESC when the mouse is over the map control
+            // so we don't steal ESC from other AutoCAD operations
+            if (!_mapControl.IsMouseOver) return;
+
+            _fsm?.Fire(FsmEvent.Esc);
+            handled = true;
         }
 
         private void OnMouseMove(object sender, MouseEventArgs e)
@@ -200,6 +208,7 @@ namespace DimensioneringV2.UI.ApplyDim
             {
                 var feature = ctx.Payload as AnalysisFeature; if (feature == null) return;
                 _startFeature = feature; _overlay.SetFeatures([feature]);
+                PhaseChanged?.Invoke(AngivDimPhase.PickSecond);
             });
 
             // PickFirst → Esc → Stop
@@ -235,7 +244,11 @@ namespace DimensioneringV2.UI.ApplyDim
             });
 
             // PickSecond → Esc (back)
-            fsm.Configure(FsmState.PickSecond, FsmEvent.Esc, FsmState.PickFirst, ctx => { _startFeature = null; _overlay.Clear(); });
+            fsm.Configure(FsmState.PickSecond, FsmEvent.Esc, FsmState.PickFirst, ctx =>
+            {
+                _startFeature = null; _overlay.Clear();
+                PhaseChanged?.Invoke(AngivDimPhase.PickFirst);
+            });
 
             // PickSecond → Leave
             fsm.Configure(FsmState.PickSecond, FsmEvent.Leave, FsmState.PickSecond, ctx =>
