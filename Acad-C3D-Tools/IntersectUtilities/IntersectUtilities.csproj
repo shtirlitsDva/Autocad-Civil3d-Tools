@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<TargetFramework>net8.0-windows10.0.26100.0</TargetFramework>
 		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
@@ -96,6 +96,7 @@
 		</Reference>
 		<Reference Include="AecArchMgd">
 		  <HintPath>C:\Program Files\Autodesk\AutoCAD 2025\ACA\AecArchMgd.dll</HintPath>
+		  <Private>False</Private>
 		</Reference>
 		<Reference Include="AecBaseMgd">
 		  <HintPath>C:\Program Files\Autodesk\AutoCAD 2025\ACA\AecBaseMgd.dll</HintPath>
@@ -160,7 +161,7 @@
 	</ItemGroup>
 	<ItemGroup>
 	  <EmbeddedResource Include="DataScience\MergeReportStyles.css" />
-	</ItemGroup>	
+	</ItemGroup>
 	<Import Project="..\UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems" Label="Shared" />
 	<Import Project="..\AutoCADCommandsSHARED\AutoCADCommandsSHARED.projitems" Label="Shared" />
 	<Import Project="..\FormsSHARED\FormsSHARED.projitems" Label="Shared" />

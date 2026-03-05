@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<TargetFramework>net8.0-windows10.0.26100.0</TargetFramework>
 		<ImplicitUsings>enable</ImplicitUsings>
@@ -49,6 +49,7 @@
 		</Reference>
 		<Reference Include="Acmgd">
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\acmgd.dll</HintPath>
+			<Private>False</Private>
 		</Reference>
 		<Reference Include="AcMPolygonMGD">
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AcMPolygonMGD.dll</HintPath>
@@ -56,9 +57,11 @@
 		</Reference>
 		<Reference Include="AdWindows">
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AdWindows.dll</HintPath>
+			<Private>False</Private>
 		</Reference>
 		<Reference Include="AecArchMgd">
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\ACA\AecArchMgd.dll</HintPath>
+			<Private>False</Private>
 		</Reference>
 		<Reference Include="AecBaseMgd">
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\ACA\AecBaseMgd.dll</HintPath>
@@ -115,9 +118,9 @@
 			<Link>Links\PipeScheduleV2\PipeScheduleV2.cs</Link>
 		</Compile>
 	</ItemGroup>
-	<ItemGroup>		
+	<ItemGroup>
 		<EmbeddedResource Include="TopologyModel\Data\spring_tables.csv" />
-	</ItemGroup>	
+	</ItemGroup>
 	<ItemGroup>
 		<Using Include="System.Collections.Generic" />
 	</ItemGroup>

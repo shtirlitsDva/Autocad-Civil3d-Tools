@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<TargetFramework>net8.0-windows</TargetFramework>
 		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
@@ -51,6 +51,7 @@
 		</Reference>
 		<Reference Include="AecArchMgd">
 		  <HintPath>C:\Program Files\Autodesk\AutoCAD 2025\ACA\AecArchMgd.dll</HintPath>
+		  <Private>False</Private>
 		</Reference>
 		<Reference Include="AecBaseMgd">
 		  <HintPath>C:\Program Files\Autodesk\AutoCAD 2025\ACA\AecBaseMgd.dll</HintPath>

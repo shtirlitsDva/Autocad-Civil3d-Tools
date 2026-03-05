@@ -29,12 +29,15 @@
 	<ItemGroup>
 		<Reference Include="accoremgd">
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\accoremgd.dll</HintPath>
+			<Private>False</Private>
 		</Reference>
 		<Reference Include="acdbmgd">
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\acdbmgd.dll</HintPath>
+			<Private>False</Private>
 		</Reference>
 		<Reference Include="AcMPolygonMGD">
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AcMPolygonMGD.dll</HintPath>
+			<Private>False</Private>
 		</Reference>
 	</ItemGroup>
 	<PropertyGroup>
