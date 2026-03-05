@@ -39,7 +39,18 @@ namespace NSLOAD
                         if (method.IsStatic)
                         {
                             var m = method;
-                            callback = () => m.Invoke(null, null);
+                            callback = () =>
+                            {
+                                try { m.Invoke(null, null); }
+                                catch (TargetInvocationException tie)
+                                {
+                                    ReportException(tie.InnerException ?? tie);
+                                }
+                                catch (Exception ex)
+                                {
+                                    ReportException(ex);
+                                }
+                            };
                         }
                         else
                         {
@@ -47,8 +58,19 @@ namespace NSLOAD
                             var m = method;
                             callback = () =>
                             {
-                                var instance = Activator.CreateInstance(t);
-                                m.Invoke(instance, null);
+                                try
+                                {
+                                    var instance = Activator.CreateInstance(t);
+                                    m.Invoke(instance, null);
+                                }
+                                catch (TargetInvocationException tie)
+                                {
+                                    ReportException(tie.InnerException ?? tie);
+                                }
+                                catch (Exception ex)
+                                {
+                                    ReportException(ex);
+                                }
                             };
                         }
 
@@ -57,6 +79,17 @@ namespace NSLOAD
                     }
                 }
             }
+        }
+
+        private static void ReportException(Exception ex)
+        {
+            try
+            {
+                var doc = Autodesk.AutoCAD.ApplicationServices.Application
+                    .DocumentManager.MdiActiveDocument;
+                doc?.Editor.WriteMessage("\n" + ex.ToString() + "\n");
+            }
+            catch { }
         }
 
         public void UnregisterAll()

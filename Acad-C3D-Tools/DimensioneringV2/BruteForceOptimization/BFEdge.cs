@@ -1,3 +1,4 @@
+using System;
 using DimensioneringV2.GraphFeatures;
 
 using NorsynHydraulicCalc;
@@ -8,6 +9,8 @@ using NorsynHydraulicShared;
 using QuikGraph;
 
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
+using System.Reflection;
 
 namespace DimensioneringV2.BruteForceOptimization
 {
@@ -18,6 +21,25 @@ namespace DimensioneringV2.BruteForceOptimization
     /// </summary>
     internal sealed class BFEdge : Edge<BFNode>, IHydraulicSegment
     {
+#if DEBUG
+        static BFEdge()
+        {
+            var syncProps = typeof(BFEdge).GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .Where(p => p.GetCustomAttribute<SyncPropertyAttribute>() != null)
+                .Select(p => p.Name)
+                .ToHashSet();
+            var afWritableProps = typeof(AnalysisFeature)
+                .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .Where(p => p.CanWrite)
+                .Select(p => p.Name)
+                .ToHashSet();
+            var missing = syncProps.Except(afWritableProps).ToList();
+            if (missing.Count > 0)
+                throw new InvalidOperationException(
+                    $"BFEdge [SyncProperty] properties missing from AnalysisFeature: {string.Join(", ", missing)}");
+        }
+#endif
+
         // Cached values from OriginalEdge.PipeSegment
         private readonly bool _isRootNode;
         private readonly double _length;
@@ -32,8 +54,8 @@ namespace DimensioneringV2.BruteForceOptimization
         public int Id { get; set; }
         public double Price { get => Dim.Price_m * Length + Dim.Price_stk(SegmentType); }
         public bool IsRootNode { get => _isRootNode; }
-        public bool IsBridge { get; set; }
-        public int SubGraphId { get; set; }
+        [SyncProperty] public bool IsBridge { get; set; }
+        [SyncProperty] public int SubGraphId { get; set; }
         public double Length { get => _length; }
         public int NumberOfBuildingsConnected { get => _numberOfBuildingsConnected; }
         public SegmentType SegmentType =>
@@ -42,29 +64,29 @@ namespace DimensioneringV2.BruteForceOptimization
             SegmentType.Fordelingsledning;
         public int NumberOfUnitsConnected { get => _numberOfUnitsConnected; }
         public double HeatingDemandConnected { get => _heatingDemandConnected; }
-        public int NumberOfBuildingsSupplied { get; set; }
-        public int NumberOfUnitsSupplied { get; set; }
-        public double HeatingDemandSupplied { get; set; }
-        public Dim Dim { get; set; }
+        [SyncProperty] public int NumberOfBuildingsSupplied { get; set; }
+        [SyncProperty] public int NumberOfUnitsSupplied { get; set; }
+        [SyncProperty] public double HeatingDemandSupplied { get; set; }
+        [SyncProperty] public Dim Dim { get; set; }
         public bool ManualDim { get => _manualDim; }
-        public double ReynoldsSupply { get; set; }
-        public double ReynoldsReturn { get; set; }
-        public double KarFlowHeatSupply { get; set; }
-        public double KarFlowBVSupply { get; set; }
-        public double KarFlowHeatReturn { get; set; }
-        public double KarFlowBVReturn { get; set; }
-        public double DimFlowSupply { get; set; }
-        public double DimFlowReturn { get; set; }
-        public double PressureGradientSupply { get; set; }
-        public double PressureGradientReturn { get; set; }
-        public double PressureLossAtClientSupply { get; set; } // Pressure loss at the client
-        public double PressureLossAtClientReturn { get; set; } // Pressure loss at the client
-        public double DifferentialPressureAtClient { get; set; }
-        public bool IsCriticalPath { get; set; } = false;
-        public double VelocitySupply { get; set; }
-        public double VelocityReturn { get; set; }
-        public double UtilizationRate { get; set; }
-        public double Effekt { get; set; }
+        [SyncProperty] public double ReynoldsSupply { get; set; }
+        [SyncProperty] public double ReynoldsReturn { get; set; }
+        [SyncProperty] public double KarFlowHeatSupply { get; set; }
+        [SyncProperty] public double KarFlowBVSupply { get; set; }
+        [SyncProperty] public double KarFlowHeatReturn { get; set; }
+        [SyncProperty] public double KarFlowBVReturn { get; set; }
+        [SyncProperty] public double DimFlowSupply { get; set; }
+        [SyncProperty] public double DimFlowReturn { get; set; }
+        [SyncProperty] public double PressureGradientSupply { get; set; }
+        [SyncProperty] public double PressureGradientReturn { get; set; }
+        [SyncProperty] public double PressureLossAtClientSupply { get; set; }
+        [SyncProperty] public double PressureLossAtClientReturn { get; set; }
+        [SyncProperty] public double DifferentialPressureAtClient { get; set; }
+        [SyncProperty] public bool IsCriticalPath { get; set; } = false;
+        [SyncProperty] public double VelocitySupply { get; set; }
+        [SyncProperty] public double VelocityReturn { get; set; }
+        [SyncProperty] public double UtilizationRate { get; set; }
+        [SyncProperty] public double Effekt { get; set; }
         public EdgePipeSegment OriginalEdge { get; }
         public int NonBridgeChromosomeIndex { get; internal set; } = -1;
         public double TempDeltaVarme => _tempDeltaVarme;
@@ -85,6 +107,12 @@ namespace DimensioneringV2.BruteForceOptimization
             _tempDeltaBV = edge.PipeSegment.TempDeltaBV;
             _anvKode = edge.PipeSegment.BygningsAnvendelseNyKode;
         }
+        // Sync checklist for new result properties:
+        // 1. Add [SyncProperty] attribute to the property declaration
+        // 2. Add to PushAllResults() and YankAllResults()
+        // 3. Add matching property to AnalysisFeature (plain bag style)
+        // 4. Add to AnalysisFeature.ResetHydraulicResults()
+        // 5. Copy in BOTH copy constructors below
         public BFEdge([NotNull] BFNode source, [NotNull] BFNode target, BFEdge edge) : base(source, target)
         {
             OriginalEdge = edge.OriginalEdge;
@@ -168,6 +196,10 @@ namespace DimensioneringV2.BruteForceOptimization
             OriginalEdge.PipeSegment.Dim = Dim;
             OriginalEdge.PipeSegment.ReynoldsSupply = ReynoldsSupply;
             OriginalEdge.PipeSegment.ReynoldsReturn = ReynoldsReturn;
+            OriginalEdge.PipeSegment.KarFlowHeatSupply = KarFlowHeatSupply;
+            OriginalEdge.PipeSegment.KarFlowBVSupply = KarFlowBVSupply;
+            OriginalEdge.PipeSegment.KarFlowHeatReturn = KarFlowHeatReturn;
+            OriginalEdge.PipeSegment.KarFlowBVReturn = KarFlowBVReturn;
             OriginalEdge.PipeSegment.DimFlowSupply = DimFlowSupply;
             OriginalEdge.PipeSegment.DimFlowReturn = DimFlowReturn;
             OriginalEdge.PipeSegment.PressureGradientSupply = PressureGradientSupply;
@@ -208,6 +240,10 @@ namespace DimensioneringV2.BruteForceOptimization
             Dim = OriginalEdge.PipeSegment.Dim;
             ReynoldsSupply = OriginalEdge.PipeSegment.ReynoldsSupply;
             ReynoldsReturn = OriginalEdge.PipeSegment.ReynoldsReturn;
+            KarFlowHeatSupply = OriginalEdge.PipeSegment.KarFlowHeatSupply;
+            KarFlowBVSupply = OriginalEdge.PipeSegment.KarFlowBVSupply;
+            KarFlowHeatReturn = OriginalEdge.PipeSegment.KarFlowHeatReturn;
+            KarFlowBVReturn = OriginalEdge.PipeSegment.KarFlowBVReturn;
             PressureGradientSupply = OriginalEdge.PipeSegment.PressureGradientSupply;
             PressureGradientReturn = OriginalEdge.PipeSegment.PressureGradientReturn;
             PressureLossAtClientSupply = OriginalEdge.PipeSegment.PressureLossAtClientSupply;

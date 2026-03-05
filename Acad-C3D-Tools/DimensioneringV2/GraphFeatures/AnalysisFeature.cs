@@ -164,7 +164,7 @@ namespace DimensioneringV2.GraphFeatures
         [DisplayCategory(DisplayCategoryEnum.Beregningsforudsætninger)]
         public int NumberOfBuildingsConnected
         {
-            get => (this["IsBuildingConnection"] as bool? ?? false) ? 1 : 0;
+            get => this["NumberOfBuildingsConnected"] as int? ?? 0;
         }
 
         /// <summary>
@@ -173,8 +173,7 @@ namespace DimensioneringV2.GraphFeatures
         [DisplayCategory(DisplayCategoryEnum.Beregningsforudsætninger)]
         public int NumberOfUnitsConnected
         {
-            get => this["AntalEnheder"] as int? ?? 0;
-            //set => this["NumberOfUnitsConnected"] = value;
+            get => this["NumberOfUnitsConnected"] as int? ?? 0;
         }
 
         /// <summary>
@@ -183,8 +182,7 @@ namespace DimensioneringV2.GraphFeatures
         [DisplayCategory(DisplayCategoryEnum.Beregningsforudsætninger)]
         public double HeatingDemandConnected
         {
-            get => this["EstimeretVarmeForbrug"] as double? ?? 0;
-            //set => this["HeatingDemandConnected"] = value;
+            get => this["HeatingDemandConnected"] as double? ?? 0;
         }
 
         /// <summary>
@@ -280,6 +278,34 @@ namespace DimensioneringV2.GraphFeatures
         {
             get => this["ReynoldsReturn"] as double? ?? 0;
             set => this["ReynoldsReturn"] = value;
+        }
+
+        [DisplayCategory(DisplayCategoryEnum.Hydraulik)]
+        public double KarFlowHeatSupply
+        {
+            get => this["KarFlowHeatSupply"] as double? ?? 0;
+            set => this["KarFlowHeatSupply"] = value;
+        }
+
+        [DisplayCategory(DisplayCategoryEnum.Hydraulik)]
+        public double KarFlowBVSupply
+        {
+            get => this["KarFlowBVSupply"] as double? ?? 0;
+            set => this["KarFlowBVSupply"] = value;
+        }
+
+        [DisplayCategory(DisplayCategoryEnum.Hydraulik)]
+        public double KarFlowHeatReturn
+        {
+            get => this["KarFlowHeatReturn"] as double? ?? 0;
+            set => this["KarFlowHeatReturn"] = value;
+        }
+
+        [DisplayCategory(DisplayCategoryEnum.Hydraulik)]
+        public double KarFlowBVReturn
+        {
+            get => this["KarFlowBVReturn"] as double? ?? 0;
+            set => this["KarFlowBVReturn"] = value;
         }
 
         /// <summary>
@@ -603,6 +629,10 @@ namespace DimensioneringV2.GraphFeatures
             PressureLossAtClientSupply = 0;
             PressureLossAtClientReturn = 0;
             DifferentialPressureAtClient = 0;
+            KarFlowHeatSupply = 0;
+            KarFlowBVSupply = 0;
+            KarFlowHeatReturn = 0;
+            KarFlowBVReturn = 0;
         }
         #region ICloneable Implementation
         public object Clone()
@@ -642,7 +672,7 @@ namespace DimensioneringV2.GraphFeatures
                 })
                 .Where(x => x.Order != int.MaxValue) // only show properties with a category
                 .OrderBy(x => x.Order)
-                .ThenBy(x => x.Prop.MetadataToken)
+                .ThenBy(x => x.Prop.Name)
                 .Select(x => new PropertyItem(
                     x.Prop.Name,
                     x.Prop.GetValue(this)?.ToString() ?? "null",
@@ -656,9 +686,60 @@ namespace DimensioneringV2.GraphFeatures
         #endregion
 
         #region Display properties
-        /// <summary>
-        /// The address of the feature.
-        /// </summary>
+        [DisplayCategory(DisplayCategoryEnum.Grunddata)]
+        public string id_lokalId => this["id_lokalId"] as string ?? string.Empty;
+
+        [DisplayCategory(DisplayCategoryEnum.Grunddata)]
+        public string Name => this["Name"] as string ?? string.Empty;
+
+        [DisplayCategory(DisplayCategoryEnum.Grunddata)]
+        public int Opførelsesår => this["Opførelsesår"] as int? ?? 0;
+
+        [DisplayCategory(DisplayCategoryEnum.Grunddata)]
+        public int BeregningsAreal => this["BeregningsAreal"] as int? ?? 0;
+
+        [DisplayCategory(DisplayCategoryEnum.Grunddata)]
+        public double KælderAreal => this["KælderAreal"] as double? ?? 0;
+
+        [DisplayCategory(DisplayCategoryEnum.Grunddata)]
+        public string VarmeType => this["VarmeType"] as string ?? string.Empty;
+
+        [DisplayCategory(DisplayCategoryEnum.Grunddata)]
+        public string VarmeInstallation => this["VarmeInstallation"] as string ?? string.Empty;
+
+        [DisplayCategory(DisplayCategoryEnum.Grunddata)]
+        public string OpvarmningsMiddel => this["OpvarmningsMiddel"] as string ?? string.Empty;
+
+        [DisplayCategory(DisplayCategoryEnum.Grunddata)]
+        public string InstallationOgBrændsel => this["InstallationOgBrændsel"] as string ?? string.Empty;
+
+        [DisplayCategory(DisplayCategoryEnum.Grunddata)]
+        public string Vejnavn => this["Vejnavn"] as string ?? string.Empty;
+
+        [DisplayCategory(DisplayCategoryEnum.Grunddata)]
+        public string Vejklasse => this["Vejklasse"] as string ?? string.Empty;
+
+        [DisplayCategory(DisplayCategoryEnum.Grunddata)]
+        public string Husnummer => this["Husnummer"] as string ?? string.Empty;
+
+        [DisplayCategory(DisplayCategoryEnum.Grunddata)]
+        public string Postnr => this["Postnr"] as string ?? string.Empty;
+
+        [DisplayCategory(DisplayCategoryEnum.Grunddata)]
+        public string By => this["By"] as string ?? string.Empty;
+
+        [DisplayCategory(DisplayCategoryEnum.Grunddata)]
+        public double SpecifikVarmeForbrug => this["SpecifikVarmeForbrug"] as double? ?? 0;
+
+        [DisplayCategory(DisplayCategoryEnum.Grunddata)]
+        public string VarmeDistrikt => this["VarmeDistrikt"] as string ?? string.Empty;
+
+        [DisplayCategory(DisplayCategoryEnum.Grunddata)]
+        public int AdresseDuplikatNr
+        {
+            get => this["AdresseDuplikatNr"] as int? ?? 0;
+        }
+
         [MapProperty(MapPropertyEnum.Address,
             Description = "Adresse",
             Theme = ThemeKind.Category,

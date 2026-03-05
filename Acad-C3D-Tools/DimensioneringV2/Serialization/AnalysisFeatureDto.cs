@@ -39,10 +39,10 @@ namespace DimensioneringV2.Serialization
                 .ToArray();
 
             Attributes = new Dictionary<string, JsonElement>();
-
             foreach (var field in analysisFeature.Fields)
             {
                 var value = analysisFeature[field];
+                if (IsDefault(value)) continue;
                 Attributes[field] = JsonSerializer.SerializeToElement(value);
             }
         }
@@ -56,5 +56,15 @@ namespace DimensioneringV2.Serialization
                 Attributes, typeof(AnalysisFeature), options);
             return new AnalysisFeature(geometry, geometry25832, typedAttributes);
         }
+
+        private static bool IsDefault(object? value) => value switch
+        {
+            null => true,
+            string s => s.Length == 0,
+            int i => i == 0,
+            double d => d == 0.0,
+            bool b => !b,
+            _ => false,
+        };
     }
 }

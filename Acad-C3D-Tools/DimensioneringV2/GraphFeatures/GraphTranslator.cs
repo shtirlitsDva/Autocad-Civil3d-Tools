@@ -169,12 +169,12 @@ namespace DimensioneringV2.GraphFeatures
                             { "Postnr", "" },
                             { "By", "" },
                             { "SpecifikVarmeForbrug", 0.0 },
-                            { "EstimeretVarmeForbrug", 0.0 },
-                            { "AntalEnheder", 0 },
+                            { "HeatingDemandConnected", 0.0 },
+                            { "NumberOfUnitsConnected", 0 },
                             { "VarmeDistrikt", "" },
                             { "TempDeltaVarme", 0.0 },
                             { "TempDeltaBV", 0.0 },
-                            { "IsBuildingConnection", false },
+                            { "NumberOfBuildingsConnected", 0 },
                             { "IsRootNode", false },
                         };
 
@@ -216,12 +216,12 @@ namespace DimensioneringV2.GraphFeatures
                             attributes["Postnr"] = bbr.Postnr;
                             attributes["By"] = bbr.By;
                             attributes["SpecifikVarmeForbrug"] = bbr.SpecifikVarmeForbrug;
-                            attributes["EstimeretVarmeForbrug"] = bbr.EstimeretVarmeForbrug;
-                            attributes["AntalEnheder"] = bbr.AntalEnheder;
+                            attributes["HeatingDemandConnected"] = bbr.EstimeretVarmeForbrug;
+                            attributes["NumberOfUnitsConnected"] = bbr.AntalEnheder;
                             attributes["VarmeDistrikt"] = bbr.DistriktetsNavn;
                             attributes["TempDeltaVarme"] = bbr.TempDeltaVarme;
                             attributes["TempDeltaBV"] = bbr.TempDeltaBV;
-                            attributes["IsBuildingConnection"] = true;
+                            attributes["NumberOfBuildingsConnected"] = 1;
                         }
 
                         if (originalNodes.Any(x => x.IsRoot))

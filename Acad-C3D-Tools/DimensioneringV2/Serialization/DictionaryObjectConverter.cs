@@ -1,27 +1,27 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Text;
 using System.Text.Json;
-using System.Threading.Tasks;
 
 namespace DimensioneringV2.Serialization
 {
     class DictionaryObjectConverter
     {
         public static Dictionary<string, object> ConvertAttributesToTyped(
-            Dictionary<string, JsonElement> attributes, Type modelType, JsonSerializerOptions? options = null)
+            Dictionary<string, JsonElement> attributes,
+            Type modelType,
+            JsonSerializerOptions? options = null)
         {
             var typedAttributes = new Dictionary<string, object>();
 
             var props = modelType
                 .GetProperties(BindingFlags.Public | BindingFlags.Instance)
                 .Where(p => p.CanWrite || p.GetSetMethod(true) != null || p.CanRead)
-                .Where(p => p.GetIndexParameters().Length == 0); // skip indexers!;
+                .Where(p => p.GetIndexParameters().Length == 0);
 
-            IEnumerable<IGrouping<string, PropertyInfo>> dups = props                
+            IEnumerable<IGrouping<string, PropertyInfo>> dups = props
                 .GroupBy(a => a.Name)
                 .Where(g => g.Count() > 1)
                 .Select(g => g);
@@ -30,7 +30,7 @@ namespace DimensioneringV2.Serialization
                 throw new InvalidDataException($"Duplicate attribute(s): " +
                     $"{string.Join(", ", dups.Select(x => x.Key))}");
 
-            var propertyTypes = props  // read-only props also useful for matching                
+            var propertyTypes = props
                 .ToDictionary(p => p.Name, p => p.PropertyType, StringComparer.OrdinalIgnoreCase);
 
             foreach (var (key, jsonElement) in attributes)
@@ -40,34 +40,35 @@ namespace DimensioneringV2.Serialization
                     try
                     {
                         var deserialized = jsonElement.Deserialize(propertyType, options);
-                        if (deserialized != null)
+                        if (deserialized != null && !IsDefault(deserialized))
                             typedAttributes[key] = deserialized;
                         continue;
                     }
-                    catch
+                    catch (Exception ex)
                     {
-                        // Fall back to default if deserialization fails
+                        throw new InvalidOperationException(
+                            $"Failed to deserialize '{key}' as {propertyType.Name}. " +
+                            $"JSON: '{jsonElement.GetRawText()}'.", ex);
                     }
                 }
 
-                // Fallback for unknown fields
-                typedAttributes[key] = FallbackConvert(jsonElement);
+                throw new InvalidOperationException(
+                    $"Unknown attribute '{key}' (value: '{jsonElement.GetRawText()}') " +
+                    $"has no matching property on {modelType.Name}. " +
+                    $"Add a property to {modelType.Name} for this key.");
             }
 
             return typedAttributes;
         }
-        private static object FallbackConvert(JsonElement element)
+
+        private static bool IsDefault(object? value) => value switch
         {
-            return element.ValueKind switch
-            {
-                JsonValueKind.String => element.GetString()!,
-                JsonValueKind.Number => element.TryGetInt64(out var i) ? i :
-                                        element.TryGetDouble(out var d) ? d : element.GetRawText(),
-                JsonValueKind.True => true,
-                JsonValueKind.False => false,
-                JsonValueKind.Null => null!,
-                _ => element.GetRawText()
-            };
-        }
+            null => true,
+            string s => s.Length == 0,
+            int i => i == 0,
+            double d => d == 0.0,
+            bool b => !b,
+            _ => false,
+        };
     }
 }
