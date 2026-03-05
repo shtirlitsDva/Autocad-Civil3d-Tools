@@ -274,7 +274,8 @@ namespace IntersectUtilities
             DocumentCollection docCol = Application.DocumentManager;
             Database db = docCol.MdiActiveDocument.Database;
 
-            DataReferencesOptions dro = new DataReferencesOptions();
+            var dro = DataReferencesOptions.Create();
+            if (dro == null) return;
             var dm = new DataManager(dro);
 
             using Database xRefSurfaceDB = dm.Surface();
@@ -325,7 +326,8 @@ namespace IntersectUtilities
             using (Transaction tx = db.TransactionManager.StartTransaction())
             {
                 if (dro == null)
-                    dro = new DataReferencesOptions();
+                    dro = DataReferencesOptions.Create();
+                if (dro == null) return;
 
                 string projectName = dro.ProjectName;
                 string etapeName = dro.EtapeName;
@@ -548,7 +550,8 @@ namespace IntersectUtilities
         [CommandMethod("CREATELERDATAPSS")]
         public void createlerdatapss()
         {
-            DataReferencesOptions dro = new DataReferencesOptions();
+            var dro = DataReferencesOptions.Create();
+            if (dro == null) return;
             DataManager dm = new(dro);
             using var surfaceDb = dm.Surface();
             using Transaction surfaceTx = surfaceDb.TransactionManager.StartTransaction();
@@ -1265,7 +1268,8 @@ namespace IntersectUtilities
         [CommandMethod("POPULATEPROFILES")]
         public void populateprofiles()
         {
-            DataReferencesOptions dro = new DataReferencesOptions();
+            var dro = DataReferencesOptions.Create();
+            if (dro == null) return;
             populateprofilesmethod(dro);
         }
 
@@ -1554,7 +1558,8 @@ namespace IntersectUtilities
             {
                 #region Open fremtidig db and get entities
                 if (dro == null)
-                    dro = new DataReferencesOptions();
+                    dro = DataReferencesOptions.Create();
+                if (dro == null) return;
 
                 var dm = new DataManager(dro);
 
@@ -1996,7 +2001,8 @@ namespace IntersectUtilities
                 .CivilApplication
                 .ActiveDocument;
 
-            DataReferencesOptions dro = dataReferencesOptions ?? new DataReferencesOptions();
+            var dro = dataReferencesOptions ?? DataReferencesOptions.Create();
+            if (dro == null) return;
             var dm = new DataManager(dro);
 
             var fjvComponents = Csv.FjvDynamicComponents;
@@ -2614,7 +2620,8 @@ namespace IntersectUtilities
             using (Transaction tx = dB.TransactionManager.StartTransaction())
             {
                 #region Open fremtidig db
-                DataReferencesOptions dro = dataReferencesOptions ?? new DataReferencesOptions();
+                var dro = dataReferencesOptions ?? DataReferencesOptions.Create();
+                if (dro == null) return;
                 var dm = new DataManager(dro);
 
                 // open the xref database
@@ -3821,9 +3828,8 @@ namespace IntersectUtilities
                 #endregion
 
                 #region Open fremtidig db
-                DataReferencesOptions dro = dataReferencesOptions;
-                if (dro == null)
-                    dro = new DataReferencesOptions();
+                var dro = dataReferencesOptions ?? DataReferencesOptions.Create();
+                if (dro == null) return;
                 var dm = new DataManager(dro);
 
                 //open the xref database
@@ -4313,7 +4319,8 @@ namespace IntersectUtilities
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
-                DataReferencesOptions dro = new DataReferencesOptions();
+                var dro = DataReferencesOptions.Create();
+                if (dro == null) return;
 
                 HashSet<Profile> pvs = localDb.HashSetOfType<Profile>(tx);
                 foreach (Profile profile in pvs.OrderBy(x => x.Name))
@@ -5295,7 +5302,8 @@ namespace IntersectUtilities
                 PSetDefs.DriSourceReference driSourceReference = new PSetDefs.DriSourceReference();
                 #region Open fremtidig db
 
-                DataReferencesOptions dro = new DataReferencesOptions();
+                var dro = DataReferencesOptions.Create();
+                if (dro == null) return;
                 var dm = new DataManager(dro);
                 //open the xref database
                 using Database fremDb = dm.Fremtid();
@@ -6155,7 +6163,8 @@ namespace IntersectUtilities
 
             #region Open fremtidig db
             if (dro == null)
-                dro = new DataReferencesOptions();
+                dro = DataReferencesOptions.Create();
+            if (dro == null) return;
             var dm = new DataManager(dro);
 
             // open the xref database
@@ -6603,7 +6612,8 @@ namespace IntersectUtilities
         [CommandMethod("UPDATESINGLEPROFILEVIEW")]
         public void updatesingleprofileview()
         {
-            var dro = new DataReferencesOptions();
+            var dro = DataReferencesOptions.Create();
+            if (dro == null) return;
             DataManager dm = new DataManager(dro);
             using var surfaceDb = dm.Surface();
             using var stx = surfaceDb.TransactionManager.StartTransaction();
@@ -6647,7 +6657,8 @@ namespace IntersectUtilities
 
             if (dro == null)
             {
-                dro = new DataReferencesOptions();
+                dro = DataReferencesOptions.Create();
+                if (dro == null) return;
                 if (dro.ProjectName.IsNoE() || dro.EtapeName.IsNoE())
                     return;
             }
@@ -6874,7 +6885,8 @@ namespace IntersectUtilities
             Database localDb = docCol.MdiActiveDocument.Database;
             Editor editor = docCol.MdiActiveDocument.Editor;
 
-            DataReferencesOptions dro = new DataReferencesOptions();
+            var dro = DataReferencesOptions.Create();
+            if (dro == null) return;
             if (dro.ProjectName.IsNoE() || dro.EtapeName.IsNoE())
                 return;
 
@@ -6927,7 +6939,8 @@ namespace IntersectUtilities
             Database localDb = docCol.MdiActiveDocument.Database;
 
             #region Open fremtidig db and get entities
-            var dro = new DataReferencesOptions();
+            var dro = DataReferencesOptions.Create();
+            if (dro == null) return;
             var dm = new DataManager(dro);
 
             // open the xref database
@@ -7264,7 +7277,9 @@ namespace IntersectUtilities
                 return;
             #endregion
 
-            var dm = new DataManager(new DataReferencesOptions());
+            var dro = DataReferencesOptions.Create();
+            if (dro == null) return;
+            var dm = new DataManager(dro);
             using Database fjvDb = dm.Fremtid();
             using Database alDb = dm.Alignments();
             HashSet<Database> længdeprofilerdbs = dm.Længdeprofiler().ToHashSet();
@@ -7318,7 +7333,9 @@ namespace IntersectUtilities
             Database localDb = docCol.MdiActiveDocument.Database;
             CivilDocument cdoc = CivilDocument.GetCivilDocument(localDb);
 
-            var dm = new DataManager(new DataReferencesOptions());
+            var dro = DataReferencesOptions.Create();
+            if (dro == null) return;
+            var dm = new DataManager(dro);
             using Database fjvDb = dm.Fremtid();
             using Database alDb = dm.Alignments();
             HashSet<Database> længdeprofilerdbs = dm.Længdeprofiler().ToHashSet();

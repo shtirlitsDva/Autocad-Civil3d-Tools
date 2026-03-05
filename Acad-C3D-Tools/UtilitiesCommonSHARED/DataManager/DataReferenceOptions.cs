@@ -25,7 +25,7 @@ namespace IntersectUtilities.UtilsCommon.DataManager
             Editor editor = docCol.MdiActiveDocument.Editor;
 
             var sgf = StringGridFormCaller.Call(Projects(), "VÆLG PROJEKT");
-            if (sgf == null) throw new Exception("Cancelled!");
+            if (sgf == null) throw new OperationCanceledException();
             _projectId = sgf;
             return sgf;
         }
@@ -35,11 +35,16 @@ namespace IntersectUtilities.UtilsCommon.DataManager
             Editor editor = docCol.MdiActiveDocument.Editor;
 
             var sgf = StringGridFormCaller.Call(PhasesForProject(_projectId), "VÆLG ETAPE");
-            if (sgf == null) throw new Exception("Cancelled!");
+            if (sgf == null) throw new OperationCanceledException();
             _etapeId = sgf;
             return sgf;
         }
-        public DataReferencesOptions(bool useAuto = true)
+        public static DataReferencesOptions? Create(bool useAuto = true)
+        {
+            try { return new DataReferencesOptions(useAuto); }
+            catch (OperationCanceledException) { return null; }
+        }
+        private DataReferencesOptions(bool useAuto = true)
         {
             if (useAuto)
             {
@@ -59,7 +64,7 @@ namespace IntersectUtilities.UtilsCommon.DataManager
                         var dict = results.ToDictionary(x => $"{x.ProjectId}:{x.EtapeId}", x => x);
                         var choice = StringGridFormCaller.Call(dict.Keys.Order(), "Matched projects, choose one:");
                         if (choice == null)
-                            throw new Exception("No project/etape selected!");
+                            throw new OperationCanceledException();
 
                         var pe = dict[choice];
                         _projectId = pe.ProjectId;

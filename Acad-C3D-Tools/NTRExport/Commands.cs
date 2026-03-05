@@ -54,7 +54,9 @@ namespace NTRExport
             DocumentCollection docCol = AcApp.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
 
-            DataManager dm = new(new DataReferencesOptions());
+            var dro = DataReferencesOptions.Create();
+            if (dro == null) return;
+            DataManager dm = new(dro);
 
             using var fDb = dm.Fremtid();
             using var fTx = fDb.TransactionManager.StartTransaction();

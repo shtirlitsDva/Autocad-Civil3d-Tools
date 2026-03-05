@@ -141,7 +141,8 @@ namespace IntersectUtilities.NSTBL
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
 
-            DataReferencesOptions dro = new DataReferencesOptions();
+            var dro = DataReferencesOptions.Create();
+            if (dro == null) return null;
             DataManager dm = new DataManager(dro);
 
             using Database fremDb = dm.Fremtid();            

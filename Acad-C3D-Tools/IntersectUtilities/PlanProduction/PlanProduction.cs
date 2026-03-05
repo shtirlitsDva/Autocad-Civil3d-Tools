@@ -74,7 +74,8 @@ namespace IntersectUtilities
         [CommandMethod("FINALIZESHEETSAUTO")]
         public void finalizesheetsauto()
         {
-            DataReferencesOptions dro = new DataReferencesOptions();
+            var dro = DataReferencesOptions.Create();
+            if (dro == null) return;
             if (!finalizesheetscore(dro)) return;
             prdDbg("FINISHED!");
         }

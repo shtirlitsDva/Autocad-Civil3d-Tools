@@ -42,14 +42,7 @@ namespace NSLOAD
                             callback = () =>
                             {
                                 try { m.Invoke(null, null); }
-                                catch (TargetInvocationException tie)
-                                {
-                                    ReportException(tie.InnerException ?? tie);
-                                }
-                                catch (Exception ex)
-                                {
-                                    ReportException(ex);
-                                }
+                                catch (System.Exception ex) { ReportException(ex); }
                             };
                         }
                         else
@@ -63,14 +56,7 @@ namespace NSLOAD
                                     var instance = Activator.CreateInstance(t);
                                     m.Invoke(instance, null);
                                 }
-                                catch (TargetInvocationException tie)
-                                {
-                                    ReportException(tie.InnerException ?? tie);
-                                }
-                                catch (Exception ex)
-                                {
-                                    ReportException(ex);
-                                }
+                                catch (System.Exception ex) { ReportException(ex); }
                             };
                         }
 
@@ -81,13 +67,14 @@ namespace NSLOAD
             }
         }
 
-        private static void ReportException(Exception ex)
+        private static void ReportException(System.Exception ex)
         {
+            var inner = ex is TargetInvocationException tie ? tie.InnerException ?? ex : ex;
             try
             {
                 var doc = Autodesk.AutoCAD.ApplicationServices.Application
                     .DocumentManager.MdiActiveDocument;
-                doc?.Editor.WriteMessage("\n" + ex.ToString() + "\n");
+                doc?.Editor.WriteMessage("\n" + inner.ToString() + "\n");
             }
             catch { }
         }

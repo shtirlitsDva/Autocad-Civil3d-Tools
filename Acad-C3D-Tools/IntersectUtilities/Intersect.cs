@@ -3677,7 +3677,8 @@ namespace IntersectUtilities
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
 
-            var dro = new DataReferencesOptions();
+            var dro = DataReferencesOptions.Create();
+            if (dro == null) return;
 
             var result = StringGridFormCaller.Call(
                 ["Fremtid", "Alignments", "Surface", "Ler", "Længdeprofiler"], "What DWG to open?");

@@ -163,7 +163,8 @@ namespace IntersectUtilities
                                 tblSet.Controls.Add(droBtn, 1, tblSet.RowCount - 1);
                                 droBtn.Click += (sender3, args3) =>
                                 {
-                                    DataReferencesOptions dro = new DataReferencesOptions();
+                                    var dro = DataReferencesOptions.Create();
+                                    if (dro == null) return;
                                     _argsDict[method.Name][parameter.Name] = dro;
                                 };
                             }

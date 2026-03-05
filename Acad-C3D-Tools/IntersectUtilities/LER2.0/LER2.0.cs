@@ -157,7 +157,8 @@ namespace IntersectUtilities
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
-                DataReferencesOptions dro = new DataReferencesOptions();
+                var dro = DataReferencesOptions.Create();
+                if (dro == null) return;
                 var dm = new DataManager(dro);
 
                 #region Read surface from file

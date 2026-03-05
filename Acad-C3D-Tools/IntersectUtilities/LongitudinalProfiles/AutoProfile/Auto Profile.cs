@@ -110,7 +110,9 @@ namespace IntersectUtilities
             PropertySetManager.UpdatePropertySetDefinition(localDb, dcd.SetName);
 
             #region DataManager and FJVDATA
-            var dm = new DataManager(new DataReferencesOptions());            
+            var dro = DataReferencesOptions.Create();
+            if (dro == null) return;
+            var dm = new DataManager(dro);
             using Database fjvDb = dm.Fremtid();
             using Transaction fjvTx = fjvDb.TransactionManager.StartTransaction();
             PropertySetHelper pshFjv = new(fjvDb);
@@ -650,7 +652,9 @@ namespace IntersectUtilities
         [CommandMethod("APDATAEXPORT")]
         public void apdataexport()
         {
-            var dm = new DataManager(new DataReferencesOptions());
+            var dro = DataReferencesOptions.Create();
+            if (dro == null) return;
+            var dm = new DataManager(dro);
 
             Directory.CreateDirectory(apDataExportPath);
 

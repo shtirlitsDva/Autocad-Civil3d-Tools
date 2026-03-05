@@ -71,7 +71,8 @@ namespace IntersectUtilities
             PromptResult pKeyRes = editor.GetKeywords(pKeyOpts);
             bool overwrite = pKeyRes.StringResult == kwd1;
 
-            DataReferencesOptions dro = new DataReferencesOptions();
+            var dro = DataReferencesOptions.Create();
+            if (dro == null) return;
             string projectName = dro.ProjectName;
             string etapeName = dro.EtapeName;
 
@@ -994,7 +995,8 @@ namespace IntersectUtilities
                 tx.Commit();
             }
 
-            DataReferencesOptions dro = new DataReferencesOptions();
+            var dro = DataReferencesOptions.Create();
+            if (dro == null) return;
             var dm = new DataManager(dro);
 
             // open the LER dwg database

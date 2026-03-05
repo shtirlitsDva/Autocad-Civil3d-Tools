@@ -1,4 +1,4 @@
-﻿using Autodesk.AutoCAD.ApplicationServices;
+using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Runtime;
 
@@ -24,8 +24,8 @@ namespace IntersectUtilities
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
 
-            DataReferencesOptions dro = new();
-            if (dro.ProjectName.IsNoE() || dro.EtapeName.IsNoE()) return;
+            var dro = DataReferencesOptions.Create();            
+            if (dro == null || dro.ProjectName.IsNoE() || dro.EtapeName.IsNoE()) return;
 
             var dm = new DataManager(dro);
             using Database fjvDb = dm.Fremtid();
