@@ -161,8 +161,6 @@ namespace LERImporter
                             catch (System.Exception ex)
                             {
                                 Log.log(ex.ToString());
-                                ler3dTx.Abort();
-                                ler3dDb.Dispose();
                                 throw;
                             }
 
@@ -193,8 +191,6 @@ namespace LERImporter
                         catch (System.Exception ex)
                         {
                             Log.log(ex.ToString());
-                            ler2dTx.Abort();
-                            ler2dDb.Dispose();
                             throw;
                         }
 

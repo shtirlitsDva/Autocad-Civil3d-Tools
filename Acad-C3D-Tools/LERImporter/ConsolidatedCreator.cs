@@ -539,42 +539,43 @@ namespace LERImporter
 
                 if (missingLineTypes.Count > 0)
                 {
-                    Database ltDb = new Database(false, true);
-                    ltDb.ReadDwgFile("X:\\AutoCAD DRI - 01 Civil 3D\\Projection_styles.dwg",
-                        FileOpenMode.OpenForReadAndAllShare, false, null);
-                    Transaction ltTx = ltDb.TransactionManager.StartTransaction();
-
-                    Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(Db2d);
-
-                    LinetypeTable sourceLtt = (LinetypeTable)ltDb.TransactionManager.TopTransaction
-                        .GetObject(ltDb.LinetypeTableId, OpenMode.ForRead);
-                    ObjectIdCollection idsToClone = new ObjectIdCollection();
-
-                    HashSet<string> errorneousLineTypes = new HashSet<string>();
-                    foreach (string missingName in missingLineTypes)
+                    using (Database ltDb = new Database(false, true))
                     {
-                        if (!sourceLtt.Has(missingName))
+                        ltDb.ReadDwgFile("X:\\AutoCAD DRI - 01 Civil 3D\\Projection_styles.dwg",
+                            FileOpenMode.OpenForReadAndAllShare, false, null);
+                        using (Transaction ltTx = ltDb.TransactionManager.StartTransaction())
                         {
-                            Log.log($"ERROR! Could not find missing linetype {missingName} in Projection_styles.dwg!");
-                            errorneousLineTypes.Add(missingName);
-                            continue;
+                            Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(Db2d);
+
+                            LinetypeTable sourceLtt = (LinetypeTable)ltTx
+                                .GetObject(ltDb.LinetypeTableId, OpenMode.ForRead);
+                            ObjectIdCollection idsToClone = new ObjectIdCollection();
+
+                            HashSet<string> errorneousLineTypes = new HashSet<string>();
+                            foreach (string missingName in missingLineTypes)
+                            {
+                                if (!sourceLtt.Has(missingName))
+                                {
+                                    Log.log($"ERROR! Could not find missing linetype {missingName} in Projection_styles.dwg!");
+                                    errorneousLineTypes.Add(missingName);
+                                    continue;
+                                }
+                                idsToClone.Add(sourceLtt[missingName]);
+                            }
+
+                            if (errorneousLineTypes.Count > 0)
+                            {
+                                StringBuilder sb = new StringBuilder();
+                                sb.AppendLine("The following linetypes could not be found in Projection_styles.dwg:");
+                                foreach (var item in errorneousLineTypes) sb.AppendLine(item);
+                                throw new System.Exception(sb.ToString());
+                            }
+
+                            IdMapping mapping = new IdMapping();
+                            ltDb.WblockCloneObjects(idsToClone, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
+                            ltTx.Commit();
                         }
-                        idsToClone.Add(sourceLtt[missingName]);
                     }
-
-                    if (errorneousLineTypes.Count > 0)
-                    {
-                        StringBuilder sb = new StringBuilder();
-                        sb.AppendLine("The following linetypes could not be found in Projection_styles.dwg:");
-                        foreach (var item in errorneousLineTypes) sb.AppendLine(item);
-                        throw new System.Exception(sb.ToString());
-                    }
-
-                    IdMapping mapping = new IdMapping();
-                    ltDb.WblockCloneObjects(idsToClone, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
-                    ltTx.Commit();
-                    ltTx.Dispose();
-                    ltDb.Dispose();
                 }
 
                 Oid lineTypeId;
