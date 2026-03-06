@@ -73,10 +73,16 @@ namespace SheetCreationAutomation.Procedures.Common
         }
 
         protected async Task<WaitResult> WaitForDialogClosedAsync(IntPtr mainHwnd, string title, CancellationToken cancellationToken)
+            => await WaitForDialogClosedAsync(mainHwnd, WizardDialog(title), cancellationToken);
+
+        protected async Task<WaitResult> WaitForDialogClosedAsync(
+            IntPtr mainHwnd,
+            DialogSearchOptions options,
+            CancellationToken cancellationToken)
         {
-            return await Waiter.WaitUntilAsync($"Dialog '{title}' to close", () =>
+            return await Waiter.WaitUntilAsync($"Dialog '{options.ExpectedTitle}' to close", () =>
             {
-                IntPtr dialog = FindDialog(mainHwnd, WizardDialog(title));
+                IntPtr dialog = FindDialog(mainHwnd, options);
                 return dialog == IntPtr.Zero;
             }, cancellationToken, continueOnCapturedContext: false);
         }
@@ -142,6 +148,25 @@ namespace SheetCreationAutomation.Procedures.Common
             string caption = Win32WindowTools.GetWindowTextRaw(button);
             Trace($"POST_CLICK: {classNN} '{caption}' on 0x{dialog.ToInt64():X}");
             Win32WindowTools.PostClick(button);
+        }
+
+        protected void ClickControlCenterByTitle(IntPtr dialog, string title)
+        {
+            IntPtr control = Win32WindowTools.FindDescendantByTitle(dialog, title);
+            if (control == IntPtr.Zero)
+            {
+                throw new InvalidOperationException($"Control not found by title. title='{title}'");
+            }
+
+            WindowMetadata meta = Win32WindowTools.GetMetadata(control);
+            if (!meta.IsEnabled)
+            {
+                throw new InvalidOperationException(
+                    $"Control is disabled. title='{title}'");
+            }
+
+            Trace($"CLICK_CENTER_TITLE: '{title}' on 0x{dialog.ToInt64():X}");
+            Win32WindowTools.ClickCenterClient(control);
         }
 
         protected void ClickButtonByTitle(IntPtr dialog, string buttonTitle)

@@ -84,14 +84,14 @@ namespace SheetCreationAutomation.Procedures.Sheets
                 if (cancellationToken.IsCancellationRequested) return WaitResult.Cancelled;
                 ClickButtonByClassNN(profileDialog, "Button36");
                 ClickButtonByClassNN(profileDialog, "Button31");
-                ClickButtonByClassNN(profileDialog, "Button33");
+                PostClickButtonByClassNN(profileDialog, "Button33");
 
                 var profileHeightDialogResult = await WaitForDialogAsync(
                     mainHwnd, "Create Multiple Profile Views - Profile View Height", cancellationToken);
                 if (profileHeightDialogResult.IsCancelled) return WaitResult.Cancelled;
                 IntPtr profileHeightDialog = profileHeightDialogResult.Value;
                 if (cancellationToken.IsCancellationRequested) return WaitResult.Cancelled;
-                ClickButtonByClassNN(profileHeightDialog, "Button8");
+                ClickControlCenterByTitle(profileHeightDialog, "Multiple Plot Options");
 
                 var multiplePlotDialogResult = await WaitForDialogAsync(
                     mainHwnd, "Create Multiple Profile Views - Multiple Plot Options", cancellationToken);
@@ -100,9 +100,13 @@ namespace SheetCreationAutomation.Procedures.Sheets
                 progress.Report("Wizard: Multiple Plot Options");
 
                 if (cancellationToken.IsCancellationRequested) return WaitResult.Cancelled;
+                Thread.Sleep(3000);
                 SetTextByClassNN(multiplePlotDialog, "Edit1", "50");
+                Thread.Sleep(2000);
                 SetTextByClassNN(multiplePlotDialog, "Edit2", "100");
+                Thread.Sleep(2000);
                 SetTextByClassNN(multiplePlotDialog, "Edit3", "100");
+                Thread.Sleep(3000);
                 ClickButtonByClassNN(multiplePlotDialog, "Button55");
                 if ((await WaitForDialogClosedAsync(
                     mainHwnd, "Create Multiple Profile Views - Multiple Plot Options", cancellationToken)).IsCancelled) return WaitResult.Cancelled;
