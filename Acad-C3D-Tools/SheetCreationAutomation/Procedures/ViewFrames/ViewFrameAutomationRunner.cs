@@ -52,7 +52,12 @@ namespace SheetCreationAutomation.Procedures.ViewFrames
                     Document doc = AcApp.DocumentManager.Open(drawingPath, forReadOnly: false);
                     RequestDocumentActivation(doc);
                     WaitResult waitResult = await WaitForDocumentActiveAsync(doc, cancellationToken);
-                    if (waitResult.IsCancelled) { cancelled = true; break; }
+                    if (!waitResult.IsCompleted)
+                    {
+                        if (waitResult.IsCancelled) cancelled = true;
+                        else hardFailureMessage = waitResult.Message;
+                        break;
+                    }
 
                     activeStep = "Pre-check view frame count";
                     activeStepStopwatch.Restart();
@@ -88,11 +93,22 @@ namespace SheetCreationAutomation.Procedures.ViewFrames
                         progress,
                         cancellationToken);
                     activeStepStopwatch.Stop();
-                    if (wizardResult.IsCancelled) { cancelled = true; break; }
+                    if (!wizardResult.IsCompleted)
+                    {
+                        if (wizardResult.IsCancelled) cancelled = true;
+                        else hardFailureMessage = wizardResult.Message;
+                        break;
+                    }
 
                     activeStep = "Wait for command idle";
                     activeStepStopwatch.Restart();
-                    if ((await WaitForIdleAsync(cancellationToken)).IsCancelled) { cancelled = true; break; }
+                    WaitResult idleResult = await WaitForIdleAsync(cancellationToken);
+                    if (!idleResult.IsCompleted)
+                    {
+                        if (idleResult.IsCancelled) cancelled = true;
+                        else hardFailureMessage = idleResult.Message;
+                        break;
+                    }
                     activeStepStopwatch.Stop();
 
                     activeStep = "Post-check view frame count";

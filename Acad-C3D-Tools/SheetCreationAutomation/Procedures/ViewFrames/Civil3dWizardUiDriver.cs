@@ -31,14 +31,14 @@ namespace SheetCreationAutomation.Procedures.ViewFrames
             IntPtr mainHwnd = Application.MainWindow.Handle;
 
             var alignmentDialogResult = await WaitForDialogAsync(mainHwnd, "Create View Frames - Alignment", cancellationToken);
-            if (alignmentDialogResult.IsCancelled) return WaitResult.Cancelled;
+            if (!alignmentDialogResult.IsCompleted) return alignmentDialogResult.Discard();
             IntPtr alignmentDialog = alignmentDialogResult.Value;
             progress.Report("Wizard: Alignment -> Next");
             if (cancellationToken.IsCancellationRequested) return WaitResult.Cancelled;
             ClickButtonByClassNN(alignmentDialog, "Button2");
 
             var sheetsDialogResult = await WaitForDialogAsync(mainHwnd, "Create View Frames - Sheets", cancellationToken);
-            if (sheetsDialogResult.IsCancelled) return WaitResult.Cancelled;
+            if (!sheetsDialogResult.IsCompleted) return sheetsDialogResult.Discard();
             IntPtr sheetsDialog = sheetsDialogResult.Value;
             progress.Report("Wizard: Sheets");
 
@@ -53,28 +53,30 @@ namespace SheetCreationAutomation.Procedures.ViewFrames
                 ClickButtonByClassNN(sheetsDialog, "Button17");
                 var selectLayoutDialogResult = await WaitForDialogAsync(
                     mainHwnd, "Select Layout as Sheet Template", cancellationToken);
-                if (selectLayoutDialogResult.IsCancelled) return WaitResult.Cancelled;
+                if (!selectLayoutDialogResult.IsCompleted) return selectLayoutDialogResult.Discard();
                 IntPtr selectLayoutDialog = selectLayoutDialogResult.Value;
                 if (cancellationToken.IsCancellationRequested) return WaitResult.Cancelled;
                 SetTextAsUserInputByClassNN(selectLayoutDialog, "Edit1", options.TemplateFilePath);
                 SendEnterByClassNN(selectLayoutDialog, "Edit1");
-                if ((await WaitForTemplateLayoutsLoadedAsync(selectLayoutDialog, cancellationToken)).IsCancelled) return WaitResult.Cancelled;
+                var templateLoadResult = await WaitForTemplateLayoutsLoadedAsync(selectLayoutDialog, cancellationToken);
+                if (!templateLoadResult.IsCompleted) return templateLoadResult;
                 if (cancellationToken.IsCancellationRequested) return WaitResult.Cancelled;
                 ClickButtonByClassNN(selectLayoutDialog, "Button1");
             }
 
-            if ((await WaitForButtonEnabledAsync(
+            var nextButtonResult = await WaitForButtonEnabledAsync(
                 mainHwnd,
                 "Create View Frames - Sheets",
                 "Button2",
                 cancellationToken,
-                "Next")).IsCancelled) return WaitResult.Cancelled;
+                "Next");
+            if (!nextButtonResult.IsCompleted) return nextButtonResult;
 
             ClickButtonByClassNN(sheetsDialog, "Button2");
 
             var groupDialogResult = await WaitForDialogAsync(
                 mainHwnd, "Create View Frames - View Frame Group", cancellationToken);
-            if (groupDialogResult.IsCancelled) return WaitResult.Cancelled;
+            if (!groupDialogResult.IsCompleted) return groupDialogResult.Discard();
             IntPtr groupDialog = groupDialogResult.Value;
             progress.Report("Wizard: View Frame Group");
 
@@ -83,7 +85,7 @@ namespace SheetCreationAutomation.Procedures.ViewFrames
 
             var nameTemplateDialogResult = await WaitForDialogAsync(
                 mainHwnd, "Name Template", cancellationToken);
-            if (nameTemplateDialogResult.IsCancelled) return WaitResult.Cancelled;
+            if (!nameTemplateDialogResult.IsCompleted) return nameTemplateDialogResult.Discard();
             IntPtr nameTemplateDialog = nameTemplateDialogResult.Value;
             if (cancellationToken.IsCancellationRequested) return WaitResult.Cancelled;
             ClickButtonByClassNN(nameTemplateDialog, "Button2");
@@ -91,7 +93,7 @@ namespace SheetCreationAutomation.Procedures.ViewFrames
                 nameTemplateDialog, "Edit2", options.NextViewFrameCounterNumber.ToString());
             ClickButtonByClassNN(nameTemplateDialog, "Button4");
 
-            if ((await Waiter.WaitUntilAsync("Name Template dialog to close", () =>
+            var nameTemplateCloseResult = await Waiter.WaitUntilAsync("Name Template dialog to close", () =>
             {
                 IntPtr hwnd = FindDialog(
                     mainHwnd,
@@ -101,14 +103,15 @@ namespace SheetCreationAutomation.Procedures.ViewFrames
                         MatchMode = TitleMatchMode.ExactOrContains
                     });
                 return hwnd == IntPtr.Zero;
-            }, cancellationToken, continueOnCapturedContext: false)).IsCancelled) return WaitResult.Cancelled;
+            }, cancellationToken, continueOnCapturedContext: false);
+            if (!nameTemplateCloseResult.IsCompleted) return nameTemplateCloseResult;
 
             SelectComboString(groupDialog, "ComboBox4", "Middle center");
             ClickButtonByClassNN(groupDialog, "Button2");
 
             var matchLinesDialogResult = await WaitForDialogAsync(
                 mainHwnd, "Create View Frames - Match Lines", cancellationToken);
-            if (matchLinesDialogResult.IsCancelled) return WaitResult.Cancelled;
+            if (!matchLinesDialogResult.IsCompleted) return matchLinesDialogResult.Discard();
             IntPtr matchLinesDialog = matchLinesDialogResult.Value;
             progress.Report("Wizard: Match Lines");
 
@@ -124,14 +127,16 @@ namespace SheetCreationAutomation.Procedures.ViewFrames
             {
                 ClickButtonByClassNN(matchLinesDialog, "Button2");
                 var profileDialogResult = await WaitForDialogAsync(mainHwnd, "Create View Frames - Profile Views", cancellationToken);
-                if (profileDialogResult.IsCancelled) return WaitResult.Cancelled;
+                if (!profileDialogResult.IsCompleted) return profileDialogResult.Discard();
                 IntPtr profileDialog = profileDialogResult.Value;
                 progress.Report("Wizard: Profile Views");
 
                 if (cancellationToken.IsCancellationRequested) return WaitResult.Cancelled;
-                if ((await SelectComboOrPopupTreeItemAsync(profileDialog, "ComboBox10", "PROFILE VIEW L TO R NO SCALE", cancellationToken)).IsCancelled) return WaitResult.Cancelled;
+                var combo10Result = await SelectComboOrPopupTreeItemAsync(profileDialog, "ComboBox10", "PROFILE VIEW L TO R NO SCALE", cancellationToken);
+                if (!combo10Result.IsCompleted) return combo10Result;
                 if (cancellationToken.IsCancellationRequested) return WaitResult.Cancelled;
-                if ((await SelectComboOrPopupTreeItemAsync(profileDialog, "ComboBox11", "EG-FG Elevations and Stations", cancellationToken)).IsCancelled) return WaitResult.Cancelled;
+                var combo11Result = await SelectComboOrPopupTreeItemAsync(profileDialog, "ComboBox11", "EG-FG Elevations and Stations", cancellationToken);
+                if (!combo11Result.IsCompleted) return combo11Result;
                 createActionDialog = profileDialog;
             }
 
@@ -139,14 +144,15 @@ namespace SheetCreationAutomation.Procedures.ViewFrames
             progress.Report("Wizard: Create View Frames");
             ClickButtonByClassNN(createActionDialog, "Button3");
 
-            if ((await Waiter.WaitUntilAsync("Create View Frames dialog to close", () =>
+            var wizardCloseResult = await Waiter.WaitUntilAsync("Create View Frames dialog to close", () =>
             {
                 return FindDialog(mainHwnd, WizardDialog("Create View Frames - Alignment")) == IntPtr.Zero
                     && FindDialog(mainHwnd, WizardDialog("Create View Frames - Sheets")) == IntPtr.Zero
                     && FindDialog(mainHwnd, WizardDialog("Create View Frames - View Frame Group")) == IntPtr.Zero
                     && FindDialog(mainHwnd, WizardDialog("Create View Frames - Match Lines")) == IntPtr.Zero
                     && FindDialog(mainHwnd, WizardDialog("Create View Frames - Profile Views")) == IntPtr.Zero;
-            }, cancellationToken, continueOnCapturedContext: false)).IsCancelled) return WaitResult.Cancelled;
+            }, cancellationToken, continueOnCapturedContext: false);
+            if (!wizardCloseResult.IsCompleted) return wizardCloseResult;
 
             Trace("WIZARD_COMPLETE: create-clicked and dialogs closed.");
             return WaitResult.Completed;
@@ -177,7 +183,7 @@ namespace SheetCreationAutomation.Procedures.ViewFrames
                 return Win32WindowTools.GetMetadata(button).IsEnabled;
             }, cancellationToken, continueOnCapturedContext: false);
 
-            if (waitResult.IsCancelled) return WaitResult.Cancelled;
+            if (!waitResult.IsCompleted) return waitResult;
 
             if (button == IntPtr.Zero)
             {
@@ -282,19 +288,21 @@ namespace SheetCreationAutomation.Procedures.ViewFrames
             uint mainPid = Win32WindowTools.GetMetadata(mainHwnd).ProcessId;
             IntPtr treePopup = IntPtr.Zero;
             Trace($"COMBO_WAIT_TREE: {classNN} target='{itemName}'");
-            if ((await Waiter.WaitUntilAsync($"Popup tree for '{itemName}'", () =>
+            var treePopupResult = await Waiter.WaitUntilAsync($"Popup tree for '{itemName}'", () =>
             {
                 treePopup = FindPopupTree(mainHwnd, mainPid);
                 return treePopup != IntPtr.Zero;
-            }, cancellationToken, continueOnCapturedContext: false)).IsCancelled) return WaitResult.Cancelled;
+            }, cancellationToken, continueOnCapturedContext: false);
+            if (!treePopupResult.IsCompleted) return treePopupResult;
             Trace($"COMBO_TREE_FOUND: {classNN} tree=0x{treePopup.ToInt64():X}");
 
             int treeCount = 0;
-            if ((await Waiter.WaitUntilAsync($"Popup tree populated for '{itemName}'", () =>
+            var treePopulatedResult = await Waiter.WaitUntilAsync($"Popup tree populated for '{itemName}'", () =>
             {
                 treeCount = Win32WindowTools.GetTreeItemCount(treePopup);
                 return treeCount > 0;
-            }, cancellationToken, continueOnCapturedContext: false)).IsCancelled) return WaitResult.Cancelled;
+            }, cancellationToken, continueOnCapturedContext: false);
+            if (!treePopulatedResult.IsCompleted) return treePopulatedResult;
             Trace($"COMBO_TREE_COUNT: {classNN} count={treeCount}");
 
             foreach (string line in Win32WindowTools.DumpTreeItems(treePopup, 120))

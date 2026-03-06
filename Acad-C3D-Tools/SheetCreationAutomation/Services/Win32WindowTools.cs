@@ -14,6 +14,8 @@ namespace SheetCreationAutomation.Services
         private const uint BM_GETCHECK = 0x00F0;
         private const uint BST_CHECKED = 0x0001;
         private const uint WM_NEXTDLGCTL = 0x0028;
+        private const uint WM_GETTEXT = 0x000D;
+        private const uint WM_GETTEXTLENGTH = 0x000E;
         private const uint WM_SETTEXT = 0x000C;
         private const uint WM_COMMAND = 0x0111;
         private const uint WM_KEYDOWN = 0x0100;
@@ -89,6 +91,16 @@ namespace SheetCreationAutomation.Services
 
         [DllImport("user32.dll", CharSet = CharSet.Unicode)]
         private static extern IntPtr SendMessage(IntPtr hWnd, uint msg, IntPtr wParam, string lParam);
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        private static extern IntPtr SendMessage(IntPtr hWnd, uint msg, IntPtr wParam, StringBuilder lParam);
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        private static extern IntPtr SendMessageTimeoutW(
+            IntPtr hWnd, uint msg, IntPtr wParam, StringBuilder lParam,
+            uint fuFlags, uint uTimeout, out IntPtr lpdwResult);
+
+        private const uint SMTO_ABORTIFHUNG = 0x0002;
 
         [DllImport("user32.dll")]
         private static extern IntPtr SetFocus(IntPtr hWnd);
@@ -720,6 +732,90 @@ namespace SheetCreationAutomation.Services
                 IsVisible = IsWindowVisible(hwnd),
                 IsEnabled = IsWindowEnabled(hwnd)
             };
+        }
+
+        public static string GetTextSafe(IntPtr hwnd, uint timeoutMs = 50)
+        {
+            if (hwnd == IntPtr.Zero) return string.Empty;
+            var sb = new StringBuilder(512);
+            IntPtr result = SendMessageTimeoutW(
+                hwnd, WM_GETTEXT, new IntPtr(sb.Capacity), sb,
+                SMTO_ABORTIFHUNG, timeoutMs, out _);
+            return result == IntPtr.Zero ? string.Empty : sb.ToString();
+        }
+
+        public static IntPtr FindProcessDialogContainingText(uint processId, string textFragment)
+        {
+            foreach (IntPtr topLevel in EnumerateTopLevelWindows())
+            {
+                GetWindowThreadProcessId(topLevel, out uint pid);
+                if (pid != processId) continue;
+
+                if (IsWindowVisible(topLevel)
+                    && string.Equals(GetClassNameRaw(topLevel), "#32770", StringComparison.OrdinalIgnoreCase)
+                    && AnyDirectChildHasText(topLevel, textFragment))
+                {
+                    return topLevel;
+                }
+
+                foreach (IntPtr child in EnumerateChildWindows(topLevel))
+                {
+                    if (!IsWindowVisible(child)) continue;
+                    if (!string.Equals(GetClassNameRaw(child), "#32770", StringComparison.OrdinalIgnoreCase)) continue;
+                    if (AnyDirectChildHasText(child, textFragment))
+                    {
+                        return child;
+                    }
+                }
+            }
+
+            return IntPtr.Zero;
+        }
+
+        public static string DumpProcessDialogTree(uint processId)
+        {
+            var sb = new StringBuilder();
+            foreach (IntPtr topLevel in EnumerateTopLevelWindows())
+            {
+                GetWindowThreadProcessId(topLevel, out uint pid);
+                if (pid != processId) continue;
+
+                string cls = GetClassNameRaw(topLevel);
+                string title = GetWindowTextRaw(topLevel);
+                bool vis = IsWindowVisible(topLevel);
+                sb.AppendLine($"TOP 0x{topLevel.ToInt64():X} cls='{cls}' title='{Truncate(title, 60)}' vis={vis}");
+
+                if (!string.Equals(cls, "#32770", StringComparison.OrdinalIgnoreCase)
+                    && !cls.StartsWith("Afx", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                foreach (IntPtr child in EnumerateChildWindows(topLevel))
+                {
+                    string childCls = GetClassNameRaw(child);
+                    bool childVis = IsWindowVisible(child);
+                    if (!childVis) continue;
+                    string childTitle = GetTextSafe(child, 30);
+                    if (string.IsNullOrEmpty(childTitle)) continue;
+                    sb.AppendLine($"  CHILD 0x{child.ToInt64():X} cls='{childCls}' text='{Truncate(childTitle, 80)}' vis={childVis}");
+                }
+            }
+
+            return sb.ToString();
+        }
+
+        private static string Truncate(string s, int max) =>
+            s.Length <= max ? s : s.Substring(0, max) + "...";
+
+        private static bool AnyDirectChildHasText(IntPtr dialog, string textFragment)
+        {
+            foreach (IntPtr child in EnumerateDirectChildWindows(dialog))
+            {
+                string childText = GetTextSafe(child);
+                if (childText.Contains(textFragment, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+
+            return false;
         }
 
         private static IntPtr MakeWParam(int lowWord, int highWord)

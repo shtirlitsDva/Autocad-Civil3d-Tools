@@ -52,7 +52,12 @@ namespace SheetCreationAutomation.Procedures.Sheets
                     Document doc = AcApp.DocumentManager.Open(drawingPath, forReadOnly: false);
                     RequestDocumentActivation(doc);
                     WaitResult docActiveResult = await WaitForDocumentActiveAsync(doc, cancellationToken);
-                    if (docActiveResult.IsCancelled) { cancelled = true; break; }
+                    if (!docActiveResult.IsCompleted)
+                    {
+                        if (docActiveResult.IsCancelled) cancelled = true;
+                        else hardFailureMessage = docActiveResult.Message;
+                        break;
+                    }
 
                     bool completed = false;
                     for (int attempt = 1; attempt <= MaxWizardAttemptsPerDrawing; attempt++)
@@ -82,7 +87,12 @@ namespace SheetCreationAutomation.Procedures.Sheets
                             progress,
                             cancellationToken);
                         activeStepStopwatch.Stop();
-                        if (wizardResult.IsCancelled) { cancelled = true; break; }
+                        if (!wizardResult.IsCompleted)
+                        {
+                            if (wizardResult.IsCancelled) cancelled = true;
+                            else hardFailureMessage = wizardResult.Message;
+                            break;
+                        }
 
                         if (context.PlanOnly)
                         {
@@ -94,7 +104,13 @@ namespace SheetCreationAutomation.Procedures.Sheets
                         activeStepStopwatch.Restart();
                         WaitResult<IntPtr> dynResult = await WaitForDynamicInputWindowAsync(cancellationToken);
                         activeStepStopwatch.Stop();
-                        if (dynResult.IsCancelled) { cancelled = true; break; }
+                        if (!dynResult.IsCompleted)
+                        {
+                            WaitResult dynOutcome = dynResult.Discard();
+                            if (dynOutcome.IsCancelled) cancelled = true;
+                            else hardFailureMessage = dynOutcome.Message;
+                            break;
+                        }
                         IntPtr dynamicInput = dynResult.Value;
 
                         if (dynamicInput == IntPtr.Zero)
@@ -109,7 +125,13 @@ namespace SheetCreationAutomation.Procedures.Sheets
                                 break;
                             }
 
-                            if ((await WaitForIdleAsync(cancellationToken)).IsCancelled) { cancelled = true; break; }
+                            WaitResult idleResult = await WaitForIdleAsync(cancellationToken);
+                            if (!idleResult.IsCompleted)
+                            {
+                                if (idleResult.IsCancelled) cancelled = true;
+                                else hardFailureMessage = idleResult.Message;
+                                break;
+                            }
                             progress.Report("Retrying Create Sheets from start for this drawing...");
                             continue;
                         }
@@ -132,7 +154,13 @@ namespace SheetCreationAutomation.Procedures.Sheets
 
                     activeStep = "Wait for command idle";
                     activeStepStopwatch.Restart();
-                    if ((await WaitForIdleAsync(cancellationToken)).IsCancelled) { cancelled = true; break; }
+                    WaitResult idleResult2 = await WaitForIdleAsync(cancellationToken);
+                    if (!idleResult2.IsCompleted)
+                    {
+                        if (idleResult2.IsCancelled) cancelled = true;
+                        else hardFailureMessage = idleResult2.Message;
+                        break;
+                    }
                     activeStepStopwatch.Stop();
 
                     activeStep = "Close drawing without save";
@@ -203,14 +231,7 @@ namespace SheetCreationAutomation.Procedures.Sheets
                     return WaitResult<IntPtr>.Of(dynamicWindow);
                 }
 
-                try
-                {
-                    await Task.Delay(WaitPolicy.PollInterval, cancellationToken).ConfigureAwait(false);
-                }
-                catch (TaskCanceledException)
-                {
-                    return WaitResult<IntPtr>.Cancel();
-                }
+                await Task.Delay(WaitPolicy.PollInterval).ConfigureAwait(false);
             }
 
             return WaitResult<IntPtr>.Of(IntPtr.Zero);

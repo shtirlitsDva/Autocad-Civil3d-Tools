@@ -250,8 +250,14 @@ namespace SheetCreationAutomation.ViewModels
                     LastStatus = message;
                     AutomationRunLog.Append(message);
                 });
-                AutomationRunResult result = await ExecuteOnAcContextAsync(() =>
-                    automationRunner.RunAsync(context, progress, runCts.Token), runCts.Token);
+                AutomationRunResult result = await ExecuteOnAcContextAsync(
+                    () => automationRunner.RunAsync(context, progress, runCts.Token),
+                    runCts.Token,
+                    () => new AutomationRunResult
+                    {
+                        Outcome = AutomationOutcome.Cancelled,
+                        FinalNextViewFrameCounter = nextCounter
+                    });
 
                 switch (result.Outcome)
                 {
@@ -289,12 +295,6 @@ namespace SheetCreationAutomation.ViewModels
                         }
                         break;
                 }
-            }
-            // Safety net: ExecuteOnAcContextAsync can surface OCE via TrySetCanceled registration
-            catch (OperationCanceledException)
-            {
-                LastStatus = "Automation cancelled.";
-                AutomationRunLog.Append(LastStatus);
             }
             catch (Exception ex)
             {
@@ -520,7 +520,7 @@ namespace SheetCreationAutomation.ViewModels
             return Convert.ToInt16(number);
         }
 
-        private static async Task<T> ExecuteOnAcContextAsync<T>(Func<Task<T>> action, CancellationToken cancellationToken)
+        private static async Task<T> ExecuteOnAcContextAsync<T>(Func<Task<T>> action, CancellationToken cancellationToken, Func<T> cancelledResult)
         {
             SynchronizationContext? context = AcContext.Current;
             if (context == null || SynchronizationContext.Current == context)
@@ -530,7 +530,7 @@ namespace SheetCreationAutomation.ViewModels
 
             var tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
             using var registration = cancellationToken.Register(
-                () => tcs.TrySetCanceled(cancellationToken));
+                () => tcs.TrySetResult(cancelledResult()));
 
             context.Post(async _ =>
             {

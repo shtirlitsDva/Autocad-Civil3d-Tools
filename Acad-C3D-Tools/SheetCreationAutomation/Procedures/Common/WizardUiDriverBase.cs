@@ -49,7 +49,8 @@ namespace SheetCreationAutomation.Procedures.Common
                 return dialog != IntPtr.Zero;
             }, cancellationToken, continueOnCapturedContext: false);
 
-            return wait.IsCancelled ? WaitResult<IntPtr>.Cancel() : WaitResult<IntPtr>.Of(dialog);
+            if (!wait.IsCompleted) return WaitResult<IntPtr>.From(wait);
+            return WaitResult<IntPtr>.Of(dialog);
         }
 
         protected async Task<WaitResult<IntPtr>> WaitForDialogContainingTextAsync(
@@ -69,7 +70,8 @@ namespace SheetCreationAutomation.Procedures.Common
                 return dialog != IntPtr.Zero;
             }, cancellationToken, continueOnCapturedContext: false);
 
-            return wait.IsCancelled ? WaitResult<IntPtr>.Cancel() : WaitResult<IntPtr>.Of(dialog);
+            if (!wait.IsCompleted) return WaitResult<IntPtr>.From(wait);
+            return WaitResult<IntPtr>.Of(dialog);
         }
 
         protected async Task<WaitResult> WaitForDialogClosedAsync(IntPtr mainHwnd, string title, CancellationToken cancellationToken)

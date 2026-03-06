@@ -28,7 +28,7 @@ namespace SheetCreationAutomation.Procedures.Sheets
 
             var layoutsDialogResult = await WaitForDialogAsync(
                 mainHwnd, "Create Sheets - View Frame Group and Layouts", cancellationToken);
-            if (layoutsDialogResult.IsCancelled) return WaitResult.Cancelled;
+            if (!layoutsDialogResult.IsCompleted) return layoutsDialogResult.Discard();
             IntPtr layoutsDialog = layoutsDialogResult.Value;
             progress.Report("Wizard: View Frame Group and Layouts");
 
@@ -39,7 +39,7 @@ namespace SheetCreationAutomation.Procedures.Sheets
             ClickButtonByClassNN(layoutsDialog, "Button2");
 
             var sheetSetDialogResult = await WaitForDialogAsync(mainHwnd, "Create Sheets - Sheet Set", cancellationToken);
-            if (sheetSetDialogResult.IsCancelled) return WaitResult.Cancelled;
+            if (!sheetSetDialogResult.IsCompleted) return sheetSetDialogResult.Discard();
             IntPtr sheetSetDialog = sheetSetDialogResult.Value;
             progress.Report("Wizard: Sheet Set");
 
@@ -48,20 +48,22 @@ namespace SheetCreationAutomation.Procedures.Sheets
             PostClickButtonByClassNN(sheetSetDialog, "Button20");
 
             var browseDialogResult = await WaitForDialogAsync(mainHwnd, "Browse the Sheet set file", cancellationToken);
-            if (browseDialogResult.IsCancelled) return WaitResult.Cancelled;
+            if (!browseDialogResult.IsCompleted) return browseDialogResult.Discard();
             IntPtr browseDialog = browseDialogResult.Value;
             progress.Report("Wizard: Browse Sheet Set");
 
             if (cancellationToken.IsCancellationRequested) return WaitResult.Cancelled;
             SetTextAsUserInputByClassNN(browseDialog, "Edit1", options.SheetSetFilePath);
             ClickButtonByClassNN(browseDialog, "Button7");
-            if ((await WaitForDialogClosedAsync(mainHwnd, "Browse the Sheet set file", cancellationToken)).IsCancelled) return WaitResult.Cancelled;
+            var browseCloseResult = await WaitForDialogClosedAsync(mainHwnd, "Browse the Sheet set file", cancellationToken);
+            if (!browseCloseResult.IsCompleted) return browseCloseResult;
 
             var sheetSetDialogResult2 = await WaitForDialogAsync(mainHwnd, "Create Sheets - Sheet Set", cancellationToken);
-            if (sheetSetDialogResult2.IsCancelled) return WaitResult.Cancelled;
+            if (!sheetSetDialogResult2.IsCompleted) return sheetSetDialogResult2.Discard();
             sheetSetDialog = sheetSetDialogResult2.Value;
             if (cancellationToken.IsCancellationRequested) return WaitResult.Cancelled;
-            if ((await WaitForControlEnabledAsync(sheetSetDialog, "Edit8", cancellationToken)).IsCancelled) return WaitResult.Cancelled;
+            var editEnabledResult = await WaitForControlEnabledAsync(sheetSetDialog, "Edit8", cancellationToken);
+            if (!editEnabledResult.IsCompleted) return editEnabledResult;
             SetTextAsUserInputByClassNN(sheetSetDialog, "Edit8", options.SheetFileNamePattern);
 
             IntPtr createSheetsDialog = sheetSetDialog;
@@ -69,7 +71,7 @@ namespace SheetCreationAutomation.Procedures.Sheets
             {
                 ClickButtonByClassNN(sheetSetDialog, "Button2");
                 var profileDialogResult = await WaitForDialogAsync(mainHwnd, "Create Sheets - Profile Views", cancellationToken);
-                if (profileDialogResult.IsCancelled) return WaitResult.Cancelled;
+                if (!profileDialogResult.IsCompleted) return profileDialogResult.Discard();
                 IntPtr profileDialog = profileDialogResult.Value;
                 progress.Report("Wizard: Profile Views");
 
@@ -80,14 +82,14 @@ namespace SheetCreationAutomation.Procedures.Sheets
 
                 var profileHeightDialogResult = await WaitForDialogAsync(
                     mainHwnd, "Create Multiple Profile Views - Profile View Height", cancellationToken);
-                if (profileHeightDialogResult.IsCancelled) return WaitResult.Cancelled;
+                if (!profileHeightDialogResult.IsCompleted) return profileHeightDialogResult.Discard();
                 IntPtr profileHeightDialog = profileHeightDialogResult.Value;
                 if (cancellationToken.IsCancellationRequested) return WaitResult.Cancelled;
                 ClickControlCenterByTitle(profileHeightDialog, "Multiple Plot Options");
 
                 var multiplePlotDialogResult = await WaitForDialogAsync(
                     mainHwnd, "Create Multiple Profile Views - Multiple Plot Options", cancellationToken);
-                if (multiplePlotDialogResult.IsCancelled) return WaitResult.Cancelled;
+                if (!multiplePlotDialogResult.IsCompleted) return multiplePlotDialogResult.Discard();
                 IntPtr multiplePlotDialog = multiplePlotDialogResult.Value;
                 progress.Report("Wizard: Multiple Plot Options");
 
@@ -95,27 +97,32 @@ namespace SheetCreationAutomation.Procedures.Sheets
                 SetTextByClassNN(multiplePlotDialog, "Edit1", "50");
                 SetTextByClassNN(multiplePlotDialog, "Edit2", "100");
                 SetTextByClassNN(multiplePlotDialog, "Edit3", "100");
-                ClickButtonByClassNN(multiplePlotDialog, "Button55");
-                if ((await WaitForDialogClosedAsync(
-                    mainHwnd, "Create Multiple Profile Views - Multiple Plot Options", cancellationToken)).IsCancelled) return WaitResult.Cancelled;
+                PostClickButtonByClassNN(multiplePlotDialog, "Button55");
+                var multiplePlotCloseResult = await WaitForDialogClosedAsync(
+                    mainHwnd, "Create Multiple Profile Views - Multiple Plot Options", cancellationToken);
+                if (!multiplePlotCloseResult.IsCompleted) return multiplePlotCloseResult;
 
                 var createSheetsDialogResult = await WaitForDialogAsync(mainHwnd, "Create Sheets - Profile Views", cancellationToken);
-                if (createSheetsDialogResult.IsCancelled) return WaitResult.Cancelled;
+                if (!createSheetsDialogResult.IsCompleted) return createSheetsDialogResult.Discard();
                 createSheetsDialog = createSheetsDialogResult.Value;
             }
 
             if (cancellationToken.IsCancellationRequested) return WaitResult.Cancelled;
+            var buttonEnabledResult = await WaitForControlEnabledAsync(createSheetsDialog, "Button3", cancellationToken);
+            if (!buttonEnabledResult.IsCompleted) return buttonEnabledResult;
             progress.Report("Wizard: Create Sheets");
-            ClickButtonByClassNN(createSheetsDialog, "Button3");
-
-            var saveConfirmDialogResult = await WaitForDialogContainingTextAsync(
-                mainHwnd,
-                "To complete this process your current drawing will be saved.",
-                cancellationToken);
-            if (saveConfirmDialogResult.IsCancelled) return WaitResult.Cancelled;
-            IntPtr saveConfirmDialog = saveConfirmDialogResult.Value;
+            PostClickButtonByClassNN(createSheetsDialog, "Button3");
+            uint mainPid = Win32WindowTools.GetMetadata(mainHwnd).ProcessId;
+            IntPtr saveConfirmDialog = IntPtr.Zero;
+            WaitResult saveWait = await Waiter.WaitUntilAsync("Save confirmation dialog", () =>
+            {
+                saveConfirmDialog = Win32WindowTools.FindProcessDialogContainingText(
+                    mainPid, "To complete this process");
+                return saveConfirmDialog != IntPtr.Zero;
+            }, cancellationToken, continueOnCapturedContext: false);
+            if (!saveWait.IsCompleted) return saveWait;
             progress.Report("Wizard: Save confirmation");
-            ClickButtonByClassNN(saveConfirmDialog, "Button1");
+            PostClickButtonByClassNN(saveConfirmDialog, "Button1");
 
             Trace("WIZARD_COMPLETE: create-clicked and save-confirmed.");
             return WaitResult.Completed;

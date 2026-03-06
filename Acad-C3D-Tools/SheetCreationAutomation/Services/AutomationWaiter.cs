@@ -40,7 +40,7 @@ namespace SheetCreationAutomation.Services
 
                     if (sw.Elapsed >= waitPolicy.Timeout)
                     {
-                        throw new TimeoutException($"Timed out after {waitPolicy.Timeout.TotalSeconds:F0}s waiting for: {stepName}");
+                        return WaitResult.TimedOut($"Timed out after {waitPolicy.Timeout.TotalSeconds:F0}s waiting for: {stepName}");
                     }
 
                     if (sw.Elapsed >= waitPolicy.OverlayThreshold)
@@ -48,15 +48,7 @@ namespace SheetCreationAutomation.Services
                         overlayPresenter.Show(stepName, sw.Elapsed);
                     }
 
-                    try
-                    {
-                        await Task.Delay(waitPolicy.PollInterval, cancellationToken)
-                            .ConfigureAwait(continueOnCapturedContext);
-                    }
-                    catch (TaskCanceledException)
-                    {
-                        return WaitResult.Cancelled;
-                    }
+                    await Task.Delay(waitPolicy.PollInterval).ConfigureAwait(continueOnCapturedContext);
                 }
             }
             finally
