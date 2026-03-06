@@ -37,6 +37,7 @@ namespace SheetCreationAutomation.Procedures.Sheets
             string activeStep = string.Empty;
             Stopwatch activeStepStopwatch = new Stopwatch();
             string? hardFailureMessage = null;
+            bool cancelled = false;
 
             try
             {
@@ -48,21 +49,22 @@ namespace SheetCreationAutomation.Procedures.Sheets
                     {
                         for (int index = 0; index < context.DrawingPaths.Count; index++)
                         {
-                            cancellationToken.ThrowIfCancellationRequested();
+                            if (cancellationToken.IsCancellationRequested) { cancelled = true; return; }
 
                             string drawingPath = context.DrawingPaths[index];
                             activeFile = drawingPath;
 
-                            cancellationToken.ThrowIfCancellationRequested();
+                            if (cancellationToken.IsCancellationRequested) { cancelled = true; return; }
                             progress.Report($"[{index + 1}/{context.DrawingPaths.Count}] Opening {Path.GetFileName(drawingPath)}...");
                             Document doc = AcApp.DocumentManager.Open(drawingPath, forReadOnly: false);
                             RequestDocumentActivation(doc);
-                            await WaitForDocumentActiveAsync(doc, cancellationToken);
+                            WaitResult docActiveResult = await WaitForDocumentActiveAsync(doc, cancellationToken);
+                            if (docActiveResult.IsCancelled) { cancelled = true; return; }
 
                             bool completed = false;
                             for (int attempt = 1; attempt <= MaxWizardAttemptsPerDrawing; attempt++)
                             {
-                                cancellationToken.ThrowIfCancellationRequested();
+                                if (cancellationToken.IsCancellationRequested) { cancelled = true; return; }
                                 progress.Report(
                                     $"[{index + 1}/{context.DrawingPaths.Count}] " +
                                     $"Create Sheets attempt {attempt}/{MaxWizardAttemptsPerDrawing}...");
@@ -74,7 +76,7 @@ namespace SheetCreationAutomation.Procedures.Sheets
 
                                 activeStep = "Drive Create Sheets wizard";
                                 activeStepStopwatch.Restart();
-                                await wizardUiDriver.RunCreateSheetsWizardAsync(
+                                WaitResult wizardResult = await wizardUiDriver.RunCreateSheetsWizardAsync(
                                     new CreateSheetsWizardRunOptions
                                     {
                                         PlanOnly = context.PlanOnly,
@@ -87,6 +89,7 @@ namespace SheetCreationAutomation.Procedures.Sheets
                                     progress,
                                     cancellationToken);
                                 activeStepStopwatch.Stop();
+                                if (wizardResult.IsCancelled) { cancelled = true; return; }
 
                                 if (context.PlanOnly)
                                 {
@@ -96,8 +99,10 @@ namespace SheetCreationAutomation.Procedures.Sheets
 
                                 activeStep = "Wait for dynamic input prompt";
                                 activeStepStopwatch.Restart();
-                                IntPtr dynamicInput = await WaitForDynamicInputWindowAsync(cancellationToken);
+                                WaitResult<IntPtr> dynResult = await WaitForDynamicInputWindowAsync(cancellationToken);
                                 activeStepStopwatch.Stop();
+                                if (dynResult.IsCancelled) { cancelled = true; return; }
+                                IntPtr dynamicInput = dynResult.Value;
 
                                 if (dynamicInput == IntPtr.Zero)
                                 {
@@ -111,7 +116,7 @@ namespace SheetCreationAutomation.Procedures.Sheets
                                         return;
                                     }
 
-                                    await WaitForIdleAsync(cancellationToken);
+                                    if ((await WaitForIdleAsync(cancellationToken)).IsCancelled) { cancelled = true; return; }
                                     progress.Report("Retrying Create Sheets from start for this drawing...");
                                     continue;
                                 }
@@ -124,6 +129,8 @@ namespace SheetCreationAutomation.Procedures.Sheets
                                 break;
                             }
 
+                            if (cancelled) return;
+
                             if (!completed)
                             {
                                 hardFailureMessage ??= "Create Sheets was not completed.";
@@ -132,7 +139,7 @@ namespace SheetCreationAutomation.Procedures.Sheets
 
                             activeStep = "Wait for command idle";
                             activeStepStopwatch.Restart();
-                            await WaitForIdleAsync(cancellationToken);
+                            if ((await WaitForIdleAsync(cancellationToken)).IsCancelled) { cancelled = true; return; }
                             activeStepStopwatch.Stop();
 
                             activeStep = "Close drawing without save";
@@ -151,11 +158,16 @@ namespace SheetCreationAutomation.Procedures.Sheets
 
                 lambdaException?.Throw();
 
+                if (cancelled)
+                {
+                    return new SheetAutomationRunResult { Outcome = AutomationOutcome.Cancelled };
+                }
+
                 if (!string.IsNullOrWhiteSpace(hardFailureMessage))
                 {
                     return new SheetAutomationRunResult
                     {
-                        Succeeded = false,
+                        Outcome = AutomationOutcome.Failed,
                         Failure = new AutomationFailureInfo
                         {
                             DrawingPath = activeFile,
@@ -169,18 +181,14 @@ namespace SheetCreationAutomation.Procedures.Sheets
 
                 return new SheetAutomationRunResult
                 {
-                    Succeeded = true
+                    Outcome = AutomationOutcome.Succeeded
                 };
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
             }
             catch (Exception ex)
             {
                 return new SheetAutomationRunResult
                 {
-                    Succeeded = false,
+                    Outcome = AutomationOutcome.Failed,
                     Failure = new AutomationFailureInfo
                     {
                         DrawingPath = activeFile,
@@ -193,7 +201,7 @@ namespace SheetCreationAutomation.Procedures.Sheets
             }
         }
 
-        private async Task<IntPtr> WaitForDynamicInputWindowAsync(CancellationToken cancellationToken)
+        private async Task<WaitResult<IntPtr>> WaitForDynamicInputWindowAsync(CancellationToken cancellationToken)
         {
             IntPtr mainHwnd = AcApp.MainWindow.Handle;
             uint mainPid = Win32WindowTools.GetMetadata(mainHwnd).ProcessId;
@@ -201,18 +209,26 @@ namespace SheetCreationAutomation.Procedures.Sheets
 
             while (sw.Elapsed < DynamicInputTimeout)
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                if (cancellationToken.IsCancellationRequested)
+                    return WaitResult<IntPtr>.Cancel();
 
                 IntPtr dynamicWindow = FindDynamicInputWindow(mainHwnd, mainPid);
                 if (dynamicWindow != IntPtr.Zero)
                 {
-                    return dynamicWindow;
+                    return WaitResult<IntPtr>.Of(dynamicWindow);
                 }
 
-                await Task.Delay(WaitPolicy.PollInterval, cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    await Task.Delay(WaitPolicy.PollInterval, cancellationToken).ConfigureAwait(false);
+                }
+                catch (TaskCanceledException)
+                {
+                    return WaitResult<IntPtr>.Cancel();
+                }
             }
 
-            return IntPtr.Zero;
+            return WaitResult<IntPtr>.Of(IntPtr.Zero);
         }
 
         private static IntPtr FindDynamicInputWindow(IntPtr mainHwnd, uint mainPid)

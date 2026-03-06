@@ -234,34 +234,41 @@ namespace SheetCreationAutomation.ViewModels
                 SheetAutomationRunResult result = await ExecuteOnAcContextAsync(() =>
                     automationRunner.RunAsync(context, progress, runCts.Token), runCts.Token);
 
-                if (result.Succeeded)
+                switch (result.Outcome)
                 {
-                    SaveState();
-                    LastStatus = "Completed successfully.";
-                    AutomationRunLog.Append(LastStatus);
-                }
-                else
-                {
-                    string failureMessage = result.Failure == null
-                        ? "Automation failed without detailed diagnostics."
-                        : $"Automation failed at step '{result.Failure.StepName}' " +
-                          $"for '{Path.GetFileName(result.Failure.DrawingPath)}' after {result.Failure.Elapsed:mm\\:ss}. " +
-                          $"{result.Failure.Message}";
+                    case AutomationOutcome.Succeeded:
+                        SaveState();
+                        LastStatus = "Completed successfully.";
+                        AutomationRunLog.Append(LastStatus);
+                        break;
 
-                    LastStatus = failureMessage;
-                    AutomationRunLog.Append(failureMessage);
-                    if (result.Failure != null)
-                    {
-                        AcDebug.Print(failureMessage);
-                        if (!string.IsNullOrWhiteSpace(result.Failure.SelectorSnapshot))
+                    case AutomationOutcome.Cancelled:
+                        LastStatus = "Automation cancelled.";
+                        AutomationRunLog.Append(LastStatus);
+                        break;
+
+                    case AutomationOutcome.Failed:
+                        string failureMessage = result.Failure == null
+                            ? "Automation failed without detailed diagnostics."
+                            : $"Automation failed at step '{result.Failure.StepName}' " +
+                              $"for '{Path.GetFileName(result.Failure.DrawingPath)}' after {result.Failure.Elapsed:mm\\:ss}. " +
+                              $"{result.Failure.Message}";
+                        LastStatus = failureMessage;
+                        AutomationRunLog.Append(failureMessage);
+                        if (result.Failure != null)
                         {
-                            AutomationRunLog.Append("Failure selector snapshot:");
-                            AutomationRunLog.Append(result.Failure.SelectorSnapshot);
-                            AcDebug.Print(result.Failure.SelectorSnapshot);
+                            AcDebug.Print(failureMessage);
+                            if (!string.IsNullOrWhiteSpace(result.Failure.SelectorSnapshot))
+                            {
+                                AutomationRunLog.Append("Failure selector snapshot:");
+                                AutomationRunLog.Append(result.Failure.SelectorSnapshot);
+                                AcDebug.Print(result.Failure.SelectorSnapshot);
+                            }
                         }
-                    }
+                        break;
                 }
             }
+            // Safety net: ExecuteOnAcContextAsync can surface OCE via TrySetCanceled registration
             catch (OperationCanceledException)
             {
                 LastStatus = "Automation cancelled.";
@@ -514,10 +521,6 @@ namespace SheetCreationAutomation.ViewModels
                 {
                     T result = await action();
                     tcs.TrySetResult(result);
-                }
-                catch (OperationCanceledException oce)
-                {
-                    tcs.TrySetCanceled(oce.CancellationToken);
                 }
                 catch (Exception ex)
                 {

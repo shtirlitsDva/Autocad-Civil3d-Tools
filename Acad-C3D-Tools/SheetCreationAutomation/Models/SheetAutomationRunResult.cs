@@ -2,7 +2,7 @@ namespace SheetCreationAutomation.Models
 {
     internal sealed class SheetAutomationRunResult
     {
-        public bool Succeeded { get; init; }
+        public AutomationOutcome Outcome { get; init; }
         public AutomationFailureInfo? Failure { get; init; }
     }
 }

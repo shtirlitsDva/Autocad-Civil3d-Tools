@@ -19,11 +19,11 @@ namespace SheetCreationAutomation.Procedures.Common
         protected WaitPolicy WaitPolicy { get; }
         protected AutomationWaiter Waiter { get; }
 
-        protected async Task WaitForDocumentActiveAsync(Document doc, CancellationToken cancellationToken)
+        protected async Task<WaitResult> WaitForDocumentActiveAsync(Document doc, CancellationToken cancellationToken)
         {
             RequestDocumentActivation(doc);
 
-            await Waiter.WaitUntilAsync($"Document active: {Path.GetFileName(doc.Name)}", () =>
+            return await Waiter.WaitUntilAsync($"Document active: {Path.GetFileName(doc.Name)}", () =>
             {
                 if (AcApp.DocumentManager.MdiActiveDocument == doc)
                 {
@@ -45,9 +45,9 @@ namespace SheetCreationAutomation.Procedures.Common
             AcApp.DocumentManager.MdiActiveDocument = doc;
         }
 
-        protected async Task WaitForIdleAsync(CancellationToken cancellationToken)
+        protected async Task<WaitResult> WaitForIdleAsync(CancellationToken cancellationToken)
         {
-            await Waiter.WaitUntilAsync("AutoCAD command idle", () =>
+            return await Waiter.WaitUntilAsync("AutoCAD command idle", () =>
             {
                 object? cmdNames = AcApp.GetSystemVariable("CMDNAMES");
                 string activeCommands = cmdNames?.ToString() ?? string.Empty;

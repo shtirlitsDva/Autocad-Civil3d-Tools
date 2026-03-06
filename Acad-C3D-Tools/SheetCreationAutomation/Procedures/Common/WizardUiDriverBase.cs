@@ -29,16 +29,16 @@ namespace SheetCreationAutomation.Procedures.Common
             AutomationRunLog.Append(message);
         }
 
-        protected async Task<IntPtr> WaitForDialogAsync(IntPtr mainHwnd, string title, CancellationToken cancellationToken)
+        protected async Task<WaitResult<IntPtr>> WaitForDialogAsync(IntPtr mainHwnd, string title, CancellationToken cancellationToken)
             => await WaitForDialogAsync(mainHwnd, WizardDialog(title), cancellationToken);
 
-        protected async Task<IntPtr> WaitForDialogAsync(
+        protected async Task<WaitResult<IntPtr>> WaitForDialogAsync(
             IntPtr mainHwnd,
             DialogSearchOptions options,
             CancellationToken cancellationToken)
         {
             IntPtr dialog = IntPtr.Zero;
-            await Waiter.WaitUntilAsync($"Dialog '{options.ExpectedTitle}'", () =>
+            WaitResult wait = await Waiter.WaitUntilAsync($"Dialog '{options.ExpectedTitle}'", () =>
             {
                 dialog = FindDialog(mainHwnd, options);
                 if (dialog != IntPtr.Zero)
@@ -49,16 +49,16 @@ namespace SheetCreationAutomation.Procedures.Common
                 return dialog != IntPtr.Zero;
             }, cancellationToken, continueOnCapturedContext: false);
 
-            return dialog;
+            return wait.IsCancelled ? WaitResult<IntPtr>.Cancel() : WaitResult<IntPtr>.Of(dialog);
         }
 
-        protected async Task<IntPtr> WaitForDialogContainingTextAsync(
+        protected async Task<WaitResult<IntPtr>> WaitForDialogContainingTextAsync(
             IntPtr mainHwnd,
             string textFragment,
             CancellationToken cancellationToken)
         {
             IntPtr dialog = IntPtr.Zero;
-            await Waiter.WaitUntilAsync($"Dialog contains '{textFragment}'", () =>
+            WaitResult wait = await Waiter.WaitUntilAsync($"Dialog contains '{textFragment}'", () =>
             {
                 dialog = FindDialogContainingText(mainHwnd, textFragment);
                 if (dialog != IntPtr.Zero)
@@ -69,24 +69,24 @@ namespace SheetCreationAutomation.Procedures.Common
                 return dialog != IntPtr.Zero;
             }, cancellationToken, continueOnCapturedContext: false);
 
-            return dialog;
+            return wait.IsCancelled ? WaitResult<IntPtr>.Cancel() : WaitResult<IntPtr>.Of(dialog);
         }
 
-        protected async Task WaitForDialogClosedAsync(IntPtr mainHwnd, string title, CancellationToken cancellationToken)
+        protected async Task<WaitResult> WaitForDialogClosedAsync(IntPtr mainHwnd, string title, CancellationToken cancellationToken)
         {
-            await Waiter.WaitUntilAsync($"Dialog '{title}' to close", () =>
+            return await Waiter.WaitUntilAsync($"Dialog '{title}' to close", () =>
             {
                 IntPtr dialog = FindDialog(mainHwnd, WizardDialog(title));
                 return dialog == IntPtr.Zero;
             }, cancellationToken, continueOnCapturedContext: false);
         }
 
-        protected async Task WaitForControlEnabledAsync(
+        protected async Task<WaitResult> WaitForControlEnabledAsync(
             IntPtr dialog,
             string classNN,
             CancellationToken cancellationToken)
         {
-            await Waiter.WaitUntilAsync($"Control '{classNN}' enabled", () =>
+            return await Waiter.WaitUntilAsync($"Control '{classNN}' enabled", () =>
             {
                 IntPtr control = Win32WindowTools.FindChildByClassNN(dialog, classNN);
                 if (control == IntPtr.Zero)

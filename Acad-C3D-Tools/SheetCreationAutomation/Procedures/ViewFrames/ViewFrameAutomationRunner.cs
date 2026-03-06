@@ -38,6 +38,7 @@ namespace SheetCreationAutomation.Procedures.ViewFrames
             string activeStep = string.Empty;
             Stopwatch activeStepStopwatch = new Stopwatch();
             string? hardFailureMessage = null;
+            bool cancelled = false;
 
             try
             {
@@ -49,7 +50,7 @@ namespace SheetCreationAutomation.Procedures.ViewFrames
                     {
                         for (int index = 0; index < context.DrawingPaths.Count; index++)
                         {
-                            cancellationToken.ThrowIfCancellationRequested();
+                            if (cancellationToken.IsCancellationRequested) { cancelled = true; return; }
 
                             string drawingPath = context.DrawingPaths[index];
                             activeFile = drawingPath;
@@ -57,7 +58,8 @@ namespace SheetCreationAutomation.Procedures.ViewFrames
                             progress.Report($"[{index + 1}/{context.DrawingPaths.Count}] Opening {Path.GetFileName(drawingPath)}...");
                             Document doc = AcApp.DocumentManager.Open(drawingPath, forReadOnly: false);
                             RequestDocumentActivation(doc);
-                            await WaitForDocumentActiveAsync(doc, cancellationToken);
+                            WaitResult waitResult = await WaitForDocumentActiveAsync(doc, cancellationToken);
+                            if (waitResult.IsCancelled) { cancelled = true; return; }
 
                             activeStep = "Pre-check view frame count";
                             activeStepStopwatch.Restart();
@@ -81,7 +83,7 @@ namespace SheetCreationAutomation.Procedures.ViewFrames
 
                             activeStep = "Drive Create View Frames wizard";
                             activeStepStopwatch.Restart();
-                            await wizardUiDriver.RunCreateViewFramesWizardAsync(
+                            WaitResult wizardResult = await wizardUiDriver.RunCreateViewFramesWizardAsync(
                                 new WizardRunOptions
                                 {
                                     IsFirstFile = index == 0,
@@ -93,10 +95,11 @@ namespace SheetCreationAutomation.Procedures.ViewFrames
                                 progress,
                                 cancellationToken);
                             activeStepStopwatch.Stop();
+                            if (wizardResult.IsCancelled) { cancelled = true; return; }
 
                             activeStep = "Wait for command idle";
                             activeStepStopwatch.Restart();
-                            await WaitForIdleAsync(cancellationToken);
+                            if ((await WaitForIdleAsync(cancellationToken)).IsCancelled) { cancelled = true; return; }
                             activeStepStopwatch.Stop();
 
                             activeStep = "Post-check view frame count";
@@ -136,11 +139,20 @@ namespace SheetCreationAutomation.Procedures.ViewFrames
 
                 lambdaException?.Throw();
 
+                if (cancelled)
+                {
+                    return new AutomationRunResult
+                    {
+                        Outcome = AutomationOutcome.Cancelled,
+                        FinalNextViewFrameCounter = nextCounter
+                    };
+                }
+
                 if (!string.IsNullOrWhiteSpace(hardFailureMessage))
                 {
                     return new AutomationRunResult
                     {
-                        Succeeded = false,
+                        Outcome = AutomationOutcome.Failed,
                         FinalNextViewFrameCounter = nextCounter,
                         Failure = new AutomationFailureInfo
                         {
@@ -155,19 +167,15 @@ namespace SheetCreationAutomation.Procedures.ViewFrames
 
                 return new AutomationRunResult
                 {
-                    Succeeded = true,
+                    Outcome = AutomationOutcome.Succeeded,
                     FinalNextViewFrameCounter = nextCounter
                 };
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
             }
             catch (Exception ex)
             {
                 return new AutomationRunResult
                 {
-                    Succeeded = false,
+                    Outcome = AutomationOutcome.Failed,
                     FinalNextViewFrameCounter = nextCounter,
                     Failure = new AutomationFailureInfo
                     {
