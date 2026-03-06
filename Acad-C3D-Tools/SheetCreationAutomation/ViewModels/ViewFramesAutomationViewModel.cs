@@ -24,6 +24,7 @@ namespace SheetCreationAutomation.ViewModels
         private static readonly Regex PipelineNumberRegexNew = new Regex(@"(?<number>\d{2,3})", RegexOptions.Compiled);
 
         private readonly ViewFrameAutomationRunner automationRunner;
+        private readonly IWaitOverlayPresenter overlayPresenter;
         private CancellationTokenSource? runCts;
 
         [ObservableProperty]
@@ -63,6 +64,7 @@ namespace SheetCreationAutomation.ViewModels
         {
             var waitPolicy = new WaitPolicy();
             var overlay = new WaitOverlayPresenter();
+            overlayPresenter = overlay;
             var wizardDriver = new Civil3dWizardUiDriver(overlay, waitPolicy);
             automationRunner = new ViewFrameAutomationRunner(new ViewFrameCountService(), wizardDriver, waitPolicy, overlay);
 
@@ -228,6 +230,7 @@ namespace SheetCreationAutomation.ViewModels
 
                 IsRunning = true;
                 runCts = new CancellationTokenSource();
+                overlayPresenter.CancelAction = () => runCts?.Cancel();
                 LastStatus = $"Starting native View Frame automation for {drawingsToProcess.Count} drawing(s)...";
                 AutomationRunLog.Append(LastStatus);
 
@@ -248,7 +251,7 @@ namespace SheetCreationAutomation.ViewModels
                     AutomationRunLog.Append(message);
                 });
                 AutomationRunResult result = await ExecuteOnAcContextAsync(() =>
-                    automationRunner.RunAsync(context, progress, runCts.Token));
+                    automationRunner.RunAsync(context, progress, runCts.Token), runCts.Token);
 
                 if (result.Succeeded)
                 {
@@ -293,6 +296,7 @@ namespace SheetCreationAutomation.ViewModels
             }
             finally
             {
+                overlayPresenter.CancelAction = null;
                 IsRunning = false;
                 runCts?.Dispose();
                 runCts = null;
@@ -507,29 +511,36 @@ namespace SheetCreationAutomation.ViewModels
             return Convert.ToInt16(number);
         }
 
-        private static Task<T> ExecuteOnAcContextAsync<T>(Func<Task<T>> action)
+        private static async Task<T> ExecuteOnAcContextAsync<T>(Func<Task<T>> action, CancellationToken cancellationToken)
         {
             SynchronizationContext? context = AcContext.Current;
             if (context == null || SynchronizationContext.Current == context)
             {
-                return action();
+                return await action();
             }
 
             var tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var registration = cancellationToken.Register(
+                () => tcs.TrySetCanceled(cancellationToken));
+
             context.Post(async _ =>
             {
                 try
                 {
                     T result = await action();
-                    tcs.SetResult(result);
+                    tcs.TrySetResult(result);
+                }
+                catch (OperationCanceledException oce)
+                {
+                    tcs.TrySetCanceled(oce.CancellationToken);
                 }
                 catch (Exception ex)
                 {
-                    tcs.SetException(ex);
+                    tcs.TrySetException(ex);
                 }
             }, null);
 
-            return tcs.Task;
+            return await tcs.Task;
         }
     }
 }

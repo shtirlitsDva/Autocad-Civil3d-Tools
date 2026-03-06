@@ -17,7 +17,7 @@ namespace SheetCreationAutomation.Procedures.Sheets
             : base(overlayPresenter, waitPolicy)
         {
         }
-
+        
         public async Task RunCreateSheetsWizardAsync(
             CreateSheetsWizardRunOptions options,
             IProgress<string> progress,
@@ -31,6 +31,7 @@ namespace SheetCreationAutomation.Procedures.Sheets
                 mainHwnd, "Create Sheets - View Frame Group and Layouts", cancellationToken);
             progress.Report("Wizard: View Frame Group and Layouts");
 
+            cancellationToken.ThrowIfCancellationRequested();
             ClickButtonByClassNN(layoutsDialog, "Button13");
             SetTextByClassNN(layoutsDialog, "Edit2",  options.LayoutNamePattern);
             SetTextByClassNN(layoutsDialog, "Edit3", options.NorthArrowBlockName);
@@ -39,6 +40,7 @@ namespace SheetCreationAutomation.Procedures.Sheets
             IntPtr sheetSetDialog = await WaitForDialogAsync(mainHwnd, "Create Sheets - Sheet Set", cancellationToken);
             progress.Report("Wizard: Sheet Set");
 
+            cancellationToken.ThrowIfCancellationRequested();
             ClickButtonByTitle(sheetSetDialog, "Add to existing sheet set:");
             Trace("DEBUG: clicked 'Add to existing sheet set:', now post-clicking Button20 (browse)...");
             PostClickButtonByClassNN(sheetSetDialog, "Button20");
@@ -48,6 +50,7 @@ namespace SheetCreationAutomation.Procedures.Sheets
             Trace($"DEBUG: Browse dialog found => 0x{browseDialog.ToInt64():X}");
             progress.Report("Wizard: Browse Sheet Set");
 
+            cancellationToken.ThrowIfCancellationRequested();
             Trace($"DEBUG: Setting Edit1 to '{options.SheetSetFilePath}'...");
             SetTextAsUserInputByClassNN(browseDialog, "Edit1", options.SheetSetFilePath);
             Trace("DEBUG: Edit1 text set, clicking Button7 (Open)...");
@@ -57,7 +60,9 @@ namespace SheetCreationAutomation.Procedures.Sheets
             Trace("DEBUG: Browse dialog closed.");
 
             sheetSetDialog = await WaitForDialogAsync(mainHwnd, "Create Sheets - Sheet Set", cancellationToken);
-            SetTextByClassNN(sheetSetDialog, "Edit8", options.SheetFileNamePattern);            
+            cancellationToken.ThrowIfCancellationRequested();
+            await WaitForControlEnabledAsync(sheetSetDialog, "Edit8", cancellationToken);
+            SetTextAsUserInputByClassNN(sheetSetDialog, "Edit8", options.SheetFileNamePattern);
 
             IntPtr createSheetsDialog = sheetSetDialog;
             if (!options.PlanOnly)
@@ -66,18 +71,21 @@ namespace SheetCreationAutomation.Procedures.Sheets
                 IntPtr profileDialog = await WaitForDialogAsync(mainHwnd, "Create Sheets - Profile Views", cancellationToken);
                 progress.Report("Wizard: Profile Views");
 
+                cancellationToken.ThrowIfCancellationRequested();
                 ClickButtonByClassNN(profileDialog, "Button36");
                 ClickButtonByClassNN(profileDialog, "Button31");
                 ClickButtonByClassNN(profileDialog, "Button33");
 
                 IntPtr profileHeightDialog = await WaitForDialogAsync(
                     mainHwnd, "Create Multiple Profile Views - Profile View Height", cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
                 ClickButtonByClassNN(profileHeightDialog, "Button8");
 
                 IntPtr multiplePlotDialog = await WaitForDialogAsync(
                     mainHwnd, "Create Multiple Profile Views - Multiple Plot Options", cancellationToken);
                 progress.Report("Wizard: Multiple Plot Options");
 
+                cancellationToken.ThrowIfCancellationRequested();
                 SetTextByClassNN(multiplePlotDialog, "Edit1", "50");
                 SetTextByClassNN(multiplePlotDialog, "Edit2", "100");
                 SetTextByClassNN(multiplePlotDialog, "Edit3", "100");
@@ -88,6 +96,7 @@ namespace SheetCreationAutomation.Procedures.Sheets
                 createSheetsDialog = await WaitForDialogAsync(mainHwnd, "Create Sheets - Profile Views", cancellationToken);
             }
 
+            cancellationToken.ThrowIfCancellationRequested();
             progress.Report("Wizard: Create Sheets");
             ClickButtonByClassNN(createSheetsDialog, "Button3");
 
@@ -100,17 +109,5 @@ namespace SheetCreationAutomation.Procedures.Sheets
 
             Trace("WIZARD_COMPLETE: create-clicked and save-confirmed.");
         }
-
-        private void SetValueByMsaaPath(IntPtr dialog, IReadOnlyList<int> path, string value, string fieldName)
-        {
-            if (!MsaaTools.TrySetValueByChildPath(dialog, path, value, out string error))
-            {
-                throw new InvalidOperationException(
-                    $"Failed to set '{fieldName}' via MSAA path [{string.Join(",", path)}]. {error}");
-            }
-
-            Trace($"MSAA_SET: {fieldName}='{value}' path=[{string.Join(",", path)}]");
-        }
-
     }
 }

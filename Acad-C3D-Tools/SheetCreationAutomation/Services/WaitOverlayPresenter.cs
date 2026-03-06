@@ -16,6 +16,8 @@ namespace SheetCreationAutomation.Services
 
         private OverlayForm? overlayForm;
 
+        public Action? CancelAction { get; set; }
+
         public void Show(string stepName, TimeSpan elapsed)
         {
             string message =
@@ -32,7 +34,7 @@ namespace SheetCreationAutomation.Services
                     return;
                 }
 
-                overlayForm.SafeSetMessage(message);
+                overlayForm.SafeSetMessage(message, CancelAction != null);
                 overlayForm.SafeShow();
             });
         }
@@ -58,6 +60,7 @@ namespace SheetCreationAutomation.Services
             }
 
             overlayForm = new OverlayForm();
+            overlayForm.CancelClicked += (_, __) => CancelAction?.Invoke();
             IntPtr mainHandle = AcApp.MainWindow.Handle;
             Rectangle bounds = Screen.FromHandle(mainHandle).WorkingArea;
 
@@ -84,7 +87,14 @@ namespace SheetCreationAutomation.Services
 
         private sealed class OverlayForm : Form
         {
+            private const int CancelButtonWidth = 120;
+            private const int CancelButtonHeight = 36;
+            private const int CancelButtonMargin = 16;
+
             private readonly Label messageLabel;
+            private readonly Button cancelButton;
+
+            public event EventHandler? CancelClicked;
 
             public OverlayForm()
             {
@@ -98,27 +108,45 @@ namespace SheetCreationAutomation.Services
                 Height = OverlayMinHeight;
                 Padding = new Padding(16);
 
+                cancelButton = new Button
+                {
+                    Text = "CANCEL",
+                    FlatStyle = FlatStyle.Flat,
+                    BackColor = Color.FromArgb(180, 30, 30),
+                    ForeColor = Color.White,
+                    Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                    Width = CancelButtonWidth,
+                    Height = CancelButtonHeight,
+                    Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                    Cursor = Cursors.Hand,
+                    Visible = false
+                };
+                cancelButton.FlatAppearance.BorderColor = Color.FromArgb(220, 60, 60);
+                cancelButton.FlatAppearance.MouseOverBackColor = Color.FromArgb(220, 40, 40);
+                cancelButton.Click += (_, __) => CancelClicked?.Invoke(this, EventArgs.Empty);
+
                 messageLabel = new Label
                 {
-                    Dock = DockStyle.Fill,
                     ForeColor = Color.White,
                     Font = new Font("Segoe UI", 11, FontStyle.Bold),
                     TextAlign = ContentAlignment.TopLeft
                 };
 
+                Controls.Add(cancelButton);
                 Controls.Add(messageLabel);
             }
 
-            public void SafeSetMessage(string message)
+            public void SafeSetMessage(string message, bool showCancel)
             {
                 if (InvokeRequired)
                 {
-                    BeginInvoke(new Action<string>(SafeSetMessage), message);
+                    BeginInvoke(new Action(() => SafeSetMessage(message, showCancel)));
                     return;
                 }
 
                 messageLabel.Text = message;
-                ResizeToFitMessage();
+                cancelButton.Visible = showCancel;
+                LayoutControls();
             }
 
             public void SafeShow()
@@ -153,19 +181,40 @@ namespace SheetCreationAutomation.Services
                 }
             }
 
-            private void ResizeToFitMessage()
+            private void LayoutControls()
             {
                 int textWidth = Math.Max(100, ClientSize.Width - Padding.Left - Padding.Right);
+                if (cancelButton.Visible)
+                {
+                    textWidth -= CancelButtonWidth + CancelButtonMargin;
+                }
+
                 Size measured = TextRenderer.MeasureText(
                     messageLabel.Text ?? string.Empty,
                     messageLabel.Font,
                     new Size(textWidth, int.MaxValue),
                     TextFormatFlags.WordBreak | TextFormatFlags.NoPadding);
 
-                int desiredHeight = measured.Height + Padding.Top + Padding.Bottom + 12;
+                int contentHeight = cancelButton.Visible
+                    ? Math.Max(measured.Height, CancelButtonHeight)
+                    : measured.Height;
+                int desiredHeight = contentHeight + Padding.Top + Padding.Bottom + 12;
                 Rectangle workArea = Screen.FromControl(this).WorkingArea;
                 int maxHeight = Math.Max(OverlayMinHeight, workArea.Height - (ScreenMargin * 2));
                 Height = Math.Max(OverlayMinHeight, Math.Min(desiredHeight, maxHeight));
+
+                messageLabel.SetBounds(
+                    Padding.Left,
+                    Padding.Top,
+                    textWidth,
+                    ClientSize.Height - Padding.Top - Padding.Bottom);
+
+                if (cancelButton.Visible)
+                {
+                    cancelButton.Location = new Point(
+                        ClientSize.Width - CancelButtonWidth - CancelButtonMargin,
+                        Padding.Top);
+                }
             }
         }
     }

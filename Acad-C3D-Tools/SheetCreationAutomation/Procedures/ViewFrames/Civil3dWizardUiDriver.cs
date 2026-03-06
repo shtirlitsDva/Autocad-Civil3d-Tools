@@ -32,11 +32,13 @@ namespace SheetCreationAutomation.Procedures.ViewFrames
 
             IntPtr alignmentDialog = await WaitForDialogAsync(mainHwnd, "Create View Frames - Alignment", cancellationToken);
             progress.Report("Wizard: Alignment -> Next");
+            cancellationToken.ThrowIfCancellationRequested();
             ClickButtonByClassNN(alignmentDialog, "Button2");
 
             IntPtr sheetsDialog = await WaitForDialogAsync(mainHwnd, "Create View Frames - Sheets", cancellationToken);
             progress.Report("Wizard: Sheets");
 
+            cancellationToken.ThrowIfCancellationRequested();
             if (options.PlanOnly)
             {
                 ClickButtonByClassNN(sheetsDialog, "Button15");
@@ -44,13 +46,14 @@ namespace SheetCreationAutomation.Procedures.ViewFrames
 
             if (options.IsFirstFile)
             {
-                // Open template dialog on first file and commit template path via Enter on Edit1.
                 ClickButtonByClassNN(sheetsDialog, "Button17");
                 IntPtr selectLayoutDialog = await WaitForDialogAsync(
                     mainHwnd, "Select Layout as Sheet Template", cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
                 SetTextAsUserInputByClassNN(selectLayoutDialog, "Edit1", options.TemplateFilePath);
                 SendEnterByClassNN(selectLayoutDialog, "Edit1");
                 await WaitForTemplateLayoutsLoadedAsync(selectLayoutDialog, cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
                 ClickButtonByClassNN(selectLayoutDialog, "Button1");
             }
 
@@ -67,10 +70,12 @@ namespace SheetCreationAutomation.Procedures.ViewFrames
                 mainHwnd, "Create View Frames - View Frame Group", cancellationToken);
             progress.Report("Wizard: View Frame Group");
 
+            cancellationToken.ThrowIfCancellationRequested();
             ClickButtonByClassNN(groupDialog, "Button28");
 
             IntPtr nameTemplateDialog = await WaitForDialogAsync(
                 mainHwnd, "Name Template", cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
             ClickButtonByClassNN(nameTemplateDialog, "Button2");
             SetTextByClassNN(
                 nameTemplateDialog, "Edit2", options.NextViewFrameCounterNumber.ToString());
@@ -88,7 +93,6 @@ namespace SheetCreationAutomation.Procedures.ViewFrames
                 return hwnd == IntPtr.Zero;
             }, cancellationToken, continueOnCapturedContext: false);
 
-            //groupDialog = await WaitForDialogAsync(mainHwnd, "Create View Frames - View Frame Group", cancellationToken);
             SelectComboString(groupDialog, "ComboBox4", "Middle center");
             ClickButtonByClassNN(groupDialog, "Button2");
 
@@ -96,6 +100,7 @@ namespace SheetCreationAutomation.Procedures.ViewFrames
                 mainHwnd, "Create View Frames - Match Lines", cancellationToken);
             progress.Report("Wizard: Match Lines");
 
+            cancellationToken.ThrowIfCancellationRequested();
             EnsureCheckBoxCheckedByName(matchLinesDialog, "Snap station value");
             SetTextByClassNN(matchLinesDialog, "Edit11", "20");
             EnsureCheckBoxCheckedByName(matchLinesDialog, "Allow additional distance");
@@ -109,11 +114,14 @@ namespace SheetCreationAutomation.Procedures.ViewFrames
                 IntPtr profileDialog = await WaitForDialogAsync(mainHwnd, "Create View Frames - Profile Views", cancellationToken);
                 progress.Report("Wizard: Profile Views");
 
+                cancellationToken.ThrowIfCancellationRequested();
                 await SelectComboOrPopupTreeItemAsync(profileDialog, "ComboBox10", "PROFILE VIEW L TO R NO SCALE", cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
                 await SelectComboOrPopupTreeItemAsync(profileDialog, "ComboBox11", "EG-FG Elevations and Stations", cancellationToken);
                 createActionDialog = profileDialog;
             }
 
+            cancellationToken.ThrowIfCancellationRequested();
             progress.Report("Wizard: Create View Frames");
             ClickButtonByClassNN(createActionDialog, "Button3");
 

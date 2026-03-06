@@ -81,6 +81,23 @@ namespace SheetCreationAutomation.Procedures.Common
             }, cancellationToken, continueOnCapturedContext: false);
         }
 
+        protected async Task WaitForControlEnabledAsync(
+            IntPtr dialog,
+            string classNN,
+            CancellationToken cancellationToken)
+        {
+            await Waiter.WaitUntilAsync($"Control '{classNN}' enabled", () =>
+            {
+                IntPtr control = Win32WindowTools.FindChildByClassNN(dialog, classNN);
+                if (control == IntPtr.Zero)
+                {
+                    return false;
+                }
+
+                return Win32WindowTools.GetMetadata(control).IsEnabled;
+            }, cancellationToken, continueOnCapturedContext: false);
+        }
+
         protected void ClickButtonByClassNN(IntPtr dialog, string classNN)
         {
             IntPtr button = Win32WindowTools.FindChildByClassNN(dialog, classNN);
