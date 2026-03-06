@@ -74,21 +74,25 @@ namespace SheetCreationAutomation.Procedures.Sheets
                 cancellationToken.ThrowIfCancellationRequested();
                 ClickButtonByClassNN(profileDialog, "Button36");
                 ClickButtonByClassNN(profileDialog, "Button31");
-                ClickButtonByClassNN(profileDialog, "Button33");
+                PostClickButtonByClassNN(profileDialog, "Button33");
 
                 IntPtr profileHeightDialog = await WaitForDialogAsync(
                     mainHwnd, "Create Multiple Profile Views - Profile View Height", cancellationToken);
                 cancellationToken.ThrowIfCancellationRequested();
-                ClickButtonByClassNN(profileHeightDialog, "Button8");
+                ClickControlCenterByTitle(profileHeightDialog, "Multiple Plot Options");
 
                 IntPtr multiplePlotDialog = await WaitForDialogAsync(
                     mainHwnd, "Create Multiple Profile Views - Multiple Plot Options", cancellationToken);
                 progress.Report("Wizard: Multiple Plot Options");
 
                 cancellationToken.ThrowIfCancellationRequested();
+                Thread.Sleep(3000);
                 SetTextByClassNN(multiplePlotDialog, "Edit1", "50");
+                Thread.Sleep(2000);
                 SetTextByClassNN(multiplePlotDialog, "Edit2", "100");
+                Thread.Sleep(2000);
                 SetTextByClassNN(multiplePlotDialog, "Edit3", "100");
+                Thread.Sleep(3000);
                 ClickButtonByClassNN(multiplePlotDialog, "Button55");
                 await WaitForDialogClosedAsync(
                     mainHwnd, "Create Multiple Profile Views - Multiple Plot Options", cancellationToken);
