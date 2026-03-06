@@ -3,7 +3,6 @@ using SheetCreationAutomation.Models;
 using SheetCreationAutomation.Procedures.Common;
 using SheetCreationAutomation.Services;
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -17,7 +16,7 @@ namespace SheetCreationAutomation.Procedures.Sheets
             : base(overlayPresenter, waitPolicy)
         {
         }
-        
+
         public async Task<WaitResult> RunCreateSheetsWizardAsync(
             CreateSheetsWizardRunOptions options,
             IProgress<string> progress,
@@ -46,24 +45,17 @@ namespace SheetCreationAutomation.Procedures.Sheets
 
             if (cancellationToken.IsCancellationRequested) return WaitResult.Cancelled;
             ClickButtonByTitle(sheetSetDialog, "Add to existing sheet set:");
-            Trace("DEBUG: clicked 'Add to existing sheet set:', now post-clicking Button20 (browse)...");
             PostClickButtonByClassNN(sheetSetDialog, "Button20");
-            Trace("DEBUG: Button20 post-clicked, waiting for Browse dialog...");
 
             var browseDialogResult = await WaitForDialogAsync(mainHwnd, "Browse the Sheet set file", cancellationToken);
             if (browseDialogResult.IsCancelled) return WaitResult.Cancelled;
             IntPtr browseDialog = browseDialogResult.Value;
-            Trace($"DEBUG: Browse dialog found => 0x{browseDialog.ToInt64():X}");
             progress.Report("Wizard: Browse Sheet Set");
 
             if (cancellationToken.IsCancellationRequested) return WaitResult.Cancelled;
-            Trace($"DEBUG: Setting Edit1 to '{options.SheetSetFilePath}'...");
             SetTextAsUserInputByClassNN(browseDialog, "Edit1", options.SheetSetFilePath);
-            Trace("DEBUG: Edit1 text set, clicking Button7 (Open)...");
             ClickButtonByClassNN(browseDialog, "Button7");
-            Trace("DEBUG: Button7 clicked, waiting for Browse dialog to close...");
             if ((await WaitForDialogClosedAsync(mainHwnd, "Browse the Sheet set file", cancellationToken)).IsCancelled) return WaitResult.Cancelled;
-            Trace("DEBUG: Browse dialog closed.");
 
             var sheetSetDialogResult2 = await WaitForDialogAsync(mainHwnd, "Create Sheets - Sheet Set", cancellationToken);
             if (sheetSetDialogResult2.IsCancelled) return WaitResult.Cancelled;
@@ -100,13 +92,9 @@ namespace SheetCreationAutomation.Procedures.Sheets
                 progress.Report("Wizard: Multiple Plot Options");
 
                 if (cancellationToken.IsCancellationRequested) return WaitResult.Cancelled;
-                Thread.Sleep(3000);
                 SetTextByClassNN(multiplePlotDialog, "Edit1", "50");
-                Thread.Sleep(2000);
                 SetTextByClassNN(multiplePlotDialog, "Edit2", "100");
-                Thread.Sleep(2000);
                 SetTextByClassNN(multiplePlotDialog, "Edit3", "100");
-                Thread.Sleep(3000);
                 ClickButtonByClassNN(multiplePlotDialog, "Button55");
                 if ((await WaitForDialogClosedAsync(
                     mainHwnd, "Create Multiple Profile Views - Multiple Plot Options", cancellationToken)).IsCancelled) return WaitResult.Cancelled;

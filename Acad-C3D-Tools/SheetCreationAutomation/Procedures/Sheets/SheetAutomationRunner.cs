@@ -5,7 +5,6 @@ using SheetCreationAutomation.Services;
 using System;
 using System.Diagnostics;
 using System.IO;
-using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using AcApp = Autodesk.AutoCAD.ApplicationServices.Application;
@@ -41,122 +40,108 @@ namespace SheetCreationAutomation.Procedures.Sheets
 
             try
             {
-                ExceptionDispatchInfo? lambdaException = null;
-
-                await AcApp.DocumentManager.ExecuteInCommandContextAsync(async _ =>
+                for (int index = 0; index < context.DrawingPaths.Count; index++)
                 {
-                    try
+                    if (cancellationToken.IsCancellationRequested) { cancelled = true; break; }
+
+                    string drawingPath = context.DrawingPaths[index];
+                    activeFile = drawingPath;
+
+                    if (cancellationToken.IsCancellationRequested) { cancelled = true; break; }
+                    progress.Report($"[{index + 1}/{context.DrawingPaths.Count}] Opening {Path.GetFileName(drawingPath)}...");
+                    Document doc = AcApp.DocumentManager.Open(drawingPath, forReadOnly: false);
+                    RequestDocumentActivation(doc);
+                    WaitResult docActiveResult = await WaitForDocumentActiveAsync(doc, cancellationToken);
+                    if (docActiveResult.IsCancelled) { cancelled = true; break; }
+
+                    bool completed = false;
+                    for (int attempt = 1; attempt <= MaxWizardAttemptsPerDrawing; attempt++)
                     {
-                        for (int index = 0; index < context.DrawingPaths.Count; index++)
-                        {
-                            if (cancellationToken.IsCancellationRequested) { cancelled = true; return; }
+                        if (cancellationToken.IsCancellationRequested) { cancelled = true; break; }
+                        progress.Report(
+                            $"[{index + 1}/{context.DrawingPaths.Count}] " +
+                            $"Create Sheets attempt {attempt}/{MaxWizardAttemptsPerDrawing}...");
 
-                            string drawingPath = context.DrawingPaths[index];
-                            activeFile = drawingPath;
+                        activeStep = "Launch _aecccreatesheets";
+                        activeStepStopwatch.Restart();
+                        doc.SendStringToExecute("_aecccreatesheets ", true, false, false);
+                        activeStepStopwatch.Stop();
 
-                            if (cancellationToken.IsCancellationRequested) { cancelled = true; return; }
-                            progress.Report($"[{index + 1}/{context.DrawingPaths.Count}] Opening {Path.GetFileName(drawingPath)}...");
-                            Document doc = AcApp.DocumentManager.Open(drawingPath, forReadOnly: false);
-                            RequestDocumentActivation(doc);
-                            WaitResult docActiveResult = await WaitForDocumentActiveAsync(doc, cancellationToken);
-                            if (docActiveResult.IsCancelled) { cancelled = true; return; }
-
-                            bool completed = false;
-                            for (int attempt = 1; attempt <= MaxWizardAttemptsPerDrawing; attempt++)
+                        activeStep = "Drive Create Sheets wizard";
+                        activeStepStopwatch.Restart();
+                        WaitResult wizardResult = await wizardUiDriver.RunCreateSheetsWizardAsync(
+                            new CreateSheetsWizardRunOptions
                             {
-                                if (cancellationToken.IsCancellationRequested) { cancelled = true; return; }
-                                progress.Report(
-                                    $"[{index + 1}/{context.DrawingPaths.Count}] " +
-                                    $"Create Sheets attempt {attempt}/{MaxWizardAttemptsPerDrawing}...");
+                                PlanOnly = context.PlanOnly,
+                                SheetSetFilePath = context.SheetSetFilePath,
+                                LayoutNamePattern =
+                                    "<[View Frame Group Alignment Name]> ST <[View Frame Start Station Value]> - <[View Frame End Station Value]>",
+                                SheetFileNamePattern = "<[View Frame Group Alignment Name]>_SHT",
+                                NorthArrowBlockName = "Nordpil2"
+                            },
+                            progress,
+                            cancellationToken);
+                        activeStepStopwatch.Stop();
+                        if (wizardResult.IsCancelled) { cancelled = true; break; }
 
-                                activeStep = "Launch _aecccreatesheets";
-                                activeStepStopwatch.Restart();
-                                doc.SendStringToExecute("_aecccreatesheets ", true, false, false);
-                                activeStepStopwatch.Stop();
+                        if (context.PlanOnly)
+                        {
+                            completed = true;
+                            break;
+                        }
 
-                                activeStep = "Drive Create Sheets wizard";
-                                activeStepStopwatch.Restart();
-                                WaitResult wizardResult = await wizardUiDriver.RunCreateSheetsWizardAsync(
-                                    new CreateSheetsWizardRunOptions
-                                    {
-                                        PlanOnly = context.PlanOnly,
-                                        SheetSetFilePath = context.SheetSetFilePath,
-                                        LayoutNamePattern =
-                                            "<[View Frame Group Alignment Name]> ST <[View Frame Start Station Value]> - <[View Frame End Station Value]>",
-                                        SheetFileNamePattern = "<[View Frame Group Alignment Name]>_SHT",
-                                        NorthArrowBlockName = "Nordpil2"
-                                    },
-                                    progress,
-                                    cancellationToken);
-                                activeStepStopwatch.Stop();
-                                if (wizardResult.IsCancelled) { cancelled = true; return; }
+                        activeStep = "Wait for dynamic input prompt";
+                        activeStepStopwatch.Restart();
+                        WaitResult<IntPtr> dynResult = await WaitForDynamicInputWindowAsync(cancellationToken);
+                        activeStepStopwatch.Stop();
+                        if (dynResult.IsCancelled) { cancelled = true; break; }
+                        IntPtr dynamicInput = dynResult.Value;
 
-                                if (context.PlanOnly)
-                                {
-                                    completed = true;
-                                    break;
-                                }
-
-                                activeStep = "Wait for dynamic input prompt";
-                                activeStepStopwatch.Restart();
-                                WaitResult<IntPtr> dynResult = await WaitForDynamicInputWindowAsync(cancellationToken);
-                                activeStepStopwatch.Stop();
-                                if (dynResult.IsCancelled) { cancelled = true; return; }
-                                IntPtr dynamicInput = dynResult.Value;
-
-                                if (dynamicInput == IntPtr.Zero)
-                                {
-                                    progress.Report(
-                                        $"Dynamic input prompt not detected within {DynamicInputTimeout.TotalSeconds:0}s.");
-                                    if (attempt >= MaxWizardAttemptsPerDrawing)
-                                    {
-                                        hardFailureMessage =
-                                            "Create Sheets did not reach dynamic input coordinate prompt. " +
-                                            $"Attempts exhausted ({MaxWizardAttemptsPerDrawing}).";
-                                        return;
-                                    }
-
-                                    if ((await WaitForIdleAsync(cancellationToken)).IsCancelled) { cancelled = true; return; }
-                                    progress.Report("Retrying Create Sheets from start for this drawing...");
-                                    continue;
-                                }
-
-                                activeStep = "Send profile view origin";
-                                activeStepStopwatch.Restart();
-                                doc.SendStringToExecute(context.ProfileViewOrigin + " ", true, false, false);
-                                activeStepStopwatch.Stop();
-                                completed = true;
+                        if (dynamicInput == IntPtr.Zero)
+                        {
+                            progress.Report(
+                                $"Dynamic input prompt not detected within {DynamicInputTimeout.TotalSeconds:0}s.");
+                            if (attempt >= MaxWizardAttemptsPerDrawing)
+                            {
+                                hardFailureMessage =
+                                    "Create Sheets did not reach dynamic input coordinate prompt. " +
+                                    $"Attempts exhausted ({MaxWizardAttemptsPerDrawing}).";
                                 break;
                             }
 
-                            if (cancelled) return;
-
-                            if (!completed)
-                            {
-                                hardFailureMessage ??= "Create Sheets was not completed.";
-                                return;
-                            }
-
-                            activeStep = "Wait for command idle";
-                            activeStepStopwatch.Restart();
-                            if ((await WaitForIdleAsync(cancellationToken)).IsCancelled) { cancelled = true; return; }
-                            activeStepStopwatch.Stop();
-
-                            activeStep = "Close drawing without save";
-                            activeStepStopwatch.Restart();
-                            doc.CloseAndDiscard();
-                            activeStepStopwatch.Stop();
-
-                            progress.Report($"[{index + 1}/{context.DrawingPaths.Count}] Completed {Path.GetFileName(drawingPath)}.");
+                            if ((await WaitForIdleAsync(cancellationToken)).IsCancelled) { cancelled = true; break; }
+                            progress.Report("Retrying Create Sheets from start for this drawing...");
+                            continue;
                         }
-                    }
-                    catch (Exception ex)
-                    {
-                        lambdaException = ExceptionDispatchInfo.Capture(ex);
-                    }
-                }, null);
 
-                lambdaException?.Throw();
+                        activeStep = "Send profile view origin";
+                        activeStepStopwatch.Restart();
+                        doc.SendStringToExecute(context.ProfileViewOrigin + " ", true, false, false);
+                        activeStepStopwatch.Stop();
+                        completed = true;
+                        break;
+                    }
+
+                    if (cancelled) break;
+
+                    if (!completed)
+                    {
+                        hardFailureMessage ??= "Create Sheets was not completed.";
+                        break;
+                    }
+
+                    activeStep = "Wait for command idle";
+                    activeStepStopwatch.Restart();
+                    if ((await WaitForIdleAsync(cancellationToken)).IsCancelled) { cancelled = true; break; }
+                    activeStepStopwatch.Stop();
+
+                    activeStep = "Close drawing without save";
+                    activeStepStopwatch.Restart();
+                    doc.CloseAndDiscard();
+                    activeStepStopwatch.Stop();
+
+                    progress.Report($"[{index + 1}/{context.DrawingPaths.Count}] Completed {Path.GetFileName(drawingPath)}.");
+                }
 
                 if (cancelled)
                 {

@@ -5,7 +5,6 @@ using SheetCreationAutomation.Services;
 using System;
 using System.Diagnostics;
 using System.IO;
-using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using AcApp = Autodesk.AutoCAD.ApplicationServices.Application;
@@ -42,102 +41,88 @@ namespace SheetCreationAutomation.Procedures.ViewFrames
 
             try
             {
-                ExceptionDispatchInfo? lambdaException = null;
-
-                await AcApp.DocumentManager.ExecuteInCommandContextAsync(async _ =>
+                for (int index = 0; index < context.DrawingPaths.Count; index++)
                 {
-                    try
+                    if (cancellationToken.IsCancellationRequested) { cancelled = true; break; }
+
+                    string drawingPath = context.DrawingPaths[index];
+                    activeFile = drawingPath;
+
+                    progress.Report($"[{index + 1}/{context.DrawingPaths.Count}] Opening {Path.GetFileName(drawingPath)}...");
+                    Document doc = AcApp.DocumentManager.Open(drawingPath, forReadOnly: false);
+                    RequestDocumentActivation(doc);
+                    WaitResult waitResult = await WaitForDocumentActiveAsync(doc, cancellationToken);
+                    if (waitResult.IsCancelled) { cancelled = true; break; }
+
+                    activeStep = "Pre-check view frame count";
+                    activeStepStopwatch.Restart();
+                    int beforeCount = viewFrameCountService.GetViewFrameCount(doc.Database);
+                    activeStepStopwatch.Stop();
+                    progress.Report($"DEBUG: before view-frame count={beforeCount}");
+
+                    if (beforeCount > 0)
                     {
-                        for (int index = 0; index < context.DrawingPaths.Count; index++)
+                        hardFailureMessage =
+                            $"Drawing already contains {beforeCount} view frame(s). " +
+                            "This run requires zero pre-existing view frames.";
+                        activeStep = "Pre-check view frame count";
+                        break;
+                    }
+
+                    activeStep = "Launch _aecccreateviewframes";
+                    activeStepStopwatch.Restart();
+                    doc.SendStringToExecute("_aecccreateviewframes ", true, false, false);
+                    activeStepStopwatch.Stop();
+
+                    activeStep = "Drive Create View Frames wizard";
+                    activeStepStopwatch.Restart();
+                    WaitResult wizardResult = await wizardUiDriver.RunCreateViewFramesWizardAsync(
+                        new WizardRunOptions
                         {
-                            if (cancellationToken.IsCancellationRequested) { cancelled = true; return; }
+                            IsFirstFile = index == 0,
+                            PlanOnly = context.PlanOnly,
+                            TemplateFilePath = context.TemplateFilePath,
+                            NextViewFrameCounterNumber = nextCounter,
+                            ViewOverlap = context.ViewOverlap
+                        },
+                        progress,
+                        cancellationToken);
+                    activeStepStopwatch.Stop();
+                    if (wizardResult.IsCancelled) { cancelled = true; break; }
 
-                            string drawingPath = context.DrawingPaths[index];
-                            activeFile = drawingPath;
+                    activeStep = "Wait for command idle";
+                    activeStepStopwatch.Restart();
+                    if ((await WaitForIdleAsync(cancellationToken)).IsCancelled) { cancelled = true; break; }
+                    activeStepStopwatch.Stop();
 
-                            progress.Report($"[{index + 1}/{context.DrawingPaths.Count}] Opening {Path.GetFileName(drawingPath)}...");
-                            Document doc = AcApp.DocumentManager.Open(drawingPath, forReadOnly: false);
-                            RequestDocumentActivation(doc);
-                            WaitResult waitResult = await WaitForDocumentActiveAsync(doc, cancellationToken);
-                            if (waitResult.IsCancelled) { cancelled = true; return; }
+                    activeStep = "Post-check view frame count";
+                    activeStepStopwatch.Restart();
+                    int afterCount = viewFrameCountService.GetViewFrameCount(doc.Database);
+                    activeStepStopwatch.Stop();
+                    progress.Report($"DEBUG: after view-frame count={afterCount}");
 
-                            activeStep = "Pre-check view frame count";
-                            activeStepStopwatch.Restart();
-                            int beforeCount = viewFrameCountService.GetViewFrameCount(doc.Database);
-                            activeStepStopwatch.Stop();
-                            progress.Report($"DEBUG: before view-frame count={beforeCount}");
-
-                            if (beforeCount > 0)
-                            {
-                                hardFailureMessage =
-                                    $"Drawing already contains {beforeCount} view frame(s). " +
-                                    "This run requires zero pre-existing view frames.";
-                                activeStep = "Pre-check view frame count";
-                                return;
-                            }
-
-                            activeStep = "Launch _aecccreateviewframes";
-                            activeStepStopwatch.Restart();
-                            doc.SendStringToExecute("_aecccreateviewframes ", true, false, false);
-                            activeStepStopwatch.Stop();
-
-                            activeStep = "Drive Create View Frames wizard";
-                            activeStepStopwatch.Restart();
-                            WaitResult wizardResult = await wizardUiDriver.RunCreateViewFramesWizardAsync(
-                                new WizardRunOptions
-                                {
-                                    IsFirstFile = index == 0,
-                                    PlanOnly = context.PlanOnly,
-                                    TemplateFilePath = context.TemplateFilePath,
-                                    NextViewFrameCounterNumber = nextCounter,
-                                    ViewOverlap = context.ViewOverlap
-                                },
-                                progress,
-                                cancellationToken);
-                            activeStepStopwatch.Stop();
-                            if (wizardResult.IsCancelled) { cancelled = true; return; }
-
-                            activeStep = "Wait for command idle";
-                            activeStepStopwatch.Restart();
-                            if ((await WaitForIdleAsync(cancellationToken)).IsCancelled) { cancelled = true; return; }
-                            activeStepStopwatch.Stop();
-
-                            activeStep = "Post-check view frame count";
-                            activeStepStopwatch.Restart();
-                            int afterCount = viewFrameCountService.GetViewFrameCount(doc.Database);
-                            activeStepStopwatch.Stop();
-                            progress.Report($"DEBUG: after view-frame count={afterCount}");
-
-                            int delta = afterCount - beforeCount;
-                            progress.Report($"DEBUG: view-frame delta={delta}");
-                            if (delta <= 0)
-                            {
-                                hardFailureMessage =
-                                    $"No new view frames detected in drawing '{Path.GetFileName(drawingPath)}'. " +
-                                    $"Before={beforeCount}, After={afterCount}.";
-                                activeStep = "Post-check view frame count";
-                                return;
-                            }
-
-                            nextCounter += delta;
-                            progress.Report(
-                                $"[{index + 1}/{context.DrawingPaths.Count}] " +
-                                $"Created {delta} view frame(s), next counter = {nextCounter}.");
-
-                            activeStep = "Save and close drawing";
-                            activeStepStopwatch.Restart();
-                            string fullPath = doc.Name;
-                            doc.CloseAndSave(fullPath);
-                            activeStepStopwatch.Stop();
-                        }
-                    }
-                    catch (Exception ex)
+                    int delta = afterCount - beforeCount;
+                    progress.Report($"DEBUG: view-frame delta={delta}");
+                    if (delta <= 0)
                     {
-                        lambdaException = ExceptionDispatchInfo.Capture(ex);
+                        hardFailureMessage =
+                            $"No new view frames detected in drawing '{Path.GetFileName(drawingPath)}'. " +
+                            $"Before={beforeCount}, After={afterCount}.";
+                        activeStep = "Post-check view frame count";
+                        break;
                     }
-                }, null);
 
-                lambdaException?.Throw();
+                    nextCounter += delta;
+                    progress.Report(
+                        $"[{index + 1}/{context.DrawingPaths.Count}] " +
+                        $"Created {delta} view frame(s), next counter = {nextCounter}.");
+
+                    activeStep = "Save and close drawing";
+                    activeStepStopwatch.Restart();
+                    string fullPath = doc.Name;
+                    doc.CloseAndSave(fullPath);
+                    activeStepStopwatch.Stop();
+                }
 
                 if (cancelled)
                 {
