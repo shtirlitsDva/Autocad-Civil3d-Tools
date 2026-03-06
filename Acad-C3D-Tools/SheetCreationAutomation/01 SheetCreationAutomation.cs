@@ -1,4 +1,4 @@
-﻿using Autodesk.AutoCAD.ApplicationServices;
+using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
@@ -164,6 +164,10 @@ namespace SheetCreationAutomation
                     HashSet<ViewFrame> vfs = localDb.HashSetOfType<ViewFrame>(tx);
                     prdDbg($"Number of VFs: {{{vfs.Count}}}");
 
+                    var path = Environment.ExpandEnvironmentVariables("%temp%");
+                    string fileName = path + "\\vfCount.txt";
+                    File.WriteAllText(fileName, vfs.Count.ToString());
+
                     System.Windows.Forms.Application.DoEvents();
 
                     #endregion
@@ -171,7 +175,7 @@ namespace SheetCreationAutomation
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    editor.WriteMessage("\n" + ex.Message);
+                    editor.WriteMessage("\n" + ex.ToString());
                     return;
                 }
                 finally
