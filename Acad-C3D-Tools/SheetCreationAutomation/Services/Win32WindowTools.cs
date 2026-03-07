@@ -52,6 +52,9 @@ namespace SheetCreationAutomation.Services
         private const uint MAPVK_VK_TO_VSC = 0;
         private const uint GA_ROOT = 2;
         private const uint MK_LBUTTON = 0x0001;
+        private const uint INPUT_KEYBOARD = 1;
+        private const uint KEYEVENTF_KEYUP = 0x0002;
+        private const uint KEYEVENTF_UNICODE = 0x0004;
 
         [DllImport("user32.dll")]
         private static extern bool EnumChildWindows(IntPtr hWndParent, EnumWindowsProc lpEnumFunc, IntPtr lParam);
@@ -128,6 +131,9 @@ namespace SheetCreationAutomation.Services
 
         [DllImport("user32.dll")]
         private static extern uint MapVirtualKey(uint uCode, uint uMapType);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
 
         public static IEnumerable<IntPtr> EnumerateChildWindows(IntPtr parent, bool includeRoot = false)
         {
@@ -473,6 +479,39 @@ namespace SheetCreationAutomation.Services
             return true;
         }
 
+        public static void TypeChar(char c)
+        {
+            var down = new INPUT();
+            down.type = INPUT_KEYBOARD;
+            down.ki.wScan = c;
+            down.ki.dwFlags = KEYEVENTF_UNICODE;
+
+            var up = new INPUT();
+            up.type = INPUT_KEYBOARD;
+            up.ki.wScan = c;
+            up.ki.dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP;
+
+            SendInput(2, new[] { down, up }, Marshal.SizeOf<INPUT>());
+        }
+
+        public static void TypeEnter()
+        {
+            ushort scanCode = (ushort)MapVirtualKey((uint)VK_RETURN, MAPVK_VK_TO_VSC);
+
+            var down = new INPUT();
+            down.type = INPUT_KEYBOARD;
+            down.ki.wVk = (ushort)VK_RETURN;
+            down.ki.wScan = scanCode;
+
+            var up = new INPUT();
+            up.type = INPUT_KEYBOARD;
+            up.ki.wVk = (ushort)VK_RETURN;
+            up.ki.wScan = scanCode;
+            up.ki.dwFlags = KEYEVENTF_KEYUP;
+
+            SendInput(2, new[] { down, up }, Marshal.SizeOf<INPUT>());
+        }
+
         public static bool SendEnterToWindow(IntPtr hwnd)
         {
             if (hwnd == IntPtr.Zero)
@@ -772,6 +811,29 @@ namespace SheetCreationAutomation.Services
             return IntPtr.Zero;
         }
 
+        public static IntPtr FindParentOfTextControl(uint processId, string textFragment)
+        {
+            foreach (IntPtr topLevel in EnumerateTopLevelWindows())
+            {
+                GetWindowThreadProcessId(topLevel, out uint pid);
+                if (pid != processId) continue;
+
+                foreach (IntPtr child in EnumerateChildWindows(topLevel))
+                {
+                    if (!IsWindowVisible(child)) continue;
+                    string text = GetTextSafe(child);
+                    if (text.Contains(textFragment, StringComparison.OrdinalIgnoreCase))
+                    {
+                        IntPtr parent = GetParent(child);
+                        if (parent != IntPtr.Zero && IsWindowVisible(parent))
+                            return parent;
+                    }
+                }
+            }
+
+            return IntPtr.Zero;
+        }
+
         public static string DumpProcessDialogTree(uint processId)
         {
             var sb = new StringBuilder();
@@ -944,6 +1006,44 @@ namespace SheetCreationAutomation.Services
                     Marshal.FreeHGlobal(textBuffer);
                 }
             }
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct KEYBDINPUT
+        {
+            public ushort wVk;
+            public ushort wScan;
+            public uint dwFlags;
+            public uint time;
+            public IntPtr dwExtraInfo;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct HARDWAREINPUT
+        {
+            public uint uMsg;
+            public ushort wParamL;
+            public ushort wParamH;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct MOUSEINPUT
+        {
+            public int dx;
+            public int dy;
+            public uint mouseData;
+            public uint dwFlags;
+            public uint time;
+            public IntPtr dwExtraInfo;
+        }
+
+        [StructLayout(LayoutKind.Explicit)]
+        private struct INPUT
+        {
+            [FieldOffset(0)] public uint type;
+            [FieldOffset(4)] public MOUSEINPUT mi;
+            [FieldOffset(4)] public KEYBDINPUT ki;
+            [FieldOffset(4)] public HARDWAREINPUT hi;
         }
 
         [StructLayout(LayoutKind.Sequential)]

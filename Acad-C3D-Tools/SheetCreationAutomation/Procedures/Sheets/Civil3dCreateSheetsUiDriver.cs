@@ -94,9 +94,9 @@ namespace SheetCreationAutomation.Procedures.Sheets
                 progress.Report("Wizard: Multiple Plot Options");
 
                 if (cancellationToken.IsCancellationRequested) return WaitResult.Cancelled;
-                SetTextByClassNN(multiplePlotDialog, "Edit1", "50");
-                SetTextByClassNN(multiplePlotDialog, "Edit2", "100");
-                SetTextByClassNN(multiplePlotDialog, "Edit3", "100");
+                SetTextAsUserInputByClassNN(multiplePlotDialog, "Edit1", "50");
+                SetTextAsUserInputByClassNN(multiplePlotDialog, "Edit2", "100");
+                SetTextAsUserInputByClassNN(multiplePlotDialog, "Edit3", "100");
                 PostClickButtonByClassNN(multiplePlotDialog, "Button55");
                 var multiplePlotCloseResult = await WaitForDialogClosedAsync(
                     mainHwnd, "Create Multiple Profile Views - Multiple Plot Options", cancellationToken);
@@ -112,17 +112,38 @@ namespace SheetCreationAutomation.Procedures.Sheets
             if (!buttonEnabledResult.IsCompleted) return buttonEnabledResult;
             progress.Report("Wizard: Create Sheets");
             PostClickButtonByClassNN(createSheetsDialog, "Button3");
+            // The save confirmation ("To complete this process your current drawing will be saved.")
+            // is a standard MessageBox — an owned top-level popup (#32770), NOT a WS_CHILD of
+            // the wizard. This means:
+            //
+            // 1) EnumChildWindows(wizard) cannot find it. Only EnumWindows (top-level search) can.
+            //    FindParentOfTextControl walks ALL top-level process windows and their children,
+            //    finds the Static containing the message text, then returns GetParent(static) —
+            //    the confirmation dialog — regardless of where it sits in the hierarchy.
+            //
+            // 2) After PostClick(BM_CLICK) on "Create Sheets", AutoCAD does heavy synchronous work
+            //    (saving the drawing) before showing the MessageBox. During this time the UI thread
+            //    hasn't pumped messages, so Windows marks it "hung". GetTextSafe uses
+            //    SendMessageTimeoutW with SMTO_ABORTIFHUNG, which returns empty immediately for
+            //    any window on a hung thread — even after the modal dialog appears, it can take a
+            //    moment for Windows to clear the hung status. The delay + ConfigureAwait(false)
+            //    ensures we (a) give AutoCAD time to finish and show the dialog, and (b) move off
+            //    the AutoCAD SynchronizationContext onto a thread pool thread so our polling never
+            //    blocks AutoCAD's message pump.
             uint mainPid = Win32WindowTools.GetMetadata(mainHwnd).ProcessId;
+            await Task.Delay(500, cancellationToken).ConfigureAwait(false);
             IntPtr saveConfirmDialog = IntPtr.Zero;
             WaitResult saveWait = await Waiter.WaitUntilAsync("Save confirmation dialog", () =>
             {
-                saveConfirmDialog = Win32WindowTools.FindProcessDialogContainingText(
+                saveConfirmDialog = Win32WindowTools.FindParentOfTextControl(
                     mainPid, "To complete this process");
                 return saveConfirmDialog != IntPtr.Zero;
             }, cancellationToken, continueOnCapturedContext: false);
             if (!saveWait.IsCompleted) return saveWait;
             progress.Report("Wizard: Save confirmation");
             PostClickButtonByClassNN(saveConfirmDialog, "Button1");
+
+            
 
             Trace("WIZARD_COMPLETE: create-clicked and save-confirmed.");
             return WaitResult.Completed;

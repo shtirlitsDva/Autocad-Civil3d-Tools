@@ -125,7 +125,7 @@
                     Content="CANCEL"
                     FontSize="14"
                     Height="44"
-                    Command="{Binding CancelScriptCommand}" />
+                    Command="{Binding CancelSheetsScriptCommand}" />
             </Grid>
         </StackPanel>
     </ScrollViewer>

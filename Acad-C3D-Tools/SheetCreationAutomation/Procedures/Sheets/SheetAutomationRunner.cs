@@ -132,13 +132,23 @@ namespace SheetCreationAutomation.Procedures.Sheets
                                 else hardFailureMessage = idleResult.Message;
                                 break;
                             }
+                            AutomationRunLog.Append(
+                                $"RETRY: attempt {attempt}/{MaxWizardAttemptsPerDrawing} — restarting wizard");
                             progress.Report("Retrying Create Sheets from start for this drawing...");
                             continue;
                         }
 
                         activeStep = "Send profile view origin";
                         activeStepStopwatch.Restart();
-                        doc.SendStringToExecute(context.ProfileViewOrigin + " ", true, false, false);
+                        AutomationRunLog.Append($"SEND_COORDS: '{context.ProfileViewOrigin}'");
+                        foreach (char c in context.ProfileViewOrigin)
+                        {
+                            Win32WindowTools.TypeChar(c);
+                            await Task.Delay(100).ConfigureAwait(false);
+                        }
+                        await Task.Delay(500).ConfigureAwait(false);
+                        Win32WindowTools.TypeEnter();
+                        await Task.Delay(1000).ConfigureAwait(false);
                         activeStepStopwatch.Stop();
                         completed = true;
                         break;
@@ -218,6 +228,12 @@ namespace SheetCreationAutomation.Procedures.Sheets
         {
             IntPtr mainHwnd = AcApp.MainWindow.Handle;
             uint mainPid = Win32WindowTools.GetMetadata(mainHwnd).ProcessId;
+
+            await Task.Delay(2000).ConfigureAwait(false);
+
+            AutomationRunLog.Append("DYNINPUT_TREE_DUMP:");
+            AutomationRunLog.Append(DumpAllProcessWindows(mainHwnd, mainPid));
+
             Stopwatch sw = Stopwatch.StartNew();
 
             while (sw.Elapsed < DynamicInputTimeout)
@@ -228,35 +244,69 @@ namespace SheetCreationAutomation.Procedures.Sheets
                 IntPtr dynamicWindow = FindDynamicInputWindow(mainHwnd, mainPid);
                 if (dynamicWindow != IntPtr.Zero)
                 {
+                    AutomationRunLog.Append(
+                        $"DYNAMIC_INPUT_FOUND: hwnd=0x{dynamicWindow.ToInt64():X} after {sw.Elapsed.TotalSeconds:F1}s");
                     return WaitResult<IntPtr>.Of(dynamicWindow);
                 }
 
                 await Task.Delay(WaitPolicy.PollInterval).ConfigureAwait(false);
             }
 
+            AutomationRunLog.Append(
+                $"DYNAMIC_INPUT_TIMEOUT: not found after {DynamicInputTimeout.TotalSeconds:0}s (cancelled by AutoCAD?)");
             return WaitResult<IntPtr>.Of(IntPtr.Zero);
+        }
+
+        private static string DumpAllProcessWindows(IntPtr mainHwnd, uint mainPid)
+        {
+            var sb = new System.Text.StringBuilder();
+
+            sb.AppendLine("--- Top-level windows ---");
+            foreach (IntPtr hwnd in Win32WindowTools.EnumerateTopLevelWindows())
+            {
+                WindowMetadata meta = Win32WindowTools.GetMetadata(hwnd);
+                if (meta.ProcessId != mainPid) continue;
+                sb.AppendLine(
+                    $"  TOP 0x{hwnd.ToInt64():X} cls='{meta.ClassName}' vis={meta.IsVisible} title='{meta.Title}'");
+            }
+
+            sb.AppendLine("--- Children of mainHwnd with 'DynInput' or 'Dyn' in class ---");
+            foreach (IntPtr hwnd in Win32WindowTools.EnumerateChildWindows(mainHwnd))
+            {
+                string cls = Win32WindowTools.GetClassNameRaw(hwnd);
+                if (cls.Contains("Dyn", StringComparison.OrdinalIgnoreCase)
+                    || cls.Contains("Input", StringComparison.OrdinalIgnoreCase))
+                {
+                    bool vis = Win32WindowTools.GetMetadata(hwnd).IsVisible;
+                    sb.AppendLine($"  CHILD 0x{hwnd.ToInt64():X} cls='{cls}' vis={vis}");
+                }
+            }
+
+            return sb.ToString();
         }
 
         private static IntPtr FindDynamicInputWindow(IntPtr mainHwnd, uint mainPid)
         {
-            IntPtr child = Win32WindowTools.FindDescendantByClass(mainHwnd, "CAcDynInputWndControl");
-            if (child != IntPtr.Zero)
+            // The Win32 class of the dynamic input window is an MFC-generated name
+            // like "Afx:00007FF7...", NOT "CAcDynInputWndControl".
+            // "CAcDynInputWndControl" is the window TITLE.
+            // The AHK WinWait("CAcDynInputWndControl") matched by title — we must do the same.
+            foreach (IntPtr hwnd in Win32WindowTools.EnumerateTopLevelWindows())
             {
-                WindowMetadata childMeta = Win32WindowTools.GetMetadata(child);
-                if (childMeta.ProcessId == mainPid && childMeta.IsVisible)
-                {
-                    return child;
-                }
+                WindowMetadata meta = Win32WindowTools.GetMetadata(hwnd);
+                if (meta.ProcessId != mainPid) continue;
+                if (!meta.IsVisible) continue;
+                if (string.Equals(meta.Title, "CAcDynInputWndControl", StringComparison.OrdinalIgnoreCase))
+                    return hwnd;
             }
 
-            IntPtr topLevel = Win32WindowTools.FindTopLevelByClass("CAcDynInputWndControl", mainPid);
-            if (topLevel != IntPtr.Zero)
+            foreach (IntPtr hwnd in Win32WindowTools.EnumerateChildWindows(mainHwnd))
             {
-                WindowMetadata topMeta = Win32WindowTools.GetMetadata(topLevel);
-                if (topMeta.IsVisible)
-                {
-                    return topLevel;
-                }
+                WindowMetadata meta = Win32WindowTools.GetMetadata(hwnd);
+                if (meta.ProcessId != mainPid) continue;
+                if (!meta.IsVisible) continue;
+                if (string.Equals(meta.Title, "CAcDynInputWndControl", StringComparison.OrdinalIgnoreCase))
+                    return hwnd;
             }
 
             return IntPtr.Zero;
