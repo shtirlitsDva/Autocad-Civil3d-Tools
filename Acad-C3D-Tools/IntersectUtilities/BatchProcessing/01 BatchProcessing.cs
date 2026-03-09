@@ -668,6 +668,17 @@ namespace IntersectUtilities
     public static class BatchProcesses
     {
         [MethodDescription(
+            "Run AUDIT and save",
+            "Kører AUDIT og gemmer filen.")]
+        public static Result auditdwg(Database xDb)
+        {
+            Transaction xTx = xDb.TransactionManager.TopTransaction;
+
+            DatabaseExtension.Audit(xDb, true, true);
+
+            return new Result();
+        }
+        [MethodDescription(
             "Fix Ler2D plot styles",
             "Sætter alle lag fra angivet Ler 2D\n" +
             "xref til plotstyle Nedtonet 50%",
