@@ -2282,7 +2282,11 @@ namespace IntersectUtilities
                         LinetypeTable sourceLtt = (LinetypeTable)ltDb.TransactionManager.TopTransaction
                             .GetObject(ltDb.LinetypeTableId, OpenMode.ForRead);
                         ObjectIdCollection idsToClone = new ObjectIdCollection();
-                        foreach (string missingName in missingLineTypes) idsToClone.Add(sourceLtt[missingName]);
+                        foreach (string missingName in missingLineTypes)
+                        {
+                            if (sourceLtt.Has(missingName)) idsToClone.Add(sourceLtt[missingName]);
+                            else prdDbg($"Missing linetype {missingName} not found in Projection_styles.dwg!");
+                        }
                         IdMapping mapping = new IdMapping();
                         ltDb.WblockCloneObjects(idsToClone, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
                         ltTx.Commit();
