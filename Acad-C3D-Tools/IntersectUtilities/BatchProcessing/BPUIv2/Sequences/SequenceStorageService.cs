@@ -22,7 +22,13 @@ public class SequenceStorageService
     private static readonly string SharedSequencesPath =
         @"X:\AutoCAD DRI - 01 Civil 3D\BPv2\shared_sequences.json";
 
-    private SequenceStorageService() { }
+    public bool IsSharedStorageAvailable { get; }
+
+    private SequenceStorageService()
+    {
+        string? dir = Path.GetDirectoryName(SharedSequencesPath);
+        IsSharedStorageAvailable = !string.IsNullOrEmpty(dir) && Directory.Exists(dir);
+    }
 
     public List<SequenceDefinition> LoadAll()
     {
@@ -34,8 +40,11 @@ public class SequenceStorageService
         foreach (var seq in LoadUserSequences())
             all.Add(seq);
 
-        foreach (var seq in LoadSharedSequences())
-            all.Add(seq);
+        if (IsSharedStorageAvailable)
+        {
+            foreach (var seq in LoadSharedSequences())
+                all.Add(seq);
+        }
 
         return all;
     }
@@ -47,6 +56,9 @@ public class SequenceStorageService
 
     public List<SequenceDefinition> LoadSharedSequences()
     {
+        if (!IsSharedStorageAvailable)
+            return new List<SequenceDefinition>();
+
         return SharedSequenceFileManager.Read(SharedSequencesPath);
     }
 
@@ -75,6 +87,8 @@ public class SequenceStorageService
 
     public void SaveSharedSequence(SequenceDefinition sequence)
     {
+        if (!IsSharedStorageAvailable) return;
+
         sequence.StorageLevel = SequenceStorageLevel.Shared;
         sequence.ModifiedAt = DateTime.UtcNow;
         SharedSequenceFileManager.Write(SharedSequencesPath, sequence);
@@ -82,6 +96,8 @@ public class SequenceStorageService
 
     public void DeleteSharedSequence(string sequenceId)
     {
+        if (!IsSharedStorageAvailable) return;
+
         SharedSequenceFileManager.Delete(SharedSequencesPath, sequenceId);
     }
 
