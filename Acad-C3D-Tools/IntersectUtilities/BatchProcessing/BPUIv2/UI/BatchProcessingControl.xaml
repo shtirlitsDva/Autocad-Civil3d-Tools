@@ -91,6 +91,22 @@
                                    Foreground="{DynamicResource Text}"/>
                     </StackPanel>
 
+                    <Button Content="Inputs..."
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            HorizontalAlignment="Left"
+                            Padding="15,5"
+                            Command="{Binding OpenInputsCommand}"
+                            IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBool}}"
+                            Visibility="{Binding SelectedSequence, Converter={StaticResource NullToVis}}"
+                            ToolTip="Configure input parameters"/>
+                </StackPanel>
+            </GroupBox>
+
+            <!-- Editor Section -->
+            <GroupBox Header="Editor"
+                      Margin="10,5,10,5"
+                      Style="{StaticResource ModernGroupBox}">
+                <StackPanel Margin="5">
                     <Button Content="Open Composer..."
                             Style="{StaticResource SecondaryButtonStyle}"
                             HorizontalAlignment="Left"

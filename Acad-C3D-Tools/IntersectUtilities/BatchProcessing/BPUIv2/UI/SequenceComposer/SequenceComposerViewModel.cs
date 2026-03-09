@@ -67,6 +67,7 @@ public partial class SequenceComposerViewModel : ObservableObject
         card.Index = SequenceSteps.Count + 1;
         WireCardDelegates(card);
         SequenceSteps.Add(card);
+        RefreshAvailableOutputs();
     }
 
     [RelayCommand]
@@ -94,6 +95,7 @@ public partial class SequenceComposerViewModel : ObservableObject
         }
 
         RenumberSteps();
+        RefreshAvailableOutputs();
     }
 
     public SequenceDefinition ToSequenceDefinition()
@@ -111,6 +113,7 @@ public partial class SequenceComposerViewModel : ObservableObject
         {
             var step = new OperationStep
             {
+                StepId = card.StepId,
                 OperationTypeId = card.TypeId,
                 Parameters = new Dictionary<string, ParameterValue>()
             };
@@ -132,6 +135,8 @@ public partial class SequenceComposerViewModel : ObservableObject
         if (idx <= 0) return;
         SequenceSteps.Move(idx, idx - 1);
         RenumberSteps();
+        InvalidateBindingsAfterReorder();
+        RefreshAvailableOutputs();
     }
 
     public void MoveStepDown(OperationCardViewModel card)
@@ -140,12 +145,16 @@ public partial class SequenceComposerViewModel : ObservableObject
         if (idx < 0 || idx >= SequenceSteps.Count - 1) return;
         SequenceSteps.Move(idx, idx + 1);
         RenumberSteps();
+        InvalidateBindingsAfterReorder();
+        RefreshAvailableOutputs();
     }
 
     public void RemoveStep(OperationCardViewModel card)
     {
         SequenceSteps.Remove(card);
         RenumberSteps();
+        InvalidateBindingsAfterReorder();
+        RefreshAvailableOutputs();
     }
 
     public void FilterCatalog()
@@ -252,6 +261,68 @@ public partial class SequenceComposerViewModel : ObservableObject
             $"Sequence '{SequenceName}' saved.",
             "Save Sequence", System.Windows.MessageBoxButton.OK,
             System.Windows.MessageBoxImage.Information);
+    }
+
+    private void InvalidateBindingsAfterReorder()
+    {
+        var stepPositions = new Dictionary<string, int>();
+        for (int i = 0; i < SequenceSteps.Count; i++)
+            stepPositions[SequenceSteps[i].StepId] = i;
+
+        for (int i = 0; i < SequenceSteps.Count; i++)
+        {
+            foreach (var param in SequenceSteps[i].Parameters)
+            {
+                if (param.Binding == null) continue;
+
+                if (!stepPositions.TryGetValue(param.Binding.SourceStepId, out int sourcePos)
+                    || sourcePos >= i)
+                {
+                    param.UnbindCommand.Execute(null);
+                }
+            }
+        }
+    }
+
+    private void RefreshAvailableOutputs()
+    {
+        for (int i = 0; i < SequenceSteps.Count; i++)
+        {
+            var precedingOutputs = new List<AvailableOutput>();
+
+            for (int j = 0; j < i; j++)
+            {
+                var precedingStep = SequenceSteps[j];
+                foreach (var output in precedingStep.Outputs)
+                {
+                    precedingOutputs.Add(new AvailableOutput(
+                        precedingStep.StepId,
+                        $"#{precedingStep.Index} {precedingStep.DisplayName}",
+                        output.Name,
+                        output.DisplayName,
+                        output.Type));
+                }
+            }
+
+            foreach (var param in SequenceSteps[i].Parameters)
+            {
+                param.AvailableOutputs.Clear();
+                foreach (var avail in precedingOutputs)
+                {
+                    if (avail.Type == param.ParameterType)
+                        param.AvailableOutputs.Add(avail);
+                }
+
+                if (param.Binding != null)
+                {
+                    var match = precedingOutputs.FirstOrDefault(
+                        o => o.StepId == param.Binding.SourceStepId
+                             && o.OutputName == param.Binding.OutputName);
+                    if (match != null)
+                        param.BindingDisplayText = $"\u2190 {match.StepDisplayName} \u00B7 {match.OutputDisplayName}";
+                }
+            }
+        }
     }
 
     private void RenumberSteps()

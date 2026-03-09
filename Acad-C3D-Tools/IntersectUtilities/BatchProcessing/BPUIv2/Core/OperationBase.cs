@@ -9,6 +9,7 @@ public abstract class OperationBase : IOperation
     public abstract string Description { get; }
     public abstract string Category { get; }
     public abstract IReadOnlyList<ParameterDescriptor> Parameters { get; }
+    public virtual IReadOnlyList<OutputDescriptor> Outputs => [];
 
     public abstract Result Execute(
         OperationContext context,
@@ -47,6 +48,9 @@ public abstract class OperationBase : IOperation
 
     protected int GetIntParam(IReadOnlyDictionary<string, object> values, string name)
         => GetParam<int>(values, name);
+
+    protected void SetOutput(OperationContext context, string name, object value)
+        => context.StepOutputs[name] = value;
 
     protected Counter GetCounter(OperationContext context)
     {

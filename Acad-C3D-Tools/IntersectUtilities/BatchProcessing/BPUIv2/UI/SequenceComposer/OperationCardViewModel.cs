@@ -25,6 +25,12 @@ public partial class OperationCardViewModel : ObservableObject
     private ObservableCollection<ParameterInputViewModel> parameters = new();
 
     [ObservableProperty]
+    private ObservableCollection<OutputDisplayItem> outputs = new();
+
+    [ObservableProperty]
+    private string stepId = Guid.NewGuid().ToString("N")[..8];
+
+    [ObservableProperty]
     private int index;
 
     public Action<OperationCardViewModel>? RequestMoveUp { get; set; }
@@ -51,9 +57,10 @@ public partial class OperationCardViewModel : ObservableObject
         };
 
         foreach (var param in entry.Parameters)
-        {
             vm.Parameters.Add(ParameterInputViewModel.FromDescriptor(param));
-        }
+
+        foreach (var output in entry.Outputs)
+            vm.Outputs.Add(new OutputDisplayItem(output.Name, output.DisplayName, output.Type));
 
         return vm;
     }
@@ -67,6 +74,7 @@ public partial class OperationCardViewModel : ObservableObject
             DisplayName = entry.DisplayName,
             Description = entry.Description,
             Category = entry.Category,
+            StepId = step.StepId,
         };
 
         foreach (var param in entry.Parameters)
@@ -75,6 +83,9 @@ public partial class OperationCardViewModel : ObservableObject
             vm.Parameters.Add(
                 ParameterInputViewModel.FromDescriptor(param, existingValue));
         }
+
+        foreach (var output in entry.Outputs)
+            vm.Outputs.Add(new OutputDisplayItem(output.Name, output.DisplayName, output.Type));
 
         return vm;
     }

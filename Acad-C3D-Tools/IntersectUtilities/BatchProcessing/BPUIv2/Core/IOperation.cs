@@ -9,5 +9,6 @@ public interface IOperation
     string Description { get; }
     string Category { get; }
     IReadOnlyList<ParameterDescriptor> Parameters { get; }
+    IReadOnlyList<OutputDescriptor> Outputs { get; }
     Result Execute(OperationContext context, IReadOnlyDictionary<string, object> parameterValues);
 }

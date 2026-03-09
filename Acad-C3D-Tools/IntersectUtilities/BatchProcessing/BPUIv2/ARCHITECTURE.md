@@ -30,13 +30,18 @@ Every operation implements `IOperation`.
 
 A sequence is an ordered list of `OperationStep` entries. Each step references an operation by `TypeId` and stores concrete parameter values. Sequences are serializable to JSON.
 
+## Dataflow Model
+
+Operations declare typed **inputs** (parameters) and **outputs**. Outputs from one step can be bound to inputs of a later step via `OutputBinding` (references a `SourceStepId` + `OutputName`). Unbound inputs are collected from the user at runtime via the **Inputs** dialog.
+
+- **OutputDescriptor** — declares an output's name, display name, and type.
+- **OutputBinding** — stored on `ParameterValue.Binding`, references a source step's output by StepId.
+- **StepOutputs** — `OperationContext.StepOutputs` dictionary, populated by operations calling `SetOutput()`. The `BatchRunner` captures these after each step and uses them to resolve bindings for subsequent steps.
+- **Hierarchy rule** — data flows strictly downward. An input can only bind to an output from an earlier step in the sequence.
+
 ## SharedState
 
-A `Dictionary<string, object>` carried across all operation executions within a single drawing. Used for inter-operation communication:
-
-- **Counter** — accumulate counts across operations.
-- **DRO** — pass data-referenced object handles.
-- **Detach/Attach flow** — one operation detaches Xrefs and stores paths; a later operation re-attaches them.
+A `Dictionary<string, object>` carried across drawings. Only used for **Counter** (cross-drawing accumulator). All inter-operation communication within a drawing uses the dataflow model above.
 
 ## OperationContext
 
@@ -47,7 +52,9 @@ Provided to every `Execute` call:
 | `Database` | The currently open drawing's `Database` |
 | `Transaction` | Active `Transaction` |
 | `CivilDocument` | Civil 3D `CivilDocument` wrapper |
-| `SharedState` | The per-drawing shared dictionary |
+| `SharedState` | Cross-drawing state (Counter only) |
+| `StepOutputs` | Per-step output dictionary — operations write here via `SetOutput()` |
+| `DataReferences` | Optional data references options |
 
 ## Drawing List
 
@@ -102,7 +109,8 @@ BPUIv2/
 | Control | Type | Purpose |
 |---|---|---|
 | `BatchProcessingControl` | `UserControl` | Main tab inside the palette set. Shows the active sequence, drawing list summary, and run button. |
-| `SequenceComposerWindow` | Modeless `Window` | Popup for composing/editing sequences: drag-and-drop operations, configure parameters. |
+| `SequenceComposerWindow` | Modeless `Window` | Popup for composing/editing sequences: add operations, wire outputs→inputs, configure parameters. |
+| `InputsDialog` | Modal `Window` | Runtime input collection: shows all sequence parameters, bound ones read-only, unbound ones editable. |
 | `DrawingListDialog` | Modal `Window` | Select and manage the list of drawings to process. |
 | `FilterEditorDialog` | Modal `Window` | Edit filter groups used by filter-type parameters. |
 
@@ -161,14 +169,16 @@ Stored on a network path. Concurrent access is managed with file-level locking. 
 2. **Implement `IOperation`**:
    - Set a unique `TypeId` (e.g., `"Layer.FreezeByName"`).
    - Define `Parameters` — use built-in parameter types from `Core/` (string, dropdown, bool, filter, etc.).
+   - Define `Outputs` — if the operation produces data for later steps, declare `OutputDescriptor` entries and call `SetOutput()` in Execute.
    - Implement `Execute(OperationContext ctx)` with the actual logic.
 3. **Register** — the `Registry/` discovery mechanism picks up all `IOperation` implementations automatically (reflection-based scan).
-4. **No UI changes needed** — the composer window dynamically renders parameter editors based on the parameter descriptors.
+4. **No UI changes needed** — the composer window dynamically renders parameter editors, output labels, and binding dropdowns based on descriptors.
 
 ### Conventions
 
 - Keep operations atomic: one logical action per operation.
-- Use `SharedState` only when cross-operation communication is genuinely needed.
+- Use the **dataflow model** (declared outputs + bindings) for inter-operation communication.
+- `SharedState` is reserved for Counter only (cross-drawing accumulator).
 - Prefer parameter descriptors over hard-coded values so users can configure behavior in the composer.
 </example>
 </overview>
@@ -189,30 +199,10 @@ Stored on a network path. Concurrent access is managed with file-level locking. 
 | 3 | `43f4866c` | Execution engine (`BatchRunner`), `DrawingListService` |
 | 4 | `b6117bdf` | `NsCmdPaletteSet` multi-tab hub, `BatchProcessingControl` palette tab |
 | 5+6 | `9c4c7e43` | `DrawingListDialog` (modal), `SequenceComposerWindow` (modeless), converters, button wiring |
+| 7 | `553438b` | Drawing sampling (`DrawingSampler`), user+shared sequence storage, filter editor |
+| Dataflow | pending | Dataflow model: `OutputDescriptor`, `OutputBinding`, `StepOutputs`, binding UI in composer, `InputsDialog`, main UI restructure |
 
 ## Remaining Phases
-
-### Phase 7: Drawing Sampling
-- **Create**: `BPUIv2/Sampling/DrawingSampler.cs`
-- Opens first drawing in list read-only (side-load via `Database.ReadDwgFile`)
-- Extracts: layer names, text style names, block names, linetype names, alignment style names, profile style names
-- Returns string arrays for parameter ComboBoxes
-- **Connects to**: `ParameterInputViewModel.SupportsSampling` — "Sample" buttons in sequence composer trigger this
-
-### Phase 8: User + Shared Sequence Storage
-- **Create**: `BPUIv2/Sequences/SequenceStorageService.cs` + `SharedSequenceFileManager.cs`
-- `SequenceStorageService`: Load/save/list/delete sequences across all three levels
-- User sequences: `%AppData%/Autodesk/ApplicationPlugins/IntersectUtilities/bpv2_user_sequences.json`
-- Shared sequences: `X:\AutoCAD DRI - 01 Civil 3D\BPv2\shared_sequences.json`
-- `SharedSequenceFileManager`: Exclusive file lock (3 retries, 500ms), backup rotation (max 50), atomic write via .tmp + File.Move
-- JSON serialization with System.Text.Json
-- **Connects to**: `SequenceComposerViewModel` "Save as User Sequence" button (currently unwired) and `BatchProcessingViewModel.LoadSequences()` (currently only loads predefined)
-
-### Phase 9: Filter Groups UI
-- **Create**: `BPUIv2/UI/FilterEditor/FilterEditorDialog.xaml` + `.xaml.cs` + `FilterEditorViewModel.cs`
-- Modal dialog for configuring `EntityFilterSet`
-- Groups as bordered cards (OR between groups), condition rows (AND) within each group
-- Core filter classes already exist in `Core/FilterGroup/`
 
 ### Phase 10: Polish + Migration
 - Validation parity with v1

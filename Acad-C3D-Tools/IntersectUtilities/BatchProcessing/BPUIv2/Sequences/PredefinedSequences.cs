@@ -2,10 +2,6 @@ using IntersectUtilities.BatchProcessing.BPUIv2.Core;
 
 namespace IntersectUtilities.BatchProcessing.BPUIv2.Sequences;
 
-/// <summary>
-/// Returns all predefined sequences that reconstruct v1 batch processing methods
-/// from atomic operations.
-/// </summary>
 public static class PredefinedSequences
 {
     public static IReadOnlyList<SequenceDefinition> GetAll()
@@ -70,26 +66,14 @@ public static class PredefinedSequences
 
             // #5 detachdwg
             new("Detach Xref",
-                "Detaches an xref by name. Stores path+layer in SharedState for subsequent Attach.",
+                "Detaches an xref by name, outputting its path and layer.",
                 "Xref Operations",
                 SequenceStorageLevel.Predefined,
                 Step("Xref.Detach",
                     P("xrefName", ""))),
 
-            // #6 detachattachdwg
-            new("Detach & Reattach Xref",
-                "Detaches an xref (saving its path+layer), then reattaches it with optional draw order.",
-                "Xref Operations",
-                SequenceStorageLevel.Predefined,
-                Step("Xref.Detach",
-                    P("xrefName", "")),
-                Step("Xref.Attach",
-                    P("filePath", ""),
-                    P("layerName", "")),
-                Step("Xref.SetDrawOrder",
-                    P("entityXrefName", ""),
-                    P("referenceXrefName", ""),
-                    P("orderType", "Under"))),
+            // #6 detachattachdwg — uses bindings for dataflow
+            DetachReattachSequence(),
 
             // #7 createdetailing
             new("Recreate Detailing",
@@ -327,7 +311,27 @@ public static class PredefinedSequences
         };
     }
 
-    #region Helper methods for concise sequence definition
+    private static SequenceDefinition DetachReattachSequence()
+    {
+        const string detachId = "detach01";
+        var def = new SequenceDefinition(
+            "Detach & Reattach Xref",
+            "Detaches an xref (capturing path+layer via outputs), then reattaches it with optional draw order.",
+            "Xref Operations",
+            SequenceStorageLevel.Predefined,
+            StepWithId(detachId, "Xref.Detach",
+                P("xrefName", "")),
+            StepWithId("attach01", "Xref.Attach",
+                PBound("filePath", ParameterType.String, detachId, "xrefPath"),
+                PBound("layerName", ParameterType.String, detachId, "xrefLayer")),
+            Step("Xref.SetDrawOrder",
+                P("entityXrefName", ""),
+                P("referenceXrefName", ""),
+                P("orderType", "Under")));
+        return def;
+    }
+
+    #region Helper methods
 
     private static OperationStep Step(string typeId, params (string key, ParameterValue val)[] parameters)
     {
@@ -335,6 +339,14 @@ public static class PredefinedSequences
         foreach (var (key, val) in parameters)
             dict[key] = val;
         return new OperationStep(typeId, dict);
+    }
+
+    private static OperationStep StepWithId(string stepId, string typeId,
+        params (string key, ParameterValue val)[] parameters)
+    {
+        var step = Step(typeId, parameters);
+        step.StepId = stepId;
+        return step;
     }
 
     private static (string, ParameterValue) P(string name, string value)
@@ -348,6 +360,14 @@ public static class PredefinedSequences
 
     private static (string, ParameterValue) P(string name, bool value)
         => (name, new ParameterValue { Type = ParameterType.Bool, Value = value });
+
+    private static (string, ParameterValue) PBound(string name, ParameterType type,
+        string sourceStepId, string outputName)
+        => (name, new ParameterValue
+        {
+            Type = type,
+            Binding = new OutputBinding { SourceStepId = sourceStepId, OutputName = outputName }
+        });
 
     private static (string, ParameterValue) PDro()
         => ("dro", new ParameterValue { Type = ParameterType.DataReferencesOptions });

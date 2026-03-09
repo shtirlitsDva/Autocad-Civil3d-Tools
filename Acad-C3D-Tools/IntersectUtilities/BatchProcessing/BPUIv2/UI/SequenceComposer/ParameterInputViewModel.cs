@@ -1,3 +1,5 @@
+using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -9,6 +11,16 @@ namespace IntersectUtilities.BatchProcessing.BPUIv2.UI.SequenceComposer;
 
 public partial class ParameterInputViewModel : ObservableObject
 {
+    public ParameterInputViewModel()
+    {
+        availableOutputs.CollectionChanged += OnAvailableOutputsCollectionChanged;
+    }
+
+    private void OnAvailableOutputsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        OnPropertyChanged(nameof(HasAvailableOutputs));
+    }
+
     [ObservableProperty]
     private string name = string.Empty;
 
@@ -39,6 +51,19 @@ public partial class ParameterInputViewModel : ObservableObject
     [ObservableProperty]
     private EntityFilterSet? filterSetValue;
 
+    [ObservableProperty]
+    private OutputBinding? binding;
+
+    [ObservableProperty]
+    private ObservableCollection<AvailableOutput> availableOutputs = new();
+
+    [ObservableProperty]
+    private string bindingDisplayText = string.Empty;
+
+    public bool IsBound => Binding != null;
+    public bool IsBoundInput => IsBound;
+    public bool HasAvailableOutputs => !IsBound && AvailableOutputs.Count > 0;
+
     public Action<ParameterInputViewModel>? RequestSample { get; set; }
 
     [RelayCommand]
@@ -67,22 +92,66 @@ public partial class ParameterInputViewModel : ObservableObject
         }
     }
 
-    public bool IsStringInput => ParameterType is ParameterType.String
+    public bool IsStringInput => !IsBound && ParameterType is ParameterType.String
         or ParameterType.Int or ParameterType.Double;
 
-    public bool IsBoolInput => ParameterType == ParameterType.Bool;
+    public bool IsBoolInput => !IsBound && ParameterType == ParameterType.Bool;
 
-    public bool IsEnumInput => ParameterType == ParameterType.EnumChoice;
+    public bool IsEnumInput => !IsBound && ParameterType == ParameterType.EnumChoice;
 
-    public bool IsSpecialInput => ParameterType is ParameterType.DataReferencesOptions
+    public bool IsSpecialInput => !IsBound && ParameterType is ParameterType.DataReferencesOptions
         or ParameterType.Counter or ParameterType.FilterSet;
 
+    partial void OnAvailableOutputsChanged(
+        ObservableCollection<AvailableOutput> oldValue,
+        ObservableCollection<AvailableOutput> newValue)
+    {
+        if (oldValue != null)
+            oldValue.CollectionChanged -= OnAvailableOutputsCollectionChanged;
+        if (newValue != null)
+            newValue.CollectionChanged += OnAvailableOutputsCollectionChanged;
+        OnPropertyChanged(nameof(HasAvailableOutputs));
+    }
+
     partial void OnParameterTypeChanged(ParameterType value)
+    {
+        RaiseInputTypeProperties();
+    }
+
+    partial void OnBindingChanged(OutputBinding? value)
+    {
+        if (value == null)
+            BindingDisplayText = string.Empty;
+        OnPropertyChanged(nameof(IsBound));
+        OnPropertyChanged(nameof(IsBoundInput));
+        OnPropertyChanged(nameof(HasAvailableOutputs));
+        RaiseInputTypeProperties();
+    }
+
+    private void RaiseInputTypeProperties()
     {
         OnPropertyChanged(nameof(IsStringInput));
         OnPropertyChanged(nameof(IsBoolInput));
         OnPropertyChanged(nameof(IsEnumInput));
         OnPropertyChanged(nameof(IsSpecialInput));
+    }
+
+    [RelayCommand]
+    private void BindTo(AvailableOutput output)
+    {
+        Binding = new OutputBinding
+        {
+            SourceStepId = output.StepId,
+            OutputName = output.OutputName
+        };
+        BindingDisplayText = $"\u2190 {output.StepDisplayName} \u00B7 {output.OutputDisplayName}";
+    }
+
+    [RelayCommand]
+    private void Unbind()
+    {
+        Binding = null;
+        BindingDisplayText = string.Empty;
     }
 
     public ParameterValue ToParameterValue()
@@ -112,6 +181,7 @@ public partial class ParameterInputViewModel : ObservableObject
                 break;
         }
 
+        pv.Binding = Binding;
         return pv;
     }
 
@@ -130,6 +200,12 @@ public partial class ParameterInputViewModel : ObservableObject
 
         if (existingValue != null)
         {
+            if (existingValue.Binding != null)
+            {
+                vm.Binding = existingValue.Binding;
+                vm.BindingDisplayText = $"\u2190 {existingValue.Binding.SourceStepId} \u00B7 {existingValue.Binding.OutputName}";
+            }
+
             switch (descriptor.Type)
             {
                 case ParameterType.Bool:

@@ -7,6 +7,7 @@ using IntersectUtilities.BatchProcessing.BPUIv2.Execution;
 using IntersectUtilities.BatchProcessing.BPUIv2.Registry;
 using IntersectUtilities.BatchProcessing.BPUIv2.Sequences;
 using IntersectUtilities.BatchProcessing.BPUIv2.UI.DrawingList;
+using IntersectUtilities.BatchProcessing.BPUIv2.UI.InputsDialog;
 using IntersectUtilities.BatchProcessing.BPUIv2.UI.SequenceComposer;
 using IntersectUtilities.UtilsCommon;
 using static IntersectUtilities.UtilsCommon.Utils;
@@ -90,6 +91,27 @@ public partial class BatchProcessingViewModel : ObservableObject
             prdDbg($"BPUIv2: ManageDrawings error: {ex}");
             MessageBox.Show(
                 $"Failed to open Drawing List:\n{ex}",
+                "BPv2 Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    [RelayCommand]
+    private void OpenInputs()
+    {
+        if (SelectedSequence == null) return;
+        try
+        {
+            var dialog = new InputsDialog.InputsDialog(SelectedSequence);
+            if (dialog.ShowDialog() == true && dialog.ViewModel != null)
+            {
+                dialog.ViewModel.ApplyToSequence();
+            }
+        }
+        catch (Exception ex)
+        {
+            prdDbg($"BPUIv2: OpenInputs error: {ex}");
+            MessageBox.Show(
+                $"Failed to open Inputs Dialog:\n{ex}",
                 "BPv2 Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }

@@ -50,7 +50,8 @@ public class OperationRegistry
                     displayName: operation.DisplayName,
                     description: operation.Description,
                     category: operation.Category,
-                    parameters: operation.Parameters));
+                    parameters: operation.Parameters,
+                    outputs: operation.Outputs));
             }
             catch
             {

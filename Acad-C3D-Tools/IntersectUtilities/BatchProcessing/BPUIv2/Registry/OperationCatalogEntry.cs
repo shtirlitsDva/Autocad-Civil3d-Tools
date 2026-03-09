@@ -13,18 +13,21 @@ public class OperationCatalogEntry
     public string Description { get; }
     public string Category { get; }
     public IReadOnlyList<ParameterDescriptor> Parameters { get; }
+    public IReadOnlyList<OutputDescriptor> Outputs { get; }
 
     public OperationCatalogEntry(
         string typeId,
         string displayName,
         string description,
         string category,
-        IReadOnlyList<ParameterDescriptor> parameters)
+        IReadOnlyList<ParameterDescriptor> parameters,
+        IReadOnlyList<OutputDescriptor> outputs)
     {
         TypeId = typeId;
         DisplayName = displayName;
         Description = description;
         Category = category;
         Parameters = parameters;
+        Outputs = outputs;
     }
 }

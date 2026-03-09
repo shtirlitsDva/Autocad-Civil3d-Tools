@@ -17,8 +17,8 @@ public class AttachXrefOp : OperationBase
     public override string Description => "Attaches an external reference (xref) DWG file on the specified layer.";
     public override string Category => "Xref";
 
-    public override IReadOnlyList<ParameterDescriptor> Parameters => new[]
-    {
+    public override IReadOnlyList<ParameterDescriptor> Parameters =>
+    [
         new ParameterDescriptor(
             "filePath",
             "File Path",
@@ -29,20 +29,14 @@ public class AttachXrefOp : OperationBase
             "Layer Name",
             ParameterType.String,
             "Layer to place the xref on")
-    };
+    ];
 
     public override Result Execute(
         OperationContext context,
         IReadOnlyDictionary<string, object> parameterValues)
     {
-        string path = GetParamOrDefault<string>(parameterValues, "filePath", "");
-        string layer = GetParamOrDefault<string>(parameterValues, "layerName", "");
-
-        // Check SharedState for detach data
-        if (string.IsNullOrEmpty(path) && context.SharedState.TryGetValue("_detached_xref_path", out var pObj))
-            path = pObj as string ?? "";
-        if (string.IsNullOrEmpty(layer) && context.SharedState.TryGetValue("_detached_xref_layer", out var lObj))
-            layer = lObj as string ?? "";
+        string path = GetStringParam(parameterValues, "filePath");
+        string layer = GetStringParam(parameterValues, "layerName");
 
         if (string.IsNullOrEmpty(path) || !System.IO.File.Exists(path))
             return new Result(ResultStatus.FatalError, $"Xref file not found: {path}");

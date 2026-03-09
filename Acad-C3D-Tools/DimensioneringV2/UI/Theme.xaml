@@ -160,7 +160,6 @@
         <Setter Property="Background" Value="{DynamicResource Background}"/>
         <Setter Property="Foreground" Value="{DynamicResource Text}"/>
         <Setter Property="ResizeMode" Value="CanResizeWithGrip"/>
-        <Setter Property="WindowStartupLocation" Value="CenterOwner"/>
     </Style>
 
     <!-- ComboBox for dark theme -->

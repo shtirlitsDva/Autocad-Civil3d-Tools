@@ -13,12 +13,6 @@ using Result = IntersectUtilities.UtilsCommon.Result;
 
 namespace IntersectUtilities.BatchProcessing.BPUIv2.Execution;
 
-/// <summary>
-/// Main execution engine for batch processing.
-/// Runs synchronously on the AutoCAD main thread — required because
-/// the AutoCAD API is single-threaded and Database/Transaction objects
-/// cannot cross thread boundaries.
-/// </summary>
 public class BatchRunner
 {
     private readonly OperationRegistry _registry;
@@ -32,14 +26,8 @@ public class BatchRunner
         _registry = OperationRegistry.Instance;
     }
 
-    /// <summary>
-    /// Request cancellation. Checked between operations.
-    /// </summary>
     public void RequestCancel() => _cancelRequested = true;
 
-    /// <summary>
-    /// Run a sequence against a list of drawings.
-    /// </summary>
     public Result Run(
         IReadOnlyList<DrawingListItem> drawings,
         SequenceDefinition sequence,
@@ -49,10 +37,8 @@ public class BatchRunner
         _cancelRequested = false;
         var stopwatch = Stopwatch.StartNew();
 
-        // Initialize shared state that persists across drawings
         var sharedState = new Dictionary<string, object>();
 
-        // Seed Counter if any step uses it
         bool needsCounter = sequence.Steps.Any(s =>
             s.Parameters.Values.Any(p => p.Type == ParameterType.Counter));
         if (needsCounter)
@@ -80,6 +66,8 @@ public class BatchRunner
 
             Log($"[{drawingIdx + 1}/{drawings.Count}] Processing: {item.FileName}");
             bool drawingFailed = false;
+
+            var stepOutputStore = new Dictionary<string, IReadOnlyDictionary<string, object>>();
 
             using (Database xDb = new Database(false, true))
             {
@@ -118,8 +106,12 @@ public class BatchRunner
 
                             try
                             {
-                                var paramValues = step.ResolveValues();
+                                context.StepOutputs.Clear();
+                                var paramValues = step.ResolveValues(stepOutputStore);
                                 Result result = operation.Execute(context, paramValues);
+
+                                if (context.StepOutputs.Count > 0)
+                                    stepOutputStore[step.StepId] = new Dictionary<string, object>(context.StepOutputs);
 
                                 switch (result.Status)
                                 {
@@ -157,7 +149,6 @@ public class BatchRunner
                                 break;
                             }
 
-                            // Keep UI responsive
                             System.Windows.Forms.Application.DoEvents();
                         }
 
@@ -184,7 +175,6 @@ public class BatchRunner
                     }
                 }
 
-                // Save only if the drawing was processed successfully
                 if (!drawingFailed && !_cancelRequested)
                 {
                     xDb.SaveAs(xDb.Filename, true, DwgVersion.Newest, xDb.SecurityParameters);
@@ -196,10 +186,6 @@ public class BatchRunner
                 }
             }
 
-            // Clear transient shared state between drawings (detach info, etc.)
-            // but preserve cross-drawing state (counter, DRO)
-            ClearTransientSharedState(sharedState);
-
             System.Windows.Forms.Application.DoEvents();
         }
 
@@ -207,15 +193,6 @@ public class BatchRunner
         Log($"Batch complete. Total time: {stopwatch.Elapsed}");
 
         return new Result();
-    }
-
-    private void ClearTransientSharedState(Dictionary<string, object> sharedState)
-    {
-        var keysToRemove = sharedState.Keys
-            .Where(k => k.StartsWith("_detached_"))
-            .ToList();
-        foreach (var key in keysToRemove)
-            sharedState.Remove(key);
     }
 
     private void Log(string message)

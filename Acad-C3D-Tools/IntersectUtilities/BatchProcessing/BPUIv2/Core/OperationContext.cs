@@ -11,6 +11,7 @@ public class OperationContext
     public CivilDocument CivilDocument { get; }
     public Dictionary<string, object> SharedState { get; }
     public DataReferencesOptions? DataReferences { get; set; }
+    public Dictionary<string, object> StepOutputs { get; } = new();
 
     public OperationContext(
         Database database,
@@ -24,17 +25,4 @@ public class OperationContext
         SharedState = sharedState;
     }
 
-    /// <summary>
-    /// Clears per-drawing transient state (keys starting with "_detached_")
-    /// but preserves cross-drawing state (keys starting with "_counter", "_dro").
-    /// </summary>
-    public void ClearTransientState()
-    {
-        var keysToRemove = SharedState.Keys
-            .Where(k => k.StartsWith("_detached_"))
-            .ToList();
-
-        foreach (var key in keysToRemove)
-            SharedState.Remove(key);
-    }
 }

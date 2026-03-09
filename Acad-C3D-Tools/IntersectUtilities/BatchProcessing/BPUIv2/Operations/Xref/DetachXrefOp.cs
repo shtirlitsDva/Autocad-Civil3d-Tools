@@ -13,17 +13,23 @@ public class DetachXrefOp : OperationBase
 {
     public override string TypeId => "Xref.Detach";
     public override string DisplayName => "Detach Xref";
-    public override string Description => "Detaches an external reference (xref) by name, saving its path and layer to SharedState.";
+    public override string Description => "Detaches an external reference (xref) by name, outputting its path and layer.";
     public override string Category => "Xref";
 
-    public override IReadOnlyList<ParameterDescriptor> Parameters => new[]
-    {
+    public override IReadOnlyList<ParameterDescriptor> Parameters =>
+    [
         new ParameterDescriptor(
             "xrefName",
             "Xref Name",
             ParameterType.String,
             "Xref name without .dwg extension")
-    };
+    ];
+
+    public override IReadOnlyList<OutputDescriptor> Outputs =>
+    [
+        new OutputDescriptor("xrefPath", "Xref Path", ParameterType.String),
+        new OutputDescriptor("xrefLayer", "Xref Layer", ParameterType.String)
+    ];
 
     public override Result Execute(
         OperationContext context,
@@ -38,13 +44,12 @@ public class DetachXrefOp : OperationBase
             BlockTableRecord btr = xTx.GetObject(oid, OpenMode.ForWrite) as BlockTableRecord;
             if (btr.Name == xrefName && btr.IsFromExternalReference)
             {
-                // Capture path and layer before detaching
                 var refIds = btr.GetBlockReferenceIds(true, false);
                 if (refIds.Count > 0)
                 {
                     var br = refIds[0].Go<BlockReference>(xTx);
-                    context.SharedState["_detached_xref_path"] = btr.PathName;
-                    context.SharedState["_detached_xref_layer"] = br.Layer;
+                    SetOutput(context, "xrefPath", btr.PathName);
+                    SetOutput(context, "xrefLayer", br.Layer);
                 }
                 prdDbg($"Detaching xref: {btr.Name}");
                 context.Database.DetachXref(btr.ObjectId);
