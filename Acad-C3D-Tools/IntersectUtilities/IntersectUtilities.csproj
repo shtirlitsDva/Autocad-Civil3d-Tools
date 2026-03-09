@@ -6,6 +6,7 @@
 		<UseWindowsForms>true</UseWindowsForms>
 		<UseWPF>true</UseWPF>
 		<ImportWindowsDesktopTargets>true</ImportWindowsDesktopTargets>
+		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 		<PlatformTarget>x64</PlatformTarget>
 		<Platforms>x64</Platforms>
@@ -161,6 +162,10 @@
 	</ItemGroup>
 	<ItemGroup>
 	  <EmbeddedResource Include="DataScience\MergeReportStyles.css" />
+	</ItemGroup>
+	<ItemGroup>
+	  <Using Remove="System.Drawing" />
+	  <Using Remove="System.Windows.Forms" />
 	</ItemGroup>
 	<Import Project="..\UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems" Label="Shared" />
 	<Import Project="..\AutoCADCommandsSHARED\AutoCADCommandsSHARED.projitems" Label="Shared" />

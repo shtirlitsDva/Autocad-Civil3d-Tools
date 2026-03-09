@@ -1,4 +1,4 @@
-﻿using Autodesk.AutoCAD.ApplicationServices;
+using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
@@ -1078,6 +1078,21 @@ namespace IntersectUtilities
                     br.Erase();
                 }
             }
+
+            return new Result();
+        }
+        [MethodDescription(
+            "Delete ALL profiles",
+            "Sletter ALLE profiler.")]
+        public static Result deleteallprofiles(Database xDb)
+        {
+            //Used when sheets were created before pipe profiles were available
+            //Finds those profiles and creates a reference to them in drawing
+            //Then it deletes the detailing and recreates it
+            Transaction xTx = xDb.TransactionManager.TopTransaction;
+            var profs = xDb.HashSetOfType<Profile>(xTx);
+
+            foreach (Profile p in profs) { p.CheckOrOpenForWrite(); p.Erase(true); }
 
             return new Result();
         }
