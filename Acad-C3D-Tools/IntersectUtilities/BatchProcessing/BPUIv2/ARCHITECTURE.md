@@ -173,3 +173,70 @@ Stored on a network path. Concurrent access is managed with file-level locking. 
 </example>
 </overview>
 </section>
+
+---
+
+<section>
+# Implementation Status
+
+<overview>
+
+## Completed Phases
+
+| Phase | Commit | What |
+|-------|--------|------|
+| 1+2 | `e2017a5c` | Core framework, 38 operations (10 categories), 30 predefined sequences |
+| 3 | `43f4866c` | Execution engine (`BatchRunner`), `DrawingListService` |
+| 4 | `b6117bdf` | `NsCmdPaletteSet` multi-tab hub, `BatchProcessingControl` palette tab |
+| 5+6 | `9c4c7e43` | `DrawingListDialog` (modal), `SequenceComposerWindow` (modeless), converters, button wiring |
+
+## Remaining Phases
+
+### Phase 7: Drawing Sampling
+- **Create**: `BPUIv2/Sampling/DrawingSampler.cs`
+- Opens first drawing in list read-only (side-load via `Database.ReadDwgFile`)
+- Extracts: layer names, text style names, block names, linetype names, alignment style names, profile style names
+- Returns string arrays for parameter ComboBoxes
+- **Connects to**: `ParameterInputViewModel.SupportsSampling` — "Sample" buttons in sequence composer trigger this
+
+### Phase 8: User + Shared Sequence Storage
+- **Create**: `BPUIv2/Sequences/SequenceStorageService.cs` + `SharedSequenceFileManager.cs`
+- `SequenceStorageService`: Load/save/list/delete sequences across all three levels
+- User sequences: `%AppData%/Autodesk/ApplicationPlugins/IntersectUtilities/bpv2_user_sequences.json`
+- Shared sequences: `X:\AutoCAD DRI - 01 Civil 3D\BPv2\shared_sequences.json`
+- `SharedSequenceFileManager`: Exclusive file lock (3 retries, 500ms), backup rotation (max 50), atomic write via .tmp + File.Move
+- JSON serialization with System.Text.Json
+- **Connects to**: `SequenceComposerViewModel` "Save as User Sequence" button (currently unwired) and `BatchProcessingViewModel.LoadSequences()` (currently only loads predefined)
+
+### Phase 9: Filter Groups UI
+- **Create**: `BPUIv2/UI/FilterEditor/FilterEditorDialog.xaml` + `.xaml.cs` + `FilterEditorViewModel.cs`
+- Modal dialog for configuring `EntityFilterSet`
+- Groups as bordered cards (OR between groups), condition rows (AND) within each group
+- Core filter classes already exist in `Core/FilterGroup/`
+
+### Phase 10: Polish + Migration
+- Validation parity with v1
+- Cancel cleanup, log section polish
+- Deprecate old `Form1`/`ConfigPaletteSet`
+- Run both v1 and v2 on same test drawings, compare results
+
+</overview>
+</section>
+
+---
+
+<section>
+# Build & Technical Notes
+
+<overview>
+
+- **Build**: `dotnet build -p:WarningLevel=0` from `Acad-C3D-Tools/IntersectUtilities/`
+- **ImplicitUsings**: `.csproj` has `<ImplicitUsings>enable</ImplicitUsings>` with `<Using Remove="System.Drawing"/>` and `<Using Remove="System.Windows.Forms"/>` to avoid WPF/WinForms type ambiguity
+- **Namespace collision**: `Operations.Alignment` namespace collides with `Autodesk.Civil.DatabaseServices.Alignment` — use fully-qualified types
+- **Theme.xaml paths**: From `UI/` depth use `../../../CmdUI/UI/Theme.xaml`; from `UI/SubFolder/` depth use `../../../../CmdUI/UI/Theme.xaml`
+- **MVVM**: CommunityToolkit.Mvvm 8.4.0 — `[ObservableProperty]` on camelCase fields, `[RelayCommand]` on methods
+- **Result type**: `using Result = IntersectUtilities.UtilsCommon.Result;` from `UtilitiesCommonSHARED/UtilsCommon.cs:4677-4730`
+- **File-scoped namespaces** (C# 10+) throughout
+
+</overview>
+</section>
