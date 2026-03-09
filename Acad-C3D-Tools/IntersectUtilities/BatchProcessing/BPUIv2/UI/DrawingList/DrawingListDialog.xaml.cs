@@ -1,4 +1,6 @@
 using System.Windows;
+using DimensioneringV2.UI;
+using static IntersectUtilities.UtilsCommon.Utils;
 
 namespace IntersectUtilities.BatchProcessing.BPUIv2.UI.DrawingList;
 
@@ -6,11 +8,24 @@ public partial class DrawingListDialog : Window
 {
     public DrawingListDialog()
     {
-        InitializeComponent();
-        DataContext = new DrawingListViewModel();
+        try
+        {
+            InitializeComponent();
+            DataContext = new DrawingListViewModel();
+            Loaded += (_, _) => DarkTitleBarHelper.EnableDarkTitleBar(this);
+        }
+        catch (Exception ex)
+        {
+            prdDbg($"BPUIv2: Failed to initialize DrawingListDialog: {ex}");
+            MessageBox.Show(
+                $"Failed to open Drawing List:\n{ex}",
+                "BPv2 Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            Close();
+        }
     }
 
-    public DrawingListViewModel ViewModel => (DrawingListViewModel)DataContext;
+    public DrawingListViewModel? ViewModel =>
+        DataContext as DrawingListViewModel;
 
     private void OnOkClick(object sender, RoutedEventArgs e)
     {

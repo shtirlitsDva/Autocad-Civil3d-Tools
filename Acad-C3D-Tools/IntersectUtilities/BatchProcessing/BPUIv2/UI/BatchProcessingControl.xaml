@@ -3,11 +3,18 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:converters="clr-namespace:IntersectUtilities.BatchProcessing.BPUIv2.UI.Converters"
              mc:Ignorable="d"
              d:DesignHeight="600" d:DesignWidth="420"
              d:Background="{DynamicResource Background}">
     <UserControl.Resources>
-        <ResourceDictionary Source="../../../CmdUI/UI/Theme.xaml"/>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="../../../CmdUI/UI/Theme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            <converters:InverseBoolConverter x:Key="InverseBool"/>
+            <converters:NullToVisibilityConverter x:Key="NullToVis"/>
+        </ResourceDictionary>
     </UserControl.Resources>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto"
@@ -35,7 +42,7 @@
                             HorizontalAlignment="Left"
                             Padding="15,5"
                             Command="{Binding ManageDrawingsCommand}"
-                            IsEnabled="{Binding IsRunning, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=invert}"
+                            IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBool}}"
                             ToolTip="Open drawing list manager"/>
                 </StackPanel>
             </GroupBox>
@@ -52,7 +59,7 @@
                               SelectedItem="{Binding SelectedSequence, Mode=TwoWay}"
                               DisplayMemberPath="Name"
                               Style="{StaticResource ModernDarkComboBox}"
-                              IsEnabled="{Binding IsRunning, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=invert}"
+                              IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBool}}"
                               Margin="0,0,0,8"/>
 
                     <!-- Sequence description -->
@@ -61,11 +68,11 @@
                                TextWrapping="Wrap"
                                FontStyle="Italic"
                                Margin="0,0,0,8"
-                               Visibility="{Binding SelectedSequence, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                               Visibility="{Binding SelectedSequence, Converter={StaticResource NullToVis}}"/>
 
                     <!-- Sequence details -->
                     <StackPanel Orientation="Horizontal"
-                                Visibility="{Binding SelectedSequence, Converter={StaticResource BoolToVisibilityConverter}}"
+                                Visibility="{Binding SelectedSequence, Converter={StaticResource NullToVis}}"
                                 Margin="0,0,0,5">
                         <TextBlock Text="Category: "
                                    Foreground="{DynamicResource Text}"
@@ -75,7 +82,7 @@
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal"
-                                Visibility="{Binding SelectedSequence, Converter={StaticResource BoolToVisibilityConverter}}"
+                                Visibility="{Binding SelectedSequence, Converter={StaticResource NullToVis}}"
                                 Margin="0,0,0,8">
                         <TextBlock Text="Steps: "
                                    Foreground="{DynamicResource Text}"
@@ -89,7 +96,7 @@
                             HorizontalAlignment="Left"
                             Padding="15,5"
                             Command="{Binding OpenComposerCommand}"
-                            IsEnabled="{Binding IsRunning, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=invert}"
+                            IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBool}}"
                             ToolTip="Open sequence composer"/>
                 </StackPanel>
             </GroupBox>
@@ -143,7 +150,8 @@
                         BorderBrush="{DynamicResource BorderBrush}"
                         BorderThickness="1"
                         Padding="5"
-                        MaxHeight="200">
+                        MinHeight="120"
+                        MaxHeight="300">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <TextBox Text="{Binding LogText, Mode=OneWay}"
                                  IsReadOnly="True"
@@ -153,7 +161,8 @@
                                  FontFamily="Consolas"
                                  FontSize="11"
                                  TextWrapping="Wrap"
-                                 AcceptsReturn="True"/>
+                                 AcceptsReturn="True"
+                                 MinHeight="100"/>
                     </ScrollViewer>
                 </Border>
             </Expander>

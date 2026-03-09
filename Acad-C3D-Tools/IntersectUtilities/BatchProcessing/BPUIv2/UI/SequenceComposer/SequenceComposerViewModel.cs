@@ -8,6 +8,7 @@ using IntersectUtilities.BatchProcessing.BPUIv2.DrawingList;
 using IntersectUtilities.BatchProcessing.BPUIv2.Registry;
 using IntersectUtilities.BatchProcessing.BPUIv2.Sampling;
 using IntersectUtilities.BatchProcessing.BPUIv2.Sequences;
+using static IntersectUtilities.UtilsCommon.Utils;
 
 namespace IntersectUtilities.BatchProcessing.BPUIv2.UI.SequenceComposer;
 
@@ -197,7 +198,7 @@ public partial class SequenceComposerViewModel : ObservableObject
             catch (Exception ex)
             {
                 System.Windows.MessageBox.Show(
-                    $"Failed to sample drawing:\n{ex.Message}",
+                    $"Failed to sample drawing:\n{ex}",
                     "Sampling Error", System.Windows.MessageBoxButton.OK,
                     System.Windows.MessageBoxImage.Error);
                 return;

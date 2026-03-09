@@ -1,7 +1,9 @@
+using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using IntersectUtilities.BatchProcessing.BPUIv2.Core;
 using IntersectUtilities.BatchProcessing.BPUIv2.UI.FilterEditor;
+using static IntersectUtilities.UtilsCommon.Utils;
 
 namespace IntersectUtilities.BatchProcessing.BPUIv2.UI.SequenceComposer;
 
@@ -45,13 +47,23 @@ public partial class ParameterInputViewModel : ObservableObject
     [RelayCommand]
     private void ConfigureSpecial()
     {
-        if (ParameterType == ParameterType.FilterSet)
+        try
         {
-            var dialog = new FilterEditorDialog(FilterSetValue);
-            if (dialog.ShowDialog() == true)
+            if (ParameterType == ParameterType.FilterSet)
             {
-                FilterSetValue = dialog.ResultFilterSet;
+                var dialog = new FilterEditorDialog(FilterSetValue);
+                if (dialog.ShowDialog() == true)
+                {
+                    FilterSetValue = dialog.ResultFilterSet;
+                }
             }
+        }
+        catch (Exception ex)
+        {
+            prdDbg($"BPUIv2: ConfigureSpecial error: {ex}");
+            MessageBox.Show(
+                $"Failed to open editor:\n{ex}",
+                "BPv2 Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 

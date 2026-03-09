@@ -9,6 +9,7 @@ using IntersectUtilities.BatchProcessing.BPUIv2.Sequences;
 using IntersectUtilities.BatchProcessing.BPUIv2.UI.DrawingList;
 using IntersectUtilities.BatchProcessing.BPUIv2.UI.SequenceComposer;
 using IntersectUtilities.UtilsCommon;
+using static IntersectUtilities.UtilsCommon.Utils;
 using Result = IntersectUtilities.UtilsCommon.Result;
 
 namespace IntersectUtilities.BatchProcessing.BPUIv2.UI;
@@ -76,10 +77,20 @@ public partial class BatchProcessingViewModel : ObservableObject
     [RelayCommand]
     private void ManageDrawings()
     {
-        var dialog = new DrawingListDialog();
-        if (dialog.ShowDialog() == true)
+        try
         {
-            RefreshDrawingListSummary();
+            var dialog = new DrawingListDialog();
+            if (dialog.ShowDialog() == true)
+            {
+                RefreshDrawingListSummary();
+            }
+        }
+        catch (Exception ex)
+        {
+            prdDbg($"BPUIv2: ManageDrawings error: {ex}");
+            MessageBox.Show(
+                $"Failed to open Drawing List:\n{ex}",
+                "BPv2 Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
@@ -88,22 +99,39 @@ public partial class BatchProcessingViewModel : ObservableObject
     [RelayCommand]
     private void OpenComposer()
     {
-        if (_composerWindow is { IsLoaded: true })
+        try
         {
-            _composerWindow.Activate();
-            return;
-        }
+            if (_composerWindow is { IsLoaded: true })
+            {
+                _composerWindow.Activate();
+                return;
+            }
 
-        _composerWindow = new SequenceComposerWindow();
-        _composerWindow.ViewModel.SequenceSaved += ReloadSequences;
-        if (SelectedSequence != null)
-            _composerWindow.ViewModel.LoadFromSequence(SelectedSequence);
-        _composerWindow.Closed += (_, _) =>
+            _composerWindow = new SequenceComposerWindow();
+            if (_composerWindow.ViewModel == null)
+            {
+                _composerWindow = null;
+                return;
+            }
+            _composerWindow.ViewModel.SequenceSaved += ReloadSequences;
+            if (SelectedSequence != null)
+                _composerWindow.ViewModel.LoadFromSequence(SelectedSequence);
+            _composerWindow.Closed += (_, _) =>
+            {
+                if (_composerWindow?.ViewModel is { } vm)
+                    vm.SequenceSaved -= ReloadSequences;
+                _composerWindow = null;
+            };
+            _composerWindow.Show();
+        }
+        catch (Exception ex)
         {
-            _composerWindow.ViewModel.SequenceSaved -= ReloadSequences;
+            prdDbg($"BPUIv2: OpenComposer error: {ex}");
             _composerWindow = null;
-        };
-        _composerWindow.Show();
+            MessageBox.Show(
+                $"Failed to open Sequence Composer:\n{ex}",
+                "BPv2 Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     [RelayCommand(CanExecute = nameof(CanRunBatch))]
@@ -141,7 +169,7 @@ public partial class BatchProcessingViewModel : ObservableObject
         catch (Exception ex)
         {
             StatusText = $"Error: {ex.Message}";
-            AppendLog($"EXCEPTION: {ex.Message}");
+            AppendLog($"EXCEPTION: {ex}");
         }
         finally
         {

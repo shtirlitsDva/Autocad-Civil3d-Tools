@@ -1,4 +1,6 @@
+using System.Windows;
 using System.Windows.Controls;
+using static IntersectUtilities.UtilsCommon.Utils;
 
 namespace IntersectUtilities.BatchProcessing.BPUIv2.UI
 {
@@ -6,10 +8,25 @@ namespace IntersectUtilities.BatchProcessing.BPUIv2.UI
     {
         public BatchProcessingControl()
         {
-            InitializeComponent();
-            DataContext = new BatchProcessingViewModel();
+            try
+            {
+                InitializeComponent();
+                DataContext = new BatchProcessingViewModel();
+            }
+            catch (Exception ex)
+            {
+                prdDbg($"BPUIv2: Failed to initialize BatchProcessingControl: {ex}");
+                Content = new TextBlock
+                {
+                    Text = $"BPv2 failed to load:\n{ex}",
+                    Foreground = System.Windows.Media.Brushes.OrangeRed,
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(10)
+                };
+            }
         }
 
-        public BatchProcessingViewModel ViewModel => (BatchProcessingViewModel)DataContext;
+        public BatchProcessingViewModel? ViewModel =>
+            DataContext as BatchProcessingViewModel;
     }
 }

@@ -7,7 +7,8 @@
         Width="900" Height="650"
         MinWidth="700" MinHeight="500"
         Style="{DynamicResource DialogWindowStyle}"
-        Background="{DynamicResource Background}">
+        Background="{DynamicResource Background}"
+        WindowStartupLocation="CenterOwner">
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -44,6 +45,7 @@
                 <TextBox Grid.Column="1"
                          Text="{Binding SequenceName, UpdateSourceTrigger=PropertyChanged}"
                          Style="{StaticResource FormTextBoxStyle}"
+                         HorizontalAlignment="Stretch"
                          VerticalAlignment="Center" Margin="0,0,12,0"/>
 
                 <TextBlock Grid.Column="2" Text="Description:"
@@ -52,6 +54,7 @@
                 <TextBox Grid.Column="3"
                          Text="{Binding SequenceDescription, UpdateSourceTrigger=PropertyChanged}"
                          Style="{StaticResource FormTextBoxStyle}"
+                         HorizontalAlignment="Stretch"
                          VerticalAlignment="Center" Margin="0,0,12,0"/>
 
                 <TextBlock Grid.Column="4" Text="Category:"
@@ -60,6 +63,7 @@
                 <TextBox Grid.Column="5"
                          Text="{Binding SequenceCategory, UpdateSourceTrigger=PropertyChanged}"
                          Style="{StaticResource FormTextBoxStyle}"
+                         HorizontalAlignment="Stretch"
                          Width="100"
                          VerticalAlignment="Center" Margin="0,0,12,0"/>
 
@@ -108,6 +112,7 @@
                             <TextBox x:Name="SearchBox"
                                      Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
                                      Style="{StaticResource FormTextBoxStyle}"
+                                     HorizontalAlignment="Stretch"
                                      Padding="24,4,4,4"/>
                             <TextBlock Text="&#xE721;" FontFamily="Segoe MDL2 Assets"
                                        FontSize="12" Foreground="#FF808080"

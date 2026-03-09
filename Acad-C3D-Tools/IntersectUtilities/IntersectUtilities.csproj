@@ -161,6 +161,9 @@
 	  </Page>
 	</ItemGroup>
 	<ItemGroup>
+	  <Compile Include="..\DimensioneringV2\UI\DarkTitleBarHelper.cs" Link="CmdUI\UI\DarkTitleBarHelper.cs" />
+	</ItemGroup>
+	<ItemGroup>
 	  <EmbeddedResource Include="DataScience\MergeReportStyles.css" />
 	</ItemGroup>
 	<ItemGroup>
