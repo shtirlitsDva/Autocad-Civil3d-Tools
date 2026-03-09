@@ -342,3 +342,7 @@ ASALocalRun/
 /.dotnet
 /.claude/worktrees
 /Microsoft/Windows/PowerShell
+
+# Git worktrees
+.worktrees/
+docs/plans/
