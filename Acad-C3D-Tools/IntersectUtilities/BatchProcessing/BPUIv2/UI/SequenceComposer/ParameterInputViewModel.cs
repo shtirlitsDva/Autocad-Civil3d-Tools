@@ -1,5 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using IntersectUtilities.BatchProcessing.BPUIv2.Core;
+using IntersectUtilities.BatchProcessing.BPUIv2.UI.FilterEditor;
 
 namespace IntersectUtilities.BatchProcessing.BPUIv2.UI.SequenceComposer;
 
@@ -31,6 +33,27 @@ public partial class ParameterInputViewModel : ObservableObject
 
     [ObservableProperty]
     private bool supportsSampling;
+
+    [ObservableProperty]
+    private EntityFilterSet? filterSetValue;
+
+    public Action<ParameterInputViewModel>? RequestSample { get; set; }
+
+    [RelayCommand]
+    private void Sample() => RequestSample?.Invoke(this);
+
+    [RelayCommand]
+    private void ConfigureSpecial()
+    {
+        if (ParameterType == ParameterType.FilterSet)
+        {
+            var dialog = new FilterEditorDialog(FilterSetValue);
+            if (dialog.ShowDialog() == true)
+            {
+                FilterSetValue = dialog.ResultFilterSet;
+            }
+        }
+    }
 
     public bool IsStringInput => ParameterType is ParameterType.String
         or ParameterType.Int or ParameterType.Double;
@@ -68,6 +91,9 @@ public partial class ParameterInputViewModel : ObservableObject
             case ParameterType.EnumChoice:
                 pv.Value = SelectedEnumValue;
                 break;
+            case ParameterType.FilterSet:
+                pv.FilterSet = FilterSetValue ?? new EntityFilterSet();
+                break;
             case ParameterType.String:
             default:
                 pv.Value = StringValue;
@@ -104,6 +130,10 @@ public partial class ParameterInputViewModel : ObservableObject
                 case ParameterType.Int:
                 case ParameterType.Double:
                     vm.StringValue = existingValue.Value?.ToString() ?? string.Empty;
+                    break;
+                case ParameterType.FilterSet:
+                    if (existingValue.FilterSet != null)
+                        vm.FilterSetValue = existingValue.FilterSet;
                     break;
             }
         }

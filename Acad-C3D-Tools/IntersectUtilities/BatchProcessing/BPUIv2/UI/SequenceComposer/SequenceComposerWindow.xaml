@@ -66,6 +66,7 @@
                 <Button Grid.Column="6"
                         Content="Save as User Sequence"
                         Style="{StaticResource PrimaryButtonStyle}"
+                        Command="{Binding SaveAsUserSequenceCommand}"
                         Padding="12,5"
                         VerticalAlignment="Center" Margin="0,0,6,0"/>
 
@@ -404,6 +405,7 @@
                                                                         Content="{Binding DisplayName,
                                                                             StringFormat='Configure {0}...'}"
                                                                         Style="{StaticResource SecondaryButtonStyle}"
+                                                                        Command="{Binding ConfigureSpecialCommand}"
                                                                         Padding="8,3"
                                                                         HorizontalAlignment="Left"
                                                                         Visibility="{Binding IsSpecialInput,
@@ -416,6 +418,7 @@
                                                                         FontSize="10"
                                                                         Style="{StaticResource IconButtonStyle}"
                                                                         ToolTip="Sample from drawing"
+                                                                        Command="{Binding SampleCommand}"
                                                                         Width="26" Height="26"
                                                                         Margin="4,0,0,0"
                                                                         Visibility="{Binding SupportsSampling,

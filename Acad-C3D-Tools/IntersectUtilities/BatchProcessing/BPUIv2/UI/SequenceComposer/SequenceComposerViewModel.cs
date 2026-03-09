@@ -4,7 +4,9 @@ using System.Windows.Data;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using IntersectUtilities.BatchProcessing.BPUIv2.Core;
+using IntersectUtilities.BatchProcessing.BPUIv2.DrawingList;
 using IntersectUtilities.BatchProcessing.BPUIv2.Registry;
+using IntersectUtilities.BatchProcessing.BPUIv2.Sampling;
 using IntersectUtilities.BatchProcessing.BPUIv2.Sequences;
 
 namespace IntersectUtilities.BatchProcessing.BPUIv2.UI.SequenceComposer;
@@ -13,6 +15,7 @@ public partial class SequenceComposerViewModel : ObservableObject
 {
     private readonly OperationRegistry _registry;
     private readonly ObservableCollection<OperationCatalogEntry> _allCatalogEntries;
+    private SampleResult? _cachedSample;
 
     [ObservableProperty]
     private string searchText = string.Empty;
@@ -61,9 +64,7 @@ public partial class SequenceComposerViewModel : ObservableObject
     {
         var card = OperationCardViewModel.FromCatalogEntry(entry);
         card.Index = SequenceSteps.Count + 1;
-        card.RequestMoveUp = MoveStepUp;
-        card.RequestMoveDown = MoveStepDown;
-        card.RequestRemove = RemoveStep;
+        WireCardDelegates(card);
         SequenceSteps.Add(card);
     }
 
@@ -87,9 +88,7 @@ public partial class SequenceComposerViewModel : ObservableObject
             if (catalogEntry == null) continue;
 
             var card = OperationCardViewModel.FromOperationStep(step, catalogEntry);
-            card.RequestMoveUp = MoveStepUp;
-            card.RequestMoveDown = MoveStepDown;
-            card.RequestRemove = RemoveStep;
+            WireCardDelegates(card);
             SequenceSteps.Add(card);
         }
 
@@ -166,6 +165,92 @@ public partial class SequenceComposerViewModel : ObservableObject
         }
 
         GroupedCatalog.Refresh();
+    }
+
+    private void WireCardDelegates(OperationCardViewModel card)
+    {
+        card.RequestMoveUp = MoveStepUp;
+        card.RequestMoveDown = MoveStepDown;
+        card.RequestRemove = RemoveStep;
+        foreach (var p in card.Parameters)
+            p.RequestSample = HandleSampleRequest;
+    }
+
+    private void HandleSampleRequest(ParameterInputViewModel param)
+    {
+        if (_cachedSample == null)
+        {
+            var items = DrawingListService.Instance.GetActiveItems();
+            if (items.Count == 0)
+            {
+                System.Windows.MessageBox.Show(
+                    "No drawings loaded. Add drawings to the drawing list first.",
+                    "Sampling", System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Warning);
+                return;
+            }
+
+            try
+            {
+                _cachedSample = DrawingSampler.SampleFromDrawing(items[0].FilePath);
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show(
+                    $"Failed to sample drawing:\n{ex.Message}",
+                    "Sampling Error", System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Error);
+                return;
+            }
+        }
+
+        string[] choices = ResolveSampleChoices(param.Name, _cachedSample);
+        if (choices.Length == 0) return;
+
+        param.EnumChoices = choices;
+        param.ParameterType = Core.ParameterType.EnumChoice;
+        if (choices.Length > 0 && string.IsNullOrEmpty(param.SelectedEnumValue))
+            param.SelectedEnumValue = choices[0];
+    }
+
+    private static string[] ResolveSampleChoices(string paramName, SampleResult sample)
+    {
+        string key = paramName.ToLowerInvariant();
+
+        if (key.Contains("layer")) return sample.LayerNames;
+        if (key.Contains("textstyle") || key.Contains("text_style")) return sample.TextStyleNames;
+        if (key.Contains("block")) return sample.BlockNames;
+        if (key.Contains("linetype")) return sample.LinetypeNames;
+        if (key.Contains("alignmentstyle") || key.Contains("alignment_style")) return sample.AlignmentStyleNames;
+        if (key.Contains("profilestyle") || key.Contains("profile_style")) return sample.ProfileStyleNames;
+        if (key.Contains("profileviewstyle") || key.Contains("profile_view_style")) return sample.ProfileViewStyleNames;
+        if (key.Contains("bandset") || key.Contains("band_set")) return sample.ProfileViewBandSetStyleNames;
+
+        return sample.LayerNames;
+    }
+
+    public event Action? SequenceSaved;
+
+    [RelayCommand]
+    private void SaveAsUserSequence()
+    {
+        if (string.IsNullOrWhiteSpace(SequenceName))
+        {
+            System.Windows.MessageBox.Show(
+                "Please enter a sequence name.",
+                "Save Sequence", System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Warning);
+            return;
+        }
+
+        var definition = ToSequenceDefinition();
+        SequenceStorageService.Instance.SaveUserSequence(definition);
+        SequenceSaved?.Invoke();
+
+        System.Windows.MessageBox.Show(
+            $"Sequence '{SequenceName}' saved.",
+            "Save Sequence", System.Windows.MessageBoxButton.OK,
+            System.Windows.MessageBoxImage.Information);
     }
 
     private void RenumberSteps()

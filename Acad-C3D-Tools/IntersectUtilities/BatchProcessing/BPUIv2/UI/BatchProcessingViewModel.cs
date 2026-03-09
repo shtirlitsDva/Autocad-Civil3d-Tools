@@ -56,11 +56,16 @@ public partial class BatchProcessingViewModel : ObservableObject
     {
         AvailableSequences.Clear();
 
-        // Load predefined sequences
-        foreach (var seq in PredefinedSequences.GetAll())
+        foreach (var seq in SequenceStorageService.Instance.LoadAll())
             AvailableSequences.Add(seq);
+    }
 
-        // TODO: Phase 8 will add User and Shared sequences here
+    public void ReloadSequences()
+    {
+        var selectedId = SelectedSequence?.Id;
+        LoadSequences();
+        if (selectedId != null)
+            SelectedSequence = AvailableSequences.FirstOrDefault(s => s.Id == selectedId);
     }
 
     public void RefreshDrawingListSummary()
@@ -90,9 +95,14 @@ public partial class BatchProcessingViewModel : ObservableObject
         }
 
         _composerWindow = new SequenceComposerWindow();
+        _composerWindow.ViewModel.SequenceSaved += ReloadSequences;
         if (SelectedSequence != null)
             _composerWindow.ViewModel.LoadFromSequence(SelectedSequence);
-        _composerWindow.Closed += (_, _) => _composerWindow = null;
+        _composerWindow.Closed += (_, _) =>
+        {
+            _composerWindow.ViewModel.SequenceSaved -= ReloadSequences;
+            _composerWindow = null;
+        };
         _composerWindow.Show();
     }
 
