@@ -1,0 +1,438 @@
+<Window x:Class="IntersectUtilities.BatchProcessing.BPUIv2.UI.SequenceComposer.SequenceComposerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:IntersectUtilities.BatchProcessing.BPUIv2.UI.SequenceComposer"
+        xmlns:converters="clr-namespace:IntersectUtilities.BatchProcessing.BPUIv2.UI.Converters"
+        Title="Sequence Composer"
+        Width="900" Height="650"
+        MinWidth="700" MinHeight="500"
+        Style="{DynamicResource DialogWindowStyle}"
+        Background="{DynamicResource Background}">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="../../../../CmdUI/UI/Theme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            <converters:OperationCategoryToColorConverter x:Key="CategoryColorConverter"/>
+            <converters:SequenceLevelToIconConverter x:Key="LevelIconConverter"/>
+            <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <DockPanel>
+        <!-- Bottom Bar -->
+        <Border DockPanel.Dock="Bottom"
+                Background="{DynamicResource DarkHeaderBackground}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="0,1,0,0"
+                Padding="12,8">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0" Text="Name:"
+                           Foreground="{DynamicResource Text}"
+                           VerticalAlignment="Center" Margin="0,0,6,0"/>
+                <TextBox Grid.Column="1"
+                         Text="{Binding SequenceName, UpdateSourceTrigger=PropertyChanged}"
+                         Style="{StaticResource FormTextBoxStyle}"
+                         VerticalAlignment="Center" Margin="0,0,12,0"/>
+
+                <TextBlock Grid.Column="2" Text="Description:"
+                           Foreground="{DynamicResource Text}"
+                           VerticalAlignment="Center" Margin="0,0,6,0"/>
+                <TextBox Grid.Column="3"
+                         Text="{Binding SequenceDescription, UpdateSourceTrigger=PropertyChanged}"
+                         Style="{StaticResource FormTextBoxStyle}"
+                         VerticalAlignment="Center" Margin="0,0,12,0"/>
+
+                <TextBlock Grid.Column="4" Text="Category:"
+                           Foreground="{DynamicResource Text}"
+                           VerticalAlignment="Center" Margin="0,0,6,0"/>
+                <TextBox Grid.Column="5"
+                         Text="{Binding SequenceCategory, UpdateSourceTrigger=PropertyChanged}"
+                         Style="{StaticResource FormTextBoxStyle}"
+                         Width="100"
+                         VerticalAlignment="Center" Margin="0,0,12,0"/>
+
+                <Button Grid.Column="6"
+                        Content="Save as User Sequence"
+                        Style="{StaticResource PrimaryButtonStyle}"
+                        Padding="12,5"
+                        VerticalAlignment="Center" Margin="0,0,6,0"/>
+
+                <Button Grid.Column="7"
+                        Content="Clear"
+                        Style="{StaticResource SecondaryButtonStyle}"
+                        Command="{Binding ClearSequenceCommand}"
+                        Padding="12,5"
+                        VerticalAlignment="Center"/>
+            </Grid>
+        </Border>
+
+        <!-- Main Content: Left Catalog + Center Sequence -->
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="250"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Left Panel: Operation Catalog -->
+            <Border Grid.Column="0"
+                    Background="{DynamicResource DarkBackground}"
+                    BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="0,0,1,0">
+                <DockPanel>
+                    <!-- Catalog Header -->
+                    <Border DockPanel.Dock="Top"
+                            Background="{DynamicResource DarkHeaderBackground}"
+                            Padding="10,8">
+                        <TextBlock Text="Operation Catalog"
+                                   FontSize="13" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource Text}"/>
+                    </Border>
+
+                    <!-- Search Box -->
+                    <Border DockPanel.Dock="Top" Padding="8,6">
+                        <Grid>
+                            <TextBox x:Name="SearchBox"
+                                     Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource FormTextBoxStyle}"
+                                     Padding="24,4,4,4"/>
+                            <TextBlock Text="&#xE721;" FontFamily="Segoe MDL2 Assets"
+                                       FontSize="12" Foreground="#FF808080"
+                                       VerticalAlignment="Center"
+                                       HorizontalAlignment="Left"
+                                       Margin="6,0,0,0"
+                                       IsHitTestVisible="False"/>
+                            <TextBlock Text="Search operations..."
+                                       Foreground="#FF606060"
+                                       VerticalAlignment="Center"
+                                       Margin="26,0,0,0"
+                                       IsHitTestVisible="False">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Text, ElementName=SearchBox}" Value="">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Grid>
+                    </Border>
+
+                    <!-- Catalog List -->
+                    <ListBox ItemsSource="{Binding GroupedCatalog}"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             Padding="4">
+                        <ListBox.GroupStyle>
+                            <GroupStyle>
+                                <GroupStyle.HeaderTemplate>
+                                    <DataTemplate>
+                                        <Border Background="{DynamicResource DarkHeaderBackground}"
+                                                Padding="8,5" Margin="0,4,0,2"
+                                                CornerRadius="3">
+                                            <TextBlock Text="{Binding Name}"
+                                                       FontWeight="SemiBold" FontSize="11"
+                                                       Foreground="{DynamicResource Text}"/>
+                                        </Border>
+                                    </DataTemplate>
+                                </GroupStyle.HeaderTemplate>
+                            </GroupStyle>
+                        </ListBox.GroupStyle>
+
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                <Setter Property="Padding" Value="0"/>
+                                <Setter Property="Margin" Value="0,1"/>
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Setter Property="Foreground" Value="{DynamicResource Text}"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ListBoxItem">
+                                            <Border x:Name="Bd"
+                                                    Background="{TemplateBinding Background}"
+                                                    Padding="4,3" CornerRadius="3">
+                                                <ContentPresenter/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="Bd" Property="Background"
+                                                            Value="{DynamicResource DarkRowBackground}"/>
+                                                </Trigger>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter TargetName="Bd" Property="Background"
+                                                            Value="{DynamicResource DarkHeaderBackground}"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Grid.Column="0" Margin="4,2">
+                                        <TextBlock Text="{Binding DisplayName}"
+                                                   Foreground="{DynamicResource Text}"
+                                                   FontSize="12"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="{Binding Description}"
+                                                   Foreground="#FF808080"
+                                                   FontSize="10"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   MaxWidth="180" TextWrapping="NoWrap"/>
+                                    </StackPanel>
+
+                                    <Button Grid.Column="1"
+                                            Content="&#xE72A;"
+                                            FontFamily="Segoe MDL2 Assets"
+                                            FontSize="10"
+                                            VerticalAlignment="Center"
+                                            Style="{StaticResource IconButtonStyle}"
+                                            Width="28" Height="28"
+                                            ToolTip="Add to sequence"
+                                            Command="{Binding DataContext.AddOperationCommand,
+                                                RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </Border>
+
+            <!-- Splitter -->
+            <GridSplitter Grid.Column="1" Width="3"
+                          Background="{DynamicResource BorderBrush}"
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Stretch"/>
+
+            <!-- Center Panel: Sequence Canvas -->
+            <DockPanel Grid.Column="2"
+                       Background="{DynamicResource Background}">
+                <!-- Sequence Header -->
+                <Border DockPanel.Dock="Top"
+                        Background="{DynamicResource DarkHeaderBackground}"
+                        Padding="10,8">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Sequence Steps"
+                                   FontSize="13" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource Text}"/>
+                        <TextBlock Foreground="#FF808080" FontSize="13" Margin="8,0,0,0">
+                            <TextBlock.Text>
+                                <MultiBinding StringFormat="({0} steps)">
+                                    <Binding Path="SequenceSteps.Count"/>
+                                </MultiBinding>
+                            </TextBlock.Text>
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+
+                <!-- Sequence Steps List -->
+                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled"
+                              Padding="8">
+                    <Grid>
+                        <!-- Empty state -->
+                        <TextBlock Text="Add operations from the catalog on the left"
+                                   Foreground="#FF606060"
+                                   FontSize="14" FontStyle="Italic"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   Margin="0,80,0,0">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding SequenceSteps.Count}" Value="0">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+
+                        <!-- Steps -->
+                        <ItemsControl ItemsSource="{Binding SequenceSteps}"
+                                      Margin="4">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Margin="0,0,0,8"
+                                            CornerRadius="4"
+                                            Background="{DynamicResource DarkRowBackground}"
+                                            BorderBrush="{DynamicResource BorderBrush}"
+                                            BorderThickness="1">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="3"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- Category Color Stripe -->
+                                            <Border Grid.Column="0"
+                                                    CornerRadius="4,0,0,4"
+                                                    Background="{Binding Category,
+                                                        Converter={StaticResource CategoryColorConverter}}"/>
+
+                                            <!-- Card Content -->
+                                            <DockPanel Grid.Column="1" Margin="10,8">
+                                                <!-- Footer: Action Buttons -->
+                                                <StackPanel DockPanel.Dock="Bottom"
+                                                            Orientation="Horizontal"
+                                                            HorizontalAlignment="Right"
+                                                            Margin="0,6,0,0">
+                                                    <Button Content="&#xE70E;"
+                                                            FontFamily="Segoe MDL2 Assets"
+                                                            FontSize="10"
+                                                            Style="{StaticResource IconButtonStyle}"
+                                                            Command="{Binding MoveUpCommand}"
+                                                            ToolTip="Move up"
+                                                            Width="28" Height="28"
+                                                            Margin="0,0,4,0"/>
+                                                    <Button Content="&#xE70D;"
+                                                            FontFamily="Segoe MDL2 Assets"
+                                                            FontSize="10"
+                                                            Style="{StaticResource IconButtonStyle}"
+                                                            Command="{Binding MoveDownCommand}"
+                                                            ToolTip="Move down"
+                                                            Width="28" Height="28"
+                                                            Margin="0,0,4,0"/>
+                                                    <Button Content="&#xE74D;"
+                                                            FontFamily="Segoe MDL2 Assets"
+                                                            FontSize="10"
+                                                            Style="{StaticResource IconButtonStyle}"
+                                                            Command="{Binding RemoveCommand}"
+                                                            ToolTip="Remove"
+                                                            Width="28" Height="28"/>
+                                                </StackPanel>
+
+                                                <!-- Header: Step number + Name + Category badge -->
+                                                <StackPanel DockPanel.Dock="Top"
+                                                            Orientation="Horizontal"
+                                                            Margin="0,0,0,6">
+                                                    <TextBlock FontSize="12"
+                                                               Foreground="#FF808080"
+                                                               VerticalAlignment="Center"
+                                                               Margin="0,0,6,0">
+                                                        <TextBlock.Text>
+                                                            <MultiBinding StringFormat="#{0}">
+                                                                <Binding Path="Index"/>
+                                                            </MultiBinding>
+                                                        </TextBlock.Text>
+                                                    </TextBlock>
+
+                                                    <TextBlock Text="{Binding DisplayName}"
+                                                               FontSize="13" FontWeight="SemiBold"
+                                                               Foreground="{DynamicResource Text}"
+                                                               VerticalAlignment="Center"
+                                                               Margin="0,0,8,0"/>
+
+                                                    <Border Background="{Binding Category,
+                                                                Converter={StaticResource CategoryColorConverter}}"
+                                                            CornerRadius="3"
+                                                            Padding="6,2">
+                                                        <TextBlock Text="{Binding Category}"
+                                                                   FontSize="10" FontWeight="SemiBold"
+                                                                   Foreground="White"/>
+                                                    </Border>
+                                                </StackPanel>
+
+                                                <!-- Parameters -->
+                                                <ItemsControl ItemsSource="{Binding Parameters}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <Grid Margin="0,3" ToolTip="{Binding Description}">
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="120"/>
+                                                                    <ColumnDefinition Width="*"/>
+                                                                    <ColumnDefinition Width="Auto"/>
+                                                                </Grid.ColumnDefinitions>
+
+                                                                <TextBlock Grid.Column="0"
+                                                                           Text="{Binding DisplayName}"
+                                                                           Style="{StaticResource FieldLabelStyle}"
+                                                                           VerticalAlignment="Center"/>
+
+                                                                <!-- String/Int/Double Input -->
+                                                                <TextBox Grid.Column="1"
+                                                                         Text="{Binding StringValue, UpdateSourceTrigger=PropertyChanged}"
+                                                                         Style="{StaticResource FormTextBoxStyle}"
+                                                                         Visibility="{Binding IsStringInput,
+                                                                             Converter={StaticResource BoolToVis}}"/>
+
+                                                                <!-- Bool Input -->
+                                                                <CheckBox Grid.Column="1"
+                                                                          IsChecked="{Binding BoolValue}"
+                                                                          Style="{StaticResource FormCheckBoxStyle}"
+                                                                          VerticalAlignment="Center"
+                                                                          Visibility="{Binding IsBoolInput,
+                                                                              Converter={StaticResource BoolToVis}}"/>
+
+                                                                <!-- EnumChoice Input -->
+                                                                <ComboBox Grid.Column="1"
+                                                                          ItemsSource="{Binding EnumChoices}"
+                                                                          SelectedItem="{Binding SelectedEnumValue}"
+                                                                          Style="{StaticResource ModernDarkComboBox}"
+                                                                          Visibility="{Binding IsEnumInput,
+                                                                              Converter={StaticResource BoolToVis}}"/>
+
+                                                                <!-- Special Input (DRO, Counter, FilterSet) -->
+                                                                <Button Grid.Column="1"
+                                                                        Content="{Binding DisplayName,
+                                                                            StringFormat='Configure {0}...'}"
+                                                                        Style="{StaticResource SecondaryButtonStyle}"
+                                                                        Padding="8,3"
+                                                                        HorizontalAlignment="Left"
+                                                                        Visibility="{Binding IsSpecialInput,
+                                                                            Converter={StaticResource BoolToVis}}"/>
+
+                                                                <!-- Sample Button -->
+                                                                <Button Grid.Column="2"
+                                                                        Content="&#xE9F5;"
+                                                                        FontFamily="Segoe MDL2 Assets"
+                                                                        FontSize="10"
+                                                                        Style="{StaticResource IconButtonStyle}"
+                                                                        ToolTip="Sample from drawing"
+                                                                        Width="26" Height="26"
+                                                                        Margin="4,0,0,0"
+                                                                        Visibility="{Binding SupportsSampling,
+                                                                            Converter={StaticResource BoolToVis}}"/>
+                                                            </Grid>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </DockPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Grid>
+                </ScrollViewer>
+            </DockPanel>
+        </Grid>
+    </DockPanel>
+</Window>

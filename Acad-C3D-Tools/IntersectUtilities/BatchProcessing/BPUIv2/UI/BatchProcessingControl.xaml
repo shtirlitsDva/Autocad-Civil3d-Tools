@@ -34,8 +34,9 @@
                             Style="{StaticResource SecondaryButtonStyle}"
                             HorizontalAlignment="Left"
                             Padding="15,5"
+                            Command="{Binding ManageDrawingsCommand}"
                             IsEnabled="{Binding IsRunning, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=invert}"
-                            ToolTip="Open drawing list manager (Phase 5)"/>
+                            ToolTip="Open drawing list manager"/>
                 </StackPanel>
             </GroupBox>
 
@@ -87,8 +88,9 @@
                             Style="{StaticResource SecondaryButtonStyle}"
                             HorizontalAlignment="Left"
                             Padding="15,5"
+                            Command="{Binding OpenComposerCommand}"
                             IsEnabled="{Binding IsRunning, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=invert}"
-                            ToolTip="Open sequence composer (Phase 6)"/>
+                            ToolTip="Open sequence composer"/>
                 </StackPanel>
             </GroupBox>
 

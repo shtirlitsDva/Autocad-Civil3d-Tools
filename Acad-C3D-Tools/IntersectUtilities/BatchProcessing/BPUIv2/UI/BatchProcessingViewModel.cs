@@ -6,6 +6,8 @@ using IntersectUtilities.BatchProcessing.BPUIv2.DrawingList;
 using IntersectUtilities.BatchProcessing.BPUIv2.Execution;
 using IntersectUtilities.BatchProcessing.BPUIv2.Registry;
 using IntersectUtilities.BatchProcessing.BPUIv2.Sequences;
+using IntersectUtilities.BatchProcessing.BPUIv2.UI.DrawingList;
+using IntersectUtilities.BatchProcessing.BPUIv2.UI.SequenceComposer;
 using IntersectUtilities.UtilsCommon;
 using Result = IntersectUtilities.UtilsCommon.Result;
 
@@ -64,6 +66,34 @@ public partial class BatchProcessingViewModel : ObservableObject
     public void RefreshDrawingListSummary()
     {
         DrawingListSummary = _drawingListService.GetSummary();
+    }
+
+    [RelayCommand]
+    private void ManageDrawings()
+    {
+        var dialog = new DrawingListDialog();
+        if (dialog.ShowDialog() == true)
+        {
+            RefreshDrawingListSummary();
+        }
+    }
+
+    private SequenceComposerWindow? _composerWindow;
+
+    [RelayCommand]
+    private void OpenComposer()
+    {
+        if (_composerWindow is { IsLoaded: true })
+        {
+            _composerWindow.Activate();
+            return;
+        }
+
+        _composerWindow = new SequenceComposerWindow();
+        if (SelectedSequence != null)
+            _composerWindow.ViewModel.LoadFromSequence(SelectedSequence);
+        _composerWindow.Closed += (_, _) => _composerWindow = null;
+        _composerWindow.Show();
     }
 
     [RelayCommand(CanExecute = nameof(CanRunBatch))]
