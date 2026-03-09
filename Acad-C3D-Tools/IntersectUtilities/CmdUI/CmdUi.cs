@@ -9,16 +9,26 @@ namespace IntersectUtilities
     /// </summary>
     public partial class Intersect
     {
-        /// <command>IUCFG</command>
+        /// <command>NSCMD</command>
         /// <summary>
-        /// Opens the CSV Configuration palette for selecting which configuration (V1, V2, etc.) to use.
-        /// The selected configuration determines which versioned CSV files are loaded by commands.
+        /// Opens the NS Command Center palette set with Configuration and Batch Processing tabs.
         /// </summary>
         /// <category>INTERSECT UTILITIES</category>
         [CommandMethod("NSCMD")]
-        public void OpenConfigurationPalette()
+        public void OpenNsCmdPalette()
         {
-            ConfigPaletteSet.Show();
+            NsCmdPaletteSet.Show();
+        }
+
+        /// <command>BPUIV2</command>
+        /// <summary>
+        /// Opens the NS Command Center and activates the Batch Processing tab.
+        /// </summary>
+        /// <category>Batch Processing</category>
+        [CommandMethod("BPUIV2")]
+        public void OpenBatchProcessingPalette()
+        {
+            NsCmdPaletteSet.Show(1);
         }
     }
 }

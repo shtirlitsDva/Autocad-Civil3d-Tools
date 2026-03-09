@@ -1,0 +1,161 @@
+<UserControl x:Class="IntersectUtilities.BatchProcessing.BPUIv2.UI.BatchProcessingControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             d:DesignHeight="600" d:DesignWidth="420"
+             d:Background="{DynamicResource Background}">
+    <UserControl.Resources>
+        <ResourceDictionary Source="../../../CmdUI/UI/Theme.xaml"/>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                  Background="{DynamicResource Background}">
+        <StackPanel Margin="0">
+
+            <!-- Header -->
+            <Border Background="{DynamicResource DarkHeaderBackground}" Padding="10,8">
+                <TextBlock Text="Batch Processing v2"
+                           FontSize="16"
+                           FontWeight="SemiBold"
+                           Foreground="{DynamicResource Text}"/>
+            </Border>
+
+            <!-- Drawing List Section -->
+            <GroupBox Header="Drawing List"
+                      Margin="10,10,10,5"
+                      Style="{StaticResource ModernGroupBox}">
+                <StackPanel Margin="5">
+                    <TextBlock Text="{Binding DrawingListSummary}"
+                               Foreground="{DynamicResource Text}"
+                               Margin="0,0,0,8"/>
+                    <Button Content="Manage Drawings..."
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            HorizontalAlignment="Left"
+                            Padding="15,5"
+                            IsEnabled="{Binding IsRunning, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=invert}"
+                            ToolTip="Open drawing list manager (Phase 5)"/>
+                </StackPanel>
+            </GroupBox>
+
+            <!-- Sequence Section -->
+            <GroupBox Header="Sequence"
+                      Margin="10,5,10,5"
+                      Style="{StaticResource ModernGroupBox}">
+                <StackPanel Margin="5">
+                    <TextBlock Text="Select sequence:"
+                               Foreground="{DynamicResource Text}"
+                               Margin="0,0,0,5"/>
+                    <ComboBox ItemsSource="{Binding AvailableSequences}"
+                              SelectedItem="{Binding SelectedSequence, Mode=TwoWay}"
+                              DisplayMemberPath="Name"
+                              Style="{StaticResource ModernDarkComboBox}"
+                              IsEnabled="{Binding IsRunning, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=invert}"
+                              Margin="0,0,0,8"/>
+
+                    <!-- Sequence description -->
+                    <TextBlock Text="{Binding SelectedSequence.Description}"
+                               Foreground="#FFB0B0B0"
+                               TextWrapping="Wrap"
+                               FontStyle="Italic"
+                               Margin="0,0,0,8"
+                               Visibility="{Binding SelectedSequence, Converter={StaticResource BoolToVisibilityConverter}}"/>
+
+                    <!-- Sequence details -->
+                    <StackPanel Orientation="Horizontal"
+                                Visibility="{Binding SelectedSequence, Converter={StaticResource BoolToVisibilityConverter}}"
+                                Margin="0,0,0,5">
+                        <TextBlock Text="Category: "
+                                   Foreground="{DynamicResource Text}"
+                                   FontWeight="SemiBold"/>
+                        <TextBlock Text="{Binding SelectedSequence.Category}"
+                                   Foreground="{DynamicResource Text}"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal"
+                                Visibility="{Binding SelectedSequence, Converter={StaticResource BoolToVisibilityConverter}}"
+                                Margin="0,0,0,8">
+                        <TextBlock Text="Steps: "
+                                   Foreground="{DynamicResource Text}"
+                                   FontWeight="SemiBold"/>
+                        <TextBlock Text="{Binding SelectedSequence.Steps.Count}"
+                                   Foreground="{DynamicResource Text}"/>
+                    </StackPanel>
+
+                    <Button Content="Open Composer..."
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            HorizontalAlignment="Left"
+                            Padding="15,5"
+                            IsEnabled="{Binding IsRunning, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=invert}"
+                            ToolTip="Open sequence composer (Phase 6)"/>
+                </StackPanel>
+            </GroupBox>
+
+            <!-- Run Section -->
+            <GroupBox Header="Execute"
+                      Margin="10,5,10,5"
+                      Style="{StaticResource ModernGroupBox}">
+                <StackPanel Margin="5">
+                    <Grid Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Button Grid.Column="0"
+                                Content="Run Batch"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                Command="{Binding RunBatchCommand}"
+                                Margin="0,0,8,0"
+                                Padding="15,8"/>
+
+                        <Button Grid.Column="1"
+                                Content="Cancel"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Command="{Binding CancelBatchCommand}"
+                                Padding="15,8"/>
+                    </Grid>
+
+                    <!-- Progress -->
+                    <ProgressBar Value="{Binding ProgressPercent}"
+                                 Minimum="0" Maximum="100"
+                                 Height="8"
+                                 Margin="0,0,0,5"
+                                 Background="{DynamicResource DarkRowBackground}"
+                                 Foreground="#FF4CAF50"/>
+
+                    <TextBlock Text="{Binding StatusText}"
+                               Foreground="{DynamicResource Text}"
+                               TextWrapping="Wrap"
+                               FontSize="11"/>
+                </StackPanel>
+            </GroupBox>
+
+            <!-- Log Section (collapsible) -->
+            <Expander Header="Log Output"
+                      IsExpanded="{Binding IsLogExpanded}"
+                      Margin="10,5,10,10"
+                      Foreground="{DynamicResource Text}">
+                <Border Background="{DynamicResource DarkRowBackground}"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1"
+                        Padding="5"
+                        MaxHeight="200">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <TextBox Text="{Binding LogText, Mode=OneWay}"
+                                 IsReadOnly="True"
+                                 Background="Transparent"
+                                 Foreground="#FFB0B0B0"
+                                 BorderThickness="0"
+                                 FontFamily="Consolas"
+                                 FontSize="11"
+                                 TextWrapping="Wrap"
+                                 AcceptsReturn="True"/>
+                    </ScrollViewer>
+                </Border>
+            </Expander>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
