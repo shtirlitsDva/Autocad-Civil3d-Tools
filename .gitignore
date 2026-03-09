@@ -341,3 +341,4 @@ ASALocalRun/
 /.dotnet/TelemetryStorageService
 /.dotnet
 /.claude/worktrees
+/Microsoft/Windows/PowerShell
