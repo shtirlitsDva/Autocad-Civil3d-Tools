@@ -1105,6 +1105,8 @@ namespace IntersectUtilities
 
             foreach (Profile p in profs) { p.CheckOrOpenForWrite(); p.Erase(true); }
 
+            DatabaseExtension.Audit(xDb, true, true);
+
             return new Result();
         }
         [MethodDescription(
