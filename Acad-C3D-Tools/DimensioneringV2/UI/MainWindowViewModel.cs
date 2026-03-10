@@ -48,6 +48,7 @@ namespace DimensioneringV2.UI
             _manager = HydraulicNetworkManager.Instance;
             _manager.NetworkLoaded += OnDataLoaded;
             _manager.CalculationsFinished += OnCalculationsCompleted;
+            _manager.ActiveNetworkChanged += OnActiveNetworkChanged;
 
             BBRLayerService.Instance.BBRDataLoaded += OnBBRDataLoaded;
 
@@ -65,9 +66,15 @@ namespace DimensioneringV2.UI
         private void OnCalculationsCompleted(object sender, EventArgs e)
         {
             Features = new(_manager.AllFeatures);
+            OnPropertyChanged(nameof(MapProperties));
 
             SelectedMapPropertyWrapper = null;
             SelectedMapPropertyWrapper = MapProperties.First();
+        }
+
+        private void OnActiveNetworkChanged(object? sender, EventArgs e)
+        {
+            OnPropertyChanged(nameof(MapProperties));
         }
 
         internal class MapPropertyWrapper
