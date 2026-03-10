@@ -35,6 +35,12 @@ namespace DimensioneringV2.UI
         public AsyncRelayCommand TestElevationsCommand => new AsyncRelayCommand(new TestElevations().Execute);
         public AsyncRelayCommand SampleGridCommand => new AsyncRelayCommand(new SampleGrid().Execute);
         public AsyncRelayCommand TestCacheCommand => new AsyncRelayCommand(new TestCache().Execute);
+        public RelayCommand OpenCalcManagerCommand => new RelayCommand(() =>
+        {
+            var window = new CalcManager.CalcManagerWindow();
+            window.Owner = System.Windows.Application.Current?.MainWindow;
+            window.ShowDialog();
+        });
         public RelayCommand OpenBbrDataCommand => new RelayCommand(() =>
         {
             var window = new BBRData.Views.BbrDataWindow();

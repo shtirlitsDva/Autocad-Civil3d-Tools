@@ -49,6 +49,8 @@
                         Style="{StaticResource SidebarButtonStyle}" Command="{Binding SampleGridCommand}"/>
                 <Button x:Name="btnTestCache" Content="Test cache"
                         Style="{StaticResource SidebarButtonStyle}" Command="{Binding TestCacheCommand}"/>
+                <Button x:Name="btnCalcManager" Content="Calc Manager"
+                        Style="{StaticResource SidebarButtonStyle}" Command="{Binding OpenCalcManagerCommand}"/>
                 <Button x:Name="btnBbrData" Content="BBR Updater"
                         Style="{StaticResource SidebarButtonStyle}" Command="{Binding OpenBbrDataCommand}"/>
             </StackPanel>
