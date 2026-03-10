@@ -4,39 +4,53 @@ using DimensioneringV2.Services;
 using Microsoft.Win32;
 
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
 using System.Text.Json;
-using System.Threading.Tasks;
+using System.Text.Json.Serialization;
 using System.Windows;
 
 namespace DimensioneringV2.MapCommands
 {
     internal class SaveResult
     {
+        private static readonly JsonSerializerOptions s_options = CreateOptions();
+
+        private static JsonSerializerOptions CreateOptions()
+        {
+            var options = new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals,
+                ReferenceHandler = ReferenceHandler.Preserve,
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+            };
+            options.Converters.Add(new AnalysisFeatureJsonConverter());
+            options.Converters.Add(new UndirectedGraphJsonConverter());
+            options.Converters.Add(new DimJsonConverter());
+            return options;
+        }
+
         internal void Execute()
         {
             try
             {
+                var hn = HydraulicNetworkManager.Instance.ActiveNetwork;
+                if (hn == null) return;
+
                 SaveFileDialog saveFileDialog = new SaveFileDialog
                 {
                     Filter = "D2R Files (*.d2r)|*.d2r|All Files (*.*)|*.*",
                     DefaultExt = "d2r",
                     Title = "Save results",
-                    AddExtension = true
+                    AddExtension = true,
+                    FileName = hn.Id ?? "result"
                 };
 
                 string fileName;
                 if (saveFileDialog.ShowDialog() == true)
-                {
                     fileName = saveFileDialog.FileName;
-                }
                 else
-                {
                     return;
-                }
 
                 if (string.IsNullOrEmpty(fileName)) return;
 
@@ -51,17 +65,8 @@ namespace DimensioneringV2.MapCommands
                     if (result != MessageBoxResult.Yes) return;
                 }
 
-                var graphs = HydraulicNetworkManager.Instance.Graphs;
-
-                var options = new JsonSerializerOptions();
-                options.WriteIndented = true;
-                options.NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals;
-                options.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.Preserve;
-                options.Converters.Add(new AnalysisFeatureJsonConverter());
-                options.Converters.Add(new UndirectedGraphJsonConverter());
-                options.Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping;
-
-                string json = JsonSerializer.Serialize(graphs.ToArray(), options);
+                var dto = new HydraulicNetworkDto(hn);
+                string json = JsonSerializer.Serialize(dto, s_options);
                 File.WriteAllText(fileName, json);
 
                 Utils.prtDbg($"Results saved to {fileName}");
