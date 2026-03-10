@@ -89,7 +89,7 @@ internal partial class HydraulicNetworkManager : ObservableObject
 
         fsm.Configure(HnState.Nascent, HnEvent.StartCalc, HnState.Calculating, ctx =>
         {
-            // TODO Phase 4: HydraulicSettingsService.Instance.IsLocked = true;
+            SetSettingsLocked(true);
             ActiveNetwork!.Freeze(HydraulicSettingsService.Instance.Settings);
             ActiveNetworkChanged?.Invoke(this, EventArgs.Empty);
         });
@@ -108,14 +108,14 @@ internal partial class HydraulicNetworkManager : ObservableObject
         fsm.Configure(HnState.Calculating, HnEvent.CalcError, HnState.Nascent, ctx =>
         {
             ActiveNetwork?.ResetResults();
-            // TODO Phase 4: HydraulicSettingsService.Instance.IsLocked = false;
+            SetSettingsLocked(false);
             ActiveNetworkChanged?.Invoke(this, EventArgs.Empty);
         });
 
         fsm.Configure(HnState.Calculating, HnEvent.CalcCancel, HnState.Nascent, ctx =>
         {
             ActiveNetwork?.ResetResults();
-            // TODO Phase 4: HydraulicSettingsService.Instance.IsLocked = false;
+            SetSettingsLocked(false);
             ActiveNetworkChanged?.Invoke(this, EventArgs.Empty);
         });
 
@@ -140,7 +140,7 @@ internal partial class HydraulicNetworkManager : ObservableObject
         var docState = _docStore.GetOrCreate(_currentDocKey);
         docState.ActiveNetwork = hn;
         ActiveNetwork = hn;
-        // TODO Phase 4: HydraulicSettingsService.Instance.IsLocked = false;
+        SetSettingsLocked(false);
         NetworkLoaded?.Invoke(this, EventArgs.Empty);
         ActiveNetworkChanged?.Invoke(this, EventArgs.Empty);
     }
@@ -155,9 +155,15 @@ internal partial class HydraulicNetworkManager : ObservableObject
         ActiveNetwork = hn;
         if (hn.FrozenSettings != null)
             HydraulicSettingsService.Instance.Settings.CopyFrom(hn.FrozenSettings);
-        // TODO Phase 4: HydraulicSettingsService.Instance.IsLocked = true;
+        SetSettingsLocked(true);
         CalculationsFinished?.Invoke(this, EventArgs.Empty);
         ActiveNetworkChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private static void SetSettingsLocked(bool locked)
+    {
+        HydraulicSettingsService.Instance.IsLocked = locked;
+        NyttetimerService.Instance.IsLocked = locked;
     }
 
     public void NewCalculation(HydraulicNetwork hn)

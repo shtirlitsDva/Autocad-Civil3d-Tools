@@ -41,6 +41,9 @@ namespace DimensioneringV2.Services
         [ObservableProperty]
         private NyttetimerConfiguration currentConfiguration;
 
+        [ObservableProperty]
+        private bool isLocked;
+
         /// <summary>
         /// All available configurations (default + user-created).
         /// </summary>

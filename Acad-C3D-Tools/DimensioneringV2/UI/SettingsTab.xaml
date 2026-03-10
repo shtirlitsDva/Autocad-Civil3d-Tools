@@ -31,7 +31,8 @@
                   VerticalScrollBarVisibility="Auto">
 
         <!-- Root StackPanel with SharedSizeScope -->
-        <StackPanel Orientation="Vertical" Grid.IsSharedSizeScope="True" Margin="10">
+        <StackPanel Orientation="Vertical" Grid.IsSharedSizeScope="True" Margin="10"
+                    IsEnabled="{Binding IsSettingsEditable}">
                 
             <!-- Buttons -->
             <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
