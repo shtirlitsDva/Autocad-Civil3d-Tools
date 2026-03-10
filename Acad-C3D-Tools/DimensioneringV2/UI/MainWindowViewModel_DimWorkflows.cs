@@ -33,7 +33,9 @@ namespace DimensioneringV2.UI
 
             if (_manager?.Graphs == null || !_manager.Graphs.Any()) return;
 
-            _pipes = new NorsynHydraulicCalc.Pipes.PipeTypes(HydraulicSettingsService.Instance.Settings);
+            var hn = _manager.ActiveNetwork;
+            if (hn?.FrozenSettings == null) return;
+            _pipes = new NorsynHydraulicCalc.Pipes.PipeTypes(hn.FrozenSettings);
 
             _prevSelectedProperty = SelectedMapPropertyWrapper;
             SelectedMapPropertyWrapper = new MapPropertyWrapper(MapPropertyEnum.Pipe, "Rørdimension");
@@ -81,13 +83,14 @@ namespace DimensioneringV2.UI
                 return;
             }
 
-            // Apply selected dim to features
-            var settings = Services.HydraulicSettingsService.Instance.Settings;
             var selectedType = dlg.ViewModel.SelectedPipeType;
             var selectedNominal = dlg.ViewModel.SelectedNominal;
 
             if (_pipes == null)
-                _pipes = new NorsynHydraulicCalc.Pipes.PipeTypes(settings);
+            {
+                var hn = _manager.ActiveNetwork;
+                _pipes = new NorsynHydraulicCalc.Pipes.PipeTypes(hn?.FrozenSettings ?? HydraulicSettingsService.Instance.Settings);
+            }
             var dim = _pipes.GetPipeType(selectedType).GetDim(selectedNominal);
 
             foreach (var f in features)
@@ -165,12 +168,12 @@ namespace DimensioneringV2.UI
         #region Shared hydraulic recalculation
         private void RecalculateHydraulicsAfterDimChange()
         {
-            var graphs = HydraulicNetworkManager.Instance.Graphs;
-            var hc = new HydraulicCalc(
-                HydraulicSettingsService.Instance.Settings,
-                new LoggerFile());
+            var hn = HydraulicNetworkManager.Instance.ActiveNetwork;
+            if (hn == null) return;
+            var frozenSettings = hn.FrozenSettings ?? HydraulicSettingsService.Instance.Settings;
+            var hc = new HydraulicCalc(frozenSettings, new LoggerFile());
 
-            foreach (var ograph in graphs)
+            foreach (var ograph in hn.Graphs)
             {
                 var graph = ograph.CopyToBFConditional(
                     x => x.PipeSegment.NumberOfBuildingsSupplied > 0);
@@ -193,8 +196,10 @@ namespace DimensioneringV2.UI
                 }
             }
 
-            foreach (var graph in graphs)
-                PressureAnalysisService.CalculateDifferentialLossAtClient(graph);
+            foreach (var graph in hn.Graphs)
+                PressureAnalysisService.CalculateDifferentialLossAtClient(graph, frozenSettings);
+
+            hn.RecalculatePrice();
         }
         #endregion
     }
