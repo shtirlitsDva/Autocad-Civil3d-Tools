@@ -109,11 +109,68 @@ namespace Dreambuild.AutoCAD
         /// </summary>
         public FlexDataStore SetObject(string key, object obj)
         {
-            // Serialize the object to JSON
-            string jsonString = JsonSerializer.Serialize(obj);
+            return SetObject(key, obj, null);
+        }
+
+        /// <summary>
+        /// Retrieves an object by combining binary chunks, decompressing, and deserializing from JSON.
+        /// </summary>
+        public T GetObject<T>(string key) where T : class
+        {
+            return GetObject<T>(key, null);
+        }
+
+        /// <summary>
+        /// Retrieves an object using custom JSON serializer options.
+        /// </summary>
+        public T GetObject<T>(string key, JsonSerializerOptions options) where T : class
+        {
+            var dictionary = this.DictionaryId.QOpenForRead<DBDictionary>();
+            if (!dictionary.Contains(key))
+                return null;
+
+            var record = dictionary.GetAt(key).QOpenForRead<Xrecord>();
+            var data = record.Data.AsArray();
+
+            using (var ms = new MemoryStream())
+            {
+                foreach (var tv in data)
+                {
+                    if (tv.TypeCode != (int)DxfCode.BinaryChunk)
+                        continue;
+                    byte[] chunk = tv.Value as byte[];
+                    ms.Write(chunk, 0, chunk.Length);
+                }
+
+                ms.Position = 0;
+                using (var decompressedMs = new MemoryStream())
+                {
+                    using (var gz = new GZipStream(ms, CompressionMode.Decompress, true))
+                    {
+                        gz.CopyTo(decompressedMs);
+                    }
+
+                    decompressedMs.Position = 0;
+                    byte[] decompressedData = decompressedMs.ToArray();
+                    string jsonString = Encoding.UTF8.GetString(decompressedData);
+
+                    return options != null
+                        ? JsonSerializer.Deserialize<T>(jsonString, options)
+                        : JsonSerializer.Deserialize<T>(jsonString);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Stores an arbitrary object using custom JSON serializer options.
+        /// </summary>
+        public FlexDataStore SetObject(string key, object obj, JsonSerializerOptions options)
+        {
+            string jsonString = options != null
+                ? JsonSerializer.Serialize(obj, obj.GetType(), options)
+                : JsonSerializer.Serialize(obj);
             byte[] jsonBytes = Encoding.UTF8.GetBytes(jsonString);
 
-            // Compress the data
             byte[] compressedData;
             using (var msDest = new MemoryStream())
             {
@@ -124,7 +181,6 @@ namespace Dreambuild.AutoCAD
                 compressedData = msDest.ToArray();
             }
 
-            // Split into chunks of 255 bytes
             const int chunkSize = 255;
             var buffer = new ResultBuffer();
             int position = 0;
@@ -140,7 +196,6 @@ namespace Dreambuild.AutoCAD
                 remaining -= size;
             }
 
-            // Store in the dictionary
             using (var trans = this.DictionaryId.Database.TransactionManager.StartTransaction())
             {
                 var dictionary = trans.GetObject(this.DictionaryId, OpenMode.ForWrite) as DBDictionary;
@@ -163,48 +218,18 @@ namespace Dreambuild.AutoCAD
         }
 
         /// <summary>
-        /// Retrieves an object by combining binary chunks, decompressing, and deserializing from JSON.
+        /// Enumerates all keys, optionally filtered by a prefix.
         /// </summary>
-        public T GetObject<T>(string key) where T : class
+        public IEnumerable<string> GetKeys(string prefix = null)
         {
             var dictionary = this.DictionaryId.QOpenForRead<DBDictionary>();
-            if (!dictionary.Contains(key))
-                return null;
-
-            var record = dictionary.GetAt(key).QOpenForRead<Xrecord>();
-            var data = record.Data.AsArray();
-
-            // Combine all binary chunks
-            using (var ms = new MemoryStream())
+            var keys = new List<string>();
+            foreach (DBDictionaryEntry entry in dictionary)
             {
-                foreach (var tv in data)
-                {
-                    if (tv.TypeCode != (int)DxfCode.BinaryChunk)
-                    {
-                        // Non-binary data encountered; handle as needed (e.g., ignore or throw)
-                        continue;
-                    }
-                    byte[] chunk = tv.Value as byte[];
-                    ms.Write(chunk, 0, chunk.Length);
-                }
-
-                // Decompress
-                ms.Position = 0;
-                using (var decompressedMs = new MemoryStream())
-                {
-                    using (var gz = new GZipStream(ms, CompressionMode.Decompress, true))
-                    {
-                        gz.CopyTo(decompressedMs);
-                    }
-
-                    decompressedMs.Position = 0;
-                    byte[] decompressedData = decompressedMs.ToArray();
-                    string jsonString = Encoding.UTF8.GetString(decompressedData);
-
-                    // Deserialize the JSON to an object of type T
-                    return JsonSerializer.Deserialize<T>(jsonString);
-                }
+                if (prefix == null || entry.Key.StartsWith(prefix))
+                    keys.Add(entry.Key);
             }
+            return keys;
         }
     }
 

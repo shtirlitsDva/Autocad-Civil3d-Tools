@@ -75,4 +75,22 @@ internal class HydraulicNetwork
         CalculationDuration = null;
         TotalPrice = 0;
     }
+
+    internal static HydraulicNetwork Restore(
+        string? id,
+        List<UndirectedGraph<NodeJunction, EdgePipeSegment>> graphs,
+        HydraulicSettings? frozenSettings,
+        DateTime? calculatedAt,
+        TimeSpan? calculationDuration,
+        double totalPrice)
+    {
+        var hn = new HydraulicNetwork(graphs);
+        hn.Id = id;
+        hn.FrozenSettings = frozenSettings;
+        hn.CalculatedAt = calculatedAt;
+        hn.CalculationDuration = calculationDuration;
+        hn.TotalPrice = totalPrice;
+        hn.IsSaved = true;
+        return hn;
+    }
 }
