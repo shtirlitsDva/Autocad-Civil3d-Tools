@@ -62,7 +62,7 @@ namespace DimensioneringV2.MapCommands
 
                 await Task.Run(() =>
                 {
-                    var graphs = DataService.Instance.Graphs;
+                    var graphs = HydraulicNetworkManager.Instance.Graphs;
 
                     #region Setup result cache for distribution pipes (FL)
                     var flExtractors = new List<IKeyPropertyExtractor<BFEdge>>
@@ -248,7 +248,7 @@ namespace DimensioneringV2.MapCommands
                 cacheStatsVM.Stop();
 
                 // Post-processing: Pressure profile analysis
-                var graphs = DataService.Instance.Graphs;
+                var graphs = HydraulicNetworkManager.Instance.Graphs;
                 foreach (var graph in graphs)
                 {
                     PressureAnalysisService.CalculateDifferentialLossAtClient(graph);

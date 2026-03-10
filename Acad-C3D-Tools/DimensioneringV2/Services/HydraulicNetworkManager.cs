@@ -122,18 +122,14 @@ internal partial class HydraulicNetworkManager : ObservableObject
         fsm.Configure(HnState.Calculated, HnEvent.NewCalc, HnState.Nascent, ctx =>
             ApplyNewNetwork(ctx));
 
+        fsm.Configure(HnState.Empty, HnEvent.LoadHn, HnState.Calculated, ctx =>
+            ApplyLoadedNetwork(ctx));
+
+        fsm.Configure(HnState.Nascent, HnEvent.LoadHn, HnState.Calculated, ctx =>
+            ApplyLoadedNetwork(ctx));
+
         fsm.Configure(HnState.Calculated, HnEvent.LoadHn, HnState.Calculated, ctx =>
-        {
-            var hn = (HydraulicNetwork)ctx.Payload!;
-            var docState = _docStore.GetOrCreate(_currentDocKey);
-            docState.ActiveNetwork = hn;
-            ActiveNetwork = hn;
-            if (hn.FrozenSettings != null)
-                HydraulicSettingsService.Instance.Settings.CopyFrom(hn.FrozenSettings);
-            // TODO Phase 4: HydraulicSettingsService.Instance.IsLocked = true;
-            CalculationsFinished?.Invoke(this, EventArgs.Empty);
-            ActiveNetworkChanged?.Invoke(this, EventArgs.Empty);
-        });
+            ApplyLoadedNetwork(ctx));
 
         return fsm;
     }
@@ -146,6 +142,21 @@ internal partial class HydraulicNetworkManager : ObservableObject
         ActiveNetwork = hn;
         // TODO Phase 4: HydraulicSettingsService.Instance.IsLocked = false;
         NetworkLoaded?.Invoke(this, EventArgs.Empty);
+        ActiveNetworkChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void ApplyLoadedNetwork(StateMachine<HnState, HnEvent>.TransitionContext ctx)
+    {
+        var hn = (HydraulicNetwork)ctx.Payload!;
+        var docState = _docStore.GetOrCreate(_currentDocKey);
+        docState.ActiveNetwork = hn;
+        if (!docState.CalculatedNetworks.Contains(hn))
+            docState.CalculatedNetworks.Add(hn);
+        ActiveNetwork = hn;
+        if (hn.FrozenSettings != null)
+            HydraulicSettingsService.Instance.Settings.CopyFrom(hn.FrozenSettings);
+        // TODO Phase 4: HydraulicSettingsService.Instance.IsLocked = true;
+        CalculationsFinished?.Invoke(this, EventArgs.Empty);
         ActiveNetworkChanged?.Invoke(this, EventArgs.Empty);
     }
 

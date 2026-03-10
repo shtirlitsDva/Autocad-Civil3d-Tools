@@ -1,4 +1,5 @@
 ﻿using DimensioneringV2.GraphFeatures;
+using DimensioneringV2.Models;
 using DimensioneringV2.Serialization;
 using DimensioneringV2.Services;
 
@@ -60,7 +61,8 @@ namespace DimensioneringV2.MapCommands
                 var graphs = JsonSerializer.Deserialize<UndirectedGraph<NodeJunction, EdgePipeSegment>[]>(
                     File.ReadAllText(fileName), options);
                 if (graphs == null) throw new System.Exception("Deserialization failed.");
-                DataService.Instance.LoadSavedResultsData(graphs);
+                var hn = new HydraulicNetwork(graphs.ToList());
+                HydraulicNetworkManager.Instance.LoadHn(hn);
 
                 Utils.prtDbg($"Results loaded from {fileName}");
             }

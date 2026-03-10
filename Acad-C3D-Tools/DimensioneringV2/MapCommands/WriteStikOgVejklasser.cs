@@ -54,7 +54,7 @@ namespace DimensioneringV2.MapCommands
                     if (result != MessageBoxResult.Yes) return;
                 }
 
-                var graphs = DataService.Instance.Graphs;
+                var graphs = HydraulicNetworkManager.Instance.Graphs;
 
                 var query = graphs
                     .SelectMany(x => x.Edges)

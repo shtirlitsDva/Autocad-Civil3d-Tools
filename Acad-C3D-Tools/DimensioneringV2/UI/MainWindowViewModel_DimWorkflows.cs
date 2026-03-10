@@ -31,7 +31,7 @@ namespace DimensioneringV2.UI
                 return;
             }
 
-            if (_dataService?.Graphs == null || !_dataService.Graphs.Any()) return;
+            if (_manager?.Graphs == null || !_manager.Graphs.Any()) return;
 
             _pipes = new NorsynHydraulicCalc.Pipes.PipeTypes(HydraulicSettingsService.Instance.Settings);
 
@@ -40,7 +40,7 @@ namespace DimensioneringV2.UI
             UpdateMap();
 
             _overlayManager ??= new ApplyDimOverlayManager(Mymap);
-            _angivDim = new ApplyDimManager(_mapControl, _dataService.Graphs, _overlayManager);
+            _angivDim = new ApplyDimManager(_mapControl, _manager.Graphs, _overlayManager);
             _angivDim.PathFinalized += OnAngivPathFinalized;
             _angivDim.Stopped += OnAngivDimStopped;
             _angivDim.PhaseChanged += OnAngivDimPhaseChanged;
@@ -124,9 +124,9 @@ namespace DimensioneringV2.UI
                 return;
             }
 
-            if (_dataService?.Graphs == null ||
-                !_dataService.Graphs.Any() ||
-                !_dataService.Graphs.SelectMany(x => x.Edges).Any(x => x.PipeSegment.ManualDim)) return;
+            if (_manager?.Graphs == null ||
+                !_manager.Graphs.Any() ||
+                !_manager.Graphs.SelectMany(x => x.Edges).Any(x => x.PipeSegment.ManualDim)) return;
 
             _prevSelectedProperty = SelectedMapPropertyWrapper;
             SelectedMapPropertyWrapper = new MapPropertyWrapper(MapPropertyEnum.ManualDim, "Manuel dimension");
@@ -155,7 +155,7 @@ namespace DimensioneringV2.UI
             UpdateMap();
 
             //Handle none manual dims left
-            if (!_dataService.Graphs.SelectMany(x => x.Edges).Any(x => x.PipeSegment.ManualDim))
+            if (!_manager.Graphs.SelectMany(x => x.Edges).Any(x => x.PipeSegment.ManualDim))
             {
                 _resetDim?.Stop();
             }
@@ -165,7 +165,7 @@ namespace DimensioneringV2.UI
         #region Shared hydraulic recalculation
         private void RecalculateHydraulicsAfterDimChange()
         {
-            var graphs = DataService.Instance.Graphs;
+            var graphs = HydraulicNetworkManager.Instance.Graphs;
             var hc = new HydraulicCalc(
                 HydraulicSettingsService.Instance.Settings,
                 new LoggerFile());

@@ -33,7 +33,7 @@ namespace DimensioneringV2.MapCommands
             {
                 await Task.Run(async () =>
                 {
-                    var graphs = DataService.Instance.Graphs;
+                    var graphs = HydraulicNetworkManager.Instance.Graphs;
 
                     //Handle elevations
                     var caches = graphs

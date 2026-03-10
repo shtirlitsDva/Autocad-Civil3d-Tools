@@ -51,7 +51,7 @@ namespace DimensioneringV2.MapCommands
                     if (result != MessageBoxResult.Yes) return;
                 }
 
-                var graphs = DataService.Instance.Graphs;
+                var graphs = HydraulicNetworkManager.Instance.Graphs;
 
                 var options = new JsonSerializerOptions();
                 options.WriteIndented = true;
