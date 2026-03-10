@@ -10,7 +10,7 @@ internal class HnSummaryItem
     public DateTime? CalculatedAt { get; }
     public string Duration { get; }
     public double TotalPrice { get; }
-    public bool IsSaved { get; set; }
+    public bool IsSaved { get; }
     public string Status => IsSaved ? "Gemt" : "* I hukommelse";
 
     public HydraulicNetwork Hn { get; }

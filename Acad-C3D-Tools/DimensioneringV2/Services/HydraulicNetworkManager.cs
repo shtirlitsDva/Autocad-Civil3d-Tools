@@ -205,6 +205,31 @@ internal partial class HydraulicNetworkManager : ObservableObject
     public List<HydraulicNetwork> GetCalculatedNetworks()
         => _docStore.GetOrCreate(_currentDocKey).CalculatedNetworks;
 
+    public void RemoveNetwork(HydraulicNetwork hn)
+    {
+        var docState = _docStore.GetOrCreate(_currentDocKey);
+        docState.CalculatedNetworks.Remove(hn);
+
+        if (ActiveNetwork == hn)
+        {
+            var fallback = docState.CalculatedNetworks.LastOrDefault();
+            if (fallback != null)
+            {
+                LoadHn(fallback);
+            }
+            else
+            {
+                ActiveNetwork = null;
+                docState.ActiveNetwork = null;
+                docState.Fsm = CreateFsm();
+                _fsm = docState.Fsm;
+                SetSettingsLocked(false);
+                OnPropertyChanged(nameof(CurrentState));
+                ActiveNetworkChanged?.Invoke(this, EventArgs.Empty);
+            }
+        }
+    }
+
     public bool HasUnsavedNetworks()
         => _docStore.HasUnsavedNetworks(_currentDocKey);
 
