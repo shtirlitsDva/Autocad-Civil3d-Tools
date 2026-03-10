@@ -20,8 +20,11 @@ namespace DimensioneringV2.Services.SubGraphs
     internal class PressureAnalysisService
     {
         internal static void CalculateDifferentialLossAtClient(
-            UndirectedGraph<NodeJunction, EdgePipeSegment> graph)
+            UndirectedGraph<NodeJunction, EdgePipeSegment> graph,
+            HydraulicSettings? settings = null)
         {
+            settings ??= HydraulicSettingsService.Instance.Settings;
+
             var cGraph = graph.CopyToBFConditional(e => e.PipeSegment.NumberOfBuildingsSupplied > 0);
             foreach (var edge in cGraph.Edges) edge.YankAllResults();
 
@@ -72,8 +75,6 @@ namespace DimensioneringV2.Services.SubGraphs
                 edge.IsCriticalPath = true;
                 edge.OriginalEdge.PipeSegment.IsCriticalPath = true;
             }
-
-            var settings = HydraulicSettingsService.Instance.Settings;
 
             //Calculate diff pressure at client
             var maxPressure = 

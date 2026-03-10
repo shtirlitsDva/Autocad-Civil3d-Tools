@@ -20,6 +20,7 @@ using QuikGraph;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -41,12 +42,17 @@ namespace DimensioneringV2.MapCommands
                 new(f => f.KarFlowBVReturn, (f, v) => f.KarFlowBVReturn = v),
             ];
 
+            var manager = HydraulicNetworkManager.Instance;
+            var hn = manager.ActiveNetwork;
+            if (hn == null) return;
+
+            manager.StartCalculation();
+            var stopwatch = Stopwatch.StartNew();
+
             try
             {
-                // Init the hydraulic calculation service using current settings
-                HydraulicCalculationService.Initialize();
+                HydraulicCalculationService.Initialize(hn.FrozenSettings!);
 
-                // Setup cache statistics window (reuses existing if open)
                 var cacheStatsVM = CacheStatisticsContext.EnsureWindowVisible();
 
                 var reportingWindow = new GeneticOptimizedReporting();
@@ -55,7 +61,7 @@ namespace DimensioneringV2.MapCommands
                 GeneticOptimizedReportingContext.VM.Dispatcher = reportingWindow.Dispatcher;
 
                 var dispatcher = GeneticOptimizedReportingContext.VM.Dispatcher;
-                var settings = HydraulicSettingsService.Instance.Settings;
+                var settings = hn.FrozenSettings!;
 
                 // Start statistics tracking
                 cacheStatsVM.Start();
@@ -244,23 +250,30 @@ namespace DimensioneringV2.MapCommands
                     }
                 });
 
-                // Stop statistics tracking
                 cacheStatsVM.Stop();
+                stopwatch.Stop();
 
-                // Post-processing: Pressure profile analysis
-                var graphs = HydraulicNetworkManager.Instance.Graphs;
-                foreach (var graph in graphs)
-                {
-                    PressureAnalysisService.CalculateDifferentialLossAtClient(graph);
-                }
+                foreach (var graph in hn.Graphs)
+                    PressureAnalysisService.CalculateDifferentialLossAtClient(graph, hn.FrozenSettings);
+
+                manager.CalculationSucceeded(stopwatch.Elapsed);
+            }
+            catch (OperationCanceledException)
+            {
+                stopwatch.Stop();
+                CacheStatisticsContext.VM?.Stop();
+                manager.CalculationCancelled();
+                Utils.prtDbg("Calculation cancelled.");
+                return;
             }
             catch (Exception ex)
             {
+                stopwatch.Stop();
+                CacheStatisticsContext.VM?.Stop();
+                manager.CalculationFailed();
                 Utils.prtDbg($"An error occurred during calculations: {ex.Message}");
                 Utils.prtDbg(ex);
-
-                // Stop statistics on error too
-                CacheStatisticsContext.VM?.Stop();
+                return;
             }
 
             Utils.prtDbg("Calculations completed.");
