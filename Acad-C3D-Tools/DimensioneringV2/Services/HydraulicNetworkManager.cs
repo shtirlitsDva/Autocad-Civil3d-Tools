@@ -235,7 +235,28 @@ internal partial class HydraulicNetworkManager : ObservableObject
     {
         if (e.Document == null) return;
         var docKey = DocumentStateStore.GetDocKey(e.Document);
-        // TODO Phase 11: prompt user about unsaved HNs before removing
+
+        if (_docStore.HasUnsavedNetworks(docKey))
+        {
+            var state = _docStore.GetOrCreate(docKey);
+            var unsaved = state.CalculatedNetworks.Where(hn => !hn.IsSaved).ToList();
+            var names = string.Join(", ", unsaved.Select(hn => hn.Id ?? "?"));
+
+            var result = System.Windows.MessageBox.Show(
+                $"Du har {unsaved.Count} ikke-gemte beregning(er): {names}.\nGem i tegningen?",
+                "Ikke-gemte beregninger",
+                System.Windows.MessageBoxButton.YesNo,
+                System.Windows.MessageBoxImage.Warning);
+
+            if (result == System.Windows.MessageBoxResult.Yes)
+            {
+                foreach (var hn in unsaved)
+                    HydraulicNetworkStorage.Save(e.Document, hn);
+
+                HydraulicNetworkStorage.SaveCounter(e.Document, state.Counter);
+            }
+        }
+
         _docStore.Remove(docKey);
     }
 }
