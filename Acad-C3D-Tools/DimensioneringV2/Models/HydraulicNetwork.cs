@@ -35,11 +35,15 @@ internal class HydraulicNetwork
         Graphs = graphs;
     }
 
-    public void Freeze(HydraulicSettings settings, TimeSpan duration)
+    public void Freeze(HydraulicSettings settings)
     {
         FrozenSettings = new HydraulicSettings();
         FrozenSettings.CopyFrom(settings);
         DeepCopyPipeConfigs(FrozenSettings);
+    }
+
+    public void FinalizeCalculation(TimeSpan duration)
+    {
         CalculatedAt = DateTime.Now;
         CalculationDuration = duration;
         RecalculatePrice();
