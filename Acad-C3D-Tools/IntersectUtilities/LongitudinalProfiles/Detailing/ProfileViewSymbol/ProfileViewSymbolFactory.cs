@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -28,6 +28,7 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol
                 case "EL 60kV":
                     return new El60();
                 case "EL 132kV":
+                case "EL 400kV":
                     return new El132();
                 case "EL LUFT":
                     return new ElLuft();

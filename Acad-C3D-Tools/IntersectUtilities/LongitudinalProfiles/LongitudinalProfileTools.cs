@@ -737,8 +737,7 @@ namespace IntersectUtilities
                     #region Create Points, assign elevation, layer and PS data
                     foreach (Entity ent in sourceEnts)
                     {
-                        if (!(ent is Curve))
-                            continue;
+                        if (!(ent is Curve)) continue;
 
                         #region Read data parameters from csvs
                         //Read 'Type' value
