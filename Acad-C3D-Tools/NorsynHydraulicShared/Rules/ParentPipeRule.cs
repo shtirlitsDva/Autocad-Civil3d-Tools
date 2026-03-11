@@ -1,19 +1,24 @@
+using MessagePack;
+
 namespace NorsynHydraulicCalc.Rules
 {
     /// <summary>
     /// Rule that matches when the parent FL pipe is of a specific type.
     /// Used for Stikledninger to determine pipe type based on the connected Fordelingsledning.
     /// </summary>
+    [MessagePackObject]
     public class ParentPipeRule : IPipeRule
     {
         /// <summary>
         /// Gets the rule type.
         /// </summary>
+        [IgnoreMember]
         public PipeRuleType RuleType => PipeRuleType.ParentPipe;
 
         /// <summary>
         /// The parent FL pipe type that must match for this rule to apply.
         /// </summary>
+        [Key(0)]
         public PipeType ParentPipeType { get; set; }
 
         /// <summary>

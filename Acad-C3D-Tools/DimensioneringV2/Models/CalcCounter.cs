@@ -1,8 +1,11 @@
+using MessagePack;
+
 namespace DimensioneringV2.Models;
 
+[MessagePackObject]
 internal class CalcCounter
 {
-    public int NextId { get; set; } = 1;
+    [Key(0)] public int NextId { get; set; } = 1;
 
     public string Next()
     {

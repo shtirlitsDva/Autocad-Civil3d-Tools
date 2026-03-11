@@ -52,7 +52,7 @@ namespace DimensioneringV2.BruteForceOptimization
         private readonly string _anvKode;
 
         public int Id { get; set; }
-        public double Price { get => Dim.Price_m * Length + Dim.Price_stk(SegmentType); }
+        public double Price { get => Dim.Price_m * Length + Dim.Price_stk_calc(SegmentType); }
         public bool IsRootNode { get => _isRootNode; }
         [SyncProperty] public bool IsBridge { get; set; }
         [SyncProperty] public int SubGraphId { get; set; }

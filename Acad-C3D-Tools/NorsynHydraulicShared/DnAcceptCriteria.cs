@@ -3,6 +3,8 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 
+using MessagePack;
+
 using NorsynHydraulicCalc.Pipes;
 
 namespace NorsynHydraulicCalc
@@ -12,6 +14,7 @@ namespace NorsynHydraulicCalc
     /// along with calculated max flow values computed during hydraulic calculation initialization.
     /// Implements INotifyPropertyChanged for WPF data binding.
     /// </summary>
+    [MessagePackObject]
     public class DnAcceptCriteria : INotifyPropertyChanged
     {
         #region INotifyPropertyChanged
@@ -40,6 +43,7 @@ namespace NorsynHydraulicCalc
         /// <summary>
         /// Nominal diameter (e.g., 50, 63, 75, 100, etc.)
         /// </summary>
+        [Key(0)]
         public int NominalDiameter
         {
             get => _nominalDiameter;
@@ -49,6 +53,7 @@ namespace NorsynHydraulicCalc
         /// <summary>
         /// Maximum allowed velocity in m/s.
         /// </summary>
+        [Key(1)]
         public double MaxVelocity
         {
             get => _maxVelocity;
@@ -65,6 +70,7 @@ namespace NorsynHydraulicCalc
         /// <summary>
         /// Maximum allowed pressure gradient in Pa/m.
         /// </summary>
+        [Key(2)]
         public int MaxPressureGradient
         {
             get => _maxPressureGradient;
@@ -82,6 +88,7 @@ namespace NorsynHydraulicCalc
         /// Indicates whether the user has explicitly reviewed/set this criteria.
         /// Used for UI validation to warn about unreviewed defaults.
         /// </summary>
+        [Key(3)]
         public bool IsInitialized
         {
             get => _isInitialized;
@@ -95,6 +102,7 @@ namespace NorsynHydraulicCalc
         /// Calculated during HydraulicCalc initialization based on criteria.
         /// </summary>
         [JsonIgnore]
+        [IgnoreMember]
         public double? MaxFlowSupply { get; set; }
 
         /// <summary>
@@ -102,6 +110,7 @@ namespace NorsynHydraulicCalc
         /// Calculated during HydraulicCalc initialization based on criteria.
         /// </summary>
         [JsonIgnore]
+        [IgnoreMember]
         public double? MaxFlowReturn { get; set; }
 
         /// <summary>
@@ -109,12 +118,14 @@ namespace NorsynHydraulicCalc
         /// Set during HydraulicCalc initialization.
         /// </summary>
         [JsonIgnore]
+        [IgnoreMember]
         public Dim? Dim { get; set; }
 
         /// <summary>
         /// Indicates whether this criteria has been initialized with calculated values.
         /// </summary>
         [JsonIgnore]
+        [IgnoreMember]
         public bool IsCalculated => MaxFlowSupply.HasValue && MaxFlowReturn.HasValue && Dim != null;
         #endregion
 

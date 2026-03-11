@@ -129,6 +129,14 @@
 			<HintPath>..\..\..\..\..\AutoCAD DRI - 01 Civil 3D\NetloadV2\Dependencies\Gdal\osr_csharp.dll</HintPath>
 			<Private>True</Private>
 		</Reference>
+		<Reference Include="Norsyn.Storage">
+			<HintPath>X:\AutoCAD DRI - 01 Civil 3D\NetloadV2\2025\NorsynStorage\NorsynStorage.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="NorsynObjectsInterop">
+			<HintPath>X:\AutoCAD DRI - 01 Civil 3D\NetloadV2\2025\NorsynStorage\NorsynObjectsInterop.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
 	</ItemGroup>
 	<ItemGroup>
 		<Compile Include="..\IntersectUtilities\GroupByCluster.cs">
@@ -161,6 +169,7 @@
 	</ItemGroup>
 	<ItemGroup>
 		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
+		<PackageReference Include="MessagePack" Version="2.6.100-alpha" />
 		<PackageReference Include="GeneticSharp" Version="3.1.4" />
 		<PackageReference Include="HandyControls" Version="3.6.0" />
 		<PackageReference Include="Mapsui" Version="4.1.9" />

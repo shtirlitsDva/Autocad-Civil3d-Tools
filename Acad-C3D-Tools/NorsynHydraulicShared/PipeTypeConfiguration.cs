@@ -2,22 +2,27 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
+using MessagePack;
+
 namespace NorsynHydraulicCalc
 {
     /// <summary>
     /// Container for pipe type priorities for a segment type (FL or SL).
     /// Plain POCO class for serialization and use across projects.
     /// </summary>
+    [MessagePackObject]
     public class PipeTypeConfiguration
     {
         /// <summary>
         /// The segment type this configuration applies to (FL or SL).
         /// </summary>
+        [Key(0)]
         public SegmentType SegmentType { get; set; }
 
         /// <summary>
         /// Ordered list of pipe type priorities. Lower priority number = higher priority (used first).
         /// </summary>
+        [Key(1)]
         public List<PipeTypePriority> Priorities { get; set; } = new List<PipeTypePriority>();
 
         /// <summary>

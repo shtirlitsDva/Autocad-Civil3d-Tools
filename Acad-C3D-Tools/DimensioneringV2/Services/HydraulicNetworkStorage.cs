@@ -1,9 +1,10 @@
 using Autodesk.AutoCAD.ApplicationServices;
 
-using Dreambuild.AutoCAD;
-
 using DimensioneringV2.Models;
 using DimensioneringV2.Serialization;
+using DimensioneringV2.Serialization.Binary;
+
+using Norsyn.Storage;
 
 using System;
 using System.Collections.Generic;
@@ -18,6 +19,7 @@ internal static class HydraulicNetworkStorage
     private const string KeyPrefix = "dimv2:hn:";
     private const string CounterKey = "dimv2:calc_counter";
 
+    // JSON serialization infrastructure kept for .d2r export elsewhere
     private static readonly JsonSerializerOptions s_options = CreateOptions();
 
     private static JsonSerializerOptions CreateOptions()
@@ -34,13 +36,14 @@ internal static class HydraulicNetworkStorage
         return options;
     }
 
+    internal static JsonSerializerOptions JsonOptions => s_options;
+
     internal static void Save(Document doc, HydraulicNetwork hn)
     {
         if (doc == null || hn.Id == null) return;
         using var docLock = doc.LockDocument();
-        var store = FlexDataStoreExtensions.FlexDataStore(doc.Database);
-        var dto = new HydraulicNetworkDto(hn);
-        store.SetObject(KeyPrefix + hn.Id, dto, s_options);
+        var dto = HydraulicNetworkMsgDto.FromDomain(hn);
+        NorsynStorage.Put(KeyPrefix + hn.Id, dto);
         hn.IsSaved = true;
     }
 
@@ -50,11 +53,10 @@ internal static class HydraulicNetworkStorage
         try
         {
             using var docLock = doc.LockDocument();
-            var store = FlexDataStoreExtensions.FlexDataStore(doc.Database);
             var key = KeyPrefix + id;
-            if (!store.Has(key)) return null;
-            var dto = store.GetObject<HydraulicNetworkDto>(key, s_options);
-            return dto?.ToHydraulicNetwork();
+            if (!NorsynStorage.Exists(key)) return null;
+            var dto = NorsynStorage.Get<HydraulicNetworkMsgDto>(key);
+            return dto?.ToDomain();
         }
         catch (Exception ex)
         {
@@ -69,8 +71,8 @@ internal static class HydraulicNetworkStorage
         try
         {
             using var docLock = doc.LockDocument();
-            var store = FlexDataStoreExtensions.FlexDataStore(doc.Database);
-            return store.GetKeys(KeyPrefix)
+            return NorsynStorage.GetKeys()
+                .Where(k => k.StartsWith(KeyPrefix))
                 .Select(k => k.Substring(KeyPrefix.Length))
                 .ToList();
         }
@@ -85,16 +87,14 @@ internal static class HydraulicNetworkStorage
     {
         if (doc == null) return;
         using var docLock = doc.LockDocument();
-        var store = FlexDataStoreExtensions.FlexDataStore(doc.Database);
-        store.RemoveEntry(KeyPrefix + id);
+        NorsynStorage.Remove(KeyPrefix + id);
     }
 
     internal static void SaveCounter(Document doc, CalcCounter counter)
     {
         if (doc == null) return;
         using var docLock = doc.LockDocument();
-        var store = FlexDataStoreExtensions.FlexDataStore(doc.Database);
-        store.SetObject(CounterKey, counter);
+        NorsynStorage.Put(CounterKey, counter);
     }
 
     internal static CalcCounter LoadCounter(Document doc)
@@ -103,9 +103,8 @@ internal static class HydraulicNetworkStorage
         try
         {
             using var docLock = doc.LockDocument();
-            var store = FlexDataStoreExtensions.FlexDataStore(doc.Database);
-            if (store.Has(CounterKey))
-                return store.GetObject<CalcCounter>(CounterKey) ?? new();
+            if (NorsynStorage.Exists(CounterKey))
+                return NorsynStorage.Get<CalcCounter>(CounterKey) ?? new();
             return new();
         }
         catch

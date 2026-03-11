@@ -51,6 +51,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Rules\IPipeRule.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Rules\IRuleEvaluationContext.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Rules\ParentPipeRule.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Rules\PipeRuleFormatter.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)Pipes\Sizes\PipePeSizes.csv" />

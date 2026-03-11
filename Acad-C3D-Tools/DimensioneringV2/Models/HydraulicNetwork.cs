@@ -64,7 +64,7 @@ internal class HydraulicNetwork
 
     public void RecalculatePrice()
     {
-        TotalPrice = AllFeatures.Sum(f => f.Dim.Price_m * f.Length + f.Dim.Price_stk(f.SegmentType));
+        TotalPrice = AllFeatures.Sum(f => f.Dim.Price_m * f.Length + f.Dim.Price_stk_calc(f.SegmentType));
     }
 
     public void ResetResults()

@@ -11,6 +11,7 @@ using DimensioneringV2.GraphFeatures;
 using DimensioneringV2.GraphModelRoads;
 using DimensioneringV2.Schema;
 using DimensioneringV2.Serialization;
+using DimensioneringV2.Serialization.Binary;
 using DimensioneringV2.Services;
 using DimensioneringV2.Services.GDALClient;
 using DimensioneringV2.UI;
@@ -66,6 +67,7 @@ namespace DimensioneringV2
         #region IExtensionApplication members
         public void Initialize()
         {
+            MessagePackSetup.Configure();
             Events = new AcadEventManager();
 
             Document doc = AcApp.DocumentManager.MdiActiveDocument;

@@ -38,7 +38,7 @@ namespace DimensioneringV2.MapCommands
                     TotalLength = g.Sum(x => x.Length),
                     Price = g.Sum(x => x.Length * x.Dim.Price_m),
                     ServiceCount = g.Count(),
-                    ServicePrice = g.Count() * g.First().Dim.Price_stk(SegmentType.Stikledning)
+                    ServicePrice = g.Count() * g.First().Dim.Price_stk_calc(SegmentType.Stikledning)
                 })
                 .ToList();
 
