@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.EditorInput;
@@ -120,11 +121,32 @@ namespace NSLOAD
             string[] sharedNames = SharedAssembliesConfigLoader.Load(pluginDir);
 
             // Pre-load shared assemblies into default ALC so WPF XAML can resolve them.
+            var ed = GetEditor();
             foreach (string asmName in sharedNames)
             {
                 string dllPath = Path.Combine(pluginDir, asmName + ".dll");
-                if (File.Exists(dllPath))
-                    Assembly.LoadFrom(dllPath);
+                if (!File.Exists(dllPath)) continue;
+
+                // TEST: C++/CLI mixed-mode assemblies must be loaded via the native
+                // OS loader (triggers IJW activation), not Assembly.LoadFrom.
+                // LOAD_WITH_ALTERED_SEARCH_PATH makes the OS search the DLL's
+                // own directory for its dependencies (ijwhost.dll, native libs).
+                if (asmName == "NorsynObjectsInterop")
+                {
+                    ed?.WriteMessage($"\n[NSLOAD] Loading mixed-mode: {asmName}");
+                    IntPtr handle = LoadLibraryEx(dllPath, IntPtr.Zero, LOAD_WITH_ALTERED_SEARCH_PATH);
+                    if (handle == IntPtr.Zero)
+                    {
+                        int err = Marshal.GetLastWin32Error();
+                        ed?.WriteMessage($"\n[NSLOAD] LoadLibraryEx FAILED: Win32 error {err}");
+                        throw new DllNotFoundException(
+                            $"Failed to load mixed-mode assembly '{dllPath}'. Win32 error: {err}");
+                    }
+                    ed?.WriteMessage($"\n[NSLOAD] LoadLibraryEx succeeded for {asmName}");
+                    continue;
+                }
+
+                Assembly.LoadFrom(dllPath);
             }
 
             var plugin = reg.Host.Load(reg.DllPath, sharedNames);
@@ -161,6 +183,12 @@ namespace NSLOAD
         {
             return Application.DocumentManager.MdiActiveDocument?.Editor;
         }
+
+        private const uint LOAD_WITH_ALTERED_SEARCH_PATH = 0x00000008;
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern IntPtr LoadLibraryEx(
+            string lpLibFileName, IntPtr hFile, uint dwFlags);
 
         internal static void AddRegistration(PluginRegistration reg)
         {

@@ -12,6 +12,11 @@ internal class HnSummaryItem
     public double TotalPrice { get; }
     public bool IsSaved { get; }
     public string Status => IsSaved ? "Gemt" : "* I hukommelse";
+    public string? Description
+    {
+        get => Hn.Description;
+        set => Hn.Description = value;
+    }
 
     public HydraulicNetwork Hn { get; }
 

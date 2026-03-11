@@ -41,7 +41,16 @@ internal partial class CalcManagerViewModel : ObservableObject
         DeleteCommand = new RelayCommand(DeleteSelected, () => SelectedNetwork != null);
         BrowseSettingsCommand = new RelayCommand(BrowseSettings, () => SelectedNetwork != null);
         Refresh();
+
+        HydraulicNetworkManager.Instance.CalculationsFinished += OnCalculationsFinished;
     }
+
+    public void Cleanup()
+    {
+        HydraulicNetworkManager.Instance.CalculationsFinished -= OnCalculationsFinished;
+    }
+
+    private void OnCalculationsFinished(object? sender, EventArgs e) => Refresh();
 
     private void Refresh()
     {

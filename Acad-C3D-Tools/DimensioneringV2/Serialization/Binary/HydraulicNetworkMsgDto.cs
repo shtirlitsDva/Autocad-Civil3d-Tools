@@ -10,7 +10,7 @@ using System.Linq;
 namespace DimensioneringV2.Serialization.Binary;
 
 [MessagePackObject]
-internal class HydraulicNetworkMsgDto
+public class HydraulicNetworkMsgDto
 {
     [Key(0)] public string? Id { get; set; }
     [Key(1)] public DateTime? CalculatedAt { get; set; }
@@ -18,8 +18,9 @@ internal class HydraulicNetworkMsgDto
     [Key(3)] public double TotalPrice { get; set; }
     [Key(4)] public HydraulicSettingsMsgDto? FrozenSettings { get; set; }
     [Key(5)] public UndirectedGraphMsgDto[] Graphs { get; set; } = Array.Empty<UndirectedGraphMsgDto>();
+    [Key(6)] public string? Description { get; set; }
 
-    public static HydraulicNetworkMsgDto FromDomain(HydraulicNetwork hn)
+    internal static HydraulicNetworkMsgDto FromDomain(HydraulicNetwork hn)
     {
         return new HydraulicNetworkMsgDto
         {
@@ -30,13 +31,14 @@ internal class HydraulicNetworkMsgDto
             FrozenSettings = hn.FrozenSettings != null
                 ? HydraulicSettingsMsgDto.FromDomain(hn.FrozenSettings)
                 : null,
+            Description = hn.Description,
             Graphs = hn.Graphs
                 .Select(UndirectedGraphMsgDto.FromDomain)
                 .ToArray(),
         };
     }
 
-    public HydraulicNetwork ToDomain()
+    internal HydraulicNetwork ToDomain()
     {
         var graphs = Graphs
             .Select(g => g.ToDomain())
@@ -52,6 +54,7 @@ internal class HydraulicNetworkMsgDto
             CalculationDurationTicks.HasValue
                 ? TimeSpan.FromTicks(CalculationDurationTicks.Value)
                 : null,
-            TotalPrice);
+            TotalPrice,
+            Description);
     }
 }

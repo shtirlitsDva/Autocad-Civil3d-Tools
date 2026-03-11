@@ -19,12 +19,14 @@ internal class HydraulicNetworkDto
     public double TotalPrice { get; set; }
     public HydraulicSettings? FrozenSettings { get; set; }
     public UndirectedGraph<NodeJunction, EdgePipeSegment>[] Graphs { get; set; }
+    public string? Description { get; set; }
 
     public HydraulicNetworkDto() { }
 
     public HydraulicNetworkDto(HydraulicNetwork hn)
     {
         Id = hn.Id;
+        Description = hn.Description;
         CalculatedAt = hn.CalculatedAt;
         CalculationDurationTicks = hn.CalculationDuration?.Ticks;
         TotalPrice = hn.TotalPrice;
@@ -42,6 +44,7 @@ internal class HydraulicNetworkDto
             CalculationDurationTicks.HasValue
                 ? TimeSpan.FromTicks(CalculationDurationTicks.Value)
                 : null,
-            TotalPrice);
+            TotalPrice,
+            Description);
     }
 }

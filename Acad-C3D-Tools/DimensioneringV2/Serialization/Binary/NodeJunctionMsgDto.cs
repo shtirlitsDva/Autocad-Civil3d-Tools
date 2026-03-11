@@ -6,7 +6,7 @@ using MessagePack;
 namespace DimensioneringV2.Serialization.Binary;
 
 [MessagePackObject]
-internal class NodeJunctionMsgDto
+public class NodeJunctionMsgDto
 {
     [Key(0)] public double X { get; set; }
     [Key(1)] public double Y { get; set; }
@@ -16,7 +16,7 @@ internal class NodeJunctionMsgDto
     [Key(5)] public int STP_Node { get; set; }
     [Key(6)] public string Name { get; set; } = "";
 
-    public static NodeJunctionMsgDto FromDomain(NodeJunction nj) => new()
+    internal static NodeJunctionMsgDto FromDomain(NodeJunction nj) => new()
     {
         X = nj.Location.X,
         Y = nj.Location.Y,
@@ -27,7 +27,7 @@ internal class NodeJunctionMsgDto
         Name = nj.Name,
     };
 
-    public NodeJunction ToDomain()
+    internal NodeJunction ToDomain()
     {
         return new NodeJunction(new Point2D(X, Y))
         {

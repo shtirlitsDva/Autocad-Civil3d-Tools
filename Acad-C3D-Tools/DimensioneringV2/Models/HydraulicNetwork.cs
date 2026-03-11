@@ -17,6 +17,7 @@ internal enum NewCalcSource { Civil, CloneCurrent }
 internal class HydraulicNetwork
 {
     public string? Id { get; set; }
+    public string? Description { get; set; }
 
     public List<UndirectedGraph<NodeJunction, EdgePipeSegment>> Graphs { get; }
 
@@ -82,10 +83,12 @@ internal class HydraulicNetwork
         HydraulicSettings? frozenSettings,
         DateTime? calculatedAt,
         TimeSpan? calculationDuration,
-        double totalPrice)
+        double totalPrice,
+        string? description = null)
     {
         var hn = new HydraulicNetwork(graphs);
         hn.Id = id;
+        hn.Description = description;
         hn.FrozenSettings = frozenSettings;
         hn.CalculatedAt = calculatedAt;
         hn.CalculationDuration = calculationDuration;

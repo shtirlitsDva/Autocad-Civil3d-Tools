@@ -15,7 +15,7 @@ using System.Linq;
 namespace DimensioneringV2.Serialization.Binary;
 
 [MessagePackObject]
-internal class AnalysisFeatureMsgDto
+public class AnalysisFeatureMsgDto
 {
     // Geometry
     [Key(0)] public double[][] Coordinates { get; set; }
@@ -76,7 +76,7 @@ internal class AnalysisFeatureMsgDto
     [Key(51)] public double TempDeltaVarme { get; set; }
     [Key(52)] public double TempDeltaBV { get; set; }
 
-    public static AnalysisFeatureMsgDto FromDomain(AnalysisFeature af)
+    internal static AnalysisFeatureMsgDto FromDomain(AnalysisFeature af)
     {
         var line = af.Geometry as LineString
             ?? throw new InvalidOperationException("Expected LineString geometry");
@@ -153,7 +153,7 @@ internal class AnalysisFeatureMsgDto
         return dto;
     }
 
-    public AnalysisFeature ToDomain()
+    internal AnalysisFeature ToDomain()
     {
         // Build geometry from coordinates
         var geometry25832 = new LineString(

@@ -9,8 +9,12 @@ public partial class CalcManagerWindow : Window
     public CalcManagerWindow()
     {
         InitializeComponent();
+        Loaded += (s, e) => DarkTitleBarHelper.EnableDarkTitleBar(this);
+        Closed += (s, e) => ViewModel.Cleanup();
         ViewModel = new CalcManagerViewModel();
         DataContext = ViewModel;
         ViewModel.CloseRequested += (s, e) => Close();
     }
+
+    private void CloseButton_Click(object sender, RoutedEventArgs e) => Close();
 }

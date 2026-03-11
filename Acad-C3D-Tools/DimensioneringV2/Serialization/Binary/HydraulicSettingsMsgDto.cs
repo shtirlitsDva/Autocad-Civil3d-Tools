@@ -7,7 +7,7 @@ using System.Collections.Generic;
 namespace DimensioneringV2.Serialization.Binary;
 
 [MessagePackObject]
-internal class HydraulicSettingsMsgDto
+public class HydraulicSettingsMsgDto
 {
     [Key(0)] public int Version { get; set; }
     [Key(1)] public MediumTypeEnum MedieType { get; set; }
@@ -45,7 +45,7 @@ internal class HydraulicSettingsMsgDto
     [Key(33)] public bool FilterFjernvarme { get; set; }
     [Key(34)] public bool FilterAndetIngenUdgaar { get; set; }
 
-    public static HydraulicSettingsMsgDto FromDomain(HydraulicSettings settings)
+    internal static HydraulicSettingsMsgDto FromDomain(HydraulicSettings settings)
     {
         return new HydraulicSettingsMsgDto
         {
@@ -87,7 +87,7 @@ internal class HydraulicSettingsMsgDto
         };
     }
 
-    public HydraulicSettings ToDomain()
+    internal HydraulicSettings ToDomain()
     {
         var settings = new HydraulicSettings();
         settings.Version = Version;
