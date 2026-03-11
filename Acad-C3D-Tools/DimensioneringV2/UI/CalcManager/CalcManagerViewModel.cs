@@ -24,6 +24,7 @@ internal partial class CalcManagerViewModel : ObservableObject
         LoadCommand.NotifyCanExecuteChanged();
         SaveCommand.NotifyCanExecuteChanged();
         DeleteCommand.NotifyCanExecuteChanged();
+        BrowseSettingsCommand.NotifyCanExecuteChanged();
     }
 
     public event EventHandler? CloseRequested;
@@ -31,12 +32,14 @@ internal partial class CalcManagerViewModel : ObservableObject
     public RelayCommand LoadCommand { get; }
     public RelayCommand SaveCommand { get; }
     public RelayCommand DeleteCommand { get; }
+    public RelayCommand BrowseSettingsCommand { get; }
 
     public CalcManagerViewModel()
     {
         LoadCommand = new RelayCommand(LoadSelected, () => SelectedNetwork != null);
         SaveCommand = new RelayCommand(SaveSelected, () => SelectedNetwork != null);
         DeleteCommand = new RelayCommand(DeleteSelected, () => SelectedNetwork != null);
+        BrowseSettingsCommand = new RelayCommand(BrowseSettings, () => SelectedNetwork != null);
         Refresh();
     }
 
@@ -97,5 +100,24 @@ internal partial class CalcManagerViewModel : ObservableObject
         }
 
         Refresh();
+    }
+
+    private void BrowseSettings()
+    {
+        if (SelectedNetwork == null) return;
+
+        var frozen = SelectedNetwork.Hn.FrozenSettings;
+        if (frozen == null)
+        {
+            MessageBox.Show(
+                "Denne beregning har ingen gemte indstillinger.",
+                "Ingen indstillinger",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        var dialog = new SettingsBrowserDialog(frozen);
+        dialog.ShowDialog();
     }
 }

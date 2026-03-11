@@ -24,6 +24,12 @@
                   SelectionMode="Single"
                   SelectionUnit="FullRow"
                   IsReadOnly="True">
+            <DataGrid.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="Gennemse indstillinger"
+                              Command="{Binding BrowseSettingsCommand}"/>
+                </ContextMenu>
+            </DataGrid.ContextMenu>
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Navn" Binding="{Binding Id}" Width="120"/>
                 <DataGridTextColumn Header="Dato" Binding="{Binding CalculatedAt, StringFormat='{}{0:dd-MM-yyyy HH:mm}'}" Width="140"/>
