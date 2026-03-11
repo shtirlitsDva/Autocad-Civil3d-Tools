@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.InteropServices;
-
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Runtime;
@@ -115,36 +113,21 @@ namespace NSLOAD
         {
             TearDown(reg);
 
-            // Read developer-managed shared assembly config from plugin directory.
-            // SharedAssemblies.Config.json is created by DevReload's "Push to Production".
             string pluginDir = Path.GetDirectoryName(reg.DllPath)!;
-            string[] sharedNames = SharedAssembliesConfigLoader.Load(pluginDir);
+            var saConfig = SharedAssembliesConfigLoader.Load(pluginDir);
+            string[] sharedNames = saConfig.SharedAssemblies?.ToArray() ?? Array.Empty<string>();
+            var mixedSet = new HashSet<string>(
+                saConfig.MixedModeAssemblies ?? new List<string>(),
+                StringComparer.OrdinalIgnoreCase);
 
-            // Pre-load shared assemblies into default ALC so WPF XAML can resolve them.
             var ed = GetEditor();
             foreach (string asmName in sharedNames)
             {
                 string dllPath = Path.Combine(pluginDir, asmName + ".dll");
                 if (!File.Exists(dllPath)) continue;
 
-                // TEST: C++/CLI mixed-mode assemblies must be loaded via the native
-                // OS loader (triggers IJW activation), not Assembly.LoadFrom.
-                // LOAD_WITH_ALTERED_SEARCH_PATH makes the OS search the DLL's
-                // own directory for its dependencies (ijwhost.dll, native libs).
-                if (asmName == "NorsynObjectsInterop")
-                {
-                    ed?.WriteMessage($"\n[NSLOAD] Loading mixed-mode: {asmName}");
-                    IntPtr handle = LoadLibraryEx(dllPath, IntPtr.Zero, LOAD_WITH_ALTERED_SEARCH_PATH);
-                    if (handle == IntPtr.Zero)
-                    {
-                        int err = Marshal.GetLastWin32Error();
-                        ed?.WriteMessage($"\n[NSLOAD] LoadLibraryEx FAILED: Win32 error {err}");
-                        throw new DllNotFoundException(
-                            $"Failed to load mixed-mode assembly '{dllPath}'. Win32 error: {err}");
-                    }
-                    ed?.WriteMessage($"\n[NSLOAD] LoadLibraryEx succeeded for {asmName}");
-                    continue;
-                }
+                if (mixedSet.Contains(asmName))
+                    EnsureRuntimeConfig(dllPath, asmName, ed);
 
                 Assembly.LoadFrom(dllPath);
             }
@@ -153,9 +136,6 @@ namespace NSLOAD
 
             if (reg.Registrar != null)
                 reg.Registrar.RegisterFromAssembly(reg.Host.LoadedAssembly!);
-
-            //Don't call Initialize here; the plugin will be initialized by AutoCAD!            
-            //plugin.Initialize();
         }
 
         private static void TearDown(PluginRegistration reg)
@@ -171,6 +151,32 @@ namespace NSLOAD
             }
         }
 
+        private static void EnsureRuntimeConfig(string asmPath, string asmName, Editor? ed)
+        {
+            string asmDir = Path.GetDirectoryName(asmPath)!;
+            string rcPath = Path.Combine(asmDir, asmName + ".runtimeconfig.json");
+            if (!File.Exists(rcPath))
+            {
+                ed?.WriteMessage($"\n[NSLOAD] Creating runtimeconfig.json for mixed-mode: {asmName}");
+                File.WriteAllText(rcPath,
+                    """
+                    {
+                      "runtimeOptions": {
+                        "tfm": "net8.0",
+                        "framework": {
+                          "name": "Microsoft.NETCore.App",
+                          "version": "8.0.0"
+                        }
+                      }
+                    }
+                    """);
+            }
+
+            string ijwPath = Path.Combine(asmDir, "Ijwhost.dll");
+            if (!File.Exists(ijwPath))
+                ed?.WriteMessage($"\n[NSLOAD] WARNING: Ijwhost.dll not found in {asmDir}");
+        }
+
         private static PluginRegistration GetRegistration(string pluginName)
         {
             if (!_plugins.TryGetValue(pluginName, out var reg))
@@ -183,12 +189,6 @@ namespace NSLOAD
         {
             return Application.DocumentManager.MdiActiveDocument?.Editor;
         }
-
-        private const uint LOAD_WITH_ALTERED_SEARCH_PATH = 0x00000008;
-
-        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-        private static extern IntPtr LoadLibraryEx(
-            string lpLibFileName, IntPtr hFile, uint dwFlags);
 
         internal static void AddRegistration(PluginRegistration reg)
         {
