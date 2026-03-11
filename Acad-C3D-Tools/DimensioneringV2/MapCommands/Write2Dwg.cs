@@ -17,7 +17,7 @@ namespace DimensioneringV2.MapCommands
         {
             try
             {
-                var graphs = DataService.Instance.Graphs;
+                var graphs = HydraulicNetworkManager.Instance.Graphs;
 
                 IEnumerable<AnalysisFeature> reprojected =
                     graphs.SelectMany(x => ProjectionService.ReProjectFeatures(

@@ -17,7 +17,7 @@ namespace DimensioneringV2.MapCommands
         {
             try
             {
-                var graphs = DataService.Instance.Graphs;
+                var graphs = HydraulicNetworkManager.Instance.Graphs;
 
                 var caches = graphs
                     .SelectMany(g => g.Edges.Select(e => e.PipeSegment))

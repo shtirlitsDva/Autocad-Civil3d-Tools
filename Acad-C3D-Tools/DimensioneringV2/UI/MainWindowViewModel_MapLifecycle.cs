@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
 using DimensioneringV2.Legend;
+using DimensioneringV2.Models;
 using DimensioneringV2.Services;
 using DimensioneringV2.Themes;
 using DimensioneringV2.UI.Infrastructure;
@@ -18,6 +19,11 @@ namespace DimensioneringV2.UI
 {
     internal partial class MainWindowViewModel
     {
+        private static readonly HashSet<MapPropertyEnum> _nascentProperties = new()
+        {
+            MapPropertyEnum.Default, MapPropertyEnum.Basic, MapPropertyEnum.Bygninger
+        };
+
         #region Map property selection
         public IEnumerable<MapPropertyWrapper> MapProperties => GetMapProperties();
 
@@ -26,8 +32,14 @@ namespace DimensioneringV2.UI
 
         private IEnumerable<MapPropertyWrapper> GetMapProperties()
         {
-            return MapPropertyMetadata.Themed
-                .Select(m => new MapPropertyWrapper(m.Enum, m.Description));
+            var state = _manager.CurrentState;
+            if (state == HnState.Empty) return Enumerable.Empty<MapPropertyWrapper>();
+
+            var source = MapPropertyMetadata.Themed;
+            if (state == HnState.Nascent || state == HnState.Calculating)
+                source = source.Where(m => _nascentProperties.Contains(m.Enum));
+
+            return source.Select(m => new MapPropertyWrapper(m.Enum, m.Description));
         }
 
         partial void OnSelectedMapPropertyWrapperChanged(MapPropertyWrapper value)

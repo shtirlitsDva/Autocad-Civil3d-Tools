@@ -14,20 +14,14 @@ namespace DimensioneringV2.Services
     internal class HydraulicCalculationService
     {
         private static HydraulicCalc hc;
-        internal static void Initialize()
+        internal static void Initialize() =>
+            Initialize(HydraulicSettingsService.Instance.Settings);
+
+        internal static void Initialize(HydraulicSettings settings)
         {
-            if (HydraulicSettingsService.Instance.Settings.ReportToConsole)
-            {
-                hc = new HydraulicCalc(
-                HydraulicSettingsService.Instance.Settings,
-                new LoggerFile());
-            }
-            else
-            {
-                hc = new HydraulicCalc(
-                HydraulicSettingsService.Instance.Settings,
-                new LoggerAcConsole());
-            }
+            hc = settings.ReportToConsole
+                ? new HydraulicCalc(settings, new LoggerFile())
+                : new HydraulicCalc(settings, new LoggerAcConsole());
         }
             
         internal static HydraulicCalc Calc => hc;

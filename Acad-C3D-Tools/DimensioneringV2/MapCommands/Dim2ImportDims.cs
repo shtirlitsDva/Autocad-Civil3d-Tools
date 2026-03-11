@@ -29,7 +29,7 @@ namespace DimensioneringV2.MapCommands
 
                 bool includeServiceLines = result == MessageBoxResult.Yes;
 
-                var graphs = DataService.Instance.Graphs;
+                var graphs = HydraulicNetworkManager.Instance.Graphs;
 
                 var edges = graphs.SelectMany(x => x.Edges.Select(x => x.PipeSegment));
 

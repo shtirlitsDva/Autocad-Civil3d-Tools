@@ -27,6 +27,10 @@ namespace DimensioneringV2.Services
         internal static void Reset() => _instance = null;
         [ObservableProperty]
         private HydraulicSettings settings;
+
+        [ObservableProperty]
+        private bool isLocked;
+
         private HydraulicSettingsService(AcadEventManager events)
         {
             settings = HydraulicSettingsSerializer.Load(

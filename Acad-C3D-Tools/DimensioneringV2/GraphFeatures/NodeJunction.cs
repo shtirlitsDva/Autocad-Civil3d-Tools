@@ -24,5 +24,16 @@ namespace DimensioneringV2.GraphFeatures
         {
             return Name;
         }
+        internal NodeJunction Clone()
+        {
+            return new NodeJunction(Location)
+            {
+                IsRootNode = IsRootNode,
+                IsBuildingNode = IsBuildingNode,
+                Degree = Degree,
+                STP_Node = STP_Node,
+                Name = Name,
+            };
+        }
     }
 }

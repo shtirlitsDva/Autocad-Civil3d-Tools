@@ -39,15 +39,16 @@ namespace DimensioneringV2.UI
 
         public ObservableCollection<IFeature> Features { get; private set; }
 
-        private readonly DataService _dataService;
+        private readonly HydraulicNetworkManager _manager;
 
         public MainWindowViewModel()
         {
             _selectedBaseMap = BaseMapOptions[0];
 
-            _dataService = DataService.Instance;
-            _dataService.DataLoaded += OnDataLoaded;
-            _dataService.CalculationsFinishedEvent += OnCalculationsCompleted;
+            _manager = HydraulicNetworkManager.Instance;
+            _manager.NetworkLoaded += OnDataLoaded;
+            _manager.CalculationsFinished += OnCalculationsCompleted;
+            _manager.ActiveNetworkChanged += OnActiveNetworkChanged;
 
             BBRLayerService.Instance.BBRDataLoaded += OnBBRDataLoaded;
 
@@ -56,18 +57,24 @@ namespace DimensioneringV2.UI
 
         private void OnDataLoaded(object sender, EventArgs e)
         {
-            Features = new(_dataService!.Features.SelectMany(x => x));
+            Features = new(_manager.AllFeatures);
 
-            _themeManager = new ThemeManager(_dataService.Features.SelectMany(x => x));
+            _themeManager = new ThemeManager(_manager.AllFeatures);
             CreateMapFirstTime();
         }
 
         private void OnCalculationsCompleted(object sender, EventArgs e)
         {
-            Features = new(_dataService!.Features.SelectMany(x => x));
+            Features = new(_manager.AllFeatures);
+            OnPropertyChanged(nameof(MapProperties));
 
             SelectedMapPropertyWrapper = null;
             SelectedMapPropertyWrapper = MapProperties.First();
+        }
+
+        private void OnActiveNetworkChanged(object? sender, EventArgs e)
+        {
+            OnPropertyChanged(nameof(MapProperties));
         }
 
         internal class MapPropertyWrapper

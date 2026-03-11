@@ -1011,7 +1011,13 @@ namespace DimensioneringV2
 
                     if (features != null)
                     {
-                        Services.DataService.Instance.LoadData(features);
+                        List<System.Collections.Generic.HashSet<AnalysisFeature>> samlet = new();
+                        foreach (var col in features)
+                            samlet.Add(ProjectionService.ReProjectFeatures(
+                                col, "EPSG:25832", "EPSG:3857").ToHashSet());
+                        var graphs = GraphCreationService.CreateGraphsFromFeatures(samlet).ToList();
+                        var hn = new Models.HydraulicNetwork(graphs);
+                        HydraulicNetworkManager.Instance.NewCalculation(hn);
 
                         try
                         {

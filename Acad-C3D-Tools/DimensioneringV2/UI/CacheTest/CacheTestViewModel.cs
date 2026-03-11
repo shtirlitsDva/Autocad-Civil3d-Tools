@@ -186,7 +186,7 @@ namespace DimensioneringV2.UI.CacheTest
                 return;
             }
 
-            var graphs = DataService.Instance.Graphs;
+            var graphs = HydraulicNetworkManager.Instance.Graphs;
             if (graphs == null || !graphs.Any())
             {
                 MessageBox.Show("No graphs loaded. Please load data first.", "Test Cache",

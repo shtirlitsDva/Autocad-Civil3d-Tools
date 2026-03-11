@@ -53,9 +53,16 @@ namespace DimensioneringV2.UI
         public bool IsFactorTillægEditable => !Settings.UseBrugsvandsprioritering;
         #endregion
 
+        public bool IsSettingsEditable => !Services.HydraulicSettingsService.Instance.IsLocked;
+
         public SettingsTabViewModel()
         {
             Settings = Services.HydraulicSettingsService.Instance.Settings;
+            Services.HydraulicSettingsService.Instance.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName == nameof(Services.HydraulicSettingsService.IsLocked))
+                    OnPropertyChanged(nameof(IsSettingsEditable));
+            };
             InitializeBlockTypeFilters();
         }
 

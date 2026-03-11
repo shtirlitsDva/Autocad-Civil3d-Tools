@@ -32,7 +32,7 @@ namespace DimensioneringV2.MapCommands
                         new(f => f.KarFlowBVReturn, (f, v) => f.KarFlowBVReturn = v),
                     ];
 
-                var graphs = DataService.Instance.Graphs;
+                var graphs = HydraulicNetworkManager.Instance.Graphs;
 
                 HydraulicCalculationService.Initialize();
 

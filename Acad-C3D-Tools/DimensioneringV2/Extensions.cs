@@ -146,6 +146,42 @@ namespace DimensioneringV2
 
             return bfGraph;
         }
+        public static List<UndirectedGraph<NodeJunction, EdgePipeSegment>> DeepCopyGraphs(
+            this IEnumerable<UndirectedGraph<NodeJunction, EdgePipeSegment>> graphs)
+        {
+            var result = new List<UndirectedGraph<NodeJunction, EdgePipeSegment>>();
+
+            foreach (var original in graphs)
+            {
+                var copy = new UndirectedGraph<NodeJunction, EdgePipeSegment>(allowParallelEdges: false);
+                var nodeMap = new Dictionary<NodeJunction, NodeJunction>();
+
+                foreach (var node in original.Vertices)
+                {
+                    var clonedNode = node.Clone();
+                    nodeMap[node] = clonedNode;
+                    copy.AddVertex(clonedNode);
+                }
+
+                foreach (var edge in original.Edges)
+                {
+                    var clonedFeature = (AnalysisFeature)edge.PipeSegment.Clone();
+                    clonedFeature.ResetHydraulicResults();
+                    var clonedEdge = new EdgePipeSegment(
+                        nodeMap[edge.Source],
+                        nodeMap[edge.Target],
+                        clonedFeature)
+                    {
+                        Level = edge.Level
+                    };
+                    copy.AddEdge(clonedEdge);
+                }
+
+                result.Add(copy);
+            }
+
+            return result;
+        }
         public static UndirectedGraph<BFNode, BFEdge> CopyWithNewVerticesAndEdges(this UndirectedGraph<BFNode, BFEdge> graph)
         {
             var bfGraph = new UndirectedGraph<BFNode, BFEdge>();
