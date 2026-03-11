@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -12,15 +12,22 @@ namespace DimensioneringV2.MapCommands
     {
         internal static async void Execute()
         {
-            var docs = AcAp.DocumentManager;
-            var ed = docs.MdiActiveDocument.Editor;
+            try
+            {
+                var docs = AcAp.DocumentManager;
+                var ed = docs.MdiActiveDocument.Editor;
 
-            await docs.ExecuteInCommandContextAsync(
-                async (obj) =>
-                {
-                    await ed.CommandAsync("DIM2MAPCOLLECTFEATURES");
-                }, null
-                );
+                await docs.ExecuteInCommandContextAsync(
+                    async (obj) =>
+                    {
+                        await ed.CommandAsync("DIM2MAPCOLLECTFEATURES");
+                    }, null
+                    );
+            }
+            catch (System.Exception ex)
+            {
+                Utils.prtDbg($"Error in CollectFeatures!\n{ex}\n");
+            }
         }
     }
 }

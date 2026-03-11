@@ -21,7 +21,10 @@ namespace DimensioneringV2.Services;
 internal partial class HydraulicNetworkManager : ObservableObject
 {
     private static HydraulicNetworkManager? _instance;
-    public static HydraulicNetworkManager Instance => _instance ??= new HydraulicNetworkManager(Commands.Events!);
+    public static HydraulicNetworkManager Instance =>
+        _instance ??= new HydraulicNetworkManager(
+            Commands.Events ?? throw new InvalidOperationException(
+                "HydraulicNetworkManager accessed before Commands.Initialize()"));
 
     internal static void Reset()
     {
@@ -235,53 +238,74 @@ internal partial class HydraulicNetworkManager : ObservableObject
 
     private void OnDocumentActivated(object sender, DocumentCollectionEventArgs e)
     {
-        if (e.Document == null) return;
-        _currentDocKey = DocumentStateStore.GetDocKey(e.Document);
-        var docState = _docStore.GetOrCreate(_currentDocKey);
-        if (docState.Fsm == null)
+        try
         {
-            docState.Fsm = CreateFsm();
+            if (e.Document == null) return;
+            _currentDocKey = DocumentStateStore.GetDocKey(e.Document);
+            var docState = _docStore.GetOrCreate(_currentDocKey);
+            if (docState.Fsm == null)
+            {
+                docState.Fsm = CreateFsm();
+            }
+            _fsm = docState.Fsm;
+            ActiveNetwork = docState.ActiveNetwork;
+            OnPropertyChanged(nameof(CurrentState));
+            ActiveNetworkChanged?.Invoke(this, EventArgs.Empty);
         }
-        _fsm = docState.Fsm;
-        ActiveNetwork = docState.ActiveNetwork;
-        OnPropertyChanged(nameof(CurrentState));
-        ActiveNetworkChanged?.Invoke(this, EventArgs.Empty);
+        catch (Exception ex)
+        {
+            Utils.prtDbg($"Error in OnDocumentActivated: {ex.Message}");
+        }
     }
 
     private void OnDocumentToBeDeactivated(object sender, DocumentCollectionEventArgs e)
     {
-        if (e.Document == null) return;
-        var docKey = DocumentStateStore.GetDocKey(e.Document);
-        var docState = _docStore.GetOrCreate(docKey);
-        docState.ActiveNetwork = ActiveNetwork;
+        try
+        {
+            if (e.Document == null) return;
+            var docKey = DocumentStateStore.GetDocKey(e.Document);
+            var docState = _docStore.GetOrCreate(docKey);
+            docState.ActiveNetwork = ActiveNetwork;
+        }
+        catch (Exception ex)
+        {
+            Utils.prtDbg($"Error in OnDocumentToBeDeactivated: {ex.Message}");
+        }
     }
 
     private void OnDocumentToBeDestroyed(object sender, DocumentCollectionEventArgs e)
     {
-        if (e.Document == null) return;
-        var docKey = DocumentStateStore.GetDocKey(e.Document);
-
-        if (_docStore.HasUnsavedNetworks(docKey))
+        try
         {
-            var state = _docStore.GetOrCreate(docKey);
-            var unsaved = state.CalculatedNetworks.Where(hn => !hn.IsSaved).ToList();
-            var names = string.Join(", ", unsaved.Select(hn => hn.Id ?? "?"));
+            if (e.Document == null) return;
+            var docKey = DocumentStateStore.GetDocKey(e.Document);
 
-            var result = System.Windows.MessageBox.Show(
-                $"Du har {unsaved.Count} ikke-gemte beregning(er): {names}.\nGem i tegningen?",
-                "Ikke-gemte beregninger",
-                System.Windows.MessageBoxButton.YesNo,
-                System.Windows.MessageBoxImage.Warning);
-
-            if (result == System.Windows.MessageBoxResult.Yes)
+            if (_docStore.HasUnsavedNetworks(docKey))
             {
-                foreach (var hn in unsaved)
-                    HydraulicNetworkStorage.Save(e.Document, hn);
+                var state = _docStore.GetOrCreate(docKey);
+                var unsaved = state.CalculatedNetworks.Where(hn => !hn.IsSaved).ToList();
+                var names = string.Join(", ", unsaved.Select(hn => hn.Id ?? "?"));
 
-                HydraulicNetworkStorage.SaveCounter(e.Document, state.Counter);
+                var result = System.Windows.MessageBox.Show(
+                    $"Du har {unsaved.Count} ikke-gemte beregning(er): {names}.\nGem i tegningen?",
+                    "Ikke-gemte beregninger",
+                    System.Windows.MessageBoxButton.YesNo,
+                    System.Windows.MessageBoxImage.Warning);
+
+                if (result == System.Windows.MessageBoxResult.Yes)
+                {
+                    foreach (var hn in unsaved)
+                        HydraulicNetworkStorage.Save(e.Document, hn);
+
+                    HydraulicNetworkStorage.SaveCounter(e.Document, state.Counter);
+                }
             }
-        }
 
-        _docStore.Remove(docKey);
+            _docStore.Remove(docKey);
+        }
+        catch (Exception ex)
+        {
+            Utils.prtDbg($"Error in OnDocumentToBeDestroyed: {ex.Message}");
+        }
     }
 }

@@ -67,15 +67,22 @@ namespace DimensioneringV2
         #region IExtensionApplication members
         public void Initialize()
         {
-            MessagePackSetup.Configure();
-            Events = new AcadEventManager();
-
             Document doc = AcApp.DocumentManager.MdiActiveDocument;
-            doc.Editor.WriteMessage("\n╰(*°▽°*)╯ Velkommen til Dimensionering v2.0! ƪ(˘⌣˘)ʃ\n");
+            var ed = doc.Editor;
 
-            // Shared assembly pre-loading (OxyPlot, SharpVectors, etc.) is now
-            // handled by NSLOAD via the SharedAssemblies config. No need to
-            // manually call Assembly.LoadFrom() here.
+            try
+            {
+                MessagePackSetup.Configure();
+                Events = new AcadEventManager();
+                
+                doc.Editor.WriteMessage("\n╰(*°▽°*)╯ Velkommen til Dimensionering v2.0! ƪ(˘⌣˘)ʃ\n");
+            }
+            catch (System.Exception ex)
+            {
+                ed.WriteMessage(
+                    $"\nDimensioneringV2 initialization failed!\n" +
+                    $"{ex}");
+            }
         }
 
         public void Terminate()
@@ -900,27 +907,22 @@ namespace DimensioneringV2
         [CommandMethod("DIM2MAP")]
         public static void dim2map()
         {
-            PropertySetManager.UpdatePropertySetDefinition(
-                Application.DocumentManager.MdiActiveDocument.Database,
-                PSetDefs.DefinedSets.BBR);
+            try
+            {
+                PropertySetManager.UpdatePropertySetDefinition(
+                    Application.DocumentManager.MdiActiveDocument.Database,
+                    PSetDefs.DefinedSets.BBR);
 
-            AcContext.Current = SynchronizationContext.Current;
+                AcContext.Current = SynchronizationContext.Current;
 
-            if (Services.PaletteSetCache.paletteSet == null) Services.PaletteSetCache.paletteSet = new CustomPaletteSet();
-            Services.PaletteSetCache.paletteSet.Visible = true;
-            Services.PaletteSetCache.paletteSet.WasVisible = true;
-
-            //var events = PaletteSetCache.paletteSet.GetType().GetEvents(BindingFlags.Public | BindingFlags.Instance);
-            //foreach (var ev in events)
-            //{
-            //    var eh = new EventHandler((s, e) => 
-            //    {
-            //        prdDbg($"Event {ev.Name} fired!");
-            //    });
-
-            //    ev.AddEventHandler(PaletteSetCache.paletteSet, Delegate.CreateDelegate(
-            //        ev.EventHandlerType, eh.Target, eh.Method));
-            //}
+                if (Services.PaletteSetCache.paletteSet == null) Services.PaletteSetCache.paletteSet = new CustomPaletteSet();
+                Services.PaletteSetCache.paletteSet.Visible = true;
+                Services.PaletteSetCache.paletteSet.WasVisible = true;
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg(ex);
+            }
         }
 
         /// <command>DIM2MAPCOLLECTFEATURES</command>

@@ -131,11 +131,11 @@
 		</Reference>
 		<Reference Include="Norsyn.Storage">
 			<HintPath>X:\AutoCAD DRI - 01 Civil 3D\NetloadV2\2025\NorsynStorage\NorsynStorage.dll</HintPath>
-			<Private>False</Private>
+			<Private>True</Private>
 		</Reference>
 		<Reference Include="NorsynObjectsInterop">
 			<HintPath>X:\AutoCAD DRI - 01 Civil 3D\NetloadV2\2025\NorsynStorage\NorsynObjectsInterop.dll</HintPath>
-			<Private>False</Private>
+			<Private>True</Private>
 		</Reference>
 	</ItemGroup>
 	<ItemGroup>

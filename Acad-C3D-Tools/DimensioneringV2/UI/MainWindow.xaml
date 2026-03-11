@@ -15,7 +15,7 @@
         <DockPanel Background="{DynamicResource Background}" Margin="2">
             <!-- Vertical Panel for Buttons on the Left -->
             <StackPanel Orientation="Vertical" DockPanel.Dock="Left" Margin="2" Width="100">
-                <Button x:Name="btnLoadData" Content="Load Civil 3D"
+                <Button x:Name="btnLoadData" Content="Ny beregning"
                         Style="{StaticResource SidebarButtonStyle}" Command="{Binding CollectFeaturesCommand}"/>
                 <Button x:Name="btnLoadElevationData" Content="Load elevations" FontSize="11"
                         Style="{StaticResource SidebarButtonStyle}" Command="{Binding LoadElevationsCommand}"/>

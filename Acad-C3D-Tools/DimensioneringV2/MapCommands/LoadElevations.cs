@@ -12,15 +12,22 @@ namespace DimensioneringV2.MapCommands
     {
         internal static async void Execute()
         {
-            var docs = AcAp.DocumentManager;
-            var ed = docs.MdiActiveDocument.Editor;
+            try
+            {
+                var docs = AcAp.DocumentManager;
+                var ed = docs.MdiActiveDocument.Editor;
 
-            await docs.ExecuteInCommandContextAsync(
-                async (obj) =>
-                {
-                    await ed.CommandAsync("DIM2MAPLOADELEVATIONS");
-                }, null
-                );
+                await docs.ExecuteInCommandContextAsync(
+                    async (obj) =>
+                    {
+                        await ed.CommandAsync("DIM2MAPLOADELEVATIONS");
+                    }, null
+                    );
+            }
+            catch (System.Exception ex)
+            {
+                Utils.prtDbg($"Error in LoadElevations: {ex.Message}");
+            }
         }
     }
 }

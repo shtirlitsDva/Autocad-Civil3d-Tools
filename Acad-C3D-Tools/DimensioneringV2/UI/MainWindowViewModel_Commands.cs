@@ -3,6 +3,9 @@ using Autodesk.AutoCAD.Geometry;
 using CommunityToolkit.Mvvm.Input;
 
 using DimensioneringV2.MapCommands;
+using DimensioneringV2.Models;
+using DimensioneringV2.Services;
+using DimensioneringV2.UI.Dialogs;
 
 using IntersectUtilities.UtilsCommon;
 
@@ -20,7 +23,34 @@ namespace DimensioneringV2.UI
     internal partial class MainWindowViewModel
     {
         #region MapCommands
-        public RelayCommand CollectFeaturesCommand => new RelayCommand(CollectFeatures.Execute);
+        public RelayCommand CollectFeaturesCommand => new RelayCommand(NewCalculation);
+
+        private void NewCalculation()
+        {
+            var state = _manager.CurrentState;
+
+            if (state != HnState.Calculated)
+            {
+                CollectFeatures.Execute();
+                return;
+            }
+
+            var dialog = new NewCalcDialog();
+            if (dialog.ShowDialog() != true) return;
+
+            switch (dialog.Result)
+            {
+                case NewCalcSource.Civil:
+                    CollectFeatures.Execute();
+                    break;
+                case NewCalcSource.CloneCurrent:
+                    var currentHn = _manager.ActiveNetwork;
+                    if (currentHn == null) return;
+                    var clone = new HydraulicNetwork(currentHn.Graphs);
+                    _manager.NewCalculation(clone);
+                    break;
+            }
+        }
         public RelayCommand LoadElevationsCommand => new RelayCommand(LoadElevations.Execute);
         public RelayCommand PerformCalculationsSPDCommand => new(async () => await new CalculateSPD().Execute());
         public RelayCommand PerformCalculationsBFCommand => new(async () => await new CalculateBF().Execute());

@@ -1,0 +1,24 @@
+<Window x:Class="DimensioneringV2.UI.Dialogs.NewCalcDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Ny beregning" SizeToContent="WidthAndHeight"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
+        Background="#FF2D3442">
+    <Window.Resources>
+        <ResourceDictionary Source="../Theme.xaml"/>
+    </Window.Resources>
+
+    <StackPanel Margin="24">
+        <Button Content="Indl&#230;s fra Civil"
+                Style="{StaticResource PrimaryButtonStyle}"
+                Width="200" Margin="0,0,0,8"
+                Click="OnLoadFromCivil"/>
+        <Button Content="Genbrug eksisterende"
+                Style="{StaticResource SecondaryButtonStyle}"
+                Width="200" Margin="0,0,0,8"
+                Click="OnReuseCurrent"/>
+        <Button Content="Annull&#233;r"
+                Style="{StaticResource SecondaryButtonStyle}"
+                Width="200" IsCancel="True"/>
+    </StackPanel>
+</Window>
