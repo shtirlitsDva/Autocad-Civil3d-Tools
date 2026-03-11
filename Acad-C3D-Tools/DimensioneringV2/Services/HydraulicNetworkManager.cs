@@ -74,6 +74,7 @@ internal partial class HydraulicNetworkManager : ObservableObject
         var state = _docStore.GetOrCreate(_currentDocKey);
         state.Fsm = CreateFsm();
         _fsm = state.Fsm;
+        LoadFromStorage(AcAp.DocumentManager.MdiActiveDocument, state);
 
         _events.DocumentActivated += OnDocumentActivated;
         _events.DocumentToBeDeactivated += OnDocumentToBeDeactivated;
@@ -236,6 +237,33 @@ internal partial class HydraulicNetworkManager : ObservableObject
     public bool HasUnsavedNetworks()
         => _docStore.HasUnsavedNetworks(_currentDocKey);
 
+    private void LoadFromStorage(Document? doc, DocumentHnState state)
+    {
+        if (state.StorageLoaded || doc == null) return;
+        state.StorageLoaded = true;
+        try
+        {
+            state.Counter = HydraulicNetworkStorage.LoadCounter(doc);
+            var savedIds = HydraulicNetworkStorage.GetSavedIds(doc);
+            var existingIds = new HashSet<string>(
+                state.CalculatedNetworks
+                    .Where(hn => hn.Id != null)
+                    .Select(hn => hn.Id!));
+
+            foreach (var id in savedIds)
+            {
+                if (existingIds.Contains(id)) continue;
+                var hn = HydraulicNetworkStorage.Load(doc, id);
+                if (hn != null)
+                    state.CalculatedNetworks.Add(hn);
+            }
+        }
+        catch (Exception ex)
+        {
+            Utils.prtDbg($"Error loading from storage: {ex.Message}");
+        }
+    }
+
     private void OnDocumentActivated(object sender, DocumentCollectionEventArgs e)
     {
         try
@@ -248,6 +276,7 @@ internal partial class HydraulicNetworkManager : ObservableObject
                 docState.Fsm = CreateFsm();
             }
             _fsm = docState.Fsm;
+            LoadFromStorage(e.Document, docState);
             ActiveNetwork = docState.ActiveNetwork;
             OnPropertyChanged(nameof(CurrentState));
             ActiveNetworkChanged?.Invoke(this, EventArgs.Empty);

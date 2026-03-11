@@ -14,6 +14,7 @@ internal class DocumentHnState
     public List<HydraulicNetwork> CalculatedNetworks { get; } = new();
     public CalcCounter Counter { get; set; } = new();
     public StateMachine<HnState, HnEvent>? Fsm { get; set; }
+    public bool StorageLoaded { get; set; }
 }
 
 internal class DocumentStateStore
