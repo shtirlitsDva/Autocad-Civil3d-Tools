@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Data;
 using System.Globalization;
 using System.Collections.Generic;
@@ -8,7 +8,7 @@ using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.DataManager.CsvData;
 using static IntersectUtilities.UtilsCommon.UtilsDataTables;
 
-namespace DimensioneringV2.Schema
+namespace DimensioneringV2.BBRSchema
 {
     #region NewFormat
 
