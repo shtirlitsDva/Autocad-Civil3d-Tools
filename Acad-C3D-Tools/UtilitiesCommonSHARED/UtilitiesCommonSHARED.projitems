@@ -10,6 +10,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)Collections\EntityCollection.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Schema\FeatureCollection.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Serialization.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Schema\DF BBR Bygning Class.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Schema\DF BBR Enhed Class.cs" />

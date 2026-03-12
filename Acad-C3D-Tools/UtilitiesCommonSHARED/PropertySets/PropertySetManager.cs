@@ -2091,6 +2091,22 @@ namespace IntersectUtilities
             get => _br.Position.Y;
         }
         #endregion
+
+        /// <summary>
+        /// Copies all read/write properties from source BBR to this instance using reflection.
+        /// Read-only properties (X, Y, Entity) are automatically skipped.
+        /// </summary>
+        public void CopyPropertiesFrom(BBR source)
+        {
+            var properties = typeof(BBR).GetProperties(
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+
+            foreach (var prop in properties)
+            {
+                if (!prop.CanRead || !prop.CanWrite) continue;
+                prop.SetValue(this, prop.GetValue(source));
+            }
+        }
     }
 
     public class DriDimGraph : PropertySetManager

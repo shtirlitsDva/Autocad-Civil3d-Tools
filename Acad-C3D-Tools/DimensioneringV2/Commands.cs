@@ -223,7 +223,7 @@ namespace DimensioneringV2
 
             string bbrPath = path + "BBR.geojson";
             if (!File.Exists(bbrPath))
-            { prdDbg("BBR_enhed.json does not exist! Download med RestHenter!"); return; }            
+            { prdDbg("BBR_enhed.json does not exist! Download med RestHenter!"); return; }
 
             BBRFeatureCollection BBR = IntersectUtilities.UtilsCommon.Serialization
                 .Json.Deserialize<BBRFeatureCollection>(bbrPath);
@@ -566,7 +566,7 @@ namespace DimensioneringV2
                         }
 
                         NetTopologySuite.Geometries.Geometry clipped =
-                            cropPolygon.Intersection(ls);                        
+                            cropPolygon.Intersection(ls);
 
                         for (int i = 0; i < clipped.NumGeometries; i++)
                         {
@@ -960,7 +960,7 @@ namespace DimensioneringV2
                         .Select(x => new Point2D(x.Position.X, x.Position.Y))
                         .ToList();
 
-                    var acceptedTypes = HydraulicSettingsService.Instance.Settings.GetAcceptedBlockTypes();                    
+                    var acceptedTypes = HydraulicSettingsService.Instance.Settings.GetAcceptedBlockTypes();
                     var brs = localDb.HashSetOfType<BlockReference>(tx, true)
                         .Where(x => acceptedTypes.Contains(
                             PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "Type")));
@@ -1493,7 +1493,7 @@ namespace DimensioneringV2
         /// </summary>
         /// <category>DIMENSIONERING V2</category>
         [CommandMethod("DIM2ENHEDERANALYZE")]
-        public void dimenhederanalyze()
+        public void dim2enhederanalyze()
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
@@ -1648,6 +1648,122 @@ namespace DimensioneringV2
 
             prdDbg("Finished!");
             prdDbg("ADVARSEL: ER IKKE TESTET SAMMEN MED DIMCONNECTHUSNR!!!!!!!!!");
+        }
+
+        /// <command>DIM2CONNECTHUSNR</command>
+        /// <summary>
+        /// Fordeler den valgte bygning ud på de tilhørende husnumre.
+        /// </summary>
+        /// <category>DIMENSIONERING V2</category>
+        [CommandMethod("DIM2CONNECTHUSNR")]
+        public void dim2connecthusnr()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            dim2analyzeduplicateaddr();
+
+            PropertySetManager.UpdatePropertySetDefinition(localDb, PSetDefs.DefinedSets.BBR);
+
+            #region Get path
+            ChoosePath cp = new ChoosePath();
+            cp.ShowDialog();
+            cp.Close();
+            if (cp.Path.IsNoE()) return;
+            #endregion
+
+            #region Read data
+            string basePath = @"X:\AutoCAD DRI - QGIS\BBR UDTRÆK";
+            string path = basePath + "\\" + cp.Path + "\\";
+
+            string husnumrePath = path + "DAR_husnumre.geojson";
+            if (!File.Exists(husnumrePath))
+            { prdDbg("DAR_husnumre.geojson does not exist! Download med RestHenter!"); return; }
+
+            var husnumrecol = IntersectUtilities.UtilsCommon.Serialization.Json
+                .Deserialize<Schema.GeoJson.Husnumre.FeatureCollection >(husnumrePath);
+            #endregion
+
+            while (true)
+            {
+                var selection = Interaction.GetEntity(
+                    "\nVælg bygning at fordele på husnumre (Esc for at afslutte): ", typeof(BlockReference));
+                if (selection == Oid.Null) break;
+
+                using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                {
+                    try
+                    {
+                        var bbrBr = selection.Go<BlockReference>(tx);
+                        var bbr = new BBR(bbrBr);
+
+                        var husnumre = husnumrecol.features
+                            .Where(x => string.Equals(
+                                x.properties.adgangTilBygning,
+                                bbr.id_lokalId,
+                                StringComparison.InvariantCultureIgnoreCase))
+                            .ToList();
+
+                        if (husnumre.Count == 0)
+                        {
+                            prdDbg($"No husnumre found for building with id_lokalId {bbr.id_lokalId}!");
+                            tx.Abort();
+                            continue;
+                        }
+
+                        var estimeretTotal = bbr.EstimeretVarmeForbrug;
+                        var estimeretPerHusnr = estimeretTotal / husnumre.Count;
+
+                        var boligAreal = bbr.SamletBoligareal;
+                        var boligArealPerHusnr = boligAreal / husnumre.Count;
+
+                        var erhvervsAreal = bbr.SamletErhvervsareal;
+                        var erhvervsArealPerHusnr = erhvervsAreal / husnumre.Count;
+
+                        for (int i = 0; i < husnumre.Count; i++)
+                        {
+                            var husnr = husnumre[i];
+                            var pt = new Point3d(husnr.geometry.coordinates[0], husnr.geometry.coordinates[1], 0);
+
+                            BlockReference husnrBlock = localDb.CreateBlockWithAttributes(bbrBr.RealName(), pt);
+                            husnrBlock.Layer = bbrBr.Layer;
+                            var husnrBbr = new BBR(husnrBlock);
+
+                            husnrBbr.CopyPropertiesFrom(bbr);
+
+                            //Give a new id_lokalId to all but the first, to avoid duplicate id_lokalId issues
+                            if (i != 0) husnrBbr.id_lokalId = Guid.NewGuid().ToString();
+
+                            husnrBbr.Husnummer = husnr.properties.husnummertekst;
+                            husnrBbr.EstimeretVarmeForbrug = estimeretPerHusnr;
+                            husnrBbr.SamletBoligareal = boligArealPerHusnr;
+                            husnrBbr.SamletErhvervsareal = erhvervsArealPerHusnr;
+                        }
+
+                        PrintTable(
+                            ["Husnummer", "Est. varmeforbrug", "Boligareal", "Erhvervsareal"],
+                            husnumre.Select(h => new object[]
+                            {
+                                h.properties.husnummertekst,
+                                estimeretPerHusnr,
+                                boligArealPerHusnr,
+                                erhvervsArealPerHusnr
+                            } as IEnumerable<object>)
+                        );
+                    }
+                    catch (System.Exception ex)
+                    {
+                        tx.Abort();
+                        prdDbg(ex);
+                        continue;
+                    }
+                    tx.Commit();
+                }
+            }
+
+            dim2analyzeduplicateaddr();
+
+            prdDbg("Finished!");
         }
 
         //[CommandMethod("DIM2TESTNAMING")]
