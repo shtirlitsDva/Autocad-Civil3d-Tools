@@ -148,38 +148,44 @@ namespace DimensioneringV2.GraphFeatures
                         #endregion
 
                         //Translate building data if any
-                        Dictionary<string, object> attributes = new()
-                        {
-                            { "id_lokalId", "" },
-                            { "Name", "" },
-                            { "Adresse", "" },
-                            { "AdresseDuplikatNr", 0 },
-                            { "BygningsAnvendelseNyKode", "" },
-                            { "BygningsAnvendelseNyTekst", "" },
-                            { "Opførelsesår", 0 },
-                            { "BeregningsAreal", 0 },
-                            { "KælderAreal", 0.0 },
-                            { "VarmeType", "" },
-                            { "VarmeInstallation", "" },
-                            { "OpvarmningsMiddel", "" },
-                            { "InstallationOgBrændsel", "" },
-                            { "Vejnavn", "" },
-                            { "Vejklasse", "" },
-                            { "Husnummer", "" },
-                            { "Postnr", "" },
-                            { "By", "" },
-                            { "SpecifikVarmeForbrug", 0.0 },
-                            { "HeatingDemandConnected", 0.0 },
-                            { "NumberOfUnitsConnected", 0 },
-                            { "VarmeDistrikt", "" },
-                            { "TempDeltaVarme", 0.0 },
-                            { "TempDeltaBV", 0.0 },
-                            { "NumberOfBuildingsConnected", 0 },
-                            { "IsRootNode", false },
-                        };
+                        // ORIGINAL: all attributes pre-initialized with defaults for every segment
+                        // Commented out to reduce in-memory dictionary size for non-client segments.
+                        // Non-client segments now get a sparse dictionary (only Length + IsRootNode).
+                        // All downstream readers use null-coalescing (af["key"] as T ?? default)
+                        // so missing keys safely return defaults. Revert by uncommenting this block
+                        // and commenting out the sparse version below.
+                        //Dictionary<string, object> attributes = new()
+                        //{
+                        //    { "id_lokalId", "" },
+                        //    { "Name", "" },
+                        //    { "Adresse", "" },
+                        //    { "AdresseDuplikatNr", 0 },
+                        //    { "BygningsAnvendelseNyKode", "" },
+                        //    { "BygningsAnvendelseNyTekst", "" },
+                        //    { "Opførelsesår", 0 },
+                        //    { "BeregningsAreal", 0 },
+                        //    { "KælderAreal", 0.0 },
+                        //    { "VarmeType", "" },
+                        //    { "VarmeInstallation", "" },
+                        //    { "OpvarmningsMiddel", "" },
+                        //    { "InstallationOgBrændsel", "" },
+                        //    { "Vejnavn", "" },
+                        //    { "Vejklasse", "" },
+                        //    { "Husnummer", "" },
+                        //    { "Postnr", "" },
+                        //    { "By", "" },
+                        //    { "SpecifikVarmeForbrug", 0.0 },
+                        //    { "HeatingDemandConnected", 0.0 },
+                        //    { "NumberOfUnitsConnected", 0 },
+                        //    { "VarmeDistrikt", "" },
+                        //    { "TempDeltaVarme", 0.0 },
+                        //    { "TempDeltaBV", 0.0 },
+                        //    { "NumberOfBuildingsConnected", 0 },
+                        //    { "IsRootNode", false },
+                        //};
 
-                        //Remember the EPSG 25832 Length, as the 3857 length cannot be used
-                        attributes["Length"] = fullGeometry.Length;
+                        // Sparse version: only populate BBR attributes for client segments
+                        Dictionary<string, object> attributes;
 
                         if (originalNodes.Any(x => x.IsBuildingConnection))
                         {
@@ -197,32 +203,48 @@ namespace DimensioneringV2.GraphFeatures
                             }
                             IntersectUtilities.BBR bbr = new IntersectUtilities.BBR(building);
 
-                            attributes["id_lokalId"] = bbr.id_lokalId;
-                            attributes["Name"] = bbr.Name;
-                            attributes["Adresse"] = bbr.Adresse;
-                            attributes["AdresseDuplikatNr"] = bbr.AdresseDuplikatNr;
-                            attributes["BygningsAnvendelseNyKode"] = bbr.BygningsAnvendelseNyKode;
-                            attributes["BygningsAnvendelseNyTekst"] = bbr.BygningsAnvendelseNyTekst;
-                            attributes["Opførelsesår"] = bbr.Opførelsesår;
-                            attributes["BeregningsAreal"] = bbr.SamletBoligareal + bbr.SamletErhvervsareal;
-                            attributes["KælderAreal"] = bbr.KælderAreal;
-                            attributes["VarmeType"] = bbr.Type;
-                            attributes["VarmeInstallation"] = bbr.VarmeInstallation;
-                            attributes["OpvarmningsMiddel"] = bbr.OpvarmningsMiddel;
-                            attributes["InstallationOgBrændsel"] = bbr.InstallationOgBrændsel;
-                            attributes["Vejnavn"] = bbr.Vejnavn;
-                            attributes["Vejklasse"] = bbr.Vejklasse;
-                            attributes["Husnummer"] = bbr.Husnummer;
-                            attributes["Postnr"] = bbr.Postnr;
-                            attributes["By"] = bbr.By;
-                            attributes["SpecifikVarmeForbrug"] = bbr.SpecifikVarmeForbrug;
-                            attributes["HeatingDemandConnected"] = bbr.EstimeretVarmeForbrug;
-                            attributes["NumberOfUnitsConnected"] = bbr.AntalEnheder;
-                            attributes["VarmeDistrikt"] = bbr.DistriktetsNavn;
-                            attributes["TempDeltaVarme"] = bbr.TempDeltaVarme;
-                            attributes["TempDeltaBV"] = bbr.TempDeltaBV;
-                            attributes["NumberOfBuildingsConnected"] = 1;
+                            attributes = new()
+                            {
+                                { "id_lokalId", bbr.id_lokalId },
+                                { "Name", bbr.Name },
+                                { "Adresse", bbr.Adresse },
+                                { "AdresseDuplikatNr", bbr.AdresseDuplikatNr },
+                                { "BygningsAnvendelseNyKode", bbr.BygningsAnvendelseNyKode },
+                                { "BygningsAnvendelseNyTekst", bbr.BygningsAnvendelseNyTekst },
+                                { "Opførelsesår", bbr.Opførelsesår },
+                                { "BeregningsAreal", bbr.SamletBoligareal + bbr.SamletErhvervsareal },
+                                { "KælderAreal", bbr.KælderAreal },
+                                { "VarmeType", bbr.Type },
+                                { "VarmeInstallation", bbr.VarmeInstallation },
+                                { "OpvarmningsMiddel", bbr.OpvarmningsMiddel },
+                                { "InstallationOgBrændsel", bbr.InstallationOgBrændsel },
+                                { "Vejnavn", bbr.Vejnavn },
+                                { "Vejklasse", bbr.Vejklasse },
+                                { "Husnummer", bbr.Husnummer },
+                                { "Postnr", bbr.Postnr },
+                                { "By", bbr.By },
+                                { "SpecifikVarmeForbrug", bbr.SpecifikVarmeForbrug },
+                                { "HeatingDemandConnected", bbr.EstimeretVarmeForbrug },
+                                { "NumberOfUnitsConnected", bbr.AntalEnheder },
+                                { "VarmeDistrikt", bbr.DistriktetsNavn },
+                                { "TempDeltaVarme", bbr.TempDeltaVarme },
+                                { "TempDeltaBV", bbr.TempDeltaBV },
+                                { "NumberOfBuildingsConnected", 1 },
+                                { "IsRootNode", false },
+                            };
                         }
+                        else
+                        {
+                            // Non-client segment: sparse dictionary, no BBR data needed.
+                            // All downstream readers handle missing keys via null-coalescing.
+                            attributes = new()
+                            {
+                                { "IsRootNode", false },
+                            };
+                        }
+
+                        //Remember the EPSG 25832 Length, as the 3857 length cannot be used
+                        attributes["Length"] = fullGeometry.Length;
 
                         if (originalNodes.Any(x => x.IsRoot))
                         {

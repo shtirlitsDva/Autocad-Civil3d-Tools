@@ -1028,6 +1028,17 @@ namespace DimensioneringV2
                             prdDbg("Starting BBR layer loading...");
                             Services.BBRLayerService.Instance.LoadBBRFeatures(localDb, tx);
                             prdDbg($"BBR layer loading complete. Active: {Services.BBRLayerService.Instance.ActiveFeatures.Count()}, Inactive: {Services.BBRLayerService.Instance.InactiveFeatures.Count()}");
+
+                            // Capture all BBR features (active + inactive) into HN for persistence.
+                            // Store as EPSG:25832 using OriginalX/OriginalY to reconstruct on load.
+                            var allBbr = Services.BBRLayerService.Instance.ActiveFeatures
+                                .Concat(Services.BBRLayerService.Instance.InactiveFeatures)
+                                .Select(f => new GraphFeatures.BBRMapFeature(
+                                    new NetTopologySuite.Geometries.Point(f.OriginalX, f.OriginalY),
+                                    f.HeatingType, f.Address, f.OriginalX, f.OriginalY))
+                                .ToList();
+                            hn.BbrFeatures = allBbr;
+                            prdDbg($"Captured {allBbr.Count} BBR features into HydraulicNetwork.");
                         }
                         catch (System.Exception bbrEx)
                         {

@@ -104,6 +104,9 @@ internal partial class HydraulicNetworkManager : ObservableObject
             var docState = _docStore.GetOrCreate(_currentDocKey);
             ActiveNetwork!.FinalizeCalculation(duration);
             ActiveNetwork.Id = docState.Counter.Next();
+            // Persist counter immediately so it survives crashes / "No" on save prompt
+            var doc = AcAp.DocumentManager.MdiActiveDocument;
+            HydraulicNetworkStorage.SaveCounter(doc, docState.Counter);
             docState.CalculatedNetworks.Add(ActiveNetwork);
             CalculationsFinished?.Invoke(this, EventArgs.Empty);
             ActiveNetworkChanged?.Invoke(this, EventArgs.Empty);
@@ -160,8 +163,17 @@ internal partial class HydraulicNetworkManager : ObservableObject
         if (hn.FrozenSettings != null)
             HydraulicSettingsService.Instance.Settings.CopyFrom(hn.FrozenSettings);
         SetSettingsLocked(true);
-        CalculationsFinished?.Invoke(this, EventArgs.Empty);
+
+        // Fire NetworkLoaded (not CalculationsFinished) — loading a saved HN
+        // is semantically "network loaded", which creates _themeManager and
+        // calls CreateMapFirstTime() via OnDataLoaded().
+        NetworkLoaded?.Invoke(this, EventArgs.Empty);
         ActiveNetworkChanged?.Invoke(this, EventArgs.Empty);
+
+        // Restore BBR AFTER map creation so BBR layers are added on top
+        // (CreateMapFirstTime calls Mymap.Layers.Clear()).
+        if (hn.BbrFeatures != null && hn.BbrFeatures.Count > 0)
+            BBRLayerService.Instance.RestoreFeatures(hn.BbrFeatures);
     }
 
     private static void SetSettingsLocked(bool locked)
@@ -308,10 +320,10 @@ internal partial class HydraulicNetworkManager : ObservableObject
         {
             if (e.Document == null) return;
             var docKey = DocumentStateStore.GetDocKey(e.Document);
+            var state = _docStore.GetOrCreate(docKey);
 
             if (_docStore.HasUnsavedNetworks(docKey))
             {
-                var state = _docStore.GetOrCreate(docKey);
                 var unsaved = state.CalculatedNetworks.Where(hn => !hn.IsSaved).ToList();
                 var names = string.Join(", ", unsaved.Select(hn => hn.Id ?? "?"));
 
@@ -325,10 +337,11 @@ internal partial class HydraulicNetworkManager : ObservableObject
                 {
                     foreach (var hn in unsaved)
                         HydraulicNetworkStorage.Save(e.Document, hn);
-
-                    HydraulicNetworkStorage.SaveCounter(e.Document, state.Counter);
                 }
             }
+
+            // Always persist counter on document close, regardless of unsaved networks
+            HydraulicNetworkStorage.SaveCounter(e.Document, state.Counter);
 
             _docStore.Remove(docKey);
         }

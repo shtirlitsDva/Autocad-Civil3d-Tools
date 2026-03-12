@@ -57,19 +57,32 @@ namespace DimensioneringV2.UI
 
         private void OnDataLoaded(object sender, EventArgs e)
         {
-            Features = new(_manager.AllFeatures);
-
-            _themeManager = new ThemeManager(_manager.AllFeatures);
-            CreateMapFirstTime();
+            try
+            {
+                Features = new(_manager.AllFeatures);
+                _themeManager = new ThemeManager(_manager.AllFeatures);
+                CreateMapFirstTime();
+            }
+            catch (Exception ex)
+            {
+                Utils.prtDbg($"OnDataLoaded ERROR: {ex.Message}\n{ex.StackTrace}");
+            }
         }
 
         private void OnCalculationsCompleted(object sender, EventArgs e)
         {
-            Features = new(_manager.AllFeatures);
-            OnPropertyChanged(nameof(MapProperties));
+            try
+            {
+                Features = new(_manager.AllFeatures);
+                OnPropertyChanged(nameof(MapProperties));
 
-            SelectedMapPropertyWrapper = null;
-            SelectedMapPropertyWrapper = MapProperties.First();
+                SelectedMapPropertyWrapper = null;
+                SelectedMapPropertyWrapper = MapProperties.First();
+            }
+            catch (Exception ex)
+            {
+                Utils.prtDbg($"OnCalculationsCompleted ERROR: {ex.Message}\n{ex.StackTrace}");
+            }
         }
 
         private void OnActiveNetworkChanged(object? sender, EventArgs e)

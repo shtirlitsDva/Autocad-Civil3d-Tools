@@ -20,6 +20,7 @@ internal class HydraulicNetworkDto
     public HydraulicSettings? FrozenSettings { get; set; }
     public UndirectedGraph<NodeJunction, EdgePipeSegment>[] Graphs { get; set; }
     public string? Description { get; set; }
+    public BbrFeatureDto[]? BbrFeatures { get; set; }
 
     public HydraulicNetworkDto() { }
 
@@ -32,10 +33,23 @@ internal class HydraulicNetworkDto
         TotalPrice = hn.TotalPrice;
         FrozenSettings = hn.FrozenSettings;
         Graphs = hn.Graphs.ToArray();
+        BbrFeatures = hn.BbrFeatures?.Select(f => new BbrFeatureDto
+        {
+            HeatingType = f.HeatingType,
+            Address = f.Address,
+            OriginalX = f.OriginalX,
+            OriginalY = f.OriginalY,
+        }).ToArray();
     }
 
     public HydraulicNetwork ToHydraulicNetwork()
     {
+        var bbrFeatures = BbrFeatures?.Select(b =>
+            new BBRMapFeature(
+                new NetTopologySuite.Geometries.Point(b.OriginalX, b.OriginalY),
+                b.HeatingType, b.Address, b.OriginalX, b.OriginalY))
+            .ToList();
+
         return HydraulicNetwork.Restore(
             Id,
             Graphs.ToList(),
@@ -45,6 +59,15 @@ internal class HydraulicNetworkDto
                 ? TimeSpan.FromTicks(CalculationDurationTicks.Value)
                 : null,
             TotalPrice,
-            Description);
+            Description,
+            bbrFeatures);
     }
+}
+
+internal class BbrFeatureDto
+{
+    public string HeatingType { get; set; } = "";
+    public string Address { get; set; } = "";
+    public double OriginalX { get; set; }
+    public double OriginalY { get; set; }
 }

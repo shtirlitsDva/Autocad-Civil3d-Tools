@@ -47,6 +47,7 @@ namespace DimensioneringV2.UI
                     var currentHn = _manager.ActiveNetwork;
                     if (currentHn == null) return;
                     var clone = new HydraulicNetwork(currentHn.Graphs);
+                    clone.BbrFeatures = currentHn.BbrFeatures;
                     _manager.NewCalculation(clone);
                     break;
             }

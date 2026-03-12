@@ -99,6 +99,39 @@ namespace DimensioneringV2.Services
             InactiveFeatures = Enumerable.Empty<BBRMapFeature>();
         }
 
+        /// <summary>
+        /// Restores BBR features from saved HydraulicNetwork data.
+        /// Features must be in EPSG:25832 (original coordinates).
+        /// Re-categorizes active/inactive based on current settings,
+        /// reprojects to EPSG:3857, then fires BBRDataLoaded.
+        /// </summary>
+        public void RestoreFeatures(IReadOnlyList<BBRMapFeature> features)
+        {
+            if (features == null || features.Count == 0)
+            {
+                Clear();
+                return;
+            }
+
+            var acceptedTypes = HydraulicSettingsService.Instance.Settings.GetAcceptedBlockTypes();
+
+            var activeList = new List<BBRMapFeature>();
+            var inactiveList = new List<BBRMapFeature>();
+
+            foreach (var feature in features)
+            {
+                if (acceptedTypes.Contains(feature.HeatingType))
+                    activeList.Add(feature);
+                else
+                    inactiveList.Add(feature);
+            }
+
+            ActiveFeatures = ReprojectFeatures(activeList);
+            InactiveFeatures = ReprojectFeatures(inactiveList);
+
+            BBRDataLoaded?.Invoke(this, EventArgs.Empty);
+        }
+
         private static IEnumerable<BBRMapFeature> ReprojectFeatures(IEnumerable<BBRMapFeature> features)
         {
             return features

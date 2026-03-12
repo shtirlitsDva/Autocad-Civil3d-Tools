@@ -84,77 +84,91 @@ namespace DimensioneringV2.UI
         #region Map lifecycle
         private void CreateMapFirstTime()
         {
-            if (Mymap == null) return;
+            if (Mymap == null || _themeManager == null) return;
 
-            MapSuiSvgIconCache.Initialize();
-
-            selectedMapPropertyWrapper = new MapPropertyWrapper(MapPropertyEnum.Default, "Default");
-            OnPropertyChanged(nameof(SelectedMapPropertyWrapper));
-
-            _themeManager.SetTheme(MapPropertyEnum.Default);
-
-            var provider = new MemoryProvider(Features)
+            try
             {
-                CRS = "EPSG:3857"
-            };
+                MapSuiSvgIconCache.Initialize();
 
-            Layer layer = new Layer
+                selectedMapPropertyWrapper = new MapPropertyWrapper(MapPropertyEnum.Default, "Default");
+                OnPropertyChanged(nameof(SelectedMapPropertyWrapper));
+
+                _themeManager.SetTheme(MapPropertyEnum.Default);
+
+                var provider = new MemoryProvider(Features)
+                {
+                    CRS = "EPSG:3857"
+                };
+
+                Layer layer = new Layer
+                {
+                    DataSource = provider,
+                    Name = "Features",
+                    IsMapInfoLayer = true,
+                    Style = _themeManager.CurrentTheme
+                };
+
+                var extent = layer.Extent!.Grow(100);
+
+                Mymap.Layers.Clear();
+
+                BaseMapLayerFactory.ApplyBaseMap(Mymap, SelectedBaseMap.Type);
+
+                Mymap.Layers.Add(layer);
+
+                Mymap.Navigator.ZoomToBox(extent);
+
+                var legend = _widgetManager.Get<LegendWidget>();
+                legend.Content = _themeManager.GetLegendContent();
+                legend.Enabled = IsLegendVisible;
+
+                Mymap.RefreshData();
+            }
+            catch (System.Exception ex)
             {
-                DataSource = provider,
-                Name = "Features",
-                IsMapInfoLayer = true,
-                Style = _themeManager.CurrentTheme
-            };
-
-            var extent = layer.Extent!.Grow(100);
-
-            Mymap.Layers.Clear();
-
-            BaseMapLayerFactory.ApplyBaseMap(Mymap, SelectedBaseMap.Type);
-
-            Mymap.Layers.Add(layer);
-
-            Mymap.Navigator.ZoomToBox(extent);
-
-            var legend = _widgetManager.Get<LegendWidget>();
-            legend.Content = _themeManager.GetLegendContent();
-            legend.Enabled = IsLegendVisible;
-
-            Mymap.RefreshData();
+                Utils.prtDbg($"CreateMapFirstTime ERROR: {ex.Message}\n{ex.StackTrace}");
+            }
         }
 
         private void UpdateMap()
         {
-            if (Mymap == null) return;
+            if (Mymap == null || _themeManager == null) return;
 
-            _themeManager.SetTheme(
-                SelectedMapPropertyWrapper.EnumValue, _showLabels);
-
-            var provider = new MemoryProvider(Features)
+            try
             {
-                CRS = "EPSG:3857"
-            };
+                _themeManager.SetTheme(
+                    SelectedMapPropertyWrapper.EnumValue, _showLabels);
 
-            Layer layer = new Layer
-            {
-                DataSource = provider,
-                Name = "Features",
-                IsMapInfoLayer = true,
-                Style = _themeManager.CurrentTheme
-            };
+                var provider = new MemoryProvider(Features)
+                {
+                    CRS = "EPSG:3857"
+                };
 
-            var exLayer = Mymap.Layers.FirstOrDefault(x => x.Name == "Features");
-            if (exLayer != null)
-            {
-                Mymap.Layers.Remove(exLayer);
+                Layer layer = new Layer
+                {
+                    DataSource = provider,
+                    Name = "Features",
+                    IsMapInfoLayer = true,
+                    Style = _themeManager.CurrentTheme
+                };
+
+                var exLayer = Mymap.Layers.FirstOrDefault(x => x.Name == "Features");
+                if (exLayer != null)
+                {
+                    Mymap.Layers.Remove(exLayer);
+                }
+
+                Mymap.Layers.Add(layer);
+
+                var legend = _widgetManager.Get<LegendWidget>();
+                legend.Content = _themeManager.GetLegendContent();
+                legend.Enabled = IsLegendVisible;
+                Mymap.RefreshData();
             }
-
-            Mymap.Layers.Add(layer);
-
-            var legend = _widgetManager.Get<LegendWidget>();
-            legend.Content = _themeManager.GetLegendContent();
-            legend.Enabled = IsLegendVisible;
-            Mymap.RefreshData();
+            catch (System.Exception ex)
+            {
+                Utils.prtDbg($"UpdateMap ERROR: {ex.Message}\n{ex.StackTrace}");
+            }
         }
         #endregion
     }

@@ -28,6 +28,13 @@ internal class HydraulicNetwork
     public double TotalPrice { get; set; }
     public bool IsSaved { get; set; }
 
+    /// <summary>
+    /// BBR building features captured at graph-creation time.
+    /// Stored in EPSG:25832; reprojected to EPSG:3857 on map display.
+    /// Null means no BBR data was captured (legacy/old saved networks).
+    /// </summary>
+    public List<BBRMapFeature>? BbrFeatures { get; set; }
+
     public IEnumerable<AnalysisFeature> AllFeatures =>
         Graphs.SelectMany(g => g.Edges.Select(e => e.PipeSegment));
 
@@ -84,7 +91,8 @@ internal class HydraulicNetwork
         DateTime? calculatedAt,
         TimeSpan? calculationDuration,
         double totalPrice,
-        string? description = null)
+        string? description = null,
+        List<BBRMapFeature>? bbrFeatures = null)
     {
         var hn = new HydraulicNetwork(graphs);
         hn.Id = id;
@@ -93,6 +101,7 @@ internal class HydraulicNetwork
         hn.CalculatedAt = calculatedAt;
         hn.CalculationDuration = calculationDuration;
         hn.TotalPrice = totalPrice;
+        hn.BbrFeatures = bbrFeatures;
         hn.IsSaved = true;
         return hn;
     }

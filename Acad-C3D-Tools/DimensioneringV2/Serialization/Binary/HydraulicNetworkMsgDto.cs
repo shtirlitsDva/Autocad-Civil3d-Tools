@@ -19,6 +19,7 @@ public class HydraulicNetworkMsgDto
     [Key(4)] public HydraulicSettingsMsgDto? FrozenSettings { get; set; }
     [Key(5)] public UndirectedGraphMsgDto[] Graphs { get; set; } = Array.Empty<UndirectedGraphMsgDto>();
     [Key(6)] public string? Description { get; set; }
+    [Key(7)] public BBRMapFeatureMsgDto[]? BbrFeatures { get; set; }
 
     internal static HydraulicNetworkMsgDto FromDomain(HydraulicNetwork hn)
     {
@@ -35,6 +36,7 @@ public class HydraulicNetworkMsgDto
             Graphs = hn.Graphs
                 .Select(UndirectedGraphMsgDto.FromDomain)
                 .ToArray(),
+            BbrFeatures = hn.BbrFeatures?.Select(BBRMapFeatureMsgDto.FromDomain).ToArray(),
         };
     }
 
@@ -45,6 +47,7 @@ public class HydraulicNetworkMsgDto
             .ToList();
 
         var frozenSettings = FrozenSettings?.ToDomain();
+        var bbrFeatures = BbrFeatures?.Select(b => b.ToDomain()).ToList();
 
         return HydraulicNetwork.Restore(
             Id,
@@ -55,6 +58,7 @@ public class HydraulicNetworkMsgDto
                 ? TimeSpan.FromTicks(CalculationDurationTicks.Value)
                 : null,
             TotalPrice,
-            Description);
+            Description,
+            bbrFeatures);
     }
 }
