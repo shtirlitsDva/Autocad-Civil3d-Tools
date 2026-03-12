@@ -9,7 +9,7 @@ using DimensioneringV2.Forms;
 using DimensioneringV2.Geometry;
 using DimensioneringV2.GraphFeatures;
 using DimensioneringV2.GraphModelRoads;
-using DimensioneringV2.Schema;
+using DimensioneringV2.BBRSchema;
 using DimensioneringV2.Serialization;
 using DimensioneringV2.Serialization.Binary;
 using DimensioneringV2.Services;
@@ -239,7 +239,7 @@ namespace DimensioneringV2
                     var pm = new ProgressMeter();
                     pm.Start("Importing BBR features...");
                     pm.SetLimit(BBR.features.Count);
-                    foreach (Schema.Feature feature in BBR.features)
+                    foreach (BBRSchema.Feature feature in BBR.features)
                     {
                         try
                         {
@@ -1681,7 +1681,7 @@ namespace DimensioneringV2
             { prdDbg("DAR_husnumre.geojson does not exist! Download med RestHenter!"); return; }
 
             var husnumrecol = IntersectUtilities.UtilsCommon.Serialization.Json
-                .Deserialize<Schema.GeoJson.Husnumre.FeatureCollection >(husnumrePath);
+                .Deserialize<Schema.GeoJson.Husnumre.FeatureCollection>(husnumrePath);
             #endregion
 
             while (true)
@@ -1704,9 +1704,9 @@ namespace DimensioneringV2
                                 StringComparison.InvariantCultureIgnoreCase))
                             .ToList();
 
-                        if (husnumre.Count == 0)
+                        if (husnumre.Count < 2)
                         {
-                            prdDbg($"No husnumre found for building with id_lokalId {bbr.id_lokalId}!");
+                            prdDbg($"No or only one husnumre found for building with id_lokalId {bbr.id_lokalId}!");
                             tx.Abort();
                             continue;
                         }
@@ -1738,6 +1738,8 @@ namespace DimensioneringV2
                             husnrBbr.EstimeretVarmeForbrug = estimeretPerHusnr;
                             husnrBbr.SamletBoligareal = boligArealPerHusnr;
                             husnrBbr.SamletErhvervsareal = erhvervsArealPerHusnr;
+                            husnrBbr.Name = husnr.properties.adgangsadressebetegnelse;
+                            husnrBbr.Adresse = husnr.properties.Adresse;
                         }
 
                         PrintTable(
@@ -1750,6 +1752,9 @@ namespace DimensioneringV2
                                 erhvervsArealPerHusnr
                             } as IEnumerable<object>)
                         );
+
+                        bbrBr.UpgradeOpen();
+                        bbrBr.Erase(true);
                     }
                     catch (System.Exception ex)
                     {

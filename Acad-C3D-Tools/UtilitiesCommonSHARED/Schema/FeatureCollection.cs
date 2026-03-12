@@ -59,7 +59,7 @@ namespace Schema.GeoJson.Husnumre
     public class Geometry
     {
         public string type { get; set; } = "Point";
-        public double[] coordinates;
+        public double[] coordinates { get; set; }
         public Geometry() { }
         public Geometry(PointStringConvert data)
         {
