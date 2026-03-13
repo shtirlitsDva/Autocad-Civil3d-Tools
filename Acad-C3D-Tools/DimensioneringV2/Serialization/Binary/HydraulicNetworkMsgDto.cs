@@ -10,16 +10,16 @@ using System.Linq;
 namespace DimensioneringV2.Serialization.Binary;
 
 [MessagePackObject]
-public class HydraulicNetworkMsgDto
+internal partial class HydraulicNetworkMsgDto
 {
-    [Key(0)] public string? Id { get; set; }
-    [Key(1)] public DateTime? CalculatedAt { get; set; }
-    [Key(2)] public long? CalculationDurationTicks { get; set; }
-    [Key(3)] public double TotalPrice { get; set; }
-    [Key(4)] public HydraulicSettingsMsgDto? FrozenSettings { get; set; }
-    [Key(5)] public UndirectedGraphMsgDto[] Graphs { get; set; } = Array.Empty<UndirectedGraphMsgDto>();
-    [Key(6)] public string? Description { get; set; }
-    [Key(7)] public BBRMapFeatureMsgDto[]? BbrFeatures { get; set; }
+    [Key(0)] internal string? Id { get; set; }
+    [Key(1)] internal DateTime? CalculatedAt { get; set; }
+    [Key(2)] internal long? CalculationDurationTicks { get; set; }
+    [Key(3)] internal double TotalPrice { get; set; }
+    [Key(4)] internal HydraulicSettingsMsgDto? FrozenSettings { get; set; }
+    [Key(5)] internal UndirectedGraphMsgDto[] Graphs { get; set; } = Array.Empty<UndirectedGraphMsgDto>();
+    [Key(6)] internal string? Description { get; set; }
+    [Key(7)] internal BBRMapFeatureMsgDto[]? BbrFeatures { get; set; }
 
     internal static HydraulicNetworkMsgDto FromDomain(HydraulicNetwork hn)
     {

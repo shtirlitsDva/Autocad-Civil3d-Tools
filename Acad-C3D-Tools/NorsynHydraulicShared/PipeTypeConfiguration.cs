@@ -11,7 +11,7 @@ namespace NorsynHydraulicCalc
     /// Plain POCO class for serialization and use across projects.
     /// </summary>
     [MessagePackObject]
-    public class PipeTypeConfiguration
+    public partial class PipeTypeConfiguration
     {
         /// <summary>
         /// The segment type this configuration applies to (FL or SL).

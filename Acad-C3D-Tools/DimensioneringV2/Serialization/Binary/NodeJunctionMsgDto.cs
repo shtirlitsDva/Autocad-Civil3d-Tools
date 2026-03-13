@@ -6,15 +6,15 @@ using MessagePack;
 namespace DimensioneringV2.Serialization.Binary;
 
 [MessagePackObject]
-public class NodeJunctionMsgDto
+internal partial class NodeJunctionMsgDto
 {
-    [Key(0)] public double X { get; set; }
-    [Key(1)] public double Y { get; set; }
-    [Key(2)] public bool IsRootNode { get; set; }
-    [Key(3)] public bool IsBuildingNode { get; set; }
-    [Key(4)] public int Degree { get; set; }
-    [Key(5)] public int STP_Node { get; set; }
-    [Key(6)] public string Name { get; set; } = "";
+    [Key(0)] internal double X { get; set; }
+    [Key(1)] internal double Y { get; set; }
+    [Key(2)] internal bool IsRootNode { get; set; }
+    [Key(3)] internal bool IsBuildingNode { get; set; }
+    [Key(4)] internal int Degree { get; set; }
+    [Key(5)] internal int STP_Node { get; set; }
+    [Key(6)] internal string Name { get; set; } = "";
 
     internal static NodeJunctionMsgDto FromDomain(NodeJunction nj) => new()
     {

@@ -14,7 +14,7 @@ internal static class MessagePackSetup
     {
         var resolver = CompositeResolver.Create(
             new IMessagePackFormatter[] { new PipeRuleFormatter() },
-            new IFormatterResolver[] { StandardResolver.Instance }
+            new IFormatterResolver[] { DimV2Resolver.Instance, StandardResolver.Instance }
         );
 
         NorsynStorage.Configure(

@@ -10,10 +10,10 @@ using System.Linq;
 namespace DimensioneringV2.Serialization.Binary;
 
 [MessagePackObject]
-public class UndirectedGraphMsgDto
+internal partial class UndirectedGraphMsgDto
 {
-    [Key(0)] public List<NodeJunctionMsgDto> Vertices { get; set; } = new();
-    [Key(1)] public List<EdgePipeSegmentMsgDto> Edges { get; set; } = new();
+    [Key(0)] internal List<NodeJunctionMsgDto> Vertices { get; set; } = new();
+    [Key(1)] internal List<EdgePipeSegmentMsgDto> Edges { get; set; } = new();
 
     internal static UndirectedGraphMsgDto FromDomain(
         UndirectedGraph<NodeJunction, EdgePipeSegment> graph)

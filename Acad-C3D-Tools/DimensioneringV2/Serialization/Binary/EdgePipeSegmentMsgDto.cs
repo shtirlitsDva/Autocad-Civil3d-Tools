@@ -3,10 +3,10 @@ using MessagePack;
 namespace DimensioneringV2.Serialization.Binary;
 
 [MessagePackObject]
-public class EdgePipeSegmentMsgDto
+internal partial class EdgePipeSegmentMsgDto
 {
-    [Key(0)] public int SourceIndex { get; set; }
-    [Key(1)] public int TargetIndex { get; set; }
-    [Key(2)] public AnalysisFeatureMsgDto PipeSegment { get; set; }
-    [Key(3)] public int Level { get; set; }
+    [Key(0)] internal int SourceIndex { get; set; }
+    [Key(1)] internal int TargetIndex { get; set; }
+    [Key(2)] internal AnalysisFeatureMsgDto PipeSegment { get; set; }
+    [Key(3)] internal int Level { get; set; }
 }

@@ -7,7 +7,7 @@ using MessagePack;
 namespace NorsynHydraulicCalc.Pipes
 {
     [MessagePackObject]
-    public struct Dim : IEquatable<Dim>
+    public partial struct Dim : IEquatable<Dim>
     {
         [Key(0)] public int NominalDiameter { get; set; }
         [Key(1)] public double OuterDiameter { get; set; }

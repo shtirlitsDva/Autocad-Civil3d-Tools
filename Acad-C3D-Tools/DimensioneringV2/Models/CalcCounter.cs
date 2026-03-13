@@ -3,9 +3,9 @@ using MessagePack;
 namespace DimensioneringV2.Models;
 
 [MessagePackObject]
-internal class CalcCounter
+internal partial class CalcCounter
 {
-    [Key(0)] public int NextId { get; set; } = 1;
+    [Key(0)] internal int NextId { get; set; } = 1;
 
     public string Next()
     {

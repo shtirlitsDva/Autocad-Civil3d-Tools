@@ -7,12 +7,12 @@ using NetTopologySuite.Geometries;
 namespace DimensioneringV2.Serialization.Binary;
 
 [MessagePackObject]
-public class BBRMapFeatureMsgDto
+internal partial class BBRMapFeatureMsgDto
 {
-    [Key(0)] public string HeatingType { get; set; } = "";
-    [Key(1)] public string Address { get; set; } = "";
-    [Key(2)] public double OriginalX { get; set; }
-    [Key(3)] public double OriginalY { get; set; }
+    [Key(0)] internal string HeatingType { get; set; } = "";
+    [Key(1)] internal string Address { get; set; } = "";
+    [Key(2)] internal double OriginalX { get; set; }
+    [Key(3)] internal double OriginalY { get; set; }
 
     internal static BBRMapFeatureMsgDto FromDomain(BBRMapFeature feature) => new()
     {

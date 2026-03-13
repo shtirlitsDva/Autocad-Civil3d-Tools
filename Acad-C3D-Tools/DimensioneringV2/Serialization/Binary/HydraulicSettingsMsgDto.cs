@@ -7,43 +7,43 @@ using System.Collections.Generic;
 namespace DimensioneringV2.Serialization.Binary;
 
 [MessagePackObject]
-public class HydraulicSettingsMsgDto
+internal partial class HydraulicSettingsMsgDto
 {
-    [Key(0)] public int Version { get; set; }
-    [Key(1)] public MediumTypeEnum MedieType { get; set; }
-    [Key(2)] public double AfkolingBrugsvand { get; set; }
-    [Key(3)] public bool UseBrugsvandsprioritering { get; set; }
-    [Key(4)] public double FactorTillaegForOpvarmningUdenBrugsvandsprioritering { get; set; }
-    [Key(5)] public double TempFrem { get; set; }
-    [Key(6)] public double AfkolingVarme { get; set; }
-    [Key(7)] public double FactorVarmtVandsTillaeg { get; set; }
-    [Key(8)] public double MinDifferentialPressureOverHovedHaner { get; set; }
-    [Key(9)] public double RuhedSteel { get; set; }
-    [Key(10)] public double RuhedPertFlextra { get; set; }
-    [Key(11)] public double RuhedAluPEX { get; set; }
-    [Key(12)] public double RuhedCu { get; set; }
-    [Key(13)] public double RuhedPe { get; set; }
-    [Key(14)] public double RuhedAquaTherm11 { get; set; }
-    [Key(15)] public int ProcentTillaegTilTryktab { get; set; }
-    [Key(16)] public double TillaegTilHoldetrykMVS { get; set; }
-    [Key(17)] public int TimeToSteinerTreeEnumeration { get; set; }
-    [Key(18)] public CalcType CalculationType { get; set; }
-    [Key(19)] public bool ReportToConsole { get; set; }
-    [Key(20)] public bool CacheResults { get; set; }
-    [Key(21)] public int CachePrecision { get; set; }
-    [Key(22)] public int SystemnyttetimerVed1Forbruger { get; set; }
-    [Key(23)] public int SystemnyttetimerVed50PlusForbrugere { get; set; }
-    [Key(24)] public int BygningsnyttetimerDefault { get; set; }
-    [Key(25)] public Dictionary<MediumTypeEnum, PipeTypeConfiguration> PipeConfigsFL { get; set; } = new();
-    [Key(26)] public Dictionary<MediumTypeEnum, PipeTypeConfiguration> PipeConfigsSL { get; set; } = new();
-    [Key(27)] public double MaxPressureLossStikSL { get; set; }
-    [Key(28)] public bool FilterEl { get; set; }
-    [Key(29)] public bool FilterNaturgas { get; set; }
-    [Key(30)] public bool FilterVarmepumpe { get; set; }
-    [Key(31)] public bool FilterFastBraendsel { get; set; }
-    [Key(32)] public bool FilterOlie { get; set; }
-    [Key(33)] public bool FilterFjernvarme { get; set; }
-    [Key(34)] public bool FilterAndetIngenUdgaar { get; set; }
+    [Key(0)] internal int Version { get; set; }
+    [Key(1)] internal MediumTypeEnum MedieType { get; set; }
+    [Key(2)] internal double AfkolingBrugsvand { get; set; }
+    [Key(3)] internal bool UseBrugsvandsprioritering { get; set; }
+    [Key(4)] internal double FactorTillaegForOpvarmningUdenBrugsvandsprioritering { get; set; }
+    [Key(5)] internal double TempFrem { get; set; }
+    [Key(6)] internal double AfkolingVarme { get; set; }
+    [Key(7)] internal double FactorVarmtVandsTillaeg { get; set; }
+    [Key(8)] internal double MinDifferentialPressureOverHovedHaner { get; set; }
+    [Key(9)] internal double RuhedSteel { get; set; }
+    [Key(10)] internal double RuhedPertFlextra { get; set; }
+    [Key(11)] internal double RuhedAluPEX { get; set; }
+    [Key(12)] internal double RuhedCu { get; set; }
+    [Key(13)] internal double RuhedPe { get; set; }
+    [Key(14)] internal double RuhedAquaTherm11 { get; set; }
+    [Key(15)] internal int ProcentTillaegTilTryktab { get; set; }
+    [Key(16)] internal double TillaegTilHoldetrykMVS { get; set; }
+    [Key(17)] internal int TimeToSteinerTreeEnumeration { get; set; }
+    [Key(18)] internal CalcType CalculationType { get; set; }
+    [Key(19)] internal bool ReportToConsole { get; set; }
+    [Key(20)] internal bool CacheResults { get; set; }
+    [Key(21)] internal int CachePrecision { get; set; }
+    [Key(22)] internal int SystemnyttetimerVed1Forbruger { get; set; }
+    [Key(23)] internal int SystemnyttetimerVed50PlusForbrugere { get; set; }
+    [Key(24)] internal int BygningsnyttetimerDefault { get; set; }
+    [Key(25)] internal Dictionary<MediumTypeEnum, PipeTypeConfiguration> PipeConfigsFL { get; set; } = new();
+    [Key(26)] internal Dictionary<MediumTypeEnum, PipeTypeConfiguration> PipeConfigsSL { get; set; } = new();
+    [Key(27)] internal double MaxPressureLossStikSL { get; set; }
+    [Key(28)] internal bool FilterEl { get; set; }
+    [Key(29)] internal bool FilterNaturgas { get; set; }
+    [Key(30)] internal bool FilterVarmepumpe { get; set; }
+    [Key(31)] internal bool FilterFastBraendsel { get; set; }
+    [Key(32)] internal bool FilterOlie { get; set; }
+    [Key(33)] internal bool FilterFjernvarme { get; set; }
+    [Key(34)] internal bool FilterAndetIngenUdgaar { get; set; }
 
     internal static HydraulicSettingsMsgDto FromDomain(HydraulicSettings settings)
     {

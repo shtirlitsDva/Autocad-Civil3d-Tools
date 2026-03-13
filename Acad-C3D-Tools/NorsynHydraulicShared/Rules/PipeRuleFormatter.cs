@@ -8,7 +8,7 @@ namespace NorsynHydraulicCalc.Rules
     /// Uses a type-tag byte to discriminate between concrete implementations.
     /// Tag 0 = ParentPipeRule.
     /// </summary>
-    public class PipeRuleFormatter : IMessagePackFormatter<IPipeRule>
+    internal class PipeRuleFormatter : IMessagePackFormatter<IPipeRule>
     {
         private const byte TagParentPipeRule = 0;
 

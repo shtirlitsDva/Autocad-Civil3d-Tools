@@ -15,66 +15,66 @@ using System.Linq;
 namespace DimensioneringV2.Serialization.Binary;
 
 [MessagePackObject]
-public class AnalysisFeatureMsgDto
+internal partial class AnalysisFeatureMsgDto
 {
     // Geometry
-    [Key(0)] public double[][] Coordinates { get; set; }
-    [Key(1)] public double[][] Geometry25832 { get; set; }
+    [Key(0)] internal double[][] Coordinates { get; set; }
+    [Key(1)] internal double[][] Geometry25832 { get; set; }
 
     // Grunddata (source attributes, stored in attribute table)
-    [Key(2)] public bool IsRootNode { get; set; }
-    [Key(3)] public int NumberOfBuildingsConnected { get; set; }
-    [Key(4)] public int NumberOfUnitsConnected { get; set; }
-    [Key(5)] public double HeatingDemandConnected { get; set; }
-    [Key(6)] public string id_lokalId { get; set; } = "";
-    [Key(7)] public string Name { get; set; } = "";
-    [Key(8)] public int Opf_relsesaar { get; set; }
-    [Key(9)] public int BeregningsAreal { get; set; }
-    [Key(10)] public double KaelderAreal { get; set; }
-    [Key(11)] public string VarmeType { get; set; } = "";
-    [Key(12)] public string VarmeInstallation { get; set; } = "";
-    [Key(13)] public string OpvarmningsMiddel { get; set; } = "";
-    [Key(14)] public string InstallationOgBraendsel { get; set; } = "";
-    [Key(15)] public string Vejnavn { get; set; } = "";
-    [Key(16)] public string Vejklasse { get; set; } = "";
-    [Key(17)] public string Husnummer { get; set; } = "";
-    [Key(18)] public string Postnr { get; set; } = "";
-    [Key(19)] public string By { get; set; } = "";
-    [Key(20)] public double SpecifikVarmeForbrug { get; set; }
-    [Key(21)] public string VarmeDistrikt { get; set; } = "";
-    [Key(22)] public int AdresseDuplikatNr { get; set; }
-    [Key(23)] public string Adresse { get; set; } = "";
-    [Key(24)] public string BygningsAnvendelseNyKode { get; set; } = "";
-    [Key(25)] public string BygningsAnvendelseNyTekst { get; set; } = "";
+    [Key(2)] internal bool IsRootNode { get; set; }
+    [Key(3)] internal int NumberOfBuildingsConnected { get; set; }
+    [Key(4)] internal int NumberOfUnitsConnected { get; set; }
+    [Key(5)] internal double HeatingDemandConnected { get; set; }
+    [Key(6)] internal string id_lokalId { get; set; } = "";
+    [Key(7)] internal string Name { get; set; } = "";
+    [Key(8)] internal int Opf_relsesaar { get; set; }
+    [Key(9)] internal int BeregningsAreal { get; set; }
+    [Key(10)] internal double KaelderAreal { get; set; }
+    [Key(11)] internal string VarmeType { get; set; } = "";
+    [Key(12)] internal string VarmeInstallation { get; set; } = "";
+    [Key(13)] internal string OpvarmningsMiddel { get; set; } = "";
+    [Key(14)] internal string InstallationOgBraendsel { get; set; } = "";
+    [Key(15)] internal string Vejnavn { get; set; } = "";
+    [Key(16)] internal string Vejklasse { get; set; } = "";
+    [Key(17)] internal string Husnummer { get; set; } = "";
+    [Key(18)] internal string Postnr { get; set; } = "";
+    [Key(19)] internal string By { get; set; } = "";
+    [Key(20)] internal double SpecifikVarmeForbrug { get; set; }
+    [Key(21)] internal string VarmeDistrikt { get; set; } = "";
+    [Key(22)] internal int AdresseDuplikatNr { get; set; }
+    [Key(23)] internal string Adresse { get; set; } = "";
+    [Key(24)] internal string BygningsAnvendelseNyKode { get; set; } = "";
+    [Key(25)] internal string BygningsAnvendelseNyTekst { get; set; } = "";
 
     // Calculated results
-    [Key(26)] public int NumberOfBuildingsSupplied { get; set; }
-    [Key(27)] public int NumberOfUnitsSupplied { get; set; }
-    [Key(28)] public double HeatingDemandSupplied { get; set; }
-    [Key(29)] public Dim Dim { get; set; }
-    [Key(30)] public double ReynoldsSupply { get; set; }
-    [Key(31)] public double ReynoldsReturn { get; set; }
-    [Key(32)] public double KarFlowHeatSupply { get; set; }
-    [Key(33)] public double KarFlowBVSupply { get; set; }
-    [Key(34)] public double KarFlowHeatReturn { get; set; }
-    [Key(35)] public double KarFlowBVReturn { get; set; }
-    [Key(36)] public double DimFlowSupply { get; set; }
-    [Key(37)] public double DimFlowReturn { get; set; }
-    [Key(38)] public double PressureGradientSupply { get; set; }
-    [Key(39)] public double PressureGradientReturn { get; set; }
-    [Key(40)] public double VelocitySupply { get; set; }
-    [Key(41)] public double VelocityReturn { get; set; }
-    [Key(42)] public double UtilizationRate { get; set; }
-    [Key(43)] public double Effekt { get; set; }
-    [Key(44)] public bool IsBridge { get; set; }
-    [Key(45)] public int SubGraphId { get; set; }
-    [Key(46)] public bool IsCriticalPath { get; set; }
-    [Key(47)] public bool ManualDim { get; set; }
-    [Key(48)] public double PressureLossAtClientSupply { get; set; }
-    [Key(49)] public double PressureLossAtClientReturn { get; set; }
-    [Key(50)] public double DifferentialPressureAtClient { get; set; }
-    [Key(51)] public double TempDeltaVarme { get; set; }
-    [Key(52)] public double TempDeltaBV { get; set; }
+    [Key(26)] internal int NumberOfBuildingsSupplied { get; set; }
+    [Key(27)] internal int NumberOfUnitsSupplied { get; set; }
+    [Key(28)] internal double HeatingDemandSupplied { get; set; }
+    [Key(29)] internal Dim Dim { get; set; }
+    [Key(30)] internal double ReynoldsSupply { get; set; }
+    [Key(31)] internal double ReynoldsReturn { get; set; }
+    [Key(32)] internal double KarFlowHeatSupply { get; set; }
+    [Key(33)] internal double KarFlowBVSupply { get; set; }
+    [Key(34)] internal double KarFlowHeatReturn { get; set; }
+    [Key(35)] internal double KarFlowBVReturn { get; set; }
+    [Key(36)] internal double DimFlowSupply { get; set; }
+    [Key(37)] internal double DimFlowReturn { get; set; }
+    [Key(38)] internal double PressureGradientSupply { get; set; }
+    [Key(39)] internal double PressureGradientReturn { get; set; }
+    [Key(40)] internal double VelocitySupply { get; set; }
+    [Key(41)] internal double VelocityReturn { get; set; }
+    [Key(42)] internal double UtilizationRate { get; set; }
+    [Key(43)] internal double Effekt { get; set; }
+    [Key(44)] internal bool IsBridge { get; set; }
+    [Key(45)] internal int SubGraphId { get; set; }
+    [Key(46)] internal bool IsCriticalPath { get; set; }
+    [Key(47)] internal bool ManualDim { get; set; }
+    [Key(48)] internal double PressureLossAtClientSupply { get; set; }
+    [Key(49)] internal double PressureLossAtClientReturn { get; set; }
+    [Key(50)] internal double DifferentialPressureAtClient { get; set; }
+    [Key(51)] internal double TempDeltaVarme { get; set; }
+    [Key(52)] internal double TempDeltaBV { get; set; }
 
     internal static AnalysisFeatureMsgDto FromDomain(AnalysisFeature af)
     {

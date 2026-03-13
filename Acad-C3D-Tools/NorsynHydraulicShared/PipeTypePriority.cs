@@ -13,7 +13,7 @@ namespace NorsynHydraulicCalc
     /// Plain POCO class for serialization and use across projects.
     /// </summary>
     [MessagePackObject]
-    public class PipeTypePriority
+    public partial class PipeTypePriority
     {
         /// <summary>
         /// Priority order (1 = highest priority, used first when selecting pipes).

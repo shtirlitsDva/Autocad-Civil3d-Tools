@@ -15,7 +15,7 @@ namespace NorsynHydraulicCalc
     /// Implements INotifyPropertyChanged for WPF data binding.
     /// </summary>
     [MessagePackObject]
-    public class DnAcceptCriteria : INotifyPropertyChanged
+    public partial class DnAcceptCriteria : INotifyPropertyChanged
     {
         #region INotifyPropertyChanged
         public event PropertyChangedEventHandler? PropertyChanged;

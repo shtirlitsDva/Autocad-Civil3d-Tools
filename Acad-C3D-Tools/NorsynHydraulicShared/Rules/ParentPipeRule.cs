@@ -7,7 +7,7 @@ namespace NorsynHydraulicCalc.Rules
     /// Used for Stikledninger to determine pipe type based on the connected Fordelingsledning.
     /// </summary>
     [MessagePackObject]
-    public class ParentPipeRule : IPipeRule
+    public partial class ParentPipeRule : IPipeRule
     {
         /// <summary>
         /// Gets the rule type.
