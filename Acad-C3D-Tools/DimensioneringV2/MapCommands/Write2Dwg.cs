@@ -6,8 +6,6 @@ using DimensioneringV2.UI.Infrastructure;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace DimensioneringV2.MapCommands
 {
@@ -19,13 +17,12 @@ namespace DimensioneringV2.MapCommands
             {
                 var graphs = HydraulicNetworkManager.Instance.Graphs;
 
-                IEnumerable<AnalysisFeature> reprojected =
-                    graphs.SelectMany(x => ProjectionService.ReProjectFeatures(
-                        x.Edges.Select(x => x.PipeSegment), "EPSG:3857", "EPSG:25832"));
+                IEnumerable<AnalysisFeature> features =
+                    graphs.SelectMany(x => x.Edges.Select(e => e.PipeSegment));
 
                 AcContext.Current.Post(_ =>
                 {
-                    AutoCAD.Write2Dwg.Write(reprojected);
+                    AutoCAD.Write2Dwg.Write(features);
                 }, null);
             }
             catch (System.Exception ex)

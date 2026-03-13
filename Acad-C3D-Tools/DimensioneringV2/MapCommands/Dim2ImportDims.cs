@@ -6,8 +6,6 @@ using DimensioneringV2.UI.Infrastructure;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
 
 namespace DimensioneringV2.MapCommands
@@ -31,17 +29,14 @@ namespace DimensioneringV2.MapCommands
 
                 var graphs = HydraulicNetworkManager.Instance.Graphs;
 
-                var edges = graphs.SelectMany(x => x.Edges.Select(x => x.PipeSegment));
+                var edges = graphs.SelectMany(x => x.Edges.Select(e => e.PipeSegment));
 
                 if (!includeServiceLines) edges = edges.Where(
                     x => x.SegmentType != NorsynHydraulicCalc.SegmentType.Stikledning);
 
-                IEnumerable<AnalysisFeature> reprojected =
-                    ProjectionService.ReProjectFeatures(edges, "EPSG:3857", "EPSG:25832");
-
                 AcContext.Current.Post(_ =>
                 {
-                    AutoCAD.Dim2WriteDims.Write(reprojected);
+                    AutoCAD.Dim2WriteDims.Write(edges);
                 }, null);
             }
             catch (System.Exception ex)

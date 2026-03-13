@@ -57,7 +57,7 @@ namespace DimensioneringV2.UI
 
                 var inactiveProvider = new MemoryProvider(inactiveFeatures.Cast<IFeature>())
                 {
-                    CRS = "EPSG:3857"
+                    CRS = "EPSG:25832"
                 };
                 var newInactiveLayer = new Layer
                 {
@@ -68,7 +68,7 @@ namespace DimensioneringV2.UI
 
                 var activeProvider = new MemoryProvider(activeFeatures.Cast<IFeature>())
                 {
-                    CRS = "EPSG:3857"
+                    CRS = "EPSG:25832"
                 };
                 var newActiveLayer = new Layer
                 {

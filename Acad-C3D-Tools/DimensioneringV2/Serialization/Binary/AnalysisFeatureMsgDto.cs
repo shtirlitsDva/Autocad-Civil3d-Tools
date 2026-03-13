@@ -81,15 +81,16 @@ internal partial class AnalysisFeatureMsgDto
         var line = af.Geometry as LineString
             ?? throw new InvalidOperationException("Expected LineString geometry");
 
+        // Write the single 25832 geometry to both slots for backward compat
+        var coordArray = line.Coordinates
+            .Select(c => new[] { c.X, c.Y })
+            .ToArray();
+
         var dto = new AnalysisFeatureMsgDto
         {
-            // Geometry
-            Coordinates = line.Coordinates
-                .Select(c => new[] { c.X, c.Y })
-                .ToArray(),
-            Geometry25832 = af.Geometry25832.Coordinates
-                .Select(c => new[] { c.X, c.Y })
-                .ToArray(),
+            // Both point to the same 25832 geometry
+            Coordinates = coordArray,
+            Geometry25832 = coordArray,
 
             // Source attributes (direct attribute table reads)
             IsRootNode = af["IsRootNode"] is bool b ? b : false,
@@ -155,12 +156,12 @@ internal partial class AnalysisFeatureMsgDto
 
     internal AnalysisFeature ToDomain()
     {
-        // Build geometry from coordinates
-        var geometry25832 = new LineString(
-            Geometry25832.Select(c => new Coordinate(c[0], c[1])).ToArray());
+        // Prefer Geometry25832 (authoritative); fall back to Coordinates for old files
+        var coords = Geometry25832 ?? Coordinates
+            ?? throw new InvalidOperationException("No geometry found in DTO");
 
-        var displayGeometry = new LineString(
-            Coordinates.Select(c => new Coordinate(c[0], c[1])).ToArray());
+        var geometry25832 = new LineString(
+            coords.Select(c => new Coordinate(c[0], c[1])).ToArray());
 
         // Build attributes dictionary — same pattern as the JSON DTO
         var attributes = new Dictionary<string, object>();
@@ -222,8 +223,8 @@ internal partial class AnalysisFeatureMsgDto
         AddIfNotDefault(attributes, "PressureLossAtClientReturn", PressureLossAtClientReturn);
         AddIfNotDefault(attributes, "DifferentialPressureAtClient", DifferentialPressureAtClient);
 
-        // Construct AnalysisFeature using the 3-arg constructor (displayGeometry, geometry25832, attributes)
-        return new AnalysisFeature(displayGeometry, geometry25832, attributes);
+        // Single geometry in EPSG:25832 — no dual geometry model
+        return new AnalysisFeature(geometry25832, attributes);
     }
 
     private static void AddIfNotDefault(Dictionary<string, object> dict, string key, object value)

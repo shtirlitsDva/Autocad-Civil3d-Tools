@@ -6,6 +6,8 @@ namespace DimensioneringV2.Geometry
     /// Centralized coordinate tolerance and equality settings.
     /// Controls how Point2D comparison and hashing works across the application.
     ///
+    /// All coordinates are now in EPSG:25832 (UTM Zone 32N) — 1mm precision.
+    ///
     /// IMPORTANT: Hash/Equality Contract
     /// ---------------------------------
     /// With tolerance-based equality, we must ensure that if two points are "equal"
@@ -25,35 +27,10 @@ namespace DimensioneringV2.Geometry
         public const double Utm32N = 0.001;
 
         /// <summary>
-        /// Tolerance for comparing coordinates in EPSG:3857 (Web Mercator).
-        /// Units: pseudo-meters. 1cm precision accounts for reprojection drift.
-        /// Based on observed ~7mm drift during EPSG:25832 → EPSG:3857 transformation.
-        /// </summary>
-        public const double WebMercator = 0.01;
-
-        /// <summary>
-        /// Default/fallback tolerance. Safe for most coordinate systems.
-        /// </summary>
-        public const double Default = 0.01;
-
-        /// <summary>
         /// Current active tolerance used by Point2D.Equals() and GetHashCode().
-        /// Set this before building graphs based on the coordinate system in use.
+        /// Always UTM32N since the application operates exclusively in EPSG:25832.
         /// </summary>
-        public static double Current { get; set; } = WebMercator;
-
-        /// <summary>
-        /// Sets the tolerance for a specific EPSG code.
-        /// </summary>
-        public static void SetForEpsg(string epsg)
-        {
-            Current = epsg switch
-            {
-                "EPSG:25832" => Utm32N,
-                "EPSG:3857" => WebMercator,
-                _ => Default
-            };
-        }
+        public static double Current { get; } = Utm32N;
 
         /// <summary>
         /// Gets the hash bucket index for a coordinate value.
@@ -62,7 +39,6 @@ namespace DimensioneringV2.Geometry
         /// </summary>
         internal static long GetBucket(double value)
         {
-            // Floor division to get bucket index
             return (long)Math.Floor(value / Current);
         }
 
@@ -73,13 +49,11 @@ namespace DimensioneringV2.Geometry
         /// </summary>
         internal static int ComputeHashCode(double x, double y)
         {
-            // Use floor division to get bucket indices
             long xBucket = GetBucket(x);
             long yBucket = GetBucket(y);
 
             unchecked
             {
-                // Standard hash combination
                 int hash = 17;
                 hash = hash * 23 + xBucket.GetHashCode();
                 hash = hash * 23 + yBucket.GetHashCode();

@@ -24,35 +24,17 @@ namespace DimensioneringV2.GraphFeatures
         public AnalysisFeature() : base() { }
 
         /// <summary>
-        /// This constructor is used to create a new AnalysisFeature from an existing one.
-        /// This is used in the ReProjectFeatures method in the ProjectionService class.
-        /// Mapsui internally copyies the original feature by activating a new instance
-        /// of the feature and using this constructor.
-        /// So this constructor needs to copy all the values from the original feature.
+        /// Copy constructor. Used by Mapsui internally when copying features.
         /// </summary>
         public AnalysisFeature(AnalysisFeature analysisFeature) : base(analysisFeature)
         {
             foreach (var field in analysisFeature.Fields) this[field] = analysisFeature[field];
-            this.Geometry25832 = analysisFeature.Geometry25832;
             this.Elevations = new ElevationProfileCache(this, Geometry25832);
         }
         public AnalysisFeature(
             LineString geometry25832,
             Dictionary<string, object> attributes) : base(geometry25832)
         {
-            Geometry25832 = (LineString)geometry25832.Copy();
-            foreach (var attribute in attributes)
-            {
-                this[attribute.Key] = attribute.Value;
-            }
-            Elevations = new ElevationProfileCache(this, Geometry25832);
-        }
-        internal AnalysisFeature(
-            NetTopologySuite.Geometries.Geometry displayGeometry,
-            LineString geometry25832,
-            Dictionary<string, object> attributes) : base(displayGeometry)
-        {
-            Geometry25832 = geometry25832;
             foreach (var attribute in attributes)
             {
                 this[attribute.Key] = attribute.Value;
@@ -62,7 +44,11 @@ namespace DimensioneringV2.GraphFeatures
         #endregion
 
         #region Spatial data storage
-        public LineString Geometry25832 { get; }
+        /// <summary>
+        /// The geometry in EPSG:25832 (UTM32N). Since the map now operates
+        /// natively in 25832, this is the same as the base Geometry property.
+        /// </summary>
+        public LineString Geometry25832 => (LineString)Geometry!;
         internal ElevationProfileCache Elevations { get; }
         #endregion
 

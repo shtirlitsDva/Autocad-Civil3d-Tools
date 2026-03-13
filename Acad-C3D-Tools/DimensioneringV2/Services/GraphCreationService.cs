@@ -195,11 +195,7 @@ namespace DimensioneringV2.Services
                 {
                     if (kvp.Value.Count > 1)
                     {
-                        IEnumerable<AnalysisFeature> reprojected = 
-                            ProjectionService.ReProjectFeatures(
-                                kvp.Value.Select(x => x.PipeSegment), "EPSG:3857", "EPSG:25832");
-
-                        MarkParallelEdges.Mark(reprojected);
+                        MarkParallelEdges.Mark(kvp.Value.Select(x => x.PipeSegment));
 
                         throw new Exception("DBG: Parallel edges detected! This is not allowed!");
                     }

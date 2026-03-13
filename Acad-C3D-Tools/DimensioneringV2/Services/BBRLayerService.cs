@@ -5,9 +5,6 @@ using DimensioneringV2.GraphFeatures;
 using IntersectUtilities;
 using IntersectUtilities.UtilsCommon;
 
-using Mapsui.Extensions;
-using Mapsui.Extensions.Projections;
-
 using NetTopologySuite.Geometries;
 
 using System;
@@ -64,8 +61,8 @@ namespace DimensioneringV2.Services
                 }
             }
 
-            ActiveFeatures = ReprojectFeatures(activeList);
-            InactiveFeatures = ReprojectFeatures(inactiveList);
+            ActiveFeatures = activeList;
+            InactiveFeatures = inactiveList;
 
             BBRDataLoaded?.Invoke(this, EventArgs.Empty);
         }
@@ -101,9 +98,9 @@ namespace DimensioneringV2.Services
 
         /// <summary>
         /// Restores BBR features from saved HydraulicNetwork data.
-        /// Features must be in EPSG:25832 (original coordinates).
+        /// Features are in EPSG:25832 (original coordinates).
         /// Re-categorizes active/inactive based on current settings,
-        /// reprojects to EPSG:3857, then fires BBRDataLoaded.
+        /// then fires BBRDataLoaded.
         /// </summary>
         public void RestoreFeatures(IReadOnlyList<BBRMapFeature> features)
         {
@@ -126,18 +123,10 @@ namespace DimensioneringV2.Services
                     inactiveList.Add(feature);
             }
 
-            ActiveFeatures = ReprojectFeatures(activeList);
-            InactiveFeatures = ReprojectFeatures(inactiveList);
+            ActiveFeatures = activeList;
+            InactiveFeatures = inactiveList;
 
             BBRDataLoaded?.Invoke(this, EventArgs.Empty);
-        }
-
-        private static IEnumerable<BBRMapFeature> ReprojectFeatures(IEnumerable<BBRMapFeature> features)
-        {
-            return features
-                .Cast<Mapsui.IFeature>()
-                .Project("EPSG:25832", "EPSG:3857", new DotSpatialProjection())
-                .Cast<BBRMapFeature>();
         }
     }
 }

@@ -2,8 +2,9 @@ namespace DimensioneringV2.Services
 {
     public enum BaseMapType
     {
-        OpenStreetMap,
-        Dark,
+        Skaermkort,
+        SkaermkortDaempet,
+        SkaermkortDark,
         Ortofoto,
         Hybrid,
         Off

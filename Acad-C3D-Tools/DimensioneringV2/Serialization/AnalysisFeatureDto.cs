@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -18,7 +18,15 @@ namespace DimensioneringV2.Serialization
 {
     internal class AnalysisFeatureDto
     {
+        /// <summary>
+        /// Legacy: was EPSG:3857 display coordinates. Kept for backward-compat reads.
+        /// New files write Geometry25832 only; Coordinates may be null on new saves.
+        /// </summary>
         public double[][] Coordinates { get; set; }
+
+        /// <summary>
+        /// The authoritative geometry in EPSG:25832.
+        /// </summary>
         public double[][] Geometry25832 { get; set; }
 
         public Dictionary<string, JsonElement> Attributes { get; set; }
@@ -30,11 +38,8 @@ namespace DimensioneringV2.Serialization
             if (analysisFeature.Geometry is not LineString line)
                 throw new ArgumentException("Expected LineString geometry");
 
-            Coordinates = line.Coordinates
-                .Select(c => new[] { c.X, c.Y })
-                .ToArray();
-
-            Geometry25832 = analysisFeature.Geometry25832.Coordinates
+            // Write only the 25832 geometry; omit the legacy 3857 coordinates
+            Geometry25832 = line.Coordinates
                 .Select(c => new[] { c.X, c.Y })
                 .ToArray();
 
@@ -49,12 +54,16 @@ namespace DimensioneringV2.Serialization
 
         public AnalysisFeature ToAnalysisFeature(JsonSerializerOptions? options = null)
         {
-            var geometry = new LineString(Coordinates.Select(c => new Coordinate(c[0], c[1])).ToArray());
-            LineString geometry25832 = new LineString(
-                Geometry25832.Select(c => new Coordinate(c[0], c[1])).ToArray());
+            // Prefer Geometry25832 (authoritative); fall back to legacy Coordinates for old files
+            var coords = Geometry25832 ?? Coordinates
+                ?? throw new InvalidOperationException("No geometry found in DTO");
+
+            var geometry = new LineString(
+                coords.Select(c => new Coordinate(c[0], c[1])).ToArray());
+
             var typedAttributes = DictionaryObjectConverter.ConvertAttributesToTyped(
                 Attributes, typeof(AnalysisFeature), options);
-            return new AnalysisFeature(geometry, geometry25832, typedAttributes);
+            return new AnalysisFeature(geometry, typedAttributes);
         }
 
         private static bool IsDefault(object? value) => value switch
