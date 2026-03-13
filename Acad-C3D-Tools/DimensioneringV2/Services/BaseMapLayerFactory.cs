@@ -12,10 +12,6 @@ namespace DimensioneringV2.Services
         public const string BaseMapLayerName = "BaseMap";
         public const string BaseMapLabelsLayerName = "BaseMap_Labels";
 
-        // TODO: Move credentials to configuration / settings file
-        private const string DatafordelerUsername = "XXXXXX";
-        private const string DatafordelerPassword = "YYYYYY";
-
         private static readonly Color OsmBackColor = Color.White;
         private static readonly Color DarkBackColor = Color.Black;
 
@@ -40,12 +36,21 @@ namespace DimensioneringV2.Services
                     break;
 
                 case BaseMapType.Ortofoto:
-                    map.Layers.Insert(0, CreateOrtofotoLayer());
+                    var ortoLayer = CreateOrtofotoLayer();
+                    map.Layers.Insert(0, ortoLayer ?? CreateCartoDarkLayer());
                     break;
 
                 case BaseMapType.Hybrid:
-                    map.Layers.Insert(0, CreateOrtofotoLayer());
-                    map.Layers.Insert(1, CreateCartoLabelsLayer());
+                    var hybridOrto = CreateOrtofotoLayer();
+                    if (hybridOrto != null)
+                    {
+                        map.Layers.Insert(0, hybridOrto);
+                        map.Layers.Insert(1, CreateCartoLabelsLayer());
+                    }
+                    else
+                    {
+                        map.Layers.Insert(0, CreateCartoDarkLayer());
+                    }
                     break;
 
                 case BaseMapType.Off:
@@ -74,26 +79,43 @@ namespace DimensioneringV2.Services
             return new TileLayer(source) { Name = BaseMapLayerName };
         }
 
-        private static TileLayer CreateOrtofotoLayer()
+        private static TileLayer? CreateOrtofotoLayer()
         {
-            var url =
-                "https://services.datafordeler.dk/GeoDanmarkOrto/orto_foraar_webm/1.0.0/WMTS"
-                + $"?username={DatafordelerUsername}&password={DatafordelerPassword}"
-                + "&SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0"
-                + "&STYLE=default&FORMAT=image/jpeg"
-                + "&TILEMATRIXSET=DFD_GoogleMapsCompatible"
-                + "&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}"
-                + "&Layer=orto_foraar_webm";
+            try
+            {
+                string apiKey = IntersectUtilities.UtilsCommon.Infrastructure.DATAFORDELER_APIKEY;
 
-            var source = new HttpTileSource(
-                new GlobalSphericalMercator(),
-                url,
-                name: "Datafordeler Ortofoto",
-                attribution: new BruTile.Attribution(
-                    "© SDFI / Datafordeler",
-                    "https://datafordeler.dk"));
+                if (string.IsNullOrWhiteSpace(apiKey))
+                {
+                    DimensioneringV2.Utils.prtDbg(
+                        "Ortofoto unavailable: DATAFORDELER_APIKEY not configured in Infra.json");
+                    return null;
+                }
 
-            return new TileLayer(source) { Name = BaseMapLayerName };
+                var url =
+                    "https://wmts.datafordeler.dk/GeoDanmarkOrto/orto_foraar_webm/1.0.0/WMTS"
+                    + $"?apikey={apiKey}"
+                    + "&SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0"
+                    + "&STYLE=default&FORMAT=image/jpeg"
+                    + "&TILEMATRIXSET=DFD_GoogleMapsCompatible"
+                    + "&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}"
+                    + "&Layer=orto_foraar_webm";
+
+                var source = new HttpTileSource(
+                    new GlobalSphericalMercator(),
+                    url,
+                    name: "Datafordeler Ortofoto",
+                    attribution: new BruTile.Attribution(
+                        "© SDFI / Datafordeler",
+                        "https://datafordeler.dk"));
+
+                return new TileLayer(source) { Name = BaseMapLayerName };
+            }
+            catch (System.Exception ex)
+            {
+                DimensioneringV2.Utils.prtDbg($"Ortofoto layer creation failed: {ex.Message}");
+                return null;
+            }
         }
 
         private static TileLayer CreateCartoLabelsLayer()

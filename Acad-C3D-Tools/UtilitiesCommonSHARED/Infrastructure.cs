@@ -17,6 +17,7 @@ namespace IntersectUtilities.UtilsCommon
         public static string USER_NAME_SHORT => _lazy.Value.USER_NAME_SHORT;
         public static string PASSWORD => _lazy.Value.PASSWORD;
         public static string REALM => _lazy.Value.REALM;
+        public static string DATAFORDELER_APIKEY => _lazy.Value.DATAFORDELER_APIKEY;
 
         private static Infra Load()
         {
@@ -41,6 +42,7 @@ namespace IntersectUtilities.UtilsCommon
             public string USER_NAME_SHORT { get; set; } = string.Empty;
             public string PASSWORD { get; set; } = string.Empty;
             public string REALM { get; set; } = string.Empty;
+            public string DATAFORDELER_APIKEY { get; set; } = string.Empty;
         }
     }
 }
