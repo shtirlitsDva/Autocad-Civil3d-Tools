@@ -6,7 +6,6 @@ namespace DimensioneringV2.Services
         SkaermkortDaempet,
         SkaermkortDark,
         Ortofoto,
-        Hybrid,
         Off
     }
 }

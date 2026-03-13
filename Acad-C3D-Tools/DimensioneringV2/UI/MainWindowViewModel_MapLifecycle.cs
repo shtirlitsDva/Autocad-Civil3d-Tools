@@ -56,7 +56,6 @@ namespace DimensioneringV2.UI
             new BaseMapOption(BaseMapType.SkaermkortDaempet, "Skærmkort dæmpet"),
             new BaseMapOption(BaseMapType.SkaermkortDark, "Skærmkort dark"),
             new BaseMapOption(BaseMapType.Ortofoto, "Ortofoto"),
-            new BaseMapOption(BaseMapType.Hybrid, "Hybrid"),
             new BaseMapOption(BaseMapType.Off, "Off"),
         };
 

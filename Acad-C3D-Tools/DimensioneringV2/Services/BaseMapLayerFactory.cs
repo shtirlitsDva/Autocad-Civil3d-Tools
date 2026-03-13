@@ -18,7 +18,6 @@ namespace DimensioneringV2.Services
     internal static class BaseMapLayerFactory
     {
         public const string BaseMapLayerName = "BaseMap";
-        public const string BaseMapLabelsLayerName = "BaseMap_Labels";
 
         private static readonly Color WhiteBackColor = Color.White;
         private static readonly Color DarkBackColor = Color.Black;
@@ -60,23 +59,6 @@ namespace DimensioneringV2.Services
                     if (ortoLayer != null) map.Layers.Insert(0, ortoLayer);
                     break;
 
-                case BaseMapType.Hybrid:
-                    var hybridOrto = CreateOrtofotoLayer();
-                    var hybridLabels = CreateSkaermkortLayer(
-                        servicePath: "topo_skaermkort_daempet",
-                        layerName: "topo_skaermkort_daempet",
-                        transparencyKey: true);
-                    if (hybridOrto != null)
-                    {
-                        map.Layers.Insert(0, hybridOrto);
-                        if (hybridLabels != null)
-                        {
-                            hybridLabels.Name = BaseMapLabelsLayerName;
-                            map.Layers.Insert(1, hybridLabels);
-                        }
-                    }
-                    break;
-
                 case BaseMapType.Off:
                     break;
             }
@@ -84,8 +66,7 @@ namespace DimensioneringV2.Services
 
         public static void RemoveBaseMapLayers(Map map)
         {
-            map.Layers.Remove(
-                l => l.Name == BaseMapLayerName || l.Name == BaseMapLabelsLayerName);
+            map.Layers.Remove(l => l.Name == BaseMapLayerName);
         }
 
         #region Custom EPSG:25832 Tile Schema (View1 matrix)
@@ -122,8 +103,7 @@ namespace DimensioneringV2.Services
 
         #region Tile layer creation
         private static TileLayer? CreateSkaermkortLayer(
-            string servicePath, string layerName,
-            bool invertColors = false, bool transparencyKey = false)
+            string servicePath, string layerName, bool invertColors = false)
         {
             try
             {
@@ -154,13 +134,13 @@ namespace DimensioneringV2.Services
                         "© SDFI / Datafordeler",
                         "https://datafordeler.dk"));
 
-                ITileSource finalSource = innerSource;
                 if (invertColors)
-                    finalSource = new InvertingTileSource(innerSource);
-                else if (transparencyKey)
-                    finalSource = new TransparencyKeyingTileSource(innerSource);
+                {
+                    var invertedSource = new InvertingTileSource(innerSource);
+                    return new TileLayer(invertedSource) { Name = BaseMapLayerName };
+                }
 
-                return new TileLayer(finalSource) { Name = BaseMapLayerName };
+                return new TileLayer(innerSource) { Name = BaseMapLayerName };
             }
             catch (Exception ex)
             {
@@ -254,80 +234,6 @@ namespace DimensioneringV2.Services
                 using var image = SKImage.FromBitmap(bitmap);
                 using var encoded = image.Encode(SKEncodedImageFormat.Png, 90);
                 return encoded.ToArray();
-            }
-        }
-        #endregion
-
-        #region Transparency-keying tile source
-        /// <summary>
-        /// Wraps an ITileSource and removes background colors (white + greenish tint)
-        /// by setting their alpha to 0, producing a transparent overlay suitable for
-        /// compositing on top of ortofoto.
-        /// </summary>
-        private sealed class TransparencyKeyingTileSource : ITileSource
-        {
-            private readonly ITileSource _inner;
-
-            private static readonly SKColor KeyWhite = new(255, 255, 255);
-            private static readonly SKColor KeyGreenTint = new(235, 236, 228);
-
-            private const float Threshold = 30f;
-
-            public TransparencyKeyingTileSource(ITileSource inner) => _inner = inner;
-
-            public ITileSchema Schema => _inner.Schema;
-            public string Name => _inner.Name + " (keyed)";
-            public Attribution Attribution => _inner.Attribution;
-
-            public async Task<byte[]?> GetTileAsync(TileInfo tileInfo)
-            {
-                var data = await _inner.GetTileAsync(tileInfo);
-                if (data == null || data.Length == 0) return data;
-
-                return ApplyTransparencyKey(data);
-            }
-
-            private static byte[] ApplyTransparencyKey(byte[] tileData)
-            {
-                using var bitmap = SKBitmap.Decode(tileData);
-                if (bitmap == null) return tileData;
-
-                var pixels = bitmap.Pixels;
-                for (int i = 0; i < pixels.Length; i++)
-                {
-                    var c = pixels[i];
-                    float alpha = ComputeAlpha(c);
-                    if (alpha < 255f)
-                    {
-                        pixels[i] = new SKColor(
-                            c.Red, c.Green, c.Blue, (byte)alpha);
-                    }
-                }
-                bitmap.Pixels = pixels;
-
-                using var image = SKImage.FromBitmap(bitmap);
-                using var encoded = image.Encode(SKEncodedImageFormat.Png, 90);
-                return encoded.ToArray();
-            }
-
-            private static float ComputeAlpha(SKColor c)
-            {
-                float distWhite = ColorDistance(c, KeyWhite);
-                float distGreen = ColorDistance(c, KeyGreenTint);
-                float minDist = MathF.Min(distWhite, distGreen);
-
-                if (minDist >= Threshold) return 255f;
-
-                // Smooth falloff: fully transparent at center, linear ramp to opaque
-                return 255f * (minDist / Threshold);
-            }
-
-            private static float ColorDistance(SKColor a, SKColor b)
-            {
-                float dr = a.Red - b.Red;
-                float dg = a.Green - b.Green;
-                float db = a.Blue - b.Blue;
-                return MathF.Sqrt(dr * dr + dg * dg + db * db);
             }
         }
         #endregion
