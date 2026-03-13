@@ -139,6 +139,12 @@
 		</Reference>
 	</ItemGroup>
 	<ItemGroup>
+		<!-- Required by NorsynObjectsInterop.dll (C++/CLI mixed-mode assembly) -->
+		<None Include="X:\AutoCAD DRI - 01 Civil 3D\NetloadV2\2025\NorsynStorage\Ijwhost.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
+	<ItemGroup>
 		<Compile Include="..\IntersectUtilities\GroupByCluster.cs">
 			<Link>Links\GroupByCluster.cs</Link>
 		</Compile>
