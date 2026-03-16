@@ -20,7 +20,8 @@
                 <Button x:Name="btnLoadElevationData" Content="Load elevations" FontSize="11"
                         Style="{StaticResource SidebarButtonStyle}" Command="{Binding LoadElevationsCommand}"/>
                 <Button x:Name="btnCalcGAOpt" Content="Optmized GA"
-                        Style="{StaticResource SidebarButtonStyle}" Command="{Binding PerformCalculationsGAOptimizedCommand}"/>
+                        Style="{StaticResource SidebarButtonStyle}" Command="{Binding PerformCalculationsGAOptimizedCommand}"
+                        IsEnabled="{Binding IsGAOptimizedEnabled}"/>
                 <Button x:Name="btnPrice" Content="Calculate price"
                         Style="{StaticResource SidebarButtonStyle}" Command="{Binding PerformPriceCalc}"/>
                 <Button x:Name="btnForbrugere" Content="Forbrugere"

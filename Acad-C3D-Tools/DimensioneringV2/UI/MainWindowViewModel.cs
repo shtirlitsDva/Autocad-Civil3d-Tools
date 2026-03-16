@@ -41,6 +41,8 @@ namespace DimensioneringV2.UI
 
         private readonly HydraulicNetworkManager _manager;
 
+        public bool IsGAOptimizedEnabled => !HydraulicSettingsService.Instance.IsLocked;
+
         public MainWindowViewModel()
         {
             _selectedBaseMap = BaseMapOptions[0];
@@ -49,6 +51,12 @@ namespace DimensioneringV2.UI
             _manager.NetworkLoaded += OnDataLoaded;
             _manager.CalculationsFinished += OnCalculationsCompleted;
             _manager.ActiveNetworkChanged += OnActiveNetworkChanged;
+
+            HydraulicSettingsService.Instance.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName == nameof(HydraulicSettingsService.IsLocked))
+                    OnPropertyChanged(nameof(IsGAOptimizedEnabled));
+            };
 
             BBRLayerService.Instance.BBRDataLoaded += OnBBRDataLoaded;
 
