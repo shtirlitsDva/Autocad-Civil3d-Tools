@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 using DimensioneringV2.GraphFeatures;
 using DimensioneringV2.Models;
+using DimensioneringV2.Models.Nyttetimer;
 using DimensioneringV2.StateMachine;
 
 using EventManager;
@@ -95,6 +96,8 @@ internal partial class HydraulicNetworkManager : ObservableObject
         {
             SetSettingsLocked(true);
             ActiveNetwork!.Freeze(HydraulicSettingsService.Instance.Settings);
+            ActiveNetwork!.FrozenNyttetimerConfig = new NyttetimerConfigurationData(
+                NyttetimerService.Instance.CurrentConfiguration);
             ActiveNetworkChanged?.Invoke(this, EventArgs.Empty);
         });
 
@@ -162,6 +165,11 @@ internal partial class HydraulicNetworkManager : ObservableObject
         ActiveNetwork = hn;
         if (hn.FrozenSettings != null)
             HydraulicSettingsService.Instance.Settings.CopyFrom(hn.FrozenSettings);
+        if (hn.FrozenNyttetimerConfig != null)
+        {
+            var name = NyttetimerService.Instance.ReconcileImportedConfig(hn.FrozenNyttetimerConfig);
+            NyttetimerService.Instance.SelectConfiguration(name);
+        }
         SetSettingsLocked(true);
 
         // Fire NetworkLoaded (not CalculationsFinished) — loading a saved HN

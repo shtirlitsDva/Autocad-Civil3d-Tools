@@ -1,4 +1,5 @@
 using DimensioneringV2.GraphFeatures;
+using DimensioneringV2.Models.Nyttetimer;
 
 using QuikGraph;
 
@@ -27,6 +28,12 @@ internal class HydraulicNetwork
     public TimeSpan? CalculationDuration { get; private set; }
     public double TotalPrice { get; set; }
     public bool IsSaved { get; set; }
+
+    /// <summary>
+    /// Nyttetimer configuration snapshot taken at calculation time.
+    /// Null for legacy networks calculated before this feature.
+    /// </summary>
+    public NyttetimerConfigurationData? FrozenNyttetimerConfig { get; set; }
 
     /// <summary>
     /// BBR building features captured at graph-creation time.
@@ -92,12 +99,14 @@ internal class HydraulicNetwork
         TimeSpan? calculationDuration,
         double totalPrice,
         string? description = null,
-        List<BBRMapFeature>? bbrFeatures = null)
+        List<BBRMapFeature>? bbrFeatures = null,
+        NyttetimerConfigurationData? frozenNyttetimerConfig = null)
     {
         var hn = new HydraulicNetwork(graphs);
         hn.Id = id;
         hn.Description = description;
         hn.FrozenSettings = frozenSettings;
+        hn.FrozenNyttetimerConfig = frozenNyttetimerConfig;
         hn.CalculatedAt = calculatedAt;
         hn.CalculationDuration = calculationDuration;
         hn.TotalPrice = totalPrice;

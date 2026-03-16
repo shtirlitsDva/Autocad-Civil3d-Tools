@@ -1,5 +1,6 @@
 using DimensioneringV2.GraphFeatures;
 using DimensioneringV2.Models;
+using DimensioneringV2.Models.Nyttetimer;
 
 using NorsynHydraulicCalc;
 
@@ -21,6 +22,7 @@ internal class HydraulicNetworkDto
     public UndirectedGraph<NodeJunction, EdgePipeSegment>[] Graphs { get; set; }
     public string? Description { get; set; }
     public BbrFeatureDto[]? BbrFeatures { get; set; }
+    public NyttetimerConfigurationData? FrozenNyttetimerConfig { get; set; }
 
     public HydraulicNetworkDto() { }
 
@@ -40,6 +42,7 @@ internal class HydraulicNetworkDto
             OriginalX = f.OriginalX,
             OriginalY = f.OriginalY,
         }).ToArray();
+        FrozenNyttetimerConfig = hn.FrozenNyttetimerConfig;
     }
 
     public HydraulicNetwork ToHydraulicNetwork()
@@ -60,7 +63,8 @@ internal class HydraulicNetworkDto
                 : null,
             TotalPrice,
             Description,
-            bbrFeatures);
+            bbrFeatures,
+            FrozenNyttetimerConfig);
     }
 }
 

@@ -20,6 +20,7 @@ internal partial class HydraulicNetworkMsgDto
     [Key(5)] internal UndirectedGraphMsgDto[] Graphs { get; set; } = Array.Empty<UndirectedGraphMsgDto>();
     [Key(6)] internal string? Description { get; set; }
     [Key(7)] internal BBRMapFeatureMsgDto[]? BbrFeatures { get; set; }
+    [Key(8)] internal NyttetimerConfigurationMsgDto? FrozenNyttetimerConfig { get; set; }
 
     internal static HydraulicNetworkMsgDto FromDomain(HydraulicNetwork hn)
     {
@@ -37,6 +38,9 @@ internal partial class HydraulicNetworkMsgDto
                 .Select(UndirectedGraphMsgDto.FromDomain)
                 .ToArray(),
             BbrFeatures = hn.BbrFeatures?.Select(BBRMapFeatureMsgDto.FromDomain).ToArray(),
+            FrozenNyttetimerConfig = hn.FrozenNyttetimerConfig != null
+                ? NyttetimerConfigurationMsgDto.FromDomain(hn.FrozenNyttetimerConfig)
+                : null,
         };
     }
 
@@ -48,6 +52,7 @@ internal partial class HydraulicNetworkMsgDto
 
         var frozenSettings = FrozenSettings?.ToDomain();
         var bbrFeatures = BbrFeatures?.Select(b => b.ToDomain()).ToList();
+        var frozenNyttetimerConfig = FrozenNyttetimerConfig?.ToDomain();
 
         return HydraulicNetwork.Restore(
             Id,
@@ -59,6 +64,7 @@ internal partial class HydraulicNetworkMsgDto
                 : null,
             TotalPrice,
             Description,
-            bbrFeatures);
+            bbrFeatures,
+            frozenNyttetimerConfig);
     }
 }

@@ -342,6 +342,67 @@ namespace DimensioneringV2.Services
         }
 
         /// <summary>
+        /// Reconciles an imported/frozen Nyttetimer configuration with existing configs.
+        /// If a config with the same name exists and is equal, reuses it.
+        /// If different, renames the incoming with a suffix and adds it.
+        /// If not found, creates it from the incoming data.
+        /// Returns the final name of the configuration in AllConfigurations.
+        /// </summary>
+        public string ReconcileImportedConfig(NyttetimerConfigurationData incoming)
+        {
+            var existing = AllConfigurations.FirstOrDefault(c =>
+                c.Name.Equals(incoming.Name, StringComparison.OrdinalIgnoreCase));
+
+            if (existing == null)
+            {
+                var config = incoming.ToConfiguration(DefaultConfiguration);
+                AllConfigurations.Add(config);
+                return config.Name;
+            }
+
+            if (AreEqual(existing, incoming))
+                return existing.Name;
+
+            // Same name but different content — rename incoming
+            var uniqueName = Store.GetUniqueName(incoming.Name);
+            var renamed = new NyttetimerConfigurationData
+            {
+                Name = uniqueName,
+                Entries = incoming.Entries
+            };
+            var renamedConfig = renamed.ToConfiguration(DefaultConfiguration);
+            AllConfigurations.Add(renamedConfig);
+            return renamedConfig.Name;
+        }
+
+        private static bool AreEqual(NyttetimerConfiguration config, NyttetimerConfigurationData data)
+        {
+            if (config.Entries.Count != data.Entries.Count)
+                return false;
+
+            var configPairs = config.Entries
+                .OrderBy(e => e.AnvendelsesKode, StringComparer.OrdinalIgnoreCase)
+                .Select(e => (e.AnvendelsesKode, e.Nyttetimer))
+                .ToList();
+
+            var dataPairs = data.Entries
+                .OrderBy(e => e.AnvendelsesKode, StringComparer.OrdinalIgnoreCase)
+                .Select(e => (e.AnvendelsesKode, e.Nyttetimer))
+                .ToList();
+
+            for (int i = 0; i < configPairs.Count; i++)
+            {
+                if (!configPairs[i].AnvendelsesKode.Equals(
+                        dataPairs[i].AnvendelsesKode, StringComparison.OrdinalIgnoreCase))
+                    return false;
+                if (configPairs[i].Nyttetimer != dataPairs[i].Nyttetimer)
+                    return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
         /// Gets the Nyttetimer value for a given AnvendelsesKode from the current configuration.
         /// Returns the default value from HydraulicSettings if not found or code is empty.
         /// </summary>
