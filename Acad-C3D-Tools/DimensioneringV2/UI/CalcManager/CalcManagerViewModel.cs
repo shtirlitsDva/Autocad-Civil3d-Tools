@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
+using DimensioneringV2.MapCommands;
 using DimensioneringV2.Models;
 using DimensioneringV2.Services;
 
@@ -25,6 +26,9 @@ internal partial class CalcManagerViewModel : ObservableObject
         SaveCommand.NotifyCanExecuteChanged();
         DeleteCommand.NotifyCanExecuteChanged();
         BrowseSettingsCommand.NotifyCanExecuteChanged();
+        ExportCommand.NotifyCanExecuteChanged();
+        ExportDimsCommand.NotifyCanExecuteChanged();
+        WriteToDwgCommand.NotifyCanExecuteChanged();
     }
 
     public event EventHandler? CloseRequested;
@@ -33,6 +37,10 @@ internal partial class CalcManagerViewModel : ObservableObject
     public RelayCommand SaveCommand { get; }
     public RelayCommand DeleteCommand { get; }
     public RelayCommand BrowseSettingsCommand { get; }
+    public RelayCommand ExportCommand { get; }
+    public RelayCommand ImportCommand { get; }
+    public RelayCommand ExportDimsCommand { get; }
+    public RelayCommand WriteToDwgCommand { get; }
 
     public CalcManagerViewModel()
     {
@@ -40,6 +48,10 @@ internal partial class CalcManagerViewModel : ObservableObject
         SaveCommand = new RelayCommand(SaveSelected, () => SelectedNetwork != null);
         DeleteCommand = new RelayCommand(DeleteSelected, () => SelectedNetwork != null);
         BrowseSettingsCommand = new RelayCommand(BrowseSettings, () => SelectedNetwork != null);
+        ExportCommand = new RelayCommand(ExportSelected, () => SelectedNetwork != null);
+        ImportCommand = new RelayCommand(ImportFromFile);
+        ExportDimsCommand = new RelayCommand(ExportDims, () => SelectedNetwork != null);
+        WriteToDwgCommand = new RelayCommand(WriteToDwg, () => SelectedNetwork != null);
         Refresh();
 
         HydraulicNetworkManager.Instance.CalculationsFinished += OnCalculationsFinished;
@@ -128,5 +140,29 @@ internal partial class CalcManagerViewModel : ObservableObject
 
         var dialog = new SettingsBrowserDialog(frozen);
         dialog.ShowDialog();
+    }
+
+    private void ExportSelected()
+    {
+        if (SelectedNetwork == null) return;
+        new SaveResult().Execute(SelectedNetwork.Hn);
+    }
+
+    private void ImportFromFile()
+    {
+        new LoadResult().Execute();
+        Refresh();
+    }
+
+    private void ExportDims()
+    {
+        if (SelectedNetwork == null) return;
+        new Dim2ImportDims().Execute(SelectedNetwork.Hn.Graphs);
+    }
+
+    private void WriteToDwg()
+    {
+        if (SelectedNetwork == null) return;
+        new MapCommands.Write2Dwg().Execute(SelectedNetwork.Hn.Graphs);
     }
 }

@@ -30,15 +30,7 @@
                         Style="{StaticResource SidebarButtonStyle}" Command="{Binding PerformZoomToExtents}"/>
                 <Button x:Name="btnSyncAC" Content="Sync AC"
                         Style="{StaticResource SidebarButtonStyle}" Command="{Binding SyncACWindowCommand}"/>
-                <Button x:Name="btnWriteAC" Content="Export DIMS"
-                        Style="{StaticResource SidebarButtonStyle}" Command="{Binding Dim2ImportDimsCommand}"/>
-                <Button x:Name="btnSaveResult" Content="Save Result"
-                        Style="{StaticResource SidebarButtonStyle}" Command="{Binding SaveResultCommand}"/>
-                <Button x:Name="btnLoadResult" Content="Load Result"
-                        Style="{StaticResource SidebarButtonStyle}" Command="{Binding LoadResultCommand}"/>
-                <Button x:Name="btnWriteToDwg" Content="Write to DWG"
-                        Style="{StaticResource SidebarButtonStyle}" Command="{Binding WriteToDwgCommand}"/>
-                <Button x:Name="btnCreateVejklasserSchedule" Content="Stik og vejklasser" FontSize="10.5"
+<Button x:Name="btnCreateVejklasserSchedule" Content="Stik og vejklasser" FontSize="10.5"
                         Style="{StaticResource SidebarButtonStyle}" Command="{Binding WriteStikOgVejklasserCommand}"/>
                 <Button x:Name="btnAssignUserDefinedSize" Content="Angiv Dim"
                         Style="{StaticResource SidebarButtonStyle}" Command="{Binding AngivDimCommand}"/>

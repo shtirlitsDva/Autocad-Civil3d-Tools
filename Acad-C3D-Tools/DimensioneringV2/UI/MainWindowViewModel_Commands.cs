@@ -58,11 +58,7 @@ namespace DimensioneringV2.UI
         public AsyncRelayCommand PerformCalculationsGAOptimizedCommand => new(new CalculateGA().Execute);
         public RelayCommand PerformPriceCalc => new RelayCommand(() => new CalculatePrice().Execute(Features));
         public RelayCommand ShowForbrugereCommand => new RelayCommand(() => new ShowForbrugere().Execute(Features));
-        public RelayCommand Dim2ImportDimsCommand => new RelayCommand(() => new Dim2ImportDims().Execute());
-        public RelayCommand SaveResultCommand => new RelayCommand(() => new SaveResult().Execute());
-        public RelayCommand LoadResultCommand => new RelayCommand(() => new LoadResult().Execute());
-        public RelayCommand WriteToDwgCommand => new RelayCommand(() => new MapCommands.Write2Dwg().Execute());
-        public RelayCommand WriteStikOgVejklasserCommand => new RelayCommand(() => new WriteStikOgVejklasser().Execute());
+public RelayCommand WriteStikOgVejklasserCommand => new RelayCommand(() => new WriteStikOgVejklasser().Execute());
         public AsyncRelayCommand TestElevationsCommand => new AsyncRelayCommand(new TestElevations().Execute);
         public AsyncRelayCommand SampleGridCommand => new AsyncRelayCommand(new SampleGrid().Execute);
         public AsyncRelayCommand TestCacheCommand => new AsyncRelayCommand(new TestCache().Execute);

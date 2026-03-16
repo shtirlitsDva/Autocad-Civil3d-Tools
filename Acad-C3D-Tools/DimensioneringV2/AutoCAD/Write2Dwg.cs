@@ -66,6 +66,8 @@ namespace DimensioneringV2.AutoCAD
             string dimDbFilename = fileName;
 
             using Database dimDb = new Database(true, true);
+            dimDb.Insunits = UnitsValue.Meters;
+            dimDb.Measurement = MeasurementValue.Metric;
             Commands.dim2preparedwgmethod(dimDb);
 
             using Transaction dimTx = dimDb.TransactionManager.StartTransaction();

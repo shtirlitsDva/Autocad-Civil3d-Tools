@@ -39,18 +39,34 @@
             </DataGrid.Columns>
         </DataGrid>
 
-        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
-            <Button Content="Indlæs" Width="80" Margin="0,0,8,0"
-                    Style="{StaticResource PrimaryButtonStyle}"
-                    Command="{Binding LoadCommand}"/>
-            <Button Content="Gem" Width="80" Margin="0,0,8,0"
-                    Style="{StaticResource SecondaryButtonStyle}"
-                    Command="{Binding SaveCommand}"/>
-            <Button Content="Slet" Width="80" Margin="0,0,8,0"
-                    Style="{StaticResource SecondaryButtonStyle}"
-                    Command="{Binding DeleteCommand}"/>
-            <Button Content="Luk" Width="80" Click="CloseButton_Click"
-                    Style="{StaticResource SecondaryButtonStyle}"/>
-        </StackPanel>
+        <Grid Grid.Row="1" Margin="0,8,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                <Button Content="Importer" Padding="12,4" Margin="0,0,8,0"
+                        Style="{StaticResource SecondaryButtonStyle}"
+                        Command="{Binding ImportCommand}"/>
+                <Button Content="Eksporter" Padding="12,4" Margin="0,0,8,0"
+                        Style="{StaticResource SecondaryButtonStyle}"
+                        Command="{Binding ExportCommand}"/>
+                <Button Content="DIMS" Padding="12,4" Margin="0,0,8,0"
+                        Style="{StaticResource SecondaryButtonStyle}"
+                        Command="{Binding ExportDimsCommand}"/>
+                <Button Content="Til DWG" Padding="12,4" Margin="0,0,8,0"
+                        Style="{StaticResource SecondaryButtonStyle}"
+                        Command="{Binding WriteToDwgCommand}"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="Indlæs" Padding="12,4" Margin="0,0,8,0"
+                        Style="{StaticResource PrimaryButtonStyle}"
+                        Command="{Binding LoadCommand}"/>
+                <Button Content="Gem" Padding="12,4" Margin="0,0,8,0"
+                        Style="{StaticResource SecondaryButtonStyle}"
+                        Command="{Binding SaveCommand}"/>
+                <Button Content="Slet" Padding="12,4" Margin="0,0,8,0"
+                        Style="{StaticResource SecondaryButtonStyle}"
+                        Command="{Binding DeleteCommand}"/>
+                <Button Content="Luk" Padding="12,4" Click="CloseButton_Click"
+                        Style="{StaticResource SecondaryButtonStyle}"/>
+            </StackPanel>
+        </Grid>
     </Grid>
 </Window>

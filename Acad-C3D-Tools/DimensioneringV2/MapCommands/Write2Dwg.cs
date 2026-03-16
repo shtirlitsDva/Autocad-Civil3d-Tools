@@ -1,8 +1,10 @@
 using DimensioneringV2.GraphFeatures;
-using DimensioneringV2.Services;
 using DimensioneringV2.UI;
 
 using DimensioneringV2.UI.Infrastructure;
+
+using QuikGraph;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,12 +13,10 @@ namespace DimensioneringV2.MapCommands
 {
     internal class Write2Dwg
     {
-        internal void Execute()
+        internal void Execute(List<UndirectedGraph<NodeJunction, EdgePipeSegment>> graphs)
         {
             try
             {
-                var graphs = HydraulicNetworkManager.Instance.Graphs;
-
                 IEnumerable<AnalysisFeature> features =
                     graphs.SelectMany(x => x.Edges.Select(e => e.PipeSegment));
 

@@ -1,5 +1,5 @@
-﻿using DimensioneringV2.Serialization;
-using DimensioneringV2.Services;
+﻿using DimensioneringV2.Models;
+using DimensioneringV2.Serialization;
 
 using Microsoft.Win32;
 
@@ -30,12 +30,10 @@ namespace DimensioneringV2.MapCommands
             return options;
         }
 
-        internal void Execute()
+        internal void Execute(HydraulicNetwork hn)
         {
             try
             {
-                var hn = HydraulicNetworkManager.Instance.ActiveNetwork;
-                if (hn == null) return;
 
                 SaveFileDialog saveFileDialog = new SaveFileDialog
                 {

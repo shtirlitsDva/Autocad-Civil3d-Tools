@@ -70,6 +70,7 @@ namespace DimensioneringV2.MapCommands
                     var dto = JsonSerializer.Deserialize<HydraulicNetworkDto>(json, s_options);
                     if (dto == null) throw new Exception("Deserialization failed.");
                     hn = dto.ToHydraulicNetwork();
+                    hn.IsSaved = false;
                 }
                 else
                 {
@@ -77,13 +78,9 @@ namespace DimensioneringV2.MapCommands
                         UndirectedGraph<NodeJunction, EdgePipeSegment>[]>(json, s_options);
                     if (graphs == null) throw new Exception("Deserialization failed.");
                     hn = new HydraulicNetwork(graphs.ToList());
-                    MessageBox.Show(
-                        "Filen er gemt uden indstillinger.\nNuværende indstillinger bruges.",
-                        "Legacy format",
-                        MessageBoxButton.OK, MessageBoxImage.Information);
                 }
 
-                HydraulicNetworkManager.Instance.LoadHn(hn);
+                HydraulicNetworkManager.Instance.AddNetwork(hn);
                 Utils.prtDbg($"Results loaded from {fileName}");
             }
             catch (Exception ex)

@@ -218,6 +218,15 @@ internal partial class HydraulicNetworkManager : ObservableObject
         OnPropertyChanged(nameof(CurrentState));
     }
 
+    public void AddNetwork(HydraulicNetwork hn)
+    {
+        var docState = _docStore.GetOrCreate(_currentDocKey);
+        if (hn.Id == null) hn.Id = docState.Counter.Next();
+        if (!docState.CalculatedNetworks.Contains(hn))
+            docState.CalculatedNetworks.Add(hn);
+        CalculationsFinished?.Invoke(this, EventArgs.Empty);
+    }
+
     public List<HydraulicNetwork> GetCalculatedNetworks()
         => _docStore.GetOrCreate(_currentDocKey).CalculatedNetworks;
 
