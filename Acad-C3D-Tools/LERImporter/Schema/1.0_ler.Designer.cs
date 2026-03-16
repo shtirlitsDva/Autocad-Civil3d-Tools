@@ -200,6 +200,8 @@ namespace LERImporter.Schema
         fordelerbygvaerk,
         [XmlEnumAttribute("other: maalerbygvaerk")]
         maalerbygvaerk,
+        [XmlEnumAttribute("other: larAnlæg")]
+        laranlaeg,
         [XmlEnumAttribute("other: ukendt")]
         ukendt
     }
