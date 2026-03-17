@@ -15,6 +15,7 @@ internal partial class NodeJunctionMsgDto
     [Key(4)] internal int Degree { get; set; }
     [Key(5)] internal int STP_Node { get; set; }
     [Key(6)] internal string Name { get; set; } = "";
+    [Key(7)] internal int NodeId { get; set; } = -1;
 
     internal static NodeJunctionMsgDto FromDomain(NodeJunction nj) => new()
     {
@@ -25,6 +26,7 @@ internal partial class NodeJunctionMsgDto
         Degree = nj.Degree,
         STP_Node = nj.STP_Node,
         Name = nj.Name,
+        NodeId = nj.NodeId,
     };
 
     internal NodeJunction ToDomain()
@@ -36,6 +38,7 @@ internal partial class NodeJunctionMsgDto
             Degree = Degree,
             STP_Node = STP_Node,
             Name = Name,
+            NodeId = NodeId,
         };
     }
 }

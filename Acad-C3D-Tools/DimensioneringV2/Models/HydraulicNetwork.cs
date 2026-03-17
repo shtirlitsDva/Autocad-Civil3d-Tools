@@ -1,5 +1,7 @@
 using DimensioneringV2.GraphFeatures;
 using DimensioneringV2.Models.Nyttetimer;
+using DimensioneringV2.Models.Report;
+using DimensioneringV2.Services.Report;
 
 using QuikGraph;
 
@@ -42,6 +44,12 @@ internal class HydraulicNetwork
     /// </summary>
     public List<BBRMapFeature>? BbrFeatures { get; set; }
 
+    /// <summary>
+    /// Per-HN report metadata (cover page, design pressure, version history).
+    /// Null until user first configures report settings for this network.
+    /// </summary>
+    public ReportHnSettings? ReportSettings { get; set; }
+
     public IEnumerable<AnalysisFeature> AllFeatures =>
         Graphs.SelectMany(g => g.Edges.Select(e => e.PipeSegment));
 
@@ -62,6 +70,7 @@ internal class HydraulicNetwork
         CalculatedAt = DateTime.Now;
         CalculationDuration = duration;
         RecalculatePrice();
+        NodeNumberingService.AssignNodeIds(this);
     }
 
     private static void DeepCopyPipeConfigs(HydraulicSettings target)
@@ -100,7 +109,8 @@ internal class HydraulicNetwork
         double totalPrice,
         string? description = null,
         List<BBRMapFeature>? bbrFeatures = null,
-        NyttetimerConfigurationData? frozenNyttetimerConfig = null)
+        NyttetimerConfigurationData? frozenNyttetimerConfig = null,
+        ReportHnSettings? reportSettings = null)
     {
         var hn = new HydraulicNetwork(graphs);
         hn.Id = id;
@@ -111,6 +121,7 @@ internal class HydraulicNetwork
         hn.CalculationDuration = calculationDuration;
         hn.TotalPrice = totalPrice;
         hn.BbrFeatures = bbrFeatures;
+        hn.ReportSettings = reportSettings;
         hn.IsSaved = true;
         return hn;
     }

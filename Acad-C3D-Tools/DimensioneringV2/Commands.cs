@@ -73,6 +73,7 @@ namespace DimensioneringV2
             try
             {
                 MessagePackSetup.Configure();
+                QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
                 Events = new AcadEventManager();
                 
                 doc.Editor.WriteMessage("\n╰(*°▽°*)╯ Velkommen til Dimensionering v2.0! ƪ(˘⌣˘)ʃ\n");
@@ -94,6 +95,7 @@ namespace DimensioneringV2
             GASettingsService.Reset();
             GraphSettingsService.Reset();
             NyttetimerService.Reset();
+            Services.Report.ReportProfileService.Reset();
 
             if (PaletteSetCache.paletteSet != null)
             {

@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.Input;
 using DimensioneringV2.MapCommands;
 using DimensioneringV2.Models;
 using DimensioneringV2.Services;
+using DimensioneringV2.Services.Report;
 
 using System;
 using System.Collections.ObjectModel;
@@ -29,6 +30,7 @@ internal partial class CalcManagerViewModel : ObservableObject
         ExportCommand.NotifyCanExecuteChanged();
         ExportDimsCommand.NotifyCanExecuteChanged();
         WriteToDwgCommand.NotifyCanExecuteChanged();
+        GenerateReportCommand.NotifyCanExecuteChanged();
     }
 
     public event EventHandler? CloseRequested;
@@ -41,6 +43,7 @@ internal partial class CalcManagerViewModel : ObservableObject
     public RelayCommand ImportCommand { get; }
     public RelayCommand ExportDimsCommand { get; }
     public RelayCommand WriteToDwgCommand { get; }
+    public RelayCommand GenerateReportCommand { get; }
 
     public CalcManagerViewModel()
     {
@@ -52,6 +55,7 @@ internal partial class CalcManagerViewModel : ObservableObject
         ImportCommand = new RelayCommand(ImportFromFile);
         ExportDimsCommand = new RelayCommand(ExportDims, () => SelectedNetwork != null);
         WriteToDwgCommand = new RelayCommand(WriteToDwg, () => SelectedNetwork != null);
+        GenerateReportCommand = new RelayCommand(GenerateReport, () => SelectedNetwork != null);
         Refresh();
 
         HydraulicNetworkManager.Instance.CalculationsFinished += OnCalculationsFinished;
@@ -164,5 +168,27 @@ internal partial class CalcManagerViewModel : ObservableObject
     {
         if (SelectedNetwork == null) return;
         new MapCommands.Write2Dwg().Execute(SelectedNetwork.Hn.Graphs);
+    }
+
+    private void GenerateReport()
+    {
+        if (SelectedNetwork == null) return;
+
+        var hn = SelectedNetwork.Hn;
+
+        // Ensure report profiles are loaded
+        ReportProfileService.Instance.LoadFromActiveDocument();
+        var profile = ReportProfileService.Instance.CurrentProfile;
+
+        // If HN has no report settings yet, create default ones
+        if (hn.ReportSettings == null)
+        {
+            hn.ReportSettings = new Models.Report.ReportHnSettings
+            {
+                Author = Environment.UserName,
+            };
+        }
+
+        ReportOrchestrator.Generate(hn, profile);
     }
 }

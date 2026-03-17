@@ -1,4 +1,5 @@
 using DimensioneringV2.Models;
+using DimensioneringV2.Models.Report;
 
 using MessagePack;
 
@@ -21,6 +22,7 @@ internal partial class HydraulicNetworkMsgDto
     [Key(6)] internal string? Description { get; set; }
     [Key(7)] internal BBRMapFeatureMsgDto[]? BbrFeatures { get; set; }
     [Key(8)] internal NyttetimerConfigurationMsgDto? FrozenNyttetimerConfig { get; set; }
+    [Key(9)] internal ReportHnSettingsMsgDto? ReportSettings { get; set; }
 
     internal static HydraulicNetworkMsgDto FromDomain(HydraulicNetwork hn)
     {
@@ -41,6 +43,9 @@ internal partial class HydraulicNetworkMsgDto
             FrozenNyttetimerConfig = hn.FrozenNyttetimerConfig != null
                 ? NyttetimerConfigurationMsgDto.FromDomain(hn.FrozenNyttetimerConfig)
                 : null,
+            ReportSettings = hn.ReportSettings != null
+                ? ReportHnSettingsMsgDto.FromDomain(hn.ReportSettings)
+                : null,
         };
     }
 
@@ -53,6 +58,7 @@ internal partial class HydraulicNetworkMsgDto
         var frozenSettings = FrozenSettings?.ToDomain();
         var bbrFeatures = BbrFeatures?.Select(b => b.ToDomain()).ToList();
         var frozenNyttetimerConfig = FrozenNyttetimerConfig?.ToDomain();
+        var reportSettings = ReportSettings?.ToDomain();
 
         return HydraulicNetwork.Restore(
             Id,
@@ -65,6 +71,7 @@ internal partial class HydraulicNetworkMsgDto
             TotalPrice,
             Description,
             bbrFeatures,
-            frozenNyttetimerConfig);
+            frozenNyttetimerConfig,
+            reportSettings);
     }
 }
