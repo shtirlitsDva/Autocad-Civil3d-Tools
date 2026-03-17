@@ -78,12 +78,12 @@ internal class SummaryModule : IReportModule
         string flPipeTypes = GetDistinctPipeTypes(ctx, NorsynHydraulicCalc.SegmentType.Fordelingsledning);
         string slPipeTypes = GetDistinctPipeTypes(ctx, NorsynHydraulicCalc.SegmentType.Stikledning);
 
-        var rows = new List<(string Label, string Value)>
+        var rows = new List<(string Label, string Value, string Unit)>
         {
-            ("Designtemperatur [°C]", $"{s.TempFrem:F0} / {s.TempFrem - s.AfkølingVarme:F0}"),
-            ("Designtryk [bar]", dp.HasValue ? $"{dp.Value:F1}" : "-"),
-            ("Rørtyper (fordelingsledninger)", flPipeTypes),
-            ("Rørtyper (stikledninger)", slPipeTypes),
+            ("Designtemperatur", $"{s.TempFrem:F0} / {s.TempFrem - s.AfkølingVarme:F0}", "°C"),
+            ("Designtryk", dp.HasValue ? $"{dp.Value:F1}" : "-", "bar"),
+            ("Rørtyper (fordelingsledninger)", flPipeTypes, ""),
+            ("Rørtyper (stikledninger)", slPipeTypes, ""),
         };
 
         RenderKeyValueTable(container, rows);
@@ -93,14 +93,14 @@ internal class SummaryModule : IReportModule
     {
         var s = ctx.Settings;
 
-        var rows = new List<(string Label, string Value)>
+        var rows = new List<(string Label, string Value, string Unit)>
         {
-            ("Fremløbstemperatur [°C]", $"{s.TempFrem:F0}"),
-            ("Afkøling varme ΔT [K]", $"{s.AfkølingVarme:F0}"),
-            ("Afkøling brugsvand ΔT [K]", $"{s.AfkølingBrugsvand:F0}"),
-            ("Maks. tilladt tryktab i stikledning [bar]", $"{s.MaxPressureLossStikSL:F2}"),
-            ("Min. differenstryk over hovedhaner [bar]",
-                $"{s.MinDifferentialPressureOverHovedHaner:F2}"),
+            ("Fremløbstemperatur", $"{s.TempFrem:F0}", "°C"),
+            ("Afkøling varme ΔT", $"{s.AfkølingVarme:F0}", "K"),
+            ("Afkøling brugsvand ΔT", $"{s.AfkølingBrugsvand:F0}", "K"),
+            ("Maks. tilladt tryktab i stikledning", $"{s.MaxPressureLossStikSL:F2}", "bar"),
+            ("Min. differenstryk over hovedhaner",
+                $"{s.MinDifferentialPressureOverHovedHaner:F2}", "bar"),
         };
 
         RenderKeyValueTable(container, rows);
@@ -110,19 +110,19 @@ internal class SummaryModule : IReportModule
     {
         var sum = ctx.Summary;
 
-        var rows = new List<(string Label, string Value)>
+        var rows = new List<(string Label, string Value, string Unit)>
         {
-            ("Samlet antal forbrugere [stk]", $"{sum.TotalBuildings:N0}"),
-            ("Samlet antal boliger [stk]", $"{sum.TotalUnits:N0}"),
-            ("Samlet varmebehov [MWh]", $"{sum.TotalHeatingDemandMwh:N1}"),
-            ("Samlet effektbehov [MW]", $"{sum.TotalPowerDemandMw:N3}"),
-            ("Samlet volumen flow [m³/h]", $"{sum.TotalFlowM3H:N2}"),
-            ("Samlet tryktab til kritisk forbruger [bar]",
-                $"{sum.CriticalPathPressureLossBar:N3}"),
-            ("Samlet distributionslednings længde [m]",
-                $"{sum.DistributionLineLengthM:N1}"),
-            ("Samlet stiklednings længde [m]", $"{sum.ServiceLineLengthM:N1}"),
-            ("Samlet pris [kr]", $"{sum.TotalPriceDkk:N0}"),
+            ("Samlet antal bygninger", $"{sum.TotalBuildings:N0}", "stk"),
+            ("Samlet antal enheder", $"{sum.TotalUnits:N0}", "stk"),
+            ("Samlet varmebehov", $"{sum.TotalHeatingDemandMwh:N1}", "MWh"),
+            ("Samlet effektbehov", $"{sum.TotalPowerDemandMw:N3}", "MW"),
+            ("Samlet volumen flow", $"{sum.TotalFlowM3H:N2}", "m³/h"),
+            ("Samlet tryktab til kritisk forbruger",
+                $"{sum.CriticalPathPressureLossBar:N3}", "bar"),
+            ("Samlet distributionslednings længde",
+                $"{sum.DistributionLineLengthM:N1}", "m"),
+            ("Samlet stiklednings længde", $"{sum.ServiceLineLengthM:N1}", "m"),
+            ("Samlet pris", $"{sum.TotalPriceDkk:N0}", "kr"),
         };
 
         RenderKeyValueTable(container, rows);
@@ -196,17 +196,18 @@ internal class SummaryModule : IReportModule
     }
 
     private static void RenderKeyValueTable(
-        IContainer container, List<(string Label, string Value)> rows)
+        IContainer container, List<(string Label, string Value, string Unit)> rows)
     {
         container.Table(table =>
         {
             table.ColumnsDefinition(columns =>
             {
-                columns.RelativeColumn(3);
+                columns.RelativeColumn(4);
                 columns.RelativeColumn(2);
+                columns.ConstantColumn(50);
             });
 
-            foreach (var (label, value) in rows)
+            foreach (var (label, value, unit) in rows)
             {
                 table.Cell()
                     .BorderBottom(0.5f).BorderColor(ReportStyles.ColorBorderLight)
@@ -218,6 +219,11 @@ internal class SummaryModule : IReportModule
                     .Padding(ReportStyles.TableCellPadding)
                     .AlignRight()
                     .Text(value).FontSize(ReportStyles.FontSizeBody);
+
+                table.Cell()
+                    .BorderBottom(0.5f).BorderColor(ReportStyles.ColorBorderLight)
+                    .PaddingLeft(6).PaddingVertical(ReportStyles.TableCellPadding)
+                    .Text(unit).FontSize(ReportStyles.FontSizeBody);
             }
         });
     }

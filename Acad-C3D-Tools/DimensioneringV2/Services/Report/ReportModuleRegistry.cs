@@ -16,7 +16,15 @@ internal static class ReportModuleRegistry
     {
         new CoverPageModule(),
         new SummaryModule(),
-        // Phase 4-5 modules will be added here as implemented
+        new ProjectBasisModule(),
+        new CalcPrerequisitesModule(),
+        new SupplyPointsModule(),
+        new SystemResultsModule(),
+        new SensitivityModule(),
+        new SegmentResultsModule(),
+        new NodeResultsModule(),
+        new ConsumerOverviewModule(),
+        new OverviewMapModule(),
     };
 
     public static IReadOnlyList<IReportModule> AllModules => _modules;
