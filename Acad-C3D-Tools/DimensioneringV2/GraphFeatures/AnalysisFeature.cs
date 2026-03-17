@@ -332,7 +332,7 @@ namespace DimensioneringV2.GraphFeatures
         [DisplayCategory(DisplayCategoryEnum.Tryktab)]
         public double PressureGradientSupply
         {
-            get => GetAttributeValue<double>(MapPropertyEnum.PressureGradientSupply) * pct;
+            get => GetAttributeValue<double>(MapPropertyEnum.PressureGradientSupply);// * pct;
             set => SetAttributeValue(MapPropertyEnum.PressureGradientSupply, value);
         }
         private double pct => 1.0 + (double)HydraulicSettingsService.Instance.Settings.ProcentTillægTilTryktab / 100;
@@ -347,7 +347,7 @@ namespace DimensioneringV2.GraphFeatures
         [DisplayCategory(DisplayCategoryEnum.Tryktab)]
         public double PressureGradientReturn
         {
-            get => GetAttributeValue<double>(MapPropertyEnum.PressureGradientReturn) * pct;
+            get => GetAttributeValue<double>(MapPropertyEnum.PressureGradientReturn);// * pct;
             set => SetAttributeValue(MapPropertyEnum.PressureGradientReturn, value);
         }
 
