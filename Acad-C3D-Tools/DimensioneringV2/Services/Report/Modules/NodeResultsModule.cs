@@ -1,11 +1,12 @@
+using DimensioneringV2.GraphFeatures;
 using DimensioneringV2.Models.Report;
-using DimensioneringV2.Services.Report.DataModels;
 using DimensioneringV2.Services.Report.Styles;
 
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 
+using System.Collections.Generic;
 using System.Linq;
 
 namespace DimensioneringV2.Services.Report.Modules;
@@ -22,6 +23,39 @@ internal class NodeResultsModule : IReportModule
 
     public void Compose(IDocumentContainer container, ReportDataContext context)
     {
+        // Collect unique nodes across all graphs
+        var seen = new HashSet<NodeJunction>();
+        var nodeData = new List<(NodeJunction Node, double Effekt, double PressureLoss, double DifferentialPressure)>();
+
+        foreach (var graph in context.Network.Graphs)
+        {
+            foreach (var node in graph.Vertices)
+            {
+                if (node.NodeId <= 0) continue;
+                if (!seen.Add(node)) continue;
+                if (!node.IsBuildingNode && !node.IsRootNode) continue;
+
+                double effekt = 0;
+                double pressureLoss = 0;
+                double differentialPressure = 0;
+
+                if (node.IsBuildingNode)
+                {
+                    foreach (var edge in graph.AdjacentEdges(node))
+                    {
+                        var f = edge.PipeSegment;
+                        pressureLoss = f.PressureLossAtClientSupply + f.PressureLossAtClientReturn;
+                        differentialPressure = f.DifferentialPressureAtClient;
+                        effekt = f.Effekt;
+                    }
+                }
+
+                nodeData.Add((node, effekt, pressureLoss, differentialPressure));
+            }
+        }
+
+        var sortedNodes = nodeData.OrderBy(n => n.Node.NodeId).ToList();
+
         container.Page(page =>
         {
             page.Size(ReportStyles.PageSizeA4);
@@ -63,13 +97,8 @@ internal class NodeResultsModule : IReportModule
                         .Text("Tilg. differenstryk [bar]").FontSize(ReportStyles.FontSizeSmall).SemiBold();
                 });
 
-                var filteredNodes = context.Nodes
-                    .Where(n => n.IsBuilding || n.IsRoot)
-                    .OrderBy(n => n.NodeId)
-                    .ToList();
-
                 bool alternate = false;
-                foreach (var node in filteredNodes)
+                foreach (var (node, effekt, pressureLoss, differentialPressure) in sortedNodes)
                 {
                     var bg = alternate ? ReportStyles.ColorAlternateRowBg : "#FFFFFF";
 
@@ -82,19 +111,19 @@ internal class NodeResultsModule : IReportModule
                         .BorderBottom(0.5f).BorderColor(ReportStyles.ColorBorderLight)
                         .Padding(ReportStyles.TableCellPadding)
                         .AlignRight()
-                        .Text($"{node.EffektKw:F2}").FontSize(ReportStyles.FontSizeSmall);
+                        .Text($"{effekt:F2}").FontSize(ReportStyles.FontSizeSmall);
 
                     table.Cell().Background(bg)
                         .BorderBottom(0.5f).BorderColor(ReportStyles.ColorBorderLight)
                         .Padding(ReportStyles.TableCellPadding)
                         .AlignRight()
-                        .Text($"{node.PressureLossToNodeBar:F3}").FontSize(ReportStyles.FontSizeSmall);
+                        .Text($"{pressureLoss:F3}").FontSize(ReportStyles.FontSizeSmall);
 
                     table.Cell().Background(bg)
                         .BorderBottom(0.5f).BorderColor(ReportStyles.ColorBorderLight)
                         .Padding(ReportStyles.TableCellPadding)
                         .AlignRight()
-                        .Text($"{node.AvailableDifferentialPressureBar:F3}").FontSize(ReportStyles.FontSizeSmall);
+                        .Text($"{differentialPressure:F3}").FontSize(ReportStyles.FontSizeSmall);
 
                     alternate = !alternate;
                 }

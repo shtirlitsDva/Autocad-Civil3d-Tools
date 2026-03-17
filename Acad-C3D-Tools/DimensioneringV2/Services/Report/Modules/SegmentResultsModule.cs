@@ -1,10 +1,11 @@
 using DimensioneringV2.Models.Report;
-using DimensioneringV2.Services.Report.DataModels;
 using DimensioneringV2.Services.Report.Styles;
 
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
+
+using System.Linq;
 
 namespace DimensioneringV2.Services.Report.Modules;
 
@@ -20,6 +21,13 @@ internal class SegmentResultsModule : IReportModule
 
     public void Compose(IDocumentContainer container, ReportDataContext context)
     {
+        var pipeTypes = context.Settings.GetPipeTypes();
+
+        var segments = context.Network.Graphs
+            .SelectMany(g => g.Edges)
+            .Where(e => e.PipeSegment.NumberOfBuildingsSupplied > 0)
+            .ToList();
+
         container.Page(page =>
         {
             // Use landscape for this wide table
@@ -81,54 +89,59 @@ internal class SegmentResultsModule : IReportModule
                 });
 
                 bool alternate = false;
-                foreach (var seg in context.Segments)
+                foreach (var edge in segments)
                 {
+                    var f = edge.PipeSegment;
+                    var srcId = edge.Source.NodeId >= 0 ? edge.Source.NodeId.ToString() : "?";
+                    var tgtId = edge.Target.NodeId >= 0 ? edge.Target.NodeId.ToString() : "?";
+                    var segmentId = $"{srcId}-{tgtId}";
+
                     var bg = alternate ? ReportStyles.ColorAlternateRowBg : "#FFFFFF";
 
                     table.Cell().Background(bg)
                         .BorderBottom(0.5f).BorderColor(ReportStyles.ColorBorderLight)
                         .Padding(ReportStyles.TableCellPadding)
-                        .Text(seg.SegmentId).FontSize(ReportStyles.FontSizeSmall);
+                        .Text(segmentId).FontSize(ReportStyles.FontSizeSmall);
 
                     table.Cell().Background(bg)
                         .BorderBottom(0.5f).BorderColor(ReportStyles.ColorBorderLight)
                         .Padding(ReportStyles.TableCellPadding)
                         .AlignRight()
-                        .Text($"{seg.LengthM:F1}").FontSize(ReportStyles.FontSizeSmall);
+                        .Text($"{f.Length:F1}").FontSize(ReportStyles.FontSizeSmall);
 
                     table.Cell().Background(bg)
                         .BorderBottom(0.5f).BorderColor(ReportStyles.ColorBorderLight)
                         .Padding(ReportStyles.TableCellPadding)
-                        .Text(seg.PipeType).FontSize(ReportStyles.FontSizeSmall);
+                        .Text(pipeTypes.GetPipeType(f.Dim.PipeType).ToString()).FontSize(ReportStyles.FontSizeSmall);
 
                     table.Cell().Background(bg)
                         .BorderBottom(0.5f).BorderColor(ReportStyles.ColorBorderLight)
                         .Padding(ReportStyles.TableCellPadding)
-                        .Text(seg.DimensionName).FontSize(ReportStyles.FontSizeSmall);
-
-                    table.Cell().Background(bg)
-                        .BorderBottom(0.5f).BorderColor(ReportStyles.ColorBorderLight)
-                        .Padding(ReportStyles.TableCellPadding)
-                        .AlignRight()
-                        .Text($"{seg.VelocitySupply:F2}").FontSize(ReportStyles.FontSizeSmall);
+                        .Text(f.Dim.DimName).FontSize(ReportStyles.FontSizeSmall);
 
                     table.Cell().Background(bg)
                         .BorderBottom(0.5f).BorderColor(ReportStyles.ColorBorderLight)
                         .Padding(ReportStyles.TableCellPadding)
                         .AlignRight()
-                        .Text($"{seg.VelocityUtilization:F1}").FontSize(ReportStyles.FontSizeSmall);
+                        .Text($"{f.VelocitySupply:F2}").FontSize(ReportStyles.FontSizeSmall);
 
                     table.Cell().Background(bg)
                         .BorderBottom(0.5f).BorderColor(ReportStyles.ColorBorderLight)
                         .Padding(ReportStyles.TableCellPadding)
                         .AlignRight()
-                        .Text($"{seg.PressureGradientSupply:F1}").FontSize(ReportStyles.FontSizeSmall);
+                        .Text($"{f.UtilizationRate:F1}").FontSize(ReportStyles.FontSizeSmall);
 
                     table.Cell().Background(bg)
                         .BorderBottom(0.5f).BorderColor(ReportStyles.ColorBorderLight)
                         .Padding(ReportStyles.TableCellPadding)
                         .AlignRight()
-                        .Text($"{seg.PressureLossBar:F3}").FontSize(ReportStyles.FontSizeSmall);
+                        .Text($"{f.PressureGradientSupply:F1}").FontSize(ReportStyles.FontSizeSmall);
+
+                    table.Cell().Background(bg)
+                        .BorderBottom(0.5f).BorderColor(ReportStyles.ColorBorderLight)
+                        .Padding(ReportStyles.TableCellPadding)
+                        .AlignRight()
+                        .Text($"{f.PressureLossBAR:F3}").FontSize(ReportStyles.FontSizeSmall);
 
                     alternate = !alternate;
                 }

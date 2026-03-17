@@ -84,8 +84,8 @@ internal class SummaryModule : IReportModule
         {
             ("Designtemperatur", $"{s.TempFrem:F0} / {s.TempFrem - s.AfkølingVarme:F0}", "°C"),
             ("Designtryk", dp.HasValue ? $"{dp.Value:F1}" : "-", "bar"),
-            ("Rørtyper (fordelingsledninger)", flPipeTypes, ""),
-            ("Rørtyper (stikledninger)", slPipeTypes, ""),
+            ("Typer fordelingsledninger", flPipeTypes, ""),
+            ("Typer stikledninger", slPipeTypes, ""),
         };
 
         RenderKeyValueTable(container, rows);
@@ -117,7 +117,7 @@ internal class SummaryModule : IReportModule
             ("Samlet antal bygninger", $"{sum.TotalBuildings:N0}", "stk"),
             ("Samlet antal enheder", $"{sum.TotalUnits:N0}", "stk"),
             ("Samlet varmebehov", $"{sum.TotalHeatingDemandMwh:N1}", "MWh"),
-            ("Samlet effektbehov", $"{sum.TotalPowerDemandMw:N3}", "MW"),
+            //("Samlet effektbehov", $"{sum.TotalPowerDemandMw:N3}", "MW"),
             ("Samlet volumen flow", $"{sum.TotalFlowM3H:N2}", "m³/h"),
             ("Samlet tryktab til kritisk forbruger",
                 $"{sum.CriticalPathPressureLossBar:N3}", "bar"),
@@ -183,6 +183,7 @@ internal class SummaryModule : IReportModule
 
     private static string GetDistinctPipeTypes(ReportDataContext ctx, NorsynHydraulicCalc.SegmentType segType)
     {
+        var pipeTypes = ctx.Settings.GetPipeTypes();
         var types = new HashSet<string>();
         foreach (var graph in ctx.Network.Graphs)
         {
@@ -191,7 +192,7 @@ internal class SummaryModule : IReportModule
                 var f = edge.PipeSegment;
                 if (f.NumberOfBuildingsSupplied == 0) continue;
                 if (f.SegmentType == segType)
-                    types.Add(f.Dim.PipeType.ToString());
+                    types.Add(pipeTypes.GetPipeType(f.Dim.PipeType).ToString());
             }
         }
         return types.Count > 0 ? string.Join(", ", types) : "-";

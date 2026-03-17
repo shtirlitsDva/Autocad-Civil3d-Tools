@@ -12,8 +12,9 @@ using System.Linq;
 namespace DimensioneringV2.Services.Report;
 
 /// <summary>
-/// Extracts all report data from a HydraulicNetwork into a ReportDataContext.
-/// Called once before rendering; modules consume the pre-extracted context.
+/// Extracts computed/aggregated report data from a HydraulicNetwork.
+/// Only produces data that isn't directly on the graph model (SystemSummary,
+/// ComplianceChecks, SupplyPoints). Modules access graph data directly.
 /// </summary>
 internal static class ReportDataExtractor
 {
@@ -32,10 +33,7 @@ internal static class ReportDataExtractor
         if (!hasNodeIds)
             NodeNumberingService.AssignNodeIds(hn);
 
-        var segments = ExtractSegments(hn);
-        var nodes = ExtractNodes(hn);
-        var consumers = ExtractConsumers(hn);
-        var summary = ComputeSummary(hn, segments, consumers);
+        var summary = ComputeSummary(hn);
         var compliance = ComputeCompliance(hn, settings, summary);
         var supplyPoints = ExtractSupplyPoints(hn, settings);
 
@@ -46,131 +44,12 @@ internal static class ReportDataExtractor
             HnSettings = hnSettings,
             Profile = profile,
             Summary = summary,
-            Segments = segments,
-            Nodes = nodes,
-            Consumers = consumers,
             ComplianceChecks = compliance,
             SupplyPoints = supplyPoints,
         };
     }
 
-    private static List<SegmentRow> ExtractSegments(HydraulicNetwork hn)
-    {
-        var rows = new List<SegmentRow>();
-
-        foreach (var graph in hn.Graphs)
-        {
-            foreach (var edge in graph.Edges)
-            {
-                var f = edge.PipeSegment;
-                if (f.NumberOfBuildingsSupplied == 0) continue;
-
-                int srcId = edge.Source.NodeId;
-                int tgtId = edge.Target.NodeId;
-                string segId = srcId > 0 && tgtId > 0
-                    ? $"{srcId}-{tgtId}"
-                    : $"?-?";
-
-                rows.Add(new SegmentRow(
-                    SegmentId: segId,
-                    LengthM: f.Length,
-                    PipeType: f.Dim.PipeType.ToString(),
-                    DimensionName: f.Dim.DimName,
-                    VelocitySupply: f.VelocitySupply,
-                    VelocityReturn: f.VelocityReturn,
-                    VelocityUtilization: f.UtilizationRate,
-                    PressureGradientSupply: f.PressureGradientSupply,
-                    PressureGradientReturn: f.PressureGradientReturn,
-                    PressureGradientUtilization: 0, // TODO: compute from accept criteria
-                    PressureLossBar: f.PressureLossBAR));
-            }
-        }
-
-        return rows;
-    }
-
-    private static List<NodeRow> ExtractNodes(HydraulicNetwork hn)
-    {
-        var rows = new List<NodeRow>();
-        var seen = new HashSet<NodeJunction>();
-
-        foreach (var graph in hn.Graphs)
-        {
-            foreach (var node in graph.Vertices)
-            {
-                if (node.NodeId < 0) continue;
-                if (!seen.Add(node)) continue;
-
-                // Find the max pressure loss to this node from its adjacent edges
-                double pressureLoss = 0;
-                double differentialPressure = 0;
-                double effekt = 0;
-
-                foreach (var edge in graph.AdjacentEdges(node))
-                {
-                    var f = edge.PipeSegment;
-                    if (node.IsBuildingNode)
-                    {
-                        pressureLoss = f.PressureLossAtClientSupply + f.PressureLossAtClientReturn;
-                        differentialPressure = f.DifferentialPressureAtClient;
-                        effekt = f.Effekt;
-                    }
-                }
-
-                rows.Add(new NodeRow(
-                    NodeId: node.NodeId,
-                    X: node.Location.X,
-                    Y: node.Location.Y,
-                    IsRoot: node.IsRootNode,
-                    IsBuilding: node.IsBuildingNode,
-                    Degree: node.Degree,
-                    EffektKw: effekt,
-                    PressureLossToNodeBar: pressureLoss,
-                    AvailableDifferentialPressureBar: differentialPressure));
-            }
-        }
-
-        return rows.OrderBy(n => n.NodeId).ToList();
-    }
-
-    private static List<ConsumerRow> ExtractConsumers(HydraulicNetwork hn)
-    {
-        var rows = new List<ConsumerRow>();
-
-        foreach (var graph in hn.Graphs)
-        {
-            foreach (var edge in graph.Edges)
-            {
-                var f = edge.PipeSegment;
-                if (f.SegmentType != SegmentType.Stikledning) continue;
-                if (f.NumberOfBuildingsSupplied == 0) continue;
-
-                rows.Add(new ConsumerRow(
-                    Address: f.Adresse ?? "",
-                    BuildingType: f.BygningsAnvendelseNyTekst ?? "",
-                    BuildingCode: f.BygningsAnvendelseNyKode ?? "",
-                    NumberOfProperties: f.NumberOfBuildingsConnected,
-                    NumberOfUnitsWithHotWater: f.NumberOfUnitsConnected,
-                    DimCoolingC: f.TempDeltaVarme,
-                    BbrAreaM2: f.BeregningsAreal,
-                    ConstructionYear: f.Opførelsesår,
-                    EnergyConsumptionKwhYear: f.HeatingDemandConnected * 1000, // MWh -> kWh
-                    ServiceLineLengthM: f.Length,
-                    DimensionName: f.Dim.DimName,
-                    PressureGradientPaM: f.PressureGradientSupply,
-                    VelocityMs: f.VelocitySupply,
-                    PressureLossServiceLineBar: f.PressureLossBAR,
-                    RequiredDifferentialPressureBar: f.RequiredDifferentialPressure));
-            }
-        }
-
-        return rows.OrderByDescending(c => c.RequiredDifferentialPressureBar).ToList();
-    }
-
-    private static SystemSummary ComputeSummary(
-        HydraulicNetwork hn,
-        List<SegmentRow> segments,
-        List<ConsumerRow> consumers)
+    private static SystemSummary ComputeSummary(HydraulicNetwork hn)
     {
         var summary = new SystemSummary();
 
@@ -215,9 +94,18 @@ internal static class ReportDataExtractor
 
         summary.TotalPriceDkk = hn.TotalPrice;
 
-        // Critical consumer: the one with highest required differential pressure
-        if (consumers.Count > 0)
-            summary.CriticalConsumerAddress = consumers[0].Address; // already sorted desc
+        // Critical consumer: stikledning with highest required differential pressure
+        double maxReqDP = 0;
+        foreach (var f in hn.AllFeatures)
+        {
+            if (f.SegmentType == SegmentType.Stikledning
+                && f.NumberOfBuildingsSupplied > 0
+                && f.RequiredDifferentialPressure > maxReqDP)
+            {
+                maxReqDP = f.RequiredDifferentialPressure;
+                summary.CriticalConsumerAddress = f.Adresse;
+            }
+        }
 
         return summary;
     }
@@ -229,7 +117,6 @@ internal static class ReportDataExtractor
     {
         var rows = new List<ComplianceRow>();
 
-        // Find worst-case velocity and pressure gradient across all active segments
         double maxVelocity = 0;
         double maxPressureGradient = 0;
         double minDifferentialPressure = double.MaxValue;
@@ -269,13 +156,11 @@ internal static class ReportDataExtractor
             var rootNode = graph.Vertices.FirstOrDefault(v => v.IsRootNode);
             if (rootNode == null || rootNode.NodeId < 0) continue;
 
-            // Compute capacity from total heating demand of this graph
             double totalDemandMwh = graph.Edges
                 .Where(e => e.PipeSegment.SegmentType == SegmentType.Stikledning
                          && e.PipeSegment.NumberOfBuildingsSupplied > 0)
                 .Sum(e => e.PipeSegment.HeatingDemandConnected);
 
-            // Total flow at root
             var rootEdge = graph.Edges
                 .FirstOrDefault(e =>
                     ReferenceEquals(e.Source, rootNode) ||

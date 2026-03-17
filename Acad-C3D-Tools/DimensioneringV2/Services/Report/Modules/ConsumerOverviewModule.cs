@@ -1,5 +1,5 @@
+using DimensioneringV2.GraphFeatures;
 using DimensioneringV2.Models.Report;
-using DimensioneringV2.Services.Report.DataModels;
 using DimensioneringV2.Services.Report.Styles;
 
 using QuestPDF.Fluent;
@@ -23,6 +23,14 @@ internal class ConsumerOverviewModule : IReportModule
 
     public void Compose(IDocumentContainer container, ReportDataContext context)
     {
+        var consumers = context.Network.Graphs
+            .SelectMany(g => g.Edges)
+            .Where(e => e.PipeSegment.SegmentType == NorsynHydraulicCalc.SegmentType.Stikledning
+                        && e.PipeSegment.NumberOfBuildingsSupplied > 0)
+            .Select(e => e.PipeSegment)
+            .OrderByDescending(f => f.RequiredDifferentialPressure)
+            .ToList();
+
         var s = context.CurrentSection;
 
         // §s.1 & §s.2 — Portrait page with summary and top-10
@@ -45,12 +53,12 @@ internal class ConsumerOverviewModule : IReportModule
                 // §s.1 Samlet oversigt
                 col.Item().Text($"{s}.1  Samlet oversigt")
                     .FontSize(ReportStyles.FontSizeH2).SemiBold();
-                col.Item().Element(c => ComposeSummaryTable(c, context));
+                col.Item().Element(c => ComposeSummaryTable(c, consumers));
 
                 // §s.2 Top-10 kritiske forbrugere
                 col.Item().Text($"{s}.2  Top-10 kritiske forbrugere")
                     .FontSize(ReportStyles.FontSizeH2).SemiBold();
-                col.Item().Element(c => ComposeTop10Table(c, context));
+                col.Item().Element(c => ComposeTop10Table(c, consumers, context));
             });
 
             page.Footer().AlignRight().Text(t =>
@@ -75,7 +83,7 @@ internal class ConsumerOverviewModule : IReportModule
                 .FontSize(ReportStyles.FontSizeH1)
                 .FontColor(ReportStyles.ColorPrimary).Bold();
 
-            page.Content().PaddingTop(8).Element(c => ComposeDetailedTable(c, context));
+            page.Content().PaddingTop(8).Element(c => ComposeDetailedTable(c, consumers));
 
             page.Footer().AlignRight().Text(t =>
             {
@@ -87,12 +95,11 @@ internal class ConsumerOverviewModule : IReportModule
         });
     }
 
-    private static void ComposeSummaryTable(IContainer container, ReportDataContext ctx)
+    private static void ComposeSummaryTable(IContainer container, List<AnalysisFeature> consumers)
     {
-        var consumers = ctx.Consumers;
         int count = consumers.Count;
-        int totalUnits = consumers.Sum(c => c.NumberOfProperties);
-        double totalServiceLength = consumers.Sum(c => c.ServiceLineLengthM);
+        int totalUnits = consumers.Sum(f => f.NumberOfBuildingsConnected);
+        double totalServiceLength = consumers.Sum(f => f.Length);
         double avgServiceLength = count > 0 ? totalServiceLength / count : 0;
 
         var rows = new List<(string Label, string Value, string Unit)>
@@ -106,9 +113,10 @@ internal class ConsumerOverviewModule : IReportModule
         RenderKeyValueTable(container, rows);
     }
 
-    private static void ComposeTop10Table(IContainer container, ReportDataContext ctx)
+    private static void ComposeTop10Table(
+        IContainer container, List<AnalysisFeature> consumers, ReportDataContext ctx)
     {
-        var top10 = ctx.Consumers.Take(10).ToList();
+        var top10 = consumers.Take(10).ToList();
 
         container.Table(table =>
         {
@@ -141,12 +149,10 @@ internal class ConsumerOverviewModule : IReportModule
             });
 
             int rank = 1;
-            foreach (var c in top10)
+            foreach (var f in top10)
             {
-                // Utilization: ratio of service line pressure loss to max allowed
-                // Use PressureGradientPaM as a proxy for utilization if no explicit field
                 double utilization = ctx.Settings.MaxPressureLossStikSL > 0
-                    ? (c.PressureLossServiceLineBar / ctx.Settings.MaxPressureLossStikSL) * 100
+                    ? (f.PressureLossBAR / ctx.Settings.MaxPressureLossStikSL) * 100
                     : 0;
 
                 table.Cell()
@@ -157,13 +163,13 @@ internal class ConsumerOverviewModule : IReportModule
                 table.Cell()
                     .BorderBottom(0.5f).BorderColor(ReportStyles.ColorBorderLight)
                     .Padding(ReportStyles.TableCellPadding)
-                    .Text(c.Address).FontSize(ReportStyles.FontSizeSmall);
+                    .Text(f.Adresse ?? "").FontSize(ReportStyles.FontSizeSmall);
 
                 table.Cell()
                     .BorderBottom(0.5f).BorderColor(ReportStyles.ColorBorderLight)
                     .Padding(ReportStyles.TableCellPadding)
                     .AlignRight()
-                    .Text($"{c.RequiredDifferentialPressureBar:F3}")
+                    .Text($"{f.RequiredDifferentialPressure:F3}")
                     .FontSize(ReportStyles.FontSizeSmall);
 
                 table.Cell()
@@ -178,7 +184,7 @@ internal class ConsumerOverviewModule : IReportModule
         });
     }
 
-    private static void ComposeDetailedTable(IContainer container, ReportDataContext ctx)
+    private static void ComposeDetailedTable(IContainer container, List<AnalysisFeature> consumers)
     {
         container.Table(table =>
         {
@@ -232,7 +238,7 @@ internal class ConsumerOverviewModule : IReportModule
                 header.Cell().Background(ReportStyles.ColorHeaderBg)
                     .Padding(ReportStyles.TableCellPadding)
                     .AlignRight()
-                    .Text("ΔP [Pa/m]").FontSize(ReportStyles.FontSizeSmall).SemiBold();
+                    .Text("\u0394P [Pa/m]").FontSize(ReportStyles.FontSizeSmall).SemiBold();
                 header.Cell().Background(ReportStyles.ColorHeaderBg)
                     .Padding(ReportStyles.TableCellPadding)
                     .AlignRight()
@@ -240,15 +246,15 @@ internal class ConsumerOverviewModule : IReportModule
                 header.Cell().Background(ReportStyles.ColorHeaderBg)
                     .Padding(ReportStyles.TableCellPadding)
                     .AlignRight()
-                    .Text("ΔP stik [bar]").FontSize(ReportStyles.FontSizeSmall).SemiBold();
+                    .Text("\u0394P stik [bar]").FontSize(ReportStyles.FontSizeSmall).SemiBold();
                 header.Cell().Background(ReportStyles.ColorHeaderBg)
                     .Padding(ReportStyles.TableCellPadding)
                     .AlignRight()
-                    .Text("Ndv. Δp [bar]").FontSize(ReportStyles.FontSizeSmall).SemiBold();
+                    .Text("Ndv. \u0394p [bar]").FontSize(ReportStyles.FontSizeSmall).SemiBold();
             });
 
             bool alternate = false;
-            foreach (var c in ctx.Consumers)
+            foreach (var f in consumers)
             {
                 var bg = alternate ? ReportStyles.ColorAlternateRowBg : "#FFFFFF";
                 var fs = ReportStyles.FontSizeSmall;
@@ -256,71 +262,71 @@ internal class ConsumerOverviewModule : IReportModule
                 table.Cell().Background(bg)
                     .BorderBottom(0.5f).BorderColor(ReportStyles.ColorBorderLight)
                     .Padding(ReportStyles.TableCellPadding)
-                    .Text(c.Address).FontSize(fs);
+                    .Text(f.Adresse ?? "").FontSize(fs);
 
                 table.Cell().Background(bg)
                     .BorderBottom(0.5f).BorderColor(ReportStyles.ColorBorderLight)
                     .Padding(ReportStyles.TableCellPadding)
-                    .Text(c.BuildingType).FontSize(fs);
-
-                table.Cell().Background(bg)
-                    .BorderBottom(0.5f).BorderColor(ReportStyles.ColorBorderLight)
-                    .Padding(ReportStyles.TableCellPadding)
-                    .AlignRight()
-                    .Text($"{c.NumberOfProperties}").FontSize(fs);
+                    .Text(f.BygningsAnvendelseNyTekst ?? "").FontSize(fs);
 
                 table.Cell().Background(bg)
                     .BorderBottom(0.5f).BorderColor(ReportStyles.ColorBorderLight)
                     .Padding(ReportStyles.TableCellPadding)
                     .AlignRight()
-                    .Text($"{c.BbrAreaM2:F0}").FontSize(fs);
+                    .Text($"{f.NumberOfBuildingsConnected}").FontSize(fs);
 
                 table.Cell().Background(bg)
                     .BorderBottom(0.5f).BorderColor(ReportStyles.ColorBorderLight)
                     .Padding(ReportStyles.TableCellPadding)
                     .AlignRight()
-                    .Text($"{c.ConstructionYear}").FontSize(fs);
+                    .Text($"{f.BeregningsAreal:F0}").FontSize(fs);
 
                 table.Cell().Background(bg)
                     .BorderBottom(0.5f).BorderColor(ReportStyles.ColorBorderLight)
                     .Padding(ReportStyles.TableCellPadding)
                     .AlignRight()
-                    .Text($"{c.EnergyConsumptionKwhYear:F0}").FontSize(fs);
+                    .Text($"{f.Opførelsesår}").FontSize(fs);
 
                 table.Cell().Background(bg)
                     .BorderBottom(0.5f).BorderColor(ReportStyles.ColorBorderLight)
                     .Padding(ReportStyles.TableCellPadding)
                     .AlignRight()
-                    .Text($"{c.ServiceLineLengthM:F1}").FontSize(fs);
-
-                table.Cell().Background(bg)
-                    .BorderBottom(0.5f).BorderColor(ReportStyles.ColorBorderLight)
-                    .Padding(ReportStyles.TableCellPadding)
-                    .Text(c.DimensionName).FontSize(fs);
+                    .Text($"{f.HeatingDemandConnected * 1000:F0}").FontSize(fs);
 
                 table.Cell().Background(bg)
                     .BorderBottom(0.5f).BorderColor(ReportStyles.ColorBorderLight)
                     .Padding(ReportStyles.TableCellPadding)
                     .AlignRight()
-                    .Text($"{c.PressureGradientPaM:F1}").FontSize(fs);
+                    .Text($"{f.Length:F1}").FontSize(fs);
+
+                table.Cell().Background(bg)
+                    .BorderBottom(0.5f).BorderColor(ReportStyles.ColorBorderLight)
+                    .Padding(ReportStyles.TableCellPadding)
+                    .Text(f.Dim.DimName).FontSize(fs);
 
                 table.Cell().Background(bg)
                     .BorderBottom(0.5f).BorderColor(ReportStyles.ColorBorderLight)
                     .Padding(ReportStyles.TableCellPadding)
                     .AlignRight()
-                    .Text($"{c.VelocityMs:F2}").FontSize(fs);
+                    .Text($"{f.PressureGradientSupply:F1}").FontSize(fs);
 
                 table.Cell().Background(bg)
                     .BorderBottom(0.5f).BorderColor(ReportStyles.ColorBorderLight)
                     .Padding(ReportStyles.TableCellPadding)
                     .AlignRight()
-                    .Text($"{c.PressureLossServiceLineBar:F3}").FontSize(fs);
+                    .Text($"{f.VelocitySupply:F2}").FontSize(fs);
 
                 table.Cell().Background(bg)
                     .BorderBottom(0.5f).BorderColor(ReportStyles.ColorBorderLight)
                     .Padding(ReportStyles.TableCellPadding)
                     .AlignRight()
-                    .Text($"{c.RequiredDifferentialPressureBar:F3}").FontSize(fs);
+                    .Text($"{f.PressureLossBAR:F3}").FontSize(fs);
+
+                table.Cell().Background(bg)
+                    .BorderBottom(0.5f).BorderColor(ReportStyles.ColorBorderLight)
+                    .Padding(ReportStyles.TableCellPadding)
+                    .AlignRight()
+                    .Text($"{f.RequiredDifferentialPressure:F3}").FontSize(fs);
 
                 alternate = !alternate;
             }

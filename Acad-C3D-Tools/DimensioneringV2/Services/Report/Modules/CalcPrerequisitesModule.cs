@@ -178,6 +178,7 @@ internal class CalcPrerequisitesModule : IReportModule
         IContainer container, ReportDataContext ctx, bool isFL)
     {
         var s = ctx.Settings;
+        var pipeTypes = s.GetPipeTypes();
         var medium = s.MedieType;
 
         PipeTypeConfiguration? config = null;
@@ -203,7 +204,7 @@ internal class CalcPrerequisitesModule : IReportModule
 
             foreach (var priority in config.Priorities.OrderBy(p => p.Priority))
             {
-                col.Item().Text($"Prioritet {priority.Priority}: {priority.PipeType}  " +
+                col.Item().Text($"Prioritet {priority.Priority}: {pipeTypes.GetPipeType(priority.PipeType)}  " +
                     $"(DN{priority.MinDn}–DN{priority.MaxDn})")
                     .FontSize(ReportStyles.FontSizeH3).SemiBold();
 

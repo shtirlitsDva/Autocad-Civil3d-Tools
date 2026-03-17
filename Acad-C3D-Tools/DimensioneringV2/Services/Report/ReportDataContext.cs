@@ -20,9 +20,6 @@ internal class ReportDataContext
     public required ReportProfile Profile { get; init; }
 
     public required SystemSummary Summary { get; init; }
-    public required List<SegmentRow> Segments { get; init; }
-    public required List<NodeRow> Nodes { get; init; }
-    public required List<ConsumerRow> Consumers { get; init; }
     public required List<ComplianceRow> ComplianceChecks { get; init; }
     public required List<SupplyPointRow> SupplyPoints { get; init; }
 
