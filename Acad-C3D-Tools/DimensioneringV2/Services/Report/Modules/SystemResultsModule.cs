@@ -20,6 +20,8 @@ internal class SystemResultsModule : IReportModule
 
     public void Compose(IDocumentContainer container, ReportDataContext context)
     {
+        var s = context.CurrentSection;
+
         container.Page(page =>
         {
             page.Size(ReportStyles.PageSizeA4);
@@ -28,7 +30,7 @@ internal class SystemResultsModule : IReportModule
             page.MarginTop(ReportStyles.MarginTop, Unit.Point);
             page.MarginBottom(ReportStyles.MarginBottom, Unit.Point);
 
-            page.Header().Text("7  Systemresultater")
+            page.Header().Text($"{s}  Systemresultater")
                 .FontSize(ReportStyles.FontSizeH1)
                 .FontColor(ReportStyles.ColorPrimary).Bold();
 
@@ -36,13 +38,13 @@ internal class SystemResultsModule : IReportModule
             {
                 col.Spacing(ReportStyles.SectionSpacing);
 
-                // §7.1 Systemoversigt
-                col.Item().Text("7.1  Systemoversigt")
+                // §s.1 Systemoversigt
+                col.Item().Text($"{s}.1  Systemoversigt")
                     .FontSize(ReportStyles.FontSizeH2).SemiBold();
                 col.Item().Element(c => ComposeSystemOverviewTable(c, context));
 
-                // §7.2 Dimensioneringskontrol
-                col.Item().Text("7.2  Dimensioneringskontrol")
+                // §s.2 Dimensioneringskontrol
+                col.Item().Text($"{s}.2  Dimensioneringskontrol")
                     .FontSize(ReportStyles.FontSizeH2).SemiBold();
                 col.Item().Element(c => ComposeComplianceTable(c, context));
             });

@@ -25,6 +25,8 @@ internal class CalcPrerequisitesModule : IReportModule
 
     public void Compose(IDocumentContainer container, ReportDataContext context)
     {
+        var s = context.CurrentSection;
+
         container.Page(page =>
         {
             page.Size(ReportStyles.PageSizeA4);
@@ -33,7 +35,7 @@ internal class CalcPrerequisitesModule : IReportModule
             page.MarginTop(ReportStyles.MarginTop, Unit.Point);
             page.MarginBottom(ReportStyles.MarginBottom, Unit.Point);
 
-            page.Header().Text("5  Beregningsforudsætninger")
+            page.Header().Text($"{s}  Beregningsforudsætninger")
                 .FontSize(ReportStyles.FontSizeH1)
                 .FontColor(ReportStyles.ColorPrimary).Bold();
 
@@ -41,23 +43,23 @@ internal class CalcPrerequisitesModule : IReportModule
             {
                 col.Spacing(ReportStyles.SectionSpacing);
 
-                // §5.1 Fælles input
-                col.Item().Text("5.1  Fælles input")
+                // §s.1 Fælles input
+                col.Item().Text($"{s}.1  Fælles input")
                     .FontSize(ReportStyles.FontSizeH2).SemiBold();
                 col.Item().Element(c => ComposeSettingsTable(c, context));
 
-                // §5.2 Nyttetimer
-                col.Item().Text("5.2  Nyttetimer")
+                // §s.2 Nyttetimer
+                col.Item().Text($"{s}.2  Nyttetimer")
                     .FontSize(ReportStyles.FontSizeH2).SemiBold();
                 col.Item().Element(c => ComposeNyttetimerSection(c, context));
 
-                // §5.3 Rørindstillinger — Fordelingsledninger
-                col.Item().Text("5.3  Rørindstillinger — Fordelingsledninger")
+                // §s.3 Rørindstillinger — Fordelingsledninger
+                col.Item().Text($"{s}.3  Rørindstillinger — Fordelingsledninger")
                     .FontSize(ReportStyles.FontSizeH2).SemiBold();
                 col.Item().Element(c => ComposePipeConfigTable(c, context, isFL: true));
 
-                // §5.4 Rørindstillinger — Stikledninger
-                col.Item().Text("5.4  Rørindstillinger — Stikledninger")
+                // §s.4 Rørindstillinger — Stikledninger
+                col.Item().Text($"{s}.4  Rørindstillinger — Stikledninger")
                     .FontSize(ReportStyles.FontSizeH2).SemiBold();
                 col.Item().Element(c => ComposePipeConfigTable(c, context, isFL: false));
             });

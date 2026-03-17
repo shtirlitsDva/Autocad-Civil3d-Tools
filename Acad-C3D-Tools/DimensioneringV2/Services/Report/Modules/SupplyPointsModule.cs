@@ -28,7 +28,7 @@ internal class SupplyPointsModule : IReportModule
             page.MarginTop(ReportStyles.MarginTop, Unit.Point);
             page.MarginBottom(ReportStyles.MarginBottom, Unit.Point);
 
-            page.Header().Text("6  Forsyningspunkter")
+            page.Header().Text($"{context.CurrentSection}  Forsyningspunkter")
                 .FontSize(ReportStyles.FontSizeH1)
                 .FontColor(ReportStyles.ColorPrimary).Bold();
 

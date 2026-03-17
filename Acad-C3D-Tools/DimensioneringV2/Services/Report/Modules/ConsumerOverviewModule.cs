@@ -23,7 +23,9 @@ internal class ConsumerOverviewModule : IReportModule
 
     public void Compose(IDocumentContainer container, ReportDataContext context)
     {
-        // §8.1 & §8.2 — Portrait page with summary and top-10
+        var s = context.CurrentSection;
+
+        // §s.1 & §s.2 — Portrait page with summary and top-10
         container.Page(page =>
         {
             page.Size(ReportStyles.PageSizeA4);
@@ -32,7 +34,7 @@ internal class ConsumerOverviewModule : IReportModule
             page.MarginTop(ReportStyles.MarginTop, Unit.Point);
             page.MarginBottom(ReportStyles.MarginBottom, Unit.Point);
 
-            page.Header().Text("8  Forbrugeroversigt")
+            page.Header().Text($"{s}  Forbrugeroversigt")
                 .FontSize(ReportStyles.FontSizeH1)
                 .FontColor(ReportStyles.ColorPrimary).Bold();
 
@@ -40,13 +42,13 @@ internal class ConsumerOverviewModule : IReportModule
             {
                 col.Spacing(ReportStyles.SectionSpacing);
 
-                // §8.1 Samlet oversigt
-                col.Item().Text("8.1  Samlet oversigt")
+                // §s.1 Samlet oversigt
+                col.Item().Text($"{s}.1  Samlet oversigt")
                     .FontSize(ReportStyles.FontSizeH2).SemiBold();
                 col.Item().Element(c => ComposeSummaryTable(c, context));
 
-                // §8.2 Top-10 kritiske forbrugere
-                col.Item().Text("8.2  Top-10 kritiske forbrugere")
+                // §s.2 Top-10 kritiske forbrugere
+                col.Item().Text($"{s}.2  Top-10 kritiske forbrugere")
                     .FontSize(ReportStyles.FontSizeH2).SemiBold();
                 col.Item().Element(c => ComposeTop10Table(c, context));
             });
@@ -60,7 +62,7 @@ internal class ConsumerOverviewModule : IReportModule
             });
         });
 
-        // §8.3 Detaljeret forbrugeroversigt — Landscape page
+        // §s.3 Detaljeret forbrugeroversigt — Landscape page
         container.Page(page =>
         {
             page.Size(PageSizes.A4.Landscape());
@@ -69,7 +71,7 @@ internal class ConsumerOverviewModule : IReportModule
             page.MarginTop(ReportStyles.MarginTop, Unit.Point);
             page.MarginBottom(ReportStyles.MarginBottom, Unit.Point);
 
-            page.Header().Text("8.3  Detaljeret forbrugeroversigt")
+            page.Header().Text($"{s}.3  Detaljeret forbrugeroversigt")
                 .FontSize(ReportStyles.FontSizeH1)
                 .FontColor(ReportStyles.ColorPrimary).Bold();
 

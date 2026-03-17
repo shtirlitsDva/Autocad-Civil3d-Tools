@@ -30,7 +30,7 @@ internal class NodeResultsModule : IReportModule
             page.MarginTop(ReportStyles.MarginTop, Unit.Point);
             page.MarginBottom(ReportStyles.MarginBottom, Unit.Point);
 
-            page.Header().Text("7.5  Knudepunkter")
+            page.Header().Text($"{context.CurrentSection}  Knudepunkter")
                 .FontSize(ReportStyles.FontSizeH1)
                 .FontColor(ReportStyles.ColorPrimary).Bold();
 

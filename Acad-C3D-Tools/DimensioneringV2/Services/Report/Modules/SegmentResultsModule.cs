@@ -29,7 +29,7 @@ internal class SegmentResultsModule : IReportModule
             page.MarginTop(ReportStyles.MarginTop, Unit.Point);
             page.MarginBottom(ReportStyles.MarginBottom, Unit.Point);
 
-            page.Header().Text("7.4  Strækningsresultater")
+            page.Header().Text($"{context.CurrentSection}  Strækningsresultater")
                 .FontSize(ReportStyles.FontSizeH1)
                 .FontColor(ReportStyles.ColorPrimary).Bold();
 

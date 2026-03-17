@@ -26,13 +26,13 @@ internal class OverviewMapModule : IReportModule
             page.MarginTop(ReportStyles.MarginTop, Unit.Point);
             page.MarginBottom(ReportStyles.MarginBottom, Unit.Point);
 
-            page.Header().Text("9  Oversigtskort")
+            page.Header().Text($"{context.CurrentSection}  Oversigtskort")
                 .FontSize(ReportStyles.FontSizeH1)
                 .FontColor(ReportStyles.ColorPrimary).Bold();
 
             page.Content().PaddingTop(8).Column(col =>
             {
-                col.Item().Text("Sektion 9 Oversigtskort \u2014 Ikke inkluderet i denne version.")
+                col.Item().Text($"Sektion {context.CurrentSection} Oversigtskort — Ikke inkluderet i denne version.")
                     .FontSize(ReportStyles.FontSizeBody).Italic();
             });
 

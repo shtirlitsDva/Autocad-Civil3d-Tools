@@ -26,13 +26,13 @@ internal class SensitivityModule : IReportModule
             page.MarginTop(ReportStyles.MarginTop, Unit.Point);
             page.MarginBottom(ReportStyles.MarginBottom, Unit.Point);
 
-            page.Header().Text("7.3  F\u00f8lsomhedsanalyse")
+            page.Header().Text($"{context.CurrentSection}  Følsomhedsanalyse")
                 .FontSize(ReportStyles.FontSizeH1)
                 .FontColor(ReportStyles.ColorPrimary).Bold();
 
             page.Content().PaddingTop(8).Column(col =>
             {
-                col.Item().Text("Sektion 7.3 F\u00f8lsomhedsanalyse \u2014 Ikke inkluderet i denne version.")
+                col.Item().Text($"Sektion {context.CurrentSection} Følsomhedsanalyse — Ikke inkluderet i denne version.")
                     .FontSize(ReportStyles.FontSizeBody).Italic();
             });
 

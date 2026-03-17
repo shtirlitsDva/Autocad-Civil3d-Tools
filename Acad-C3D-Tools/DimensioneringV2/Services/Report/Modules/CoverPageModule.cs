@@ -17,6 +17,7 @@ internal class CoverPageModule : IReportModule
     public ReportModuleId Id => ReportModuleId.CoverPage;
     public string DisplayName => "Forside";
     public bool IsImplemented => true;
+    public bool HasSectionNumber => false;
 
     public void Compose(IDocumentContainer container, ReportDataContext context)
     {

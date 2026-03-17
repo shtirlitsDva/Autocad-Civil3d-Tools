@@ -18,6 +18,8 @@ internal class ProjectBasisModule : IReportModule
 
     public void Compose(IDocumentContainer container, ReportDataContext context)
     {
+        var s = context.CurrentSection;
+
         container.Page(page =>
         {
             page.Size(ReportStyles.PageSizeA4);
@@ -26,7 +28,7 @@ internal class ProjectBasisModule : IReportModule
             page.MarginTop(ReportStyles.MarginTop, Unit.Point);
             page.MarginBottom(ReportStyles.MarginBottom, Unit.Point);
 
-            page.Header().Text("4  Projektgrundlag")
+            page.Header().Text($"{s}  Projektgrundlag")
                 .FontSize(ReportStyles.FontSizeH1)
                 .FontColor(ReportStyles.ColorPrimary).Bold();
 
@@ -34,8 +36,8 @@ internal class ProjectBasisModule : IReportModule
             {
                 col.Spacing(ReportStyles.SectionSpacing);
 
-                // §4.1 Norm- og regelgrundlag
-                col.Item().Text("4.1  Norm- og regelgrundlag")
+                // §s.1 Norm- og regelgrundlag
+                col.Item().Text($"{s}.1  Norm- og regelgrundlag")
                     .FontSize(ReportStyles.FontSizeH2).SemiBold();
 
                 string normText = string.IsNullOrWhiteSpace(context.Profile.NormText)
@@ -44,8 +46,8 @@ internal class ProjectBasisModule : IReportModule
 
                 col.Item().Text(normText).FontSize(ReportStyles.FontSizeBody);
 
-                // §4.2 Afvigelser / supplerende krav
-                col.Item().Text("4.2  Afvigelser / supplerende krav")
+                // §s.2 Afvigelser / supplerende krav
+                col.Item().Text($"{s}.2  Afvigelser / supplerende krav")
                     .FontSize(ReportStyles.FontSizeH2).SemiBold();
 
                 string deviationsText = string.IsNullOrWhiteSpace(context.Profile.DeviationsText)

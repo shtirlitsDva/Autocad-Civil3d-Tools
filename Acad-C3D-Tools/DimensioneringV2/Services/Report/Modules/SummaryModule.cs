@@ -22,6 +22,8 @@ internal class SummaryModule : IReportModule
 
     public void Compose(IDocumentContainer container, ReportDataContext context)
     {
+        var s = context.CurrentSection;
+
         container.Page(page =>
         {
             page.Size(ReportStyles.PageSizeA4);
@@ -30,7 +32,7 @@ internal class SummaryModule : IReportModule
             page.MarginTop(ReportStyles.MarginTop, Unit.Point);
             page.MarginBottom(ReportStyles.MarginBottom, Unit.Point);
 
-            page.Header().Text("3  Sammenfatning")
+            page.Header().Text($"{s}  Sammenfatning")
                 .FontSize(ReportStyles.FontSizeH1)
                 .FontColor(ReportStyles.ColorPrimary).Bold();
 
@@ -38,23 +40,23 @@ internal class SummaryModule : IReportModule
             {
                 col.Spacing(ReportStyles.SectionSpacing);
 
-                // §3.1 Teknologivalg
-                col.Item().Text("3.1  Teknologivalg")
+                // §s.1 Teknologivalg
+                col.Item().Text($"{s}.1  Teknologivalg")
                     .FontSize(ReportStyles.FontSizeH2).SemiBold();
                 col.Item().Element(c => ComposeTechnologyTable(c, context));
 
-                // §3.2 Dimensionerende driftsforhold
-                col.Item().Text("3.2  Dimensionerende driftsforhold")
+                // §s.2 Dimensionerende driftsforhold
+                col.Item().Text($"{s}.2  Dimensionerende driftsforhold")
                     .FontSize(ReportStyles.FontSizeH2).SemiBold();
                 col.Item().Element(c => ComposeOperatingConditionsTable(c, context));
 
-                // §3.3 Hovedresultater
-                col.Item().Text("3.3  Hovedresultater")
+                // §s.3 Hovedresultater
+                col.Item().Text($"{s}.3  Hovedresultater")
                     .FontSize(ReportStyles.FontSizeH2).SemiBold();
                 col.Item().Element(c => ComposeResultsTable(c, context));
 
-                // §3.4 Overholdelse af krav
-                col.Item().Text("3.4  Overholdelse af krav")
+                // §s.4 Overholdelse af krav
+                col.Item().Text($"{s}.4  Overholdelse af krav")
                     .FontSize(ReportStyles.FontSizeH2).SemiBold();
                 col.Item().Element(c => ComposeComplianceTable(c, context));
             });

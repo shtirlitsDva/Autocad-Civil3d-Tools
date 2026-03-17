@@ -47,9 +47,13 @@ internal static class ReportOrchestrator
 
             var document = Document.Create(container =>
             {
+                int sectionCounter = 0;
                 foreach (var module in enabledModules)
                 {
-                    module!.Compose(container, context);
+                    if (module!.HasSectionNumber)
+                        context.CurrentSection = ++sectionCounter;
+
+                    module.Compose(container, context);
                 }
             });
 
