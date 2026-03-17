@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -8,5 +8,6 @@ namespace NorsynHydraulicCalc.Pipes
     {
         Dim GetDim(int dia);
         IEnumerable<Dim> GetDimsRange(int minNS, int maxNS);
+        string ToString();
     }
 }

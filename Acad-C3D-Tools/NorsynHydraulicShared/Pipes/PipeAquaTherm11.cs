@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -24,5 +24,7 @@ namespace NorsynHydraulicCalc.Pipes
         {
             return (1.5, 100);
         }
+
+        public override string ToString() => "AquaTherm SDR11";
     }
 }

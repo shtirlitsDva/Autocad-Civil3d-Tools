@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -35,5 +35,7 @@ namespace NorsynHydraulicCalc.Pipes
             }
             return (3.0, 100);
         }
+
+        public override string ToString() => "Stål";
     }
 }
