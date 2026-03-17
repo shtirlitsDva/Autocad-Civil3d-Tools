@@ -62,7 +62,7 @@ internal class CoverPageModule : IReportModule
                     AddMetaRow(table, "Projekt nr.", hn.ProjectNumber);
                     AddMetaRow(table, "Dokument nr.", hn.DocumentNumber);
                     AddMetaRow(table, "Beregning", network.Id);
-                    AddMetaRow(table, "Beskrivelse", network.Description);
+                    //AddMetaRow(table, "Beskrivelse", network.Description);
                     AddMetaRow(table, "Software", "DimensioneringV2");
                     AddMetaRow(table, "Oprettelsesdato",
                         network.CalculatedAt?.ToString("dd-MM-yyyy HH:mm") ?? "-");
