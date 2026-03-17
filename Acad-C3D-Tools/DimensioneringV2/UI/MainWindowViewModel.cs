@@ -18,7 +18,7 @@ namespace DimensioneringV2.UI
     internal partial class MainWindowViewModel : ObservableObject
     {
         [ObservableProperty]
-        private Map _mymap = new() { CRS = "EPSG:3857" };
+        private Map _mymap = new() { CRS = "EPSG:25832", BackColor = Mapsui.Styles.Color.Black };
         private MapControl _mapControl;
 
         internal void SetMapControl(MapControl mapControl)

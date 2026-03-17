@@ -36,54 +36,52 @@
             </Grid.RowDefinitions>
 
             <Label Grid.Row="0" Grid.Column="0" Content="Projektnavn"
-                   Style="{StaticResource FormLabelStyle}"/>
+                   VerticalAlignment="Center" Margin="0,0,10,0"/>
             <TextBox Grid.Row="0" Grid.Column="1" x:Name="TbProjectName"
-                     Style="{StaticResource FormTextBoxStyle}"/>
+                     VerticalAlignment="Center" Margin="0,2"/>
 
             <Label Grid.Row="1" Grid.Column="0" Content="Projekt nr."
-                   Style="{StaticResource FormLabelStyle}"/>
+                   VerticalAlignment="Center" Margin="0,0,10,0"/>
             <TextBox Grid.Row="1" Grid.Column="1" x:Name="TbProjectNumber"
-                     Style="{StaticResource FormTextBoxStyle}"/>
+                     VerticalAlignment="Center" Margin="0,2"/>
 
             <Label Grid.Row="2" Grid.Column="0" Content="Dokument nr."
-                   Style="{StaticResource FormLabelStyle}"/>
+                   VerticalAlignment="Center" Margin="0,0,10,0"/>
             <TextBox Grid.Row="2" Grid.Column="1" x:Name="TbDocumentNumber"
-                     Style="{StaticResource FormTextBoxStyle}"/>
+                     VerticalAlignment="Center" Margin="0,2"/>
 
             <Label Grid.Row="3" Grid.Column="0" Content="Udarbejdet af"
-                   Style="{StaticResource FormLabelStyle}"/>
+                   VerticalAlignment="Center" Margin="0,0,10,0"/>
             <TextBox Grid.Row="3" Grid.Column="1" x:Name="TbAuthor"
-                     Style="{StaticResource FormTextBoxStyle}"/>
+                     VerticalAlignment="Center" Margin="0,2"/>
 
             <Label Grid.Row="4" Grid.Column="0" Content="Kontrolleret af"
-                   Style="{StaticResource FormLabelStyle}"/>
+                   VerticalAlignment="Center" Margin="0,0,10,0"/>
             <TextBox Grid.Row="4" Grid.Column="1" x:Name="TbReviewer"
-                     Style="{StaticResource FormTextBoxStyle}"/>
+                     VerticalAlignment="Center" Margin="0,2"/>
 
             <Label Grid.Row="5" Grid.Column="0" Content="Godkendt af"
-                   Style="{StaticResource FormLabelStyle}"/>
+                   VerticalAlignment="Center" Margin="0,0,10,0"/>
             <TextBox Grid.Row="5" Grid.Column="1" x:Name="TbApprover"
-                     Style="{StaticResource FormTextBoxStyle}"/>
+                     VerticalAlignment="Center" Margin="0,2"/>
 
             <Label Grid.Row="6" Grid.Column="0" Content="Designtryk [bar]"
-                   Style="{StaticResource FormLabelStyle}"/>
+                   VerticalAlignment="Center" Margin="0,0,10,0"/>
             <TextBox Grid.Row="6" Grid.Column="1" x:Name="TbDesignPressure"
-                     Style="{StaticResource FormTextBoxStyle}"/>
+                     VerticalAlignment="Center" Margin="0,2"/>
 
             <Label Grid.Row="7" Grid.Column="0" Content="Bemærkning"
-                   Style="{StaticResource FormLabelStyle}"/>
+                   VerticalAlignment="Center" Margin="0,0,10,0"/>
             <TextBox Grid.Row="7" Grid.Column="1" x:Name="TbCoverNote"
-                     Style="{StaticResource FormTextBoxStyle}"
                      Height="50" AcceptsReturn="True" TextWrapping="Wrap"
-                     VerticalScrollBarVisibility="Auto"/>
+                     VerticalScrollBarVisibility="Auto" Margin="0,2"/>
         </Grid>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
-            <Button Content="OK" Width="80" Margin="0,0,8,0"
-                    Style="{StaticResource PrimaryButtonStyle}"
+            <Button Content="OK" Style="{StaticResource DialogButtonStyle}"
                     Click="OkButton_Click"/>
-            <Button Content="Annuller" Width="80" IsCancel="True"
-                    Style="{StaticResource SecondaryButtonStyle}"/>
+            <Button Content="Annuller" Style="{StaticResource DialogButtonStyle}"
+                    IsCancel="True"/>
         </StackPanel>
     </Grid>
 </Window>

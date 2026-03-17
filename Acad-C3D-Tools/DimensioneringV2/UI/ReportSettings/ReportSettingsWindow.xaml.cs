@@ -10,6 +10,7 @@ public partial class ReportSettingsWindow : Window
     public ReportSettingsWindow()
     {
         InitializeComponent();
+        Loaded += (s, e) => DarkTitleBarHelper.EnableDarkTitleBar(this);
         _vm = new ReportSettingsViewModel();
         DataContext = _vm;
     }
@@ -24,7 +25,6 @@ public partial class ReportSettingsWindow : Window
     {
         if (sender is FrameworkElement fe && fe.DataContext is ModuleToggleItem item)
         {
-            // Deselect all, select clicked
             foreach (var m in _vm.ModuleItems)
                 m.IsSelected = false;
             item.IsSelected = true;

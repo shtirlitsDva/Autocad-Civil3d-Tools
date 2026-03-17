@@ -12,6 +12,7 @@ public partial class HnReportSettingsDialog : Window
     internal HnReportSettingsDialog(ReportHnSettings settings)
     {
         InitializeComponent();
+        Loaded += (s, e) => DarkTitleBarHelper.EnableDarkTitleBar(this);
         Settings = settings;
 
         // Pre-fill from existing settings

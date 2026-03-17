@@ -23,9 +23,9 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
-            <Label Grid.Column="0" Content="Profil:" Foreground="White" VerticalAlignment="Center"/>
+            <Label Grid.Column="0" Content="Profil:" VerticalAlignment="Center"/>
             <ComboBox Grid.Column="1" Margin="6,0"
-                      Style="{StaticResource DarkComboBoxStyle}"
+                      Style="{StaticResource ModernDarkComboBox}"
                       ItemsSource="{Binding Profiles}"
                       SelectedItem="{Binding SelectedProfile}"
                       DisplayMemberPath="Name"/>
@@ -44,7 +44,7 @@
         </Grid>
 
         <!-- Content tabs -->
-        <TabControl Grid.Row="1" Background="#FF2D3442" Foreground="White" BorderBrush="#FF5A6A80">
+        <TabControl Grid.Row="1">
 
             <!-- Tab 1: Module toggles -->
             <TabItem Header="Moduler">
@@ -55,18 +55,15 @@
                     </Grid.ColumnDefinitions>
 
                     <ListBox Grid.Column="0"
-                             Background="#FF252D3A" Foreground="White"
-                             BorderBrush="#FF5A6A80"
                              ItemsSource="{Binding ModuleItems}">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <StackPanel Orientation="Horizontal" Margin="2">
-                                    <CheckBox IsChecked="{Binding IsEnabled}" Margin="0,0,8,0"
-                                              VerticalAlignment="Center"/>
+                                    <CheckBox IsChecked="{Binding IsEnabled}" Margin="0,0,8,0"/>
                                     <RadioButton GroupName="ModuleSelection"
                                                  IsChecked="{Binding IsSelected}"
                                                  Visibility="Collapsed"/>
-                                    <TextBlock Text="{Binding DisplayName}" Foreground="White"
+                                    <TextBlock Text="{Binding DisplayName}"
                                                VerticalAlignment="Center"
                                                MouseLeftButtonDown="ModuleItem_Click"/>
                                 </StackPanel>
@@ -97,14 +94,14 @@
 
                     <TextBlock Grid.Row="0" Text="Norm- og regelgrundlag (§4.1)"
                                Foreground="White" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                    <TextBox Grid.Row="1" Style="{StaticResource FormTextBoxStyle}"
+                    <TextBox Grid.Row="1"
                              Text="{Binding NormText, UpdateSourceTrigger=PropertyChanged}"
                              AcceptsReturn="True" TextWrapping="Wrap"
                              VerticalScrollBarVisibility="Auto"/>
 
                     <TextBlock Grid.Row="2" Text="Afvigelser / supplerende krav (§4.2)"
                                Foreground="White" FontWeight="SemiBold" Margin="0,8,0,4"/>
-                    <TextBox Grid.Row="3" Style="{StaticResource FormTextBoxStyle}"
+                    <TextBox Grid.Row="3"
                              Text="{Binding DeviationsText, UpdateSourceTrigger=PropertyChanged}"
                              AcceptsReturn="True" TextWrapping="Wrap"
                              VerticalScrollBarVisibility="Auto"/>
@@ -115,7 +112,7 @@
             <TabItem Header="Visning">
                 <StackPanel Margin="8">
                     <CheckBox Content="Vis alle nyttetimer-koder (også koder uden data)"
-                              Foreground="White" Margin="0,6"
+                              Margin="0,6"
                               IsChecked="{Binding ShowAllNyttetimerCodes}"/>
                 </StackPanel>
             </TabItem>
@@ -123,11 +120,10 @@
 
         <!-- Bottom buttons -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
-            <Button Content="OK" Width="80" Margin="0,0,8,0"
-                    Style="{StaticResource PrimaryButtonStyle}"
+            <Button Content="OK" Style="{StaticResource DialogButtonStyle}"
                     Click="OkButton_Click"/>
-            <Button Content="Annuller" Width="80" IsCancel="True"
-                    Style="{StaticResource SecondaryButtonStyle}"/>
+            <Button Content="Annuller" Style="{StaticResource DialogButtonStyle}"
+                    IsCancel="True"/>
         </StackPanel>
     </Grid>
 </Window>
