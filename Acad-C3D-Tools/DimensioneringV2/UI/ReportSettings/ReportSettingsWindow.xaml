@@ -1,0 +1,133 @@
+<Window x:Class="DimensioneringV2.UI.ReportSettings.ReportSettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Rapportindstillinger" Height="580" Width="600"
+        WindowStartupLocation="CenterScreen" ResizeMode="CanResize"
+        Background="#FF2D3442">
+    <Window.Resources>
+        <ResourceDictionary Source="../Theme.xaml"/>
+    </Window.Resources>
+
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Profile selector -->
+        <Grid Grid.Row="0" Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <Label Grid.Column="0" Content="Profil:" Foreground="White" VerticalAlignment="Center"/>
+            <ComboBox Grid.Column="1" Margin="6,0"
+                      Style="{StaticResource DarkComboBoxStyle}"
+                      ItemsSource="{Binding Profiles}"
+                      SelectedItem="{Binding SelectedProfile}"
+                      DisplayMemberPath="Name"/>
+
+            <StackPanel Grid.Column="2" Orientation="Horizontal">
+                <Button Content="&#xE710;" FontFamily="Segoe MDL2 Assets"
+                        Style="{StaticResource IconButtonStyle}"
+                        Command="{Binding NewProfileCommand}" ToolTip="Ny profil"/>
+                <Button Content="&#xE8C8;" FontFamily="Segoe MDL2 Assets"
+                        Style="{StaticResource IconButtonStyle}"
+                        Command="{Binding DuplicateProfileCommand}" ToolTip="Dupliker"/>
+                <Button Content="&#xE74D;" FontFamily="Segoe MDL2 Assets"
+                        Style="{StaticResource IconButtonStyle}"
+                        Command="{Binding DeleteProfileCommand}" ToolTip="Slet profil"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Content tabs -->
+        <TabControl Grid.Row="1" Background="#FF2D3442" Foreground="White" BorderBrush="#FF5A6A80">
+
+            <!-- Tab 1: Module toggles -->
+            <TabItem Header="Moduler">
+                <Grid Margin="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <ListBox Grid.Column="0"
+                             Background="#FF252D3A" Foreground="White"
+                             BorderBrush="#FF5A6A80"
+                             ItemsSource="{Binding ModuleItems}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal" Margin="2">
+                                    <CheckBox IsChecked="{Binding IsEnabled}" Margin="0,0,8,0"
+                                              VerticalAlignment="Center"/>
+                                    <RadioButton GroupName="ModuleSelection"
+                                                 IsChecked="{Binding IsSelected}"
+                                                 Visibility="Collapsed"/>
+                                    <TextBlock Text="{Binding DisplayName}" Foreground="White"
+                                               VerticalAlignment="Center"
+                                               MouseLeftButtonDown="ModuleItem_Click"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <StackPanel Grid.Column="1" Margin="6,0,0,0" VerticalAlignment="Center">
+                        <Button Content="&#xE70E;" FontFamily="Segoe MDL2 Assets"
+                                Style="{StaticResource IconButtonStyle}" Margin="0,2"
+                                Command="{Binding MoveUpCommand}" ToolTip="Flyt op"/>
+                        <Button Content="&#xE70D;" FontFamily="Segoe MDL2 Assets"
+                                Style="{StaticResource IconButtonStyle}" Margin="0,2"
+                                Command="{Binding MoveDownCommand}" ToolTip="Flyt ned"/>
+                    </StackPanel>
+                </Grid>
+            </TabItem>
+
+            <!-- Tab 2: Norm text -->
+            <TabItem Header="Projektgrundlag">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="Norm- og regelgrundlag (§4.1)"
+                               Foreground="White" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <TextBox Grid.Row="1" Style="{StaticResource FormTextBoxStyle}"
+                             Text="{Binding NormText, UpdateSourceTrigger=PropertyChanged}"
+                             AcceptsReturn="True" TextWrapping="Wrap"
+                             VerticalScrollBarVisibility="Auto"/>
+
+                    <TextBlock Grid.Row="2" Text="Afvigelser / supplerende krav (§4.2)"
+                               Foreground="White" FontWeight="SemiBold" Margin="0,8,0,4"/>
+                    <TextBox Grid.Row="3" Style="{StaticResource FormTextBoxStyle}"
+                             Text="{Binding DeviationsText, UpdateSourceTrigger=PropertyChanged}"
+                             AcceptsReturn="True" TextWrapping="Wrap"
+                             VerticalScrollBarVisibility="Auto"/>
+                </Grid>
+            </TabItem>
+
+            <!-- Tab 3: Display settings -->
+            <TabItem Header="Visning">
+                <StackPanel Margin="8">
+                    <CheckBox Content="Vis alle nyttetimer-koder (også koder uden data)"
+                              Foreground="White" Margin="0,6"
+                              IsChecked="{Binding ShowAllNyttetimerCodes}"/>
+                </StackPanel>
+            </TabItem>
+        </TabControl>
+
+        <!-- Bottom buttons -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+            <Button Content="OK" Width="80" Margin="0,0,8,0"
+                    Style="{StaticResource PrimaryButtonStyle}"
+                    Click="OkButton_Click"/>
+            <Button Content="Annuller" Width="80" IsCancel="True"
+                    Style="{StaticResource SecondaryButtonStyle}"/>
+        </StackPanel>
+    </Grid>
+</Window>

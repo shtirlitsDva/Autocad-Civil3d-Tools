@@ -5,6 +5,7 @@ using DimensioneringV2.MapCommands;
 using DimensioneringV2.Models;
 using DimensioneringV2.Services;
 using DimensioneringV2.Services.Report;
+using DimensioneringV2.UI.ReportSettings;
 
 using System;
 using System.Collections.ObjectModel;
@@ -44,6 +45,7 @@ internal partial class CalcManagerViewModel : ObservableObject
     public RelayCommand ExportDimsCommand { get; }
     public RelayCommand WriteToDwgCommand { get; }
     public RelayCommand GenerateReportCommand { get; }
+    public RelayCommand OpenReportSettingsCommand { get; }
 
     public CalcManagerViewModel()
     {
@@ -56,6 +58,7 @@ internal partial class CalcManagerViewModel : ObservableObject
         ExportDimsCommand = new RelayCommand(ExportDims, () => SelectedNetwork != null);
         WriteToDwgCommand = new RelayCommand(WriteToDwg, () => SelectedNetwork != null);
         GenerateReportCommand = new RelayCommand(GenerateReport, () => SelectedNetwork != null);
+        OpenReportSettingsCommand = new RelayCommand(OpenReportSettings);
         Refresh();
 
         HydraulicNetworkManager.Instance.CalculationsFinished += OnCalculationsFinished;
@@ -180,7 +183,7 @@ internal partial class CalcManagerViewModel : ObservableObject
         ReportProfileService.Instance.LoadFromActiveDocument();
         var profile = ReportProfileService.Instance.CurrentProfile;
 
-        // If HN has no report settings yet, create default ones
+        // Show HN settings dialog on first report or if user wants to edit
         if (hn.ReportSettings == null)
         {
             hn.ReportSettings = new Models.Report.ReportHnSettings
@@ -189,6 +192,20 @@ internal partial class CalcManagerViewModel : ObservableObject
             };
         }
 
+        var dialog = new HnReportSettingsDialog(hn.ReportSettings);
+        if (dialog.ShowDialog() != true)
+            return;
+
         ReportOrchestrator.Generate(hn, profile);
+    }
+
+    private void OpenReportSettings()
+    {
+        ReportProfileService.Instance.LoadFromActiveDocument();
+
+        var dialog = new ReportSettingsWindow();
+        dialog.ShowDialog();
+
+        ReportProfileService.Instance.SaveToActiveDocument();
     }
 }
