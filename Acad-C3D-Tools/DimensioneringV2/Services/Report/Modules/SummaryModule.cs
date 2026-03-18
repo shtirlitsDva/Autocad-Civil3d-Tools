@@ -190,10 +190,12 @@ internal class SummaryModule : IReportModule
         rows.Add(("Samlet stiklednings længde", $"{sum.ServiceLineLengthM:N1}", "m"));
         rows.Add(("Samlet pris", $"{sum.TotalPriceDkk:N0}", "kr"));
 
-        RenderKeyValueTable(container, rows);
-
-        container.PaddingTop(4).Text(ReportStyles.PowerNote)
-            .FontSize(ReportStyles.FontSizeSmall).Italic();
+        container.Column(col =>
+        {
+            col.Item().Element(c => RenderKeyValueTable(c, rows));
+            col.Item().PaddingTop(4).Text(ReportStyles.PowerNote)
+                .FontSize(ReportStyles.FontSizeSmall).Italic();
+        });
     }
 
     private static void ComposeComplianceTable(IContainer container, ReportDataContext ctx)

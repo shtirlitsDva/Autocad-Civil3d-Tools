@@ -143,37 +143,40 @@ internal class SystemResultsModule : IReportModule
         rows.Add(("Samlet stiklednings l\u00e6ngde", $"{sum.ServiceLineLengthM:N1}", "m"));
         rows.Add(("Samlet pris", $"{sum.TotalPriceDkk:N0}", "kr"));
 
-        container.Table(table =>
+        container.Column(col =>
         {
-            table.ColumnsDefinition(columns =>
+            col.Item().Table(table =>
             {
-                columns.RelativeColumn(4);
-                columns.RelativeColumn(2);
-                columns.ConstantColumn(50);
+                table.ColumnsDefinition(columns =>
+                {
+                    columns.RelativeColumn(4);
+                    columns.RelativeColumn(2);
+                    columns.ConstantColumn(50);
+                });
+
+                foreach (var (label, value, unit) in rows)
+                {
+                    table.Cell()
+                        .BorderBottom(0.5f).BorderColor(ReportStyles.ColorBorderLight)
+                        .Padding(ReportStyles.TableCellPadding)
+                        .Text(label).FontSize(ReportStyles.FontSizeBody);
+
+                    table.Cell()
+                        .BorderBottom(0.5f).BorderColor(ReportStyles.ColorBorderLight)
+                        .Padding(ReportStyles.TableCellPadding)
+                        .AlignRight()
+                        .Text(value).FontSize(ReportStyles.FontSizeBody);
+
+                    table.Cell()
+                        .BorderBottom(0.5f).BorderColor(ReportStyles.ColorBorderLight)
+                        .PaddingLeft(6).PaddingVertical(ReportStyles.TableCellPadding)
+                        .Text(unit).FontSize(ReportStyles.FontSizeBody);
+                }
             });
 
-            foreach (var (label, value, unit) in rows)
-            {
-                table.Cell()
-                    .BorderBottom(0.5f).BorderColor(ReportStyles.ColorBorderLight)
-                    .Padding(ReportStyles.TableCellPadding)
-                    .Text(label).FontSize(ReportStyles.FontSizeBody);
-
-                table.Cell()
-                    .BorderBottom(0.5f).BorderColor(ReportStyles.ColorBorderLight)
-                    .Padding(ReportStyles.TableCellPadding)
-                    .AlignRight()
-                    .Text(value).FontSize(ReportStyles.FontSizeBody);
-
-                table.Cell()
-                    .BorderBottom(0.5f).BorderColor(ReportStyles.ColorBorderLight)
-                    .PaddingLeft(6).PaddingVertical(ReportStyles.TableCellPadding)
-                    .Text(unit).FontSize(ReportStyles.FontSizeBody);
-            }
+            col.Item().PaddingTop(4).Text(ReportStyles.PowerNote)
+                .FontSize(ReportStyles.FontSizeSmall).Italic();
         });
-
-        container.PaddingTop(4).Text(ReportStyles.PowerNote)
-            .FontSize(ReportStyles.FontSizeSmall).Italic();
     }
 
     private static void ComposeComplianceTable(IContainer container, ReportDataContext ctx)
