@@ -9,6 +9,7 @@ using DimensioneringV2.UI.ReportSettings;
 
 using System;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Windows;
 
 using AcAp = Autodesk.AutoCAD.ApplicationServices.Application;
@@ -195,9 +196,17 @@ internal partial class CalcManagerViewModel : ObservableObject
             };
         }
 
-        var dialog = new HnReportSettingsDialog(hn.ReportSettings);
+        var otherHns = HydraulicNetworkManager.Instance.GetCalculatedNetworks()
+            .Where(h => h != hn && h.ReportSettings != null)
+            .ToList();
+        var dialog = new HnReportSettingsDialog(hn.ReportSettings, otherHns);
         if (dialog.ShowDialog() != true)
             return;
+
+        // Persist report settings to storage immediately
+        var doc = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
+        if (doc != null && hn.IsSaved)
+            Services.HydraulicNetworkStorage.Save(doc, hn);
 
         ReportOrchestrator.Generate(hn, profile);
     }
