@@ -128,7 +128,7 @@ internal class SystemResultsModule : IReportModule
             ("Samlet antal bygninger", $"{sum.TotalBuildings:N0}", "stk"),
             ("Samlet antal enheder", $"{sum.TotalUnits:N0}", "stk"),
             ("Samlet varmebehov", $"{sum.TotalHeatingDemandMwh:N1}", "MWh"),
-            ("Samlet effektbehov", $"{sum.TotalPowerDemandMw:N3}", "MW"),
+            ("Samlet effektbehov (Φ = qᵥ·ρ·cₚ·ΔT)", $"{sum.TotalPowerDemandKw:N1}", "kW"),
             ("Samlet volumen flow", $"{sum.TotalFlowM3H:N2}", "m\u00b3/h"),
         };
 
@@ -171,6 +171,9 @@ internal class SystemResultsModule : IReportModule
                     .Text(unit).FontSize(ReportStyles.FontSizeBody);
             }
         });
+
+        container.PaddingTop(4).Text(ReportStyles.PowerNote)
+            .FontSize(ReportStyles.FontSizeSmall).Italic();
     }
 
     private static void ComposeComplianceTable(IContainer container, ReportDataContext ctx)

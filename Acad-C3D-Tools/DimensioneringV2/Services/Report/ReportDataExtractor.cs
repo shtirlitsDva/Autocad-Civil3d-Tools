@@ -4,6 +4,7 @@ using DimensioneringV2.Models.Report;
 using DimensioneringV2.Services.Report.DataModels;
 
 using NorsynHydraulicCalc;
+using NorsynHydraulicCalc.LookupData;
 
 using QuikGraph;
 
@@ -38,7 +39,7 @@ internal static class ReportDataExtractor
         NodeNumberingService.AssignNodeIds(hn, orderedGraphs);
 
         // Build total scoped data (across all graphs)
-        var totalSummary = ComputeSummary(orderedGraphs, hn.TotalPrice);
+        var totalSummary = ComputeSummary(orderedGraphs, hn.TotalPrice, settings);
         var totalCompliance = ComputeCompliance(orderedGraphs, settings);
         var totalSupplyPoints = ExtractSupplyPoints(orderedGraphs, settings, isMultiNetwork);
         var totalData = new ScopedReportData(totalSummary, totalCompliance, totalSupplyPoints);
@@ -53,7 +54,7 @@ internal static class ReportDataExtractor
                 .Where(f => f.NumberOfBuildingsSupplied > 0)
                 .Sum(f => f.Dim.Price_m * f.Length + f.Dim.Price_stk_calc(f.SegmentType));
 
-            var gSummary = ComputeSummary(graphList, graphPrice);
+            var gSummary = ComputeSummary(graphList, graphPrice, settings);
             var gCompliance = ComputeCompliance(graphList, settings);
             var gSupplyPoints = ExtractSupplyPoints(graphList, settings, isMultiNetwork);
             perNetworkData.Add(new ScopedReportData(gSummary, gCompliance, gSupplyPoints));
@@ -80,9 +81,18 @@ internal static class ReportDataExtractor
 
     private static SystemSummary ComputeSummary(
         IReadOnlyList<UndirectedGraph<NodeJunction, EdgePipeSegment>> graphs,
-        double totalPrice)
+        double totalPrice,
+        HydraulicSettings settings)
     {
         var summary = new SystemSummary();
+
+        // Get fluid properties at forward temperature for power calculation
+        // Φ = qv · ρ · cp · ΔT  [kW]
+        var lookupData = LookupDataFactory.GetLookupData(settings.MedieType);
+        double tempFrem = settings.TempFrem;
+        double deltaT = settings.AfkølingVarme;
+        double rho = lookupData.rho(tempFrem);   // kg/m³
+        double cp = lookupData.cp(tempFrem);      // kJ/(kg·K)
 
         foreach (var graph in graphs)
         {
@@ -97,7 +107,6 @@ internal static class ReportDataExtractor
                     summary.TotalBuildings += f.NumberOfBuildingsConnected;
                     summary.TotalUnits += f.NumberOfUnitsConnected;
                     summary.TotalHeatingDemandMwh += f.HeatingDemandConnected;
-                    summary.TotalPowerDemandMw += f.Effekt / 1000.0;
                 }
                 else
                 {
@@ -123,6 +132,11 @@ internal static class ReportDataExtractor
         }
 
         summary.TotalPriceDkk = totalPrice;
+
+        // Power: Φ = qv · ρ · cp · ΔT
+        // qv [m³/h] / 3600 → [m³/s], ρ [kg/m³], cp [kJ/(kg·K)], ΔT [K]
+        // Result: [m³/s · kg/m³ · kJ/(kg·K) · K] = [kJ/s] = [kW]
+        summary.TotalPowerDemandKw = (summary.TotalFlowM3H / 3600.0) * rho * cp * deltaT;
 
         // Critical consumer: stikledning with highest required differential pressure
         double maxReqDP = 0;

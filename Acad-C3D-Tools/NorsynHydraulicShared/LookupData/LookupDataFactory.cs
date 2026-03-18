@@ -4,7 +4,7 @@ using System.Text;
 
 namespace NorsynHydraulicCalc.LookupData
 {
-    static class LookupDataFactory
+    public static class LookupDataFactory
     {
         public static ILookupData GetLookupData(MediumTypeEnum medium)
         {

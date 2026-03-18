@@ -42,4 +42,11 @@ internal static class ReportStyles
     // Table helpers
     public const float TableCellPadding = 4f;
     public const float SectionSpacing = 12f;
+
+    // Reusable text blocks
+    public const string PowerNote =
+        "Den beregnede effekt repræsenterer en samlet systemækvivalent effekt " +
+        "og er således ikke udtryk for en simpel summering af individuelle effektbehov " +
+        "korrigeret med en samlet samtidighedsfaktor. Dette skyldes, at samtidigheden " +
+        "varierer mellem de enkelte forbrugere i systemet.";
 }

@@ -8,7 +8,7 @@ internal class SystemSummary
     public int TotalBuildings { get; set; }
     public int TotalUnits { get; set; }
     public double TotalHeatingDemandMwh { get; set; }
-    public double TotalPowerDemandMw { get; set; }
+    public double TotalPowerDemandKw { get; set; }
     public double TotalFlowM3H { get; set; }
     public double DistributionLineLengthM { get; set; }
     public double ServiceLineLengthM { get; set; }
