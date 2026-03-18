@@ -118,7 +118,9 @@ internal static class ReportDataExtractor
             var rootEdge = graph.Edges
                 .FirstOrDefault(e => e.Source.IsRootNode || e.Target.IsRootNode);
             if (rootEdge != null)
-                summary.TotalFlowM3H += rootEdge.PipeSegment.DimFlowSupply;
+                summary.TotalFlowM3H += 
+                    rootEdge.PipeSegment.KarFlowHeatSupply > rootEdge.PipeSegment.KarFlowBVSupply ?
+                    rootEdge.PipeSegment.KarFlowHeatSupply : rootEdge.PipeSegment.KarFlowBVSupply;
 
             // Critical path pressure loss (per-graph, accumulates if multiple graphs)
             foreach (var edge in graph.Edges)

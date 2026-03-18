@@ -118,6 +118,9 @@ namespace NSPaletteSet.ViewModels
             if (HasFremRetur)
             {
                 IsFremSelected = true;
+                // Explicitly set Type to match UI state — the OnIsFremSelectedChanged
+                // handler won't fire if IsFremSelected was already true.
+                comb.Type = PipeTypeEnum.Frem;
             }
 
             // Populate DN values

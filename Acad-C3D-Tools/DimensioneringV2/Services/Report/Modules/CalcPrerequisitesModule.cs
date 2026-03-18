@@ -99,11 +99,11 @@ internal class CalcPrerequisitesModule : IReportModule
             ("Min. differenstryk over hovedhaner",
                 $"{s.MinDifferentialPressureOverHovedHaner:F2}", "bar"),
             ("Maks. tryktab stikledning", $"{s.MaxPressureLossStikSL:F2}", "bar"),
-            ("Steiner tree enumeration tid", $"{s.TimeToSteinerTreeEnumeration}", "s"),
-            ("Beregningstype", s.CalculationType.ToString(), ""),
-            ("Report to console", s.ReportToConsole ? "Ja" : "Nej", ""),
-            ("Cache resultater", s.CacheResults ? "Ja" : "Nej", ""),
-            ("Cache præcision", $"{s.CachePrecision}", "decimaler"),
+            //("Steiner tree enumeration tid", $"{s.TimeToSteinerTreeEnumeration}", "s"),
+            //("Beregningstype", s.CalculationType.ToString(), ""),
+            //("Report to console", s.ReportToConsole ? "Ja" : "Nej", ""),
+            //("Cache resultater", s.CacheResults ? "Ja" : "Nej", ""),
+            //("Cache præcision", $"{s.CachePrecision}", "decimaler"),
         };
 
         RenderKeyValueTable(container, rows);
