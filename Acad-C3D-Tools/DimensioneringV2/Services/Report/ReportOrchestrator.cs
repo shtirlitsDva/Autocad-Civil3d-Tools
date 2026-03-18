@@ -10,8 +10,10 @@ using QuestPDF.Infrastructure;
 
 using System;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Windows;
 
 namespace DimensioneringV2.Services.Report;
@@ -25,6 +27,9 @@ internal static class ReportOrchestrator
 {
     internal static void Generate(HydraulicNetwork hn, ReportProfile profile)
     {
+        // Set da-DK locale for all numeric formatting in report generation
+        var previousCulture = Thread.CurrentThread.CurrentCulture;
+        Thread.CurrentThread.CurrentCulture = ReportStyles.DaDk;
         try
         {
             var context = ReportDataExtractor.Extract(hn, profile);
@@ -133,6 +138,10 @@ internal static class ReportOrchestrator
                 "Rapport fejl",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
+        }
+        finally
+        {
+            Thread.CurrentThread.CurrentCulture = previousCulture;
         }
     }
 

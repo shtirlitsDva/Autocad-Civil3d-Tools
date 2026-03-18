@@ -1,6 +1,8 @@
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 
+using System.Globalization;
+
 namespace DimensioneringV2.Services.Report.Styles;
 
 /// <summary>
@@ -8,6 +10,9 @@ namespace DimensioneringV2.Services.Report.Styles;
 /// </summary>
 internal static class ReportStyles
 {
+    // Locale for numeric formatting (comma decimal, dot thousands)
+    public static readonly CultureInfo DaDk = CultureInfo.GetCultureInfo("da-DK");
+
     // Page setup
     public static readonly PageSize PageSizeA4 = PageSizes.A4;
     public const float MarginLeft = 25f;
