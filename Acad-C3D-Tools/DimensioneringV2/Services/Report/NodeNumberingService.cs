@@ -10,31 +10,42 @@ namespace DimensioneringV2.Services.Report;
 
 /// <summary>
 /// Assigns stable, sequential NodeId values to all nodes in a HydraulicNetwork.
-/// Algorithm: filter unused edges, enumerate root→leaf paths sorted by length (longest first),
+/// Algorithm: filter unused edges, enumerate root->leaf paths sorted by length (longest first),
 /// number nodes along each path, skipping already-numbered nodes.
+///
+/// Single-network mode: IDs are "1", "2", "3"...
+/// Multi-network mode:  IDs are "{graphIndex}.1", "{graphIndex}.2"... per graph.
 /// </summary>
 internal static class NodeNumberingService
 {
     /// <summary>
-    /// Assigns 1-based sequential NodeIds across all graphs in the network.
-    /// Call after calculation completes so IDs are stable and persistable.
+    /// Assigns sequential string NodeIds across all graphs.
+    /// <paramref name="orderedGraphs"/> provides the graphs in the desired ordering
+    /// (typically sorted by edge count descending for report output).
+    ///
+    /// Single graph  -> IDs: "1", "2", "3"...
+    /// Multiple graphs -> IDs: "1.1", "1.2"... for first graph, "2.1", "2.2"... for second, etc.
     /// </summary>
-    internal static void AssignNodeIds(HydraulicNetwork hn)
+    internal static void AssignNodeIds(
+        HydraulicNetwork hn,
+        List<UndirectedGraph<NodeJunction, EdgePipeSegment>> orderedGraphs)
     {
-        // Reset all existing IDs first
+        // Reset all existing IDs first (across ALL graphs in hn, not just orderedGraphs)
         foreach (var graph in hn.Graphs)
             foreach (var node in graph.Vertices)
-                node.NodeId = -1;
+                node.NodeId = "";
 
-        int nextId = 1;
-        foreach (var graph in hn.Graphs)
+        bool multiNetwork = orderedGraphs.Count > 1;
+
+        for (int i = 0; i < orderedGraphs.Count; i++)
         {
-            nextId = AssignNodeIdsForGraph(graph, nextId);
+            string prefix = multiNetwork ? $"{i + 1}." : "";
+            AssignNodeIdsForGraph(orderedGraphs[i], prefix);
         }
     }
 
-    private static int AssignNodeIdsForGraph(
-        UndirectedGraph<NodeJunction, EdgePipeSegment> graph, int startId)
+    private static void AssignNodeIdsForGraph(
+        UndirectedGraph<NodeJunction, EdgePipeSegment> graph, string prefix)
     {
         // 1. Filter: keep only edges where buildings are actually supplied
         //    (edges with 0 were discarded by the genetic algorithm)
@@ -42,7 +53,7 @@ internal static class NodeNumberingService
             .Where(e => e.PipeSegment.NumberOfBuildingsSupplied > 0)
             .ToList();
 
-        if (activeEdges.Count == 0) return startId;
+        if (activeEdges.Count == 0) return;
 
         // 2. Build adjacency map from active edges only
         var adjacency = new Dictionary<NodeJunction, List<EdgePipeSegment>>();
@@ -65,9 +76,9 @@ internal static class NodeNumberingService
 
         // 3. Find root node (supply point)
         var root = adjacency.Keys.FirstOrDefault(n => n.IsRootNode);
-        if (root == null) return startId;
+        if (root == null) return;
 
-        // 4. Enumerate all root→terminal paths via DFS
+        // 4. Enumerate all root->terminal paths via DFS
         var allPaths = new List<(List<NodeJunction> Nodes, double Length)>();
         var currentPath = new List<NodeJunction>();
         DfsEnumeratePaths(root, null, adjacency, currentPath, allPaths, 0);
@@ -76,17 +87,15 @@ internal static class NodeNumberingService
         allPaths.Sort((a, b) => b.Length.CompareTo(a.Length));
 
         // 6. Assign IDs: process longest path first, skip already-numbered nodes
-        int nextId = startId;
+        int nextSeq = 1;
         foreach (var (nodes, _) in allPaths)
         {
             foreach (var node in nodes)
             {
-                if (node.NodeId == -1)
-                    node.NodeId = nextId++;
+                if (string.IsNullOrEmpty(node.NodeId))
+                    node.NodeId = $"{prefix}{nextSeq++}";
             }
         }
-
-        return nextId;
     }
 
     /// <summary>

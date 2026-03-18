@@ -279,12 +279,43 @@ internal partial class HydraulicNetworkManager : ObservableObject
                     .Where(hn => hn.Id != null)
                     .Select(hn => hn.Id!));
 
+            var failedIds = new List<string>();
+
             foreach (var id in savedIds)
             {
                 if (existingIds.Contains(id)) continue;
-                var hn = HydraulicNetworkStorage.Load(doc, id);
+                var (hn, deserializationFailed) = HydraulicNetworkStorage.Load(doc, id);
                 if (hn != null)
+                {
                     state.CalculatedNetworks.Add(hn);
+                }
+                else if (deserializationFailed)
+                {
+                    failedIds.Add(id);
+                }
+            }
+
+            if (failedIds.Count > 0)
+            {
+                var idList = string.Join(", ", failedIds);
+                var result = System.Windows.MessageBox.Show(
+                    $"Gamle inkompatible beregningsresultater fundet.\n\n" +
+                    $"Berørte beregninger: {idList}\n\n" +
+                    $"Vil du slette de inkompatible data?\n" +
+                    $"Ja = Slet, Nej = Afbryd (data beholdes men indlæses ikke)",
+                    "Inkompatible data",
+                    System.Windows.MessageBoxButton.YesNo,
+                    System.Windows.MessageBoxImage.Warning,
+                    System.Windows.MessageBoxResult.No);
+
+                if (result == System.Windows.MessageBoxResult.Yes)
+                {
+                    using var docLock = doc.LockDocument();
+                    foreach (var id in failedIds)
+                    {
+                        Norsyn.Storage.NorsynStorage.Remove("dimv2:hn:" + id);
+                    }
+                }
             }
         }
         catch (Exception ex)

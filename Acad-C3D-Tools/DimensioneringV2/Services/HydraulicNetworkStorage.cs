@@ -47,21 +47,28 @@ internal static class HydraulicNetworkStorage
         hn.IsSaved = true;
     }
 
-    internal static HydraulicNetwork? Load(Document doc, string id)
+    /// <summary>
+    /// Loads a HydraulicNetwork from storage.
+    /// Returns (network, false) on success, (null, false) if key doesn't exist,
+    /// or (null, true) if deserialization failed (incompatible data format).
+    /// </summary>
+    internal static (HydraulicNetwork? network, bool deserializationFailed) Load(Document doc, string id)
     {
-        if (doc == null) return null;
+        if (doc == null) return (null, false);
+
+        using var docLock = doc.LockDocument();
+        var key = KeyPrefix + id;
+        if (!NorsynStorage.Exists(key)) return (null, false);
+
         try
         {
-            using var docLock = doc.LockDocument();
-            var key = KeyPrefix + id;
-            if (!NorsynStorage.Exists(key)) return null;
             var dto = NorsynStorage.Get<HydraulicNetworkMsgDto>(key);
-            return dto?.ToDomain();
+            return (dto?.ToDomain(), false);
         }
         catch (Exception ex)
         {
-            Utils.prtDbg($"Error loading HN '{id}': {ex.Message}");
-            return null;
+            Utils.prtDbg($"Error deserializing HN '{id}': {ex.Message}");
+            return (null, true);
         }
     }
 

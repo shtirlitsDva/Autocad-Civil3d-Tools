@@ -14,16 +14,20 @@ namespace DimensioneringV2.Services.Report.Modules;
 /// <summary>
 /// Renders §8 Forbrugeroversigt: summary stats, top-10 critical consumers,
 /// and a detailed consumer table in landscape format.
+/// In multi-network mode, renders once per network with scoped graphs.
 /// </summary>
 internal class ConsumerOverviewModule : IReportModule
 {
     public ReportModuleId Id => ReportModuleId.ConsumerOverview;
     public string DisplayName => "Forbrugeroversigt";
     public bool IsImplemented => true;
+    public NetworkAffinity Affinity => NetworkAffinity.PerNetwork;
 
     public void Compose(IDocumentContainer container, ReportDataContext context)
     {
-        var consumers = context.Network.Graphs
+        var scope = context.Scope!;
+
+        var consumers = scope.Graphs
             .SelectMany(g => g.Edges)
             .Where(e => e.PipeSegment.SegmentType == NorsynHydraulicCalc.SegmentType.Stikledning
                         && e.PipeSegment.NumberOfBuildingsSupplied > 0)
@@ -33,6 +37,20 @@ internal class ConsumerOverviewModule : IReportModule
 
         var s = context.CurrentSection;
 
+        if (scope.IsSingleNetworkMode)
+        {
+            ComposeSingleMode(container, context, consumers, s);
+        }
+        else
+        {
+            ComposeMultiMode(container, context, consumers, s, scope);
+        }
+    }
+
+    private static void ComposeSingleMode(
+        IDocumentContainer container, ReportDataContext context,
+        List<AnalysisFeature> consumers, int s)
+    {
         // §s.1 & §s.2 — Portrait page with summary and top-10
         container.Page(page =>
         {
@@ -80,6 +98,74 @@ internal class ConsumerOverviewModule : IReportModule
             page.MarginBottom(ReportStyles.MarginBottom, Unit.Point);
 
             page.Header().Text($"{s}.3  Detaljeret forbrugeroversigt")
+                .FontSize(ReportStyles.FontSizeH1)
+                .FontColor(ReportStyles.ColorPrimary).Bold();
+
+            page.Content().PaddingTop(8).Element(c => ComposeDetailedTable(c, consumers));
+
+            page.Footer().AlignRight().Text(t =>
+            {
+                t.DefaultTextStyle(x => x.FontSize(ReportStyles.FontSizeFooter));
+                t.CurrentPageNumber();
+                t.Span(" / ");
+                t.TotalPages();
+            });
+        });
+    }
+
+    private static void ComposeMultiMode(
+        IDocumentContainer container, ReportDataContext context,
+        List<AnalysisFeature> consumers, int s, NetworkScope scope)
+    {
+        var netSub = ++context.SubSectionCounter;
+
+        // Portrait page with network heading, summary and top-10
+        container.Page(page =>
+        {
+            page.Size(ReportStyles.PageSizeA4);
+            page.MarginLeft(ReportStyles.MarginLeft, Unit.Point);
+            page.MarginRight(ReportStyles.MarginRight, Unit.Point);
+            page.MarginTop(ReportStyles.MarginTop, Unit.Point);
+            page.MarginBottom(ReportStyles.MarginBottom, Unit.Point);
+
+            page.Header().Text($"{s}.{netSub}  Forbrugeroversigt \u2014 {scope.NetworkDisplayName}")
+                .FontSize(ReportStyles.FontSizeH1)
+                .FontColor(ReportStyles.ColorPrimary).Bold();
+
+            page.Content().PaddingTop(8).Column(col =>
+            {
+                col.Spacing(ReportStyles.SectionSpacing);
+
+                // Summary stats
+                col.Item().Text("Samlet oversigt")
+                    .FontSize(ReportStyles.FontSizeH2).SemiBold();
+                col.Item().Element(c => ComposeSummaryTable(c, consumers));
+
+                // Top-10
+                col.Item().Text("Top-10 kritiske forbrugere")
+                    .FontSize(ReportStyles.FontSizeH2).SemiBold();
+                col.Item().Element(c => ComposeTop10Table(c, consumers, context));
+            });
+
+            page.Footer().AlignRight().Text(t =>
+            {
+                t.DefaultTextStyle(x => x.FontSize(ReportStyles.FontSizeFooter));
+                t.CurrentPageNumber();
+                t.Span(" / ");
+                t.TotalPages();
+            });
+        });
+
+        // Detailed table — Landscape page
+        container.Page(page =>
+        {
+            page.Size(PageSizes.A4.Landscape());
+            page.MarginLeft(ReportStyles.MarginLeft, Unit.Point);
+            page.MarginRight(ReportStyles.MarginRight, Unit.Point);
+            page.MarginTop(ReportStyles.MarginTop, Unit.Point);
+            page.MarginBottom(ReportStyles.MarginBottom, Unit.Point);
+
+            page.Header().Text($"{s}.{netSub}  Detaljeret forbrugeroversigt \u2014 {scope.NetworkDisplayName}")
                 .FontSize(ReportStyles.FontSizeH1)
                 .FontColor(ReportStyles.ColorPrimary).Bold();
 

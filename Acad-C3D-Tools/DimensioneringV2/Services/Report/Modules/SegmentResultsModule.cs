@@ -12,21 +12,36 @@ namespace DimensioneringV2.Services.Report.Modules;
 /// <summary>
 /// Renders §7.4 Strækningsresultater: a paginated table of all pipe segments
 /// with dimensions, velocities, and pressure losses.
+/// In multi-network mode, renders once per network with scoped graphs.
 /// </summary>
 internal class SegmentResultsModule : IReportModule
 {
     public ReportModuleId Id => ReportModuleId.SegmentResults;
     public string DisplayName => "Strækningsresultater";
     public bool IsImplemented => true;
+    public NetworkAffinity Affinity => NetworkAffinity.PerNetwork;
 
     public void Compose(IDocumentContainer container, ReportDataContext context)
     {
         var pipeTypes = context.Settings.GetPipeTypes();
+        var scope = context.Scope!;
 
-        var segments = context.Network.Graphs
+        var segments = scope.Graphs
             .SelectMany(g => g.Edges)
             .Where(e => e.PipeSegment.NumberOfBuildingsSupplied > 0)
             .ToList();
+
+        // Build heading
+        string heading;
+        if (scope.IsSingleNetworkMode)
+        {
+            heading = $"{context.CurrentSection}  Strækningsresultater";
+        }
+        else
+        {
+            var sub = ++context.SubSectionCounter;
+            heading = $"{context.CurrentSection}.{sub}  Strækningsresultater \u2014 {scope.NetworkDisplayName}";
+        }
 
         container.Page(page =>
         {
@@ -37,7 +52,7 @@ internal class SegmentResultsModule : IReportModule
             page.MarginTop(ReportStyles.MarginTop, Unit.Point);
             page.MarginBottom(ReportStyles.MarginBottom, Unit.Point);
 
-            page.Header().Text($"{context.CurrentSection}  Strækningsresultater")
+            page.Header().Text(heading)
                 .FontSize(ReportStyles.FontSizeH1)
                 .FontColor(ReportStyles.ColorPrimary).Bold();
 
@@ -92,8 +107,8 @@ internal class SegmentResultsModule : IReportModule
                 foreach (var edge in segments)
                 {
                     var f = edge.PipeSegment;
-                    var srcId = edge.Source.NodeId >= 0 ? edge.Source.NodeId.ToString() : "?";
-                    var tgtId = edge.Target.NodeId >= 0 ? edge.Target.NodeId.ToString() : "?";
+                    var srcId = !string.IsNullOrEmpty(edge.Source.NodeId) ? edge.Source.NodeId : "?";
+                    var tgtId = !string.IsNullOrEmpty(edge.Target.NodeId) ? edge.Target.NodeId : "?";
                     var segmentId = $"{srcId}-{tgtId}";
 
                     var bg = alternate ? ReportStyles.ColorAlternateRowBg : "#FFFFFF";

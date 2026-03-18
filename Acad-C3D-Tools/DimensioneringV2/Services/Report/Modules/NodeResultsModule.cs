@@ -1,5 +1,6 @@
 using DimensioneringV2.GraphFeatures;
 using DimensioneringV2.Models.Report;
+using DimensioneringV2.Services.Report;
 using DimensioneringV2.Services.Report.Styles;
 
 using QuestPDF.Fluent;
@@ -14,24 +15,28 @@ namespace DimensioneringV2.Services.Report.Modules;
 /// <summary>
 /// Renders §7.5 Knudepunkter: table of building and root nodes
 /// with power demand and pressure results.
+/// In multi-network mode, renders once per network with scoped graphs.
 /// </summary>
 internal class NodeResultsModule : IReportModule
 {
     public ReportModuleId Id => ReportModuleId.NodeResults;
     public string DisplayName => "Knudepunkter";
     public bool IsImplemented => true;
+    public NetworkAffinity Affinity => NetworkAffinity.PerNetwork;
 
     public void Compose(IDocumentContainer container, ReportDataContext context)
     {
-        // Collect unique nodes across all graphs
+        var scope = context.Scope!;
+
+        // Collect unique nodes across scoped graphs
         var seen = new HashSet<NodeJunction>();
         var nodeData = new List<(NodeJunction Node, double Effekt, double PressureLoss, double DifferentialPressure)>();
 
-        foreach (var graph in context.Network.Graphs)
+        foreach (var graph in scope.Graphs)
         {
             foreach (var node in graph.Vertices)
             {
-                if (node.NodeId <= 0) continue;
+                if (string.IsNullOrEmpty(node.NodeId)) continue;
                 if (!seen.Add(node)) continue;
                 if (!node.IsBuildingNode && !node.IsRootNode) continue;
 
@@ -54,7 +59,19 @@ internal class NodeResultsModule : IReportModule
             }
         }
 
-        var sortedNodes = nodeData.OrderBy(n => n.Node.NodeId).ToList();
+        var sortedNodes = nodeData.OrderBy(n => n.Node.NodeId, NodeIdComparer.Instance).ToList();
+
+        // Build heading
+        string heading;
+        if (scope.IsSingleNetworkMode)
+        {
+            heading = $"{context.CurrentSection}  Knudepunkter";
+        }
+        else
+        {
+            var sub = ++context.SubSectionCounter;
+            heading = $"{context.CurrentSection}.{sub}  Knudepunkter \u2014 {scope.NetworkDisplayName}";
+        }
 
         container.Page(page =>
         {
@@ -64,7 +81,7 @@ internal class NodeResultsModule : IReportModule
             page.MarginTop(ReportStyles.MarginTop, Unit.Point);
             page.MarginBottom(ReportStyles.MarginBottom, Unit.Point);
 
-            page.Header().Text($"{context.CurrentSection}  Knudepunkter")
+            page.Header().Text(heading)
                 .FontSize(ReportStyles.FontSizeH1)
                 .FontColor(ReportStyles.ColorPrimary).Bold();
 

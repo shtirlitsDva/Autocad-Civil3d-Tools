@@ -18,7 +18,8 @@ namespace DimensioneringV2.Services.Report;
 
 /// <summary>
 /// Main entry point for report generation.
-/// Extracts data, builds QuestPDF document from enabled modules, and generates PDF.
+/// Dispatches modules based on their NetworkAffinity:
+/// ProjectLevel → once, PerNetwork → once per graph, Both → totals then per-graph.
 /// </summary>
 internal static class ReportOrchestrator
 {
@@ -45,19 +46,67 @@ internal static class ReportOrchestrator
                 return;
             }
 
+            bool isMultiNetwork = context.OrderedGraphs.Count > 1;
+
             var document = Document.Create(container =>
             {
                 int sectionCounter = 0;
+
                 foreach (var module in enabledModules)
                 {
                     if (module!.HasSectionNumber)
                         context.CurrentSection = ++sectionCounter;
 
-                    module.Compose(container, context);
+                    context.SubSectionCounter = 0;
+
+                    switch (module.Affinity)
+                    {
+                        case NetworkAffinity.ProjectLevel:
+                            SetTotalScope(context);
+                            module.Compose(container, context);
+                            break;
+
+                        case NetworkAffinity.PerNetwork:
+                            if (isMultiNetwork)
+                            {
+                                for (int i = 0; i < context.OrderedGraphs.Count; i++)
+                                {
+                                    SetNetworkScope(context, i);
+                                    module.Compose(container, context);
+                                }
+                            }
+                            else
+                            {
+                                SetNetworkScope(context, 0);
+                                module.Compose(container, context);
+                            }
+                            break;
+
+                        case NetworkAffinity.Both:
+                            if (isMultiNetwork)
+                            {
+                                // Total pass first
+                                SetTotalScope(context);
+                                module.Compose(container, context);
+
+                                // Then per-network passes
+                                for (int i = 0; i < context.OrderedGraphs.Count; i++)
+                                {
+                                    SetNetworkScope(context, i);
+                                    module.Compose(container, context);
+                                }
+                            }
+                            else
+                            {
+                                // Single network: one call with total scope
+                                SetTotalScope(context);
+                                module.Compose(container, context);
+                            }
+                            break;
+                    }
                 }
             });
 
-            // Show save dialog
             string defaultName = SanitizeFileName($"{hn.Id ?? "rapport"}_rapport.pdf");
             var dialog = new SaveFileDialog
             {
@@ -70,7 +119,6 @@ internal static class ReportOrchestrator
             {
                 document.GeneratePdf(dialog.FileName);
 
-                // Open the generated PDF
                 Process.Start(new ProcessStartInfo
                 {
                     FileName = dialog.FileName,
@@ -86,6 +134,29 @@ internal static class ReportOrchestrator
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
         }
+    }
+
+    private static void SetTotalScope(ReportDataContext context)
+    {
+        var data = context.TotalData;
+        context.Summary = data.Summary;
+        context.ComplianceChecks = data.ComplianceChecks;
+        context.SupplyPoints = data.SupplyPoints;
+        context.Scope = NetworkScope.Total(
+            context.OrderedGraphs,
+            context.OrderedGraphs.Count == 1);
+    }
+
+    private static void SetNetworkScope(ReportDataContext context, int index)
+    {
+        var data = context.PerNetworkData[index];
+        context.Summary = data.Summary;
+        context.ComplianceChecks = data.ComplianceChecks;
+        context.SupplyPoints = data.SupplyPoints;
+        context.Scope = NetworkScope.ForGraph(
+            context.OrderedGraphs[index],
+            index + 1,
+            context.OrderedGraphs.Count == 1);
     }
 
     private static string SanitizeFileName(string name)

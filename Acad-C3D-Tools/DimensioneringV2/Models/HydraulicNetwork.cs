@@ -70,7 +70,7 @@ internal class HydraulicNetwork
         CalculatedAt = DateTime.Now;
         CalculationDuration = duration;
         RecalculatePrice();
-        NodeNumberingService.AssignNodeIds(this);
+        NodeNumberingService.AssignNodeIds(this, Graphs);
     }
 
     private static void DeepCopyPipeConfigs(HydraulicSettings target)

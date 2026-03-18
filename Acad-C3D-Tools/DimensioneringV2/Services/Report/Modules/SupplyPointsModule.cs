@@ -11,6 +11,7 @@ namespace DimensioneringV2.Services.Report.Modules;
 
 /// <summary>
 /// Renders §6 Forsyningspunkter: supply point table with kote, pressure, temperatures.
+/// In multi-network mode, adds a "Fjernvarmenet" column.
 /// </summary>
 internal class SupplyPointsModule : IReportModule
 {
@@ -20,6 +21,8 @@ internal class SupplyPointsModule : IReportModule
 
     public void Compose(IDocumentContainer container, ReportDataContext context)
     {
+        bool multiNetwork = context.OrderedGraphs.Count > 1;
+
         container.Page(page =>
         {
             page.Size(ReportStyles.PageSizeA4);
@@ -36,7 +39,7 @@ internal class SupplyPointsModule : IReportModule
             {
                 col.Spacing(ReportStyles.SectionSpacing);
 
-                col.Item().Element(c => ComposeSupplyPointTable(c, context));
+                col.Item().Element(c => ComposeSupplyPointTable(c, context, multiNetwork));
 
                 bool anyNullKote = context.SupplyPoints.Any(sp => sp.KoteM == null);
                 if (anyNullKote)
@@ -56,7 +59,8 @@ internal class SupplyPointsModule : IReportModule
         });
     }
 
-    private static void ComposeSupplyPointTable(IContainer container, ReportDataContext ctx)
+    private static void ComposeSupplyPointTable(
+        IContainer container, ReportDataContext ctx, bool multiNetwork)
     {
         container.Table(table =>
         {
@@ -64,6 +68,8 @@ internal class SupplyPointsModule : IReportModule
             {
                 columns.RelativeColumn(1);   // ID
                 columns.RelativeColumn(1.5f); // Type
+                if (multiNetwork)
+                    columns.RelativeColumn(1.5f); // Fjernvarmenet
                 columns.RelativeColumn(1);   // Kote [m]
                 columns.RelativeColumn(1.5f); // Differenstryk [bar]
                 columns.RelativeColumn(1.2f); // TFremloeb [C]
@@ -79,6 +85,12 @@ internal class SupplyPointsModule : IReportModule
                 header.Cell().Background(ReportStyles.ColorHeaderBg)
                     .Padding(ReportStyles.TableCellPadding)
                     .Text("Type").FontSize(ReportStyles.FontSizeSmall).SemiBold();
+                if (multiNetwork)
+                {
+                    header.Cell().Background(ReportStyles.ColorHeaderBg)
+                        .Padding(ReportStyles.TableCellPadding)
+                        .Text("Fjernvarmenet").FontSize(ReportStyles.FontSizeSmall).SemiBold();
+                }
                 header.Cell().Background(ReportStyles.ColorHeaderBg)
                     .Padding(ReportStyles.TableCellPadding)
                     .Text("Kote [m]").FontSize(ReportStyles.FontSizeSmall).SemiBold();
@@ -104,6 +116,12 @@ internal class SupplyPointsModule : IReportModule
                 table.Cell().BorderBottom(0.5f).BorderColor(ReportStyles.ColorBorderLight)
                     .Padding(ReportStyles.TableCellPadding)
                     .Text(sp.Type ?? "-").FontSize(ReportStyles.FontSizeSmall);
+                if (multiNetwork)
+                {
+                    table.Cell().BorderBottom(0.5f).BorderColor(ReportStyles.ColorBorderLight)
+                        .Padding(ReportStyles.TableCellPadding)
+                        .Text(sp.NetworkName ?? "-").FontSize(ReportStyles.FontSizeSmall);
+                }
                 table.Cell().BorderBottom(0.5f).BorderColor(ReportStyles.ColorBorderLight)
                     .Padding(ReportStyles.TableCellPadding)
                     .Text(sp.KoteM.HasValue ? $"{sp.KoteM.Value:F2}" : "N/A")

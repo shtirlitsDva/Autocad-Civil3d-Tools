@@ -11,17 +11,33 @@ namespace DimensioneringV2.Services.Report.Modules;
 
 /// <summary>
 /// Renders §7.1-7.2 Systemresultater: system overview and compliance checks.
+/// In multi-network mode, also renders per-network sub-sections.
 /// </summary>
 internal class SystemResultsModule : IReportModule
 {
     public ReportModuleId Id => ReportModuleId.SystemResults;
     public string DisplayName => "Systemresultater";
     public bool IsImplemented => true;
+    public NetworkAffinity Affinity => NetworkAffinity.Both;
 
     public void Compose(IDocumentContainer container, ReportDataContext context)
     {
         var s = context.CurrentSection;
+        var scope = context.Scope!;
 
+        if (scope.IsTotal)
+        {
+            ComposeTotal(container, context, s, scope);
+        }
+        else
+        {
+            ComposePerNetwork(container, context, s, scope);
+        }
+    }
+
+    private static void ComposeTotal(
+        IDocumentContainer container, ReportDataContext context, int s, NetworkScope scope)
+    {
         container.Page(page =>
         {
             page.Size(ReportStyles.PageSizeA4);
@@ -41,7 +57,8 @@ internal class SystemResultsModule : IReportModule
                 // §s.1 Systemoversigt
                 col.Item().Text($"{s}.1  Systemoversigt")
                     .FontSize(ReportStyles.FontSizeH2).SemiBold();
-                col.Item().Element(c => ComposeSystemOverviewTable(c, context));
+                col.Item().Element(c => ComposeSystemOverviewTable(c, context,
+                    skipCriticalPath: !scope.IsSingleNetworkMode));
 
                 // §s.2 Dimensioneringskontrol
                 col.Item().Text($"{s}.2  Dimensioneringskontrol")
@@ -59,7 +76,50 @@ internal class SystemResultsModule : IReportModule
         });
     }
 
-    private static void ComposeSystemOverviewTable(IContainer container, ReportDataContext ctx)
+    private static void ComposePerNetwork(
+        IDocumentContainer container, ReportDataContext context, int s, NetworkScope scope)
+    {
+        var sub = ++context.SubSectionCounter;
+
+        container.Page(page =>
+        {
+            page.Size(ReportStyles.PageSizeA4);
+            page.MarginLeft(ReportStyles.MarginLeft, Unit.Point);
+            page.MarginRight(ReportStyles.MarginRight, Unit.Point);
+            page.MarginTop(ReportStyles.MarginTop, Unit.Point);
+            page.MarginBottom(ReportStyles.MarginBottom, Unit.Point);
+
+            page.Header().Text($"{s}.{sub}  {scope.NetworkDisplayName}")
+                .FontSize(ReportStyles.FontSizeH1)
+                .FontColor(ReportStyles.ColorPrimary).Bold();
+
+            page.Content().PaddingTop(8).Column(col =>
+            {
+                col.Spacing(ReportStyles.SectionSpacing);
+
+                // Systemoversigt (includes CriticalPathPressureLossBar for per-network)
+                col.Item().Text("Systemoversigt")
+                    .FontSize(ReportStyles.FontSizeH2).SemiBold();
+                col.Item().Element(c => ComposeSystemOverviewTable(c, context, skipCriticalPath: false));
+
+                // Dimensioneringskontrol
+                col.Item().Text("Dimensioneringskontrol")
+                    .FontSize(ReportStyles.FontSizeH2).SemiBold();
+                col.Item().Element(c => ComposeComplianceTable(c, context));
+            });
+
+            page.Footer().AlignRight().Text(t =>
+            {
+                t.DefaultTextStyle(x => x.FontSize(ReportStyles.FontSizeFooter));
+                t.CurrentPageNumber();
+                t.Span(" / ");
+                t.TotalPages();
+            });
+        });
+    }
+
+    private static void ComposeSystemOverviewTable(
+        IContainer container, ReportDataContext ctx, bool skipCriticalPath)
     {
         var sum = ctx.Summary;
 
@@ -70,13 +130,18 @@ internal class SystemResultsModule : IReportModule
             ("Samlet varmebehov", $"{sum.TotalHeatingDemandMwh:N1}", "MWh"),
             ("Samlet effektbehov", $"{sum.TotalPowerDemandMw:N3}", "MW"),
             ("Samlet volumen flow", $"{sum.TotalFlowM3H:N2}", "m\u00b3/h"),
-            ("Samlet tryktab til kritisk forbruger",
-                $"{sum.CriticalPathPressureLossBar:N3}", "bar"),
-            ("Samlet distributionslednings l\u00e6ngde",
-                $"{sum.DistributionLineLengthM:N1}", "m"),
-            ("Samlet stiklednings l\u00e6ngde", $"{sum.ServiceLineLengthM:N1}", "m"),
-            ("Samlet pris", $"{sum.TotalPriceDkk:N0}", "kr"),
         };
+
+        if (!skipCriticalPath)
+        {
+            rows.Add(("Samlet tryktab til kritisk forbruger",
+                $"{sum.CriticalPathPressureLossBar:N3}", "bar"));
+        }
+
+        rows.Add(("Samlet distributionslednings l\u00e6ngde",
+            $"{sum.DistributionLineLengthM:N1}", "m"));
+        rows.Add(("Samlet stiklednings l\u00e6ngde", $"{sum.ServiceLineLengthM:N1}", "m"));
+        rows.Add(("Samlet pris", $"{sum.TotalPriceDkk:N0}", "kr"));
 
         container.Table(table =>
         {

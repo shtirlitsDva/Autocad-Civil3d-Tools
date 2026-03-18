@@ -15,7 +15,7 @@ internal partial class NodeJunctionMsgDto
     [Key(4)] internal int Degree { get; set; }
     [Key(5)] internal int STP_Node { get; set; }
     [Key(6)] internal string Name { get; set; } = "";
-    [Key(7)] internal int NodeId { get; set; } = -1;
+    [Key(7)] internal string NodeId { get; set; } = "";
 
     internal static NodeJunctionMsgDto FromDomain(NodeJunction nj) => new()
     {
