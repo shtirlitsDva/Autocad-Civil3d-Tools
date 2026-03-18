@@ -13,7 +13,7 @@
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)Pipes\Sizes\PipeAluPexSLSizes.csv" />
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)Pipes\Sizes\PipeCuSizes.csv" />
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)Pipes\Sizes\PipePertFlextraSLSizes.csv" />
-    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Pipes\Sizes\PipePertFlextraFLSizes.csv" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Pipes\Sizes\PipePertPIPEFLSizes.csv" />
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)Pipes\Sizes\PipeSteelSizes.csv" />
   </ItemGroup>
   <ItemGroup>

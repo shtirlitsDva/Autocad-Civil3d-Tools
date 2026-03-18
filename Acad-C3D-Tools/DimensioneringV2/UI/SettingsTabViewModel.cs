@@ -163,23 +163,32 @@ namespace DimensioneringV2.UI
         public RelayCommand EditPipeSettingsFLCommand => new RelayCommand(EditPipeSettingsFL);
         private void EditPipeSettingsFL()
         {
-            // Ensure configuration exists
-            if (Settings.PipeConfigFL == null)
+            try
             {
-                Settings.PipeConfigFL = DefaultPipeConfigFactory.CreateDefaultFL(Settings.MedieType, Settings.GetPipeTypes());
+                // Ensure configuration exists
+                if (Settings.PipeConfigFL == null)
+                {
+                    Settings.PipeConfigFL = DefaultPipeConfigFactory.CreateDefaultFL(Settings.MedieType, Settings.GetPipeTypes());
+                }
+
+                // Remember FL pipe types before editing
+                var flPipeTypesBefore = Settings.PipeConfigFL.GetConfiguredPipeTypes().ToHashSet();
+
+                var window = new PipeSettingsWindow();
+                var viewModel = new PipeSettingsViewModel(Settings.PipeConfigFL, Settings.MedieType, Settings.GetPipeTypes());
+                window.DataContext = viewModel;
+
+                if (window.ShowDialog() == true)
+                {
+                    // Check if any FL pipe types were removed that are used in SL rules
+                    ValidateAndCleanupSlRulesAfterFlChange(flPipeTypesBefore);
+                }
             }
-
-            // Remember FL pipe types before editing
-            var flPipeTypesBefore = Settings.PipeConfigFL.GetConfiguredPipeTypes().ToHashSet();
-
-            var window = new PipeSettingsWindow();
-            var viewModel = new PipeSettingsViewModel(Settings.PipeConfigFL, Settings.MedieType, Settings.GetPipeTypes());
-            window.DataContext = viewModel;
-
-            if (window.ShowDialog() == true)
+            catch (Exception ex)
             {
-                // Check if any FL pipe types were removed that are used in SL rules
-                ValidateAndCleanupSlRulesAfterFlChange(flPipeTypesBefore);
+                MessageBox.Show(
+                    $"Fejl ved åbning af rørindstillinger:\n{ex.Message}",
+                    "Fejl", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -227,23 +236,32 @@ namespace DimensioneringV2.UI
         public RelayCommand EditPipeSettingsSLCommand => new RelayCommand(EditPipeSettingsSL);
         private void EditPipeSettingsSL()
         {
-            // Ensure configurations exist
-            if (Settings.PipeConfigFL == null)
+            try
             {
-                Settings.PipeConfigFL = DefaultPipeConfigFactory.CreateDefaultFL(Settings.MedieType, Settings.GetPipeTypes());
+                // Ensure configurations exist
+                if (Settings.PipeConfigFL == null)
+                {
+                    Settings.PipeConfigFL = DefaultPipeConfigFactory.CreateDefaultFL(Settings.MedieType, Settings.GetPipeTypes());
+                }
+                if (Settings.PipeConfigSL == null)
+                {
+                    Settings.PipeConfigSL = DefaultPipeConfigFactory.CreateDefaultSL(Settings.MedieType, Settings.GetPipeTypes());
+                }
+
+                // Get FL pipe types for parent pipe rules
+                var flPipeTypes = Settings.PipeConfigFL.GetConfiguredPipeTypes();
+
+                var window = new PipeSettingsWindow();
+                var viewModel = new PipeSettingsViewModel(Settings.PipeConfigSL, Settings.MedieType, Settings.GetPipeTypes(), flPipeTypes);
+                window.DataContext = viewModel;
+                window.ShowDialog();
             }
-            if (Settings.PipeConfigSL == null)
+            catch (Exception ex)
             {
-                Settings.PipeConfigSL = DefaultPipeConfigFactory.CreateDefaultSL(Settings.MedieType, Settings.GetPipeTypes());
+                MessageBox.Show(
+                    $"Fejl ved åbning af rørindstillinger:\n{ex.Message}",
+                    "Fejl", MessageBoxButton.OK, MessageBoxImage.Error);
             }
-
-            // Get FL pipe types for parent pipe rules
-            var flPipeTypes = Settings.PipeConfigFL.GetConfiguredPipeTypes();
-
-            var window = new PipeSettingsWindow();
-            var viewModel = new PipeSettingsViewModel(Settings.PipeConfigSL, Settings.MedieType, Settings.GetPipeTypes(), flPipeTypes);
-            window.DataContext = viewModel;
-            window.ShowDialog();
         }
         #endregion
     }

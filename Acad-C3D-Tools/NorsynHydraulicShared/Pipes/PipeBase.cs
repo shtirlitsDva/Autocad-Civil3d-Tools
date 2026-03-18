@@ -105,7 +105,7 @@ namespace NorsynHydraulicCalc.Pipes
                 .FirstOrDefault();
 
             if (resourceName == null)
-                throw new Exception("Resource not found: " + resourceName);
+                throw new Exception($"Embedded CSV resource not found for pipe type '{Name}'. Expected: .Pipes.Sizes.{Name}Sizes.csv");
 
             using (var stream = assembly.GetManifestResourceStream(resourceName))
             using (var reader = new System.IO.StreamReader(stream))
