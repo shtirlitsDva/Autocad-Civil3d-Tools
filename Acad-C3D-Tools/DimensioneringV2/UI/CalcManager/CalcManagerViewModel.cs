@@ -62,14 +62,17 @@ internal partial class CalcManagerViewModel : ObservableObject
         Refresh();
 
         HydraulicNetworkManager.Instance.CalculationsFinished += OnCalculationsFinished;
+        HydraulicNetworkManager.Instance.ActiveNetworkChanged += OnDocumentSwitched;
     }
 
     public void Cleanup()
     {
         HydraulicNetworkManager.Instance.CalculationsFinished -= OnCalculationsFinished;
+        HydraulicNetworkManager.Instance.ActiveNetworkChanged -= OnDocumentSwitched;
     }
 
     private void OnCalculationsFinished(object? sender, EventArgs e) => Refresh();
+    private void OnDocumentSwitched(object? sender, EventArgs e) => Refresh();
 
     private void Refresh()
     {
