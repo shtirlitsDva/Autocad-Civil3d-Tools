@@ -640,41 +640,45 @@ namespace NorsynHydraulicCalc
                 dim = new[] { dimSupply, dimReturn }.MaxBy(x => x.OuterDiameter);
             }
 
-            #region Prevent service pipes from exceeding max allowed pressure loss
-
+            // Skip pressure-loss upsizing for manually dimensioned pipes —
+            // the user's explicit choice must be respected even if pressure exceeds limits.
             (double reynolds, double gradient, double velocity) resSupply =
                 CalculateGradientAndVelocity(dimFlowSupply, dim, TempSetType.Supply, segment);
             (double reynolds, double gradient, double velocity) resReturn =
                 CalculateGradientAndVelocity(dimFlowReturn, dim, TempSetType.Return, segment);
 
-            double maxPressureLoss = maxPressureLossStikSL * 100000; // bar to Pa
-
-            double plossSupply = resSupply.gradient * length;
-            double plossReturn = resReturn.gradient * length;
-
-            // Build flat list of all SL dimensions for iteration
-            List<Dim> allSlDims = s.PipeConfigSL.Priorities
-                .OrderBy(p => p.Priority)
-                .SelectMany(p => p.GetCriteriaInRange())
-                .Where(c => c.IsCalculated && c.Dim != null)
-                .Select(c => c.Dim)
-                .OfType<Dim>()
-                .ToList();
-
-            while (plossSupply + plossReturn > maxPressureLoss)
+            if (!segment.ManualDim)
             {
-                var idx = allSlDims.FindIndex(x => x == dim);
-                if (idx < 0 || idx >= allSlDims.Count - 1) break;
+                #region Prevent service pipes from exceeding max allowed pressure loss
+                double maxPressureLoss = maxPressureLossStikSL * 100000; // bar to Pa
 
-                dim = allSlDims[idx + 1];
-                resSupply = CalculateGradientAndVelocity(dimFlowSupply, dim, TempSetType.Supply, segment);
-                resReturn = CalculateGradientAndVelocity(dimFlowReturn, dim, TempSetType.Return, segment);
+                double plossSupply = resSupply.gradient * length;
+                double plossReturn = resReturn.gradient * length;
 
-                plossSupply = resSupply.gradient * length;
-                plossReturn = resReturn.gradient * length;
+                // Build flat list of all SL dimensions for iteration
+                List<Dim> allSlDims = s.PipeConfigSL.Priorities
+                    .OrderBy(p => p.Priority)
+                    .SelectMany(p => p.GetCriteriaInRange())
+                    .Where(c => c.IsCalculated && c.Dim != null)
+                    .Select(c => c.Dim)
+                    .OfType<Dim>()
+                    .ToList();
+
+                while (plossSupply + plossReturn > maxPressureLoss)
+                {
+                    var idx = allSlDims.FindIndex(x => x == dim);
+                    if (idx < 0 || idx >= allSlDims.Count - 1) break;
+
+                    dim = allSlDims[idx + 1];
+                    resSupply = CalculateGradientAndVelocity(dimFlowSupply, dim, TempSetType.Supply, segment);
+                    resReturn = CalculateGradientAndVelocity(dimFlowReturn, dim, TempSetType.Return, segment);
+
+                    plossSupply = resSupply.gradient * length;
+                    plossReturn = resReturn.gradient * length;
+                }
+                #endregion
             }
 
-            #endregion
 
             //Utilization rate can result in negative numbers for stikledninger
             //This happens when stikledning is incremented in size to prevent exceeding max pressure loss
