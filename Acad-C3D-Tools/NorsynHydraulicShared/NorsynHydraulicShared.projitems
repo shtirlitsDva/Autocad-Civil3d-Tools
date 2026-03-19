@@ -22,7 +22,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Pipes\PipeAluPexFL.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Pipes\PipeAquaTherm11.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Pipes\PipePertFlextraSL.cs" />
-    <Compile Include="..\NorsynHydraulicShared\CalculationResultClient.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)CalculationResultClient.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Enums.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)HydraulicCalc.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)IHydraulicSettings.cs" />
