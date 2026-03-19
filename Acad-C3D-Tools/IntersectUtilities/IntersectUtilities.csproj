@@ -156,12 +156,12 @@
 	  <Resource Include="FjernvarmeFremtidig\VejkantOffset\UI\Resources\DarkTheme.xaml" />
 	</ItemGroup>
 	<ItemGroup>
-	  <Page Include="..\DimensioneringV2\UI\Theme.xaml" Link="CmdUI\UI\Theme.xaml">
+	  <Page Include="..\..\..\..\DamgaardRI\DimensioneringV2\src\DimensioneringV2\UI\Theme.xaml" Link="CmdUI\UI\Theme.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </Page>
 	</ItemGroup>
 	<ItemGroup>
-	  <Compile Include="..\DimensioneringV2\UI\DarkTitleBarHelper.cs" Link="CmdUI\UI\DarkTitleBarHelper.cs" />
+	  <Compile Include="..\..\..\..\DamgaardRI\DimensioneringV2\src\DimensioneringV2\UI\DarkTitleBarHelper.cs" Link="CmdUI\UI\DarkTitleBarHelper.cs" />
 	</ItemGroup>
 	<ItemGroup>
 	  <EmbeddedResource Include="DataScience\MergeReportStyles.css" />

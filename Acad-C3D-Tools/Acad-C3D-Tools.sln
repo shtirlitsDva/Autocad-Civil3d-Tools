@@ -7,8 +7,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IntersectUtilities", "Inter
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Net-Reload", "Net-Reload\Net-Reload.csproj", "{C128E226-003B-4E66-8D49-B7F6CF8D7901}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AutoCadUtils", "AutoCadUtils\AutoCadUtils.csproj", "{88E731A7-B0D5-4922-ACF4-2CF9778F7028}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ReverseLayoutProfileLANDXML", "ReverseLayoutProfileLANDXML\ReverseLayoutProfileLANDXML.csproj", "{B1B68118-C536-4692-8CCA-E91FD45F89AA}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ExportBlocksToSvg", "ExportBlocksToSvg\ExportBlocksToSvg.csproj", "{33DBF6F7-DA92-496E-985F-ED3FA39165AE}"
@@ -43,8 +41,6 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IsoTools", "IsoTools\IsoTools.csproj", "{4EEFE674-6288-4036-97C6-E5AE1C61278F}"
 EndProject
 Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "UtilitiesCommonSHARED", "UtilitiesCommonSHARED\UtilitiesCommonSHARED.shproj", "{DB2CDE26-A283-45D0-A170-7645CF29C507}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DimensioneringV2", "DimensioneringV2\DimensioneringV2.csproj", "{E5FA3287-B46F-41BB-A860-79F03B57B411}"
 EndProject
 Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "NorsynHydraulicShared", "NorsynHydraulicShared\NorsynHydraulicShared.shproj", "{1356CF62-02FE-40E8-A35C-976077F7F8D7}"
 EndProject
@@ -104,18 +100,6 @@ Global
 		{C128E226-003B-4E66-8D49-B7F6CF8D7901}.Release|x64.Build.0 = Release|x64
 		{C128E226-003B-4E66-8D49-B7F6CF8D7901}.Release|x86.ActiveCfg = Release|Any CPU
 		{C128E226-003B-4E66-8D49-B7F6CF8D7901}.Release|x86.Build.0 = Release|Any CPU
-		{88E731A7-B0D5-4922-ACF4-2CF9778F7028}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{88E731A7-B0D5-4922-ACF4-2CF9778F7028}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{88E731A7-B0D5-4922-ACF4-2CF9778F7028}.Debug|x64.ActiveCfg = Debug|x64
-		{88E731A7-B0D5-4922-ACF4-2CF9778F7028}.Debug|x64.Build.0 = Debug|x64
-		{88E731A7-B0D5-4922-ACF4-2CF9778F7028}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{88E731A7-B0D5-4922-ACF4-2CF9778F7028}.Debug|x86.Build.0 = Debug|Any CPU
-		{88E731A7-B0D5-4922-ACF4-2CF9778F7028}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{88E731A7-B0D5-4922-ACF4-2CF9778F7028}.Release|Any CPU.Build.0 = Release|Any CPU
-		{88E731A7-B0D5-4922-ACF4-2CF9778F7028}.Release|x64.ActiveCfg = Release|x64
-		{88E731A7-B0D5-4922-ACF4-2CF9778F7028}.Release|x64.Build.0 = Release|x64
-		{88E731A7-B0D5-4922-ACF4-2CF9778F7028}.Release|x86.ActiveCfg = Release|Any CPU
-		{88E731A7-B0D5-4922-ACF4-2CF9778F7028}.Release|x86.Build.0 = Release|Any CPU
 		{B1B68118-C536-4692-8CCA-E91FD45F89AA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{B1B68118-C536-4692-8CCA-E91FD45F89AA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B1B68118-C536-4692-8CCA-E91FD45F89AA}.Debug|x64.ActiveCfg = Debug|x64
@@ -284,18 +268,6 @@ Global
 		{4EEFE674-6288-4036-97C6-E5AE1C61278F}.Release|x64.Build.0 = Release|x64
 		{4EEFE674-6288-4036-97C6-E5AE1C61278F}.Release|x86.ActiveCfg = Release|Any CPU
 		{4EEFE674-6288-4036-97C6-E5AE1C61278F}.Release|x86.Build.0 = Release|Any CPU
-		{E5FA3287-B46F-41BB-A860-79F03B57B411}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{E5FA3287-B46F-41BB-A860-79F03B57B411}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{E5FA3287-B46F-41BB-A860-79F03B57B411}.Debug|x64.ActiveCfg = Debug|x64
-		{E5FA3287-B46F-41BB-A860-79F03B57B411}.Debug|x64.Build.0 = Debug|x64
-		{E5FA3287-B46F-41BB-A860-79F03B57B411}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{E5FA3287-B46F-41BB-A860-79F03B57B411}.Debug|x86.Build.0 = Debug|Any CPU
-		{E5FA3287-B46F-41BB-A860-79F03B57B411}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{E5FA3287-B46F-41BB-A860-79F03B57B411}.Release|Any CPU.Build.0 = Release|Any CPU
-		{E5FA3287-B46F-41BB-A860-79F03B57B411}.Release|x64.ActiveCfg = Release|x64
-		{E5FA3287-B46F-41BB-A860-79F03B57B411}.Release|x64.Build.0 = Release|x64
-		{E5FA3287-B46F-41BB-A860-79F03B57B411}.Release|x86.ActiveCfg = Release|Any CPU
-		{E5FA3287-B46F-41BB-A860-79F03B57B411}.Release|x86.Build.0 = Release|Any CPU
 		{3C8E81F8-A8CC-4771-81BE-3B4AE3369302}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{3C8E81F8-A8CC-4771-81BE-3B4AE3369302}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3C8E81F8-A8CC-4771-81BE-3B4AE3369302}.Debug|x64.ActiveCfg = Debug|x64
@@ -412,11 +384,6 @@ Global
 		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{c578718c-90f5-4546-adac-6c9d91e02a95}*SharedItemsImports = 5
 		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{db2cde26-a283-45d0-a170-7645cf29c507}*SharedItemsImports = 13
 		NorsynHydraulicShared\NorsynHydraulicShared.projitems*{e12a1099-c622-d95d-7788-5ff10d423dda}*SharedItemsImports = 5
-		AutoCADCommandsSHARED\AutoCADCommandsSHARED.projitems*{e5fa3287-b46f-41bb-a860-79f03b57b411}*SharedItemsImports = 5
-		EventManager\EventManager.projitems*{e5fa3287-b46f-41bb-a860-79f03b57b411}*SharedItemsImports = 5
-		FormsSHARED\FormsSHARED.projitems*{e5fa3287-b46f-41bb-a860-79f03b57b411}*SharedItemsImports = 5
-		NorsynHydraulicShared\NorsynHydraulicShared.projitems*{e5fa3287-b46f-41bb-a860-79f03b57b411}*SharedItemsImports = 5
-		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{e5fa3287-b46f-41bb-a860-79f03b57b411}*SharedItemsImports = 5
 		FormsSHARED\FormsSHARED.projitems*{fbee18fe-055a-4901-9d67-dc0a18588f7d}*SharedItemsImports = 5
 		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{fbee18fe-055a-4901-9d67-dc0a18588f7d}*SharedItemsImports = 5
 	EndGlobalSection

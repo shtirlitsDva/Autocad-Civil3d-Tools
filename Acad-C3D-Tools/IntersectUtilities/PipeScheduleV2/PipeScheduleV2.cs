@@ -1042,6 +1042,23 @@ namespace IntersectUtilities.PipeScheduleV2
                     return "";
             }
         }
+        public override short GetLayerColor(PipeTypeEnum type)
+        {
+            switch (type)
+            {
+                case PipeTypeEnum.Ukendt:
+                    return 0;
+                case PipeTypeEnum.Twin:
+                    return 190;
+                case PipeTypeEnum.Frem:
+                    return 1;
+                case PipeTypeEnum.Retur:
+                    return 5;
+                case PipeTypeEnum.Enkelt:
+                    return 190;
+                default: return 0;
+            }
+        }
     }
     public class PipeTypeCU : PipeTypeBase
     {

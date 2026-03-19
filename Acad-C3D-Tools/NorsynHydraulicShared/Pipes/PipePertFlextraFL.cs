@@ -7,9 +7,9 @@ namespace NorsynHydraulicCalc.Pipes
     public class PipePertFlextraFL : PipeBase
     {
         public PipePertFlextraFL(double roughness_mm) : base(roughness_mm) { }
-        protected override string Name => "PipePertFlextraFL";
+        protected override string Name => "PipePertPIPEFL";
         protected override PipeType PipeType => PipeType.PertFlextraFL;
-        protected override string DimName => "PertFlextra ";
+        protected override string DimName => "PertPIPE ";
         public override int OrderingPriority => 1;
         protected override double PricePerStk => 27990;
         public override SegmentType[] SupportedSegmentTypes => 
@@ -24,5 +24,6 @@ namespace NorsynHydraulicCalc.Pipes
         {
             return (2.0, 150);
         }
+        public override string ToString() => "PertPIPE";
     }
 }

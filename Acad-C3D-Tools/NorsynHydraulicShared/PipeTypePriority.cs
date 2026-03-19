@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
+using MessagePack;
+
 using NorsynHydraulicCalc.Rules;
 
 namespace NorsynHydraulicCalc
@@ -10,31 +12,37 @@ namespace NorsynHydraulicCalc
     /// A prioritized pipe type configuration with DN range and accept criteria.
     /// Plain POCO class for serialization and use across projects.
     /// </summary>
-    public class PipeTypePriority
+    [MessagePackObject]
+    public partial class PipeTypePriority
     {
         /// <summary>
         /// Priority order (1 = highest priority, used first when selecting pipes).
         /// </summary>
+        [Key(0)]
         public int Priority { get; set; }
 
         /// <summary>
         /// The pipe type (e.g., Stål, PertFlextra, AluPEX, etc.)
         /// </summary>
+        [Key(1)]
         public PipeType PipeType { get; set; }
 
         /// <summary>
         /// Minimum nominal diameter for this pipe type configuration.
         /// </summary>
+        [Key(2)]
         public int MinDn { get; set; }
 
         /// <summary>
         /// Maximum nominal diameter for this pipe type configuration.
         /// </summary>
+        [Key(3)]
         public int MaxDn { get; set; }
 
         /// <summary>
         /// Accept criteria for each DN size.
         /// </summary>
+        [Key(4)]
         public List<DnAcceptCriteria> AcceptCriteria { get; set; } = [];
 
         /// <summary>
@@ -42,6 +50,7 @@ namespace NorsynHydraulicCalc
         /// Empty list means no rules - priority executes in sequence.
         /// Multiple rules are evaluated with OR logic (any match = priority applies).
         /// </summary>
+        [Key(5)]
         public List<IPipeRule> Rules { get; set; } = [];
 
         /// <summary>

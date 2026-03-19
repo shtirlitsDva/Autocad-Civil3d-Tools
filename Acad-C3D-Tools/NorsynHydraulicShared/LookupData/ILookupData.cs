@@ -4,7 +4,7 @@ using System.Text;
 
 namespace NorsynHydraulicCalc.LookupData
 {
-    internal interface ILookupData
+    public interface ILookupData
     {
         double rho(double T);
         double cp(double T);

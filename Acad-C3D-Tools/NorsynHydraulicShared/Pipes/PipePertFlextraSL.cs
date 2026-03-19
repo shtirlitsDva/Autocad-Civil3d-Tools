@@ -24,5 +24,7 @@ namespace NorsynHydraulicCalc.Pipes
         {
             return (1.5, 1000);
         }
+
+        public override string ToString() => "PertFlextra";
     }
 }

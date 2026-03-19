@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -39,5 +39,7 @@ namespace NorsynHydraulicCalc.Pipes
             }
             return (2.5, 220);
         }
+
+        public override string ToString() => "PE";
     }
 }

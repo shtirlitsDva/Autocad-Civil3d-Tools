@@ -2,25 +2,28 @@
 using System.Collections.Generic;
 using System.Text;
 
+using MessagePack;
+
 namespace NorsynHydraulicCalc.Pipes
 {
-    public struct Dim : IEquatable<Dim>
+    [MessagePackObject]
+    public partial struct Dim : IEquatable<Dim>
     {
-        public int NominalDiameter { get; set; }
-        public double OuterDiameter { get; set; }
-        public double InnerDiameter_mm { get; set; }
-        public double InnerDiameter_m { get; set; }
-        public double WallThickness { get; set; }
-        public double CrossSectionArea { get; set; }
-        public double Roughness_m { get; set; }
-        public string DimName { get; set; }
-        public PipeType PipeType { get; set; }
-        public int OrderingPriority { get; set; }
-        public int[] RGB { get; set; }
-        public double Price_m { get; set; }
-        private double price_stk { get; set; }
-        public double RelativeRoughness { get => InnerDiameter_m == 0 ? 0 : Roughness_m / InnerDiameter_m; }
-        public double Price_stk(SegmentType st) => st == SegmentType.Stikledning ? price_stk : 0;
+        [Key(0)] public int NominalDiameter { get; set; }
+        [Key(1)] public double OuterDiameter { get; set; }
+        [Key(2)] public double InnerDiameter_mm { get; set; }
+        [Key(3)] public double InnerDiameter_m { get; set; }
+        [Key(4)] public double WallThickness { get; set; }
+        [Key(5)] public double CrossSectionArea { get; set; }
+        [Key(6)] public double Roughness_m { get; set; }
+        [Key(7)] public string DimName { get; set; }
+        [Key(8)] public PipeType PipeType { get; set; }
+        [Key(9)] public int OrderingPriority { get; set; }
+        [Key(10)] public int[] RGB { get; set; }
+        [Key(11)] public double Price_m { get; set; }
+        [Key(12)] public double Price_stk { get; set; }
+        [IgnoreMember] public double RelativeRoughness { get => InnerDiameter_m == 0 ? 0 : Roughness_m / InnerDiameter_m; }
+        public double Price_stk_calc(SegmentType st) => st == SegmentType.Stikledning ? Price_stk : 0;
 
         public Dim(
             int nominalDiameter,
@@ -48,8 +51,14 @@ namespace NorsynHydraulicCalc.Pipes
             OrderingPriority = orderingPriority;
             this.RGB = RGB;
             Price_m = price_m;
-            this.price_stk = price_stk;
+            Price_stk = price_stk;
         }
+        public Dim()
+        {
+            DimName = "";
+            RGB = Array.Empty<int>();
+        }
+
         public static Dim NA => new Dim(0, 0, 0, 0, 0, 0, "NA ", PipeType.Stål, 0, new int[] { 0, 0, 0 }, 0, 0);
         public override string ToString()
         {
