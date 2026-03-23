@@ -42,8 +42,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IsoTools", "IsoTools\IsoToo
 EndProject
 Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "UtilitiesCommonSHARED", "UtilitiesCommonSHARED\UtilitiesCommonSHARED.shproj", "{DB2CDE26-A283-45D0-A170-7645CF29C507}"
 EndProject
-Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "NorsynHydraulicShared", "NorsynHydraulicShared\NorsynHydraulicShared.shproj", "{1356CF62-02FE-40E8-A35C-976077F7F8D7}"
-EndProject
 Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "AutoCADCommandsSHARED", "AutoCADCommandsSHARED\AutoCADCommandsSHARED.shproj", "{8BEE2986-B102-498F-A115-3D8B80E3A93C}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DocsCreateCommandDescriptionsHtml", "DocsCreateCommandDescriptionsHtml\DocsCreateCommandDescriptionsHtml.csproj", "{3C8E81F8-A8CC-4771-81BE-3B4AE3369302}"
@@ -57,8 +55,6 @@ EndProject
 Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "PipelineSHARED", "PipelineSHARED\PipelineSHARED.shproj", "{7D7BF915-003D-4E69-B122-69DFD068E729}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NTRExport.ConsoleTests", "NTRExport.ConsoleTests\NTRExport.ConsoleTests.csproj", "{FF461586-D799-1BFA-EB63-2D01AC25672D}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NorsynHydraulicTester", "NorsynHydraulicTester\NorsynHydraulicTester.csproj", "{E12A1099-C622-D95D-7788-5FF10D423DDA}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UiSnoop", "UiSnoop\UiSnoop.csproj", "{24654C72-79F9-4625-BF8C-F8B8D76DD805}"
 EndProject
@@ -316,18 +312,6 @@ Global
 		{FF461586-D799-1BFA-EB63-2D01AC25672D}.Release|x64.Build.0 = Release|x64
 		{FF461586-D799-1BFA-EB63-2D01AC25672D}.Release|x86.ActiveCfg = Release|Any CPU
 		{FF461586-D799-1BFA-EB63-2D01AC25672D}.Release|x86.Build.0 = Release|Any CPU
-		{E12A1099-C622-D95D-7788-5FF10D423DDA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{E12A1099-C622-D95D-7788-5FF10D423DDA}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{E12A1099-C622-D95D-7788-5FF10D423DDA}.Debug|x64.ActiveCfg = Debug|x64
-		{E12A1099-C622-D95D-7788-5FF10D423DDA}.Debug|x64.Build.0 = Debug|x64
-		{E12A1099-C622-D95D-7788-5FF10D423DDA}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{E12A1099-C622-D95D-7788-5FF10D423DDA}.Debug|x86.Build.0 = Debug|Any CPU
-		{E12A1099-C622-D95D-7788-5FF10D423DDA}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{E12A1099-C622-D95D-7788-5FF10D423DDA}.Release|Any CPU.Build.0 = Release|Any CPU
-		{E12A1099-C622-D95D-7788-5FF10D423DDA}.Release|x64.ActiveCfg = Release|x64
-		{E12A1099-C622-D95D-7788-5FF10D423DDA}.Release|x64.Build.0 = Release|x64
-		{E12A1099-C622-D95D-7788-5FF10D423DDA}.Release|x86.ActiveCfg = Release|Any CPU
-		{E12A1099-C622-D95D-7788-5FF10D423DDA}.Release|x86.Build.0 = Release|Any CPU
 		{24654C72-79F9-4625-BF8C-F8B8D76DD805}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{24654C72-79F9-4625-BF8C-F8B8D76DD805}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{24654C72-79F9-4625-BF8C-F8B8D76DD805}.Debug|x64.ActiveCfg = Debug|Any CPU
@@ -351,7 +335,6 @@ Global
 		AutoCADCommandsSHARED\AutoCADCommandsSHARED.projitems*{0f92c1bb-fadb-4df2-8ff8-f28391c1ed3c}*SharedItemsImports = 5
 		FormsSHARED\FormsSHARED.projitems*{0f92c1bb-fadb-4df2-8ff8-f28391c1ed3c}*SharedItemsImports = 5
 		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{0f92c1bb-fadb-4df2-8ff8-f28391c1ed3c}*SharedItemsImports = 5
-		NorsynHydraulicShared\NorsynHydraulicShared.projitems*{1356cf62-02fe-40e8-a35c-976077f7f8d7}*SharedItemsImports = 13
 		FormsSHARED\FormsSHARED.projitems*{30b69123-15b9-4243-946e-ee2b2953244d}*SharedItemsImports = 13
 		FormsSHARED\FormsSHARED.projitems*{322e89dd-d28e-48c9-8807-3c3a593d9892}*SharedItemsImports = 5
 		AutoCADCommandsSHARED\AutoCADCommandsSHARED.projitems*{3dbcde07-d2c7-45a3-9bd6-5b7873a85166}*SharedItemsImports = 5
@@ -383,7 +366,6 @@ Global
 		FormsSHARED\FormsSHARED.projitems*{c578718c-90f5-4546-adac-6c9d91e02a95}*SharedItemsImports = 5
 		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{c578718c-90f5-4546-adac-6c9d91e02a95}*SharedItemsImports = 5
 		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{db2cde26-a283-45d0-a170-7645cf29c507}*SharedItemsImports = 13
-		NorsynHydraulicShared\NorsynHydraulicShared.projitems*{e12a1099-c622-d95d-7788-5ff10d423dda}*SharedItemsImports = 5
 		FormsSHARED\FormsSHARED.projitems*{fbee18fe-055a-4901-9d67-dc0a18588f7d}*SharedItemsImports = 5
 		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{fbee18fe-055a-4901-9d67-dc0a18588f7d}*SharedItemsImports = 5
 	EndGlobalSection
