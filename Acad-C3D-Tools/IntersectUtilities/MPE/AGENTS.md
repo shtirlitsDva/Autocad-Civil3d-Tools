@@ -25,3 +25,27 @@
 - Command documentation must include `/// <command>...</command>`, `/// <summary>...</summary>`, and `/// <category>...</category>`.
 - The `summary` must be meaningful and specific, not placeholder text. It should describe what the command does, important behavior, and key effects or constraints that a future maintainer needs to know.
 - Additional behavioral notes that appear in the summary pattern from `MSMScripts.cs` should be preserved in new commands as documentation, especially when the command has manual follow-up steps, selection rules, trimming/retention rules, data-preservation guarantees, aliases, or other non-obvious behavior.
+
+# Worktree Workflow
+- For MPE work, prefer a dedicated git worktree so changes stay isolated from `master`.
+- Create the worktree correctly the first time and avoid moving it later unless absolutely necessary.
+- Prefer a shallow worktree path. In this repo, deeper worktree paths can break relative file links in `Acad-C3D-Tools/IntersectUtilities/IntersectUtilities.csproj`, especially links to files under `DamgaardRI/DimensioneringV2`.
+
+### Recommended Naming
+- Use one clear shared name for both the folder and the branch when possible.
+- Prefer a short, shallow folder name such as `C:\Users\mpe\Github\shtirlitsDva\Autocad-Civil3d-Tools-MPE_<TaskName>_<DDMMYYYY>`.
+- Prefer a matching branch name such as `Autocad-Civil3d-Tools-MPE_<TaskName>_<DDMMYYYY>`.
+
+### Recommended Process
+1. Start in the main repository root: `C:\Users\mpe\Github\shtirlitsDva\Autocad-Civil3d-Tools`.
+2. Read `Acad-C3D-Tools/IntersectUtilities/MPE/AGENTS.md` before creating code or files.
+3. Choose the final worktree folder name and branch name up front so no later rename is needed.
+4. Create the worktree from `master` with the final branch name and final folder path in one command.
+5. Open the new worktree folder in the IDE.
+6. Do all MPE code changes only inside `Acad-C3D-Tools/IntersectUtilities/MPE`.
+7. Keep files outside `MPE` read-only unless the user explicitly asks for broader repo changes and the scope is re-evaluated.
+8. Build and test from the worktree, not from `master`.
+
+### Why This Matters
+- Creating the worktree at the final shallow path avoids broken relative includes.
+- Matching the branch and folder names makes it easier to understand which worktree belongs to which task.
