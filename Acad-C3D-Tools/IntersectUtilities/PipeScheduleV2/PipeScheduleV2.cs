@@ -1150,18 +1150,7 @@ namespace IntersectUtilities.PipeScheduleV2
                 default:
                     return "";
             }
-        }
-        public override double GetPipeKOd(int dn, PipeTypeEnum type, PipeSeriesEnum series)
-        {
-            if (type == PipeTypeEnum.Retur ||
-                type == PipeTypeEnum.Frem)
-                type = PipeTypeEnum.Enkelt;
-
-            //We IGNORE the series for this type as it only has ONE series!
-
-            var result = _entries.FirstOrDefault(e => e.DN == dn && e.PipeType == type);
-            return result?.kOd ?? 0;
-        }
+        }        
         public override short GetLayerColor(PipeTypeEnum type)
         {
             switch (type)
