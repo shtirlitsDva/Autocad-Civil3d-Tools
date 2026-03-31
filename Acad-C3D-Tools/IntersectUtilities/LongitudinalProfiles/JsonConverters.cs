@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
+namespace IntersectUtilities.LongitudinalProfiles
 {
     // DTO for Polyline
     public class PolylineDto

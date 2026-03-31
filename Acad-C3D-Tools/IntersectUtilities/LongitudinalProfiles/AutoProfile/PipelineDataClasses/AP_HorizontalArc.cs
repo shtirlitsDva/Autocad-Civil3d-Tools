@@ -1,4 +1,4 @@
-﻿namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
+namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
 {
     internal class AP_HorizontalArc : PipelineDataBase
     {

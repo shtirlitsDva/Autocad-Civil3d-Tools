@@ -1,4 +1,4 @@
-﻿using Autodesk.AutoCAD.ApplicationServices;
+using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
@@ -31,14 +31,18 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Data;
+using System.Diagnostics;
 using System.Diagnostics.Eventing.Reader;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
+using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Windows.Forms;
 
 using static IntersectUtilities.Enums;
@@ -501,7 +505,6 @@ namespace IntersectUtilities
 
             prdDbg("Done!");
         }
-
 #if DEBUG
         [CommandMethod("APTEST")]
         public void aptest()
@@ -1123,3 +1126,4 @@ namespace IntersectUtilities
         }
     }
 }
+

@@ -18,26 +18,26 @@ using System.Text.Json.Serialization;
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 using Exception = System.Exception;
 
-namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
+namespace IntersectUtilities.LongitudinalProfiles.AutoProfileV2
 {
-    internal class AP_PipelineData
+    internal class AP2_PipelineData
     {
-        public AP_PipelineData(string name)
+        public AP2_PipelineData(string name)
         {
             Name = name;
         }
         [JsonInclude]
         public string Name { get; set; }
         [JsonInclude]
-        public AP_SurfaceProfileData? SurfaceProfile { get; set; } = null;
+        public AP2_SurfaceProfileData? SurfaceProfile { get; set; } = null;
         [JsonIgnore]
         public IPipelineSizeArrayV2? SizeArray { get; set; } = null;
         [JsonIgnore]
-        public List<AP_HorizontalArc> HorizontalArcs { get; set; } = new();
+        public AP2_HorizontalArcs HorizontalArcs { get; set; }
         [JsonIgnore]
-        public AP_ProfileViewData? ProfileView { get; set; } = null;
+        public AP2_ProfileViewData? ProfileView { get; set; } = null;
         [JsonInclude]
-        public List<AP_Utility> Utility { get; set; } = new();
+        public List<AP2_Utility> Utility { get; set; } = new();
         public void GenerateAvoidanceGeometryForUtilities()
         {
             foreach (var utility in Utility)
@@ -86,7 +86,7 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
         internal void MergeAvoidancePolygonsForUtilities()
         {
             //Merge the avoidance polygons for each utility
-            foreach (AP_Utility utility in Utility)
+            foreach (AP2_Utility utility in Utility)
             {
                 if (utility.AvoidancePolygon == null) continue;
                 if (utility.HorizontalArcAvoidancePolygon == null)
@@ -154,7 +154,7 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
 
                                 var arc = new Arc(center, r, startAngle, endAngle);
 
-                                var surfaceElevation = SurfaceProfile.GetSurfaceYAtX(station);
+                                var surfaceElevation = SurfaceProfile.GetSurfaceElevationAtStation(station);
                                 var trimPoint = new Point3d(lowPt.X, lowPt.Y + (surfaceElevation - elevation), 0.0);
 
                                 double dy = trimPoint.Y - arc.Center.Y;
@@ -373,72 +373,6 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfile
             }
 
             UnfilletedPolyline = lowerpline;
-        }
-        internal void FilletPolyline()
-        {
-            if (ProfileView == null) throw new Exception("No profile view found for the pipeline!");
-            if (SizeArray == null) throw new Exception("No size array found for the pipeline!");
-
-            if (UnfilletedPolyline == null)
-            {
-                FilletedPolyline = null;
-                return;
-            }
-
-            double station = 0, elevation = 0;
-            var filleter = AutoProfileFilleter.CreateDefault(sampleRadius);
-
-            double sampleRadius(Point2d pt)
-            {
-                //Get the station and elevation at the point
-                ProfileView!.ProfileView.FindStationAndElevationAtXY(pt.X, pt.Y, ref station, ref elevation);
-                var size = SizeArray!.GetSizeAtStation(station);
-                return size.VerticalMinRadius;
-            }
-
-            FilletedPolyline = filleter.PerformFilleting(UnfilletedPolyline);
-            if (FilletedPolyline == null)
-            {
-                throw new Exception("Filleted polyline is null!");
-            }
-
-            //Test to see if any utilities are now crossing the filleted polyline
-            //If so, we need to reprocess the utilities to create a new unfilleted polyline
-            //and so on until no utilities are crossing the filleted polyline
-            var test = () => Utility.Where(x =>
-                x.Status == AP_Status.Ignored ||
-                x.Status == AP_Status.Unknown)
-                .Any(UtilityIsCrossingFilletedPolyline);
-            while (test())
-            {
-                var newlyCrossingUtilities = Utility.Where(x =>
-                    x.Status == AP_Status.Ignored ||
-                    x.Status == AP_Status.Unknown)
-                    .Where(UtilityIsCrossingFilletedPolyline);
-
-                foreach (var utility in newlyCrossingUtilities)
-                    utility.Status = AP_Status.Selected;
-
-                //Recreate the unfilleted polyline
-                ProcessSelectedUtilitiesToCreateUnfilletedPolyline();
-                if (UnfilletedPolyline == null)
-                {
-                    throw new Exception("Unfilleted polyline is null after reprocessing utilities!");
-                }
-
-                //Clean polyline for colinear and coincident vertices
-                Utils.RemoveColinearVerticesPolyline(UnfilletedPolyline);
-
-                FilletedPolyline = filleter.PerformFilleting(UnfilletedPolyline);
-            }
-
-            bool UtilityIsCrossingFilletedPolyline(AP_Utility utility)
-            {
-                var upoly = NTSConversion.ConvertNTSPolygonToClosedPolyline(utility.UtilityPolygon);
-                var pts = FilletedPolyline!.IntersectWithValidation(upoly);
-                if (pts == null || pts.Count == 0) return false;
-                return true;
-            }
         }
         public void Serialize(string filename)
         {
