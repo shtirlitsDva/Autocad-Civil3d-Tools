@@ -1,5 +1,6 @@
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
+using Autodesk.Civil.DatabaseServices;
 
 using IntersectUtilities.NTS;
 using IntersectUtilities.UtilsCommon;
@@ -29,13 +30,41 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfileV2
         /// </summary>        
         public AP2_Utility(Extents2d extents, int counter, AP2_PipelineData pipeline) : base(pipeline)
         {
-            _extents = extents;            
+            _extents = extents;
             _counter = counter;
         }
-        
+
         public string Name => $"{_pipeLine.Name}_utility_{_counter.ToString("D3")}";
 
-            public Hatch GetUtilityHatch()
+        public Hatch GetUtilityHatch(ProfileView pv)
+        {
+            Point2d bl = StationElevationToXY(pv, _extents.MinPoint.X, _extents.MinPoint.Y);
+            Point2d tr = StationElevationToXY(pv, _extents.MaxPoint.X, _extents.MaxPoint.Y);
+            Point2d tl = StationElevationToXY(pv, _extents.MinPoint.X, _extents.MaxPoint.Y);
+            Point2d br = StationElevationToXY(pv, _extents.MaxPoint.X, _extents.MinPoint.Y);
+
+            Hatch hatch = new Hatch();
+            hatch.Normal = new Vector3d(0.0, 0.0, 1.0);
+            hatch.Elevation = 0.0;
+            hatch.PatternScale = 1.0;
+            hatch.SetHatchPattern(HatchPatternType.PreDefined, "SOLID");
+
+            hatch.AppendLoop(HatchLoopTypes.Default,
+                [bl, tl, tr, br, bl],
+                [0.0, 0.0, 0.0, 0.0, 0.0]);
+            hatch.EvaluateHatch(true);
+
+            return hatch;
+        }
+
+        private static Point2d StationElevationToXY(ProfileView pv, double station, double elevation)
+        {
+            double x = 0.0, y = 0.0;
+            pv.FindXYAtStationAndElevation(station, elevation, ref x, ref y);
+            return new Point2d(x, y);
+        }
+
+        public Hatch GetUtilityHatch()
         {
             Hatch hatch = new Hatch();
             hatch.Normal = new Vector3d(0.0, 0.0, 1.0);
@@ -54,6 +83,6 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfileV2
             hatch.EvaluateHatch(true);
 
             return hatch;
-        }        
+        }
     }
 }

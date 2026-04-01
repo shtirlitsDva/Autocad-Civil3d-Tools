@@ -54,14 +54,14 @@ namespace IntersectUtilities
             };
         }
 
-        public Polyline SolveProfilePolyline(AP2_PipelineData pipelineData)
+        public Polyline SolveProfilePolyline(AP2_PipelineData pipelineData, string engine)
         {
             _baseUrl ??= ResolvePipeSolverBaseUrl();
             EnsurePipeSolverServiceRunning(_baseUrl);
             WaitForPipeSolverReady(_baseUrl);
 
             var scene = BuildPipeSolverScene(pipelineData);
-            var submission = SubmitPipeSolverJob(_baseUrl, pipelineData.Name, scene);
+            var submission = SubmitPipeSolverJob(_baseUrl, pipelineData.Name, scene, engine);
             var result = WaitForPipeSolverResult(_baseUrl, submission.JobId, pipelineData.Name);
 
             foreach (string warning in result.Warnings ?? [])
@@ -281,12 +281,13 @@ namespace IntersectUtilities
         private PipeSolverJobSubmissionResponse SubmitPipeSolverJob(
             string baseUrl,
             string pipelineName,
-            PipeSolverSceneSpec scene)
+            PipeSolverSceneSpec scene,
+            string engine)
         {
             string safeName = Regex.Replace(pipelineName, "[^A-Za-z0-9_\\-]+", "_");
             var request = new PipeSolverSubmitRequest
             {
-                Engine = PipeSolverEngine,
+                Engine = engine,
                 JobName = $"apcreatev2_{safeName}",
                 SessionName = $"apcreatev2_{safeName}_{DateTime.UtcNow:yyyyMMddHHmmssfff}",
                 Scene = scene,

@@ -45,7 +45,7 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfileV2
             {
                 var pt = _surfacePolylineSimplified.GetPoint3dAt(i);
                 if (i == 0) startX = pt.X;
-                curStation += pt.X - startX + profileStartStation;
+                curStation = pt.X - startX + profileStartStation;
 
                 double elevation = 0;
                 try

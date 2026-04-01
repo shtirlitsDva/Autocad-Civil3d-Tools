@@ -14,6 +14,7 @@ using static IntersectUtilities.HelperMethods;
 using static IntersectUtilities.UtilsCommon.Utils;
 
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
+using IntersectUtilities.LongitudinalProfiles.AutoProfileV2;
 
 namespace IntersectUtilities
 {
@@ -29,6 +30,11 @@ namespace IntersectUtilities
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
+
+            string[] kwds = ["native", "python"];
+            string kwd = StringGridFormCaller.Call(kwds, "Select what engine to use:");
+
+            if (kwd.IsNoE()) return;
 
             string devLyr = "AutoProfileTest";
             localDb.CheckOrCreateLayer(devLyr, 1, false);
@@ -63,7 +69,7 @@ namespace IntersectUtilities
                     prdDbg($"Solving {pipeline.Name} with pipe solver service");
                     System.Windows.Forms.Application.DoEvents();
 
-                    var profilePolyline = solverClient.SolveProfilePolyline(pipeline);
+                    var profilePolyline = solverClient.SolveProfilePolyline(pipeline, kwd);
                     profilePolyline.Color = ColorByName("red");
                     profilePolyline.ConstantWidth = 0.07;
                     profilePolyline.Layer = apLayer;
@@ -102,5 +108,88 @@ namespace IntersectUtilities
             tx.Commit();
             prdDbg("Done!");
         }
+
+#if DEBUG
+        [CommandMethod("APV2MARKAVOIDANCE")]
+        public void apv2markavoidance()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;            
+
+            string devLyr = "AutoProfileTest";
+            localDb.CheckOrCreateLayer(devLyr, 1, false);
+
+            string apLayer = "AutoProfile";
+            localDb.CheckOrCreateLayer(apLayer, 1, false);
+
+            AutoProfileV2PipelineCollector.ClearDebugLayer(localDb, devLyr);
+
+            var dcd = new PSetDefs.DriCrossingData();
+            PropertySetManager.UpdatePropertySetDefinition(localDb, dcd.SetName);
+
+            var dro = DataReferencesOptions.Create();
+            if (dro == null) return;
+
+            var dm = new DataManager(dro);
+            using Database fjvDb = dm.Fremtid();
+            using Transaction fjvTx = fjvDb.TransactionManager.StartTransaction();
+            using Transaction tx = localDb.TransactionManager.StartTransaction();
+            PropertySetManager psm = new PropertySetManager(localDb, dcd.SetName);
+            PropertySetHelper pshFjv = new(fjvDb);
+
+            try
+            {
+                var pipelines = AutoProfileV2PipelineCollector.Collect(
+                    localDb, tx, fjvDb, fjvTx, psm, pshFjv, dcd, prdDbg);
+
+                foreach (var pipeline in pipelines)
+                { 
+                    if (pipeline.ProfileView == null || pipeline.Utility == null || pipeline.Utility.Count == 0)
+                    {
+                        prdDbg($"Pipeline {pipeline.Name} does not have profile view or utilities, skipping avoidance marking.");
+                        continue;
+                    }
+                    foreach (AP2_Utility util in pipeline.Utility)
+                    {
+                        var hatch = util.GetUtilityHatch(pipeline.ProfileView.ProfileView);
+                        hatch.Layer = devLyr;
+                        hatch.Color = ColorByName("yellow");
+                        hatch.AddEntityToDbModelSpace(localDb);
+                    }
+                }
+            }
+            catch (DebugEntityException dex)
+            {
+                tx.Abort();
+                prdDbg(dex);
+
+                if (dex.DebugEntities != null && dex.DebugEntities.Count > 0)
+                {
+                    using Transaction dtx = localDb.TransactionManager.StartTransaction();
+                    foreach (var ent in dex.DebugEntities)
+                    {
+                        ent.Layer = devLyr;
+                        ent.AddEntityToDbModelSpace(localDb);
+                    }
+                    dtx.Commit();
+                }
+
+                return;
+            }
+            catch (System.Exception ex)
+            {
+                tx.Abort();
+                prdDbg(ex);
+                return;
+            }
+            finally
+            {
+                fjvTx.Abort();
+            }
+
+            tx.Commit();
+            prdDbg("Done!");
+        }
+#endif
     }
 }
