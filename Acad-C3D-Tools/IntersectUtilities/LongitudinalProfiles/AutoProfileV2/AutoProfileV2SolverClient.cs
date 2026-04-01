@@ -196,36 +196,14 @@ namespace IntersectUtilities
         private PipeSolverSceneSpec BuildPipeSolverScene(AP2_PipelineData pipelineData)
         {
             if (pipelineData.ProfileView == null) throw new System.Exception($"No profile view found for {pipelineData.Name}.");
-            if (pipelineData.SurfaceProfile == null) throw new System.Exception($"No surface profile found for {pipelineData.Name}.");
-            if (pipelineData.SurfaceProfile.SurfacePolylineSimplified == null)
-                throw new System.Exception($"No simplified surface profile found for {pipelineData.Name}.");
+            if (pipelineData.SurfaceProfile == null) throw new System.Exception($"No surface profile found for {pipelineData.Name}.");            
             if (pipelineData.SizeArray == null) throw new System.Exception($"No size array found for {pipelineData.Name}.");
 
             var sizeEntries = pipelineData.SizeArray.Sizes.ToList();
             if (sizeEntries.Count == 0) throw new System.Exception($"No size entries found for {pipelineData.Name}.");
 
             double coverDepth = GetUniformCoverDepth(sizeEntries, pipelineData.Name);
-            var pv = pipelineData.ProfileView.ProfileView;
-            var surfacePolyline = pipelineData.SurfaceProfile.SurfacePolylineSimplified;
-            var surfacePoints = new List<(double Station, double Elevation)>();
-
-            for (int i = 0; i < surfacePolyline.NumberOfVertices; i++)
-            {
-                double station = 0.0;
-                double elevation = 0.0;
-                var point = surfacePolyline.GetPoint2dAt(i);
-                pv.FindStationAndElevationAtXY(point.X, point.Y, ref station, ref elevation);
-                surfacePoints.Add((station, elevation));
-            }
-
-            var dedupedSurface = surfacePoints
-                .OrderBy(point => point.Station)
-                .GroupBy(point => point.Station, (_, group) => group.Last())
-                .Select(point => new List<double> { point.Station, point.Elevation })
-                .ToList();
-
-            if (dedupedSurface.Count < 2)
-                throw new System.Exception($"Surface profile for {pipelineData.Name} did not yield enough unique points.");
+            var pv = pipelineData.ProfileView.ProfileView;            
 
             var pipelineSizes = sizeEntries
                 .OrderBy(size => size.StartStation)
@@ -239,17 +217,11 @@ namespace IntersectUtilities
                 .ToList();
 
             var utilities = pipelineData.Utility
-                .OrderBy(utility => utility.StartStation)
+                .OrderBy(utility => utility.Box[0])
                 .Select((utility, index) => new PipeSolverUtilityObstacle
                 {
-                    Name = $"{pipelineData.Name}_utility_{index:000}",
-                    Box =
-                    [
-                        utility.StartStation,
-                        utility.BottomElevation,
-                        utility.EndStation,
-                        utility.TopElevation
-                    ],
+                    Name = utility.Name,
+                    Box = utility.Box,
                     Active = true,
                     MinDistanceM = 0.0
                 })
@@ -260,7 +232,7 @@ namespace IntersectUtilities
                 Name = pipelineData.Name,
                 Environment = new PipeSolverEnvironmentSpec
                 {
-                    SurfaceProfile = dedupedSurface,
+                    SurfaceProfile = pipelineData.SurfaceProfile.GetSimplifiedProfileDTO(),
                     PipelineSizes = pipelineSizes,
                     CoverM = coverDepth,
                     DefaultJodM = pipelineSizes[0].JodMm / 1000.0,
@@ -268,7 +240,7 @@ namespace IntersectUtilities
                 },
                 Local = new PipeSolverLocalConstraints
                 {
-                    HorizontalArcs = pipelineData.HorizontalArcs
+                    HorizontalArcs = pipelineData.HorizontalArcs.HorizontalArcs
                         .OrderBy(arc => arc.StartStation)
                         .Select(arc => new List<double> { arc.StartStation, arc.EndStation })
                         .ToList(),
@@ -554,7 +526,7 @@ namespace IntersectUtilities
 
         private sealed class PipeSolverEnvironmentSpec
         {
-            public List<List<double>> SurfaceProfile { get; set; } = [];
+            public List<double[]> SurfaceProfile { get; set; } = [];
             public List<PipeSolverPipelineSizeRange> PipelineSizes { get; set; } = [];
             public double CoverM { get; set; }
             public double DefaultJodM { get; set; }
@@ -578,7 +550,7 @@ namespace IntersectUtilities
         private sealed class PipeSolverUtilityObstacle
         {
             public string Name { get; set; } = string.Empty;
-            public List<double> Box { get; set; } = [];
+            public double[] Box { get; set; } = [];
             public bool Active { get; set; }
             public double MinDistanceM { get; set; }
         }

@@ -100,29 +100,10 @@ namespace IntersectUtilities
                     alignment, polylinesGroupedByAlignment, pipelineData);
                 pipelineData.Utility = BuildUtilities(
                     alignment.Name, pipelineData.ProfileView.ProfileView, pipelineData, detailingBlockDict, psm, dcd, tx);
-
-                pipelineData.GenerateAvoidanceGeometryForUtilities();
-                pipelineData.GenerateAvoidancePolygonsForUtilities();
-                pipelineData.MergeAvoidancePolygonsForUtilities();
-
 #if DEBUG
                 foreach (var utility in pipelineData.Utility)
                 {
-                    if (utility.MergedAvoidancePolygon != null)
-                    {
-                        var mpoly = NTSConversion.ConvertNTSPolygonToMPolygon(utility.MergedAvoidancePolygon);                        
-                        mpoly.Layer = "AutoProfileTest";
-                        mpoly.Color = ColorByName("yellow");
-                        mpoly.AddEntityToDbModelSpace(localDb);
-                    }
-                    else
-                    {
-                        if (utility.AvoidancePolygon == null) continue;
-                        var mpoly = NTSConversion.ConvertNTSPolygonToMPolygon(utility.AvoidancePolygon);
-                        mpoly.Layer = "AutoProfileTest";
-                        mpoly.Color = ColorByName("yellow");
-                        mpoly.AddEntityToDbModelSpace(localDb);
-                    }
+                    
                 }
 #endif
                 pipelines.Add(pipelineData);
@@ -261,7 +242,12 @@ namespace IntersectUtilities
                 if (id.IsDerivedFrom<BlockReference>()) continue;
                 if (!(id.IsDerivedFrom<Polyline>() || id.IsDerivedFrom<Arc>() || id.IsDerivedFrom<Circle>())) continue;
 
+                //VERY IMPORTANT CHECK!!!
+                //If the utility isRelocatable then it doesn't need to be avoided!
+                //If the utility doesn't need to be avoided, then we don't consider it in the bbox extraction.
+                //So if isRelocatable then we continue.
                 var ent = id.Go<Entity>(tx);
+                if (ent == null) continue;
                 bool isRelocatable = psm.ReadPropertyBool(ent, dcd.CanBeRelocated);
                 if (isRelocatable) continue;
 
@@ -302,6 +288,7 @@ namespace IntersectUtilities
             double elevation = 0.0;
             var utilities = new List<AP2_Utility>();
 
+            int counter = 0;
             foreach (var envelope in envelopes.OrderBy(x =>
             {
                 double s = 0.0;
@@ -311,11 +298,15 @@ namespace IntersectUtilities
             }))
             {
                 var coords = envelope.Coordinates;
-                double x = (coords[0].X + coords[2].X) / 2.0;
-                double y = (coords[0].Y + coords[2].Y) / 2.0;
+                profileView.FindStationAndElevationAtXY(coords[0].X, coords[0].Y, ref station, ref elevation);
+                Point2d min = new Point2d(station, elevation);
+                profileView.FindStationAndElevationAtXY(coords[2].X, coords[2].Y, ref station, ref elevation);
+                Point2d max = new Point2d(station, elevation);
 
-                profileView.FindStationAndElevationAtXY(x, y, ref station, ref elevation);
-                utilities.Add(new AP2_Utility(envelope, station, pipelineData));
+                Extents2d extents = new Extents2d(min, max);
+                utilities.Add(new AP2_Utility(extents, counter, pipelineData));
+
+                counter++;
             }
 
             return utilities;

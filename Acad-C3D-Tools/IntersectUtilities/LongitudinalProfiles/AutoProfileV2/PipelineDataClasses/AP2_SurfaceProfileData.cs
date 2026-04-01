@@ -12,13 +12,9 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfileV2
     internal class AP2_SurfaceProfileData : PipelineDataBase
     {
         private static double DouglasPeukerTolerance = 0.1;
-        //[JsonInclude]
         public string Name { get; set; }
-        //[JsonIgnore]
         private Profile? _profile { get; set; }
-        //[JsonIgnore]
         private Polyline? _surfacePolylineFull { get; set; } = null;
-        //[JsonInclude]
         private Polyline? _surfacePolylineSimplified { get; set; } = null;
         public AP2_SurfaceProfileData(string name, Profile p, AP2_PipelineData pipeline) : base(pipeline)
         {
@@ -32,7 +28,7 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfileV2
             if (_surfacePolylineSimplified == null) throw new Exception($"No reduced polyline found for {Name}!");
         }
 
-        public double[][] GetSimplifiedProfileDTO()
+        public List<double[]> GetSimplifiedProfileDTO()
         {
             if (_profile == null) throw new Exception($"No profile found for {Name}!");
             if (_surfacePolylineSimplified == null) throw new Exception($"No surface polyline found for {Name}!");
@@ -64,7 +60,7 @@ namespace IntersectUtilities.LongitudinalProfiles.AutoProfileV2
                 }
             }
 
-            return profileData.ToArray();
+            return profileData;
         }
     }
 }
