@@ -5087,7 +5087,7 @@ namespace IntersectUtilities
                     {
                         gp.Key,     // Layer
                         fr.ToString("#.0"),         // FR (Faktisk radius)
-                        tr,         // TR (Tilladt radius)
+                        tr.ToString("#.0"),         // TR (Tilladt radius)
                         status,     // Status
                         handles     // Handles (if any)
                     };
