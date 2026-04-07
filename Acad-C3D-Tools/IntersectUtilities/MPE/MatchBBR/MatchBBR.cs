@@ -1,0 +1,794 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.IO.Compression;
+using System.Linq;
+using System.Security;
+using System.Text;
+using System.Xml.Linq;
+using Autodesk.Aec.PropertyData.DatabaseServices;
+using Autodesk.AutoCAD.ApplicationServices;
+using Autodesk.AutoCAD.Colors;
+using Autodesk.AutoCAD.DatabaseServices;
+using Autodesk.AutoCAD.EditorInput;
+using Autodesk.AutoCAD.Geometry;
+using Autodesk.AutoCAD.Runtime;
+using Autodesk.Gis.Map;
+using Autodesk.Gis.Map.ObjectData;
+using Autodesk.Gis.Map.Project;
+using static IntersectUtilities.UtilsCommon.Utils;
+using AcadApp = Autodesk.AutoCAD.ApplicationServices.Application;
+using CadColor = Autodesk.AutoCAD.Colors.Color;
+using FormsDialogResult = System.Windows.Forms.DialogResult;
+using FormsOpenFileDialog = System.Windows.Forms.OpenFileDialog;
+using OdTable = Autodesk.Gis.Map.ObjectData.Table;
+using OdTables = Autodesk.Gis.Map.ObjectData.Tables;
+
+namespace IntersectUtilities
+{
+    public partial class Intersect
+    {
+        private const string MatchBbrCommandName = "MATCHBBR";
+        private const string MatchBbrPropertySetName = "BBR";
+        private const string MatchBbrAddressPropertyName = "Adresse";
+        private const string MatchBbrTypePropertyName = "Type";
+        private const string MatchBbrSkippedTypeValue = "Ingen";
+        private const string MatchBbrMissingInformationLayerName = "MISSING_INFORMATION";
+        private const short MatchBbrYellowColorIndex = 2;
+        private static readonly XNamespace SpreadsheetMlNs =
+            "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
+        private static readonly XNamespace PackageRelationshipsNs =
+            "http://schemas.openxmlformats.org/package/2006/relationships";
+        private static readonly XNamespace OfficeDocumentRelationshipsNs =
+            "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+
+        /// <command>MATCHBBR</command>
+        /// <summary>
+        /// Matches BBR block addresses inside selected closed boundary polylines against rows in an Excel file and draws a
+        /// circle at each matching block on a district-named layer. Blocks whose address is missing from the Excel data are
+        /// marked on the MISSING_INFORMATION layer and exported to a missing-address report next to the input workbook.
+        /// Blocks with BBR Type set to "Ingen" are skipped, and boundary polylines with arc segments are rejected.
+        /// </summary>
+        /// <category>MPE</category>
+        [CommandMethod(MatchBbrCommandName, CommandFlags.Modal)]
+        public void MatchBBR()
+        {
+            DocumentCollection docCol = AcadApp.DocumentManager;
+            Document doc = docCol.MdiActiveDocument;
+            Editor editor = doc.Editor;
+            Database localDb = doc.Database;
+
+            ObjectId[] boundaryPolylineIds = PromptForBoundaryPolylines(editor);
+            if (boundaryPolylineIds.Length == 0)
+            {
+                return;
+            }
+
+            string? excelPath = PromptForExcelPath(editor);
+            if (string.IsNullOrWhiteSpace(excelPath))
+            {
+                return;
+            }
+
+            if (!File.Exists(excelPath))
+            {
+                editor.WriteMessage("\nExcel file not found.");
+                return;
+            }
+
+            Dictionary<string, string> districtByAddress;
+            try
+            {
+                districtByAddress = LoadDistrictsFromExcel(excelPath);
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg(ex);
+                editor.WriteMessage("\nFailed to read the Excel file.");
+                return;
+            }
+
+            if (districtByAddress.Count == 0)
+            {
+                editor.WriteMessage("\nNo address rows were read from the Excel file.");
+                return;
+            }
+
+            using Transaction tx = localDb.TransactionManager.StartTransaction();
+            try
+            {
+                BlockTable blockTable = (BlockTable)tx.GetObject(localDb.BlockTableId, OpenMode.ForRead);
+                BlockTableRecord modelSpace =
+                    (BlockTableRecord)tx.GetObject(blockTable[BlockTableRecord.ModelSpace], OpenMode.ForWrite);
+                List<Polyline> boundaryPolylines = LoadBoundaryPolylines(boundaryPolylineIds, tx, editor);
+                if (boundaryPolylines.Count == 0)
+                {
+                    return;
+                }
+
+                int createdCount = 0;
+                int matchedCount = 0;
+                int missingCount = 0;
+                var missingAddresses = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                foreach (ObjectId entityId in modelSpace)
+                {
+                    if (tx.GetObject(entityId, OpenMode.ForRead) is not BlockReference blockReference)
+                    {
+                        continue;
+                    }
+
+                    if (!IsPointInsideAnyBoundary(blockReference.Position, boundaryPolylines))
+                    {
+                        continue;
+                    }
+
+                    if (HasSkippedBbrType(blockReference, tx))
+                    {
+                        continue;
+                    }
+
+                    string? address = TryGetBbrAddress(blockReference, tx);
+                    if (string.IsNullOrWhiteSpace(address))
+                    {
+                        continue;
+                    }
+
+                    string normalizedAddress = NormalizeAddress(address);
+                    if (!districtByAddress.TryGetValue(normalizedAddress, out string? district))
+                    {
+                        EnsureLayerExists(
+                            MatchBbrMissingInformationLayerName,
+                            tx,
+                            localDb,
+                            CadColor.FromColorIndex(ColorMethod.ByAci, MatchBbrYellowColorIndex));
+
+                        Circle missingCircle = new Circle(blockReference.Position, Vector3d.ZAxis, 5.0)
+                        {
+                            Layer = MatchBbrMissingInformationLayerName
+                        };
+
+                        modelSpace.AppendEntity(missingCircle);
+                        tx.AddNewlyCreatedDBObject(missingCircle, true);
+                        missingAddresses.Add(address.Trim());
+                        missingCount++;
+                        continue;
+                    }
+
+                    matchedCount++;
+
+                    string layerName = SanitizeLayerName(district);
+                    EnsureLayerExists(layerName, tx, localDb, null);
+
+                    Circle circle = new Circle(blockReference.Position, Vector3d.ZAxis, 5.0)
+                    {
+                        Layer = layerName
+                    };
+
+                    modelSpace.AppendEntity(circle);
+                    tx.AddNewlyCreatedDBObject(circle, true);
+                    createdCount++;
+                }
+
+                tx.Commit();
+
+                string missingAddressesPath = ExportMissingAddresses(excelPath, missingAddresses);
+                editor.WriteMessage(
+                    $"\n{MatchBbrCommandName} complete. Matched {matchedCount} blocks and created {createdCount} circles. "
+                    + $"Marked {missingCount} blocks with missing information on layer {MatchBbrMissingInformationLayerName}. "
+                    + $"Exported {missingAddresses.Count} missing addresses to {missingAddressesPath}.");
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg(ex);
+                tx.Abort();
+                editor.WriteMessage($"\n{MatchBbrCommandName} failed. See debug output for details.");
+                return;
+            }
+        }
+
+        private static ObjectId[] PromptForBoundaryPolylines(Editor editor)
+        {
+            PromptSelectionOptions options = new PromptSelectionOptions
+            {
+                MessageForAdding = "\nSelect closed boundary polylines: "
+            };
+
+            SelectionFilter filter = new SelectionFilter(
+                new[]
+                {
+                    new TypedValue((int)DxfCode.Start, "LWPOLYLINE")
+                });
+
+            PromptSelectionResult result = editor.GetSelection(options, filter);
+            if (result.Status != PromptStatus.OK || result.Value is null || result.Value.Count == 0)
+            {
+                editor.WriteMessage("\nNo boundary polylines selected.");
+                return Array.Empty<ObjectId>();
+            }
+
+            return result.Value.GetObjectIds();
+        }
+
+        private static string? PromptForExcelPath(Editor editor)
+        {
+            using FormsOpenFileDialog dialog = new FormsOpenFileDialog
+            {
+                Title = "Select Excel File",
+                Filter = "Excel Files (*.xlsx)|*.xlsx|All Files (*.*)|*.*",
+                CheckFileExists = true,
+                CheckPathExists = true,
+                Multiselect = false
+            };
+
+            FormsDialogResult result = dialog.ShowDialog();
+            if (result != FormsDialogResult.OK)
+            {
+                editor.WriteMessage("\nNo Excel file selected.");
+                return null;
+            }
+
+            return dialog.FileName;
+        }
+
+        private static List<Polyline> LoadBoundaryPolylines(
+            IEnumerable<ObjectId> boundaryPolylineIds,
+            Transaction transaction,
+            Editor editor)
+        {
+            List<Polyline> polylines = new List<Polyline>();
+
+            foreach (ObjectId boundaryId in boundaryPolylineIds)
+            {
+                if (transaction.GetObject(boundaryId, OpenMode.ForRead) is not Polyline polyline)
+                {
+                    continue;
+                }
+
+                if (!polyline.Closed)
+                {
+                    editor.WriteMessage("\nAll selected boundary polylines must be closed.");
+                    return new List<Polyline>();
+                }
+
+                if (PolylineHasArcs(polyline))
+                {
+                    editor.WriteMessage("\nBoundary polylines with arc segments are not supported.");
+                    return new List<Polyline>();
+                }
+
+                polylines.Add(polyline);
+            }
+
+            return polylines;
+        }
+
+        private static Dictionary<string, string> LoadDistrictsFromExcel(string excelPath)
+        {
+            using ZipArchive archive = ZipFile.OpenRead(excelPath);
+
+            Dictionary<string, string> sharedStrings = LoadSharedStrings(archive);
+            string workbookXml = ReadZipEntryText(archive, "xl/workbook.xml");
+            XDocument workbookDocument = XDocument.Parse(workbookXml);
+            string firstWorksheetPath = ResolveFirstWorksheetPath(archive, workbookDocument);
+            string worksheetXml = ReadZipEntryText(archive, firstWorksheetPath);
+            XDocument worksheetDocument = XDocument.Parse(worksheetXml);
+
+            Dictionary<string, Dictionary<string, string>> rows = LoadWorksheetRows(worksheetDocument, sharedStrings);
+            if (rows.Count == 0)
+            {
+                return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            }
+
+            Dictionary<string, string>? headerRow = rows
+                .OrderBy(kvp => GetRowNumber(kvp.Key))
+                .Select(kvp => kvp.Value)
+                .FirstOrDefault();
+            if (headerRow is null || headerRow.Count == 0)
+            {
+                return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            }
+
+            string districtColumnName = headerRow
+                .FirstOrDefault(kvp =>
+                    string.Equals(kvp.Value.Trim(), "Varmedistrikt", StringComparison.OrdinalIgnoreCase))
+                .Key;
+            if (string.IsNullOrWhiteSpace(districtColumnName))
+            {
+                throw new InvalidOperationException("Column 'Varmedistrikt' was not found in the first row.");
+            }
+
+            Dictionary<string, string> result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (KeyValuePair<string, Dictionary<string, string>> row in rows.OrderBy(kvp => GetRowNumber(kvp.Key)).Skip(1))
+            {
+                string streetName = GetRowCellValue(row.Value, "D");
+                string streetNumber = GetRowCellValue(row.Value, "E");
+                string district = GetRowCellValue(row.Value, districtColumnName);
+
+                if (string.IsNullOrWhiteSpace(streetName)
+                    || string.IsNullOrWhiteSpace(streetNumber)
+                    || string.IsNullOrWhiteSpace(district))
+                {
+                    continue;
+                }
+
+                string trimmedDistrict = district.Trim();
+                AddExcelAddressKey(result, $"{streetName} {streetNumber}", trimmedDistrict);
+                AddExcelAddressKey(result, $"{streetNumber} {streetName}", trimmedDistrict);
+            }
+
+            return result;
+        }
+
+        private static void AddExcelAddressKey(
+            IDictionary<string, string> result,
+            string rawAddress,
+            string district)
+        {
+            string normalizedAddress = NormalizeAddress(rawAddress);
+            if (string.IsNullOrWhiteSpace(normalizedAddress))
+            {
+                return;
+            }
+
+            result[normalizedAddress] = district;
+        }
+
+        private static string? TryGetBbrAddress(BlockReference blockReference, Transaction transaction)
+        {
+            return TryGetBbrValue(blockReference, transaction, MatchBbrAddressPropertyName);
+        }
+
+        private static bool HasSkippedBbrType(BlockReference blockReference, Transaction transaction)
+        {
+            string? typeValue = TryGetBbrValue(blockReference, transaction, MatchBbrTypePropertyName);
+            return string.Equals(typeValue?.Trim(), MatchBbrSkippedTypeValue, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static string? TryGetBbrValue(
+            BlockReference blockReference,
+            Transaction transaction,
+            string propertyName)
+        {
+            return TryGetBbrValueFromPropertySet(blockReference, transaction, propertyName)
+                   ?? TryGetBbrValueFromObjectData(blockReference, propertyName);
+        }
+
+        private static string? TryGetBbrValueFromPropertySet(
+            BlockReference blockReference,
+            Transaction transaction,
+            string propertyName)
+        {
+            ObjectIdCollection propertySetIds;
+            try
+            {
+                propertySetIds = PropertyDataServices.GetPropertySets(blockReference);
+            }
+            catch
+            {
+                return null;
+            }
+
+            foreach (ObjectId propertySetId in propertySetIds)
+            {
+                if (!propertySetId.IsValid || propertySetId.IsNull)
+                {
+                    continue;
+                }
+
+                if (transaction.GetObject(propertySetId, OpenMode.ForRead) is not PropertySet propertySet)
+                {
+                    continue;
+                }
+
+                if (!string.Equals(
+                        propertySet.PropertySetDefinitionName,
+                        MatchBbrPropertySetName,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    int propertyId = propertySet.PropertyNameToId(propertyName);
+                    object? value = propertySet.GetAt(propertyId);
+                    return value?.ToString();
+                }
+                catch
+                {
+                    return null;
+                }
+            }
+
+            return null;
+        }
+
+        private static string? TryGetBbrValueFromObjectData(BlockReference blockReference, string propertyName)
+        {
+            ProjectModel project = HostMapApplicationServices.Application.ActiveProject;
+            OdTables tables = project.ODTables;
+
+            OdTable table;
+            try
+            {
+                table = tables[MatchBbrPropertySetName];
+            }
+            catch
+            {
+                return null;
+            }
+
+            Records records = table.GetObjectTableRecords(
+                0,
+                blockReference.ObjectId,
+                Autodesk.Gis.Map.Constants.OpenMode.OpenForRead,
+                false);
+
+            foreach (Record record in records)
+            {
+                for (int i = 0; i < table.FieldDefinitions.Count; i++)
+                {
+                    FieldDefinition fieldDefinition = table.FieldDefinitions[i];
+                    if (!string.Equals(fieldDefinition.Name, propertyName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    dynamic value = record[i];
+                    return value?.StrValue?.ToString() ?? value?.ToString();
+                }
+            }
+
+            return null;
+        }
+
+        private static string ExportMissingAddresses(string inputExcelPath, IEnumerable<string> missingAddresses)
+        {
+            string outputDirectory = Path.GetDirectoryName(inputExcelPath)
+                                     ?? throw new InvalidOperationException("Input Excel directory could not be determined.");
+            string outputPath = Path.Combine(outputDirectory, "missing_adresses.xlsx");
+
+            if (File.Exists(outputPath))
+            {
+                File.Delete(outputPath);
+            }
+
+            List<string> orderedAddresses = missingAddresses
+                .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            using FileStream fileStream = new FileStream(outputPath, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None);
+            using ZipArchive archive = new ZipArchive(fileStream, ZipArchiveMode.Create);
+
+            CreateZipEntry(
+                archive,
+                "[Content_Types].xml",
+                "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>"
+                + "<Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\">"
+                + "<Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/>"
+                + "<Default Extension=\"xml\" ContentType=\"application/xml\"/>"
+                + "<Override PartName=\"/xl/workbook.xml\" "
+                + "ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml\"/>"
+                + "<Override PartName=\"/xl/worksheets/sheet1.xml\" "
+                + "ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\"/>"
+                + "</Types>");
+
+            CreateZipEntry(
+                archive,
+                "_rels/.rels",
+                "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>"
+                + "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
+                + "<Relationship Id=\"rId1\" "
+                + "Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument\" "
+                + "Target=\"xl/workbook.xml\"/>"
+                + "</Relationships>");
+
+            CreateZipEntry(
+                archive,
+                "xl/workbook.xml",
+                "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>"
+                + "<workbook xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" "
+                + "xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\">"
+                + "<sheets><sheet name=\"MissingAddresses\" sheetId=\"1\" r:id=\"rId1\"/></sheets>"
+                + "</workbook>");
+
+            CreateZipEntry(
+                archive,
+                "xl/_rels/workbook.xml.rels",
+                "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>"
+                + "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
+                + "<Relationship Id=\"rId1\" "
+                + "Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet\" "
+                + "Target=\"worksheets/sheet1.xml\"/>"
+                + "</Relationships>");
+
+            CreateZipEntry(archive, "xl/worksheets/sheet1.xml", BuildMissingAddressesWorksheetXml(orderedAddresses));
+
+            return outputPath;
+        }
+
+        private static bool IsPointInsideAnyBoundary(Point3d point, IEnumerable<Polyline> boundaryPolylines)
+        {
+            Point2d testPoint = new Point2d(point.X, point.Y);
+            foreach (Polyline boundary in boundaryPolylines)
+            {
+                if (IsPointInsidePolyline(testPoint, boundary))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool IsPointInsidePolyline(Point2d testPoint, Polyline polyline)
+        {
+            int vertexCount = polyline.NumberOfVertices;
+            bool inside = false;
+
+            for (int i = 0, j = vertexCount - 1; i < vertexCount; j = i++)
+            {
+                Point2d current = polyline.GetPoint2dAt(i);
+                Point2d previous = polyline.GetPoint2dAt(j);
+
+                bool intersects = ((current.Y > testPoint.Y) != (previous.Y > testPoint.Y))
+                    && (testPoint.X
+                        < ((previous.X - current.X) * (testPoint.Y - current.Y) / ((previous.Y - current.Y) + double.Epsilon))
+                        + current.X);
+
+                if (intersects)
+                {
+                    inside = !inside;
+                }
+            }
+
+            return inside;
+        }
+
+        private static bool PolylineHasArcs(Polyline polyline)
+        {
+            for (int i = 0; i < polyline.NumberOfVertices; i++)
+            {
+                if (Math.Abs(polyline.GetBulgeAt(i)) > 1e-9)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static void EnsureLayerExists(string layerName, Transaction transaction, Database database, CadColor? color)
+        {
+            LayerTable layerTable = (LayerTable)transaction.GetObject(database.LayerTableId, OpenMode.ForRead);
+            if (layerTable.Has(layerName))
+            {
+                if (color is null)
+                {
+                    return;
+                }
+
+                LayerTableRecord existingLayer =
+                    (LayerTableRecord)transaction.GetObject(layerTable[layerName], OpenMode.ForWrite);
+                existingLayer.Color = color;
+                return;
+            }
+
+            layerTable.UpgradeOpen();
+            LayerTableRecord layer = new LayerTableRecord
+            {
+                Name = layerName
+            };
+
+            if (color is not null)
+            {
+                layer.Color = color;
+            }
+
+            layerTable.Add(layer);
+            transaction.AddNewlyCreatedDBObject(layer, true);
+        }
+
+        private static string NormalizeAddress(string address)
+        {
+            string[] parts = address
+                .Trim()
+                .Split(new[] { ' ', ',' }, StringSplitOptions.RemoveEmptyEntries);
+
+            return string.Join(" ", parts).ToUpperInvariant();
+        }
+
+        private static string SanitizeLayerName(string layerName)
+        {
+            char[] invalidChars = { '<', '>', '/', '\\', '"', ':', ';', '?', '*', '|', '=', ',' };
+            string sanitized = layerName.Trim();
+            foreach (char invalidChar in invalidChars)
+            {
+                sanitized = sanitized.Replace(invalidChar, '_');
+            }
+
+            return string.IsNullOrWhiteSpace(sanitized) ? "UNKNOWN_DISTRICT" : sanitized;
+        }
+
+        private static string ReadZipEntryText(ZipArchive archive, string entryPath)
+        {
+            ZipArchiveEntry? entry = archive.GetEntry(entryPath);
+            if (entry is null)
+            {
+                throw new InvalidOperationException($"Expected Excel entry '{entryPath}' was not found.");
+            }
+
+            using Stream stream = entry.Open();
+            using StreamReader reader = new StreamReader(stream, Encoding.UTF8);
+            return reader.ReadToEnd();
+        }
+
+        private static Dictionary<string, string> LoadSharedStrings(ZipArchive archive)
+        {
+            ZipArchiveEntry? entry = archive.GetEntry("xl/sharedStrings.xml");
+            if (entry is null)
+            {
+                return new Dictionary<string, string>();
+            }
+
+            XDocument document = XDocument.Parse(ReadZipEntryText(archive, "xl/sharedStrings.xml"));
+            Dictionary<string, string> result = new Dictionary<string, string>();
+            int index = 0;
+            foreach (XElement sharedString in document.Descendants(SpreadsheetMlNs + "si"))
+            {
+                string value = string.Concat(
+                    sharedString
+                        .Descendants(SpreadsheetMlNs + "t")
+                        .Select(x => x.Value));
+                result[index.ToString()] = value;
+                index++;
+            }
+
+            return result;
+        }
+
+        private static string ResolveFirstWorksheetPath(ZipArchive archive, XDocument workbookDocument)
+        {
+            XElement firstSheet = workbookDocument
+                .Descendants(SpreadsheetMlNs + "sheet")
+                .FirstOrDefault()
+                ?? throw new InvalidOperationException("No worksheets were found in the workbook.");
+
+            XAttribute? relationshipIdAttribute = firstSheet.Attribute(OfficeDocumentRelationshipsNs + "id");
+            if (relationshipIdAttribute is null || string.IsNullOrWhiteSpace(relationshipIdAttribute.Value))
+            {
+                throw new InvalidOperationException("The first worksheet relationship could not be resolved.");
+            }
+
+            XDocument workbookRelationships = XDocument.Parse(ReadZipEntryText(archive, "xl/_rels/workbook.xml.rels"));
+            XElement relationship = workbookRelationships
+                .Descendants(PackageRelationshipsNs + "Relationship")
+                .FirstOrDefault(x => string.Equals((string?)x.Attribute("Id"), relationshipIdAttribute.Value, StringComparison.Ordinal))
+                ?? throw new InvalidOperationException("The first worksheet target could not be resolved.");
+
+            string target = (string?)relationship.Attribute("Target")
+                ?? throw new InvalidOperationException("The worksheet target path was missing.");
+
+            return NormalizeWorkbookRelativePath(target);
+        }
+
+        private static string NormalizeWorkbookRelativePath(string target)
+        {
+            string normalized = target.Replace('\\', '/');
+            if (normalized.StartsWith("/", StringComparison.Ordinal))
+            {
+                return normalized.TrimStart('/');
+            }
+
+            return $"xl/{normalized.TrimStart('/')}";
+        }
+
+        private static Dictionary<string, Dictionary<string, string>> LoadWorksheetRows(
+            XDocument worksheetDocument,
+            IReadOnlyDictionary<string, string> sharedStrings)
+        {
+            Dictionary<string, Dictionary<string, string>> result =
+                new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (XElement rowElement in worksheetDocument.Descendants(SpreadsheetMlNs + "row"))
+            {
+                string rowKey = (string?)rowElement.Attribute("r") ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(rowKey))
+                {
+                    continue;
+                }
+
+                Dictionary<string, string> rowValues = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                foreach (XElement cellElement in rowElement.Elements(SpreadsheetMlNs + "c"))
+                {
+                    string cellReference = (string?)cellElement.Attribute("r") ?? string.Empty;
+                    string columnName = GetColumnName(cellReference);
+                    if (string.IsNullOrWhiteSpace(columnName))
+                    {
+                        continue;
+                    }
+
+                    rowValues[columnName] = ReadWorksheetCellValue(cellElement, sharedStrings);
+                }
+
+                result[rowKey] = rowValues;
+            }
+
+            return result;
+        }
+
+        private static string ReadWorksheetCellValue(XElement cellElement, IReadOnlyDictionary<string, string> sharedStrings)
+        {
+            string? cellType = (string?)cellElement.Attribute("t");
+            if (string.Equals(cellType, "inlineStr", StringComparison.OrdinalIgnoreCase))
+            {
+                return string.Concat(cellElement.Descendants(SpreadsheetMlNs + "t").Select(x => x.Value));
+            }
+
+            XElement? valueElement = cellElement.Element(SpreadsheetMlNs + "v");
+            if (valueElement is null)
+            {
+                return string.Empty;
+            }
+
+            string rawValue = valueElement.Value;
+            if (string.Equals(cellType, "s", StringComparison.OrdinalIgnoreCase)
+                && sharedStrings.TryGetValue(rawValue, out string? sharedStringValue))
+            {
+                return sharedStringValue;
+            }
+
+            return rawValue;
+        }
+
+        private static string GetRowCellValue(IReadOnlyDictionary<string, string> row, string columnName)
+        {
+            return row.TryGetValue(columnName, out string? value) ? value : string.Empty;
+        }
+
+        private static string GetColumnName(string? cellReference)
+        {
+            if (string.IsNullOrWhiteSpace(cellReference))
+            {
+                return string.Empty;
+            }
+
+            return new string(cellReference.TakeWhile(char.IsLetter).ToArray());
+        }
+
+        private static int GetRowNumber(string rowReference)
+        {
+            string digits = new string(rowReference.Where(char.IsDigit).ToArray());
+            return int.TryParse(digits, out int rowNumber) ? rowNumber : int.MaxValue;
+        }
+
+        private static void CreateZipEntry(ZipArchive archive, string path, string contents)
+        {
+            ZipArchiveEntry entry = archive.CreateEntry(path, CompressionLevel.Optimal);
+            using Stream stream = entry.Open();
+            using StreamWriter writer = new StreamWriter(stream, new UTF8Encoding(false));
+            writer.Write(contents);
+        }
+
+        private static string BuildMissingAddressesWorksheetXml(IReadOnlyList<string> addresses)
+        {
+            StringBuilder builder = new StringBuilder();
+            builder.Append("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>");
+            builder.Append("<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\">");
+            builder.Append("<sheetData>");
+            builder.Append("<row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>Adresse</t></is></c></row>");
+
+            for (int i = 0; i < addresses.Count; i++)
+            {
+                int rowNumber = i + 2;
+                string escapedValue = SecurityElement.Escape(addresses[i]) ?? string.Empty;
+                builder.Append($"<row r=\"{rowNumber}\"><c r=\"A{rowNumber}\" t=\"inlineStr\"><is><t>{escapedValue}</t></is></c></row>");
+            }
+
+            builder.Append("</sheetData>");
+            builder.Append("</worksheet>");
+            return builder.ToString();
+        }
+    }
+}
