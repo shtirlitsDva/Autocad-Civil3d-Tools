@@ -21,6 +21,7 @@ using AcadApp = Autodesk.AutoCAD.ApplicationServices.Application;
 using CadColor = Autodesk.AutoCAD.Colors.Color;
 using FormsDialogResult = System.Windows.Forms.DialogResult;
 using FormsOpenFileDialog = System.Windows.Forms.OpenFileDialog;
+using FormsSaveFileDialog = System.Windows.Forms.SaveFileDialog;
 using OdTable = Autodesk.Gis.Map.ObjectData.Table;
 using OdTables = Autodesk.Gis.Map.ObjectData.Tables;
 
@@ -46,8 +47,9 @@ namespace IntersectUtilities
         /// <summary>
         /// Matches BBR block addresses inside selected closed boundary polylines against rows in an Excel file and draws a
         /// circle at each matching block on a district-named layer. Blocks whose address is missing from the Excel data are
-        /// marked on the MISSING_INFORMATION layer and exported to a missing-address report next to the input workbook.
-        /// Blocks with BBR Type set to "Ingen" are skipped, and boundary polylines with arc segments are rejected.
+        /// marked on the MISSING_INFORMATION layer. After the circles are created, the user can choose whether to export a
+        /// missing-address report and, if so, choose where to save the new Excel file. Blocks with BBR Type set to "Ingen"
+        /// are skipped, and boundary polylines with arc segments are rejected.
         /// </summary>
         /// <category>MPE</category>
         [CommandMethod(MatchBbrCommandName, CommandFlags.Modal)]
@@ -172,11 +174,31 @@ namespace IntersectUtilities
 
                 tx.Commit();
 
-                string missingAddressesPath = ExportMissingAddresses(excelPath, missingAddresses);
                 editor.WriteMessage(
                     $"\n{MatchBbrCommandName} complete. Matched {matchedCount} blocks and created {createdCount} circles. "
-                    + $"Marked {missingCount} blocks with missing information on layer {MatchBbrMissingInformationLayerName}. "
-                    + $"Exported {missingAddresses.Count} missing addresses to {missingAddressesPath}.");
+                    + $"Marked {missingCount} blocks with missing information on layer {MatchBbrMissingInformationLayerName}.");
+
+                if (missingAddresses.Count == 0)
+                {
+                    editor.WriteMessage("\nNo missing addresses were found, so no export was needed.");
+                    return;
+                }
+
+                if (!PromptToExportMissingAddresses(editor))
+                {
+                    editor.WriteMessage("\nMissing-address export skipped.");
+                    return;
+                }
+
+                string? outputPath = PromptForMissingAddressesSavePath(excelPath, editor);
+                if (string.IsNullOrWhiteSpace(outputPath))
+                {
+                    editor.WriteMessage("\nMissing-address export cancelled.");
+                    return;
+                }
+
+                string missingAddressesPath = ExportMissingAddresses(outputPath, missingAddresses);
+                editor.WriteMessage($"\nExported {missingAddresses.Count} missing addresses to {missingAddressesPath}.");
             }
             catch (System.Exception ex)
             {
@@ -443,12 +465,57 @@ namespace IntersectUtilities
             return null;
         }
 
-        private static string ExportMissingAddresses(string inputExcelPath, IEnumerable<string> missingAddresses)
+        private static bool PromptToExportMissingAddresses(Editor editor)
         {
-            string outputDirectory = Path.GetDirectoryName(inputExcelPath)
-                                     ?? throw new InvalidOperationException("Input Excel directory could not be determined.");
-            string outputPath = Path.Combine(outputDirectory, "missing_adresses.xlsx");
+            PromptKeywordOptions options =
+                new PromptKeywordOptions("\nExport missing adresses? [Yes/No] <No>: ", "Yes No")
+                {
+                    AllowNone = true
+                };
 
+            PromptResult result = editor.GetKeywords(options);
+            if (result.Status == PromptStatus.Cancel)
+            {
+                return false;
+            }
+
+            string response = string.IsNullOrWhiteSpace(result.StringResult) ? "No" : result.StringResult;
+            return string.Equals(response, "Yes", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static string? PromptForMissingAddressesSavePath(string sourceExcelPath, Editor editor)
+        {
+            string initialDirectory = Path.GetDirectoryName(sourceExcelPath) ?? Environment.CurrentDirectory;
+            string initialFileName = "missing_adresses.xlsx";
+
+            using FormsSaveFileDialog dialog = new FormsSaveFileDialog
+            {
+                Title = "Save Missing Addresses Excel",
+                Filter = "Excel Files (*.xlsx)|*.xlsx|All Files (*.*)|*.*",
+                InitialDirectory = initialDirectory,
+                FileName = initialFileName,
+                AddExtension = true,
+                DefaultExt = "xlsx",
+                OverwritePrompt = true
+            };
+
+            FormsDialogResult result = dialog.ShowDialog();
+            if (result != FormsDialogResult.OK)
+            {
+                return null;
+            }
+
+            if (string.IsNullOrWhiteSpace(dialog.FileName))
+            {
+                editor.WriteMessage("\nNo output file was selected.");
+                return null;
+            }
+
+            return dialog.FileName;
+        }
+
+        private static string ExportMissingAddresses(string outputPath, IEnumerable<string> missingAddresses)
+        {
             if (File.Exists(outputPath))
             {
                 File.Delete(outputPath);
