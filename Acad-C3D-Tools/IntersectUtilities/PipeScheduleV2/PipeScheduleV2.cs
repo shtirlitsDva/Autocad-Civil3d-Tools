@@ -108,6 +108,7 @@ namespace IntersectUtilities.PipeScheduleV2
             { "CU", typeof(PipeTypeCU) },
             //{ "PEXU", typeof(PipeTypePEXU) },
             { "PRTFLEXL", typeof(PipeTypePRTFLEXL) },
+            { "PRTPIPE", typeof(PipeTypePRTPIPE) },
             { "AQTHRM11", typeof(PipeTypeAQTHRM11) },
             { "PE", typeof(PipeTypePE) },
         };
@@ -118,6 +119,7 @@ namespace IntersectUtilities.PipeScheduleV2
             { "CU", PipeSystemEnum.Kobberflex },
             //{"PEXU", PipeSystemEnum.PexU },
             { "PRTFLEXL", PipeSystemEnum.PertFlextra },
+            { "PRTPIPE", PipeSystemEnum.PertPIPE },
             { "AQTHRM11", PipeSystemEnum.AquaTherm11 },
             { "PE", PipeSystemEnum.PE },
         };
@@ -129,6 +131,7 @@ namespace IntersectUtilities.PipeScheduleV2
                 {PipeSystemEnum.Kobberflex , "CU" },
                 //{PipeSystemEnum.PexU , "PEXU" },
                 {PipeSystemEnum.PertFlextra , "PRTFLEXL" },
+                {PipeSystemEnum.PertPIPE , "PRTPIPE" },
                 {PipeSystemEnum.AquaTherm11 , "AQTHRM11" },
                 {PipeSystemEnum.PE, "PE" } ,
             };
@@ -140,18 +143,20 @@ namespace IntersectUtilities.PipeScheduleV2
                 {PipeSystemEnum.Kobberflex , "CU" },
                 //{PipeSystemEnum.PexU , "PEXU" },
                 {PipeSystemEnum.PertFlextra , "PRT" },
+                {PipeSystemEnum.PertPIPE , "PRTP" },
                 {PipeSystemEnum.AquaTherm11 , "AT" },
                 {PipeSystemEnum.PE, "PE" },
             };
         private static Dictionary<PipeSystemEnum, double[]> availableStdLengths = new()
         {
-            {PipeSystemEnum.Stål, new double[] {12, 16}},
-            {PipeSystemEnum.AluPex, new double[] {16, 100}},
-            {PipeSystemEnum.Kobberflex, new double[] { 100 }},
-            //{PipeSystemEnum.PexU, new[] {100}},
-            {PipeSystemEnum.PertFlextra, new double[] {12, 16, 100}},
-            {PipeSystemEnum.AquaTherm11, new double[] {11.6}},
-            {PipeSystemEnum.PE, new double[] {12, 50}}
+            {PipeSystemEnum.Stål, [12, 16]},
+            {PipeSystemEnum.AluPex, [16, 100]},
+            {PipeSystemEnum.Kobberflex, [100]},
+            //{PipeSystemEnum.PexU, new[] {100]},
+            {PipeSystemEnum.PertFlextra, [12, 16, 100]},
+            {PipeSystemEnum.PertPIPE, [12]},
+            {PipeSystemEnum.AquaTherm11, [11.6]},
+            {PipeSystemEnum.PE, [12, 50]}
         };
         public static double[] GetStdLengthsForSystem(PipeSystemEnum pipeSystem) => availableStdLengths[pipeSystem];
         private static string pipeTypes = string.Join(
@@ -1150,7 +1155,43 @@ namespace IntersectUtilities.PipeScheduleV2
                 default:
                     return "";
             }
-        }        
+        }
+        public override short GetLayerColor(PipeTypeEnum type)
+        {
+            switch (type)
+            {
+                case PipeTypeEnum.Ukendt:
+                    return 0;
+                case PipeTypeEnum.Twin:
+                    return 190;
+                case PipeTypeEnum.Frem:
+                    return 1;
+                case PipeTypeEnum.Retur:
+                    return 5;
+                case PipeTypeEnum.Enkelt:
+                    return 190;
+                default: return 0;
+            }
+        }
+    }
+    public class PipeTypePRTPIPE : PipeTypeBase
+    {
+        public override string GetLabel(int DN, PipeTypeEnum type, double od, double kOd)
+        {
+            switch (type)
+            {
+                case PipeTypeEnum.Ukendt:
+                    return "";
+                case PipeTypeEnum.Twin:
+                    return $"PE-RT{DN}-ø{od.ToString("N0")}+ø{od.ToString("N0")}/{kOd.ToString("N0")}";
+                case PipeTypeEnum.Frem:
+                case PipeTypeEnum.Retur:
+                case PipeTypeEnum.Enkelt:
+                    return $"PE-RT{DN}-ø{od.ToString("N0")}/{kOd.ToString("N0")}";
+                default:
+                    return "";
+            }
+        }
         public override short GetLayerColor(PipeTypeEnum type)
         {
             switch (type)

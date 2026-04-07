@@ -41,6 +41,7 @@ namespace IntersectUtilities.UtilsCommon.Enums
         Kobberflex,
         AluPex,
         PertFlextra,
+        PertPIPE,
         AquaTherm11,
         PE,
     }
