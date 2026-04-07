@@ -108,6 +108,8 @@ namespace IntersectUtilities
                     return;
                 }
 
+                HashSet<string> existingCircleLocations = GetExistingCircleLocations(modelSpace, tx);
+
                 int createdCount = 0;
                 int matchedCount = 0;
                 int missingCount = 0;
@@ -150,10 +152,12 @@ namespace IntersectUtilities
                             Layer = MatchBbrMissingInformationLayerName
                         };
 
-                        modelSpace.AppendEntity(missingCircle);
-                        tx.AddNewlyCreatedDBObject(missingCircle, true);
+                        if (TryAppendCircleAtLocation(modelSpace, tx, missingCircle, existingCircleLocations))
+                        {
+                            missingCount++;
+                        }
+
                         missingAddresses.Add(address.Trim());
-                        missingCount++;
                         continue;
                     }
 
@@ -167,9 +171,10 @@ namespace IntersectUtilities
                         Layer = layerName
                     };
 
-                    modelSpace.AppendEntity(circle);
-                    tx.AddNewlyCreatedDBObject(circle, true);
-                    createdCount++;
+                    if (TryAppendCircleAtLocation(modelSpace, tx, circle, existingCircleLocations))
+                    {
+                        createdCount++;
+                    }
                 }
 
                 tx.Commit();
@@ -657,6 +662,41 @@ namespace IntersectUtilities
             transaction.AddNewlyCreatedDBObject(layer, true);
         }
 
+        private static HashSet<string> GetExistingCircleLocations(BlockTableRecord modelSpace, Transaction transaction)
+        {
+            HashSet<string> result = new HashSet<string>(StringComparer.Ordinal);
+
+            foreach (ObjectId entityId in modelSpace)
+            {
+                if (transaction.GetObject(entityId, OpenMode.ForRead) is not Circle circle)
+                {
+                    continue;
+                }
+
+                result.Add(CreateLocationKey(circle.Center));
+            }
+
+            return result;
+        }
+
+        private static bool TryAppendCircleAtLocation(
+            BlockTableRecord modelSpace,
+            Transaction transaction,
+            Circle circle,
+            ISet<string> existingCircleLocations)
+        {
+            string locationKey = CreateLocationKey(circle.Center);
+            if (!existingCircleLocations.Add(locationKey))
+            {
+                circle.Dispose();
+                return false;
+            }
+
+            modelSpace.AppendEntity(circle);
+            transaction.AddNewlyCreatedDBObject(circle, true);
+            return true;
+        }
+
         private static string NormalizeAddress(string address)
         {
             string[] parts = address
@@ -676,6 +716,11 @@ namespace IntersectUtilities
             }
 
             return string.IsNullOrWhiteSpace(sanitized) ? "UNKNOWN_DISTRICT" : sanitized;
+        }
+
+        private static string CreateLocationKey(Point3d point)
+        {
+            return $"{Math.Round(point.X, 6):0.######}|{Math.Round(point.Y, 6):0.######}|{Math.Round(point.Z, 6):0.######}";
         }
 
         private static string ReadZipEntryText(ZipArchive archive, string entryPath)
