@@ -108,6 +108,9 @@ namespace IntersectUtilities
                     return;
                 }
 
+                RemoveExistingMarkers(modelSpace, tx, boundaryPolylines);
+                HashSet<string> existingCircleLocations = GetExistingMarkerLocations(modelSpace, tx);
+
                 int createdCount = 0;
                 int matchedCount = 0;
                 int missingCount = 0;
@@ -145,15 +148,14 @@ namespace IntersectUtilities
                             localDb,
                             CadColor.FromColorIndex(ColorMethod.ByAci, MatchBbrYellowColorIndex));
 
-                        Circle missingCircle = new Circle(blockReference.Position, Vector3d.ZAxis, 5.0)
-                        {
-                            Layer = MatchBbrMissingInformationLayerName
-                        };
+                        Polyline missingMarker = CreateMarkerPolyline(blockReference.Position, 5.0, MatchBbrMissingInformationLayerName);
 
-                        modelSpace.AppendEntity(missingCircle);
-                        tx.AddNewlyCreatedDBObject(missingCircle, true);
+                        if (TryAppendMarkerAtLocation(modelSpace, tx, missingMarker, existingCircleLocations))
+                        {
+                            missingCount++;
+                        }
+
                         missingAddresses.Add(address.Trim());
-                        missingCount++;
                         continue;
                     }
 
@@ -162,14 +164,12 @@ namespace IntersectUtilities
                     string layerName = SanitizeLayerName(district);
                     EnsureLayerExists(layerName, tx, localDb, null);
 
-                    Circle circle = new Circle(blockReference.Position, Vector3d.ZAxis, 5.0)
-                    {
-                        Layer = layerName
-                    };
+                    Polyline marker = CreateMarkerPolyline(blockReference.Position, 5.0, layerName);
 
-                    modelSpace.AppendEntity(circle);
-                    tx.AddNewlyCreatedDBObject(circle, true);
-                    createdCount++;
+                    if (TryAppendMarkerAtLocation(modelSpace, tx, marker, existingCircleLocations))
+                    {
+                        createdCount++;
+                    }
                 }
 
                 tx.Commit();
@@ -657,6 +657,163 @@ namespace IntersectUtilities
             transaction.AddNewlyCreatedDBObject(layer, true);
         }
 
+        private static void RemoveExistingMarkers(
+            BlockTableRecord modelSpace,
+            Transaction transaction,
+            IEnumerable<Polyline> boundaryPolylines)
+        {
+            List<ObjectId> markerIdsToRemove = new List<ObjectId>();
+
+            foreach (ObjectId entityId in modelSpace)
+            {
+                Entity? entity = transaction.GetObject(entityId, OpenMode.ForRead) as Entity;
+                if (entity is null)
+                {
+                    continue;
+                }
+
+                if (!TryGetManagedMarkerCenter(entity, out Point3d center))
+                {
+                    continue;
+                }
+
+                if (!IsPointInsideAnyBoundary(center, boundaryPolylines))
+                {
+                    continue;
+                }
+
+                markerIdsToRemove.Add(entityId);
+            }
+
+            foreach (ObjectId markerId in markerIdsToRemove)
+            {
+                if (transaction.GetObject(markerId, OpenMode.ForWrite) is Entity entity)
+                {
+                    entity.Erase();
+                }
+            }
+        }
+
+        private static HashSet<string> GetExistingMarkerLocations(BlockTableRecord modelSpace, Transaction transaction)
+        {
+            HashSet<string> result = new HashSet<string>(StringComparer.Ordinal);
+
+            foreach (ObjectId entityId in modelSpace)
+            {
+                Entity? entity = transaction.GetObject(entityId, OpenMode.ForRead) as Entity;
+                if (entity is null)
+                {
+                    continue;
+                }
+
+                if (TryGetManagedMarkerCenter(entity, out Point3d center))
+                {
+                    result.Add(CreateLocationKey(center));
+                }
+            }
+
+            return result;
+        }
+
+        private static bool TryAppendMarkerAtLocation(
+            BlockTableRecord modelSpace,
+            Transaction transaction,
+            Polyline marker,
+            ISet<string> existingCircleLocations)
+        {
+            Point3d center = GetMarkerPolylineCenter(marker);
+            string locationKey = CreateLocationKey(center);
+            if (!existingCircleLocations.Add(locationKey))
+            {
+                marker.Dispose();
+                return false;
+            }
+
+            modelSpace.AppendEntity(marker);
+            transaction.AddNewlyCreatedDBObject(marker, true);
+            return true;
+        }
+
+        private static Polyline CreateMarkerPolyline(Point3d center, double radius, string layerName)
+        {
+            const int vertexCount = 16;
+            Polyline polyline = new Polyline(vertexCount)
+            {
+                Layer = layerName,
+                Closed = true
+            };
+
+            for (int i = 0; i < vertexCount; i++)
+            {
+                double angle = (2.0 * Math.PI * i) / vertexCount;
+                double x = center.X + (radius * Math.Cos(angle));
+                double y = center.Y + (radius * Math.Sin(angle));
+                polyline.AddVertexAt(i, new Point2d(x, y), 0.0, 0.0, 0.0);
+            }
+
+            return polyline;
+        }
+
+        private static Point3d GetMarkerPolylineCenter(Polyline polyline)
+        {
+            Point3d? center = TryGetMarkerPolylineCenter(polyline);
+            if (!center.HasValue)
+            {
+                throw new InvalidOperationException("Marker polyline center could not be determined.");
+            }
+
+            return center.Value;
+        }
+
+        private static Point3d? TryGetMarkerPolylineCenter(Polyline polyline)
+        {
+            if (!polyline.Closed || polyline.NumberOfVertices != 16)
+            {
+                return null;
+            }
+
+            double sumX = 0.0;
+            double sumY = 0.0;
+            for (int i = 0; i < polyline.NumberOfVertices; i++)
+            {
+                Point2d point = polyline.GetPoint2dAt(i);
+                sumX += point.X;
+                sumY += point.Y;
+            }
+
+            return new Point3d(sumX / polyline.NumberOfVertices, sumY / polyline.NumberOfVertices, 0.0);
+        }
+
+        private static bool TryGetManagedMarkerCenter(Entity entity, out Point3d center)
+        {
+            center = default;
+
+            if (entity is Circle circle)
+            {
+                if (Math.Abs(circle.Radius - 5.0) > 1e-6)
+                {
+                    return false;
+                }
+
+                center = circle.Center;
+                return true;
+            }
+
+            if (entity is not Polyline polyline)
+            {
+                return false;
+            }
+
+            Point3d? polylineCenter = TryGetMarkerPolylineCenter(polyline);
+            if (!polylineCenter.HasValue)
+            {
+                return false;
+            }
+
+            center = polylineCenter.Value;
+            return true;
+        }
+
         private static string NormalizeAddress(string address)
         {
             string[] parts = address
@@ -676,6 +833,11 @@ namespace IntersectUtilities
             }
 
             return string.IsNullOrWhiteSpace(sanitized) ? "UNKNOWN_DISTRICT" : sanitized;
+        }
+
+        private static string CreateLocationKey(Point3d point)
+        {
+            return $"{Math.Round(point.X, 6):0.######}|{Math.Round(point.Y, 6):0.######}|{Math.Round(point.Z, 6):0.######}";
         }
 
         private static string ReadZipEntryText(ZipArchive archive, string entryPath)
