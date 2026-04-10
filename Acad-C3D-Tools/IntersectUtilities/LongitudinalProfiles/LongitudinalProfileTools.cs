@@ -282,7 +282,7 @@ namespace IntersectUtilities
             prdDbg(xRefSurfaceDB.Filename);
             using Transaction xRefSurfaceTx = xRefSurfaceDB.TransactionManager.StartTransaction();
 
-            using Transaction tx = db.TransactionManager.StartTransaction();            
+            using Transaction tx = db.TransactionManager.StartTransaction();
             var allAlignments = db.ListOfType<Alignment>(tx).OrderBy(x => x.Name).ToList();
 
             try
@@ -2132,8 +2132,13 @@ namespace IntersectUtilities
                                     x,
                                     driPipelineData.BelongsToAlignment,
                                     al.Name
-                                )
-                            )
+                                ))
+                                .Where(x =>
+                                {
+                                    var btr = x.BlockTableRecord.Go<BlockTableRecord>(fremTx);
+                                    if (btr.IsFromExternalReference) return false;
+                                    else return true;
+                                })
                             .ToHashSet();
 
                         HashSet<BlockReference> afgreningsStudse = allBrs
