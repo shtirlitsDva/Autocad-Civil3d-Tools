@@ -781,6 +781,7 @@ namespace IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray
                     PipeSystemEnum.AluPex => "Ø",
                     PipeSystemEnum.PertFlextra => "Ø",
                     PipeSystemEnum.AquaTherm11 => "Ø",
+                    PipeSystemEnum.FibreFlex => "Ø",
                     _ => "UNKNOWN",
                 };
             }

@@ -44,6 +44,7 @@ namespace IntersectUtilities.UtilsCommon.Enums
         PertPIPE,
         AquaTherm11,
         PE,
+        FibreFlex,
     }
 
     public enum LerTypeEnum
