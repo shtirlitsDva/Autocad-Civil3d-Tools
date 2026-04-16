@@ -167,6 +167,18 @@ namespace IntersectUtilities.PipeScheduleV2
             // and PipeSettingsViewModel: `if (options.Length <= 1) continue;`).
             {PipeSystemEnum.FibreFlex, [0]},
         };
+        private static Dictionary<PipeSystemEnum, string> _sizePrefixes = new()
+        {
+            { PipeSystemEnum.Ukendt, "UK" },
+            { PipeSystemEnum.Stål, "DN" },
+            { PipeSystemEnum.Kobberflex, "Ø" },
+            { PipeSystemEnum.AluPex, "Ø" },
+            { PipeSystemEnum.PertFlextra, "Ø" },
+            { PipeSystemEnum.PertPIPE, "Ø" },
+            { PipeSystemEnum.AquaTherm11, "Ø" },
+            { PipeSystemEnum.FibreFlex, "Ø" },
+            { PipeSystemEnum.PE, "Ø" },
+        };
         public static double[] GetStdLengthsForSystem(PipeSystemEnum pipeSystem) => availableStdLengths[pipeSystem];
         private static string pipeTypes = string.Join(
             "|", Enum.GetNames(typeof(PipeTypeEnum)).Select(x => x.ToUpper()));
@@ -651,6 +663,12 @@ namespace IntersectUtilities.PipeScheduleV2
             if (!lineTypePrefixDict.ContainsKey(system))
                 throw new Exception($"Undefined PipeType system {system}!");
             return lineTypePrefixDict[system];
+        }
+        public static string GetSizePrefix(PipeSystemEnum system)
+        {
+            if (!_sizePrefixes.ContainsKey(system))
+                throw new Exception($"Undefined PipeType system {system}!");
+            return _sizePrefixes[system];
         }
         /// <summary>
         /// Currently set to return 0.6 m.

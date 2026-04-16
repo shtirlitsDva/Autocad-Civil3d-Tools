@@ -1,4 +1,4 @@
-﻿using Autodesk.AutoCAD.DatabaseServices;
+using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.Civil.DatabaseServices;
 
 using IntersectUtilities.Collections;
@@ -769,23 +769,7 @@ namespace IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray
         public readonly PipeSeriesEnum Series;
 
         [JsonIgnore]
-        public string SizePrefix
-        {
-            get
-            {
-                return System switch
-                {
-                    PipeSystemEnum.Ukendt => "UK",
-                    PipeSystemEnum.Stål => "DN",
-                    PipeSystemEnum.Kobberflex => "Ø",
-                    PipeSystemEnum.AluPex => "Ø",
-                    PipeSystemEnum.PertFlextra => "Ø",
-                    PipeSystemEnum.AquaTherm11 => "Ø",
-                    PipeSystemEnum.FibreFlex => "Ø",
-                    _ => "UNKNOWN",
-                };
-            }
-        }
+        public string SizePrefix => GetSizePrefix(System);        
 
         public SizeEntryV2(
             int dn, double startStation, double endStation, double kod, PipeSystemEnum ps, PipeTypeEnum pt, PipeSeriesEnum series)
@@ -796,8 +780,8 @@ namespace IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray
         // Get all properties as strings for table conversion
         public string[] ToArray()
         {
-            return new string[]
-            {
+            return
+            [
                 DN.ToString(),
                 StartStation.ToString("F2"),
                 EndStation.ToString("F2"),
@@ -806,7 +790,7 @@ namespace IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray
                 Type.ToString(),
                 Series.ToString(),
                 VerticalMinRadius.ToString("F2")
-            };
+            ];
         }
         public bool Equals(SizeEntryV2 other) =>
         DN == other.DN &&
