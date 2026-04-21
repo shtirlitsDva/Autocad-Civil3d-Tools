@@ -3181,9 +3181,9 @@ namespace IntersectUtilities
                                 if (br.RealName() != "BUEROR1" && br.RealName() != "BUEROR2")
                                     continue;
                                 string? type = fjvKomponenter.Type(br.RealName());
-                                string augmentedType = ComponentSchedule.ReadComponentType(
+                                string augmentedType = ComponentSchedule.ReadDynamicCsvProperty(
                                     br,
-                                    fjvKomponenter
+                                    UtilsCommon.Enums.DynamicProperty.Type
                                 );
 
                                 //The idea is to get the muffer at ends
