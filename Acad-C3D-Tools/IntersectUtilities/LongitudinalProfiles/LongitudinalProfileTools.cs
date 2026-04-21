@@ -28,11 +28,8 @@ using IntersectUtilities.UtilsCommon.Graphs;
 
 using MoreLinq;
 
-using System;
-using System.Collections.Generic;
 using System.Data;
 using System.IO;
-using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -41,7 +38,6 @@ using static IntersectUtilities.HelperMethods;
 using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 using static IntersectUtilities.Utils;
 using static IntersectUtilities.UtilsCommon.Utils;
-using static IntersectUtilities.UtilsCommon.UtilsDataTables;
 
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Assembly = System.Reflection.Assembly;
