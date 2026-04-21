@@ -2364,7 +2364,7 @@ namespace IntersectUtilities
                             {
                                 var detailingContext = new BlockDetailingContext(
                                     dB,
-                                    tx,
+                                    fremTx,
                                     al,
                                     alPl,
                                     surfaceProfile,
