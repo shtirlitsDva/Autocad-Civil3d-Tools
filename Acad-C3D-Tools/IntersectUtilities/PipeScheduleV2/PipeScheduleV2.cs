@@ -1202,6 +1202,16 @@ namespace IntersectUtilities.PipeScheduleV2
                 default: return 0;
             }
         }
+        public override double GetPipeKOd(int dn, PipeTypeEnum type, PipeSeriesEnum series)
+        {
+            if (type == PipeTypeEnum.Retur ||
+                type == PipeTypeEnum.Frem)
+                type = PipeTypeEnum.Enkelt;
+            //Ignore series here as Flextra only has one series
+            //if (series != PipeSeriesEnum.S3) series = PipeSeriesEnum.S3;
+            var result = _entries.FirstOrDefault(e => e.DN == dn && e.PipeType == type);
+            return result?.kOd ?? 0;
+        }
     }
     public class PipeTypePRTPIPE : PipeTypeBase
     {
