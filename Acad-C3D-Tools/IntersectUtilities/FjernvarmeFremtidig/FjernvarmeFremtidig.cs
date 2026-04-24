@@ -1,4 +1,4 @@
-﻿using Autodesk.AutoCAD.ApplicationServices;
+using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
@@ -680,8 +680,8 @@ namespace IntersectUtilities
         /// Labels pipes with dimension annotation.
         /// </summary>
         /// <category>Fjernvarme Fremtidig</category>
-        [CommandMethod("LABELPIPE")]
-        [CommandMethod("LB")]
+        //[CommandMethod("LABELPIPE")]
+        //[CommandMethod("LB")]
         public void labelpipe()
         {
             DocumentCollection docCol = Application.DocumentManager;

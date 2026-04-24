@@ -2147,6 +2147,7 @@ namespace IntersectUtilities
                                 && (
                                     x.RealName() == "AFGRSTUDS"
                                     || x.RealName() == "SH LIGE"
+                                    || x.RealName() == "SH VINKLET"
                                     || x.RealName() == "STIKAFGRENING"
                                 )
                             )
@@ -2800,6 +2801,7 @@ namespace IntersectUtilities
                                 && (
                                     x.RealName() == "AFGRSTUDS"
                                     || x.RealName() == "SH LIGE"
+                                    || x.RealName() == "SH VINKLET"
                                     || x.RealName() == "STIKAFGRENING"
                                 )
                             )
