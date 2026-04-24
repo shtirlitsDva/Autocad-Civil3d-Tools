@@ -1546,14 +1546,25 @@ namespace IntersectUtilities
         {
             Transaction xTx = xDb.TransactionManager.TopTransaction;
 
+            LayerTable lt = xDb.LayerTableId.Go<LayerTable>(xTx);
+            HashSet<string> layerNames = new();
+
+            //Label layer
             HashSet<ProfileProjectionLabel> labels =
                         xDb.HashSetOfType<ProfileProjectionLabel>(xTx);
-            var layerNames = labels.Select(x => x.Layer).ToHashSet();
-            ObjectIdCollection oids = new ObjectIdCollection();
-            LayerTable lt = xDb.LayerTableId.Go<LayerTable>(xTx);
-            foreach (string name in layerNames) oids.Add(lt[name]);
+
+            layerNames.UnionWith(labels.Select(x => x.Layer));
+
+            //COGO points
+            List<CogoPoint> cogoPoints = xDb.ListOfType<CogoPoint>(xTx);
+            layerNames.UnionWith(cogoPoints.Select(x => x.Layer));
+
+            ObjectIdCollection layerOids = new ObjectIdCollection();
+
+            foreach (string name in layerNames) layerOids.Add(lt[name]);
+
             prdDbg($"Number of layers: {layerNames.Count}");
-            prdDbg($"Number of oids: {oids.Count}");
+            prdDbg($"Number of layer oids: {layerOids.Count}");            
 
             DBDictionary layoutDict = xDb.LayoutDictionaryId.Go<DBDictionary>(xTx);
             foreach (DBDictionaryEntry item in layoutDict)
@@ -1578,7 +1589,7 @@ namespace IntersectUtilities
                         {
                             prdDbg("Found minikort viewport!");
                             ObjectIdCollection notFrozenIds = new ObjectIdCollection();
-                            foreach (Oid oid in oids)
+                            foreach (Oid oid in layerOids)
                             {
                                 if (vp.IsLayerFrozenInViewport(oid)) continue;
                                 notFrozenIds.Add(oid);

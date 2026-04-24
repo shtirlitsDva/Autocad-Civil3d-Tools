@@ -4948,9 +4948,19 @@ namespace IntersectUtilities
 
                     #region Labels
                     Extents3d extents = default;
-                    var labelsInView = labelsSet.Where(x =>
-                        extents.IsPointInsideXY(x.LabelLocation)
-                    );
+
+                    IEnumerable<ProfileProjectionLabel> labelsInView;
+
+                    try
+                    {
+                        labelsInView = labelsSet.Where(
+                            x => extents.IsPointInsideXY(x.LabelLocation));
+                    }
+                    catch (System.Exception ex)
+                    {
+                        
+                        throw;
+                    }                   
 
                     Oid rightStyleId = profileProjection_RIGHT_Style;
                     Oid leftStyleId = profileProjection_LEFT_Style;
