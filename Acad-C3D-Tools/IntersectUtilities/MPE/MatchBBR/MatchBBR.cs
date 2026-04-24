@@ -30,6 +30,7 @@ namespace IntersectUtilities
     public partial class Intersect
     {
         private const string MatchBbrCommandName = "MATCHBBR";
+        private const string CompareBbrCommandName = "COMPAREBBR";
         private const string MatchBbrPropertySetName = "BBR";
         private const string MatchBbrAddressPropertyName = "Adresse";
         private const string MatchBbrTypePropertyName = "Type";
@@ -209,6 +210,148 @@ namespace IntersectUtilities
             }
         }
 
+        /// <command>COMPAREBBR</command>
+        /// <summary>
+        /// Compares address rows in the selected Excel workbook against BBR blocks inside selected closed boundary
+        /// polylines and finds rows that exist in Excel but do not exist in the drawing. The comparison uses the same
+        /// address construction as MATCHBBR from Excel columns D and E and skips drawing blocks whose BBR Type is
+        /// "Ingen". The missing Excel rows can then be exported to a new workbook with the same column structure as
+        /// the source worksheet.
+        /// </summary>
+        /// <category>MPE</category>
+        [CommandMethod(CompareBbrCommandName, CommandFlags.Modal)]
+        public void CompareBBR()
+        {
+            DocumentCollection docCol = AcadApp.DocumentManager;
+            Document doc = docCol.MdiActiveDocument;
+            Editor editor = doc.Editor;
+            Database localDb = doc.Database;
+
+            ObjectId[] boundaryPolylineIds = PromptForBoundaryPolylines(editor);
+            if (boundaryPolylineIds.Length == 0)
+            {
+                return;
+            }
+
+            string? excelPath = PromptForExcelPath(editor);
+            if (string.IsNullOrWhiteSpace(excelPath))
+            {
+                return;
+            }
+
+            if (!File.Exists(excelPath))
+            {
+                editor.WriteMessage("\nExcel file not found.");
+                return;
+            }
+
+            WorksheetData worksheetData;
+            try
+            {
+                worksheetData = LoadWorksheetData(excelPath);
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg(ex);
+                editor.WriteMessage("\nFailed to read the Excel file.");
+                return;
+            }
+
+            if (worksheetData.ColumnOrder.Count == 0 || worksheetData.Rows.Count == 0)
+            {
+                editor.WriteMessage("\nNo data rows were read from the Excel file.");
+                return;
+            }
+
+            HashSet<string> drawingAddresses = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            using Transaction tx = localDb.TransactionManager.StartTransaction();
+            try
+            {
+                BlockTable blockTable = (BlockTable)tx.GetObject(localDb.BlockTableId, OpenMode.ForRead);
+                BlockTableRecord modelSpace =
+                    (BlockTableRecord)tx.GetObject(blockTable[BlockTableRecord.ModelSpace], OpenMode.ForRead);
+                List<Polyline> boundaryPolylines = LoadBoundaryPolylines(boundaryPolylineIds, tx, editor);
+                if (boundaryPolylines.Count == 0)
+                {
+                    return;
+                }
+
+                foreach (ObjectId entityId in modelSpace)
+                {
+                    if (tx.GetObject(entityId, OpenMode.ForRead) is not BlockReference blockReference)
+                    {
+                        continue;
+                    }
+
+                    if (!IsPointInsideAnyBoundary(blockReference.Position, boundaryPolylines))
+                    {
+                        continue;
+                    }
+
+                    if (HasSkippedBbrType(blockReference, tx))
+                    {
+                        continue;
+                    }
+
+                    string? address = TryGetBbrAddress(blockReference, tx);
+                    if (string.IsNullOrWhiteSpace(address))
+                    {
+                        continue;
+                    }
+
+                    drawingAddresses.Add(NormalizeAddress(address));
+                }
+
+                tx.Commit();
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg(ex);
+                tx.Abort();
+                editor.WriteMessage($"\n{CompareBbrCommandName} failed. See debug output for details.");
+                return;
+            }
+
+            List<WorksheetRowData> missingRows = worksheetData.Rows
+                .Where(row => TryGetAddressFromWorksheetRow(row, out string normalizedAddress)
+                              && !drawingAddresses.Contains(normalizedAddress))
+                .ToList();
+
+            editor.WriteMessage(
+                $"\n{CompareBbrCommandName} complete. Compared {worksheetData.Rows.Count} Excel rows against "
+                + $"{drawingAddresses.Count} drawing addresses and found {missingRows.Count} missing Excel rows.");
+
+            if (missingRows.Count == 0)
+            {
+                editor.WriteMessage("\nNo missing Excel rows were found, so no export was needed.");
+                return;
+            }
+
+            string? outputPath = PromptForCompareBbrSavePath(excelPath, editor);
+            if (string.IsNullOrWhiteSpace(outputPath))
+            {
+                editor.WriteMessage("\nCompareBBR export cancelled.");
+                return;
+            }
+
+            try
+            {
+                string exportedPath = ExportWorksheetRows(
+                    outputPath,
+                    worksheetData.ColumnOrder,
+                    worksheetData.HeaderByColumn,
+                    missingRows,
+                    "MissingInDwg");
+                editor.WriteMessage($"\nExported {missingRows.Count} missing Excel rows to {exportedPath}.");
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg(ex);
+                editor.WriteMessage("\nFailed to export the CompareBBR workbook.");
+            }
+        }
+
         private static ObjectId[] PromptForBoundaryPolylines(Editor editor)
         {
             PromptSelectionOptions options = new PromptSelectionOptions
@@ -287,31 +430,13 @@ namespace IntersectUtilities
 
         private static Dictionary<string, string> LoadDistrictsFromExcel(string excelPath)
         {
-            using ZipArchive archive = ZipFile.OpenRead(excelPath);
-
-            Dictionary<string, string> sharedStrings = LoadSharedStrings(archive);
-            string workbookXml = ReadZipEntryText(archive, "xl/workbook.xml");
-            XDocument workbookDocument = XDocument.Parse(workbookXml);
-            string firstWorksheetPath = ResolveFirstWorksheetPath(archive, workbookDocument);
-            string worksheetXml = ReadZipEntryText(archive, firstWorksheetPath);
-            XDocument worksheetDocument = XDocument.Parse(worksheetXml);
-
-            Dictionary<string, Dictionary<string, string>> rows = LoadWorksheetRows(worksheetDocument, sharedStrings);
-            if (rows.Count == 0)
+            WorksheetData worksheetData = LoadWorksheetData(excelPath);
+            if (worksheetData.ColumnOrder.Count == 0 || worksheetData.Rows.Count == 0)
             {
                 return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             }
 
-            Dictionary<string, string>? headerRow = rows
-                .OrderBy(kvp => GetRowNumber(kvp.Key))
-                .Select(kvp => kvp.Value)
-                .FirstOrDefault();
-            if (headerRow is null || headerRow.Count == 0)
-            {
-                return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            }
-
-            string districtColumnName = headerRow
+            string districtColumnName = worksheetData.HeaderByColumn
                 .FirstOrDefault(kvp =>
                     string.Equals(kvp.Value.Trim(), "Varmedistrikt", StringComparison.OrdinalIgnoreCase))
                 .Key;
@@ -321,11 +446,11 @@ namespace IntersectUtilities
             }
 
             Dictionary<string, string> result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            foreach (KeyValuePair<string, Dictionary<string, string>> row in rows.OrderBy(kvp => GetRowNumber(kvp.Key)).Skip(1))
+            foreach (WorksheetRowData row in worksheetData.Rows)
             {
-                string streetName = GetRowCellValue(row.Value, "D");
-                string streetNumber = GetRowCellValue(row.Value, "E");
-                string district = GetRowCellValue(row.Value, districtColumnName);
+                string streetName = GetRowCellValue(row.CellsByColumn, "D");
+                string streetNumber = GetRowCellValue(row.CellsByColumn, "E");
+                string district = GetRowCellValue(row.CellsByColumn, districtColumnName);
 
                 if (string.IsNullOrWhiteSpace(streetName)
                     || string.IsNullOrWhiteSpace(streetNumber)
@@ -514,6 +639,37 @@ namespace IntersectUtilities
             return dialog.FileName;
         }
 
+        private static string? PromptForCompareBbrSavePath(string sourceExcelPath, Editor editor)
+        {
+            string initialDirectory = Path.GetDirectoryName(sourceExcelPath) ?? Environment.CurrentDirectory;
+            string initialFileName = "compare_bbr_missing_in_dwg.xlsx";
+
+            using FormsSaveFileDialog dialog = new FormsSaveFileDialog
+            {
+                Title = "Save CompareBBR Excel",
+                Filter = "Excel Files (*.xlsx)|*.xlsx|All Files (*.*)|*.*",
+                InitialDirectory = initialDirectory,
+                FileName = initialFileName,
+                AddExtension = true,
+                DefaultExt = "xlsx",
+                OverwritePrompt = true
+            };
+
+            FormsDialogResult result = dialog.ShowDialog();
+            if (result != FormsDialogResult.OK)
+            {
+                return null;
+            }
+
+            if (string.IsNullOrWhiteSpace(dialog.FileName))
+            {
+                editor.WriteMessage("\nNo output file was selected.");
+                return null;
+            }
+
+            return dialog.FileName;
+        }
+
         private static string ExportMissingAddresses(string outputPath, IEnumerable<string> missingAddresses)
         {
             if (File.Exists(outputPath))
@@ -571,6 +727,68 @@ namespace IntersectUtilities
                 + "</Relationships>");
 
             CreateZipEntry(archive, "xl/worksheets/sheet1.xml", BuildMissingAddressesWorksheetXml(orderedAddresses));
+
+            return outputPath;
+        }
+
+        private static string ExportWorksheetRows(
+            string outputPath,
+            IReadOnlyList<string> columnOrder,
+            IReadOnlyDictionary<string, string> headerByColumn,
+            IReadOnlyList<WorksheetRowData> rows,
+            string sheetName)
+        {
+            if (File.Exists(outputPath))
+            {
+                File.Delete(outputPath);
+            }
+
+            using FileStream fileStream = new FileStream(outputPath, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None);
+            using ZipArchive archive = new ZipArchive(fileStream, ZipArchiveMode.Create);
+
+            CreateZipEntry(
+                archive,
+                "[Content_Types].xml",
+                "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>"
+                + "<Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\">"
+                + "<Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/>"
+                + "<Default Extension=\"xml\" ContentType=\"application/xml\"/>"
+                + "<Override PartName=\"/xl/workbook.xml\" "
+                + "ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml\"/>"
+                + "<Override PartName=\"/xl/worksheets/sheet1.xml\" "
+                + "ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\"/>"
+                + "</Types>");
+
+            CreateZipEntry(
+                archive,
+                "_rels/.rels",
+                "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>"
+                + "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
+                + "<Relationship Id=\"rId1\" "
+                + "Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument\" "
+                + "Target=\"xl/workbook.xml\"/>"
+                + "</Relationships>");
+
+            CreateZipEntry(
+                archive,
+                "xl/workbook.xml",
+                "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>"
+                + "<workbook xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" "
+                + "xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\">"
+                + $"<sheets><sheet name=\"{EscapeXml(sheetName)}\" sheetId=\"1\" r:id=\"rId1\"/></sheets>"
+                + "</workbook>");
+
+            CreateZipEntry(
+                archive,
+                "xl/_rels/workbook.xml.rels",
+                "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>"
+                + "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
+                + "<Relationship Id=\"rId1\" "
+                + "Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet\" "
+                + "Target=\"worksheets/sheet1.xml\"/>"
+                + "</Relationships>");
+
+            CreateZipEntry(archive, "xl/worksheets/sheet1.xml", BuildWorksheetXml(columnOrder, headerByColumn, rows));
 
             return outputPath;
         }
@@ -853,6 +1071,46 @@ namespace IntersectUtilities
             return reader.ReadToEnd();
         }
 
+        private static WorksheetData LoadWorksheetData(string excelPath)
+        {
+            using ZipArchive archive = ZipFile.OpenRead(excelPath);
+
+            Dictionary<string, string> sharedStrings = LoadSharedStrings(archive);
+            string workbookXml = ReadZipEntryText(archive, "xl/workbook.xml");
+            XDocument workbookDocument = XDocument.Parse(workbookXml);
+            string firstWorksheetPath = ResolveFirstWorksheetPath(archive, workbookDocument);
+            string worksheetXml = ReadZipEntryText(archive, firstWorksheetPath);
+            XDocument worksheetDocument = XDocument.Parse(worksheetXml);
+
+            Dictionary<string, Dictionary<string, string>> rows = LoadWorksheetRows(worksheetDocument, sharedStrings);
+            if (rows.Count == 0)
+            {
+                return new WorksheetData(new List<string>(), new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase), new List<WorksheetRowData>());
+            }
+
+            KeyValuePair<string, Dictionary<string, string>> headerEntry = rows
+                .OrderBy(kvp => GetRowNumber(kvp.Key))
+                .First();
+            if (headerEntry.Value.Count == 0)
+            {
+                return new WorksheetData(new List<string>(), new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase), new List<WorksheetRowData>());
+            }
+
+            List<string> orderedColumns = headerEntry.Value.Keys
+                .OrderBy(GetColumnIndex)
+                .ToList();
+            Dictionary<string, string> headerByColumn = orderedColumns
+                .ToDictionary(column => column, column => GetRowCellValue(headerEntry.Value, column), StringComparer.OrdinalIgnoreCase);
+
+            List<WorksheetRowData> dataRows = rows
+                .OrderBy(kvp => GetRowNumber(kvp.Key))
+                .Skip(1)
+                .Select(kvp => new WorksheetRowData(kvp.Key, CopyRowValuesForColumns(kvp.Value, orderedColumns)))
+                .ToList();
+
+            return new WorksheetData(orderedColumns, headerByColumn, dataRows);
+        }
+
         private static Dictionary<string, string> LoadSharedStrings(ZipArchive archive)
         {
             ZipArchiveEntry? entry = archive.GetEntry("xl/sharedStrings.xml");
@@ -976,6 +1234,20 @@ namespace IntersectUtilities
             return row.TryGetValue(columnName, out string? value) ? value : string.Empty;
         }
 
+        private static bool TryGetAddressFromWorksheetRow(WorksheetRowData row, out string normalizedAddress)
+        {
+            string streetName = GetRowCellValue(row.CellsByColumn, "D");
+            string streetNumber = GetRowCellValue(row.CellsByColumn, "E");
+            if (string.IsNullOrWhiteSpace(streetName) || string.IsNullOrWhiteSpace(streetNumber))
+            {
+                normalizedAddress = string.Empty;
+                return false;
+            }
+
+            normalizedAddress = NormalizeAddress($"{streetName} {streetNumber}");
+            return !string.IsNullOrWhiteSpace(normalizedAddress);
+        }
+
         private static string GetColumnName(string? cellReference)
         {
             if (string.IsNullOrWhiteSpace(cellReference))
@@ -984,6 +1256,22 @@ namespace IntersectUtilities
             }
 
             return new string(cellReference.TakeWhile(char.IsLetter).ToArray());
+        }
+
+        private static int GetColumnIndex(string columnName)
+        {
+            int result = 0;
+            foreach (char ch in columnName.ToUpperInvariant())
+            {
+                if (ch < 'A' || ch > 'Z')
+                {
+                    continue;
+                }
+
+                result = (result * 26) + (ch - 'A' + 1);
+            }
+
+            return result;
         }
 
         private static int GetRowNumber(string rowReference)
@@ -1018,6 +1306,98 @@ namespace IntersectUtilities
             builder.Append("</sheetData>");
             builder.Append("</worksheet>");
             return builder.ToString();
+        }
+
+        private static string BuildWorksheetXml(
+            IReadOnlyList<string> columnOrder,
+            IReadOnlyDictionary<string, string> headerByColumn,
+            IReadOnlyList<WorksheetRowData> rows)
+        {
+            StringBuilder builder = new StringBuilder();
+            builder.Append("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>");
+            builder.Append("<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\">");
+            builder.Append("<sheetData>");
+
+            builder.Append("<row r=\"1\">");
+            for (int i = 0; i < columnOrder.Count; i++)
+            {
+                string columnName = columnOrder[i];
+                string cellReference = $"{columnName}1";
+                builder.Append(BuildInlineStringCellXml(cellReference, GetRowCellValue(headerByColumn, columnName)));
+            }
+            builder.Append("</row>");
+
+            for (int rowIndex = 0; rowIndex < rows.Count; rowIndex++)
+            {
+                int worksheetRowNumber = rowIndex + 2;
+                builder.Append($"<row r=\"{worksheetRowNumber}\">");
+                foreach (string columnName in columnOrder)
+                {
+                    string cellReference = $"{columnName}{worksheetRowNumber}";
+                    string value = GetRowCellValue(rows[rowIndex].CellsByColumn, columnName);
+                    builder.Append(BuildInlineStringCellXml(cellReference, value));
+                }
+                builder.Append("</row>");
+            }
+
+            builder.Append("</sheetData>");
+            builder.Append("</worksheet>");
+            return builder.ToString();
+        }
+
+        private static string BuildInlineStringCellXml(string cellReference, string value)
+        {
+            return $"<c r=\"{cellReference}\" t=\"inlineStr\"><is><t>{EscapeXml(value)}</t></is></c>";
+        }
+
+        private static string EscapeXml(string value)
+        {
+            return SecurityElement.Escape(value) ?? string.Empty;
+        }
+
+        private static Dictionary<string, string> CopyRowValuesForColumns(
+            IReadOnlyDictionary<string, string> source,
+            IReadOnlyList<string> columns)
+        {
+            Dictionary<string, string> result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (string column in columns)
+            {
+                result[column] = GetRowCellValue(source, column);
+            }
+
+            return result;
+        }
+
+        private sealed class WorksheetData
+        {
+            public WorksheetData(
+                IReadOnlyList<string> headers,
+                IReadOnlyDictionary<string, string> headerByColumn,
+                IReadOnlyList<WorksheetRowData> rows)
+            {
+                ColumnOrder = headers;
+                HeaderByColumn = headerByColumn;
+                Rows = rows;
+            }
+
+            public IReadOnlyList<string> ColumnOrder { get; }
+
+            public IReadOnlyDictionary<string, string> HeaderByColumn { get; }
+
+            public IReadOnlyList<WorksheetRowData> Rows { get; }
+        }
+
+        private sealed class WorksheetRowData
+        {
+            public WorksheetRowData(string rowReference, IReadOnlyDictionary<string, string> cellsByColumn)
+            {
+                RowReference = rowReference;
+                CellsByColumn = cellsByColumn;
+            }
+
+            public string RowReference { get; }
+
+            public IReadOnlyDictionary<string, string> CellsByColumn { get; }
         }
     }
 }
