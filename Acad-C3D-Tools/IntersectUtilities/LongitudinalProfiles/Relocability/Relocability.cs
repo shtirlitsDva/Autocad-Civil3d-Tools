@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
@@ -247,6 +247,27 @@ namespace IntersectUtilities.LongitudinalProfiles.Relocability
                 // PERT – all dimensions
                 new PipeRule(
                     PipeSystemEnum.PertFlextra,
+                    null,
+                    null,
+                    new Dictionary<RuleKey, IThreshold>
+                    {
+                        { new RuleKey(LerTypeEnum.Afløb, Spatial.ThreeD), Threshold.AlleRespekteres },
+                        { new RuleKey(LerTypeEnum.Afløb, Spatial.TwoD), Threshold.AlleOmlægges },
+                        { new RuleKey(LerTypeEnum.Damp), Threshold.AlleRespekteres },
+                        { new RuleKey(LerTypeEnum.EL_LS), Threshold.AlleOmlægges },
+                        { new RuleKey(LerTypeEnum.EL_HS), Threshold.AlleRespekteres },
+                        { new RuleKey(LerTypeEnum.FJV), Threshold.AlleRespekteres },
+                        { new RuleKey(LerTypeEnum.Gas), Threshold.AlleRespekteres },
+                        { new RuleKey(LerTypeEnum.Luft), Threshold.AlleRespekteres },
+                        { new RuleKey(LerTypeEnum.Oil), Threshold.AlleRespekteres },
+                        { new RuleKey(LerTypeEnum.Vand, Spatial.ThreeD), Threshold.AlleRespekteres },
+                        { new RuleKey(LerTypeEnum.Vand, Spatial.TwoD), Threshold.AlleOmlægges },
+                        { new RuleKey(LerTypeEnum.UAD), Threshold.AlleOmlægges },
+                        { new RuleKey(LerTypeEnum.Ignored), Threshold.AlleOmlægges },
+                    }
+                ),
+                new PipeRule(
+                    PipeSystemEnum.PertPIPE,
                     null,
                     null,
                     new Dictionary<RuleKey, IThreshold>

@@ -28,11 +28,8 @@ using IntersectUtilities.UtilsCommon.Graphs;
 
 using MoreLinq;
 
-using System;
-using System.Collections.Generic;
 using System.Data;
 using System.IO;
-using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -41,7 +38,6 @@ using static IntersectUtilities.HelperMethods;
 using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 using static IntersectUtilities.Utils;
 using static IntersectUtilities.UtilsCommon.Utils;
-using static IntersectUtilities.UtilsCommon.UtilsDataTables;
 
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Assembly = System.Reflection.Assembly;
@@ -282,7 +278,7 @@ namespace IntersectUtilities
             prdDbg(xRefSurfaceDB.Filename);
             using Transaction xRefSurfaceTx = xRefSurfaceDB.TransactionManager.StartTransaction();
 
-            using Transaction tx = db.TransactionManager.StartTransaction();            
+            using Transaction tx = db.TransactionManager.StartTransaction();
             var allAlignments = db.ListOfType<Alignment>(tx).OrderBy(x => x.Name).ToList();
 
             try
@@ -2132,8 +2128,13 @@ namespace IntersectUtilities
                                     x,
                                     driPipelineData.BelongsToAlignment,
                                     al.Name
-                                )
-                            )
+                                ))
+                                .Where(x =>
+                                {
+                                    var btr = x.BlockTableRecord.Go<BlockTableRecord>(fremTx);
+                                    if (btr.IsFromExternalReference) return false;
+                                    else return true;
+                                })
                             .ToHashSet();
 
                         HashSet<BlockReference> afgreningsStudse = allBrs
@@ -2146,6 +2147,7 @@ namespace IntersectUtilities
                                 && (
                                     x.RealName() == "AFGRSTUDS"
                                     || x.RealName() == "SH LIGE"
+                                    || x.RealName() == "SH VINKLET"
                                     || x.RealName() == "STIKAFGRENING"
                                 )
                             )
@@ -2359,7 +2361,7 @@ namespace IntersectUtilities
                             {
                                 var detailingContext = new BlockDetailingContext(
                                     dB,
-                                    tx,
+                                    fremTx,
                                     al,
                                     alPl,
                                     surfaceProfile,
@@ -2799,6 +2801,7 @@ namespace IntersectUtilities
                                 && (
                                     x.RealName() == "AFGRSTUDS"
                                     || x.RealName() == "SH LIGE"
+                                    || x.RealName() == "SH VINKLET"
                                     || x.RealName() == "STIKAFGRENING"
                                 )
                             )
@@ -3176,9 +3179,9 @@ namespace IntersectUtilities
                                 if (br.RealName() != "BUEROR1" && br.RealName() != "BUEROR2")
                                     continue;
                                 string? type = fjvKomponenter.Type(br.RealName());
-                                string augmentedType = ComponentSchedule.ReadComponentType(
+                                string augmentedType = ComponentSchedule.ReadDynamicCsvProperty(
                                     br,
-                                    fjvKomponenter
+                                    UtilsCommon.Enums.DynamicProperty.Type
                                 );
 
                                 //The idea is to get the muffer at ends
