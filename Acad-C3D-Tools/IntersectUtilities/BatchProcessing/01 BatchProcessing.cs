@@ -2130,6 +2130,19 @@ namespace IntersectUtilities
             }
             return new Result();
         }
+        [MethodDescription(
+            "Run FIXBROKENLABELS",
+            "Kører FIXBROKENLABELS i tegningen.\n" +
+            "Skal bruges når profile projection\n" +
+            "labels laver fejl.")]
+        public static Result runfixbrokenlabels(Database xDb)
+        {
+            Transaction xTx = xDb.TransactionManager.TopTransaction;
+
+            Intersect.fixbrokenlabelsmethod(xDb, xTx);
+            
+            return new Result();
+        }
     }
     
     public class MethodDescription : Attribute

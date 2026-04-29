@@ -4986,10 +4986,14 @@ namespace IntersectUtilities
             Database localDb = docCol.MdiActiveDocument.Database;
 
             using Transaction tx = localDb.TransactionManager.StartTransaction();
+            fixbrokenlabelsmethod(localDb, tx);
+        }
 
+        public static void fixbrokenlabelsmethod(Database db, Transaction tx)
+        {
             try
             {
-                var labels = localDb.HashSetOfType<ProfileProjectionLabel>(tx);
+                var labels = db.HashSetOfType<ProfileProjectionLabel>(tx);
 
                 var toDelete = new HashSet<ProfileProjectionLabel>();
 
