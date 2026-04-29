@@ -406,7 +406,7 @@ namespace IntersectUtilities
                             idsToClone.Add(sourceBt["EL 10kV"]);
                             idsToClone.Add(sourceBt["EL 0.4kV"]);
                             idsToClone.Add(sourceBt["VerticeArc"]);
-                            idsToClone.Add(sourceBt["VerticeLine"]);                            
+                            idsToClone.Add(sourceBt["VerticeLine"]);
 
                             IdMapping mapping = new IdMapping();
                             stylesDB.WblockCloneObjects(idsToClone, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
@@ -449,7 +449,7 @@ namespace IntersectUtilities
             string pathToStyles = @"X:\AutoCAD DRI - 01 Civil 3D\Projection_styles.dwg";
             using var stylesDB = new Database(false, true);
             stylesDB.ReadDwgFile(pathToStyles, FileOpenMode.OpenForReadAndAllShare, false, null);
-            
+
             using (var localTx = localDb.TransactionManager.StartTransaction())
             using (var stylesTx = stylesDB.TransactionManager.StartTransaction())
             {
@@ -458,7 +458,7 @@ namespace IntersectUtilities
                     ObjectIdCollection objIds = new ObjectIdCollection();
 
                     TextStyleTable sourceTst = stylesDB.TextStyleTableId.Go<TextStyleTable>(stylesTx)!;
-                    objIds.Add(sourceTst["Note_Længdeprofiler"]);                    
+                    objIds.Add(sourceTst["Note_Længdeprofiler"]);
 
                     IdMapping mapping = new IdMapping();
                     stylesDB.WblockCloneObjects(objIds, localDb.TextStyleTableId, mapping, DuplicateRecordCloning.Replace, false);
@@ -956,7 +956,7 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
-        }        
+        }
 
         /// <command>SETMODELSPACESCALEFORALL</command>
         /// <summary>
@@ -1388,7 +1388,7 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
-        }        
+        }
 
         /// <command>PLACEOBJLAYCOLOR</command>
         /// <summary>
@@ -2234,7 +2234,7 @@ namespace IntersectUtilities
         {
             var krydsninger = Csv.Krydsninger;
             var lagLer = Csv.LagLer;
-            
+
             // Helper to strip -2D and -3D suffixes from layer names for LagLer lookup
             static string StripSuffix(string? layerName)
             {
@@ -2243,7 +2243,7 @@ namespace IntersectUtilities
                 if (layerName.EndsWith("-3D")) return layerName[..^3];
                 return layerName;
             }
-            
+
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
@@ -2258,7 +2258,7 @@ namespace IntersectUtilities
                     //Lookup linetype specification and link to layer name
                     Dictionary<string, string> layerLineTypeMap = new Dictionary<string, string>();
                     foreach (var layer in layers)
-                    {                        
+                    {
                         string lookupKey = StripSuffix(layer.Name);
                         string? lineTypeName = lagLer.LineType(lookupKey);
                         if (lineTypeName.IsNoE()) prdDbg($"LineTypeName is missing for {layer.Name}!");
@@ -2304,7 +2304,7 @@ namespace IntersectUtilities
                         }
                         string? type = krydsninger.Type(layerName);
                         if (type == "IGNORE") { prdDbg($"Layer {layerName} IGNORED!"); continue; }
-                        
+
                         string lookupKey = StripSuffix(layerName);
                         if (!lagLer.HasLayer(lookupKey))
                         {
@@ -4986,35 +4986,10 @@ namespace IntersectUtilities
             Database localDb = docCol.MdiActiveDocument.Database;
 
             using Transaction tx = localDb.TransactionManager.StartTransaction();
-            fixbrokenlabelsmethod(localDb, tx);
-        }
 
-        public static void fixbrokenlabelsmethod(Database db, Transaction tx)
-        {
             try
             {
-                var labels = db.HashSetOfType<ProfileProjectionLabel>(tx);
-
-                var toDelete = new HashSet<ProfileProjectionLabel>();
-
-                foreach (var label in labels)
-                {
-                    try
-                    {
-                        var x = label.LabelLocation.X;
-                    }
-                    catch (System.Exception)
-                    {
-                        toDelete.Add(label);
-                        continue;
-                    }
-                }
-
-                foreach (var label in toDelete)
-                {
-                    label.UpgradeOpen();
-                    label.Erase(true);
-                }
+                fixbrokenlabelsmethod(localDb, tx);
             }
             catch (System.Exception ex)
             {
@@ -5024,6 +4999,32 @@ namespace IntersectUtilities
             }
 
             tx.Commit();
+        }
+
+        public static void fixbrokenlabelsmethod(Database db, Transaction tx)
+        {
+            var labels = db.HashSetOfType<ProfileProjectionLabel>(tx);
+
+            var toDelete = new HashSet<ProfileProjectionLabel>();
+
+            foreach (var label in labels)
+            {
+                try
+                {
+                    var x = label.LabelLocation.X;
+                }
+                catch (System.Exception)
+                {
+                    toDelete.Add(label);
+                    continue;
+                }
+            }
+
+            foreach (var label in toDelete)
+            {
+                label.UpgradeOpen();
+                label.Erase(true);
+            }
         }
 
         /// <command>CHECKALLPOLYLINERADII</command>

@@ -2139,7 +2139,14 @@ namespace IntersectUtilities
         {
             Transaction xTx = xDb.TransactionManager.TopTransaction;
 
-            Intersect.fixbrokenlabelsmethod(xDb, xTx);
+            try
+            {
+                Intersect.fixbrokenlabelsmethod(xDb, xTx);
+            }
+            catch (System.Exception ex)
+            {
+                return new Result(ResultStatus.SoftError, ex.Message);                
+            }            
             
             return new Result();
         }
