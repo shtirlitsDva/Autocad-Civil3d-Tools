@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<TargetFramework>net8.0-windows10.0.26100.0</TargetFramework>
 		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
@@ -38,10 +38,7 @@
 	</PropertyGroup>
 	<ItemGroup>
 	  <None Remove="IntersectUtilities.dll.config" />
-	</ItemGroup>
-	<ItemGroup>
-	  <Page Remove="FjernvarmeFremtidig\VejkantOffset\UI\Resources\DarkTheme.xaml" />
-	</ItemGroup>
+	</ItemGroup>	
 	<ItemGroup>
 		<Reference Include="accoremgd">
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\accoremgd.dll</HintPath>
@@ -156,12 +153,12 @@
 	  <Resource Include="FjernvarmeFremtidig\VejkantOffset\UI\Resources\DarkTheme.xaml" />
 	</ItemGroup>
 	<ItemGroup>
-	  <Page Include="..\..\..\..\DamgaardRI\DimensioneringV2\src\DimensioneringV2\UI\Theme.xaml" Link="CmdUI\UI\Theme.xaml">
+	  <Page Include="..\..\..\..\DamgaardRI\DimensioneringV2\src\DimensioneringV2.UI\UI\Theme.xaml" Link="CmdUI\UI\Theme.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </Page>
 	</ItemGroup>
 	<ItemGroup>
-	  <Compile Include="..\..\..\..\DamgaardRI\DimensioneringV2\src\DimensioneringV2\UI\DarkTitleBarHelper.cs" Link="CmdUI\UI\DarkTitleBarHelper.cs" />
+	  <Compile Include="..\..\..\..\DamgaardRI\DimensioneringV2\src\DimensioneringV2.UI\UI\DarkTitleBarHelper.cs" Link="CmdUI\UI\DarkTitleBarHelper.cs" />
 	</ItemGroup>
 	<ItemGroup>
 	  <EmbeddedResource Include="DataScience\MergeReportStyles.css" />
