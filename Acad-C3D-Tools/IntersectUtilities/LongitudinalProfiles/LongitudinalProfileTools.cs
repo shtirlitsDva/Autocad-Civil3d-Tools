@@ -980,8 +980,13 @@ namespace IntersectUtilities
                         x.PointNumber.ToString()
                     );
 
+                    // Civil 3D parses IncludeNumbers using the Windows regional list separator
+                    // (HKCU\Control Panel\International\sList); TextInfo.ListSeparator reads that.
+                    // Fall back to the other common separator only if the deterministic pick is rejected.
+                    string localeSeparator = System.Globalization.CultureInfo.CurrentCulture.TextInfo.ListSeparator;
+                    string[] separators = new[] { localeSeparator, ";", "," }.Distinct().ToArray();
+
                     bool success = false;
-                    string[] separators = [";", ","];
                     for (int i = 0; i < separators.Length; i++)
                     {
                         if (success)
@@ -996,16 +1001,24 @@ namespace IntersectUtilities
                             currentPointGroup.Update();
                             success = true;
                         }
-                        catch (System.Exception)
+                        catch (PointGroupQueryParserException)
                         {
-                            prdDbg($"Failed to set query with separator \"{cur}\"!");
-                            //Ignore exception
-                            //Try again with another separator
+                            prdDbg(
+                                $"Failed to set query with separator \"{cur}\"! " +
+                                $"Culture: {System.Globalization.CultureInfo.CurrentCulture.Name}, " +
+                                $"TextInfo.ListSeparator: \"{localeSeparator}\"");
+                            //Civil 3D's parser rejected the syntax — try the next separator
                         }
                     }
 
                     if (!success)
-                        throw new System.Exception("Could not set query for PointGroup!");
+                        throw new System.Exception(
+                            $"Could not set query for PointGroup! " +
+                            $"Culture: {System.Globalization.CultureInfo.CurrentCulture.Name}, " +
+                            $"TextInfo.ListSeparator: \"{localeSeparator}\", " +
+                            $"Tried separators: [{string.Join(", ", separators.Select(s => $"\"{s}\""))}], " +
+                            $"Point count: {allNewlyCreatedPoints.Count}, " +
+                            $"PointGroup: \"{currentPointGroup.Name}\".");
                     #endregion
 
                     #region Assign newly created points to projection on a profile view
@@ -5714,6 +5727,13 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    // Workaround flag: when true, shrinks R for polyline arcs adjacent to
+                    // another arc so Civil 3D's free-curve resolver leaves a tiny tangent
+                    // (~10mm total) between them instead of touching curves AUDIT removes.
+                    // Set to false to restore original behavior.
+                    const bool USE_TINY_TANGENT_WORKAROUND = true;
+                    const double HALF_GAP = 0.005;  // 5mm per side -> 10mm between adjacent arcs
+
                     #region Selection of polyline and profile view
                     PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
                                     "\n Select a polyline : ");
@@ -5778,7 +5798,7 @@ namespace IntersectUtilities
                             layerId, profileStyleId, profileLabelSetStylesId);
 
                     Profile profile = pId.Go<Profile>(tx, OpenMode.ForWrite);
-
+                    
                     Polyline polyline = plObjId.Go<Polyline>(tx);
 
                     //Check direction
@@ -5873,7 +5893,28 @@ namespace IntersectUtilities
                                         var ins = pts[0];
                                         pv.FindStationAndElevationAtXY(ins.X, ins.Y, ref station, ref elevation);
                                         var pvi = profile.PVIs.AddPVI(station, elevation);
-                                        pvis.Add((arc.Radius, pvi));
+
+                                        if (USE_TINY_TANGENT_WORKAROUND)
+                                        {
+                                            double effectiveRadius = arc.Radius;
+                                            bool prevIsArc = i > 0 &&
+                                                polyline.GetSegmentType(i - 1) == SegmentType.Arc;
+                                            bool nextIsArc = !isLast && nextType == SegmentType.Arc;
+                                            if (prevIsArc || nextIsArc)
+                                            {
+                                                double bulge = polyline.GetBulgeAt(i);
+                                                // Δ = 4·atan(bulge); shrink T by HALF_GAP on each side
+                                                // ⇒ ΔR = HALF_GAP / tan(Δ/2) = HALF_GAP / tan(2·atan(|bulge|))
+                                                double tanHalfDelta = Math.Tan(2.0 * Math.Atan(Math.Abs(bulge)));
+                                                if (tanHalfDelta > 1e-9)
+                                                    effectiveRadius = arc.Radius - HALF_GAP / tanHalfDelta;
+                                            }
+                                            pvis.Add((effectiveRadius, pvi));
+                                        }
+                                        else
+                                        {
+                                            pvis.Add((arc.Radius, pvi));
+                                        }
                                     }
                                     else
                                     {
@@ -5912,8 +5953,266 @@ namespace IntersectUtilities
                         {
                             profile.Entities.AddFreeCircularCurveByPVIAndRadius(pvi, radius);
                         }
-                        catch { }
+                        catch (System.Exception ex)
+                        {
+                            prdDbg(
+                                $"AddFreeCircularCurveByPVIAndRadius failed at PVI " +
+                                $"(Sta: {pvi.RawStation:F3}, El: {pvi.Elevation:F3}) " +
+                                $"R: {radius:F3} -> {ex.GetType().Name}: {ex.Message}");
+                        }
                     }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        /// <command>LISTPROFILEDATA</command>
+        /// <summary>
+        /// Dumps the data of a selected profile (PVIs and entities) to the command line as a table.
+        /// Useful for diagnosing profile-creation issues (e.g. MYPFP, AUDIT-removed curves).
+        /// </summary>
+        /// <category>Longitudinal Profiles</category>
+        [CommandMethod("LISTPROFILEDATA")]
+        public void listprofiledata()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            var profileId = Interaction.GetEntity("Select profile: ", typeof(Profile));
+            if (profileId == Oid.Null)
+                return;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    Profile profile = profileId.Go<Profile>(tx);
+                    Alignment al = profile.AlignmentId.Go<Alignment>(tx);
+
+                    StringBuilder sb = new StringBuilder();
+                    sb.AppendLine();
+                    sb.AppendLine($"Profile: {profile.Name}  (Alignment: {al.Name})");
+                    sb.AppendLine();
+
+                    sb.AppendLine($"PVIs ({profile.PVIs.Count}):");
+                    sb.AppendLine($"  {"Idx",-4} | {"Station",-12} | {"Elevation",-12}");
+                    sb.AppendLine($"  {new string('-', 4)}-+-{new string('-', 12)}-+-{new string('-', 12)}");
+                    int pviIdx = 0;
+                    foreach (ProfilePVI pvi in profile.PVIs)
+                    {
+                        sb.AppendLine($"  {pviIdx,-4} | {pvi.RawStation,-12:F3} | {pvi.Elevation,-12:F3}");
+                        pviIdx++;
+                    }
+                    sb.AppendLine();
+
+                    sb.AppendLine($"Entities ({profile.Entities.Count}):");
+                    sb.AppendLine(
+                        $"  {"Idx",-4} | {"EntityType",-30} | {"StartSta",-10} | {"EndSta",-10} | " +
+                        $"{"Length",-10} | {"Radius",-10} | {"Grade",-10}");
+                    sb.AppendLine(
+                        $"  {new string('-', 4)}-+-{new string('-', 30)}-+-{new string('-', 10)}-+-{new string('-', 10)}-+-" +
+                        $"{new string('-', 10)}-+-{new string('-', 10)}-+-{new string('-', 10)}");
+
+                    int entIdx = 0;
+                    foreach (ProfileEntity entity in profile.Entities)
+                    {
+                        string typeStr = entity.EntityType.ToString();
+                        string startSta = entity.StartStation.ToString("F3");
+                        string endSta = entity.EndStation.ToString("F3");
+                        string length = entity.Length.ToString("F3");
+                        string radiusStr = "-";
+                        string gradeStr = "-";
+
+                        switch (entity)
+                        {
+                            case ProfileTangent tan:
+                                gradeStr = tan.Grade.ToString("F4");
+                                break;
+                            case ProfileCircular circ:
+                                radiusStr = circ.Radius.ToString("F3");
+                                break;
+                            case ProfileParabolaSymmetric par:
+                                radiusStr = par.Radius.ToString("F3");
+                                break;
+                        }
+
+                        sb.AppendLine(
+                            $"  {entIdx,-4} | {typeStr,-30} | {startSta,-10} | {endSta,-10} | " +
+                            $"{length,-10} | {radiusStr,-10} | {gradeStr,-10}");
+                        entIdx++;
+                    }
+
+                    prdDbg(sb.ToString());
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        /// <command>LISTPOLYLINEGEOM</command>
+        /// <summary>
+        /// Dumps polyline segment geometry and per-vertex tangent-mismatch table for a selected polyline.
+        /// Surfaces sub-degree kinks between adjacent segments that AutoCAD doesn't show in the UI.
+        /// Useful before MYPFP to verify tangent continuity is within Civil 3D's tolerance.
+        /// </summary>
+        /// <category>Longitudinal Profiles</category>
+        [CommandMethod("LISTPOLYLINEGEOM")]
+        public void listpolylinegeom()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            var plId = Interaction.GetEntity("Select polyline: ", typeof(Polyline));
+            if (plId == Oid.Null)
+                return;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    Polyline pl = plId.Go<Polyline>(tx);
+                    int nVerts = pl.NumberOfVertices;
+                    int nSegs = pl.Closed ? nVerts : nVerts - 1;
+
+                    StringBuilder sb = new StringBuilder();
+                    sb.AppendLine();
+                    sb.AppendLine(
+                        $"Polyline: handle {pl.Handle}, {nVerts} vertices, " +
+                        $"{nSegs} segments, Closed: {pl.Closed}");
+                    sb.AppendLine();
+
+                    sb.AppendLine($"Segments:");
+                    sb.AppendLine(
+                        $"  {"Idx",-4} | {"Type",-4} | {"StartPt",-26} | {"EndPt",-26} | " +
+                        $"{"Length",-10} | {"Bulge",-12} | {"Radius",-10} | {"Defl(deg)",-10}");
+                    sb.AppendLine(
+                        $"  {new string('-', 4)}-+-{new string('-', 4)}-+-{new string('-', 26)}-+-" +
+                        $"{new string('-', 26)}-+-{new string('-', 10)}-+-{new string('-', 12)}-+-" +
+                        $"{new string('-', 10)}-+-{new string('-', 10)}");
+
+                    Vector2d[] inTangents = new Vector2d[nSegs];
+                    Vector2d[] outTangents = new Vector2d[nSegs];
+                    string[] segTypes = new string[nSegs];
+                    Point2d[] segEnd = new Point2d[nSegs];
+
+                    for (int i = 0; i < nSegs; i++)
+                    {
+                        var segType = pl.GetSegmentType(i);
+                        string typeStr;
+                        Point2d sp, ep;
+                        double length;
+                        double bulge = pl.GetBulgeAt(i);
+                        string radiusStr = "-";
+                        string deflStr = "-";
+
+                        if (segType == SegmentType.Line)
+                        {
+                            LineSegment2d ls = pl.GetLineSegment2dAt(i);
+                            sp = ls.StartPoint;
+                            ep = ls.EndPoint;
+                            length = ls.Length;
+                            typeStr = "Line";
+                            Vector2d dir = (ep - sp).GetNormal();
+                            inTangents[i] = dir;
+                            outTangents[i] = dir;
+                        }
+                        else if (segType == SegmentType.Arc)
+                        {
+                            CircularArc2d arc = pl.GetArcSegment2dAt(i);
+                            sp = arc.StartPoint;
+                            ep = arc.EndPoint;
+                            typeStr = "Arc";
+                            radiusStr = arc.Radius.ToString("F4");
+                            double deflRad = 4.0 * Math.Atan(bulge);
+                            double deflDegAbs = Math.Abs(deflRad) * 180.0 / Math.PI;
+                            deflStr = deflDegAbs.ToString("F4");
+                            length = arc.Radius * Math.Abs(deflRad);
+
+                            Vector2d rs = sp - arc.Center;
+                            Vector2d re = ep - arc.Center;
+                            Vector2d tStart, tEnd;
+                            if (arc.IsClockWise)
+                            {
+                                tStart = new Vector2d(rs.Y, -rs.X).GetNormal();
+                                tEnd = new Vector2d(re.Y, -re.X).GetNormal();
+                            }
+                            else
+                            {
+                                tStart = new Vector2d(-rs.Y, rs.X).GetNormal();
+                                tEnd = new Vector2d(-re.Y, re.X).GetNormal();
+                            }
+                            inTangents[i] = tStart;
+                            outTangents[i] = tEnd;
+                        }
+                        else
+                        {
+                            typeStr = segType.ToString();
+                            Point2d v = pl.GetPoint2dAt(i);
+                            sp = v; ep = v;
+                            length = 0;
+                            inTangents[i] = Vector2d.XAxis;
+                            outTangents[i] = Vector2d.XAxis;
+                        }
+
+                        segTypes[i] = typeStr;
+                        segEnd[i] = ep;
+
+                        string spStr = $"({sp.X:F3},{sp.Y:F3})";
+                        string epStr = $"({ep.X:F3},{ep.Y:F3})";
+                        sb.AppendLine(
+                            $"  {i,-4} | {typeStr,-4} | {spStr,-26} | {epStr,-26} | " +
+                            $"{length,-10:F4} | {bulge,-12:F6} | {radiusStr,-10} | {deflStr,-10}");
+                    }
+                    sb.AppendLine();
+
+                    sb.AppendLine($"Tangent continuity at interior vertices (mismatch < 0.001 deg = OK):");
+                    sb.AppendLine(
+                        $"  {"Vtx",-4} | {"Pt",-26} | {"InSeg",-5} | {"OutSeg",-6} | " +
+                        $"{"InTanAng",-12} | {"OutTanAng",-12} | {"Mismatch(deg)",-14} | Status");
+                    sb.AppendLine(
+                        $"  {new string('-', 4)}-+-{new string('-', 26)}-+-{new string('-', 5)}-+-" +
+                        $"{new string('-', 6)}-+-{new string('-', 12)}-+-{new string('-', 12)}-+-" +
+                        $"{new string('-', 14)}-+-------");
+
+                    int kinkCount = 0;
+                    double maxMismatch = 0;
+                    int interiorEnd = pl.Closed ? nSegs : nSegs - 1;
+                    for (int v = 1; v <= interiorEnd; v++)
+                    {
+                        int prev = (v - 1) % nSegs;
+                        int next = v % nSegs;
+                        Vector2d tin = outTangents[prev];
+                        Vector2d tout = inTangents[next];
+                        double dot = tin.X * tout.X + tin.Y * tout.Y;
+                        double cross = tin.X * tout.Y - tin.Y * tout.X;
+                        double mismatchDeg = Math.Abs(Math.Atan2(cross, dot)) * 180.0 / Math.PI;
+                        double inAngDeg = Math.Atan2(tin.Y, tin.X) * 180.0 / Math.PI;
+                        double outAngDeg = Math.Atan2(tout.Y, tout.X) * 180.0 / Math.PI;
+                        string status = mismatchDeg < 0.001 ? "OK" : "KINK";
+                        if (mismatchDeg >= 0.001) kinkCount++;
+                        if (mismatchDeg > maxMismatch) maxMismatch = mismatchDeg;
+
+                        Point2d pt = segEnd[prev];
+                        string ptStr = $"({pt.X:F3},{pt.Y:F3})";
+                        sb.AppendLine(
+                            $"  {v,-4} | {ptStr,-26} | {segTypes[prev],-5} | {segTypes[next],-6} | " +
+                            $"{inAngDeg,-12:F6} | {outAngDeg,-12:F6} | {mismatchDeg,-14:F6} | {status}");
+                    }
+                    sb.AppendLine();
+                    sb.AppendLine($"Summary: {kinkCount} kinks (>= 0.001 deg), max mismatch = {maxMismatch:F6} deg");
+
+                    prdDbg(sb.ToString());
                 }
                 catch (System.Exception ex)
                 {
