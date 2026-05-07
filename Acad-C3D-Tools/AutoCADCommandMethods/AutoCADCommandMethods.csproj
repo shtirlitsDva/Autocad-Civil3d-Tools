@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
 	<PropertyGroup>
 		<TargetFramework>net8.0-windows</TargetFramework>
 		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
@@ -15,12 +15,9 @@
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 		<AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
 	</PropertyGroup>
-	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-	  <DocumentationFile>bin\Debug\AutoCADCommands.xml</DocumentationFile>
-	</PropertyGroup>
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-	  <OutputPath>..\bin\Release</OutputPath>
-	  <DefineConstants>TRACE;R23</DefineConstants>
+		<OutputPath>..\bin\Release</OutputPath>
+		<DefineConstants>TRACE;R23</DefineConstants>
 	</PropertyGroup>
 	<ItemGroup>
 		<PackageReference Include="AutoCAD.NET" Version="25.0.1">
@@ -36,9 +33,6 @@
 		<PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0" />
 		<PackageReference Include="System.Text.Encodings.Web" Version="8.0.0" />
 		<PackageReference Include="System.Text.Json" Version="8.0.4" />
-	</ItemGroup>
-	<ItemGroup>
-		<Compile Remove="Tuples.cs" />
 	</ItemGroup>
 	<Import Project="..\AutoCADCommandsSHARED\AutoCADCommandsSHARED.projitems" Label="Shared" />
 </Project>

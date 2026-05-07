@@ -6,7 +6,7 @@
 		<UseWindowsForms>true</UseWindowsForms>
 		<ImportWindowsDesktopTargets>true</ImportWindowsDesktopTargets>
 		<Nullable>enable</Nullable>
-		<Platforms>AnyCPU;x64</Platforms>
+		<Platforms>x64</Platforms>
 	</PropertyGroup>
 	<PropertyGroup>
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>

@@ -1,4 +1,4 @@
-﻿using Autodesk.AutoCAD.ApplicationServices;
+using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Geometry;
@@ -226,7 +226,7 @@ namespace IntersectUtilities
                         if (poly1 != poly)
                         {
                             poly.IntersectWith3264(poly1,
-                                Autodesk.AutoCAD.DatabaseServices.Intersect.OnBothOperands, 
+                                Autodesk.AutoCAD.DatabaseServices.Intersect.OnBothOperands,
                                 intersectPoints);
                         }
                     }

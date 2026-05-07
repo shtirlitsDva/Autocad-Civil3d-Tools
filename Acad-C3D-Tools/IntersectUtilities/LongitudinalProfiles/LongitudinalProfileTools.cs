@@ -5992,6 +5992,13 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    // When true, entities are walked in profile-flow order via the
+                    // FirstEntity → EntityAfter linked list (the order they actually appear
+                    // along the alignment). When false, they're enumerated in the order
+                    // ProfileEntityCollection's own iterator returns them (typically grouped
+                    // by entity type — Tangents first, then Circulars, etc.).
+                    const bool LIST_ENTITIES_IN_FLOW_ORDER = true;
+
                     Profile profile = profileId.Go<Profile>(tx);
                     Alignment al = profile.AlignmentId.Go<Alignment>(tx);
 
@@ -6011,7 +6018,8 @@ namespace IntersectUtilities
                     }
                     sb.AppendLine();
 
-                    sb.AppendLine($"Entities ({profile.Entities.Count}):");
+                    string orderLabel = LIST_ENTITIES_IN_FLOW_ORDER ? "flow order" : "collection order";
+                    sb.AppendLine($"Entities ({profile.Entities.Count}, {orderLabel}):");
                     sb.AppendLine(
                         $"  {"Idx",-4} | {"EntityType",-30} | {"StartSta",-10} | {"EndSta",-10} | " +
                         $"{"Length",-10} | {"Radius",-10} | {"Grade",-10}");
@@ -6019,8 +6027,7 @@ namespace IntersectUtilities
                         $"  {new string('-', 4)}-+-{new string('-', 30)}-+-{new string('-', 10)}-+-{new string('-', 10)}-+-" +
                         $"{new string('-', 10)}-+-{new string('-', 10)}-+-{new string('-', 10)}");
 
-                    int entIdx = 0;
-                    foreach (ProfileEntity entity in profile.Entities)
+                    void AppendEntityRow(int idx, ProfileEntity entity)
                     {
                         string typeStr = entity.EntityType.ToString();
                         string startSta = entity.StartStation.ToString("F3");
@@ -6043,9 +6050,43 @@ namespace IntersectUtilities
                         }
 
                         sb.AppendLine(
-                            $"  {entIdx,-4} | {typeStr,-30} | {startSta,-10} | {endSta,-10} | " +
+                            $"  {idx,-4} | {typeStr,-30} | {startSta,-10} | {endSta,-10} | " +
                             $"{length,-10} | {radiusStr,-10} | {gradeStr,-10}");
-                        entIdx++;
+                    }
+
+                    if (LIST_ENTITIES_IN_FLOW_ORDER)
+                    {
+                        if (profile.Entities.Count > 0)
+                        {
+                            int entIdx = 0;
+                            uint id = profile.Entities.FirstEntity;
+                            uint lastId = profile.Entities.LastEntity;
+                            while (true)
+                            {
+                                ProfileEntity entity;
+                                try { entity = profile.Entities.EntityAtId(id); }
+                                catch (System.Exception ex)
+                                {
+                                    sb.AppendLine($"  -- linked-list walk aborted at id {id}: {ex.GetType().Name}: {ex.Message}");
+                                    break;
+                                }
+                                AppendEntityRow(entIdx, entity);
+                                entIdx++;
+                                if (id == lastId) break;
+                                uint nextId = entity.EntityAfter;
+                                if (nextId == id || nextId == 0) break;
+                                id = nextId;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        int entIdx = 0;
+                        foreach (ProfileEntity entity in profile.Entities)
+                        {
+                            AppendEntityRow(entIdx, entity);
+                            entIdx++;
+                        }
                     }
 
                     prdDbg(sb.ToString());

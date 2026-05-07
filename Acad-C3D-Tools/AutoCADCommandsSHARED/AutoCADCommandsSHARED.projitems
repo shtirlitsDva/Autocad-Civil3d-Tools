@@ -36,7 +36,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)Layouts.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)QuickSelection.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)SymbolPack.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Test.cs" />
   </ItemGroup>
   <ItemGroup>
     <Page Include="$(MSBuildThisFileDirectory)GUIs\DictionaryViewer.xaml">
