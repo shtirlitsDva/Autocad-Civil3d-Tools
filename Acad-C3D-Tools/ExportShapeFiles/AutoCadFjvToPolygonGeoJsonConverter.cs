@@ -1,4 +1,4 @@
-﻿using Autodesk.AutoCAD.DatabaseServices;
+using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 
 using Dreambuild.AutoCAD;
@@ -65,8 +65,8 @@ namespace ExportShapeFiles
                 { "Type", GetPipeSystem(pl).ToString() },
                 { "Rotation", "NULL" },
                 { "System", GetPipeType(pl).ToString() },
-                { "DN1", GetPipeDN(pl).ToString() },
-                { "DN2", "NULL" },
+                { "NomDia1", GetPipeDN(pl).ToString() },
+                { "NomDia2", "NULL" },
                 { "Serie", GetPipeSeriesV2(pl).ToString() },
                 { "Vinkel", "NULL" },
                 { "Kappe", GetPipeKOd(pl).ToString() },
@@ -138,8 +138,8 @@ namespace ExportShapeFiles
                 { "Type", ComponentSchedule.ReadComponentType(br, fk) },
                 { "Rotation", ComponentSchedule.ReadBlockRotation(br, fk).ToString("0.00") },
                 { "System", ComponentSchedule.ReadComponentSystem(br, fk) },
-                { "DN1", ComponentSchedule.ReadComponentDN1(br, fk) },
-                { "DN2", ComponentSchedule.ReadComponentDN2(br, fk) },
+                { "NomDia1", ComponentSchedule.ReadComponentDN1(br, fk) },
+                { "NomDia2", ComponentSchedule.ReadComponentDN2(br, fk) },
                 { "Serie", PropertyReader.ReadComponentSeries(br, fk) },
                 { "Vinkel", ComponentSchedule.ReadComponentVinkel(br, fk) },
                 { "Kappe", "NULL" },

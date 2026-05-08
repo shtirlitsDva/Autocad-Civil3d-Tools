@@ -1,4 +1,4 @@
-﻿using Autodesk.AutoCAD.DatabaseServices;
+using Autodesk.AutoCAD.DatabaseServices;
 
 using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 using IntersectUtilities.UtilsCommon;
@@ -112,8 +112,8 @@ namespace ExportShapeFiles
                 { "Rotation", ComponentSchedule.ReadBlockRotation(br, fk) },
                 { "System", br.ReadDynamicCsvProperty(DynamicProperty.SysNavn) },
                 { "Type", br.ReadDynamicCsvProperty(DynamicProperty.System) },
-                { "DN1", br.ReadDynamicCsvProperty(DynamicProperty.DN1) },
-                { "DN2", br.ReadDynamicCsvProperty(DynamicProperty.DN2) },
+                { "NomDia1", br.ReadDynamicCsvProperty(DynamicProperty.DN1) },
+                { "NomDia2", br.ReadDynamicCsvProperty(DynamicProperty.DN2) },
                 { "Serie", br.ReadDynamicCsvProperty(DynamicProperty.Serie) },
                 { "Angle", br.ReadDynamicCsvProperty(DynamicProperty.Vinkel) }
             };
