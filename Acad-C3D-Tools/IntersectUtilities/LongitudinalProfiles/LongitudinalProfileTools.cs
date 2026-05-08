@@ -1001,12 +1001,12 @@ namespace IntersectUtilities
                             currentPointGroup.Update();
                             success = true;
                         }
-                        catch (PointGroupQueryParserException)
+                        catch (PointGroupQueryOperationFailedException)
                         {
                             prdDbg(
-                                $"Failed to set query with separator \"{cur}\"! " +
-                                $"Culture: {System.Globalization.CultureInfo.CurrentCulture.Name}, " +
-                                $"TextInfo.ListSeparator: \"{localeSeparator}\"");
+                                $"Failed to set query with separator \"{cur}\"!\n" +
+                                $"Culture: {System.Globalization.CultureInfo.CurrentCulture.Name},\n" +
+                                $"TextInfo.ListSeparator: \"{localeSeparator}\"\n");
                             //Civil 3D's parser rejected the syntax — try the next separator
                         }
                     }
