@@ -5,6 +5,13 @@
 - All file creation, editing, renaming, moving, deletion, and generated output must stay inside the `MPE` directory.
 - Files and directories outside `MPE` are read-only for this scope and must not be changed.
 
+## Token control
+- Do not summerize without asked
+- Do not output extra information like Evidence tables
+- Do not output contradictions
+- Answer as if each word is an expensive token
+- Do not write "do next" paragraphs
+
 ## GitHub Push Protection
 - Do not run `git push`, `gh repo sync`, `gh pr merge`, or any other command that publishes local changes to GitHub unless the user explicitly requests that action in the current conversation.
 - A general request to "commit", "sync", "ship", or "finish" is not sufficient. The instruction must clearly mention pushing or publishing to GitHub.
