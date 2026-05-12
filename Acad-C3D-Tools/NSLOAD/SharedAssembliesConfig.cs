@@ -9,6 +9,13 @@ namespace NSLOAD
     {
         public List<string> SharedAssemblies { get; set; } = new();
         public List<string> MixedModeAssemblies { get; set; } = new();
+        // Subset of SharedAssemblies loaded via Assembly.Load(byte[]) instead
+        // of Assembly.LoadFrom. Releases the file lock so the developer can
+        // overwrite the DLL on disk; the running image stays in the default
+        // ALC until AutoCAD restarts. Mutually exclusive with
+        // MixedModeAssemblies (native deps need directory probing, which the
+        // streamed/location-unknown path cannot provide).
+        public List<string> StreamedAssemblies { get; set; } = new();
     }
 
     public static class SharedAssembliesConfigLoader

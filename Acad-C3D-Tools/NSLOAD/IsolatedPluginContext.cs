@@ -19,8 +19,29 @@ namespace NSLOAD
 
         protected override Assembly? Load(AssemblyName assemblyName)
         {
-            if (_sharedAssemblies.Contains(assemblyName.Name!))
+            string name = assemblyName.Name ?? "";
+
+            // Shared assemblies stay in default ALC for type identity (WPF XAML etc.).
+            //
+            // PluginManager loads them via LoadFrom or via
+            // AssemblyLoadContext.Default.LoadFromStream — both put the assembly
+            // into the Default ALC. The explicit lookup below is belt-and-braces:
+            // returning null and letting the default binder resolve also works, but
+            // handing the runtime the resolved instance is unambiguous.
+            //
+            // Note: Assembly.Load(byte[]) — which we explicitly DO NOT use — would
+            // put the assembly in a brand-new anonymous ALC, where it would be
+            // invisible to default-binder name resolution.
+            if (_sharedAssemblies.Contains(name))
+            {
+                foreach (var asm in AssemblyLoadContext.Default.Assemblies)
+                {
+                    if (string.Equals(
+                            asm.GetName().Name, name, StringComparison.OrdinalIgnoreCase))
+                        return asm;
+                }
                 return null;
+            }
 
             string? assemblyPath = _resolver.ResolveAssemblyToPath(assemblyName);
             if (assemblyPath != null)
