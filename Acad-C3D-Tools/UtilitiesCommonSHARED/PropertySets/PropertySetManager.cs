@@ -1253,6 +1253,7 @@ namespace IntersectUtilities
             FJV_område,
             BBR,
             NtrData,
+            Forsyningsområde,
         }
 
         public class FJV_område : PSetDef
@@ -1559,6 +1560,21 @@ namespace IntersectUtilities
                 };
         }
 
+        public class Forsyningsområde : PSetDef
+        {
+            public override DefinedSets SetName { get; } = DefinedSets.Forsyningsområde;
+            public Property Navn { get; } =
+                new Property("Navn", "Navnet på forsyningsområdet", PsDataType.Text, "");
+            public Property Varmebehov { get; } =
+                new Property("Varmebehov", "Varmebehov for området", PsDataType.Real, 0.0);
+            public Property AntalBygninger { get; } =
+                new Property("AntalBygninger", "Antal bygninger i området", PsDataType.Integer, 0);
+            public Property AntalEnheder { get; } =
+                new Property("AntalEnheder", "Antal enheder i området", PsDataType.Integer, 0);
+            public override StringCollection AppliesTo { get; } =
+                new StringCollection() { RXClass.GetClass(typeof(BlockReference)).Name };
+        }
+
         public abstract class PSetDef
         {
             public abstract DefinedSets SetName { get; }
@@ -1620,6 +1636,33 @@ namespace IntersectUtilities
                 }
 
                 return propSetDef;
+            }
+
+            /// <summary>
+            /// Ensures this concrete PSetDef's PropertySetDefinition exists in the
+            /// drawing's extension dictionary. Returns the existing definition if
+            /// already present, otherwise creates it. Must be called within an
+            /// active transaction (the Has/GetAt lookups require a TopTransaction).
+            /// </summary>
+            /// <example>
+            /// <code>
+            /// new PSetDefs.Forsyningsområde().CheckOrCreatePropertySetDef(db);
+            /// </code>
+            /// </example>
+            public PropertySetDefinition CheckOrCreatePropertySetDef(Database database)
+            {
+                if (database == null)
+                    throw new System.Exception("Database is null!");
+                if (database.TransactionManager.TopTransaction == null)
+                    throw new System.Exception(
+                        "CheckOrCreatePropertySetDef: Must be called within a Transaction!");
+
+                var dict = new DictionaryPropertySetDefinitions(database);
+
+                if (PropertySetDefinitionExists(database, dict, SetName))
+                    return GetPropertySetDefinition(database, dict, SetName);
+
+                return CreatePropertySetDefinition(database, dict);
             }
         }
 
@@ -1865,6 +1908,14 @@ namespace IntersectUtilities
 
     public class NtrData : PropertySetManager
     {
+        /// <summary>
+        /// Ensures the NtrData PropertySetDefinition exists in the drawing's
+        /// extension dictionary. No entity attachment performed.
+        /// Must be called within an active transaction.
+        /// </summary>
+        public static PropertySetDefinition CheckOrCreatePropertySetDef(Database db)
+            => new PSetDefs.NtrData().CheckOrCreatePropertySetDef(db);
+
         private Entity _ent;
         private PSetDefs.NtrData _def = new PSetDefs.NtrData();
         public NtrData(Entity ent)
@@ -1899,8 +1950,60 @@ namespace IntersectUtilities
 
     }
 
+    public class Forsyningsområde : PropertySetManager
+    {
+        /// <summary>
+        /// Ensures the Forsyningsområde PropertySetDefinition exists in the
+        /// drawing's extension dictionary. No entity attachment performed.
+        /// Must be called within an active transaction.
+        /// </summary>
+        public static PropertySetDefinition CheckOrCreatePropertySetDef(Database db)
+            => new PSetDefs.Forsyningsområde().CheckOrCreatePropertySetDef(db);
+
+        private Entity _ent;
+        public Entity Entity => _ent;
+        private BlockReference _br;
+        private PSetDefs.Forsyningsområde _def = new PSetDefs.Forsyningsområde();
+        public Forsyningsområde(Entity ent)
+            : base(ent.Database, PSetDefs.DefinedSets.Forsyningsområde)
+        {
+            _ent = ent;
+            if (_ent is not BlockReference)
+                throw new System.Exception("Forsyningsområde PropertySet can only be attached to BlockReference entities!");
+            _br = (BlockReference)_ent;
+        }
+        public string Navn
+        {
+            get => ReadPropertyString(_ent, _def.Navn);
+            set => WritePropertyObject(_ent, _def.Navn, value);
+        }
+        public double Varmebehov
+        {
+            get => ReadPropertyDouble(_ent, _def.Varmebehov);
+            set => WritePropertyObject(_ent, _def.Varmebehov, value);
+        }
+        public int AntalBygninger
+        {
+            get => ReadPropertyInt(_ent, _def.AntalBygninger);
+            set => WritePropertyObject(_ent, _def.AntalBygninger, value);
+        }
+        public int AntalEnheder
+        {
+            get => ReadPropertyInt(_ent, _def.AntalEnheder);
+            set => WritePropertyObject(_ent, _def.AntalEnheder, value);
+        }
+    }
+
     public class BBR : PropertySetManager
     {
+        /// <summary>
+        /// Ensures the BBR PropertySetDefinition exists in the drawing's
+        /// extension dictionary. No entity attachment performed.
+        /// Must be called within an active transaction.
+        /// </summary>
+        public static PropertySetDefinition CheckOrCreatePropertySetDef(Database db)
+            => new PSetDefs.BBR().CheckOrCreatePropertySetDef(db);
+
         private Entity _ent;
         public Entity Entity => _ent;
         private BlockReference _br;
@@ -2111,6 +2214,14 @@ namespace IntersectUtilities
 
     public class DriDimGraph : PropertySetManager
     {
+        /// <summary>
+        /// Ensures the DriDimGraph PropertySetDefinition exists in the drawing's
+        /// extension dictionary. No entity attachment performed.
+        /// Must be called within an active transaction.
+        /// </summary>
+        public static PropertySetDefinition CheckOrCreatePropertySetDef(Database db)
+            => new PSetDefs.DriDimGraph().CheckOrCreatePropertySetDef(db);
+
         private Entity _ent;
         private PSetDefs.DriDimGraph _def = new PSetDefs.DriDimGraph();
         public DriDimGraph(Entity ent)
