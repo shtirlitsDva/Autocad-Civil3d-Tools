@@ -3,7 +3,7 @@ using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.GraphicsInterface;
 
-namespace PipePlan.Plugin;
+namespace IntersectUtilities.MPE.PipePlan;
 
 internal sealed class PipePlanHandleMarkerManager : IDisposable
 {

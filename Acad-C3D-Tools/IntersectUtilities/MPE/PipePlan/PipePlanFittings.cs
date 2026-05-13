@@ -2,7 +2,7 @@ using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 
-namespace PipePlan.Plugin;
+namespace IntersectUtilities.MPE.PipePlan;
 
 internal static class PipePlanFittingSnapService
 {

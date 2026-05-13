@@ -1,7 +1,7 @@
 using Autodesk.AutoCAD.Geometry;
 using System.Globalization;
 
-namespace PipePlan.Plugin;
+namespace IntersectUtilities.MPE.PipePlan;
 
 internal static class PipePlanParsing
 {

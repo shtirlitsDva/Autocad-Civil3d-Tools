@@ -4,7 +4,7 @@ using Autodesk.AutoCAD.GraphicsInterface;
 using Autodesk.AutoCAD.Geometry;
 using System.Globalization;
 
-namespace PipePlan.Plugin;
+namespace IntersectUtilities.MPE.PipePlan;
 
 internal sealed class PipePlanPreviewManager : IDisposable
 {

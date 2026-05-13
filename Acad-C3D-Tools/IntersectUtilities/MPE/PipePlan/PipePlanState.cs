@@ -3,7 +3,7 @@ using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Geometry;
 
-namespace PipePlan.Plugin;
+namespace IntersectUtilities.MPE.PipePlan;
 
 internal sealed class PipePlanState : IDisposable
 {

@@ -2,7 +2,7 @@ using Autodesk.AutoCAD.Windows;
 using System.Globalization;
 using System.Windows.Forms;
 
-namespace PipePlan.Plugin;
+namespace IntersectUtilities.MPE.PipePlan;
 
 internal sealed class PipePlanPalette : IDisposable
 {

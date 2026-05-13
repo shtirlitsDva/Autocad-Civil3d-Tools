@@ -1,6 +1,6 @@
 using Autodesk.AutoCAD.Geometry;
 
-namespace PipePlan.Plugin;
+namespace IntersectUtilities.MPE.PipePlan;
 
 internal sealed class PipeSizeOption
 {
