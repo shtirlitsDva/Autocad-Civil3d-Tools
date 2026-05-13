@@ -9,7 +9,7 @@ using System.Windows.Forms;
 
 namespace PipePlan.Plugin;
 
-public sealed class PipePlanCommands
+public partial class IntersectUtilites
 {
     /// <command>PPSPLIT</command>
     /// <summary>Splits a metadata-enabled PipePlan object into two new independent PipePlan objects. The split must resolve to a valid straight portion of the baked polyline; arc regions and invalid split positions are rejected.</summary>
