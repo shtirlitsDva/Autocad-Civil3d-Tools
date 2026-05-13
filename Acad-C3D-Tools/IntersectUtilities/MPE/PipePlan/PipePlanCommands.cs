@@ -1,0 +1,491 @@
+using Autodesk.AutoCAD.ApplicationServices;
+using Autodesk.AutoCAD.DatabaseServices;
+using Autodesk.AutoCAD.EditorInput;
+using Autodesk.AutoCAD.Geometry;
+using Autodesk.AutoCAD.Runtime;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
+using System.Windows.Forms;
+
+namespace PipePlan.Plugin;
+
+public sealed class PipePlanCommands
+{
+    /// <command>PPSPLIT</command>
+    /// <summary>Splits a metadata-enabled PipePlan object into two new independent PipePlan objects. The split must resolve to a valid straight portion of the baked polyline; arc regions and invalid split positions are rejected.</summary>
+    /// <category>PipePlan</category>
+    [CommandMethod("PPSPLIT")]
+    public void PipePlanSplit()
+    {
+        Document? document = GetActiveDocument();
+        if (document is null)
+        {
+            return;
+        }
+
+        try
+        {
+            ExecuteSplit(document);
+        }
+        catch (System.Exception exception)
+        {
+            HandleCommandException(document, "PPSPLIT", exception);
+        }
+    }
+
+    /// <command>PPEDIT</command>
+    /// <summary>Edits an existing metadata-enabled PipePlan object by moving control handles or segment handles while preserving PipePlan constraints. The command previews each move live, rejects infeasible edits, and finishes when Enter is pressed at the handle prompt.</summary>
+    /// <category>PipePlan</category>
+    [CommandMethod("PPEDIT")]
+    public void PipePlanEdit()
+    {
+        Document? document = GetActiveDocument();
+        if (document is null)
+        {
+            return;
+        }
+
+        try
+        {
+            ExecuteEdit(document);
+        }
+        catch (System.Exception exception)
+        {
+            HandleCommandException(document, "PPEDIT", exception);
+        }
+    }
+
+    /// <command>PPSETTINGS</command>
+    /// <summary>Shows the PipePlan settings palette so the active size, bend radii, and straight-snap tolerance can be reviewed and applied before drawing.</summary>
+    /// <category>PipePlan</category>
+    [CommandMethod("PPSETTINGS")]
+    public void PipePlanSettings()
+    {
+        Document? document = GetActiveDocument();
+        if (document is null)
+        {
+            return;
+        }
+
+        try
+        {
+            ExecuteSettings();
+        }
+        catch (System.Exception exception)
+        {
+            HandleCommandException(document, "PPSETTINGS", exception);
+        }
+    }
+
+    /// <command>PPDRAW</command>
+    /// <summary>Starts a new PipePlan draft or continues an existing metadata-enabled PipePlan object. The command previews constrained geometry live, supports straight snap with Ctrl, and bakes the draft to a polyline when Enter is pressed after at least two points.</summary>
+    /// <category>PipePlan</category>
+    [CommandMethod("PPDRAW")]
+    public void PipePlan()
+    {
+        Document? document = GetActiveDocument();
+        if (document is null)
+        {
+            return;
+        }
+
+        try
+        {
+            ExecuteDraw(document);
+        }
+        catch (System.Exception exception)
+        {
+            HandleCommandException(document, "PPDRAW", exception);
+        }
+    }
+
+    private static Document? GetActiveDocument()
+    {
+        return Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
+    }
+
+    private static void ExecuteSplit(Document document)
+    {
+        if (!PipePlanSplitService.TrySplit(document, out string message))
+        {
+            ReportMessage(document, message, PipePlanStatusKind.Warning);
+            return;
+        }
+
+        ReportMessage(document, message, PipePlanStatusKind.Ok);
+    }
+
+    private static void ExecuteEdit(Document document)
+    {
+        if (!TryCreateEditSession(document, out PipePlanEditSession? session))
+        {
+            return;
+        }
+
+        PipePlanEditSession activeSession = session;
+        using (activeSession)
+        {
+            RunEditLoop(document, activeSession);
+        }
+    }
+
+    private static bool TryCreateEditSession(Document document, [NotNullWhen(true)] out PipePlanEditSession? session)
+    {
+        session = null;
+        if (!PipePlanEditSession.TryCreate(document, PipePlanPlugin.State, out session, out string errorMessage) || session is null)
+        {
+            ReportMessage(document, errorMessage, PipePlanStatusKind.Warning);
+            return false;
+        }
+
+        return true;
+    }
+
+    private static void RunEditLoop(Document document, PipePlanEditSession session)
+    {
+        Editor editor = document.Editor;
+        PipePlanPlugin.State.SetStatus(
+            $"Editing {session.SizeName} (R={session.RadiusText}). Pick a control circle or segment square, or press Enter to finish.",
+            PipePlanStatusKind.Info);
+
+        while (true)
+        {
+            session.ShowHandles();
+
+            PromptPointResult pickResult = PromptForEditHandle(editor);
+            if (pickResult.Status == PromptStatus.None)
+            {
+                session.ClearVisuals();
+                PipePlanPlugin.State.SetStatus("PPEdit finished.", PipePlanStatusKind.Info);
+                return;
+            }
+
+            if (pickResult.Status != PromptStatus.OK)
+            {
+                session.ClearVisuals();
+                PipePlanPlugin.State.SetStatus("PPEdit cancelled.", PipePlanStatusKind.Info);
+                return;
+            }
+
+            if (!TryResolveEditHandle(session, editor, pickResult.Value, out PipePlanEditHandle? handle) || handle is null)
+            {
+                continue;
+            }
+
+            session.ClearVisuals();
+            PromptPointResult dragResult = PromptForEditMove(document, session, handle);
+            if (dragResult.Status == PromptStatus.None)
+            {
+                PipePlanPlugin.State.ClearPreview();
+                PipePlanPlugin.State.SetStatus("Edit cancelled. Pick another handle.", PipePlanStatusKind.Info);
+                continue;
+            }
+
+            if (dragResult.Status != PromptStatus.OK)
+            {
+                session.ClearVisuals();
+                PipePlanPlugin.State.SetStatus("PPEdit cancelled.", PipePlanStatusKind.Info);
+                return;
+            }
+
+            ApplyEditCandidate(document, session, handle, dragResult.Value);
+        }
+    }
+
+    private static PromptPointResult PromptForEditHandle(Editor editor)
+    {
+        PromptPointOptions pickOptions = new("\nPick a PipePlan control handle or press Enter to finish: ")
+        {
+            AllowNone = true
+        };
+
+        return editor.GetPoint(pickOptions);
+    }
+
+    private static bool TryResolveEditHandle(
+        PipePlanEditSession session,
+        Editor editor,
+        Point3d pickedPoint,
+        out PipePlanEditHandle? handle)
+    {
+        handle = null;
+        if (!session.TryResolveHandle(pickedPoint, out handle, out string handleMessage) || handle is null)
+        {
+            ReportEditorMessage(editor, handleMessage);
+            PipePlanPlugin.State.SetStatus(handleMessage, PipePlanStatusKind.Warning);
+            return false;
+        }
+
+        return true;
+    }
+
+    private static PromptPointResult PromptForEditMove(
+        Document document,
+        PipePlanEditSession session,
+        PipePlanEditHandle handle)
+    {
+        using PipePlanEditTracker tracker = new(document, PipePlanPlugin.State, session, handle);
+        PromptPointOptions dragOptions = new("\nMove the selected handle or press Enter to cancel: ")
+        {
+            BasePoint = handle.GripPoint,
+            UseBasePoint = true,
+            AllowNone = true
+        };
+
+        return document.Editor.GetPoint(dragOptions);
+    }
+
+    private static void ApplyEditCandidate(
+        Document document,
+        PipePlanEditSession session,
+        PipePlanEditHandle handle,
+        Point3d candidatePoint)
+    {
+        PipePlanEditCandidate candidate = session.BuildCandidate(handle, candidatePoint);
+        if (!candidate.Analysis.IsFeasible)
+        {
+            PipePlanPlugin.State.ClearPreview();
+            ReportEditorMessage(document.Editor, $"Edit rejected: {candidate.Analysis.Message}");
+            PipePlanPlugin.State.SetStatus(candidate.Analysis.Message, PipePlanStatusKind.Error);
+            return;
+        }
+
+        session.Commit(candidate);
+        PipePlanPlugin.State.ClearPreview();
+        PipePlanPlugin.State.SetStatus("Edit applied. Pick another handle or press Enter to finish.", PipePlanStatusKind.Ok);
+    }
+
+    private static void ExecuteSettings()
+    {
+        PipePlanPlugin.State.EnsurePalette();
+        PipePlanPlugin.State.SetStatus("Settings ready. Run PPDRAW to draw.", PipePlanStatusKind.Info);
+    }
+
+    private static void ExecuteDraw(Document document)
+    {
+        PipePlanPlugin.State.ResetDraft(clearStatus: false);
+
+        if (!TryInitializeDraw(document, out string initializationError))
+        {
+            ReportMessage(document, initializationError, PipePlanStatusKind.Warning);
+            return;
+        }
+
+        RunDrawLoop(document);
+    }
+
+    private static void RunDrawLoop(Document document)
+    {
+        Editor editor = document.Editor;
+
+        while (true)
+        {
+            PromptPointResult result = PromptForNextDrawPoint(document);
+            if (result.Status == PromptStatus.None)
+            {
+                CompleteDraft();
+                return;
+            }
+
+            if (result.Status != PromptStatus.OK)
+            {
+                PipePlanPlugin.State.RefreshDraftPreview();
+                PipePlanPlugin.State.SetStatus("Drawing cancelled.", PipePlanStatusKind.Info);
+                return;
+            }
+
+            bool allowStraightSnap = (Control.ModifierKeys & Keys.Control) == Keys.Control;
+            PipePlanCandidateResult candidate = PipePlanPlugin.State.ResolveCommittedCandidate(result.Value, allowStraightSnap);
+            if (!TryAcceptDrawCandidate(editor, candidate))
+            {
+                continue;
+            }
+
+            PipePlanPlugin.State.AddCommittedCandidate(candidate);
+            PipePlanPlugin.State.SetLatestAnalysis(candidate.Analysis);
+            PipePlanPlugin.State.ShowPreview(candidate.Analysis, candidate.FittingProposal);
+        }
+    }
+
+    private static PromptPointResult PromptForNextDrawPoint(Document document)
+    {
+        using CandidatePointTracker tracker = new(document, PipePlanPlugin.State);
+
+        PromptPointOptions options = new("\nNext point or press Enter to finish: ")
+        {
+            BasePoint = PipePlanPlugin.State.DraftPoints[^1],
+            UseBasePoint = true,
+            AllowNone = true
+        };
+
+        return document.Editor.GetPoint(options);
+    }
+
+    private static void CompleteDraft()
+    {
+        if (PipePlanPlugin.State.DraftPoints.Count >= 2)
+        {
+            PipePlanPlugin.State.BakeDraft();
+            return;
+        }
+
+        PipePlanPlugin.State.RefreshDraftPreview();
+        PipePlanPlugin.State.SetStatus("Draft has fewer than two points.", PipePlanStatusKind.Warning);
+    }
+
+    private static bool TryAcceptDrawCandidate(Editor editor, PipePlanCandidateResult candidate)
+    {
+        PipePlanAnalysis analysis = candidate.Analysis;
+        if (!analysis.IsFeasible)
+        {
+            ReportEditorMessage(editor, $"Point rejected: {analysis.Message}");
+            PipePlanPlugin.State.ShowPreview(analysis, candidate.FittingProposal);
+            PipePlanPlugin.State.SetStatus(analysis.Message, PipePlanStatusKind.Error);
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool TryInitializeDraw(Document document, out string errorMessage)
+    {
+        errorMessage = string.Empty;
+        Editor editor = document.Editor;
+
+        PromptKeywordOptions modeOptions = new("\nStart [New/Continue] <New>: ", "New Continue")
+        {
+            AllowNone = true
+        };
+
+        PromptResult modeResult = editor.GetKeywords(modeOptions);
+        if (modeResult.Status == PromptStatus.Cancel)
+        {
+            PipePlanPlugin.State.SetStatus("Drawing cancelled.", PipePlanStatusKind.Info);
+            return false;
+        }
+
+        bool continueExisting = string.Equals(modeResult.StringResult, "Continue", StringComparison.OrdinalIgnoreCase);
+        if (continueExisting)
+        {
+            return TryContinueExisting(document, out errorMessage);
+        }
+
+        PipeSizeOption? size = PipePlanPlugin.State.GetSelectedSize();
+        if (size is null)
+        {
+            errorMessage = "Set an active pipe size with PPSETTINGS first.";
+            return false;
+        }
+
+        if (!PipePlanPlugin.State.TryGetSelectedRadius(out _))
+        {
+            errorMessage = "Enter a valid radius in PPSETTINGS.";
+            return false;
+        }
+
+        PromptPointResult firstPointResult = editor.GetPoint("\nFirst point: ");
+        if (firstPointResult.Status != PromptStatus.OK)
+        {
+            PipePlanPlugin.State.SetStatus("Drawing cancelled.", PipePlanStatusKind.Info);
+            return false;
+        }
+
+        PipePlanPlugin.State.AddDraftPoint(firstPointResult.Value);
+        PipePlanPlugin.State.RefreshDraftPreview();
+        return true;
+    }
+
+    private static bool TryContinueExisting(Document document, out string errorMessage)
+    {
+        errorMessage = string.Empty;
+        Editor editor = document.Editor;
+
+        PromptEntityOptions options = new("\nSelect a PipePlan object to continue from: ");
+        options.SetRejectMessage("\nOnly PipePlan polylines are supported.");
+        options.AddAllowedClass(typeof(Polyline), exactMatch: false);
+
+        PromptEntityResult result = editor.GetEntity(options);
+        if (result.Status != PromptStatus.OK)
+        {
+            PipePlanPlugin.State.SetStatus("Drawing cancelled.", PipePlanStatusKind.Info);
+            return false;
+        }
+
+        using Transaction transaction = document.Database.TransactionManager.StartTransaction();
+        try
+        {
+            Polyline polyline = (Polyline)transaction.GetObject(result.ObjectId, OpenMode.ForRead);
+            if (!PipePlanMetadata.TryRead(polyline, transaction, out PipePlanStoredData? data) || data is null)
+            {
+                errorMessage = "The selected polyline is not a metadata-enabled PipePlan object.";
+                return false;
+            }
+
+            if (!PipePlanGeometryValidator.TryValidateAgainstMetadata(polyline, data, out errorMessage))
+            {
+                return false;
+            }
+
+            if (!TryResolveEndpoint(result.PickedPoint, data.ControlPoints, out bool reverse))
+            {
+                errorMessage = "The selected PipePlan object does not have enough control points to continue.";
+                return false;
+            }
+
+            transaction.Commit();
+            PipePlanPlugin.State.BeginDraftFromExisting(result.ObjectId, data, reverse);
+            PipePlanPlugin.State.SetStatus(
+                $"Continuing {data.SizeName} from the selected endpoint. Pick the next point.",
+                PipePlanStatusKind.Info);
+            return true;
+        }
+        catch
+        {
+            transaction.Abort();
+            throw;
+        }
+    }
+
+    private static bool TryResolveEndpoint(Point3d pickedPoint, IReadOnlyList<Point3d> controlPoints, out bool reverse)
+    {
+        reverse = false;
+        if (controlPoints.Count < 2)
+        {
+            return false;
+        }
+
+        double startDistance = PipePlanGeometryUtil.Distance2D(pickedPoint, controlPoints[0]);
+        double endDistance = PipePlanGeometryUtil.Distance2D(pickedPoint, controlPoints[^1]);
+        reverse = startDistance <= endDistance;
+        return true;
+    }
+
+    private static void ReportMessage(Document document, string message, PipePlanStatusKind kind)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            return;
+        }
+
+        ReportEditorMessage(document.Editor, message);
+        PipePlanPlugin.State.SetStatus(message, kind);
+    }
+
+    private static void ReportEditorMessage(Editor editor, string message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            return;
+        }
+
+        editor.WriteMessage($"\n{message}");
+    }
+
+    private static void HandleCommandException(Document document, string commandName, System.Exception exception)
+    {
+        Debug.WriteLine(exception);
+        string message = $"{commandName} failed: {exception.Message}";
+        ReportEditorMessage(document.Editor, message);
+        PipePlanPlugin.State.SetStatus(message, PipePlanStatusKind.Error);
+    }
+}
