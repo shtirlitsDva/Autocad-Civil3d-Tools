@@ -130,6 +130,22 @@ internal sealed class PipePlanEditSession : IDisposable
 
     public bool TryAnalyzeVertexRadius(int vertexIndex, double radius, out PipePlanAnalysis analysis, out string error)
     {
+        Point3d currentPosition = vertexIndex >= 0 && vertexIndex < _data.ControlPoints.Count
+            ? _data.ControlPoints[vertexIndex]
+            : default;
+        return TryAnalyzeVertexState(vertexIndex, currentPosition, radius, out analysis, out error);
+    }
+
+    public bool TrySetVertexRadius(int vertexIndex, double radius, out string error)
+    {
+        Point3d currentPosition = vertexIndex >= 0 && vertexIndex < _data.ControlPoints.Count
+            ? _data.ControlPoints[vertexIndex]
+            : default;
+        return TrySetVertexState(vertexIndex, currentPosition, radius, out error);
+    }
+
+    public bool TryAnalyzeVertexState(int vertexIndex, Point3d newPosition, double radius, out PipePlanAnalysis analysis, out string error)
+    {
         error = string.Empty;
         analysis = PipePlanAnalysis.Invalid(_data.ControlPoints, string.Empty);
 
@@ -145,10 +161,14 @@ internal sealed class PipePlanEditSession : IDisposable
             return false;
         }
 
+        List<Point3d> updatedControlPoints = [.. _data.ControlPoints];
+        Point3d original = updatedControlPoints[vertexIndex];
+        updatedControlPoints[vertexIndex] = new Point3d(newPosition.X, newPosition.Y, original.Z);
+
         List<double> updatedRadii = [.. _data.BendRadii];
         updatedRadii[vertexIndex] = radius;
 
-        analysis = _solver.Analyze(_data.ControlPoints, updatedRadii);
+        analysis = _solver.Analyze(updatedControlPoints, updatedRadii);
         if (!analysis.IsFeasible)
         {
             error = analysis.Message;
@@ -158,12 +178,16 @@ internal sealed class PipePlanEditSession : IDisposable
         return true;
     }
 
-    public bool TrySetVertexRadius(int vertexIndex, double radius, out string error)
+    public bool TrySetVertexState(int vertexIndex, Point3d newPosition, double radius, out string error)
     {
-        if (!TryAnalyzeVertexRadius(vertexIndex, radius, out PipePlanAnalysis analysis, out error))
+        if (!TryAnalyzeVertexState(vertexIndex, newPosition, radius, out PipePlanAnalysis analysis, out error))
         {
             return false;
         }
+
+        List<Point3d> updatedControlPoints = [.. _data.ControlPoints];
+        Point3d original = updatedControlPoints[vertexIndex];
+        updatedControlPoints[vertexIndex] = new Point3d(newPosition.X, newPosition.Y, original.Z);
 
         List<double> updatedRadii = [.. _data.BendRadii];
         updatedRadii[vertexIndex] = radius;
@@ -180,7 +204,7 @@ internal sealed class PipePlanEditSession : IDisposable
                 _data.Dn,
                 updatedRadii,
                 _data.StraightSnapToleranceText,
-                _data.ControlPoints,
+                updatedControlPoints,
                 _data.ObjectToken);
             Polyline replacement = ReplaceGeometry(polyline, analysis, transaction);
             PipePlanMetadata.Write(replacement, _data, transaction);

@@ -38,6 +38,8 @@ internal sealed class PipePlanState : IDisposable
 
     public bool HasManualRadiusOverride => _manualRadius.HasValue;
 
+    public Point3d? LastEditDragPoint { get; set; }
+
     public void SetManualRadius(double radius)
     {
         if (radius <= 0.0)
@@ -499,18 +501,6 @@ internal sealed class PipePlanState : IDisposable
     {
         CandidateResolution resolution = ResolveCandidatePoint(rawCandidate, allowStraightSnap);
         PipePlanAnalysis analysis = AnalyzeWithCandidate(resolution.FinalPoint);
-
-        if (allowStraightSnap && !analysis.IsFeasible &&
-            TryRescueInfeasibleAlongCursorRay(rawCandidate, out Point3d rescuedPoint))
-        {
-            PipePlanAnalysis rescuedAnalysis = AnalyzeWithCandidate(rescuedPoint);
-            if (rescuedAnalysis.IsFeasible)
-            {
-                resolution = new CandidateResolution(rescuedPoint, true);
-                analysis = rescuedAnalysis;
-            }
-        }
-
         if (resolution.StraightSnapActive)
         {
             analysis = analysis.WithPreviewKind(PipePlanPreviewKind.StraightSnap);
@@ -572,104 +562,6 @@ internal sealed class PipePlanState : IDisposable
 
         snappedCandidate = new Point3d(projectedPoint.X, projectedPoint.Y, rawCandidate.Z);
         return true;
-    }
-
-    private bool TryRescueInfeasibleAlongCursorRay(Point3d rawCandidate, out Point3d snappedCandidate)
-    {
-        snappedCandidate = rawCandidate;
-        if (DraftPoints.Count < 2 || EffectiveRadius <= 0.0)
-        {
-            return false;
-        }
-
-        Point3d previousPoint = DraftPoints[^2];
-        Point3d anchorPoint = DraftPoints[^1];
-
-        Vector2d toRaw = new(rawCandidate.X - anchorPoint.X, rawCandidate.Y - anchorPoint.Y);
-        double rawDistance = toRaw.Length;
-        if (rawDistance <= DistanceTolerance)
-        {
-            return false;
-        }
-
-        Vector2d cursorDirection = toRaw / rawDistance;
-
-        Vector2d incomingDelta = new(anchorPoint.X - previousPoint.X, anchorPoint.Y - previousPoint.Y);
-        double incomingLength = incomingDelta.Length;
-        if (incomingLength <= DistanceTolerance)
-        {
-            return false;
-        }
-
-        Vector2d incomingDirection = incomingDelta / incomingLength;
-        double dot = Math.Clamp(incomingDirection.DotProduct(cursorDirection), -1.0, 1.0);
-        double deflection = Math.Acos(dot);
-        const double angleTolerance = 1e-6;
-        if (deflection <= angleTolerance || Math.Abs(Math.PI - deflection) <= angleTolerance)
-        {
-            return false;
-        }
-
-        double radius = EffectiveRadius;
-        double tAnchor = radius * Math.Tan(deflection / 2.0);
-        if (!double.IsFinite(tAnchor) || tAnchor <= 0.0)
-        {
-            return false;
-        }
-
-        double trimAtPrev = ComputeExistingTrimAtPreviousVertex();
-        double available = incomingLength - trimAtPrev;
-        if (tAnchor > available)
-        {
-            return false;
-        }
-
-        double dTarget = Math.Max(rawDistance, tAnchor + DistanceTolerance * 10.0);
-        snappedCandidate = new Point3d(
-            anchorPoint.X + (cursorDirection.X * dTarget),
-            anchorPoint.Y + (cursorDirection.Y * dTarget),
-            rawCandidate.Z);
-        return true;
-    }
-
-    private double ComputeExistingTrimAtPreviousVertex()
-    {
-        if (DraftPoints.Count < 3)
-        {
-            return 0.0;
-        }
-
-        int prevIndex = DraftPoints.Count - 2;
-        int prevPrevIndex = DraftPoints.Count - 3;
-        Point3d prev = DraftPoints[prevIndex];
-        Point3d prevPrev = DraftPoints[prevPrevIndex];
-        Point3d anchor = DraftPoints[^1];
-
-        Vector2d a = new(prev.X - prevPrev.X, prev.Y - prevPrev.Y);
-        Vector2d b = new(anchor.X - prev.X, anchor.Y - prev.Y);
-        double aLen = a.Length;
-        double bLen = b.Length;
-        if (aLen <= DistanceTolerance || bLen <= DistanceTolerance)
-        {
-            return 0.0;
-        }
-
-        double dot = Math.Clamp((a / aLen).DotProduct(b / bLen), -1.0, 1.0);
-        double theta = Math.Acos(dot);
-        const double angleTolerance = 1e-6;
-        if (theta <= angleTolerance)
-        {
-            return 0.0;
-        }
-
-        double radiusAtPrev = DraftBendRadii.Count > prevIndex ? DraftBendRadii[prevIndex] : 0.0;
-        if (radiusAtPrev <= 0.0)
-        {
-            return 0.0;
-        }
-
-        double trim = radiusAtPrev * Math.Tan(theta / 2.0);
-        return double.IsFinite(trim) ? trim : 0.0;
     }
 
     private static string GetCandidateStatusMessage(PipePlanCandidateResult candidate)

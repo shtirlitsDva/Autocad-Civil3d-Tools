@@ -211,6 +211,8 @@ public partial class Intersect
             ? session.CurrentBendRadii[handle.Index]
             : 0.0;
 
+        Point3d dragPosition = PipePlanRuntime.State.LastEditDragPoint ?? handle.GripPoint;
+
         Editor editor = document.Editor;
         double? pendingRadius = null;
 
@@ -235,7 +237,7 @@ public partial class Intersect
             if (res.Status == PromptStatus.Keyword &&
                 string.Equals(res.StringResult, "Default", StringComparison.OrdinalIgnoreCase))
             {
-                if (TryPreviewDefaultVertexRadius(document, session, handle, out double defaultRadius))
+                if (TryPreviewDefaultVertexRadius(document, session, handle, dragPosition, out double defaultRadius))
                 {
                     pendingRadius = defaultRadius;
                 }
@@ -244,7 +246,7 @@ public partial class Intersect
 
             if (res.Status == PromptStatus.None)
             {
-                CommitPendingVertexRadius(document, session, handle, current, pendingRadius);
+                CommitPendingVertexRadius(document, session, handle, dragPosition, current, pendingRadius);
                 return;
             }
 
@@ -255,7 +257,7 @@ public partial class Intersect
                 return;
             }
 
-            if (!session.TryAnalyzeVertexRadius(handle.Index, res.Value, out PipePlanAnalysis previewAnalysis, out string previewError))
+            if (!session.TryAnalyzeVertexState(handle.Index, dragPosition, res.Value, out PipePlanAnalysis previewAnalysis, out string previewError))
             {
                 ReportEditorMessage(editor, $"Radius rejected: {previewError}");
                 PipePlanRuntime.State.SetStatus(previewError, PipePlanStatusKind.Error);
@@ -272,6 +274,7 @@ public partial class Intersect
         Document document,
         PipePlanEditSession session,
         PipePlanEditHandle handle,
+        Point3d dragPosition,
         out double defaultRadius)
     {
         defaultRadius = 0.0;
@@ -288,7 +291,7 @@ public partial class Intersect
             return false;
         }
 
-        if (!session.TryAnalyzeVertexRadius(handle.Index, resolved, out PipePlanAnalysis analysis, out string error))
+        if (!session.TryAnalyzeVertexState(handle.Index, dragPosition, resolved, out PipePlanAnalysis analysis, out string error))
         {
             ReportEditorMessage(document.Editor, $"Default radius rejected: {error}");
             PipePlanRuntime.State.SetStatus(error, PipePlanStatusKind.Error);
@@ -305,6 +308,7 @@ public partial class Intersect
         Document document,
         PipePlanEditSession session,
         PipePlanEditHandle handle,
+        Point3d dragPosition,
         double current,
         double? pendingRadius)
     {
@@ -317,20 +321,33 @@ public partial class Intersect
         }
 
         double committedRadius = pendingRadius.Value;
-        if (Math.Abs(committedRadius - current) < 1e-9)
+        bool positionChanged = dragPosition.DistanceTo(handle.GripPoint) > 1e-6;
+        bool radiusChanged = Math.Abs(committedRadius - current) >= 1e-9;
+        if (!positionChanged && !radiusChanged)
         {
             PipePlanRuntime.State.SetStatus("Radius unchanged.", PipePlanStatusKind.Info);
             return;
         }
 
-        if (!session.TrySetVertexRadius(handle.Index, committedRadius, out string err))
+        if (!session.TrySetVertexState(handle.Index, dragPosition, committedRadius, out string err))
         {
             ReportEditorMessage(document.Editor, $"Radius rejected: {err}");
             PipePlanRuntime.State.SetStatus(err, PipePlanStatusKind.Error);
             return;
         }
 
-        PipePlanRuntime.State.SetStatus($"Bend radius at vertex updated to {committedRadius}.", PipePlanStatusKind.Ok);
+        if (positionChanged && radiusChanged)
+        {
+            PipePlanRuntime.State.SetStatus($"Vertex moved and radius updated to {committedRadius}.", PipePlanStatusKind.Ok);
+        }
+        else if (positionChanged)
+        {
+            PipePlanRuntime.State.SetStatus("Vertex moved.", PipePlanStatusKind.Ok);
+        }
+        else
+        {
+            PipePlanRuntime.State.SetStatus($"Bend radius at vertex updated to {committedRadius}.", PipePlanStatusKind.Ok);
+        }
     }
 
     private static PromptPointResult PromptForEditHandle(Editor editor)
@@ -365,6 +382,7 @@ public partial class Intersect
         PipePlanEditSession session,
         PipePlanEditHandle handle)
     {
+        PipePlanRuntime.State.LastEditDragPoint = handle.GripPoint;
         using PipePlanEditTracker tracker = new(document, PipePlanRuntime.State, session, handle);
         string prompt = handle.Kind == PipePlanEditHandleKind.Vertex
             ? "\nMove the selected handle, [Radius] to change bend radius, or press Enter to cancel: "

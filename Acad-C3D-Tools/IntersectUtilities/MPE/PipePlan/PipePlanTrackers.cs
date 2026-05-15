@@ -61,6 +61,7 @@ internal sealed class PipePlanEditTracker : IDisposable
     private void OnPointMonitor(object sender, PointMonitorEventArgs eventArgs)
     {
         Point3d candidatePoint = eventArgs.Context.ComputedPoint;
+        _state.LastEditDragPoint = candidatePoint;
         PipePlanEditCandidate candidate = _session.BuildCandidate(_handle, candidatePoint);
         _state.ShowPreview(candidate.Analysis);
 
