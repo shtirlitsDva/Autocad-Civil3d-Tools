@@ -148,6 +148,20 @@ internal sealed class PipePlanPreviewManager : IDisposable
     {
         try
         {
+            Document? document = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
+            if (document is not null)
+            {
+                using ViewTableRecord view = document.Editor.GetCurrentView();
+                return Math.Clamp(view.Height / 40.0, 0.3, 8.0);
+            }
+        }
+        catch
+        {
+            // Fall through to TEXTSIZE-based fallback.
+        }
+
+        try
+        {
             object? value = Autodesk.AutoCAD.ApplicationServices.Application.GetSystemVariable("TEXTSIZE");
             if (value is double textHeight && textHeight > 0.0)
             {

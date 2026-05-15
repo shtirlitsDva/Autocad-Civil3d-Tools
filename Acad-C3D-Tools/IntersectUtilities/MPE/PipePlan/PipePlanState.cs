@@ -46,7 +46,7 @@ internal sealed class PipePlanState : IDisposable
         }
 
         _manualRadius = radius;
-        RefreshDraftPreview();
+        RefreshCurrentPreview();
     }
 
     public void ClearManualRadius()
@@ -57,6 +57,17 @@ internal sealed class PipePlanState : IDisposable
         }
 
         _manualRadius = null;
+        RefreshCurrentPreview();
+    }
+
+    private void RefreshCurrentPreview()
+    {
+        if (_latestInteractiveCandidate is not null)
+        {
+            PreviewCandidate(_latestInteractiveCandidate.RawPoint, _latestInteractiveCandidate.StraightSnapActive);
+            return;
+        }
+
         RefreshDraftPreview();
     }
 

@@ -212,8 +212,8 @@ public partial class Intersect
             : 0.0;
 
         PromptDoubleOptions opts = new(current > 0.0
-            ? $"\nNew radius for vertex <{current}>: "
-            : "\nNew radius for vertex: ")
+            ? $"\nNew radius for vertex <{current}> or [Default]: "
+            : "\nNew radius for vertex or [Default]: ")
         {
             AllowNegative = false,
             AllowZero = false,
@@ -221,8 +221,16 @@ public partial class Intersect
             DefaultValue = current,
             UseDefaultValue = current > 0.0
         };
+        opts.Keywords.Add("Default");
 
         PromptDoubleResult res = document.Editor.GetDouble(opts);
+        if (res.Status == PromptStatus.Keyword &&
+            string.Equals(res.StringResult, "Default", StringComparison.OrdinalIgnoreCase))
+        {
+            ApplyDefaultRadiusToVertex(document, session, handle, current);
+            return;
+        }
+
         if (res.Status != PromptStatus.OK && res.Status != PromptStatus.None)
         {
             PipePlanRuntime.State.SetStatus("Radius edit cancelled.", PipePlanStatusKind.Info);
@@ -244,6 +252,41 @@ public partial class Intersect
         }
 
         PipePlanRuntime.State.SetStatus($"Bend radius at vertex updated to {newRadius}.", PipePlanStatusKind.Ok);
+    }
+
+    private static void ApplyDefaultRadiusToVertex(
+        Document document,
+        PipePlanEditSession session,
+        PipePlanEditHandle handle,
+        double current)
+    {
+        PipePlanActiveContext? ctx = PipePlanRuntime.State.ActiveContext;
+        if (ctx is null)
+        {
+            PipePlanRuntime.State.SetStatus("No active pipe context for default radius.", PipePlanStatusKind.Warning);
+            return;
+        }
+
+        if (!PipePlanRadiusStore.TryGet(document.Database, ctx.System, ctx.Type, ctx.Dn, out double defaultRadius) || defaultRadius <= 0.0)
+        {
+            PipePlanRuntime.State.SetStatus($"No default radius available for {ctx.System} {ctx.Type} DN{ctx.Dn}.", PipePlanStatusKind.Warning);
+            return;
+        }
+
+        if (Math.Abs(defaultRadius - current) < 1e-9)
+        {
+            PipePlanRuntime.State.SetStatus($"Vertex already at default ({defaultRadius}).", PipePlanStatusKind.Info);
+            return;
+        }
+
+        if (!session.TrySetVertexRadius(handle.Index, defaultRadius, out string err))
+        {
+            ReportEditorMessage(document.Editor, $"Radius rejected: {err}");
+            PipePlanRuntime.State.SetStatus(err, PipePlanStatusKind.Error);
+            return;
+        }
+
+        PipePlanRuntime.State.SetStatus($"Vertex reset to default radius {defaultRadius}.", PipePlanStatusKind.Ok);
     }
 
     private static PromptPointResult PromptForEditHandle(Editor editor)
@@ -402,11 +445,7 @@ public partial class Intersect
     {
         if (string.Equals(keyword, "Radius", StringComparison.OrdinalIgnoreCase))
         {
-            if (TryPromptForManualRadius(document, out double radius))
-            {
-                PipePlanRuntime.State.SetManualRadius(radius);
-                PipePlanRuntime.State.SetStatus($"Manual radius: {radius}.", PipePlanStatusKind.Info);
-            }
+            PromptForManualRadiusIterative(document);
             return;
         }
 
@@ -420,24 +459,45 @@ public partial class Intersect
         }
     }
 
-    private static bool TryPromptForManualRadius(Document document, out double radius)
+    private static void PromptForManualRadiusIterative(Document document)
     {
-        radius = 0.0;
-        PromptDoubleOptions options = new("\nManual radius: ")
-        {
-            AllowNegative = false,
-            AllowNone = false,
-            AllowZero = false
-        };
+        Editor editor = document.Editor;
+        bool anyValueEntered = false;
 
-        PromptDoubleResult result = document.Editor.GetDouble(options);
-        if (result.Status != PromptStatus.OK)
+        while (true)
         {
-            return false;
+            PromptDoubleOptions options = new("\nManual radius (Enter to confirm): ")
+            {
+                AllowNegative = false,
+                AllowNone = true,
+                AllowZero = false
+            };
+
+            PromptDoubleResult result = editor.GetDouble(options);
+            if (result.Status == PromptStatus.None)
+            {
+                if (anyValueEntered)
+                {
+                    double current = PipePlanRuntime.State.EffectiveRadius;
+                    PipePlanRuntime.State.SetStatus($"Manual radius confirmed at {current}.", PipePlanStatusKind.Ok);
+                }
+                else
+                {
+                    PipePlanRuntime.State.SetStatus("Manual radius unchanged.", PipePlanStatusKind.Info);
+                }
+                return;
+            }
+
+            if (result.Status != PromptStatus.OK)
+            {
+                PipePlanRuntime.State.SetStatus("Manual radius cancelled.", PipePlanStatusKind.Info);
+                return;
+            }
+
+            anyValueEntered = true;
+            PipePlanRuntime.State.SetManualRadius(result.Value);
+            PipePlanRuntime.State.SetStatus($"Previewing manual radius {result.Value}.", PipePlanStatusKind.Info);
         }
-
-        radius = result.Value;
-        return true;
     }
 
     private static void CompleteDraft()
