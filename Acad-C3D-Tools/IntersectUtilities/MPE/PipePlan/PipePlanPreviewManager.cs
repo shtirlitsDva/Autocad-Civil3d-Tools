@@ -35,7 +35,7 @@ internal sealed class PipePlanPreviewManager : IDisposable
         _previewEntities.Clear();
     }
 
-    public void Show(PipePlanAnalysis analysis, double globalWidth, PipePlanFittingProposal? fittingProposal = null)
+    public void Show(PipePlanAnalysis analysis, double globalWidth)
     {
         Clear();
         if (analysis.Vertices.Count < 2)
@@ -48,7 +48,6 @@ internal sealed class PipePlanPreviewManager : IDisposable
 
         AddRadiusLabels(analysis);
         AddFilletEndpointMarkers(analysis, globalWidth);
-        AddFittingPreview(fittingProposal, globalWidth);
     }
 
     private Autodesk.AutoCAD.DatabaseServices.Polyline CreatePreviewPolyline(PipePlanAnalysis analysis, double globalWidth)
@@ -88,19 +87,6 @@ internal sealed class PipePlanPreviewManager : IDisposable
         {
             AddTransient(CreateFilletEndpointMarker(marker.TangentIn, analysis, markerRadius));
             AddTransient(CreateFilletEndpointMarker(marker.TangentOut, analysis, markerRadius));
-        }
-    }
-
-    private void AddFittingPreview(PipePlanFittingProposal? fittingProposal, double globalWidth)
-    {
-        if (fittingProposal is null)
-        {
-            return;
-        }
-
-        foreach (Autodesk.AutoCAD.DatabaseServices.Polyline fittingPolyline in PipePlanFittingGeometry.CreatePolylines(fittingProposal, globalWidth))
-        {
-            AddTransient(fittingPolyline);
         }
     }
 

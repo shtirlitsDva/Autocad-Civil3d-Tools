@@ -87,12 +87,17 @@ internal sealed class PipePlanEditSession : IDisposable
     public PipePlanEditCandidate BuildCandidate(PipePlanEditHandle handle, Point3d dragPoint)
     {
         List<Point3d> controlPoints = [.. _data.ControlPoints];
-        PipePlanFittingProposal? fittingProposal = handle.Kind == PipePlanEditHandleKind.Vertex
-            ? BuildVertexCandidate(handle, dragPoint, controlPoints)
-            : BuildSegmentCandidate(handle, dragPoint, controlPoints);
+        if (handle.Kind == PipePlanEditHandleKind.Vertex)
+        {
+            BuildVertexCandidate(handle, dragPoint, controlPoints);
+        }
+        else
+        {
+            BuildSegmentCandidate(handle, dragPoint, controlPoints);
+        }
 
         PipePlanAnalysis analysis = Analyze(controlPoints);
-        return new PipePlanEditCandidate(controlPoints, analysis, fittingProposal);
+        return new PipePlanEditCandidate(controlPoints, analysis);
     }
 
     public void Commit(PipePlanEditCandidate candidate)
@@ -113,11 +118,6 @@ internal sealed class PipePlanEditSession : IDisposable
                 _data.ObjectToken);
             Polyline replacement = ReplaceGeometry(polyline, candidate.Analysis, transaction);
             PipePlanMetadata.Write(replacement, _data, transaction);
-
-            if (candidate.FittingProposal is not null)
-            {
-                AppendFittingGeometry(candidate.FittingProposal, replacement, transaction);
-            }
 
             transaction.Commit();
         }
@@ -240,19 +240,17 @@ internal sealed class PipePlanEditSession : IDisposable
         return vertexDistance <= segmentDistance ? vertexHandle : segmentHandle;
     }
 
-    private PipePlanFittingProposal? BuildVertexCandidate(PipePlanEditHandle handle, Point3d dragPoint, List<Point3d> controlPoints)
+    private static void BuildVertexCandidate(PipePlanEditHandle handle, Point3d dragPoint, List<Point3d> controlPoints)
     {
         Point3d original = controlPoints[handle.Index];
         controlPoints[handle.Index] = new Point3d(dragPoint.X, dragPoint.Y, original.Z);
-        return TryApplyVertexFittingSnap(handle.Index, controlPoints);
     }
 
-    private PipePlanFittingProposal? BuildSegmentCandidate(PipePlanEditHandle handle, Point3d dragPoint, List<Point3d> controlPoints)
+    private static void BuildSegmentCandidate(PipePlanEditHandle handle, Point3d dragPoint, List<Point3d> controlPoints)
     {
         Vector3d delta = new(dragPoint.X - handle.GripPoint.X, dragPoint.Y - handle.GripPoint.Y, 0.0);
         controlPoints[handle.Index] = controlPoints[handle.Index].Add(delta);
         controlPoints[handle.Index + 1] = controlPoints[handle.Index + 1].Add(delta);
-        return TryApplySegmentFittingSnap(handle.Index, controlPoints);
     }
 
     private PipePlanAnalysis Analyze(IReadOnlyList<Point3d> controlPoints)
@@ -294,117 +292,9 @@ internal sealed class PipePlanEditSession : IDisposable
         return replacement;
     }
 
-    private PipePlanFittingProposal? TryApplyVertexFittingSnap(int movedIndex, List<Point3d> controlPoints)
-    {
-        PipePlanFittingProposal? bestProposal = null;
-        double bestSnapDistance = double.MaxValue;
-        Point3d bestSnappedPoint = controlPoints[movedIndex];
-
-        if (movedIndex > 0)
-        {
-            TryUpdateBestFittingSnap(controlPoints[movedIndex - 1], controlPoints[movedIndex], ref bestProposal, ref bestSnappedPoint, ref bestSnapDistance);
-        }
-
-        if (movedIndex < controlPoints.Count - 1)
-        {
-            TryUpdateBestFittingSnap(controlPoints[movedIndex + 1], controlPoints[movedIndex], ref bestProposal, ref bestSnappedPoint, ref bestSnapDistance);
-        }
-
-        if (bestProposal is not null)
-        {
-            Point3d original = controlPoints[movedIndex];
-            controlPoints[movedIndex] = new Point3d(bestSnappedPoint.X, bestSnappedPoint.Y, original.Z);
-        }
-
-        return bestProposal;
-    }
-
-    private PipePlanFittingProposal? TryApplySegmentFittingSnap(int segmentIndex, List<Point3d> controlPoints)
-    {
-        PipePlanFittingProposal? bestProposal = null;
-        double bestSnapDistance = double.MaxValue;
-        Point3d bestSnappedPoint = Point3d.Origin;
-        int bestEndpointIndex = -1;
-
-        if (segmentIndex > 0)
-        {
-            Point3d movingPoint = controlPoints[segmentIndex];
-            if (TryUpdateBestFittingSnap(controlPoints[segmentIndex - 1], movingPoint, ref bestProposal, ref bestSnappedPoint, ref bestSnapDistance))
-            {
-                bestEndpointIndex = segmentIndex;
-            }
-        }
-
-        if (segmentIndex + 1 < controlPoints.Count - 1)
-        {
-            Point3d movingPoint = controlPoints[segmentIndex + 1];
-            if (TryUpdateBestFittingSnap(controlPoints[segmentIndex + 2], movingPoint, ref bestProposal, ref bestSnappedPoint, ref bestSnapDistance))
-            {
-                bestEndpointIndex = segmentIndex + 1;
-            }
-        }
-
-        if (bestProposal is null || bestEndpointIndex < 0)
-        {
-            return null;
-        }
-
-        Vector3d adjustment = bestSnappedPoint - controlPoints[bestEndpointIndex];
-        controlPoints[segmentIndex] = controlPoints[segmentIndex].Add(adjustment);
-        controlPoints[segmentIndex + 1] = controlPoints[segmentIndex + 1].Add(adjustment);
-        return bestProposal;
-    }
-
-    private bool TryUpdateBestFittingSnap(
-        Point3d anchorPoint,
-        Point3d movingPoint,
-        ref PipePlanFittingProposal? bestProposal,
-        ref Point3d bestSnappedPoint,
-        ref double bestSnapDistance)
-    {
-        if (!PipePlanFittingSnapService.TryFindBestProposal(_document, anchorPoint, movingPoint, _polylineId, out PipePlanFittingProposal? proposal, out Point3d snappedPoint, out double snapDistance) ||
-            proposal is null ||
-            snapDistance >= bestSnapDistance)
-        {
-            return false;
-        }
-
-        bestProposal = proposal;
-        bestSnappedPoint = snappedPoint;
-        bestSnapDistance = snapDistance;
-        return true;
-    }
-
-    private void AppendFittingGeometry(PipePlanFittingProposal fittingProposal, Polyline replacement, Transaction transaction)
-    {
-        double globalWidth = ResolveWidth(replacement.ConstantWidth);
-        BlockTableRecord owner = (BlockTableRecord)transaction.GetObject(replacement.OwnerId, OpenMode.ForWrite);
-
-        foreach (Polyline fittingPolyline in PipePlanFittingGeometry.CreatePolylines(fittingProposal, globalWidth))
-        {
-            fittingPolyline.LayerId = replacement.LayerId;
-            owner.AppendEntity(fittingPolyline);
-            transaction.AddNewlyCreatedDBObject(fittingPolyline, add: true);
-        }
-    }
-
     private double ResolveWidth(double fallback)
     {
-        PipeSeriesEnum series = NSPaletteAdapter.TryGetCurrentSeries(out PipeSeriesEnum s)
-            ? s
-            : PipeSeriesEnum.S3;
-
-        try
-        {
-            double kOd = PipeScheduleV2.PipeScheduleV2.GetPipeKOd(_data.System, _data.Dn, _data.Type, series);
-            if (kOd > 0.0) return kOd;
-        }
-        catch
-        {
-            // fall through
-        }
-
-        return fallback;
+        return PipePlanWidthCalculator.ResolveDrawingWidth(_data.System, _data.Type, _data.Dn, fallback);
     }
 
     private static Point3d Midpoint(Point3d a, Point3d b)

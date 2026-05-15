@@ -13,12 +13,12 @@ internal sealed class PipePlanState : IDisposable
 
     private readonly PipePlanSolver _solver = new();
     private readonly PipePlanPreviewManager _previewManager = new();
-    private readonly List<PipePlanFittingProposal> _draftFittingProposals = [];
 
     private PipePlanPalette? _palette;
     private PipePlanAnalysis? _latestAnalysis;
     private PipePlanCandidateResult? _latestInteractiveCandidate;
     private PipePlanActiveContext? _activeContext;
+    private double? _manualRadius;
     private ObjectId _continuedPolylineId = ObjectId.Null;
 
     public PipePlanState()
@@ -31,6 +31,32 @@ internal sealed class PipePlanState : IDisposable
     public string StraightSnapToleranceText { get; set; }
 
     public PipePlanActiveContext? ActiveContext => _activeContext;
+
+    public double EffectiveRadius => _manualRadius ?? _activeContext?.Radius ?? 0.0;
+
+    public bool HasManualRadiusOverride => _manualRadius.HasValue;
+
+    public void SetManualRadius(double radius)
+    {
+        if (radius <= 0.0)
+        {
+            return;
+        }
+
+        _manualRadius = radius;
+        RefreshDraftPreview();
+    }
+
+    public void ClearManualRadius()
+    {
+        if (!_manualRadius.HasValue)
+        {
+            return;
+        }
+
+        _manualRadius = null;
+        RefreshDraftPreview();
+    }
 
     public void EnsurePalette()
     {
@@ -75,21 +101,16 @@ internal sealed class PipePlanState : IDisposable
     {
         _latestInteractiveCandidate = null;
         DraftPoints.Add(candidate.FinalPoint);
-        if (candidate.FittingProposal is not null)
-        {
-            _draftFittingProposals.Add(candidate.FittingProposal);
-        }
-
         RefreshDraftPreview();
     }
 
     public void ResetDraft(bool clearStatus = true)
     {
         DraftPoints.Clear();
-        _draftFittingProposals.Clear();
         _latestAnalysis = null;
         _latestInteractiveCandidate = null;
         _continuedPolylineId = ObjectId.Null;
+        _manualRadius = null;
         _previewManager.Clear();
         if (clearStatus)
         {
@@ -117,7 +138,7 @@ internal sealed class PipePlanState : IDisposable
     {
         PipePlanCandidateResult candidate = BuildCandidateResult(rawCandidate, allowStraightSnap);
         _latestInteractiveCandidate = candidate;
-        ShowPreview(candidate.Analysis, candidate.FittingProposal);
+        ShowPreview(candidate.Analysis);
         SetStatus(GetCandidateStatusMessage(candidate), GetCandidateStatusKind(candidate));
         return candidate;
     }
@@ -152,10 +173,10 @@ internal sealed class PipePlanState : IDisposable
             analysis.IsFeasible ? PipePlanStatusKind.Ok : PipePlanStatusKind.Error);
     }
 
-    public void ShowPreview(PipePlanAnalysis analysis, PipePlanFittingProposal? fittingProposal = null)
+    public void ShowPreview(PipePlanAnalysis analysis)
     {
         double globalWidth = _activeContext?.Width ?? 0.0;
-        _previewManager.Show(analysis, globalWidth, fittingProposal);
+        _previewManager.Show(analysis, globalWidth);
     }
 
     public void ClearPreview()
@@ -222,40 +243,27 @@ internal sealed class PipePlanState : IDisposable
 
     private PipePlanAnalysis AnalyzePoints(IReadOnlyList<Point3d> points)
     {
-        if (_activeContext is null || _activeContext.Radius <= 0.0)
+        if (_activeContext is null)
         {
             return PipePlanAnalysis.Invalid(points, "No active pipe context. Activate an FJV layer in NSPalette and re-run PPDRAW.");
         }
 
-        return _solver.Analyze(points, _activeContext.Radius);
+        double radius = EffectiveRadius;
+        if (radius <= 0.0)
+        {
+            return PipePlanAnalysis.Invalid(points, "No valid bending radius. Set a manual radius (R) or configure one in PPSETTINGS.");
+        }
+
+        return _solver.Analyze(points, radius);
     }
 
     public void ApplyStoredContext(PipePlanStoredData data)
     {
         StraightSnapToleranceText = data.StraightSnapToleranceText;
 
-        double width = ResolveWidthFromStored(data);
+        double width = PipePlanWidthCalculator.ResolveDrawingWidth(data.System, data.Type, data.Dn);
         string layerName = BuildLayerName(data.System, data.Type, data.Dn);
         _activeContext = new PipePlanActiveContext(data.System, data.Type, data.Dn, width, data.Radius, layerName);
-    }
-
-    private static double ResolveWidthFromStored(PipePlanStoredData data)
-    {
-        PipeSeriesEnum series = NSPaletteAdapter.TryGetCurrentSeries(out PipeSeriesEnum s)
-            ? s
-            : PipeSeriesEnum.S3;
-
-        try
-        {
-            double kOd = PipeScheduleV2.PipeScheduleV2.GetPipeKOd(data.System, data.Dn, data.Type, series);
-            if (kOd > 0.0) return kOd;
-        }
-        catch
-        {
-            // fall through to default
-        }
-
-        return 0.0;
     }
 
     private static string BuildLayerName(PipeSystemEnum system, PipeTypeEnum type, int dn)
@@ -346,8 +354,6 @@ internal sealed class PipePlanState : IDisposable
         {
             WriteNewPolyline(transaction, analysis, context, layerName, modelSpace, storedData);
         }
-
-        AppendFittingGeometry(_draftFittingProposals, context.Width, layerName, modelSpace, transaction);
     }
 
     private static BlockTableRecord GetModelSpace(Database database, Transaction transaction)
@@ -362,7 +368,7 @@ internal sealed class PipePlanState : IDisposable
             context.System,
             context.Type,
             context.Dn,
-            context.Radius,
+            EffectiveRadius,
             StraightSnapToleranceText,
             DraftPoints);
     }
@@ -444,47 +450,19 @@ internal sealed class PipePlanState : IDisposable
             rawCandidate,
             resolution.FinalPoint,
             analysis,
-            resolution.StraightSnapActive,
-            resolution.FittingProposal);
+            resolution.StraightSnapActive);
     }
 
     private CandidateResolution ResolveCandidatePoint(Point3d rawCandidate, bool allowStraightSnap)
     {
-        Document? document = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
-        if (TryApplyFittingSnap(document, rawCandidate, out PipePlanFittingProposal? fittingProposal, out Point3d fittingSnappedPoint))
-        {
-            return new CandidateResolution(fittingSnappedPoint, false, fittingProposal);
-        }
-
         if (allowStraightSnap &&
             TryGetStraightSnapTolerance(out double tolerance) &&
             TryApplyStraightSnap(rawCandidate, tolerance, out Point3d straightSnappedPoint))
         {
-            return new CandidateResolution(straightSnappedPoint, true, null);
+            return new CandidateResolution(straightSnappedPoint, true);
         }
 
-        return new CandidateResolution(rawCandidate, false, null);
-    }
-
-    private bool TryApplyFittingSnap(
-        Document? document,
-        Point3d rawCandidate,
-        out PipePlanFittingProposal? fittingProposal,
-        out Point3d snappedPoint)
-    {
-        fittingProposal = null;
-        snappedPoint = rawCandidate;
-
-        return document is not null &&
-               DraftPoints.Count >= 1 &&
-               PipePlanFittingSnapService.TryFindBestProposal(
-                   document,
-                   DraftPoints[^1],
-                   rawCandidate,
-                   _continuedPolylineId,
-                   out fittingProposal,
-                   out snappedPoint,
-                   out _);
+        return new CandidateResolution(rawCandidate, false);
     }
 
     private bool TryApplyStraightSnap(Point3d rawCandidate, double tolerance, out Point3d snappedCandidate)
@@ -533,13 +511,6 @@ internal sealed class PipePlanState : IDisposable
             return candidate.Analysis.Message;
         }
 
-        if (candidate.FittingProposal is not null)
-        {
-            return candidate.FittingProposal.Kind == PipePlanFittingKind.Tee
-                ? "T fitting snap active."
-                : "X fitting snap active.";
-        }
-
         return candidate.StraightSnapActive
             ? "Straight snap active. Release Ctrl to disable."
             : "Current draft is feasible. Hold Ctrl to snap straight.";
@@ -552,36 +523,12 @@ internal sealed class PipePlanState : IDisposable
             return PipePlanStatusKind.Error;
         }
 
-        if (candidate.FittingProposal is not null)
-        {
-            return PipePlanStatusKind.Ok;
-        }
-
         return candidate.StraightSnapActive
             ? PipePlanStatusKind.Snap
             : PipePlanStatusKind.Ok;
     }
 
-    private static void AppendFittingGeometry(
-        IReadOnlyList<PipePlanFittingProposal> fittingProposals,
-        double globalWidth,
-        string layerName,
-        BlockTableRecord modelSpace,
-        Transaction transaction)
-    {
-        foreach (PipePlanFittingProposal fittingProposal in fittingProposals)
-        {
-            foreach (Polyline fittingPolyline in PipePlanFittingGeometry.CreatePolylines(fittingProposal, globalWidth))
-            {
-                fittingPolyline.Layer = layerName;
-                modelSpace.AppendEntity(fittingPolyline);
-                transaction.AddNewlyCreatedDBObject(fittingPolyline, add: true);
-            }
-        }
-    }
-
     private sealed record CandidateResolution(
         Point3d FinalPoint,
-        bool StraightSnapActive,
-        PipePlanFittingProposal? FittingProposal);
+        bool StraightSnapActive);
 }

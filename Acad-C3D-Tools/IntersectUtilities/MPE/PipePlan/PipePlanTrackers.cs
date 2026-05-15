@@ -62,15 +62,11 @@ internal sealed class PipePlanEditTracker : IDisposable
     {
         Point3d candidatePoint = eventArgs.Context.ComputedPoint;
         PipePlanEditCandidate candidate = _session.BuildCandidate(_handle, candidatePoint);
-        _state.ShowPreview(candidate.Analysis, candidate.FittingProposal);
+        _state.ShowPreview(candidate.Analysis);
 
         if (candidate.Analysis.IsFeasible)
         {
-            _state.SetStatus(
-                candidate.FittingProposal is null
-                    ? "Edit preview is feasible. Click to apply."
-                    : $"{candidate.FittingProposal.Kind} fitting snap active. Click to apply.",
-                PipePlanStatusKind.Ok);
+            _state.SetStatus("Edit preview is feasible. Click to apply.", PipePlanStatusKind.Ok);
         }
         else
         {

@@ -38,7 +38,7 @@ internal static class PipePlanLayerResolver
             return false;
         }
 
-        double width = ResolveWidth(system, type, dn);
+        double width = PipePlanWidthCalculator.ResolveDrawingWidth(system, type, dn);
         context = new PipePlanActiveContext(system, type, dn, width, radius, layerName);
         return true;
     }
@@ -61,22 +61,4 @@ internal static class PipePlanLayerResolver
         }
     }
 
-    private static double ResolveWidth(PipeSystemEnum system, PipeTypeEnum type, int dn)
-    {
-        PipeSeriesEnum series = NSPaletteAdapter.TryGetCurrentSeries(out PipeSeriesEnum s)
-            ? s
-            : PipeSeriesEnum.S3;
-
-        try
-        {
-            double kOd = PipeScheduleV2.PipeScheduleV2.GetPipeKOd(system, dn, type, series);
-            if (kOd > 0.0) return kOd;
-        }
-        catch
-        {
-            // fall through to default
-        }
-
-        return 0.0;
-    }
 }

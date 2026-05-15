@@ -288,6 +288,12 @@ public partial class Intersect
         while (true)
         {
             PromptPointResult result = PromptForNextDrawPoint(document);
+            if (result.Status == PromptStatus.Keyword)
+            {
+                HandleRadiusKeyword(document, result.StringResult);
+                continue;
+            }
+
             if (result.Status == PromptStatus.None)
             {
                 CompleteDraft();
@@ -310,7 +316,7 @@ public partial class Intersect
 
             PipePlanRuntime.State.AddCommittedCandidate(candidate);
             PipePlanRuntime.State.SetLatestAnalysis(candidate.Analysis);
-            PipePlanRuntime.State.ShowPreview(candidate.Analysis, candidate.FittingProposal);
+            PipePlanRuntime.State.ShowPreview(candidate.Analysis);
         }
     }
 
@@ -318,14 +324,58 @@ public partial class Intersect
     {
         using CandidatePointTracker tracker = new(document, PipePlanRuntime.State);
 
-        PromptPointOptions options = new("\nNext point or press Enter to finish: ")
+        PromptPointOptions options = new("\nNext point [Radius/Default] or press Enter to finish: ")
         {
             BasePoint = PipePlanRuntime.State.DraftPoints[^1],
             UseBasePoint = true,
             AllowNone = true
         };
+        options.Keywords.Add("Radius");
+        options.Keywords.Add("Default");
 
         return document.Editor.GetPoint(options);
+    }
+
+    private static void HandleRadiusKeyword(Document document, string keyword)
+    {
+        if (string.Equals(keyword, "Radius", StringComparison.OrdinalIgnoreCase))
+        {
+            if (TryPromptForManualRadius(document, out double radius))
+            {
+                PipePlanRuntime.State.SetManualRadius(radius);
+                PipePlanRuntime.State.SetStatus($"Manual radius: {radius}.", PipePlanStatusKind.Info);
+            }
+            return;
+        }
+
+        if (string.Equals(keyword, "Default", StringComparison.OrdinalIgnoreCase))
+        {
+            PipePlanRuntime.State.ClearManualRadius();
+            string note = PipePlanRuntime.State.ActiveContext is { Radius: var r } && r > 0.0
+                ? $"Default radius restored ({r})."
+                : "Default radius restored.";
+            PipePlanRuntime.State.SetStatus(note, PipePlanStatusKind.Info);
+        }
+    }
+
+    private static bool TryPromptForManualRadius(Document document, out double radius)
+    {
+        radius = 0.0;
+        PromptDoubleOptions options = new("\nManual radius: ")
+        {
+            AllowNegative = false,
+            AllowNone = false,
+            AllowZero = false
+        };
+
+        PromptDoubleResult result = document.Editor.GetDouble(options);
+        if (result.Status != PromptStatus.OK)
+        {
+            return false;
+        }
+
+        radius = result.Value;
+        return true;
     }
 
     private static void CompleteDraft()
@@ -346,7 +396,7 @@ public partial class Intersect
         if (!analysis.IsFeasible)
         {
             ReportEditorMessage(editor, $"Point rejected: {analysis.Message}");
-            PipePlanRuntime.State.ShowPreview(analysis, candidate.FittingProposal);
+            PipePlanRuntime.State.ShowPreview(analysis);
             PipePlanRuntime.State.SetStatus(analysis.Message, PipePlanStatusKind.Error);
             return false;
         }
@@ -383,16 +433,29 @@ public partial class Intersect
             return false;
         }
 
-        PromptPointResult firstPointResult = editor.GetPoint("\nFirst point: ");
-        if (firstPointResult.Status != PromptStatus.OK)
+        while (true)
         {
-            PipePlanRuntime.State.SetStatus("Drawing cancelled.", PipePlanStatusKind.Info);
-            return false;
-        }
+            PromptPointOptions firstPointOptions = new("\nFirst point [Radius/Default]: ");
+            firstPointOptions.Keywords.Add("Radius");
+            firstPointOptions.Keywords.Add("Default");
 
-        PipePlanRuntime.State.AddDraftPoint(firstPointResult.Value);
-        PipePlanRuntime.State.RefreshDraftPreview();
-        return true;
+            PromptPointResult firstPointResult = editor.GetPoint(firstPointOptions);
+            if (firstPointResult.Status == PromptStatus.Keyword)
+            {
+                HandleRadiusKeyword(document, firstPointResult.StringResult);
+                continue;
+            }
+
+            if (firstPointResult.Status != PromptStatus.OK)
+            {
+                PipePlanRuntime.State.SetStatus("Drawing cancelled.", PipePlanStatusKind.Info);
+                return false;
+            }
+
+            PipePlanRuntime.State.AddDraftPoint(firstPointResult.Value);
+            PipePlanRuntime.State.RefreshDraftPreview();
+            return true;
+        }
     }
 
     private static bool TryContinueExisting(Document document, out string errorMessage)

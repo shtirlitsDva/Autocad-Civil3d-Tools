@@ -62,18 +62,11 @@ internal readonly record struct PipePlanFilletEndpointMarker(
     Point3d TangentIn,
     Point3d TangentOut);
 
-internal sealed record PipePlanFittingProposal(
-    PipePlanFittingKind Kind,
-    Point3d IntersectionPoint,
-    Vector3d StaticDirection,
-    Vector3d BranchDirection);
-
 internal sealed record PipePlanCandidateResult(
     Point3d RawPoint,
     Point3d FinalPoint,
     PipePlanAnalysis Analysis,
-    bool StraightSnapActive,
-    PipePlanFittingProposal? FittingProposal = null);
+    bool StraightSnapActive);
 
 internal sealed record PipePlanEditHandle(
     PipePlanEditHandleKind Kind,
@@ -82,8 +75,7 @@ internal sealed record PipePlanEditHandle(
 
 internal sealed record PipePlanEditCandidate(
     IReadOnlyList<Point3d> ControlPoints,
-    PipePlanAnalysis Analysis,
-    PipePlanFittingProposal? FittingProposal = null);
+    PipePlanAnalysis Analysis);
 
 internal enum PipePlanStatusKind
 {
@@ -104,10 +96,4 @@ internal enum PipePlanEditHandleKind
 {
     Vertex,
     Segment
-}
-
-internal enum PipePlanFittingKind
-{
-    Tee,
-    Cross
 }

@@ -239,21 +239,7 @@ internal static class PipePlanSplitService
 
     private static double ResolveWidth(PipePlanStoredData data, double fallback)
     {
-        PipeSeriesEnum series = NSPaletteAdapter.TryGetCurrentSeries(out PipeSeriesEnum s)
-            ? s
-            : PipeSeriesEnum.S3;
-
-        try
-        {
-            double kOd = PipeScheduleV2.PipeScheduleV2.GetPipeKOd(data.System, data.Dn, data.Type, series);
-            if (kOd > 0.0) return kOd;
-        }
-        catch
-        {
-            // fall through to fallback
-        }
-
-        return fallback;
+        return PipePlanWidthCalculator.ResolveDrawingWidth(data.System, data.Type, data.Dn, fallback);
     }
 
     private static Polyline CreateSplitPolyline(
