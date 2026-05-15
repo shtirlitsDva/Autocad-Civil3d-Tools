@@ -112,7 +112,7 @@ internal sealed class PipePlanEditSession : IDisposable
                 _data.System,
                 _data.Type,
                 _data.Dn,
-                _data.Radius,
+                _data.BendRadii,
                 _data.StraightSnapToleranceText,
                 candidate.ControlPoints,
                 _data.ObjectToken);
@@ -126,6 +126,58 @@ internal sealed class PipePlanEditSession : IDisposable
             transaction.Abort();
             throw;
         }
+    }
+
+    public bool TrySetVertexRadius(int vertexIndex, double radius, out string error)
+    {
+        error = string.Empty;
+        if (vertexIndex <= 0 || vertexIndex >= _data.ControlPoints.Count - 1)
+        {
+            error = "Endpoint vertices do not have a bend radius.";
+            return false;
+        }
+
+        if (radius <= 0.0)
+        {
+            error = "Radius must be greater than zero.";
+            return false;
+        }
+
+        List<double> updatedRadii = [.. _data.BendRadii];
+        updatedRadii[vertexIndex] = radius;
+
+        PipePlanAnalysis analysis = _solver.Analyze(_data.ControlPoints, updatedRadii);
+        if (!analysis.IsFeasible)
+        {
+            error = analysis.Message;
+            return false;
+        }
+
+        using DocumentLock documentLock = _document.LockDocument();
+        using Transaction transaction = _document.Database.TransactionManager.StartTransaction();
+
+        try
+        {
+            Polyline polyline = (Polyline)transaction.GetObject(_polylineId, OpenMode.ForWrite);
+            _data = new PipePlanStoredData(
+                _data.System,
+                _data.Type,
+                _data.Dn,
+                updatedRadii,
+                _data.StraightSnapToleranceText,
+                _data.ControlPoints,
+                _data.ObjectToken);
+            Polyline replacement = ReplaceGeometry(polyline, analysis, transaction);
+            PipePlanMetadata.Write(replacement, _data, transaction);
+            transaction.Commit();
+        }
+        catch
+        {
+            transaction.Abort();
+            throw;
+        }
+
+        return true;
     }
 
     private static bool TryPickEditablePolyline(Document document, out ObjectId polylineId, out string errorMessage)
@@ -255,13 +307,15 @@ internal sealed class PipePlanEditSession : IDisposable
 
     private PipePlanAnalysis Analyze(IReadOnlyList<Point3d> controlPoints)
     {
-        if (_data.Radius <= 0.0)
+        if (controlPoints.Count != _data.BendRadii.Count)
         {
-            return PipePlanAnalysis.Invalid(controlPoints, "Stored radius is not valid.");
+            return PipePlanAnalysis.Invalid(controlPoints, "Control points and bend radii are out of sync.");
         }
 
-        return _solver.Analyze(controlPoints, _data.Radius);
+        return _solver.Analyze(controlPoints, _data.BendRadii);
     }
+
+    public IReadOnlyList<double> CurrentBendRadii => _data.BendRadii;
 
     private Polyline ReplaceGeometry(Polyline sourcePolyline, PipePlanAnalysis analysis, Transaction transaction)
     {

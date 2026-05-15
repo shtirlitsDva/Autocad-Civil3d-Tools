@@ -12,14 +12,14 @@ internal static class PipePlanGeometryValidator
     {
         errorMessage = string.Empty;
 
-        if (data.Radius <= 0.0)
+        if (data.BendRadii.Count != data.ControlPoints.Count)
         {
-            errorMessage = "Stored radius is not valid.";
+            errorMessage = "Stored bend radii are out of sync with control points.";
             return false;
         }
 
         PipePlanSolver solver = new();
-        PipePlanAnalysis analysis = solver.Analyze(data.ControlPoints, data.Radius);
+        PipePlanAnalysis analysis = solver.Analyze(data.ControlPoints, data.BendRadii);
         if (!analysis.IsFeasible)
         {
             errorMessage = $"Stored PipePlan metadata is no longer valid: {analysis.Message}";

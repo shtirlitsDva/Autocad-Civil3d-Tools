@@ -175,6 +175,13 @@ public partial class Intersect
 
             session.ClearVisuals();
             PromptPointResult dragResult = PromptForEditMove(document, session, handle);
+            if (dragResult.Status == PromptStatus.Keyword &&
+                string.Equals(dragResult.StringResult, "Radius", StringComparison.OrdinalIgnoreCase))
+            {
+                HandleVertexRadiusEdit(document, session, handle);
+                continue;
+            }
+
             if (dragResult.Status == PromptStatus.None)
             {
                 PipePlanRuntime.State.ClearPreview();
@@ -191,6 +198,52 @@ public partial class Intersect
 
             ApplyEditCandidate(document, session, handle, dragResult.Value);
         }
+    }
+
+    private static void HandleVertexRadiusEdit(Document document, PipePlanEditSession session, PipePlanEditHandle handle)
+    {
+        if (handle.Kind != PipePlanEditHandleKind.Vertex)
+        {
+            return;
+        }
+
+        double current = handle.Index < session.CurrentBendRadii.Count
+            ? session.CurrentBendRadii[handle.Index]
+            : 0.0;
+
+        PromptDoubleOptions opts = new(current > 0.0
+            ? $"\nNew radius for vertex <{current}>: "
+            : "\nNew radius for vertex: ")
+        {
+            AllowNegative = false,
+            AllowZero = false,
+            AllowNone = current > 0.0,
+            DefaultValue = current,
+            UseDefaultValue = current > 0.0
+        };
+
+        PromptDoubleResult res = document.Editor.GetDouble(opts);
+        if (res.Status != PromptStatus.OK && res.Status != PromptStatus.None)
+        {
+            PipePlanRuntime.State.SetStatus("Radius edit cancelled.", PipePlanStatusKind.Info);
+            return;
+        }
+
+        double newRadius = res.Status == PromptStatus.None ? current : res.Value;
+        if (Math.Abs(newRadius - current) < 1e-9)
+        {
+            PipePlanRuntime.State.SetStatus("Radius unchanged.", PipePlanStatusKind.Info);
+            return;
+        }
+
+        if (!session.TrySetVertexRadius(handle.Index, newRadius, out string err))
+        {
+            ReportEditorMessage(document.Editor, $"Radius rejected: {err}");
+            PipePlanRuntime.State.SetStatus(err, PipePlanStatusKind.Error);
+            return;
+        }
+
+        PipePlanRuntime.State.SetStatus($"Bend radius at vertex updated to {newRadius}.", PipePlanStatusKind.Ok);
     }
 
     private static PromptPointResult PromptForEditHandle(Editor editor)
@@ -226,12 +279,21 @@ public partial class Intersect
         PipePlanEditHandle handle)
     {
         using PipePlanEditTracker tracker = new(document, PipePlanRuntime.State, session, handle);
-        PromptPointOptions dragOptions = new("\nMove the selected handle or press Enter to cancel: ")
+        string prompt = handle.Kind == PipePlanEditHandleKind.Vertex
+            ? "\nMove the selected handle, [Radius] to change bend radius, or press Enter to cancel: "
+            : "\nMove the selected handle or press Enter to cancel: ";
+
+        PromptPointOptions dragOptions = new(prompt)
         {
             BasePoint = handle.GripPoint,
             UseBasePoint = true,
             AllowNone = true
         };
+
+        if (handle.Kind == PipePlanEditHandleKind.Vertex)
+        {
+            dragOptions.Keywords.Add("Radius");
+        }
 
         return document.Editor.GetPoint(dragOptions);
     }

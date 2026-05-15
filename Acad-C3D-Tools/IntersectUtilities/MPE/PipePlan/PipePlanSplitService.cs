@@ -137,10 +137,10 @@ internal static class PipePlanSplitService
             return false;
         }
 
-        radius = data.Radius;
+        radius = data.BendRadii.Where(r => r > 0.0).DefaultIfEmpty(0.0).First();
         if (radius <= 0.0)
         {
-            message = "Stored radius is not valid.";
+            message = "Stored radii are not valid.";
             return false;
         }
 
@@ -199,16 +199,19 @@ internal static class PipePlanSplitService
             return false;
         }
 
+        List<double> leftRadii = [.. data.BendRadii.Take(controlSegmentIndex + 1), 0.0];
+        List<double> rightRadii = [0.0, .. data.BendRadii.Skip(controlSegmentIndex + 1)];
+
         PipePlanSolver solver = new();
-        PipePlanAnalysis leftAnalysis = solver.Analyze(leftControlPoints, radius);
-        PipePlanAnalysis rightAnalysis = solver.Analyze(rightControlPoints, radius);
+        PipePlanAnalysis leftAnalysis = solver.Analyze(leftControlPoints, leftRadii);
+        PipePlanAnalysis rightAnalysis = solver.Analyze(rightControlPoints, rightRadii);
         if (!leftAnalysis.IsFeasible || !rightAnalysis.IsFeasible)
         {
             message = !leftAnalysis.IsFeasible ? leftAnalysis.Message : rightAnalysis.Message;
             return false;
         }
 
-        splitResult = new SplitResult(leftControlPoints, rightControlPoints, leftAnalysis, rightAnalysis);
+        splitResult = new SplitResult(leftControlPoints, rightControlPoints, leftRadii, rightRadii, leftAnalysis, rightAnalysis);
         return true;
     }
 
@@ -227,11 +230,11 @@ internal static class PipePlanSplitService
 
         PipePlanMetadata.Write(
             leftPolyline,
-            new PipePlanStoredData(data.System, data.Type, data.Dn, data.Radius, data.StraightSnapToleranceText, splitResult.LeftControlPoints),
+            new PipePlanStoredData(data.System, data.Type, data.Dn, splitResult.LeftBendRadii, data.StraightSnapToleranceText, splitResult.LeftControlPoints),
             transaction);
         PipePlanMetadata.Write(
             rightPolyline,
-            new PipePlanStoredData(data.System, data.Type, data.Dn, data.Radius, data.StraightSnapToleranceText, splitResult.RightControlPoints),
+            new PipePlanStoredData(data.System, data.Type, data.Dn, splitResult.RightBendRadii, data.StraightSnapToleranceText, splitResult.RightControlPoints),
             transaction);
 
         sourcePolyline.Erase();
@@ -408,6 +411,8 @@ internal static class PipePlanSplitService
     private sealed record SplitResult(
         IReadOnlyList<Point3d> LeftControlPoints,
         IReadOnlyList<Point3d> RightControlPoints,
+        IReadOnlyList<double> LeftBendRadii,
+        IReadOnlyList<double> RightBendRadii,
         PipePlanAnalysis LeftAnalysis,
         PipePlanAnalysis RightAnalysis);
 }

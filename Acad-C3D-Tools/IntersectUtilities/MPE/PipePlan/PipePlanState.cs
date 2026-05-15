@@ -28,6 +28,8 @@ internal sealed class PipePlanState : IDisposable
 
     public List<Point3d> DraftPoints { get; } = [];
 
+    public List<double> DraftBendRadii { get; } = [];
+
     public string StraightSnapToleranceText { get; set; }
 
     public PipePlanActiveContext? ActiveContext => _activeContext;
@@ -93,20 +95,33 @@ internal sealed class PipePlanState : IDisposable
     public void AddDraftPoint(Point3d point)
     {
         _latestInteractiveCandidate = null;
-        DraftPoints.Add(point);
+        AppendDraftPoint(point);
         RefreshDraftPreview();
     }
 
     public void AddCommittedCandidate(PipePlanCandidateResult candidate)
     {
         _latestInteractiveCandidate = null;
-        DraftPoints.Add(candidate.FinalPoint);
+        AppendDraftPoint(candidate.FinalPoint);
         RefreshDraftPreview();
+    }
+
+    private void AppendDraftPoint(Point3d point)
+    {
+        DraftPoints.Add(point);
+        DraftBendRadii.Add(0.0);
+        int total = DraftPoints.Count;
+        if (total >= 3)
+        {
+            // The former endpoint (now at total - 2) is interior; assign current effective radius.
+            DraftBendRadii[total - 2] = EffectiveRadius;
+        }
     }
 
     public void ResetDraft(bool clearStatus = true)
     {
         DraftPoints.Clear();
+        DraftBendRadii.Clear();
         _latestAnalysis = null;
         _latestInteractiveCandidate = null;
         _continuedPolylineId = ObjectId.Null;
@@ -120,13 +135,21 @@ internal sealed class PipePlanState : IDisposable
 
     public PipePlanAnalysis AnalyzeCurrentDraft()
     {
-        return AnalyzePoints(DraftPoints);
+        return AnalyzePoints(DraftPoints, DraftBendRadii);
     }
 
     public PipePlanAnalysis AnalyzeWithCandidate(Point3d candidate)
     {
         List<Point3d> points = [.. DraftPoints, candidate];
-        return AnalyzePoints(points);
+        List<double> radii = new(points.Count);
+        radii.AddRange(DraftBendRadii);
+        radii.Add(0.0);
+        if (points.Count >= 3)
+        {
+            radii[points.Count - 2] = EffectiveRadius;
+        }
+
+        return AnalyzePoints(points, radii);
     }
 
     public void SetLatestAnalysis(PipePlanAnalysis analysis)
@@ -195,14 +218,21 @@ internal sealed class PipePlanState : IDisposable
 
         _continuedPolylineId = polylineId;
         DraftPoints.Clear();
+        DraftBendRadii.Clear();
         _latestAnalysis = null;
         _latestInteractiveCandidate = null;
 
-        IEnumerable<Point3d> orderedPoints = reverse
-            ? data.ControlPoints.AsEnumerable().Reverse()
-            : data.ControlPoints;
+        if (reverse)
+        {
+            DraftPoints.AddRange(data.ControlPoints.AsEnumerable().Reverse());
+            DraftBendRadii.AddRange(data.BendRadii.AsEnumerable().Reverse());
+        }
+        else
+        {
+            DraftPoints.AddRange(data.ControlPoints);
+            DraftBendRadii.AddRange(data.BendRadii);
+        }
 
-        DraftPoints.AddRange(orderedPoints);
         RefreshDraftPreview();
     }
 
@@ -241,20 +271,19 @@ internal sealed class PipePlanState : IDisposable
         document.Editor.WriteMessage($"\n{successMessage}");
     }
 
-    private PipePlanAnalysis AnalyzePoints(IReadOnlyList<Point3d> points)
+    private PipePlanAnalysis AnalyzePoints(IReadOnlyList<Point3d> points, IReadOnlyList<double> radii)
     {
         if (_activeContext is null)
         {
             return PipePlanAnalysis.Invalid(points, "No active pipe context. Activate an FJV layer in NSPalette and re-run PPDRAW.");
         }
 
-        double radius = EffectiveRadius;
-        if (radius <= 0.0)
+        if (EffectiveRadius <= 0.0)
         {
             return PipePlanAnalysis.Invalid(points, "No valid bending radius. Set a manual radius (R) or configure one in PPSETTINGS.");
         }
 
-        return _solver.Analyze(points, radius);
+        return _solver.Analyze(points, radii);
     }
 
     public void ApplyStoredContext(PipePlanStoredData data)
@@ -263,7 +292,25 @@ internal sealed class PipePlanState : IDisposable
 
         double width = PipePlanWidthCalculator.ResolveDrawingWidth(data.System, data.Type, data.Dn);
         string layerName = BuildLayerName(data.System, data.Type, data.Dn);
-        _activeContext = new PipePlanActiveContext(data.System, data.Type, data.Dn, width, data.Radius, layerName);
+        double defaultRadius = ResolveDefaultRadiusFromData(data);
+        _activeContext = new PipePlanActiveContext(data.System, data.Type, data.Dn, width, defaultRadius, layerName);
+    }
+
+    private static double ResolveDefaultRadiusFromData(PipePlanStoredData data)
+    {
+        Document? doc = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
+        if (doc is not null &&
+            PipePlanRadiusStore.TryGet(doc.Database, data.System, data.Type, data.Dn, out double storeValue))
+        {
+            return storeValue;
+        }
+
+        for (int i = 1; i < data.BendRadii.Count - 1; i++)
+        {
+            if (data.BendRadii[i] > 0.0) return data.BendRadii[i];
+        }
+
+        return 0.0;
     }
 
     private static string BuildLayerName(PipeSystemEnum system, PipeTypeEnum type, int dn)
@@ -368,7 +415,7 @@ internal sealed class PipePlanState : IDisposable
             context.System,
             context.Type,
             context.Dn,
-            EffectiveRadius,
+            DraftBendRadii,
             StraightSnapToleranceText,
             DraftPoints);
     }

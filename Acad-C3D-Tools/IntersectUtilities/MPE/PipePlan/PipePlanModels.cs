@@ -18,16 +18,21 @@ internal sealed class PipePlanStoredData
         PipeSystemEnum system,
         PipeTypeEnum type,
         int dn,
-        double radius,
+        IReadOnlyList<double> bendRadii,
         string straightSnapToleranceText,
         IReadOnlyList<Point3d> controlPoints,
         string? objectToken = null)
     {
+        if (bendRadii.Count != controlPoints.Count)
+        {
+            throw new ArgumentException("bendRadii must be aligned with controlPoints.");
+        }
+
         ObjectToken = string.IsNullOrWhiteSpace(objectToken) ? Guid.NewGuid().ToString("N") : objectToken;
         System = system;
         Type = type;
         Dn = dn;
-        Radius = radius;
+        BendRadii = [.. bendRadii];
         StraightSnapToleranceText = straightSnapToleranceText;
         ControlPoints = [.. controlPoints];
     }
@@ -40,7 +45,7 @@ internal sealed class PipePlanStoredData
 
     public int Dn { get; set; }
 
-    public double Radius { get; set; }
+    public List<double> BendRadii { get; }
 
     public string StraightSnapToleranceText { get; set; }
 
@@ -48,7 +53,29 @@ internal sealed class PipePlanStoredData
 
     public string SizeDisplay => $"{System} {Type} DN{Dn}";
 
-    public string RadiusDisplay => Radius.ToString("0.###", CultureInfo.InvariantCulture);
+    public string RadiusDisplay
+    {
+        get
+        {
+            var interior = BendRadii.Skip(1).Take(Math.Max(0, BendRadii.Count - 2)).Where(r => r > 0.0).ToList();
+            if (interior.Count == 0) return "-";
+            double first = interior[0];
+            bool uniform = interior.All(r => Math.Abs(r - first) < 1e-6);
+            return uniform
+                ? first.ToString("0.###", CultureInfo.InvariantCulture)
+                : $"{interior.Min().ToString("0.###", CultureInfo.InvariantCulture)}–{interior.Max().ToString("0.###", CultureInfo.InvariantCulture)}";
+        }
+    }
+
+    public static List<double> CreateUniformRadii(int controlPointCount, double radius)
+    {
+        List<double> radii = new(controlPointCount);
+        for (int i = 0; i < controlPointCount; i++)
+        {
+            radii.Add(i == 0 || i == controlPointCount - 1 ? 0.0 : radius);
+        }
+        return radii;
+    }
 }
 
 internal readonly record struct PolylineVertexData(Point2d Point, double Bulge);
