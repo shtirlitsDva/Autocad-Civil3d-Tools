@@ -29,16 +29,20 @@ internal static class PipePlanRadiusStore
         (PipeSystemEnum.AluPex, PipeTypeEnum.Retur),
     ];
 
-    private static readonly Dictionary<(PipeSystemEnum, PipeTypeEnum, int), double> Defaults = new()
-    {
-        { (PipeSystemEnum.Stål, PipeTypeEnum.Twin, 50), 36.0 },
-        { (PipeSystemEnum.Stål, PipeTypeEnum.Twin, 100), 68.0 },
-        { (PipeSystemEnum.Stål, PipeTypeEnum.Twin, 150), 101.0 },
-        { (PipeSystemEnum.Stål, PipeTypeEnum.Twin, 200), 132.0 },
-        { (PipeSystemEnum.Stål, PipeTypeEnum.Twin, 250), 164.0 },
-    };
-
     public static IReadOnlyList<(PipeSystemEnum System, PipeTypeEnum Type)> GetAcceptedCombos() => AcceptedCombos;
+
+    private static double GetApiRadius(PipeSystemEnum system, PipeTypeEnum type, int dn)
+    {
+        try
+        {
+            return PipeScheduleV2.PipeScheduleV2
+                .GetPipeMinElasticRadiusHorizontalCharacteristic(system, dn, type, considerInSituBending: false);
+        }
+        catch
+        {
+            return 0.0;
+        }
+    }
 
     public static bool IsAcceptedCombo(PipeSystemEnum system, PipeTypeEnum type)
     {
@@ -59,9 +63,10 @@ internal static class PipePlanRadiusStore
             return true;
         }
 
-        if (Defaults.TryGetValue((system, type, dn), out double defaultValue) && defaultValue > 0.0)
+        double apiValue = GetApiRadius(system, type, dn);
+        if (apiValue > 0.0)
         {
-            radius = defaultValue;
+            radius = apiValue;
             return true;
         }
 
@@ -155,9 +160,10 @@ internal static class PipePlanRadiusStore
                     continue;
                 }
 
-                if (Defaults.TryGetValue(key, out double defaultValue) && defaultValue > 0.0)
+                double apiValue = GetApiRadius(system, type, dn);
+                if (apiValue > 0.0)
                 {
-                    entries.Add(new PipePlanRadiusEntry(system, type, dn, defaultValue, PipePlanRadiusSource.Default));
+                    entries.Add(new PipePlanRadiusEntry(system, type, dn, apiValue, PipePlanRadiusSource.Default));
                     continue;
                 }
 

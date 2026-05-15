@@ -157,7 +157,7 @@ internal sealed partial class PipePlanRadiusEntryVm : ObservableObject
     public string SourceLabel => Source switch
     {
         PipePlanRadiusSource.Override => "override",
-        PipePlanRadiusSource.Default => "default",
+        PipePlanRadiusSource.Default => "api",
         _ => "missing"
     };
 

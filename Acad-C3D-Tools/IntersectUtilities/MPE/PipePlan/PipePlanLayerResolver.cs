@@ -26,6 +26,12 @@ internal static class PipePlanLayerResolver
             return false;
         }
 
+        if (IsEnkeltPipe(system, type))
+        {
+            error = "Enkelt pipes are currently not supported.";
+            return false;
+        }
+
         if (!PipePlanRadiusStore.IsAcceptedCombo(system, type))
         {
             error = $"PipePlan supports twin bonded-steel (FJV-TWIN-DN…) and ALUPEX layers only. Active layer: '{layerName}' ({system} {type}).";
@@ -41,6 +47,13 @@ internal static class PipePlanLayerResolver
         double width = PipePlanWidthCalculator.ResolveDrawingWidth(system, type, dn);
         context = new PipePlanActiveContext(system, type, dn, width, radius, layerName);
         return true;
+    }
+
+    private static bool IsEnkeltPipe(PipeSystemEnum system, PipeTypeEnum type)
+    {
+        if (type == PipeTypeEnum.Enkelt) return true;
+        if (system == PipeSystemEnum.Stål && (type == PipeTypeEnum.Frem || type == PipeTypeEnum.Retur)) return true;
+        return false;
     }
 
     private static bool TryReadActiveLayerName(Database db, out string layerName)
