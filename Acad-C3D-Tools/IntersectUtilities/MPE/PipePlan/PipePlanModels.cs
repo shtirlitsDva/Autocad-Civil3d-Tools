@@ -1,78 +1,54 @@
+using System.Globalization;
 using Autodesk.AutoCAD.Geometry;
+using IntersectUtilities.UtilsCommon.Enums;
 
 namespace IntersectUtilities.MPE.PipePlan;
 
-internal sealed class PipeSizeOption
-{
-    public PipeSizeOption(string name)
-    {
-        Name = name;
-        RadiusText = "1.0";
-    }
-
-    public string Name { get; }
-
-    public string RadiusText { get; set; }
-
-    public bool TryGetRadius(out double radius)
-    {
-        return PipePlanParsing.TryParsePositiveDouble(RadiusText, out radius);
-    }
-
-    public string GetLayerName()
-    {
-        return $"PIPEPLAN_{Name.Replace(" ", string.Empty, StringComparison.OrdinalIgnoreCase)}";
-    }
-
-    public double GetGlobalWidth()
-    {
-        return TryGetGlobalWidth(Name, out double globalWidth) ? globalWidth : 0.0;
-    }
-
-    public static bool TryGetGlobalWidth(string? sizeName, out double globalWidth)
-    {
-        globalWidth = 0.0;
-        if (string.IsNullOrWhiteSpace(sizeName))
-        {
-            return false;
-        }
-
-        string digits = new(sizeName.Where(char.IsDigit).ToArray());
-        if (!PipePlanParsing.TryParseDouble(digits, out double nominalDiameter) || nominalDiameter <= 0.0)
-        {
-            return false;
-        }
-
-        globalWidth = (nominalDiameter * 2.0) / 1000.0;
-        return true;
-    }
-
-    public override string ToString()
-    {
-        return Name;
-    }
-}
+internal sealed record PipePlanActiveContext(
+    PipeSystemEnum System,
+    PipeTypeEnum Type,
+    int Dn,
+    double Width,
+    double Radius,
+    string LayerName);
 
 internal sealed class PipePlanStoredData
 {
-    public PipePlanStoredData(string sizeName, string radiusText, string straightSnapToleranceText, IReadOnlyList<Point3d> controlPoints, string? objectToken = null)
+    public PipePlanStoredData(
+        PipeSystemEnum system,
+        PipeTypeEnum type,
+        int dn,
+        double radius,
+        string straightSnapToleranceText,
+        IReadOnlyList<Point3d> controlPoints,
+        string? objectToken = null)
     {
         ObjectToken = string.IsNullOrWhiteSpace(objectToken) ? Guid.NewGuid().ToString("N") : objectToken;
-        SizeName = sizeName;
-        RadiusText = radiusText;
+        System = system;
+        Type = type;
+        Dn = dn;
+        Radius = radius;
         StraightSnapToleranceText = straightSnapToleranceText;
         ControlPoints = [.. controlPoints];
     }
 
     public string ObjectToken { get; set; }
 
-    public string SizeName { get; set; }
+    public PipeSystemEnum System { get; set; }
 
-    public string RadiusText { get; set; }
+    public PipeTypeEnum Type { get; set; }
+
+    public int Dn { get; set; }
+
+    public double Radius { get; set; }
 
     public string StraightSnapToleranceText { get; set; }
 
     public List<Point3d> ControlPoints { get; }
+
+    public string SizeDisplay => $"{System} {Type} DN{Dn}";
+
+    public string RadiusDisplay => Radius.ToString("0.###", CultureInfo.InvariantCulture);
 }
 
 internal readonly record struct PolylineVertexData(Point2d Point, double Bulge);

@@ -12,14 +12,14 @@ internal static class PipePlanGeometryValidator
     {
         errorMessage = string.Empty;
 
-        if (!TryParseRadius(data.RadiusText, out double radius))
+        if (data.Radius <= 0.0)
         {
-            errorMessage = $"Stored radius '{data.RadiusText}' is not valid.";
+            errorMessage = "Stored radius is not valid.";
             return false;
         }
 
         PipePlanSolver solver = new();
-        PipePlanAnalysis analysis = solver.Analyze(data.ControlPoints, radius);
+        PipePlanAnalysis analysis = solver.Analyze(data.ControlPoints, data.Radius);
         if (!analysis.IsFeasible)
         {
             errorMessage = $"Stored PipePlan metadata is no longer valid: {analysis.Message}";
@@ -47,10 +47,5 @@ internal static class PipePlanGeometryValidator
         }
 
         return true;
-    }
-
-    private static bool TryParseRadius(string radiusText, out double radius)
-    {
-        return PipePlanParsing.TryParsePositiveDouble(radiusText, out radius);
     }
 }

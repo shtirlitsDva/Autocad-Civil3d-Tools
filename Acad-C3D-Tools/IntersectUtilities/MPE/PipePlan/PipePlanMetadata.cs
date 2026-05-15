@@ -1,5 +1,6 @@
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
+using IntersectUtilities.UtilsCommon.Enums;
 
 namespace IntersectUtilities.MPE.PipePlan;
 
@@ -11,18 +12,19 @@ internal static class PipePlanMetadata
     private const string LegacyPipeGeometryDataKey = "PIPEPLAN_DATA";
     private const string PipeGeometryDataVersionV1 = "PIPEPLAN_V1";
     private const string PipeGeometryDataVersionV2 = "PIPEPLAN_V2";
+    private const string PipeGeometryDataVersionV3 = "PIPEPLAN_V3";
 
-    public static ResultBuffer CreatePipeTag(string sizeName, string radiusText)
+    public static ResultBuffer CreatePipeTag(PipeSystemEnum system, PipeTypeEnum type, int dn, double radius)
     {
         return new ResultBuffer(
             new TypedValue((int)DxfCode.ExtendedDataRegAppName, PipeTagAppName),
-            new TypedValue((int)DxfCode.ExtendedDataAsciiString, sizeName),
-            new TypedValue((int)DxfCode.ExtendedDataAsciiString, radiusText));
+            new TypedValue((int)DxfCode.ExtendedDataAsciiString, $"{system} {type} DN{dn}"),
+            new TypedValue((int)DxfCode.ExtendedDataReal, radius));
     }
 
     public static void Write(Polyline polyline, PipePlanStoredData data, Transaction transaction)
     {
-        polyline.XData = CreatePipeTag(data.SizeName, data.RadiusText);
+        polyline.XData = CreatePipeTag(data.System, data.Type, data.Dn, data.Radius);
 
         if (polyline.ExtensionDictionary == ObjectId.Null)
         {
@@ -106,10 +108,12 @@ internal static class PipePlanMetadata
     {
         List<TypedValue> values =
         [
-            new TypedValue((int)DxfCode.Text, PipeGeometryDataVersionV2),
+            new TypedValue((int)DxfCode.Text, PipeGeometryDataVersionV3),
             new TypedValue((int)DxfCode.Text, data.ObjectToken),
-            new TypedValue((int)DxfCode.Text, data.SizeName),
-            new TypedValue((int)DxfCode.Text, data.RadiusText),
+            new TypedValue((int)DxfCode.Int32, (int)data.System),
+            new TypedValue((int)DxfCode.Int32, (int)data.Type),
+            new TypedValue((int)DxfCode.Int32, data.Dn),
+            new TypedValue((int)DxfCode.Real, data.Radius),
             new TypedValue((int)DxfCode.Text, data.StraightSnapToleranceText),
             new TypedValue((int)DxfCode.Int32, data.ControlPoints.Count)
         ];
@@ -127,77 +131,106 @@ internal static class PipePlanMetadata
         }
 
         string? versionToken = values[0].Value as string;
-        if (string.Equals(versionToken, PipeGeometryDataVersionV2, StringComparison.Ordinal))
+        return versionToken switch
         {
-            return TryReadV2(values, out data);
-        }
+            PipeGeometryDataVersionV3 => TryReadV3(values, out data),
+            PipeGeometryDataVersionV2 => TryReadV2(values, out data),
+            PipeGeometryDataVersionV1 => TryReadV1(values, out data),
+            _ => false
+        };
+    }
 
-        return string.Equals(versionToken, PipeGeometryDataVersionV1, StringComparison.Ordinal) &&
-               TryReadV1(values, out data);
+    private static bool TryReadV3(TypedValue[] values, out PipePlanStoredData? data)
+    {
+        data = null;
+        if (values.Length < 8) return false;
+
+        string? objectToken = values[1].Value as string;
+        if (string.IsNullOrWhiteSpace(objectToken)) return false;
+        if (values[2].Value is not int systemValue) return false;
+        if (values[3].Value is not int typeValue) return false;
+        if (values[4].Value is not int dn || dn <= 0) return false;
+        if (values[5].Value is not double radius || radius <= 0.0) return false;
+        string? snapToleranceText = values[6].Value as string;
+        if (string.IsNullOrWhiteSpace(snapToleranceText)) return false;
+
+        if (!TryReadPointCount(values[7], 8, values.Length, out int pointCount)) return false;
+        if (!TryReadControlPoints(values, 8, pointCount, out List<Point3d>? controlPoints) || controlPoints is null) return false;
+
+        data = new PipePlanStoredData(
+            (PipeSystemEnum)systemValue,
+            (PipeTypeEnum)typeValue,
+            dn,
+            radius,
+            snapToleranceText!,
+            controlPoints,
+            objectToken);
+        return true;
     }
 
     private static bool TryReadV2(TypedValue[] values, out PipePlanStoredData? data)
     {
         data = null;
-        if (values.Length < 6)
-        {
-            return false;
-        }
+        if (values.Length < 6) return false;
 
         string? objectToken = values[1].Value as string;
         string? sizeName = values[2].Value as string;
         string? radiusText = values[3].Value as string;
         string? snapToleranceText = values[4].Value as string;
-        if (!TryValidateHeader(sizeName, radiusText, snapToleranceText))
-        {
-            return false;
-        }
+        if (!TryValidateLegacyHeader(sizeName, radiusText, snapToleranceText)) return false;
 
-        if (!TryReadPointCount(values[5], 6, values.Length, out int pointCount))
-        {
-            return false;
-        }
+        if (!TryReadPointCount(values[5], 6, values.Length, out int pointCount)) return false;
+        if (!TryReadControlPoints(values, 6, pointCount, out List<Point3d>? controlPoints) || controlPoints is null) return false;
 
-        if (!TryReadControlPoints(values, 6, pointCount, out List<Point3d>? controlPoints) || controlPoints is null)
-        {
-            return false;
-        }
+        if (!TrySynthesizeFromLegacy(sizeName!, radiusText!, out int dn, out double radius)) return false;
 
-        data = new PipePlanStoredData(sizeName!, radiusText!, snapToleranceText!, controlPoints, objectToken);
+        data = new PipePlanStoredData(
+            PipeSystemEnum.Stål,
+            PipeTypeEnum.Twin,
+            dn,
+            radius,
+            snapToleranceText!,
+            controlPoints,
+            objectToken);
         return true;
     }
 
     private static bool TryReadV1(TypedValue[] values, out PipePlanStoredData? data)
     {
         data = null;
-        if (values.Length < 5)
-        {
-            return false;
-        }
+        if (values.Length < 5) return false;
 
         string? sizeName = values[1].Value as string;
         string? radiusText = values[2].Value as string;
         string? snapToleranceText = values[3].Value as string;
-        if (!TryValidateHeader(sizeName, radiusText, snapToleranceText))
-        {
-            return false;
-        }
+        if (!TryValidateLegacyHeader(sizeName, radiusText, snapToleranceText)) return false;
 
-        if (!TryReadPointCount(values[4], 5, values.Length, out int pointCount))
-        {
-            return false;
-        }
+        if (!TryReadPointCount(values[4], 5, values.Length, out int pointCount)) return false;
+        if (!TryReadControlPoints(values, 5, pointCount, out List<Point3d>? controlPoints) || controlPoints is null) return false;
 
-        if (!TryReadControlPoints(values, 5, pointCount, out List<Point3d>? controlPoints) || controlPoints is null)
-        {
-            return false;
-        }
+        if (!TrySynthesizeFromLegacy(sizeName!, radiusText!, out int dn, out double radius)) return false;
 
-        data = new PipePlanStoredData(sizeName!, radiusText!, snapToleranceText!, controlPoints);
+        data = new PipePlanStoredData(
+            PipeSystemEnum.Stål,
+            PipeTypeEnum.Twin,
+            dn,
+            radius,
+            snapToleranceText!,
+            controlPoints);
         return true;
     }
 
-    private static bool TryValidateHeader(string? sizeName, string? radiusText, string? snapToleranceText)
+    private static bool TrySynthesizeFromLegacy(string sizeName, string radiusText, out int dn, out double radius)
+    {
+        dn = 0;
+        radius = 0.0;
+        string digits = new(sizeName.Where(char.IsDigit).ToArray());
+        if (!int.TryParse(digits, out dn) || dn <= 0) return false;
+        if (!PipePlanParsing.TryParsePositiveDouble(radiusText, out radius) || radius <= 0.0) return false;
+        return true;
+    }
+
+    private static bool TryValidateLegacyHeader(string? sizeName, string? radiusText, string? snapToleranceText)
     {
         return !string.IsNullOrWhiteSpace(sizeName) &&
                !string.IsNullOrWhiteSpace(radiusText) &&

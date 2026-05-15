@@ -1,6 +1,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.5.2.0
+# Visual Studio Version 18
+VisualStudioVersion = 18.6.11806.211 stable
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IntersectUtilities", "IntersectUtilities.csproj", "{C67822C0-5330-95D6-0B7C-0B7D6CF90CDF}"
 EndProject
@@ -20,5 +20,11 @@ Global
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {33AA053D-D784-4035-BD35-1D504B6A1298}
+	EndGlobalSection
+	GlobalSection(SharedMSBuildProjectFiles) = preSolution
+		..\AutoCADCommandsSHARED\AutoCADCommandsSHARED.projitems*{c67822c0-5330-95d6-0b7c-0b7d6cf90cdf}*SharedItemsImports = 5
+		..\FormsSHARED\FormsSHARED.projitems*{c67822c0-5330-95d6-0b7c-0b7d6cf90cdf}*SharedItemsImports = 5
+		..\PipelineSHARED\PipelineSHARED.projitems*{c67822c0-5330-95d6-0b7c-0b7d6cf90cdf}*SharedItemsImports = 5
+		..\UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{c67822c0-5330-95d6-0b7c-0b7d6cf90cdf}*SharedItemsImports = 5
 	EndGlobalSection
 EndGlobal

@@ -57,7 +57,7 @@ public partial class Intersect
     }
 
     /// <command>PPSETTINGS</command>
-    /// <summary>Shows the PipePlan settings palette so the active size, bend radii, and straight-snap tolerance can be reviewed and applied before drawing.</summary>
+    /// <summary>Shows the PipePlan settings palette so the per-DN bending radius (ProjekteringsRadius) and the straight-snap tolerance can be edited. Overrides are saved to the active drawing.</summary>
     /// <category>PipePlan</category>
     [CommandMethod("PPSETTINGS")]
     public void PipePlanSettings()
@@ -79,7 +79,7 @@ public partial class Intersect
     }
 
     /// <command>PPDRAW</command>
-    /// <summary>Starts a new PipePlan draft or continues an existing metadata-enabled PipePlan object. The command previews constrained geometry live, supports straight snap with Ctrl, and bakes the draft to a polyline when Enter is pressed after at least two points.</summary>
+    /// <summary>Starts a new PipePlan draft or continues an existing metadata-enabled PipePlan object. Requires NSPalette to be loaded; the active FJV layer determines the pipe system, type, and DN. The bending radius comes from PPSETTINGS (per-drawing override or built-in default).</summary>
     /// <category>PipePlan</category>
     [CommandMethod("PPDRAW")]
     public void PipePlan()
@@ -146,7 +146,7 @@ public partial class Intersect
     {
         Editor editor = document.Editor;
         PipePlanRuntime.State.SetStatus(
-            $"Editing {session.SizeName} (R={session.RadiusText}). Pick a control circle or segment square, or press Enter to finish.",
+            $"Editing {session.SizeLabel} (R={session.RadiusDisplay}). Pick a control circle or segment square, or press Enter to finish.",
             PipePlanStatusKind.Info);
 
         while (true)
@@ -259,11 +259,17 @@ public partial class Intersect
     private static void ExecuteSettings()
     {
         PipePlanRuntime.State.EnsurePalette();
-        PipePlanRuntime.State.SetStatus("Settings ready. Run PPDRAW to draw.", PipePlanStatusKind.Info);
+        PipePlanRuntime.State.SetStatus("Edit per-DN radii and click Save.", PipePlanStatusKind.Info);
     }
 
     private static void ExecuteDraw(Document document)
     {
+        if (!NSPaletteAdapter.IsLoaded)
+        {
+            ReportMessage(document, "Load NSPalette first.", PipePlanStatusKind.Warning);
+            return;
+        }
+
         PipePlanRuntime.State.ResetDraft(clearStatus: false);
 
         if (!TryInitializeDraw(document, out string initializationError))
@@ -371,16 +377,9 @@ public partial class Intersect
             return TryContinueExisting(document, out errorMessage);
         }
 
-        PipeSizeOption? size = PipePlanRuntime.State.GetSelectedSize();
-        if (size is null)
+        if (!PipePlanRuntime.State.InitializeForCurrentLayer(document.Database, out string layerError))
         {
-            errorMessage = "Set an active pipe size with PPSETTINGS first.";
-            return false;
-        }
-
-        if (!PipePlanRuntime.State.TryGetSelectedRadius(out _))
-        {
-            errorMessage = "Enter a valid radius in PPSETTINGS.";
+            errorMessage = layerError;
             return false;
         }
 
@@ -436,7 +435,7 @@ public partial class Intersect
             transaction.Commit();
             PipePlanRuntime.State.BeginDraftFromExisting(result.ObjectId, data, reverse);
             PipePlanRuntime.State.SetStatus(
-                $"Continuing {data.SizeName} from the selected endpoint. Pick the next point.",
+                $"Continuing {data.SizeDisplay} from the selected endpoint. Pick the next point.",
                 PipePlanStatusKind.Info);
             return true;
         }

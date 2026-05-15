@@ -2,6 +2,7 @@ using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Geometry;
+using IntersectUtilities.UtilsCommon.Enums;
 
 namespace IntersectUtilities.MPE.PipePlan;
 
@@ -17,29 +18,19 @@ internal sealed class PipePlanState : IDisposable
     private PipePlanPalette? _palette;
     private PipePlanAnalysis? _latestAnalysis;
     private PipePlanCandidateResult? _latestInteractiveCandidate;
-    private string _activeSizeName;
+    private PipePlanActiveContext? _activeContext;
     private ObjectId _continuedPolylineId = ObjectId.Null;
 
     public PipePlanState()
     {
-        Sizes =
-        [
-            new PipeSizeOption("DN 50") { RadiusText = "36" },
-            new PipeSizeOption("DN 100") { RadiusText = "68" },
-            new PipeSizeOption("DN 150") { RadiusText = "101" },
-            new PipeSizeOption("DN 200") { RadiusText = "132" },
-            new PipeSizeOption("DN 250") { RadiusText = "164" }
-        ];
-
-        _activeSizeName = Sizes[0].Name;
         StraightSnapToleranceText = "1";
     }
-
-    public List<PipeSizeOption> Sizes { get; }
 
     public List<Point3d> DraftPoints { get; } = [];
 
     public string StraightSnapToleranceText { get; set; }
+
+    public PipePlanActiveContext? ActiveContext => _activeContext;
 
     public void EnsurePalette()
     {
@@ -54,29 +45,17 @@ internal sealed class PipePlanState : IDisposable
         _palette?.Dispose();
     }
 
-    public PipeSizeOption? GetSelectedSize()
+    public bool InitializeForCurrentLayer(Database db, out string error)
     {
-        return Sizes.FirstOrDefault(size => string.Equals(size.Name, _activeSizeName, StringComparison.OrdinalIgnoreCase))
-               ?? Sizes.FirstOrDefault();
-    }
-
-    public void SetSelectedSize(string? sizeName)
-    {
-        PipeSizeOption? selected = Sizes.FirstOrDefault(size => string.Equals(size.Name, sizeName, StringComparison.OrdinalIgnoreCase));
-        if (selected is null)
+        error = string.Empty;
+        if (!PipePlanLayerResolver.TryResolve(db, out PipePlanActiveContext? context, out error) || context is null)
         {
-            return;
+            _activeContext = null;
+            return false;
         }
 
-        _activeSizeName = selected.Name;
-        _palette?.UpdateFromState();
-    }
-
-    public bool TryGetSelectedRadius(out double radius)
-    {
-        PipeSizeOption? selected = GetSelectedSize();
-        radius = 0.0;
-        return selected is not null && selected.TryGetRadius(out radius);
+        _activeContext = context;
+        return true;
     }
 
     public bool TryGetStraightSnapTolerance(out double tolerance)
@@ -175,10 +154,8 @@ internal sealed class PipePlanState : IDisposable
 
     public void ShowPreview(PipePlanAnalysis analysis, PipePlanFittingProposal? fittingProposal = null)
     {
-        PipeSizeOption? size = GetSelectedSize();
-        double globalWidth = size?.GetGlobalWidth() ?? 0.0;
+        double globalWidth = _activeContext?.Width ?? 0.0;
         _previewManager.Show(analysis, globalWidth, fittingProposal);
-        _palette?.UpdateFromState();
     }
 
     public void ClearPreview()
@@ -193,7 +170,7 @@ internal sealed class PipePlanState : IDisposable
 
     public void BeginDraftFromExisting(ObjectId polylineId, PipePlanStoredData data, bool reverse)
     {
-        ApplyStoredSettings(data);
+        ApplyStoredContext(data);
 
         _continuedPolylineId = polylineId;
         DraftPoints.Clear();
@@ -216,7 +193,7 @@ internal sealed class PipePlanState : IDisposable
             return;
         }
 
-        if (!TryPrepareBake(out PipeSizeOption? size, out PipePlanAnalysis? analysis))
+        if (!TryPrepareBake(out PipePlanActiveContext? context, out PipePlanAnalysis? analysis) || context is null || analysis is null)
         {
             return;
         }
@@ -226,9 +203,9 @@ internal sealed class PipePlanState : IDisposable
 
         try
         {
-            string layerName = EnsureBakeLayer(document.Database, size!, transaction);
+            string layerName = EnsureBakeLayer(document.Database, context, transaction);
             EnsurePipeTagApp(document.Database, transaction);
-            WriteBakedGeometry(document.Database, transaction, size!, analysis!, layerName);
+            WriteBakedGeometry(document.Database, transaction, context, analysis, layerName);
             transaction.Commit();
         }
         catch
@@ -238,36 +215,58 @@ internal sealed class PipePlanState : IDisposable
         }
 
         ResetDraft(clearStatus: false);
-        string successMessage = $"Baked {size!.Name} polyline to layer {size.GetLayerName()}.";
+        string successMessage = $"Baked {context.System} {context.Type} DN{context.Dn} polyline to layer {context.LayerName}.";
         SetStatus(successMessage, PipePlanStatusKind.Ok);
         document.Editor.WriteMessage($"\n{successMessage}");
     }
 
     private PipePlanAnalysis AnalyzePoints(IReadOnlyList<Point3d> points)
     {
-        if (!TryGetSelectedRadius(out double radius))
+        if (_activeContext is null || _activeContext.Radius <= 0.0)
         {
-            return PipePlanAnalysis.Invalid(points, "Enter a valid radius for the selected size.");
+            return PipePlanAnalysis.Invalid(points, "No active pipe context. Activate an FJV layer in NSPalette and re-run PPDRAW.");
         }
 
-        return _solver.Analyze(points, radius);
+        return _solver.Analyze(points, _activeContext.Radius);
     }
 
-    private void ApplyStoredSettings(PipePlanStoredData data)
+    public void ApplyStoredContext(PipePlanStoredData data)
     {
-        PipeSizeOption? selected = Sizes.FirstOrDefault(size => string.Equals(size.Name, data.SizeName, StringComparison.OrdinalIgnoreCase));
-        if (selected is not null)
-        {
-            selected.RadiusText = data.RadiusText;
-            _activeSizeName = selected.Name;
-        }
-
         StraightSnapToleranceText = data.StraightSnapToleranceText;
+
+        double width = ResolveWidthFromStored(data);
+        string layerName = BuildLayerName(data.System, data.Type, data.Dn);
+        _activeContext = new PipePlanActiveContext(data.System, data.Type, data.Dn, width, data.Radius, layerName);
     }
 
-    private bool TryPrepareBake(out PipeSizeOption? size, out PipePlanAnalysis? analysis)
+    private static double ResolveWidthFromStored(PipePlanStoredData data)
     {
-        size = null;
+        PipeSeriesEnum series = NSPaletteAdapter.TryGetCurrentSeries(out PipeSeriesEnum s)
+            ? s
+            : PipeSeriesEnum.S3;
+
+        try
+        {
+            double kOd = PipeScheduleV2.PipeScheduleV2.GetPipeKOd(data.System, data.Dn, data.Type, series);
+            if (kOd > 0.0) return kOd;
+        }
+        catch
+        {
+            // fall through to default
+        }
+
+        return 0.0;
+    }
+
+    private static string BuildLayerName(PipeSystemEnum system, PipeTypeEnum type, int dn)
+    {
+        string systemString = PipeScheduleV2.PipeScheduleV2.GetSystemString(system);
+        return $"FJV-{type.ToString().ToUpperInvariant()}-{systemString.ToUpperInvariant()}{dn}";
+    }
+
+    private bool TryPrepareBake(out PipePlanActiveContext? context, out PipePlanAnalysis? analysis)
+    {
+        context = null;
         analysis = null;
 
         if (DraftPoints.Count < 2)
@@ -276,10 +275,10 @@ internal sealed class PipePlanState : IDisposable
             return false;
         }
 
-        size = GetSelectedSize();
-        if (size is null)
+        context = _activeContext;
+        if (context is null)
         {
-            SetStatus("Select a pipe size first.", PipePlanStatusKind.Warning);
+            SetStatus("No active pipe context. Activate an FJV layer in NSPalette first.", PipePlanStatusKind.Warning);
             return false;
         }
 
@@ -294,10 +293,10 @@ internal sealed class PipePlanState : IDisposable
         return true;
     }
 
-    private static string EnsureBakeLayer(Database database, PipeSizeOption size, Transaction transaction)
+    private static string EnsureBakeLayer(Database database, PipePlanActiveContext context, Transaction transaction)
     {
         LayerTable layerTable = (LayerTable)transaction.GetObject(database.LayerTableId, OpenMode.ForRead);
-        string layerName = size.GetLayerName();
+        string layerName = context.LayerName;
         if (!layerTable.Has(layerName))
         {
             layerTable.UpgradeOpen();
@@ -332,23 +331,23 @@ internal sealed class PipePlanState : IDisposable
     private void WriteBakedGeometry(
         Database database,
         Transaction transaction,
-        PipeSizeOption size,
+        PipePlanActiveContext context,
         PipePlanAnalysis analysis,
         string layerName)
     {
         BlockTableRecord modelSpace = GetModelSpace(database, transaction);
-        PipePlanStoredData storedData = CreateStoredData(size);
+        PipePlanStoredData storedData = CreateStoredData(context);
 
         if (_continuedPolylineId != ObjectId.Null)
         {
-            WriteReplacementPolyline(transaction, analysis, size, layerName, modelSpace, storedData);
+            WriteReplacementPolyline(transaction, analysis, context, layerName, modelSpace, storedData);
         }
         else
         {
-            WriteNewPolyline(transaction, analysis, size, layerName, modelSpace, storedData);
+            WriteNewPolyline(transaction, analysis, context, layerName, modelSpace, storedData);
         }
 
-        AppendFittingGeometry(_draftFittingProposals, size.GetGlobalWidth(), layerName, modelSpace, transaction);
+        AppendFittingGeometry(_draftFittingProposals, context.Width, layerName, modelSpace, transaction);
     }
 
     private static BlockTableRecord GetModelSpace(Database database, Transaction transaction)
@@ -357,35 +356,41 @@ internal sealed class PipePlanState : IDisposable
         return (BlockTableRecord)transaction.GetObject(blockTable[BlockTableRecord.ModelSpace], OpenMode.ForWrite);
     }
 
-    private PipePlanStoredData CreateStoredData(PipeSizeOption size)
+    private PipePlanStoredData CreateStoredData(PipePlanActiveContext context)
     {
-        return new PipePlanStoredData(size.Name, size.RadiusText, StraightSnapToleranceText, DraftPoints);
+        return new PipePlanStoredData(
+            context.System,
+            context.Type,
+            context.Dn,
+            context.Radius,
+            StraightSnapToleranceText,
+            DraftPoints);
     }
 
     private void WriteReplacementPolyline(
         Transaction transaction,
         PipePlanAnalysis analysis,
-        PipeSizeOption size,
+        PipePlanActiveContext context,
         string layerName,
         BlockTableRecord modelSpace,
         PipePlanStoredData storedData)
     {
         Polyline sourcePolyline = (Polyline)transaction.GetObject(_continuedPolylineId, OpenMode.ForWrite);
-        Polyline replacement = ReplaceExistingPolyline(sourcePolyline, analysis, size, layerName, modelSpace, transaction);
+        Polyline replacement = ReplaceExistingPolyline(sourcePolyline, analysis, context, layerName, modelSpace, transaction);
         PipePlanMetadata.Write(replacement, storedData, transaction);
     }
 
     private static void WriteNewPolyline(
         Transaction transaction,
         PipePlanAnalysis analysis,
-        PipeSizeOption size,
+        PipePlanActiveContext context,
         string layerName,
         BlockTableRecord modelSpace,
         PipePlanStoredData storedData)
     {
         using Polyline polyline = analysis.CreatePolyline();
         polyline.Layer = layerName;
-        polyline.ConstantWidth = size.GetGlobalWidth();
+        polyline.ConstantWidth = context.Width;
 
         modelSpace.AppendEntity(polyline);
         transaction.AddNewlyCreatedDBObject(polyline, add: true);
@@ -395,7 +400,7 @@ internal sealed class PipePlanState : IDisposable
     private static Polyline ReplaceExistingPolyline(
         Polyline sourcePolyline,
         PipePlanAnalysis analysis,
-        PipeSizeOption size,
+        PipePlanActiveContext context,
         string layerName,
         BlockTableRecord owner,
         Transaction transaction)
@@ -412,7 +417,7 @@ internal sealed class PipePlanState : IDisposable
         replacement.Normal = sourcePolyline.Normal;
         replacement.Elevation = sourcePolyline.Elevation;
         replacement.Thickness = sourcePolyline.Thickness;
-        replacement.ConstantWidth = size.GetGlobalWidth();
+        replacement.ConstantWidth = context.Width;
         replacement.Closed = false;
 
         owner.AppendEntity(replacement);

@@ -152,11 +152,17 @@
 	  <Resource Include="FjernvarmeFremtidig\VejkantOffset\UI\Resources\DarkTheme.xaml" />
 	</ItemGroup>
 	<ItemGroup>
+	  <Page Remove="MPE\PipePlan\Views\DarkTheme.xaml" />
+	  <EmbeddedResource Include="MPE\PipePlan\Views\DarkTheme.xaml">
+	    <LogicalName>IntersectUtilities.MPE.PipePlan.DarkTheme.xaml</LogicalName>
+	  </EmbeddedResource>
+	</ItemGroup>
+	<ItemGroup Condition="Exists('..\..\..\..\DamgaardRI\DimensioneringV2\src\DimensioneringV2.UI\UI\Theme.xaml')">
 	  <Page Include="..\..\..\..\DamgaardRI\DimensioneringV2\src\DimensioneringV2.UI\UI\Theme.xaml" Link="CmdUI\UI\Theme.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </Page>
 	</ItemGroup>
-	<ItemGroup>
+	<ItemGroup Condition="Exists('..\..\..\..\DamgaardRI\DimensioneringV2\src\DimensioneringV2.UI\UI\DarkTitleBarHelper.cs')">
 	  <Compile Include="..\..\..\..\DamgaardRI\DimensioneringV2\src\DimensioneringV2.UI\UI\DarkTitleBarHelper.cs" Link="CmdUI\UI\DarkTitleBarHelper.cs" />
 	</ItemGroup>
 	<ItemGroup>

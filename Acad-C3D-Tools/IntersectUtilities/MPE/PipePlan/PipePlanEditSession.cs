@@ -2,6 +2,7 @@ using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Geometry;
+using IntersectUtilities.UtilsCommon.Enums;
 
 namespace IntersectUtilities.MPE.PipePlan;
 
@@ -23,9 +24,9 @@ internal sealed class PipePlanEditSession : IDisposable
         _data = data;
     }
 
-    public string SizeName => _data.SizeName;
+    public string SizeLabel => _data.SizeDisplay;
 
-    public string RadiusText => _data.RadiusText;
+    public string RadiusDisplay => _data.RadiusDisplay;
 
     public void Dispose()
     {
@@ -47,7 +48,7 @@ internal sealed class PipePlanEditSession : IDisposable
             return false;
         }
 
-        state.SetSelectedSize(data.SizeName);
+        state.ApplyStoredContext(data);
         session = new PipePlanEditSession(document, state, polylineId, data);
         return true;
     }
@@ -102,7 +103,14 @@ internal sealed class PipePlanEditSession : IDisposable
         try
         {
             Polyline polyline = (Polyline)transaction.GetObject(_polylineId, OpenMode.ForWrite);
-            _data = new PipePlanStoredData(_data.SizeName, _data.RadiusText, _data.StraightSnapToleranceText, candidate.ControlPoints);
+            _data = new PipePlanStoredData(
+                _data.System,
+                _data.Type,
+                _data.Dn,
+                _data.Radius,
+                _data.StraightSnapToleranceText,
+                candidate.ControlPoints,
+                _data.ObjectToken);
             Polyline replacement = ReplaceGeometry(polyline, candidate.Analysis, transaction);
             PipePlanMetadata.Write(replacement, _data, transaction);
 
@@ -249,17 +257,12 @@ internal sealed class PipePlanEditSession : IDisposable
 
     private PipePlanAnalysis Analyze(IReadOnlyList<Point3d> controlPoints)
     {
-        if (!TryGetRadius(out double radius))
+        if (_data.Radius <= 0.0)
         {
-            return PipePlanAnalysis.Invalid(controlPoints, $"Stored radius '{_data.RadiusText}' is not valid.");
+            return PipePlanAnalysis.Invalid(controlPoints, "Stored radius is not valid.");
         }
 
-        return _solver.Analyze(controlPoints, radius);
-    }
-
-    private bool TryGetRadius(out double radius)
-    {
-        return PipePlanParsing.TryParsePositiveDouble(_data.RadiusText, out radius);
+        return _solver.Analyze(controlPoints, _data.Radius);
     }
 
     private Polyline ReplaceGeometry(Polyline sourcePolyline, PipePlanAnalysis analysis, Transaction transaction)
@@ -275,7 +278,7 @@ internal sealed class PipePlanEditSession : IDisposable
         replacement.Normal = sourcePolyline.Normal;
         replacement.Elevation = sourcePolyline.Elevation;
         replacement.Thickness = sourcePolyline.Thickness;
-        replacement.ConstantWidth = PipeSizeOption.TryGetGlobalWidth(_data.SizeName, out double globalWidth) ? globalWidth : sourcePolyline.ConstantWidth;
+        replacement.ConstantWidth = ResolveWidth(sourcePolyline.ConstantWidth);
         replacement.Closed = false;
 
         BlockTableRecord owner = (BlockTableRecord)transaction.GetObject(sourcePolyline.OwnerId, OpenMode.ForWrite);
@@ -374,9 +377,7 @@ internal sealed class PipePlanEditSession : IDisposable
 
     private void AppendFittingGeometry(PipePlanFittingProposal fittingProposal, Polyline replacement, Transaction transaction)
     {
-        double globalWidth = PipeSizeOption.TryGetGlobalWidth(_data.SizeName, out double resolvedWidth)
-            ? resolvedWidth
-            : replacement.ConstantWidth;
+        double globalWidth = ResolveWidth(replacement.ConstantWidth);
         BlockTableRecord owner = (BlockTableRecord)transaction.GetObject(replacement.OwnerId, OpenMode.ForWrite);
 
         foreach (Polyline fittingPolyline in PipePlanFittingGeometry.CreatePolylines(fittingProposal, globalWidth))
@@ -385,6 +386,25 @@ internal sealed class PipePlanEditSession : IDisposable
             owner.AppendEntity(fittingPolyline);
             transaction.AddNewlyCreatedDBObject(fittingPolyline, add: true);
         }
+    }
+
+    private double ResolveWidth(double fallback)
+    {
+        PipeSeriesEnum series = NSPaletteAdapter.TryGetCurrentSeries(out PipeSeriesEnum s)
+            ? s
+            : PipeSeriesEnum.S3;
+
+        try
+        {
+            double kOd = PipeScheduleV2.PipeScheduleV2.GetPipeKOd(_data.System, _data.Dn, _data.Type, series);
+            if (kOd > 0.0) return kOd;
+        }
+        catch
+        {
+            // fall through
+        }
+
+        return fallback;
     }
 
     private static Point3d Midpoint(Point3d a, Point3d b)

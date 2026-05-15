@@ -2,6 +2,7 @@ using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Geometry;
+using IntersectUtilities.UtilsCommon.Enums;
 
 namespace IntersectUtilities.MPE.PipePlan;
 
@@ -45,7 +46,7 @@ internal static class PipePlanSplitService
             WriteSplitResult(transaction, polyline, data, splitResult);
             transaction.Commit();
 
-            message = $"Split {data.SizeName} into two PipePlan objects.";
+            message = $"Split {data.SizeDisplay} into two PipePlan objects.";
             return true;
         }
         catch
@@ -136,9 +137,10 @@ internal static class PipePlanSplitService
             return false;
         }
 
-        if (!PipePlanParsing.TryParsePositiveDouble(data.RadiusText, out radius))
+        radius = data.Radius;
+        if (radius <= 0.0)
         {
-            message = $"Stored radius '{data.RadiusText}' is not valid.";
+            message = "Stored radius is not valid.";
             return false;
         }
 
@@ -218,15 +220,40 @@ internal static class PipePlanSplitService
     {
         BlockTableRecord owner = (BlockTableRecord)transaction.GetObject(sourcePolyline.OwnerId, OpenMode.ForWrite);
         string layerName = sourcePolyline.Layer;
-        double constantWidth = PipeSizeOption.TryGetGlobalWidth(data.SizeName, out double width) ? width : sourcePolyline.ConstantWidth;
+        double constantWidth = ResolveWidth(data, sourcePolyline.ConstantWidth);
 
         Polyline leftPolyline = CreateSplitPolyline(sourcePolyline, splitResult.LeftAnalysis, owner, transaction, layerName, constantWidth);
         Polyline rightPolyline = CreateSplitPolyline(sourcePolyline, splitResult.RightAnalysis, owner, transaction, layerName, constantWidth);
 
-        PipePlanMetadata.Write(leftPolyline, new PipePlanStoredData(data.SizeName, data.RadiusText, data.StraightSnapToleranceText, splitResult.LeftControlPoints), transaction);
-        PipePlanMetadata.Write(rightPolyline, new PipePlanStoredData(data.SizeName, data.RadiusText, data.StraightSnapToleranceText, splitResult.RightControlPoints), transaction);
+        PipePlanMetadata.Write(
+            leftPolyline,
+            new PipePlanStoredData(data.System, data.Type, data.Dn, data.Radius, data.StraightSnapToleranceText, splitResult.LeftControlPoints),
+            transaction);
+        PipePlanMetadata.Write(
+            rightPolyline,
+            new PipePlanStoredData(data.System, data.Type, data.Dn, data.Radius, data.StraightSnapToleranceText, splitResult.RightControlPoints),
+            transaction);
 
         sourcePolyline.Erase();
+    }
+
+    private static double ResolveWidth(PipePlanStoredData data, double fallback)
+    {
+        PipeSeriesEnum series = NSPaletteAdapter.TryGetCurrentSeries(out PipeSeriesEnum s)
+            ? s
+            : PipeSeriesEnum.S3;
+
+        try
+        {
+            double kOd = PipeScheduleV2.PipeScheduleV2.GetPipeKOd(data.System, data.Dn, data.Type, series);
+            if (kOd > 0.0) return kOd;
+        }
+        catch
+        {
+            // fall through to fallback
+        }
+
+        return fallback;
     }
 
     private static Polyline CreateSplitPolyline(
