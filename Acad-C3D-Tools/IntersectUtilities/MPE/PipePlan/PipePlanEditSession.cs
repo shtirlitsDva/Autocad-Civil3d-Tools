@@ -15,6 +15,8 @@ internal sealed class PipePlanEditSession : IDisposable
 
     private ObjectId _polylineId;
     private PipePlanStoredData _data;
+    private int? _pendingRadiusVertex;
+    private double _pendingRadiusValue;
 
     public PipePlanEditSession(Document document, PipePlanState state, ObjectId polylineId, PipePlanStoredData data)
     {
@@ -102,6 +104,14 @@ internal sealed class PipePlanEditSession : IDisposable
 
     public void Commit(PipePlanEditCandidate candidate)
     {
+        IReadOnlyList<double> committedRadii = _data.BendRadii;
+        if (_pendingRadiusVertex is int idx && idx >= 0 && idx < committedRadii.Count)
+        {
+            List<double> updated = [.. committedRadii];
+            updated[idx] = _pendingRadiusValue;
+            committedRadii = updated;
+        }
+
         using DocumentLock documentLock = _document.LockDocument();
         using Transaction transaction = _document.Database.TransactionManager.StartTransaction();
 
@@ -112,7 +122,7 @@ internal sealed class PipePlanEditSession : IDisposable
                 _data.System,
                 _data.Type,
                 _data.Dn,
-                _data.BendRadii,
+                committedRadii,
                 _data.StraightSnapToleranceText,
                 candidate.ControlPoints,
                 _data.ObjectToken);
@@ -126,6 +136,35 @@ internal sealed class PipePlanEditSession : IDisposable
             transaction.Abort();
             throw;
         }
+
+        ClearPendingRadius();
+    }
+
+    public void SetPendingRadius(int vertexIndex, double radius)
+    {
+        if (vertexIndex <= 0 || vertexIndex >= _data.ControlPoints.Count - 1) return;
+        if (radius <= 0.0) return;
+        _pendingRadiusVertex = vertexIndex;
+        _pendingRadiusValue = radius;
+    }
+
+    public void ClearPendingRadius()
+    {
+        _pendingRadiusVertex = null;
+        _pendingRadiusValue = 0.0;
+    }
+
+    public bool TryGetPendingRadius(out int vertexIndex, out double radius)
+    {
+        if (_pendingRadiusVertex is int idx)
+        {
+            vertexIndex = idx;
+            radius = _pendingRadiusValue;
+            return true;
+        }
+        vertexIndex = -1;
+        radius = 0.0;
+        return false;
     }
 
     public bool TryAnalyzeVertexRadius(int vertexIndex, double radius, out PipePlanAnalysis analysis, out string error)
@@ -351,7 +390,15 @@ internal sealed class PipePlanEditSession : IDisposable
             return PipePlanAnalysis.Invalid(controlPoints, "Control points and bend radii are out of sync.");
         }
 
-        return _solver.Analyze(controlPoints, _data.BendRadii);
+        IReadOnlyList<double> radii = _data.BendRadii;
+        if (_pendingRadiusVertex is int idx && idx >= 0 && idx < radii.Count)
+        {
+            List<double> overridden = [.. radii];
+            overridden[idx] = _pendingRadiusValue;
+            radii = overridden;
+        }
+
+        return _solver.Analyze(controlPoints, radii);
     }
 
     public IReadOnlyList<double> CurrentBendRadii => _data.BendRadii;
