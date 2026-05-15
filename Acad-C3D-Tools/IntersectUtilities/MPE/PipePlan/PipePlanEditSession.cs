@@ -128,9 +128,11 @@ internal sealed class PipePlanEditSession : IDisposable
         }
     }
 
-    public bool TrySetVertexRadius(int vertexIndex, double radius, out string error)
+    public bool TryAnalyzeVertexRadius(int vertexIndex, double radius, out PipePlanAnalysis analysis, out string error)
     {
         error = string.Empty;
+        analysis = PipePlanAnalysis.Invalid(_data.ControlPoints, string.Empty);
+
         if (vertexIndex <= 0 || vertexIndex >= _data.ControlPoints.Count - 1)
         {
             error = "Endpoint vertices do not have a bend radius.";
@@ -146,12 +148,25 @@ internal sealed class PipePlanEditSession : IDisposable
         List<double> updatedRadii = [.. _data.BendRadii];
         updatedRadii[vertexIndex] = radius;
 
-        PipePlanAnalysis analysis = _solver.Analyze(_data.ControlPoints, updatedRadii);
+        analysis = _solver.Analyze(_data.ControlPoints, updatedRadii);
         if (!analysis.IsFeasible)
         {
             error = analysis.Message;
             return false;
         }
+
+        return true;
+    }
+
+    public bool TrySetVertexRadius(int vertexIndex, double radius, out string error)
+    {
+        if (!TryAnalyzeVertexRadius(vertexIndex, radius, out PipePlanAnalysis analysis, out error))
+        {
+            return false;
+        }
+
+        List<double> updatedRadii = [.. _data.BendRadii];
+        updatedRadii[vertexIndex] = radius;
 
         using DocumentLock documentLock = _document.LockDocument();
         using Transaction transaction = _document.Database.TransactionManager.StartTransaction();

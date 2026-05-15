@@ -211,82 +211,126 @@ public partial class Intersect
             ? session.CurrentBendRadii[handle.Index]
             : 0.0;
 
-        PromptDoubleOptions opts = new(current > 0.0
-            ? $"\nNew radius for vertex <{current}> or [Default]: "
-            : "\nNew radius for vertex or [Default]: ")
-        {
-            AllowNegative = false,
-            AllowZero = false,
-            AllowNone = current > 0.0,
-            DefaultValue = current,
-            UseDefaultValue = current > 0.0
-        };
-        opts.Keywords.Add("Default");
+        Editor editor = document.Editor;
+        double? pendingRadius = null;
 
-        PromptDoubleResult res = document.Editor.GetDouble(opts);
-        if (res.Status == PromptStatus.Keyword &&
-            string.Equals(res.StringResult, "Default", StringComparison.OrdinalIgnoreCase))
+        while (true)
         {
-            ApplyDefaultRadiusToVertex(document, session, handle, current);
-            return;
+            string prompt = pendingRadius.HasValue
+                ? $"\nPreviewing radius {pendingRadius.Value}. Enter to confirm, another value to preview, or [Default]: "
+                : current > 0.0
+                    ? $"\nNew radius for vertex <{current}> or [Default]: "
+                    : "\nNew radius for vertex or [Default]: ";
+
+            PromptDoubleOptions opts = new(prompt)
+            {
+                AllowNegative = false,
+                AllowZero = false,
+                AllowNone = true
+            };
+            opts.Keywords.Add("Default");
+
+            PromptDoubleResult res = editor.GetDouble(opts);
+
+            if (res.Status == PromptStatus.Keyword &&
+                string.Equals(res.StringResult, "Default", StringComparison.OrdinalIgnoreCase))
+            {
+                if (TryPreviewDefaultVertexRadius(document, session, handle, out double defaultRadius))
+                {
+                    pendingRadius = defaultRadius;
+                }
+                continue;
+            }
+
+            if (res.Status == PromptStatus.None)
+            {
+                CommitPendingVertexRadius(document, session, handle, current, pendingRadius);
+                return;
+            }
+
+            if (res.Status != PromptStatus.OK)
+            {
+                PipePlanRuntime.State.ClearPreview();
+                PipePlanRuntime.State.SetStatus("Radius edit cancelled.", PipePlanStatusKind.Info);
+                return;
+            }
+
+            if (!session.TryAnalyzeVertexRadius(handle.Index, res.Value, out PipePlanAnalysis previewAnalysis, out string previewError))
+            {
+                ReportEditorMessage(editor, $"Radius rejected: {previewError}");
+                PipePlanRuntime.State.SetStatus(previewError, PipePlanStatusKind.Error);
+                continue;
+            }
+
+            PipePlanRuntime.State.ShowPreview(previewAnalysis);
+            pendingRadius = res.Value;
+            PipePlanRuntime.State.SetStatus($"Previewing radius {res.Value}.", PipePlanStatusKind.Info);
+        }
+    }
+
+    private static bool TryPreviewDefaultVertexRadius(
+        Document document,
+        PipePlanEditSession session,
+        PipePlanEditHandle handle,
+        out double defaultRadius)
+    {
+        defaultRadius = 0.0;
+        PipePlanActiveContext? ctx = PipePlanRuntime.State.ActiveContext;
+        if (ctx is null)
+        {
+            PipePlanRuntime.State.SetStatus("No active pipe context for default radius.", PipePlanStatusKind.Warning);
+            return false;
         }
 
-        if (res.Status != PromptStatus.OK && res.Status != PromptStatus.None)
+        if (!PipePlanRadiusStore.TryGet(document.Database, ctx.System, ctx.Type, ctx.Dn, out double resolved) || resolved <= 0.0)
         {
-            PipePlanRuntime.State.SetStatus("Radius edit cancelled.", PipePlanStatusKind.Info);
-            return;
+            PipePlanRuntime.State.SetStatus($"No default radius available for {ctx.System} {ctx.Type} DN{ctx.Dn}.", PipePlanStatusKind.Warning);
+            return false;
         }
 
-        double newRadius = res.Status == PromptStatus.None ? current : res.Value;
-        if (Math.Abs(newRadius - current) < 1e-9)
+        if (!session.TryAnalyzeVertexRadius(handle.Index, resolved, out PipePlanAnalysis analysis, out string error))
+        {
+            ReportEditorMessage(document.Editor, $"Default radius rejected: {error}");
+            PipePlanRuntime.State.SetStatus(error, PipePlanStatusKind.Error);
+            return false;
+        }
+
+        PipePlanRuntime.State.ShowPreview(analysis);
+        PipePlanRuntime.State.SetStatus($"Previewing default radius {resolved}.", PipePlanStatusKind.Info);
+        defaultRadius = resolved;
+        return true;
+    }
+
+    private static void CommitPendingVertexRadius(
+        Document document,
+        PipePlanEditSession session,
+        PipePlanEditHandle handle,
+        double current,
+        double? pendingRadius)
+    {
+        PipePlanRuntime.State.ClearPreview();
+
+        if (!pendingRadius.HasValue)
         {
             PipePlanRuntime.State.SetStatus("Radius unchanged.", PipePlanStatusKind.Info);
             return;
         }
 
-        if (!session.TrySetVertexRadius(handle.Index, newRadius, out string err))
+        double committedRadius = pendingRadius.Value;
+        if (Math.Abs(committedRadius - current) < 1e-9)
+        {
+            PipePlanRuntime.State.SetStatus("Radius unchanged.", PipePlanStatusKind.Info);
+            return;
+        }
+
+        if (!session.TrySetVertexRadius(handle.Index, committedRadius, out string err))
         {
             ReportEditorMessage(document.Editor, $"Radius rejected: {err}");
             PipePlanRuntime.State.SetStatus(err, PipePlanStatusKind.Error);
             return;
         }
 
-        PipePlanRuntime.State.SetStatus($"Bend radius at vertex updated to {newRadius}.", PipePlanStatusKind.Ok);
-    }
-
-    private static void ApplyDefaultRadiusToVertex(
-        Document document,
-        PipePlanEditSession session,
-        PipePlanEditHandle handle,
-        double current)
-    {
-        PipePlanActiveContext? ctx = PipePlanRuntime.State.ActiveContext;
-        if (ctx is null)
-        {
-            PipePlanRuntime.State.SetStatus("No active pipe context for default radius.", PipePlanStatusKind.Warning);
-            return;
-        }
-
-        if (!PipePlanRadiusStore.TryGet(document.Database, ctx.System, ctx.Type, ctx.Dn, out double defaultRadius) || defaultRadius <= 0.0)
-        {
-            PipePlanRuntime.State.SetStatus($"No default radius available for {ctx.System} {ctx.Type} DN{ctx.Dn}.", PipePlanStatusKind.Warning);
-            return;
-        }
-
-        if (Math.Abs(defaultRadius - current) < 1e-9)
-        {
-            PipePlanRuntime.State.SetStatus($"Vertex already at default ({defaultRadius}).", PipePlanStatusKind.Info);
-            return;
-        }
-
-        if (!session.TrySetVertexRadius(handle.Index, defaultRadius, out string err))
-        {
-            ReportEditorMessage(document.Editor, $"Radius rejected: {err}");
-            PipePlanRuntime.State.SetStatus(err, PipePlanStatusKind.Error);
-            return;
-        }
-
-        PipePlanRuntime.State.SetStatus($"Vertex reset to default radius {defaultRadius}.", PipePlanStatusKind.Ok);
+        PipePlanRuntime.State.SetStatus($"Bend radius at vertex updated to {committedRadius}.", PipePlanStatusKind.Ok);
     }
 
     private static PromptPointResult PromptForEditHandle(Editor editor)
