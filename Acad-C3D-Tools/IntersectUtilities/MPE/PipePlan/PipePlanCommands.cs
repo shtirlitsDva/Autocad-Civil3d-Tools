@@ -451,7 +451,7 @@ public partial class Intersect
 
             if (result.Status != PromptStatus.OK)
             {
-                PipePlanRuntime.State.RefreshDraftPreview();
+                PipePlanRuntime.State.ResetDraft(clearStatus: false);
                 PipePlanRuntime.State.SetStatus("Drawing cancelled.", PipePlanStatusKind.Info);
                 return;
             }
@@ -552,7 +552,7 @@ public partial class Intersect
             return;
         }
 
-        PipePlanRuntime.State.RefreshDraftPreview();
+        PipePlanRuntime.State.ResetDraft(clearStatus: false);
         PipePlanRuntime.State.SetStatus("Draft has fewer than two points.", PipePlanStatusKind.Warning);
     }
 
@@ -583,6 +583,7 @@ public partial class Intersect
         PromptResult modeResult = editor.GetKeywords(modeOptions);
         if (modeResult.Status == PromptStatus.Cancel)
         {
+            PipePlanRuntime.State.ClearPreview();
             PipePlanRuntime.State.SetStatus("Drawing cancelled.", PipePlanStatusKind.Info);
             return false;
         }
@@ -614,6 +615,7 @@ public partial class Intersect
 
             if (firstPointResult.Status != PromptStatus.OK)
             {
+                PipePlanRuntime.State.ClearPreview();
                 PipePlanRuntime.State.SetStatus("Drawing cancelled.", PipePlanStatusKind.Info);
                 return false;
             }
@@ -636,6 +638,7 @@ public partial class Intersect
         PromptEntityResult result = editor.GetEntity(options);
         if (result.Status != PromptStatus.OK)
         {
+            PipePlanRuntime.State.ClearPreview();
             PipePlanRuntime.State.SetStatus("Drawing cancelled.", PipePlanStatusKind.Info);
             return false;
         }

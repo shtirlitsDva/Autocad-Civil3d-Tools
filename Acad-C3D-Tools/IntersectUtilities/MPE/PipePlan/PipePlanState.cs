@@ -514,22 +514,19 @@ internal sealed class PipePlanState : IDisposable
     private CandidateResolution ResolveCandidatePoint(Point3d rawCandidate, bool allowStraightSnap)
     {
         if (allowStraightSnap &&
-            TryGetStraightSnapTolerance(out double tolerance) &&
-            TryApplyStraightSnap(rawCandidate, tolerance, out Point3d straightSnappedPoint))
+            DraftPoints.Count >= 2 &&
+            TryGetStraightSnapTolerance(out _) &&
+            TryProjectOntoExtensionAxis(rawCandidate, out Point3d snappedPoint))
         {
-            return new CandidateResolution(straightSnappedPoint, true);
+            return new CandidateResolution(snappedPoint, true);
         }
 
         return new CandidateResolution(rawCandidate, false);
     }
 
-    private bool TryApplyStraightSnap(Point3d rawCandidate, double tolerance, out Point3d snappedCandidate)
+    private bool TryProjectOntoExtensionAxis(Point3d rawCandidate, out Point3d snappedCandidate)
     {
         snappedCandidate = rawCandidate;
-        if (DraftPoints.Count < 2)
-        {
-            return false;
-        }
 
         Point3d previousPoint = DraftPoints[^2];
         Point3d anchorPoint = DraftPoints[^1];
@@ -543,22 +540,17 @@ internal sealed class PipePlanState : IDisposable
         Vector2d unitDirection = segmentDirection / segmentLength;
         Vector2d offset = new(rawCandidate.X - anchorPoint.X, rawCandidate.Y - anchorPoint.Y);
         double alongDistance = offset.DotProduct(unitDirection);
-        if (alongDistance <= DistanceTolerance)
+
+        double minAlongDistance = Math.Max(DistanceTolerance * 10.0, segmentLength * 0.01);
+        if (alongDistance < minAlongDistance)
         {
-            return false;
+            alongDistance = minAlongDistance;
         }
 
-        Point2d projectedPoint = new(
+        snappedCandidate = new Point3d(
             anchorPoint.X + (unitDirection.X * alongDistance),
-            anchorPoint.Y + (unitDirection.Y * alongDistance));
-
-        double perpendicularDistance = new Point2d(rawCandidate.X, rawCandidate.Y).GetDistanceTo(projectedPoint);
-        if (perpendicularDistance > tolerance)
-        {
-            return false;
-        }
-
-        snappedCandidate = new Point3d(projectedPoint.X, projectedPoint.Y, rawCandidate.Z);
+            anchorPoint.Y + (unitDirection.Y * alongDistance),
+            rawCandidate.Z);
         return true;
     }
 
