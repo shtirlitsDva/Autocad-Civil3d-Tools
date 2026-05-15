@@ -1,0 +1,965 @@
+version=1
+
+# This file caches language service data to improve the performance of C# Dev Kit.
+# It is not intended for manual editing. It can safely be deleted and will be
+# regenerated automatically. For more information, see https://aka.ms/lscache
+#
+# To control where cache files are stored, use the following VS Code setting:
+#   "dotnet.projectsystem.cacheInProjectFolder": true
+
+[project]
+language=C#
+primary
+lastDtbSucceeded
+
+[properties]
+AssemblyName=IntersectUtilities
+CommandLineArgsForDesignTimeEvaluation=-langversion:12.0 -define:TRACE -doc:"obj\x64\Debug\IntersectUtilities.xml"
+CompilerGeneratedFilesOutputPath=
+MaxSupportedLangVersion=12.0
+ProjectAssetsFile=<PATH>obj/project.assets.json
+RootNamespace=IntersectUtilities
+RunAnalyzers=
+RunAnalyzersDuringLiveAnalysis=
+SolutionPath=<PATH>IntersectUtilities.sln
+TargetFrameworkIdentifier=.NETCoreApp
+TargetPath=<PATH>bin/Debug/IntersectUtilities.dll
+TargetRefPath=<PATH>obj/x64/Debug/ref/IntersectUtilities.dll
+TemporaryDependencyNodeTargetIdentifier=net8.0-windows10.0.26100.0
+
+[commandLineArguments]
+/noconfig
+/unsafe-
+/checked-
+/nowarn:1701,1702,1701,1702,8002
+/fullpaths
+/nostdlib+
+/platform:x64
+/errorreport:prompt
+/warn:8
+/doc:obj\x64\Debug\IntersectUtilities.xml
+/define:TRACE;DEBUG;NET;NET8_0;NETCOREAPP;WINDOWS;WINDOWS10_0_26100_0;NET5_0_OR_GREATER;NET6_0_OR_GREATER;NET7_0_OR_GREATER;NET8_0_OR_GREATER;NETCOREAPP3_0_OR_GREATER;NETCOREAPP3_1_OR_GREATER;WINDOWS10_0_26100_0_OR_GREATER;WINDOWS10_0_22621_0_OR_GREATER;WINDOWS10_0_22000_0_OR_GREATER;WINDOWS10_0_20348_0_OR_GREATER;WINDOWS10_0_19041_0_OR_GREATER;WINDOWS10_0_18362_0_OR_GREATER;WINDOWS10_0_17763_0_OR_GREATER;WINDOWS8_0_OR_GREATER;WINDOWS7_0_OR_GREATER
+/highentropyva+
+/nullable:enable
+/debug+
+/debug:full
+/filealign:512
+/optimize-
+/out:obj\x64\Debug\IntersectUtilities.dll
+/refout:obj\x64\Debug\refint\IntersectUtilities.dll
+/target:library
+/warnaserror-
+/utf8output
+/deterministic-
+/langversion:12.0
+/warnaserror+:NU1605,SYSLIB0011
+
+[sourceFiles]
+../
+ ../../../DamgaardRI/DimensioneringV2/src/DimensioneringV2.UI/UI/DarkTitleBarHelper.cs
+  @folderNames=CmdUI,UI
+ AutoCADCommandsSHARED/
+  Algorithms.cs
+  App.cs
+  Commands.cs
+  DbHelper.cs
+  FlexDataStore.cs
+  Gui.cs
+  GUIs/
+   DictionaryViewer.xaml.cs
+   InputBox.xaml.cs
+   MultiInputs.xaml.cs
+   TaskProgressWindow.xaml.cs
+   TextReport.xaml.cs
+  Interaction.cs
+  Internal/
+   CustomDictionary.cs
+   JigDrag.cs
+  Layouts.cs
+  QuickSelection.cs
+  SymbolPack.cs
+ FormsSHARED/Forms/
+  OverlayForm.cs
+  StringGridForm.cs
+  StringGridForm.Designer.cs
+  StringGridFormCaller.cs
+  TGridForm.cs
+  TGridForm.Designer.cs
+  TGridFormCaller.cs
+ PipelineSHARED/
+  PipelineNetwork.cs
+  PipelineSegment.cs
+  PipelineSegmentV2/
+   IPipelineSegmentV2.cs
+   PipelineSegmentBaseV2.cs
+   PipelineSegmentV2.cs
+   PipelineTransitionV2.cs
+  PipelineSizeArray/PipelineSizeArrayV2.cs
+  PipelineV2.cs
+  PipeSettings.cs
+  PipeSettingsForm.cs
+  PipeSettingsForm.Designer.cs
+  PipeSettingsWpf/ViewModels/
+   OptionItemViewModel.cs
+   PipeSettingSizeViewModel.cs
+   PipeSettingsViewModel.cs
+   PipeSettingSystemViewModel.cs
+   PipeSettingTypeViewModel.cs
+  PipeSettingsWpf/Views/PipeSettingsWindow.xaml.cs
+  PipesLengthCorrectionHandler.cs
+  QuikGraphClasses/
+   EdgeBase.cs
+   GraphBuilder.cs
+   NodeBase.cs
+ UtilitiesCommonSHARED/Collections/
+  DatabaseList.cs
+  EntityCollection.cs
+ UtilitiesCommonSHARED/
+  ComponentSchedule.cs
+  DataManager/CsvData/
+   AnvKoder.cs
+   ConfigurationManager.cs
+   Csv.cs
+   CsvDataSource.cs
+   CsvRegistry.cs
+   Distances.cs
+   Dybde.cs
+   EnhKoder.cs
+   FjvDynamicComponents.cs
+   InstOgBr.cs
+   Krydsninger.cs
+   LagLer.cs
+   NsLoadRegister.cs
+   PipeRadiusCsv.cs
+   PipeScheduleCsv.cs
+   Stier.cs
+  DataManager/
+   DataManager.cs
+   DataReferenceOptions.cs
+   FileResolvers/
+    FileResolverLer.cs
+    FileResolverLængdeprofiler.cs
+    FileResolverSingle.cs
+    IFileResolver.cs
+    MultipleFileResolverBase.cs
+   StierDataType.cs
+   StierManager.cs
+   StierRecord.cs
+  DouglasPeuckerReduction.cs
+  DynamicBlockPropertyReader.cs
+  Enums.cs
+  Graphs/
+   ConClass.cs
+   Graph.cs
+   GraphCollection.cs
+   GraphEntity.cs
+   Node.cs
+   POI.cs
+   Styling/IDotStyler.cs
+  Infrastructure.cs
+  LineTypes/LineTypes.cs
+  PropertySets/
+   GenericPropertySetImporter.cs
+   PropertySetManager.cs
+  Schema/
+   DF BBR Bygning Class.cs
+   DF BBR Enhed Class.cs
+   DF DAR Adresse Class.cs
+   DF DAR Husnummer Class.cs
+   FeatureCollection.cs
+  Serialization.cs
+  UtilsCommon.cs
+  Win32Cursor.cs
+BatchProcessing/
+ 01 BatchProcessing.cs
+ BPUIv2/Core/FilterGroup/
+  EntityFilter.cs
+  EntityFilterGroup.cs
+  EntityFilterSet.cs
+  FilterOperator.cs
+  FilterProperty.cs
+ BPUIv2/Core/
+  IOperation.cs
+  OperationBase.cs
+  OperationCategoryAttribute.cs
+  OperationContext.cs
+  OutputBinding.cs
+  OutputDescriptor.cs
+  ParameterDescriptor.cs
+  ParameterType.cs
+  ParameterValue.cs
+ BPUIv2/DrawingList/
+  DrawingListItem.cs
+  DrawingListService.cs
+  DrawingListSource.cs
+ BPUIv2/Execution/
+  BatchRunner.cs
+  BatchRunOptions.cs
+  BatchRunProgress.cs
+ BPUIv2/Operations/Alignment/
+  CenterViewFrameLabelsOp.cs
+  ImportAlignmentLabelSetOp.cs
+  SetAlignmentStyleOp.cs
+ BPUIv2/Operations/Block/
+  CorrectBlockFieldOp.cs
+  EraseBlockRefsAtProfileViewsOp.cs
+  PlaceBlockOnPaperspaceOp.cs
+  ReplaceBlockOnPaperspaceOp.cs
+ BPUIv2/Operations/DataShortcut/
+  CreatePipeProfileReferencesOp.cs
+  CreateSurfaceProfileReferenceOp.cs
+ BPUIv2/Operations/Detailing/
+  CreateDetailingOp.cs
+  CreatePreliminaryDetailingOp.cs
+  DeleteCogoPointsOp.cs
+  DeleteDetailingOp.cs
+ BPUIv2/Operations/Layer/
+  CreateOrCheckLayerOp.cs
+  SetLayerLinetypeOp.cs
+  SetLayerPlotStyleOp.cs
+  SetLayerVisibilityOp.cs
+ BPUIv2/Operations/Profile/
+  CreateProfileCurveLabelsOp.cs
+  EraseAlignmentsByPatternOp.cs
+  EraseAllProfilesOp.cs
+  SetProfileStyleOp.cs
+  SetProfileStylePropertiesOp.cs
+  SetProfileViewBandItemsOp.cs
+  SetProfileViewElevationRangeOp.cs
+  SetProfileViewStyleOp.cs
+  SetSurfaceProfileStyleOp.cs
+ BPUIv2/Operations/Style/
+  ImportCivilStylesOp.cs
+  StaggerLabelsOp.cs
+ BPUIv2/Operations/ViewFrame/
+  ListViewFrameNumbersOp.cs
+  RenumberViewFramesOp.cs
+ BPUIv2/Operations/Viewport/
+  FreezeLERPointLayersOp.cs
+  FreezeMatchLineInViewportOp.cs
+  FreezeXrefLayersInViewportOp.cs
+  SetLayerColorInViewportOp.cs
+ BPUIv2/Operations/Xref/
+  AttachXrefOp.cs
+  ChangeXrefLayerOp.cs
+  DetachXrefOp.cs
+  SetDrawOrderOp.cs
+ BPUIv2/Registry/
+  OperationCatalogEntry.cs
+  OperationRegistry.cs
+ BPUIv2/
+  Sampling/DrawingSampler.cs
+  Sequences/
+   OperationStep.cs
+   PredefinedSequences.cs
+   SequenceDefinition.cs
+   SequenceStorageLevel.cs
+   SequenceStorageService.cs
+   SharedSequenceFileManager.cs
+  UI/
+   BatchProcessingControl.xaml.cs
+   BatchProcessingViewModel.cs
+   Converters/
+    InverseBoolConverter.cs
+    NullToVisibilityConverter.cs
+    OperationCategoryToColorConverter.cs
+    SequenceLevelToIconConverter.cs
+   DrawingList/
+    DrawingListDialog.xaml.cs
+    DrawingListViewModel.cs
+   FilterEditor/
+    FilterEditorDialog.xaml.cs
+    FilterEditorViewModel.cs
+   InputsDialog/
+    InputItemViewModel.cs
+    InputsDialog.xaml.cs
+    InputsDialogViewModel.cs
+   SequenceComposer/
+    AvailableOutput.cs
+    OperationCardViewModel.cs
+    OutputDisplayItem.cs
+    ParameterInputViewModel.cs
+    SequenceComposerViewModel.cs
+    SequenceComposerWindow.xaml.cs
+ Form1.cs
+ Form1.Designer.cs
+CmdUI/
+ CmdUi.cs
+ UI/
+  ConfigPaletteSet.cs
+  ConfigurationControl.xaml.cs
+  ConfigurationViewModel.cs
+ColorUtils.cs
+ConvexHull.cs
+DataScience/
+ DataScience.cs
+ EnergyReportTemplate.cs
+ MergeReportModel.cs
+ MergeReportTemplate.cs
+ PropertySetBrowser/
+  PropertySetBrowserViewModel.cs
+  PropertySetBrowserWindow.xaml.cs
+  PropertySetEntityRow.cs
+FjernvarmeFremtidig/
+ FjernvarmeFremtidig.cs
+ VejkantOffset/App/
+  AnalyzerAdapter.cs
+  Contracts/
+   IOffsetAnalyzer.cs
+   ITransientRenderer.cs
+   IWpfVisualizer.cs
+  JigCallbacksAdapter.cs
+  JigController.cs
+ VejkantOffset/Core/Analysis/Spatial/
+  Geometry2D.cs
+  Line2d.cs
+  OrientedRect.cs
+  Segment2d.cs
+  SpatialGridCache.cs
+ VejkantOffset/Core/
+  Analysis/VejKantAnalyzer.cs
+  CoordinateTransformation/
+   DisplayCoordinateSystem.cs
+   DisplayCoordinateSystemTests.cs
+  Models/
+   SegmentHit.cs
+   VejkantAnalysis.cs
+  Settings/VejkantOffsetSettings.cs
+ VejkantOffset/Rendering/
+  Scene.cs
+  TransientPreviewRenderer.cs
+  VejkantSceneComposer.cs
+ VejkantOffset/UI/
+  Models/IntersectionVisualizationModel.cs
+  VejkantInspectorMapper.cs
+  ViewModels/IntersectionVisualizationViewModel.cs
+  Views/
+   OffsetPaletteView.xaml.cs
+   OffsetPaletteViewModelVisualizer.cs
+Forms/PipeSettingsForm/
+ PipeSettingsForm.cs
+ PipeSettingsForm.Designer.cs
+Forms/
+ TestSuiteForm.cs
+ TestSuiteForm.Designer.cs
+GeoJsonConverters/
+ AutoCadFjvToGeoJsonConverter.cs
+ AutoCadVFToGeoJsonConverter.cs
+GeoJsonFeatureCollection.cs
+GraphClasses/
+ EdgeTyped.cs
+ POI2.cs
+GraphWrite/
+ Edge.cs
+ GraphWriteCommands.cs
+ MyGraph.cs
+ MyGraphQA.cs
+ SubGraph.cs
+GraphWriteV2/DotStyling/
+ RecordStyler.cs
+ UniformWidthHtmlStyler.cs
+GraphWriteV2/
+ EdgeQaAttributeProvider.cs
+ GraphBuilderV2.cs
+ GraphWriteV2Command.cs
+GroupByCluster.cs
+Intersect.cs
+Jigs/
+ ExampleJigs.cs
+ FjvJig.cs
+ ILineJigCallbacks.cs
+ LineJigKeyword.cs
+ LineJigWithKeywords.cs
+ ProfileJig.cs
+LER2.0/
+ HtmlGenerator.cs
+ LER2.0.cs
+ LER2.0_Extensions.cs
+ Ler2MergeValidator.cs
+ MyPl3d.cs
+ SerializablePolyline3d.cs
+LongitudinalProfiles/Alignments/
+ Commands.cs
+ Wrappers/
+  IWrapper.cs
+  Wrapper.cs
+LongitudinalProfiles/AutoProfile/
+ Auto Profile.cs
+ AutoProfileClasses/
+  AutoProfileFilleter.cs
+  ExecutionControl/
+   FilletFailureReason.cs
+   FilletResultBase.cs
+   FilletResultThreePart.cs
+   FilletValidation.cs
+   VertexKey.cs
+  Extensions/
+   LinkedListExtensions.cs
+   PolylineSegmentExtensions.cs
+   Vector2dExtensions.cs
+  FilletStrategies/
+   FilletMath.cs
+   FilletStrategyArcToArc.cs
+   FilletStrategyArcToLine.cs
+   FilletStrategyLineToArc.cs
+   FilletStrategyLineToLine.cs
+   FilletStrategyManager.cs
+  Interfaces/
+   IFilletRadiusProvider.cs
+   IFilletResult.cs
+   IFilletStrategy.cs
+   IPolylineBuilder.cs
+   IPolylineSegment.cs
+   ISegmentExtractor.cs
+   ITriageStrategy.cs
+  SegmentImplementations/
+   PolylineArcSegment.cs
+   PolylineLineSegment.cs
+  Services/
+   PolylineBuilder.cs
+   PolylineSanitizer.cs
+   RadiusProvider.cs
+   SegmentExtractor.cs
+  TriageStrategies/
+   TriageStrategyArcLineS2Short.cs
+   TriageStrategyLineArcS1Short.cs
+   TriageStrategyManager.cs
+ PipelineDataClasses/
+  AP_HorizontalArc.cs
+  AP_PipelineData.cs
+  AP_ProfileViewData.cs
+  AP_SurfaceProfileData.cs
+  AP_Utility.cs
+  Enums/
+   AP_Relation.cs
+   AP_Status.cs
+  PipelineDataBase.cs
+ PolylineExportSegment.cs
+LongitudinalProfiles/AutoProfileV2/
+ AutoProfileV2.cs
+ AutoProfileV2PipelineCollector.cs
+ AutoProfileV2SolverClient.cs
+ PipelineDataClasses/
+  AP2_HorizontalArc.cs
+  AP2_HorizontalArcs.cs
+  AP2_PipelineData.cs
+  AP2_ProfileViewData.cs
+  AP2_SurfaceProfileData.cs
+  AP2_Utility.cs
+  Enums/AP_Relation.cs
+  PipelineDataBase.cs
+LongitudinalProfiles/Detailing/BlockDetailing/
+ BlockDetailerBase.cs
+ BlockDetailerFactory.cs
+ BlockDetailingContext.cs
+ DetailerAfgrening.cs
+ DetailerAfgreningBelongsToInverted.cs
+ DetailerBuerør.cs
+ DetailerGeneric.cs
+ IBlockDetailer.cs
+LongitudinalProfiles/Detailing/ProfileViewSymbol/
+ BlockBase.cs
+ CirkelBund.cs
+ CirkelTop.cs
+ El04.cs
+ El10.cs
+ El132.cs
+ El30.cs
+ El50.cs
+ El60.cs
+ ElLuft.cs
+ IProfileViewSymbol.cs
+ ProfileViewSymbol.cs
+ ProfileViewSymbolFactory.cs
+LongitudinalProfiles/
+ JsonConverters.cs
+ KoteReport/
+  Connection.cs
+  KoteReport.cs
+  KREdge.cs
+  KRNode.cs
+ Ler3dManager/Ler3dManager.cs
+ LongitudinalProfileTools.cs
+ Relocability/
+  LerTypeResolution.cs
+  Relocability.cs
+ TrenchSamplingPoint.cs
+MoreLinq/
+ DistinctBy.cs
+ MoreLinq.cs
+MPE/
+ Ler2Project/Ler2Project.cs
+ LERCompareTerrain/LERCompareTerrain.cs
+ MatchBBR/MatchBBR.cs
+ PipePlan/
+  PipePlanAnalysis.cs
+  PipePlanCommands.cs
+  PipePlanEditSession.cs
+  PipePlanFittings.cs
+  PipePlanGeometryValidator.cs
+  PipePlanHandleMarkerManager.cs
+  PipePlanMetadata.cs
+  PipePlanModels.cs
+  PipePlanPalette.cs
+  PipePlanPreviewManager.cs
+  PipePlanRuntime.cs
+  PipePlanSolver.cs
+  PipePlanSplitService.cs
+  PipePlanState.cs
+  PipePlanTrackers.cs
+  PipePlanUtilities.cs
+MSM/MSMScripts.cs
+NetTopologySuite/NTSConversion.cs
+obj/x64/Debug/
+ .NETCoreApp,Version=v8.0.AssemblyAttributes.cs
+ IntersectUtilities.AssemblyInfo.cs
+ IntersectUtilities.GlobalUsings.g.cs
+ObsoleteMethods.cs
+ODDataConverter.cs
+PipelineNetworkSystem/PipelineNetworkCommands.cs
+PipelineSizeArray.cs
+PipeScheduleV2/PipeScheduleV2.cs
+PipeSettingsCommands.cs
+PlanDetailing/Components/
+ Branch.cs
+ Bueror.cs
+ ComponentData.cs
+ ElbowPreinsulated.cs
+ ElbowWeldFitting.cs
+ PertTee.cs
+ Transition.cs
+PlanDetailing/
+ LineTypes.cs
+ PlanDetailing.cs
+PlanProduction/
+ PlanProduction.cs
+ SheetProductionsCommands.cs
+ ViewFrameDrawing.cs
+ ViewFramesCollection.cs
+PolylineCurvingDev.cs
+Properties/Algorithms/KMeansPP.cs
+Testing/Testing.cs
+Utils.cs
+
+[metadataReferences]
+../../../../../../../Program Files/Autodesk/AutoCAD 2025/ACA/
+ AecArchMgd.dll
+ AecBaseMgd.dll
+ AecPropDataMgd.dll
+../../../../../../../Program Files/Autodesk/AutoCAD 2025/
+ accoremgd.dll
+ AcCui.dll
+ acdbmgd.dll
+ acdbmgdbrep.dll
+ AcDx.dll
+ acmgd.dll
+ AcMPolygonMGD.dll
+ AcMr.DLL
+ AcSeamless.dll
+ AcTcMgd.dll
+ AcWindows.dll
+ AdUiPalettes.dll
+ AdWindows.dll
+ C3D/
+  AeccDataShortcutMgd.dll
+  AeccDbMgd.dll
+ Map/ManagedMapApi.dll
+<DOTNET>/packs/Microsoft.AspNetCore.App.Ref/8.0.27/ref/net8.0/
+ Microsoft.AspNetCore.Antiforgery.dll
+ Microsoft.AspNetCore.Authentication.Abstractions.dll
+ Microsoft.AspNetCore.Authentication.BearerToken.dll
+ Microsoft.AspNetCore.Authentication.Cookies.dll
+ Microsoft.AspNetCore.Authentication.Core.dll
+ Microsoft.AspNetCore.Authentication.dll
+ Microsoft.AspNetCore.Authentication.OAuth.dll
+ Microsoft.AspNetCore.Authorization.dll
+ Microsoft.AspNetCore.Authorization.Policy.dll
+ Microsoft.AspNetCore.Components.Authorization.dll
+ Microsoft.AspNetCore.Components.dll
+ Microsoft.AspNetCore.Components.Endpoints.dll
+ Microsoft.AspNetCore.Components.Forms.dll
+ Microsoft.AspNetCore.Components.Server.dll
+ Microsoft.AspNetCore.Components.Web.dll
+ Microsoft.AspNetCore.Connections.Abstractions.dll
+ Microsoft.AspNetCore.CookiePolicy.dll
+ Microsoft.AspNetCore.Cors.dll
+ Microsoft.AspNetCore.Cryptography.Internal.dll
+ Microsoft.AspNetCore.Cryptography.KeyDerivation.dll
+ Microsoft.AspNetCore.DataProtection.Abstractions.dll
+ Microsoft.AspNetCore.DataProtection.dll
+ Microsoft.AspNetCore.DataProtection.Extensions.dll
+ Microsoft.AspNetCore.Diagnostics.Abstractions.dll
+ Microsoft.AspNetCore.Diagnostics.dll
+ Microsoft.AspNetCore.Diagnostics.HealthChecks.dll
+ Microsoft.AspNetCore.dll
+ Microsoft.AspNetCore.HostFiltering.dll
+ Microsoft.AspNetCore.Hosting.Abstractions.dll
+ Microsoft.AspNetCore.Hosting.dll
+ Microsoft.AspNetCore.Hosting.Server.Abstractions.dll
+ Microsoft.AspNetCore.Html.Abstractions.dll
+ Microsoft.AspNetCore.Http.Abstractions.dll
+ Microsoft.AspNetCore.Http.Connections.Common.dll
+ Microsoft.AspNetCore.Http.Connections.dll
+ Microsoft.AspNetCore.Http.dll
+ Microsoft.AspNetCore.Http.Extensions.dll
+ Microsoft.AspNetCore.Http.Features.dll
+ Microsoft.AspNetCore.Http.Results.dll
+ Microsoft.AspNetCore.HttpLogging.dll
+ Microsoft.AspNetCore.HttpOverrides.dll
+ Microsoft.AspNetCore.HttpsPolicy.dll
+ Microsoft.AspNetCore.Identity.dll
+ Microsoft.AspNetCore.Localization.dll
+ Microsoft.AspNetCore.Localization.Routing.dll
+ Microsoft.AspNetCore.Metadata.dll
+ Microsoft.AspNetCore.Mvc.Abstractions.dll
+ Microsoft.AspNetCore.Mvc.ApiExplorer.dll
+ Microsoft.AspNetCore.Mvc.Core.dll
+ Microsoft.AspNetCore.Mvc.Cors.dll
+ Microsoft.AspNetCore.Mvc.DataAnnotations.dll
+ Microsoft.AspNetCore.Mvc.dll
+ Microsoft.AspNetCore.Mvc.Formatters.Json.dll
+ Microsoft.AspNetCore.Mvc.Formatters.Xml.dll
+ Microsoft.AspNetCore.Mvc.Localization.dll
+ Microsoft.AspNetCore.Mvc.Razor.dll
+ Microsoft.AspNetCore.Mvc.RazorPages.dll
+ Microsoft.AspNetCore.Mvc.TagHelpers.dll
+ Microsoft.AspNetCore.Mvc.ViewFeatures.dll
+ Microsoft.AspNetCore.OutputCaching.dll
+ Microsoft.AspNetCore.RateLimiting.dll
+ Microsoft.AspNetCore.Razor.dll
+ Microsoft.AspNetCore.Razor.Runtime.dll
+ Microsoft.AspNetCore.RequestDecompression.dll
+ Microsoft.AspNetCore.ResponseCaching.Abstractions.dll
+ Microsoft.AspNetCore.ResponseCaching.dll
+ Microsoft.AspNetCore.ResponseCompression.dll
+ Microsoft.AspNetCore.Rewrite.dll
+ Microsoft.AspNetCore.Routing.Abstractions.dll
+ Microsoft.AspNetCore.Routing.dll
+ Microsoft.AspNetCore.Server.HttpSys.dll
+ Microsoft.AspNetCore.Server.IIS.dll
+ Microsoft.AspNetCore.Server.IISIntegration.dll
+ Microsoft.AspNetCore.Server.Kestrel.Core.dll
+ Microsoft.AspNetCore.Server.Kestrel.dll
+ Microsoft.AspNetCore.Server.Kestrel.Transport.NamedPipes.dll
+ Microsoft.AspNetCore.Server.Kestrel.Transport.Quic.dll
+ Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.dll
+ Microsoft.AspNetCore.Session.dll
+ Microsoft.AspNetCore.SignalR.Common.dll
+ Microsoft.AspNetCore.SignalR.Core.dll
+ Microsoft.AspNetCore.SignalR.dll
+ Microsoft.AspNetCore.SignalR.Protocols.Json.dll
+ Microsoft.AspNetCore.StaticFiles.dll
+ Microsoft.AspNetCore.WebSockets.dll
+ Microsoft.AspNetCore.WebUtilities.dll
+ Microsoft.Extensions.Caching.Abstractions.dll
+ Microsoft.Extensions.Caching.Memory.dll
+ Microsoft.Extensions.Configuration.Abstractions.dll
+ Microsoft.Extensions.Configuration.Binder.dll
+ Microsoft.Extensions.Configuration.CommandLine.dll
+ Microsoft.Extensions.Configuration.dll
+ Microsoft.Extensions.Configuration.EnvironmentVariables.dll
+ Microsoft.Extensions.Configuration.FileExtensions.dll
+ Microsoft.Extensions.Configuration.Ini.dll
+ Microsoft.Extensions.Configuration.Json.dll
+ Microsoft.Extensions.Configuration.KeyPerFile.dll
+ Microsoft.Extensions.Configuration.UserSecrets.dll
+ Microsoft.Extensions.Configuration.Xml.dll
+ Microsoft.Extensions.DependencyInjection.Abstractions.dll
+ Microsoft.Extensions.DependencyInjection.dll
+ Microsoft.Extensions.Diagnostics.Abstractions.dll
+ Microsoft.Extensions.Diagnostics.dll
+ Microsoft.Extensions.Diagnostics.HealthChecks.Abstractions.dll
+ Microsoft.Extensions.Diagnostics.HealthChecks.dll
+ Microsoft.Extensions.Features.dll
+ Microsoft.Extensions.FileProviders.Abstractions.dll
+ Microsoft.Extensions.FileProviders.Composite.dll
+ Microsoft.Extensions.FileProviders.Embedded.dll
+ Microsoft.Extensions.FileProviders.Physical.dll
+ Microsoft.Extensions.FileSystemGlobbing.dll
+ Microsoft.Extensions.Hosting.Abstractions.dll
+ Microsoft.Extensions.Hosting.dll
+ Microsoft.Extensions.Http.dll
+ Microsoft.Extensions.Identity.Core.dll
+ Microsoft.Extensions.Identity.Stores.dll
+ Microsoft.Extensions.Localization.Abstractions.dll
+ Microsoft.Extensions.Localization.dll
+ Microsoft.Extensions.Logging.Abstractions.dll
+ Microsoft.Extensions.Logging.Configuration.dll
+ Microsoft.Extensions.Logging.Console.dll
+ Microsoft.Extensions.Logging.Debug.dll
+ Microsoft.Extensions.Logging.dll
+ Microsoft.Extensions.Logging.EventLog.dll
+ Microsoft.Extensions.Logging.EventSource.dll
+ Microsoft.Extensions.Logging.TraceSource.dll
+ Microsoft.Extensions.ObjectPool.dll
+ Microsoft.Extensions.Options.ConfigurationExtensions.dll
+ Microsoft.Extensions.Options.DataAnnotations.dll
+ Microsoft.Extensions.Options.dll
+ Microsoft.Extensions.Primitives.dll
+ Microsoft.Extensions.WebEncoders.dll
+ Microsoft.JSInterop.dll
+ Microsoft.Net.Http.Headers.dll
+ System.IO.Pipelines.dll
+ System.Threading.RateLimiting.dll
+<DOTNET>/packs/Microsoft.NETCore.App.Ref/8.0.27/ref/net8.0/
+ Microsoft.CSharp.dll
+ Microsoft.VisualBasic.Core.dll
+ Microsoft.Win32.Primitives.dll
+ Microsoft.Win32.Registry.dll
+ mscorlib.dll
+ netstandard.dll
+ System.AppContext.dll
+ System.Buffers.dll
+ System.Collections.Concurrent.dll
+ System.Collections.dll
+ System.Collections.Immutable.dll
+ System.Collections.NonGeneric.dll
+ System.Collections.Specialized.dll
+ System.ComponentModel.Annotations.dll
+ System.ComponentModel.DataAnnotations.dll
+ System.ComponentModel.dll
+ System.ComponentModel.EventBasedAsync.dll
+ System.ComponentModel.Primitives.dll
+ System.ComponentModel.TypeConverter.dll
+ System.Configuration.dll
+ System.Console.dll
+ System.Core.dll
+ System.Data.Common.dll
+ System.Data.DataSetExtensions.dll
+ System.Data.dll
+ System.Diagnostics.Contracts.dll
+ System.Diagnostics.Debug.dll
+ System.Diagnostics.DiagnosticSource.dll
+ System.Diagnostics.FileVersionInfo.dll
+ System.Diagnostics.Process.dll
+ System.Diagnostics.StackTrace.dll
+ System.Diagnostics.TextWriterTraceListener.dll
+ System.Diagnostics.Tools.dll
+ System.Diagnostics.TraceSource.dll
+ System.Diagnostics.Tracing.dll
+ System.dll
+ System.Drawing.Primitives.dll
+ System.Dynamic.Runtime.dll
+ System.Formats.Asn1.dll
+ System.Formats.Tar.dll
+ System.Globalization.Calendars.dll
+ System.Globalization.dll
+ System.Globalization.Extensions.dll
+ System.IO.Compression.Brotli.dll
+ System.IO.Compression.dll
+ System.IO.Compression.FileSystem.dll
+ System.IO.Compression.ZipFile.dll
+ System.IO.dll
+ System.IO.FileSystem.AccessControl.dll
+ System.IO.FileSystem.dll
+ System.IO.FileSystem.DriveInfo.dll
+ System.IO.FileSystem.Primitives.dll
+ System.IO.FileSystem.Watcher.dll
+ System.IO.IsolatedStorage.dll
+ System.IO.MemoryMappedFiles.dll
+ System.IO.Pipes.AccessControl.dll
+ System.IO.Pipes.dll
+ System.IO.UnmanagedMemoryStream.dll
+ System.Linq.dll
+ System.Linq.Expressions.dll
+ System.Linq.Parallel.dll
+ System.Linq.Queryable.dll
+ System.Memory.dll
+ System.Net.dll
+ System.Net.Http.dll
+ System.Net.Http.Json.dll
+ System.Net.HttpListener.dll
+ System.Net.Mail.dll
+ System.Net.NameResolution.dll
+ System.Net.NetworkInformation.dll
+ System.Net.Ping.dll
+ System.Net.Primitives.dll
+ System.Net.Quic.dll
+ System.Net.Requests.dll
+ System.Net.Security.dll
+ System.Net.ServicePoint.dll
+ System.Net.Sockets.dll
+ System.Net.WebClient.dll
+ System.Net.WebHeaderCollection.dll
+ System.Net.WebProxy.dll
+ System.Net.WebSockets.Client.dll
+ System.Net.WebSockets.dll
+ System.Numerics.dll
+ System.Numerics.Vectors.dll
+ System.ObjectModel.dll
+ System.Reflection.DispatchProxy.dll
+ System.Reflection.dll
+ System.Reflection.Emit.dll
+ System.Reflection.Emit.ILGeneration.dll
+ System.Reflection.Emit.Lightweight.dll
+ System.Reflection.Extensions.dll
+ System.Reflection.Metadata.dll
+ System.Reflection.Primitives.dll
+ System.Reflection.TypeExtensions.dll
+ System.Resources.Reader.dll
+ System.Resources.ResourceManager.dll
+ System.Resources.Writer.dll
+ System.Runtime.CompilerServices.Unsafe.dll
+ System.Runtime.CompilerServices.VisualC.dll
+ System.Runtime.dll
+ System.Runtime.Extensions.dll
+ System.Runtime.Handles.dll
+ System.Runtime.InteropServices.dll
+ System.Runtime.InteropServices.JavaScript.dll
+ System.Runtime.InteropServices.RuntimeInformation.dll
+ System.Runtime.Intrinsics.dll
+ System.Runtime.Loader.dll
+ System.Runtime.Numerics.dll
+ System.Runtime.Serialization.dll
+ System.Runtime.Serialization.Formatters.dll
+ System.Runtime.Serialization.Json.dll
+ System.Runtime.Serialization.Primitives.dll
+ System.Runtime.Serialization.Xml.dll
+ System.Security.AccessControl.dll
+ System.Security.Claims.dll
+ System.Security.Cryptography.Algorithms.dll
+ System.Security.Cryptography.Cng.dll
+ System.Security.Cryptography.Csp.dll
+ System.Security.Cryptography.dll
+ System.Security.Cryptography.Encoding.dll
+ System.Security.Cryptography.OpenSsl.dll
+ System.Security.Cryptography.Primitives.dll
+ System.Security.Cryptography.X509Certificates.dll
+ System.Security.dll
+ System.Security.Principal.dll
+ System.Security.Principal.Windows.dll
+ System.Security.SecureString.dll
+ System.ServiceModel.Web.dll
+ System.ServiceProcess.dll
+ System.Text.Encoding.CodePages.dll
+ System.Text.Encoding.dll
+ System.Text.Encoding.Extensions.dll
+ System.Text.Encodings.Web.dll
+ System.Text.Json.dll
+ System.Text.RegularExpressions.dll
+ System.Threading.Channels.dll
+ System.Threading.dll
+ System.Threading.Overlapped.dll
+ System.Threading.Tasks.Dataflow.dll
+ System.Threading.Tasks.dll
+ System.Threading.Tasks.Extensions.dll
+ System.Threading.Tasks.Parallel.dll
+ System.Threading.Thread.dll
+ System.Threading.ThreadPool.dll
+ System.Threading.Timer.dll
+ System.Transactions.dll
+ System.Transactions.Local.dll
+ System.ValueTuple.dll
+ System.Web.dll
+ System.Web.HttpUtility.dll
+ System.Windows.dll
+ System.Xml.dll
+ System.Xml.Linq.dll
+ System.Xml.ReaderWriter.dll
+ System.Xml.Serialization.dll
+ System.Xml.XDocument.dll
+ System.Xml.XmlDocument.dll
+ System.Xml.XmlSerializer.dll
+ System.Xml.XPath.dll
+ System.Xml.XPath.XDocument.dll
+<DOTNET>/packs/Microsoft.WindowsDesktop.App.Ref/8.0.27/ref/net8.0/
+ Accessibility.dll
+ Microsoft.VisualBasic.dll
+ Microsoft.VisualBasic.Forms.dll
+ Microsoft.Win32.Registry.AccessControl.dll
+ Microsoft.Win32.SystemEvents.dll
+ PresentationCore.dll
+ PresentationFramework.Aero.dll
+ PresentationFramework.Aero2.dll
+ PresentationFramework.AeroLite.dll
+ PresentationFramework.Classic.dll
+ PresentationFramework.dll
+ PresentationFramework.Luna.dll
+ PresentationFramework.Royale.dll
+ PresentationUI.dll
+ ReachFramework.dll
+ System.CodeDom.dll
+ System.Configuration.ConfigurationManager.dll
+ System.Design.dll
+ System.Diagnostics.EventLog.dll
+ System.Diagnostics.PerformanceCounter.dll
+ System.DirectoryServices.dll
+ System.Drawing.Common.dll
+ System.Drawing.Design.dll
+ System.Drawing.dll
+ System.IO.Packaging.dll
+ System.Printing.dll
+ System.Resources.Extensions.dll
+ System.Security.Cryptography.Pkcs.dll
+ System.Security.Cryptography.ProtectedData.dll
+ System.Security.Cryptography.Xml.dll
+ System.Security.Permissions.dll
+ System.Threading.AccessControl.dll
+ System.Windows.Controls.Ribbon.dll
+ System.Windows.Extensions.dll
+ System.Windows.Forms.Design.dll
+ System.Windows.Forms.Design.Editors.dll
+ System.Windows.Forms.dll
+ System.Windows.Forms.Primitives.dll
+ System.Windows.Input.Manipulations.dll
+ System.Windows.Presentation.dll
+ System.Xaml.dll
+ UIAutomationClient.dll
+ UIAutomationClientSideProviders.dll
+ UIAutomationProvider.dll
+ UIAutomationTypes.dll
+ WindowsBase.dll
+ WindowsFormsIntegration.dll
+<NUGET>/
+ communitytoolkit.mvvm/8.4.0/lib/net8.0-windows10.0.17763/CommunityToolkit.Mvvm.dll
+ csvhelper/33.0.1/lib/net8.0/CsvHelper.dll
+ fluid.core/2.11.1/lib/net8.0/Fluid.dll
+ microsoft.aspnetcore.systemwebadapters/1.3.0/lib/net8.0/Microsoft.AspNetCore.SystemWebAdapters.dll
+ microsoft.bcl.asyncinterfaces/9.0.0/lib/netstandard2.1/Microsoft.Bcl.AsyncInterfaces.dll
+ microsoft.windows.sdk.net.ref/10.0.26100.57/lib/net8.0/
+  Microsoft.Windows.SDK.NET.dll
+  WinRT.Runtime.dll
+ nettopologysuite.features/2.2.0/lib/netstandard2.0/NetTopologySuite.Features.dll
+ nettopologysuite.io.geojson/4.0.0/lib/netstandard2.0/NetTopologySuite.IO.GeoJSON.dll
+ nettopologysuite/2.5.0/lib/netstandard2.0/NetTopologySuite.dll
+ newtonsoft.json/13.0.3/lib/net6.0/Newtonsoft.Json.dll
+ parlot/1.0.2/lib/net8.0/Parlot.dll
+ quikgraph.data/2.5.0/lib/netstandard2.0/QuikGraph.Data.dll
+ quikgraph.graphviz/2.5.0/lib/netstandard2.0/QuikGraph.Graphviz.dll
+ quikgraph.serialization/2.5.0/lib/netstandard2.1/QuikGraph.Serialization.dll
+ quikgraph/2.5.0/lib/netstandard2.0/QuikGraph.dll
+ sharpkml.core/6.1.0/lib/netstandard2.0/SharpKml.Core.dll
+ system.runtime.caching/6.0.0/lib/net6.0/System.Runtime.Caching.dll
+ timezoneconverter/6.1.0/lib/net6.0/TimeZoneConverter.dll
+X:/AutoCAD DRI - 01 Civil 3D/NetloadV2/Dependencies/NET8/DarkUI.dll
+
+[analyzerReferences]
+<DOTNET>/packs/Microsoft.AspNetCore.App.Ref/8.0.27/analyzers/dotnet/cs/
+ Microsoft.AspNetCore.App.Analyzers.dll
+ Microsoft.AspNetCore.App.CodeFixes.dll
+ Microsoft.AspNetCore.Components.Analyzers.dll
+<DOTNET>/packs/Microsoft.AspNetCore.App.Ref/8.0.27/analyzers/dotnet/roslyn4.4/cs/
+ Microsoft.Extensions.Logging.Generators.dll
+ Microsoft.Extensions.Options.SourceGeneration.dll
+<DOTNET>/packs/Microsoft.NETCore.App.Ref/8.0.27/analyzers/dotnet/cs/
+ Microsoft.Interop.ComInterfaceGenerator.dll
+ Microsoft.Interop.JavaScript.JSImportGenerator.dll
+ Microsoft.Interop.LibraryImportGenerator.dll
+ Microsoft.Interop.SourceGeneration.dll
+ System.Text.Json.SourceGeneration.dll
+ System.Text.RegularExpressions.Generator.dll
+<DOTNET>/packs/Microsoft.WindowsDesktop.App.Ref/8.0.27/analyzers/dotnet/
+ cs/System.Windows.Forms.Analyzers.CSharp.dll
+ System.Windows.Forms.Analyzers.dll
+<DOTNET>/sdk/10.0.300/Sdks/Microsoft.NET.Sdk/analyzers/
+ Microsoft.CodeAnalysis.CSharp.NetAnalyzers.dll
+ Microsoft.CodeAnalysis.NetAnalyzers.dll
+<NUGET>/communitytoolkit.mvvm/8.4.0/analyzers/dotnet/roslyn4.12/cs/
+ CommunityToolkit.Mvvm.CodeFixers.dll
+ CommunityToolkit.Mvvm.SourceGenerators.dll
+<NUGET>/microsoft.windows.sdk.net.ref/10.0.26100.57/analyzers/dotnet/cs/WinRT.SourceGenerator.dll
+
+[analyzerConfigFiles]
+../.editorconfig
+<DOTNET>/sdk/10.0.300/Sdks/Microsoft.NET.Sdk/analyzers/build/config/analysislevel_8_default.globalconfig
+obj/x64/Debug/IntersectUtilities.GeneratedMSBuildEditorConfig.editorconfig

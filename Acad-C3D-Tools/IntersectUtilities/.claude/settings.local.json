@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(node \"C:/Users/mpe/.claude/plugins/cache/openai-codex/codex/1.0.4/scripts/codex-companion.mjs\" setup --json)",
+      "Read(//c/Users/mpe/GitHub/**)"
+    ]
+  }
+}
