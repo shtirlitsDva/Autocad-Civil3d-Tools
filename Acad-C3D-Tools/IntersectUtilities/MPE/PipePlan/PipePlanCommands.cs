@@ -544,7 +544,7 @@ public partial class Intersect
             if (reverseResult.SharpCornerPositions.Count > 0)
             {
                 ReportEditorMessage(editor, "Polyline has Sharp edges, PPConv will use minimum bending radius.");
-                markers.Show(document, reverseResult.SharpCornerPositions, sharpCornerRadius);
+                markers.Show(document, reverseResult.SharpCornerPositions);
 
                 PromptKeywordOptions confirm = new($"\nPress Enter to convert ({reverseResult.SharpCornerPositions.Count} sharp corner(s) will be filleted at radius {sharpCornerRadius:0.##}) or Esc to cancel.");
                 confirm.Keywords.Add("Continue");
