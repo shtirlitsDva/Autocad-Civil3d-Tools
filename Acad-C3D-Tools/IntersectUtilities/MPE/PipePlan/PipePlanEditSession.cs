@@ -88,30 +88,12 @@ internal sealed class PipePlanEditSession : IDisposable
 
     public PipePlanEditCandidate BuildCandidate(PipePlanEditHandle handle, Point3d dragPoint)
     {
-        List<Point3d> controlPoints = [.. _data.ControlPoints];
-        if (handle.Kind == PipePlanEditHandleKind.Vertex)
-        {
-            BuildVertexCandidate(handle, dragPoint, controlPoints);
-        }
-        else
-        {
-            BuildSegmentCandidate(handle, dragPoint, controlPoints);
-        }
-
-        PipePlanAnalysis analysis = Analyze(controlPoints);
-        return new PipePlanEditCandidate(controlPoints, analysis);
+        PipePlanEditDraft draft = BuildCandidateDraft(handle, dragPoint);
+        return new PipePlanEditCandidate(draft, Analyze(draft));
     }
 
     public void Commit(PipePlanEditCandidate candidate)
     {
-        IReadOnlyList<double> committedRadii = _data.BendRadii;
-        if (_pendingRadiusVertex is int idx && idx >= 0 && idx < committedRadii.Count)
-        {
-            List<double> updated = [.. committedRadii];
-            updated[idx] = _pendingRadiusValue;
-            committedRadii = updated;
-        }
-
         using DocumentLock documentLock = _document.LockDocument();
         using Transaction transaction = _document.Database.TransactionManager.StartTransaction();
 
@@ -122,12 +104,17 @@ internal sealed class PipePlanEditSession : IDisposable
                 _data.System,
                 _data.Type,
                 _data.Dn,
-                committedRadii,
+                candidate.Draft.BendRadii,
                 _data.StraightSnapToleranceText,
-                candidate.ControlPoints,
+                candidate.Draft.ControlPoints,
                 _data.ObjectToken);
-            Polyline replacement = ReplaceGeometry(polyline, candidate.Analysis, transaction);
-            PipePlanMetadata.Write(replacement, _data, transaction);
+            BlockTableRecord owner = (BlockTableRecord)transaction.GetObject(polyline.OwnerId, OpenMode.ForWrite);
+            Polyline replacement = PipePlanPolylineWriter.AppendFromAnalysis(polyline, candidate.Analysis, _data, owner, transaction);
+            if (!polyline.IsErased)
+            {
+                polyline.Erase();
+            }
+            _polylineId = replacement.ObjectId;
 
             transaction.Commit();
         }
@@ -167,22 +154,6 @@ internal sealed class PipePlanEditSession : IDisposable
         return false;
     }
 
-    public bool TryAnalyzeVertexRadius(int vertexIndex, double radius, out PipePlanAnalysis analysis, out string error)
-    {
-        Point3d currentPosition = vertexIndex >= 0 && vertexIndex < _data.ControlPoints.Count
-            ? _data.ControlPoints[vertexIndex]
-            : default;
-        return TryAnalyzeVertexState(vertexIndex, currentPosition, radius, out analysis, out error);
-    }
-
-    public bool TrySetVertexRadius(int vertexIndex, double radius, out string error)
-    {
-        Point3d currentPosition = vertexIndex >= 0 && vertexIndex < _data.ControlPoints.Count
-            ? _data.ControlPoints[vertexIndex]
-            : default;
-        return TrySetVertexState(vertexIndex, currentPosition, radius, out error);
-    }
-
     public bool TryAnalyzeVertexState(int vertexIndex, Point3d newPosition, double radius, out PipePlanAnalysis analysis, out string error)
     {
         error = string.Empty;
@@ -200,59 +171,12 @@ internal sealed class PipePlanEditSession : IDisposable
             return false;
         }
 
-        List<Point3d> updatedControlPoints = [.. _data.ControlPoints];
-        Point3d original = updatedControlPoints[vertexIndex];
-        updatedControlPoints[vertexIndex] = new Point3d(newPosition.X, newPosition.Y, original.Z);
-
-        List<double> updatedRadii = [.. _data.BendRadii];
-        updatedRadii[vertexIndex] = radius;
-
-        analysis = _solver.Analyze(updatedControlPoints, updatedRadii);
+        PipePlanEditDraft draft = BuildVertexRadiusDraft(vertexIndex, newPosition, radius);
+        analysis = Analyze(draft);
         if (!analysis.IsFeasible)
         {
             error = analysis.Message;
             return false;
-        }
-
-        return true;
-    }
-
-    public bool TrySetVertexState(int vertexIndex, Point3d newPosition, double radius, out string error)
-    {
-        if (!TryAnalyzeVertexState(vertexIndex, newPosition, radius, out PipePlanAnalysis analysis, out error))
-        {
-            return false;
-        }
-
-        List<Point3d> updatedControlPoints = [.. _data.ControlPoints];
-        Point3d original = updatedControlPoints[vertexIndex];
-        updatedControlPoints[vertexIndex] = new Point3d(newPosition.X, newPosition.Y, original.Z);
-
-        List<double> updatedRadii = [.. _data.BendRadii];
-        updatedRadii[vertexIndex] = radius;
-
-        using DocumentLock documentLock = _document.LockDocument();
-        using Transaction transaction = _document.Database.TransactionManager.StartTransaction();
-
-        try
-        {
-            Polyline polyline = (Polyline)transaction.GetObject(_polylineId, OpenMode.ForWrite);
-            _data = new PipePlanStoredData(
-                _data.System,
-                _data.Type,
-                _data.Dn,
-                updatedRadii,
-                _data.StraightSnapToleranceText,
-                updatedControlPoints,
-                _data.ObjectToken);
-            Polyline replacement = ReplaceGeometry(polyline, analysis, transaction);
-            PipePlanMetadata.Write(replacement, _data, transaction);
-            transaction.Commit();
-        }
-        catch
-        {
-            transaction.Abort();
-            throw;
         }
 
         return true;
@@ -370,72 +294,53 @@ internal sealed class PipePlanEditSession : IDisposable
         return vertexDistance <= segmentDistance ? vertexHandle : segmentHandle;
     }
 
-    private static void BuildVertexCandidate(PipePlanEditHandle handle, Point3d dragPoint, List<Point3d> controlPoints)
+    private PipePlanEditDraft BuildCandidateDraft(PipePlanEditHandle handle, Point3d dragPoint)
     {
-        Point3d original = controlPoints[handle.Index];
-        controlPoints[handle.Index] = new Point3d(dragPoint.X, dragPoint.Y, original.Z);
-    }
-
-    private static void BuildSegmentCandidate(PipePlanEditHandle handle, Point3d dragPoint, List<Point3d> controlPoints)
-    {
-        Vector3d delta = new(dragPoint.X - handle.GripPoint.X, dragPoint.Y - handle.GripPoint.Y, 0.0);
-        controlPoints[handle.Index] = controlPoints[handle.Index].Add(delta);
-        controlPoints[handle.Index + 1] = controlPoints[handle.Index + 1].Add(delta);
-    }
-
-    private PipePlanAnalysis Analyze(IReadOnlyList<Point3d> controlPoints)
-    {
-        if (controlPoints.Count != _data.BendRadii.Count)
+        List<Point3d> controlPoints = [.. _data.ControlPoints];
+        if (handle.Kind == PipePlanEditHandleKind.Vertex)
         {
-            return PipePlanAnalysis.Invalid(controlPoints, "Control points and bend radii are out of sync.");
+            Point3d original = controlPoints[handle.Index];
+            controlPoints[handle.Index] = new Point3d(dragPoint.X, dragPoint.Y, original.Z);
+        }
+        else
+        {
+            Vector3d delta = new(dragPoint.X - handle.GripPoint.X, dragPoint.Y - handle.GripPoint.Y, 0.0);
+            controlPoints[handle.Index] = controlPoints[handle.Index].Add(delta);
+            controlPoints[handle.Index + 1] = controlPoints[handle.Index + 1].Add(delta);
         }
 
-        IReadOnlyList<double> radii = _data.BendRadii;
+        List<double> radii = [.. _data.BendRadii];
         if (_pendingRadiusVertex is int idx && idx >= 0 && idx < radii.Count)
         {
-            List<double> overridden = [.. radii];
-            overridden[idx] = _pendingRadiusValue;
-            radii = overridden;
+            radii[idx] = _pendingRadiusValue;
         }
 
-        return _solver.Analyze(controlPoints, radii);
+        return new PipePlanEditDraft(controlPoints, radii);
+    }
+
+    private PipePlanEditDraft BuildVertexRadiusDraft(int vertexIndex, Point3d newPosition, double radius)
+    {
+        List<Point3d> controlPoints = [.. _data.ControlPoints];
+        Point3d original = controlPoints[vertexIndex];
+        controlPoints[vertexIndex] = new Point3d(newPosition.X, newPosition.Y, original.Z);
+
+        List<double> radii = [.. _data.BendRadii];
+        radii[vertexIndex] = radius;
+
+        return new PipePlanEditDraft(controlPoints, radii);
+    }
+
+    private PipePlanAnalysis Analyze(PipePlanEditDraft draft)
+    {
+        if (draft.ControlPoints.Count != draft.BendRadii.Count)
+        {
+            return PipePlanAnalysis.Invalid(draft.ControlPoints, "Control points and bend radii are out of sync.");
+        }
+
+        return _solver.Analyze(draft.ControlPoints, draft.BendRadii);
     }
 
     public IReadOnlyList<double> CurrentBendRadii => _data.BendRadii;
-
-    private Polyline ReplaceGeometry(Polyline sourcePolyline, PipePlanAnalysis analysis, Transaction transaction)
-    {
-        Polyline replacement = analysis.CreatePolyline();
-        replacement.SetDatabaseDefaults(_document.Database);
-        replacement.SetPropertiesFrom(sourcePolyline);
-        replacement.LayerId = sourcePolyline.LayerId;
-        replacement.LinetypeId = sourcePolyline.LinetypeId;
-        replacement.LineWeight = sourcePolyline.LineWeight;
-        replacement.LinetypeScale = sourcePolyline.LinetypeScale;
-        replacement.Transparency = sourcePolyline.Transparency;
-        replacement.Normal = sourcePolyline.Normal;
-        replacement.Elevation = sourcePolyline.Elevation;
-        replacement.Thickness = sourcePolyline.Thickness;
-        replacement.ConstantWidth = ResolveWidth(sourcePolyline.ConstantWidth);
-        replacement.Closed = false;
-
-        BlockTableRecord owner = (BlockTableRecord)transaction.GetObject(sourcePolyline.OwnerId, OpenMode.ForWrite);
-        owner.AppendEntity(replacement);
-        transaction.AddNewlyCreatedDBObject(replacement, add: true);
-
-        if (!sourcePolyline.IsErased)
-        {
-            sourcePolyline.Erase();
-        }
-
-        _polylineId = replacement.ObjectId;
-        return replacement;
-    }
-
-    private double ResolveWidth(double fallback)
-    {
-        return PipePlanWidthCalculator.ResolveDrawingWidth(_data.System, _data.Type, _data.Dn, fallback);
-    }
 
     private static Point3d Midpoint(Point3d a, Point3d b)
     {

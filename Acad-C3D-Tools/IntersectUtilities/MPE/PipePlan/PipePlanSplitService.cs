@@ -11,7 +11,6 @@ internal static class PipePlanSplitService
     private const double DistanceTolerance = 1e-6;
     private const double BulgeTolerance = 1e-6;
     private const double PointTolerance = 1e-4;
-    private const double AngleTolerance = 1e-6;
 
     public static bool TrySplit(Document document, out string message)
     {
@@ -222,47 +221,14 @@ internal static class PipePlanSplitService
         SplitResult splitResult)
     {
         BlockTableRecord owner = (BlockTableRecord)transaction.GetObject(sourcePolyline.OwnerId, OpenMode.ForWrite);
-        string layerName = sourcePolyline.Layer;
-        double constantWidth = ResolveWidth(data, sourcePolyline.ConstantWidth);
 
-        Polyline leftPolyline = CreateSplitPolyline(sourcePolyline, splitResult.LeftAnalysis, owner, transaction, layerName, constantWidth);
-        Polyline rightPolyline = CreateSplitPolyline(sourcePolyline, splitResult.RightAnalysis, owner, transaction, layerName, constantWidth);
+        PipePlanStoredData leftMetadata = new(data.System, data.Type, data.Dn, splitResult.LeftBendRadii, data.StraightSnapToleranceText, splitResult.LeftControlPoints);
+        PipePlanStoredData rightMetadata = new(data.System, data.Type, data.Dn, splitResult.RightBendRadii, data.StraightSnapToleranceText, splitResult.RightControlPoints);
 
-        PipePlanMetadata.Write(
-            leftPolyline,
-            new PipePlanStoredData(data.System, data.Type, data.Dn, splitResult.LeftBendRadii, data.StraightSnapToleranceText, splitResult.LeftControlPoints),
-            transaction);
-        PipePlanMetadata.Write(
-            rightPolyline,
-            new PipePlanStoredData(data.System, data.Type, data.Dn, splitResult.RightBendRadii, data.StraightSnapToleranceText, splitResult.RightControlPoints),
-            transaction);
+        PipePlanPolylineWriter.AppendFromAnalysis(sourcePolyline, splitResult.LeftAnalysis, leftMetadata, owner, transaction);
+        PipePlanPolylineWriter.AppendFromAnalysis(sourcePolyline, splitResult.RightAnalysis, rightMetadata, owner, transaction);
 
         sourcePolyline.Erase();
-    }
-
-    private static double ResolveWidth(PipePlanStoredData data, double fallback)
-    {
-        return PipePlanWidthCalculator.ResolveDrawingWidth(data.System, data.Type, data.Dn, fallback);
-    }
-
-    private static Polyline CreateSplitPolyline(
-        Polyline sourcePolyline,
-        PipePlanAnalysis analysis,
-        BlockTableRecord owner,
-        Transaction transaction,
-        string layerName,
-        double constantWidth)
-    {
-        Polyline polyline = analysis.CreatePolyline();
-        polyline.SetDatabaseDefaults(sourcePolyline.Database);
-        polyline.SetPropertiesFrom(sourcePolyline);
-        polyline.Layer = layerName;
-        polyline.ConstantWidth = constantWidth;
-        polyline.Closed = false;
-
-        owner.AppendEntity(polyline);
-        transaction.AddNewlyCreatedDBObject(polyline, add: true);
-        return polyline;
     }
 
     private static int GetDisplaySegmentIndex(Polyline polyline, Point3d splitPoint)
@@ -298,7 +264,7 @@ internal static class PipePlanSplitService
             return false;
         }
 
-        BendData?[] bends = BuildBends(controlPoints, radius);
+        PipePlanBendGeometry?[] bends = BuildBends(controlPoints, radius);
         for (int segmentIndex = 0; segmentIndex < controlPoints.Count - 1; segmentIndex++)
         {
             Point3d straightStart = bends[segmentIndex]?.TangentOut ?? controlPoints[segmentIndex];
@@ -332,45 +298,15 @@ internal static class PipePlanSplitService
         return false;
     }
 
-    private static BendData?[] BuildBends(IReadOnlyList<Point3d> controlPoints, double radius)
+    private static PipePlanBendGeometry?[] BuildBends(IReadOnlyList<Point3d> controlPoints, double radius)
     {
-        BendData?[] bends = new BendData?[controlPoints.Count];
+        PipePlanBendGeometry?[] bends = new PipePlanBendGeometry?[controlPoints.Count];
         for (int index = 1; index < controlPoints.Count - 1; index++)
         {
-            Vector2d incoming = To2D(controlPoints[index] - controlPoints[index - 1]);
-            Vector2d outgoing = To2D(controlPoints[index + 1] - controlPoints[index]);
-            double incomingLength = incoming.Length;
-            double outgoingLength = outgoing.Length;
-            if (incomingLength <= DistanceTolerance || outgoingLength <= DistanceTolerance)
+            if (PipePlanBendCalculator.TryCompute(controlPoints[index - 1], controlPoints[index], controlPoints[index + 1], radius, out PipePlanBendGeometry bend) == PipePlanBendStatus.Bend)
             {
-                continue;
+                bends[index] = bend;
             }
-
-            Vector2d u = incoming / incomingLength;
-            Vector2d v = outgoing / outgoingLength;
-            double dot = Math.Clamp(u.DotProduct(v), -1.0, 1.0);
-            double deflection = Math.Acos(dot);
-            if (deflection <= AngleTolerance || Math.Abs(Math.PI - deflection) <= AngleTolerance)
-            {
-                continue;
-            }
-
-            double tangentLength = radius * Math.Tan(deflection / 2.0);
-            if (!double.IsFinite(tangentLength))
-            {
-                continue;
-            }
-
-            Point3d tangentIn = new(
-                controlPoints[index].X - (u.X * tangentLength),
-                controlPoints[index].Y - (u.Y * tangentLength),
-                controlPoints[index].Z);
-            Point3d tangentOut = new(
-                controlPoints[index].X + (v.X * tangentLength),
-                controlPoints[index].Y + (v.Y * tangentLength),
-                controlPoints[index].Z);
-
-            bends[index] = new BendData(tangentIn, tangentOut);
         }
 
         return bends;
@@ -405,8 +341,6 @@ internal static class PipePlanSplitService
     {
         return new Vector2d(vector.X, vector.Y);
     }
-
-    private sealed record BendData(Point3d TangentIn, Point3d TangentOut);
 
     private sealed record SplitResult(
         IReadOnlyList<Point3d> LeftControlPoints,

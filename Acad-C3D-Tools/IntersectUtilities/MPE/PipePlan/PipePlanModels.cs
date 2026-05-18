@@ -101,8 +101,12 @@ internal sealed record PipePlanEditHandle(
     Point3d GripPoint);
 
 internal sealed record PipePlanEditCandidate(
-    IReadOnlyList<Point3d> ControlPoints,
+    PipePlanEditDraft Draft,
     PipePlanAnalysis Analysis);
+
+internal sealed record PipePlanEditDraft(
+    IReadOnlyList<Point3d> ControlPoints,
+    IReadOnlyList<double> BendRadii);
 
 internal enum PipePlanStatusKind
 {

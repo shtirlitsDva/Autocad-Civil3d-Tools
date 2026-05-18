@@ -31,8 +31,7 @@ internal sealed class PipePlanSolver
             return PipePlanAnalysis.Invalid(points, "Bend radii must be aligned with control points.");
         }
 
-        int bendCount = points.Count;
-        BendInfo?[] bends = new BendInfo?[bendCount];
+        PipePlanBendGeometry?[] bends = new PipePlanBendGeometry?[points.Count];
 
         for (int i = 1; i < points.Count - 1; i++)
         {
@@ -42,42 +41,21 @@ internal sealed class PipePlanSolver
                 return PipePlanAnalysis.Invalid(points, $"Bend radius at vertex {i + 1} must be greater than zero.");
             }
 
-            Vector2d incoming = To2D(points[i] - points[i - 1]);
-            Vector2d outgoing = To2D(points[i + 1] - points[i]);
-
-            double incomingLength = incoming.Length;
-            double outgoingLength = outgoing.Length;
-            if (incomingLength <= DistanceTolerance || outgoingLength <= DistanceTolerance)
+            PipePlanBendStatus status = PipePlanBendCalculator.TryCompute(points[i - 1], points[i], points[i + 1], radius, out PipePlanBendGeometry bend);
+            switch (status)
             {
-                return PipePlanAnalysis.Invalid(points, "Consecutive points must be separated.");
+                case PipePlanBendStatus.Bend:
+                    bends[i] = bend;
+                    break;
+                case PipePlanBendStatus.Straight:
+                    continue;
+                case PipePlanBendStatus.Degenerate:
+                    return PipePlanAnalysis.Invalid(points, "Consecutive points must be separated.");
+                case PipePlanBendStatus.Reversal:
+                    return PipePlanAnalysis.Invalid(points, "A 180 degree reversal cannot be solved with a finite bend.");
+                case PipePlanBendStatus.Infeasible:
+                    return PipePlanAnalysis.Invalid(points, "The selected radius cannot be solved for this turn.");
             }
-
-            Vector2d u = incoming / incomingLength;
-            Vector2d v = outgoing / outgoingLength;
-
-            double dot = Math.Clamp(u.DotProduct(v), -1.0, 1.0);
-            double deflection = Math.Acos(dot);
-
-            if (deflection <= AngleTolerance)
-            {
-                continue;
-            }
-
-            if (Math.Abs(Math.PI - deflection) <= AngleTolerance)
-            {
-                return PipePlanAnalysis.Invalid(points, "A 180 degree reversal cannot be solved with a finite bend.");
-            }
-
-            double tangentLength = radius * Math.Tan(deflection / 2.0);
-            if (!double.IsFinite(tangentLength))
-            {
-                return PipePlanAnalysis.Invalid(points, "The selected radius cannot be solved for this turn.");
-            }
-
-            double cross = (u.X * v.Y) - (u.Y * v.X);
-            int sign = cross >= 0.0 ? 1 : -1;
-
-            bends[i] = new BendInfo(points[i], u, v, tangentLength, deflection, sign, radius);
         }
 
         for (int segmentIndex = 0; segmentIndex < points.Count - 1; segmentIndex++)
@@ -98,22 +76,19 @@ internal sealed class PipePlanSolver
         List<PipePlanFilletEndpointMarker> filletEndpointMarkers = [];
         for (int i = 1; i < points.Count - 1; i++)
         {
-            BendInfo? bend = bends[i];
-            if (bend is null)
+            if (bends[i] is not PipePlanBendGeometry bend)
             {
                 continue;
             }
 
-            Point2d tangentIn = To2D(points[i]) - (bend.IncomingDirection * bend.TangentLength);
-            Point2d tangentOut = To2D(points[i]) + (bend.OutgoingDirection * bend.TangentLength);
+            Point2d tangentIn2D = new(bend.TangentIn.X, bend.TangentIn.Y);
+            Point2d tangentOut2D = new(bend.TangentOut.X, bend.TangentOut.Y);
             double bulge = bend.Sign * Math.Tan(bend.Deflection / 4.0);
 
-            AppendVertex(vertexData, tangentIn, bulge);
-            AppendVertex(vertexData, tangentOut, 0.0);
-            radiusAnnotations.Add(CreateRadiusAnnotation(tangentIn, bend));
-            filletEndpointMarkers.Add(new PipePlanFilletEndpointMarker(
-                new Point3d(tangentIn.X, tangentIn.Y, bend.Point.Z),
-                new Point3d(tangentOut.X, tangentOut.Y, bend.Point.Z)));
+            AppendVertex(vertexData, tangentIn2D, bulge);
+            AppendVertex(vertexData, tangentOut2D, 0.0);
+            radiusAnnotations.Add(CreateRadiusAnnotation(tangentIn2D, bend));
+            filletEndpointMarkers.Add(new PipePlanFilletEndpointMarker(bend.TangentIn, bend.TangentOut));
         }
 
         AppendVertex(vertexData, To2D(points[^1]), 0.0);
@@ -149,7 +124,7 @@ internal sealed class PipePlanSolver
         return new Vector2d(vector.X, vector.Y);
     }
 
-    private static PipePlanRadiusAnnotation CreateRadiusAnnotation(Point2d tangentIn, BendInfo bend)
+    private static PipePlanRadiusAnnotation CreateRadiusAnnotation(Point2d tangentIn, PipePlanBendGeometry bend)
     {
         Vector2d offsetToCenter = RotateLeft(bend.IncomingDirection) * (bend.Sign * bend.Radius);
         Point2d center = tangentIn + offsetToCenter;
@@ -159,8 +134,8 @@ internal sealed class PipePlanSolver
         Point2d arcMidPoint = center + midRadius;
 
         return new PipePlanRadiusAnnotation(
-            new Point3d(center.X, center.Y, bend.Point.Z),
-            new Point3d(arcMidPoint.X, arcMidPoint.Y, bend.Point.Z),
+            new Point3d(center.X, center.Y, bend.Vertex.Z),
+            new Point3d(arcMidPoint.X, arcMidPoint.Y, bend.Vertex.Z),
             bend.Radius);
     }
 
@@ -178,12 +153,4 @@ internal sealed class PipePlanSolver
             (vector.X * sin) + (vector.Y * cos));
     }
 
-    private sealed record BendInfo(
-        Point3d Point,
-        Vector2d IncomingDirection,
-        Vector2d OutgoingDirection,
-        double TangentLength,
-        double Deflection,
-        int Sign,
-        double Radius);
 }
