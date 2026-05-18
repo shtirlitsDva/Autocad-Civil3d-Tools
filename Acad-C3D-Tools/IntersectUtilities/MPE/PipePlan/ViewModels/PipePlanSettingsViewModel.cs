@@ -22,7 +22,7 @@ internal sealed partial class PipePlanSettingsViewModel : ObservableObject
     public ObservableCollection<PipePlanRadiusEntryVm> Entries { get; } = new();
 
     [ObservableProperty]
-    private string _straightSnapTolerance = "1";
+    private string _straightSnapTolerance = "5";
 
     [ObservableProperty]
     private string _status = "Ready.";

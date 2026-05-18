@@ -23,7 +23,7 @@ internal sealed class PipePlanState : IDisposable
 
     public PipePlanState()
     {
-        StraightSnapToleranceText = "1";
+        StraightSnapToleranceText = "5";
     }
 
     public List<Point3d> DraftPoints { get; } = [];

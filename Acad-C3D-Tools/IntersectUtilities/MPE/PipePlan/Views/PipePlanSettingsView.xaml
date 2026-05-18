@@ -16,6 +16,10 @@
                 <TextBlock Text="{Binding Status}" TextWrapping="Wrap" />
             </GroupBox>
 
+            <GroupBox Header="Straight snap tolerance">
+                <TextBox Text="{Binding StraightSnapTolerance, UpdateSourceTrigger=LostFocus}" />
+            </GroupBox>
+
             <GroupBox Header="ProjekteringsRadius pr. dimension">
                 <StackPanel>
                     <Grid Margin="0,0,0,6">
@@ -63,10 +67,6 @@
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
                 </StackPanel>
-            </GroupBox>
-
-            <GroupBox Header="Straight snap tolerance">
-                <TextBox Text="{Binding StraightSnapTolerance, UpdateSourceTrigger=LostFocus}" />
             </GroupBox>
 
             <UniformGrid Columns="2" Margin="0,8,0,0">
