@@ -113,7 +113,7 @@ namespace NSPaletteSet
                     HashSet<Polyline> pipes = localDb.GetFjvPipes(tx);
                     foreach (Polyline pipe in pipes)
                     {
-                        double kappeOd = GetPipeKOd(pipe, CurrentSeries);
+                        double kappeOd = GetPipeKOd(pipe.Layer, CurrentSeries);
                         if (kappeOd < 0.1) continue;
                         pipe.CheckOrOpenForWrite();
                         pipe.ConstantWidth = kappeOd / 1000;

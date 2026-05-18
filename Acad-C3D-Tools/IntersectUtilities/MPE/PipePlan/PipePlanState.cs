@@ -211,7 +211,9 @@ internal sealed class PipePlanState : IDisposable
 
     public void ShowPreview(PipePlanAnalysis analysis)
     {
-        double globalWidth = _activeContext?.Width ?? 0.0;
+        double globalWidth = _activeContext is { LayerName: var layerName }
+            ? PipePlanWidthCalculator.ResolveDrawingWidth(layerName)
+            : 0.0;
         _previewManager.Show(analysis, globalWidth);
     }
 
@@ -303,10 +305,9 @@ internal sealed class PipePlanState : IDisposable
     {
         StraightSnapToleranceText = data.StraightSnapToleranceText;
 
-        double width = PipePlanWidthCalculator.ResolveDrawingWidth(data.System, data.Type, data.Dn);
         string layerName = BuildLayerName(data.System, data.Type, data.Dn);
         double defaultRadius = ResolveDefaultRadiusFromData(data);
-        _activeContext = new PipePlanActiveContext(data.System, data.Type, data.Dn, width, defaultRadius, layerName);
+        _activeContext = new PipePlanActiveContext(data.System, data.Type, data.Dn, defaultRadius, layerName);
     }
 
     private static double ResolveDefaultRadiusFromData(PipePlanStoredData data)
@@ -456,7 +457,7 @@ internal sealed class PipePlanState : IDisposable
     {
         using Polyline polyline = analysis.CreatePolyline();
         polyline.Layer = layerName;
-        polyline.ConstantWidth = context.Width;
+        polyline.ConstantWidth = PipePlanWidthCalculator.ResolveDrawingWidth(context.LayerName);
 
         modelSpace.AppendEntity(polyline);
         transaction.AddNewlyCreatedDBObject(polyline, add: true);
@@ -483,7 +484,7 @@ internal sealed class PipePlanState : IDisposable
         replacement.Normal = sourcePolyline.Normal;
         replacement.Elevation = sourcePolyline.Elevation;
         replacement.Thickness = sourcePolyline.Thickness;
-        replacement.ConstantWidth = context.Width;
+        replacement.ConstantWidth = PipePlanWidthCalculator.ResolveDrawingWidth(context.LayerName);
         replacement.Closed = false;
 
         owner.AppendEntity(replacement);

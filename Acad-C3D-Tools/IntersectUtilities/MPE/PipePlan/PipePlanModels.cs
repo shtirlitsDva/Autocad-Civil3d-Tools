@@ -8,7 +8,6 @@ internal sealed record PipePlanActiveContext(
     PipeSystemEnum System,
     PipeTypeEnum Type,
     int Dn,
-    double Width,
     double Radius,
     string LayerName);
 

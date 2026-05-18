@@ -44,8 +44,7 @@ internal static class PipePlanLayerResolver
             return false;
         }
 
-        double width = PipePlanWidthCalculator.ResolveDrawingWidth(system, type, dn);
-        context = new PipePlanActiveContext(system, type, dn, width, radius, layerName);
+        context = new PipePlanActiveContext(system, type, dn, radius, layerName);
         return true;
     }
 
