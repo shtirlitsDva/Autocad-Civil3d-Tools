@@ -690,9 +690,8 @@ public partial class Intersect
                 return false;
             }
 
-            double existingWidth = polyline.ConstantWidth;
             transaction.Commit();
-            PipePlanRuntime.State.BeginDraftFromExisting(result.ObjectId, data, reverse, existingWidth);
+            PipePlanRuntime.State.BeginDraftFromExisting(result.ObjectId, data, reverse);
             PipePlanRuntime.State.SetStatus(
                 $"Continuing {data.SizeDisplay} from the selected endpoint. Pick the next point.",
                 PipePlanStatusKind.Info);

@@ -22,10 +22,8 @@ internal static class PipePlanPolylineWriter
         polyline.Normal = sourcePolyline.Normal;
         polyline.Elevation = sourcePolyline.Elevation;
         polyline.Thickness = sourcePolyline.Thickness;
-        polyline.ConstantWidth = PipePlanWidthCalculator.TryResolveDrawingWidth(
-            sourcePolyline.Layer, out double resolvedWidth, out _)
-            ? resolvedWidth
-            : sourcePolyline.ConstantWidth;
+        polyline.ConstantWidth = PipePlanWidthCalculator.ResolveDrawingWidth(
+            metadata.System, metadata.Type, metadata.Dn, sourcePolyline.ConstantWidth);
         polyline.Closed = false;
 
         owner.AppendEntity(polyline);

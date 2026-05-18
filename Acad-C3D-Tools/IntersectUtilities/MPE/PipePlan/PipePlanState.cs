@@ -225,9 +225,9 @@ internal sealed class PipePlanState : IDisposable
         _palette?.SetStatus(message, kind);
     }
 
-    public void BeginDraftFromExisting(ObjectId polylineId, PipePlanStoredData data, bool reverse, double existingWidthFallback = 0.0)
+    public void BeginDraftFromExisting(ObjectId polylineId, PipePlanStoredData data, bool reverse)
     {
-        ApplyStoredContext(data, existingWidthFallback);
+        ApplyStoredContext(data);
 
         _continuedPolylineId = polylineId;
         DraftPoints.Clear();
@@ -299,14 +299,12 @@ internal sealed class PipePlanState : IDisposable
         return _solver.Analyze(points, radii);
     }
 
-    public void ApplyStoredContext(PipePlanStoredData data, double existingWidthFallback = 0.0)
+    public void ApplyStoredContext(PipePlanStoredData data)
     {
         StraightSnapToleranceText = data.StraightSnapToleranceText;
 
+        double width = PipePlanWidthCalculator.ResolveDrawingWidth(data.System, data.Type, data.Dn);
         string layerName = BuildLayerName(data.System, data.Type, data.Dn);
-        double width = PipePlanWidthCalculator.TryResolveDrawingWidth(layerName, out double resolvedWidth, out _)
-            ? resolvedWidth
-            : existingWidthFallback;
         double defaultRadius = ResolveDefaultRadiusFromData(data);
         _activeContext = new PipePlanActiveContext(data.System, data.Type, data.Dn, width, defaultRadius, layerName);
     }

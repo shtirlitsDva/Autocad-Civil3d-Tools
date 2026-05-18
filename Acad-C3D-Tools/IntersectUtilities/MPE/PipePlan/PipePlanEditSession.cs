@@ -45,12 +45,12 @@ internal sealed class PipePlanEditSession : IDisposable
             return false;
         }
 
-        if (!TryLoadSessionData(document, polylineId, out PipePlanStoredData? data, out double existingWidth, out errorMessage) || data is null)
+        if (!TryLoadSessionData(document, polylineId, out PipePlanStoredData? data, out errorMessage) || data is null)
         {
             return false;
         }
 
-        state.ApplyStoredContext(data, existingWidth);
+        state.ApplyStoredContext(data);
         session = new PipePlanEditSession(document, state, polylineId, data);
         return true;
     }
@@ -202,10 +202,9 @@ internal sealed class PipePlanEditSession : IDisposable
         return true;
     }
 
-    private static bool TryLoadSessionData(Document document, ObjectId polylineId, out PipePlanStoredData? data, out double existingWidth, out string errorMessage)
+    private static bool TryLoadSessionData(Document document, ObjectId polylineId, out PipePlanStoredData? data, out string errorMessage)
     {
         data = null;
-        existingWidth = 0.0;
         errorMessage = string.Empty;
 
         using Transaction transaction = document.Database.TransactionManager.StartTransaction();
@@ -223,7 +222,6 @@ internal sealed class PipePlanEditSession : IDisposable
                 return false;
             }
 
-            existingWidth = polyline.ConstantWidth;
             transaction.Commit();
             return true;
         }
