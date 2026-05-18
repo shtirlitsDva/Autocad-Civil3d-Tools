@@ -543,16 +543,56 @@ public partial class Intersect
 
             if (reverseResult.SharpCornerPositions.Count > 0)
             {
-                ReportEditorMessage(editor, "Polyline has Sharp edges, PPConv will use minimum bending radius.");
+                ReportEditorMessage(editor, $"Polyline has Sharp edges. {reverseResult.SharpCornerPositions.Count} corner(s) will be filleted at radius {sharpCornerRadius:0.##} (min bending radius). Use R to override.");
                 markers.Show(document, reverseResult.SharpCornerPositions);
 
-                PromptKeywordOptions confirm = new($"\nPress Enter to convert ({reverseResult.SharpCornerPositions.Count} sharp corner(s) will be filleted at radius {sharpCornerRadius:0.##}) or Esc to cancel.");
-                confirm.Keywords.Add("Continue");
-                confirm.Keywords.Default = "Continue";
-                confirm.AllowNone = true;
-                PromptResult confirmResult = editor.GetKeywords(confirm);
-                if (confirmResult.Status != PromptStatus.OK && confirmResult.Status != PromptStatus.None)
+                while (true)
                 {
+                    PromptKeywordOptions confirm = new($"\nPress Enter to convert at radius {sharpCornerRadius:0.##}, type R for a different radius, or Esc to cancel");
+                    confirm.Keywords.Add("Continue");
+                    confirm.Keywords.Add("Radius");
+                    confirm.Keywords.Default = "Continue";
+                    confirm.AllowNone = true;
+                    PromptResult confirmResult = editor.GetKeywords(confirm);
+
+                    if (confirmResult.Status == PromptStatus.None ||
+                        (confirmResult.Status == PromptStatus.OK && confirmResult.StringResult == "Continue"))
+                    {
+                        break;
+                    }
+
+                    if (confirmResult.Status == PromptStatus.OK && confirmResult.StringResult == "Radius")
+                    {
+                        PromptDoubleOptions radiusOptions = new($"\nEnter new bending radius for sharp corners <{sharpCornerRadius:0.##}>: ")
+                        {
+                            AllowNegative = false,
+                            AllowZero = false,
+                            AllowNone = true,
+                            DefaultValue = sharpCornerRadius,
+                            UseDefaultValue = true,
+                        };
+                        PromptDoubleResult radiusResult = editor.GetDouble(radiusOptions);
+                        if (radiusResult.Status != PromptStatus.OK && radiusResult.Status != PromptStatus.None)
+                        {
+                            ReportMessage(document, "PPCONVERT cancelled by user.", PipePlanStatusKind.Info);
+                            transaction.Commit();
+                            return;
+                        }
+
+                        if (radiusResult.Status == PromptStatus.OK)
+                        {
+                            sharpCornerRadius = radiusResult.Value;
+                        }
+
+                        if (!PipePlanReverseSolver.TryConvert(source, sharpCornerRadius, out reverseResult, out reverseError) || reverseResult is null)
+                        {
+                            ReportMessage(document, reverseError, PipePlanStatusKind.Warning);
+                            transaction.Commit();
+                            return;
+                        }
+                        continue;
+                    }
+
                     ReportMessage(document, "PPCONVERT cancelled by user.", PipePlanStatusKind.Info);
                     transaction.Commit();
                     return;
