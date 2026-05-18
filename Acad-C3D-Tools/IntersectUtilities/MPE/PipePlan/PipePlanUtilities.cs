@@ -75,4 +75,23 @@ internal static class PipePlanGeometryUtil
     {
         return (vector.X * direction.X) + (vector.Y * direction.Y);
     }
+
+    public static bool TryIntersectLines2D(Point3d origin1, Vector2d direction1, Point3d origin2, Vector2d direction2, out Point3d intersection)
+    {
+        intersection = origin1;
+        double denominator = (direction1.X * direction2.Y) - (direction1.Y * direction2.X);
+        if (Math.Abs(denominator) <= 1e-9)
+        {
+            return false;
+        }
+
+        double dx = origin2.X - origin1.X;
+        double dy = origin2.Y - origin1.Y;
+        double t = ((dx * direction2.Y) - (dy * direction2.X)) / denominator;
+        intersection = new Point3d(
+            origin1.X + (direction1.X * t),
+            origin1.Y + (direction1.Y * t),
+            origin1.Z);
+        return true;
+    }
 }

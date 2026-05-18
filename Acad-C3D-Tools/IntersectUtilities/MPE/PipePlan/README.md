@@ -1,58 +1,64 @@
-﻿# PipePlan POC
+# PipePlan
 
-This project is a proof-of-concept AutoCAD/Civil 3D plugin for constrained plan-view pipe drafting.
+PipePlan is a constrained plan-view pipe-drafting feature inside the `IntersectUtilities` AutoCAD / Civil 3D 2025 plugin. It collects plan points, validates them against per-DN bend radii, and bakes the result as a metadata-enabled polyline that can later be edited, continued, split, or width-updated through the NSPalette workflow.
 
-## What it does
+## Commands
 
-- Adds the `PPDRAW` command
-- Adds the `PPSETTINGS` command for the settings palette
-- Adds the `PPEDIT` command for constrained editing
-- Uses an explicit `Apply Settings` button in the palette before changes take effect
-- Lets you enter a minimum bend radius for each size
-- Lets you choose the active pipe size
-- Lets you set a straight-snap tolerance
-- Collects plan points and previews the route in:
-  - green when the selected radius fits
-  - red when one or more bends do not fit
-- blue when Ctrl is actively snapping to the previous straight segment
-- Bakes the result as a polyline with arc bulges on a size-specific layer
-- Writes a lightweight pipeTag XData record with the size and radius
-- Stores full pipeGeometryData inside the object's pipeData dictionary for later constrained edits
+| Command | Purpose |
+|---|---|
+| `PPDRAW` | Start a new draft, or continue from an existing PipePlan polyline. The active FJV layer determines the pipe system, type, and DN. The per-DN bending radius comes from `PPSETTINGS`. |
+| `PPCONVERT` | Convert an existing polyline on a recognised FJV layer into a PipePlan-managed object. Sharp interior corners are filleted at the project minimum bending radius; preview circles are shown before the conversion proceeds. |
+| `PPSPLIT` | Split a metadata-enabled PipePlan polyline at a chosen straight portion into two independent PipePlan polylines. Arc regions and invalid split positions are rejected. |
+| `PPEDIT` | Move control vertices or segment handles with live constraint preview. The `Radius` keyword at the drag prompt changes the bend radius of the selected vertex. Infeasible moves are rejected. |
+| `PPSETTINGS` | Palette for editing the per-DN bending radii (ProjekteringsRadius) and the straight-snap tolerance. Overrides are saved into the active drawing. |
+
+## Drawing model
+
+- **Width**: PPDRAW preview and bake set `ConstantWidth = GetPipeKOd(layer, S2) / 1000`. Series S2 is pinned at draw time. To render at S1 or S3, change the NSPalette series and click `Polylinjer bredde opdater` — same lookup, different series argument.
+- **Preview colours**: green when the selected radius fits, red when one or more bends do not fit, blue when Ctrl is actively snapping to the previous straight segment.
+- **Bake output**: polyline with arc bulges on the active FJV layer. Two metadata records are attached:
+  - `pipeTag` XData (system, type, DN) — picked up by Opdater and other layer-aware tooling.
+  - `pipeGeometryData` Xrecord in the polyline's extension dictionary — control points, per-vertex bend radii, and the straight-snap tolerance. Required for `PPEDIT`, `PPSPLIT`, and PPDRAW continue.
+- **Snap tolerance**: defaults to `5`, edited at the top of `PPSETTINGS`.
 
 ## Build
 
-The project targets `net8.0-windows` and references the local AutoCAD 2025 assemblies directly.
+Build via the repo-root batch scripts:
 
-Typical build command once the .NET 8 SDK is installed:
-
-```powershell
-dotnet build .\PipePlan.Plugin.csproj -c Release
+```text
+build-intersectutilities-debug.bat
+build-intersectutilities-release.bat
 ```
+
+These invoke MSBuild against `Acad-C3D-Tools/IntersectUtilities/IntersectUtilities.csproj`. The `PROJECT_PATH` line in the `.bat` files is hard-coded to `X:\GitHub\...` — edit it locally, or call MSBuild directly:
+
+```text
+"C:\Program Files\Microsoft Visual Studio\<edition>\MSBuild\Current\Bin\MSBuild.exe" `
+    Acad-C3D-Tools\IntersectUtilities\IntersectUtilities.csproj `
+    /t:Build /p:Configuration=Debug /clp:ErrorsOnly;Summary
+```
+
+`dotnet build` cannot resolve the COM references and is not supported.
 
 ## Load
 
-Load the built DLL with `APPLOAD`, then run:
+`IntersectUtilities` deploys as an AutoCAD Autoloader `.bundle` package, not via `NETLOAD`. Deploy under either:
 
-```text
-PPDRAW
-```
+- `%PROGRAMDATA%\Autodesk\ApplicationPlugins\` (all users), or
+- `%APPDATA%\Autodesk\ApplicationPlugins\` (current user).
 
-Use this to change the active size and radii:
+See `docs/autocad-bundle-guide.md` for the bundle layout. AutoCAD 2025 picks up the bundle on next launch.
 
-```text
-PPSETTINGS
-```
+## Typical workflow
 
-After changing size, radii, or straight-snap tolerance in the palette, click `Apply Settings`.
+1. Open NSPalette and activate a size (`FJV-TWIN-DN65`, `FJV-TWIN-ALUPEX50`, …) — this sets the active FJV layer.
+2. Run `PPDRAW`, place points, bake.
+3. (Optional) To draw at a series other than S2, change the NSPalette series and click `Polylinjer bredde opdater` to re-apply widths.
+4. Edit later with `PPEDIT`; split with `PPSPLIT`; convert a pre-existing hand-drawn FJV polyline with `PPCONVERT`.
 
-Use this to edit an existing PipePlan polyline by moving control vertices or segment handles:
+## Notes / limitations
 
-```text
-PPEDIT
-```
-
-## Notes
-
-- `PPEDIT` requires PipePlan polylines baked with the current metadata-enabled version of the plugin.
-- Older proof-of-concept polylines need to be re-baked once before constrained editing is available.
-
+- `PPEDIT` and `PPSPLIT` require metadata-enabled PipePlan polylines. For pre-metadata polylines or polylines drawn outside PipePlan, run `PPCONVERT` first.
+- Closed polylines are not supported.
+- `Enkelt` steel (single-pipe steel) is not currently supported. Accepted combinations: `Stål Twin`, `AluPex Twin`, `AluPex Frem`, `AluPex Retur`.
+- Open metadata-drift items (see `TODO.md`): vertex deletion outside PipePlan can desync metadata from geometry and break `PPEDIT` / PPDRAW continue.

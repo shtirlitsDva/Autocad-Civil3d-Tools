@@ -6,6 +6,7 @@ using Autodesk.AutoCAD.Runtime;
 using System.Diagnostics.CodeAnalysis;
 using System.Windows.Forms;
 using IntersectUtilities.MPE.PipePlan;
+using IntersectUtilities.UtilsCommon.Enums;
 using static IntersectUtilities.UtilsCommon.Utils;
 
 namespace IntersectUtilities;
@@ -97,6 +98,28 @@ public partial class Intersect
         catch (System.Exception exception)
         {
             HandleCommandException(document, "PPDRAW", exception);
+        }
+    }
+
+    /// <command>PPCONVERT</command>
+    /// <summary>Converts an existing polyline on a recognised FJV layer into a metadata-enabled PipePlan object by reverse-engineering its control points and bend radii. Sharp interior corners are filleted at the project minimum bending radius.</summary>
+    /// <category>PipePlan</category>
+    [CommandMethod("PPCONVERT")]
+    public void PipePlanConvert()
+    {
+        Document? document = GetActiveDocument();
+        if (document is null)
+        {
+            return;
+        }
+
+        try
+        {
+            ExecuteConvert(document);
+        }
+        catch (System.Exception exception)
+        {
+            HandleCommandException(document, "PPCONVERT", exception);
         }
     }
 
@@ -454,6 +477,145 @@ public partial class Intersect
         }
 
         RunDrawLoop(document);
+    }
+
+    private static void ExecuteConvert(Document document)
+    {
+        Editor editor = document.Editor;
+
+        PromptEntityOptions options = new("\nSelect a polyline on an FJV layer to convert: ");
+        options.SetRejectMessage("\nOnly polylines are supported.");
+        options.AddAllowedClass(typeof(Polyline), exactMatch: false);
+
+        PromptEntityResult pick = editor.GetEntity(options);
+        if (pick.Status != PromptStatus.OK)
+        {
+            ReportMessage(document, "PPCONVERT cancelled.", PipePlanStatusKind.Info);
+            return;
+        }
+
+        using DocumentLock documentLock = document.LockDocument();
+        using PipePlanSharpCornerMarkerManager markers = new();
+        using Transaction transaction = document.Database.TransactionManager.StartTransaction();
+        try
+        {
+            Polyline source = (Polyline)transaction.GetObject(pick.ObjectId, OpenMode.ForRead);
+
+            string layerName = source.Layer;
+            PipeSystemEnum system = PipeScheduleV2.PipeScheduleV2.GetPipeSystem(layerName);
+            PipeTypeEnum type = PipeScheduleV2.PipeScheduleV2.GetPipeType(layerName);
+            int dn = PipeScheduleV2.PipeScheduleV2.GetPipeDN(layerName);
+
+            if (system == PipeSystemEnum.Ukendt || type == PipeTypeEnum.Ukendt || dn <= 0)
+            {
+                ReportMessage(document, $"Polyline is not on a valid FJV layer (got: '{layerName}').", PipePlanStatusKind.Warning);
+                transaction.Commit();
+                return;
+            }
+
+            if (!PipePlanRadiusStore.IsAcceptedCombo(system, type))
+            {
+                ReportMessage(document, $"PipePlan does not support {system} {type}.", PipePlanStatusKind.Warning);
+                transaction.Commit();
+                return;
+            }
+
+            if (source.Closed)
+            {
+                ReportMessage(document, "Closed polylines are not supported.", PipePlanStatusKind.Warning);
+                transaction.Commit();
+                return;
+            }
+
+            if (!PipePlanRadiusStore.TryGet(document.Database, system, type, dn, out double sharpCornerRadius) || sharpCornerRadius <= 0.0)
+            {
+                ReportMessage(document, $"No bending radius available for {system} {type} DN{dn}. Configure one in PPSETTINGS first.", PipePlanStatusKind.Warning);
+                transaction.Commit();
+                return;
+            }
+
+            if (!PipePlanReverseSolver.TryConvert(source, sharpCornerRadius, out PipePlanReverseSolverResult? reverseResult, out string reverseError) || reverseResult is null)
+            {
+                ReportMessage(document, reverseError, PipePlanStatusKind.Warning);
+                transaction.Commit();
+                return;
+            }
+
+            if (reverseResult.SharpCornerPositions.Count > 0)
+            {
+                ReportEditorMessage(editor, "Polyline has Sharp edges, PPConv will use minimum bending radius.");
+                markers.Show(document, reverseResult.SharpCornerPositions, sharpCornerRadius);
+
+                PromptKeywordOptions confirm = new($"\nPress Enter to convert ({reverseResult.SharpCornerPositions.Count} sharp corner(s) will be filleted at radius {sharpCornerRadius:0.##}) or Esc to cancel.");
+                confirm.Keywords.Add("Continue");
+                confirm.Keywords.Default = "Continue";
+                confirm.AllowNone = true;
+                PromptResult confirmResult = editor.GetKeywords(confirm);
+                if (confirmResult.Status != PromptStatus.OK && confirmResult.Status != PromptStatus.None)
+                {
+                    ReportMessage(document, "PPCONVERT cancelled by user.", PipePlanStatusKind.Info);
+                    transaction.Commit();
+                    return;
+                }
+            }
+
+            PipePlanSolver solver = new();
+            PipePlanAnalysis analysis = solver.Analyze(reverseResult.ControlPoints, reverseResult.BendRadii);
+            if (!analysis.IsFeasible)
+            {
+                ReportMessage(document, $"Reconstruction failed: {analysis.Message}", PipePlanStatusKind.Warning);
+                transaction.Commit();
+                return;
+            }
+
+            Polyline sourceWrite = (Polyline)transaction.GetObject(pick.ObjectId, OpenMode.ForWrite);
+            BlockTableRecord owner = (BlockTableRecord)transaction.GetObject(sourceWrite.OwnerId, OpenMode.ForWrite);
+
+            Polyline replacement = analysis.CreatePolyline();
+            replacement.SetDatabaseDefaults(sourceWrite.Database);
+            replacement.SetPropertiesFrom(sourceWrite);
+            replacement.Layer = layerName;
+            replacement.LayerId = sourceWrite.LayerId;
+            replacement.LinetypeId = sourceWrite.LinetypeId;
+            replacement.LineWeight = sourceWrite.LineWeight;
+            replacement.LinetypeScale = sourceWrite.LinetypeScale;
+            replacement.Transparency = sourceWrite.Transparency;
+            replacement.Normal = sourceWrite.Normal;
+            replacement.Elevation = sourceWrite.Elevation;
+            replacement.Thickness = sourceWrite.Thickness;
+            replacement.ConstantWidth = PipePlanWidthCalculator.ResolveDrawingWidth(layerName);
+            replacement.Closed = false;
+
+            owner.AppendEntity(replacement);
+            transaction.AddNewlyCreatedDBObject(replacement, add: true);
+
+            if (!sourceWrite.IsErased)
+            {
+                sourceWrite.Erase();
+            }
+
+            PipePlanStoredData metadata = new(
+                system,
+                type,
+                dn,
+                reverseResult.BendRadii,
+                PipePlanRuntime.State.StraightSnapToleranceText,
+                reverseResult.ControlPoints);
+            PipePlanMetadata.Write(replacement, metadata, transaction);
+
+            transaction.Commit();
+
+            int sharpCount = reverseResult.SharpCornerPositions.Count;
+            string successMessage = sharpCount > 0
+                ? $"Converted on layer {layerName}: {reverseResult.ControlPoints.Count} control points, {sharpCount} sharp corner(s) filleted at radius {sharpCornerRadius:0.##}."
+                : $"Converted on layer {layerName}: {reverseResult.ControlPoints.Count} control points.";
+            ReportMessage(document, successMessage, PipePlanStatusKind.Ok);
+        }
+        catch
+        {
+            transaction.Abort();
+            throw;
+        }
     }
 
     private static void RunDrawLoop(Document document)
