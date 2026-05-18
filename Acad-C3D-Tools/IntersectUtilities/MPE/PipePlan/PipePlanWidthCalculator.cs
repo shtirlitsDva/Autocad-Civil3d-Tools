@@ -9,9 +9,10 @@ internal static class PipePlanWidthCalculator
         widthMetres = 0.0;
         error = string.Empty;
 
-        if (NSPaletteAdapter.TryGetCurrentSeries(out PipeSeriesEnum series) == PipePaletteSeriesStatus.NotLoaded)
+        PipePaletteSeriesStatus status = NSPaletteAdapter.TryGetCurrentSeries(out PipeSeriesEnum series);
+        if (status == PipePaletteSeriesStatus.NotLoaded || series == PipeSeriesEnum.Undefined)
         {
-            error = "NSPalette is not loaded. Open the palette and select a series first.";
+            error = "NSPalette series is not set. Open the palette and select a series first.";
             return false;
         }
 
