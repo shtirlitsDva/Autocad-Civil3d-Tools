@@ -3,6 +3,12 @@ using IntersectUtilities.UtilsCommon.Enums;
 
 namespace IntersectUtilities.MPE.PipePlan;
 
+internal enum PipePaletteSeriesStatus
+{
+    NotLoaded,
+    Available,
+}
+
 internal static class NSPaletteAdapter
 {
     private const string AssemblyName = "NSPalette";
@@ -11,11 +17,11 @@ internal static class NSPaletteAdapter
 
     public static bool IsLoaded => FindAssembly() is not null;
 
-    public static bool TryGetCurrentSeries(out PipeSeriesEnum series)
+    public static PipePaletteSeriesStatus TryGetCurrentSeries(out PipeSeriesEnum series)
     {
         series = PipeSeriesEnum.Undefined;
         Assembly? asm = FindAssembly();
-        if (asm is null) return false;
+        if (asm is null) return PipePaletteSeriesStatus.NotLoaded;
 
         Type? type = asm.GetType(PaletteUtilsTypeName);
         PropertyInfo? prop = type?.GetProperty(
@@ -24,10 +30,9 @@ internal static class NSPaletteAdapter
         if (prop?.GetValue(null) is PipeSeriesEnum value)
         {
             series = value;
-            return true;
         }
 
-        return false;
+        return PipePaletteSeriesStatus.Available;
     }
 
     private static Assembly? FindAssembly()

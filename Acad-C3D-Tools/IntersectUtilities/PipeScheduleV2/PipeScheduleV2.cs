@@ -299,15 +299,17 @@ namespace IntersectUtilities.PipeScheduleV2
             var pipeType = _repository.GetPipeType(systemDictReversed[system]);
             return pipeType.GetPipeThk(dn);
         }
-        public static double GetPipeKOd(Entity ent, PipeSeriesEnum pipeSeries)
+        public static double GetPipeKOd(Entity ent, PipeSeriesEnum pipeSeries) =>
+            GetPipeKOd(ExtractLayerName(ent), pipeSeries);
+
+        public static double GetPipeKOd(string layerName, PipeSeriesEnum pipeSeries)
         {
-            PipeTypeEnum type = GetPipeType(ent, true);
-            PipeSystemEnum system = GetPipeSystem(ent);
+            PipeSystemEnum system = GetPipeSystem(layerName);
+            PipeTypeEnum type = GetPipeType(layerName);
+            int dn = GetPipeDN(layerName);
 
             if (!systemDictReversed.ContainsKey(system)) return 0.0;
             var pipeType = _repository.GetPipeType(systemDictReversed[system]);
-
-            int dn = GetPipeDN(ent);
 
             return pipeType.GetPipeKOd(dn, type, pipeSeries);
         }

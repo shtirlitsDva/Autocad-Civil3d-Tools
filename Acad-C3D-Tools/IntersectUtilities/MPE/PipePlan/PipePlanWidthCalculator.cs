@@ -4,25 +4,26 @@ namespace IntersectUtilities.MPE.PipePlan;
 
 internal static class PipePlanWidthCalculator
 {
-    public static double ResolveDrawingWidth(PipeSystemEnum system, PipeTypeEnum type, int dn, double fallback = 0.0)
+    public static bool TryResolveDrawingWidth(string layerName, out double widthMetres, out string error)
     {
-        PipeSeriesEnum series = NSPaletteAdapter.TryGetCurrentSeries(out PipeSeriesEnum s)
-            ? s
-            : PipeSeriesEnum.S3;
+        widthMetres = 0.0;
+        error = string.Empty;
 
-        try
+        if (NSPaletteAdapter.TryGetCurrentSeries(out PipeSeriesEnum series) == PipePaletteSeriesStatus.NotLoaded)
         {
-            double kOdMillimeters = PipeScheduleV2.PipeScheduleV2.GetPipeKOd(system, dn, type, series);
-            if (kOdMillimeters > 0.0)
-            {
-                return kOdMillimeters / 1000.0;
-            }
-        }
-        catch
-        {
-            // fall through to fallback
+            error = "NSPalette is not loaded. Open the palette and select a series first.";
+            return false;
         }
 
-        return fallback;
+        double kOdMillimeters = PipeScheduleV2.PipeScheduleV2.GetPipeKOd(layerName, series);
+        if (kOdMillimeters <= 0.0)
+        {
+            error = $"No casing OD found for '{layerName}' at series {series}. " +
+                    "Check the active layer and the palette's current series.";
+            return false;
+        }
+
+        widthMetres = kOdMillimeters / 1000.0;
+        return true;
     }
 }
