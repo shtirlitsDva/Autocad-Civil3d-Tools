@@ -93,7 +93,9 @@ internal sealed record PipePlanCandidateResult(
     Point3d RawPoint,
     Point3d FinalPoint,
     PipePlanAnalysis Analysis,
-    bool StraightSnapActive);
+    bool StraightSnapActive,
+    Point3d? TangentCornerPoint = null,
+    int TangentDropCount = 0);
 
 internal sealed record PipePlanEditHandle(
     PipePlanEditHandleKind Kind,
@@ -124,10 +126,15 @@ internal enum PipePlanPreviewKind
     Tangent
 }
 
+// Snapshot of the PP2 endpoint the cursor is hovering near while tangent mode is active.
+// Direction is unit-length and always points INTO PP2 from Pp2Anchor (the trackers flip
+// the polyline's first-derivative when the snap point is PP2's end endpoint).
+// Pp2Length is needed to bound Case-2 in the fillet solver: when PP1's bend tangent overshoots
+// PP2's near endpoint by more than the remaining PP2 length, the fillet is rejected.
 internal readonly record struct PipePlanTangentSnap(
     Point3d Pp2Anchor,
     Vector2d Direction,
-    ObjectId PolylineId);
+    double Pp2Length);
 
 internal enum PipePlanEditHandleKind
 {

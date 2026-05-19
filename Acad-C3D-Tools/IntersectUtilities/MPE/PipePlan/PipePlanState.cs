@@ -11,13 +11,10 @@ internal sealed class PipePlanState : IDisposable
     private const double PointMatchTolerance = 1e-4;
     private const double DistanceTolerance = 1e-6;
 
-    private const double TangentOffsetTolerance = 0.05;
-
     private readonly PipePlanSolver _solver = new();
     private readonly PipePlanPreviewManager _previewManager = new();
 
     private PipePlanPalette? _palette;
-    private PipePlanAnalysis? _latestAnalysis;
     private PipePlanCandidateResult? _latestInteractiveCandidate;
     private PipePlanTangentSnap? _latestTangent;
     private PipePlanActiveContext? _activeContext;
@@ -137,6 +134,19 @@ internal sealed class PipePlanState : IDisposable
     public void AddCommittedCandidate(PipePlanCandidateResult candidate)
     {
         _latestInteractiveCandidate = null;
+        _latestTangent = null;
+        // TangentDropCount is only ever > 0 from the tangent fillet path: the new
+        // bend's PP1-side tangent reaches back past the last draft vertex, so those
+        // trailing vertices are absorbed and the fillet corner replaces them.
+        for (int i = 0; i < candidate.TangentDropCount && DraftPoints.Count > 0; i++)
+        {
+            DraftPoints.RemoveAt(DraftPoints.Count - 1);
+            DraftBendRadii.RemoveAt(DraftBendRadii.Count - 1);
+        }
+        if (candidate.TangentCornerPoint is Point3d corner)
+        {
+            AppendDraftPoint(corner);
+        }
         AppendDraftPoint(candidate.FinalPoint);
         RefreshDraftPreview();
     }
@@ -157,7 +167,6 @@ internal sealed class PipePlanState : IDisposable
     {
         DraftPoints.Clear();
         DraftBendRadii.Clear();
-        _latestAnalysis = null;
         _latestInteractiveCandidate = null;
         _latestTangent = null;
         IsTangentMode = false;
@@ -185,13 +194,35 @@ internal sealed class PipePlanState : IDisposable
         {
             radii[points.Count - 2] = EffectiveRadius;
         }
-
         return AnalyzePoints(points, radii);
     }
 
-    public void SetLatestAnalysis(PipePlanAnalysis analysis)
+    public PipePlanAnalysis AnalyzeWithTangentFillet(Point3d corner, Point3d end, int dropCount)
     {
-        _latestAnalysis = analysis;
+        int keep = Math.Max(0, DraftPoints.Count - dropCount);
+        List<Point3d> points = new(keep + 2);
+        for (int i = 0; i < keep; i++)
+        {
+            points.Add(DraftPoints[i]);
+        }
+        points.Add(corner);
+        points.Add(end);
+
+        List<double> radii = new(points.Count);
+        for (int i = 0; i < keep; i++)
+        {
+            radii.Add(DraftBendRadii[i]);
+        }
+        radii.Add(EffectiveRadius); // corner (X) — interior
+        radii.Add(0.0);             // end (E) — endpoint
+        // The new previously-last kept point becomes interior; promote its radius
+        // (skipped when keep < 2 — the kept point would still be the polyline start).
+        if (keep >= 2)
+        {
+            radii[keep - 1] = EffectiveRadius;
+        }
+
+        return AnalyzePoints(points, radii);
     }
 
     public PipePlanCandidateResult PreviewCandidate(Point3d rawCandidate, bool allowStraightSnap)
@@ -223,7 +254,6 @@ internal sealed class PipePlanState : IDisposable
         _latestInteractiveCandidate = null;
 
         PipePlanAnalysis analysis = AnalyzeCurrentDraft();
-        _latestAnalysis = analysis;
         ShowPreview(analysis);
 
         if (DraftPoints.Count < 2)
@@ -262,7 +292,6 @@ internal sealed class PipePlanState : IDisposable
         _continuedPolylineId = polylineId;
         DraftPoints.Clear();
         DraftBendRadii.Clear();
-        _latestAnalysis = null;
         _latestInteractiveCandidate = null;
 
         if (reverse)
@@ -529,69 +558,186 @@ internal sealed class PipePlanState : IDisposable
     private PipePlanCandidateResult BuildCandidateResult(Point3d rawCandidate, bool allowStraightSnap, PipePlanTangentSnap? tangent)
     {
         CandidateResolution resolution = ResolveCandidatePoint(rawCandidate, allowStraightSnap, tangent);
-        PipePlanAnalysis analysis = AnalyzeWithCandidate(resolution.FinalPoint);
 
+        PipePlanAnalysis analysis;
         if (resolution.TangentSnapActive)
         {
-            if (analysis.IsFeasible && resolution.TangentOffset > TangentOffsetTolerance)
+            if (resolution.TangentCornerPoint is Point3d corner)
             {
-                analysis = PipePlanAnalysis.Invalid(
-                    analysis.ControlPoints,
-                    $"PP1 anchor is {resolution.TangentOffset:0.###} units off PP2 tangent line. Re-route PP1 to align.");
+                analysis = AnalyzeWithTangentFillet(corner, resolution.FinalPoint, resolution.TangentDropCount);
+            }
+            else
+            {
+                List<Point3d> points = [.. DraftPoints, resolution.FinalPoint];
+                analysis = PipePlanAnalysis.Invalid(points, resolution.TangentError ?? "Tangent fillet not feasible.");
             }
             analysis = analysis.WithPreviewKind(PipePlanPreviewKind.Tangent);
         }
-        else if (resolution.StraightSnapActive)
+        else
         {
-            analysis = analysis.WithPreviewKind(PipePlanPreviewKind.StraightSnap);
+            analysis = AnalyzeWithCandidate(resolution.FinalPoint);
+            if (resolution.StraightSnapActive)
+            {
+                analysis = analysis.WithPreviewKind(PipePlanPreviewKind.StraightSnap);
+            }
         }
 
         return new PipePlanCandidateResult(
             rawCandidate,
             resolution.FinalPoint,
             analysis,
-            resolution.StraightSnapActive);
+            resolution.StraightSnapActive,
+            resolution.TangentCornerPoint,
+            resolution.TangentDropCount);
     }
 
     private CandidateResolution ResolveCandidatePoint(Point3d rawCandidate, bool allowStraightSnap, PipePlanTangentSnap? tangent)
     {
-        if (tangent.HasValue && DraftPoints.Count >= 1)
+        if (tangent.HasValue)
         {
             PipePlanTangentSnap snap = tangent.Value;
-            if (TryComputeTangentOffset(DraftPoints[^1], snap, out double perpOffset))
+            if (DraftPoints.Count < 2)
             {
-                return new CandidateResolution(snap.Pp2Anchor, false, true, perpOffset);
+                return new CandidateResolution(
+                    snap.Pp2Anchor, false, true, null, 0,
+                    "Pick at least one more point before tangent fillet engages.");
             }
+
+            Vector2d dirP = ComputeUnitDirection(DraftPoints[^2], DraftPoints[^1]);
+            if (!TryComputeFilletCorner(
+                    DraftPoints[^1], dirP,
+                    snap.Pp2Anchor, snap.Direction,
+                    out Point3d corner, out double s, out double t, out string filletError))
+            {
+                return new CandidateResolution(snap.Pp2Anchor, false, true, null, 0, filletError);
+            }
+
+            Vector2d dirEUnit = snap.Direction.GetNormal();
+            double dot = Math.Clamp(dirP.DotProduct(dirEUnit), -1.0, 1.0);
+            double deflection = Math.Acos(dot);
+            double tangentLength = EffectiveRadius * Math.Tan(deflection / 2.0);
+
+            // PP2 side: T_B = X + tangentLength · dirE_unit. If T_B is past E, PP1 will
+            // land inside PP2's body by (tangentLength − t). Reject only if that overshoot
+            // would consume PP2 entirely.
+            Point3d finalPoint;
+            double overshoot = tangentLength - t;
+            if (overshoot <= DistanceTolerance)
+            {
+                finalPoint = snap.Pp2Anchor;
+            }
+            else
+            {
+                if (overshoot > snap.Pp2Length - DistanceTolerance)
+                {
+                    return new CandidateResolution(
+                        snap.Pp2Anchor, false, true, null, 0,
+                        $"PP2 is too short for the fillet at this radius (need {tangentLength:0.###} from corner, only {t + snap.Pp2Length:0.###} available).");
+                }
+                finalPoint = new Point3d(
+                    snap.Pp2Anchor.X + (dirEUnit.X * overshoot),
+                    snap.Pp2Anchor.Y + (dirEUnit.Y * overshoot),
+                    snap.Pp2Anchor.Z);
+            }
+
+            // PP1-side absorption: the fillet's tangent point T_A sits `tangentLength`
+            // back from the corner X along dirP. `s` already covers the last PP1 segment;
+            // if T_A lies further back than that, walk back through previous segments
+            // and drop them — but only when they're colinear (same dirP), otherwise the
+            // fillet would silently change PP1's earlier geometry.
+            int dropCount = 0;
+            double accumulated = s;
+            while (accumulated < tangentLength - DistanceTolerance)
+            {
+                int candidateIndex = DraftPoints.Count - 1 - dropCount;
+                if (candidateIndex <= 0)
+                {
+                    return new CandidateResolution(
+                        snap.Pp2Anchor, false, true, null, 0,
+                        $"PP1 is too short for the fillet (need {tangentLength:0.###}, have {accumulated:0.###}).");
+                }
+                Point3d droppedPoint = DraftPoints[candidateIndex];
+                Point3d previousPoint = DraftPoints[candidateIndex - 1];
+                Vector2d segmentDir = ComputeUnitDirection(previousPoint, droppedPoint);
+                double colinearityCross = (segmentDir.X * dirP.Y) - (segmentDir.Y * dirP.X);
+                if (Math.Abs(colinearityCross) > PipePlanBendCalculator.AngleTolerance ||
+                    segmentDir.DotProduct(dirP) < 0.0)
+                {
+                    return new CandidateResolution(
+                        snap.Pp2Anchor, false, true, null, 0,
+                        "PP1 turns before reaching the fillet — cannot extend further back.");
+                }
+                accumulated += previousPoint.DistanceTo(droppedPoint);
+                dropCount++;
+            }
+
+            return new CandidateResolution(finalPoint, false, true, corner, dropCount, null);
         }
 
         if (allowStraightSnap &&
             TryGetStraightSnapTolerance(out double tolerance) &&
             TryApplyStraightSnap(rawCandidate, tolerance, out Point3d straightSnappedPoint))
         {
-            return new CandidateResolution(straightSnappedPoint, true, false, 0.0);
+            return new CandidateResolution(straightSnappedPoint, true, false, null, 0, null);
         }
 
-        return new CandidateResolution(rawCandidate, false, false, 0.0);
+        return new CandidateResolution(rawCandidate, false, false, null, 0, null);
     }
 
-    private static bool TryComputeTangentOffset(
-        Point3d anchor,
-        PipePlanTangentSnap snap,
-        out double perpendicularOffset)
+    private static Vector2d ComputeUnitDirection(Point3d from, Point3d to)
     {
-        perpendicularOffset = 0.0;
+        Vector2d v = new(to.X - from.X, to.Y - from.Y);
+        double length = v.Length;
+        return length < DistanceTolerance ? new Vector2d(0.0, 0.0) : v / length;
+    }
 
-        double dirLength = snap.Direction.Length;
-        if (dirLength < DistanceTolerance)
+    private static bool TryComputeFilletCorner(
+        Point3d p,
+        Vector2d dirP,
+        Point3d e,
+        Vector2d dirE,
+        out Point3d corner,
+        out double sAlongP,
+        out double tAlongE,
+        out string error)
+    {
+        corner = default;
+        sAlongP = 0.0;
+        tAlongE = 0.0;
+        error = string.Empty;
+
+        if (dirP.Length < DistanceTolerance || dirE.Length < DistanceTolerance)
         {
+            error = "PP1 or PP2 tangent direction is degenerate.";
             return false;
         }
 
-        Vector2d du = snap.Direction / dirLength;
-        Vector2d anchorOffsetFromPp2 = new(anchor.X - snap.Pp2Anchor.X, anchor.Y - snap.Pp2Anchor.Y);
-        double along = anchorOffsetFromPp2.DotProduct(du);
-        Vector2d perp = anchorOffsetFromPp2 - (du * along);
-        perpendicularOffset = perp.Length;
+        // Solve s*dirP + t*dirE = e - p for (s, t) via Cramer's rule.
+        Vector2d rhs = new(e.X - p.X, e.Y - p.Y);
+        double det = (dirP.X * dirE.Y) - (dirP.Y * dirE.X);
+        if (Math.Abs(det) < PipePlanBendCalculator.AngleTolerance)
+        {
+            error = "PP1 and PP2 tangents are parallel — no fillet possible.";
+            return false;
+        }
+
+        double s = ((rhs.X * dirE.Y) - (rhs.Y * dirE.X)) / det;
+        double t = ((dirP.X * rhs.Y) - (dirP.Y * rhs.X)) / det;
+
+        if (s <= DistanceTolerance)
+        {
+            error = "PP1's tangent points away from PP2.";
+            return false;
+        }
+        if (t <= DistanceTolerance)
+        {
+            error = "PP2's tangent points away from PP1.";
+            return false;
+        }
+
+        corner = new Point3d(p.X + (dirP.X * s), p.Y + (dirP.Y * s), p.Z);
+        sAlongP = s;
+        tAlongE = t;
         return true;
     }
 
@@ -668,5 +814,7 @@ internal sealed class PipePlanState : IDisposable
         Point3d FinalPoint,
         bool StraightSnapActive,
         bool TangentSnapActive,
-        double TangentOffset);
+        Point3d? TangentCornerPoint,
+        int TangentDropCount,
+        string? TangentError);
 }

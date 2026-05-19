@@ -704,7 +704,6 @@ public partial class Intersect
             }
 
             PipePlanRuntime.State.AddCommittedCandidate(candidate);
-            PipePlanRuntime.State.SetLatestAnalysis(candidate.Analysis);
             PipePlanRuntime.State.ShowPreview(candidate.Analysis);
         }
     }

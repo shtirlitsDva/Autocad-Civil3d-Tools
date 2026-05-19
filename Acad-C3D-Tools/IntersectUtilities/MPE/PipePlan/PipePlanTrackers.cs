@@ -62,8 +62,8 @@ internal sealed class CandidatePointTracker : IDisposable
         try
         {
             Autodesk.AutoCAD.DatabaseServices.Polyline? bestPolyline = null;
-            Point3d bestPoint = candidate;
-            double bestDistance = double.MaxValue;
+            Point3d bestEndpoint = candidate;
+            double bestEndpointDistance = double.MaxValue;
 
             foreach (FullSubentityPath path in pickedEntities)
             {
@@ -90,22 +90,26 @@ internal sealed class CandidatePointTracker : IDisposable
                     continue;
                 }
 
-                Point3d closest;
-                try
+                double distanceToStart = polyline.StartPoint.DistanceTo(candidate);
+                double distanceToEnd = polyline.EndPoint.DistanceTo(candidate);
+                Point3d endpoint;
+                double endpointDistance;
+                if (distanceToStart <= distanceToEnd)
                 {
-                    closest = polyline.GetClosestPointTo(candidate, false);
+                    endpoint = polyline.StartPoint;
+                    endpointDistance = distanceToStart;
                 }
-                catch
+                else
                 {
-                    continue;
+                    endpoint = polyline.EndPoint;
+                    endpointDistance = distanceToEnd;
                 }
 
-                double distance = closest.DistanceTo(candidate);
-                if (distance < bestDistance)
+                if (endpointDistance < bestEndpointDistance)
                 {
-                    bestDistance = distance;
+                    bestEndpointDistance = endpointDistance;
                     bestPolyline = polyline;
-                    bestPoint = closest;
+                    bestEndpoint = endpoint;
                 }
             }
 
@@ -115,7 +119,7 @@ internal sealed class CandidatePointTracker : IDisposable
                 return null;
             }
 
-            Vector2d direction = ResolveTangentDirection(bestPolyline, bestPoint);
+            Vector2d direction = ResolveTangentDirection(bestPolyline, bestEndpoint);
             transaction.Commit();
 
             if (direction.Length < EndpointMatchTolerance)
@@ -123,7 +127,7 @@ internal sealed class CandidatePointTracker : IDisposable
                 return null;
             }
 
-            return new PipePlanTangentSnap(bestPoint, direction, bestPolyline.ObjectId);
+            return new PipePlanTangentSnap(bestEndpoint, direction, bestPolyline.Length);
         }
         catch
         {
@@ -134,20 +138,30 @@ internal sealed class CandidatePointTracker : IDisposable
 
     private static Vector2d ResolveTangentDirection(Autodesk.AutoCAD.DatabaseServices.Polyline polyline, Point3d snapPoint)
     {
-        Point3d sampleOn = snapPoint;
-        if (snapPoint.DistanceTo(polyline.StartPoint) <= EndpointMatchTolerance)
+        bool atStart = snapPoint.DistanceTo(polyline.StartPoint) <= EndpointMatchTolerance;
+        bool atEnd = snapPoint.DistanceTo(polyline.EndPoint) <= EndpointMatchTolerance;
+        if (!atStart && !atEnd)
         {
-            sampleOn = polyline.StartPoint;
-        }
-        else if (snapPoint.DistanceTo(polyline.EndPoint) <= EndpointMatchTolerance)
-        {
-            sampleOn = polyline.EndPoint;
+            return new Vector2d(0.0, 0.0);
         }
 
+        Point3d sampleOn = atStart ? polyline.StartPoint : polyline.EndPoint;
         try
         {
             Vector3d derivative = polyline.GetFirstDerivative(sampleOn);
-            return new Vector2d(derivative.X, derivative.Y);
+            // GetFirstDerivative points along the polyline's parameter direction
+            // (start → end). For our fillet math we need the vector pointing INTO PP2
+            // from the endpoint, so flip at the end-endpoint.
+            if (atEnd)
+            {
+                derivative = derivative.Negate();
+            }
+            // GetFirstDerivative's magnitude reflects local parameterization
+            // (≈ segment length for straight polyline segments), not unit. Normalize so
+            // downstream code can treat the vector as a direction.
+            Vector2d direction = new(derivative.X, derivative.Y);
+            double length = direction.Length;
+            return length < EndpointMatchTolerance ? new Vector2d(0.0, 0.0) : direction / length;
         }
         catch
         {
