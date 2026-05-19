@@ -558,9 +558,9 @@ internal sealed class PipePlanState : IDisposable
         if (tangent.HasValue && DraftPoints.Count >= 1)
         {
             PipePlanTangentSnap snap = tangent.Value;
-            if (TryProjectOnTangentLine(DraftPoints[^1], snap, rawCandidate, out Point3d projected, out double perpOffset))
+            if (TryComputeTangentOffset(DraftPoints[^1], snap, out double perpOffset))
             {
-                return new CandidateResolution(projected, false, true, perpOffset);
+                return new CandidateResolution(snap.Pp2Anchor, false, true, perpOffset);
             }
         }
 
@@ -574,14 +574,11 @@ internal sealed class PipePlanState : IDisposable
         return new CandidateResolution(rawCandidate, false, false, 0.0);
     }
 
-    private static bool TryProjectOnTangentLine(
+    private static bool TryComputeTangentOffset(
         Point3d anchor,
         PipePlanTangentSnap snap,
-        Point3d cursor,
-        out Point3d projected,
         out double perpendicularOffset)
     {
-        projected = cursor;
         perpendicularOffset = 0.0;
 
         double dirLength = snap.Direction.Length;
@@ -591,11 +588,6 @@ internal sealed class PipePlanState : IDisposable
         }
 
         Vector2d du = snap.Direction / dirLength;
-
-        Vector2d cursorOffset = new(cursor.X - anchor.X, cursor.Y - anchor.Y);
-        double s = cursorOffset.DotProduct(du);
-        projected = new Point3d(anchor.X + (du.X * s), anchor.Y + (du.Y * s), cursor.Z);
-
         Vector2d anchorOffsetFromPp2 = new(anchor.X - snap.Pp2Anchor.X, anchor.Y - snap.Pp2Anchor.Y);
         double along = anchorOffsetFromPp2.DotProduct(du);
         Vector2d perp = anchorOffsetFromPp2 - (du * along);
