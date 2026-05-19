@@ -11,7 +11,7 @@ internal sealed class PipePlanState : IDisposable
     private const double PointMatchTolerance = 1e-4;
     private const double DistanceTolerance = 1e-6;
 
-    private const double TangentAngleToleranceRad = 1.0 * Math.PI / 180.0;
+    private const double TangentOffsetTolerance = 0.05;
 
     private readonly PipePlanSolver _solver = new();
     private readonly PipePlanPreviewManager _previewManager = new();
@@ -533,12 +533,11 @@ internal sealed class PipePlanState : IDisposable
 
         if (resolution.TangentSnapActive)
         {
-            if (resolution.TangentAngleRad > TangentAngleToleranceRad)
+            if (analysis.IsFeasible && resolution.TangentOffset > TangentOffsetTolerance)
             {
-                double deg = resolution.TangentAngleRad * 180.0 / Math.PI;
                 analysis = PipePlanAnalysis.Invalid(
                     analysis.ControlPoints,
-                    $"Segment is off-tangent to PP2 by {deg:0.0}°. Re-route PP1 to align.");
+                    $"PP1 anchor is {resolution.TangentOffset:0.###} units off PP2 tangent line. Re-route PP1 to align.");
             }
             analysis = analysis.WithPreviewKind(PipePlanPreviewKind.Tangent);
         }
@@ -559,8 +558,10 @@ internal sealed class PipePlanState : IDisposable
         if (tangent.HasValue && DraftPoints.Count >= 1)
         {
             PipePlanTangentSnap snap = tangent.Value;
-            double angle = ComputeCollinearAngleRad(DraftPoints[^1], snap.Point, snap.Direction);
-            return new CandidateResolution(snap.Point, false, true, angle);
+            if (TryProjectOnTangentLine(DraftPoints[^1], snap, rawCandidate, out Point3d projected, out double perpOffset))
+            {
+                return new CandidateResolution(projected, false, true, perpOffset);
+            }
         }
 
         if (allowStraightSnap &&
@@ -573,24 +574,33 @@ internal sealed class PipePlanState : IDisposable
         return new CandidateResolution(rawCandidate, false, false, 0.0);
     }
 
-    private static double ComputeCollinearAngleRad(Point3d p, Point3d q, Vector2d direction)
+    private static bool TryProjectOnTangentLine(
+        Point3d anchor,
+        PipePlanTangentSnap snap,
+        Point3d cursor,
+        out Point3d projected,
+        out double perpendicularOffset)
     {
-        Vector2d toQ = new(q.X - p.X, q.Y - p.Y);
-        double toQLength = toQ.Length;
-        if (toQLength < DistanceTolerance)
-        {
-            return 0.0;
-        }
-        double dirLength = direction.Length;
+        projected = cursor;
+        perpendicularOffset = 0.0;
+
+        double dirLength = snap.Direction.Length;
         if (dirLength < DistanceTolerance)
         {
-            return 0.0;
+            return false;
         }
-        Vector2d toQu = toQ / toQLength;
-        Vector2d du = direction / dirLength;
-        double cross = (toQu.X * du.Y) - (toQu.Y * du.X);
-        double clamped = Math.Min(1.0, Math.Abs(cross));
-        return Math.Asin(clamped);
+
+        Vector2d du = snap.Direction / dirLength;
+
+        Vector2d cursorOffset = new(cursor.X - anchor.X, cursor.Y - anchor.Y);
+        double s = cursorOffset.DotProduct(du);
+        projected = new Point3d(anchor.X + (du.X * s), anchor.Y + (du.Y * s), cursor.Z);
+
+        Vector2d anchorOffsetFromPp2 = new(anchor.X - snap.Pp2Anchor.X, anchor.Y - snap.Pp2Anchor.Y);
+        double along = anchorOffsetFromPp2.DotProduct(du);
+        Vector2d perp = anchorOffsetFromPp2 - (du * along);
+        perpendicularOffset = perp.Length;
+        return true;
     }
 
     private bool TryApplyStraightSnap(Point3d rawCandidate, double tolerance, out Point3d snappedCandidate)
@@ -666,5 +676,5 @@ internal sealed class PipePlanState : IDisposable
         Point3d FinalPoint,
         bool StraightSnapActive,
         bool TangentSnapActive,
-        double TangentAngleRad);
+        double TangentOffset);
 }

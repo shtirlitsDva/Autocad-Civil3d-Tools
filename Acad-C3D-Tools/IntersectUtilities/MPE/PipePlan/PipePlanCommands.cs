@@ -713,7 +713,7 @@ public partial class Intersect
     {
         using CandidatePointTracker tracker = new(document, PipePlanRuntime.State);
 
-        string tangentSuffix = PipePlanRuntime.State.IsTangentMode ? "Tangent(on)" : "Tangent";
+        string tangentSuffix = PipePlanRuntime.State.IsTangentMode ? "Tangent (on)" : "Tangent (off)";
         PromptPointOptions options = new($"\nNext point [Radius/Default/{tangentSuffix}] or press Enter to finish: ")
         {
             BasePoint = PipePlanRuntime.State.DraftPoints[^1],
@@ -854,7 +854,7 @@ public partial class Intersect
 
         while (true)
         {
-            string tangentSuffix = PipePlanRuntime.State.IsTangentMode ? "Tangent(on)" : "Tangent";
+            string tangentSuffix = PipePlanRuntime.State.IsTangentMode ? "Tangent (on)" : "Tangent (off)";
             PromptPointOptions firstPointOptions = new($"\nFirst point [Radius/Default/{tangentSuffix}]: ");
             firstPointOptions.Keywords.Add("Radius");
             firstPointOptions.Keywords.Add("Default");

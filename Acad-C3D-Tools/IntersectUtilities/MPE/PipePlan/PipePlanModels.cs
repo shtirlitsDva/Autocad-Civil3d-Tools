@@ -125,7 +125,7 @@ internal enum PipePlanPreviewKind
 }
 
 internal readonly record struct PipePlanTangentSnap(
-    Point3d Point,
+    Point3d Pp2Anchor,
     Vector2d Direction,
     ObjectId PolylineId);
 
