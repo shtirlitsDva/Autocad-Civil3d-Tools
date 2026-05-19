@@ -1,4 +1,5 @@
 using System.Globalization;
+using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 using IntersectUtilities.UtilsCommon.Enums;
 
@@ -119,8 +120,14 @@ internal enum PipePlanStatusKind
 internal enum PipePlanPreviewKind
 {
     Standard,
-    StraightSnap
+    StraightSnap,
+    Tangent
 }
+
+internal readonly record struct PipePlanTangentSnap(
+    Point3d Point,
+    Vector2d Direction,
+    ObjectId PolylineId);
 
 internal enum PipePlanEditHandleKind
 {

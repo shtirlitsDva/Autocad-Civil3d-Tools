@@ -9,6 +9,8 @@ namespace IntersectUtilities.MPE.PipePlan;
 
 internal sealed class CandidatePointTracker : IDisposable
 {
+    private const double EndpointMatchTolerance = 1e-4;
+
     private readonly Document _document;
     private readonly PipePlanState _state;
 
@@ -33,7 +35,124 @@ internal sealed class CandidatePointTracker : IDisposable
 
         Point3d candidate = eventArgs.Context.ComputedPoint;
         bool allowStraightSnap = (Control.ModifierKeys & Keys.Control) == Keys.Control;
-        _state.PreviewCandidate(candidate, allowStraightSnap);
+        PipePlanTangentSnap? tangent = _state.IsTangentMode
+            ? TryResolveTangentSnap(eventArgs, candidate)
+            : null;
+        _state.PreviewCandidate(candidate, allowStraightSnap, tangent);
+    }
+
+    private PipePlanTangentSnap? TryResolveTangentSnap(PointMonitorEventArgs eventArgs, Point3d candidate)
+    {
+        FullSubentityPath[] pickedEntities;
+        try
+        {
+            pickedEntities = eventArgs.Context.GetPickedEntities();
+        }
+        catch
+        {
+            return null;
+        }
+
+        if (pickedEntities is null || pickedEntities.Length == 0)
+        {
+            return null;
+        }
+
+        using Transaction transaction = _document.Database.TransactionManager.StartTransaction();
+        try
+        {
+            Autodesk.AutoCAD.DatabaseServices.Polyline? bestPolyline = null;
+            Point3d bestPoint = candidate;
+            double bestDistance = double.MaxValue;
+
+            foreach (FullSubentityPath path in pickedEntities)
+            {
+                ObjectId[] containerIds = path.GetObjectIds();
+                if (containerIds is null || containerIds.Length == 0)
+                {
+                    continue;
+                }
+
+                ObjectId entityId = containerIds[^1];
+                if (entityId == _state.ContinuedPolylineId)
+                {
+                    continue;
+                }
+
+                DBObject obj = transaction.GetObject(entityId, OpenMode.ForRead);
+                if (obj is not Autodesk.AutoCAD.DatabaseServices.Polyline polyline)
+                {
+                    continue;
+                }
+
+                if (!PipePlanMetadata.TryRead(polyline, transaction, out _))
+                {
+                    continue;
+                }
+
+                Point3d closest;
+                try
+                {
+                    closest = polyline.GetClosestPointTo(candidate, false);
+                }
+                catch
+                {
+                    continue;
+                }
+
+                double distance = closest.DistanceTo(candidate);
+                if (distance < bestDistance)
+                {
+                    bestDistance = distance;
+                    bestPolyline = polyline;
+                    bestPoint = closest;
+                }
+            }
+
+            if (bestPolyline is null)
+            {
+                transaction.Commit();
+                return null;
+            }
+
+            Vector2d direction = ResolveTangentDirection(bestPolyline, bestPoint);
+            transaction.Commit();
+
+            if (direction.Length < EndpointMatchTolerance)
+            {
+                return null;
+            }
+
+            return new PipePlanTangentSnap(bestPoint, direction, bestPolyline.ObjectId);
+        }
+        catch
+        {
+            transaction.Abort();
+            return null;
+        }
+    }
+
+    private static Vector2d ResolveTangentDirection(Autodesk.AutoCAD.DatabaseServices.Polyline polyline, Point3d snapPoint)
+    {
+        Point3d sampleOn = snapPoint;
+        if (snapPoint.DistanceTo(polyline.StartPoint) <= EndpointMatchTolerance)
+        {
+            sampleOn = polyline.StartPoint;
+        }
+        else if (snapPoint.DistanceTo(polyline.EndPoint) <= EndpointMatchTolerance)
+        {
+            sampleOn = polyline.EndPoint;
+        }
+
+        try
+        {
+            Vector3d derivative = polyline.GetFirstDerivative(sampleOn);
+            return new Vector2d(derivative.X, derivative.Y);
+        }
+        catch
+        {
+            return new Vector2d(0.0, 0.0);
+        }
     }
 }
 

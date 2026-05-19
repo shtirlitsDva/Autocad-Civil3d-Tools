@@ -84,8 +84,11 @@ internal sealed class PipePlanAnalysis
             return Autodesk.AutoCAD.Colors.Color.FromRgb(210, 45, 45);
         }
 
-        return PreviewKind == PipePlanPreviewKind.StraightSnap
-            ? Autodesk.AutoCAD.Colors.Color.FromRgb(30, 120, 220)
-            : Autodesk.AutoCAD.Colors.Color.FromRgb(0, 170, 70);
+        return PreviewKind switch
+        {
+            PipePlanPreviewKind.StraightSnap => Autodesk.AutoCAD.Colors.Color.FromRgb(30, 120, 220),
+            PipePlanPreviewKind.Tangent => Autodesk.AutoCAD.Colors.Color.FromRgb(0, 200, 200),
+            _ => Autodesk.AutoCAD.Colors.Color.FromRgb(0, 170, 70),
+        };
     }
 }

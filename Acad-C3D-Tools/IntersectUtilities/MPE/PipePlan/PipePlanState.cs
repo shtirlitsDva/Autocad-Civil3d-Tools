@@ -11,12 +11,15 @@ internal sealed class PipePlanState : IDisposable
     private const double PointMatchTolerance = 1e-4;
     private const double DistanceTolerance = 1e-6;
 
+    private const double TangentAngleToleranceRad = 1.0 * Math.PI / 180.0;
+
     private readonly PipePlanSolver _solver = new();
     private readonly PipePlanPreviewManager _previewManager = new();
 
     private PipePlanPalette? _palette;
     private PipePlanAnalysis? _latestAnalysis;
     private PipePlanCandidateResult? _latestInteractiveCandidate;
+    private PipePlanTangentSnap? _latestTangent;
     private PipePlanActiveContext? _activeContext;
     private double? _manualRadius;
     private ObjectId _continuedPolylineId = ObjectId.Null;
@@ -39,6 +42,25 @@ internal sealed class PipePlanState : IDisposable
     public bool HasManualRadiusOverride => _manualRadius.HasValue;
 
     public Point3d? LastEditDragPoint { get; set; }
+
+    public bool IsTangentMode { get; private set; }
+
+    public ObjectId ContinuedPolylineId => _continuedPolylineId;
+
+    public void SetTangentMode(bool enabled)
+    {
+        if (IsTangentMode == enabled)
+        {
+            return;
+        }
+
+        IsTangentMode = enabled;
+        if (!enabled)
+        {
+            _latestTangent = null;
+            RefreshCurrentPreview();
+        }
+    }
 
     public void SetManualRadius(double radius)
     {
@@ -66,7 +88,7 @@ internal sealed class PipePlanState : IDisposable
     {
         if (_latestInteractiveCandidate is not null)
         {
-            PreviewCandidate(_latestInteractiveCandidate.RawPoint, _latestInteractiveCandidate.StraightSnapActive);
+            PreviewCandidate(_latestInteractiveCandidate.RawPoint, _latestInteractiveCandidate.StraightSnapActive, _latestTangent);
             return;
         }
 
@@ -137,6 +159,8 @@ internal sealed class PipePlanState : IDisposable
         DraftBendRadii.Clear();
         _latestAnalysis = null;
         _latestInteractiveCandidate = null;
+        _latestTangent = null;
+        IsTangentMode = false;
         _continuedPolylineId = ObjectId.Null;
         _manualRadius = null;
         _previewManager.Clear();
@@ -171,9 +195,13 @@ internal sealed class PipePlanState : IDisposable
     }
 
     public PipePlanCandidateResult PreviewCandidate(Point3d rawCandidate, bool allowStraightSnap)
+        => PreviewCandidate(rawCandidate, allowStraightSnap, null);
+
+    public PipePlanCandidateResult PreviewCandidate(Point3d rawCandidate, bool allowStraightSnap, PipePlanTangentSnap? tangent)
     {
-        PipePlanCandidateResult candidate = BuildCandidateResult(rawCandidate, allowStraightSnap);
+        PipePlanCandidateResult candidate = BuildCandidateResult(rawCandidate, allowStraightSnap, tangent);
         _latestInteractiveCandidate = candidate;
+        _latestTangent = tangent;
         ShowPreview(candidate.Analysis);
         SetStatus(GetCandidateStatusMessage(candidate), GetCandidateStatusKind(candidate));
         return candidate;
@@ -187,7 +215,7 @@ internal sealed class PipePlanState : IDisposable
             return _latestInteractiveCandidate;
         }
 
-        return BuildCandidateResult(rawCandidate, allowStraightSnap);
+        return BuildCandidateResult(rawCandidate, allowStraightSnap, IsTangentMode ? _latestTangent : null);
     }
 
     public void RefreshDraftPreview()
@@ -498,11 +526,23 @@ internal sealed class PipePlanState : IDisposable
         return replacement;
     }
 
-    private PipePlanCandidateResult BuildCandidateResult(Point3d rawCandidate, bool allowStraightSnap)
+    private PipePlanCandidateResult BuildCandidateResult(Point3d rawCandidate, bool allowStraightSnap, PipePlanTangentSnap? tangent)
     {
-        CandidateResolution resolution = ResolveCandidatePoint(rawCandidate, allowStraightSnap);
+        CandidateResolution resolution = ResolveCandidatePoint(rawCandidate, allowStraightSnap, tangent);
         PipePlanAnalysis analysis = AnalyzeWithCandidate(resolution.FinalPoint);
-        if (resolution.StraightSnapActive)
+
+        if (resolution.TangentSnapActive)
+        {
+            if (resolution.TangentAngleRad > TangentAngleToleranceRad)
+            {
+                double deg = resolution.TangentAngleRad * 180.0 / Math.PI;
+                analysis = PipePlanAnalysis.Invalid(
+                    analysis.ControlPoints,
+                    $"Segment is off-tangent to PP2 by {deg:0.0}°. Re-route PP1 to align.");
+            }
+            analysis = analysis.WithPreviewKind(PipePlanPreviewKind.Tangent);
+        }
+        else if (resolution.StraightSnapActive)
         {
             analysis = analysis.WithPreviewKind(PipePlanPreviewKind.StraightSnap);
         }
@@ -514,16 +554,43 @@ internal sealed class PipePlanState : IDisposable
             resolution.StraightSnapActive);
     }
 
-    private CandidateResolution ResolveCandidatePoint(Point3d rawCandidate, bool allowStraightSnap)
+    private CandidateResolution ResolveCandidatePoint(Point3d rawCandidate, bool allowStraightSnap, PipePlanTangentSnap? tangent)
     {
+        if (tangent.HasValue && DraftPoints.Count >= 1)
+        {
+            PipePlanTangentSnap snap = tangent.Value;
+            double angle = ComputeCollinearAngleRad(DraftPoints[^1], snap.Point, snap.Direction);
+            return new CandidateResolution(snap.Point, false, true, angle);
+        }
+
         if (allowStraightSnap &&
             TryGetStraightSnapTolerance(out double tolerance) &&
             TryApplyStraightSnap(rawCandidate, tolerance, out Point3d straightSnappedPoint))
         {
-            return new CandidateResolution(straightSnappedPoint, true);
+            return new CandidateResolution(straightSnappedPoint, true, false, 0.0);
         }
 
-        return new CandidateResolution(rawCandidate, false);
+        return new CandidateResolution(rawCandidate, false, false, 0.0);
+    }
+
+    private static double ComputeCollinearAngleRad(Point3d p, Point3d q, Vector2d direction)
+    {
+        Vector2d toQ = new(q.X - p.X, q.Y - p.Y);
+        double toQLength = toQ.Length;
+        if (toQLength < DistanceTolerance)
+        {
+            return 0.0;
+        }
+        double dirLength = direction.Length;
+        if (dirLength < DistanceTolerance)
+        {
+            return 0.0;
+        }
+        Vector2d toQu = toQ / toQLength;
+        Vector2d du = direction / dirLength;
+        double cross = (toQu.X * du.Y) - (toQu.Y * du.X);
+        double clamped = Math.Min(1.0, Math.Abs(cross));
+        return Math.Asin(clamped);
     }
 
     private bool TryApplyStraightSnap(Point3d rawCandidate, double tolerance, out Point3d snappedCandidate)
@@ -572,9 +639,12 @@ internal sealed class PipePlanState : IDisposable
             return candidate.Analysis.Message;
         }
 
-        return candidate.StraightSnapActive
-            ? "Straight snap active. Release Ctrl to disable."
-            : "Current draft is feasible. Hold Ctrl to snap straight.";
+        return candidate.Analysis.PreviewKind switch
+        {
+            PipePlanPreviewKind.StraightSnap => "Straight snap active. Release Ctrl to disable.",
+            PipePlanPreviewKind.Tangent => "Tangent to PP2. Click to commit.",
+            _ => "Current draft is feasible. Hold Ctrl to snap straight.",
+        };
     }
 
     private static PipePlanStatusKind GetCandidateStatusKind(PipePlanCandidateResult candidate)
@@ -584,12 +654,17 @@ internal sealed class PipePlanState : IDisposable
             return PipePlanStatusKind.Error;
         }
 
-        return candidate.StraightSnapActive
-            ? PipePlanStatusKind.Snap
-            : PipePlanStatusKind.Ok;
+        return candidate.Analysis.PreviewKind switch
+        {
+            PipePlanPreviewKind.StraightSnap => PipePlanStatusKind.Snap,
+            PipePlanPreviewKind.Tangent => PipePlanStatusKind.Snap,
+            _ => PipePlanStatusKind.Ok,
+        };
     }
 
     private sealed record CandidateResolution(
         Point3d FinalPoint,
-        bool StraightSnapActive);
+        bool StraightSnapActive,
+        bool TangentSnapActive,
+        double TangentAngleRad);
 }

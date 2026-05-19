@@ -672,7 +672,14 @@ public partial class Intersect
             PromptPointResult result = PromptForNextDrawPoint(document);
             if (result.Status == PromptStatus.Keyword)
             {
-                HandleRadiusKeyword(document, result.StringResult);
+                if (string.Equals(result.StringResult, "Tangent", StringComparison.OrdinalIgnoreCase))
+                {
+                    HandleTangentKeyword();
+                }
+                else
+                {
+                    HandleRadiusKeyword(document, result.StringResult);
+                }
                 continue;
             }
 
@@ -706,7 +713,8 @@ public partial class Intersect
     {
         using CandidatePointTracker tracker = new(document, PipePlanRuntime.State);
 
-        PromptPointOptions options = new("\nNext point [Radius/Default] or press Enter to finish: ")
+        string tangentSuffix = PipePlanRuntime.State.IsTangentMode ? "Tangent(on)" : "Tangent";
+        PromptPointOptions options = new($"\nNext point [Radius/Default/{tangentSuffix}] or press Enter to finish: ")
         {
             BasePoint = PipePlanRuntime.State.DraftPoints[^1],
             UseBasePoint = true,
@@ -714,8 +722,19 @@ public partial class Intersect
         };
         options.Keywords.Add("Radius");
         options.Keywords.Add("Default");
+        options.Keywords.Add("Tangent");
 
         return document.Editor.GetPoint(options);
+    }
+
+    private static void HandleTangentKeyword()
+    {
+        bool newState = !PipePlanRuntime.State.IsTangentMode;
+        PipePlanRuntime.State.SetTangentMode(newState);
+        string message = newState
+            ? "Tangent mode ON. Hover over another PipePlan polyline to snap tangent."
+            : "Tangent mode OFF.";
+        PipePlanRuntime.State.SetStatus(message, PipePlanStatusKind.Info);
     }
 
     private static void HandleRadiusKeyword(Document document, string keyword)
@@ -835,14 +854,23 @@ public partial class Intersect
 
         while (true)
         {
-            PromptPointOptions firstPointOptions = new("\nFirst point [Radius/Default]: ");
+            string tangentSuffix = PipePlanRuntime.State.IsTangentMode ? "Tangent(on)" : "Tangent";
+            PromptPointOptions firstPointOptions = new($"\nFirst point [Radius/Default/{tangentSuffix}]: ");
             firstPointOptions.Keywords.Add("Radius");
             firstPointOptions.Keywords.Add("Default");
+            firstPointOptions.Keywords.Add("Tangent");
 
             PromptPointResult firstPointResult = editor.GetPoint(firstPointOptions);
             if (firstPointResult.Status == PromptStatus.Keyword)
             {
-                HandleRadiusKeyword(document, firstPointResult.StringResult);
+                if (string.Equals(firstPointResult.StringResult, "Tangent", StringComparison.OrdinalIgnoreCase))
+                {
+                    HandleTangentKeyword();
+                }
+                else
+                {
+                    HandleRadiusKeyword(document, firstPointResult.StringResult);
+                }
                 continue;
             }
 
