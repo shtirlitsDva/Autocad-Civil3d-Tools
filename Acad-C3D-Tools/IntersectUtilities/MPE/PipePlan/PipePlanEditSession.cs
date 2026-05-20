@@ -108,13 +108,10 @@ internal sealed class PipePlanEditSession : IDisposable
                 _data.StraightSnapToleranceText,
                 candidate.Draft.ControlPoints,
                 _data.ObjectToken);
-            BlockTableRecord owner = (BlockTableRecord)transaction.GetObject(polyline.OwnerId, OpenMode.ForWrite);
-            Polyline replacement = PipePlanPolylineWriter.AppendFromAnalysis(polyline, candidate.Analysis, _data, owner, transaction);
-            if (!polyline.IsErased)
-            {
-                polyline.Erase();
-            }
-            _polylineId = replacement.ObjectId;
+            PipePlanPolylineMutator.ApplyAnalysis(polyline, candidate.Analysis, _data, polyline.Layer, transaction);
+            // _polylineId stays the same across edits because the entity is mutated
+            // in place — Handle, ObjectId, ExtensionDictionary and any third-party
+            // attached data survive the edit.
 
             transaction.Commit();
         }

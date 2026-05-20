@@ -20,6 +20,11 @@ internal sealed class PipePlanState : IDisposable
     private PipePlanActiveContext? _activeContext;
     private double? _manualRadius;
     private ObjectId _continuedPolylineId = ObjectId.Null;
+    // Carries the original polyline's ObjectToken through a PPDRAW Continue bake.
+    // Without this, CreateStoredData would mint a fresh GUID on every continue,
+    // so external consumers tracking polylines by token would see drift even
+    // though the polyline's handle is now preserved by in-place mutation.
+    private string? _continuedObjectToken;
 
     public PipePlanState()
     {
@@ -171,6 +176,7 @@ internal sealed class PipePlanState : IDisposable
         _latestTangent = null;
         IsTangentMode = false;
         _continuedPolylineId = ObjectId.Null;
+        _continuedObjectToken = null;
         _manualRadius = null;
         _previewManager.Clear();
         if (clearStatus)
@@ -370,6 +376,7 @@ internal sealed class PipePlanState : IDisposable
         ApplyStoredContext(data);
 
         _continuedPolylineId = polylineId;
+        _continuedObjectToken = data.ObjectToken;
         DraftPoints.Clear();
         DraftBendRadii.Clear();
         _latestInteractiveCandidate = null;
@@ -546,7 +553,8 @@ internal sealed class PipePlanState : IDisposable
 
         if (_continuedPolylineId != ObjectId.Null)
         {
-            WriteReplacementPolyline(transaction, analysis, context, layerName, modelSpace, storedData);
+            Polyline existing = (Polyline)transaction.GetObject(_continuedPolylineId, OpenMode.ForWrite);
+            PipePlanPolylineMutator.ApplyAnalysis(existing, analysis, storedData, layerName, transaction);
         }
         else
         {
@@ -568,20 +576,8 @@ internal sealed class PipePlanState : IDisposable
             context.Dn,
             DraftBendRadii,
             StraightSnapToleranceText,
-            DraftPoints);
-    }
-
-    private void WriteReplacementPolyline(
-        Transaction transaction,
-        PipePlanAnalysis analysis,
-        PipePlanActiveContext context,
-        string layerName,
-        BlockTableRecord modelSpace,
-        PipePlanStoredData storedData)
-    {
-        Polyline sourcePolyline = (Polyline)transaction.GetObject(_continuedPolylineId, OpenMode.ForWrite);
-        Polyline replacement = ReplaceExistingPolyline(sourcePolyline, analysis, context, layerName, modelSpace, transaction);
-        PipePlanMetadata.Write(replacement, storedData, transaction);
+            DraftPoints,
+            _continuedObjectToken);
     }
 
     private static void WriteNewPolyline(
@@ -599,40 +595,6 @@ internal sealed class PipePlanState : IDisposable
         modelSpace.AppendEntity(polyline);
         transaction.AddNewlyCreatedDBObject(polyline, add: true);
         PipePlanMetadata.Write(polyline, storedData, transaction);
-    }
-
-    private static Polyline ReplaceExistingPolyline(
-        Polyline sourcePolyline,
-        PipePlanAnalysis analysis,
-        PipePlanActiveContext context,
-        string layerName,
-        BlockTableRecord owner,
-        Transaction transaction)
-    {
-        Polyline replacement = analysis.CreatePolyline();
-        replacement.SetDatabaseDefaults(sourcePolyline.Database);
-        replacement.SetPropertiesFrom(sourcePolyline);
-        replacement.Layer = layerName;
-        replacement.LayerId = sourcePolyline.LayerId;
-        replacement.LinetypeId = sourcePolyline.LinetypeId;
-        replacement.LineWeight = sourcePolyline.LineWeight;
-        replacement.LinetypeScale = sourcePolyline.LinetypeScale;
-        replacement.Transparency = sourcePolyline.Transparency;
-        replacement.Normal = sourcePolyline.Normal;
-        replacement.Elevation = sourcePolyline.Elevation;
-        replacement.Thickness = sourcePolyline.Thickness;
-        replacement.ConstantWidth = PipePlanWidthCalculator.ResolveDrawingWidth(context.LayerName);
-        replacement.Closed = false;
-
-        owner.AppendEntity(replacement);
-        transaction.AddNewlyCreatedDBObject(replacement, add: true);
-
-        if (!sourcePolyline.IsErased)
-        {
-            sourcePolyline.Erase();
-        }
-
-        return replacement;
     }
 
     private PipePlanCandidateResult BuildCandidateResult(Point3d rawCandidate, bool allowStraightSnap, PipePlanTangentSnap? tangent)

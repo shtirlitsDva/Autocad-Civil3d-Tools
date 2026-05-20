@@ -614,30 +614,6 @@ public partial class Intersect
             }
 
             Polyline sourceWrite = (Polyline)transaction.GetObject(pick.ObjectId, OpenMode.ForWrite);
-            BlockTableRecord owner = (BlockTableRecord)transaction.GetObject(sourceWrite.OwnerId, OpenMode.ForWrite);
-
-            Polyline replacement = analysis.CreatePolyline();
-            replacement.SetDatabaseDefaults(sourceWrite.Database);
-            replacement.SetPropertiesFrom(sourceWrite);
-            replacement.Layer = layerName;
-            replacement.LayerId = sourceWrite.LayerId;
-            replacement.LinetypeId = sourceWrite.LinetypeId;
-            replacement.LineWeight = sourceWrite.LineWeight;
-            replacement.LinetypeScale = sourceWrite.LinetypeScale;
-            replacement.Transparency = sourceWrite.Transparency;
-            replacement.Normal = sourceWrite.Normal;
-            replacement.Elevation = sourceWrite.Elevation;
-            replacement.Thickness = sourceWrite.Thickness;
-            replacement.ConstantWidth = PipePlanWidthCalculator.ResolveDrawingWidth(layerName);
-            replacement.Closed = false;
-
-            owner.AppendEntity(replacement);
-            transaction.AddNewlyCreatedDBObject(replacement, add: true);
-
-            if (!sourceWrite.IsErased)
-            {
-                sourceWrite.Erase();
-            }
 
             PipePlanStoredData metadata = new(
                 system,
@@ -646,7 +622,10 @@ public partial class Intersect
                 reverseResult.BendRadii,
                 PipePlanRuntime.State.StraightSnapToleranceText,
                 reverseResult.ControlPoints);
-            PipePlanMetadata.Write(replacement, metadata, transaction);
+            // In-place mutation: the converted polyline keeps its Handle/ObjectId
+            // and any pre-existing third-party data. Color/Linetype/Normal/Elevation
+            // are inherent to the un-erased entity, so no property copy is needed.
+            PipePlanPolylineMutator.ApplyAnalysis(sourceWrite, analysis, metadata, layerName, transaction);
 
             transaction.Commit();
 
