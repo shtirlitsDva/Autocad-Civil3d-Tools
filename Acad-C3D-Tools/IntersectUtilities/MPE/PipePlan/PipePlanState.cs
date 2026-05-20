@@ -12,9 +12,12 @@ internal sealed class PipePlanState : IDisposable
     private const double DistanceTolerance = 1e-6;
 
     private readonly PipePlanSolver _solver = new();
-    private readonly PipePlanPreviewManager _previewManager = new();
+    private readonly PipePlanPreviewManager _previewManager;
+    // Document that owns this state. Every PipePlanState is created per-document
+    // by PipePlanRuntime.StateFor; this field replaces all the on-demand
+    // MdiActiveDocument lookups that used to leak across drawings.
+    private readonly Document _owner;
 
-    private PipePlanPalette? _palette;
     private PipePlanCandidateResult? _latestInteractiveCandidate;
     private PipePlanTangentSnap? _latestTangent;
     private PipePlanActiveContext? _activeContext;
@@ -26,8 +29,10 @@ internal sealed class PipePlanState : IDisposable
     // though the polyline's handle is now preserved by in-place mutation.
     private string? _continuedObjectToken;
 
-    public PipePlanState()
+    public PipePlanState(Document owner)
     {
+        _owner = owner;
+        _previewManager = new PipePlanPreviewManager(owner);
         StraightSnapToleranceText = "5";
     }
 
@@ -97,17 +102,9 @@ internal sealed class PipePlanState : IDisposable
         RefreshDraftPreview();
     }
 
-    public void EnsurePalette()
-    {
-        _palette ??= new PipePlanPalette(this);
-        _palette.Show();
-        RefreshDraftPreview();
-    }
-
     public void Dispose()
     {
         _previewManager.Dispose();
-        _palette?.Dispose();
     }
 
     public bool InitializeForCurrentLayer(Database db, out string error)
@@ -368,7 +365,15 @@ internal sealed class PipePlanState : IDisposable
 
     public void SetStatus(string message, PipePlanStatusKind kind)
     {
-        _palette?.SetStatus(message, kind);
+        // Silent no-op when this state's owning document isn't the one the user
+        // is looking at. The palette is process-wide and is rebound to the
+        // active document's state on DocumentActivated, so routing status from
+        // a non-active document here would clobber the palette with stale text.
+        if (_owner != Application.DocumentManager.MdiActiveDocument)
+        {
+            return;
+        }
+        PipePlanRuntime.NotifyPaletteStatus(message, kind);
     }
 
     public void BeginDraftFromExisting(ObjectId polylineId, PipePlanStoredData data, bool reverse)
@@ -397,17 +402,12 @@ internal sealed class PipePlanState : IDisposable
 
     public void BakeDraft()
     {
-        Document? document = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
-        if (document is null)
-        {
-            return;
-        }
-
         if (!TryPrepareBake(out PipePlanActiveContext? context, out PipePlanAnalysis? analysis) || context is null || analysis is null)
         {
             return;
         }
 
+        Document document = _owner;
         using DocumentLock documentLock = document.LockDocument();
         using Transaction transaction = document.Database.TransactionManager.StartTransaction();
 
@@ -454,11 +454,9 @@ internal sealed class PipePlanState : IDisposable
         _activeContext = new PipePlanActiveContext(data.System, data.Type, data.Dn, defaultRadius, layerName);
     }
 
-    private static double ResolveDefaultRadiusFromData(PipePlanStoredData data)
+    private double ResolveDefaultRadiusFromData(PipePlanStoredData data)
     {
-        Document? doc = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
-        if (doc is not null &&
-            PipePlanRadiusStore.TryGet(doc.Database, data.System, data.Type, data.Dn, out double storeValue))
+        if (PipePlanRadiusStore.TryGet(_owner.Database, data.System, data.Type, data.Dn, out double storeValue))
         {
             return storeValue;
         }

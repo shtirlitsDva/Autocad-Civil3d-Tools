@@ -10,9 +10,16 @@ namespace IntersectUtilities.MPE.PipePlan.ViewModels;
 
 internal sealed partial class PipePlanSettingsViewModel : ObservableObject
 {
-    private readonly PipePlanState _state;
+    // Nullable because the palette is constructed up front (process-wide) and may
+    // briefly exist before the first DocumentActivated rebind. Operations that
+    // need state (Save, Reload row sync) early-out gracefully when null.
+    private PipePlanState? _state;
 
-    public PipePlanSettingsViewModel(PipePlanState state)
+    public PipePlanSettingsViewModel()
+    {
+    }
+
+    public void Rebind(PipePlanState state)
     {
         _state = state;
         StraightSnapTolerance = state.StraightSnapToleranceText;
@@ -59,7 +66,10 @@ internal sealed partial class PipePlanSettingsViewModel : ObservableObject
             Entries.Add(new PipePlanRadiusEntryVm(entry));
         }
 
-        StraightSnapTolerance = _state.StraightSnapToleranceText;
+        if (_state is not null)
+        {
+            StraightSnapTolerance = _state.StraightSnapToleranceText;
+        }
         SetStatus("Loaded.", PipePlanStatusKind.Info);
     }
 
@@ -79,7 +89,10 @@ internal sealed partial class PipePlanSettingsViewModel : ObservableObject
             return;
         }
 
-        _state.StraightSnapToleranceText = StraightSnapTolerance;
+        if (_state is not null)
+        {
+            _state.StraightSnapToleranceText = StraightSnapTolerance;
+        }
 
         int updated = 0;
         int failed = 0;

@@ -10,6 +10,12 @@ internal sealed class PipePlanPreviewManager : IDisposable
 {
     private readonly IntegerCollection _transientViewportNumbers = [];
     private readonly List<Entity> _previewEntities = [];
+    private readonly Document _owner;
+
+    public PipePlanPreviewManager(Document owner)
+    {
+        _owner = owner;
+    }
 
     public void Dispose()
     {
@@ -120,40 +126,31 @@ internal sealed class PipePlanPreviewManager : IDisposable
         return marker;
     }
 
-    private static double GetFilletMarkerRadius(double globalWidth)
+    private double GetFilletMarkerRadius(double globalWidth)
     {
         return Math.Max(GetViewBasedMarkerRadius(), globalWidth * 0.75);
     }
 
-    private static double GetViewBasedMarkerRadius()
+    private double GetViewBasedMarkerRadius()
     {
         try
         {
-            Document? document = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
-            if (document is not null)
-            {
-                using ViewTableRecord view = document.Editor.GetCurrentView();
-                return Math.Clamp(view.Height / 140.0, 0.08, 2.5);
-            }
+            using ViewTableRecord view = _owner.Editor.GetCurrentView();
+            return Math.Clamp(view.Height / 140.0, 0.08, 2.5);
         }
         catch
         {
             // Fall back to a conservative marker radius.
+            return 0.15;
         }
-
-        return 0.15;
     }
 
-    private static double GetTextHeight()
+    private double GetTextHeight()
     {
         try
         {
-            Document? document = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
-            if (document is not null)
-            {
-                using ViewTableRecord view = document.Editor.GetCurrentView();
-                return Math.Clamp(view.Height / 40.0, 0.3, 8.0);
-            }
+            using ViewTableRecord view = _owner.Editor.GetCurrentView();
+            return Math.Clamp(view.Height / 40.0, 0.3, 8.0);
         }
         catch
         {

@@ -71,7 +71,7 @@ public partial class Intersect
 
         try
         {
-            ExecuteSettings();
+            ExecuteSettings(document);
         }
         catch (System.Exception exception)
         {
@@ -156,7 +156,7 @@ public partial class Intersect
     private static bool TryCreateEditSession(Document document, [NotNullWhen(true)] out PipePlanEditSession? session)
     {
         session = null;
-        if (!PipePlanEditSession.TryCreate(document, PipePlanRuntime.State, out session, out string errorMessage) || session is null)
+        if (!PipePlanEditSession.TryCreate(document, PipePlanRuntime.StateFor(document), out session, out string errorMessage) || session is null)
         {
             ReportMessage(document, errorMessage, PipePlanStatusKind.Warning);
             return false;
@@ -170,7 +170,7 @@ public partial class Intersect
     private static void RunEditLoop(Document document, PipePlanEditSession session)
     {
         Editor editor = document.Editor;
-        PipePlanRuntime.State.SetStatus(
+        PipePlanRuntime.StateFor(document).SetStatus(
             $"Editing {session.SizeLabel} (R={session.RadiusDisplay}). Pick a control circle or segment square, or press Enter to finish.",
             PipePlanStatusKind.Info);
 
@@ -182,18 +182,18 @@ public partial class Intersect
             if (pickResult.Status == PromptStatus.None)
             {
                 session.ClearVisuals();
-                PipePlanRuntime.State.SetStatus("PPEdit finished.", PipePlanStatusKind.Info);
+                PipePlanRuntime.StateFor(document).SetStatus("PPEdit finished.", PipePlanStatusKind.Info);
                 return;
             }
 
             if (pickResult.Status != PromptStatus.OK)
             {
                 session.ClearVisuals();
-                PipePlanRuntime.State.SetStatus("PPEdit cancelled.", PipePlanStatusKind.Info);
+                PipePlanRuntime.StateFor(document).SetStatus("PPEdit cancelled.", PipePlanStatusKind.Info);
                 return;
             }
 
-            if (!TryResolveEditHandle(session, editor, pickResult.Value, out PipePlanEditHandle? handle) || handle is null)
+            if (!TryResolveEditHandle(document, session, editor, pickResult.Value, out PipePlanEditHandle? handle) || handle is null)
             {
                 continue;
             }
@@ -222,7 +222,7 @@ public partial class Intersect
                 }
 
                 session.ClearPendingRadius();
-                PipePlanRuntime.State.ClearPreview();
+                PipePlanRuntime.StateFor(document).ClearPreview();
                 return true;
             }
 
@@ -231,8 +231,8 @@ public partial class Intersect
                 if (!TryCommitFromLastDragPosition(document, session, handle))
                 {
                     session.ClearPendingRadius();
-                    PipePlanRuntime.State.ClearPreview();
-                    PipePlanRuntime.State.SetStatus("Edit cancelled. Pick another handle.", PipePlanStatusKind.Info);
+                    PipePlanRuntime.StateFor(document).ClearPreview();
+                    PipePlanRuntime.StateFor(document).SetStatus("Edit cancelled. Pick another handle.", PipePlanStatusKind.Info);
                 }
                 return true;
             }
@@ -241,7 +241,7 @@ public partial class Intersect
             {
                 session.ClearPendingRadius();
                 session.ClearVisuals();
-                PipePlanRuntime.State.SetStatus("PPEdit cancelled.", PipePlanStatusKind.Info);
+                PipePlanRuntime.StateFor(document).SetStatus("PPEdit cancelled.", PipePlanStatusKind.Info);
                 return false;
             }
 
@@ -260,7 +260,7 @@ public partial class Intersect
             return false;
         }
 
-        Point3d lastPoint = PipePlanRuntime.State.LastEditDragPoint ?? handle.GripPoint;
+        Point3d lastPoint = PipePlanRuntime.StateFor(document).LastEditDragPoint ?? handle.GripPoint;
         ApplyEditCandidate(document, session, handle, lastPoint);
         return true;
     }
@@ -278,7 +278,7 @@ public partial class Intersect
                 ? session.CurrentBendRadii[handle.Index]
                 : 0.0;
 
-        Point3d dragPosition = PipePlanRuntime.State.LastEditDragPoint ?? handle.GripPoint;
+        Point3d dragPosition = PipePlanRuntime.StateFor(document).LastEditDragPoint ?? handle.GripPoint;
 
         Editor editor = document.Editor;
         double? pendingRadius = null;
@@ -315,13 +315,13 @@ public partial class Intersect
             {
                 if (!pendingRadius.HasValue)
                 {
-                    PipePlanRuntime.State.ClearPreview();
-                    PipePlanRuntime.State.SetStatus("Radius unchanged.", PipePlanStatusKind.Info);
+                    PipePlanRuntime.StateFor(document).ClearPreview();
+                    PipePlanRuntime.StateFor(document).SetStatus("Radius unchanged.", PipePlanStatusKind.Info);
                     return VertexRadiusEditOutcome.Cancelled;
                 }
 
                 session.SetPendingRadius(handle.Index, pendingRadius.Value);
-                PipePlanRuntime.State.SetStatus(
+                PipePlanRuntime.StateFor(document).SetStatus(
                     $"Radius {pendingRadius.Value} locked — move the vertex, then press Enter or click to confirm.",
                     PipePlanStatusKind.Info);
                 return VertexRadiusEditOutcome.Locked;
@@ -329,21 +329,21 @@ public partial class Intersect
 
             if (res.Status != PromptStatus.OK)
             {
-                PipePlanRuntime.State.ClearPreview();
-                PipePlanRuntime.State.SetStatus("Radius edit cancelled.", PipePlanStatusKind.Info);
+                PipePlanRuntime.StateFor(document).ClearPreview();
+                PipePlanRuntime.StateFor(document).SetStatus("Radius edit cancelled.", PipePlanStatusKind.Info);
                 return VertexRadiusEditOutcome.Cancelled;
             }
 
             if (!session.TryAnalyzeVertexState(handle.Index, dragPosition, res.Value, out PipePlanAnalysis previewAnalysis, out string previewError))
             {
                 ReportEditorMessage(editor, $"Radius rejected: {previewError}");
-                PipePlanRuntime.State.SetStatus(previewError, PipePlanStatusKind.Error);
+                PipePlanRuntime.StateFor(document).SetStatus(previewError, PipePlanStatusKind.Error);
                 continue;
             }
 
-            PipePlanRuntime.State.ShowPreview(previewAnalysis);
+            PipePlanRuntime.StateFor(document).ShowPreview(previewAnalysis);
             pendingRadius = res.Value;
-            PipePlanRuntime.State.SetStatus($"Previewing radius {res.Value}.", PipePlanStatusKind.Info);
+            PipePlanRuntime.StateFor(document).SetStatus($"Previewing radius {res.Value}.", PipePlanStatusKind.Info);
         }
     }
 
@@ -355,28 +355,28 @@ public partial class Intersect
         out double defaultRadius)
     {
         defaultRadius = 0.0;
-        PipePlanActiveContext? ctx = PipePlanRuntime.State.ActiveContext;
+        PipePlanActiveContext? ctx = PipePlanRuntime.StateFor(document).ActiveContext;
         if (ctx is null)
         {
-            PipePlanRuntime.State.SetStatus("No active pipe context for default radius.", PipePlanStatusKind.Warning);
+            PipePlanRuntime.StateFor(document).SetStatus("No active pipe context for default radius.", PipePlanStatusKind.Warning);
             return false;
         }
 
         if (!PipePlanRadiusStore.TryGet(document.Database, ctx.System, ctx.Type, ctx.Dn, out double resolved) || resolved <= 0.0)
         {
-            PipePlanRuntime.State.SetStatus($"No default radius available for {ctx.System} {ctx.Type} DN{ctx.Dn}.", PipePlanStatusKind.Warning);
+            PipePlanRuntime.StateFor(document).SetStatus($"No default radius available for {ctx.System} {ctx.Type} DN{ctx.Dn}.", PipePlanStatusKind.Warning);
             return false;
         }
 
         if (!session.TryAnalyzeVertexState(handle.Index, dragPosition, resolved, out PipePlanAnalysis analysis, out string error))
         {
             ReportEditorMessage(document.Editor, $"Default radius rejected: {error}");
-            PipePlanRuntime.State.SetStatus(error, PipePlanStatusKind.Error);
+            PipePlanRuntime.StateFor(document).SetStatus(error, PipePlanStatusKind.Error);
             return false;
         }
 
-        PipePlanRuntime.State.ShowPreview(analysis);
-        PipePlanRuntime.State.SetStatus($"Previewing default radius {resolved}.", PipePlanStatusKind.Info);
+        PipePlanRuntime.StateFor(document).ShowPreview(analysis);
+        PipePlanRuntime.StateFor(document).SetStatus($"Previewing default radius {resolved}.", PipePlanStatusKind.Info);
         defaultRadius = resolved;
         return true;
     }
@@ -392,6 +392,7 @@ public partial class Intersect
     }
 
     private static bool TryResolveEditHandle(
+        Document document,
         PipePlanEditSession session,
         Editor editor,
         Point3d pickedPoint,
@@ -401,7 +402,7 @@ public partial class Intersect
         if (!session.TryResolveHandle(pickedPoint, out handle, out string handleMessage) || handle is null)
         {
             ReportEditorMessage(editor, handleMessage);
-            PipePlanRuntime.State.SetStatus(handleMessage, PipePlanStatusKind.Warning);
+            PipePlanRuntime.StateFor(document).SetStatus(handleMessage, PipePlanStatusKind.Warning);
             return false;
         }
 
@@ -413,8 +414,8 @@ public partial class Intersect
         PipePlanEditSession session,
         PipePlanEditHandle handle)
     {
-        PipePlanRuntime.State.LastEditDragPoint = handle.GripPoint;
-        using PipePlanEditTracker tracker = new(document, PipePlanRuntime.State, session, handle);
+        PipePlanRuntime.StateFor(document).LastEditDragPoint = handle.GripPoint;
+        using PipePlanEditTracker tracker = new(document, PipePlanRuntime.StateFor(document), session, handle);
         string prompt = handle.Kind == PipePlanEditHandleKind.Vertex
             ? "\nMove the selected handle, [Radius] to change bend radius, or press Enter to cancel: "
             : "\nMove the selected handle or press Enter to cancel: ";
@@ -443,21 +444,23 @@ public partial class Intersect
         PipePlanEditCandidate candidate = session.BuildCandidate(handle, candidatePoint);
         if (!candidate.Analysis.IsFeasible)
         {
-            PipePlanRuntime.State.ClearPreview();
+            PipePlanRuntime.StateFor(document).ClearPreview();
             ReportEditorMessage(document.Editor, $"Edit rejected: {candidate.Analysis.Message}");
-            PipePlanRuntime.State.SetStatus(candidate.Analysis.Message, PipePlanStatusKind.Error);
+            PipePlanRuntime.StateFor(document).SetStatus(candidate.Analysis.Message, PipePlanStatusKind.Error);
             return;
         }
 
         session.Commit(candidate);
-        PipePlanRuntime.State.ClearPreview();
-        PipePlanRuntime.State.SetStatus("Edit applied. Pick another handle or press Enter to finish.", PipePlanStatusKind.Ok);
+        PipePlanRuntime.StateFor(document).ClearPreview();
+        PipePlanRuntime.StateFor(document).SetStatus("Edit applied. Pick another handle or press Enter to finish.", PipePlanStatusKind.Ok);
     }
 
-    private static void ExecuteSettings()
+    private static void ExecuteSettings(Document document)
     {
-        PipePlanRuntime.State.EnsurePalette();
-        PipePlanRuntime.State.SetStatus("Edit per-DN radii and click Save.", PipePlanStatusKind.Info);
+        PipePlanState state = PipePlanRuntime.StateFor(document);
+        PipePlanRuntime.Palette.RebindTo(state);
+        PipePlanRuntime.Palette.Show();
+        state.SetStatus("Edit per-DN radii and click Save.", PipePlanStatusKind.Info);
     }
 
     private static void ExecuteDraw(Document document)
@@ -468,7 +471,7 @@ public partial class Intersect
             return;
         }
 
-        PipePlanRuntime.State.ResetDraft(clearStatus: false);
+        PipePlanRuntime.StateFor(document).ResetDraft(clearStatus: false);
 
         if (!TryInitializeDraw(document, out string initializationError))
         {
@@ -549,7 +552,7 @@ public partial class Intersect
                 ReportEditorMessage(editor, $"Polyline has Sharp edges. {reverseResult.SharpCornerPositions.Count} corner(s) will be filleted at min bending radius {defaultSharpCornerRadius:0.##}.");
                 markers.Show(document, reverseResult.SharpCornerPositions);
 
-                using PipePlanPreviewManager preview = new();
+                using PipePlanPreviewManager preview = new(document);
                 PipePlanSolver previewSolver = new();
 
                 while (true)
@@ -620,7 +623,7 @@ public partial class Intersect
                 type,
                 dn,
                 reverseResult.BendRadii,
-                PipePlanRuntime.State.StraightSnapToleranceText,
+                PipePlanRuntime.StateFor(document).StraightSnapToleranceText,
                 reverseResult.ControlPoints);
             // In-place mutation: the converted polyline keeps its Handle/ObjectId
             // and any pre-existing third-party data. Color/Linetype/Normal/Elevation
@@ -653,7 +656,7 @@ public partial class Intersect
             {
                 if (string.Equals(result.StringResult, "Tangent", StringComparison.OrdinalIgnoreCase))
                 {
-                    HandleTangentKeyword();
+                    HandleTangentKeyword(document);
                 }
                 else
                 {
@@ -664,14 +667,14 @@ public partial class Intersect
 
             if (result.Status == PromptStatus.None)
             {
-                CompleteDraft();
+                CompleteDraft(document);
                 return;
             }
 
             if (result.Status != PromptStatus.OK)
             {
-                PipePlanRuntime.State.ResetDraft(clearStatus: false);
-                PipePlanRuntime.State.SetStatus("Drawing cancelled.", PipePlanStatusKind.Info);
+                PipePlanRuntime.StateFor(document).ResetDraft(clearStatus: false);
+                PipePlanRuntime.StateFor(document).SetStatus("Drawing cancelled.", PipePlanStatusKind.Info);
                 return;
             }
 
@@ -680,31 +683,31 @@ public partial class Intersect
             // since been erased, lost its PipePlan metadata, or had its endpoint
             // moved. Revalidate before commit; on failure the tangent is cleared
             // and ResolveCommittedCandidate falls back to a plain point.
-            if (!PipePlanRuntime.State.TryRevalidateLatestTangent(document, out string tangentFailure))
+            if (!PipePlanRuntime.StateFor(document).TryRevalidateLatestTangent(document, out string tangentFailure))
             {
-                PipePlanRuntime.State.SetStatus(
+                PipePlanRuntime.StateFor(document).SetStatus(
                     tangentFailure + " Tangent dropped; click treated as standard point.",
                     PipePlanStatusKind.Warning);
             }
-            PipePlanCandidateResult candidate = PipePlanRuntime.State.ResolveCommittedCandidate(result.Value, allowStraightSnap);
-            if (!TryAcceptDrawCandidate(editor, candidate))
+            PipePlanCandidateResult candidate = PipePlanRuntime.StateFor(document).ResolveCommittedCandidate(result.Value, allowStraightSnap);
+            if (!TryAcceptDrawCandidate(document, editor, candidate))
             {
                 continue;
             }
 
-            PipePlanRuntime.State.AddCommittedCandidate(candidate);
-            PipePlanRuntime.State.ShowPreview(candidate.Analysis);
+            PipePlanRuntime.StateFor(document).AddCommittedCandidate(candidate);
+            PipePlanRuntime.StateFor(document).ShowPreview(candidate.Analysis);
         }
     }
 
     private static PromptPointResult PromptForNextDrawPoint(Document document)
     {
-        using CandidatePointTracker tracker = new(document, PipePlanRuntime.State);
+        using CandidatePointTracker tracker = new(document, PipePlanRuntime.StateFor(document));
 
-        string tangentSuffix = PipePlanRuntime.State.IsTangentMode ? "Tangent (on)" : "Tangent (off)";
+        string tangentSuffix = PipePlanRuntime.StateFor(document).IsTangentMode ? "Tangent (on)" : "Tangent (off)";
         PromptPointOptions options = new($"\nNext point [Radius/Default/{tangentSuffix}] or press Enter to finish: ")
         {
-            BasePoint = PipePlanRuntime.State.DraftPoints[^1],
+            BasePoint = PipePlanRuntime.StateFor(document).DraftPoints[^1],
             UseBasePoint = true,
             AllowNone = true
         };
@@ -715,14 +718,14 @@ public partial class Intersect
         return document.Editor.GetPoint(options);
     }
 
-    private static void HandleTangentKeyword()
+    private static void HandleTangentKeyword(Document document)
     {
-        bool newState = !PipePlanRuntime.State.IsTangentMode;
-        PipePlanRuntime.State.SetTangentMode(newState);
+        bool newState = !PipePlanRuntime.StateFor(document).IsTangentMode;
+        PipePlanRuntime.StateFor(document).SetTangentMode(newState);
         string message = newState
             ? "Tangent mode ON. Hover over another PipePlan polyline to snap tangent."
             : "Tangent mode OFF.";
-        PipePlanRuntime.State.SetStatus(message, PipePlanStatusKind.Info);
+        PipePlanRuntime.StateFor(document).SetStatus(message, PipePlanStatusKind.Info);
     }
 
     private static void HandleRadiusKeyword(Document document, string keyword)
@@ -735,11 +738,11 @@ public partial class Intersect
 
         if (string.Equals(keyword, "Default", StringComparison.OrdinalIgnoreCase))
         {
-            PipePlanRuntime.State.ClearManualRadius();
-            string note = PipePlanRuntime.State.ActiveContext is { Radius: var r } && r > 0.0
+            PipePlanRuntime.StateFor(document).ClearManualRadius();
+            string note = PipePlanRuntime.StateFor(document).ActiveContext is { Radius: var r } && r > 0.0
                 ? $"Default radius restored ({r})."
                 : "Default radius restored.";
-            PipePlanRuntime.State.SetStatus(note, PipePlanStatusKind.Info);
+            PipePlanRuntime.StateFor(document).SetStatus(note, PipePlanStatusKind.Info);
         }
     }
 
@@ -762,48 +765,48 @@ public partial class Intersect
             {
                 if (anyValueEntered)
                 {
-                    double current = PipePlanRuntime.State.EffectiveRadius;
-                    PipePlanRuntime.State.SetStatus($"Manual radius confirmed at {current}.", PipePlanStatusKind.Ok);
+                    double current = PipePlanRuntime.StateFor(document).EffectiveRadius;
+                    PipePlanRuntime.StateFor(document).SetStatus($"Manual radius confirmed at {current}.", PipePlanStatusKind.Ok);
                 }
                 else
                 {
-                    PipePlanRuntime.State.SetStatus("Manual radius unchanged.", PipePlanStatusKind.Info);
+                    PipePlanRuntime.StateFor(document).SetStatus("Manual radius unchanged.", PipePlanStatusKind.Info);
                 }
                 return;
             }
 
             if (result.Status != PromptStatus.OK)
             {
-                PipePlanRuntime.State.SetStatus("Manual radius cancelled.", PipePlanStatusKind.Info);
+                PipePlanRuntime.StateFor(document).SetStatus("Manual radius cancelled.", PipePlanStatusKind.Info);
                 return;
             }
 
             anyValueEntered = true;
-            PipePlanRuntime.State.SetManualRadius(result.Value);
-            PipePlanRuntime.State.SetStatus($"Previewing manual radius {result.Value}.", PipePlanStatusKind.Info);
+            PipePlanRuntime.StateFor(document).SetManualRadius(result.Value);
+            PipePlanRuntime.StateFor(document).SetStatus($"Previewing manual radius {result.Value}.", PipePlanStatusKind.Info);
         }
     }
 
-    private static void CompleteDraft()
+    private static void CompleteDraft(Document document)
     {
-        if (PipePlanRuntime.State.DraftPoints.Count >= 2)
+        if (PipePlanRuntime.StateFor(document).DraftPoints.Count >= 2)
         {
-            PipePlanRuntime.State.BakeDraft();
+            PipePlanRuntime.StateFor(document).BakeDraft();
             return;
         }
 
-        PipePlanRuntime.State.ResetDraft(clearStatus: false);
-        PipePlanRuntime.State.SetStatus("Draft has fewer than two points.", PipePlanStatusKind.Warning);
+        PipePlanRuntime.StateFor(document).ResetDraft(clearStatus: false);
+        PipePlanRuntime.StateFor(document).SetStatus("Draft has fewer than two points.", PipePlanStatusKind.Warning);
     }
 
-    private static bool TryAcceptDrawCandidate(Editor editor, PipePlanCandidateResult candidate)
+    private static bool TryAcceptDrawCandidate(Document document, Editor editor, PipePlanCandidateResult candidate)
     {
         PipePlanAnalysis analysis = candidate.Analysis;
         if (!analysis.IsFeasible)
         {
             ReportEditorMessage(editor, $"Point rejected: {analysis.Message}");
-            PipePlanRuntime.State.ShowPreview(analysis);
-            PipePlanRuntime.State.SetStatus(analysis.Message, PipePlanStatusKind.Error);
+            PipePlanRuntime.StateFor(document).ShowPreview(analysis);
+            PipePlanRuntime.StateFor(document).SetStatus(analysis.Message, PipePlanStatusKind.Error);
             return false;
         }
 
@@ -823,8 +826,8 @@ public partial class Intersect
         PromptResult modeResult = editor.GetKeywords(modeOptions);
         if (modeResult.Status == PromptStatus.Cancel)
         {
-            PipePlanRuntime.State.ClearPreview();
-            PipePlanRuntime.State.SetStatus("Drawing cancelled.", PipePlanStatusKind.Info);
+            PipePlanRuntime.StateFor(document).ClearPreview();
+            PipePlanRuntime.StateFor(document).SetStatus("Drawing cancelled.", PipePlanStatusKind.Info);
             return false;
         }
 
@@ -834,7 +837,7 @@ public partial class Intersect
             return TryContinueExisting(document, out errorMessage);
         }
 
-        if (!PipePlanRuntime.State.InitializeForCurrentLayer(document.Database, out string layerError))
+        if (!PipePlanRuntime.StateFor(document).InitializeForCurrentLayer(document.Database, out string layerError))
         {
             errorMessage = layerError;
             return false;
@@ -842,7 +845,7 @@ public partial class Intersect
 
         while (true)
         {
-            string tangentSuffix = PipePlanRuntime.State.IsTangentMode ? "Tangent (on)" : "Tangent (off)";
+            string tangentSuffix = PipePlanRuntime.StateFor(document).IsTangentMode ? "Tangent (on)" : "Tangent (off)";
             PromptPointOptions firstPointOptions = new($"\nFirst point [Radius/Default/{tangentSuffix}]: ");
             firstPointOptions.Keywords.Add("Radius");
             firstPointOptions.Keywords.Add("Default");
@@ -853,7 +856,7 @@ public partial class Intersect
             {
                 if (string.Equals(firstPointResult.StringResult, "Tangent", StringComparison.OrdinalIgnoreCase))
                 {
-                    HandleTangentKeyword();
+                    HandleTangentKeyword(document);
                 }
                 else
                 {
@@ -864,13 +867,13 @@ public partial class Intersect
 
             if (firstPointResult.Status != PromptStatus.OK)
             {
-                PipePlanRuntime.State.ClearPreview();
-                PipePlanRuntime.State.SetStatus("Drawing cancelled.", PipePlanStatusKind.Info);
+                PipePlanRuntime.StateFor(document).ClearPreview();
+                PipePlanRuntime.StateFor(document).SetStatus("Drawing cancelled.", PipePlanStatusKind.Info);
                 return false;
             }
 
-            PipePlanRuntime.State.AddDraftPoint(firstPointResult.Value);
-            PipePlanRuntime.State.RefreshDraftPreview();
+            PipePlanRuntime.StateFor(document).AddDraftPoint(firstPointResult.Value);
+            PipePlanRuntime.StateFor(document).RefreshDraftPreview();
             return true;
         }
     }
@@ -887,8 +890,8 @@ public partial class Intersect
         PromptEntityResult result = editor.GetEntity(options);
         if (result.Status != PromptStatus.OK)
         {
-            PipePlanRuntime.State.ClearPreview();
-            PipePlanRuntime.State.SetStatus("Drawing cancelled.", PipePlanStatusKind.Info);
+            PipePlanRuntime.StateFor(document).ClearPreview();
+            PipePlanRuntime.StateFor(document).SetStatus("Drawing cancelled.", PipePlanStatusKind.Info);
             return false;
         }
 
@@ -914,8 +917,8 @@ public partial class Intersect
             }
 
             transaction.Commit();
-            PipePlanRuntime.State.BeginDraftFromExisting(result.ObjectId, data, reverse);
-            PipePlanRuntime.State.SetStatus(
+            PipePlanRuntime.StateFor(document).BeginDraftFromExisting(result.ObjectId, data, reverse);
+            PipePlanRuntime.StateFor(document).SetStatus(
                 $"Continuing {data.SizeDisplay} from the selected endpoint. Pick the next point.",
                 PipePlanStatusKind.Info);
             return true;
@@ -949,7 +952,7 @@ public partial class Intersect
         }
 
         ReportEditorMessage(document.Editor, message);
-        PipePlanRuntime.State.SetStatus(message, kind);
+        PipePlanRuntime.StateFor(document).SetStatus(message, kind);
     }
 
     private static void ReportEditorMessage(Editor editor, string message)
@@ -967,6 +970,6 @@ public partial class Intersect
         prdDbg(exception);
         string message = $"{commandName} failed: {exception.Message}";
         ReportEditorMessage(document.Editor, message);
-        PipePlanRuntime.State.SetStatus(message, PipePlanStatusKind.Error);
+        PipePlanRuntime.StateFor(document).SetStatus(message, PipePlanStatusKind.Error);
     }
 }
