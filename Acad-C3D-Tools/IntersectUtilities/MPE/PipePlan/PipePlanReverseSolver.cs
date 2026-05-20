@@ -69,7 +69,13 @@ internal static class PipePlanReverseSolver
                 }
 
                 controlPoints.Add(corner);
-                radii.Add(arc.Radius);
+                // arc.Radius is computed from the polyline's bulge via trig
+                // (R = chord / (2·sin(δ/2))), so the recovered value carries
+                // ~1 ULP of floating-point noise per transcendental call. Round
+                // to 3 decimal places — sub-millimetre precision when drawings
+                // are in metres, well below physical bend-radius tolerance, and
+                // enough to keep the UI showing 38 instead of 38.0000000003875.
+                radii.Add(Math.Round(arc.Radius, 3));
 
                 i += 2;
                 continue;
