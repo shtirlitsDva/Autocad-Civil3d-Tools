@@ -13,6 +13,14 @@ internal sealed class CandidatePointTracker : IDisposable
 
     private readonly Document _document;
     private readonly PipePlanState _state;
+    // Sticky cache: native AC OSnap drops the picked entity between ticks even
+    // when the cursor stays visually on the endpoint. Without this cache the
+    // cyan tangent preview flickers off after 1-2 seconds and reverts to the
+    // green standard preview. The cache is invalidated when the cursor moves
+    // outside StickyTolerance of the anchor or when a different polyline is
+    // picked. Tracker lifetime is per GetPoint call, so the cache also resets
+    // automatically between picks and tangent-mode toggles.
+    private PipePlanTangentSnap? _stickySnap;
 
     public CandidatePointTracker(Document document, PipePlanState state)
     {
@@ -36,9 +44,44 @@ internal sealed class CandidatePointTracker : IDisposable
         Point3d candidate = eventArgs.Context.ComputedPoint;
         bool allowStraightSnap = (Control.ModifierKeys & Keys.Control) == Keys.Control;
         PipePlanTangentSnap? tangent = _state.IsTangentMode
-            ? TryResolveTangentSnap(eventArgs, candidate)
+            ? ResolveTangentWithStickyCache(eventArgs, candidate)
             : null;
         _state.PreviewCandidate(candidate, allowStraightSnap, tangent);
+    }
+
+    private PipePlanTangentSnap? ResolveTangentWithStickyCache(PointMonitorEventArgs eventArgs, Point3d candidate)
+    {
+        PipePlanTangentSnap? fresh = TryResolveTangentSnap(eventArgs, candidate);
+        if (fresh.HasValue)
+        {
+            _stickySnap = fresh;
+            return fresh;
+        }
+
+        if (_stickySnap.HasValue &&
+            candidate.DistanceTo(_stickySnap.Value.Pp2Anchor) <= GetStickyTolerance())
+        {
+            return _stickySnap;
+        }
+
+        _stickySnap = null;
+        return null;
+    }
+
+    private double GetStickyTolerance()
+    {
+        try
+        {
+            using ViewTableRecord view = _document.Editor.GetCurrentView();
+            // ≈2.5% of the visible drawing height — generous enough to absorb
+            // OSnap dropouts at typical zoom levels, tight enough that a real
+            // cursor move away from the anchor invalidates the cache.
+            return Math.Clamp(view.Height / 40.0, 0.1, 5.0);
+        }
+        catch
+        {
+            return 0.5;
+        }
     }
 
     private PipePlanTangentSnap? TryResolveTangentSnap(PointMonitorEventArgs eventArgs, Point3d candidate)

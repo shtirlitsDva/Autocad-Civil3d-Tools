@@ -724,11 +724,9 @@ internal sealed class PipePlanState : IDisposable
         double s = ((rhs.X * dirE.Y) - (rhs.Y * dirE.X)) / det;
         double t = ((dirP.X * rhs.Y) - (dirP.Y * rhs.X)) / det;
 
-        if (s <= DistanceTolerance)
-        {
-            error = "PP1's tangent points away from PP2.";
-            return false;
-        }
+        // s ≤ 0 is allowed: the corner lies behind PP1's tip. The dropCount loop
+        // in ResolveCandidatePoint will absorb PP1's last segment(s) as long as
+        // they're colinear with dirP, so the fillet sits on PP1's interior.
         if (t <= DistanceTolerance)
         {
             error = "PP2's tangent points away from PP1.";
