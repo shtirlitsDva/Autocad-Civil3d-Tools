@@ -249,6 +249,86 @@ internal sealed class PipePlanState : IDisposable
         return BuildCandidateResult(rawCandidate, allowStraightSnap, IsTangentMode ? _latestTangent : null);
     }
 
+    // Commit-time safety net for the sticky tangent cache: the cache reuses the
+    // cached anchor whenever AC's OSnap drops the picked entity, so by the time the
+    // user clicks the cached snap may point to an entity that has since been erased,
+    // had its metadata stripped, or moved. Reopen the cached SourceId here and only
+    // accept the tangent if it still resolves to a PipePlan polyline whose
+    // start- or end-endpoint matches Pp2Anchor.
+    public bool TryRevalidateLatestTangent(Document document, out string failureReason)
+    {
+        failureReason = string.Empty;
+
+        if (!IsTangentMode || _latestTangent is null)
+        {
+            return true;
+        }
+
+        PipePlanTangentSnap snap = _latestTangent.Value;
+
+        if (snap.SourceId.IsNull || snap.SourceId.IsErased)
+        {
+            _latestTangent = null;
+            failureReason = "Tangent reference polyline was erased.";
+            return false;
+        }
+
+        using Transaction transaction = document.Database.TransactionManager.StartTransaction();
+        try
+        {
+            DBObject obj;
+            try
+            {
+                obj = transaction.GetObject(snap.SourceId, OpenMode.ForRead);
+            }
+            catch (Autodesk.AutoCAD.Runtime.Exception)
+            {
+                transaction.Commit();
+                _latestTangent = null;
+                failureReason = "Tangent reference polyline was erased.";
+                return false;
+            }
+
+            if (obj is not Autodesk.AutoCAD.DatabaseServices.Polyline polyline)
+            {
+                transaction.Commit();
+                _latestTangent = null;
+                failureReason = "Tangent reference is no longer a polyline.";
+                return false;
+            }
+
+            if (!PipePlanMetadata.TryRead(polyline, transaction, out _))
+            {
+                transaction.Commit();
+                _latestTangent = null;
+                failureReason = "Tangent reference no longer carries PipePlan metadata.";
+                return false;
+            }
+
+            bool endpointMatch =
+                polyline.StartPoint.DistanceTo(snap.Pp2Anchor) <= PointMatchTolerance ||
+                polyline.EndPoint.DistanceTo(snap.Pp2Anchor) <= PointMatchTolerance;
+
+            transaction.Commit();
+
+            if (!endpointMatch)
+            {
+                _latestTangent = null;
+                failureReason = "Tangent reference polyline moved since hover.";
+                return false;
+            }
+
+            return true;
+        }
+        catch
+        {
+            transaction.Abort();
+            _latestTangent = null;
+            failureReason = "Tangent reference could not be validated.";
+            return false;
+        }
+    }
+
     public void RefreshDraftPreview()
     {
         _latestInteractiveCandidate = null;

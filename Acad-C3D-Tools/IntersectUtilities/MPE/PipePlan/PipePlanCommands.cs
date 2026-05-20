@@ -697,6 +697,16 @@ public partial class Intersect
             }
 
             bool allowStraightSnap = (Control.ModifierKeys & Keys.Control) == Keys.Control;
+            // Sticky tangent cache may still hold a snap whose source polyline has
+            // since been erased, lost its PipePlan metadata, or had its endpoint
+            // moved. Revalidate before commit; on failure the tangent is cleared
+            // and ResolveCommittedCandidate falls back to a plain point.
+            if (!PipePlanRuntime.State.TryRevalidateLatestTangent(document, out string tangentFailure))
+            {
+                PipePlanRuntime.State.SetStatus(
+                    tangentFailure + " Tangent dropped; click treated as standard point.",
+                    PipePlanStatusKind.Warning);
+            }
             PipePlanCandidateResult candidate = PipePlanRuntime.State.ResolveCommittedCandidate(result.Value, allowStraightSnap);
             if (!TryAcceptDrawCandidate(editor, candidate))
             {

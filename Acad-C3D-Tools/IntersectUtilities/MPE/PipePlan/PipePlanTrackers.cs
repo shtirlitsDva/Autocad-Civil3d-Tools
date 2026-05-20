@@ -54,11 +54,20 @@ internal sealed class CandidatePointTracker : IDisposable
         PipePlanTangentSnap? fresh = TryResolveTangentSnap(eventArgs, candidate);
         if (fresh.HasValue)
         {
+            // Fresh data always wins. If fresh.SourceId differs from the cached
+            // SourceId, the cursor has moved to a different polyline near the
+            // same anchor — replacement here is exactly the identity invalidation
+            // the Codex finding called out as missing.
             _stickySnap = fresh;
             return fresh;
         }
 
+        // Fresh resolution returned nothing (typical mid-hover OSnap drop).
+        // Reuse the cache only while the cursor stays near the cached anchor AND
+        // the cached SourceId is non-null. We do NOT re-verify the entity here;
+        // that's the commit hook's job (PipePlanState.TryRevalidateLatestTangent).
         if (_stickySnap.HasValue &&
+            !_stickySnap.Value.SourceId.IsNull &&
             candidate.DistanceTo(_stickySnap.Value.Pp2Anchor) <= GetStickyTolerance())
         {
             return _stickySnap;
@@ -170,7 +179,7 @@ internal sealed class CandidatePointTracker : IDisposable
                 return null;
             }
 
-            return new PipePlanTangentSnap(bestEndpoint, direction, bestPolyline.Length);
+            return new PipePlanTangentSnap(bestPolyline.ObjectId, bestEndpoint, direction, bestPolyline.Length);
         }
         catch
         {
