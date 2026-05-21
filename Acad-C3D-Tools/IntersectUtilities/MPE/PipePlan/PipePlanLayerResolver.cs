@@ -12,7 +12,7 @@ internal static class PipePlanLayerResolver
 
         if (!TryReadActiveLayerName(db, out string layerName))
         {
-            error = "Could not read the active layer.";
+            error = "Kan ikke læse det aktive lag.";
             return false;
         }
 
@@ -22,25 +22,25 @@ internal static class PipePlanLayerResolver
 
         if (system == PipeSystemEnum.Ukendt || type == PipeTypeEnum.Ukendt || dn <= 0)
         {
-            error = $"PipePlan needs an active FJV layer. Active layer: '{layerName}'. Pick a size in NSPalette first.";
+            error = $"Intet aktivt FJV-lag ('{layerName}'). Vælg en dimension i NSPalette.";
             return false;
         }
 
         if (IsEnkeltPipe(system, type))
         {
-            error = "Enkelt pipes are currently not supported.";
+            error = "Enkelt-rør understøttes ikke. Brug Stål Twin eller ALUPEX.";
             return false;
         }
 
         if (!PipePlanRadiusStore.IsAcceptedCombo(system, type))
         {
-            error = $"PipePlan supports twin bonded-steel (FJV-TWIN-DN…) and ALUPEX layers only. Active layer: '{layerName}' ({system} {type}).";
+            error = $"Laget '{layerName}' understøttes ikke. Skift til Stål Twin eller ALUPEX i NSPalette.";
             return false;
         }
 
         if (!PipePlanRadiusStore.TryGet(db, system, type, dn, out double radius))
         {
-            error = $"No bending radius set for {system} {type} DN{dn}. Open PPSETTINGS and set it first.";
+            error = $"Ingen bukkeradius for {system} {type} DN{dn}. Sæt den i PPSETTINGS.";
             return false;
         }
 

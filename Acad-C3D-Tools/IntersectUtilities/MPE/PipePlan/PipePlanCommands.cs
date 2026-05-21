@@ -171,7 +171,7 @@ public partial class Intersect
     {
         Editor editor = document.Editor;
         PipePlanRuntime.StateFor(document).SetStatus(
-            $"Editing {session.SizeLabel} (R={session.RadiusDisplay}). Pick a control circle or segment square, or press Enter to finish.",
+            $"Redigerer {session.SizeLabel} (R={session.RadiusDisplay}). Vælg håndtag, eller Enter for at afslutte.",
             PipePlanStatusKind.Info);
 
         while (true)
@@ -182,14 +182,14 @@ public partial class Intersect
             if (pickResult.Status == PromptStatus.None)
             {
                 session.ClearVisuals();
-                PipePlanRuntime.StateFor(document).SetStatus("PPEdit finished.", PipePlanStatusKind.Info);
+                PipePlanRuntime.StateFor(document).SetStatus("PPEDIT afsluttet.", PipePlanStatusKind.Info);
                 return;
             }
 
             if (pickResult.Status != PromptStatus.OK)
             {
                 session.ClearVisuals();
-                PipePlanRuntime.StateFor(document).SetStatus("PPEdit cancelled.", PipePlanStatusKind.Info);
+                PipePlanRuntime.StateFor(document).SetStatus("PPEDIT annulleret.", PipePlanStatusKind.Info);
                 return;
             }
 
@@ -232,7 +232,7 @@ public partial class Intersect
                 {
                     session.ClearPendingRadius();
                     PipePlanRuntime.StateFor(document).ClearPreview();
-                    PipePlanRuntime.StateFor(document).SetStatus("Edit cancelled. Pick another handle.", PipePlanStatusKind.Info);
+                    PipePlanRuntime.StateFor(document).SetStatus("Annulleret. Vælg et andet håndtag.", PipePlanStatusKind.Info);
                 }
                 return true;
             }
@@ -241,7 +241,7 @@ public partial class Intersect
             {
                 session.ClearPendingRadius();
                 session.ClearVisuals();
-                PipePlanRuntime.StateFor(document).SetStatus("PPEdit cancelled.", PipePlanStatusKind.Info);
+                PipePlanRuntime.StateFor(document).SetStatus("PPEDIT annulleret.", PipePlanStatusKind.Info);
                 return false;
             }
 
@@ -316,13 +316,13 @@ public partial class Intersect
                 if (!pendingRadius.HasValue)
                 {
                     PipePlanRuntime.StateFor(document).ClearPreview();
-                    PipePlanRuntime.StateFor(document).SetStatus("Radius unchanged.", PipePlanStatusKind.Info);
+                    PipePlanRuntime.StateFor(document).SetStatus("Radius uændret.", PipePlanStatusKind.Info);
                     return VertexRadiusEditOutcome.Cancelled;
                 }
 
                 session.SetPendingRadius(handle.Index, pendingRadius.Value);
                 PipePlanRuntime.StateFor(document).SetStatus(
-                    $"Radius {pendingRadius.Value} locked — move the vertex, then press Enter or click to confirm.",
+                    $"Radius {pendingRadius.Value} låst. Flyt hjørnet, derefter Enter eller klik.",
                     PipePlanStatusKind.Info);
                 return VertexRadiusEditOutcome.Locked;
             }
@@ -330,20 +330,20 @@ public partial class Intersect
             if (res.Status != PromptStatus.OK)
             {
                 PipePlanRuntime.StateFor(document).ClearPreview();
-                PipePlanRuntime.StateFor(document).SetStatus("Radius edit cancelled.", PipePlanStatusKind.Info);
+                PipePlanRuntime.StateFor(document).SetStatus("Radius-redigering annulleret.", PipePlanStatusKind.Info);
                 return VertexRadiusEditOutcome.Cancelled;
             }
 
             if (!session.TryAnalyzeVertexState(handle.Index, dragPosition, res.Value, out PipePlanAnalysis previewAnalysis, out string previewError))
             {
-                ReportEditorMessage(editor, $"Radius rejected: {previewError}");
+                ReportEditorMessage(editor, $"Radius afvist: {previewError}");
                 PipePlanRuntime.StateFor(document).SetStatus(previewError, PipePlanStatusKind.Error);
                 continue;
             }
 
             PipePlanRuntime.StateFor(document).ShowPreview(previewAnalysis);
             pendingRadius = res.Value;
-            PipePlanRuntime.StateFor(document).SetStatus($"Previewing radius {res.Value}.", PipePlanStatusKind.Info);
+            PipePlanRuntime.StateFor(document).SetStatus($"Forhåndsviser radius {res.Value}.", PipePlanStatusKind.Info);
         }
     }
 
@@ -358,25 +358,25 @@ public partial class Intersect
         PipePlanActiveContext? ctx = PipePlanRuntime.StateFor(document).ActiveContext;
         if (ctx is null)
         {
-            PipePlanRuntime.StateFor(document).SetStatus("No active pipe context for default radius.", PipePlanStatusKind.Warning);
+            PipePlanRuntime.StateFor(document).SetStatus("Ingen aktiv dimension — vælg i NSPalette.", PipePlanStatusKind.Warning);
             return false;
         }
 
         if (!PipePlanRadiusStore.TryGet(document.Database, ctx.System, ctx.Type, ctx.Dn, out double resolved) || resolved <= 0.0)
         {
-            PipePlanRuntime.StateFor(document).SetStatus($"No default radius available for {ctx.System} {ctx.Type} DN{ctx.Dn}.", PipePlanStatusKind.Warning);
+            PipePlanRuntime.StateFor(document).SetStatus($"Ingen standard-radius for {ctx.System} {ctx.Type} DN{ctx.Dn}.", PipePlanStatusKind.Warning);
             return false;
         }
 
         if (!session.TryAnalyzeVertexState(handle.Index, dragPosition, resolved, out PipePlanAnalysis analysis, out string error))
         {
-            ReportEditorMessage(document.Editor, $"Default radius rejected: {error}");
+            ReportEditorMessage(document.Editor, $"Standard-radius afvist: {error}");
             PipePlanRuntime.StateFor(document).SetStatus(error, PipePlanStatusKind.Error);
             return false;
         }
 
         PipePlanRuntime.StateFor(document).ShowPreview(analysis);
-        PipePlanRuntime.StateFor(document).SetStatus($"Previewing default radius {resolved}.", PipePlanStatusKind.Info);
+        PipePlanRuntime.StateFor(document).SetStatus($"Forhåndsviser standard-radius {resolved}.", PipePlanStatusKind.Info);
         defaultRadius = resolved;
         return true;
     }
@@ -445,14 +445,14 @@ public partial class Intersect
         if (!candidate.Analysis.IsFeasible)
         {
             PipePlanRuntime.StateFor(document).ClearPreview();
-            ReportEditorMessage(document.Editor, $"Edit rejected: {candidate.Analysis.Message}");
+            ReportEditorMessage(document.Editor, $"Redigering afvist: {candidate.Analysis.Message}");
             PipePlanRuntime.StateFor(document).SetStatus(candidate.Analysis.Message, PipePlanStatusKind.Error);
             return;
         }
 
         session.Commit(candidate);
         PipePlanRuntime.StateFor(document).ClearPreview();
-        PipePlanRuntime.StateFor(document).SetStatus("Edit applied. Pick another handle or press Enter to finish.", PipePlanStatusKind.Ok);
+        PipePlanRuntime.StateFor(document).SetStatus("Anvendt. Vælg et andet håndtag, eller Enter.", PipePlanStatusKind.Ok);
     }
 
     private static void ExecuteSettings(Document document)
@@ -460,14 +460,14 @@ public partial class Intersect
         PipePlanState state = PipePlanRuntime.StateFor(document);
         PipePlanRuntime.Palette.RebindTo(state);
         PipePlanRuntime.Palette.Show();
-        state.SetStatus("Edit per-DN radii and click Save.", PipePlanStatusKind.Info);
+        state.SetStatus("Rediger per-DN radier og klik Save.", PipePlanStatusKind.Info);
     }
 
     private static void ExecuteDraw(Document document)
     {
         if (!NSPaletteAdapter.IsLoaded)
         {
-            ReportMessage(document, "Load NSPalette first.", PipePlanStatusKind.Warning);
+            ReportMessage(document, "Indlæs NSPalette først.", PipePlanStatusKind.Warning);
             return;
         }
 
@@ -493,7 +493,7 @@ public partial class Intersect
         PromptEntityResult pick = editor.GetEntity(options);
         if (pick.Status != PromptStatus.OK)
         {
-            ReportMessage(document, "PPCONVERT cancelled.", PipePlanStatusKind.Info);
+            ReportMessage(document, "PPCONVERT annulleret.", PipePlanStatusKind.Info);
             return;
         }
 
@@ -511,28 +511,28 @@ public partial class Intersect
 
             if (system == PipeSystemEnum.Ukendt || type == PipeTypeEnum.Ukendt || dn <= 0)
             {
-                ReportMessage(document, $"Polyline is not on a valid FJV layer (got: '{layerName}').", PipePlanStatusKind.Warning);
+                ReportMessage(document, $"Polylinjen er ikke på et FJV-lag (lag: '{layerName}').", PipePlanStatusKind.Warning);
                 transaction.Commit();
                 return;
             }
 
             if (!PipePlanRadiusStore.IsAcceptedCombo(system, type))
             {
-                ReportMessage(document, $"PipePlan does not support {system} {type}.", PipePlanStatusKind.Warning);
+                ReportMessage(document, $"{system} {type} understøttes ikke.", PipePlanStatusKind.Warning);
                 transaction.Commit();
                 return;
             }
 
             if (source.Closed)
             {
-                ReportMessage(document, "Closed polylines are not supported.", PipePlanStatusKind.Warning);
+                ReportMessage(document, "Lukkede polylinjer understøttes ikke.", PipePlanStatusKind.Warning);
                 transaction.Commit();
                 return;
             }
 
             if (!PipePlanRadiusStore.TryGet(document.Database, system, type, dn, out double sharpCornerRadius) || sharpCornerRadius <= 0.0)
             {
-                ReportMessage(document, $"No bending radius available for {system} {type} DN{dn}. Configure one in PPSETTINGS first.", PipePlanStatusKind.Warning);
+                ReportMessage(document, $"Ingen bukkeradius for {system} {type} DN{dn}. Sæt den i PPSETTINGS.", PipePlanStatusKind.Warning);
                 transaction.Commit();
                 return;
             }
@@ -549,7 +549,7 @@ public partial class Intersect
                 double defaultSharpCornerRadius = sharpCornerRadius;
                 double pipeWidth = PipePlanWidthCalculator.ResolveDrawingWidth(layerName);
 
-                ReportEditorMessage(editor, $"Polyline has Sharp edges. {reverseResult.SharpCornerPositions.Count} corner(s) will be filleted at min bending radius {defaultSharpCornerRadius:0.##}.");
+                ReportEditorMessage(editor, $"Skarpe hjørner: {reverseResult.SharpCornerPositions.Count} stk. bukkes ved min radius {defaultSharpCornerRadius:0.##}.");
                 markers.Show(document, reverseResult.SharpCornerPositions);
 
                 using PipePlanPreviewManager preview = new(document);
@@ -601,7 +601,7 @@ public partial class Intersect
                         continue;
                     }
 
-                    ReportMessage(document, "PPCONVERT cancelled by user.", PipePlanStatusKind.Info);
+                    ReportMessage(document, "PPCONVERT annulleret.", PipePlanStatusKind.Info);
                     transaction.Commit();
                     return;
                 }
@@ -611,7 +611,7 @@ public partial class Intersect
             PipePlanAnalysis analysis = solver.Analyze(reverseResult.ControlPoints, reverseResult.BendRadii);
             if (!analysis.IsFeasible)
             {
-                ReportMessage(document, $"Reconstruction failed: {analysis.Message}", PipePlanStatusKind.Warning);
+                ReportMessage(document, $"Rekonstruktion fejlede: {analysis.Message}", PipePlanStatusKind.Warning);
                 transaction.Commit();
                 return;
             }
@@ -634,8 +634,8 @@ public partial class Intersect
 
             int sharpCount = reverseResult.SharpCornerPositions.Count;
             string successMessage = sharpCount > 0
-                ? $"Converted on layer {layerName}: {reverseResult.ControlPoints.Count} control points, {sharpCount} sharp corner(s) filleted at radius {sharpCornerRadius:0.##}."
-                : $"Converted on layer {layerName}: {reverseResult.ControlPoints.Count} control points.";
+                ? $"Konverteret på lag {layerName}: {reverseResult.ControlPoints.Count} hjørner, {sharpCount} skarpe hjørne(r) bukket ved radius {sharpCornerRadius:0.##}."
+                : $"Konverteret på lag {layerName}: {reverseResult.ControlPoints.Count} hjørner.";
             ReportMessage(document, successMessage, PipePlanStatusKind.Ok);
         }
         catch
@@ -674,7 +674,7 @@ public partial class Intersect
             if (result.Status != PromptStatus.OK)
             {
                 PipePlanRuntime.StateFor(document).ResetDraft(clearStatus: false);
-                PipePlanRuntime.StateFor(document).SetStatus("Drawing cancelled.", PipePlanStatusKind.Info);
+                PipePlanRuntime.StateFor(document).SetStatus("Tegning annulleret.", PipePlanStatusKind.Info);
                 return;
             }
 
@@ -686,7 +686,7 @@ public partial class Intersect
             if (!PipePlanRuntime.StateFor(document).TryRevalidateLatestTangent(document, out string tangentFailure))
             {
                 PipePlanRuntime.StateFor(document).SetStatus(
-                    tangentFailure + " Tangent dropped; click treated as standard point.",
+                    tangentFailure + " Tangent ignoreret.",
                     PipePlanStatusKind.Warning);
             }
             PipePlanCandidateResult candidate = PipePlanRuntime.StateFor(document).ResolveCommittedCandidate(result.Value, allowStraightSnap);
@@ -723,8 +723,8 @@ public partial class Intersect
         bool newState = !PipePlanRuntime.StateFor(document).IsTangentMode;
         PipePlanRuntime.StateFor(document).SetTangentMode(newState);
         string message = newState
-            ? "Tangent mode ON. Hover over another PipePlan polyline to snap tangent."
-            : "Tangent mode OFF.";
+            ? "Tangent-mode ON. Hover over en PipePlan-polylinje."
+            : "Tangent-mode OFF.";
         PipePlanRuntime.StateFor(document).SetStatus(message, PipePlanStatusKind.Info);
     }
 
@@ -740,8 +740,8 @@ public partial class Intersect
         {
             PipePlanRuntime.StateFor(document).ClearManualRadius();
             string note = PipePlanRuntime.StateFor(document).ActiveContext is { Radius: var r } && r > 0.0
-                ? $"Default radius restored ({r})."
-                : "Default radius restored.";
+                ? $"Standard-radius gendannet ({r})."
+                : "Standard-radius gendannet.";
             PipePlanRuntime.StateFor(document).SetStatus(note, PipePlanStatusKind.Info);
         }
     }
@@ -766,24 +766,24 @@ public partial class Intersect
                 if (anyValueEntered)
                 {
                     double current = PipePlanRuntime.StateFor(document).EffectiveRadius;
-                    PipePlanRuntime.StateFor(document).SetStatus($"Manual radius confirmed at {current}.", PipePlanStatusKind.Ok);
+                    PipePlanRuntime.StateFor(document).SetStatus($"Manuel radius bekræftet ({current}).", PipePlanStatusKind.Ok);
                 }
                 else
                 {
-                    PipePlanRuntime.StateFor(document).SetStatus("Manual radius unchanged.", PipePlanStatusKind.Info);
+                    PipePlanRuntime.StateFor(document).SetStatus("Manuel radius uændret.", PipePlanStatusKind.Info);
                 }
                 return;
             }
 
             if (result.Status != PromptStatus.OK)
             {
-                PipePlanRuntime.StateFor(document).SetStatus("Manual radius cancelled.", PipePlanStatusKind.Info);
+                PipePlanRuntime.StateFor(document).SetStatus("Manuel radius annulleret.", PipePlanStatusKind.Info);
                 return;
             }
 
             anyValueEntered = true;
             PipePlanRuntime.StateFor(document).SetManualRadius(result.Value);
-            PipePlanRuntime.StateFor(document).SetStatus($"Previewing manual radius {result.Value}.", PipePlanStatusKind.Info);
+            PipePlanRuntime.StateFor(document).SetStatus($"Forhåndsviser manuel radius {result.Value}.", PipePlanStatusKind.Info);
         }
     }
 
@@ -796,7 +796,7 @@ public partial class Intersect
         }
 
         PipePlanRuntime.StateFor(document).ResetDraft(clearStatus: false);
-        PipePlanRuntime.StateFor(document).SetStatus("Draft has fewer than two points.", PipePlanStatusKind.Warning);
+        PipePlanRuntime.StateFor(document).SetStatus("Færre end to punkter.", PipePlanStatusKind.Warning);
     }
 
     private static bool TryAcceptDrawCandidate(Document document, Editor editor, PipePlanCandidateResult candidate)
@@ -804,7 +804,7 @@ public partial class Intersect
         PipePlanAnalysis analysis = candidate.Analysis;
         if (!analysis.IsFeasible)
         {
-            ReportEditorMessage(editor, $"Point rejected: {analysis.Message}");
+            ReportEditorMessage(editor, $"Punkt afvist: {analysis.Message}");
             PipePlanRuntime.StateFor(document).ShowPreview(analysis);
             PipePlanRuntime.StateFor(document).SetStatus(analysis.Message, PipePlanStatusKind.Error);
             return false;
@@ -827,7 +827,7 @@ public partial class Intersect
         if (modeResult.Status == PromptStatus.Cancel)
         {
             PipePlanRuntime.StateFor(document).ClearPreview();
-            PipePlanRuntime.StateFor(document).SetStatus("Drawing cancelled.", PipePlanStatusKind.Info);
+            PipePlanRuntime.StateFor(document).SetStatus("Tegning annulleret.", PipePlanStatusKind.Info);
             return false;
         }
 
@@ -868,7 +868,7 @@ public partial class Intersect
             if (firstPointResult.Status != PromptStatus.OK)
             {
                 PipePlanRuntime.StateFor(document).ClearPreview();
-                PipePlanRuntime.StateFor(document).SetStatus("Drawing cancelled.", PipePlanStatusKind.Info);
+                PipePlanRuntime.StateFor(document).SetStatus("Tegning annulleret.", PipePlanStatusKind.Info);
                 return false;
             }
 
@@ -891,7 +891,7 @@ public partial class Intersect
         if (result.Status != PromptStatus.OK)
         {
             PipePlanRuntime.StateFor(document).ClearPreview();
-            PipePlanRuntime.StateFor(document).SetStatus("Drawing cancelled.", PipePlanStatusKind.Info);
+            PipePlanRuntime.StateFor(document).SetStatus("Tegning annulleret.", PipePlanStatusKind.Info);
             return false;
         }
 
@@ -901,7 +901,7 @@ public partial class Intersect
             Polyline polyline = (Polyline)transaction.GetObject(result.ObjectId, OpenMode.ForRead);
             if (!PipePlanMetadata.TryRead(polyline, transaction, out PipePlanStoredData? data) || data is null)
             {
-                errorMessage = "The selected polyline is not a metadata-enabled PipePlan object.";
+                errorMessage = "Ikke et PipePlan-objekt. Kør PPCONVERT først.";
                 return false;
             }
 
@@ -912,14 +912,14 @@ public partial class Intersect
 
             if (!TryResolveEndpoint(result.PickedPoint, data.ControlPoints, out bool reverse))
             {
-                errorMessage = "The selected PipePlan object does not have enough control points to continue.";
+                errorMessage = "For få hjørner til at fortsætte fra.";
                 return false;
             }
 
             transaction.Commit();
             PipePlanRuntime.StateFor(document).BeginDraftFromExisting(result.ObjectId, data, reverse);
             PipePlanRuntime.StateFor(document).SetStatus(
-                $"Continuing {data.SizeDisplay} from the selected endpoint. Pick the next point.",
+                $"Fortsætter {data.SizeDisplay} fra valgt endepunkt. Vælg næste punkt.",
                 PipePlanStatusKind.Info);
             return true;
         }

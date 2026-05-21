@@ -252,7 +252,7 @@ internal sealed class PipePlanEditTracker : IDisposable
 
         if (candidate.Analysis.IsFeasible)
         {
-            _state.SetStatus("Edit preview is feasible. Click to apply.", PipePlanStatusKind.Ok);
+            _state.SetStatus("Klik for at anvende.", PipePlanStatusKind.Ok);
         }
         else
         {

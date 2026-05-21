@@ -14,7 +14,7 @@ internal static class PipePlanGeometryValidator
 
         if (data.BendRadii.Count != data.ControlPoints.Count)
         {
-            errorMessage = "Stored bend radii are out of sync with control points.";
+            errorMessage = "Data inkonsistent. Kør PPCONVERT.";
             return false;
         }
 
@@ -22,13 +22,13 @@ internal static class PipePlanGeometryValidator
         PipePlanAnalysis analysis = solver.Analyze(data.ControlPoints, data.BendRadii);
         if (!analysis.IsFeasible)
         {
-            errorMessage = $"Stored PipePlan metadata is no longer valid: {analysis.Message}";
+            errorMessage = $"Gemte PipePlan-data er ugyldige: {analysis.Message}";
             return false;
         }
 
         if (polyline.NumberOfVertices != analysis.Vertices.Count)
         {
-            errorMessage = "PipePlan metadata does not match the current polyline geometry. The polyline was likely edited outside PipePlan. Re-bake it before using PPEDIT or Continue.";
+            errorMessage = "Polylinjen er ændret udenfor PipePlan. Kør PPCONVERT først.";
             return false;
         }
 
@@ -41,7 +41,7 @@ internal static class PipePlanGeometryValidator
             if (actualPoint.GetDistanceTo(expected.Point) > PointTolerance ||
                 Math.Abs(actualBulge - expected.Bulge) > BulgeTolerance)
             {
-                errorMessage = "PipePlan metadata does not match the current polyline geometry. The polyline was likely edited outside PipePlan. Re-bake it before using PPEDIT or Continue.";
+                errorMessage = "Polylinjen er ændret udenfor PipePlan. Kør PPCONVERT først.";
                 return false;
             }
         }

@@ -178,7 +178,7 @@ internal sealed class PipePlanState : IDisposable
         _previewManager.Clear();
         if (clearStatus)
         {
-            SetStatus("Draft cleared.", PipePlanStatusKind.Info);
+            SetStatus("Tegning nulstillet.", PipePlanStatusKind.Info);
         }
     }
 
@@ -272,7 +272,7 @@ internal sealed class PipePlanState : IDisposable
         if (snap.SourceId.IsNull || snap.SourceId.IsErased)
         {
             _latestTangent = null;
-            failureReason = "Tangent reference polyline was erased.";
+            failureReason = "Tangent-reference er slettet.";
             return false;
         }
 
@@ -288,7 +288,7 @@ internal sealed class PipePlanState : IDisposable
             {
                 transaction.Commit();
                 _latestTangent = null;
-                failureReason = "Tangent reference polyline was erased.";
+                failureReason = "Tangent-reference er slettet.";
                 return false;
             }
 
@@ -296,7 +296,7 @@ internal sealed class PipePlanState : IDisposable
             {
                 transaction.Commit();
                 _latestTangent = null;
-                failureReason = "Tangent reference is no longer a polyline.";
+                failureReason = "Tangent-reference er ikke længere en polylinje.";
                 return false;
             }
 
@@ -304,7 +304,7 @@ internal sealed class PipePlanState : IDisposable
             {
                 transaction.Commit();
                 _latestTangent = null;
-                failureReason = "Tangent reference no longer carries PipePlan metadata.";
+                failureReason = "Tangent-reference er ikke længere en PipePlan-polylinje.";
                 return false;
             }
 
@@ -317,7 +317,7 @@ internal sealed class PipePlanState : IDisposable
             if (!endpointMatch)
             {
                 _latestTangent = null;
-                failureReason = "Tangent reference polyline moved since hover.";
+                failureReason = "Tangent-reference er flyttet.";
                 return false;
             }
 
@@ -327,7 +327,7 @@ internal sealed class PipePlanState : IDisposable
         {
             transaction.Abort();
             _latestTangent = null;
-            failureReason = "Tangent reference could not be validated.";
+            failureReason = "Tangent-reference kunne ikke valideres.";
             return false;
         }
     }
@@ -341,12 +341,12 @@ internal sealed class PipePlanState : IDisposable
 
         if (DraftPoints.Count < 2)
         {
-            SetStatus("Pick at least two points.", PipePlanStatusKind.Info);
+            SetStatus("Vælg mindst to punkter.", PipePlanStatusKind.Info);
             return;
         }
 
         SetStatus(
-            analysis.IsFeasible ? "Current draft is feasible." : analysis.Message,
+            analysis.IsFeasible ? "Tegning OK." : analysis.Message,
             analysis.IsFeasible ? PipePlanStatusKind.Ok : PipePlanStatusKind.Error);
     }
 
@@ -425,7 +425,7 @@ internal sealed class PipePlanState : IDisposable
         }
 
         ResetDraft(clearStatus: false);
-        string successMessage = $"Baked {context.System} {context.Type} DN{context.Dn} polyline to layer {context.LayerName}.";
+        string successMessage = $"Tegnet {context.System} {context.Type} DN{context.Dn} på lag {context.LayerName}.";
         SetStatus(successMessage, PipePlanStatusKind.Ok);
         document.Editor.WriteMessage($"\n{successMessage}");
     }
@@ -434,12 +434,12 @@ internal sealed class PipePlanState : IDisposable
     {
         if (_activeContext is null)
         {
-            return PipePlanAnalysis.Invalid(points, "No active pipe context. Activate an FJV layer in NSPalette and re-run PPDRAW.");
+            return PipePlanAnalysis.Invalid(points, "Intet aktivt FJV-lag. Vælg dimension og kør PPDRAW igen.");
         }
 
         if (EffectiveRadius <= 0.0)
         {
-            return PipePlanAnalysis.Invalid(points, "No valid bending radius. Set a manual radius (R) or configure one in PPSETTINGS.");
+            return PipePlanAnalysis.Invalid(points, "Ingen gyldig bukkeradius. Brug R eller sæt i PPSETTINGS.");
         }
 
         return _solver.Analyze(points, radii);
@@ -482,14 +482,14 @@ internal sealed class PipePlanState : IDisposable
 
         if (DraftPoints.Count < 2)
         {
-            SetStatus("Pick at least two points before baking.", PipePlanStatusKind.Warning);
+            SetStatus("Vælg mindst to punkter.", PipePlanStatusKind.Warning);
             return false;
         }
 
         context = _activeContext;
         if (context is null)
         {
-            SetStatus("No active pipe context. Activate an FJV layer in NSPalette first.", PipePlanStatusKind.Warning);
+            SetStatus("Intet aktivt FJV-lag. Vælg dimension i NSPalette.", PipePlanStatusKind.Warning);
             return false;
         }
 
@@ -609,7 +609,7 @@ internal sealed class PipePlanState : IDisposable
             else
             {
                 List<Point3d> points = [.. DraftPoints, resolution.FinalPoint];
-                analysis = PipePlanAnalysis.Invalid(points, resolution.TangentError ?? "Tangent fillet not feasible.");
+                analysis = PipePlanAnalysis.Invalid(points, resolution.TangentError ?? "Tangent-bukning er ikke mulig.");
             }
             analysis = analysis.WithPreviewKind(PipePlanPreviewKind.Tangent);
         }
@@ -640,7 +640,7 @@ internal sealed class PipePlanState : IDisposable
             {
                 return new CandidateResolution(
                     snap.Pp2Anchor, false, true, null, 0,
-                    "Pick at least one more point before tangent fillet engages.");
+                    "Vælg mindst ét punkt mere før tangent-snap aktiveres.");
             }
 
             Vector2d dirP = ComputeUnitDirection(DraftPoints[^2], DraftPoints[^1]);
@@ -672,7 +672,7 @@ internal sealed class PipePlanState : IDisposable
                 {
                     return new CandidateResolution(
                         snap.Pp2Anchor, false, true, null, 0,
-                        $"PP2 is too short for the fillet at this radius (need {tangentLength:0.###} from corner, only {t + snap.Pp2Length:0.###} available).");
+                        $"Næste segment for kort: kræver {tangentLength:0.###}, har {t + snap.Pp2Length:0.###}.");
                 }
                 finalPoint = new Point3d(
                     snap.Pp2Anchor.X + (dirEUnit.X * overshoot),
@@ -694,7 +694,7 @@ internal sealed class PipePlanState : IDisposable
                 {
                     return new CandidateResolution(
                         snap.Pp2Anchor, false, true, null, 0,
-                        $"PP1 is too short for the fillet (need {tangentLength:0.###}, have {accumulated:0.###}).");
+                        $"Forrige segment for kort: kræver {tangentLength:0.###}, har {accumulated:0.###}.");
                 }
                 Point3d droppedPoint = DraftPoints[candidateIndex];
                 Point3d previousPoint = DraftPoints[candidateIndex - 1];
@@ -705,7 +705,7 @@ internal sealed class PipePlanState : IDisposable
                 {
                     return new CandidateResolution(
                         snap.Pp2Anchor, false, true, null, 0,
-                        "PP1 turns before reaching the fillet — cannot extend further back.");
+                        "Forrige segment bukker for tidligt. Reducér radius.");
                 }
                 accumulated += previousPoint.DistanceTo(droppedPoint);
                 dropCount++;
@@ -748,7 +748,7 @@ internal sealed class PipePlanState : IDisposable
 
         if (dirP.Length < DistanceTolerance || dirE.Length < DistanceTolerance)
         {
-            error = "PP1 or PP2 tangent direction is degenerate.";
+            error = "Et af segmenterne har længde 0.";
             return false;
         }
 
@@ -757,7 +757,7 @@ internal sealed class PipePlanState : IDisposable
         double det = (dirP.X * dirE.Y) - (dirP.Y * dirE.X);
         if (Math.Abs(det) < PipePlanBendCalculator.AngleTolerance)
         {
-            error = "PP1 and PP2 tangents are parallel — no fillet possible.";
+            error = "Segmenterne er parallelle — intet hjørne at bukke.";
             return false;
         }
 
@@ -769,7 +769,7 @@ internal sealed class PipePlanState : IDisposable
         // they're colinear with dirP, so the fillet sits on PP1's interior.
         if (t <= DistanceTolerance)
         {
-            error = "PP2's tangent points away from PP1.";
+            error = "Næste segment peger forkert vej.";
             return false;
         }
 
@@ -827,9 +827,9 @@ internal sealed class PipePlanState : IDisposable
 
         return candidate.Analysis.PreviewKind switch
         {
-            PipePlanPreviewKind.StraightSnap => "Straight snap active. Release Ctrl to disable.",
-            PipePlanPreviewKind.Tangent => "Tangent to PP2. Click to commit.",
-            _ => "Current draft is feasible. Hold Ctrl to snap straight.",
+            PipePlanPreviewKind.StraightSnap => "Lige-snap aktivt (slip Ctrl).",
+            PipePlanPreviewKind.Tangent => "Tangent til næste polylinje. Klik for at bekræfte.",
+            _ => "Tegning OK. Hold Ctrl for lige-snap.",
         };
     }
 

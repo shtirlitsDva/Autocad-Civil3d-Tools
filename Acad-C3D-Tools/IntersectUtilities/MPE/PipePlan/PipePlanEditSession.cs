@@ -79,7 +79,7 @@ internal sealed class PipePlanEditSession : IDisposable
         handle = ChooseClosestHandle(pickedPoint, bestVertexHandle, bestSegmentHandle);
         if (handle is null || PipePlanGeometryUtil.Distance2D(pickedPoint, handle.GripPoint) > tolerance)
         {
-            message = "Pick a visible PipePlan control handle.";
+            message = "Vælg et synligt PipePlan-håndtag.";
             return false;
         }
 
@@ -158,13 +158,13 @@ internal sealed class PipePlanEditSession : IDisposable
 
         if (vertexIndex <= 0 || vertexIndex >= _data.ControlPoints.Count - 1)
         {
-            error = "Endpoint vertices do not have a bend radius.";
+            error = "Endepunkter har ikke bukkeradius.";
             return false;
         }
 
         if (radius <= 0.0)
         {
-            error = "Radius must be greater than zero.";
+            error = "Radius skal være > 0.";
             return false;
         }
 
@@ -191,7 +191,7 @@ internal sealed class PipePlanEditSession : IDisposable
         PromptEntityResult result = document.Editor.GetEntity(options);
         if (result.Status != PromptStatus.OK)
         {
-            errorMessage = "Edit cancelled.";
+            errorMessage = "PPEDIT annulleret.";
             return false;
         }
 
@@ -210,7 +210,7 @@ internal sealed class PipePlanEditSession : IDisposable
             Polyline polyline = (Polyline)transaction.GetObject(polylineId, OpenMode.ForRead);
             if (!PipePlanMetadata.TryRead(polyline, transaction, out data) || data is null)
             {
-                errorMessage = "This PipePlan polyline does not contain editable control-point metadata. Re-bake it with the current PPDRAW version first.";
+                errorMessage = "Polylinjen er fra en ældre PipePlan-version. Kør PPCONVERT først.";
                 return false;
             }
 
@@ -331,7 +331,7 @@ internal sealed class PipePlanEditSession : IDisposable
     {
         if (draft.ControlPoints.Count != draft.BendRadii.Count)
         {
-            return PipePlanAnalysis.Invalid(draft.ControlPoints, "Control points and bend radii are out of sync.");
+            return PipePlanAnalysis.Invalid(draft.ControlPoints, "Data inkonsistent. Kør PPCONVERT.");
         }
 
         return _solver.Analyze(draft.ControlPoints, draft.BendRadii);

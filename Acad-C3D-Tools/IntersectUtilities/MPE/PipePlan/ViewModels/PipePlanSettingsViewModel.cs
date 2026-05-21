@@ -32,7 +32,7 @@ internal sealed partial class PipePlanSettingsViewModel : ObservableObject
     private string _straightSnapTolerance = "5";
 
     [ObservableProperty]
-    private string _status = "Ready.";
+    private string _status = "Klar.";
 
     [ObservableProperty]
     private string _statusColor = "#A0AEC0";
@@ -57,7 +57,7 @@ internal sealed partial class PipePlanSettingsViewModel : ObservableObject
         Database? db = GetActiveDatabase();
         if (db is null)
         {
-            SetStatus("No active drawing.", PipePlanStatusKind.Warning);
+            SetStatus("Ingen aktiv tegning.", PipePlanStatusKind.Warning);
             return;
         }
 
@@ -70,7 +70,7 @@ internal sealed partial class PipePlanSettingsViewModel : ObservableObject
         {
             StraightSnapTolerance = _state.StraightSnapToleranceText;
         }
-        SetStatus("Loaded.", PipePlanStatusKind.Info);
+        SetStatus("Indlæst.", PipePlanStatusKind.Info);
     }
 
     [RelayCommand]
@@ -79,13 +79,13 @@ internal sealed partial class PipePlanSettingsViewModel : ObservableObject
         Document? doc = Application.DocumentManager.MdiActiveDocument;
         if (doc is null)
         {
-            SetStatus("No active drawing.", PipePlanStatusKind.Warning);
+            SetStatus("Ingen aktiv tegning.", PipePlanStatusKind.Warning);
             return;
         }
 
         if (!double.TryParse(StraightSnapTolerance, NumberStyles.Float, CultureInfo.InvariantCulture, out double tolerance) || tolerance <= 0.0)
         {
-            SetStatus("Straight-snap tolerance must be a positive number.", PipePlanStatusKind.Error);
+            SetStatus("Lige-snap-tolerance skal være positiv.", PipePlanStatusKind.Error);
             return;
         }
 
@@ -115,7 +115,7 @@ internal sealed partial class PipePlanSettingsViewModel : ObservableObject
 
         Reload();
         SetStatus(
-            failed == 0 ? $"Saved {updated} override(s)." : $"Saved {updated}, {failed} invalid.",
+            failed == 0 ? $"Gemt {updated} override(s)." : $"Gemt {updated}, {failed} ugyldige.",
             failed == 0 ? PipePlanStatusKind.Ok : PipePlanStatusKind.Warning);
     }
 
@@ -132,7 +132,7 @@ internal sealed partial class PipePlanSettingsViewModel : ObservableObject
         }
 
         Reload();
-        SetStatus($"Reset {row.System} {row.Type} DN{row.Dn} to default.", PipePlanStatusKind.Info);
+        SetStatus($"Nulstillet {row.System} {row.Type} DN{row.Dn}.", PipePlanStatusKind.Info);
     }
 
     private static Database? GetActiveDatabase()

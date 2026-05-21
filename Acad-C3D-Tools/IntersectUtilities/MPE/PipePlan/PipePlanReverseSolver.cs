@@ -21,7 +21,7 @@ internal static class PipePlanReverseSolver
         int vertexCount = polyline.NumberOfVertices;
         if (vertexCount < 2)
         {
-            error = "Polyline must have at least two vertices.";
+            error = "Polylinjen skal have mindst to hjørner.";
             return false;
         }
 
@@ -42,13 +42,13 @@ internal static class PipePlanReverseSolver
             {
                 if (i == 0 || i == segmentCount - 1)
                 {
-                    error = "Polyline starts or ends with an arc segment. Convert requires straight runs at both ends.";
+                    error = "Polylinjen skal starte og slutte med et lige segment.";
                     return false;
                 }
                 if (polyline.GetSegmentType(i - 1) != SegmentType.Line ||
                     polyline.GetSegmentType(i + 1) != SegmentType.Line)
                 {
-                    error = "Each arc must be flanked by straight segments.";
+                    error = "Hver bue skal omsluttes af lige segmenter.";
                     return false;
                 }
 
@@ -64,7 +64,7 @@ internal static class PipePlanReverseSolver
 
                 if (!PipePlanGeometryUtil.TryIntersectLines2D(prevOrigin, prevDir, nextOrigin, nextDir, out Point3d corner))
                 {
-                    error = "Tangent lines around an arc are parallel — cannot recover control point.";
+                    error = "Buens geometri er inkonsistent — kan ikke konvertere.";
                     return false;
                 }
 
@@ -117,7 +117,7 @@ internal static class PipePlanReverseSolver
 
         if (controlPoints.Count < 2)
         {
-            error = "Polyline reduced to fewer than two control points.";
+            error = "Polylinjen har færre end to hjørner.";
             return false;
         }
 

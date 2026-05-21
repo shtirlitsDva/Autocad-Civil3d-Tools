@@ -45,7 +45,7 @@ internal static class PipePlanSplitService
             WriteSplitResult(transaction, polyline, data, splitResult);
             transaction.Commit();
 
-            message = $"Split {data.SizeDisplay} into two PipePlan objects.";
+            message = $"{data.SizeDisplay} splittet i to.";
             return true;
         }
         catch
@@ -72,19 +72,19 @@ internal static class PipePlanSplitService
         int displaySegmentIndex = GetDisplaySegmentIndex(polyline, splitPoint);
         if (displaySegmentIndex < 0)
         {
-            message = "Could not resolve the selected split location.";
+            message = "Kan ikke finde splitpunkt.";
             return false;
         }
 
         if (Math.Abs(polyline.GetBulgeAt(displaySegmentIndex)) > BulgeTolerance)
         {
-            message = "PPSPLIT is only allowed on straight segments, not inside arcs.";
+            message = "PPSPLIT virker kun på lige segmenter.";
             return false;
         }
 
         if (!TryResolveControlSegment(controlPoints, radius, splitPoint, out controlSegmentIndex, out normalizedSplitPoint))
         {
-            message = "Pick a point on a straight PipePlan segment away from bends and endpoints.";
+            message = "Vælg et punkt på et lige segment, væk fra hjørner og endepunkter.";
             return false;
         }
 
@@ -103,7 +103,7 @@ internal static class PipePlanSplitService
         PromptEntityResult result = document.Editor.GetEntity(options);
         if (result.Status != PromptStatus.OK)
         {
-            message = "Split cancelled.";
+            message = "Split annulleret.";
             return false;
         }
 
@@ -127,7 +127,7 @@ internal static class PipePlanSplitService
         polyline = (Polyline)transaction.GetObject(polylineId, OpenMode.ForWrite);
         if (!PipePlanMetadata.TryRead(polyline, transaction, out data) || data is null)
         {
-            message = "This PipePlan polyline does not contain editable metadata.";
+            message = "Polylinjen har ingen PipePlan-data. Kør PPCONVERT først.";
             return false;
         }
 
@@ -139,7 +139,7 @@ internal static class PipePlanSplitService
         radius = data.BendRadii.Where(r => r > 0.0).DefaultIfEmpty(0.0).First();
         if (radius <= 0.0)
         {
-            message = "Stored radii are not valid.";
+            message = "Gemte radier er ugyldige. Kør PPCONVERT.";
             return false;
         }
 
@@ -166,7 +166,7 @@ internal static class PipePlanSplitService
         PromptPointResult splitResult = document.Editor.GetPoint(splitOptions);
         if (splitResult.Status != PromptStatus.OK)
         {
-            message = "Split cancelled.";
+            message = "Split annulleret.";
             return false;
         }
 
@@ -194,7 +194,7 @@ internal static class PipePlanSplitService
         List<Point3d> rightControlPoints = [normalizedSplitPoint, .. data.ControlPoints.Skip(controlSegmentIndex + 1)];
         if (leftControlPoints.Count < 2 || rightControlPoints.Count < 2)
         {
-            message = "Split would create an invalid PipePlan object.";
+            message = "Split ville give et ugyldigt PipePlan-objekt.";
             return false;
         }
 
