@@ -21,7 +21,7 @@ internal static class PipePlanReverseSolver
         int vertexCount = polyline.NumberOfVertices;
         if (vertexCount < 2)
         {
-            error = "Polyline must have at least two vertices.";
+            error = "Polylinjen skal have mindst to hjørner.";
             return false;
         }
 
@@ -42,13 +42,13 @@ internal static class PipePlanReverseSolver
             {
                 if (i == 0 || i == segmentCount - 1)
                 {
-                    error = "Polyline starts or ends with an arc segment. Convert requires straight runs at both ends.";
+                    error = "Polylinjen skal starte og slutte med et lige segment.";
                     return false;
                 }
                 if (polyline.GetSegmentType(i - 1) != SegmentType.Line ||
                     polyline.GetSegmentType(i + 1) != SegmentType.Line)
                 {
-                    error = "Each arc must be flanked by straight segments.";
+                    error = "Hver bue skal omsluttes af lige segmenter.";
                     return false;
                 }
 
@@ -64,12 +64,18 @@ internal static class PipePlanReverseSolver
 
                 if (!PipePlanGeometryUtil.TryIntersectLines2D(prevOrigin, prevDir, nextOrigin, nextDir, out Point3d corner))
                 {
-                    error = "Tangent lines around an arc are parallel — cannot recover control point.";
+                    error = "Buens geometri er inkonsistent — kan ikke konvertere.";
                     return false;
                 }
 
                 controlPoints.Add(corner);
-                radii.Add(arc.Radius);
+                // arc.Radius is computed from the polyline's bulge via trig
+                // (R = chord / (2·sin(δ/2))), so the recovered value carries
+                // ~1 ULP of floating-point noise per transcendental call. Round
+                // to 3 decimal places — sub-millimetre precision when drawings
+                // are in metres, well below physical bend-radius tolerance, and
+                // enough to keep the UI showing 38 instead of 38.0000000003875.
+                radii.Add(Math.Round(arc.Radius, 3));
 
                 i += 2;
                 continue;
@@ -111,7 +117,7 @@ internal static class PipePlanReverseSolver
 
         if (controlPoints.Count < 2)
         {
-            error = "Polyline reduced to fewer than two control points.";
+            error = "Polylinjen har færre end to hjørner.";
             return false;
         }
 

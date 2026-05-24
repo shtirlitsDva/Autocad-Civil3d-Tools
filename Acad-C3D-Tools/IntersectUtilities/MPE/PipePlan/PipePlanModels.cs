@@ -127,11 +127,16 @@ internal enum PipePlanPreviewKind
 }
 
 // Snapshot of the PP2 endpoint the cursor is hovering near while tangent mode is active.
+// SourceId identifies the polyline the snap came from; revalidation at commit time
+// reopens this id to verify the entity still exists, still carries PipePlan metadata,
+// and still has an endpoint at Pp2Anchor — without it the sticky cache can latch
+// onto stale or unrelated geometry near the same anchor.
 // Direction is unit-length and always points INTO PP2 from Pp2Anchor (the trackers flip
 // the polyline's first-derivative when the snap point is PP2's end endpoint).
 // Pp2Length is needed to bound Case-2 in the fillet solver: when PP1's bend tangent overshoots
 // PP2's near endpoint by more than the remaining PP2 length, the fillet is rejected.
 internal readonly record struct PipePlanTangentSnap(
+    ObjectId SourceId,
     Point3d Pp2Anchor,
     Vector2d Direction,
     double Pp2Length);

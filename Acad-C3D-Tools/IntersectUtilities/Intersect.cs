@@ -76,6 +76,10 @@ namespace IntersectUtilities
         }
         public void Terminate()
         {
+            // Unsubscribe DocumentManager handlers and dispose per-document
+            // PipePlan state so events don't fire into a no-longer-loaded module
+            // after the plugin is unloaded.
+            IntersectUtilities.MPE.PipePlan.PipePlanRuntime.Reset();
         }
         #endregion
         private static CultureInfo danishCulture = new CultureInfo("da-DK");

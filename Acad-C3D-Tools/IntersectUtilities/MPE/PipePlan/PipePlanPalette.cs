@@ -11,9 +11,12 @@ internal sealed class PipePlanPalette : IDisposable
     private readonly PaletteSet _paletteSet;
     private readonly PipePlanSettingsViewModel _viewModel;
 
-    public PipePlanPalette(PipePlanState state)
+    public PipePlanPalette()
     {
-        _viewModel = new PipePlanSettingsViewModel(state);
+        // The palette is process-wide and outlives any single document. Construct
+        // the view model without a binding; PipePlanRuntime rebinds it via
+        // RebindTo on each DocumentActivated event.
+        _viewModel = new PipePlanSettingsViewModel();
         var view = new PipePlanSettingsView(_viewModel);
 
         _paletteSet = new PaletteSet("PipePlan", "PIPEPLAN", PaletteGuid)
@@ -31,6 +34,11 @@ internal sealed class PipePlanPalette : IDisposable
     {
         _paletteSet.Visible = true;
         _viewModel.ReloadCommand.Execute(null);
+    }
+
+    public void RebindTo(PipePlanState state)
+    {
+        _viewModel.Rebind(state);
     }
 
     public void SetStatus(string message, PipePlanStatusKind kind)

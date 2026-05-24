@@ -4,7 +4,9 @@
       "Bash(dotnet build:*)",
       "Bash(Select-String -Pattern \"error CS|Build succeeded|Build FAILED\")",
       "WebSearch",
-      "WebFetch(domain:help.autodesk.com)"
+      "WebFetch(domain:help.autodesk.com)",
+      "Bash(findstr /I pptangent)",
+      "Bash(findstr /I reverse)"
     ]
   },
   "outputStyle": "Explanatory"

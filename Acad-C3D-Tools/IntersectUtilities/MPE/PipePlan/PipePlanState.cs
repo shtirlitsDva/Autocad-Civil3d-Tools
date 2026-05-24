@@ -12,17 +12,27 @@ internal sealed class PipePlanState : IDisposable
     private const double DistanceTolerance = 1e-6;
 
     private readonly PipePlanSolver _solver = new();
-    private readonly PipePlanPreviewManager _previewManager = new();
+    private readonly PipePlanPreviewManager _previewManager;
+    // Document that owns this state. Every PipePlanState is created per-document
+    // by PipePlanRuntime.StateFor; this field replaces all the on-demand
+    // MdiActiveDocument lookups that used to leak across drawings.
+    private readonly Document _owner;
 
-    private PipePlanPalette? _palette;
     private PipePlanCandidateResult? _latestInteractiveCandidate;
     private PipePlanTangentSnap? _latestTangent;
     private PipePlanActiveContext? _activeContext;
     private double? _manualRadius;
     private ObjectId _continuedPolylineId = ObjectId.Null;
+    // Carries the original polyline's ObjectToken through a PPDRAW Continue bake.
+    // Without this, CreateStoredData would mint a fresh GUID on every continue,
+    // so external consumers tracking polylines by token would see drift even
+    // though the polyline's handle is now preserved by in-place mutation.
+    private string? _continuedObjectToken;
 
-    public PipePlanState()
+    public PipePlanState(Document owner)
     {
+        _owner = owner;
+        _previewManager = new PipePlanPreviewManager(owner);
         StraightSnapToleranceText = "5";
     }
 
@@ -92,17 +102,9 @@ internal sealed class PipePlanState : IDisposable
         RefreshDraftPreview();
     }
 
-    public void EnsurePalette()
-    {
-        _palette ??= new PipePlanPalette(this);
-        _palette.Show();
-        RefreshDraftPreview();
-    }
-
     public void Dispose()
     {
         _previewManager.Dispose();
-        _palette?.Dispose();
     }
 
     public bool InitializeForCurrentLayer(Database db, out string error)
@@ -171,11 +173,12 @@ internal sealed class PipePlanState : IDisposable
         _latestTangent = null;
         IsTangentMode = false;
         _continuedPolylineId = ObjectId.Null;
+        _continuedObjectToken = null;
         _manualRadius = null;
         _previewManager.Clear();
         if (clearStatus)
         {
-            SetStatus("Draft cleared.", PipePlanStatusKind.Info);
+            SetStatus("Tegning nulstillet.", PipePlanStatusKind.Info);
         }
     }
 
@@ -249,6 +252,86 @@ internal sealed class PipePlanState : IDisposable
         return BuildCandidateResult(rawCandidate, allowStraightSnap, IsTangentMode ? _latestTangent : null);
     }
 
+    // Commit-time safety net for the sticky tangent cache: the cache reuses the
+    // cached anchor whenever AC's OSnap drops the picked entity, so by the time the
+    // user clicks the cached snap may point to an entity that has since been erased,
+    // had its metadata stripped, or moved. Reopen the cached SourceId here and only
+    // accept the tangent if it still resolves to a PipePlan polyline whose
+    // start- or end-endpoint matches Pp2Anchor.
+    public bool TryRevalidateLatestTangent(Document document, out string failureReason)
+    {
+        failureReason = string.Empty;
+
+        if (!IsTangentMode || _latestTangent is null)
+        {
+            return true;
+        }
+
+        PipePlanTangentSnap snap = _latestTangent.Value;
+
+        if (snap.SourceId.IsNull || snap.SourceId.IsErased)
+        {
+            _latestTangent = null;
+            failureReason = "Tangent-reference er slettet.";
+            return false;
+        }
+
+        using Transaction transaction = document.Database.TransactionManager.StartTransaction();
+        try
+        {
+            DBObject obj;
+            try
+            {
+                obj = transaction.GetObject(snap.SourceId, OpenMode.ForRead);
+            }
+            catch (Autodesk.AutoCAD.Runtime.Exception)
+            {
+                transaction.Commit();
+                _latestTangent = null;
+                failureReason = "Tangent-reference er slettet.";
+                return false;
+            }
+
+            if (obj is not Autodesk.AutoCAD.DatabaseServices.Polyline polyline)
+            {
+                transaction.Commit();
+                _latestTangent = null;
+                failureReason = "Tangent-reference er ikke længere en polylinje.";
+                return false;
+            }
+
+            if (!PipePlanMetadata.TryRead(polyline, transaction, out _))
+            {
+                transaction.Commit();
+                _latestTangent = null;
+                failureReason = "Tangent-reference er ikke længere en PipePlan-polylinje.";
+                return false;
+            }
+
+            bool endpointMatch =
+                polyline.StartPoint.DistanceTo(snap.Pp2Anchor) <= PointMatchTolerance ||
+                polyline.EndPoint.DistanceTo(snap.Pp2Anchor) <= PointMatchTolerance;
+
+            transaction.Commit();
+
+            if (!endpointMatch)
+            {
+                _latestTangent = null;
+                failureReason = "Tangent-reference er flyttet.";
+                return false;
+            }
+
+            return true;
+        }
+        catch
+        {
+            transaction.Abort();
+            _latestTangent = null;
+            failureReason = "Tangent-reference kunne ikke valideres.";
+            return false;
+        }
+    }
+
     public void RefreshDraftPreview()
     {
         _latestInteractiveCandidate = null;
@@ -258,12 +341,12 @@ internal sealed class PipePlanState : IDisposable
 
         if (DraftPoints.Count < 2)
         {
-            SetStatus("Pick at least two points.", PipePlanStatusKind.Info);
+            SetStatus("Vælg mindst to punkter.", PipePlanStatusKind.Info);
             return;
         }
 
         SetStatus(
-            analysis.IsFeasible ? "Current draft is feasible." : analysis.Message,
+            analysis.IsFeasible ? "Tegning OK." : analysis.Message,
             analysis.IsFeasible ? PipePlanStatusKind.Ok : PipePlanStatusKind.Error);
     }
 
@@ -282,7 +365,15 @@ internal sealed class PipePlanState : IDisposable
 
     public void SetStatus(string message, PipePlanStatusKind kind)
     {
-        _palette?.SetStatus(message, kind);
+        // Silent no-op when this state's owning document isn't the one the user
+        // is looking at. The palette is process-wide and is rebound to the
+        // active document's state on DocumentActivated, so routing status from
+        // a non-active document here would clobber the palette with stale text.
+        if (_owner != Application.DocumentManager.MdiActiveDocument)
+        {
+            return;
+        }
+        PipePlanRuntime.NotifyPaletteStatus(message, kind);
     }
 
     public void BeginDraftFromExisting(ObjectId polylineId, PipePlanStoredData data, bool reverse)
@@ -290,6 +381,7 @@ internal sealed class PipePlanState : IDisposable
         ApplyStoredContext(data);
 
         _continuedPolylineId = polylineId;
+        _continuedObjectToken = data.ObjectToken;
         DraftPoints.Clear();
         DraftBendRadii.Clear();
         _latestInteractiveCandidate = null;
@@ -310,17 +402,12 @@ internal sealed class PipePlanState : IDisposable
 
     public void BakeDraft()
     {
-        Document? document = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
-        if (document is null)
-        {
-            return;
-        }
-
         if (!TryPrepareBake(out PipePlanActiveContext? context, out PipePlanAnalysis? analysis) || context is null || analysis is null)
         {
             return;
         }
 
+        Document document = _owner;
         using DocumentLock documentLock = document.LockDocument();
         using Transaction transaction = document.Database.TransactionManager.StartTransaction();
 
@@ -338,7 +425,7 @@ internal sealed class PipePlanState : IDisposable
         }
 
         ResetDraft(clearStatus: false);
-        string successMessage = $"Baked {context.System} {context.Type} DN{context.Dn} polyline to layer {context.LayerName}.";
+        string successMessage = $"Tegnet {context.System} {context.Type} DN{context.Dn} på lag {context.LayerName}.";
         SetStatus(successMessage, PipePlanStatusKind.Ok);
         document.Editor.WriteMessage($"\n{successMessage}");
     }
@@ -347,12 +434,12 @@ internal sealed class PipePlanState : IDisposable
     {
         if (_activeContext is null)
         {
-            return PipePlanAnalysis.Invalid(points, "No active pipe context. Activate an FJV layer in NSPalette and re-run PPDRAW.");
+            return PipePlanAnalysis.Invalid(points, "Intet aktivt FJV-lag. Vælg dimension og kør PPDRAW igen.");
         }
 
         if (EffectiveRadius <= 0.0)
         {
-            return PipePlanAnalysis.Invalid(points, "No valid bending radius. Set a manual radius (R) or configure one in PPSETTINGS.");
+            return PipePlanAnalysis.Invalid(points, "Ingen gyldig bukkeradius. Brug R eller sæt i PPSETTINGS.");
         }
 
         return _solver.Analyze(points, radii);
@@ -367,11 +454,9 @@ internal sealed class PipePlanState : IDisposable
         _activeContext = new PipePlanActiveContext(data.System, data.Type, data.Dn, defaultRadius, layerName);
     }
 
-    private static double ResolveDefaultRadiusFromData(PipePlanStoredData data)
+    private double ResolveDefaultRadiusFromData(PipePlanStoredData data)
     {
-        Document? doc = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
-        if (doc is not null &&
-            PipePlanRadiusStore.TryGet(doc.Database, data.System, data.Type, data.Dn, out double storeValue))
+        if (PipePlanRadiusStore.TryGet(_owner.Database, data.System, data.Type, data.Dn, out double storeValue))
         {
             return storeValue;
         }
@@ -397,14 +482,14 @@ internal sealed class PipePlanState : IDisposable
 
         if (DraftPoints.Count < 2)
         {
-            SetStatus("Pick at least two points before baking.", PipePlanStatusKind.Warning);
+            SetStatus("Vælg mindst to punkter.", PipePlanStatusKind.Warning);
             return false;
         }
 
         context = _activeContext;
         if (context is null)
         {
-            SetStatus("No active pipe context. Activate an FJV layer in NSPalette first.", PipePlanStatusKind.Warning);
+            SetStatus("Intet aktivt FJV-lag. Vælg dimension i NSPalette.", PipePlanStatusKind.Warning);
             return false;
         }
 
@@ -466,7 +551,8 @@ internal sealed class PipePlanState : IDisposable
 
         if (_continuedPolylineId != ObjectId.Null)
         {
-            WriteReplacementPolyline(transaction, analysis, context, layerName, modelSpace, storedData);
+            Polyline existing = (Polyline)transaction.GetObject(_continuedPolylineId, OpenMode.ForWrite);
+            PipePlanPolylineMutator.ApplyAnalysis(existing, analysis, storedData, layerName, transaction);
         }
         else
         {
@@ -488,20 +574,8 @@ internal sealed class PipePlanState : IDisposable
             context.Dn,
             DraftBendRadii,
             StraightSnapToleranceText,
-            DraftPoints);
-    }
-
-    private void WriteReplacementPolyline(
-        Transaction transaction,
-        PipePlanAnalysis analysis,
-        PipePlanActiveContext context,
-        string layerName,
-        BlockTableRecord modelSpace,
-        PipePlanStoredData storedData)
-    {
-        Polyline sourcePolyline = (Polyline)transaction.GetObject(_continuedPolylineId, OpenMode.ForWrite);
-        Polyline replacement = ReplaceExistingPolyline(sourcePolyline, analysis, context, layerName, modelSpace, transaction);
-        PipePlanMetadata.Write(replacement, storedData, transaction);
+            DraftPoints,
+            _continuedObjectToken);
     }
 
     private static void WriteNewPolyline(
@@ -521,40 +595,6 @@ internal sealed class PipePlanState : IDisposable
         PipePlanMetadata.Write(polyline, storedData, transaction);
     }
 
-    private static Polyline ReplaceExistingPolyline(
-        Polyline sourcePolyline,
-        PipePlanAnalysis analysis,
-        PipePlanActiveContext context,
-        string layerName,
-        BlockTableRecord owner,
-        Transaction transaction)
-    {
-        Polyline replacement = analysis.CreatePolyline();
-        replacement.SetDatabaseDefaults(sourcePolyline.Database);
-        replacement.SetPropertiesFrom(sourcePolyline);
-        replacement.Layer = layerName;
-        replacement.LayerId = sourcePolyline.LayerId;
-        replacement.LinetypeId = sourcePolyline.LinetypeId;
-        replacement.LineWeight = sourcePolyline.LineWeight;
-        replacement.LinetypeScale = sourcePolyline.LinetypeScale;
-        replacement.Transparency = sourcePolyline.Transparency;
-        replacement.Normal = sourcePolyline.Normal;
-        replacement.Elevation = sourcePolyline.Elevation;
-        replacement.Thickness = sourcePolyline.Thickness;
-        replacement.ConstantWidth = PipePlanWidthCalculator.ResolveDrawingWidth(context.LayerName);
-        replacement.Closed = false;
-
-        owner.AppendEntity(replacement);
-        transaction.AddNewlyCreatedDBObject(replacement, add: true);
-
-        if (!sourcePolyline.IsErased)
-        {
-            sourcePolyline.Erase();
-        }
-
-        return replacement;
-    }
-
     private PipePlanCandidateResult BuildCandidateResult(Point3d rawCandidate, bool allowStraightSnap, PipePlanTangentSnap? tangent)
     {
         CandidateResolution resolution = ResolveCandidatePoint(rawCandidate, allowStraightSnap, tangent);
@@ -569,7 +609,7 @@ internal sealed class PipePlanState : IDisposable
             else
             {
                 List<Point3d> points = [.. DraftPoints, resolution.FinalPoint];
-                analysis = PipePlanAnalysis.Invalid(points, resolution.TangentError ?? "Tangent fillet not feasible.");
+                analysis = PipePlanAnalysis.Invalid(points, resolution.TangentError ?? "Tangent-bukning er ikke mulig.");
             }
             analysis = analysis.WithPreviewKind(PipePlanPreviewKind.Tangent);
         }
@@ -600,7 +640,7 @@ internal sealed class PipePlanState : IDisposable
             {
                 return new CandidateResolution(
                     snap.Pp2Anchor, false, true, null, 0,
-                    "Pick at least one more point before tangent fillet engages.");
+                    "Vælg mindst ét punkt mere før tangent-snap aktiveres.");
             }
 
             Vector2d dirP = ComputeUnitDirection(DraftPoints[^2], DraftPoints[^1]);
@@ -632,7 +672,7 @@ internal sealed class PipePlanState : IDisposable
                 {
                     return new CandidateResolution(
                         snap.Pp2Anchor, false, true, null, 0,
-                        $"PP2 is too short for the fillet at this radius (need {tangentLength:0.###} from corner, only {t + snap.Pp2Length:0.###} available).");
+                        $"Næste segment for kort: kræver {tangentLength:0.###}, har {t + snap.Pp2Length:0.###}.");
                 }
                 finalPoint = new Point3d(
                     snap.Pp2Anchor.X + (dirEUnit.X * overshoot),
@@ -654,7 +694,7 @@ internal sealed class PipePlanState : IDisposable
                 {
                     return new CandidateResolution(
                         snap.Pp2Anchor, false, true, null, 0,
-                        $"PP1 is too short for the fillet (need {tangentLength:0.###}, have {accumulated:0.###}).");
+                        $"Forrige segment for kort: kræver {tangentLength:0.###}, har {accumulated:0.###}.");
                 }
                 Point3d droppedPoint = DraftPoints[candidateIndex];
                 Point3d previousPoint = DraftPoints[candidateIndex - 1];
@@ -665,7 +705,7 @@ internal sealed class PipePlanState : IDisposable
                 {
                     return new CandidateResolution(
                         snap.Pp2Anchor, false, true, null, 0,
-                        "PP1 turns before reaching the fillet — cannot extend further back.");
+                        "Forrige segment bukker for tidligt. Reducér radius.");
                 }
                 accumulated += previousPoint.DistanceTo(droppedPoint);
                 dropCount++;
@@ -708,7 +748,7 @@ internal sealed class PipePlanState : IDisposable
 
         if (dirP.Length < DistanceTolerance || dirE.Length < DistanceTolerance)
         {
-            error = "PP1 or PP2 tangent direction is degenerate.";
+            error = "Et af segmenterne har længde 0.";
             return false;
         }
 
@@ -717,21 +757,19 @@ internal sealed class PipePlanState : IDisposable
         double det = (dirP.X * dirE.Y) - (dirP.Y * dirE.X);
         if (Math.Abs(det) < PipePlanBendCalculator.AngleTolerance)
         {
-            error = "PP1 and PP2 tangents are parallel — no fillet possible.";
+            error = "Segmenterne er parallelle — intet hjørne at bukke.";
             return false;
         }
 
         double s = ((rhs.X * dirE.Y) - (rhs.Y * dirE.X)) / det;
         double t = ((dirP.X * rhs.Y) - (dirP.Y * rhs.X)) / det;
 
-        if (s <= DistanceTolerance)
-        {
-            error = "PP1's tangent points away from PP2.";
-            return false;
-        }
+        // s ≤ 0 is allowed: the corner lies behind PP1's tip. The dropCount loop
+        // in ResolveCandidatePoint will absorb PP1's last segment(s) as long as
+        // they're colinear with dirP, so the fillet sits on PP1's interior.
         if (t <= DistanceTolerance)
         {
-            error = "PP2's tangent points away from PP1.";
+            error = "Næste segment peger forkert vej.";
             return false;
         }
 
@@ -789,9 +827,9 @@ internal sealed class PipePlanState : IDisposable
 
         return candidate.Analysis.PreviewKind switch
         {
-            PipePlanPreviewKind.StraightSnap => "Straight snap active. Release Ctrl to disable.",
-            PipePlanPreviewKind.Tangent => "Tangent to PP2. Click to commit.",
-            _ => "Current draft is feasible. Hold Ctrl to snap straight.",
+            PipePlanPreviewKind.StraightSnap => "Lige-snap aktivt (slip Ctrl).",
+            PipePlanPreviewKind.Tangent => "Tangent til næste polylinje. Klik for at bekræfte.",
+            _ => "Tegning OK. Hold Ctrl for lige-snap.",
         };
     }
 

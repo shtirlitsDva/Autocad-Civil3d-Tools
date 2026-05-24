@@ -23,12 +23,12 @@ internal sealed class PipePlanSolver
     {
         if (points.Count < 2)
         {
-            return PipePlanAnalysis.Raw(points, true, "Pick at least two points.");
+            return PipePlanAnalysis.Raw(points, true, "Vælg mindst to punkter.");
         }
 
         if (radii.Count != points.Count)
         {
-            return PipePlanAnalysis.Invalid(points, "Bend radii must be aligned with control points.");
+            return PipePlanAnalysis.Invalid(points, "Intern fejl: data inkonsistent. Kør PPCONVERT.");
         }
 
         PipePlanBendGeometry?[] bends = new PipePlanBendGeometry?[points.Count];
@@ -38,7 +38,7 @@ internal sealed class PipePlanSolver
             double radius = radii[i];
             if (radius <= DistanceTolerance)
             {
-                return PipePlanAnalysis.Invalid(points, $"Bend radius at vertex {i + 1} must be greater than zero.");
+                return PipePlanAnalysis.Invalid(points, $"Bukkeradius ved hjørne {i + 1} skal være > 0.");
             }
 
             PipePlanBendStatus status = PipePlanBendCalculator.TryCompute(points[i - 1], points[i], points[i + 1], radius, out PipePlanBendGeometry bend);
@@ -50,11 +50,11 @@ internal sealed class PipePlanSolver
                 case PipePlanBendStatus.Straight:
                     continue;
                 case PipePlanBendStatus.Degenerate:
-                    return PipePlanAnalysis.Invalid(points, "Consecutive points must be separated.");
+                    return PipePlanAnalysis.Invalid(points, $"To punkter ligger oven på hinanden ved hjørne {i + 1}.");
                 case PipePlanBendStatus.Reversal:
-                    return PipePlanAnalysis.Invalid(points, "A 180 degree reversal cannot be solved with a finite bend.");
+                    return PipePlanAnalysis.Invalid(points, "180° vending kan ikke bukkes.");
                 case PipePlanBendStatus.Infeasible:
-                    return PipePlanAnalysis.Invalid(points, "The selected radius cannot be solved for this turn.");
+                    return PipePlanAnalysis.Invalid(points, "Hjørnet er for skarpt for denne radius.");
             }
         }
 
@@ -66,7 +66,7 @@ internal sealed class PipePlanSolver
 
             if ((trimStart + trimEnd) - length > DistanceTolerance)
             {
-                string message = $"Segment {segmentIndex + 1} is too short for the selected radius.";
+                string message = $"Segment {segmentIndex + 1} for kort til radius.";
                 return PipePlanAnalysis.Invalid(points, message);
             }
         }
@@ -93,7 +93,7 @@ internal sealed class PipePlanSolver
 
         AppendVertex(vertexData, To2D(points[^1]), 0.0);
 
-        return PipePlanAnalysis.Curved(points, vertexData, radiusAnnotations, filletEndpointMarkers, "Current draft is feasible.");
+        return PipePlanAnalysis.Curved(points, vertexData, radiusAnnotations, filletEndpointMarkers, "Tegning OK.");
     }
 
     private static void AppendVertex(List<PolylineVertexData> vertices, Point2d point, double bulge)
