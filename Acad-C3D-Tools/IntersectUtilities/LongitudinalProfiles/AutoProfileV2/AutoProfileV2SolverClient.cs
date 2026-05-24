@@ -3,401 +3,273 @@ using Autodesk.AutoCAD.Geometry;
 using Autodesk.Civil.DatabaseServices;
 
 using IntersectUtilities.LongitudinalProfiles.AutoProfileV2;
-using IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray;
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Net.Http;
-using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
-using System.Threading;
-
-using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 
 namespace IntersectUtilities
 {
-    internal sealed class AutoProfileV2SolverClient : IDisposable
+    /// <summary>
+    /// Talks to the v2 ("seam-coupled ArcFit") Python solver as a stateless
+    /// command-line JSON service: write a case file, run the Python CLI, read
+    /// the result file. There is no long-running service / native engine / job
+    /// queue any more — that was the v1 PipeSolver.Interop server.
+    /// </summary>
+    internal sealed class AutoProfileV2SolverClient
     {
-        private const string PipeSolverServiceUrlEnvVar = "AUTOPROFILE_SOLVER_URL";
-        private const string PipeSolverServiceExeEnvVar = "AUTOPROFILE_SOLVER_EXE";
-        private const string PipeSolverDefaultBaseUrl = "http://127.0.0.1:5061";
-        //private const string PipeSolverEngine = "python";
-        private const string PipeSolverEngine = "native";
-        private const string PipeSolverDefaultExecutablePath =
-            @"X:\AutoCAD DRI - 01 Civil 3D\NetloadV2\Dependencies\ApService\PipeSolver.Interop.exe";
-        private static readonly TimeSpan PipeSolverRequestTimeout = TimeSpan.FromSeconds(30);
-        private static readonly TimeSpan PipeSolverHealthTimeout = TimeSpan.FromMinutes(5);
-        private static readonly TimeSpan PipeSolverJobTimeout = TimeSpan.FromMinutes(10);
-        private static readonly TimeSpan PipeSolverPollInterval = TimeSpan.FromSeconds(2);
-        private static readonly JsonSerializerOptions PipeSolverJsonOptions = new()
+        // PoC defaults target this machine. Both are overridable via env vars so
+        // the shipping decision (bundled venv / system python / one-file exe)
+        // can be made later without touching code.
+        private const string SolverPythonEnvVar = "AUTOPROFILE_SOLVER_PYTHON";
+        private const string SolverDirEnvVar = "AUTOPROFILE_SOLVER_DIR";
+        private const string DefaultSolverPython =
+            @"H:\GitHub\DamgaardRI\AutoProfileSolver\v2\.venv\Scripts\python.exe";
+        private const string DefaultSolverDir =
+            @"H:\GitHub\DamgaardRI\AutoProfileSolver\v2\Code";
+
+        private const string CaseSchema = "Norsyn.seam.case.v1";
+        private static readonly TimeSpan SolveTimeout = TimeSpan.FromMinutes(10);
+
+        private static readonly JsonSerializerOptions CaseJsonOptions = new()
+        {
+            WriteIndented = true,
+        };
+
+        private static readonly JsonSerializerOptions ResultJsonOptions = new()
         {
             PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
             PropertyNameCaseInsensitive = true,
-            WriteIndented = false,
         };
 
         private readonly Action<string> _log;
-        private readonly HttpClient _httpClient;
-        private string? _baseUrl;
 
         public AutoProfileV2SolverClient(Action<string> log)
         {
             _log = log;
-            _httpClient = new HttpClient
-            {
-                Timeout = PipeSolverRequestTimeout
-            };
         }
 
-        public Polyline SolveProfilePolyline(AP2_PipelineData pipelineData, string engine)
+        public Polyline SolveProfilePolyline(AP2_PipelineData pipelineData)
         {
-            _baseUrl ??= ResolvePipeSolverBaseUrl();
-            EnsurePipeSolverServiceRunning(_baseUrl);
-            WaitForPipeSolverReady(_baseUrl);
+            SeamCase seamCase = BuildSeamCase(pipelineData);
+            SeamSolveResult result = RunSolver(seamCase, pipelineData.Name);
 
-            var scene = BuildPipeSolverScene(pipelineData);
-            var submission = SubmitPipeSolverJob(_baseUrl, pipelineData.Name, scene, engine);
-            var result = WaitForPipeSolverResult(_baseUrl, submission.JobId, pipelineData.Name);
-
-            foreach (string warning in result.Warnings ?? [])
+            if (!result.Success)
             {
-                _log($"Pipe solver warning for {pipelineData.Name}: {warning}");
+                // v2 reports success=false for non-convergent terminations
+                // (e.g. "cooldown_exhausted") even when it produced a usable
+                // chain, so this is a warning, not a hard failure. We gate the
+                // actual draw on segment presence below.
+                _log($"Pipe solver did not fully converge for {pipelineData.Name}: {result.Message}");
             }
+
+            LogDiagnostics(pipelineData.Name, result.Summary);
 
             return BuildProfilePolylineFromSolveResult(pipelineData, result);
         }
 
-        public void Dispose()
-        {
-            _httpClient.Dispose();
-        }
-
-        private string ResolvePipeSolverBaseUrl()
-        {
-            var configured = Environment.GetEnvironmentVariable(PipeSolverServiceUrlEnvVar);
-            var baseUrl = string.IsNullOrWhiteSpace(configured)
-                ? PipeSolverDefaultBaseUrl
-                : configured.Trim().TrimEnd('/');
-
-            if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var uri) ||
-                (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
-            {
-                throw new System.Exception(
-                    $"Pipe solver service URL is invalid: '{baseUrl}'. " +
-                    $"Set {PipeSolverServiceUrlEnvVar} to a valid absolute http(s) URL.");
-            }
-
-            return baseUrl;
-        }
-
-        private void EnsurePipeSolverServiceRunning(string baseUrl)
-        {
-            if (TryGetPipeSolverHealth(baseUrl) != null)
-            {
-                return;
-            }
-
-            string serviceExe = ResolvePipeSolverExecutablePath();
-            string? directory = Path.GetDirectoryName(serviceExe);
-            if (directory == null || !Directory.Exists(directory))
-            {
-                throw new FileNotFoundException(
-                    $"Pipe solver service executable directory does not exist: {serviceExe}");
-            }
-
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = serviceExe,
-                WorkingDirectory = directory,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                WindowStyle = ProcessWindowStyle.Hidden,
-            };
-
-            _log($"Starting pipe solver service: {serviceExe}");
-            Process.Start(startInfo);
-        }
-
-        private string ResolvePipeSolverExecutablePath()
-        {
-            var configured = Environment.GetEnvironmentVariable(PipeSolverServiceExeEnvVar);
-            var serviceExe = string.IsNullOrWhiteSpace(configured)
-                ? PipeSolverDefaultExecutablePath
-                : Environment.ExpandEnvironmentVariables(configured.Trim().Trim('"'));
-
-            if (!File.Exists(serviceExe))
-            {
-                throw new FileNotFoundException(
-                    $"Pipe solver service executable was not found: {serviceExe}. " +
-                    $"Publish PipeSolver.Interop to that path or override it with {PipeSolverServiceExeEnvVar}.",
-                    serviceExe);
-            }
-
-            return Path.GetFullPath(serviceExe);
-        }
-
-        private void WaitForPipeSolverReady(string baseUrl)
-        {
-            DateTime deadline = DateTime.UtcNow + PipeSolverHealthTimeout;
-            string lastState = "unknown";
-            string? lastError = null;
-
-            while (DateTime.UtcNow < deadline)
-            {
-                var health = TryGetPipeSolverHealth(baseUrl);
-                if (health != null)
-                {
-                    lastState = health.Environment ?? health.Status ?? "unknown";
-                    lastError = health.Error;
-
-                    if (string.Equals(health.Environment, "ready", StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(health.Status, "ok", StringComparison.OrdinalIgnoreCase))
-                    {
-                        return;
-                    }
-
-                    if (string.Equals(health.Environment, "failed", StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(health.Status, "failed", StringComparison.OrdinalIgnoreCase))
-                    {
-                        throw new System.Exception(
-                            $"Pipe solver service failed during startup: {health.Error ?? "unknown error"}");
-                    }
-                }
-
-                System.Windows.Forms.Application.DoEvents();
-                Thread.Sleep(PipeSolverPollInterval);
-            }
-
-            throw new TimeoutException(
-                $"Timed out waiting for pipe solver service readiness at {baseUrl}. " +
-                $"Last state: {lastState}. Last error: {lastError ?? "<none>"}.");
-        }
-
-        private PipeSolverHealthResponse? TryGetPipeSolverHealth(string baseUrl)
-        {
-            try
-            {
-                using var response = _httpClient.GetAsync($"{baseUrl.TrimEnd('/')}/health").GetAwaiter().GetResult();
-                var json = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
-                if (string.IsNullOrWhiteSpace(json)) return null;
-                return JsonSerializer.Deserialize<PipeSolverHealthResponse>(json, PipeSolverJsonOptions);
-            }
-            catch
-            {
-                return null;
-            }
-        }
-
-        private PipeSolverSceneSpec BuildPipeSolverScene(AP2_PipelineData pipelineData)
+        private SeamCase BuildSeamCase(AP2_PipelineData pipelineData)
         {
             if (pipelineData.ProfileView == null) throw new System.Exception($"No profile view found for {pipelineData.Name}.");
-            if (pipelineData.SurfaceProfile == null) throw new System.Exception($"No surface profile found for {pipelineData.Name}.");            
+            if (pipelineData.SurfaceProfile == null) throw new System.Exception($"No surface profile found for {pipelineData.Name}.");
             if (pipelineData.SizeArray == null) throw new System.Exception($"No size array found for {pipelineData.Name}.");
 
             var sizeEntries = pipelineData.SizeArray.Sizes.ToList();
             if (sizeEntries.Count == 0) throw new System.Exception($"No size entries found for {pipelineData.Name}.");
 
-            double coverDepth = GetUniformCoverDepth(sizeEntries, pipelineData.Name);
-            var pv = pipelineData.ProfileView.ProfileView;            
+            // Cover depth is fixed at 0.6 m inside the v2 solver
+            // (optimizer/spec.py DEFAULT_COVER_M), so it is no longer collected
+            // or transmitted here.
 
-            var pipelineSizes = sizeEntries
+            var pipeSizes = sizeEntries
                 .OrderBy(size => size.StartStation)
-                .Select(size => new PipeSolverPipelineSizeRange
+                .Select(size => new SeamPipeSize
                 {
-                    StartStation = size.StartStation,
-                    EndStation = size.EndStation,
-                    MinVerticalRadiusM = size.VerticalMinRadius,
-                    JodMm = size.Kod
+                    SLo = size.StartStation,
+                    SHi = size.EndStation,
+                    RMinM = size.VerticalMinRadius,
+                    JodM = size.Kod / 1000.0,
                 })
                 .ToList();
 
+            // AP2_Utility.Box is [MinX, MinY, MaxX, MaxY] == [s_lo, y_lo, s_hi, y_hi].
             var utilities = pipelineData.Utility
                 .OrderBy(utility => utility.Box[0])
-                .Select((utility, index) => new PipeSolverUtilityObstacle
+                .Select(utility => new SeamUtility
                 {
-                    Name = utility.Name,
-                    Box = utility.Box,
-                    Active = true,
-                    MinDistanceM = 0.0
+                    SLo = utility.Box[0],
+                    YLo = utility.Box[1],
+                    SHi = utility.Box[2],
+                    YHi = utility.Box[3],
                 })
                 .ToList();
 
-            return new PipeSolverSceneSpec
+            var forbidden = pipelineData.HorizontalArcs.HorizontalArcs
+                .OrderBy(arc => arc.StartStation)
+                .Select(arc => new[] { arc.StartStation, arc.EndStation })
+                .ToList();
+
+            return new SeamCase
             {
+                Schema = CaseSchema,
                 Name = pipelineData.Name,
-                Environment = new PipeSolverEnvironmentSpec
-                {
-                    SurfaceProfile = pipelineData.SurfaceProfile.GetSimplifiedProfileDTO(),
-                    PipelineSizes = pipelineSizes,
-                    CoverM = coverDepth,
-                    DefaultJodM = pipelineSizes[0].JodMm / 1000.0,
-                    DefaultMinRadiusM = pipelineSizes[0].MinVerticalRadiusM
-                },
-                Local = new PipeSolverLocalConstraints
-                {
-                    HorizontalArcs = pipelineData.HorizontalArcs.HorizontalArcs
-                        .OrderBy(arc => arc.StartStation)
-                        .Select(arc => new List<double> { arc.StartStation, arc.EndStation })
-                        .ToList(),
-                    Utilities = utilities
-                },
-                Metadata = new Dictionary<string, object?>
-                {
-                    ["source"] = "civil3d_apcreatev2",
-                    ["alignment_name"] = pipelineData.Name
-                }
+                SurfaceProfile = pipelineData.SurfaceProfile.GetSimplifiedProfileDTO(),
+                PipeSizes = pipeSizes,
+                Utilities = utilities,
+                Forbidden = forbidden,
             };
         }
 
-        private static double GetUniformCoverDepth(IReadOnlyList<SizeEntryV2> sizeEntries, string pipelineName)
+        private SeamSolveResult RunSolver(SeamCase seamCase, string pipelineName)
         {
-            var distinctCoverDepths = new List<double>();
+            string pythonExe = ResolveSolverPython();
+            string workingDir = ResolveSolverDir();
 
-            foreach (var size in sizeEntries)
-            {
-                double coverDepth = GetCoverDepth(size.DN, size.System, size.Type);
-                if (!distinctCoverDepths.Any(existing => Math.Abs(existing - coverDepth) < 1e-6))
-                {
-                    distinctCoverDepths.Add(coverDepth);
-                }
-            }
-
-            if (distinctCoverDepths.Count != 1)
-            {
-                throw new System.Exception(
-                    $"Pipe solver currently requires one uniform cover depth per alignment. " +
-                    $"{pipelineName} has {distinctCoverDepths.Count} distinct cover depths: " +
-                    $"{string.Join(", ", distinctCoverDepths.Select(x => x.ToString("F3", CultureInfo.InvariantCulture)))}");
-            }
-
-            return distinctCoverDepths[0];
-        }
-
-        private PipeSolverJobSubmissionResponse SubmitPipeSolverJob(
-            string baseUrl,
-            string pipelineName,
-            PipeSolverSceneSpec scene,
-            string engine)
-        {
             string safeName = Regex.Replace(pipelineName, "[^A-Za-z0-9_\\-]+", "_");
-            var request = new PipeSolverSubmitRequest
+            string runDir = Path.Combine(
+                Path.GetTempPath(),
+                "AutoProfileV2",
+                $"{safeName}_{DateTime.UtcNow:yyyyMMddHHmmssfff}");
+            Directory.CreateDirectory(runDir);
+
+            string inputPath = Path.Combine(runDir, "case.json");
+            string outputPath = Path.Combine(runDir, "result.json");
+            File.WriteAllText(inputPath, JsonSerializer.Serialize(seamCase, CaseJsonOptions));
+
+            var startInfo = new ProcessStartInfo
             {
-                Engine = engine,
-                JobName = $"apcreatev2_{safeName}",
-                SessionName = $"apcreatev2_{safeName}_{DateTime.UtcNow:yyyyMMddHHmmssfff}",
-                Scene = scene,
-                SaveFigures = false,
-                Strict = true,
-                CorridorBackend = "legacy",
-                AlignmentBackend = "parallel_atomic"
+                FileName = pythonExe,
+                WorkingDirectory = workingDir,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                WindowStyle = ProcessWindowStyle.Hidden,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
             };
+            startInfo.ArgumentList.Add("-m");
+            startInfo.ArgumentList.Add("lib.api.seam_demo_cli");
+            startInfo.ArgumentList.Add("solve");
+            startInfo.ArgumentList.Add("--input");
+            startInfo.ArgumentList.Add(inputPath);
+            startInfo.ArgumentList.Add("--output");
+            startInfo.ArgumentList.Add(outputPath);
+            startInfo.ArgumentList.Add("--no-samples");
+            // The CLI prints status text containing non-ASCII characters; force
+            // UTF-8 so a cp1252 console can't crash the Python process.
+            startInfo.Environment["PYTHONUTF8"] = "1";
+            startInfo.Environment["PYTHONIOENCODING"] = "utf-8";
 
-            using var response = _httpClient
-                .PostAsJsonAsync($"{baseUrl.TrimEnd('/')}/jobs", request, PipeSolverJsonOptions)
-                .GetAwaiter()
-                .GetResult();
+            _log($"Solving {pipelineName}: \"{pythonExe}\" -m lib.api.seam_demo_cli solve (cwd: {workingDir})");
 
-            string json = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
-            if (!response.IsSuccessStatusCode)
+            using var process = Process.Start(startInfo)
+                ?? throw new System.Exception($"Failed to start pipe solver process: {pythonExe}");
+
+            var stdoutTask = process.StandardOutput.ReadToEndAsync();
+            var stderrTask = process.StandardError.ReadToEndAsync();
+
+            DateTime deadline = DateTime.UtcNow + SolveTimeout;
+            while (!process.WaitForExit(200))
+            {
+                System.Windows.Forms.Application.DoEvents();
+                if (DateTime.UtcNow > deadline)
+                {
+                    try { process.Kill(entireProcessTree: true); } catch { /* best effort */ }
+                    throw new TimeoutException(
+                        $"Pipe solver timed out for {pipelineName} after {SolveTimeout.TotalMinutes:0} minutes.");
+                }
+            }
+            process.WaitForExit(); // ensure the async stream reads complete
+
+            string stderr = stderrTask.GetAwaiter().GetResult();
+            _ = stdoutTask.GetAwaiter().GetResult();
+
+            // Exit code 2 == hard CLI error (bad input, exception). Exit code 1 ==
+            // solver ran but reported a non-success status; the result file is
+            // still written and may carry a usable chain.
+            if (process.ExitCode == 2)
             {
                 throw new System.Exception(
-                    $"Pipe solver job submission failed for {pipelineName}: {(int)response.StatusCode} {response.ReasonPhrase}. {json}");
+                    $"Pipe solver failed for {pipelineName}: {(string.IsNullOrWhiteSpace(stderr) ? "unknown error" : stderr.Trim())}");
             }
 
-            var submission = JsonSerializer.Deserialize<PipeSolverJobSubmissionResponse>(json, PipeSolverJsonOptions);
-            if (submission == null || string.IsNullOrWhiteSpace(submission.JobId))
+            if (!File.Exists(outputPath))
             {
-                throw new System.Exception($"Pipe solver job submission for {pipelineName} returned no job id.");
+                throw new System.Exception(
+                    $"Pipe solver produced no result file for {pipelineName} (exit {process.ExitCode}). " +
+                    $"{(string.IsNullOrWhiteSpace(stderr) ? string.Empty : stderr.Trim())}");
             }
 
-            return submission;
+            string resultJson = File.ReadAllText(outputPath);
+            var result = JsonSerializer.Deserialize<SeamSolveResult>(resultJson, ResultJsonOptions)
+                ?? throw new System.Exception($"Pipe solver returned an unreadable result for {pipelineName}.");
+
+            return result;
         }
 
-        private PipeSolverSolveResult WaitForPipeSolverResult(string baseUrl, string jobId, string pipelineName)
+        private string ResolveSolverPython()
         {
-            DateTime deadline = DateTime.UtcNow + PipeSolverJobTimeout;
+            var configured = Environment.GetEnvironmentVariable(SolverPythonEnvVar);
+            var pythonExe = string.IsNullOrWhiteSpace(configured)
+                ? DefaultSolverPython
+                : Environment.ExpandEnvironmentVariables(configured.Trim().Trim('"'));
 
-            while (DateTime.UtcNow < deadline)
+            if (!File.Exists(pythonExe))
             {
-                using var statusResponse = _httpClient
-                    .GetAsync($"{baseUrl.TrimEnd('/')}/jobs/{jobId}")
-                    .GetAwaiter()
-                    .GetResult();
-
-                string statusJson = statusResponse.Content.ReadAsStringAsync().GetAwaiter().GetResult();
-                if (!statusResponse.IsSuccessStatusCode)
-                {
-                    throw new System.Exception(
-                        $"Failed to query pipe solver job status for {pipelineName}: " +
-                        $"{(int)statusResponse.StatusCode} {statusResponse.ReasonPhrase}. {statusJson}");
-                }
-
-                var status = JsonSerializer.Deserialize<PipeSolverJobStatusResponse>(statusJson, PipeSolverJsonOptions);
-                if (status == null || string.IsNullOrWhiteSpace(status.State))
-                {
-                    throw new System.Exception(
-                        $"Pipe solver returned an invalid job status payload for {pipelineName}: {statusJson}");
-                }
-
-                if (string.Equals(status.State, "succeeded", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(status.State, "failed", StringComparison.OrdinalIgnoreCase))
-                {
-                    using var resultResponse = _httpClient
-                        .GetAsync($"{baseUrl.TrimEnd('/')}/jobs/{jobId}/result")
-                        .GetAwaiter()
-                        .GetResult();
-
-                    string resultJson = resultResponse.Content.ReadAsStringAsync().GetAwaiter().GetResult();
-                    if (!resultResponse.IsSuccessStatusCode)
-                    {
-                        throw new System.Exception(
-                            $"Failed to fetch pipe solver result for {pipelineName}: " +
-                            $"{(int)resultResponse.StatusCode} {resultResponse.ReasonPhrase}. {resultJson}");
-                    }
-
-                    var envelope = JsonSerializer.Deserialize<PipeSolverResultEnvelope>(resultJson, PipeSolverJsonOptions);
-                    if (envelope?.Result == null)
-                    {
-                        throw new System.Exception(
-                            $"Pipe solver returned no result payload for {pipelineName}. Envelope: {resultJson}");
-                    }
-
-                    if (!envelope.Result.Success)
-                    {
-                        throw new System.Exception(
-                            $"Pipe solver failed for {pipelineName}: " +
-                            $"{envelope.Result.Error ?? envelope.Error ?? status.Error ?? "unknown error"}");
-                    }
-
-                    return envelope.Result;
-                }
-
-                System.Windows.Forms.Application.DoEvents();
-                Thread.Sleep(PipeSolverPollInterval);
+                throw new FileNotFoundException(
+                    $"Pipe solver Python interpreter was not found: {pythonExe}. " +
+                    $"Override it with the {SolverPythonEnvVar} environment variable.",
+                    pythonExe);
             }
 
-            throw new TimeoutException(
-                $"Timed out waiting for pipe solver job {jobId} for {pipelineName} after {PipeSolverJobTimeout.TotalMinutes:0} minutes.");
+            return Path.GetFullPath(pythonExe);
+        }
+
+        private string ResolveSolverDir()
+        {
+            var configured = Environment.GetEnvironmentVariable(SolverDirEnvVar);
+            var solverDir = string.IsNullOrWhiteSpace(configured)
+                ? DefaultSolverDir
+                : Environment.ExpandEnvironmentVariables(configured.Trim().Trim('"'));
+
+            if (!Directory.Exists(solverDir))
+            {
+                throw new DirectoryNotFoundException(
+                    $"Pipe solver working directory was not found: {solverDir}. " +
+                    $"It must contain the v2 'lib', 'optimizer', and 'segmenter' packages. " +
+                    $"Override it with the {SolverDirEnvVar} environment variable.");
+            }
+
+            return Path.GetFullPath(solverDir);
+        }
+
+        private void LogDiagnostics(string pipelineName, SeamSummary? summary)
+        {
+            if (summary == null) return;
+            if (!summary.RadiusOk)
+                _log($"Pipe solver warning for {pipelineName}: minimum-radius deficit {summary.RadiusDeficitM:0.###} m.");
+            if (summary.UtilityIntrusions > 0)
+                _log($"Pipe solver warning for {pipelineName}: {summary.UtilityIntrusions} utility intrusion(s).");
+            if (summary.CoverViolationM > 1e-3)
+                _log($"Pipe solver warning for {pipelineName}: cover violation {summary.CoverViolationM:0.###} m.");
         }
 
         private static Polyline BuildProfilePolylineFromSolveResult(
             AP2_PipelineData pipelineData,
-            PipeSolverSolveResult result)
+            SeamSolveResult result)
         {
             if (pipelineData.ProfileView == null) throw new System.Exception($"No profile view found for {pipelineData.Name}.");
-            if (result.FinalSolution == null) throw new System.Exception($"Pipe solver produced no final solution for {pipelineData.Name}.");
-            if (result.FinalSolution.Segments == null || result.FinalSolution.Segments.Count == 0)
-                throw new System.Exception($"Pipe solver produced no segments for {pipelineData.Name}.");
+            if (result.Segments == null || result.Segments.Count == 0)
+                throw new System.Exception($"Pipe solver produced no segments for {pipelineData.Name}: {result.Message}");
 
             var pv = pipelineData.ProfileView.ProfileView;
             var polyline = new Polyline();
 
-            foreach (var segment in result.FinalSolution.Segments)
+            foreach (var segment in result.Segments)
             {
                 var startPoint = ToProfileViewPoint(pv, segment.Start);
                 var endPoint = ToProfileViewPoint(pv, segment.End);
@@ -430,7 +302,7 @@ namespace IntersectUtilities
             return polyline;
         }
 
-        private static Point2d ToProfileViewPoint(ProfileView profileView, PipeSolverJointState joint)
+        private static Point2d ToProfileViewPoint(ProfileView profileView, SeamPoint joint)
         {
             double x = 0.0;
             double y = 0.0;
@@ -443,7 +315,7 @@ namespace IntersectUtilities
             return left.GetDistanceTo(right) < 1e-6;
         }
 
-        private static double GetSegmentBulge(PipeSolverPrimitiveSegment segment)
+        private static double GetSegmentBulge(SeamSegment segment)
         {
             if (!string.Equals(segment.Kind, "arc", StringComparison.OrdinalIgnoreCase) ||
                 segment.SweepRad == null)
@@ -454,106 +326,65 @@ namespace IntersectUtilities
             return Math.Tan(segment.SweepRad.Value / 4.0);
         }
 
-        private sealed class PipeSolverHealthResponse
+        // ── Request contract: Norsyn.seam.case.v1 ────────────────────────────
+
+        private sealed class SeamCase
         {
-            public string? Status { get; set; }
-            public string? Environment { get; set; }
-            public string? Error { get; set; }
+            [JsonPropertyName("schema")] public string Schema { get; set; } = CaseSchema;
+            [JsonPropertyName("name")] public string Name { get; set; } = string.Empty;
+            [JsonPropertyName("surface_profile")] public List<double[]> SurfaceProfile { get; set; } = [];
+            [JsonPropertyName("pipe_sizes")] public List<SeamPipeSize> PipeSizes { get; set; } = [];
+            [JsonPropertyName("utilities")] public List<SeamUtility> Utilities { get; set; } = [];
+            [JsonPropertyName("forbidden")] public List<double[]> Forbidden { get; set; } = [];
         }
 
-        private sealed class PipeSolverSubmitRequest
+        private sealed class SeamPipeSize
         {
-            public string Engine { get; set; } = PipeSolverEngine;
-            public string? JobName { get; set; }
-            public string? SessionName { get; set; }
-            public PipeSolverSceneSpec? Scene { get; set; }
-            public bool SaveFigures { get; set; }
-            public bool Strict { get; set; }
-            public string CorridorBackend { get; set; } = "legacy";
-            public string AlignmentBackend { get; set; } = "parallel_atomic";
+            [JsonPropertyName("s_lo")] public double SLo { get; set; }
+            [JsonPropertyName("s_hi")] public double SHi { get; set; }
+            [JsonPropertyName("r_min_m")] public double RMinM { get; set; }
+            [JsonPropertyName("jod_m")] public double JodM { get; set; }
         }
 
-        private sealed class PipeSolverJobSubmissionResponse
+        private sealed class SeamUtility
         {
-            public string JobId { get; set; } = string.Empty;
+            [JsonPropertyName("s_lo")] public double SLo { get; set; }
+            [JsonPropertyName("s_hi")] public double SHi { get; set; }
+            [JsonPropertyName("y_lo")] public double YLo { get; set; }
+            [JsonPropertyName("y_hi")] public double YHi { get; set; }
         }
 
-        private sealed class PipeSolverJobStatusResponse
-        {
-            public string State { get; set; } = string.Empty;
-            public string? Error { get; set; }
-        }
+        // ── Response contract: Norsyn.seam.result.v1 ─────────────────────────
 
-        private sealed class PipeSolverResultEnvelope
-        {
-            public PipeSolverSolveResult? Result { get; set; }
-            public string? Error { get; set; }
-        }
-
-        private sealed class PipeSolverSolveResult
+        private sealed class SeamSolveResult
         {
             public bool Success { get; set; }
-            public string? Error { get; set; }
-            public List<string>? Warnings { get; set; }
-            public PipeSolverArcActionSolution? FinalSolution { get; set; }
+            public string? Message { get; set; }
+            public SeamSummary? Summary { get; set; }
+            public List<SeamSegment> Segments { get; set; } = [];
         }
 
-        private sealed class PipeSolverArcActionSolution
+        private sealed class SeamSummary
         {
-            public List<PipeSolverPrimitiveSegment> Segments { get; set; } = [];
+            public bool Success { get; set; }
+            public bool RadiusOk { get; set; }
+            public double RadiusDeficitM { get; set; }
+            public int UtilityIntrusions { get; set; }
+            public double CoverViolationM { get; set; }
         }
 
-        private sealed class PipeSolverPrimitiveSegment
+        private sealed class SeamSegment
         {
             public string Kind { get; set; } = string.Empty;
-            public PipeSolverJointState Start { get; set; } = new();
-            public PipeSolverJointState End { get; set; } = new();
+            public SeamPoint Start { get; set; } = new();
+            public SeamPoint End { get; set; } = new();
             public double? SweepRad { get; set; }
         }
 
-        private sealed class PipeSolverJointState
+        private sealed class SeamPoint
         {
             public double Station { get; set; }
             public double Elevation { get; set; }
-        }
-
-        private sealed class PipeSolverSceneSpec
-        {
-            public string Name { get; set; } = string.Empty;
-            public PipeSolverEnvironmentSpec Environment { get; set; } = new();
-            public PipeSolverLocalConstraints Local { get; set; } = new();
-            public Dictionary<string, object?> Metadata { get; set; } = new();
-        }
-
-        private sealed class PipeSolverEnvironmentSpec
-        {
-            public List<double[]> SurfaceProfile { get; set; } = [];
-            public List<PipeSolverPipelineSizeRange> PipelineSizes { get; set; } = [];
-            public double CoverM { get; set; }
-            public double DefaultJodM { get; set; }
-            public double DefaultMinRadiusM { get; set; }
-        }
-
-        private sealed class PipeSolverLocalConstraints
-        {
-            public List<List<double>> HorizontalArcs { get; set; } = [];
-            public List<PipeSolverUtilityObstacle> Utilities { get; set; } = [];
-        }
-
-        private sealed class PipeSolverPipelineSizeRange
-        {
-            public double StartStation { get; set; }
-            public double EndStation { get; set; }
-            public double MinVerticalRadiusM { get; set; }
-            public double JodMm { get; set; }
-        }
-
-        private sealed class PipeSolverUtilityObstacle
-        {
-            public string Name { get; set; } = string.Empty;
-            public double[] Box { get; set; } = [];
-            public bool Active { get; set; }
-            public double MinDistanceM { get; set; }
         }
     }
 }
