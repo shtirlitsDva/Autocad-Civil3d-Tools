@@ -1,4 +1,4 @@
-﻿using Autodesk.AutoCAD.ApplicationServices;
+using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Runtime;
 
@@ -6,8 +6,7 @@ using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 
 using AcadOverrules.ViewFrameGripOverrule;
 using System;
-
-using static IntersectUtilities.UtilsCommon.Utils;
+using System.Collections.Generic;
 
 [assembly: CommandClass(typeof(AcadOverrules.NoCommands))]
 
@@ -15,20 +14,30 @@ namespace AcadOverrules
 {
     public class Commands : IExtensionApplication
     {
-        #region Interface memebers
+        #region Interface members
         public void Initialize()
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
-            doc.Editor.WriteMessage("\n(ノ◕ヮ◕)ノ*:・゚✧ AcadOverrules loaded! ✧゚・:*ヽ(◕ヮ◕ヽ)\n");
+            doc?.Editor.WriteMessage("\n(ノ◕ヮ◕)ノ*:・゚✧ AcadOverrules loaded! ✧゚・:*ヽ(◕ヮ◕ヽ)\n");
         }
 
         public void Terminate()
         {
-
+            OverruleRegistry.DisableAll();
         }
         #endregion
 
-        private static FjvPolylineLabel _fjvPolylineLabelOverrule;
+        /// <summary>
+        /// Toggles an overrule of type <typeparamref name="T"/> that targets
+        /// <see cref="Polyline"/> on or off, then regenerates the active view.
+        /// All registration bookkeeping lives in <see cref="OverruleRegistry"/>.
+        /// </summary>
+        private static void Toggle<T>() where T : Overrule, new()
+        {
+            OverruleRegistry.Toggle<T>(typeof(Polyline));
+            Application.DocumentManager.MdiActiveDocument?.Editor.Regen();
+        }
+
         /// <command>TOGGLEFJVLABEL</command>
         /// <summary>
         /// Labels pipe with system prefix, size and type, ie. DN50-T.
@@ -39,48 +48,16 @@ namespace AcadOverrules
         /// </summary>
         /// <category>Overrules</category>
         [CommandMethod("TOGGLEFJVLABEL")]
-        public static void togglefjvlabeloverrule()
-        {
-            if (_fjvPolylineLabelOverrule == null)
-            {
-                _fjvPolylineLabelOverrule = new FjvPolylineLabel();
-                Overrule.AddOverrule(RXObject.GetClass(typeof(Polyline)), _fjvPolylineLabelOverrule, false);
-                Overrule.Overruling = true;
-            }
-            else
-            {
-                Overrule.RemoveOverrule(RXObject.GetClass(typeof(Polyline)), _fjvPolylineLabelOverrule);
-                _fjvPolylineLabelOverrule.Dispose();
-                _fjvPolylineLabelOverrule = null;
-            }
-            Application.DocumentManager.MdiActiveDocument.Editor.Regen();
-        }        
+        public static void togglefjvlabeloverrule() => Toggle<FjvPolylineLabel>();
 
-        private static PolylineDirection _polylineDirection;
         /// <command>TOGGLEPOLYDIR</command>
         /// <summary>
         /// Creates arrows for all polylines that visualise the direction of the polyline.
         /// </summary>
         /// <category>Overrules</category>
         [CommandMethod("TOGGLEPOLYDIR")]
-        public static void togglepolydiroverrule()
-        {
-            if (_polylineDirection == null)
-            {
-                _polylineDirection = new PolylineDirection();
-                Overrule.AddOverrule(RXObject.GetClass(typeof(Polyline)), _polylineDirection, false);
-                Overrule.Overruling = true;
-            }
-            else
-            {
-                Overrule.RemoveOverrule(RXObject.GetClass(typeof(Polyline)), _polylineDirection);
-                _polylineDirection.Dispose();
-                _polylineDirection = null;
-            }
-            Application.DocumentManager.MdiActiveDocument.Editor.Regen();
-        }
+        public static void togglepolydiroverrule() => Toggle<PolylineDirection>();
 
-        private static PolylineDirFjv _polylineDirFjv;
         /// <command>TOGGLEFJVDIR</command>
         /// <summary>
         /// This applies only to polylines that resides in layers that correspond to pipe systems.
@@ -88,49 +65,19 @@ namespace AcadOverrules
         /// </summary>
         /// <category>Overrules</category>
         [CommandMethod("TOGGLEFJVDIR")]
-        public static void togglefjvdiroverrule()
-        {
-            if (_polylineDirFjv == null)
-            {
-                _polylineDirFjv = new PolylineDirFjv();
-                Overrule.AddOverrule(RXObject.GetClass(typeof(Polyline)), _polylineDirFjv, false);
-                Overrule.Overruling = true;
-            }
-            else
-            {
-                Overrule.RemoveOverrule(RXObject.GetClass(typeof(Polyline)), _polylineDirFjv);
-                _polylineDirFjv.Dispose();
-                _polylineDirFjv = null;
-            }
-            Application.DocumentManager.MdiActiveDocument.Editor.Regen();
-        }
+        public static void togglefjvdiroverrule() => Toggle<PolylineDirFjv>();
 
-        private static PolylineArcHighlight _polylineArcHighlight;
-        /// <command>TOGGLEARCHIGHLIGHT</command>
+        /// <command>TOGGLEPOLYARCS</command>
         /// <summary>
         /// Highlights arc segments of polylines with cyan color overlay.
-        /// Straight segments are not affected.
+        /// Straight segments are not affected. Flags non-tangent arc junctions
+        /// with an orange warning sign and labels non-collinear line-line
+        /// junctions with the deviation angle.
         /// </summary>
         /// <category>Overrules</category>
         [CommandMethod("TOGGLEPOLYARCS")]
-        public static void togglepolyarcs()
-        {
-            if (_polylineArcHighlight == null)
-            {
-                _polylineArcHighlight = new PolylineArcHighlight();
-                Overrule.AddOverrule(RXObject.GetClass(typeof(Polyline)), _polylineArcHighlight, false);
-                Overrule.Overruling = true;
-            }
-            else
-            {
-                Overrule.RemoveOverrule(RXObject.GetClass(typeof(Polyline)), _polylineArcHighlight);
-                _polylineArcHighlight.Dispose();
-                _polylineArcHighlight = null;
-            }
-            Application.DocumentManager.MdiActiveDocument.Editor.Regen();
-        }
+        public static void togglepolyarcs() => Toggle<PolylineArcHighlight>();
 
-        private static DraftPolylineVerticeMark _draftPolylineVerticeMark;
         /// <command>TOGGLEDRAFTVERTICES</command>
         /// <summary>
         /// Draws small circles at each vertex of polylines on layer '0-FJV-PROFILE-DRAFT'
@@ -138,64 +85,67 @@ namespace AcadOverrules
         /// </summary>
         /// <category>Overrules</category>
         [CommandMethod("TOGGLEDRAFTVERTICES")]
-        public static void toggledraftvertices()
-        {
-            if (_draftPolylineVerticeMark == null)
-            {
-                _draftPolylineVerticeMark = new DraftPolylineVerticeMark();
-                Overrule.AddOverrule(RXObject.GetClass(typeof(Polyline)), _draftPolylineVerticeMark, false);
-                Overrule.Overruling = true;
-            }
-            else
-            {
-                Overrule.RemoveOverrule(RXObject.GetClass(typeof(Polyline)), _draftPolylineVerticeMark);
-                _draftPolylineVerticeMark.Dispose();
-                _draftPolylineVerticeMark = null;
-            }
-            Application.DocumentManager.MdiActiveDocument.Editor.Regen();
-        }
-#if DEBUG
-        private static GripVectorOverrule _gripVectorOverrule;
+        public static void toggledraftvertices() => Toggle<DraftPolylineVerticeMark>();
 
+#if DEBUG
         [CommandMethod("TOGGLEGRIPOR")]
-        public static void togglegripoverrule()
-        {
-            if (_gripVectorOverrule == null)
-            {
-                _gripVectorOverrule = new GripVectorOverrule();
-                Overrule.AddOverrule(RXObject.GetClass(typeof(Polyline)), _gripVectorOverrule, false);
-                Overrule.Overruling = true;
-            }
-            else
-            {
-                Overrule.RemoveOverrule(RXObject.GetClass(typeof(Polyline)), _gripVectorOverrule);
-                _gripVectorOverrule.Dispose();
-                _gripVectorOverrule = null;
-            }
-            Application.DocumentManager.MdiActiveDocument.Editor.Regen();
-        }
-#endif
-
-#if DEBUG
-        private static ViewFrameCentreGripOverrule _viewFrameCentreGripOverrule;
+        public static void togglegripoverrule() => Toggle<GripVectorOverrule>();
 
         [CommandMethod("TOGGLEVIEWFRAMESOVERRULE")]
-        public static void toggleviewframeoverrule()
-        {
-            if (_viewFrameCentreGripOverrule == null)
-            {
-                _viewFrameCentreGripOverrule = new ViewFrameCentreGripOverrule();
-                Overrule.AddOverrule(RXObject.GetClass(typeof(Polyline)), _viewFrameCentreGripOverrule, false);
-                Overrule.Overruling = true;
-            }
-            else
-            {
-                Overrule.RemoveOverrule(RXObject.GetClass(typeof(Polyline)), _viewFrameCentreGripOverrule);
-                _viewFrameCentreGripOverrule.Dispose();
-                _viewFrameCentreGripOverrule = null;
-            }
-        }
+        public static void toggleviewframeoverrule() => Toggle<ViewFrameCentreGripOverrule>();
 #endif
+    }
+
+    /// <summary>
+    /// Tracks the overrules this module has enabled so they can all be removed and
+    /// disposed on <see cref="Commands.Terminate"/>. One entry per overrule type:
+    /// toggling on registers it, toggling off removes and disposes it.
+    /// </summary>
+    internal static class OverruleRegistry
+    {
+        private static readonly Dictionary<Type, (RXClass TargetClass, Overrule Instance)> _active =
+            new Dictionary<Type, (RXClass, Overrule)>();
+
+        /// <summary>
+        /// Enables <typeparamref name="T"/> against <paramref name="targetType"/> if it is
+        /// not already active, otherwise disables and disposes the active instance.
+        /// </summary>
+        public static void Toggle<T>(Type targetType) where T : Overrule, new()
+        {
+            if (_active.TryGetValue(typeof(T), out var entry))
+            {
+                Overrule.RemoveOverrule(entry.TargetClass, entry.Instance);
+                entry.Instance.Dispose();
+                _active.Remove(typeof(T));
+                return;
+            }
+
+            RXClass targetClass = RXObject.GetClass(targetType);
+            T overrule = new T();
+            Overrule.AddOverrule(targetClass, overrule, false);
+            Overrule.Overruling = true;
+            _active[typeof(T)] = (targetClass, overrule);
+        }
+
+        /// <summary>
+        /// Removes and disposes every active overrule. Safe to call when none are active.
+        /// </summary>
+        public static void DisableAll()
+        {
+            foreach (var entry in _active.Values)
+            {
+                try
+                {
+                    Overrule.RemoveOverrule(entry.TargetClass, entry.Instance);
+                    entry.Instance.Dispose();
+                }
+                catch
+                {
+                    // Best-effort teardown on unload; keep going for the rest.
+                }
+            }
+            _active.Clear();
+        }
     }
 
     public class NoCommands { }
