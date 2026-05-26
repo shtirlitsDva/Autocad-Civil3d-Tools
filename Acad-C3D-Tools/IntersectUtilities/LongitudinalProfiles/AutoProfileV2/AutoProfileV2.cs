@@ -31,11 +31,6 @@ namespace IntersectUtilities
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
 
-            string[] kwds = ["native", "python"];
-            string kwd = StringGridFormCaller.Call(kwds, "Select what engine to use:");
-
-            if (kwd.IsNoE()) return;
-
             string devLyr = "AutoProfileTest";
             localDb.CheckOrCreateLayer(devLyr, 1, false);
 
@@ -62,14 +57,14 @@ namespace IntersectUtilities
                 var pipelines = AutoProfileV2PipelineCollector.Collect(
                     localDb, tx, fjvDb, fjvTx, psm, pshFjv, dcd, prdDbg);
 
-                using var solverClient = new AutoProfileV2SolverClient(prdDbg);
+                var solverClient = new AutoProfileV2SolverClient(prdDbg);
 
                 foreach (var pipeline in pipelines.OrderBy(x => x.Name))
                 {
                     prdDbg($"Solving {pipeline.Name} with pipe solver service");
                     System.Windows.Forms.Application.DoEvents();
 
-                    var profilePolyline = solverClient.SolveProfilePolyline(pipeline, kwd);
+                    var profilePolyline = solverClient.SolveProfilePolyline(pipeline);
                     profilePolyline.Color = ColorByName("red");
                     profilePolyline.ConstantWidth = 0.07;
                     profilePolyline.Layer = apLayer;
