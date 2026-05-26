@@ -38,7 +38,7 @@ internal static class PipePlanRadiusStore
             double raw = PipeScheduleV2.PipeScheduleV2
                 .GetPipeMinElasticRadiusHorizontalCharacteristic(system, dn, type, considerInSituBending: false);
             if (raw <= 0.0) return 0.0;
-            return system == PipeSystemEnum.Stål ? Math.Round(raw) : raw;
+            return Math.Ceiling(Math.Round(raw) * 1.2);
         }
         catch
         {
