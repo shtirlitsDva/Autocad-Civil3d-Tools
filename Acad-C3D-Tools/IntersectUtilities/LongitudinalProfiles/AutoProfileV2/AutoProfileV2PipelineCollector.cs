@@ -85,6 +85,7 @@ namespace IntersectUtilities
                 .ToDictionary(x => x.RealName().Replace("_PV", ""), x => x);
 
             var selectedAlignments = SelectAlignments(alignments);
+            //var selectedAlignments = alignments.OrderBy(x => x.Name).Take(1);
             var pipelines = new HashSet<AP2_PipelineData>();
 
             foreach (var alignment in selectedAlignments.OrderBy(x => x.Name))

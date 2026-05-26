@@ -33,16 +33,19 @@ namespace AcadOverrules
         // between them is at or below this value (radians).
         private const double TangencyToleranceRad = 1e-6;
 
-        // Half-width of the warning triangle, in drawing units. Scales with the
-        // polyline width but never drops below this floor so it stays visible.
+        // Overall scale knob for the warning sign and the angle label.
+        private const double SymbolScale = 0.25;
+
+        // Half-width of the warning triangle before SymbolScale, in drawing units.
+        // Scales with the polyline width but never drops below this floor.
         private const double WarningMinHalfWidth = 1.0;
 
         // Text height of the angle readout.
-        private const double LabelHeight = 1.0;
+        private const double LabelHeight = 1.0 * SymbolScale;
 
-        private static readonly EntityColor WarningFill = new EntityColor((byte)255, (byte)128, (byte)0);
-        private static readonly EntityColor WarningOutline = new EntityColor((byte)0, (byte)0, (byte)0);
-        private static readonly EntityColor MarkColor = new EntityColor((byte)0, (byte)0, (byte)0);
+        // The warning glyph is drawn in orange. The triangle body is left
+        // unfilled (transparent) so it does not obscure the geometry underneath.
+        private static readonly EntityColor WarningColor = new EntityColor((byte)255, (byte)128, (byte)0);
 
         private static readonly Autodesk.AutoCAD.GraphicsInterface.TextStyle AngleTextStyle =
             new Autodesk.AutoCAD.GraphicsInterface.TextStyle(
@@ -118,7 +121,7 @@ namespace AcadOverrules
 
                 double width = pline.ConstantWidthSafe();
                 if (width <= 0.0) width = 0.25;
-                double signSize = Math.Max(width * 4.0, WarningMinHalfWidth);
+                double signSize = Math.Max(width * 4.0, WarningMinHalfWidth) * SymbolScale;
 
                 for (int j = 0; j < junctionCount; j++)
                 {
@@ -145,7 +148,7 @@ namespace AcadOverrules
                     if (arcInvolved)
                         DrawWarningSign(wd, vertPos, signSize);
                     else
-                        DrawAngleLabel(wd, vertPos, deviationRad.ToDeg(), incoming);
+                        DrawAngleLabel(wd, vertPos, incoming, outgoing);
                 }
             }
             catch
@@ -200,23 +203,24 @@ namespace AcadOverrules
         }
 
         /// <summary>
-        /// Orange warning triangle with a black exclamation mark, anchored at
-        /// <paramref name="pos"/>. <paramref name="size"/> is the triangle's base
-        /// half-width.
+        /// Orange warning triangle (unfilled / transparent body) with a solid
+        /// orange exclamation mark, anchored at <paramref name="pos"/>.
+        /// <paramref name="size"/> is the triangle's base half-width.
         /// </summary>
         private static void DrawWarningSign(
             Autodesk.AutoCAD.GraphicsInterface.WorldDraw wd, Point3d pos, double size)
         {
             // Upward-pointing triangle (offsets around the anchor point).
+            // Outline only - the fill is fully transparent (alpha 0).
             Point3dCollection triangle = new Point3dCollection
             {
                 new Point3d(0.0,         1.4 * size, 0.0),
                 new Point3d(-1.0 * size, -0.6 * size, 0.0),
                 new Point3d( 1.0 * size, -0.6 * size, 0.0),
             };
-            DrawFilledPolygon(wd, pos, triangle, WarningFill, WarningOutline);
+            DrawFilledPolygon(wd, pos, triangle, WarningColor, WarningColor, fillAlpha: 0);
 
-            // Exclamation mark: a vertical bar above a dot.
+            // Exclamation mark: a vertical bar above a dot, drawn solid.
             double bw = 0.13 * size;
 
             Point3dCollection bar = new Point3dCollection
@@ -226,7 +230,7 @@ namespace AcadOverrules
                 new Point3d( bw, 0.8 * size, 0.0),
                 new Point3d(-bw, 0.8 * size, 0.0),
             };
-            DrawFilledPolygon(wd, pos, bar, MarkColor, MarkColor);
+            DrawFilledPolygon(wd, pos, bar, WarningColor, WarningColor, fillAlpha: 255);
 
             Point3dCollection dot = new Point3dCollection
             {
@@ -235,19 +239,21 @@ namespace AcadOverrules
                 new Point3d( bw, -0.20 * size, 0.0),
                 new Point3d(-bw, -0.20 * size, 0.0),
             };
-            DrawFilledPolygon(wd, pos, dot, MarkColor, MarkColor);
+            DrawFilledPolygon(wd, pos, dot, WarningColor, WarningColor, fillAlpha: 255);
         }
 
         /// <summary>
-        /// Draws a single filled polygon whose points are offsets around
-        /// <paramref name="position"/>.
+        /// Draws a single polygon whose points are offsets around
+        /// <paramref name="position"/>. <paramref name="fillAlpha"/> is the fill
+        /// opacity (0 = transparent / outline only, 255 = opaque).
         /// </summary>
         private static void DrawFilledPolygon(
             Autodesk.AutoCAD.GraphicsInterface.WorldDraw wd,
             Point3d position,
             Point3dCollection points,
             EntityColor fill,
-            EntityColor outline)
+            EntityColor outline,
+            byte fillAlpha)
         {
             UInt32Collection numPolygonPositions = new UInt32Collection(1) { 1 };
             Point3dCollection polygonPositions = new Point3dCollection { position };
@@ -260,7 +266,7 @@ namespace AcadOverrules
                 };
             EntityColorCollection fillColors = new EntityColorCollection(1) { fill };
             TransparencyCollection fillOpacities =
-                new TransparencyCollection(1) { new Transparency((byte)255) };
+                new TransparencyCollection(1) { new Transparency(fillAlpha) };
 
             wd.Geometry.PolyPolygon(
                 numPolygonPositions, polygonPositions, numPolygonPoints,
@@ -268,25 +274,44 @@ namespace AcadOverrules
         }
 
         /// <summary>
-        /// Horizontal text showing the junction deviation angle, e.g. "1.2345°",
-        /// offset clear of the polyline.
+        /// Text showing the corner's deviation from straight (180°) — the smaller
+        /// value, e.g. a 178°/182° corner reads "2.0000°". The text is centred on
+        /// the outward bisector and aligned to it, pushed out far enough that it
+        /// never touches or crosses the polyline.
         /// </summary>
         private static void DrawAngleLabel(
             Autodesk.AutoCAD.GraphicsInterface.WorldDraw wd,
-            Point3d vertPos, double angleDeg, Vector3d incoming)
+            Point3d vertPos, Vector3d incoming, Vector3d outgoing)
         {
-            string label = $"{angleDeg.ToString("0.0000")}°";
+            double deviationDeg = incoming.GetAngleTo(outgoing).ToDeg();
+            string label = $"{deviationDeg.ToString("0.0000")}°";
 
-            Vector3d perp = incoming.GetPerpendicularVector().GetNormal();
+            // Outward bisector: the direction in which the corner opens widest.
+            // The rays from the vertex are -incoming and outgoing; their inner
+            // bisector negated is (incoming - outgoing), which points outward.
+            Vector3d bisector = incoming - outgoing;
+            if (bisector.Length < 1e-9)
+                bisector = incoming.GetPerpendicularVector();
+            bisector = bisector.GetNormal();
+
+            // Read along the bisector line; pick the left-to-right orientation.
+            Vector3d dir = bisector;
+            if (dir.X < 0.0 || (dir.X == 0.0 && dir.Y < 0.0)) dir = -dir;
+            Vector3d up = Vector3d.ZAxis.CrossProduct(dir).GetNormal();
+
             var extents = AngleTextStyle.ExtentsBox(label, true, false, null);
+            double cx = (extents.MinPoint.X + extents.MaxPoint.X) / 2.0;
+            double cy = (extents.MinPoint.Y + extents.MaxPoint.Y) / 2.0;
+            double halfWidth = (extents.MaxPoint.X - extents.MinPoint.X) / 2.0;
 
-            Point3d basePos =
-                vertPos
-                + perp * (LabelHeight * 1.5)
-                - Vector3d.XAxis * (extents.MaxPoint.X / 2.0);
+            // The text reads along the bisector, so its width reaches back toward
+            // the vertex. Place the centre out by halfWidth + one text height so the
+            // near edge keeps a full text-height gap from the line.
+            Point3d center = vertPos + bisector * (halfWidth + LabelHeight);
+            Point3d position = center - dir * cx - up * cy;
 
             wd.SubEntityTraits.Color = AngleLabelColor;
-            wd.Geometry.Text(basePos, Vector3d.ZAxis, Vector3d.XAxis, label, true, AngleTextStyle);
+            wd.Geometry.Text(position, Vector3d.ZAxis, dir, label, true, AngleTextStyle);
         }
     }
 }
