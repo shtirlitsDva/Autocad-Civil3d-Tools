@@ -57,12 +57,22 @@ namespace IntersectUtilities
                 var pipelines = AutoProfileV2PipelineCollector.Collect(
                     localDb, tx, fjvDb, fjvTx, psm, pshFjv, dcd, prdDbg);
 
-                var solverClient = new AutoProfileV2SolverClient(prdDbg);
+                var solverClient = new AutoProfileV2NativeSolver(prdDbg);
 
                 foreach (var pipeline in pipelines.OrderBy(x => x.Name))
                 {
                     prdDbg($"Solving {pipeline.Name} with pipe solver service");
                     System.Windows.Forms.Application.DoEvents();
+
+#if DEBUG
+                    foreach (var util in pipeline.Utility)
+                    {
+                        var hatch = util.GetUtilityHatch(pipeline.ProfileView.ProfileView);
+                        hatch.Layer = devLyr;
+                        hatch.Color = ColorByName("yellow");
+                        hatch.AddEntityToDbModelSpace(localDb);
+                    }
+#endif
 
                     var profilePolyline = solverClient.SolveProfilePolyline(pipeline);
                     profilePolyline.Color = ColorByName("red");

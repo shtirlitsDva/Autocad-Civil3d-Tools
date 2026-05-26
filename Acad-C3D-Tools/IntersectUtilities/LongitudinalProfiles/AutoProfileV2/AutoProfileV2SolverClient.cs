@@ -8,10 +8,12 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 namespace IntersectUtilities
 {
@@ -34,7 +36,20 @@ namespace IntersectUtilities
             @"H:\GitHub\DamgaardRI\AutoProfileSolver\v2\Code";
 
         private const string CaseSchema = "Norsyn.seam.case.v1";
+        private const string ResultSchema = "Norsyn.seam.result.v1";
+
+        // Solver backend passed to the v2 CLI. "alignment" = the constrained
+        // LP + structural-G1 polyarc backend: full-coverage chain, R_min-safe,
+        // C1 <= 0.2 deg, straight stretches emitted as lines (no near-straight
+        // arcs). "arcfit" = the legacy seam-coupled solver. Flip here to compare.
+        private const string SolverBackend = "alignment";
         private static readonly TimeSpan SolveTimeout = TimeSpan.FromMinutes(10);
+
+        // Temporary diagnostics gate: while the contractor is fixing output bugs,
+        // every solve dumps a self-contained repro package (input + raw output +
+        // run metadata) to %APPDATA%\AutoProfileV2\diagnostics. Flip to false to
+        // stop emitting; the const makes it a one-line, zero-cost-when-off switch.
+        private const bool EmitDiagnosticPackage = true;
 
         private static readonly JsonSerializerOptions CaseJsonOptions = new()
         {
@@ -131,10 +146,11 @@ namespace IntersectUtilities
             string workingDir = ResolveSolverDir();
 
             string safeName = Regex.Replace(pipelineName, "[^A-Za-z0-9_\\-]+", "_");
+            string runStamp = DateTime.UtcNow.ToString("yyyyMMddHHmmssfff");
             string runDir = Path.Combine(
                 Path.GetTempPath(),
                 "AutoProfileV2",
-                $"{safeName}_{DateTime.UtcNow:yyyyMMddHHmmssfff}");
+                $"{safeName}_{runStamp}");
             Directory.CreateDirectory(runDir);
 
             string inputPath = Path.Combine(runDir, "case.json");
@@ -154,6 +170,8 @@ namespace IntersectUtilities
             startInfo.ArgumentList.Add("-m");
             startInfo.ArgumentList.Add("lib.api.seam_demo_cli");
             startInfo.ArgumentList.Add("solve");
+            startInfo.ArgumentList.Add("--backend");
+            startInfo.ArgumentList.Add(SolverBackend);
             startInfo.ArgumentList.Add("--input");
             startInfo.ArgumentList.Add(inputPath);
             startInfo.ArgumentList.Add("--output");
@@ -164,51 +182,132 @@ namespace IntersectUtilities
             startInfo.Environment["PYTHONUTF8"] = "1";
             startInfo.Environment["PYTHONIOENCODING"] = "utf-8";
 
-            _log($"Solving {pipelineName}: \"{pythonExe}\" -m lib.api.seam_demo_cli solve (cwd: {workingDir})");
+            _log($"Solving {pipelineName}: \"{pythonExe}\" -m lib.api.seam_demo_cli solve --backend {SolverBackend} (cwd: {workingDir})");
 
-            using var process = Process.Start(startInfo)
-                ?? throw new System.Exception($"Failed to start pipe solver process: {pythonExe}");
+            // Run details captured for the diagnostic package. The package is
+            // emitted in the finally below so the contractor gets a repro even
+            // when the solve times out, errors, or returns garbage.
+            string stdout = string.Empty;
+            string stderr = string.Empty;
+            int exitCode = -1;
+            bool timedOut = false;
+            DateTime startUtc = DateTime.UtcNow;
 
-            var stdoutTask = process.StandardOutput.ReadToEndAsync();
-            var stderrTask = process.StandardError.ReadToEndAsync();
-
-            DateTime deadline = DateTime.UtcNow + SolveTimeout;
-            while (!process.WaitForExit(200))
+            try
             {
-                System.Windows.Forms.Application.DoEvents();
-                if (DateTime.UtcNow > deadline)
+                using var process = Process.Start(startInfo)
+                    ?? throw new System.Exception($"Failed to start pipe solver process: {pythonExe}");
+
+                var stdoutTask = process.StandardOutput.ReadToEndAsync();
+                var stderrTask = process.StandardError.ReadToEndAsync();
+
+                DateTime deadline = startUtc + SolveTimeout;
+                while (!process.WaitForExit(200))
                 {
-                    try { process.Kill(entireProcessTree: true); } catch { /* best effort */ }
+                    System.Windows.Forms.Application.DoEvents();
+                    if (DateTime.UtcNow > deadline)
+                    {
+                        timedOut = true;
+                        try { process.Kill(entireProcessTree: true); } catch { /* best effort */ }
+                        break;
+                    }
+                }
+                process.WaitForExit(); // ensure the async stream reads complete
+
+                stdout = SafeStreamResult(stdoutTask);
+                stderr = SafeStreamResult(stderrTask);
+                exitCode = process.ExitCode;
+
+                if (timedOut)
+                {
                     throw new TimeoutException(
                         $"Pipe solver timed out for {pipelineName} after {SolveTimeout.TotalMinutes:0} minutes.");
                 }
+
+                // Exit code 2 == hard CLI error (bad input, exception). Exit code 1 ==
+                // solver ran but reported a non-success status; the result file is
+                // still written and may carry a usable chain.
+                if (exitCode == 2)
+                {
+                    throw new System.Exception(
+                        $"Pipe solver failed for {pipelineName}: {(string.IsNullOrWhiteSpace(stderr) ? "unknown error" : stderr.Trim())}");
+                }
+
+                if (!File.Exists(outputPath))
+                {
+                    throw new System.Exception(
+                        $"Pipe solver produced no result file for {pipelineName} (exit {exitCode}). " +
+                        $"{(string.IsNullOrWhiteSpace(stderr) ? string.Empty : stderr.Trim())}");
+                }
+
+                string resultJson = File.ReadAllText(outputPath);
+                var result = JsonSerializer.Deserialize<SeamSolveResult>(resultJson, ResultJsonOptions)
+                    ?? throw new System.Exception($"Pipe solver returned an unreadable result for {pipelineName}.");
+
+                return result;
             }
-            process.WaitForExit(); // ensure the async stream reads complete
-
-            string stderr = stderrTask.GetAwaiter().GetResult();
-            _ = stdoutTask.GetAwaiter().GetResult();
-
-            // Exit code 2 == hard CLI error (bad input, exception). Exit code 1 ==
-            // solver ran but reported a non-success status; the result file is
-            // still written and may carry a usable chain.
-            if (process.ExitCode == 2)
+            finally
             {
-                throw new System.Exception(
-                    $"Pipe solver failed for {pipelineName}: {(string.IsNullOrWhiteSpace(stderr) ? "unknown error" : stderr.Trim())}");
+                if (EmitDiagnosticPackage)
+                {
+                    TryWriteDiagnosticPackage(runDir, $"{safeName}_{runStamp}", new SolveRunMeta
+                    {
+                        PipelineName = pipelineName,
+                        TimestampUtc = startUtc.ToString("o"),
+                        CaseSchema = CaseSchema,
+                        ResultSchema = ResultSchema,
+                        PythonExe = pythonExe,
+                        WorkingDir = workingDir,
+                        CommandLine = $"\"{pythonExe}\" {string.Join(" ", startInfo.ArgumentList)}",
+                        Arguments = startInfo.ArgumentList.ToArray(),
+                        ExitCode = exitCode,
+                        TimedOut = timedOut,
+                        DurationSeconds = (DateTime.UtcNow - startUtc).TotalSeconds,
+                        ResultFilePresent = File.Exists(outputPath),
+                        Stdout = stdout,
+                        Stderr = stderr,
+                    });
+                }
             }
+        }
 
-            if (!File.Exists(outputPath))
+        private static string SafeStreamResult(Task<string> readTask)
+        {
+            try { return readTask.GetAwaiter().GetResult() ?? string.Empty; }
+            catch { return string.Empty; }
+        }
+
+        /// <summary>
+        /// Bundles the exact solver input, raw output, and run metadata into a
+        /// single zip under %APPDATA%\AutoProfileV2\diagnostics, ready to hand to
+        /// the solver contractor. The run directory already holds case.json and
+        /// (when the solve produced one) result.json; we add meta.json and zip.
+        /// Failures here are swallowed — diagnostics must never break a solve.
+        /// </summary>
+        private void TryWriteDiagnosticPackage(string runDir, string packageName, SolveRunMeta meta)
+        {
+            try
             {
-                throw new System.Exception(
-                    $"Pipe solver produced no result file for {pipelineName} (exit {process.ExitCode}). " +
-                    $"{(string.IsNullOrWhiteSpace(stderr) ? string.Empty : stderr.Trim())}");
+                File.WriteAllText(
+                    Path.Combine(runDir, "meta.json"),
+                    JsonSerializer.Serialize(meta, CaseJsonOptions));
+
+                string diagnosticsRoot = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    "AutoProfileV2",
+                    "diagnostics");
+                Directory.CreateDirectory(diagnosticsRoot);
+
+                string zipPath = Path.Combine(diagnosticsRoot, $"{packageName}.zip");
+                if (File.Exists(zipPath)) File.Delete(zipPath);
+                ZipFile.CreateFromDirectory(runDir, zipPath, CompressionLevel.Optimal, includeBaseDirectory: false);
+
+                _log($"Diagnostic package written for {meta.PipelineName}: {zipPath}");
             }
-
-            string resultJson = File.ReadAllText(outputPath);
-            var result = JsonSerializer.Deserialize<SeamSolveResult>(resultJson, ResultJsonOptions)
-                ?? throw new System.Exception($"Pipe solver returned an unreadable result for {pipelineName}.");
-
-            return result;
+            catch (System.Exception ex)
+            {
+                _log($"Failed to write diagnostic package for {meta.PipelineName}: {ex.Message}");
+            }
         }
 
         private string ResolveSolverPython()
@@ -385,6 +484,27 @@ namespace IntersectUtilities
         {
             public double Station { get; set; }
             public double Elevation { get; set; }
+        }
+
+        // ── Diagnostic package metadata: Norsyn.seam.diagnostic.v1 ───────────
+
+        private sealed class SolveRunMeta
+        {
+            [JsonPropertyName("package_schema")] public string PackageSchema { get; set; } = "Norsyn.seam.diagnostic.v1";
+            [JsonPropertyName("pipeline_name")] public string PipelineName { get; set; } = string.Empty;
+            [JsonPropertyName("timestamp_utc")] public string TimestampUtc { get; set; } = string.Empty;
+            [JsonPropertyName("case_schema")] public string CaseSchema { get; set; } = string.Empty;
+            [JsonPropertyName("result_schema")] public string ResultSchema { get; set; } = string.Empty;
+            [JsonPropertyName("python_exe")] public string PythonExe { get; set; } = string.Empty;
+            [JsonPropertyName("working_dir")] public string WorkingDir { get; set; } = string.Empty;
+            [JsonPropertyName("command_line")] public string CommandLine { get; set; } = string.Empty;
+            [JsonPropertyName("arguments")] public string[] Arguments { get; set; } = [];
+            [JsonPropertyName("exit_code")] public int ExitCode { get; set; }
+            [JsonPropertyName("timed_out")] public bool TimedOut { get; set; }
+            [JsonPropertyName("duration_seconds")] public double DurationSeconds { get; set; }
+            [JsonPropertyName("result_file_present")] public bool ResultFilePresent { get; set; }
+            [JsonPropertyName("stdout")] public string Stdout { get; set; } = string.Empty;
+            [JsonPropertyName("stderr")] public string Stderr { get; set; } = string.Empty;
         }
     }
 }
