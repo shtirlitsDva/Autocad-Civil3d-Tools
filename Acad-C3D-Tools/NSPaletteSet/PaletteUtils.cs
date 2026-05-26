@@ -160,7 +160,6 @@ namespace NSPaletteSet
         }
         public static void labelpipe()
         {
-
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
             Editor ed = docCol.MdiActiveDocument.Editor;
@@ -169,25 +168,23 @@ namespace NSPaletteSet
             using (DocumentLock docLock = doc.LockDocument())
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
+                MText? label = null;
                 try
                 {
-                    PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
+                    PromptEntityOptions peo = new PromptEntityOptions(
                         "\nSelect pipe (polyline) to label: ");
-                    promptEntityOptions1.SetRejectMessage("\nNot a polyline!");
-                    promptEntityOptions1.AddAllowedClass(typeof(Polyline), false);
-                    PromptEntityResult entity1 = ed.GetEntity(promptEntityOptions1);
-                    if (((PromptResult)entity1).Status != PromptStatus.OK) { tx.Abort(); return; }
-                    Oid plineId = entity1.ObjectId;
-                    Entity ent = plineId.Go<Entity>(tx);
+                    peo.SetRejectMessage("\nNot a polyline!");
+                    peo.AddAllowedClass(typeof(Polyline), false);
+                    PromptEntityResult per = ed.GetEntity(peo);
+                    if (per.Status != PromptStatus.OK) { tx.Abort(); return; }
 
-                    string labelText = GetLabel(ent);
+                    Polyline pline = per.ObjectId.Go<Polyline>(tx);
 
-                    PromptPointOptions pPtOpts = new PromptPointOptions("\nChoose location of label: ");
-                    PromptPointResult pPtRes = ed.GetPoint(pPtOpts);
-                    Point3d selectedPoint = pPtRes.Value;
-                    if (pPtRes.Status != PromptStatus.OK) { tx.Abort(); return; }
+                    string labelText = GetLabel(pline);
+                    if (string.IsNullOrEmpty(labelText)) { tx.Abort(); return; }
 
-                    //Create new text
+                    // FJV-DIM layer must exist before the jig starts, because the
+                    // MText sets its Layer property during preview rendering.
                     string layerName = "FJV-DIM";
                     LayerTable lt = tx.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
                     if (!lt.Has(layerName))
@@ -201,10 +198,9 @@ namespace NSPaletteSet
                         tx.AddNewlyCreatedDBObject(ltr, true);
                     }
 
-                    MText label = new MText();
+                    label = new MText();
                     label.SetDatabaseDefaults();
                     label.Attachment = AttachmentPoint.MiddleCenter;
-                    label.Location = new Point3d(selectedPoint.X, selectedPoint.Y, 0);
                     label.TextHeight = 0.8;
                     label.Contents = labelText;
                     label.Layer = layerName;
@@ -212,52 +208,98 @@ namespace NSPaletteSet
                     label.UseBackgroundColor = true;
                     label.BackgroundScaleFactor = 1.2;
 
-                    //Find rotation
-                    Polyline pline = (Polyline)ent;
-                    Point3d closestPoint = pline.GetClosestPointTo(selectedPoint, true);
-                    Vector3d derivative = pline.GetFirstDerivative(closestPoint);
-                    double rotation = Math.Atan2(derivative.Y, derivative.X);
-                    label.Rotation = rotation;
+                    LabelJig jig = new LabelJig(label, pline);
+
+                    PromptResult dragResult;
+                    while (true)
+                    {
+                        dragResult = ed.Drag(jig);
+                        if (dragResult.Status == PromptStatus.Keyword)
+                        {
+                            if (string.Equals(dragResult.StringResult, "Flip",
+                                    StringComparison.OrdinalIgnoreCase))
+                                jig.ToggleFlip();
+                            continue;
+                        }
+                        break;
+                    }
+
+                    if (dragResult.Status != PromptStatus.OK)
+                    {
+                        label.Dispose();
+                        label = null;
+                        tx.Abort();
+                        return;
+                    }
 
                     BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
                     BlockTableRecord modelSpace =
                         tx.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForWrite) as BlockTableRecord;
-
-                    Oid labelId = modelSpace.AppendEntity(label);
+                    modelSpace.AppendEntity(label);
                     tx.AddNewlyCreatedDBObject(label, true);
-                    label.Draw();
 
-                    System.Windows.Forms.Application.DoEvents();
-
-                    //Enable flipping of label
-                    const string kwd1 = "Yes";
-                    const string kwd2 = "No";
-                    PromptKeywordOptions pkos = new PromptKeywordOptions("\nFlip label? ");
-                    pkos.Keywords.Add(kwd1);
-                    pkos.Keywords.Add(kwd2);
-                    pkos.AllowNone = true;
-                    pkos.Keywords.Default = kwd2;
-                    PromptResult pkwdres = ed.GetKeywords(pkos);
-                    string result = pkwdres.StringResult;
-
-                    if (result == kwd1) label.Rotation += Math.PI;
-
-                    #region Attach id data
-                    PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriSourceReference);
+                    PropertySetManager psm = new PropertySetManager(
+                        localDb, PSetDefs.DefinedSets.DriSourceReference);
                     PSetDefs.DriSourceReference driSourceReference = new PSetDefs.DriSourceReference();
+                    psm.WritePropertyString(label, driSourceReference.SourceEntityHandle,
+                        pline.Handle.ToString());
 
-                    string handle = ent.Handle.ToString();
-                    psm.WritePropertyString(label, driSourceReference.SourceEntityHandle, handle);
-                    #endregion
+                    tx.Commit();
                 }
                 catch (System.Exception ex)
                 {
+                    label?.Dispose();
                     tx.Abort();
                     ed.WriteMessage("\n" + ex.ToString());
-                    return;
                 }
-                tx.Commit();
             }
+        }
+
+        private sealed class LabelJig : EntityJig
+        {
+            private readonly Polyline _pline;
+            private Point3d _cursor;
+            private double _flipOffset;
+
+            public LabelJig(MText label, Polyline pline) : base(label)
+            {
+                _pline = pline;
+                _cursor = pline.StartPoint;
+            }
+
+            protected override SamplerStatus Sampler(JigPrompts prompts)
+            {
+                JigPromptPointOptions opts = new JigPromptPointOptions(
+                    "\nChoose location of label [Flip]: ");
+                opts.Keywords.Add("Flip");
+                opts.UserInputControls = UserInputControls.AcceptOtherInputString;
+
+                PromptPointResult res = prompts.AcquirePoint(opts);
+
+                if (res.Status == PromptStatus.Keyword)
+                    return SamplerStatus.OK;
+
+                if (res.Status != PromptStatus.OK)
+                    return SamplerStatus.Cancel;
+
+                if (_cursor.IsEqualTo(res.Value, Tolerance.Global))
+                    return SamplerStatus.NoChange;
+
+                _cursor = res.Value;
+                return SamplerStatus.OK;
+            }
+
+            protected override bool Update()
+            {
+                MText lbl = (MText)Entity;
+                Point3d closest = _pline.GetClosestPointTo(_cursor, true);
+                Vector3d d = _pline.GetFirstDerivative(closest);
+                lbl.Location = new Point3d(_cursor.X, _cursor.Y, 0);
+                lbl.Rotation = Math.Atan2(d.Y, d.X) + _flipOffset;
+                return true;
+            }
+
+            public void ToggleFlip() => _flipOffset = (_flipOffset == 0.0) ? Math.PI : 0.0;
         }
     }
 }
