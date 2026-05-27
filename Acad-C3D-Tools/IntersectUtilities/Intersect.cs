@@ -5048,6 +5048,11 @@ namespace IntersectUtilities
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
 
+            // Remember the last zoom target so it can be re-applied after the transaction
+            // is aborted. The in-loop zooms run inside this transaction (nested) and would
+            // otherwise be rolled back, snapping the view back to where the command started.
+            Extents3d? finalView = null;
+
             using Transaction tx = localDb.TransactionManager.StartTransaction();
 
             try
@@ -5180,16 +5185,23 @@ namespace IntersectUtilities
                     double dx = e.MaxPoint.X - e.MinPoint.X;
                     double dy = e.MaxPoint.Y - e.MinPoint.Y;
                     double pad = Math.Max(Math.Max(dx, dy), 1.0) * factor;
-                    Interaction.ZoomView(new Extents3d(
+                    var view = new Extents3d(
                         new Point3d(e.MinPoint.X - pad, e.MinPoint.Y - pad, 0),
-                        new Point3d(e.MaxPoint.X + pad, e.MaxPoint.Y + pad, 0)));
+                        new Point3d(e.MaxPoint.X + pad, e.MaxPoint.Y + pad, 0));
+                    finalView = view;
+                    Interaction.ZoomView(view);
                 }
 
+                var doc = docCol.MdiActiveDocument;
                 var highlighted = new List<ObjectId>();
+                using var markers = new BendRadiusLabelMarkerManager();
                 try
                 {
                     while (true)
                     {
+                        // Drop any labels from the previously inspected polyline before re-prompting.
+                        markers.Clear();
+
                         var plOpts = new PromptKeywordOptions("\nVælg problematisk polylinje at inspicere:")
                         {
                             AllowNone = true
@@ -5213,10 +5225,19 @@ namespace IntersectUtilities
                         ed.SetImpliedSelection(highlighted.ToArray());
                         Interaction.HighlightObjects(highlighted);
 
+                        // Label positions: the centre of each bend's extents.
+                        var bendLabels = sel.Bends
+                            .Select((b, i) => ($"B{i + 1}", new Point3d(
+                                (b.ext.MinPoint.X + b.ext.MaxPoint.X) / 2.0,
+                                (b.ext.MinPoint.Y + b.ext.MaxPoint.Y) / 2.0,
+                                0.0)))
+                            .ToList();
+
                         // Zoom til hele polylinjen først, for kontekst.
                         prdDbg($"\nHandle {sel.Pl.Handle}: {sel.Bends.Count} problematisk(e) bøjning(er), " +
                                $"strammeste {sel.Bends.Min(b => b.radius):#.0} (tilladt {sel.Tr:#.0}).");
                         ZoomPadded(sel.Pl.GeometricExtents, 0.1);
+                        markers.Show(doc, bendLabels);
 
                         // Gennemgå de enkelte problematiske bøjninger.
                         bool exitCommand = false;
@@ -5248,6 +5269,7 @@ namespace IntersectUtilities
                             lastBend = $"B{bIdx + 1}";
                             prdDbg($"Bøjning B{bIdx + 1}: radius {sel.Bends[bIdx].radius:#.0} (tilladt {sel.Tr:#.0}).");
                             ZoomPadded(sel.Bends[bIdx].ext, 1.0);
+                            markers.Show(doc, bendLabels);
                         }
 
                         if (exitCommand)
@@ -5266,6 +5288,11 @@ namespace IntersectUtilities
                 return;
             }
             tx.Abort();
+
+            // Re-apply the last zoom now the transaction is closed, so it sticks instead
+            // of reverting to the view the command started from.
+            if (finalView.HasValue)
+                Interaction.ZoomView(finalView.Value);
         }
 
         /// <command>CENTERVIEWFRAMENUMBER</command>
