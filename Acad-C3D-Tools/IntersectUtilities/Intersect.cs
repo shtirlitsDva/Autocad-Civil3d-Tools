@@ -5036,6 +5036,9 @@ namespace IntersectUtilities
         /// Gennemgår alle 2D-polylinjer i tegningen, eksploderer dem midlertidigt for at finde bue-segmenter,
         /// beregner hver arcs radius og udskriver den mindste bue-radius pr. lag i kommandolinjen.
         /// Tegningen forbliver uændret, da eksploderingen kun foregår i hukommelsen.
+        /// Efter rapporten kan man via en dropdown vælge en problematisk polylinje (markeres som ved SBH),
+        /// hvorefter kommandoen zoomer ind på den for stramme bøjning; har polylinjen flere problematiske
+        /// bøjninger, vises en ekstra dropdown til at gennemgå dem enkeltvis.
         /// </summary>
         /// <category>Utilities</category>
 
@@ -5052,7 +5055,7 @@ namespace IntersectUtilities
                 //Get all polylines
                 var pls = localDb.GetFjvPipes(tx);
 
-                var arcsWithRadius = new List<(string layer, double radius, Polyline originalPl)>();
+                var arcsWithRadius = new List<(string layer, double radius, Polyline originalPl, Extents3d ext)>();
 
                 foreach (var p in pls)
                 {
@@ -5063,7 +5066,15 @@ namespace IntersectUtilities
                     {
                         if (obj is Arc arc)
                         {
-                            arcsWithRadius.Add((p.Layer, arc.Radius, p));
+                            // Capture the bend's extents now; the exploded Arc is transient and disposed below.
+                            Extents3d ext;
+                            try { ext = arc.GeometricExtents; }
+                            catch
+                            {
+                                var r = new Vector3d(arc.Radius, arc.Radius, 0);
+                                ext = new Extents3d(arc.Center - r, arc.Center + r);
+                            }
+                            arcsWithRadius.Add((p.Layer, arc.Radius, p, ext));
                         }
 
                         obj.Dispose();
@@ -5102,13 +5113,151 @@ namespace IntersectUtilities
                     };
                 });
 
-                prdDbg("Arc radius analysis:");
+                prdDbg("Analyse af bue-radier:");
                 prdDbg("FR = Faktisk min. radius");
                 prdDbg("TR = Tilladt min. radius");
 
-                string[] hdrs = ["Layer", "FR", "TR", "Status", "Handles"];
+                string[] hdrs = ["Lag", "FR", "TR", "Status", "Handles"];
 
                 PrintTable(hdrs, rows);
+
+                // ---- Interactive inspection of problematic bends ----
+                var ed = docCol.MdiActiveDocument.Editor;
+
+                // Allowed radius per layer, computed once and reused for the violation test.
+                var trByLayer = arcsWithRadius
+                    .Select(x => x.layer)
+                    .Distinct()
+                    .ToDictionary(
+                        l => l,
+                        l => GetPipeMinElasticRadiusHorizontalCharacteristic(
+                            GetPipeSystem(l), GetPipeDN(l), GetPipeType(l), false));
+
+                // One entry per polyline that has at least one too-tight bend, with the
+                // offending bends pre-sorted (tightest first) and their extents kept for zooming.
+                var problematic = arcsWithRadius
+                    .Where(x => x.radius < trByLayer[x.layer])
+                    .GroupBy(x => x.originalPl.Handle)
+                    .Select(g => new
+                    {
+                        Pl = g.First().originalPl,
+                        Layer = g.First().layer,
+                        Tr = trByLayer[g.First().layer],
+                        Bends = g.OrderBy(x => x.radius)
+                                 .Select(x => (x.radius, x.ext))
+                                 .ToList()
+                    })
+                    .OrderBy(x => GetPipeSystem(x.Layer))
+                    .ThenBy(x => GetPipeDN(x.Layer))
+                    .ToList();
+
+                if (problematic.Count == 0)
+                {
+                    prdDbg("\nIngen polylinjer overtræder den tilladte bøjningsradius — intet at inspicere.");
+                    tx.Abort();
+                    return;
+                }
+
+                // Legend with the per-polyline detail that won't fit in the dropdown's option labels.
+                string[] legendHdrs = ["Handle", "Lag", "Bøjninger", "MinR", "TilladtR"];
+                var legendRows = problematic.Select(p => new object[]
+                {
+                    p.Pl.Handle.ToString(),
+                    p.Layer,
+                    p.Bends.Count.ToString(),
+                    p.Bends.Min(b => b.radius).ToString("#.0"),
+                    p.Tr.ToString("#.0")
+                });
+                PrintTable(legendHdrs, legendRows);
+
+                // Map handle -> entry so the chosen keyword resolves back to its polyline.
+                var byHandle = problematic.ToDictionary(
+                    p => p.Pl.Handle.ToString(), StringComparer.OrdinalIgnoreCase);
+
+                // Zoom to an extent with padding (factor of the larger side) so it doesn't fill the viewport edge-to-edge.
+                void ZoomPadded(Extents3d e, double factor)
+                {
+                    double dx = e.MaxPoint.X - e.MinPoint.X;
+                    double dy = e.MaxPoint.Y - e.MinPoint.Y;
+                    double pad = Math.Max(Math.Max(dx, dy), 1.0) * factor;
+                    Interaction.ZoomView(new Extents3d(
+                        new Point3d(e.MinPoint.X - pad, e.MinPoint.Y - pad, 0),
+                        new Point3d(e.MaxPoint.X + pad, e.MaxPoint.Y + pad, 0)));
+                }
+
+                var highlighted = new List<ObjectId>();
+                try
+                {
+                    while (true)
+                    {
+                        var plOpts = new PromptKeywordOptions("\nVælg problematisk polylinje at inspicere:")
+                        {
+                            AllowNone = true
+                        };
+                        // Use the handle itself as the keyword so the user can type or click it.
+                        foreach (var p in problematic)
+                            plOpts.Keywords.Add(p.Pl.Handle.ToString());
+                        plOpts.Keywords.Add("Exit");
+                        plOpts.Keywords.Default = "Exit";
+
+                        var plRes = ed.GetKeywords(plOpts);
+                        if (plRes.Status != PromptStatus.OK || plRes.StringResult == "Exit")
+                            break;
+
+                        var sel = byHandle[plRes.StringResult];
+
+                        // Select + highlight the chosen polyline (mirrors the SBH workflow).
+                        // Guard: the shared helper throws on an empty collection.
+                        if (highlighted.Count > 0) Interaction.UnhighlightObjects(highlighted);
+                        highlighted = new List<ObjectId> { sel.Pl.ObjectId };
+                        ed.SetImpliedSelection(highlighted.ToArray());
+                        Interaction.HighlightObjects(highlighted);
+
+                        // Zoom til hele polylinjen først, for kontekst.
+                        prdDbg($"\nHandle {sel.Pl.Handle}: {sel.Bends.Count} problematisk(e) bøjning(er), " +
+                               $"strammeste {sel.Bends.Min(b => b.radius):#.0} (tilladt {sel.Tr:#.0}).");
+                        ZoomPadded(sel.Pl.GeometricExtents, 0.1);
+
+                        // Gennemgå de enkelte problematiske bøjninger.
+                        bool exitCommand = false;
+                        string lastBend = "B1";
+                        while (true)
+                        {
+                            var bOpts = new PromptKeywordOptions(
+                                $"\nVælg bøjning på {sel.Pl.Handle} at zoome til (Back = polylinjeliste, Exit = afslut):")
+                            {
+                                AllowNone = true
+                            };
+                            for (int j = 0; j < sel.Bends.Count; j++)
+                                bOpts.Keywords.Add($"B{j + 1}");
+                            bOpts.Keywords.Add("Back");
+                            bOpts.Keywords.Add("Exit");
+                            // Behold markeringen på den senest valgte bøjning i stedet for at hoppe til Back.
+                            bOpts.Keywords.Default = lastBend;
+
+                            var bRes = ed.GetKeywords(bOpts);
+                            if (bRes.Status != PromptStatus.OK || bRes.StringResult == "Back")
+                                break;
+                            if (bRes.StringResult == "Exit")
+                            {
+                                exitCommand = true;
+                                break;
+                            }
+
+                            int bIdx = int.Parse(bRes.StringResult.Substring(1)) - 1;
+                            lastBend = $"B{bIdx + 1}";
+                            prdDbg($"Bøjning B{bIdx + 1}: radius {sel.Bends[bIdx].radius:#.0} (tilladt {sel.Tr:#.0}).");
+                            ZoomPadded(sel.Bends[bIdx].ext, 1.0);
+                        }
+
+                        if (exitCommand)
+                            break;
+                    }
+                }
+                finally
+                {
+                    if (highlighted.Count > 0) Interaction.UnhighlightObjects(highlighted);
+                }
             }
             catch (System.Exception ex)
             {
