@@ -132,6 +132,15 @@ namespace IntersectUtilities
         private List<LERCompareTerrainSurfaceDescriptor> _surfaces = new List<LERCompareTerrainSurfaceDescriptor>();
         private string? _loadedSurfaceName;
         private LERCompareTerrainPreviewResult? _lastPreviewResult;
+        private readonly HashSet<LERCompareTerrainClassification> _visibleClassifications =
+            new HashSet<LERCompareTerrainClassification>
+            {
+                LERCompareTerrainClassification.AboveTerrain,
+                LERCompareTerrainClassification.LessOrEqualThreshold,
+                LERCompareTerrainClassification.MoreThanThreshold,
+                LERCompareTerrainClassification.OutsideSurface,
+                LERCompareTerrainClassification.TwoDPolyline
+            };
 
         public LERCompareTerrainControl()
         {
@@ -253,6 +262,13 @@ namespace IntersectUtilities
             _selectionLabel = CreateLabel("Selected 3D polylines: 0");
             AddToGrid(root, _selectionLabel, 4, 0, 3);
 
+            Grid statusContainer = new Grid
+            {
+                Margin = new Thickness(0, 0, 0, 6)
+            };
+            statusContainer.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            statusContainer.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
             _statusTextBox = new TextBox
             {
                 IsReadOnly = true,
@@ -260,14 +276,21 @@ namespace IntersectUtilities
                 TextWrapping = TextWrapping.Wrap,
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-                Margin = new Thickness(0, 0, 0, 6),
+                Margin = new Thickness(0, 0, 6, 0),
                 Background = PanelBackgroundBrush,
                 Foreground = ForegroundBrushValue,
                 BorderBrush = BorderBrushValue,
                 BorderThickness = new Thickness(1),
                 Padding = new Thickness(10, 8, 10, 8)
             };
-            AddToGrid(root, _statusTextBox, 5, 0, 3);
+            Grid.SetColumn(_statusTextBox, 0);
+            statusContainer.Children.Add(_statusTextBox);
+
+            UIElement legendPanel = CreateLegendPanel();
+            Grid.SetColumn(legendPanel, 1);
+            statusContainer.Children.Add(legendPanel);
+
+            AddToGrid(root, statusContainer, 5, 0, 3);
 
             AddToGrid(root, CreateLabel("Preview uses the selected 3D polylines, not the terrain surface."), 6, 0, 3);
 
@@ -613,8 +636,8 @@ namespace IntersectUtilities
                     _selectedPolylineIds,
                     threshold);
 
-                _renderer.Show(result.Pieces);
                 _lastPreviewResult = result;
+                RenderFilteredPreview();
 
                 drawingTx.Commit();
                 surfaceTx.Commit();
@@ -676,6 +699,11 @@ namespace IntersectUtilities
                     tx,
                     _document.Database,
                     CadColor.FromColorIndex(ColorMethod.ByAci, 2));
+                EnsureLayerExists(
+                    LERCompareTerrainLayerNames.TwoDPolylineLayerName,
+                    tx,
+                    _document.Database,
+                    CadColor.FromColorIndex(ColorMethod.ByAci, 5));
 
                 ClearExistingExportedGeometry(
                     modelSpace,
@@ -685,7 +713,8 @@ namespace IntersectUtilities
                         LERCompareTerrainLayerNames.AboveTerrainLayerName,
                         LERCompareTerrainLayerNames.BuildLessLayerName(GetThreshold()),
                         LERCompareTerrainLayerNames.BuildMoreLayerName(GetThreshold()),
-                        LERCompareTerrainLayerNames.OutsideLayerName
+                        LERCompareTerrainLayerNames.OutsideLayerName,
+                        LERCompareTerrainLayerNames.TwoDPolylineLayerName
                     });
 
                 int createdCount = 0;
@@ -720,8 +749,9 @@ namespace IntersectUtilities
                     $"Export complete. Created {createdCount} 3D polyline piece(s) on layers "
                     + $"{LERCompareTerrainLayerNames.AboveTerrainLayerName}, "
                     + $"{LERCompareTerrainLayerNames.BuildLessLayerName(GetThreshold())}, "
-                    + $"{LERCompareTerrainLayerNames.BuildMoreLayerName(GetThreshold())}, and "
-                    + $"{LERCompareTerrainLayerNames.OutsideLayerName}.");
+                    + $"{LERCompareTerrainLayerNames.BuildMoreLayerName(GetThreshold())}, "
+                    + $"{LERCompareTerrainLayerNames.OutsideLayerName}, and "
+                    + $"{LERCompareTerrainLayerNames.TwoDPolylineLayerName}.");
             }
             catch (System.Exception ex)
             {
@@ -814,6 +844,96 @@ namespace IntersectUtilities
             {
                 Margin = new Thickness(0, 0, 0, 8)
             };
+        }
+
+        private UIElement CreateLegendPanel()
+        {
+            StackPanel rows = new StackPanel { Orientation = Orientation.Vertical };
+            rows.Children.Add(new WinLabel
+            {
+                Text = "Legend (toggle to filter)",
+                FontWeight = FontWeights.Bold,
+                Foreground = ForegroundBrushValue,
+                Margin = new Thickness(0, 0, 0, 6)
+            });
+            rows.Children.Add(CreateLegendRow(System.Windows.Media.Color.FromRgb(255, 0, 255), "Above terrain", LERCompareTerrainClassification.AboveTerrain));
+            rows.Children.Add(CreateLegendRow(System.Windows.Media.Color.FromRgb(255, 0, 0), "Less/equal threshold", LERCompareTerrainClassification.LessOrEqualThreshold));
+            rows.Children.Add(CreateLegendRow(System.Windows.Media.Color.FromRgb(0, 255, 0), "More than threshold", LERCompareTerrainClassification.MoreThanThreshold));
+            rows.Children.Add(CreateLegendRow(System.Windows.Media.Color.FromRgb(255, 255, 0), "Outside surface", LERCompareTerrainClassification.OutsideSurface));
+            rows.Children.Add(CreateLegendRow(System.Windows.Media.Color.FromRgb(0, 0, 255), "2D polyline (Z = -99)", LERCompareTerrainClassification.TwoDPolyline));
+
+            return new Border
+            {
+                Background = PanelBackgroundBrush,
+                BorderBrush = BorderBrushValue,
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(10, 8, 10, 8),
+                CornerRadius = new CornerRadius(2),
+                MinWidth = 200,
+                Child = rows
+            };
+        }
+
+        private UIElement CreateLegendRow(System.Windows.Media.Color color, string label, LERCompareTerrainClassification classification)
+        {
+            StackPanel row = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Margin = new Thickness(0, 0, 0, 4)
+            };
+
+            CheckBox checkBox = new CheckBox
+            {
+                IsChecked = _visibleClassifications.Contains(classification),
+                VerticalAlignment = VerticalAlignment.Center,
+                Foreground = ForegroundBrushValue,
+                Margin = new Thickness(0, 0, 8, 0)
+            };
+            checkBox.Checked += (_, _) =>
+            {
+                _visibleClassifications.Add(classification);
+                RenderFilteredPreview();
+            };
+            checkBox.Unchecked += (_, _) =>
+            {
+                _visibleClassifications.Remove(classification);
+                RenderFilteredPreview();
+            };
+            row.Children.Add(checkBox);
+
+            row.Children.Add(new Border
+            {
+                Width = 14,
+                Height = 14,
+                Background = new SolidColorBrush(color),
+                BorderBrush = BorderBrushValue,
+                BorderThickness = new Thickness(1),
+                Margin = new Thickness(0, 0, 8, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            });
+
+            row.Children.Add(new WinLabel
+            {
+                Text = label,
+                VerticalAlignment = VerticalAlignment.Center,
+                Foreground = ForegroundBrushValue
+            });
+
+            return row;
+        }
+
+        private void RenderFilteredPreview()
+        {
+            if (_lastPreviewResult == null)
+            {
+                _renderer.Clear();
+                return;
+            }
+
+            List<LERCompareTerrainPiece> visiblePieces = _lastPreviewResult.Pieces
+                .Where(piece => _visibleClassifications.Contains(piece.Classification))
+                .ToList();
+            _renderer.Show(visiblePieces);
         }
 
         private static ControlTemplate CreateButtonTemplate()
@@ -978,7 +1098,8 @@ namespace IntersectUtilities
                 + $"Above terrain pieces: {result.AboveTerrainCount}{Environment.NewLine}"
                 + $"Less/equal pieces: {result.LessOrEqualCount}{Environment.NewLine}"
                 + $"More pieces: {result.MoreCount}{Environment.NewLine}"
-                + $"Outside pieces: {result.OutsideCount}";
+                + $"Outside pieces: {result.OutsideCount}{Environment.NewLine}"
+                + $"2D polyline pieces: {result.TwoDPolylineCount}";
         }
 
         private static void EnsureLayerExists(string layerName, Transaction transaction, Database database, CadColor? color)
@@ -1039,6 +1160,7 @@ namespace IntersectUtilities
     {
         public const string AboveTerrainLayerName = "0 - above Terrain";
         public const string OutsideLayerName = "0 - Outside segment";
+        public const string TwoDPolylineLayerName = "0 - 2D polyline";
 
         public static string BuildLessLayerName(double threshold)
         {
@@ -1057,6 +1179,7 @@ namespace IntersectUtilities
                 LERCompareTerrainClassification.AboveTerrain => AboveTerrainLayerName,
                 LERCompareTerrainClassification.LessOrEqualThreshold => BuildLessLayerName(threshold),
                 LERCompareTerrainClassification.MoreThanThreshold => BuildMoreLayerName(threshold),
+                LERCompareTerrainClassification.TwoDPolyline => TwoDPolylineLayerName,
                 _ => OutsideLayerName
             };
         }
@@ -1127,6 +1250,7 @@ namespace IntersectUtilities
                 LERCompareTerrainClassification.AboveTerrain => 6,
                 LERCompareTerrainClassification.LessOrEqualThreshold => 1,
                 LERCompareTerrainClassification.MoreThanThreshold => 3,
+                LERCompareTerrainClassification.TwoDPolyline => 5,
                 _ => 2
             };
         }
@@ -1191,6 +1315,17 @@ namespace IntersectUtilities
             TinSurface surface,
             double threshold)
         {
+            if (IsTwoDimensionalPolyline(vertices))
+            {
+                return new[]
+                {
+                    new LERCompareTerrainPiece(
+                        sourceId,
+                        LERCompareTerrainClassification.TwoDPolyline,
+                        vertices.ToList())
+                };
+            }
+
             LERCompareTerrainPieceBuilder builder = new LERCompareTerrainPieceBuilder(sourceId);
 
             for (int i = 0; i < vertices.Count - 1; i++)
@@ -1204,6 +1339,24 @@ namespace IntersectUtilities
             }
 
             return builder.Finish();
+        }
+
+        private static bool IsTwoDimensionalPolyline(IReadOnlyList<Point3d> vertices)
+        {
+            if (vertices.Count == 0)
+            {
+                return false;
+            }
+
+            foreach (Point3d vertex in vertices)
+            {
+                if (Math.Abs(vertex.Z - (-99.0)) > 1e-6)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         private static IReadOnlyList<LERCompareTerrainSpan> AnalyzeSegment(
@@ -1584,6 +1737,8 @@ namespace IntersectUtilities
         public int MoreCount => Pieces.Count(piece => piece.Classification == LERCompareTerrainClassification.MoreThanThreshold);
 
         public int OutsideCount => Pieces.Count(piece => piece.Classification == LERCompareTerrainClassification.OutsideSurface);
+
+        public int TwoDPolylineCount => Pieces.Count(piece => piece.Classification == LERCompareTerrainClassification.TwoDPolyline);
     }
 
     internal sealed class LERCompareTerrainPieceBuilder
@@ -1787,7 +1942,8 @@ namespace IntersectUtilities
         AboveTerrain,
         LessOrEqualThreshold,
         MoreThanThreshold,
-        OutsideSurface
+        OutsideSurface,
+        TwoDPolyline
     }
 }
 
