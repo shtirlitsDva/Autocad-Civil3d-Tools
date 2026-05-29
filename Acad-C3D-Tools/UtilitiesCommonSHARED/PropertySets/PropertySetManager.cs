@@ -1507,6 +1507,13 @@ namespace IntersectUtilities
                     PsDataType.Real,
                     0.0
                 );
+            public Property OplystVarmeForbrug { get; } =
+                new Property(
+                    "OplystVarmeForbrug",
+                    "OplystVarmeForbrug",
+                    PsDataType.Real,
+                    0.0
+                );
             public Property Adresse { get; } =
                 new Property("Adresse", "Adresse", PsDataType.Text, "");
             public Property AdresseDuplikatNr { get; } =
@@ -2144,6 +2151,15 @@ namespace IntersectUtilities
         {
             get => ReadPropertyDouble(_ent, _def.EstimeretVarmeForbrug);
             set => WritePropertyObject(_ent, _def.EstimeretVarmeForbrug, value);
+        }
+        /// <summary>
+        /// Heat consumption reported by the customer ("oplyst"), as opposed to
+        /// the estimated value in <see cref="EstimeretVarmeForbrug"/>.
+        /// </summary>
+        public double OplystVarmeForbrug
+        {
+            get => ReadPropertyDouble(_ent, _def.OplystVarmeForbrug);
+            set => WritePropertyObject(_ent, _def.OplystVarmeForbrug, value);
         }
         public string Adresse
         {
