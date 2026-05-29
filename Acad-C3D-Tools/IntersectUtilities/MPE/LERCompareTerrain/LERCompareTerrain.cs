@@ -89,6 +89,7 @@ namespace IntersectUtilities
                     if (_palette != null && !_palette.Visible)
                     {
                         _control?.ClearPreview();
+                        _control?.HideSurfacePreviews();
                     }
                 };
             }
@@ -125,6 +126,9 @@ namespace IntersectUtilities
         private readonly Button _previewButton;
         private readonly Button _bakeButton;
         private readonly Button _clearButton;
+        private readonly Button _terrainToggleButton;
+        private readonly Button _depthToggleButton;
+        private readonly LERCompareTerrainSurfaceRenderer _surfaceRenderer = new LERCompareTerrainSurfaceRenderer();
 
         private Document? _document;
         private List<ObjectId> _selectedPolylineIds = new List<ObjectId>();
@@ -132,6 +136,11 @@ namespace IntersectUtilities
         private List<LERCompareTerrainSurfaceDescriptor> _surfaces = new List<LERCompareTerrainSurfaceDescriptor>();
         private string? _loadedSurfaceName;
         private LERCompareTerrainPreviewResult? _lastPreviewResult;
+        private bool _terrainVisible;
+        private bool _depthVisible;
+        private List<(Point3d A, Point3d B, Point3d C)>? _cachedSurfaceTriangles;
+        private List<LERCompareTerrainBbox2d>? _terrainFocusBboxes;
+        private List<LERCompareTerrainBbox2d>? _depthFocusBboxes;
         private readonly HashSet<LERCompareTerrainClassification> _visibleClassifications =
             new HashSet<LERCompareTerrainClassification>
             {
@@ -208,8 +217,18 @@ namespace IntersectUtilities
             _unloadButton = CreateButton("Unload Surface");
             _unloadButton.Click += (_, _) => UnloadSurface();
 
+            _terrainToggleButton = CreateButton("Preview Terrain");
+            _terrainToggleButton.Click += (_, _) => ToggleTerrain();
+            _terrainToggleButton.IsEnabled = false;
+
+            _depthToggleButton = CreateButton("Preview Depth");
+            _depthToggleButton.Click += (_, _) => ToggleDepth();
+            _depthToggleButton.IsEnabled = false;
+
             surfaceSelectionPanel.Children.Add(_loadButton);
             surfaceSelectionPanel.Children.Add(_unloadButton);
+            surfaceSelectionPanel.Children.Add(_terrainToggleButton);
+            surfaceSelectionPanel.Children.Add(_depthToggleButton);
             AddToGrid(root, surfaceSelectionPanel, 1, 1, 2);
 
             AddToGrid(root, CreateLabel("Threshold (m)"), 2, 0);
@@ -329,6 +348,211 @@ namespace IntersectUtilities
             _renderer.Clear();
             _lastPreviewResult = null;
             UpdateStatus("Preview cleared.");
+        }
+
+        public void HideSurfacePreviews()
+        {
+            if (!_terrainVisible && !_depthVisible) return;
+            _surfaceRenderer.Clear();
+            if (_terrainVisible)
+            {
+                _terrainVisible = false;
+                _terrainFocusBboxes = null;
+                _terrainToggleButton.Content = "Preview Terrain";
+            }
+            if (_depthVisible)
+            {
+                _depthVisible = false;
+                _depthFocusBboxes = null;
+                _depthToggleButton.Content = "Preview Depth";
+            }
+        }
+
+        private void ToggleTerrain()
+        {
+            if (_terrainVisible)
+            {
+                _surfaceRenderer.HideTerrain();
+                _terrainVisible = false;
+                _terrainFocusBboxes = null;
+                _terrainToggleButton.Content = "Preview Terrain";
+                return;
+            }
+
+            if (!EnsureSurfaceCacheBuilt())
+            {
+                return;
+            }
+
+            List<LERCompareTerrainBbox2d>? bboxes = PromptForFocusBboxes();
+            if (bboxes == null || bboxes.Count == 0)
+            {
+                return;
+            }
+
+            double buffer = GetThreshold() * 2.0;
+            _terrainFocusBboxes = bboxes;
+            _surfaceRenderer.ShowTerrain(FilterTrianglesByBboxes(_cachedSurfaceTriangles!, bboxes, buffer));
+            _terrainVisible = true;
+            _terrainToggleButton.Content = "Hide Terrain";
+        }
+
+        private void ToggleDepth()
+        {
+            if (_depthVisible)
+            {
+                _surfaceRenderer.HideDepth();
+                _depthVisible = false;
+                _depthFocusBboxes = null;
+                _depthToggleButton.Content = "Preview Depth";
+                return;
+            }
+
+            if (!EnsureSurfaceCacheBuilt())
+            {
+                return;
+            }
+
+            List<LERCompareTerrainBbox2d>? bboxes = PromptForFocusBboxes();
+            if (bboxes == null || bboxes.Count == 0)
+            {
+                return;
+            }
+
+            double threshold = GetThreshold();
+            _depthFocusBboxes = bboxes;
+            _surfaceRenderer.ShowDepth(FilterTrianglesByBboxes(_cachedSurfaceTriangles!, bboxes, threshold * 2.0), -threshold);
+            _depthVisible = true;
+            _depthToggleButton.Content = "Hide Depth";
+        }
+
+        private bool EnsureSurfaceCacheBuilt()
+        {
+            if (_cachedSurfaceTriangles != null)
+            {
+                return true;
+            }
+
+            if (_surfaceDatabase == null || _surfaceComboBox.SelectedIndex < 0)
+            {
+                UpdateStatus("Load a TIN surface first.");
+                return false;
+            }
+
+            try
+            {
+                using Transaction tx = _surfaceDatabase.TransactionManager.StartTransaction();
+                LERCompareTerrainSurfaceDescriptor descriptor = _surfaces[_surfaceComboBox.SelectedIndex];
+                TinSurface? surface = tx.GetObject(descriptor.ObjectId, OpenMode.ForRead) as TinSurface;
+                if (surface == null)
+                {
+                    tx.Commit();
+                    UpdateStatus("Surface preview unavailable: TIN could not be opened.");
+                    return false;
+                }
+
+                List<(Point3d, Point3d, Point3d)> triangles = new List<(Point3d, Point3d, Point3d)>();
+                TinSurfaceTriangleCollection sourceTriangles = surface.GetTriangles(false);
+                try
+                {
+                    foreach (TinSurfaceTriangle triangle in sourceTriangles)
+                    {
+                        triangles.Add((triangle.Vertex1.Location, triangle.Vertex2.Location, triangle.Vertex3.Location));
+                        triangle.Dispose();
+                    }
+                }
+                finally
+                {
+                    sourceTriangles.Dispose();
+                }
+
+                tx.Commit();
+                _cachedSurfaceTriangles = triangles;
+                return true;
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg(ex);
+                UpdateStatus("Failed to extract surface triangles. See debug output for details.");
+                return false;
+            }
+        }
+
+        private List<LERCompareTerrainBbox2d>? PromptForFocusBboxes()
+        {
+            if (_document == null)
+            {
+                UpdateStatus("No active document is attached to the palette.");
+                return null;
+            }
+
+            try
+            {
+                Editor editor = _document.Editor;
+                PromptSelectionOptions options = new PromptSelectionOptions
+                {
+                    MessageForAdding = "\nSelect objects where the terrain will be previewed: "
+                };
+
+                PromptSelectionResult selectionResult = editor.GetSelection(options);
+                if (selectionResult.Status != PromptStatus.OK || selectionResult.Value == null || selectionResult.Value.Count == 0)
+                {
+                    UpdateStatus("Selection cancelled or empty.");
+                    return null;
+                }
+
+                using DocumentLock docLock = _document.LockDocument();
+                using Transaction tx = _document.Database.TransactionManager.StartTransaction();
+
+                List<LERCompareTerrainBbox2d> bboxes = new List<LERCompareTerrainBbox2d>();
+                foreach (ObjectId id in selectionResult.Value.GetObjectIds())
+                {
+                    if (tx.GetObject(id, OpenMode.ForRead, false) is not AcEntity entity) continue;
+                    Extents3d? extents = entity.Bounds;
+                    if (!extents.HasValue) continue;
+                    Extents3d e = extents.Value;
+                    bboxes.Add(new LERCompareTerrainBbox2d(e.MinPoint.X, e.MinPoint.Y, e.MaxPoint.X, e.MaxPoint.Y));
+                }
+                tx.Commit();
+
+                if (bboxes.Count == 0)
+                {
+                    UpdateStatus("Selected objects have no bounding boxes available.");
+                    return null;
+                }
+
+                return bboxes;
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg(ex);
+                UpdateStatus("Selection failed. See debug output for details.");
+                return null;
+            }
+        }
+
+        private static List<(Point3d A, Point3d B, Point3d C)> FilterTrianglesByBboxes(
+            IReadOnlyList<(Point3d A, Point3d B, Point3d C)> triangles,
+            IReadOnlyList<LERCompareTerrainBbox2d> bboxes,
+            double buffer)
+        {
+            List<(Point3d A, Point3d B, Point3d C)> filtered = new List<(Point3d, Point3d, Point3d)>();
+            foreach ((Point3d a, Point3d b, Point3d c) in triangles)
+            {
+                double trMinX = Math.Min(a.X, Math.Min(b.X, c.X));
+                double trMaxX = Math.Max(a.X, Math.Max(b.X, c.X));
+                double trMinY = Math.Min(a.Y, Math.Min(b.Y, c.Y));
+                double trMaxY = Math.Max(a.Y, Math.Max(b.Y, c.Y));
+
+                foreach (LERCompareTerrainBbox2d bbox in bboxes)
+                {
+                    if (trMaxX < bbox.MinX - buffer || trMinX > bbox.MaxX + buffer) continue;
+                    if (trMaxY < bbox.MinY - buffer || trMinY > bbox.MaxY + buffer) continue;
+                    filtered.Add((a, b, c));
+                    break;
+                }
+            }
+            return filtered;
         }
 
         private void BrowseForSurfaceDwg()
@@ -575,6 +799,14 @@ namespace IntersectUtilities
         private void UnloadSurface(bool clearStatus = true, bool clearAvailableSurfaces = false)
         {
             _renderer.Clear();
+            _surfaceRenderer.Clear();
+            _terrainVisible = false;
+            _depthVisible = false;
+            _terrainToggleButton.Content = "Preview Terrain";
+            _depthToggleButton.Content = "Preview Depth";
+            _terrainFocusBboxes = null;
+            _depthFocusBboxes = null;
+            _cachedSurfaceTriangles = null;
             _lastPreviewResult = null;
             _surfaceDatabase?.Dispose();
             _surfaceDatabase = null;
@@ -591,6 +823,17 @@ namespace IntersectUtilities
             {
                 UpdateStatus("Surface unloaded.");
             }
+        }
+
+        private bool TryEnsurePreviewResult()
+        {
+            if (_lastPreviewResult != null && _lastPreviewResult.Pieces.Count > 0)
+            {
+                return true;
+            }
+
+            RefreshPreview();
+            return _lastPreviewResult != null && _lastPreviewResult.Pieces.Count > 0;
         }
 
         private void RefreshPreview()
@@ -643,6 +886,17 @@ namespace IntersectUtilities
                 surfaceTx.Commit();
 
                 UpdateStatus(BuildPreviewStatus(result, _loadedSurfaceName ?? descriptor.Name, threshold));
+
+                double buffer = threshold * 2.0;
+                if (_terrainVisible && _cachedSurfaceTriangles != null && _terrainFocusBboxes != null)
+                {
+                    _surfaceRenderer.ShowTerrain(FilterTrianglesByBboxes(_cachedSurfaceTriangles, _terrainFocusBboxes, buffer));
+                }
+
+                if (_depthVisible && _cachedSurfaceTriangles != null && _depthFocusBboxes != null)
+                {
+                    _surfaceRenderer.ShowDepth(FilterTrianglesByBboxes(_cachedSurfaceTriangles, _depthFocusBboxes, buffer), -threshold);
+                }
             }
             catch (System.Exception ex)
             {
@@ -659,12 +913,7 @@ namespace IntersectUtilities
                 return;
             }
 
-            if (_lastPreviewResult == null || _lastPreviewResult.Pieces.Count == 0)
-            {
-                RefreshPreview();
-            }
-
-            if (_lastPreviewResult == null || _lastPreviewResult.Pieces.Count == 0)
+            if (!TryEnsurePreviewResult())
             {
                 UpdateStatus("Nothing to bake. Generate a preview first.");
                 return;
@@ -683,27 +932,27 @@ namespace IntersectUtilities
                     LERCompareTerrainLayerNames.AboveTerrainLayerName,
                     tx,
                     _document.Database,
-                    CadColor.FromColorIndex(ColorMethod.ByAci, 6));
+                    LERCompareTerrainColors.GetCadColor(LERCompareTerrainClassification.AboveTerrain));
                 EnsureLayerExists(
-                    LERCompareTerrainLayerNames.BuildLessLayerName(GetThreshold()),
+                    LERCompareTerrainLayerNames.BuildWithinLayerName(GetThreshold()),
                     tx,
                     _document.Database,
-                    CadColor.FromColorIndex(ColorMethod.ByAci, 1));
+                    LERCompareTerrainColors.GetCadColor(LERCompareTerrainClassification.LessOrEqualThreshold));
                 EnsureLayerExists(
-                    LERCompareTerrainLayerNames.BuildMoreLayerName(GetThreshold()),
+                    LERCompareTerrainLayerNames.BuildDeeperLayerName(GetThreshold()),
                     tx,
                     _document.Database,
-                    CadColor.FromColorIndex(ColorMethod.ByAci, 3));
+                    LERCompareTerrainColors.GetCadColor(LERCompareTerrainClassification.MoreThanThreshold));
                 EnsureLayerExists(
                     LERCompareTerrainLayerNames.OutsideLayerName,
                     tx,
                     _document.Database,
-                    CadColor.FromColorIndex(ColorMethod.ByAci, 2));
+                    LERCompareTerrainColors.GetCadColor(LERCompareTerrainClassification.OutsideSurface));
                 EnsureLayerExists(
                     LERCompareTerrainLayerNames.TwoDPolylineLayerName,
                     tx,
                     _document.Database,
-                    CadColor.FromColorIndex(ColorMethod.ByAci, 5));
+                    LERCompareTerrainColors.GetCadColor(LERCompareTerrainClassification.TwoDPolyline));
 
                 ClearExistingExportedGeometry(
                     modelSpace,
@@ -711,8 +960,8 @@ namespace IntersectUtilities
                     new[]
                     {
                         LERCompareTerrainLayerNames.AboveTerrainLayerName,
-                        LERCompareTerrainLayerNames.BuildLessLayerName(GetThreshold()),
-                        LERCompareTerrainLayerNames.BuildMoreLayerName(GetThreshold()),
+                        LERCompareTerrainLayerNames.BuildWithinLayerName(GetThreshold()),
+                        LERCompareTerrainLayerNames.BuildDeeperLayerName(GetThreshold()),
                         LERCompareTerrainLayerNames.OutsideLayerName,
                         LERCompareTerrainLayerNames.TwoDPolylineLayerName
                     });
@@ -748,8 +997,8 @@ namespace IntersectUtilities
                 UpdateStatus(
                     $"Export complete. Created {createdCount} 3D polyline piece(s) on layers "
                     + $"{LERCompareTerrainLayerNames.AboveTerrainLayerName}, "
-                    + $"{LERCompareTerrainLayerNames.BuildLessLayerName(GetThreshold())}, "
-                    + $"{LERCompareTerrainLayerNames.BuildMoreLayerName(GetThreshold())}, "
+                    + $"{LERCompareTerrainLayerNames.BuildWithinLayerName(GetThreshold())}, "
+                    + $"{LERCompareTerrainLayerNames.BuildDeeperLayerName(GetThreshold())}, "
                     + $"{LERCompareTerrainLayerNames.OutsideLayerName}, and "
                     + $"{LERCompareTerrainLayerNames.TwoDPolylineLayerName}.");
             }
@@ -788,6 +1037,10 @@ namespace IntersectUtilities
             bool hasSurfaces = _surfaces.Count > 0;
             _surfaceComboBox.IsEnabled = hasSurfaces;
             _loadButton.IsEnabled = hasSurfaces;
+
+            bool surfaceLoaded = _surfaceDatabase != null;
+            _terrainToggleButton.IsEnabled = surfaceLoaded;
+            _depthToggleButton.IsEnabled = surfaceLoaded;
         }
 
         private static void AddToGrid(Grid grid, UIElement element, int row, int column, int columnSpan = 1)
@@ -856,11 +1109,11 @@ namespace IntersectUtilities
                 Foreground = ForegroundBrushValue,
                 Margin = new Thickness(0, 0, 0, 6)
             });
-            rows.Children.Add(CreateLegendRow(System.Windows.Media.Color.FromRgb(255, 0, 255), "Above terrain", LERCompareTerrainClassification.AboveTerrain));
-            rows.Children.Add(CreateLegendRow(System.Windows.Media.Color.FromRgb(255, 0, 0), "Less/equal threshold", LERCompareTerrainClassification.LessOrEqualThreshold));
-            rows.Children.Add(CreateLegendRow(System.Windows.Media.Color.FromRgb(0, 255, 0), "More than threshold", LERCompareTerrainClassification.MoreThanThreshold));
-            rows.Children.Add(CreateLegendRow(System.Windows.Media.Color.FromRgb(255, 255, 0), "Outside surface", LERCompareTerrainClassification.OutsideSurface));
-            rows.Children.Add(CreateLegendRow(System.Windows.Media.Color.FromRgb(0, 0, 255), "2D polyline (Z = -99)", LERCompareTerrainClassification.TwoDPolyline));
+            rows.Children.Add(CreateLegendRow(LERCompareTerrainColors.GetMediaColor(LERCompareTerrainClassification.AboveTerrain), "Above terrain", LERCompareTerrainClassification.AboveTerrain));
+            rows.Children.Add(CreateLegendRow(LERCompareTerrainColors.GetMediaColor(LERCompareTerrainClassification.LessOrEqualThreshold), "Within threshold", LERCompareTerrainClassification.LessOrEqualThreshold));
+            rows.Children.Add(CreateLegendRow(LERCompareTerrainColors.GetMediaColor(LERCompareTerrainClassification.MoreThanThreshold), "Deeper than threshold", LERCompareTerrainClassification.MoreThanThreshold));
+            rows.Children.Add(CreateLegendRow(LERCompareTerrainColors.GetMediaColor(LERCompareTerrainClassification.TwoDPolyline), "2D polyline (Z = -99)", LERCompareTerrainClassification.TwoDPolyline));
+            rows.Children.Add(CreateLegendRow(LERCompareTerrainColors.GetMediaColor(LERCompareTerrainClassification.OutsideSurface), "Outside surface", LERCompareTerrainClassification.OutsideSurface));
 
             return new Border
             {
@@ -1090,16 +1343,24 @@ namespace IntersectUtilities
             string surfaceName,
             double threshold)
         {
-            return
+            string status =
                 $"Surface: {surfaceName}{Environment.NewLine}"
                 + $"Threshold: {threshold.ToString("0.###", CultureInfo.InvariantCulture)} m{Environment.NewLine}"
                 + $"Source 3D polylines analyzed: {result.AnalyzedPolylineCount}{Environment.NewLine}"
                 + $"Preview pieces: {result.Pieces.Count}{Environment.NewLine}"
                 + $"Above terrain pieces: {result.AboveTerrainCount}{Environment.NewLine}"
-                + $"Less/equal pieces: {result.LessOrEqualCount}{Environment.NewLine}"
-                + $"More pieces: {result.MoreCount}{Environment.NewLine}"
+                + $"Within threshold pieces: {result.LessOrEqualCount}{Environment.NewLine}"
+                + $"Deeper than threshold pieces: {result.MoreCount}{Environment.NewLine}"
                 + $"Outside pieces: {result.OutsideCount}{Environment.NewLine}"
                 + $"2D polyline pieces: {result.TwoDPolylineCount}";
+
+            if (result.SuspectIntervalCount > 0)
+            {
+                status += Environment.NewLine
+                    + $"Suspect intervals (surface query failed mid-span): {result.SuspectIntervalCount}";
+            }
+
+            return status;
         }
 
         private static void EnsureLayerExists(string layerName, Transaction transaction, Database database, CadColor? color)
@@ -1156,20 +1417,51 @@ namespace IntersectUtilities
         }
     }
 
+    internal static class LERCompareTerrainColors
+    {
+        // High-contrast colorblind-safe palette. Anchors are Paul Tol "vibrant" hues (red, teal, blue) plus a vivid violet
+        // for AboveTerrain and a saturated yellow for OutsideSurface. Higher saturation than Okabe-Ito for readability on
+        // AutoCAD's black background; hue separation preserved under deuteranopia, protanopia, and tritanopia.
+        // Drives the WPF legend, transient preview, and baked layer colors from one source.
+        private static (byte R, byte G, byte B) GetRgb(LERCompareTerrainClassification classification)
+        {
+            return classification switch
+            {
+                LERCompareTerrainClassification.AboveTerrain => (156, 70, 255),
+                LERCompareTerrainClassification.LessOrEqualThreshold => (0, 153, 136),
+                LERCompareTerrainClassification.MoreThanThreshold => (204, 51, 17),
+                LERCompareTerrainClassification.TwoDPolyline => (0, 119, 187),
+                _ => (238, 221, 0)
+            };
+        }
+
+        public static CadColor GetCadColor(LERCompareTerrainClassification classification)
+        {
+            (byte r, byte g, byte b) = GetRgb(classification);
+            return CadColor.FromColor(System.Drawing.Color.FromArgb(r, g, b));
+        }
+
+        public static System.Windows.Media.Color GetMediaColor(LERCompareTerrainClassification classification)
+        {
+            (byte r, byte g, byte b) = GetRgb(classification);
+            return System.Windows.Media.Color.FromRgb(r, g, b);
+        }
+    }
+
     internal static class LERCompareTerrainLayerNames
     {
         public const string AboveTerrainLayerName = "0 - above Terrain";
         public const string OutsideLayerName = "0 - Outside segment";
         public const string TwoDPolylineLayerName = "0 - 2D polyline";
 
-        public static string BuildLessLayerName(double threshold)
+        public static string BuildWithinLayerName(double threshold)
         {
-            return $"0 - less then {FormatThreshold(threshold)}";
+            return $"0 - within {FormatThreshold(threshold)}m";
         }
 
-        public static string BuildMoreLayerName(double threshold)
+        public static string BuildDeeperLayerName(double threshold)
         {
-            return $"0 - more than {FormatThreshold(threshold)}m";
+            return $"0 - deeper than {FormatThreshold(threshold)}m";
         }
 
         public static string GetLayerName(LERCompareTerrainClassification classification, double threshold)
@@ -1177,8 +1469,8 @@ namespace IntersectUtilities
             return classification switch
             {
                 LERCompareTerrainClassification.AboveTerrain => AboveTerrainLayerName,
-                LERCompareTerrainClassification.LessOrEqualThreshold => BuildLessLayerName(threshold),
-                LERCompareTerrainClassification.MoreThanThreshold => BuildMoreLayerName(threshold),
+                LERCompareTerrainClassification.LessOrEqualThreshold => BuildWithinLayerName(threshold),
+                LERCompareTerrainClassification.MoreThanThreshold => BuildDeeperLayerName(threshold),
                 LERCompareTerrainClassification.TwoDPolyline => TwoDPolylineLayerName,
                 _ => OutsideLayerName
             };
@@ -1206,13 +1498,12 @@ namespace IntersectUtilities
                     continue;
                 }
 
-                short colorIndex = GetColorIndex(piece.Classification);
                 Polyline3d previewPolyline = new Polyline3d(
                     Poly3dType.SimplePoly,
                     new Point3dCollection(piece.Points.ToArray()),
                     false)
                 {
-                    Color = CadColor.FromColorIndex(ColorMethod.ByAci, colorIndex)
+                    Color = LERCompareTerrainColors.GetCadColor(piece.Classification)
                 };
 
                 _currentEntities.Add(previewPolyline);
@@ -1242,17 +1533,102 @@ namespace IntersectUtilities
 
             _currentEntities.Clear();
         }
+    }
 
-        private static short GetColorIndex(LERCompareTerrainClassification classification)
+    internal sealed class LERCompareTerrainSurfaceRenderer
+    {
+        private static readonly CadColor TerrainColor = CadColor.FromColor(System.Drawing.Color.FromArgb(0x88, 0x88, 0x99));
+        private static readonly CadColor DepthColor = CadColor.FromColor(System.Drawing.Color.FromArgb(0xCC, 0x99, 0x66));
+        private readonly TransientManager _transientManager = TransientManager.CurrentTransientManager;
+        private readonly List<AcEntity> _terrainEntities = new List<AcEntity>();
+        private readonly List<AcEntity> _depthEntities = new List<AcEntity>();
+
+        public void ShowTerrain(IReadOnlyList<(Point3d A, Point3d B, Point3d C)> triangles)
         {
-            return classification switch
+            HideTerrain();
+            Populate(_terrainEntities, triangles, 0.0, TerrainColor);
+        }
+
+        public void ShowDepth(IReadOnlyList<(Point3d A, Point3d B, Point3d C)> triangles, double zOffset)
+        {
+            HideDepth();
+            Populate(_depthEntities, triangles, zOffset, DepthColor);
+        }
+
+        public void HideTerrain()
+        {
+            Erase(_terrainEntities);
+        }
+
+        public void HideDepth()
+        {
+            Erase(_depthEntities);
+        }
+
+        public void Clear()
+        {
+            HideTerrain();
+            HideDepth();
+        }
+
+        private void Populate(
+            List<AcEntity> bucket,
+            IReadOnlyList<(Point3d A, Point3d B, Point3d C)> triangles,
+            double zOffset,
+            CadColor color)
+        {
+            if (triangles.Count == 0)
             {
-                LERCompareTerrainClassification.AboveTerrain => 6,
-                LERCompareTerrainClassification.LessOrEqualThreshold => 1,
-                LERCompareTerrainClassification.MoreThanThreshold => 3,
-                LERCompareTerrainClassification.TwoDPolyline => 5,
-                _ => 2
-            };
+                return;
+            }
+
+            Point3dCollection vertexArray = new Point3dCollection();
+            Autodesk.AutoCAD.Geometry.Int32Collection faceArray = new Autodesk.AutoCAD.Geometry.Int32Collection();
+
+            foreach ((Point3d a, Point3d b, Point3d c) in triangles)
+            {
+                int i0 = vertexArray.Count;
+                vertexArray.Add(new Point3d(a.X, a.Y, a.Z + zOffset));
+                int i1 = vertexArray.Count;
+                vertexArray.Add(new Point3d(b.X, b.Y, b.Z + zOffset));
+                int i2 = vertexArray.Count;
+                vertexArray.Add(new Point3d(c.X, c.Y, c.Z + zOffset));
+
+                faceArray.Add(3);
+                faceArray.Add(i0);
+                faceArray.Add(i1);
+                faceArray.Add(i2);
+            }
+
+            SubDMesh mesh = new SubDMesh();
+            mesh.SetSubDMesh(vertexArray, faceArray, 0);
+            mesh.Color = color;
+
+            bucket.Add(mesh);
+            _transientManager.AddTransient(
+                mesh,
+                TransientDrawingMode.DirectShortTerm,
+                128,
+                new IntegerCollection());
+        }
+
+        private void Erase(List<AcEntity> bucket)
+        {
+            foreach (AcEntity entity in bucket)
+            {
+                try
+                {
+                    _transientManager.EraseTransient(entity, new IntegerCollection());
+                }
+                catch
+                {
+                    // Intentionally ignored during transient cleanup.
+                }
+
+                entity.Dispose();
+            }
+
+            bucket.Clear();
         }
     }
 
@@ -1269,6 +1645,7 @@ namespace IntersectUtilities
         {
             List<LERCompareTerrainPiece> pieces = new List<LERCompareTerrainPiece>();
             int analyzedPolylineCount = 0;
+            int suspectIntervals = 0;
 
             foreach (ObjectId polylineId in polylineIds.Distinct())
             {
@@ -1289,10 +1666,10 @@ namespace IntersectUtilities
                 }
 
                 analyzedPolylineCount++;
-                pieces.AddRange(AnalyzePolyline(polylineId, vertices, surface, threshold));
+                pieces.AddRange(AnalyzePolyline(polylineId, vertices, surface, threshold, ref suspectIntervals));
             }
 
-            return new LERCompareTerrainPreviewResult(analyzedPolylineCount, pieces);
+            return new LERCompareTerrainPreviewResult(analyzedPolylineCount, pieces, suspectIntervals);
         }
 
         private static List<Point3d> GetVertices(Polyline3d polyline, Transaction transaction)
@@ -1313,7 +1690,8 @@ namespace IntersectUtilities
             ObjectId sourceId,
             IReadOnlyList<Point3d> vertices,
             TinSurface surface,
-            double threshold)
+            double threshold,
+            ref int suspectIntervals)
         {
             if (IsTwoDimensionalPolyline(vertices))
             {
@@ -1332,7 +1710,7 @@ namespace IntersectUtilities
             {
                 Point3d startPoint = vertices[i];
                 Point3d endPoint = vertices[i + 1];
-                foreach (LERCompareTerrainSpan span in AnalyzeSegment(startPoint, endPoint, surface, threshold))
+                foreach (LERCompareTerrainSpan span in AnalyzeSegment(startPoint, endPoint, surface, threshold, ref suspectIntervals))
                 {
                     builder.Append(span.Classification, span.StartPoint, span.EndPoint);
                 }
@@ -1363,7 +1741,8 @@ namespace IntersectUtilities
             Point3d startPoint,
             Point3d endPoint,
             TinSurface surface,
-            double threshold)
+            double threshold,
+            ref int suspectIntervals)
         {
             List<LERCompareTerrainSpan> spans = new List<LERCompareTerrainSpan>();
             if (startPoint.DistanceTo(endPoint) <= PointTolerance)
@@ -1389,11 +1768,11 @@ namespace IntersectUtilities
 
                 if (!midEval.IsOnSurface)
                 {
-                    ProcessMidOutsideInterval(startPoint, endPoint, surface, threshold, intervalStart, intervalEnd, startEval, endEval, spans);
+                    ProcessMidOutsideInterval(startPoint, endPoint, surface, threshold, intervalStart, intervalEnd, startEval, endEval, spans, ref suspectIntervals);
                 }
                 else
                 {
-                    ProcessMidInsideInterval(startPoint, endPoint, surface, threshold, intervalStart, intervalEnd, startEval, endEval, midEval, spans);
+                    ProcessMidInsideInterval(startPoint, endPoint, surface, threshold, intervalStart, intervalEnd, startEval, endEval, midEval, spans, ref suspectIntervals);
                 }
             }
 
@@ -1409,7 +1788,8 @@ namespace IntersectUtilities
             double intervalEnd,
             LERCompareTerrainEvaluation startEval,
             LERCompareTerrainEvaluation endEval,
-            IList<LERCompareTerrainSpan> spans)
+            IList<LERCompareTerrainSpan> spans,
+            ref int suspectIntervals)
         {
             if (!startEval.IsOnSurface && !endEval.IsOnSurface)
             {
@@ -1420,7 +1800,7 @@ namespace IntersectUtilities
             if (startEval.IsOnSurface && !endEval.IsOnSurface)
             {
                 double boundary = FindSurfaceBoundaryParameter(startPoint, endPoint, surface, intervalStart, intervalEnd);
-                AddThresholdAwareInsideSpan(startPoint, endPoint, surface, threshold, intervalStart, boundary, spans);
+                AddThresholdAwareInsideSpan(startPoint, endPoint, surface, threshold, intervalStart, boundary, spans, ref suspectIntervals);
                 AddSpan(spans, LERCompareTerrainClassification.OutsideSurface, Interpolate(startPoint, endPoint, boundary), Interpolate(startPoint, endPoint, intervalEnd));
                 return;
             }
@@ -1429,7 +1809,7 @@ namespace IntersectUtilities
             {
                 double boundary = FindSurfaceBoundaryParameter(startPoint, endPoint, surface, intervalEnd, intervalStart);
                 AddSpan(spans, LERCompareTerrainClassification.OutsideSurface, Interpolate(startPoint, endPoint, intervalStart), Interpolate(startPoint, endPoint, boundary));
-                AddThresholdAwareInsideSpan(startPoint, endPoint, surface, threshold, boundary, intervalEnd, spans);
+                AddThresholdAwareInsideSpan(startPoint, endPoint, surface, threshold, boundary, intervalEnd, spans, ref suspectIntervals);
                 return;
             }
 
@@ -1441,9 +1821,9 @@ namespace IntersectUtilities
                 (leftBoundary, rightBoundary) = (rightBoundary, leftBoundary);
             }
 
-            AddThresholdAwareInsideSpan(startPoint, endPoint, surface, threshold, intervalStart, leftBoundary, spans);
+            AddThresholdAwareInsideSpan(startPoint, endPoint, surface, threshold, intervalStart, leftBoundary, spans, ref suspectIntervals);
             AddSpan(spans, LERCompareTerrainClassification.OutsideSurface, Interpolate(startPoint, endPoint, leftBoundary), Interpolate(startPoint, endPoint, rightBoundary));
-            AddThresholdAwareInsideSpan(startPoint, endPoint, surface, threshold, rightBoundary, intervalEnd, spans);
+            AddThresholdAwareInsideSpan(startPoint, endPoint, surface, threshold, rightBoundary, intervalEnd, spans, ref suspectIntervals);
         }
 
         private static void ProcessMidInsideInterval(
@@ -1456,7 +1836,8 @@ namespace IntersectUtilities
             LERCompareTerrainEvaluation startEval,
             LERCompareTerrainEvaluation endEval,
             LERCompareTerrainEvaluation midEval,
-            IList<LERCompareTerrainSpan> spans)
+            IList<LERCompareTerrainSpan> spans,
+            ref int suspectIntervals)
         {
             double insideStart = intervalStart;
             double insideEnd = intervalEnd;
@@ -1478,7 +1859,7 @@ namespace IntersectUtilities
                 return;
             }
 
-            AddThresholdAwareInsideSpan(startPoint, endPoint, surface, threshold, insideStart, insideEnd, spans);
+            AddThresholdAwareInsideSpan(startPoint, endPoint, surface, threshold, insideStart, insideEnd, spans, ref suspectIntervals);
         }
 
         private static void AddThresholdAwareInsideSpan(
@@ -1488,7 +1869,8 @@ namespace IntersectUtilities
             double threshold,
             double intervalStart,
             double intervalEnd,
-            IList<LERCompareTerrainSpan> spans)
+            IList<LERCompareTerrainSpan> spans,
+            ref int suspectIntervals)
         {
             if (intervalEnd - intervalStart <= ParameterTolerance)
             {
@@ -1516,6 +1898,47 @@ namespace IntersectUtilities
             {
                 AddSpan(spans, startClass, Interpolate(startPoint, endPoint, intervalStart), Interpolate(startPoint, endPoint, intervalEnd));
                 return;
+            }
+
+            double sampleMid = (sampleStart + sampleEnd) * 0.5;
+            LERCompareTerrainEvaluation midEval = Evaluate(startPoint, endPoint, surface, sampleMid);
+
+            if (midEval.IsOnSurface)
+            {
+                LERCompareTerrainClassification midClass = Classify(midEval.Clearance, threshold);
+                if (startClass != midClass && midClass != endClass && startClass != endClass)
+                {
+                    double leftBoundary = FindThresholdBoundaryParameter(
+                        startPoint,
+                        endPoint,
+                        surface,
+                        threshold,
+                        sampleStart,
+                        sampleMid,
+                        startClass);
+                    double rightBoundary = FindThresholdBoundaryParameter(
+                        startPoint,
+                        endPoint,
+                        surface,
+                        threshold,
+                        sampleMid,
+                        sampleEnd,
+                        midClass);
+
+                    AddSpan(spans, startClass, Interpolate(startPoint, endPoint, intervalStart), Interpolate(startPoint, endPoint, leftBoundary));
+                    AddSpan(spans, midClass, Interpolate(startPoint, endPoint, leftBoundary), Interpolate(startPoint, endPoint, rightBoundary));
+                    AddSpan(spans, endClass, Interpolate(startPoint, endPoint, rightBoundary), Interpolate(startPoint, endPoint, intervalEnd));
+                    return;
+                }
+            }
+            else
+            {
+                // Both endpoints sit on the surface, but the midpoint does not — geometrically impossible inside a single
+                // convex TIN triangle, so this signals either a TIN hole that SampleElevations did not break the segment
+                // at, or numerical edge-case behavior from FindElevationAtXY. The single-bisection fallback below can
+                // still return a fabricated split parameter in that case (Codex review HIGH #2). Surfacing the count to
+                // the user is the diagnostic; the underlying hole-handling bug is intentionally left for a separate pass.
+                suspectIntervals++;
             }
 
             double thresholdBoundary = FindThresholdBoundaryParameter(
@@ -1720,15 +2143,18 @@ namespace IntersectUtilities
 
     internal sealed class LERCompareTerrainPreviewResult
     {
-        public LERCompareTerrainPreviewResult(int analyzedPolylineCount, IReadOnlyList<LERCompareTerrainPiece> pieces)
+        public LERCompareTerrainPreviewResult(int analyzedPolylineCount, IReadOnlyList<LERCompareTerrainPiece> pieces, int suspectIntervalCount)
         {
             AnalyzedPolylineCount = analyzedPolylineCount;
             Pieces = pieces.ToList();
+            SuspectIntervalCount = suspectIntervalCount;
         }
 
         public int AnalyzedPolylineCount { get; }
 
         public List<LERCompareTerrainPiece> Pieces { get; }
+
+        public int SuspectIntervalCount { get; }
 
         public int AboveTerrainCount => Pieces.Count(piece => piece.Classification == LERCompareTerrainClassification.AboveTerrain);
 
@@ -1875,6 +2301,8 @@ namespace IntersectUtilities
 
         public List<Point3d> Points { get; }
     }
+
+    internal readonly record struct LERCompareTerrainBbox2d(double MinX, double MinY, double MaxX, double MaxY);
 
     internal sealed class LERCompareTerrainSurfaceDescriptor
     {
