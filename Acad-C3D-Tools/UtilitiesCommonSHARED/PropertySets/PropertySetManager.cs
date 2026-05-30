@@ -1254,6 +1254,7 @@ namespace IntersectUtilities
             BBR,
             NtrData,
             Forsyningsområde,
+            Supplypoint,
         }
 
         public class FJV_område : PSetDef
@@ -1578,6 +1579,21 @@ namespace IntersectUtilities
                 new Property("AntalBygninger", "Antal bygninger i området", PsDataType.Integer, 0);
             public Property AntalEnheder { get; } =
                 new Property("AntalEnheder", "Antal enheder i området", PsDataType.Integer, 0);
+            public override StringCollection AppliesTo { get; } =
+                new StringCollection() { RXClass.GetClass(typeof(BlockReference)).Name };
+        }
+
+        public class Supplypoint : PSetDef
+        {
+            public override DefinedSets SetName { get; } = DefinedSets.Supplypoint;
+            public Property Navn { get; } =
+                new Property("Navn", "Navnet på fjernvarmenettet", PsDataType.Text, "");
+            public Property TilgængeligtDifferenstryk { get; } =
+                new Property(
+                    "TilgængeligtDifferenstryk",
+                    "Tilgængeligt differenstryk ved forsyningspunktet [bar]. 0 = ikke angivet.",
+                    PsDataType.Real,
+                    0.0);
             public override StringCollection AppliesTo { get; } =
                 new StringCollection() { RXClass.GetClass(typeof(BlockReference)).Name };
         }
@@ -1998,6 +2014,40 @@ namespace IntersectUtilities
         {
             get => ReadPropertyInt(_ent, _def.AntalEnheder);
             set => WritePropertyObject(_ent, _def.AntalEnheder, value);
+        }
+    }
+
+    public class Supplypoint : PropertySetManager
+    {
+        /// <summary>
+        /// Ensures the Supplypoint PropertySetDefinition exists in the drawing's
+        /// extension dictionary. No entity attachment performed. Must be called
+        /// within an active transaction.
+        /// </summary>
+        public static PropertySetDefinition CheckOrCreatePropertySetDef(Database db)
+            => new PSetDefs.Supplypoint().CheckOrCreatePropertySetDef(db);
+
+        private Entity _ent;
+        public Entity Entity => _ent;
+        private BlockReference _br;
+        private PSetDefs.Supplypoint _def = new PSetDefs.Supplypoint();
+        public Supplypoint(Entity ent)
+            : base(ent.Database, PSetDefs.DefinedSets.Supplypoint)
+        {
+            _ent = ent;
+            if (_ent is not BlockReference)
+                throw new System.Exception("Supplypoint PropertySet can only be attached to BlockReference entities!");
+            _br = (BlockReference)_ent;
+        }
+        public string Navn
+        {
+            get => ReadPropertyString(_ent, _def.Navn);
+            set => WritePropertyObject(_ent, _def.Navn, value);
+        }
+        public double TilgængeligtDifferenstryk
+        {
+            get => ReadPropertyDouble(_ent, _def.TilgængeligtDifferenstryk);
+            set => WritePropertyObject(_ent, _def.TilgængeligtDifferenstryk, value);
         }
     }
 
