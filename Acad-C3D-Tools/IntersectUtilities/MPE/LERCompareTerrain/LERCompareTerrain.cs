@@ -18,6 +18,8 @@ using Autodesk.AutoCAD.Runtime;
 using Autodesk.AutoCAD.Windows;
 using Autodesk.Civil;
 using Autodesk.Civil.DatabaseServices;
+using Autodesk.Gis.Map;
+using Autodesk.Gis.Map.ObjectData;
 using IntersectUtilities.UtilsCommon;
 using static IntersectUtilities.UtilsCommon.Utils;
 using AcEntity = Autodesk.AutoCAD.DatabaseServices.Entity;
@@ -966,7 +968,75 @@ namespace IntersectUtilities
                         LERCompareTerrainLayerNames.TwoDPolylineLayerName
                     });
 
+                Dictionary<ObjectId, TypedValue[]?> xdataTemplates = new Dictionary<ObjectId, TypedValue[]?>();
+                Dictionary<ObjectId, List<(string Key, TypedValue[]? Data)>?> extDictTemplates =
+                    new Dictionary<ObjectId, List<(string Key, TypedValue[]? Data)>?>();
+                HashSet<string> regAppNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                int unsupportedExtEntryCount = 0;
+                foreach (LERCompareTerrainPiece piece in _lastPreviewResult.Pieces)
+                {
+                    if (xdataTemplates.ContainsKey(piece.SourceId)) continue;
+                    if (tx.GetObject(piece.SourceId, OpenMode.ForRead, false) is not Polyline3d src)
+                    {
+                        xdataTemplates[piece.SourceId] = null;
+                        extDictTemplates[piece.SourceId] = null;
+                        continue;
+                    }
+
+                    ResultBuffer? xd = src.XData;
+                    if (xd == null)
+                    {
+                        xdataTemplates[piece.SourceId] = null;
+                    }
+                    else
+                    {
+                        TypedValue[] template = xd.AsArray();
+                        xdataTemplates[piece.SourceId] = template;
+                        foreach (TypedValue tv in template)
+                        {
+                            if (tv.TypeCode == 1001 && tv.Value is string appName)
+                            {
+                                regAppNames.Add(appName);
+                            }
+                        }
+                    }
+
+                    if (src.ExtensionDictionary == ObjectId.Null)
+                    {
+                        extDictTemplates[piece.SourceId] = null;
+                    }
+                    else
+                    {
+                        DBDictionary srcDict = (DBDictionary)tx.GetObject(src.ExtensionDictionary, OpenMode.ForRead);
+                        List<(string Key, TypedValue[]? Data)> entries = new List<(string, TypedValue[]?)>();
+                        foreach (DBDictionaryEntry e in srcDict)
+                        {
+                            if (tx.GetObject(e.Value, OpenMode.ForRead) is Xrecord xr)
+                            {
+                                entries.Add((e.Key, xr.Data?.AsArray()));
+                            }
+                            else
+                            {
+                                unsupportedExtEntryCount++;
+                            }
+                        }
+                        extDictTemplates[piece.SourceId] = entries.Count > 0 ? entries : null;
+                    }
+                }
+                EnsureRegAppsRegistered(_document.Database, tx, regAppNames);
+
+                Tables? odTables = null;
+                try
+                {
+                    odTables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg($"Map 3D ODTables unavailable; OD records will not be copied. {ex.Message}");
+                }
+
                 int createdCount = 0;
+                int odCopyFailures = 0;
                 foreach (LERCompareTerrainPiece piece in _lastPreviewResult.Pieces)
                 {
                     if (piece.Points.Count < 2)
@@ -989,18 +1059,60 @@ namespace IntersectUtilities
 
                     modelSpace.AppendEntity(bakedPolyline);
                     tx.AddNewlyCreatedDBObject(bakedPolyline, true);
+
+                    if (xdataTemplates.TryGetValue(piece.SourceId, out TypedValue[]? xdataTemplate) && xdataTemplate != null)
+                    {
+                        bakedPolyline.XData = new ResultBuffer(xdataTemplate);
+                    }
+
+                    if (extDictTemplates.TryGetValue(piece.SourceId, out List<(string Key, TypedValue[]? Data)>? extEntries) && extEntries != null)
+                    {
+                        bakedPolyline.CreateExtensionDictionary();
+                        DBDictionary dstDict = (DBDictionary)tx.GetObject(bakedPolyline.ExtensionDictionary, OpenMode.ForWrite);
+                        foreach ((string key, TypedValue[]? data) in extEntries)
+                        {
+                            Xrecord clone = new Xrecord();
+                            if (data != null) clone.Data = new ResultBuffer(data);
+                            dstDict.SetAt(key, clone);
+                            tx.AddNewlyCreatedDBObject(clone, true);
+                        }
+                    }
+
+                    if (odTables != null)
+                    {
+                        try
+                        {
+                            UtilsODData.CopyAllOD(odTables, piece.SourceId, bakedPolyline.ObjectId);
+                        }
+                        catch (System.Exception ex)
+                        {
+                            odCopyFailures++;
+                            prdDbg($"OD copy failed for piece on {bakedPolyline.Handle}: {ex.Message}");
+                        }
+                    }
                     createdCount++;
                 }
 
                 tx.Commit();
                 _renderer.Clear();
-                UpdateStatus(
+                string status =
                     $"Export complete. Created {createdCount} 3D polyline piece(s) on layers "
                     + $"{LERCompareTerrainLayerNames.AboveTerrainLayerName}, "
                     + $"{LERCompareTerrainLayerNames.BuildWithinLayerName(GetThreshold())}, "
                     + $"{LERCompareTerrainLayerNames.BuildDeeperLayerName(GetThreshold())}, "
                     + $"{LERCompareTerrainLayerNames.OutsideLayerName}, and "
-                    + $"{LERCompareTerrainLayerNames.TwoDPolylineLayerName}.");
+                    + $"{LERCompareTerrainLayerNames.TwoDPolylineLayerName}.";
+                if (unsupportedExtEntryCount > 0)
+                {
+                    status += Environment.NewLine
+                        + $"Skipped {unsupportedExtEntryCount} non-Xrecord ExtensionDictionary entry(ies) — only Xrecord entries are copied.";
+                }
+                if (odCopyFailures > 0)
+                {
+                    status += Environment.NewLine
+                        + $"OD record copy failed for {odCopyFailures} piece(s). See debug output for details.";
+                }
+                UpdateStatus(status);
             }
             catch (System.Exception ex)
             {
@@ -1391,6 +1503,25 @@ namespace IntersectUtilities
 
             layerTable.Add(layer);
             transaction.AddNewlyCreatedDBObject(layer, true);
+        }
+
+        private static void EnsureRegAppsRegistered(Database database, Transaction transaction, IEnumerable<string> names)
+        {
+            RegAppTable rat = (RegAppTable)transaction.GetObject(database.RegAppTableId, OpenMode.ForRead);
+            bool upgraded = false;
+            foreach (string name in names)
+            {
+                if (string.IsNullOrWhiteSpace(name)) continue;
+                if (rat.Has(name)) continue;
+                if (!upgraded)
+                {
+                    rat.UpgradeOpen();
+                    upgraded = true;
+                }
+                RegAppTableRecord record = new RegAppTableRecord { Name = name };
+                rat.Add(record);
+                transaction.AddNewlyCreatedDBObject(record, true);
+            }
         }
 
         private static void ClearExistingExportedGeometry(
