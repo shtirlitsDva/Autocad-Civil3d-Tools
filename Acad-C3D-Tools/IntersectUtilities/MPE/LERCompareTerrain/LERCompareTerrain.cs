@@ -1037,6 +1037,7 @@ namespace IntersectUtilities
 
                 int createdCount = 0;
                 int odCopyFailures = 0;
+                int psCopyFailures = 0;
                 foreach (LERCompareTerrainPiece piece in _lastPreviewResult.Pieces)
                 {
                     if (piece.Points.Count < 2)
@@ -1090,6 +1091,16 @@ namespace IntersectUtilities
                             prdDbg($"OD copy failed for piece on {bakedPolyline.Handle}: {ex.Message}");
                         }
                     }
+
+                    try
+                    {
+                        PropertySetManager.CopyAllProperties(sourcePolyline, bakedPolyline);
+                    }
+                    catch (System.Exception ex)
+                    {
+                        psCopyFailures++;
+                        prdDbg($"PropertySet copy failed for piece on {bakedPolyline.Handle}: {ex.Message}");
+                    }
                     createdCount++;
                 }
 
@@ -1111,6 +1122,11 @@ namespace IntersectUtilities
                 {
                     status += Environment.NewLine
                         + $"OD record copy failed for {odCopyFailures} piece(s). See debug output for details.";
+                }
+                if (psCopyFailures > 0)
+                {
+                    status += Environment.NewLine
+                        + $"PropertySet copy failed for {psCopyFailures} piece(s). See debug output for details.";
                 }
                 UpdateStatus(status);
             }
