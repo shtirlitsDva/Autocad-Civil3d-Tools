@@ -16,7 +16,7 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork.ViewModels
         private string _checkDistance = "0.1";
 
         [ObservableProperty]
-        private string _minSlope = "2";
+        private string _minSlope = "20";
 
         // ---- Status / result -------------------------------------------------
 
@@ -32,13 +32,21 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork.ViewModels
         [ObservableProperty]
         private string _resultColor = "#A0AEC0";
 
+        // Error checkpoint line (bold): red with a count when flagged connectors
+        // exist, otherwise a muted "Ingen fejl".
+        [ObservableProperty]
+        private string _errorText = "Ingen fejl";
+
+        [ObservableProperty]
+        private string _errorColor = "#A0AEC0";
+
         // ---- Preview visibility ----------------------------------------------
 
         [ObservableProperty]
-        private bool _show2D = true;
+        private bool _show2D;
 
         [ObservableProperty]
-        private bool _show3D = true;
+        private bool _show3D;
 
         [ObservableProperty]
         private bool _showMains;
@@ -51,6 +59,9 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork.ViewModels
 
         [ObservableProperty]
         private bool _showUngrouped;
+
+        [ObservableProperty]
+        private bool _showErrors;
 
         // ---- Apply button ----------------------------------------------------
 
@@ -112,10 +123,11 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork.ViewModels
         partial void OnShowChildrenChanged(bool value) => PushVisibility();
         partial void OnShowGroupedChanged(bool value) => PushVisibility();
         partial void OnShowUngroupedChanged(bool value) => PushVisibility();
+        partial void OnShowErrorsChanged(bool value) => PushVisibility();
 
         private void PushVisibility()
         {
-            _state?.SetVisibility(Show2D, Show3D, ShowMains, ShowChildren, ShowGrouped, ShowUngrouped);
+            _state?.SetVisibility(Show2D, Show3D, ShowMains, ShowChildren, ShowGrouped, ShowUngrouped, ShowErrors);
         }
 
         private void RefreshResult()
@@ -124,6 +136,8 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork.ViewModels
             {
                 Result = "Ingen forhåndsvisning endnu.";
                 ResultColor = ColorFor(LerStatusKind.Info);
+                ErrorText = "Ingen fejl";
+                ErrorColor = ColorFor(LerStatusKind.Info);
                 ApplyButtonText = "Anvend tilslutninger";
                 CanApply = false;
                 return;
@@ -135,15 +149,21 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork.ViewModels
             {
                 text += $"\n{_state.ConflictCount} konflikter kræver manuel kontrol.";
             }
-            if (_state.NoParentCount > 0)
+            if (_state.NoMainCount > 0)
             {
-                text += $"\n{_state.NoParentCount} 2D-linjer uden forælder.";
+                text += $"\n{_state.NoMainCount} 2D-linjer uden hovedledning.";
             }
 
             Result = text;
             ResultColor = ColorFor(connected > 0 ? LerStatusKind.Ok : LerStatusKind.Warning);
             ApplyButtonText = connected > 0 ? $"Anvend {connected} tilslutninger" : "Anvend tilslutninger";
             CanApply = connected > 0;
+
+            int errors = _state.ErrorCount;
+            ErrorText = errors > 0
+                ? $"{errors} fejl: stik der ikke rammer hovedledning / for lange"
+                : "Ingen fejl";
+            ErrorColor = ColorFor(errors > 0 ? LerStatusKind.Error : LerStatusKind.Info);
         }
 
         private static string ColorFor(LerStatusKind kind) => kind switch

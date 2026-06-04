@@ -1,18 +1,20 @@
+using System;
 using System.Collections.Generic;
-using System.Linq;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
+using IntersectUtilities.UtilsCommon;
+using static IntersectUtilities.UtilsCommon.Utils;
 
 namespace IntersectUtilities.MPE.Ler3DNetwork
 {
-    // Shared "replace a 2D drainage polyline with a lifted 3D one" operation.
-    // Builds a new Polyline3d from the given points, keeps the source's layer and
-    // properties, carries over every attached record (XData + the full extension
-    // dictionary, where Civil 3D property sets live), then erases the original.
-    // Must be called inside an active write transaction under a document lock.
+    // Shared "lift a 2D drainage polyline to a 3D one" operation. Rewrites the
+    // EXISTING Polyline3d's vertices in place instead of recreating it, so the entity
+    // keeps its ObjectId, layer, XData, extension dictionary (where Civil 3D property
+    // sets live), reactors, and every inbound reference. Must be called inside an
+    // active write transaction under a document lock.
     internal static class LerRebuild
     {
-        // Returns true when the source was a Polyline3d and got replaced.
+        // Returns true when the source was a Polyline3d and got rewritten.
         public static bool ReplacePolyline3d(
             Transaction tx,
             ObjectId sourceId,
@@ -23,78 +25,35 @@ namespace IntersectUtilities.MPE.Ler3DNetwork
                 return false;
             }
 
-            Polyline3d rebuilt = new(
-                Poly3dType.SimplePoly,
-                new Point3dCollection(newPoints.ToArray()),
-                false);
-            // SetPropertiesFrom keeps the source layer so the new line stays on the
-            // original layer.
-            rebuilt.SetPropertiesFrom(source);
+            // SimplePoly drainage lines have no control vertices, so GetVertices
+            // returns the real vertices 1:1 with newPoints.
+            PolylineVertex3d[] verts = source.GetVertices(tx);
+            int shared = Math.Min(verts.Length, newPoints.Count);
 
-            BlockTableRecord owner = (BlockTableRecord)tx.GetObject(source.OwnerId, OpenMode.ForWrite);
-            owner.AppendEntity(rebuilt);
-            tx.AddNewlyCreatedDBObject(rebuilt, true);
+            // Move the shared vertices in place — identity, XData and property sets
+            // all stay on the same object, so no inbound reference is orphaned.
+            for (int i = 0; i < shared; i++)
+            {
+                verts[i].CheckOrOpenForWrite();
+                verts[i].Position = newPoints[i];
+            }
 
-            // Carry over XData + full extension dictionary (property sets, Xrecords,
-            // ...) before erasing the old one.
-            CopyAttachedData(source, rebuilt, tx);
+            // Append any extra vertices (e.g. the connect path's projected end point).
+            for (int i = verts.Length; i < newPoints.Count; i++)
+            {
+                PolylineVertex3d vertex = new(newPoints[i]);
+                source.AppendVertex(vertex);
+                tx.AddNewlyCreatedDBObject(vertex, true);
+            }
 
-            source.Erase();
+            // Erase any surplus vertices when the new geometry is shorter.
+            for (int i = newPoints.Count; i < verts.Length; i++)
+            {
+                verts[i].CheckOrOpenForWrite();
+                verts[i].Erase();
+            }
+
             return true;
-        }
-
-        // Copies the source entity's XData and its full extension dictionary onto
-        // the rebuilt entity, so the new object inherits every attached record
-        // (property sets, pipe tags, Xrecords, nested dictionaries, ...). Both
-        // entities must already be database-resident.
-        private static void CopyAttachedData(DBObject source, DBObject dest, Transaction tx)
-        {
-            ResultBuffer? xdata = source.XData;
-            if (xdata != null)
-            {
-                dest.XData = xdata;
-                xdata.Dispose();
-            }
-
-            if (source.ExtensionDictionary == ObjectId.Null)
-            {
-                return;
-            }
-
-            if (dest.ExtensionDictionary == ObjectId.Null)
-            {
-                dest.CreateExtensionDictionary();
-            }
-
-            DBDictionary sourceDict = (DBDictionary)tx.GetObject(source.ExtensionDictionary, OpenMode.ForRead);
-            DBDictionary destDict = (DBDictionary)tx.GetObject(dest.ExtensionDictionary, OpenMode.ForWrite);
-            CloneDictionaryEntries(sourceDict, destDict, tx);
-        }
-
-        private static void CloneDictionaryEntries(DBDictionary source, DBDictionary dest, Transaction tx)
-        {
-            foreach (DBDictionaryEntry entry in source)
-            {
-                if (dest.Contains(entry.Key))
-                {
-                    continue;
-                }
-
-                DBObject obj = tx.GetObject(entry.Value, OpenMode.ForRead);
-                if (obj is DBDictionary subSource)
-                {
-                    DBDictionary subDest = new();
-                    dest.SetAt(entry.Key, subDest);
-                    tx.AddNewlyCreatedDBObject(subDest, true);
-                    CloneDictionaryEntries(subSource, subDest, tx);
-                }
-                else
-                {
-                    DBObject clone = (DBObject)obj.Clone();
-                    dest.SetAt(entry.Key, clone);
-                    tx.AddNewlyCreatedDBObject(clone, true);
-                }
-            }
         }
     }
 }

@@ -13,7 +13,7 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork
 {
     // Per-document session for LERConnectNetwork. Gather performs the only
     // database read and snapshots every drainage polyline as point lists;
-    // network grouping, parent assignment and preview then run purely in memory.
+    // network grouping, main assignment and preview then run purely in memory.
     // Apply re-opens the affected lines by ObjectId under a document lock.
     internal sealed class LERConnectNetworkState : IDisposable
     {
@@ -22,9 +22,10 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork
         private static readonly CadColor OrphanColor = CadColor.FromColorIndex(ColorMethod.ByAci, 8);   // grey
         private static readonly CadColor GroupedColor = CadColor.FromColorIndex(ColorMethod.ByAci, 3);   // green = attached child
         private static readonly CadColor UngroupedColor = CadColor.FromColorIndex(ColorMethod.ByAci, 6); // magenta = unattached child
+        private static readonly CadColor ErrorColor = CadColor.FromRgb(255, 105, 180);                   // hot pink = flagged connector
 
-        // Parents (3D networks) render heavy; children (2D) stay thin.
-        private const LineWeight ParentWeight = LineWeight.LineWeight040;
+        // Mains (3D networks) render heavy; children (2D) stay thin.
+        private const LineWeight MainWeight = LineWeight.LineWeight040;
         private const LineWeight ChildWeight = LineWeight.LineWeight000;
 
         private readonly LerPreviewManager _preview = new();
@@ -34,18 +35,19 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork
         private List<LerClassifiedLine> _twoD = new();
         private List<LERNetwork> _networks = new();
         private readonly Dictionary<int, LERNetwork> _networkById = new();
-        private readonly Dictionary<ObjectId, LERParentAssignment> _assignments = new();
+        private readonly Dictionary<ObjectId, LERMainAssignment> _assignments = new();
 
         // Independent preview visibility flags, additive per checkbox. The "kind"
         // pair colours by 2D/3D (red/green); the "network" pair colours mains per
-        // network and children by parent; the "grouping" pair colours 2D children
-        // by whether they reached a parent hovedledning (attached) or not.
+        // network and children by main; the "grouping" pair colours 2D children
+        // by whether they reached a main hovedledning (attached) or not.
         private bool _show2D;
         private bool _show3D;
         private bool _showMains;
         private bool _showChildren;
         private bool _showGrouped;
         private bool _showUngrouped;
+        private bool _showErrors;
 
         // Solved connections from the last "Opdater forhåndsvisning"; reused by Apply.
         private List<LERConnectionResult> _results = new();
@@ -65,7 +67,10 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork
 
         public int ConflictCount { get; private set; }
 
-        public int NoParentCount { get; private set; }
+        public int NoMainCount { get; private set; }
+
+        // Connected connectors flagged problematic (miss the main or far too long).
+        public int ErrorCount { get; private set; }
 
         public void Dispose()
         {
@@ -88,7 +93,8 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork
                 HasComputed = false;
                 ConnectedCount = 0;
                 ConflictCount = 0;
-                NoParentCount = 0;
+                NoMainCount = 0;
+                ErrorCount = 0;
 
                 // Gather the whole drawing, then keep only the drainage subset
                 // (LerConnectNetwork operates on the "Afløbsledning" lines).
@@ -112,7 +118,7 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork
             }
         }
 
-        // ---- Update preview: group networks, match parents, solve connections -
+        // ---- Update preview: group networks, match mains, solve connections -
 
         // Triggered by "Opdater forhåndsvisning". Recomputes everything in memory
         // from the loaded snapshot and refreshes whatever toggles are active.
@@ -135,7 +141,7 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork
             _assignments.Clear();
             foreach (LerClassifiedLine twoD in _twoD)
             {
-                LERParentAssignment? assignment = LERConnectNetworkAnalyzer.AssignParent(twoD.Points, _networks, distance);
+                LERMainAssignment? assignment = LERConnectNetworkAnalyzer.AssignMain(twoD.Points, _networks, distance);
                 if (assignment != null)
                 {
                     _assignments[twoD.Id] = assignment;
@@ -143,10 +149,13 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork
             }
 
             _results = SolveAll(distance, permille);
-            ConnectedCount = _results.Count(r => r.Status == LERConnectionStatus.Connected);
+            ConnectedCount = _results.Count(r =>
+                r.Status == LERConnectionStatus.Connected && r.Error == LERConnectionError.None);
+            ErrorCount = _results.Count(r =>
+                r.Status == LERConnectionStatus.Connected && r.Error != LERConnectionError.None);
             ConflictCount = _results.Count(r =>
                 r.Status == LERConnectionStatus.NoIntersection || r.Status == LERConnectionStatus.Degenerate);
-            NoParentCount = _twoD.Count - _assignments.Count;
+            NoMainCount = _twoD.Count - _assignments.Count;
             HasComputed = true;
 
             RenderPreview();
@@ -161,18 +170,16 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork
         {
             Dictionary<ObjectId, LerClassifiedLine> twoDById = _twoD.ToDictionary(l => l.Id);
 
-            // Cap how far a child may extend to meet its main: a child sits within
-            // the check distance of a main, so a sane connection stays local.
-            double maxConnect = Math.Max(2.0, distance * 10.0);
-
             List<LERConnectionResult> results = new();
-            foreach (KeyValuePair<ObjectId, LERParentAssignment> pair in _assignments)
+            foreach (KeyValuePair<ObjectId, LERMainAssignment> pair in _assignments)
             {
                 if (!twoDById.TryGetValue(pair.Key, out LerClassifiedLine? twoD)) continue;
-                if (!_networkById.TryGetValue(pair.Value.NetworkId, out LERNetwork? parent)) continue;
+                if (!_networkById.TryGetValue(pair.Value.NetworkId, out LERNetwork? main)) continue;
 
+                // The connector is always built when a local main exists; problematic
+                // ones are flagged (Error) using the check distance as the yardstick.
                 results.Add(LERConnectNetworkAnalyzer.Solve(
-                    twoD.Points, twoD.Id, parent, pair.Value.ConnectAtEnd, permille, maxConnect));
+                    twoD.Points, twoD.Id, main, pair.Value.ConnectAtEnd, permille, distance));
             }
             return results;
         }
@@ -182,7 +189,8 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork
         public void SetVisibility(
             bool show2D, bool show3D,
             bool showMains, bool showChildren,
-            bool showGrouped, bool showUngrouped)
+            bool showGrouped, bool showUngrouped,
+            bool showErrors)
         {
             _show2D = show2D;
             _show3D = show3D;
@@ -190,6 +198,7 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork
             _showChildren = showChildren;
             _showGrouped = showGrouped;
             _showUngrouped = showUngrouped;
+            _showErrors = showErrors;
             RenderPreview();
         }
 
@@ -212,7 +221,7 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork
             {
                 foreach (LerClassifiedLine line in _threeD)
                 {
-                    items.Add(new LerPreviewItem(line.Points, ThreeDColor, ParentWeight));
+                    items.Add(new LerPreviewItem(line.Points, ThreeDColor, MainWeight));
                 }
             }
             if (_show2D)
@@ -223,14 +232,14 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork
                 }
             }
 
-            // --- Netværk: per-network mains, children by their parent ---
+            // --- Netværk: per-network mains, children by their main ---
             if (_showMains && hasNetworks)
             {
                 foreach (LERNetwork network in _networks)
                 {
                     foreach (IReadOnlyList<Point3d> member in network.MemberPoints)
                     {
-                        items.Add(new LerPreviewItem(member, network.Color, ParentWeight));
+                        items.Add(new LerPreviewItem(member, network.Color, MainWeight));
                     }
                 }
             }
@@ -238,15 +247,15 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork
             {
                 foreach (LerClassifiedLine twoD in _twoD)
                 {
-                    CadColor color = _assignments.TryGetValue(twoD.Id, out LERParentAssignment? a)
-                                     && _networkById.TryGetValue(a.NetworkId, out LERNetwork? parent)
-                        ? parent.Color
+                    CadColor color = _assignments.TryGetValue(twoD.Id, out LERMainAssignment? a)
+                                     && _networkById.TryGetValue(a.NetworkId, out LERNetwork? main)
+                        ? main.Color
                         : OrphanColor;
                     items.Add(new LerPreviewItem(twoD.Points, color, ChildWeight));
                 }
             }
 
-            // --- Gruppering: children split by whether they reached a parent ---
+            // --- Gruppering: children split by whether they reached a main ---
             if (_showGrouped && HasComputed)
             {
                 AddChildrenByAttachment(items, attached: true, GroupedColor);
@@ -256,11 +265,36 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork
                 AddChildrenByAttachment(items, attached: false, UngroupedColor);
             }
 
+            // --- Fejl: flagged connectors + their original 2D lines, both pink ---
+            if (_showErrors && HasComputed)
+            {
+                Dictionary<ObjectId, IReadOnlyList<Point3d>> sourceById =
+                    _twoD.ToDictionary(l => l.Id, l => l.Points);
+
+                foreach (LERConnectionResult result in _results)
+                {
+                    if (result.Status != LERConnectionStatus.Connected) continue;
+                    if (result.Error == LERConnectionError.None) continue;
+
+                    // The original (flat) 2D stik, thin — so the operator can find it.
+                    if (sourceById.TryGetValue(result.SourceId, out IReadOnlyList<Point3d>? src))
+                    {
+                        items.Add(new LerPreviewItem(src, ErrorColor, ChildWeight));
+                    }
+
+                    // The projected (problematic) connector, heavy.
+                    if (result.NewPoints != null)
+                    {
+                        items.Add(new LerPreviewItem(result.NewPoints, ErrorColor, MainWeight));
+                    }
+                }
+            }
+
             _preview.Show(items);
         }
 
-        // Adds the 2D children that are (attached) matched to a parent hovedledning
-        // or (else) have no parent within the check distance, in the given colour.
+        // Adds the 2D children that are (attached) matched to a main hovedledning
+        // or (else) have no main within the check distance, in the given colour.
         private void AddChildrenByAttachment(List<LerPreviewItem> items, bool attached, CadColor color)
         {
             foreach (LerClassifiedLine twoD in _twoD)
@@ -292,7 +326,7 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork
 
             SetStatus(
                 $"Erstattet {connected} stik (2D→3D) på deres oprindelige lag. "
-                + $"Sprunget over: {NoParentCount} uden forælder, {ConflictCount} uden skæring.",
+                + $"Sprunget over: {NoMainCount} uden hovedledning, {ConflictCount} uden skæring.",
                 connected > 0 ? LerStatusKind.Ok : LerStatusKind.Warning);
         }
 
@@ -323,7 +357,11 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork
 
                         foreach (LERConnectionResult result in results)
                         {
-                            if (result.Status != LERConnectionStatus.Connected || result.NewPoints == null)
+                            // Skip non-connected and flagged-error connectors — only
+                            // clean connections are written; errors need manual review.
+                            if (result.Status != LERConnectionStatus.Connected
+                                || result.NewPoints == null
+                                || result.Error != LERConnectionError.None)
                             {
                                 continue;
                             }

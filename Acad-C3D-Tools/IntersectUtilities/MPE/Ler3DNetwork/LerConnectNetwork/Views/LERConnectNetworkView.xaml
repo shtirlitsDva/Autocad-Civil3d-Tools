@@ -76,6 +76,17 @@
                 </GroupBox>
             </Grid>
 
+            <GroupBox Header="Fejl" Margin="0,8,0,0">
+                <StackPanel>
+                    <CheckBox Content="Vis fejl (lyserøde stik)" IsChecked="{Binding ShowErrors}" />
+                    <TextBlock Text="{Binding ErrorText}"
+                               Foreground="{Binding ErrorColor}"
+                               FontWeight="Bold"
+                               TextWrapping="Wrap"
+                               Margin="0,4,0,0" />
+                </StackPanel>
+            </GroupBox>
+
             <GroupBox Header="Resultat">
                 <TextBlock Text="{Binding Result}"
                            Foreground="{Binding ResultColor}"

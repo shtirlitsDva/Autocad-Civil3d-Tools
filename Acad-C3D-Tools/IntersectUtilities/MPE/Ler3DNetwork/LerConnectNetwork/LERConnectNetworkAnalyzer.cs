@@ -144,11 +144,11 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork
             return CadColor.FromColorIndex(ColorMethod.ByAci, aci);
         }
 
-        // ---- Parent assignment ----------------------------------------------
+        // ---- Main assignment ------------------------------------------------
 
         // For one 2D line, find the nearest network in XY measured from either
         // endpoint. Returns null when nothing is within maxDistance.
-        public static LERParentAssignment? AssignParent(
+        public static LERMainAssignment? AssignMain(
             IReadOnlyList<Point3d> twoDPoints,
             IReadOnlyList<LERNetwork> networks,
             double maxDistance)
@@ -189,7 +189,7 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork
                 return null;
             }
 
-            return new LERParentAssignment(networks[bestNetwork].Id, bestConnectAtEnd, bestDistance);
+            return new LERMainAssignment(networks[bestNetwork].Id, bestConnectAtEnd, bestDistance);
         }
 
         private static double MinXyDistanceToNetwork(Point2d q, LERNetwork network)
@@ -208,22 +208,29 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork
 
         // ---- Connection solve -----------------------------------------------
 
-        // Extend the connecting end C along its tangent, intersect the parent in
-        // XY, lift to the parent's real Z, then slope the rebuilt line upward
-        // away from that pivot. Returns the rebuilt point list (A..C,X) or a
-        // non-Connected status.
+        // A stub longer than this multiple of the check distance is flagged TooLong.
+        private const double TooLongFactor = 20.0;
+
+        // Two modes. CROSSING: if the stik already crosses the main, pivot at that
+        // crossing X1 and mutate the stik in place (handled inline below). EXTEND
+        // (this comment's path): otherwise extend the connecting end C along its
+        // tangent, intersect the main in XY, lift to the main's real Z, then slope
+        // the rebuilt line upward away from that pivot, appending X (A..C,X). Extend
+        // connectors are always built when a local main exists; problematic ones
+        // (forward extension misses the main, or stub > 20x the check distance) are
+        // still Connected but carry an Error flag.
         public static LERConnectionResult Solve(
             IReadOnlyList<Point3d> twoDPoints,
             ObjectId sourceId,
-            LERNetwork parent,
+            LERNetwork main,
             bool connectAtEnd,
             double permille,
-            double maxConnect)
+            double distance)
         {
             int n = twoDPoints.Count;
             if (n < 2)
             {
-                return new LERConnectionResult(sourceId, null, parent.Id, LERConnectionStatus.Degenerate);
+                return new LERConnectionResult(sourceId, null, main.Id, LERConnectionStatus.Degenerate);
             }
 
             int cIndex = connectAtEnd ? n - 1 : 0;
@@ -232,17 +239,43 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork
             Point2d c = Xy(twoDPoints[cIndex]);
             Point2d b = Xy(twoDPoints[bIndex]);
 
+            // Crossing mode: if the stik already crosses the main at X1, pivot there
+            // and mutate the stik in place — a straight constant-slope line through X1
+            // (at the main's elevation), the endpoint furthest from X1 highest and the
+            // nearer endpoint below the main. No extension, no vertex inserted, so the
+            // rebuilt point count matches the original (an in-place Z move on apply).
+            if (TryFindCrossing(twoDPoints, c, main, out Point2d x1, out double x1z, out double arcAtX1, out double totalLen))
+            {
+                double f = permille / 1000.0;
+                double dir = (totalLen - arcAtX1) >= arcAtX1 ? 1.0 : -1.0;
+                List<Point3d> mutated = new(n);
+                double cum = 0.0;
+                for (int i = 0; i < n; i++)
+                {
+                    if (i > 0) cum += Xy(twoDPoints[i - 1]).GetDistanceTo(Xy(twoDPoints[i]));
+                    double zCross = x1z + (f * dir * (cum - arcAtX1));
+                    mutated.Add(new Point3d(twoDPoints[i].X, twoDPoints[i].Y, zCross));
+                }
+                return new LERConnectionResult(sourceId, mutated, main.Id, LERConnectionStatus.Connected);
+            }
+
             Vector2d tangent = c - b;
             if (tangent.Length < Epsilon)
             {
-                return new LERConnectionResult(sourceId, null, parent.Id, LERConnectionStatus.Degenerate);
+                return new LERConnectionResult(sourceId, null, main.Id, LERConnectionStatus.Degenerate);
             }
             tangent = tangent / tangent.Length;
 
-            if (!TryFindLocalIntersection(c, tangent, parent, maxConnect, out Point2d hitXy, out double hitZ))
+            if (!TryFindLocalIntersection(c, tangent, main, out Point2d hitXy, out double hitZ, out bool cleanHit))
             {
-                return new LERConnectionResult(sourceId, null, parent.Id, LERConnectionStatus.NoIntersection);
+                return new LERConnectionResult(sourceId, null, main.Id, LERConnectionStatus.NoIntersection);
             }
+
+            // Flag (but still build) problematic connectors: a forward extension that
+            // never truly reaches the main, or a stub far longer than the check distance.
+            LERConnectionError error = LERConnectionError.None;
+            if (!cleanHit) error |= LERConnectionError.MissesMain;
+            if (c.GetDistanceTo(hitXy) > TooLongFactor * distance) error |= LERConnectionError.TooLong;
 
             Point3d x = new Point3d(hitXy.X, hitXy.Y, hitZ);
 
@@ -280,7 +313,7 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork
                 }
             }
 
-            return new LERConnectionResult(sourceId, rebuilt, parent.Id, LERConnectionStatus.Connected);
+            return new LERConnectionResult(sourceId, rebuilt, main.Id, LERConnectionStatus.Connected, error);
         }
 
         // Original-index order starting at the connecting end C and walking to
@@ -299,30 +332,111 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork
             return order;
         }
 
-        // Connect C to the LOCAL main: find the parent segment nearest to C in XY,
-        // then intersect the tangent (as a full line, so a slightly overshot C
-        // still connects to its adjacent main) with that one segment's line. The
-        // hit is clamped onto the segment span and rejected if it lands further
-        // than maxConnect from C — that scoping is what prevents the tangent from
-        // striking a distant segment elsewhere in a large connected network.
-        // Z is interpolated along the nearest segment from its real elevations.
+        // True when the stik truly crosses the main (a real segment-segment XY
+        // intersection within both spans). Returns the crossing X1 nearest to `nearTo`
+        // (the connecting endpoint), its main-interpolated Z, X1's plan arc-length
+        // along the stik, and the stik's total plan length.
+        private static bool TryFindCrossing(
+            IReadOnlyList<Point3d> twoDPoints,
+            Point2d nearTo,
+            LERNetwork main,
+            out Point2d x1,
+            out double x1z,
+            out double arcAtX1,
+            out double totalLen)
+        {
+            x1 = default;
+            x1z = 0.0;
+            arcAtX1 = 0.0;
+
+            int n = twoDPoints.Count;
+            double[] cum = new double[n];
+            for (int i = 1; i < n; i++)
+            {
+                cum[i] = cum[i - 1] + Xy(twoDPoints[i - 1]).GetDistanceTo(Xy(twoDPoints[i]));
+            }
+            totalLen = cum[n - 1];
+
+            bool found = false;
+            double bestDist = double.MaxValue;
+            for (int i = 0; i < n - 1; i++)
+            {
+                Point2d p0 = Xy(twoDPoints[i]);
+                Point2d p1 = Xy(twoDPoints[i + 1]);
+                foreach (IReadOnlyList<Point3d> member in main.MemberPoints)
+                {
+                    for (int j = 0; j < member.Count - 1; j++)
+                    {
+                        if (!TrySegmentIntersection(p0, p1, Xy(member[j]), Xy(member[j + 1]),
+                                out double tP, out double tQ))
+                        {
+                            continue;
+                        }
+
+                        Point2d pt = new Point2d(p0.X + (tP * (p1.X - p0.X)), p0.Y + (tP * (p1.Y - p0.Y)));
+                        double dist = nearTo.GetDistanceTo(pt);
+                        if (dist < bestDist)
+                        {
+                            bestDist = dist;
+                            x1 = pt;
+                            x1z = member[j].Z + (tQ * (member[j + 1].Z - member[j].Z));
+                            arcAtX1 = cum[i] + (tP * p0.GetDistanceTo(p1));
+                            found = true;
+                        }
+                    }
+                }
+            }
+            return found;
+        }
+
+        // 2D segment-segment intersection. Outputs the parameters along each segment
+        // (tP on p0->p1, tQ on q0->q1); returns true only when both lie within [0,1].
+        private static bool TrySegmentIntersection(
+            Point2d p0, Point2d p1, Point2d q0, Point2d q1,
+            out double tP, out double tQ)
+        {
+            tP = 0.0;
+            tQ = 0.0;
+            Vector2d r = p1 - p0;
+            Vector2d s = q1 - q0;
+            double denom = (r.X * s.Y) - (r.Y * s.X);
+            if (Math.Abs(denom) < Epsilon)
+            {
+                return false; // parallel or colinear
+            }
+
+            Vector2d qp = q0 - p0;
+            tP = ((qp.X * s.Y) - (qp.Y * s.X)) / denom;
+            tQ = ((qp.X * r.Y) - (qp.Y * r.X)) / denom;
+            return tP >= -Epsilon && tP <= 1.0 + Epsilon
+                && tQ >= -Epsilon && tQ <= 1.0 + Epsilon;
+        }
+
+        // Connect C to the LOCAL main: find the main segment nearest to C in XY,
+        // then intersect the tangent line through C with that one segment's line.
+        // Returns false only when the main has no segment or the tangent is
+        // parallel to the local main. Otherwise returns a best-effort hit (clamped
+        // onto the segment span) plus cleanHit = whether the forward extension truly
+        // lands within the segment. Z is interpolated along the segment from its real
+        // elevations.
         private static bool TryFindLocalIntersection(
             Point2d c,
             Vector2d dir,
-            LERNetwork parent,
-            double maxConnect,
+            LERNetwork main,
             out Point2d hitXy,
-            out double hitZ)
+            out double hitZ,
+            out bool cleanHit)
         {
             hitXy = c;
             hitZ = 0.0;
+            cleanHit = false;
 
-            // 1. Nearest parent segment to C (by perpendicular XY distance).
+            // 1. Nearest main segment to C (by perpendicular XY distance).
             double bestDist = double.MaxValue;
             Point3d nearA = default;
             Point3d nearB = default;
             bool any = false;
-            foreach (IReadOnlyList<Point3d> member in parent.MemberPoints)
+            foreach (IReadOnlyList<Point3d> member in main.MemberPoints)
             {
                 for (int i = 0; i < member.Count - 1; i++)
                 {
@@ -353,13 +467,17 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork
 
             Vector2d w = a - c;
             double u = ((dir.X * w.Y) - (w.X * dir.Y)) / det; // param along the segment
+            double t = ((e.X * w.Y) - (w.X * e.Y)) / det;     // distance along dir (unit) to the hit
             double uc = Math.Clamp(u, 0.0, 1.0);
 
             hitXy = new Point2d(a.X + (e.X * uc), a.Y + (e.Y * uc));
             hitZ = nearA.Z + (uc * (nearB.Z - nearA.Z));
 
-            // 3. Reject pathological far connections (e.g. near-parallel tangents).
-            return c.GetDistanceTo(hitXy) <= maxConnect;
+            // 3. Clean hit only when the forward extension (t >= 0) lands within the
+            // segment span (u in [0,1]). Otherwise it was clamped to an end or points
+            // backward — returned as a best-effort point for the caller to flag.
+            cleanHit = t >= -Epsilon && u >= -Epsilon && u <= 1.0 + Epsilon;
+            return true;
         }
 
         // ---- Small geometry helpers -----------------------------------------
