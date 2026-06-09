@@ -6,7 +6,10 @@
       "WebSearch",
       "WebFetch(domain:help.autodesk.com)",
       "Bash(findstr /I pptangent)",
-      "Bash(findstr /I reverse)"
+      "Bash(findstr /I reverse)",
+      "mcp__plugin_acd-mcp_acd-mcp__autocad_script_execute",
+      "PowerShell(& \"C:\\\\Program Files\\\\Microsoft Visual Studio\\\\18\\\\Community\\\\MSBuild\\\\Current\\\\Bin\\\\MSBuild.exe\" \"C:\\\\Users\\\\mpe\\\\Github\\\\shtirlitsDva\\\\Autocad-Civil3d-Tools\\\\Acad-C3D-Tools\\\\IntersectUtilities\\\\IntersectUtilities.csproj\" /p:Configuration=Debug \"/clp:ErrorsOnly;Summary\" /v:m)",
+      "Bash(Select-String -Pattern \"ghost text\" -SimpleMatch)"
     ]
   },
   "outputStyle": "Explanatory"

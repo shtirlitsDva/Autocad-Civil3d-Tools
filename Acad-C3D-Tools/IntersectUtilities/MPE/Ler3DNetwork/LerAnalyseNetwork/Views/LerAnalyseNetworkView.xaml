@@ -1,0 +1,202 @@
+<UserControl x:Class="IntersectUtilities.MPE.Ler3DNetwork.LerAnalyseNetwork.Views.LerAnalyseNetworkView"
+             x:ClassModifier="internal"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             Background="{StaticResource BackgroundBrush}"
+             d:DesignWidth="360" d:DesignHeight="520">
+
+    <UserControl.Resources>
+        <!-- Swatch colours mirror the AutoCAD ACI colours the polylines are drawn in,
+             so the legend is truthful: green = bridge, orange = floating, red = out
+             of range, cyan = inspect lift vectors. -->
+        <SolidColorBrush x:Key="SwatchBridge" Color="#00FF00" />
+        <SolidColorBrush x:Key="SwatchFloating" Color="#FF7F00" />
+        <SolidColorBrush x:Key="SwatchOutOfRange" Color="#FF0000" />
+        <SolidColorBrush x:Key="SwatchInspect" Color="#00FFFF" />
+        <SolidColorBrush x:Key="SwatchPivot" Color="#0000FF" />
+        <SolidColorBrush x:Key="SwatchSlope" Color="#FF00FF" />
+        <SolidColorBrush x:Key="SwatchTotal" Color="#718096" />
+
+        <Style x:Key="Swatch" TargetType="Rectangle">
+            <Setter Property="Width" Value="12" />
+            <Setter Property="Height" Value="12" />
+            <Setter Property="RadiusX" Value="2" />
+            <Setter Property="RadiusY" Value="2" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+        </Style>
+
+        <Style x:Key="MetricCount" TargetType="TextBlock">
+            <Setter Property="HorizontalAlignment" Value="Right" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="MinWidth" Value="40" />
+        </Style>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="8">
+
+            <!-- ===== STATUS ===== -->
+            <GroupBox Header="Status">
+                <TextBlock Text="{Binding Status}"
+                           Foreground="{Binding StatusColor}"
+                           TextWrapping="Wrap" />
+            </GroupBox>
+
+            <!-- ===== ANALYSE ===== -->
+            <Button Content="Analyser model"
+                    Margin="0,8,0,0"
+                    Command="{Binding LoadDrawingCommand}" />
+
+            <!-- ===== PARAMETRE ===== -->
+            <GroupBox Header="Parametre" Margin="0,8,0,0">
+                <StackPanel>
+                    <TextBlock TextWrapping="Wrap" Margin="0,0,0,4">
+                        <Run Text="Scanningsdybde: " />
+                        <Run Text="{Binding ScanDepth, Mode=OneWay}" FontWeight="SemiBold" />
+                        <Run Text=" / " />
+                        <Run Text="{Binding ScanDepthMax, Mode=OneWay}" />
+                        <Run Text=" polylinjer fra pivot" Foreground="{StaticResource ForegroundMutedBrush}" />
+                    </TextBlock>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <Slider Grid.Column="0"
+                                VerticalAlignment="Center"
+                                Minimum="1"
+                                Maximum="{Binding ScanDepthMax}"
+                                Value="{Binding ScanDepth}"
+                                IsSnapToTickEnabled="True"
+                                TickFrequency="1"
+                                SmallChange="1"
+                                LargeChange="1" />
+
+                        <TextBox Grid.Column="1"
+                                 Width="48"
+                                 Margin="8,0,0,0"
+                                 HorizontalContentAlignment="Right"
+                                 VerticalAlignment="Center"
+                                 ToolTip="Maks. scanningsdybde (skyderens øvre grænse)"
+                                 Text="{Binding ScanDepthMax, UpdateSourceTrigger=LostFocus}" />
+                    </Grid>
+                </StackPanel>
+            </GroupBox>
+
+            <!-- ===== RESULTAT ===== -->
+            <GroupBox Header="Resultat" Margin="0,8,0,0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <!-- Totals -->
+                    <Rectangle Grid.Row="0" Grid.Column="0" Style="{StaticResource Swatch}" Fill="{StaticResource SwatchTotal}" />
+                    <TextBlock Grid.Row="0" Grid.Column="1" Text="Pivoter (3D-rør)" VerticalAlignment="Center" Margin="0,0,0,2" />
+                    <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource MetricCount}" Text="{Binding PivotCount}" Margin="0,0,0,2" />
+
+                    <Rectangle Grid.Row="1" Grid.Column="0" Style="{StaticResource Swatch}" Fill="{StaticResource SwatchTotal}" />
+                    <TextBlock Grid.Row="1" Grid.Column="1" Text="2D-linjer analyseret" VerticalAlignment="Center" Margin="0,0,0,6" />
+                    <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource MetricCount}" Text="{Binding LineCount}" Margin="0,0,0,6" />
+
+                    <!-- Categories -->
+                    <Rectangle Grid.Row="2" Grid.Column="0" Style="{StaticResource Swatch}" Fill="{StaticResource SwatchBridge}" />
+                    <TextBlock Grid.Row="2" Grid.Column="1" Text="Broer — kan hæves" VerticalAlignment="Center" Margin="0,0,0,2" />
+                    <TextBlock Grid.Row="2" Grid.Column="2" Style="{StaticResource MetricCount}" Text="{Binding BridgeCount}" Margin="0,0,0,2" />
+
+                    <Rectangle Grid.Row="3" Grid.Column="0" Style="{StaticResource Swatch}" Fill="{StaticResource SwatchFloating}" />
+                    <TextBlock Grid.Row="3" Grid.Column="1" Text="Gren — kun én pivot" VerticalAlignment="Center" Margin="0,0,0,2" />
+                    <TextBlock Grid.Row="3" Grid.Column="2" Style="{StaticResource MetricCount}" Text="{Binding FloatingCount}" Margin="0,0,0,2" />
+
+                    <Rectangle Grid.Row="4" Grid.Column="0" Style="{StaticResource Swatch}" Fill="{StaticResource SwatchOutOfRange}" />
+                    <TextBlock Grid.Row="4" Grid.Column="1" Text="Uden pivot i dybde" VerticalAlignment="Center" />
+                    <TextBlock Grid.Row="4" Grid.Column="2" Style="{StaticResource MetricCount}" Text="{Binding OutOfRangeCount}" />
+                </Grid>
+            </GroupBox>
+
+            <!-- ===== VISNING ===== -->
+            <GroupBox Header="Visning" Margin="0,8,0,0">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                        <Rectangle Style="{StaticResource Swatch}" Fill="{StaticResource SwatchBridge}" />
+                        <CheckBox Content="Broer" IsChecked="{Binding ShowBridges}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                        <Rectangle Style="{StaticResource Swatch}" Fill="{StaticResource SwatchFloating}" />
+                        <CheckBox Content="Gren" IsChecked="{Binding ShowFloating}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                        <Rectangle Style="{StaticResource Swatch}" Fill="{StaticResource SwatchOutOfRange}" />
+                        <CheckBox Content="Uden for rækkevidde" IsChecked="{Binding ShowOutOfRange}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                        <Rectangle Style="{StaticResource Swatch}" Fill="{StaticResource SwatchPivot}" />
+                        <CheckBox Content="Pivoter (3D-rør)" IsChecked="{Binding ShowPivots}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <Rectangle Style="{StaticResource Swatch}" Fill="{StaticResource SwatchSlope}" />
+                        <CheckBox Content="Fald på 3D-rør (pile mod lavt punkt)" IsChecked="{Binding ShowSlope}" VerticalAlignment="Center" />
+                    </StackPanel>
+                </StackPanel>
+            </GroupBox>
+
+            <!-- ===== INSPEKTION ===== -->
+            <GroupBox Header="Inspektion" Margin="0,8,0,0">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <Rectangle Style="{StaticResource Swatch}" Fill="{StaticResource SwatchInspect}" />
+                        <CheckBox Content="Løftevektorer ved hover" IsChecked="{Binding InspectMode}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <TextBlock Text="Hold musen over en bro for at se hele broen løftet (cyan) med vektorer fra −99 op til ny højde (gul)."
+                               TextWrapping="Wrap"
+                               Foreground="{StaticResource ForegroundMutedBrush}"
+                               Margin="0,4,0,0" />
+                </StackPanel>
+            </GroupBox>
+
+            <!-- ===== HANDLINGER ===== -->
+            <GroupBox Header="Handlinger" Margin="0,8,0,0">
+                <StackPanel>
+                    <TextBlock Text="{Binding Result}"
+                               Foreground="{Binding ResultColor}"
+                               TextWrapping="Wrap"
+                               Margin="0,0,0,6" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0"
+                                Content="Fiks markerede"
+                                Margin="0,0,3,0"
+                                Style="{StaticResource PrimaryButton}"
+                                Command="{Binding FixIslandsCommand}" />
+                        <Button Grid.Column="1"
+                                Content="{Binding FixAllButtonText}"
+                                Margin="3,0,0,0"
+                                Style="{StaticResource DangerButton}"
+                                Command="{Binding FixAllGreenCommand}" />
+                    </Grid>
+                </StackPanel>
+            </GroupBox>
+
+        </StackPanel>
+    </ScrollViewer>
+
+</UserControl>
