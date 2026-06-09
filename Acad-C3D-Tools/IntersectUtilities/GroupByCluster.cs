@@ -54,9 +54,15 @@ namespace GroupByCluster
                         containingGroups[0].Include(t);
                         break;
                     default:
-                        result.Add(new ClusterGrouping<T>(containingGroups));
+                        // t bridges several existing clusters: merge them AND
+                        // include t. The old code built the merged group from
+                        // containingGroups only and silently dropped t — losing
+                        // every element that ever joined two partial clusters at once.
+                        var merged = new ClusterGrouping<T>(containingGroups);
+                        merged.Include(t);
                         foreach (var g in containingGroups)
                             result.Remove(g);
+                        result.Add(merged);
                         break;
                 }
             }
