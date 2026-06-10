@@ -35,15 +35,25 @@ internal sealed class PipePlanEditSession : IDisposable
         ClearVisuals();
     }
 
-    public static bool TryCreate(Document document, PipePlanState state, out PipePlanEditSession? session, out string errorMessage)
+    /// <summary>
+    /// Prompts for the polyline to edit. Split from <see cref="TryCreateFrom"/> so the
+    /// command can attempt an auto-convert on the already-picked entity (without
+    /// re-prompting) when it turns out to carry no valid PipePlan metadata.
+    /// </summary>
+    public static bool TryPickPolyline(Document document, out ObjectId polylineId, out string errorMessage)
+    {
+        return TryPickEditablePolyline(document, out polylineId, out errorMessage);
+    }
+
+    /// <summary>
+    /// Builds an edit session from an already-picked polyline. Returns false (with a
+    /// convert-suggesting <paramref name="errorMessage"/>) when the polyline has no
+    /// valid PipePlan metadata — a state <c>TryConvertExisting</c> can repair before
+    /// the caller retries.
+    /// </summary>
+    public static bool TryCreateFrom(Document document, PipePlanState state, ObjectId polylineId, out PipePlanEditSession? session, out string errorMessage)
     {
         session = null;
-        errorMessage = string.Empty;
-
-        if (!TryPickEditablePolyline(document, out ObjectId polylineId, out errorMessage))
-        {
-            return false;
-        }
 
         if (!TryLoadSessionData(document, polylineId, out PipePlanStoredData? data, out errorMessage) || data is null)
         {

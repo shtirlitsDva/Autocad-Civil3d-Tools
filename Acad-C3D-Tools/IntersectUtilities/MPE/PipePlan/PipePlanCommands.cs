@@ -156,9 +156,33 @@ public partial class Intersect
     private static bool TryCreateEditSession(Document document, [NotNullWhen(true)] out PipePlanEditSession? session)
     {
         session = null;
-        if (!PipePlanEditSession.TryCreate(document, PipePlanRuntime.StateFor(document), out session, out string errorMessage) || session is null)
+        PipePlanState state = PipePlanRuntime.StateFor(document);
+
+        if (!PipePlanEditSession.TryPickPolyline(document, out ObjectId polylineId, out string pickError))
         {
-            ReportMessage(document, errorMessage, PipePlanStatusKind.Warning);
+            ReportMessage(document, pickError, PipePlanStatusKind.Warning);
+            return false;
+        }
+
+        if (PipePlanEditSession.TryCreateFrom(document, state, polylineId, out session, out string loadError) && session is not null)
+        {
+            return true;
+        }
+
+        // The picked polyline has no valid PipePlan metadata (never converted, stale
+        // version, or edited outside PipePlan). Auto-convert it in place — preserving
+        // the interactive sharp-corner radius loop — then retry the session on the same
+        // entity without asking the user to pick again.
+        ConvertOutcome outcome = TryConvertExisting(document, polylineId);
+        ReportMessage(document, outcome.Message, outcome.Kind);
+        if (!outcome.Success)
+        {
+            return false;
+        }
+
+        if (!PipePlanEditSession.TryCreateFrom(document, state, polylineId, out session, out loadError) || session is null)
+        {
+            ReportMessage(document, loadError, PipePlanStatusKind.Warning);
             return false;
         }
 
@@ -482,6 +506,19 @@ public partial class Intersect
         RunDrawLoop(document);
     }
 
+    /// <summary>
+    /// Outcome of an in-place PipePlan conversion. <see cref="Success"/> tells the
+    /// caller whether the polyline now carries valid PipePlan metadata; <see cref="Message"/>
+    /// and <see cref="Kind"/> carry the user-facing status text (a reject reason, a
+    /// cancellation note, or the success summary).
+    /// </summary>
+    private readonly record struct ConvertOutcome(bool Success, string Message, PipePlanStatusKind Kind)
+    {
+        public static ConvertOutcome Fail(string message, PipePlanStatusKind kind) => new(false, message, kind);
+
+        public static ConvertOutcome Ok(string message) => new(true, message, PipePlanStatusKind.Ok);
+    }
+
     private static void ExecuteConvert(Document document)
     {
         Editor editor = document.Editor;
@@ -497,12 +534,27 @@ public partial class Intersect
             return;
         }
 
+        ConvertOutcome outcome = TryConvertExisting(document, pick.ObjectId);
+        ReportMessage(document, outcome.Message, outcome.Kind);
+    }
+
+    /// <summary>
+    /// Converts an already-picked polyline into a metadata-enabled PipePlan object,
+    /// running the same interactive sharp-corner radius loop as PPCONVERT. The caller
+    /// supplies the <paramref name="polylineId"/>, so this can be invoked both from
+    /// PPCONVERT (after its own pick) and automatically from PPEDIT / PPDRAW-Continue
+    /// when the user selects a polyline that has no valid PipePlan metadata yet.
+    /// </summary>
+    private static ConvertOutcome TryConvertExisting(Document document, ObjectId polylineId)
+    {
+        Editor editor = document.Editor;
+
         using DocumentLock documentLock = document.LockDocument();
         using PipePlanSharpCornerMarkerManager markers = new();
         using Transaction transaction = document.Database.TransactionManager.StartTransaction();
         try
         {
-            Polyline source = (Polyline)transaction.GetObject(pick.ObjectId, OpenMode.ForRead);
+            Polyline source = (Polyline)transaction.GetObject(polylineId, OpenMode.ForRead);
 
             string layerName = source.Layer;
             PipeSystemEnum system = PipeScheduleV2.PipeScheduleV2.GetPipeSystem(layerName);
@@ -511,37 +563,32 @@ public partial class Intersect
 
             if (system == PipeSystemEnum.Ukendt || type == PipeTypeEnum.Ukendt || dn <= 0)
             {
-                ReportMessage(document, $"Polylinjen er ikke på et FJV-lag (lag: '{layerName}').", PipePlanStatusKind.Warning);
                 transaction.Commit();
-                return;
+                return ConvertOutcome.Fail($"Polylinjen er ikke på et FJV-lag (lag: '{layerName}').", PipePlanStatusKind.Warning);
             }
 
             if (!PipePlanRadiusStore.IsAcceptedCombo(system, type))
             {
-                ReportMessage(document, $"{system} {type} understøttes ikke.", PipePlanStatusKind.Warning);
                 transaction.Commit();
-                return;
+                return ConvertOutcome.Fail($"{system} {type} understøttes ikke.", PipePlanStatusKind.Warning);
             }
 
             if (source.Closed)
             {
-                ReportMessage(document, "Lukkede polylinjer understøttes ikke.", PipePlanStatusKind.Warning);
                 transaction.Commit();
-                return;
+                return ConvertOutcome.Fail("Lukkede polylinjer understøttes ikke.", PipePlanStatusKind.Warning);
             }
 
             if (!PipePlanRadiusStore.TryGet(document.Database, system, type, dn, out double sharpCornerRadius) || sharpCornerRadius <= 0.0)
             {
-                ReportMessage(document, $"Ingen bukkeradius for {system} {type} DN{dn}. Sæt den i PPSETTINGS.", PipePlanStatusKind.Warning);
                 transaction.Commit();
-                return;
+                return ConvertOutcome.Fail($"Ingen bukkeradius for {system} {type} DN{dn}. Sæt den i PPSETTINGS.", PipePlanStatusKind.Warning);
             }
 
             if (!PipePlanReverseSolver.TryConvert(source, sharpCornerRadius, out PipePlanReverseSolverResult? reverseResult, out string reverseError) || reverseResult is null)
             {
-                ReportMessage(document, reverseError, PipePlanStatusKind.Warning);
                 transaction.Commit();
-                return;
+                return ConvertOutcome.Fail(reverseError, PipePlanStatusKind.Warning);
             }
 
             if (reverseResult.SharpCornerPositions.Count > 0)
@@ -559,9 +606,8 @@ public partial class Intersect
                 {
                     if (!PipePlanReverseSolver.TryConvert(source, sharpCornerRadius, out reverseResult, out reverseError) || reverseResult is null)
                     {
-                        ReportMessage(document, reverseError, PipePlanStatusKind.Warning);
                         transaction.Commit();
-                        return;
+                        return ConvertOutcome.Fail(reverseError, PipePlanStatusKind.Warning);
                     }
 
                     PipePlanAnalysis previewAnalysis = previewSolver.Analyze(reverseResult.ControlPoints, reverseResult.BendRadii);
@@ -601,9 +647,8 @@ public partial class Intersect
                         continue;
                     }
 
-                    ReportMessage(document, "PPCONVERT annulleret.", PipePlanStatusKind.Info);
                     transaction.Commit();
-                    return;
+                    return ConvertOutcome.Fail("PPCONVERT annulleret.", PipePlanStatusKind.Info);
                 }
             }
 
@@ -611,12 +656,11 @@ public partial class Intersect
             PipePlanAnalysis analysis = solver.Analyze(reverseResult.ControlPoints, reverseResult.BendRadii);
             if (!analysis.IsFeasible)
             {
-                ReportMessage(document, $"Rekonstruktion fejlede: {analysis.Message}", PipePlanStatusKind.Warning);
                 transaction.Commit();
-                return;
+                return ConvertOutcome.Fail($"Rekonstruktion fejlede: {analysis.Message}", PipePlanStatusKind.Warning);
             }
 
-            Polyline sourceWrite = (Polyline)transaction.GetObject(pick.ObjectId, OpenMode.ForWrite);
+            Polyline sourceWrite = (Polyline)transaction.GetObject(polylineId, OpenMode.ForWrite);
 
             PipePlanStoredData metadata = new(
                 system,
@@ -636,7 +680,7 @@ public partial class Intersect
             string successMessage = sharpCount > 0
                 ? $"Konverteret på lag {layerName}: {reverseResult.ControlPoints.Count} hjørner, {sharpCount} skarpe hjørne(r) bukket ved radius {sharpCornerRadius:0.##}."
                 : $"Konverteret på lag {layerName}: {reverseResult.ControlPoints.Count} hjørner.";
-            ReportMessage(document, successMessage, PipePlanStatusKind.Ok);
+            return ConvertOutcome.Ok(successMessage);
         }
         catch
         {
@@ -895,32 +939,70 @@ public partial class Intersect
             return false;
         }
 
+        if (!TryReadContinuableData(document, result.ObjectId, out PipePlanStoredData? data, out errorMessage) || data is null)
+        {
+            // The selected polyline has no usable PipePlan metadata (never converted,
+            // stale version, or edited outside PipePlan). Auto-convert it in place,
+            // then re-read so Continue proceeds from the freshly baked geometry. The
+            // convert routine reports its own status (with its own kind), so clear
+            // errorMessage to avoid a duplicate Warning from the caller.
+            ConvertOutcome outcome = TryConvertExisting(document, result.ObjectId);
+            ReportMessage(document, outcome.Message, outcome.Kind);
+            errorMessage = string.Empty;
+            if (!outcome.Success)
+            {
+                return false;
+            }
+
+            if (!TryReadContinuableData(document, result.ObjectId, out data, out errorMessage) || data is null)
+            {
+                return false;
+            }
+        }
+
+        if (!TryResolveEndpoint(result.PickedPoint, data.ControlPoints, out bool reverse))
+        {
+            errorMessage = "For få hjørner til at fortsætte fra.";
+            return false;
+        }
+
+        PipePlanRuntime.StateFor(document).BeginDraftFromExisting(result.ObjectId, data, reverse);
+        PipePlanRuntime.StateFor(document).SetStatus(
+            $"Fortsætter {data.SizeDisplay} fra valgt endepunkt. Vælg næste punkt.",
+            PipePlanStatusKind.Info);
+        return true;
+    }
+
+    /// <summary>
+    /// Reads and validates PipePlan metadata for an already-picked polyline. Returns
+    /// false (with a convert-suggesting <paramref name="errorMessage"/>) when the
+    /// polyline has no metadata or its geometry no longer matches the stored data —
+    /// both cases that <see cref="TryConvertExisting"/> can repair.
+    /// </summary>
+    private static bool TryReadContinuableData(Document document, ObjectId polylineId, out PipePlanStoredData? data, out string errorMessage)
+    {
+        data = null;
+        errorMessage = string.Empty;
+
         using Transaction transaction = document.Database.TransactionManager.StartTransaction();
         try
         {
-            Polyline polyline = (Polyline)transaction.GetObject(result.ObjectId, OpenMode.ForRead);
-            if (!PipePlanMetadata.TryRead(polyline, transaction, out PipePlanStoredData? data) || data is null)
+            Polyline polyline = (Polyline)transaction.GetObject(polylineId, OpenMode.ForRead);
+            if (!PipePlanMetadata.TryRead(polyline, transaction, out data) || data is null)
             {
                 errorMessage = "Ikke et PipePlan-objekt. Kør PPCONVERT først.";
+                transaction.Commit();
                 return false;
             }
 
             if (!PipePlanGeometryValidator.TryValidateAgainstMetadata(polyline, data, out errorMessage))
             {
-                return false;
-            }
-
-            if (!TryResolveEndpoint(result.PickedPoint, data.ControlPoints, out bool reverse))
-            {
-                errorMessage = "For få hjørner til at fortsætte fra.";
+                data = null;
+                transaction.Commit();
                 return false;
             }
 
             transaction.Commit();
-            PipePlanRuntime.StateFor(document).BeginDraftFromExisting(result.ObjectId, data, reverse);
-            PipePlanRuntime.StateFor(document).SetStatus(
-                $"Fortsætter {data.SizeDisplay} fra valgt endepunkt. Vælg næste punkt.",
-                PipePlanStatusKind.Info);
             return true;
         }
         catch
