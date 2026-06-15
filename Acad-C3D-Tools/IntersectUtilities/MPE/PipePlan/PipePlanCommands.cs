@@ -123,6 +123,28 @@ public partial class Intersect
         }
     }
 
+    /// <command>PPCOLLAPSE</command>
+    /// <summary>Removes negligible bends from a metadata-enabled PipePlan object. Any fillet whose sagitta — the distance from the arc midpoint to the midpoint of the chord between its tangent points — is at or below a threshold (default 0.01) is collapsed by deleting its control vertex. A live preview shows the resulting pipe and marks the vertices to be removed; Enter confirms, a new value re-previews, Esc cancels.</summary>
+    /// <category>PipePlan</category>
+    [CommandMethod("PPCOLLAPSE")]
+    public void PipePlanCollapse()
+    {
+        Document? document = GetActiveDocument();
+        if (document is null)
+        {
+            return;
+        }
+
+        try
+        {
+            ExecuteCollapse(document);
+        }
+        catch (System.Exception exception)
+        {
+            HandleCommandException(document, "PPCOLLAPSE", exception);
+        }
+    }
+
     private static Document? GetActiveDocument()
     {
         return Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
@@ -131,6 +153,17 @@ public partial class Intersect
     private static void ExecuteSplit(Document document)
     {
         if (!PipePlanSplitService.TrySplit(document, out string message))
+        {
+            ReportMessage(document, message, PipePlanStatusKind.Warning);
+            return;
+        }
+
+        ReportMessage(document, message, PipePlanStatusKind.Ok);
+    }
+
+    private static void ExecuteCollapse(Document document)
+    {
+        if (!PipePlanCollapseService.TryCollapse(document, out string message))
         {
             ReportMessage(document, message, PipePlanStatusKind.Warning);
             return;
@@ -195,7 +228,7 @@ public partial class Intersect
     {
         Editor editor = document.Editor;
         PipePlanRuntime.StateFor(document).SetStatus(
-            $"Redigerer {session.SizeLabel} (R={session.RadiusDisplay}). Vælg håndtag, eller Enter for at afslutte.",
+            $"Redigerer {session.SizeLabel} (R={session.RadiusDisplay}). Vælg håndtag, [Add/Delete], eller Enter for at afslutte.",
             PipePlanStatusKind.Info);
 
         while (true)
@@ -203,6 +236,19 @@ public partial class Intersect
             session.ShowHandles();
 
             PromptPointResult pickResult = PromptForEditHandle(editor);
+            if (pickResult.Status == PromptStatus.Keyword)
+            {
+                if (string.Equals(pickResult.StringResult, "Add", StringComparison.OrdinalIgnoreCase))
+                {
+                    RunAddVertexMode(document, session);
+                }
+                else if (string.Equals(pickResult.StringResult, "Delete", StringComparison.OrdinalIgnoreCase))
+                {
+                    RunDeleteVertexMode(document, session);
+                }
+                continue;
+            }
+
             if (pickResult.Status == PromptStatus.None)
             {
                 session.ClearVisuals();
@@ -287,6 +333,170 @@ public partial class Intersect
         Point3d lastPoint = PipePlanRuntime.StateFor(document).LastEditDragPoint ?? handle.GripPoint;
         ApplyEditCandidate(document, session, handle, lastPoint);
         return true;
+    }
+
+    /// <summary>
+    /// Interactive "add vertex" mode. Prompts once for the bend radius (per-DN default or
+    /// a custom value), then lets the user place vertices on segments with live preview —
+    /// the candidate pipe redraws (green/red) as the cursor moves and follows it into a
+    /// corner. Each click commits one vertex; <c>Radius</c> re-prompts; <c>Back</c> or
+    /// Enter returns to the move loop.
+    /// </summary>
+    private static void RunAddVertexMode(Document document, PipePlanEditSession session)
+    {
+        Editor editor = document.Editor;
+        PipePlanState state = PipePlanRuntime.StateFor(document);
+
+        if (!TryPromptInsertRadius(document, session, out double radius))
+        {
+            return;
+        }
+
+        while (true)
+        {
+            session.ShowHandles();
+            state.SetStatus(
+                $"Tilføj hjørne (R={radius:0.###}). Bevæg over et segment for at forhåndsvise, klik for at placere.",
+                PipePlanStatusKind.Info);
+
+            PromptPointResult pick;
+            using (new PipePlanInsertTracker(document, state, session, radius))
+            {
+                PromptPointOptions options = new("\nPlacer nyt hjørne på et segment [Radius/Back] eller Enter for at afslutte: ")
+                {
+                    AllowNone = true
+                };
+                options.Keywords.Add("Radius");
+                options.Keywords.Add("Back");
+                pick = editor.GetPoint(options);
+            }
+
+            if (pick.Status == PromptStatus.Keyword)
+            {
+                if (string.Equals(pick.StringResult, "Radius", StringComparison.OrdinalIgnoreCase))
+                {
+                    TryPromptInsertRadius(document, session, out radius);
+                    continue;
+                }
+
+                state.ClearPreview();
+                return;
+            }
+
+            if (pick.Status != PromptStatus.OK)
+            {
+                // Enter (None) or Esc (Cancel) both leave add mode.
+                state.ClearPreview();
+                return;
+            }
+
+            PipePlanEditCandidate candidate = session.BuildNearestInsertCandidate(pick.Value, radius, out _);
+            if (!candidate.Analysis.IsFeasible)
+            {
+                ReportEditorMessage(editor, $"Kan ikke indsætte hjørne: {candidate.Analysis.Message}");
+                state.SetStatus(candidate.Analysis.Message, PipePlanStatusKind.Error);
+                continue;
+            }
+
+            session.Commit(candidate);
+            state.ClearPreview();
+            state.SetStatus($"Hjørne tilføjet (R={radius:0.###}). Tilføj flere, eller Back.", PipePlanStatusKind.Ok);
+        }
+    }
+
+    /// <summary>
+    /// Interactive "delete vertex" mode. As the cursor hovers a vertex, the candidate pipe
+    /// previews how it will look with that vertex removed; clicking commits the removal.
+    /// <c>Back</c> or Enter returns to the move loop.
+    /// </summary>
+    private static void RunDeleteVertexMode(Document document, PipePlanEditSession session)
+    {
+        Editor editor = document.Editor;
+        PipePlanState state = PipePlanRuntime.StateFor(document);
+
+        while (true)
+        {
+            session.ShowHandles();
+            state.SetStatus(
+                "Slet hjørne. Bevæg over et hjørne for at forhåndsvise, klik for at slette.",
+                PipePlanStatusKind.Info);
+
+            PromptPointResult pick;
+            using (new PipePlanDeleteTracker(document, state, session))
+            {
+                PromptPointOptions options = new("\nVælg hjørne at slette [Back] eller Enter for at afslutte: ")
+                {
+                    AllowNone = true
+                };
+                options.Keywords.Add("Back");
+                pick = editor.GetPoint(options);
+            }
+
+            if (pick.Status != PromptStatus.OK)
+            {
+                // Keyword (Back), Enter (None), or Esc (Cancel) all leave delete mode.
+                state.ClearPreview();
+                return;
+            }
+
+            if (!session.TryGetNearestVertexIndex(pick.Value, session.GetPickTolerance(), out int vertexIndex))
+            {
+                state.SetStatus("Intet hjørne valgt. Klik tættere på et hjørne.", PipePlanStatusKind.Warning);
+                continue;
+            }
+
+            if (!session.TryBuildRemoveVertexCandidate(vertexIndex, out PipePlanEditCandidate? candidate, out string error) || candidate is null)
+            {
+                ReportEditorMessage(editor, $"Kan ikke slette hjørne: {error}");
+                state.SetStatus(error, PipePlanStatusKind.Error);
+                continue;
+            }
+
+            session.Commit(candidate);
+            state.ClearPreview();
+            state.SetStatus("Hjørne slettet. Slet flere, eller Back.", PipePlanStatusKind.Ok);
+        }
+    }
+
+    /// <summary>
+    /// Prompts for the bend radius of a vertex about to be inserted. Enter (or the
+    /// Default keyword) accepts the resolved per-DN default; any positive value overrides
+    /// it. Returns false when cancelled or when no default radius is available.
+    /// </summary>
+    private static bool TryPromptInsertRadius(Document document, PipePlanEditSession session, out double radius)
+    {
+        radius = 0.0;
+        if (!session.TryGetInsertRadius(out double defaultRadius, out string radiusError))
+        {
+            PipePlanRuntime.StateFor(document).SetStatus(radiusError, PipePlanStatusKind.Warning);
+            return false;
+        }
+
+        PromptDoubleOptions options = new($"\nBøjningsradius for nyt hjørne <{defaultRadius:0.###}> eller [Default]: ")
+        {
+            AllowNegative = false,
+            AllowZero = false,
+            AllowNone = true
+        };
+        options.Keywords.Add("Default");
+
+        PromptDoubleResult result = document.Editor.GetDouble(options);
+
+        if (result.Status == PromptStatus.None ||
+            (result.Status == PromptStatus.Keyword && string.Equals(result.StringResult, "Default", StringComparison.OrdinalIgnoreCase)))
+        {
+            radius = defaultRadius;
+            return true;
+        }
+
+        if (result.Status == PromptStatus.OK)
+        {
+            radius = result.Value;
+            return true;
+        }
+
+        PipePlanRuntime.StateFor(document).SetStatus("Indsætning annulleret.", PipePlanStatusKind.Info);
+        return false;
     }
 
     private static VertexRadiusEditOutcome HandleVertexRadiusEdit(Document document, PipePlanEditSession session, PipePlanEditHandle handle)
@@ -407,10 +617,12 @@ public partial class Intersect
 
     private static PromptPointResult PromptForEditHandle(Editor editor)
     {
-        PromptPointOptions pickOptions = new("\nPick a PipePlan control handle or press Enter to finish: ")
+        PromptPointOptions pickOptions = new("\nPick a PipePlan control handle, [Add/Delete] vertex, or press Enter to finish: ")
         {
             AllowNone = true
         };
+        pickOptions.Keywords.Add("Add");
+        pickOptions.Keywords.Add("Delete");
 
         return editor.GetPoint(pickOptions);
     }

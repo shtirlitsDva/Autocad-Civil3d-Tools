@@ -261,6 +261,151 @@ internal sealed class PipePlanEditTracker : IDisposable
     }
 }
 
+/// <summary>
+/// Live preview for PPEDIT add-vertex mode. Each cursor tick rebuilds an insert candidate
+/// on the nearest control segment, with the new vertex at the cursor, and shows the
+/// resulting pipe (green when feasible, red when not).
+/// </summary>
+internal sealed class PipePlanInsertTracker : IDisposable
+{
+    private readonly Document _document;
+    private readonly PipePlanState _state;
+    private readonly PipePlanEditSession _session;
+    private readonly double _radius;
+
+    public PipePlanInsertTracker(Document document, PipePlanState state, PipePlanEditSession session, double radius)
+    {
+        _document = document;
+        _state = state;
+        _session = session;
+        _radius = radius;
+        _document.Editor.PointMonitor += OnPointMonitor;
+    }
+
+    public void Dispose()
+    {
+        _document.Editor.PointMonitor -= OnPointMonitor;
+    }
+
+    private void OnPointMonitor(object sender, PointMonitorEventArgs eventArgs)
+    {
+        Point3d cursor = eventArgs.Context.ComputedPoint;
+        PipePlanEditCandidate candidate = _session.BuildNearestInsertCandidate(cursor, _radius, out _);
+        _state.ShowPreview(candidate.Analysis);
+
+        if (candidate.Analysis.IsFeasible)
+        {
+            _state.SetStatus("Klik for at placere hjørnet.", PipePlanStatusKind.Ok);
+        }
+        else
+        {
+            _state.SetStatus(candidate.Analysis.Message, PipePlanStatusKind.Error);
+        }
+    }
+}
+
+/// <summary>
+/// Live preview for PPEDIT delete-vertex mode. When the cursor is over a control vertex,
+/// shows how the pipe will look with that vertex removed; otherwise clears the preview.
+/// </summary>
+internal sealed class PipePlanDeleteTracker : IDisposable
+{
+    private readonly Document _document;
+    private readonly PipePlanState _state;
+    private readonly PipePlanEditSession _session;
+    private readonly IntegerCollection _viewportNumbers = [];
+    private readonly List<Entity> _markers = [];
+
+    public PipePlanDeleteTracker(Document document, PipePlanState state, PipePlanEditSession session)
+    {
+        _document = document;
+        _state = state;
+        _session = session;
+        _document.Editor.PointMonitor += OnPointMonitor;
+    }
+
+    public void Dispose()
+    {
+        _document.Editor.PointMonitor -= OnPointMonitor;
+        ClearMarkers();
+    }
+
+    private void OnPointMonitor(object sender, PointMonitorEventArgs eventArgs)
+    {
+        ClearMarkers();
+
+        Point3d cursor = eventArgs.Context.ComputedPoint;
+        if (_session.TryGetNearestVertexIndex(cursor, _session.GetPickTolerance(), out int vertexIndex) &&
+            _session.TryBuildRemoveVertexCandidate(vertexIndex, out PipePlanEditCandidate? candidate, out _) &&
+            candidate is not null)
+        {
+            _state.ShowPreview(candidate.Analysis);
+            ShowDeleteMarker(_session.ControlPoints[vertexIndex]);
+            _state.SetStatus("Klik for at slette dette hjørne.", PipePlanStatusKind.Ok);
+        }
+        else
+        {
+            _state.ClearPreview();
+        }
+    }
+
+    private void ShowDeleteMarker(Point3d vertex)
+    {
+        double size = GetMarkerSize(_document);
+        AddMarker(CreateMarkerLine(
+            new Point3d(vertex.X - size, vertex.Y - size, vertex.Z),
+            new Point3d(vertex.X + size, vertex.Y + size, vertex.Z)));
+        AddMarker(CreateMarkerLine(
+            new Point3d(vertex.X - size, vertex.Y + size, vertex.Z),
+            new Point3d(vertex.X + size, vertex.Y - size, vertex.Z)));
+    }
+
+    private void AddMarker(Entity entity)
+    {
+        _markers.Add(entity);
+        TransientManager.CurrentTransientManager.AddTransient(
+            entity,
+            TransientDrawingMode.DirectShortTerm,
+            129,
+            _viewportNumbers);
+    }
+
+    private void ClearMarkers()
+    {
+        foreach (Entity marker in _markers)
+        {
+            try
+            {
+                TransientManager.CurrentTransientManager.EraseTransient(marker, _viewportNumbers);
+            }
+            catch
+            {
+                // Best effort cleanup for transient delete markers.
+            }
+
+            marker.Dispose();
+        }
+
+        _markers.Clear();
+    }
+
+    private static Line CreateMarkerLine(Point3d startPoint, Point3d endPoint)
+    {
+        Line line = new(startPoint, endPoint)
+        {
+            Color = Autodesk.AutoCAD.Colors.Color.FromRgb(255, 80, 80),
+            LineWeight = LineWeight.LineWeight050
+        };
+        return line;
+    }
+
+    private static double GetMarkerSize(Document document)
+    {
+        using ViewTableRecord view = document.Editor.GetCurrentView();
+        return Math.Clamp(view.Height / 120.0, 0.1, 2.0);
+    }
+}
+
 internal sealed class PipePlanSplitTracker : IDisposable
 {
     private readonly Document _document;

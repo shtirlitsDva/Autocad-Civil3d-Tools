@@ -189,6 +189,172 @@ internal sealed class PipePlanEditSession : IDisposable
         return true;
     }
 
+    /// <summary>
+    /// Builds a candidate that removes the control point at <paramref name="vertexIndex"/>
+    /// (and its aligned bend radius). Endpoints are allowed — removing one shortens the
+    /// path and the promoted neighbour loses its bend (its radius is forced to 0, since
+    /// endpoints never bend). The merged tangent only relaxes the radius-fit constraint,
+    /// so this is feasible in all but pathological cases; the analysis is still checked.
+    /// </summary>
+    public bool TryBuildRemoveVertexCandidate(int vertexIndex, out PipePlanEditCandidate? candidate, out string error)
+    {
+        candidate = null;
+        error = string.Empty;
+
+        if (_data.ControlPoints.Count <= 2)
+        {
+            error = "En PipePlan skal have mindst to hjørner.";
+            return false;
+        }
+
+        if (vertexIndex < 0 || vertexIndex >= _data.ControlPoints.Count)
+        {
+            error = "Ugyldigt hjørne.";
+            return false;
+        }
+
+        List<Point3d> controlPoints = [.. _data.ControlPoints];
+        List<double> radii = [.. _data.BendRadii];
+        controlPoints.RemoveAt(vertexIndex);
+        radii.RemoveAt(vertexIndex);
+
+        // Endpoints never carry a bend. If the removal promoted an interior vertex to a
+        // start/end, zero its radius so the solver treats it as a straight terminus.
+        radii[0] = 0.0;
+        radii[^1] = 0.0;
+
+        PipePlanEditDraft draft = new(controlPoints, radii);
+        PipePlanAnalysis analysis = Analyze(draft);
+        if (!analysis.IsFeasible)
+        {
+            error = analysis.Message;
+            return false;
+        }
+
+        candidate = new PipePlanEditCandidate(draft, analysis);
+        return true;
+    }
+
+    /// <summary>
+    /// Builds a candidate that inserts a new interior control point on the segment between
+    /// <paramref name="segmentIndex"/> and the next control point. <paramref name="position"/>
+    /// is expected to lie on (or near) that segment; placing it collinearly yields a
+    /// geometrically identical polyline that the caller can then drag into a real corner.
+    /// The new vertex carries <paramref name="radius"/> as its bend radius.
+    /// </summary>
+    public PipePlanEditCandidate BuildInsertCandidate(int segmentIndex, Point3d position, double radius)
+    {
+        List<Point3d> controlPoints = [.. _data.ControlPoints];
+        List<double> radii = [.. _data.BendRadii];
+
+        double z = controlPoints[segmentIndex].Z;
+        controlPoints.Insert(segmentIndex + 1, new Point3d(position.X, position.Y, z));
+        radii.Insert(segmentIndex + 1, radius);
+
+        PipePlanEditDraft draft = new(controlPoints, radii);
+        return new PipePlanEditCandidate(draft, Analyze(draft));
+    }
+
+    /// <summary>
+    /// Resolves the default bend radius offered when inserting a vertex: the project
+    /// per-DN ProjekteringsRadius when available, otherwise any existing interior radius
+    /// on this object. The command layer prompts the user with this value, letting them
+    /// accept it or type a custom radius instead.
+    /// </summary>
+    public bool TryGetInsertRadius(out double radius, out string error)
+    {
+        error = string.Empty;
+
+        if (PipePlanRadiusStore.TryGet(_document.Database, _data.System, _data.Type, _data.Dn, out radius) && radius > 0.0)
+        {
+            return true;
+        }
+
+        radius = _data.BendRadii.Where(r => r > 0.0).DefaultIfEmpty(0.0).First();
+        if (radius > 0.0)
+        {
+            return true;
+        }
+
+        error = $"Ingen standard-radius for {_data.SizeDisplay}. Sæt den i PPSETTINGS.";
+        return false;
+    }
+
+    /// <summary>Pick tolerance (drawing units) for resolving a clicked/hovered handle, scaled to the current zoom.</summary>
+    public double GetPickTolerance() => _markerManager.GetPickTolerance(_document);
+
+    /// <summary>
+    /// Finds the control vertex nearest to <paramref name="point"/> within
+    /// <paramref name="tolerance"/>. Used by delete mode to resolve both the hovered
+    /// preview target and the clicked deletion target.
+    /// </summary>
+    public bool TryGetNearestVertexIndex(Point3d point, double tolerance, out int index)
+    {
+        index = -1;
+        double best = double.MaxValue;
+        for (int i = 0; i < _data.ControlPoints.Count; i++)
+        {
+            double distance = PipePlanGeometryUtil.Distance2D(point, _data.ControlPoints[i]);
+            if (distance < best)
+            {
+                best = distance;
+                index = i;
+            }
+        }
+
+        if (index < 0 || best > tolerance)
+        {
+            index = -1;
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Builds an insert candidate for the control segment nearest to <paramref name="cursor"/>,
+    /// placing the new vertex at the cursor. Used by add mode for both the live hover preview
+    /// and the committed click — the cursor position drives both which segment receives the
+    /// vertex and where the resulting corner sits.
+    /// </summary>
+    public PipePlanEditCandidate BuildNearestInsertCandidate(Point3d cursor, double radius, out int segmentIndex)
+    {
+        segmentIndex = FindNearestControlSegment(cursor);
+        return BuildInsertCandidate(segmentIndex, cursor, radius);
+    }
+
+    private int FindNearestControlSegment(Point3d cursor)
+    {
+        int best = 0;
+        double bestDistance = double.MaxValue;
+        for (int i = 0; i < _data.ControlPoints.Count - 1; i++)
+        {
+            double distance = DistancePointToSegment2D(cursor, _data.ControlPoints[i], _data.ControlPoints[i + 1]);
+            if (distance < bestDistance)
+            {
+                bestDistance = distance;
+                best = i;
+            }
+        }
+
+        return best;
+    }
+
+    private static double DistancePointToSegment2D(Point3d p, Point3d a, Point3d b)
+    {
+        double abx = b.X - a.X;
+        double aby = b.Y - a.Y;
+        double lengthSquared = (abx * abx) + (aby * aby);
+        double t = lengthSquared <= 1e-12
+            ? 0.0
+            : Math.Clamp((((p.X - a.X) * abx) + ((p.Y - a.Y) * aby)) / lengthSquared, 0.0, 1.0);
+        double closestX = a.X + (t * abx);
+        double closestY = a.Y + (t * aby);
+        double dx = p.X - closestX;
+        double dy = p.Y - closestY;
+        return Math.Sqrt((dx * dx) + (dy * dy));
+    }
+
     private static bool TryPickEditablePolyline(Document document, out ObjectId polylineId, out string errorMessage)
     {
         polylineId = ObjectId.Null;
@@ -348,6 +514,8 @@ internal sealed class PipePlanEditSession : IDisposable
     }
 
     public IReadOnlyList<double> CurrentBendRadii => _data.BendRadii;
+
+    public IReadOnlyList<Point3d> ControlPoints => _data.ControlPoints;
 
     private static Point3d Midpoint(Point3d a, Point3d b)
     {
