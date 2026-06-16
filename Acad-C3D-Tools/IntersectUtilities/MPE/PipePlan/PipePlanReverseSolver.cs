@@ -77,7 +77,14 @@ internal static class PipePlanReverseSolver
                 // enough to keep the UI showing 38 instead of 38.0000000003875.
                 radii.Add(Math.Round(arc.Radius, 3));
 
-                i += 2;
+                // Advance to the straight segment that trails the arc rather than
+                // skipping past it (i += 2). For a native PipePlan fillet that
+                // trailing line ends at a tangent point flowing into the next arc,
+                // so the line branch below finds next == Arc and adds nothing.
+                // But when another polyline has been PEDIT-joined at that vertex it
+                // becomes a genuine sharp corner; landing on the line lets the
+                // deflection test fire instead of silently absorbing the corner.
+                i += 1;
                 continue;
             }
 

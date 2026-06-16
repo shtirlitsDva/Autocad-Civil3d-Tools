@@ -163,7 +163,28 @@ public partial class Intersect
 
     private static void ExecuteCollapse(Document document)
     {
-        if (!PipePlanCollapseService.TryCollapse(document, out string message))
+        if (!PipePlanCollapseService.TryPickPolyline(document, out ObjectId polylineId, out string pickMessage))
+        {
+            ReportMessage(document, pickMessage, PipePlanStatusKind.Info);
+            return;
+        }
+
+        // The picked polyline has no usable PipePlan metadata (never converted, stale
+        // version, or edited outside PipePlan). Auto-convert it in place — running the
+        // interactive sharp-corner radius loop — then collapse the freshly baked
+        // geometry, so PPCOLLAPSE works on a plain FJV polyline just like PPEDIT /
+        // PPDRAW-Continue. The convert routine reports its own status.
+        if (PipePlanCollapseService.NeedsConversion(document, polylineId))
+        {
+            ConvertOutcome outcome = TryConvertExisting(document, polylineId);
+            ReportMessage(document, outcome.Message, outcome.Kind);
+            if (!outcome.Success)
+            {
+                return;
+            }
+        }
+
+        if (!PipePlanCollapseService.TryCollapse(document, polylineId, out string message))
         {
             ReportMessage(document, message, PipePlanStatusKind.Warning);
             return;

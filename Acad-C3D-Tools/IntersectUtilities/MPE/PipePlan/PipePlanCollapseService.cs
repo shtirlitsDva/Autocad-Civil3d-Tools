@@ -9,13 +9,9 @@ internal static class PipePlanCollapseService
 {
     private const double DefaultThreshold = 0.01;
 
-    public static bool TryCollapse(Document document, out string message)
+    public static bool TryCollapse(Document document, ObjectId polylineId, out string message)
     {
         message = string.Empty;
-        if (!TryPickPolyline(document, out ObjectId polylineId, out message))
-        {
-            return false;
-        }
 
         using DocumentLock documentLock = document.LockDocument();
         using PipePlanSharpCornerMarkerManager markers = new();
@@ -191,7 +187,32 @@ internal static class PipePlanCollapseService
         return true;
     }
 
-    private static bool TryPickPolyline(Document document, out ObjectId polylineId, out string message)
+    /// <summary>
+    /// True when the picked polyline cannot be collapsed as-is — it carries no PipePlan
+    /// metadata, or its geometry no longer matches what is stored — both cases that an
+    /// in-place PPCONVERT can repair. Lets PPCOLLAPSE auto-convert a plain FJV polyline
+    /// before collapsing, mirroring the pre-flight in PPEDIT / PPDRAW-Continue.
+    /// </summary>
+    internal static bool NeedsConversion(Document document, ObjectId polylineId)
+    {
+        using Transaction transaction = document.Database.TransactionManager.StartTransaction();
+        try
+        {
+            Polyline polyline = (Polyline)transaction.GetObject(polylineId, OpenMode.ForRead);
+            bool usable = PipePlanMetadata.TryRead(polyline, transaction, out PipePlanStoredData? data)
+                && data is not null
+                && PipePlanGeometryValidator.TryValidateAgainstMetadata(polyline, data, out _);
+            transaction.Commit();
+            return !usable;
+        }
+        catch
+        {
+            transaction.Abort();
+            throw;
+        }
+    }
+
+    internal static bool TryPickPolyline(Document document, out ObjectId polylineId, out string message)
     {
         polylineId = ObjectId.Null;
         message = string.Empty;
