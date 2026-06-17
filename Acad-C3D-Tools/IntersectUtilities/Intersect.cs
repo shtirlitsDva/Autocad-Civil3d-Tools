@@ -80,6 +80,7 @@ namespace IntersectUtilities
             // PipePlan state so events don't fire into a no-longer-loaded module
             // after the plugin is unloaded.
             IntersectUtilities.MPE.PipePlan.PipePlanRuntime.Reset();
+            IntersectUtilities.MPE.PipePlanDE.PipePlanDERuntime.Reset();
         }
         #endregion
         private static CultureInfo danishCulture = new CultureInfo("da-DK");
