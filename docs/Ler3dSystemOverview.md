@@ -22,7 +22,7 @@ Audience: an engineer/agent who must produce these artifacts from a new data sou
 
 Two drawings are produced from the **same source data**:
 
-- **2D DWG** — flattened plan-view representation, used purely as a **visual underlay** when producing plan sheet sets. It is *never read programmatically*. Only its layers (→ colour/linetype) and geometry placement matter. It is **not** referenced by `Stier.csv` and is not loaded as a side-database.
+- **2D DWG** — flattened plan-view representation, used as the **plan-sheet underlay**. It is **not** part of the profile-view cross-section runtime: it is not referenced by `Stier.csv` and never loaded as a side-database by the `Ler3dManager` chain. But it is a genuine data-bearing drawing, not just cosmetic geometry: each pipe is a `Polyline` whose **width is set from its diameter** (where diameter data exists), and **the appropriate source data is attached as property sets** on the 2D entities — so pipes can be labelled in plan. (Layers still drive colour/linetype via `Lag-Ler2.0.csv`.)
 - **3D DWG** — the runtime data source. Utilities are `Polyline3d` entities. This is the drawing every consumer command reads.
 
 Everything below concerns the **3D DWG** unless stated otherwise.
@@ -65,7 +65,10 @@ Everything else a producer stores in property sets (owner, status, dates, accura
 </single-file-vs-folder-tiling>
 
 <the-2d-deliverable>
-The 2D DWG is a separate, flattened projection of the same source. Contract is **visual only**: correct geometry on correct layers so that `Lag-Ler2.0.csv` (keyed by suffix-stripped layer name) gives the right colour/linetype under a plan. No property-set field is read; no command loads it.
+The 2D DWG is a separate, flattened projection of the same source, for the plan-sheet underlay. It is outside the profile-view cross-section runtime (no command in the `Ler3dManager` chain loads it), but it is **not** "visual only":
+- Pipes are `Polyline`s whose **width is set from their diameter** (where diameter data exists), so the plan shows pipes at true scale.
+- **Appropriate source data is attached as property sets** on the 2D entities, the same way as on the 3D entities — this is what allows pipes to be **labelled in plan**.
+- Layers drive colour/linetype via `Lag-Ler2.0.csv` (keyed by suffix-stripped layer name).
 </the-2d-deliverable>
 </the-artifact-contract>
 
