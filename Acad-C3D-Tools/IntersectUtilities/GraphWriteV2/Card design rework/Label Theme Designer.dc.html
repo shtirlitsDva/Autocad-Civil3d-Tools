@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:#070809;}
+  ::selection{background:#4cc2ff;color:#04131a;}
+  ::-webkit-scrollbar{height:10px;width:10px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:#3a3a3a;border-radius:5px;}
+  input[type=color]{-webkit-appearance:none;appearance:none;}
+  input[type=color]::-webkit-color-swatch-wrapper{padding:0;}
+  input[type=color]::-webkit-color-swatch{border:none;border-radius:4px;}
+  input[type=range]{accent-color:#4cc2ff;}
+  select{outline:none;}
+</style>
+</helmet>
+<div id="dh-root" style="min-height:100vh; color:#e6edf3; font-family:'IBM Plex Sans',system-ui,sans-serif; background:radial-gradient(1200px 700px at 70% -10%, #11151c, #070809 60%); padding-bottom:90px;">
+
+  <!-- PACKAGE HEADER -->
+  <div style="padding:34px 48px 8px; display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:18px;">
+    <div>
+      <div style="font:600 12px/1 'JetBrains Mono',monospace; letter-spacing:.3em; color:#5eead4; text-transform:uppercase; margin-bottom:13px;">District Heating &middot; Design Package</div>
+      <h1 style="font:600 33px/1.06 'Space Grotesk',sans-serif; margin:0; color:#f4f7fa; letter-spacing:-.015em;">Label Theme Designer</h1>
+      <p style="margin:12px 0 0; max-width:760px; color:#9aa6b4; font-size:14.5px; line-height:1.55;">A configurable theme system for the Graphviz export. The user opens a settings window, picks a <b style="color:#cbd5e1;">style</b>, a <b style="color:#cbd5e1;">palette</b> (or hand&#8209;tunes every color), and the <b style="color:#cbd5e1;">Series numerals</b>; the chosen <b style="color:#cbd5e1;">LabelTheme</b> is what the generator reads when it emits the HTML&#8209;labels. The window below is a live mock &mdash; <b style="color:#cbd5e1;">every change re&#8209;renders the real Graphviz output</b> on the right.</p>
+    </div>
+    <div id="gv-status" style="font:500 11px/1.3 'JetBrains Mono',monospace; color:#64748b; border:1px solid #283143; background:#0c0f15; padding:9px 13px; border-radius:7px; white-space:nowrap;">&#9679; Booting render engine&hellip;</div>
+  </div>
+
+  <!-- ================= THE WPF WINDOW ================= -->
+  <div style="padding:26px 48px 0;">
+    <div data-screen-label="WPF Theme Designer window" style="max-width:1120px; border-radius:9px; overflow:hidden; background:#202020; border:1px solid #3a3a3a; box-shadow:0 30px 80px -20px rgba(0,0,0,.8), 0 0 0 1px rgba(255,255,255,.02);">
+
+      <!-- title bar -->
+      <div style="height:42px; background:#2b2b2b; display:flex; align-items:center; justify-content:space-between; padding:0 0 0 14px; border-bottom:1px solid #1c1c1c;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="width:16px; height:16px; border-radius:4px; background:linear-gradient(135deg,#4cc2ff,#2dd4bf); display:flex; align-items:center; justify-content:center; font:700 9px 'JetBrains Mono',monospace; color:#04131a;">L</div>
+          <span style="font:400 12.5px 'Segoe UI',system-ui; color:#cfcfcf;">Label Theme Designer</span>
+          <span style="font:400 12.5px 'Segoe UI',system-ui; color:#6e6e6e;">&mdash; District Heating Network Viewer</span>
+        </div>
+        <div style="display:flex; height:42px;">
+          <div style="width:46px; display:flex; align-items:center; justify-content:center; color:#cfcfcf; font-size:15px;">&#8211;</div>
+          <div style="width:46px; display:flex; align-items:center; justify-content:center; color:#cfcfcf; font-size:11px;">&#9633;</div>
+          <div style="width:46px; display:flex; align-items:center; justify-content:center; color:#cfcfcf; font-size:14px;">&#10005;</div>
+        </div>
+      </div>
+
+      <!-- body -->
+      <div style="display:flex; align-items:stretch; min-height:540px;">
+
+        <!-- LEFT: controls -->
+        <div style="width:354px; flex:none; background:#252526; border-right:1px solid #1b1b1b; overflow-y:auto; max-height:600px; padding:20px 20px 24px;">
+
+          <!-- STYLE -->
+          <div style="font:600 11px/1 'Segoe UI',system-ui; letter-spacing:.12em; color:#9d9d9d; text-transform:uppercase; margin:0 0 11px;">Label Style</div>
+          <div style="display:flex; flex-direction:column; gap:7px;">
+            <div onClick="{{ setGlass }}" style="{{ sel.glass }}"><span style="font:600 13px 'Segoe UI';">Glass HUD</span><span style="margin-left:auto; font:400 11px 'Segoe UI'; opacity:.65;">rounded glass</span></div>
+            <div onClick="{{ setBlue }}" style="{{ sel.blue }}"><span style="font:600 13px 'Segoe UI';">Blueprint Grid</span><span style="margin-left:auto; font:400 11px 'Segoe UI'; opacity:.65;">schematic</span></div>
+            <div onClick="{{ setSeg }}" style="{{ sel.seg }}"><span style="font:600 13px 'Segoe UI';">Segmented Tiles</span><span style="margin-left:auto; font:400 11px 'Segoe UI'; opacity:.65;">modular</span></div>
+            <div onClick="{{ setFlu }}" style="{{ sel.flu }}"><span style="font:600 13px 'Segoe UI';">Fluent Acrylic</span><span style="margin-left:auto; font:400 11px 'Segoe UI'; opacity:.65;">frosted</span></div>
+            <div onClick="{{ setTerm }}" style="{{ sel.term }}"><span style="font:600 13px 'Segoe UI';">Tactical Terminal</span><span style="margin-left:auto; font:400 11px 'Segoe UI'; opacity:.65;">mono</span></div>
+          </div>
+
+          <!-- tile mode (only when segmented) -->
+          <sc-if value="{{ isSeg }}" hint-placeholder-val="{{ true }}">
+            <div style="margin-top:12px; background:#2c2c2c; border:1px solid #383838; border-radius:7px; padding:11px 12px;">
+              <div style="font:600 10.5px 'Segoe UI'; letter-spacing:.08em; color:#9d9d9d; text-transform:uppercase; margin-bottom:8px;">Tile treatment</div>
+              <div style="display:flex; gap:5px; background:#1f1f1f; border-radius:6px; padding:3px;">
+                <div onClick="{{ segFlush }}" style="{{ segm.flush }}">Flush</div>
+                <div onClick="{{ segPop }}" style="{{ segm.pop }}">Cells pop</div>
+                <div onClick="{{ segFramed }}" style="{{ segm.framed }}">Bordered</div>
+              </div>
+            </div>
+          </sc-if>
+
+          <!-- PALETTE -->
+          <div style="font:600 11px/1 'Segoe UI'; letter-spacing:.12em; color:#9d9d9d; text-transform:uppercase; margin:22px 0 11px;">Palette</div>
+          <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:8px;">
+            <div onClick="{{ palCyan }}" style="{{ pal.cyan }}"><span style="width:15px;height:15px;border-radius:4px;background:#48d6e8;flex:none;"></span>Cyan Ice</div>
+            <div onClick="{{ palAmber }}" style="{{ pal.amber }}"><span style="width:15px;height:15px;border-radius:4px;background:#e0a536;flex:none;"></span>Amber</div>
+            <div onClick="{{ palEmerald }}" style="{{ pal.emerald }}"><span style="width:15px;height:15px;border-radius:4px;background:#34c98a;flex:none;"></span>Emerald</div>
+            <div onClick="{{ palViolet }}" style="{{ pal.violet }}"><span style="width:15px;height:15px;border-radius:4px;background:#a855f7;flex:none;"></span>Violet</div>
+          </div>
+          <div style="margin-top:9px; font:400 11px 'Segoe UI'; color:#7a7a7a;">Active: <span style="color:#cfcfcf; font-weight:600;">{{ presetName }}</span></div>
+
+          <!-- COLORS -->
+          <div style="font:600 11px/1 'Segoe UI'; letter-spacing:.12em; color:#9d9d9d; text-transform:uppercase; margin:22px 0 11px;">Colors</div>
+          <div style="display:flex; flex-direction:column; gap:9px;">
+            <div style="display:flex; align-items:center; gap:11px;"><input type="color" value="{{ cBorder }}" onInput="{{ onBorder }}" style="width:36px;height:26px;padding:0;border:1px solid #4a4a4a;border-radius:5px;background:none;cursor:pointer;"><span style="font:500 12.5px 'Segoe UI'; color:#dcdcdc; flex:1;">Frame</span><span style="font:400 11px 'JetBrains Mono',monospace; color:#7a7a7a;">{{ cBorder }}</span></div>
+            <div style="display:flex; align-items:center; gap:11px;"><input type="color" value="{{ cFill1 }}" onInput="{{ onFill1 }}" style="width:36px;height:26px;padding:0;border:1px solid #4a4a4a;border-radius:5px;background:none;cursor:pointer;"><span style="font:500 12.5px 'Segoe UI'; color:#dcdcdc; flex:1;">Panel &#9650;</span><span style="font:400 11px 'JetBrains Mono',monospace; color:#7a7a7a;">{{ cFill1 }}</span></div>
+            <div style="display:flex; align-items:center; gap:11px;"><input type="color" value="{{ cFill2 }}" onInput="{{ onFill2 }}" style="width:36px;height:26px;padding:0;border:1px solid #4a4a4a;border-radius:5px;background:none;cursor:pointer;"><span style="font:500 12.5px 'Segoe UI'; color:#dcdcdc; flex:1;">Panel &#9660;</span><span style="font:400 11px 'JetBrains Mono',monospace; color:#7a7a7a;">{{ cFill2 }}</span></div>
+            <div style="display:flex; align-items:center; gap:11px;"><input type="color" value="{{ cId }}" onInput="{{ onId }}" style="width:36px;height:26px;padding:0;border:1px solid #4a4a4a;border-radius:5px;background:none;cursor:pointer;"><span style="font:500 12.5px 'Segoe UI'; color:#dcdcdc; flex:1;">ID text</span><span style="font:400 11px 'JetBrains Mono',monospace; color:#7a7a7a;">{{ cId }}</span></div>
+            <div style="display:flex; align-items:center; gap:11px;"><input type="color" value="{{ cDesc }}" onInput="{{ onDesc }}" style="width:36px;height:26px;padding:0;border:1px solid #4a4a4a;border-radius:5px;background:none;cursor:pointer;"><span style="font:500 12.5px 'Segoe UI'; color:#dcdcdc; flex:1;">Body text</span><span style="font:400 11px 'JetBrains Mono',monospace; color:#7a7a7a;">{{ cDesc }}</span></div>
+            <div style="display:flex; align-items:center; gap:11px;"><input type="color" value="{{ cDivider }}" onInput="{{ onDivider }}" style="width:36px;height:26px;padding:0;border:1px solid #4a4a4a;border-radius:5px;background:none;cursor:pointer;"><span style="font:500 12.5px 'Segoe UI'; color:#dcdcdc; flex:1;">Divider</span><span style="font:400 11px 'JetBrains Mono',monospace; color:#7a7a7a;">{{ cDivider }}</span></div>
+          </div>
+
+          <!-- SERIES -->
+          <div style="font:600 11px/1 'Segoe UI'; letter-spacing:.12em; color:#9d9d9d; text-transform:uppercase; margin:22px 0 11px;">Series numerals</div>
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+            <span style="font:500 12.5px 'Segoe UI'; color:#dcdcdc;">Show on labels</span>
+            <div onClick="{{ toggleSeries }}" style="{{ swSeries.track }}"><div style="{{ swSeries.knob }}"></div></div>
+          </div>
+          <div style="display:flex; gap:9px; margin-bottom:11px;">
+            <div style="flex:1;"><div style="font:600 10px 'Segoe UI'; color:#8a8a8a; margin-bottom:5px; letter-spacing:.06em;">CHIP</div><div style="display:flex; gap:4px; background:#1f1f1f; border-radius:6px; padding:3px;"><div onClick="{{ chipFill }}" style="{{ chipF.filled }}">Filled</div><div onClick="{{ chipOutline }}" style="{{ chipF.outline }}">Outline</div></div></div>
+            <div style="flex:1;"><div style="font:600 10px 'Segoe UI'; color:#8a8a8a; margin-bottom:5px; letter-spacing:.06em;">POSITION</div><div style="display:flex; gap:4px; background:#1f1f1f; border-radius:6px; padding:3px;"><div onClick="{{ chipAfter }}" style="{{ chipP.after }}">After</div><div onClick="{{ chipBefore }}" style="{{ chipP.before }}">Before</div></div></div>
+          </div>
+          <div style="display:flex; align-items:center; gap:14px;">
+            <div style="display:flex; align-items:center; gap:8px;"><input type="color" value="{{ cS1 }}" onInput="{{ onS1 }}" style="width:30px;height:24px;padding:0;border:1px solid #4a4a4a;border-radius:5px;background:none;cursor:pointer;"><span style="font:600 11px 'JetBrains Mono',monospace; color:#bdbdbd;">I</span></div>
+            <div style="display:flex; align-items:center; gap:8px;"><input type="color" value="{{ cS2 }}" onInput="{{ onS2 }}" style="width:30px;height:24px;padding:0;border:1px solid #4a4a4a;border-radius:5px;background:none;cursor:pointer;"><span style="font:600 11px 'JetBrains Mono',monospace; color:#bdbdbd;">II</span></div>
+            <div style="display:flex; align-items:center; gap:8px;"><input type="color" value="{{ cS3 }}" onInput="{{ onS3 }}" style="width:30px;height:24px;padding:0;border:1px solid #4a4a4a;border-radius:5px;background:none;cursor:pointer;"><span style="font:600 11px 'JetBrains Mono',monospace; color:#bdbdbd;">III</span></div>
+          </div>
+
+          <!-- TYPOGRAPHY -->
+          <div style="font:600 11px/1 'Segoe UI'; letter-spacing:.12em; color:#9d9d9d; text-transform:uppercase; margin:22px 0 11px;">Typography</div>
+          <div style="display:flex; flex-direction:column; gap:9px;">
+            <div><div style="font:500 11px 'Segoe UI'; color:#9d9d9d; margin-bottom:5px;">ID font (monospace)</div><select onChange="{{ onIdFont }}" value="{{ idFont }}" style="background:#3a3a3a;color:#e0e0e0;border:1px solid #4a4a4a;border-radius:5px;padding:6px 8px;font:13px 'Segoe UI';width:100%;"><option>Courier New</option><option>Consolas</option><option>Cascadia Mono</option><option>Lucida Console</option></select></div>
+            <div><div style="font:500 11px 'Segoe UI'; color:#9d9d9d; margin-bottom:5px;">Body font</div><select onChange="{{ onBodyFont }}" value="{{ bodyFont }}" style="background:#3a3a3a;color:#e0e0e0;border:1px solid #4a4a4a;border-radius:5px;padding:6px 8px;font:13px 'Segoe UI';width:100%;"><option>Helvetica</option><option>Segoe UI</option><option>Arial</option><option>Verdana</option></select></div>
+          </div>
+
+          <!-- LAYOUT -->
+          <div style="font:600 11px/1 'Segoe UI'; letter-spacing:.12em; color:#9d9d9d; text-transform:uppercase; margin:22px 0 11px;">Layout</div>
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+            <span style="font:500 12.5px 'Segoe UI'; color:#dcdcdc;">Cell padding</span>
+            <span style="font:500 11px 'JetBrains Mono',monospace; color:#8a8a8a;">{{ pad }} pt</span>
+          </div>
+          <input type="range" min="4" max="14" step="1" value="{{ pad }}" onInput="{{ onPad }}" style="width:100%;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-top:14px;">
+            <span style="font:500 12.5px 'Segoe UI'; color:#dcdcdc;">Rounded corners</span>
+            <div onClick="{{ toggleRounded }}" style="{{ swRounded.track }}"><div style="{{ swRounded.knob }}"></div></div>
+          </div>
+        </div>
+
+        <!-- RIGHT: preview -->
+        <div style="flex:1; background:#161616; display:flex; flex-direction:column; min-width:0;">
+          <div style="height:44px; flex:none; border-bottom:1px solid #242424; display:flex; align-items:center; justify-content:space-between; padding:0 16px;">
+            <div style="display:flex; align-items:center; gap:9px;">
+              <span style="width:7px; height:7px; border-radius:50%; background:#2dd4bf;"></span>
+              <span style="font:500 12px 'Segoe UI'; color:#bdbdbd;">Live preview &middot; Graphviz output</span>
+            </div>
+            <div style="display:flex; gap:6px; background:#202020; border-radius:6px; padding:3px;">
+              <div onClick="{{ sampleChain }}" style="{{ smp.chain }}">Chain</div>
+              <div onClick="{{ sampleSingle }}" style="{{ smp.single }}">Single</div>
+            </div>
+          </div>
+          <div style="flex:1; display:flex; align-items:center; justify-content:center; padding:30px; background-image:radial-gradient(60% 60% at 50% 40%, #1c1c1c, #121212); overflow:auto;">
+            <div id="tp-render" style="display:flex; align-items:center; justify-content:center;"><div style="font:400 12px 'JetBrains Mono',monospace; color:#5a5a5a;">Initialising Graphviz&hellip;</div></div>
+          </div>
+          <div style="flex:none; border-top:1px solid #242424; padding:9px 16px; display:flex; align-items:center; justify-content:space-between;">
+            <span id="tp-toast" style="font:500 11px 'JetBrains Mono',monospace; color:#6e6e6e;">&nbsp;</span>
+            <div onClick="{{ copyDot }}" style="cursor:pointer; font:500 11.5px 'Segoe UI'; color:#9cd4ff; border:1px solid #2f4a63; border-radius:5px; padding:5px 11px;">Copy DOT</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- footer -->
+      <div style="height:58px; background:#252526; border-top:1px solid #1b1b1b; display:flex; align-items:center; justify-content:space-between; padding:0 18px;">
+        <div onClick="{{ resetPreset }}" style="cursor:pointer; font:500 12.5px 'Segoe UI'; color:#bdbdbd;">&#8634;&nbsp; Reset to preset</div>
+        <div style="display:flex; gap:10px;">
+          <div onClick="{{ exportTheme }}" style="cursor:pointer; font:500 12.5px 'Segoe UI'; color:#dcdcdc; background:#3a3a3a; border:1px solid #4a4a4a; border-radius:5px; padding:8px 16px;">Export theme&hellip;</div>
+          <div style="cursor:pointer; font:500 12.5px 'Segoe UI'; color:#dcdcdc; background:#3a3a3a; border:1px solid #4a4a4a; border-radius:5px; padding:8px 16px;">Cancel</div>
+          <div style="cursor:pointer; font:600 12.5px 'Segoe UI'; color:#04131a; background:#4cc2ff; border-radius:5px; padding:8px 20px;">Apply</div>
+        </div>
+      </div>
+
+    </div>
+    <div style="max-width:1120px; margin:12px auto 0; font:400 11.5px 'IBM Plex Sans'; color:#5f6b78; text-align:center;">Mockup of the WPF settings window. Controls are wired to the live Graphviz preview; window chrome &amp; buttons are illustrative.</div>
+  </div>
+
+  <!-- ================= DESIGN PACKAGE DOCS ================= -->
+  <div style="padding:44px 48px 0;">
+    <div style="display:flex; align-items:baseline; gap:16px; margin-bottom:22px;">
+      <div style="font:600 13px/1 'JetBrains Mono',monospace; color:#2dd4bf; letter-spacing:.1em;">SPEC</div>
+      <h2 style="font:600 21px/1 'Space Grotesk',sans-serif; margin:0; color:#e8eef5;">What the window saves &amp; how it drives the export</h2>
+      <div style="height:1px; flex:1; background:#1a1f29;"></div>
+    </div>
+
+    <div style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; max-width:1120px;">
+      <!-- theme model JSON (live) -->
+      <div style="border:1px solid #1c2330; background:#0a0d13; border-radius:13px; overflow:hidden;">
+        <div style="padding:14px 18px; border-bottom:1px solid #161c27; font:600 14px 'Space Grotesk',sans-serif; color:#f1f5f9;">LabelTheme &mdash; live values</div>
+        <pre id="tp-json" style="margin:0; background:#06090f; color:#8fd0a8; font:400 11.5px/1.6 'JetBrains Mono',monospace; padding:16px 18px; overflow:auto; white-space:pre; max-height:360px;"></pre>
+      </div>
+      <!-- C# class -->
+      <div style="border:1px solid #1c2330; background:#0a0d13; border-radius:13px; overflow:hidden;">
+        <div style="padding:14px 18px; border-bottom:1px solid #161c27; font:600 14px 'Space Grotesk',sans-serif; color:#f1f5f9;">The persisted model (C#)</div>
+        <pre style="margin:0; background:#06090f; color:#9db8d6; font:400 11.5px/1.6 'JetBrains Mono',monospace; padding:16px 18px; overflow:auto; white-space:pre; max-height:360px;">public sealed class LabelTheme
+{
+    public LabelStyle   Style    { get; set; }   // Glass | Blueprint
+                                                 // | Segmented | Fluent
+                                                 // | Terminal
+    public SegmentMode  TileMode { get; set; }   // Flush|Pop|Bordered
+    public ThemeColors  Colors   { get; set; }
+    public SeriesStyle  Series   { get; set; }
+    public FontSet      Fonts    { get; set; }
+    public int          Padding  { get; set; }   // pt, 4..14
+    public bool         Rounded  { get; set; }
+}
+
+public sealed class ThemeColors
+{
+    public string Frame, PanelTop, PanelBottom,
+                  Id, Body, Divider, Background;
+}
+
+public sealed class SeriesStyle
+{
+    public bool   Show     { get; set; }
+    public ChipFill Fill   { get; set; }   // Filled|Outline
+    public ChipPos  Pos    { get; set; }   // After|Before
+    public string[] Colors { get; set; }   // [I, II, III]
+}</pre>
+      </div>
+    </div>
+
+    <!-- pipeline + live DOT -->
+    <div style="display:grid; grid-template-columns:minmax(0,360px) 1fr; gap:18px; max-width:1120px; margin-top:18px;">
+      <div style="border:1px solid #1c2330; background:#0a0d13; border-radius:13px; padding:20px 22px;">
+        <div style="font:600 14px 'Space Grotesk',sans-serif; color:#f1f5f9; margin-bottom:14px;">From settings to SVG</div>
+        <div style="display:flex; flex-direction:column; gap:0;">
+          <div style="display:flex; align-items:center; gap:11px;"><span style="width:26px;height:26px;border-radius:6px;background:#10324f;border:1px solid #2f6ca6;display:flex;align-items:center;justify-content:center;font:600 11px 'JetBrains Mono';color:#9cd4ff;">1</span><span style="font:500 13px 'IBM Plex Sans'; color:#cdd7e5;">User edits <b style="color:#fff;">LabelTheme</b> in the window</span></div>
+          <div style="width:1px; height:16px; background:#243349; margin:3px 0 3px 13px;"></div>
+          <div style="display:flex; align-items:center; gap:11px;"><span style="width:26px;height:26px;border-radius:6px;background:#10324f;border:1px solid #2f6ca6;display:flex;align-items:center;justify-content:center;font:600 11px 'JetBrains Mono';color:#9cd4ff;">2</span><span style="font:500 13px 'IBM Plex Sans'; color:#cdd7e5;">Generator builds the <b style="color:#fff;">HTML&#8209;label</b> per node</span></div>
+          <div style="width:1px; height:16px; background:#243349; margin:3px 0 3px 13px;"></div>
+          <div style="display:flex; align-items:center; gap:11px;"><span style="width:26px;height:26px;border-radius:6px;background:#10324f;border:1px solid #2f6ca6;display:flex;align-items:center;justify-content:center;font:600 11px 'JetBrains Mono';color:#9cd4ff;">3</span><span style="font:500 13px 'IBM Plex Sans'; color:#cdd7e5;">Graphviz lays out &amp; emits <b style="color:#fff;">SVG</b></span></div>
+          <div style="width:1px; height:16px; background:#243349; margin:3px 0 3px 13px;"></div>
+          <div style="display:flex; align-items:center; gap:11px;"><span style="width:26px;height:26px;border-radius:6px;background:#0c2a20;border:1px solid #2b6f5a;display:flex;align-items:center;justify-content:center;font:600 11px 'JetBrains Mono';color:#5eead4;">4</span><span style="font:500 13px 'IBM Plex Sans'; color:#cdd7e5;">SVG embedded in the <b style="color:#fff;">HTML viewer</b></span></div>
+        </div>
+        <div style="margin-top:16px; padding-top:14px; border-top:1px solid #161c27; font:400 12px/1.6 'IBM Plex Sans'; color:#7e8 a8;"><span style="color:#7e8ea8;">Only the generator (step&nbsp;2) needs to know the theme &mdash; the rest of your pipeline is unchanged.</span></div>
+      </div>
+      <div style="border:1px solid #1c2330; background:#0a0d13; border-radius:13px; overflow:hidden; display:flex; flex-direction:column;">
+        <div style="padding:14px 18px; border-bottom:1px solid #161c27; font:600 14px 'Space Grotesk',sans-serif; color:#f1f5f9;">Generated HTML&#8209;label &mdash; live for current theme</div>
+        <pre id="tp-dot" style="margin:0; flex:1; background:#06090f; color:#76a3c4; font:400 11px/1.55 'JetBrains Mono',monospace; padding:16px 18px; overflow:auto; white-space:pre;"></pre>
+      </div>
+    </div>
+
+    <div style="max-width:1120px; margin-top:18px; border:1px solid #1c2330; background:#0a0d13; border-radius:13px; padding:18px 22px;">
+      <div style="font:600 13px 'Space Grotesk',sans-serif; color:#cbd5e1; margin-bottom:6px;">Note on fonts</div>
+      <div style="font:400 12.5px/1.6 'IBM Plex Sans'; color:#8593a3;">Graphviz HTML&#8209;labels render with whatever font the <b style="color:#cbd5e1;">FACE</b> names &mdash; it must be installed on the host that runs the export. Ship the theme with safe fallbacks (e.g. Courier New, Segoe UI) or bundle the fonts with the viewer. Everything else here (gradients, rounded tables, per&#8209;side borders, colored chips) is pure Graphviz and needs no external assets.</div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1216,&quot;height&quot;:1100}}">
+class Component extends DCLogic {
+  ROMAN = { 1:'I', 2:'II', 3:'III' };
+
+  PRESETS = {
+    cyan:    { name:'Cyan Ice',         bg:'#0a131c', fill1:'#15273a', fill2:'#1d3650', fillLite1:'#243a52', fillLite2:'#2e4865', border:'#48d6e8', divider:'#2f5f74', id:'#7df0ff', type:'#9fc3d6', desc:'#e3f1f8', chip:{1:'#38bdf8',2:'#fbbf24',3:'#f472b6'}, chipText:'#04121a', tileA1:'#cfe4f0', tileA2:'#e8f3fa', ink:'#0c1a26', idInk:'#0d5f7e' },
+    amber:   { name:'Amber Industrial', bg:'#15110a', fill1:'#241c0f', fill2:'#322611', fillLite1:'#3a2d16', fillLite2:'#473720', border:'#e0a536', divider:'#6e5526', id:'#ffd36b', type:'#d8c39a', desc:'#f1e6cf', chip:{1:'#56c2ff',2:'#a3e635',3:'#fb7185'}, chipText:'#1a1305', tileA1:'#ece0c2', tileA2:'#f6efda', ink:'#241a09', idInk:'#8a5810' },
+    emerald: { name:'Emerald Signal',   bg:'#08140e', fill1:'#102619', fill2:'#163524', fillLite1:'#1c3c2a', fillLite2:'#244c35', border:'#34c98a', divider:'#27684a', id:'#73f0ad', type:'#a6cfb8', desc:'#dff2e7', chip:{1:'#2dd4bf',2:'#facc15',3:'#fb7185'}, chipText:'#04130b', tileA1:'#d2ecdd', tileA2:'#e8f5ee', ink:'#0a1f14', idInk:'#136a44' },
+    violet:  { name:'Violet Neon',      bg:'#120c1c', fill1:'#1f1430', fill2:'#2b1c43', fillLite1:'#33224f', fillLite2:'#3f2b60', border:'#a855f7', divider:'#5a3f80', id:'#d9b8ff', type:'#bda9d6', desc:'#ece1f7', chip:{1:'#c084fc',2:'#f0abfc',3:'#67e8f9'}, chipText:'#160a22', tileA1:'#e2d3f2', tileA2:'#f0e7fb', ink:'#190d29', idInk:'#6a3da0' },
+  };
+
+  clone(o){ return JSON.parse(JSON.stringify(o)); }
+
+  state = {
+    style:'glass', segMode:'pop', preset:'cyan',
+    C: null,
+    showSeries:true, chipFilled:true, chipBefore:false,
+    idFont:'Courier New', bodyFont:'Helvetica', pad:9, rounded:true,
+    sample:'chain',
+  };
+
+  constructor(props){ super(props); this.state.C = this.clone(this.PRESETS.cyan); }
+
+  componentDidMount(){ this.boot(); }
+  componentDidUpdate(){ this.paint(); }
+
+  async boot(){
+    const status = document.getElementById('gv-status');
+    try {
+      const mod = await import('https://cdn.jsdelivr.net/npm/@hpcc-js/wasm@2.16.0/dist/index.js');
+      const G = mod.Graphviz || (mod.default && mod.default.Graphviz) || mod.default;
+      this.gv = await G.load();
+      if (status){ status.innerHTML = '&#9679; Render engine: Graphviz (wasm) &mdash; LIVE'; status.style.color = '#5eead4'; status.style.borderColor = '#1c4a3f'; }
+      this.paint();
+      const root = document.getElementById('dh-root');
+      if (root && !this._obs){
+        this._obs = new MutationObserver(() => {
+          const probe = document.getElementById('tp-render');
+          if (this.gv && probe && !probe.querySelector('svg')){
+            if (this._t) clearTimeout(this._t);
+            this._t = setTimeout(() => this.paint(), 60);
+          }
+        });
+        this._obs.observe(root, { childList:true, subtree:true });
+      }
+    } catch(e){
+      if (status){ status.textContent = 'Render engine failed: ' + e.message; status.style.color = '#fb7185'; }
+      console.error('graphviz load failed', e);
+    }
+  }
+
+  twoLine(t){ const i = t.lastIndexOf(' '); return i < 0 ? t : (t.slice(0,i) + '<BR/>' + t.slice(i+1)); }
+  fmt(l){ return l.replace(/>\s*</g, '>\n<').trim(); }
+  single(l){ return `digraph{ bgcolor="transparent" node[shape=plaintext margin=0] n[label=<${l}>] }`; }
+
+  // ---------- label generation ----------
+  chipCell(s, st){
+    const C = st.C;
+    return st.chipFilled
+      ? `<TD BGCOLOR="${C.chip[s]}" CELLPADDING="3"><FONT FACE="${st.idFont}" POINT-SIZE="10" COLOR="${C.chipText}"><B>${this.ROMAN[s]}</B></FONT></TD>`
+      : `<TD BORDER="1" COLOR="${C.chip[s]}" CELLPADDING="3"><FONT FACE="${st.idFont}" POINT-SIZE="10" COLOR="${C.chip[s]}"><B>${this.ROMAN[s]}</B></FONT></TD>`;
+  }
+  idCell(idInner, s, st){
+    if (!st.showSeries) return idInner;
+    const chip = this.chipCell(s, st);
+    return st.chipBefore
+      ? `<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR>${chip}<TD WIDTH="9"> </TD><TD>${idInner}</TD></TR></TABLE>`
+      : `<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD>${idInner}</TD><TD WIDTH="9"> </TD>${chip}</TR></TABLE>`;
+  }
+
+  label(comp, series, st){
+    const C = st.C, P = st.pad, F = st.idFont, B = st.bodyFont;
+    const round = st.rounded ? ' STYLE="ROUNDED"' : '';
+    const idF = (color, txt) => `<FONT FACE="${F}" POINT-SIZE="13" COLOR="${color}"><B>${txt}</B></FONT>`;
+
+    if (st.style === 'glass'){
+      return `<TABLE BORDER="1" COLOR="${C.border}" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"${round} BGCOLOR="${C.fill1}:${C.fill2}" GRADIENTANGLE="125">
+<TR><TD ALIGN="LEFT" CELLPADDING="${P}" SIDES="B" BORDER="1" COLOR="${C.divider}">${this.idCell(idF(C.id, comp.id), series, st)}</TD>
+<TD ROWSPAN="2" ALIGN="LEFT" CELLPADDING="${P+2}" SIDES="L" BORDER="1" COLOR="${C.divider}"><FONT FACE="${B}" POINT-SIZE="11" COLOR="${C.type}">${this.twoLine(comp.type)}</FONT></TD></TR>
+<TR><TD ALIGN="LEFT" CELLPADDING="${P}"><FONT FACE="${B}" POINT-SIZE="12" COLOR="${C.desc}">${comp.desc}</FONT></TD></TR>
+</TABLE>`;
+    }
+    if (st.style === 'blue'){
+      return `<TABLE BORDER="2" COLOR="${C.border}" CELLBORDER="1" CELLSPACING="0" CELLPADDING="${P}" BGCOLOR="${C.bg}">
+<TR><TD ALIGN="LEFT" COLOR="${C.divider}">${this.idCell(idF(C.id, comp.id), series, st)}</TD>
+<TD ROWSPAN="2" ALIGN="LEFT" COLOR="${C.divider}"><FONT FACE="${F}" POINT-SIZE="11" COLOR="${C.type}">${this.twoLine(comp.type)}</FONT></TD></TR>
+<TR><TD ALIGN="LEFT" COLOR="${C.divider}"><FONT FACE="${F}" POINT-SIZE="12" COLOR="${C.desc}">${comp.desc}</FONT></TD></TR>
+</TABLE>`;
+    }
+    if (st.style === 'seg'){
+      if (st.segMode === 'pop'){
+        return `<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="6" CELLPADDING="${P}" BGCOLOR="#050608">
+<TR><TD ALIGN="LEFT" BGCOLOR="${C.tileA1}:${C.tileA2}" GRADIENTANGLE="120">${this.idCell(idF(C.idInk, comp.id), series, st)}</TD>
+<TD ROWSPAN="2" ALIGN="LEFT" BGCOLOR="${C.tileA2}:${C.tileA1}" GRADIENTANGLE="120"><FONT FACE="${B}" POINT-SIZE="11" COLOR="${C.ink}">${this.twoLine(comp.type)}</FONT></TD></TR>
+<TR><TD ALIGN="LEFT" BGCOLOR="${C.tileA1}:${C.tileA2}" GRADIENTANGLE="120"><FONT FACE="${B}" POINT-SIZE="12" COLOR="${C.ink}"><B>${comp.desc}</B></FONT></TD></TR>
+</TABLE>`;
+      }
+      if (st.segMode === 'framed'){
+        return `<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="5" CELLPADDING="${P}" BGCOLOR="${C.bg}">
+<TR><TD ALIGN="LEFT" BORDER="1" COLOR="${C.border}" BGCOLOR="${C.fill1}:${C.fill2}" GRADIENTANGLE="120">${this.idCell(idF(C.id, comp.id), series, st)}</TD>
+<TD ROWSPAN="2" ALIGN="LEFT" BORDER="1" COLOR="${C.border}" BGCOLOR="${C.fill2}:${C.bg}" GRADIENTANGLE="120"><FONT FACE="${B}" POINT-SIZE="11" COLOR="${C.type}">${this.twoLine(comp.type)}</FONT></TD></TR>
+<TR><TD ALIGN="LEFT" BORDER="1" COLOR="${C.border}" BGCOLOR="${C.fill1}:${C.fill2}" GRADIENTANGLE="120"><FONT FACE="${B}" POINT-SIZE="12" COLOR="${C.desc}">${comp.desc}</FONT></TD></TR>
+</TABLE>`;
+      }
+      return `<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="5" CELLPADDING="${P}" BGCOLOR="${C.bg}">
+<TR><TD ALIGN="LEFT" BGCOLOR="${C.fill1}:${C.fill2}" GRADIENTANGLE="120">${this.idCell(idF(C.id, comp.id), series, st)}</TD>
+<TD ROWSPAN="2" ALIGN="LEFT" BGCOLOR="${C.fill2}:${C.bg}" GRADIENTANGLE="120"><FONT FACE="${B}" POINT-SIZE="11" COLOR="${C.type}">${this.twoLine(comp.type)}</FONT></TD></TR>
+<TR><TD ALIGN="LEFT" BGCOLOR="${C.fill1}:${C.fill2}" GRADIENTANGLE="120"><FONT FACE="${B}" POINT-SIZE="12" COLOR="${C.desc}">${comp.desc}</FONT></TD></TR>
+</TABLE>`;
+    }
+    if (st.style === 'flu'){
+      const idInner = `<FONT FACE="${B}" POINT-SIZE="10" COLOR="${C.id}"><B>&#9642; </B></FONT><FONT FACE="${B}" POINT-SIZE="13" COLOR="#f3f6fa"><B>${comp.id}</B></FONT>`;
+      return `<TABLE BORDER="1" COLOR="${C.border}" CELLBORDER="0" CELLSPACING="0" CELLPADDING="${P+2}"${round} BGCOLOR="${C.fillLite1}:${C.fillLite2}" GRADIENTANGLE="135">
+<TR><TD ALIGN="LEFT" SIDES="B" BORDER="1" COLOR="${C.divider}">${this.idCell(idInner, series, st)}</TD>
+<TD ROWSPAN="2" ALIGN="LEFT" SIDES="L" BORDER="1" COLOR="${C.divider}"><FONT FACE="${B}" POINT-SIZE="11" COLOR="${C.type}">${this.twoLine(comp.type)}</FONT></TD></TR>
+<TR><TD ALIGN="LEFT"><FONT FACE="${B}" POINT-SIZE="12" COLOR="${C.desc}">${comp.desc}</FONT></TD></TR>
+</TABLE>`;
+    }
+    // terminal
+    return `<TABLE BORDER="2" COLOR="${C.border}" CELLBORDER="0" CELLSPACING="0" CELLPADDING="${P}" BGCOLOR="${C.bg}">
+<TR><TD ALIGN="LEFT" SIDES="B" BORDER="1" COLOR="${C.divider}">${this.idCell(idF(C.id, '['+comp.id+']'), series, st)}</TD>
+<TD ROWSPAN="2" ALIGN="LEFT" SIDES="L" BORDER="1" COLOR="${C.divider}"><FONT FACE="${F}" POINT-SIZE="11" COLOR="${C.type}">${this.twoLine(comp.type)}</FONT></TD></TR>
+<TR><TD ALIGN="LEFT"><FONT FACE="${F}" POINT-SIZE="12" COLOR="${C.desc}">${comp.desc}</FONT></TD></TR>
+</TABLE>`;
+  }
+
+  chainGraph(st){
+    const comps = [
+      {id:'34BC', desc:'Afgreningsstuds', type:'Stål Twin 125/50', s:1},
+      {id:'32D2', desc:'Rør L74.39', type:'PertFlextra Twin 63', s:2},
+      {id:'34A2', desc:'Bøjning 90gr', type:'PertFlextra Twin 50', s:3},
+    ];
+    const nodes = comps.map((c,i)=>`x${i}[label=<${this.label(c, c.s, st)}>]`).join('\n');
+    const edges = comps.slice(1).map((_,i)=>`x${i}->x${i+1}`).join('\n');
+    return `digraph{ bgcolor="transparent" node[shape=plaintext margin=0] edge[arrowhead=none color="${st.C.divider}" penwidth=2] ${nodes} ${edges} }`;
+  }
+  heroGraph(st){ return this.single(this.label({id:'32D2', desc:'Rør L74.39', type:'PertFlextra Twin 63'}, 2, st)); }
+
+  renderInto(id, dot, scale){
+    const el = document.getElementById(id);
+    if (!el || !this.gv) return;
+    let svg;
+    try { svg = this.gv.dot ? this.gv.dot(dot) : this.gv.layout(dot, 'svg', 'dot'); }
+    catch(e){ el.innerHTML = '<div style="color:#fb7185;font:11px monospace;padding:8px;white-space:pre-wrap;">'+e.message+'</div>'; return; }
+    el.innerHTML = svg;
+    const s = el.querySelector('svg');
+    if (s){
+      const vb = (s.getAttribute('viewBox') || '').split(/\s+/).map(Number);
+      const k = scale || 1.5;
+      if (vb.length === 4 && vb[2] && vb[3]){ s.setAttribute('width', Math.round(vb[2]*k)); s.setAttribute('height', Math.round(vb[3]*k)); }
+      s.style.display = 'block'; s.style.maxWidth = '100%'; s.style.height = 'auto';
+    }
+  }
+
+  themeJson(){
+    const st = this.state, C = st.C;
+    const o = {
+      style: st.style === 'seg' ? ('Segmented:' + st.segMode) : ({glass:'GlassHUD', blue:'Blueprint', flu:'FluentAcrylic', term:'Terminal'}[st.style]),
+      colors: { frame:C.border, panelTop:C.fill1, panelBottom:C.fill2, id:C.id, body:C.desc, divider:C.divider, background:C.bg },
+      series: { show:st.showSeries, fill: st.chipFilled?'Filled':'Outline', position: st.chipBefore?'Before':'After', colors:{ I:C.chip[1], II:C.chip[2], III:C.chip[3] } },
+      fonts: { id:st.idFont, body:st.bodyFont },
+      padding: st.pad, rounded: st.rounded,
+    };
+    return JSON.stringify(o, null, 2);
+  }
+
+  _paint(){
+    if (!this.gv) return;
+    const st = this.state;
+    this.renderInto('tp-render', st.sample === 'single' ? this.heroGraph(st) : this.chainGraph(st), st.sample === 'single' ? 1.7 : 1.4);
+    const dotEl = document.getElementById('tp-dot');
+    if (dotEl) dotEl.textContent = this.fmt(this.label({id:'32D2', desc:'Rør L74.39', type:'PertFlextra Twin 63'}, 2, st));
+    const jsonEl = document.getElementById('tp-json');
+    if (jsonEl) jsonEl.textContent = this.themeJson();
+  }
+  paint(){ if (this._pt) clearTimeout(this._pt); this._pt = setTimeout(() => this._paint(), 16); }
+
+  setColor(key, val){
+    this.setState(st => {
+      const C = { ...st.C, chip:{ ...st.C.chip } };
+      if (key === 'chip1') C.chip[1] = val;
+      else if (key === 'chip2') C.chip[2] = val;
+      else if (key === 'chip3') C.chip[3] = val;
+      else C[key] = val;
+      return { C, preset:'custom' };
+    });
+  }
+  setPreset(name){ if (!this.PRESETS[name]) return; this.setState({ preset:name, C:this.clone(this.PRESETS[name]) }); }
+
+  _toast(msg){ const t = document.getElementById('tp-toast'); if (!t) return; t.textContent = msg; t.style.color = '#5eead4'; clearTimeout(this._tt); this._tt = setTimeout(()=>{ t.textContent='\u00a0'; t.style.color='#6e6e6e'; }, 1600); }
+
+  renderVals(){
+    const st = this.state, C = st.C;
+    const row = (a) => `display:flex;align-items:center;gap:8px;padding:9px 11px;border-radius:7px;cursor:pointer;border:1px solid ${a?'#2f6ca6':'#343434'};background:${a?'#10314d':'#2c2c2c'};color:${a?'#d4ebff':'#dcdcdc'};transition:all .12s;`;
+    const palv = (a) => `display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:7px;cursor:pointer;font:500 12.5px 'Segoe UI';border:1px solid ${a?'#2f6ca6':'#343434'};background:${a?'#10314d':'#2c2c2c'};color:${a?'#d4ebff':'#dcdcdc'};`;
+    const seg = (a) => `flex:1;text-align:center;padding:6px 8px;cursor:pointer;font:500 11.5px 'Segoe UI';border-radius:4px;background:${a?'#0e639c':'transparent'};color:${a?'#fff':'#b5b5b5'};white-space:nowrap;`;
+    const track = (on) => `width:40px;height:22px;border-radius:11px;background:${on?'#4cc2ff':'#5a5a5a'};position:relative;transition:.15s;cursor:pointer;flex:none;`;
+    const knob = (on) => `position:absolute;top:2px;left:${on?'20px':'2px'};width:18px;height:18px;border-radius:50%;background:#fff;transition:.15s;`;
+
+    return {
+      // style
+      setGlass:()=>this.setState({style:'glass'}), setBlue:()=>this.setState({style:'blue'}),
+      setSeg:()=>this.setState({style:'seg'}), setFlu:()=>this.setState({style:'flu'}), setTerm:()=>this.setState({style:'term'}),
+      sel:{ glass:row(st.style==='glass'), blue:row(st.style==='blue'), seg:row(st.style==='seg'), flu:row(st.style==='flu'), term:row(st.style==='term') },
+      isSeg: st.style==='seg',
+      segFlush:()=>this.setState({segMode:'flush'}), segPop:()=>this.setState({segMode:'pop'}), segFramed:()=>this.setState({segMode:'framed'}),
+      segm:{ flush:seg(st.segMode==='flush'), pop:seg(st.segMode==='pop'), framed:seg(st.segMode==='framed') },
+      // palette
+      palCyan:()=>this.setPreset('cyan'), palAmber:()=>this.setPreset('amber'), palEmerald:()=>this.setPreset('emerald'), palViolet:()=>this.setPreset('violet'),
+      pal:{ cyan:palv(st.preset==='cyan'), amber:palv(st.preset==='amber'), emerald:palv(st.preset==='emerald'), violet:palv(st.preset==='violet') },
+      presetName: st.preset==='custom' ? 'Custom' : this.PRESETS[st.preset].name,
+      // colors
+      cBorder:C.border, cFill1:C.fill1, cFill2:C.fill2, cId:C.id, cDesc:C.desc, cDivider:C.divider,
+      cS1:C.chip[1], cS2:C.chip[2], cS3:C.chip[3],
+      onBorder:(e)=>this.setColor('border', e.target.value), onFill1:(e)=>this.setColor('fill1', e.target.value),
+      onFill2:(e)=>this.setColor('fill2', e.target.value), onId:(e)=>this.setColor('id', e.target.value),
+      onDesc:(e)=>this.setColor('desc', e.target.value), onDivider:(e)=>this.setColor('divider', e.target.value),
+      onS1:(e)=>this.setColor('chip1', e.target.value), onS2:(e)=>this.setColor('chip2', e.target.value), onS3:(e)=>this.setColor('chip3', e.target.value),
+      // series
+      toggleSeries:()=>this.setState(s=>({showSeries:!s.showSeries})),
+      swSeries:{ track:track(st.showSeries), knob:knob(st.showSeries) },
+      chipFill:()=>this.setState({chipFilled:true}), chipOutline:()=>this.setState({chipFilled:false}),
+      chipF:{ filled:seg(st.chipFilled), outline:seg(!st.chipFilled) },
+      chipAfter:()=>this.setState({chipBefore:false}), chipBefore:()=>this.setState({chipBefore:true}),
+      chipP:{ after:seg(!st.chipBefore), before:seg(st.chipBefore) },
+      // typography
+      idFont:st.idFont, bodyFont:st.bodyFont,
+      onIdFont:(e)=>this.setState({idFont:e.target.value}), onBodyFont:(e)=>this.setState({bodyFont:e.target.value}),
+      // layout
+      pad:st.pad, onPad:(e)=>this.setState({pad:+e.target.value}),
+      toggleRounded:()=>this.setState(s=>({rounded:!s.rounded})),
+      swRounded:{ track:track(st.rounded), knob:knob(st.rounded) },
+      // preview + footer
+      sampleChain:()=>this.setState({sample:'chain'}), sampleSingle:()=>this.setState({sample:'single'}),
+      smp:{ chain:seg(st.sample==='chain'), single:seg(st.sample==='single') },
+      resetPreset:()=>this.setPreset(st.preset==='custom' ? 'cyan' : st.preset),
+      copyDot:()=>{ try{ navigator.clipboard.writeText(this.fmt(this.label({id:'32D2',desc:'Rør L74.39',type:'PertFlextra Twin 63'},2,this.state))); this._toast('DOT copied to clipboard'); }catch(e){ this._toast('Copy failed'); } },
+      exportTheme:()=>{ try{ const blob=new Blob([this.themeJson()],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='label-theme.json'; a.click(); this._toast('Exported label-theme.json'); }catch(e){} },
+    };
+  }
+}
+</script>
+</body>
+</html>

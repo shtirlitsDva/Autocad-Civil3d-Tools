@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:#000;}
+  ::selection{background:#2dd4bf;color:#04131a;}
+  ::-webkit-scrollbar{height:9px;width:9px;}
+  ::-webkit-scrollbar-track{background:#000;}
+  ::-webkit-scrollbar-thumb{background:#1d2531;border-radius:5px;}
+</style>
+</helmet>
+<div id="dh-root" style="min-height:100vh; background:#000; color:#e6edf3; font-family:'IBM Plex Sans',system-ui,sans-serif; padding-bottom:96px;">
+
+  <!-- HEADER -->
+  <div style="border-bottom:1px solid #14181f; padding:30px 44px; display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:18px;">
+    <div>
+      <div style="font:600 12px/1 'JetBrains Mono',monospace; letter-spacing:.30em; color:#5eead4; text-transform:uppercase; margin-bottom:13px;">District Heating &middot; Component Series</div>
+      <h1 style="font:600 32px/1.08 'Space Grotesk',sans-serif; margin:0; color:#f4f7fa; letter-spacing:-.015em;">Roman chip &mdash; four palettes</h1>
+      <p style="margin:12px 0 0; max-width:720px; color:#9aa6b4; font-size:14.5px; line-height:1.55;">The Series chip (<b style="color:#cbd5e1;">I&nbsp;/&nbsp;II&nbsp;/&nbsp;III</b>) shown in every label style, now in four high&#8209;contrast schemes on <b style="color:#cbd5e1;">true black</b> &mdash; so the frames read clearly instead of melting into the background. Every panel is rendered live by the real Graphviz engine.</p>
+    </div>
+    <div id="gv-status" style="font:500 11px/1.3 'JetBrains Mono',monospace; color:#64748b; border:1px solid #1f2b3d; background:#08090c; padding:9px 13px; border-radius:7px; white-space:nowrap;">&#9679; Booting render engine&hellip;</div>
+  </div>
+
+  <!-- ===================== SEGMENTED TILES — LEGIBILITY FIX ===================== -->
+  <div style="padding:32px 44px 10px;">
+    <div style="display:flex; align-items:baseline; gap:16px; margin-bottom:6px;">
+      <div style="font:600 13px/1 'JetBrains Mono',monospace; color:#fbbf24; letter-spacing:.1em;">FIX</div>
+      <h2 style="font:600 21px/1 'Space Grotesk',sans-serif; margin:0; color:#e8eef5;">Segmented Tiles &mdash; two ways to make it readable</h2>
+      <div style="height:1px; flex:1; background:#15191f;"></div>
+    </div>
+    <p style="margin:0 0 22px; max-width:760px; color:#9aa6b4; font-size:13px; line-height:1.6;">Right now the grout and the tiles are both near&#8209;black, so the tiles barely separate. <b style="color:#cbd5e1;">Option&nbsp;A</b> inverts the roles &mdash; black grout, light tiles, dark ink (the most distinct treatment of the set). <b style="color:#cbd5e1;">Option&nbsp;B</b> keeps the dark tiles but outlines each in the palette&rsquo;s frame color (legible, but closer to the other framed styles). Shown across all four palettes, Series&nbsp;II.</p>
+
+    <div style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; max-width:1180px;">
+
+      <!-- Cyan -->
+      <div style="border:1px solid #13171e; background:#040506; border-radius:12px; overflow:hidden;">
+        <div style="padding:11px 18px; border-bottom:1px solid #0f131a; font:600 12.5px/1 'Space Grotesk',sans-serif; color:#eef2f7;">Cyan Ice</div>
+        <div style="padding:22px 16px; display:flex; gap:18px; align-items:flex-start; justify-content:center; flex-wrap:wrap; background:#000;">
+          <div style="text-align:center;"><div id="seg_cur_0"></div><div style="margin-top:9px; font:600 9.5px 'JetBrains Mono',monospace; letter-spacing:.13em; color:#4b5765;">CURRENT</div></div>
+          <div style="text-align:center;"><div id="seg_pop_0"></div><div style="margin-top:9px; font:600 9.5px 'JetBrains Mono',monospace; letter-spacing:.13em; color:#7dd3fc;">A &middot; CELLS POP</div></div>
+          <div style="text-align:center;"><div id="seg_fr_0"></div><div style="margin-top:9px; font:600 9.5px 'JetBrains Mono',monospace; letter-spacing:.13em; color:#8595a8;">B &middot; BORDERS</div></div>
+        </div>
+      </div>
+
+      <!-- Amber -->
+      <div style="border:1px solid #13171e; background:#040506; border-radius:12px; overflow:hidden;">
+        <div style="padding:11px 18px; border-bottom:1px solid #0f131a; font:600 12.5px/1 'Space Grotesk',sans-serif; color:#eef2f7;">Amber Industrial</div>
+        <div style="padding:22px 16px; display:flex; gap:18px; align-items:flex-start; justify-content:center; flex-wrap:wrap; background:#000;">
+          <div style="text-align:center;"><div id="seg_cur_1"></div><div style="margin-top:9px; font:600 9.5px 'JetBrains Mono',monospace; letter-spacing:.13em; color:#4b5765;">CURRENT</div></div>
+          <div style="text-align:center;"><div id="seg_pop_1"></div><div style="margin-top:9px; font:600 9.5px 'JetBrains Mono',monospace; letter-spacing:.13em; color:#f5c16b;">A &middot; CELLS POP</div></div>
+          <div style="text-align:center;"><div id="seg_fr_1"></div><div style="margin-top:9px; font:600 9.5px 'JetBrains Mono',monospace; letter-spacing:.13em; color:#8595a8;">B &middot; BORDERS</div></div>
+        </div>
+      </div>
+
+      <!-- Emerald -->
+      <div style="border:1px solid #13171e; background:#040506; border-radius:12px; overflow:hidden;">
+        <div style="padding:11px 18px; border-bottom:1px solid #0f131a; font:600 12.5px/1 'Space Grotesk',sans-serif; color:#eef2f7;">Emerald Signal</div>
+        <div style="padding:22px 16px; display:flex; gap:18px; align-items:flex-start; justify-content:center; flex-wrap:wrap; background:#000;">
+          <div style="text-align:center;"><div id="seg_cur_2"></div><div style="margin-top:9px; font:600 9.5px 'JetBrains Mono',monospace; letter-spacing:.13em; color:#4b5765;">CURRENT</div></div>
+          <div style="text-align:center;"><div id="seg_pop_2"></div><div style="margin-top:9px; font:600 9.5px 'JetBrains Mono',monospace; letter-spacing:.13em; color:#73f0ad;">A &middot; CELLS POP</div></div>
+          <div style="text-align:center;"><div id="seg_fr_2"></div><div style="margin-top:9px; font:600 9.5px 'JetBrains Mono',monospace; letter-spacing:.13em; color:#8595a8;">B &middot; BORDERS</div></div>
+        </div>
+      </div>
+
+      <!-- Violet -->
+      <div style="border:1px solid #13171e; background:#040506; border-radius:12px; overflow:hidden;">
+        <div style="padding:11px 18px; border-bottom:1px solid #0f131a; font:600 12.5px/1 'Space Grotesk',sans-serif; color:#eef2f7;">Violet Neon</div>
+        <div style="padding:22px 16px; display:flex; gap:18px; align-items:flex-start; justify-content:center; flex-wrap:wrap; background:#000;">
+          <div style="text-align:center;"><div id="seg_cur_3"></div><div style="margin-top:9px; font:600 9.5px 'JetBrains Mono',monospace; letter-spacing:.13em; color:#4b5765;">CURRENT</div></div>
+          <div style="text-align:center;"><div id="seg_pop_3"></div><div style="margin-top:9px; font:600 9.5px 'JetBrains Mono',monospace; letter-spacing:.13em; color:#d9b8ff;">A &middot; CELLS POP</div></div>
+          <div style="text-align:center;"><div id="seg_fr_3"></div><div style="margin-top:9px; font:600 9.5px 'JetBrains Mono',monospace; letter-spacing:.13em; color:#8595a8;">B &middot; BORDERS</div></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div style="height:1px; background:#14181f; margin:30px 44px 0;"></div>
+
+  <!-- ===================== PALETTE 01 : CYAN ICE ===================== -->
+  <div style="padding:36px 44px 6px;">
+    <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:24px; flex-wrap:wrap; margin-bottom:18px; border:1px solid #18202b; background:linear-gradient(180deg,#070b0f,#05070a); border-radius:14px; padding:20px 24px;">
+      <div style="max-width:560px;">
+        <div style="font:600 11px/1 'JetBrains Mono',monospace; letter-spacing:.2em; color:#48d6e8; margin-bottom:9px;">PALETTE 01</div>
+        <div style="font:600 19px/1 'Space Grotesk',sans-serif; color:#f4f7fa;">Cyan Ice</div>
+        <div style="font:400 12.5px/1.55 'IBM Plex Sans'; color:#8c98a6; margin-top:8px;">Cool cyan frames on true black &mdash; the brightest edge contrast. The closest evolution of your current look, but the panels now lift cleanly off the canvas.</div>
+      </div>
+      <div style="display:flex; gap:13px; align-items:flex-end; flex-wrap:wrap;">
+        <div style="text-align:center;"><div style="width:34px; height:34px; border-radius:7px; background:linear-gradient(135deg,#15273a,#1d3650); border:1px solid #2a3f55;"></div><div style="margin-top:6px; font:500 8.5px 'JetBrains Mono',monospace; letter-spacing:.08em; color:#5a6675;">PANEL</div></div>
+        <div style="text-align:center;"><div style="width:34px; height:34px; border-radius:7px; background:#48d6e8;"></div><div style="margin-top:6px; font:500 8.5px 'JetBrains Mono',monospace; letter-spacing:.08em; color:#5a6675;">FRAME</div></div>
+        <div style="text-align:center;"><div style="width:34px; height:34px; border-radius:7px; background:#7df0ff;"></div><div style="margin-top:6px; font:500 8.5px 'JetBrains Mono',monospace; letter-spacing:.08em; color:#5a6675;">ID</div></div>
+        <div style="width:1px; height:40px; background:#1d2531; margin:0 4px;"></div>
+        <div style="text-align:center;"><div style="width:34px; height:34px; border-radius:7px; background:#38bdf8;"></div><div style="margin-top:6px; font:500 8.5px 'JetBrains Mono',monospace; letter-spacing:.08em; color:#5a6675;">I</div></div>
+        <div style="text-align:center;"><div style="width:34px; height:34px; border-radius:7px; background:#fbbf24;"></div><div style="margin-top:6px; font:500 8.5px 'JetBrains Mono',monospace; letter-spacing:.08em; color:#5a6675;">II</div></div>
+        <div style="text-align:center;"><div style="width:34px; height:34px; border-radius:7px; background:#f472b6;"></div><div style="margin-top:6px; font:500 8.5px 'JetBrains Mono',monospace; letter-spacing:.08em; color:#5a6675;">III</div></div>
+      </div>
+    </div>
+    <div style="display:grid; grid-template-columns:1fr; gap:13px;">
+      <div style="border:1px solid #13171e; background:#040506; border-radius:12px; overflow:hidden;"><div style="padding:11px 18px; border-bottom:1px solid #0f131a; font:600 13px/1 'Space Grotesk',sans-serif; color:#eef2f7;">Glass HUD</div><div style="padding:24px 20px; display:flex; gap:26px; align-items:center; justify-content:center; flex-wrap:wrap; background:#000;"><div style="text-align:center;"><div id="n0_glass_1"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;I</div></div><div style="text-align:center;"><div id="n0_glass_2"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;II</div></div><div style="text-align:center;"><div id="n0_glass_3"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;III</div></div></div></div>
+      <div style="border:1px solid #13171e; background:#040506; border-radius:12px; overflow:hidden;"><div style="padding:11px 18px; border-bottom:1px solid #0f131a; font:600 13px/1 'Space Grotesk',sans-serif; color:#eef2f7;">Blueprint Grid</div><div style="padding:24px 20px; display:flex; gap:26px; align-items:center; justify-content:center; flex-wrap:wrap; background:#000;"><div style="text-align:center;"><div id="n0_blue_1"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;I</div></div><div style="text-align:center;"><div id="n0_blue_2"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;II</div></div><div style="text-align:center;"><div id="n0_blue_3"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;III</div></div></div></div>
+      <div style="border:1px solid #13171e; background:#040506; border-radius:12px; overflow:hidden;"><div style="padding:11px 18px; border-bottom:1px solid #0f131a; font:600 13px/1 'Space Grotesk',sans-serif; color:#eef2f7;">Segmented Tiles</div><div style="padding:24px 20px; display:flex; gap:26px; align-items:center; justify-content:center; flex-wrap:wrap; background:#000;"><div style="text-align:center;"><div id="n0_seg_1"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;I</div></div><div style="text-align:center;"><div id="n0_seg_2"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;II</div></div><div style="text-align:center;"><div id="n0_seg_3"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;III</div></div></div></div>
+      <div style="border:1px solid #13171e; background:#040506; border-radius:12px; overflow:hidden;"><div style="padding:11px 18px; border-bottom:1px solid #0f131a; font:600 13px/1 'Space Grotesk',sans-serif; color:#eef2f7;">Fluent Acrylic</div><div style="padding:24px 20px; display:flex; gap:26px; align-items:center; justify-content:center; flex-wrap:wrap; background:#000;"><div style="text-align:center;"><div id="n0_flu_1"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;I</div></div><div style="text-align:center;"><div id="n0_flu_2"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;II</div></div><div style="text-align:center;"><div id="n0_flu_3"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;III</div></div></div></div>
+      <div style="border:1px solid #13171e; background:#040506; border-radius:12px; overflow:hidden;"><div style="padding:11px 18px; border-bottom:1px solid #0f131a; font:600 13px/1 'Space Grotesk',sans-serif; color:#eef2f7;">Tactical Terminal</div><div style="padding:24px 20px; display:flex; gap:26px; align-items:center; justify-content:center; flex-wrap:wrap; background:#000;"><div style="text-align:center;"><div id="n0_term_1"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;I</div></div><div style="text-align:center;"><div id="n0_term_2"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;II</div></div><div style="text-align:center;"><div id="n0_term_3"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;III</div></div></div></div>
+    </div>
+    <pre id="dot-p0" style="margin:13px 0 0; border:1px solid #13171e; border-radius:10px; background:#040506; color:#76a3c4; font:400 11px/1.55 'JetBrains Mono',monospace; padding:14px 17px; overflow:auto; white-space:pre; max-height:200px;"></pre>
+  </div>
+
+  <!-- ===================== PALETTE 02 : AMBER INDUSTRIAL ===================== -->
+  <div style="padding:30px 44px 6px;">
+    <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:24px; flex-wrap:wrap; margin-bottom:18px; border:1px solid #221a10; background:linear-gradient(180deg,#0a0805,#060403); border-radius:14px; padding:20px 24px;">
+      <div style="max-width:560px;">
+        <div style="font:600 11px/1 'JetBrains Mono',monospace; letter-spacing:.2em; color:#e0a536; margin-bottom:9px;">PALETTE 02</div>
+        <div style="font:600 19px/1 'Space Grotesk',sans-serif; color:#f4f7fa;">Amber Industrial</div>
+        <div style="font:400 12.5px/1.55 'IBM Plex Sans'; color:#9a9078; margin-top:8px;">Warm amber on black, the way plant / SCADA HMIs read. Maximum separation from a dark canvas, and a clear visual break from the cool blue you have today.</div>
+      </div>
+      <div style="display:flex; gap:13px; align-items:flex-end; flex-wrap:wrap;">
+        <div style="text-align:center;"><div style="width:34px; height:34px; border-radius:7px; background:linear-gradient(135deg,#241c0f,#322611); border:1px solid #463612;"></div><div style="margin-top:6px; font:500 8.5px 'JetBrains Mono',monospace; letter-spacing:.08em; color:#6b6452;">PANEL</div></div>
+        <div style="text-align:center;"><div style="width:34px; height:34px; border-radius:7px; background:#e0a536;"></div><div style="margin-top:6px; font:500 8.5px 'JetBrains Mono',monospace; letter-spacing:.08em; color:#6b6452;">FRAME</div></div>
+        <div style="text-align:center;"><div style="width:34px; height:34px; border-radius:7px; background:#ffd36b;"></div><div style="margin-top:6px; font:500 8.5px 'JetBrains Mono',monospace; letter-spacing:.08em; color:#6b6452;">ID</div></div>
+        <div style="width:1px; height:40px; background:#2a2316; margin:0 4px;"></div>
+        <div style="text-align:center;"><div style="width:34px; height:34px; border-radius:7px; background:#56c2ff;"></div><div style="margin-top:6px; font:500 8.5px 'JetBrains Mono',monospace; letter-spacing:.08em; color:#6b6452;">I</div></div>
+        <div style="text-align:center;"><div style="width:34px; height:34px; border-radius:7px; background:#a3e635;"></div><div style="margin-top:6px; font:500 8.5px 'JetBrains Mono',monospace; letter-spacing:.08em; color:#6b6452;">II</div></div>
+        <div style="text-align:center;"><div style="width:34px; height:34px; border-radius:7px; background:#fb7185;"></div><div style="margin-top:6px; font:500 8.5px 'JetBrains Mono',monospace; letter-spacing:.08em; color:#6b6452;">III</div></div>
+      </div>
+    </div>
+    <div style="display:grid; grid-template-columns:1fr; gap:13px;">
+      <div style="border:1px solid #13171e; background:#040506; border-radius:12px; overflow:hidden;"><div style="padding:11px 18px; border-bottom:1px solid #0f131a; font:600 13px/1 'Space Grotesk',sans-serif; color:#eef2f7;">Glass HUD</div><div style="padding:24px 20px; display:flex; gap:26px; align-items:center; justify-content:center; flex-wrap:wrap; background:#000;"><div style="text-align:center;"><div id="n1_glass_1"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;I</div></div><div style="text-align:center;"><div id="n1_glass_2"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;II</div></div><div style="text-align:center;"><div id="n1_glass_3"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;III</div></div></div></div>
+      <div style="border:1px solid #13171e; background:#040506; border-radius:12px; overflow:hidden;"><div style="padding:11px 18px; border-bottom:1px solid #0f131a; font:600 13px/1 'Space Grotesk',sans-serif; color:#eef2f7;">Blueprint Grid</div><div style="padding:24px 20px; display:flex; gap:26px; align-items:center; justify-content:center; flex-wrap:wrap; background:#000;"><div style="text-align:center;"><div id="n1_blue_1"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;I</div></div><div style="text-align:center;"><div id="n1_blue_2"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;II</div></div><div style="text-align:center;"><div id="n1_blue_3"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;III</div></div></div></div>
+      <div style="border:1px solid #13171e; background:#040506; border-radius:12px; overflow:hidden;"><div style="padding:11px 18px; border-bottom:1px solid #0f131a; font:600 13px/1 'Space Grotesk',sans-serif; color:#eef2f7;">Segmented Tiles</div><div style="padding:24px 20px; display:flex; gap:26px; align-items:center; justify-content:center; flex-wrap:wrap; background:#000;"><div style="text-align:center;"><div id="n1_seg_1"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;I</div></div><div style="text-align:center;"><div id="n1_seg_2"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;II</div></div><div style="text-align:center;"><div id="n1_seg_3"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;III</div></div></div></div>
+      <div style="border:1px solid #13171e; background:#040506; border-radius:12px; overflow:hidden;"><div style="padding:11px 18px; border-bottom:1px solid #0f131a; font:600 13px/1 'Space Grotesk',sans-serif; color:#eef2f7;">Fluent Acrylic</div><div style="padding:24px 20px; display:flex; gap:26px; align-items:center; justify-content:center; flex-wrap:wrap; background:#000;"><div style="text-align:center;"><div id="n1_flu_1"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;I</div></div><div style="text-align:center;"><div id="n1_flu_2"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;II</div></div><div style="text-align:center;"><div id="n1_flu_3"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;III</div></div></div></div>
+      <div style="border:1px solid #13171e; background:#040506; border-radius:12px; overflow:hidden;"><div style="padding:11px 18px; border-bottom:1px solid #0f131a; font:600 13px/1 'Space Grotesk',sans-serif; color:#eef2f7;">Tactical Terminal</div><div style="padding:24px 20px; display:flex; gap:26px; align-items:center; justify-content:center; flex-wrap:wrap; background:#000;"><div style="text-align:center;"><div id="n1_term_1"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;I</div></div><div style="text-align:center;"><div id="n1_term_2"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;II</div></div><div style="text-align:center;"><div id="n1_term_3"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;III</div></div></div></div>
+    </div>
+    <pre id="dot-p1" style="margin:13px 0 0; border:1px solid #13171e; border-radius:10px; background:#040506; color:#c2a571; font:400 11px/1.55 'JetBrains Mono',monospace; padding:14px 17px; overflow:auto; white-space:pre; max-height:200px;"></pre>
+  </div>
+
+  <!-- ===================== PALETTE 03 : EMERALD SIGNAL ===================== -->
+  <div style="padding:30px 44px 6px;">
+    <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:24px; flex-wrap:wrap; margin-bottom:18px; border:1px solid #102018; background:linear-gradient(180deg,#050907,#040605); border-radius:14px; padding:20px 24px;">
+      <div style="max-width:560px;">
+        <div style="font:600 11px/1 'JetBrains Mono',monospace; letter-spacing:.2em; color:#34c98a; margin-bottom:9px;">PALETTE 03</div>
+        <div style="font:600 19px/1 'Space Grotesk',sans-serif; color:#f4f7fa;">Emerald Signal</div>
+        <div style="font:400 12.5px/1.55 'IBM Plex Sans'; color:#86988c; margin-top:8px;">A green signal palette &mdash; calm, high&#8209;legibility and strong on black without the neon harshness. Reads as &ldquo;healthy / connected&rdquo; at a glance.</div>
+      </div>
+      <div style="display:flex; gap:13px; align-items:flex-end; flex-wrap:wrap;">
+        <div style="text-align:center;"><div style="width:34px; height:34px; border-radius:7px; background:linear-gradient(135deg,#102619,#163524); border:1px solid #1f4a32;"></div><div style="margin-top:6px; font:500 8.5px 'JetBrains Mono',monospace; letter-spacing:.08em; color:#5a6a60;">PANEL</div></div>
+        <div style="text-align:center;"><div style="width:34px; height:34px; border-radius:7px; background:#34c98a;"></div><div style="margin-top:6px; font:500 8.5px 'JetBrains Mono',monospace; letter-spacing:.08em; color:#5a6a60;">FRAME</div></div>
+        <div style="text-align:center;"><div style="width:34px; height:34px; border-radius:7px; background:#73f0ad;"></div><div style="margin-top:6px; font:500 8.5px 'JetBrains Mono',monospace; letter-spacing:.08em; color:#5a6a60;">ID</div></div>
+        <div style="width:1px; height:40px; background:#193227; margin:0 4px;"></div>
+        <div style="text-align:center;"><div style="width:34px; height:34px; border-radius:7px; background:#2dd4bf;"></div><div style="margin-top:6px; font:500 8.5px 'JetBrains Mono',monospace; letter-spacing:.08em; color:#5a6a60;">I</div></div>
+        <div style="text-align:center;"><div style="width:34px; height:34px; border-radius:7px; background:#facc15;"></div><div style="margin-top:6px; font:500 8.5px 'JetBrains Mono',monospace; letter-spacing:.08em; color:#5a6a60;">II</div></div>
+        <div style="text-align:center;"><div style="width:34px; height:34px; border-radius:7px; background:#fb7185;"></div><div style="margin-top:6px; font:500 8.5px 'JetBrains Mono',monospace; letter-spacing:.08em; color:#5a6a60;">III</div></div>
+      </div>
+    </div>
+    <div style="display:grid; grid-template-columns:1fr; gap:13px;">
+      <div style="border:1px solid #13171e; background:#040506; border-radius:12px; overflow:hidden;"><div style="padding:11px 18px; border-bottom:1px solid #0f131a; font:600 13px/1 'Space Grotesk',sans-serif; color:#eef2f7;">Glass HUD</div><div style="padding:24px 20px; display:flex; gap:26px; align-items:center; justify-content:center; flex-wrap:wrap; background:#000;"><div style="text-align:center;"><div id="n2_glass_1"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;I</div></div><div style="text-align:center;"><div id="n2_glass_2"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;II</div></div><div style="text-align:center;"><div id="n2_glass_3"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;III</div></div></div></div>
+      <div style="border:1px solid #13171e; background:#040506; border-radius:12px; overflow:hidden;"><div style="padding:11px 18px; border-bottom:1px solid #0f131a; font:600 13px/1 'Space Grotesk',sans-serif; color:#eef2f7;">Blueprint Grid</div><div style="padding:24px 20px; display:flex; gap:26px; align-items:center; justify-content:center; flex-wrap:wrap; background:#000;"><div style="text-align:center;"><div id="n2_blue_1"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;I</div></div><div style="text-align:center;"><div id="n2_blue_2"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;II</div></div><div style="text-align:center;"><div id="n2_blue_3"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;III</div></div></div></div>
+      <div style="border:1px solid #13171e; background:#040506; border-radius:12px; overflow:hidden;"><div style="padding:11px 18px; border-bottom:1px solid #0f131a; font:600 13px/1 'Space Grotesk',sans-serif; color:#eef2f7;">Segmented Tiles</div><div style="padding:24px 20px; display:flex; gap:26px; align-items:center; justify-content:center; flex-wrap:wrap; background:#000;"><div style="text-align:center;"><div id="n2_seg_1"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;I</div></div><div style="text-align:center;"><div id="n2_seg_2"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;II</div></div><div style="text-align:center;"><div id="n2_seg_3"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;III</div></div></div></div>
+      <div style="border:1px solid #13171e; background:#040506; border-radius:12px; overflow:hidden;"><div style="padding:11px 18px; border-bottom:1px solid #0f131a; font:600 13px/1 'Space Grotesk',sans-serif; color:#eef2f7;">Fluent Acrylic</div><div style="padding:24px 20px; display:flex; gap:26px; align-items:center; justify-content:center; flex-wrap:wrap; background:#000;"><div style="text-align:center;"><div id="n2_flu_1"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;I</div></div><div style="text-align:center;"><div id="n2_flu_2"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;II</div></div><div style="text-align:center;"><div id="n2_flu_3"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;III</div></div></div></div>
+      <div style="border:1px solid #13171e; background:#040506; border-radius:12px; overflow:hidden;"><div style="padding:11px 18px; border-bottom:1px solid #0f131a; font:600 13px/1 'Space Grotesk',sans-serif; color:#eef2f7;">Tactical Terminal</div><div style="padding:24px 20px; display:flex; gap:26px; align-items:center; justify-content:center; flex-wrap:wrap; background:#000;"><div style="text-align:center;"><div id="n2_term_1"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;I</div></div><div style="text-align:center;"><div id="n2_term_2"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;II</div></div><div style="text-align:center;"><div id="n2_term_3"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;III</div></div></div></div>
+    </div>
+    <pre id="dot-p2" style="margin:13px 0 0; border:1px solid #13171e; border-radius:10px; background:#040506; color:#7bc2a0; font:400 11px/1.55 'JetBrains Mono',monospace; padding:14px 17px; overflow:auto; white-space:pre; max-height:200px;"></pre>
+  </div>
+
+  <!-- ===================== PALETTE 04 : VIOLET NEON ===================== -->
+  <div style="padding:30px 44px 6px;">
+    <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:24px; flex-wrap:wrap; margin-bottom:18px; border:1px solid #1d142a; background:linear-gradient(180deg,#08060c,#050407); border-radius:14px; padding:20px 24px;">
+      <div style="max-width:560px;">
+        <div style="font:600 11px/1 'JetBrains Mono',monospace; letter-spacing:.2em; color:#a855f7; margin-bottom:9px;">PALETTE 04</div>
+        <div style="font:600 19px/1 'Space Grotesk',sans-serif; color:#f4f7fa;">Violet Neon</div>
+        <div style="font:400 12.5px/1.55 'IBM Plex Sans'; color:#998aab; margin-top:8px;">Saturated violet edges for a bolder, modern sci&#8209;fi feel. Highest pop of the four and very distinctive &mdash; good if the network view should feel like its own product surface.</div>
+      </div>
+      <div style="display:flex; gap:13px; align-items:flex-end; flex-wrap:wrap;">
+        <div style="text-align:center;"><div style="width:34px; height:34px; border-radius:7px; background:linear-gradient(135deg,#1f1430,#2b1c43); border:1px solid #3a2858;"></div><div style="margin-top:6px; font:500 8.5px 'JetBrains Mono',monospace; letter-spacing:.08em; color:#675a78;">PANEL</div></div>
+        <div style="text-align:center;"><div style="width:34px; height:34px; border-radius:7px; background:#a855f7;"></div><div style="margin-top:6px; font:500 8.5px 'JetBrains Mono',monospace; letter-spacing:.08em; color:#675a78;">FRAME</div></div>
+        <div style="text-align:center;"><div style="width:34px; height:34px; border-radius:7px; background:#d9b8ff;"></div><div style="margin-top:6px; font:500 8.5px 'JetBrains Mono',monospace; letter-spacing:.08em; color:#675a78;">ID</div></div>
+        <div style="width:1px; height:40px; background:#2a1f3c; margin:0 4px;"></div>
+        <div style="text-align:center;"><div style="width:34px; height:34px; border-radius:7px; background:#c084fc;"></div><div style="margin-top:6px; font:500 8.5px 'JetBrains Mono',monospace; letter-spacing:.08em; color:#675a78;">I</div></div>
+        <div style="text-align:center;"><div style="width:34px; height:34px; border-radius:7px; background:#f0abfc;"></div><div style="margin-top:6px; font:500 8.5px 'JetBrains Mono',monospace; letter-spacing:.08em; color:#675a78;">II</div></div>
+        <div style="text-align:center;"><div style="width:34px; height:34px; border-radius:7px; background:#67e8f9;"></div><div style="margin-top:6px; font:500 8.5px 'JetBrains Mono',monospace; letter-spacing:.08em; color:#675a78;">III</div></div>
+      </div>
+    </div>
+    <div style="display:grid; grid-template-columns:1fr; gap:13px;">
+      <div style="border:1px solid #13171e; background:#040506; border-radius:12px; overflow:hidden;"><div style="padding:11px 18px; border-bottom:1px solid #0f131a; font:600 13px/1 'Space Grotesk',sans-serif; color:#eef2f7;">Glass HUD</div><div style="padding:24px 20px; display:flex; gap:26px; align-items:center; justify-content:center; flex-wrap:wrap; background:#000;"><div style="text-align:center;"><div id="n3_glass_1"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;I</div></div><div style="text-align:center;"><div id="n3_glass_2"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;II</div></div><div style="text-align:center;"><div id="n3_glass_3"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;III</div></div></div></div>
+      <div style="border:1px solid #13171e; background:#040506; border-radius:12px; overflow:hidden;"><div style="padding:11px 18px; border-bottom:1px solid #0f131a; font:600 13px/1 'Space Grotesk',sans-serif; color:#eef2f7;">Blueprint Grid</div><div style="padding:24px 20px; display:flex; gap:26px; align-items:center; justify-content:center; flex-wrap:wrap; background:#000;"><div style="text-align:center;"><div id="n3_blue_1"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;I</div></div><div style="text-align:center;"><div id="n3_blue_2"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;II</div></div><div style="text-align:center;"><div id="n3_blue_3"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;III</div></div></div></div>
+      <div style="border:1px solid #13171e; background:#040506; border-radius:12px; overflow:hidden;"><div style="padding:11px 18px; border-bottom:1px solid #0f131a; font:600 13px/1 'Space Grotesk',sans-serif; color:#eef2f7;">Segmented Tiles</div><div style="padding:24px 20px; display:flex; gap:26px; align-items:center; justify-content:center; flex-wrap:wrap; background:#000;"><div style="text-align:center;"><div id="n3_seg_1"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;I</div></div><div style="text-align:center;"><div id="n3_seg_2"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;II</div></div><div style="text-align:center;"><div id="n3_seg_3"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;III</div></div></div></div>
+      <div style="border:1px solid #13171e; background:#040506; border-radius:12px; overflow:hidden;"><div style="padding:11px 18px; border-bottom:1px solid #0f131a; font:600 13px/1 'Space Grotesk',sans-serif; color:#eef2f7;">Fluent Acrylic</div><div style="padding:24px 20px; display:flex; gap:26px; align-items:center; justify-content:center; flex-wrap:wrap; background:#000;"><div style="text-align:center;"><div id="n3_flu_1"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;I</div></div><div style="text-align:center;"><div id="n3_flu_2"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;II</div></div><div style="text-align:center;"><div id="n3_flu_3"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;III</div></div></div></div>
+      <div style="border:1px solid #13171e; background:#040506; border-radius:12px; overflow:hidden;"><div style="padding:11px 18px; border-bottom:1px solid #0f131a; font:600 13px/1 'Space Grotesk',sans-serif; color:#eef2f7;">Tactical Terminal</div><div style="padding:24px 20px; display:flex; gap:26px; align-items:center; justify-content:center; flex-wrap:wrap; background:#000;"><div style="text-align:center;"><div id="n3_term_1"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;I</div></div><div style="text-align:center;"><div id="n3_term_2"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;II</div></div><div style="text-align:center;"><div id="n3_term_3"></div><div style="margin-top:9px; font:600 10px 'JetBrains Mono',monospace; letter-spacing:.16em; color:#52606f;">SERIE&nbsp;III</div></div></div></div>
+    </div>
+    <pre id="dot-p3" style="margin:13px 0 0; border:1px solid #13171e; border-radius:10px; background:#040506; color:#b79bd8; font:400 11px/1.55 'JetBrains Mono',monospace; padding:14px 17px; overflow:auto; white-space:pre; max-height:200px;"></pre>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  SR = { 1:'I', 2:'II', 3:'III' };
+
+  PAL = [
+    { name:'Cyan Ice',         bg:'#0a131c', fill1:'#15273a', fill2:'#1d3650', fillLite1:'#243a52', fillLite2:'#2e4865', border:'#48d6e8', divider:'#2f5f74', id:'#7df0ff', type:'#9fc3d6', desc:'#e3f1f8', chip:{1:'#38bdf8',2:'#fbbf24',3:'#f472b6'}, chipText:'#04121a', tileA1:'#cfe4f0', tileA2:'#e8f3fa', ink:'#0c1a26', idInk:'#0d5f7e' },
+    { name:'Amber Industrial', bg:'#15110a', fill1:'#241c0f', fill2:'#322611', fillLite1:'#3a2d16', fillLite2:'#473720', border:'#e0a536', divider:'#6e5526', id:'#ffd36b', type:'#d8c39a', desc:'#f1e6cf', chip:{1:'#56c2ff',2:'#a3e635',3:'#fb7185'}, chipText:'#1a1305', tileA1:'#ece0c2', tileA2:'#f6efda', ink:'#241a09', idInk:'#8a5810' },
+    { name:'Emerald Signal',   bg:'#08140e', fill1:'#102619', fill2:'#163524', fillLite1:'#1c3c2a', fillLite2:'#244c35', border:'#34c98a', divider:'#27684a', id:'#73f0ad', type:'#a6cfb8', desc:'#dff2e7', chip:{1:'#2dd4bf',2:'#facc15',3:'#fb7185'}, chipText:'#04130b', tileA1:'#d2ecdd', tileA2:'#e8f5ee', ink:'#0a1f14', idInk:'#136a44' },
+    { name:'Violet Neon',      bg:'#120c1c', fill1:'#1f1430', fill2:'#2b1c43', fillLite1:'#33224f', fillLite2:'#3f2b60', border:'#a855f7', divider:'#5a3f80', id:'#d9b8ff', type:'#bda9d6', desc:'#ece1f7', chip:{1:'#c084fc',2:'#f0abfc',3:'#67e8f9'}, chipText:'#160a22', tileA1:'#e2d3f2', tileA2:'#f0e7fb', ink:'#190d29', idInk:'#6a3da0' },
+  ];
+
+  componentDidMount(){ this.boot(); }
+
+  async boot(){
+    const status = document.getElementById('gv-status');
+    try {
+      const mod = await import('https://cdn.jsdelivr.net/npm/@hpcc-js/wasm@2.16.0/dist/index.js');
+      const G = mod.Graphviz || (mod.default && mod.default.Graphviz) || mod.default;
+      this.gv = await G.load();
+      if (status){ status.innerHTML = '&#9679; Render engine: Graphviz (wasm) &mdash; LIVE'; status.style.color = '#5eead4'; status.style.borderColor = '#1c4a3f'; }
+      this.renderAll();
+      // self-heal: if a template re-stream wipes the mount divs, repaint them
+      const root = document.getElementById('dh-root');
+      if (root && !this._obs){
+        this._obs = new MutationObserver(() => {
+          const probe = document.getElementById('n0_glass_1');
+          if (this.gv && probe && !probe.querySelector('svg')){
+            if (this._t) clearTimeout(this._t);
+            this._t = setTimeout(() => this.renderAll(), 60);
+          }
+        });
+        this._obs.observe(root, { childList: true, subtree: true });
+      }
+    } catch(e){
+      if (status){ status.textContent = 'Render engine failed: ' + e.message; status.style.color = '#fb7185'; }
+      console.error('graphviz load failed', e);
+    }
+  }
+
+  twoLine(t){ const i = t.lastIndexOf(' '); return i < 0 ? t : (t.slice(0,i) + '<BR/>' + t.slice(i+1)); }
+  fmt(l){ return l.replace(/>\s*</g, '>\n<').trim(); }
+  single(l){ return `digraph{ bgcolor="transparent" node[shape=plaintext margin=0] n[label=<${l}>] }`; }
+
+  // ---- chip ----
+  chipCell(s,P){ return `<TD BGCOLOR="${P.chip[s]}" CELLPADDING="3"><FONT FACE="Courier New" POINT-SIZE="10" COLOR="${P.chipText}"><B>${this.SR[s]}</B></FONT></TD>`; }
+  withChip(inner,s,P){ return `<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD>${inner}</TD><TD WIDTH="9"> </TD>${this.chipCell(s,P)}</TR></TABLE>`; }
+
+  // ---- five styles, palette-driven ----
+  chipGlass(c,s,P){ return `<TABLE BORDER="1" COLOR="${P.border}" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0" STYLE="ROUNDED" BGCOLOR="${P.fill1}:${P.fill2}" GRADIENTANGLE="125">
+<TR><TD ALIGN="LEFT" CELLPADDING="8" SIDES="B" BORDER="1" COLOR="${P.divider}">${this.withChip('<FONT FACE="Courier New" POINT-SIZE="13" COLOR="'+P.id+'"><B>'+c.id+'</B></FONT>', s, P)}</TD>
+<TD ROWSPAN="2" ALIGN="LEFT" CELLPADDING="10" SIDES="L" BORDER="1" COLOR="${P.divider}"><FONT FACE="Helvetica" POINT-SIZE="11" COLOR="${P.type}">${this.twoLine(c.type)}</FONT></TD></TR>
+<TR><TD ALIGN="LEFT" CELLPADDING="8"><FONT FACE="Helvetica" POINT-SIZE="12" COLOR="${P.desc}">${c.desc}</FONT></TD></TR>
+</TABLE>`; }
+
+  chipBlueprint(c,s,P){ return `<TABLE BORDER="2" COLOR="${P.border}" CELLBORDER="1" CELLSPACING="0" CELLPADDING="9" BGCOLOR="${P.bg}">
+<TR><TD ALIGN="LEFT" COLOR="${P.divider}">${this.withChip('<FONT FACE="Courier New" POINT-SIZE="13" COLOR="'+P.id+'"><B>'+c.id+'</B></FONT>', s, P)}</TD>
+<TD ROWSPAN="2" ALIGN="LEFT" COLOR="${P.divider}"><FONT FACE="Courier New" POINT-SIZE="11" COLOR="${P.type}">${this.twoLine(c.type)}</FONT></TD></TR>
+<TR><TD ALIGN="LEFT" COLOR="${P.divider}"><FONT FACE="Courier New" POINT-SIZE="12" COLOR="${P.desc}">${c.desc}</FONT></TD></TR>
+</TABLE>`; }
+
+  chipSegmented(c,s,P){ return `<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="5" CELLPADDING="9" BGCOLOR="${P.bg}">
+<TR><TD ALIGN="LEFT" BGCOLOR="${P.fill1}:${P.fill2}" GRADIENTANGLE="120">${this.withChip('<FONT FACE="Courier New" POINT-SIZE="13" COLOR="'+P.id+'"><B>'+c.id+'</B></FONT>', s, P)}</TD>
+<TD ROWSPAN="2" ALIGN="LEFT" BGCOLOR="${P.fill2}:${P.bg}" GRADIENTANGLE="120"><FONT FACE="Helvetica" POINT-SIZE="11" COLOR="${P.type}">${this.twoLine(c.type)}</FONT></TD></TR>
+<TR><TD ALIGN="LEFT" BGCOLOR="${P.fill1}:${P.fill2}" GRADIENTANGLE="120"><FONT FACE="Helvetica" POINT-SIZE="12" COLOR="${P.desc}">${c.desc}</FONT></TD></TR>
+</TABLE>`; }
+
+  // Option A — cells pop (inverted): black grout, light tiles, dark ink
+  chipSegmentedPop(c,s,P){ return `<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="6" CELLPADDING="9" BGCOLOR="#050608">
+<TR><TD ALIGN="LEFT" BGCOLOR="${P.tileA1}:${P.tileA2}" GRADIENTANGLE="120">${this.withChip('<FONT FACE="Courier New" POINT-SIZE="13" COLOR="'+P.idInk+'"><B>'+c.id+'</B></FONT>', s, P)}</TD>
+<TD ROWSPAN="2" ALIGN="LEFT" BGCOLOR="${P.tileA2}:${P.tileA1}" GRADIENTANGLE="120"><FONT FACE="Helvetica" POINT-SIZE="11" COLOR="${P.ink}">${this.twoLine(c.type)}</FONT></TD></TR>
+<TR><TD ALIGN="LEFT" BGCOLOR="${P.tileA1}:${P.tileA2}" GRADIENTANGLE="120"><FONT FACE="Helvetica" POINT-SIZE="12" COLOR="${P.ink}"><B>${c.desc}</B></FONT></TD></TR>
+</TABLE>`; }
+
+  // Option B — distinct borders: dark tiles, bright frame-color outline per cell
+  chipSegmentedFramed(c,s,P){ return `<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="5" CELLPADDING="9" BGCOLOR="${P.bg}">
+<TR><TD ALIGN="LEFT" BORDER="1" COLOR="${P.border}" BGCOLOR="${P.fill1}:${P.fill2}" GRADIENTANGLE="120">${this.withChip('<FONT FACE="Courier New" POINT-SIZE="13" COLOR="'+P.id+'"><B>'+c.id+'</B></FONT>', s, P)}</TD>
+<TD ROWSPAN="2" ALIGN="LEFT" BORDER="1" COLOR="${P.border}" BGCOLOR="${P.fill2}:${P.bg}" GRADIENTANGLE="120"><FONT FACE="Helvetica" POINT-SIZE="11" COLOR="${P.type}">${this.twoLine(c.type)}</FONT></TD></TR>
+<TR><TD ALIGN="LEFT" BORDER="1" COLOR="${P.border}" BGCOLOR="${P.fill1}:${P.fill2}" GRADIENTANGLE="120"><FONT FACE="Helvetica" POINT-SIZE="12" COLOR="${P.desc}">${c.desc}</FONT></TD></TR>
+</TABLE>`; }
+
+  chipFluent(c,s,P){ return `<TABLE BORDER="1" COLOR="${P.border}" CELLBORDER="0" CELLSPACING="0" CELLPADDING="11" STYLE="ROUNDED" BGCOLOR="${P.fillLite1}:${P.fillLite2}" GRADIENTANGLE="135">
+<TR><TD ALIGN="LEFT" SIDES="B" BORDER="1" COLOR="${P.divider}">${this.withChip('<FONT FACE="Helvetica" POINT-SIZE="10" COLOR="'+P.id+'"><B>&#9642; </B></FONT><FONT FACE="Helvetica" POINT-SIZE="13" COLOR="#f3f6fa"><B>'+c.id+'</B></FONT>', s, P)}</TD>
+<TD ROWSPAN="2" ALIGN="LEFT" SIDES="L" BORDER="1" COLOR="${P.divider}"><FONT FACE="Helvetica" POINT-SIZE="11" COLOR="${P.type}">${this.twoLine(c.type)}</FONT></TD></TR>
+<TR><TD ALIGN="LEFT"><FONT FACE="Helvetica" POINT-SIZE="12" COLOR="${P.desc}">${c.desc}</FONT></TD></TR>
+</TABLE>`; }
+
+  chipTerminal(c,s,P){ return `<TABLE BORDER="2" COLOR="${P.border}" CELLBORDER="0" CELLSPACING="0" CELLPADDING="9" BGCOLOR="${P.bg}">
+<TR><TD ALIGN="LEFT" SIDES="B" BORDER="1" COLOR="${P.divider}">${this.withChip('<FONT FACE="Courier New" POINT-SIZE="13" COLOR="'+P.id+'"><B>['+c.id+']</B></FONT>', s, P)}</TD>
+<TD ROWSPAN="2" ALIGN="LEFT" SIDES="L" BORDER="1" COLOR="${P.divider}"><FONT FACE="Courier New" POINT-SIZE="11" COLOR="${P.type}">${this.twoLine(c.type)}</FONT></TD></TR>
+<TR><TD ALIGN="LEFT"><FONT FACE="Courier New" POINT-SIZE="12" COLOR="${P.desc}">${c.desc}</FONT></TD></TR>
+</TABLE>`; }
+
+  renderSvg(id, dot){
+    if (!this.gv) return;
+    let svg;
+    try { svg = this.gv.dot ? this.gv.dot(dot) : this.gv.layout(dot, 'svg', 'dot'); }
+    catch(e){ const el = document.getElementById(id); if (el) el.innerHTML = '<div style="color:#fb7185;font:11px monospace;padding:8px;white-space:pre-wrap;">'+e.message+'</div>'; console.error('DOT error '+id, e); return; }
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = svg;
+    const s = el.querySelector('svg');
+    if (s){
+      const vb = (s.getAttribute('viewBox') || '').split(/\s+/).map(Number);
+      const scale = 1.45;
+      if (vb.length === 4 && vb[2] && vb[3]){
+        s.setAttribute('width', Math.round(vb[2] * scale));
+        s.setAttribute('height', Math.round(vb[3] * scale));
+      }
+      s.style.display = 'block'; s.style.maxWidth = '100%'; s.style.height = 'auto';
+    }
+  }
+
+  renderAll(){
+    const S = { id:'32D2', desc:'Rør L74.39', type:'PertFlextra Twin 63' };
+    const STYLES = [['glass','chipGlass'],['blue','chipBlueprint'],['seg','chipSegmented'],['flu','chipFluent'],['term','chipTerminal']];
+    // Segmented comparison (Series II)
+    this.PAL.forEach((P, pi) => {
+      this.renderSvg('seg_cur_'+pi, this.single(this.chipSegmented(S, 2, P)));
+      this.renderSvg('seg_pop_'+pi, this.single(this.chipSegmentedPop(S, 2, P)));
+      this.renderSvg('seg_fr_'+pi,  this.single(this.chipSegmentedFramed(S, 2, P)));
+    });
+    this.PAL.forEach((P, pi) => {
+      STYLES.forEach(([key, method]) => {
+        [1,2,3].forEach(ser => this.renderSvg(`n${pi}_${key}_${ser}`, this.single(this[method](S, ser, P))));
+      });
+      const pre = document.getElementById('dot-p' + pi);
+      if (pre) pre.textContent = this.fmt(this.chipGlass(S, 2, P));
+    });
+  }
+}
+</script>
+</body>
+</html>

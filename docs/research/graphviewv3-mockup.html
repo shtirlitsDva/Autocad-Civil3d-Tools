@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GRAPHVIEWV3 — Live Network Palette (mockup)</title>
+<style>
+  :root {
+    /* Neutral cool-gray dark chrome (from project WPF palette) */
+    --bg-deep:#1E2124; --bg-panel:#2A2D31; --bg-surface:#33373C;
+    --bg-elevated:#3D4248; --bg-highlight:#4A5159;
+    --border-subtle:#262A2E; --border-default:#4A5159; --border-strong:#5C6470;
+    --text-primary:#E8E8E8; --text-secondary:#BFBFBF; --text-muted:#8A9099; --text-disabled:#6B7079;
+    --accent:#4A6B8A; --accent-hover:#5A7B9A;
+    --ok:#4A7C59; --warn:#B8862B; --err:#B94A4A; --info:#4A6B8A;
+    /* Colorful DN ramp + chart series (the "colorful fluent" part) */
+    --dn-1:#5AA9E6; --dn-2:#4ECDC4; --dn-3:#9D7CE0; --dn-4:#E6A84E; --dn-5:#E0628A;
+    --series-twin:#4ECDC4; --series-bonded:#5AA9E6;
+  }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; }
+  body {
+    background:linear-gradient(180deg,#16181B 0%,var(--bg-deep) 100%);
+    color:var(--text-primary);
+    font-family:"Segoe UI",-apple-system,system-ui,sans-serif; font-size:13px;
+    display:flex; align-items:center; justify-content:center; padding:24px;
+  }
+  /* Simulated docked palette: tall + narrow, like an AutoCAD palette */
+  .palette {
+    width:430px; height:760px; background:var(--bg-panel);
+    border:1px solid var(--border-subtle); border-radius:10px;
+    box-shadow:0 18px 50px rgba(0,0,0,.55); display:flex; flex-direction:column; overflow:hidden;
+  }
+  /* Title bar */
+  .titlebar {
+    display:flex; align-items:center; gap:8px; padding:10px 12px;
+    background:linear-gradient(90deg,#2F3439,#2A2D31);
+    border-bottom:1px solid var(--border-subtle);
+  }
+  .titlebar .dot { width:9px;height:9px;border-radius:50%;
+    background:var(--ok); box-shadow:0 0 8px var(--ok); }
+  .titlebar .title { font-weight:600; letter-spacing:.3px; }
+  .titlebar .ver { color:var(--text-muted); font-size:11px; margin-left:2px; }
+  .titlebar .spacer { flex:1; }
+  .iconbtn {
+    width:26px;height:26px;border-radius:6px;border:1px solid transparent;
+    background:transparent; color:var(--text-secondary); cursor:pointer;
+    display:flex;align-items:center;justify-content:center; font-size:14px;
+  }
+  .iconbtn:hover { background:var(--bg-elevated); color:var(--text-primary); border-color:var(--border-default); }
+
+  /* Tab strip */
+  .tabs { display:flex; gap:2px; padding:8px 8px 0; background:var(--bg-panel); }
+  .tab {
+    padding:8px 14px; border-radius:8px 8px 0 0; cursor:pointer; color:var(--text-muted);
+    border:1px solid transparent; border-bottom:none; font-weight:500; display:flex; gap:6px; align-items:center;
+  }
+  .tab:hover { color:var(--text-secondary); }
+  .tab.active { color:var(--text-primary); background:var(--bg-surface);
+    border-color:var(--border-subtle); }
+  .tab .badge { background:var(--err); color:#fff; border-radius:10px; font-size:10px; padding:1px 6px; }
+
+  .body { flex:1; background:var(--bg-surface); overflow:hidden; display:flex; flex-direction:column; }
+  .pane { display:none; flex:1; min-height:0; flex-direction:column; }
+  .pane.active { display:flex; }
+
+  /* Graph toolbar */
+  .toolbar { display:flex; gap:4px; padding:8px; border-bottom:1px solid var(--border-subtle);
+    align-items:center; background:var(--bg-surface); }
+  .tbtn { padding:6px 9px; border-radius:7px; border:1px solid var(--border-default);
+    background:var(--bg-elevated); color:var(--text-secondary); cursor:pointer; font-size:12px; display:flex; gap:5px; align-items:center; }
+  .tbtn:hover { background:var(--bg-highlight); color:var(--text-primary); }
+  .tbtn.toggle.on { background:var(--accent); border-color:var(--accent-hover); color:#fff; }
+  .toolbar .spacer { flex:1; }
+
+  /* Graph canvas */
+  .graphwrap { flex:1; min-height:0; position:relative; overflow:hidden;
+    background:
+      radial-gradient(circle at 50% 35%, rgba(74,107,138,.10), transparent 60%),
+      var(--bg-deep);
+  }
+  .graphwrap svg { width:100%; height:100%; display:block; }
+  .node-label { font:600 11px "Segoe UI",sans-serif; fill:var(--text-primary); }
+  .node-sub { font:10px "Segoe UI",sans-serif; fill:var(--text-muted); }
+  .cluster { fill:rgba(157,124,224,.06); stroke:#9D7CE0; stroke-dasharray:5 4; stroke-width:1.2; rx:14; }
+  .cluster-title { font:600 10px "Segoe UI",sans-serif; fill:#B49BE8; letter-spacing:.4px; }
+  .edge { stroke:var(--border-strong); stroke-width:2; fill:none; marker-end:url(#arrow); }
+  .edge.qa { stroke:var(--err); stroke-width:2.5; stroke-dasharray:6 4; marker-end:url(#arrowred); }
+  .nodebox { rx:10; stroke-width:1.5; cursor:pointer; }
+  .nodebox:hover { filter:brightness(1.15); }
+  .qa-chip { fill:var(--err); }
+
+  /* Legend + status bar */
+  .legend { position:absolute; left:10px; bottom:10px; background:rgba(30,33,36,.82);
+    border:1px solid var(--border-default); border-radius:9px; padding:8px 10px; font-size:11px; backdrop-filter:blur(4px); }
+  .legend .row { display:flex; align-items:center; gap:7px; margin:3px 0; color:var(--text-secondary); }
+  .legend .sw { width:12px;height:12px;border-radius:3px; }
+  .statusbar { display:flex; align-items:center; gap:8px; padding:7px 10px;
+    border-top:1px solid var(--border-subtle); background:var(--bg-panel); font-size:11px; color:var(--text-secondary); }
+  .statusbar .pill { display:flex;align-items:center;gap:6px; }
+  .statusbar .dot { width:8px;height:8px;border-radius:50%; background:var(--ok); }
+
+  /* Dashboard */
+  .dash { padding:12px; overflow:auto; gap:12px; display:flex; flex-direction:column; }
+  .cards { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .card { background:linear-gradient(160deg,var(--bg-elevated),var(--bg-surface));
+    border:1px solid var(--border-subtle); border-radius:11px; padding:12px; position:relative; overflow:hidden; }
+  .card .k { color:var(--text-muted); font-size:11px; text-transform:uppercase; letter-spacing:.5px; }
+  .card .v { font-size:24px; font-weight:700; margin-top:4px; }
+  .card .v small { font-size:13px; font-weight:500; color:var(--text-secondary); }
+  .card .spark { position:absolute; right:-6px; bottom:-6px; opacity:.5; }
+  .card.accent { border-color:var(--accent); }
+  .card .v.warn { color:#E6A84E; } .card .v.err { color:#E0628A; } .card .v.ok { color:#6FBF8B; }
+
+  .section { background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:11px; padding:12px; }
+  .section h3 { margin:0 0 10px; font-size:12px; color:var(--text-secondary); font-weight:600; text-transform:uppercase; letter-spacing:.5px; }
+  .bar-row { display:grid; grid-template-columns:54px 1fr 64px; gap:8px; align-items:center; margin:6px 0; }
+  .bar-row .lbl { font-size:12px; color:var(--text-secondary); display:flex; align-items:center; gap:6px; }
+  .bar-row .dnchip { width:10px;height:10px;border-radius:3px; }
+  .track { background:var(--bg-deep); border-radius:6px; height:14px; overflow:hidden; }
+  .fill { height:100%; border-radius:6px; }
+  .bar-row .num { text-align:right; font-variant-numeric:tabular-nums; color:var(--text-primary); font-size:12px; }
+
+  .donut-wrap { display:flex; gap:14px; align-items:center; }
+  .donut-legend .row { display:flex; align-items:center; gap:7px; margin:6px 0; font-size:12px; color:var(--text-secondary); }
+  .donut-legend .sw { width:11px;height:11px;border-radius:3px; }
+  .donut-legend b { color:var(--text-primary); }
+
+  .complist .row { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border-subtle); font-size:12px; }
+  .complist .row:last-child { border-bottom:none; }
+  .complist .row .c { color:var(--text-secondary); display:flex; gap:7px; align-items:center; }
+  .complist .row .n { font-variant-numeric:tabular-nums; }
+
+  /* Settings */
+  .settings { padding:14px; display:flex; flex-direction:column; gap:14px; overflow:auto; }
+  .field { display:flex; flex-direction:column; gap:6px; }
+  .field label { font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.5px; }
+  .field input[type=text] { background:var(--bg-deep); border:1px solid var(--border-default); color:var(--text-primary);
+    border-radius:7px; padding:8px 10px; font-size:13px; }
+  .radio-group { display:flex; gap:8px; }
+  .radio { flex:1; padding:9px; border:1px solid var(--border-default); border-radius:8px; text-align:center;
+    cursor:pointer; color:var(--text-secondary); background:var(--bg-elevated); font-size:12px; }
+  .radio.sel { border-color:var(--accent); background:var(--accent); color:#fff; }
+  .switch-row { display:flex; align-items:center; justify-content:space-between;
+    padding:10px 12px; background:var(--bg-elevated); border:1px solid var(--border-subtle); border-radius:9px; }
+  .switch { width:40px;height:22px;border-radius:12px;background:var(--bg-deep); border:1px solid var(--border-default);
+    position:relative; cursor:pointer; }
+  .switch.on { background:var(--accent); border-color:var(--accent-hover); }
+  .switch .knob { width:16px;height:16px;border-radius:50%;background:#fff; position:absolute; top:2px; left:2px; transition:left .15s; }
+  .switch.on .knob { left:20px; }
+
+  .mock-note { position:fixed; top:10px; left:50%; transform:translateX(-50%);
+    background:var(--bg-elevated); border:1px solid var(--border-default); color:var(--text-muted);
+    font-size:11px; padding:5px 12px; border-radius:20px; }
+  /* Maximized graph: hide tabs/title, graph fills palette */
+  .palette.maxed .tabs, .palette.maxed .titlebar .title, .palette.maxed .titlebar .ver { display:none; }
+  .palette.maxed #pane-stats, .palette.maxed #pane-settings { display:none !important; }
+</style>
+</head>
+<body>
+<div class="mock-note">Static HTML mockup of the proposed GRAPHVIEWV3 WPF palette — click tabs / toolbar buttons</div>
+
+<div class="palette" id="palette">
+  <!-- Title bar -->
+  <div class="titlebar">
+    <span class="dot" title="Live — auto-updating"></span>
+    <span class="title">GRAPHVIEWV3</span>
+    <span class="ver">Live Network</span>
+    <span class="spacer"></span>
+    <button class="iconbtn" title="Auto-hide">▢</button>
+    <button class="iconbtn" title="Close">✕</button>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active" data-pane="graph" onclick="selectTab(this)">◉ Graph</div>
+    <div class="tab" data-pane="stats" onclick="selectTab(this)">▦ Statistics</div>
+    <div class="tab" data-pane="settings" onclick="selectTab(this)">⚙ Settings <span class="badge">3</span></div>
+  </div>
+
+  <div class="body">
+    <!-- ============ GRAPH PANE ============ -->
+    <div class="pane active" id="pane-graph">
+      <div class="toolbar">
+        <button class="tbtn" title="Rebuild from drawing">⟳ Refresh</button>
+        <button class="tbtn" title="Zoom to fit">⤢ Fit</button>
+        <button class="tbtn" title="Layout">▤ Layout</button>
+        <button class="tbtn toggle on" id="autoBtn" title="Auto-update on idle" onclick="this.classList.toggle('on')">⚡ Auto</button>
+        <span class="spacer"></span>
+        <button class="tbtn" title="Maximize graph" onclick="toggleMax()">⛶</button>
+      </div>
+
+      <div class="graphwrap">
+        <svg viewBox="0 0 420 560" preserveAspectRatio="xMidYMid meet">
+          <defs>
+            <marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L7,3 L0,6 Z" fill="#5C6470"/>
+            </marker>
+            <marker id="arrowred" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L7,3 L0,6 Z" fill="#B94A4A"/>
+            </marker>
+          </defs>
+
+          <!-- Alignment cluster -->
+          <rect class="cluster" x="20" y="20" width="380" height="180" rx="14"/>
+          <text class="cluster-title" x="34" y="40">ALIGNMENT — A01 Hovedgade (entrypoint)</text>
+
+          <!-- Edges -->
+          <path class="edge" d="M210,86 L210,120"/>
+          <path class="edge" d="M210,150 L120,182"/>
+          <path class="edge" d="M210,150 L300,182"/>
+          <path class="edge qa" d="M120,212 L120,300"/>
+          <path class="edge" d="M300,212 L300,300"/>
+          <path class="edge" d="M120,330 L210,372"/>
+          <path class="edge" d="M300,330 L210,372"/>
+
+          <!-- Nodes (color = DN) -->
+          <!-- root -->
+          <g>
+            <rect class="nodebox" x="158" y="56" width="104" height="30" fill="#2C3A47" stroke="var(--dn-1)"/>
+            <text class="node-label" x="210" y="71" text-anchor="middle">Rør DN125</text>
+            <text class="node-sub" x="210" y="82" text-anchor="middle">L 142.3 m · Twin</text>
+          </g>
+          <!-- tee -->
+          <g>
+            <rect class="nodebox" x="178" y="120" width="64" height="30" fill="#3A3147" stroke="var(--dn-3)"/>
+            <text class="node-label" x="210" y="139" text-anchor="middle">TEE</text>
+          </g>
+          <!-- branch left (reducer) -->
+          <g>
+            <rect class="nodebox" x="78" y="182" width="84" height="30" fill="#3A3147" stroke="var(--dn-3)"/>
+            <text class="node-label" x="120" y="201" text-anchor="middle">RED 125/80</text>
+          </g>
+          <!-- branch right pipe -->
+          <g>
+            <rect class="nodebox" x="258" y="182" width="84" height="30" fill="#2C3A47" stroke="var(--dn-2)"/>
+            <text class="node-label" x="300" y="197" text-anchor="middle">Rør DN100</text>
+            <text class="node-sub" x="300" y="208" text-anchor="middle">L 88.0 m</text>
+          </g>
+          <!-- left pipe (QA flagged) -->
+          <g>
+            <rect class="nodebox" x="78" y="300" width="84" height="30" fill="#2C3A47" stroke="var(--dn-4)"/>
+            <text class="node-label" x="120" y="315" text-anchor="middle">Rør DN80</text>
+            <text class="node-sub" x="120" y="326" text-anchor="middle">L 61.5 m</text>
+            <circle class="qa-chip" cx="158" cy="300" r="7"/>
+            <text x="158" y="304" text-anchor="middle" font-size="10" fill="#fff" font-weight="700">!</text>
+          </g>
+          <!-- right pipe -->
+          <g>
+            <rect class="nodebox" x="258" y="300" width="84" height="30" fill="#2C3A47" stroke="var(--dn-2)"/>
+            <text class="node-label" x="300" y="315" text-anchor="middle">Rør DN100</text>
+            <text class="node-sub" x="300" y="326" text-anchor="middle">L 54.2 m</text>
+          </g>
+          <!-- consumer -->
+          <g>
+            <rect class="nodebox" x="168" y="372" width="84" height="30" fill="#2F3A33" stroke="var(--ok)"/>
+            <text class="node-label" x="210" y="391" text-anchor="middle">FORBRUGER</text>
+          </g>
+        </svg>
+
+        <div class="legend">
+          <div class="row"><span class="sw" style="background:var(--dn-1)"></span> DN125</div>
+          <div class="row"><span class="sw" style="background:var(--dn-2)"></span> DN100</div>
+          <div class="row"><span class="sw" style="background:var(--dn-4)"></span> DN80</div>
+          <div class="row"><span class="sw" style="background:#9D7CE0"></span> Component</div>
+          <div class="row"><span class="sw" style="background:var(--err)"></span> QA: DN mismatch</div>
+        </div>
+      </div>
+
+      <div class="statusbar">
+        <span class="pill"><span class="dot"></span> Live</span>
+        <span>·</span><span>42 nodes · 41 edges</span>
+        <span>·</span><span style="color:#E6A84E">3 QA issues</span>
+        <span class="spacer" style="flex:1"></span>
+        <span style="color:var(--text-muted)">updated 0.4 s ago</span>
+      </div>
+    </div>
+
+    <!-- ============ STATISTICS PANE ============ -->
+    <div class="pane" id="pane-stats">
+      <div class="dash">
+        <div class="cards">
+          <div class="card accent"><div class="k">Elements</div><div class="v">42</div></div>
+          <div class="card"><div class="k">Total length</div><div class="v">1 248 <small>m</small></div></div>
+          <div class="card"><div class="k">Alignments</div><div class="v">4</div></div>
+          <div class="card"><div class="k">QA issues</div><div class="v warn">3</div></div>
+        </div>
+
+        <div class="section">
+          <h3>Length by DN</h3>
+          <div class="bar-row"><span class="lbl"><span class="dnchip" style="background:var(--dn-1)"></span>DN125</span>
+            <div class="track"><div class="fill" style="width:88%;background:var(--dn-1)"></div></div><span class="num">512 m</span></div>
+          <div class="bar-row"><span class="lbl"><span class="dnchip" style="background:var(--dn-2)"></span>DN100</span>
+            <div class="track"><div class="fill" style="width:61%;background:var(--dn-2)"></div></div><span class="num">355 m</span></div>
+          <div class="bar-row"><span class="lbl"><span class="dnchip" style="background:var(--dn-4)"></span>DN80</span>
+            <div class="track"><div class="fill" style="width:38%;background:var(--dn-4)"></div></div><span class="num">221 m</span></div>
+          <div class="bar-row"><span class="lbl"><span class="dnchip" style="background:var(--dn-5)"></span>DN65</span>
+            <div class="track"><div class="fill" style="width:27%;background:var(--dn-5)"></div></div><span class="num">160 m</span></div>
+        </div>
+
+        <div class="section">
+          <h3>System breakdown</h3>
+          <div class="donut-wrap">
+            <svg width="96" height="96" viewBox="0 0 42 42">
+              <circle cx="21" cy="21" r="15.9" fill="none" stroke="var(--bg-deep)" stroke-width="6"/>
+              <circle cx="21" cy="21" r="15.9" fill="none" stroke="var(--series-twin)" stroke-width="6"
+                      stroke-dasharray="62 38" stroke-dashoffset="25" stroke-linecap="round"/>
+              <circle cx="21" cy="21" r="15.9" fill="none" stroke="var(--series-bonded)" stroke-width="6"
+                      stroke-dasharray="38 62" stroke-dashoffset="-37" stroke-linecap="round"/>
+              <text x="21" y="22" text-anchor="middle" font-size="7" fill="#E8E8E8" font-weight="700">42</text>
+              <text x="21" y="28" text-anchor="middle" font-size="3.4" fill="#8A9099">elements</text>
+            </svg>
+            <div class="donut-legend">
+              <div class="row"><span class="sw" style="background:var(--series-twin)"></span> Twin pipes — <b>62%</b> (775 m)</div>
+              <div class="row"><span class="sw" style="background:var(--series-bonded)"></span> Bonded pipes — <b>38%</b> (473 m)</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section complist">
+          <h3>Components by type</h3>
+          <div class="row"><span class="c"><span class="dnchip" style="background:#9D7CE0;width:10px;height:10px;border-radius:3px"></span>Pipes (polyline)</span><span class="n">31</span></div>
+          <div class="row"><span class="c"><span class="dnchip" style="background:#9D7CE0;width:10px;height:10px;border-radius:3px"></span>Tees</span><span class="n">5</span></div>
+          <div class="row"><span class="c"><span class="dnchip" style="background:#9D7CE0;width:10px;height:10px;border-radius:3px"></span>Reducers</span><span class="n">4</span></div>
+          <div class="row"><span class="c"><span class="dnchip" style="background:var(--ok);width:10px;height:10px;border-radius:3px"></span>Consumers</span><span class="n">2</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ SETTINGS PANE ============ -->
+    <div class="pane" id="pane-settings">
+      <div class="settings">
+        <div class="field">
+          <label>Project</label>
+          <input type="text" value="A01 — Hovedgade Etape 3" />
+        </div>
+        <div class="field">
+          <label>Update mode</label>
+          <div class="radio-group">
+            <div class="radio sel" onclick="pickRadio(this)">Auto (on idle)</div>
+            <div class="radio" onclick="pickRadio(this)">Manual refresh</div>
+          </div>
+        </div>
+        <div class="field">
+          <label>Node color scheme</label>
+          <div class="radio-group">
+            <div class="radio sel" onclick="pickRadio(this)">By DN</div>
+            <div class="radio" onclick="pickRadio(this)">By system</div>
+            <div class="radio" onclick="pickRadio(this)">By alignment</div>
+          </div>
+        </div>
+        <div class="switch-row"><span>Exclude STIKTEE blocks</span><div class="switch on" onclick="this.classList.toggle('on')"><div class="knob"></div></div></div>
+        <div class="switch-row"><span>Highlight QA issues</span><div class="switch on" onclick="this.classList.toggle('on')"><div class="knob"></div></div></div>
+        <div class="switch-row"><span>Sync selection with AutoCAD</span><div class="switch on" onclick="this.classList.toggle('on')"><div class="knob"></div></div></div>
+        <div class="switch-row"><span>Throttle rebuild (min 500 ms)</span><div class="switch on" onclick="this.classList.toggle('on')"><div class="knob"></div></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function selectTab(el){
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    el.classList.add('active');
+    document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));
+    document.getElementById('pane-'+el.dataset.pane).classList.add('active');
+  }
+  function toggleMax(){ document.getElementById('palette').classList.toggle('maxed'); }
+  function pickRadio(el){ [...el.parentElement.children].forEach(r=>r.classList.remove('sel')); el.classList.add('sel'); }
+</script>
+</body>
+</html>

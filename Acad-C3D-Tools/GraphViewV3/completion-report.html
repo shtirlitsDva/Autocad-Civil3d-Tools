@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GRAPHVIEWV3 — Completion Report</title>
+<link rel="stylesheet" href="completion-report.css">
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <h1>GRAPHVIEWV3 — Live Network Graph &amp; Dashboard</h1>
+    <div class="sub">Autonomous build via the DevReload <code>acd-agentic-dev</code> loop, verified live against
+    <code>FJV-fremtid_DEV.dwg</code> in the running Civil 3D 2025 instance.</div>
+    <div style="margin-top:14px">
+      <span class="pill ok">Builds clean</span>
+      <span class="pill ok">7/7 unit tests</span>
+      <span class="pill ok">Hot-reloads cleanly</span>
+      <span class="pill ok">Live-verified</span>
+      <span class="pill info">3 projects · deep modules</span>
+    </div>
+  </header>
+
+  <div class="cards">
+    <div class="card"><div class="k">Pipes read</div><div class="v">95</div></div>
+    <div class="card"><div class="k">Components</div><div class="v">142</div></div>
+    <div class="card"><div class="k">Floating groups</div><div class="v accent">2</div></div>
+    <div class="card"><div class="k">Genuine QA errors</div><div class="v ok">0</div></div>
+  </div>
+
+  <h2>What was built</h2>
+  <p>A new, self-contained system in its own folder under <code>Acad-C3D-Tools/GraphViewV3/</code>, split into
+  three projects so the hard logic is testable without AutoCAD (deep modules behind small interfaces):</p>
+  <div class="tree">GraphViewV3/
+├─ GraphViewV3.Core/         pure .NET 8 — DTOs, in-memory connectivity, force layout, statistics
+│                            (zero AutoCAD refs; the algorithmic heart)
+├─ GraphViewV3.Core.Tests/   xUnit — 7 tests, run in ~60 ms with no Civil 3D
+└─ GraphViewV3.Plugin/       reload-safe AutoCAD plugin — GRAPHVIEWV3 command, dockable palette,
+                             snapshot reader, ~1 Hz live loop, code-built WPF canvas + dashboard</div>
+
+  <div class="note">The pure <code>NetworkGraphService</code> (connectivity + layout + stats) is the single
+  boundary the plugin consumes. The AutoCAD reader produces immutable DTO snapshots; everything heavy runs
+  on a background thread off that snapshot and marshals results to the WPF thread.</div>
+
+  <h2>Verified live (in the open drawing)</h2>
+  <ul class="clean">
+    <li class="done"><b>Live palette</b> — <code>GRAPHVIEWV3</code> opens a dockable WPF palette; status reads
+      <code>95 pipes · 142 components · 2 groups · 4,664 m</code>, matching the drawing.</li>
+    <li class="done"><b>In-memory connectivity</b> — geometry-only port matching (spatial grid + union-find);
+      no PropertySets, no <code>graphpopulate()</code>.</li>
+    <li class="done"><b>Welded studs connect mid-span</b> — <code>afgrstuds</code>/<code>sh-lige</code>/<code>sh-vinkel</code>
+      main port matched to a pipe segment interior. Floating groups dropped <b>11 → 2</b> once enabled.</li>
+    <li class="done"><b>Pipe-to-pipe QA rule</b> — illegal direct joins flagged red. After suppressing
+      component-mediated junctions (a tolerance artifact), genuine errors fell <b>42 → 0</b> on this clean drawing.</li>
+    <li class="done"><b>Floating force-directed overview</b> — disconnected groups float apart; rendered as a
+      dotted network at overview zoom, labels appear on zoom-in.</li>
+    <li class="done"><b>Pan &amp; zoom</b> — wheel zoom about cursor, drag to pan, Fit button.</li>
+    <li class="done"><b>Statistics dashboard</b> — element counts, total length, and length-by-size bars
+      (<span class="dn" style="background:#9ACD46"></span>PRTFLEXL63 1,618 m,
+      <span class="dn" style="background:#D6A94E"></span>PRTFLEXL50 1,120 m,
+      <span class="dn" style="background:#C44ECF"></span>DN125 792 m, …), plus system split &amp; components-by-type.</li>
+    <li class="done"><b>Three native palette tabs</b> — Graph, Statistics, and Settings are separate
+      <code>AddVisual</code> visuals sharing one view-model + settings object, so AutoCAD draws the tabs
+      on the palette frame (not a WPF TabControl inside one visual).</li>
+    <li class="done"><b>Event-driven live updates</b> — a dirty flag is set only by FJV-relevant object
+      changes (via <code>AcadEventManager</code>'s new active-document Database events), and the idle loop
+      rebuilds only when dirty. <b>Live-tested:</b> adding one FJV pipe drove <code>95 → 96 pipes,
+      2 → 3 groups</code> on its own; erasing it reverted to <code>95 pipes</code> — no manual refresh.</li>
+    <li class="done"><b>Maximize</b> — ⛶ button collapses the chrome so the graph fills the palette.</li>
+    <li class="done"><b>Settings tab</b> — tolerance, node colour (DN/system), label mode; tolerance feeds
+      the live loop (rebuild on change), colour/labels feed the graph tab.</li>
+    <li class="done"><b>Hot-reload safe</b> — reloaded ~6× with no <code>eDuplicateKey</code>; <code>Terminate()</code>
+      disposes the palette and unsubscribes events (old palette closes on each reload).</li>
+    <li class="part"><b>Node click → select+zoom in CAD</b> — implemented; pending live click verification
+      (you asked to defer live testing).</li>
+  </ul>
+
+  <h2>Decisions I made that weren't explicitly discussed</h2>
+  <table>
+    <tr><th>Decision</th><th>Why</th></tr>
+    <tr><td><b>WPF on the AutoCAD main thread</b> (not a separate UI thread), with heavy work on a background
+      thread over a DTO snapshot</td>
+      <td>The reference you cited, <code>DimensioneringV2.UI</code>, actually uses this pattern (not a dedicated UI
+      thread). It delivers the same non-blocking outcome with far less risk than a separate Dispatcher/HwndSource
+      palette. <b>Deviation from the "own thread" wording — flagged here.</b></td></tr>
+    <tr><td><b>WPF built in C# (no XAML)</b></td>
+      <td>Avoids cross-ALC XAML type-resolution failures under DevReload stream-loading (documented gotcha).
+      Trade-off: more verbose UI code; revisit if a XAML-based skin is wanted later.</td></tr>
+    <tr><td><b>Mediated-junction suppression</b> for the pipe-pipe rule</td>
+      <td>Two pipes joined <em>through</em> a component sit within tolerance of each other, producing a spurious
+      direct edge. I drop that edge when a component neighbour mediates the junction, so only genuine direct
+      joins are flagged. Removed 42 false positives → 0.</td></tr>
+    <tr><td><b>Overview = dots, labels on zoom-in</b></td>
+      <td>237 labelled boxes fit into a 246 px palette is unreadable. Dots + edges read as a network; zoom reveals
+      labels. Standard graph-viewer behaviour.</td></tr>
+    <tr><td><b>Authoritative FJV detection</b></td>
+      <td>Pipe = <code>PipeScheduleV2.GetPipeSystem(pl) != Ukendt</code>; component =
+      <code>br.GetPipeTypeEnum() != Ukendt</code> (the canonical catalog-backed methods you specified).
+      To use them the plugin imports <code>UtilitiesCommonSHARED</code> + <code>FormsSHARED</code> projitems
+      and links the single <code>PipeScheduleV2.cs</code>; this pulled Civil3D/AEC/Map refs, WinForms, and
+      MoreLinq (resolved one prerequisite at a time). Live counts are identical to the prior heuristic
+      (95 pipes / 142 components), confirming agreement. <code>MuffeIntern*</code> ports are still read for
+      connectivity; weldable type is still inferred by name (no catalog flag for it).</td></tr>
+    <tr><td><b>Connection tolerance = 0.5 m</b></td>
+      <td>A starting value; you said tolerance is empirical. It is a single <code>init</code> property on
+      <code>NetworkGraphService</code>/<code>ConnectivityBuilder</code>, easy to tune.</td></tr>
+    <tr><td><b>Folder under <code>Acad-C3D-Tools/</code></b></td>
+      <td>Where the solution and all sibling projects live (and where the shared <code>EventManager</code> projitems
+      import resolves). I first placed it at the repo root by mistake and moved it.</td></tr>
+    <tr><td><b>Extended the shared <code>AcadEventManager</code></b></td>
+      <td>Added <code>ActiveObjectAppended/Modified/Erased</code> aggregate events to the shared projitems file
+      (per your "add it cleanly to the event manager"). <b>This file compiles into other plugins too</b> (e.g.
+      IntersectUtilities) — the change is purely additive, so existing importers are unaffected, but it is a shared
+      edit worth knowing about.</td></tr>
+  </table>
+
+  <h2>Deviations from the plan / not yet done</h2>
+  <ul class="clean">
+    <li class="done"><b>Database-event dirty gating</b> — DONE. <code>AcadEventManager</code> was cleanly
+      extended with active-document <code>ActiveObjectAppended/Modified/Erased</code> events (following the
+      active document, with rebind on switch). The live loop sets a dirty flag only for FJV-relevant changes
+      and rebuilds on idle only when dirty. Live-verified (append + erase).</li>
+    <li class="done"><b>Maximize button, Settings tab, solution integration</b> — DONE. The three projects
+      are now in <code>Acad-C3D-Tools.sln</code>.</li>
+    <li class="no"><b>Separate dashboard refresh strategy</b> — stats refresh on the same cadence as the graph
+      (you noted the dashboard "might need a different strategy"). Not split yet — low priority since the
+      dirty filter already covers both.</li>
+    <li class="no"><b>Reverse highlight (CAD selection → graph)</b> — deferred per your note.</li>
+    <li class="part"><b>Node-click select+zoom &amp; Settings interior</b> — implemented and hosted; live
+      click-through verification deferred (you asked to test live later). Settings paints only when its
+      native palette tab is selected.</li>
+    <li class="part"><b>Weldable port semantics</b> — FJV pipe/component detection is now authoritative
+      (<code>GetPipeSystem</code>/<code>GetPipeTypeEnum</code>), but the <em>weldable</em> classification
+      (<code>afgrstuds</code>/<code>sh-lige</code>/<code>sh-vinkel</code>) and "main port" are still inferred by
+      name — there's no catalog flag for weldability, so confirm against the component catalog if needed.</li>
+  </ul>
+
+  <h2>How to run it</h2>
+  <div class="panel">
+    <p>Registered with DevReload as <code>GraphViewV3.Plugin</code> (command prefix <code>GV3</code>).</p>
+    <ul class="clean">
+      <li class="done"><code>GRAPHVIEWV3</code> — open the live palette.</li>
+      <li class="done"><code>GV3LOAD</code> / <code>GV3DEV</code> / <code>GV3UNLOAD</code> — DevReload load / reload / unload.</li>
+      <li class="done">In the palette: <b>wheel</b> = zoom, <b>drag</b> = pan, <b>Fit</b>, <b>Refresh</b>, click a node to select+zoom in CAD.</li>
+    </ul>
+  </div>
+
+  <h2>Reference docs</h2>
+  <table>
+    <tr><th>File</th><th>What</th></tr>
+    <tr><td><code>docs/research/graphviewv3-design.md</code></td><td>Design doc (my build reference).</td></tr>
+    <tr><td><code>docs/research/graphviewv3-architecture.md</code></td><td>The reviewed architecture proposal.</td></tr>
+    <tr><td><code>docs/research/graphviewv3-mockup.html</code></td><td>The original UI mockup.</td></tr>
+    <tr><td><code>docs/research/graphviz-alternatives.md</code></td><td>Earlier render-engine research (Option C fallback).</td></tr>
+  </table>
+
+  <footer>GRAPHVIEWV3 · autonomous build · Claude Code · all metrics from the live FJV-fremtid_DEV.dwg session</footer>
+
+</div>
+</body>
+</html>

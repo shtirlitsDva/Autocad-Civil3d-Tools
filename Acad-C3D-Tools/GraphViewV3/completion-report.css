@@ -1,0 +1,60 @@
+:root {
+  --bg-deep:#1E2124; --bg-panel:#2A2D31; --bg-surface:#33373C; --bg-elevated:#3D4248;
+  --border-subtle:#262A2E; --border-default:#4A5159; --border-strong:#5C6470;
+  --text-primary:#E8E8E8; --text-secondary:#BFBFBF; --text-muted:#8A9099;
+  --accent:#4A6B8A; --accent-hover:#5A7B9A;
+  --ok:#4A7C59; --warn:#B8862B; --err:#B94A4A;
+  --comp:#9D7CE0; --dn1:#5AA9E6; --dn2:#4ECDC4;
+}
+* { box-sizing:border-box; }
+body {
+  margin:0; background:linear-gradient(180deg,#16181B,var(--bg-deep)); color:var(--text-primary);
+  font-family:"Segoe UI",-apple-system,system-ui,sans-serif; font-size:15px; line-height:1.6;
+}
+.wrap { max-width:980px; margin:0 auto; padding:40px 28px 80px; }
+header.hero {
+  border:1px solid var(--border-subtle); border-radius:14px; padding:28px 30px; margin-bottom:30px;
+  background:linear-gradient(135deg,#2F3439,var(--bg-panel)); box-shadow:0 14px 40px rgba(0,0,0,.4);
+}
+header.hero h1 { margin:0 0 6px; font-size:30px; letter-spacing:.3px; }
+header.hero .sub { color:var(--text-muted); font-size:14px; }
+.pill { display:inline-block; padding:3px 10px; border-radius:20px; font-size:12px; font-weight:600; margin-right:6px; }
+.pill.ok { background:rgba(74,124,89,.25); color:#7FD89B; border:1px solid var(--ok); }
+.pill.partial { background:rgba(184,134,43,.22); color:#E0B760; border:1px solid var(--warn); }
+.pill.info { background:rgba(74,107,138,.25); color:#8AB6E0; border:1px solid var(--accent); }
+
+h2 { font-size:19px; margin:34px 0 12px; padding-bottom:8px; border-bottom:1px solid var(--border-subtle); }
+h3 { font-size:15px; margin:20px 0 8px; color:var(--text-secondary); }
+p { color:var(--text-secondary); }
+code { background:var(--bg-deep); border:1px solid var(--border-subtle); border-radius:5px; padding:1px 6px;
+  font-family:"Cascadia Code",Consolas,monospace; font-size:13px; color:#D6C7F0; }
+a { color:var(--accent-hover); }
+
+.cards { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin:18px 0; }
+.card { background:linear-gradient(160deg,var(--bg-elevated),var(--bg-surface)); border:1px solid var(--border-subtle);
+  border-radius:11px; padding:14px 16px; }
+.card .k { color:var(--text-muted); font-size:11px; text-transform:uppercase; letter-spacing:.5px; }
+.card .v { font-size:26px; font-weight:700; margin-top:4px; }
+.card .v.ok { color:#7FD89B; } .card .v.accent { color:#8AB6E0; }
+
+.panel { background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:11px; padding:8px 20px; margin:14px 0; }
+ul.clean { list-style:none; padding:0; margin:10px 0; }
+ul.clean li { padding:8px 0 8px 26px; position:relative; border-bottom:1px solid var(--border-subtle); color:var(--text-secondary); }
+ul.clean li:last-child { border-bottom:none; }
+ul.clean li::before { position:absolute; left:0; top:8px; }
+ul.clean li.done::before { content:"✓"; color:#7FD89B; font-weight:700; }
+ul.clean li.part::before { content:"◐"; color:#E0B760; }
+ul.clean li.no::before { content:"○"; color:var(--text-muted); }
+ul.clean li b { color:var(--text-primary); }
+
+table { width:100%; border-collapse:collapse; margin:12px 0; font-size:14px; }
+th,td { text-align:left; padding:9px 12px; border-bottom:1px solid var(--border-subtle); }
+th { color:var(--text-muted); font-size:11px; text-transform:uppercase; letter-spacing:.5px; }
+td { color:var(--text-secondary); } td b { color:var(--text-primary); }
+
+.tree { background:var(--bg-deep); border:1px solid var(--border-subtle); border-radius:10px; padding:16px 20px;
+  font-family:"Cascadia Code",Consolas,monospace; font-size:13px; color:var(--text-secondary); white-space:pre; overflow-x:auto; }
+.note { border-left:3px solid var(--accent); background:rgba(74,107,138,.10); padding:10px 16px; border-radius:0 8px 8px 0; margin:12px 0; }
+.note.warn { border-left-color:var(--warn); background:rgba(184,134,43,.10); }
+.dn { display:inline-block; width:11px; height:11px; border-radius:3px; vertical-align:middle; margin-right:7px; }
+footer { margin-top:50px; color:var(--text-muted); font-size:12px; text-align:center; }

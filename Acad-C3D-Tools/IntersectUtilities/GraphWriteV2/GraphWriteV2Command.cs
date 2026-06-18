@@ -15,6 +15,7 @@ using System.Text;
 using IntersectUtilities.GraphWriteV2;
 using IntersectUtilities.UtilsCommon.Graphs;
 using IntersectUtilities.GraphWriteV2.DotStyling;
+using IntersectUtilities.GraphWriteV2.Theming;
 
 namespace IntersectUtilities
 {
@@ -52,6 +53,9 @@ namespace IntersectUtilities
                 // Build spanning forest
                 var builder = new GraphBuilderV2(localDb);
                 var graphs = builder.BuildGraphs(allEnts);
+
+                // Load the persisted node-label theme (configured via GRAPHWRITEV2THEME)
+                var labelTheme = LabelThemeStore.Load();
 
                 // Attribute selectors
                 Func<GraphEntity, string?> clusterSelector = n => n.Alignment;
@@ -150,7 +154,7 @@ namespace IntersectUtilities
                     sbAll.AppendLine("node [shape=plaintext, fontname=\"monospace bold\", fontsize=13];");
 
                     // Nodes with clusters and attributes
-                    var styler = new UniformWidthHtmlStyler();
+                    var styler = new ThemedHtmlStyler(labelTheme);
                     sbAll.Append(g.NodesToDot(
                         styler,
                         clusterSelector,

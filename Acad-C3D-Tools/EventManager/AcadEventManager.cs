@@ -4,6 +4,8 @@ using System.Linq;
 
 using Autodesk.AutoCAD.ApplicationServices;
 
+using DbServices = Autodesk.AutoCAD.DatabaseServices;
+
 namespace EventManager
 {
     public class AcadEventManager : IDisposable
@@ -628,6 +630,87 @@ namespace EventManager
         {
             if (_documentToBeDestroyed == null) return;
             foreach (var h in _documentToBeDestroyed) h(s, e);
+        }
+
+        #endregion
+
+        #region Active-Document Database Events
+
+        // Object change notifications live on the Database, not on Application/DocumentManager.
+        // These aggregate events follow the active document automatically: subscribe once and you
+        // receive the active drawing's append/modify/erase events, rebinding on document switch.
+        private bool _dbHookInstalled;
+        private DbServices.Database _boundDb;
+
+        private List<DbServices.ObjectEventHandler> _activeObjectAppended;
+        public event DbServices.ObjectEventHandler ActiveObjectAppended
+        {
+            add { EnsureDbHook(); (_activeObjectAppended ??= new()).Add(value); }
+            remove { _activeObjectAppended?.Remove(value); }
+        }
+
+        private List<DbServices.ObjectEventHandler> _activeObjectModified;
+        public event DbServices.ObjectEventHandler ActiveObjectModified
+        {
+            add { EnsureDbHook(); (_activeObjectModified ??= new()).Add(value); }
+            remove { _activeObjectModified?.Remove(value); }
+        }
+
+        private List<DbServices.ObjectErasedEventHandler> _activeObjectErased;
+        public event DbServices.ObjectErasedEventHandler ActiveObjectErased
+        {
+            add { EnsureDbHook(); (_activeObjectErased ??= new()).Add(value); }
+            remove { _activeObjectErased?.Remove(value); }
+        }
+
+        private void EnsureDbHook()
+        {
+            if (_dbHookInstalled) return;
+            _dbHookInstalled = true;
+            DocumentActivated += OnActiveDocChanged;
+            DocumentToBeDeactivated += OnActiveDocDeactivated;
+            BindDatabase(Application.DocumentManager.MdiActiveDocument?.Database);
+            _cleanup.Add(() => BindDatabase(null));
+        }
+
+        private void OnActiveDocChanged(object s, DocumentCollectionEventArgs e)
+            => BindDatabase(e.Document?.Database);
+
+        private void OnActiveDocDeactivated(object s, DocumentCollectionEventArgs e)
+            => BindDatabase(null);
+
+        private void BindDatabase(DbServices.Database db)
+        {
+            if (ReferenceEquals(_boundDb, db)) return;
+            if (_boundDb != null)
+            {
+                _boundDb.ObjectAppended -= FwdObjectAppended;
+                _boundDb.ObjectModified -= FwdObjectModified;
+                _boundDb.ObjectErased -= FwdObjectErased;
+            }
+            _boundDb = db;
+            if (_boundDb != null)
+            {
+                _boundDb.ObjectAppended += FwdObjectAppended;
+                _boundDb.ObjectModified += FwdObjectModified;
+                _boundDb.ObjectErased += FwdObjectErased;
+            }
+        }
+
+        private void FwdObjectAppended(object s, DbServices.ObjectEventArgs e)
+        {
+            if (_activeObjectAppended == null) return;
+            foreach (var h in _activeObjectAppended) h(s, e);
+        }
+        private void FwdObjectModified(object s, DbServices.ObjectEventArgs e)
+        {
+            if (_activeObjectModified == null) return;
+            foreach (var h in _activeObjectModified) h(s, e);
+        }
+        private void FwdObjectErased(object s, DbServices.ObjectErasedEventArgs e)
+        {
+            if (_activeObjectErased == null) return;
+            foreach (var h in _activeObjectErased) h(s, e);
         }
 
         #endregion
