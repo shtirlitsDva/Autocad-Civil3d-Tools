@@ -1,11 +1,14 @@
 namespace IntersectUtilities.UtilsCommon.DataManager.CsvData
 {
     /// <summary>
-    /// CSV data source for Lag-Ler2.0.v{n}.csv (versioned)
+    /// CSV data source for Lag-Ler.{config}.csv (versioned, e.g. Lag-Ler.DKv1.csv)
     /// Columns: Layer;Farve;LineType
     /// </summary>
-    public sealed class LagLer : CsvDataSource
+    public sealed class LagLer : CsvDataSource, IConfigurableCsv
     {
+        /// <summary>The base file name this source asks for (the single place it is declared).</summary>
+        public string BaseName => "Lag-Ler";
+
         /// <summary>
         /// Column indices for type-safe access.
         /// </summary>
@@ -18,7 +21,7 @@ namespace IntersectUtilities.UtilsCommon.DataManager.CsvData
 
         private static readonly string[] _columnNames = { "Layer", "Farve", "LineType" };
 
-        protected override string FilePath => CsvRegistry.GetVersionedFilePath("Lag-Ler2.0");
+        protected override string FilePath => CsvRegistry.GetVersionedFilePath(BaseName);
         protected override string[] ColumnNames => _columnNames;
 
         /// <summary>

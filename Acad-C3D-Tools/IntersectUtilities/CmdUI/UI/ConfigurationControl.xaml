@@ -33,8 +33,8 @@
                   Style="{StaticResource ModernGroupBox}">
             <StackPanel Orientation="Vertical" Margin="5">
                 <StackPanel Orientation="Horizontal" Margin="0,5">
-                    <Label Content="Configuration:" 
-                           Foreground="{DynamicResource Text}" 
+                    <Label Content="Configuration:"
+                           Foreground="{DynamicResource Text}"
                            VerticalAlignment="Center"
                            Width="100"/>
                     <ComboBox x:Name="ConfigurationDropdown"
@@ -42,29 +42,38 @@
                               Style="{StaticResource ModernDarkComboBox}"
                               ItemsSource="{Binding AvailableConfigurations}"
                               SelectedItem="{Binding SelectedConfiguration, Mode=TwoWay}"/>
+                    <Button Content="Refresh"
+                            Command="{Binding RefreshCommand}"
+                            Margin="8,0,0,0"
+                            Padding="10,3"
+                            VerticalAlignment="Center"
+                            Background="{DynamicResource DarkRowBackground}"
+                            Foreground="{DynamicResource Text}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            ToolTip="Re-scan the Conf folder and re-validate the selected configuration."/>
                 </StackPanel>
 
-                <!-- Status indicator -->
-                <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                    <TextBlock Text="Status: " 
-                               Foreground="{DynamicResource Text}"
-                               VerticalAlignment="Center"/>
-                    <TextBlock x:Name="StatusText"
-                               VerticalAlignment="Center">
-                        <TextBlock.Style>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="Foreground" Value="#FF4CAF50"/>
-                                <Setter Property="Text" Value="Configuration active"/>
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsConfigurationSet}" Value="False">
-                                        <Setter Property="Foreground" Value="#FFFF9800"/>
-                                        <Setter Property="Text" Value="No configuration selected - please select V1 or V2"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </TextBlock.Style>
-                    </TextBlock>
-                </StackPanel>
+                <!-- Status indicator: green = complete, orange = none selected, red = incomplete.
+                     Text comes from the ViewModel (StatusMessage); the local style only maps the
+                     severity flags to a colour. -->
+                <TextBlock x:Name="StatusText"
+                           Margin="0,10,0,0"
+                           TextWrapping="Wrap"
+                           Text="{Binding StatusMessage}">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Foreground" Value="#FF4CAF50"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsConfigurationMissing}" Value="True">
+                                    <Setter Property="Foreground" Value="#FFFF9800"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsConfigurationError}" Value="True">
+                                    <Setter Property="Foreground" Value="#FFF44336"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
             </StackPanel>
         </GroupBox>
 
@@ -85,12 +94,26 @@
                         Select a configuration to determine which version of CSV files will be used by commands.
                         <LineBreak/>
                         <LineBreak/>
-                        • <Run FontWeight="SemiBold">V1</Run>: Uses .v1.csv files (e.g., Krydsninger.v1.csv)
+                        • <Run FontWeight="SemiBold">DKv1</Run>: Uses .DKv1.csv files (e.g., Krydsninger.DKv1.csv)
                         <LineBreak/>
-                        • <Run FontWeight="SemiBold">V2</Run>: Uses .v2.csv files (e.g., Krydsninger.v2.csv)
+                        • <Run FontWeight="SemiBold">DKv2</Run>: Uses .DKv2.csv files (e.g., Krydsninger.DKv2.csv)
+                        <LineBreak/>
+                        • <Run FontWeight="SemiBold">DEv1</Run>: Uses .DEv1.csv files (e.g., Krydsninger.DEv1.csv)
                         <LineBreak/>
                         <LineBreak/>
-                        Non-versioned files (Distances.csv, Dybde.csv, etc.) are shared across all configurations.
+                        Distances and Dybde are configuration-aware with fallback: a dedicated file
+                        (e.g., Distances.DEv1.csv) is used when present, otherwise the shared
+                        unversioned file (Distances.csv, Dybde.csv) is used.
+                        <LineBreak/>
+                        <LineBreak/>
+                        Configurations are discovered from the file names in the Conf folder, so a new
+                        configuration appears automatically once its files are added. A configuration
+                        whose required versioned files (Krydsninger, Lag-Ler) are missing is still
+                        listed, but selecting it shows a red warning here and commands will fail until
+                        the missing file is added (or an unversioned fallback is provided). Configuration
+                        names must not contain '.' (use 'DEv1', not 'DE.v1'); a dotted name is flagged
+                        invalid and ignored, without affecting other configurations. Use Refresh after
+                        changing files in the folder.
                         <LineBreak/>
                         <LineBreak/>
                         <Run FontStyle="Italic" Foreground="#FFB0B0B0">

@@ -25,9 +25,15 @@ namespace IntersectUtilities.UtilsCommon.DataManager.CsvData
     {
         private static readonly object _lock = new();
 
-        // Non-versioned data sources (lazy-initialized)
+        // Configuration-aware-with-fallback data sources.
+        // These resolve to a dedicated "{base}.{config}.csv" when one exists, otherwise to the
+        // shared unversioned file. Because their path depends on the active configuration, they
+        // must be dropped when the configuration changes (see OnConfigurationChanged) so they
+        // rebuild against the correct file rather than reusing a stale modtime baseline.
         private static Distances? _distances;
         private static Dybde? _dybde;
+
+        // Non-versioned data sources (lazy-initialized)
         private static FjvDynamicComponents? _fjvDynamicComponents;
         private static Stier? _stier;
 
@@ -53,11 +59,15 @@ namespace IntersectUtilities.UtilsCommon.DataManager.CsvData
         {
             lock (_lock)
             {
-                // Invalidate versioned data sources when configuration changes
-                prdDbg($"Csv.OnConfigurationChanged: Invalidating versioned data sources. New config: {ConfigurationManager.ActiveConfiguration}");
+                // Invalidate every configuration-dependent data source when the configuration
+                // changes. This includes the fallback-capable Distances/Dybde, whose resolved
+                // file path differs per configuration.
+                prdDbg($"Csv.OnConfigurationChanged: Invalidating configuration-dependent data sources. New config: {ConfigurationManager.ActiveConfiguration}");
                 _krydsninger = null;
                 _lagLer = null;
                 _lastConfigForVersioned = null;
+                _distances = null;
+                _dybde = null;
             }
         }
 

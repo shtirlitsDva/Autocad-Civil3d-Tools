@@ -1,11 +1,17 @@
 namespace IntersectUtilities.UtilsCommon.DataManager.CsvData
 {
     /// <summary>
-    /// CSV data source for Distances.csv
+    /// CSV data source for Distances.
+    /// Configuration-aware with fallback: uses "Distances.{config}.csv" when that dedicated
+    /// file exists (e.g. "Distances.DEv1.csv"), otherwise falls back to the shared, unversioned
+    /// "Distances.csv" (used by DKv1/DKv2 and when no configuration is selected).
     /// Columns: Type;Distance
     /// </summary>
-    public sealed class Distances : CsvDataSource
+    public sealed class Distances : CsvDataSource, IConfigurableCsv
     {
+        /// <summary>The base file name this source asks for (the single place it is declared).</summary>
+        public string BaseName => "Distances";
+
         /// <summary>
         /// Column indices for type-safe access.
         /// </summary>
@@ -17,7 +23,7 @@ namespace IntersectUtilities.UtilsCommon.DataManager.CsvData
 
         private static readonly string[] _columnNames = { "Type", "Distance" };
 
-        protected override string FilePath => CsvRegistry.GetFilePath("Distances.csv");
+        protected override string FilePath => CsvRegistry.GetVersionedFilePathOrDefault(BaseName, $"{BaseName}.csv");
         protected override string[] ColumnNames => _columnNames;
 
         /// <summary>

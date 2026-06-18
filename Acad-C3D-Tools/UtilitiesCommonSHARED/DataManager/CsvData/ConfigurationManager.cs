@@ -115,7 +115,7 @@ namespace IntersectUtilities.UtilsCommon.DataManager.CsvData
 ║   │  HOW TO FIX:                                                            │     ║
 ║   │                                                                         │     ║
 ║   │  1. Run NSCMD                                                           │     ║
-║   │  2. Select V1 or V2 from the dropdown                                   │     ║
+║   │  2. Select DKv1, DKv2 or DEv1 from the dropdown                         │     ║
 ║   │  3. Run this command again                                              │     ║
 ║   │                                                                         │     ║
 ║   │  Your selection will be saved for future sessions.                      │     ║
@@ -123,24 +123,6 @@ namespace IntersectUtilities.UtilsCommon.DataManager.CsvData
 ║                                                                                   ║
 ╚═══════════════════════════════════════════════════════════════════════════════════╝
 ";
-        }
-
-        /// <summary>
-        /// Gets the version number from the configuration name (e.g., "V1" -> 1, "V2" -> 2).
-        /// Returns null if configuration is not set or doesn't match expected pattern.
-        /// </summary>
-        public static int? GetVersionNumber()
-        {
-            var config = ActiveConfiguration;
-            if (string.IsNullOrEmpty(config)) return null;
-
-            if (config.StartsWith("V", StringComparison.OrdinalIgnoreCase) &&
-                int.TryParse(config.Substring(1), out int version))
-            {
-                return version;
-            }
-
-            return null;
         }
 
         private static void EnsureInitialized()

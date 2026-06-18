@@ -1,11 +1,14 @@
 namespace IntersectUtilities.UtilsCommon.DataManager.CsvData
 {
     /// <summary>
-    /// CSV data source for Krydsninger.v{n}.csv (versioned)
+    /// CSV data source for Krydsninger.{config}.csv (versioned, e.g. Krydsninger.DKv1.csv)
     /// Columns: Navn;Layer;Type;Distance;Block;Description;Diameter;Material;System;Status;Kommentar;Temperatur;Tryk;Label
     /// </summary>
-    public sealed class Krydsninger : CsvDataSource
+    public sealed class Krydsninger : CsvDataSource, IConfigurableCsv
     {
+        /// <summary>The base file name this source asks for (the single place it is declared).</summary>
+        public string BaseName => "Krydsninger";
+
         /// <summary>
         /// Column indices for type-safe access.
         /// </summary>
@@ -34,7 +37,7 @@ namespace IntersectUtilities.UtilsCommon.DataManager.CsvData
             "Temperatur", "Tryk", "Label" 
         };
 
-        protected override string FilePath => CsvRegistry.GetVersionedFilePath("Krydsninger");
+        protected override string FilePath => CsvRegistry.GetVersionedFilePath(BaseName);
         protected override string[] ColumnNames => _columnNames;
 
         /// <summary>

@@ -10,6 +10,22 @@ using static IntersectUtilities.UtilsCommon.Utils;
 namespace IntersectUtilities.UtilsCommon.DataManager.CsvData
 {
     /// <summary>
+    /// Implemented by CSV data sources that take part in configurations (versioned, or versioned
+    /// with fallback). The implementer is the SINGLE place its file's base name is declared, so
+    /// the base name lives with the data source that asks for the file — never in CsvRegistry.
+    /// CsvRegistry discovers these implementations by reflection, which is what lets it run
+    /// discovery and completeness checks without hardcoding any file names of its own.
+    /// </summary>
+    public interface IConfigurableCsv
+    {
+        /// <summary>
+        /// The configuration-independent base file name (no token, no extension),
+        /// e.g. "Krydsninger" or "Lag-Ler". Must not contain '.'.
+        /// </summary>
+        string BaseName { get; }
+    }
+
+    /// <summary>
     /// Abstract base class for CSV data sources with lazy loading and auto-reload on file change.
     /// </summary>
     public abstract class CsvDataSource
