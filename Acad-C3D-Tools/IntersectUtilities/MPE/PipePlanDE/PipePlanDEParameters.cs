@@ -5,7 +5,7 @@ namespace IntersectUtilities.MPE.PipePlanDE;
 /// as symmetric, so the four edge insets collapse to two inputs: <c>z1/z3</c> (left,
 /// applied to both z1 and z3) and <c>z2/z4</c> (right, applied to both z2 and z4).
 /// The six stored inputs are, in order: z1/z3, d, x, z2/z4, B, B1. The two band widths
-/// b and b1 are NOT stored — they are pure sums of the inputs (see <see cref="ComputedB"/>),
+/// b and b1 are NOT stored — they are pure sums of the inputs (see <see cref="ComputeBandWidth"/>),
 /// shown read-only in the UI. Pipe drawing consumes only <see cref="D"/> and
 /// <see cref="X"/>; PDTRENCH consumes <see cref="B"/>.
 /// </summary>
@@ -66,11 +66,13 @@ internal sealed class PipePlanDEParameters
     /// <summary>Centre-to-centre spacing of supply and return = one mantle OD + the gap.</summary>
     public double PipeSpacing => D + X;
 
-    /// <summary>b = z1 + d + d + x + z2 (with z1 = z3 = Z1Z3 and z2 = z4 = Z2Z4).</summary>
-    public double ComputedB => Z1Z3 + (2.0 * D) + X + Z2Z4;
-
-    /// <summary>b1 = z3 + d + x + d + z4 — identical to b under the symmetric model.</summary>
-    public double ComputedB1 => Z1Z3 + (2.0 * D) + X + Z2Z4;
+    /// <summary>
+    /// The trench band width b = z1 + 2·d + x + z2. Under the symmetric model
+    /// (z1 = z3 = z1/z3, z2 = z4 = z2/z4) b1 equals b, so both display columns use this.
+    /// Static so the model and the live table recompute share one definition.
+    /// </summary>
+    public static double ComputeBandWidth(double z1z3, double d, double x, double z2z4)
+        => z1z3 + (2.0 * d) + x + z2z4;
 
     /// <summary>
     /// Validates that every input is a finite, non-negative metre figure and that the
