@@ -2,22 +2,34 @@ using Autodesk.AutoCAD.ApplicationServices;
 
 namespace IntersectUtilities.MPE.PipePlanDE;
 
-// Process-wide registry of per-document PipePlanDEState plus the single
-// PipePlanDEPalette window. Mirrors PipePlanRuntime: state lives as long as its
-// owning Document, and the app-scope palette is rebound to the active document's
-// state on DocumentActivated.
+// Process-wide registry of per-document PipePlanDEState plus the two app-scope
+// palettes (PDSETTINGS table editor and PDDRAW size picker). Mirrors
+// PipePlanRuntime: state lives as long as its owning Document, and both palettes
+// are rebound to the active document's state on DocumentActivated.
 internal static class PipePlanDERuntime
 {
     private static readonly Dictionary<Document, PipePlanDEState> _states = new();
-    private static PipePlanDEPalette? _palette;
+    private static PipePlanDESettingsPalette? _settingsPalette;
+    private static PipePlanDESizePalette? _sizePalette;
     private static bool _subscribed;
 
-    internal static PipePlanDEPalette Palette
+    // The table/diagram editor, shown by PDSETTINGS.
+    internal static PipePlanDESettingsPalette SettingsPalette
     {
         get
         {
             EnsureSubscribed();
-            return _palette ??= new PipePlanDEPalette();
+            return _settingsPalette ??= new PipePlanDESettingsPalette();
+        }
+    }
+
+    // The DN picker, shown by PDDRAW.
+    internal static PipePlanDESizePalette SizePalette
+    {
+        get
+        {
+            EnsureSubscribed();
+            return _sizePalette ??= new PipePlanDESizePalette();
         }
     }
 
@@ -49,8 +61,10 @@ internal static class PipePlanDERuntime
 
         _states.Clear();
 
-        _palette?.Dispose();
-        _palette = null;
+        _settingsPalette?.Dispose();
+        _settingsPalette = null;
+        _sizePalette?.Dispose();
+        _sizePalette = null;
     }
 
     private static void EnsureSubscribed()
@@ -65,7 +79,8 @@ internal static class PipePlanDERuntime
     {
         if (e.Document is null) return;
         PipePlanDEState state = StateFor(e.Document);
-        _palette?.RebindTo(state);
+        _settingsPalette?.RebindTo(state);
+        _sizePalette?.RebindTo(state);
     }
 
     private static void OnDocumentToBeDestroyed(object? sender, DocumentCollectionEventArgs e)

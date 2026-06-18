@@ -158,6 +158,9 @@
 	  <EmbeddedResource Include="MPE\PipePlan\Views\DarkTheme.xaml">
 	    <LogicalName>IntersectUtilities.MPE.PipePlan.DarkTheme.xaml</LogicalName>
 	  </EmbeddedResource>
+	  <EmbeddedResource Include="MPE\PipePlanDE\Views\RegelGrabenprofil.png">
+	    <LogicalName>IntersectUtilities.MPE.PipePlanDE.RegelGrabenprofil.png</LogicalName>
+	  </EmbeddedResource>
 	</ItemGroup>
 	<ItemGroup Condition="Exists('..\..\..\..\DamgaardRI\DimensioneringV2\src\DimensioneringV2.UI\UI\Theme.xaml')">
 	  <Page Include="..\..\..\..\DamgaardRI\DimensioneringV2\src\DimensioneringV2.UI\UI\Theme.xaml" Link="CmdUI\UI\Theme.xaml">

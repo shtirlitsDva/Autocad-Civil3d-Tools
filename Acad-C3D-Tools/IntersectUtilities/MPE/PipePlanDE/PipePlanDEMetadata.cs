@@ -9,7 +9,20 @@ internal enum PipePlanDERole
     Return = 2,
 }
 
-internal sealed record PipePlanDEStoredData(int Dn, PipePlanDERole Role);
+/// <summary>
+/// Which Regelgrabenbreite the trench uses, chosen by excavation depth. Shallow
+/// (≤ 1.3 m) uses B, the common case; Deep (&gt; 1.3 m) uses the wider B1 (battered walls).
+/// </summary>
+internal enum PipePlanDETrenchDepth
+{
+    Shallow = 0, // ≤ 1.3 m → B
+    Deep = 1,    // > 1.3 m → B1
+}
+
+internal sealed record PipePlanDEStoredData(
+    int Dn,
+    PipePlanDERole Role,
+    PipePlanDETrenchDepth Depth = PipePlanDETrenchDepth.Shallow);
 
 /// <summary>
 /// Per-polyline German-pipe metadata, stored on the entity's ExtensionDictionary
@@ -34,7 +47,8 @@ internal static class PipePlanDEMetadata
         ResultBuffer payload = new(
             new TypedValue((int)DxfCode.Text, VersionV1),
             new TypedValue((int)DxfCode.Int32, data.Dn),
-            new TypedValue((int)DxfCode.Int32, (int)data.Role));
+            new TypedValue((int)DxfCode.Int32, (int)data.Role),
+            new TypedValue((int)DxfCode.Int32, (int)data.Depth));
 
         if (dict.Contains(GeometryDataKey))
         {
@@ -85,7 +99,16 @@ internal static class PipePlanDEMetadata
             return false;
         }
 
-        data = new PipePlanDEStoredData(dn, (PipePlanDERole)roleValue);
+        // Depth was added after V1 shipped; pre-depth records (length 3) default to
+        // Shallow (B), which is the common case and the old behaviour.
+        PipePlanDETrenchDepth depth = PipePlanDETrenchDepth.Shallow;
+        if (values.Length >= 4 && values[3].Value is int depthValue
+            && Enum.IsDefined(typeof(PipePlanDETrenchDepth), depthValue))
+        {
+            depth = (PipePlanDETrenchDepth)depthValue;
+        }
+
+        data = new PipePlanDEStoredData(dn, (PipePlanDERole)roleValue, depth);
         return true;
     }
 }
