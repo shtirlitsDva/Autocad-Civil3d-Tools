@@ -1,0 +1,38 @@
+<UserControl x:Class="IntersectUtilities.MPE.PipePlanDE.Views.PipePlanDESizeView"
+             x:ClassModifier="internal"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             Background="{StaticResource BackgroundBrush}"
+             d:DesignWidth="240" d:DesignHeight="160">
+
+    <StackPanel Margin="8">
+
+        <GroupBox Header="Dimension">
+            <StackPanel>
+                <ComboBox ItemsSource="{Binding Dns}"
+                          SelectedItem="{Binding SelectedDn}"
+                          DisplayMemberPath="Label" />
+
+                <!-- Excavation depth picks the trench width: ≤ 1,3 m uses B, > 1,3 m uses B1. -->
+                <CheckBox Content="Dybde over 1,3 m (brug B1)"
+                          IsChecked="{Binding IsDeep}"
+                          Margin="0,10,0,0" />
+
+                <TextBlock Text="Kør PDDRAW for at tegne den valgte dimension."
+                           Margin="0,8,0,0"
+                           TextWrapping="Wrap"
+                           Foreground="#A0AEC0"
+                           FontSize="11" />
+            </StackPanel>
+        </GroupBox>
+
+        <GroupBox Header="Status">
+            <TextBlock Text="{Binding Status}" Foreground="{Binding StatusColor}" TextWrapping="Wrap" />
+        </GroupBox>
+
+    </StackPanel>
+
+</UserControl>

@@ -1,3 +1,4 @@
+using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 using IntersectUtilities.UtilsCommon;
@@ -13,6 +14,13 @@ internal static class PipePlanDEPolylineWriter
 {
     public const string CenterlineLayer = "0-Centerline";
 
+    // Layer templates applied when a FJV layer is first created (existing layers are
+    // left untouched). FREM = red/Continuous; RETUR = blue/"DGN Style 3".
+    private const short SupplyColorIndex = 1;  // red
+    private const short ReturnColorIndex = 5;  // blue
+    private const string SupplyLinetype = "Continuous";
+    private const string ReturnLinetype = "DGN Style 3";
+
     public static string SupplyLayer(int dn) => $"FJV-FREM-DN{dn}";
 
     public static string ReturnLayer(int dn) => $"FJV-RETUR-DN{dn}";
@@ -24,6 +32,7 @@ internal static class PipePlanDEPolylineWriter
         int dn,
         PipePlanDEParameters parameters,
         bool flip,
+        PipePlanDETrenchDepth depth,
         out string error)
     {
         error = string.Empty;
@@ -46,23 +55,62 @@ internal static class PipePlanDEPolylineWriter
         string returLayer = ReturnLayer(dn);
 
         db.CheckOrCreateLayer(CenterlineLayer);
-        db.CheckOrCreateLayer(fremLayer);
-        db.CheckOrCreateLayer(returLayer);
+        EnsureLayer(db, transaction, fremLayer, SupplyColorIndex, SupplyLinetype);
+        EnsureLayer(db, transaction, returLayer, ReturnColorIndex, ReturnLinetype);
 
         BlockTableRecord modelSpace = db.GetModelspaceForWrite();
 
-        Append(modelSpace, transaction, BuildPolyline(controlPoints, 0.0, CenterlineLayer), dn, PipePlanDERole.Centerline);
-        Append(modelSpace, transaction, BuildPolyline(fremPoints, parameters.D, fremLayer), dn, PipePlanDERole.Supply);
-        Append(modelSpace, transaction, BuildPolyline(returPoints, parameters.D, returLayer), dn, PipePlanDERole.Return);
+        Append(modelSpace, transaction, BuildPolyline(controlPoints, 0.0, CenterlineLayer), dn, PipePlanDERole.Centerline, depth);
+        Append(modelSpace, transaction, BuildPolyline(fremPoints, parameters.D, fremLayer), dn, PipePlanDERole.Supply, depth);
+        Append(modelSpace, transaction, BuildPolyline(returPoints, parameters.D, returLayer), dn, PipePlanDERole.Return, depth);
 
         return true;
     }
 
-    private static void Append(BlockTableRecord modelSpace, Transaction transaction, Polyline polyline, int dn, PipePlanDERole role)
+    private static void Append(BlockTableRecord modelSpace, Transaction transaction, Polyline polyline, int dn, PipePlanDERole role, PipePlanDETrenchDepth depth)
     {
         modelSpace.AppendEntity(polyline);
         transaction.AddNewlyCreatedDBObject(polyline, add: true);
-        PipePlanDEMetadata.Write(polyline, new PipePlanDEStoredData(dn, role), transaction);
+        PipePlanDEMetadata.Write(polyline, new PipePlanDEStoredData(dn, role, depth), transaction);
+    }
+
+    /// <summary>
+    /// Creates <paramref name="name"/> with the given ACI colour and linetype if it does
+    /// not exist. An EXISTING layer is left exactly as the user configured it — we only
+    /// apply the template on first creation.
+    /// </summary>
+    private static void EnsureLayer(Database db, Transaction transaction, string name, short colorIndex, string linetypeName)
+    {
+        LayerTable layerTable = (LayerTable)transaction.GetObject(db.LayerTableId, OpenMode.ForRead);
+        if (layerTable.Has(name))
+        {
+            return;
+        }
+
+        layerTable.UpgradeOpen();
+        LayerTableRecord record = new()
+        {
+            Name = name,
+            IsPlottable = true,
+            Color = Color.FromColorIndex(ColorMethod.ByAci, colorIndex),
+            LinetypeObjectId = ResolveLinetype(db, transaction, linetypeName),
+            // LineWeight is left at its default (ByLineWeight → "Default" in the UI).
+        };
+
+        layerTable.Add(record);
+        transaction.AddNewlyCreatedDBObject(record, add: true);
+    }
+
+    /// <summary>
+    /// Resolves a linetype by name, falling back to Continuous when it isn't loaded.
+    /// "DGN Style 3" is a DGN-import style that lives in the project template drawings,
+    /// not in acad.lin — so when it's present we use it, and a blank drawing degrades to
+    /// Continuous rather than failing the draw.
+    /// </summary>
+    private static ObjectId ResolveLinetype(Database db, Transaction transaction, string linetypeName)
+    {
+        LinetypeTable linetypeTable = (LinetypeTable)transaction.GetObject(db.LinetypeTableId, OpenMode.ForRead);
+        return linetypeTable.Has(linetypeName) ? linetypeTable[linetypeName] : db.ContinuousLinetype;
     }
 
     private static Polyline BuildPolyline(IReadOnlyList<Point3d> points, double width, string layer)

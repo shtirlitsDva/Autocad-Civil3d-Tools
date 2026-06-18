@@ -10,6 +10,10 @@ internal sealed class PipePlanDEState : IDisposable
     /// <summary>The DN chosen in the DE palette; null until the user picks one.</summary>
     public int? ActiveDn { get; set; }
 
+    /// <summary>Excavation depth band chosen alongside the DN; selects B vs B1 for the
+    /// trench. Defaults to Shallow (≤ 1.3 m → B), the common case.</summary>
+    public PipePlanDETrenchDepth ActiveDepth { get; set; } = PipePlanDETrenchDepth.Shallow;
+
     public void Dispose()
     {
     }

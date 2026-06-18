@@ -184,8 +184,8 @@ internal static class PipePlanDEParameterStore
 
     private static ResultBuffer Serialize(PipePlanDEParameters parameters)
     {
-        TypedValue[] values = new TypedValue[PipePlanDEParameters.ColumnCount];
-        for (int i = 0; i < PipePlanDEParameters.ColumnCount; i++)
+        TypedValue[] values = new TypedValue[PipePlanDEParameters.InputCount];
+        for (int i = 0; i < PipePlanDEParameters.InputCount; i++)
         {
             values[i] = new TypedValue((int)DxfCode.Real, parameters[i]);
         }
@@ -202,12 +202,12 @@ internal static class PipePlanDEParameterStore
         }
 
         TypedValue[] values = buffer.AsArray();
-        if (values.Length != PipePlanDEParameters.ColumnCount)
+        if (values.Length != PipePlanDEParameters.InputCount)
         {
             return false;
         }
 
-        double[] doubles = new double[PipePlanDEParameters.ColumnCount];
+        double[] doubles = new double[PipePlanDEParameters.InputCount];
         for (int i = 0; i < values.Length; i++)
         {
             if (values[i].Value is not double value)

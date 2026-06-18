@@ -318,11 +318,12 @@ internal static class PipePlanDETrenchWriter
         Coordinate[] coordinates = ring.Coordinates;
         // NTS rings repeat the first coordinate as the last; drop it so the hatch
         // loop has no zero-length closing edge (AppendLoop closes the loop itself).
+        // THIS IS WRONG: Hatch does not need to remove last coordinate!
         int count = coordinates.Length;
-        if (count > 1 && coordinates[0].Equals2D(coordinates[count - 1]))
-        {
-            count--;
-        }
+        //if (count > 1 && coordinates[0].Equals2D(coordinates[count - 1]))
+        //{
+        //    count--;
+        //}
 
         Point2dCollection vertices = new();
         DoubleCollection bulges = new();

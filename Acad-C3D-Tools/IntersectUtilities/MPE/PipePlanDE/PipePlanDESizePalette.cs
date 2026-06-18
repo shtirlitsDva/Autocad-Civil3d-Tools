@@ -5,27 +5,30 @@ using IntersectUtilities.MPE.PipePlanDE.Views;
 
 namespace IntersectUtilities.MPE.PipePlanDE;
 
-internal sealed class PipePlanDEPalette : IDisposable
+// PDDRAW size palette: a small modeless window for picking the DN the next PDDRAW
+// will draw. Shown by PDDRAW; the selection feeds PipePlanDEState.ActiveDn.
+internal sealed class PipePlanDESizePalette : IDisposable
 {
-    private static readonly Guid PaletteGuid = new("B7E9C4A2-3F61-4D88-9A0E-7C2D5B6F18A4");
+    private static readonly Guid PaletteGuid = new("3C8F1D55-7A24-4E91-B6D0-9E4F2A8C5071");
 
     private readonly PaletteSet _paletteSet;
-    private readonly PipePlanDEViewModel _viewModel;
+    private readonly PipePlanDESizeViewModel _viewModel;
 
-    public PipePlanDEPalette()
+    public PipePlanDESizePalette()
     {
-        _viewModel = new PipePlanDEViewModel();
-        var view = new PipePlanDEView(_viewModel);
+        _viewModel = new PipePlanDESizeViewModel();
+        var view = new PipePlanDESizeView(_viewModel);
 
-        _paletteSet = new PaletteSet("PipePlanDE", "PIPEPLANDE", PaletteGuid)
+        _paletteSet = new PaletteSet("PipePlanDE – Tegn", "PIPEPLANDEDRAW", PaletteGuid)
         {
             Style = PaletteSetStyles.ShowCloseButton
                   | PaletteSetStyles.ShowAutoHideButton
                   | PaletteSetStyles.ShowTabForSingle,
-            KeepFocus = false
+            KeepFocus = false,
+            MinimumSize = new System.Drawing.Size(220, 150)
         };
 
-        _paletteSet.AddVisual("Parametre", view);
+        _paletteSet.AddVisual("Dimension", view);
     }
 
     public void Show()

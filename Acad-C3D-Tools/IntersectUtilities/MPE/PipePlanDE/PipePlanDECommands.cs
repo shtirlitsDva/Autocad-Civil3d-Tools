@@ -12,7 +12,7 @@ namespace IntersectUtilities;
 public partial class Intersect
 {
     /// <command>PDSETTINGS</command>
-    /// <summary>Shows the PipePlanDE palette: pick the active DN to draw and edit the per-DN parameter table (z1, d, x, … b, B, B1). Overrides are saved to the active drawing.</summary>
+    /// <summary>Shows the PipePlanDE settings palette: edit the per-DN parameter table (z1, d, x, … b, B, B1) next to the Regel-Grabenprofil reference diagram. Overrides are saved to the active drawing. Pick the DN to draw in the PDDRAW window instead.</summary>
     /// <category>PipePlanDE</category>
     [CommandMethod("PDSETTINGS")]
     public void PipePlanDESettings()
@@ -26,9 +26,8 @@ public partial class Intersect
         try
         {
             PipePlanDEState state = PipePlanDERuntime.StateFor(document);
-            PipePlanDERuntime.Palette.RebindTo(state);
-            PipePlanDERuntime.Palette.Show();
-            PipePlanDERuntime.Palette.SetStatus("Vælg dimension og kør PDDRAW.", PipePlanStatusKind.Info);
+            PipePlanDERuntime.SettingsPalette.RebindTo(state);
+            PipePlanDERuntime.SettingsPalette.Show();
         }
         catch (System.Exception exception)
         {
@@ -37,7 +36,7 @@ public partial class Intersect
     }
 
     /// <command>PDDRAW</command>
-    /// <summary>Draws a single-pipe run. Uses the active DN from the PDSETTINGS palette: you draw the routing centreline interactively, and on Enter the centreline (layer 0-Centerline) plus two mantle-OD-wide frem/retur polylines are placed in the drawing with sharp mitered corners (no bending radius).</summary>
+    /// <summary>Opens the dimension picker and draws a single-pipe run. The window stays open to select the drawing size; if no DN is selected yet, PDDRAW just shows it and waits. With a DN selected, you draw the routing centreline interactively, and on Enter the centreline (layer 0-Centerline) plus two mantle-OD-wide frem/retur polylines are placed with sharp mitered corners (no bending radius). Closing the window and running PDDRAW reopens it.</summary>
     /// <category>PipePlanDE</category>
     [CommandMethod("PDDRAW")]
     public void PipePlanDEDraw()
@@ -50,6 +49,12 @@ public partial class Intersect
 
         try
         {
+            // Always surface the size picker first — this is the "show the window"
+            // half of PDDRAW. Drawing only proceeds once a DN has been chosen there.
+            PipePlanDEState state = PipePlanDERuntime.StateFor(document);
+            PipePlanDERuntime.SizePalette.RebindTo(state);
+            PipePlanDERuntime.SizePalette.Show();
+
             ExecuteDrawDE(document);
         }
         catch (System.Exception exception)
@@ -87,10 +92,8 @@ public partial class Intersect
 
         if (state.ActiveDn is not int dn)
         {
-            ReportDE(editor, "Vælg en dimension i PDSETTINGS-paletten først.");
-            PipePlanDERuntime.Palette.RebindTo(state);
-            PipePlanDERuntime.Palette.Show();
-            PipePlanDERuntime.Palette.SetStatus("Vælg en dimension for at tegne.", PipePlanStatusKind.Warning);
+            ReportDE(editor, "Vælg en dimension i Tegn-vinduet og kør PDDRAW igen.");
+            PipePlanDERuntime.SizePalette.SetStatus("Vælg en dimension for at tegne.", PipePlanStatusKind.Warning);
             return;
         }
 
@@ -112,7 +115,7 @@ public partial class Intersect
             return;
         }
 
-        BakeDE(document, dn, parameters, points, flip);
+        BakeDE(document, dn, parameters, points, flip, state.ActiveDepth);
     }
 
     private static bool TryCollectCenterline(Document document, int dn, PipePlanDEParameters parameters, out List<Point3d> points, out bool flip)
@@ -183,7 +186,7 @@ public partial class Intersect
         }
     }
 
-    private static void BakeDE(Document document, int dn, PipePlanDEParameters parameters, IReadOnlyList<Point3d> points, bool flip)
+    private static void BakeDE(Document document, int dn, PipePlanDEParameters parameters, IReadOnlyList<Point3d> points, bool flip, PipePlanDETrenchDepth depth)
     {
         Editor editor = document.Editor;
 
@@ -191,7 +194,7 @@ public partial class Intersect
         using Transaction transaction = document.Database.TransactionManager.StartTransaction();
         try
         {
-            if (!PipePlanDEPolylineWriter.TryWrite(document.Database, transaction, points, dn, parameters, flip, out string writeError))
+            if (!PipePlanDEPolylineWriter.TryWrite(document.Database, transaction, points, dn, parameters, flip, depth, out string writeError))
             {
                 transaction.Abort();
                 ReportDE(editor, $"Kunne ikke tegne: {writeError}");
@@ -253,8 +256,13 @@ public partial class Intersect
 
             List<Point3d> axisPoints = ReadAxisVertices(polyline);
 
-            // parameters[8] = B (Regelgrabenbreite), the total trench width.
-            if (!PipePlanDETrenchWriter.TryWrite(document.Database, transaction, axisPoints, parameters[8], out string writeError))
+            // Depth (baked at PDDRAW time) picks the Regelgrabenbreite: ≤ 1.3 m → B,
+            // > 1.3 m → the wider B1.
+            bool deep = data.Depth == PipePlanDETrenchDepth.Deep;
+            double trenchWidth = deep ? parameters.B1 : parameters.B;
+            string widthLabel = deep ? "B1" : "B";
+
+            if (!PipePlanDETrenchWriter.TryWrite(document.Database, transaction, axisPoints, trenchWidth, out string writeError))
             {
                 transaction.Abort();
                 ReportDE(editor, $"Kunne ikke tegne grav: {writeError}");
@@ -264,7 +272,7 @@ public partial class Intersect
             transaction.Commit();
             // A freshly created hatch often doesn't display its fill until a regen.
             editor.Regen();
-            ReportDE(editor, $"Grav tegnet for DN {data.Dn} (B={parameters[8]:0.##} m) på laget {PipePlanDETrenchWriter.TrenchLayer}.");
+            ReportDE(editor, $"Grav tegnet for DN {data.Dn} ({widthLabel}={trenchWidth:0.##} m, dybde {(deep ? "> 1,3 m" : "≤ 1,3 m")}) på laget {PipePlanDETrenchWriter.TrenchLayer}.");
         }
         catch
         {
