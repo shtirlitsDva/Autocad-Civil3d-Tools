@@ -34,6 +34,10 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol
                     return new ElLuft();
                 case "Enercity Tele":
                     return new EnercityTele();
+                case "Enercity Roer":
+                    return new EnercityRoer();
+                case "Enercity Kanal":
+                    return new EnercityKanal();
                 default:
                     throw new Exception("Unknown symbol name (Block): " + blockName);
             }
