@@ -29,26 +29,35 @@ internal static class PipePlanDEParameterStore
         return PipePlanDEStandardTable.DefaultFor(dn);
     }
 
-    public static void Set(Database db, int dn, PipePlanDEParameters parameters)
+    /// <summary>Persists every (DN, parameters) override in a single transaction.</summary>
+    public static void SetMany(Database db, IReadOnlyCollection<(int Dn, PipePlanDEParameters Parameters)> items)
     {
+        if (items.Count == 0)
+        {
+            return;
+        }
+
         using Transaction tx = db.TransactionManager.StartTransaction();
         try
         {
             DBDictionary nod = (DBDictionary)tx.GetObject(db.NamedObjectsDictionaryId, OpenMode.ForRead);
             DBDictionary store = GetOrCreateDictionary(nod, tx);
-            string key = MakeKey(dn);
-            ResultBuffer payload = Serialize(parameters);
 
-            if (store.Contains(key))
+            foreach ((int dn, PipePlanDEParameters parameters) in items)
             {
-                Xrecord existing = (Xrecord)tx.GetObject(store.GetAt(key), OpenMode.ForWrite);
-                existing.Data = payload;
-            }
-            else
-            {
-                Xrecord record = new() { Data = payload };
-                store.SetAt(key, record);
-                tx.AddNewlyCreatedDBObject(record, add: true);
+                string key = MakeKey(dn);
+                ResultBuffer payload = Serialize(parameters);
+                if (store.Contains(key))
+                {
+                    Xrecord existing = (Xrecord)tx.GetObject(store.GetAt(key), OpenMode.ForWrite);
+                    existing.Data = payload;
+                }
+                else
+                {
+                    Xrecord record = new() { Data = payload };
+                    store.SetAt(key, record);
+                    tx.AddNewlyCreatedDBObject(record, add: true);
+                }
             }
 
             tx.Commit();
@@ -60,25 +69,20 @@ internal static class PipePlanDEParameterStore
         }
     }
 
-    public static void ResetToDefault(Database db, int dn)
+    /// <summary>Removes every override (resetting all DNs to the standard table) in one
+    /// transaction by erasing the whole overrides dictionary.</summary>
+    public static void ResetAll(Database db)
     {
         using Transaction tx = db.TransactionManager.StartTransaction();
         try
         {
             DBDictionary nod = (DBDictionary)tx.GetObject(db.NamedObjectsDictionaryId, OpenMode.ForRead);
-            if (!nod.Contains(NodDictionaryName))
+            if (nod.Contains(NodDictionaryName))
             {
-                tx.Commit();
-                return;
-            }
-
-            DBDictionary store = (DBDictionary)tx.GetObject(nod.GetAt(NodDictionaryName), OpenMode.ForWrite);
-            string key = MakeKey(dn);
-            if (store.Contains(key))
-            {
-                DBObject child = tx.GetObject(store.GetAt(key), OpenMode.ForWrite);
-                store.Remove(key);
-                child.Erase();
+                nod.UpgradeOpen();
+                DBObject store = tx.GetObject(nod.GetAt(NodDictionaryName), OpenMode.ForWrite);
+                nod.Remove(NodDictionaryName);
+                store.Erase();
             }
 
             tx.Commit();

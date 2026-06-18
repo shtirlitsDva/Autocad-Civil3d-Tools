@@ -1,6 +1,5 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
 using IntersectUtilities.MPE.PipePlan;
 
 namespace IntersectUtilities.MPE.PipePlanDE.ViewModels;
@@ -11,7 +10,7 @@ namespace IntersectUtilities.MPE.PipePlanDE.ViewModels;
 /// <see cref="PipePlanDEState.ActiveDn"/>, which PDDRAW reads. The palette is
 /// modeless and stays open across draws.
 /// </summary>
-internal sealed partial class PipePlanDESizeViewModel : ObservableObject
+internal sealed partial class PipePlanDESizeViewModel : PipePlanDEStatusViewModel
 {
     // Nullable because the palette is constructed up front (process-wide) and may
     // briefly exist before the first DocumentActivated rebind.
@@ -20,6 +19,7 @@ internal sealed partial class PipePlanDESizeViewModel : ObservableObject
 
     public PipePlanDESizeViewModel()
     {
+        Status = "Vælg en dimension og kør PDDRAW.";
         foreach (int dn in PipePlanDEStandardTable.SelectableDns)
         {
             Dns.Add(new PipePlanDEDnVm(dn, $"DN {dn}"));
@@ -35,17 +35,13 @@ internal sealed partial class PipePlanDESizeViewModel : ObservableObject
     [ObservableProperty]
     private bool _isDeep;
 
-    [ObservableProperty]
-    private string _status = "Vælg en dimension og kør PDDRAW.";
-
-    [ObservableProperty]
-    private string _statusColor = "#A0AEC0";
-
     public void Rebind(PipePlanDEState state)
     {
         _state = state;
         RestoreSelectionFromState();
     }
+
+    public override void Reload() => RestoreSelectionFromState();
 
     partial void OnIsDeepChanged(bool value)
     {
@@ -61,22 +57,6 @@ internal sealed partial class PipePlanDESizeViewModel : ObservableObject
                 PipePlanStatusKind.Info);
         }
     }
-
-    public void SetStatus(string message, PipePlanStatusKind kind)
-    {
-        Status = message;
-        StatusColor = kind switch
-        {
-            PipePlanStatusKind.Ok => "#48BB78",
-            PipePlanStatusKind.Snap => "#63B3ED",
-            PipePlanStatusKind.Warning => "#ED8936",
-            PipePlanStatusKind.Error => "#E53E3E",
-            _ => "#A0AEC0"
-        };
-    }
-
-    [RelayCommand]
-    public void Reload() => RestoreSelectionFromState();
 
     partial void OnSelectedDnChanged(PipePlanDEDnVm? value)
     {

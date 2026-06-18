@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Globalization;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
@@ -15,36 +16,19 @@ namespace IntersectUtilities.MPE.PipePlanDE.ViewModels;
 /// <see cref="PipePlanDEState"/>). Edits are persisted to the active drawing via
 /// <see cref="PipePlanDEParameterStore"/>.
 /// </summary>
-internal sealed partial class PipePlanDESettingsViewModel : ObservableObject
+internal sealed partial class PipePlanDESettingsViewModel : PipePlanDEStatusViewModel
 {
+    public PipePlanDESettingsViewModel()
+    {
+        Status = "Rediger parametre og gem.";
+    }
+
     /// <summary>One editable row per parameter table band (all DNs, all columns).</summary>
     public ObservableCollection<PipePlanDEParamRowVm> Rows { get; } = new();
 
     public IReadOnlyList<string> ColumnLabels { get; } = PipePlanDEParameters.DisplayLabels;
 
-    [ObservableProperty]
-    private string _status = "Rediger parametre og gem.";
-
-    [ObservableProperty]
-    private string _statusColor = "#A0AEC0";
-
-    public void Rebind() => LoadRows();
-
-    public void SetStatus(string message, PipePlanStatusKind kind)
-    {
-        Status = message;
-        StatusColor = kind switch
-        {
-            PipePlanStatusKind.Ok => "#48BB78",
-            PipePlanStatusKind.Snap => "#63B3ED",
-            PipePlanStatusKind.Warning => "#ED8936",
-            PipePlanStatusKind.Error => "#E53E3E",
-            _ => "#A0AEC0"
-        };
-    }
-
-    [RelayCommand]
-    public void Reload() => LoadRows();
+    public override void Reload() => LoadRows();
 
     [RelayCommand]
     public void Save()
@@ -61,35 +45,37 @@ internal sealed partial class PipePlanDESettingsViewModel : ObservableObject
         }
 
         Database db = doc.Database;
-        int saved = 0;
         int failed = 0;
         string? firstError = null;
+        List<(int Dn, PipePlanDEParameters Parameters)> toSave = new();
+        foreach (PipePlanDEParamRowVm row in Rows)
+        {
+            if (!row.HasEdits)
+            {
+                continue;
+            }
+
+            if (!row.TryBuildParameters(out PipePlanDEParameters? parameters) || parameters is null)
+            {
+                failed++;
+                firstError ??= $"DN {row.Dn}: ugyldigt tal.";
+                continue;
+            }
+
+            if (!parameters.TryValidate(out string validationError))
+            {
+                failed++;
+                firstError ??= $"DN {row.Dn}: {validationError}";
+                continue;
+            }
+
+            toSave.Add((row.Dn, parameters));
+        }
+
+        int saved = toSave.Count;
         using (doc.LockDocument())
         {
-            foreach (PipePlanDEParamRowVm row in Rows)
-            {
-                if (!row.HasEdits)
-                {
-                    continue;
-                }
-
-                if (!row.TryBuildParameters(out PipePlanDEParameters? parameters) || parameters is null)
-                {
-                    failed++;
-                    firstError ??= $"DN {row.Dn}: ugyldigt tal.";
-                    continue;
-                }
-
-                if (!parameters.TryValidate(out string validationError))
-                {
-                    failed++;
-                    firstError ??= $"DN {row.Dn}: {validationError}";
-                    continue;
-                }
-
-                PipePlanDEParameterStore.Set(db, row.Dn, parameters);
-                saved++;
-            }
+            PipePlanDEParameterStore.SetMany(db, toSave);
         }
 
         // Only refresh from the store when everything saved cleanly. On any failure we
@@ -119,10 +105,7 @@ internal sealed partial class PipePlanDESettingsViewModel : ObservableObject
         Database db = doc.Database;
         using (doc.LockDocument())
         {
-            foreach (PipePlanDEStandardRow row in PipePlanDEStandardTable.Rows)
-            {
-                PipePlanDEParameterStore.ResetToDefault(db, row.Dn);
-            }
+            PipePlanDEParameterStore.ResetAll(db);
         }
 
         LoadRows();
@@ -189,18 +172,21 @@ internal sealed class PipePlanDEParamRowVm
         Cells.Add(_bigB1);
 
         // b and b1 are pure sums of the spacing inputs — recompute live as they change.
-        foreach (PipePlanDEParamCellVm cell in new[] { _z13, _d, _x, _z24 })
-        {
-            cell.PropertyChanged += (_, args) =>
-            {
-                if (args.PropertyName == nameof(PipePlanDEParamCellVm.ValueText))
-                {
-                    Recompute();
-                }
-            };
-        }
+        // One shared handler (method group, captures only `this`) on each input cell.
+        _z13.PropertyChanged += OnInputChanged;
+        _d.PropertyChanged += OnInputChanged;
+        _x.PropertyChanged += OnInputChanged;
+        _z24.PropertyChanged += OnInputChanged;
 
         Recompute();
+    }
+
+    private void OnInputChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(PipePlanDEParamCellVm.ValueText))
+        {
+            Recompute();
+        }
     }
 
     public int Dn { get; }
@@ -239,7 +225,7 @@ internal sealed class PipePlanDEParamRowVm
         if (TryParse(_z13, out double z13) && TryParse(_d, out double d)
             && TryParse(_x, out double x) && TryParse(_z24, out double z24))
         {
-            double b = z13 + (2.0 * d) + x + z24;
+            double b = PipePlanDEParameters.ComputeBandWidth(z13, d, x, z24);
             _bComputed.SetComputed(b);
             _b1Computed.SetComputed(b);
         }

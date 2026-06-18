@@ -1,6 +1,4 @@
-using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Markup;
 using System.Windows.Media.Imaging;
 using IntersectUtilities.MPE.PipePlanDE.ViewModels;
 
@@ -10,21 +8,12 @@ internal partial class PipePlanDESettingsView : UserControl
 {
     public PipePlanDESettingsView(PipePlanDESettingsViewModel viewModel)
     {
-        // Reuse the PipePlan dark theme (embedded in this same assembly). Resources
-        // must be assigned before InitializeComponent so the StaticResource lookups
-        // in the XAML resolve.
-        Resources = LoadTheme();
+        // Resources must be assigned before InitializeComponent so the StaticResource
+        // lookups in the XAML resolve.
+        Resources = PipePlanDETheme.LoadDarkTheme();
         InitializeComponent();
         DataContext = viewModel;
         DiagramImage.Source = LoadDiagram();
-    }
-
-    private static ResourceDictionary LoadTheme()
-    {
-        var asm = typeof(PipePlanDESettingsView).Assembly;
-        using var stream = asm.GetManifestResourceStream("IntersectUtilities.MPE.PipePlan.DarkTheme.xaml")
-            ?? throw new InvalidOperationException("Embedded DarkTheme.xaml not found");
-        return (ResourceDictionary)XamlReader.Load(stream);
     }
 
     // The Regel-Grabenprofil diagram is an embedded PNG (a plugin DLL has no
