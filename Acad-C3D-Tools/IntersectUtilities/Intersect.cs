@@ -76,11 +76,32 @@ namespace IntersectUtilities
         }
         public void Terminate()
         {
-            // Unsubscribe DocumentManager handlers and dispose per-document
-            // PipePlan state so events don't fire into a no-longer-loaded module
-            // after the plugin is unloaded.
-            IntersectUtilities.MPE.PipePlan.PipePlanRuntime.Reset();
-            IntersectUtilities.MPE.PipePlanDE.PipePlanDERuntime.Reset();
+            // Dispose every process-wide palette / per-document state on unload so nothing
+            // survives an unload→reload cycle (stale palettes, leaked handles, DocumentManager
+            // handlers firing into a no-longer-loaded module). Each reset is guarded so one
+            // failure can't abort the rest of teardown.
+            SafeReset("PipePlan state", IntersectUtilities.MPE.PipePlan.PipePlanRuntime.Reset);
+            SafeReset("PipePlanDE palettes", IntersectUtilities.MPE.PipePlanDE.PipePlanDERuntime.Reset);
+            SafeReset("NSCMD palette", IntersectUtilities.CmdUI.UI.NsCmdPaletteSet.Reset);
+            SafeReset("VejkantOffset palette", IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.UI.Views.OffsetPaletteViewModelVisualizer.Reset);
+            SafeReset("LERCompareTerrain palette", LERCompareTerrainPaletteHost.Reset);
+            SafeReset("LERConnectNetwork palette", IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork.LERConnectNetworkRuntime.Reset);
+            SafeReset("LerAnalyseNetwork palette", IntersectUtilities.MPE.Ler3DNetwork.LerAnalyseNetwork.LerAnalyseNetworkRuntime.Reset);
+            SafeReset("Properties palette", Dreambuild.AutoCAD.Gui.ResetPropertyPalette);
+        }
+
+        // Runs a teardown action, swallowing and logging any exception so a single failing
+        // disposal cannot abort the rest of Terminate().
+        private static void SafeReset(string what, System.Action reset)
+        {
+            try
+            {
+                reset();
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg($"Warning: failed to dispose {what} on terminate: {ex.Message}");
+            }
         }
         #endregion
         private static CultureInfo danishCulture = new CultureInfo("da-DK");

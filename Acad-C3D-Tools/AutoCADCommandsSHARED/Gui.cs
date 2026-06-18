@@ -299,5 +299,21 @@ namespace Dreambuild.AutoCAD
             }
             propertyGrid.SelectedObject = obj;
         }
+
+        /// <summary>
+        /// Disposes the shared Properties palette and its grid. Intended to be called from the
+        /// host plugin's IExtensionApplication.Terminate() so the palette (and its WinForms grid)
+        /// does not survive an unload/reload cycle.
+        /// </summary>
+        public static void ResetPropertyPalette()
+        {
+            try
+            {
+                propertyPalette.Visible = false;
+                propertyPalette.Dispose();
+            }
+            catch { }
+            try { propertyGrid.Dispose(); } catch { }
+        }
     }
 }

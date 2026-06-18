@@ -97,7 +97,22 @@ namespace NSLOAD
                 $"{_config.Plugins.Count} user plugins ({userLoaded} auto-loaded).");
         }
 
-        public void Terminate() => PluginManager.UnloadAll();
+        public void Terminate()
+        {
+            PluginManager.UnloadAll();
+
+            // Dispose the cached management palette so it doesn't survive an unload/reload cycle.
+            if (_mgmtPalette != null)
+            {
+                try
+                {
+                    _mgmtPalette.Visible = false;
+                    _mgmtPalette.Dispose();
+                }
+                catch { }
+                _mgmtPalette = null;
+            }
+        }
 
         public static void NsLoadCommand()
         {

@@ -99,6 +99,23 @@ namespace IntersectUtilities
             _control!.AttachDocument(document);
             _palette.Visible = true;
         }
+
+        // Disposes the cached palette on plugin unload (called from IExtensionApplication.Terminate)
+        // so it doesn't survive an unload/reload cycle.
+        public static void Reset()
+        {
+            if (_palette != null)
+            {
+                try
+                {
+                    _palette.Visible = false;
+                    _palette.Dispose();
+                }
+                catch { }
+                _palette = null;
+            }
+            _control = null;
+        }
     }
 
     internal sealed class LERCompareTerrainControl : UserControl

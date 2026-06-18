@@ -53,6 +53,17 @@ namespace SheetCreationAutomation
 
         public void Terminate()
         {
+            // Dispose the cached palette so it doesn't survive an unload/reload cycle.
+            if (_paletteSet != null)
+            {
+                try
+                {
+                    _paletteSet.Visible = false;
+                    _paletteSet.Dispose();
+                }
+                catch { }
+                _paletteSet = null;
+            }
         }
         #endregion
 

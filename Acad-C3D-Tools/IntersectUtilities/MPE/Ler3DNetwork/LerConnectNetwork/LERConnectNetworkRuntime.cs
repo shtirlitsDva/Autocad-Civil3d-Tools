@@ -30,5 +30,15 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork
         {
             _palette?.SetStatus(message, kind);
         }
+
+        // Called from IExtensionApplication.Terminate so the palette and current state are
+        // disposed on unload and don't survive an unload/reload cycle.
+        internal static void Reset()
+        {
+            _state?.Dispose();
+            _state = null;
+            _palette?.Dispose();
+            _palette = null;
+        }
     }
 }

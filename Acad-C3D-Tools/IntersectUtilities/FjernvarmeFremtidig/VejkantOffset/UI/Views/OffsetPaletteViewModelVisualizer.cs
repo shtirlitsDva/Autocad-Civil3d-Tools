@@ -123,6 +123,24 @@ namespace IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.UI.Views
 				//IntersectUtilities.UtilsCommon.Utils.prdDbg("[Palette] Hide()");
 			}
 		}
+
+		// Disposes the cached palette on plugin unload (called from IExtensionApplication.Terminate)
+		// so it doesn't survive an unload/reload cycle.
+		internal static void Reset()
+		{
+			if (_palette != null)
+			{
+				try
+				{
+					_palette.Visible = false;
+					_palette.Dispose();
+				}
+				catch { }
+				_palette = null;
+			}
+			_view = null;
+			_cachedVm = null;
+		}
 	}
 }
 

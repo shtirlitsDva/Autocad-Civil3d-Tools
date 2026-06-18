@@ -7,7 +7,7 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork
 {
     // Single app-scoped palette hosting the WPF view. The view model is created
     // once and rebound to the active document's state on each command run.
-    internal sealed class LERConnectNetworkPalette
+    internal sealed class LERConnectNetworkPalette : IDisposable
     {
         private static readonly Guid PaletteGuid = new("B6F2A4D1-3C8E-4A57-9E2D-7F1C0A9B8E64");
 
@@ -52,6 +52,13 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork
             {
                 _viewModel.OnPaletteHidden();
             }
+        }
+
+        public void Dispose()
+        {
+            _paletteSet.StateChanged -= OnStateChanged;
+            _paletteSet.Visible = false;
+            _paletteSet.Dispose();
         }
     }
 }
