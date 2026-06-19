@@ -32,8 +32,8 @@ namespace IntersectUtilities.GraphWriteV2.Theming.UI
 
         private LabelStyle _style;
         private SegmentMode _tileMode;
-        private bool _showSeries, _chipFilled, _chipBefore, _rounded;
-        private string _idFont, _bodyFont;
+        private bool _showSeries, _serieFilled, _serieBefore;
+        private string _idFont;
         private int _padding;
 
         private ImageSource? _previewImage;
@@ -48,12 +48,10 @@ namespace IntersectUtilities.GraphWriteV2.Theming.UI
             _style = theme.Style;
             _tileMode = theme.TileMode;
             _showSeries = theme.Series.Show;
-            _chipFilled = theme.Series.Fill == ChipFill.Filled;
-            _chipBefore = theme.Series.Pos == ChipPos.Before;
+            _serieFilled = theme.Series.Fill == SerieFill.Filled;
+            _serieBefore = theme.Series.Pos == SeriePos.Before;
             _idFont = theme.Fonts.Id;
-            _bodyFont = theme.Fonts.Body;
             _padding = theme.Padding;
-            _rounded = theme.Rounded;
             _preset = DetectPreset(_colors);
             _lastPreset = _preset ?? PalettePreset.Cyan;
 
@@ -61,7 +59,6 @@ namespace IntersectUtilities.GraphWriteV2.Theming.UI
             SelectTileModeCommand = new RelayCommand<SegmentMode>(m => TileMode = m);
             SelectPresetCommand = new RelayCommand<PalettePreset>(ApplyPreset);
             ToggleSeriesCommand = new RelayCommand(() => ShowSeries = !ShowSeries);
-            ToggleRoundedCommand = new RelayCommand(() => Rounded = !Rounded);
             ResetCommand = new RelayCommand(() => ApplyPreset(_lastPreset));
             CopyDotCommand = new RelayCommand(CopyDot);
 
@@ -76,7 +73,6 @@ namespace IntersectUtilities.GraphWriteV2.Theming.UI
         public RelayCommand<SegmentMode> SelectTileModeCommand { get; }
         public RelayCommand<PalettePreset> SelectPresetCommand { get; }
         public RelayCommand ToggleSeriesCommand { get; }
-        public RelayCommand ToggleRoundedCommand { get; }
         public RelayCommand ResetCommand { get; }
         public RelayCommand CopyDotCommand { get; }
 
@@ -100,21 +96,10 @@ namespace IntersectUtilities.GraphWriteV2.Theming.UI
             set { if (SetProperty(ref _padding, value)) ScheduleRefresh(); }
         }
 
-        public bool Rounded
-        {
-            get => _rounded;
-            set { if (SetProperty(ref _rounded, value)) ScheduleRefresh(); }
-        }
-
         public string IdFont
         {
             get => _idFont;
             set { if (SetProperty(ref _idFont, value)) ScheduleRefresh(); }
-        }
-        public string BodyFont
-        {
-            get => _bodyFont;
-            set { if (SetProperty(ref _bodyFont, value)) ScheduleRefresh(); }
         }
 
         // ---------- series ----------
@@ -123,15 +108,15 @@ namespace IntersectUtilities.GraphWriteV2.Theming.UI
             get => _showSeries;
             set { if (SetProperty(ref _showSeries, value)) ScheduleRefresh(); }
         }
-        public bool ChipFilled
+        public bool SerieFilled
         {
-            get => _chipFilled;
-            set { if (SetProperty(ref _chipFilled, value)) ScheduleRefresh(); }
+            get => _serieFilled;
+            set { if (SetProperty(ref _serieFilled, value)) ScheduleRefresh(); }
         }
-        public bool ChipBefore
+        public bool SerieBefore
         {
-            get => _chipBefore;
-            set { if (SetProperty(ref _chipBefore, value)) ScheduleRefresh(); }
+            get => _serieBefore;
+            set { if (SetProperty(ref _serieBefore, value)) ScheduleRefresh(); }
         }
 
         // ---------- palette ----------
@@ -149,9 +134,9 @@ namespace IntersectUtilities.GraphWriteV2.Theming.UI
         public string IdColor => _colors.Id;
         public string BodyColor => _colors.Body;
         public string Divider => _colors.Divider;
-        public string Series1 => _colors.Chip1;
-        public string Series2 => _colors.Chip2;
-        public string Series3 => _colors.Chip3;
+        public string Series1 => _colors.Serie1;
+        public string Series2 => _colors.Serie2;
+        public string Series3 => _colors.Serie3;
 
         /// <summary>Called from the window after a ColorDialog pick. key is the property name.</summary>
         public void SetColor(string key, string hex)
@@ -164,9 +149,9 @@ namespace IntersectUtilities.GraphWriteV2.Theming.UI
                 case nameof(IdColor): _colors.Id = hex; break;
                 case nameof(BodyColor): _colors.Body = hex; break;
                 case nameof(Divider): _colors.Divider = hex; break;
-                case nameof(Series1): _colors.Chip1 = hex; break;
-                case nameof(Series2): _colors.Chip2 = hex; break;
-                case nameof(Series3): _colors.Chip3 = hex; break;
+                case nameof(Series1): _colors.Serie1 = hex; break;
+                case nameof(Series2): _colors.Serie2 = hex; break;
+                case nameof(Series3): _colors.Serie3 = hex; break;
                 default: return;
             }
             OnPropertyChanged(key);
@@ -280,12 +265,11 @@ namespace IntersectUtilities.GraphWriteV2.Theming.UI
             Series = new SeriesStyle
             {
                 Show = _showSeries,
-                Fill = _chipFilled ? ChipFill.Filled : ChipFill.Outline,
-                Pos = _chipBefore ? ChipPos.Before : ChipPos.After,
+                Fill = _serieFilled ? SerieFill.Filled : SerieFill.Outline,
+                Pos = _serieBefore ? SeriePos.Before : SeriePos.After,
             },
-            Fonts = new FontSet { Id = _idFont, Body = _bodyFont },
+            Fonts = new FontSet { Id = _idFont },
             Padding = _padding,
-            Rounded = _rounded,
         };
 
         private static PalettePreset? DetectPreset(ThemeColors c)
@@ -299,7 +283,7 @@ namespace IntersectUtilities.GraphWriteV2.Theming.UI
             a.Background == b.Background && a.Fill1 == b.Fill1 && a.Fill2 == b.Fill2 &&
             a.FillLite1 == b.FillLite1 && a.FillLite2 == b.FillLite2 && a.Frame == b.Frame &&
             a.Divider == b.Divider && a.Id == b.Id && a.Type == b.Type && a.Body == b.Body &&
-            a.ChipText == b.ChipText && a.Chip1 == b.Chip1 && a.Chip2 == b.Chip2 && a.Chip3 == b.Chip3 &&
+            a.SerieText == b.SerieText && a.Serie1 == b.Serie1 && a.Serie2 == b.Serie2 && a.Serie3 == b.Serie3 &&
             a.TileA1 == b.TileA1 && a.TileA2 == b.TileA2 && a.Ink == b.Ink && a.IdInk == b.IdInk;
     }
 }

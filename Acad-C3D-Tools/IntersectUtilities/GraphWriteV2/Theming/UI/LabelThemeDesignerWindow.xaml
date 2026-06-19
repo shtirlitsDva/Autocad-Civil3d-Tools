@@ -427,11 +427,11 @@
                         <Grid Margin="0,0,0,11">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="9"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0">
-                                <TextBlock Text="CHIP" Foreground="#8a8a8a" FontSize="10" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                                <TextBlock Text="SERIE" Foreground="#8a8a8a" FontSize="10" FontWeight="SemiBold" Margin="0,0,0,5"/>
                                 <Border Background="#1f1f1f" CornerRadius="6" Padding="3">
                                     <UniformGrid Rows="1">
-                                        <RadioButton GroupName="chipfill" Style="{StaticResource Seg}" Content="Filled" IsChecked="{Binding ChipFilled}"/>
-                                        <RadioButton GroupName="chipfill" Style="{StaticResource Seg}" Content="Outline" IsChecked="{Binding ChipFilled, Converter={StaticResource Enum}, ConverterParameter=False}"/>
+                                        <RadioButton GroupName="seriefill" Style="{StaticResource Seg}" Content="Filled" IsChecked="{Binding SerieFilled}"/>
+                                        <RadioButton GroupName="seriefill" Style="{StaticResource Seg}" Content="Outline" IsChecked="{Binding SerieFilled, Converter={StaticResource Enum}, ConverterParameter=False}"/>
                                     </UniformGrid>
                                 </Border>
                             </StackPanel>
@@ -439,8 +439,8 @@
                                 <TextBlock Text="POSITION" Foreground="#8a8a8a" FontSize="10" FontWeight="SemiBold" Margin="0,0,0,5"/>
                                 <Border Background="#1f1f1f" CornerRadius="6" Padding="3">
                                     <UniformGrid Rows="1">
-                                        <RadioButton GroupName="chippos" Style="{StaticResource Seg}" Content="After" IsChecked="{Binding ChipBefore, Converter={StaticResource Enum}, ConverterParameter=False}"/>
-                                        <RadioButton GroupName="chippos" Style="{StaticResource Seg}" Content="Before" IsChecked="{Binding ChipBefore}"/>
+                                        <RadioButton GroupName="seriepos" Style="{StaticResource Seg}" Content="After" IsChecked="{Binding SerieBefore, Converter={StaticResource Enum}, ConverterParameter=False}"/>
+                                        <RadioButton GroupName="seriepos" Style="{StaticResource Seg}" Content="Before" IsChecked="{Binding SerieBefore}"/>
                                     </UniformGrid>
                                 </Border>
                             </StackPanel>
@@ -456,13 +456,9 @@
 
                         <!-- Typography -->
                         <TextBlock Text="TYPOGRAPHY" Style="{StaticResource SectionHeader}"/>
-                        <TextBlock Text="ID font (monospace)" Foreground="#9d9d9d" FontSize="11" Margin="0,0,0,5"/>
+                        <TextBlock Text="Font (monospace — used everywhere)" Foreground="#9d9d9d" FontSize="11" Margin="0,0,0,5"/>
                         <ComboBox Style="{StaticResource DarkCombo}" ItemContainerStyle="{StaticResource DarkComboItem}" SelectedValue="{Binding IdFont}" SelectedValuePath="Content">
                             <ComboBoxItem Content="Courier New"/><ComboBoxItem Content="Consolas"/><ComboBoxItem Content="Cascadia Mono"/><ComboBoxItem Content="Lucida Console"/>
-                        </ComboBox>
-                        <TextBlock Text="Body font" Foreground="#9d9d9d" FontSize="11" Margin="0,9,0,5"/>
-                        <ComboBox Style="{StaticResource DarkCombo}" ItemContainerStyle="{StaticResource DarkComboItem}" SelectedValue="{Binding BodyFont}" SelectedValuePath="Content">
-                            <ComboBoxItem Content="Helvetica"/><ComboBoxItem Content="Segoe UI"/><ComboBoxItem Content="Arial"/><ComboBoxItem Content="Verdana"/>
                         </ComboBox>
 
                         <!-- Layout -->
@@ -475,10 +471,6 @@
                         </DockPanel>
                         <Slider Style="{StaticResource DarkSlider}" Minimum="4" Maximum="14" Value="{Binding Padding}"
                                 IsSnapToTickEnabled="True" TickFrequency="1"/>
-                        <DockPanel Margin="0,14,0,0">
-                            <TextBlock Text="Rounded corners" Style="{StaticResource ColorLabel}"/>
-                            <CheckBox Style="{StaticResource Pill}" HorizontalAlignment="Right" IsChecked="{Binding Rounded}"/>
-                        </DockPanel>
                     </StackPanel>
                 </ScrollViewer>
             </Border>

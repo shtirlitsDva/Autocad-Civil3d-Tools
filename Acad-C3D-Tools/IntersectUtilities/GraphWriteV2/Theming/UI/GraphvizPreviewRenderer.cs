@@ -12,9 +12,14 @@ namespace IntersectUtilities.GraphWriteV2.Theming.UI
     /// via stdin as UTF-8 so Danish characters (Rør, Bøjning) survive, and the PNG is read back from
     /// stdout — no temp files, no file locks. Returns a frozen, cross-thread-safe BitmapImage, or
     /// null with a message on failure (so the caller can show "Graphviz not found" instead of crashing).
+    ///
+    /// <para>Rendered at <see cref="PreviewDpi"/> (2× the 96-dpi default). Graphviz stamps that dpi into
+    /// the PNG, and WPF honors it: the label keeps the same on-screen size but carries 2× the pixels, so
+    /// the preview reads crisp instead of blocky.</para>
     /// </summary>
     internal static class GraphvizPreviewRenderer
     {
+        private const int PreviewDpi = 192;
         private static readonly UTF8Encoding Utf8NoBom = new(false);
 
         public static BitmapImage? Render(string labelMarkup, out string? error)
@@ -29,7 +34,7 @@ namespace IntersectUtilities.GraphWriteV2.Theming.UI
                 var psi = new ProcessStartInfo
                 {
                     FileName = "dot",
-                    Arguments = "-Tpng",
+                    Arguments = $"-Tpng -Gdpi={PreviewDpi}",
                     RedirectStandardInput = true,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,

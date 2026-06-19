@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 using Autodesk.AutoCAD.DatabaseServices;
 
@@ -16,8 +17,10 @@ namespace IntersectUtilities.GraphWriteV2.DotStyling
     /// label fields and the Series number from a <see cref="GraphEntity"/> and hands them to the shared
     /// <see cref="LabelMarkupBuilder"/> (which the designer preview also uses). Two export-only steps the
     /// preview does not need:
-    ///   • Uniform width — <see cref="BeginGraph"/> measures the widest label in the graph and every
-    ///     label is stamped with that minimum width, so a cluster renders as equal-width boxes.
+    ///   • Uniform width — <see cref="BeginGraph"/> measures the widest label per alignment group (the
+    ///     same <c>Alignment</c> key the clusterer groups by) and every label in that group is stamped
+    ///     with its group's width, so each cluster box renders as equal-width boxes independently of the
+    ///     other clusters in the same connected component.
     ///   • Viewer color pre-compensation — the GRAPHWRITEV2 HTML viewer inverts the whole SVG; the label
     ///     colors are pre-inverted (<see cref="ViewerColorInvert"/>) so they show as the user picked them.
     ///
@@ -29,26 +32,43 @@ namespace IntersectUtilities.GraphWriteV2.DotStyling
     internal sealed class ThemedHtmlStyler : IDotStyler<GraphEntity>
     {
         private readonly LabelMarkupBuilder _markup;
-        private int _groupWidth;
+        private readonly Dictionary<string, (int textWidth, int typeWidth)> _widthByAlignment =
+            new(StringComparer.Ordinal);
 
         public ThemedHtmlStyler(LabelTheme theme) => _markup = new LabelMarkupBuilder(theme);
 
         public void BeginGraph(Graph<GraphEntity> graph)
         {
-            // Per-group uniform width: the widest label's natural width becomes the minimum for all.
-            int max = 0;
+            // Per-alignment uniform sizing, keyed by GraphEntity.Alignment — the same key the clusterer
+            // (clusterSelector = n => n.Alignment) groups by, so the sizing matches the cluster boxes.
+            // For each group take the max text-column width and the max type-column width independently;
+            // the builder folds those into a uniform box width (minWidth) and a uniform text-column width
+            // (textWidth) so every Series plaque lands on one vertical edge.
+            var maxLeft = new Dictionary<string, int>(StringComparer.Ordinal);
+            var maxRight = new Dictionary<string, int>(StringComparer.Ordinal);
+
             foreach (var node in graph.Dfs())
             {
-                var (id, type, desc, series) = Fields(node.Value);
-                max = Math.Max(max, _markup.EstimateWidthPts(id, type, desc, series));
+                var v = node.Value;
+                var (id, type, desc, series) = Fields(v);
+                string key = v.Alignment ?? string.Empty;
+
+                int left = _markup.EstimateLeftPts(id, desc, _markup.HasSerie(series));
+                int right = _markup.EstimateRightPts(type);
+                maxLeft[key] = maxLeft.TryGetValue(key, out int l) ? Math.Max(l, left) : left;
+                maxRight[key] = maxRight.TryGetValue(key, out int r) ? Math.Max(r, right) : right;
             }
-            _groupWidth = max;
+
+            _widthByAlignment.Clear();
+            foreach (var key in maxLeft.Keys)
+                _widthByAlignment[key] = _markup.GroupWidths(maxLeft[key], maxRight[key]);
         }
 
         public string BuildNodeLabel(GraphEntity value)
         {
             var (id, type, desc, series) = Fields(value);
-            string markup = _markup.Build(id, type, desc, series, _groupWidth);
+            var w = _widthByAlignment.TryGetValue(value.Alignment ?? string.Empty, out var gw) ? gw : (textWidth: 0, typeWidth: 0);
+            string markup = _markup.Build(id, type, desc, series, w.textWidth, w.typeWidth);
             markup = ViewerColorInvert.InvertMarkupColors(markup);
             return $"label=<{markup}>";
         }
