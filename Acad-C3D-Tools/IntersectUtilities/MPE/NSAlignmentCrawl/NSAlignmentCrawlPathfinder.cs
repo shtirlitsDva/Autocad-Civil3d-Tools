@@ -28,6 +28,28 @@ internal sealed class CrawlSession
         _startNode = startNode;
     }
 
+    /// <summary>The snapped start position on the network (the spliced start node), for the start marker.</summary>
+    public Point2d StartPosition => _net.Nodes[_startNode].Position;
+
+    /// <summary>
+    /// Snaps a pick to the nearest network feature and returns its position (the closest point on a
+    /// pipe, or a node position) without building a session. Used to make the start X follow the
+    /// cursor along the xref pipes/blocks before the start point is committed.
+    /// </summary>
+    public static bool TrySnapToNetwork(CrawlNetwork net, Point3d pick, out Point2d snapped)
+    {
+        snapped = default;
+        if (!TryResolveSnap(net, Flatten(pick), out SnapTarget snap))
+        {
+            return false;
+        }
+
+        snapped = snap.OnNode
+            ? net.Nodes[snap.NodeIndex].Position
+            : new Point2d(snap.OnCurve.X, snap.OnCurve.Y);
+        return true;
+    }
+
     /// <summary>Snaps the start to the nearest pipe, splices a start node, and runs Dijkstra.</summary>
     public static CrawlSession? Create(CrawlNetwork net, Point3d startPick, out string error)
     {

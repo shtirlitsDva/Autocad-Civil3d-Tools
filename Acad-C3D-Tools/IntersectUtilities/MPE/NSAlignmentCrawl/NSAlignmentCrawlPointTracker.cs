@@ -6,21 +6,26 @@ using Autodesk.AutoCAD.Geometry;
 namespace IntersectUtilities.MPE.NSAlignmentCrawl;
 
 /// <summary>
-/// Live preview driver: on every cursor tick during the end-point prompt it resolves the shortest
-/// crawl path from the fixed start to the cursor (snapped to the nearest pipe) and refreshes the
-/// transient preview. Uses the editor's PointMonitor, the same mechanism PDDRAW/PPDRAW use.
+/// Live preview driver: on every cursor tick during a waypoint prompt it asks the supplied builder
+/// for the candidate path (already-committed segments plus the shortest crawl from the current source
+/// to the cursor) and refreshes the transient preview. Uses the editor's PointMonitor, the same
+/// mechanism PDDRAW/PPDRAW use. The builder is a delegate so the command can keep mutating the
+/// committed prefix and current source as waypoints are added.
 /// </summary>
 internal sealed class NSAlignmentCrawlPointTracker : IDisposable
 {
     private readonly Document _document;
     private readonly NSAlignmentCrawlPreviewManager _preview;
-    private readonly CrawlSession _session;
+    private readonly Func<Point3d, List<(Point2d Pt, double OutBulge)>?> _build;
 
-    public NSAlignmentCrawlPointTracker(Document document, NSAlignmentCrawlPreviewManager preview, CrawlSession session)
+    public NSAlignmentCrawlPointTracker(
+        Document document,
+        NSAlignmentCrawlPreviewManager preview,
+        Func<Point3d, List<(Point2d Pt, double OutBulge)>?> build)
     {
         _document = document;
         _preview = preview;
-        _session = session;
+        _build = build;
         _document.Editor.PointMonitor += OnPointMonitor;
     }
 
@@ -31,7 +36,8 @@ internal sealed class NSAlignmentCrawlPointTracker : IDisposable
         try
         {
             Point3d raw = eventArgs.Context.ComputedPoint;
-            if (_session.TryBuildPath(raw, out List<(Point2d Pt, double OutBulge)> vertices))
+            List<(Point2d Pt, double OutBulge)>? vertices = _build(raw);
+            if (vertices is not null)
             {
                 Polyline? polyline = NSAlignmentCrawlPolylineBuilder.Build(vertices, NSAlignmentCrawlConstants.OutputLayer);
                 if (polyline is not null)
