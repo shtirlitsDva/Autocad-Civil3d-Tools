@@ -12,7 +12,10 @@
       "Bash(Select-String -Pattern \"ghost text\" -SimpleMatch)",
       "Read(//c/Users/mpe/GitHub/shtirlitsDva/Autocad-Civil3d-Tools/**)",
       "Bash(\"C:/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/MSBuild.exe\" \"Acad-C3D-Tools/IntersectUtilities/IntersectUtilities.csproj\" /p:Configuration=Debug /clp:ErrorsOnly\\\\;Summary /nologo)",
-      "PowerShell($src = \"C:\\\\Users\\\\mpe\\\\.claude\\\\image-cache\\\\117354e8-bed5-43fb-bee8-3f454252ddb0\\\\1.png\"; $dst = \"C:\\\\Users\\\\mpe\\\\Github\\\\shtirlitsDva\\\\Autocad-Civil3d-Tools\\\\Acad-C3D-Tools\\\\IntersectUtilities\\\\MPE\\\\PipePlanDE\\\\Views\\\\RegelGrabenprofil.png\"; if \\(Test-Path $src\\) { Copy-Item $src $dst; \"copied: $\\(\\(Get-Item $dst\\).Length\\) bytes\" } else { \"SOURCE MISSING\" })"
+      "PowerShell($src = \"C:\\\\Users\\\\mpe\\\\.claude\\\\image-cache\\\\117354e8-bed5-43fb-bee8-3f454252ddb0\\\\1.png\"; $dst = \"C:\\\\Users\\\\mpe\\\\Github\\\\shtirlitsDva\\\\Autocad-Civil3d-Tools\\\\Acad-C3D-Tools\\\\IntersectUtilities\\\\MPE\\\\PipePlanDE\\\\Views\\\\RegelGrabenprofil.png\"; if \\(Test-Path $src\\) { Copy-Item $src $dst; \"copied: $\\(\\(Get-Item $dst\\).Length\\) bytes\" } else { \"SOURCE MISSING\" })",
+      "PowerShell(& \"C:\\\\Program Files\\\\Microsoft Visual Studio\\\\18\\\\Community\\\\MSBuild\\\\Current\\\\Bin\\\\MSBuild.exe\" \"C:\\\\Users\\\\mpe\\\\Github\\\\shtirlitsDva\\\\Autocad-Civil3d-Tools\\\\Acad-C3D-Tools\\\\IntersectUtilities\\\\IntersectUtilities.csproj\" /p:Configuration=Debug /t:Build \"/clp:ErrorsOnly;Summary\" /m)",
+      "mcp__plugin_devreload_devreload__acad_activate_document",
+      "mcp__plugin_devreload_devreload__ui_canvas_capture_view"
     ]
   },
   "outputStyle": "Explanatory"

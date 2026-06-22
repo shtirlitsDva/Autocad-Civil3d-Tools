@@ -87,6 +87,7 @@ namespace IntersectUtilities
             SafeReset("LERCompareTerrain palette", LERCompareTerrainPaletteHost.Reset);
             SafeReset("LERConnectNetwork palette", IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork.LERConnectNetworkRuntime.Reset);
             SafeReset("LerAnalyseNetwork palette", IntersectUtilities.MPE.Ler3DNetwork.LerAnalyseNetwork.LerAnalyseNetworkRuntime.Reset);
+            SafeReset("Alignment direction overlay", ResetAlignmentDirectionOverlay);
             SafeReset("Properties palette", Dreambuild.AutoCAD.Gui.ResetPropertyPalette);
         }
 
