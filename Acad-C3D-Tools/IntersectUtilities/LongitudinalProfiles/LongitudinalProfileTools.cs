@@ -50,6 +50,7 @@ using Label = Autodesk.Civil.DatabaseServices.Label;
 using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
+using Npp = NorsynObjectsInterop.NorsynProjectionProfileLabel;
 
 namespace IntersectUtilities
 {
@@ -5116,6 +5117,283 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+
+        #region NDHPPLREPLACE — replace Civil ProfileProjectionLabels with NPPLs
+        // The de-cluttering placement of NPPLs (NorsynProjectionProfileLabel) lives
+        // here as user-driven "manipulation" code; the always-loaded machinery
+        // (object factories + live refresh) lives in the NorsynObjectsManaged runtime
+        // in the NorsynDrawingTools repo. This command reads Civil (which the native
+        // C++ cannot), builds an NPPL per ProfileProjectionLabel, spreads them so the
+        // text columns don't overlap and the leaders don't cross (NPPLPlacement), and
+        // attaches the per-object reactors so the runtime keeps them in sync.
+
+        // The label sits this far above the surface (top) profile at its station.
+        private const double NpplSurfaceClearance = 5.0;
+        private const double NpplDefaultTextSizeMm = 1.5;
+        // Readability gap added to the text-column thickness when spreading labels.
+        private const double NpplReadabilityGap = 0.2;
+
+        private static bool s_npplFactoriesReady;
+
+        // Inputs the placement pass needs for one created label (gathered while Civil
+        // is read in pass 1, consumed in the placement pass).
+        private readonly struct NpplPlaceInput
+        {
+            public readonly Oid NpplId;
+            public readonly Oid ViewId;
+            public readonly double P0x;          // projection x in the view (leader anchor)
+            public readonly double P0y;          // projection y (top of the leader)
+            public readonly double ShelfYCand;   // surface+clearance view-y (shelf candidate)
+            public readonly double TextLen;      // measured text length (column height)
+            public NpplPlaceInput(Oid npplId, Oid viewId, double p0x, double p0y, double shelfYCand, double textLen)
+            { NpplId = npplId; ViewId = viewId; P0x = p0x; P0y = p0y; ShelfYCand = shelfYCand; TextLen = textLen; }
+        }
+
+        /// <command>NDHPPLREPLACE</command>
+        /// <summary>
+        /// Replaces every Civil 3D ProfileProjectionLabel in model space with a
+        /// NorsynProjectionProfileLabel (NPPL), de-cluttered so the vertical text
+        /// columns don't overlap and the 4-point leaders don't cross.
+        /// </summary>
+        /// <category>Longitudinal Profiles</category>
+        [CommandMethod("NDHPPLREPLACE")]
+        public void ndhpplreplace() => NpplRun(eraseOriginals: true, limit: 0);
+
+        private static void NpplRun(bool eraseOriginals, int limit)
+        {
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+            if (doc == null) return;
+            Database db = doc.Database;
+            Editor ed = doc.Editor;
+            NpplEnsureFactories();
+
+            int total = 0, made = 0, failed = 0;
+            var created = new List<NpplPlaceInput>();
+            double modelHeight = NpplModelTextHeight(db);   // text column thickness (annotative)
+
+            // Pass 1: create the NPPLs (reads Civil; sources open ForRead, so reactors
+            // are NOT attached here). Each label is created with caches set but NOT yet
+            // placed — the placement pass below assigns the text position.
+            using (Transaction tr = db.TransactionManager.StartTransaction())
+            {
+                var ms = (BlockTableRecord)tr.GetObject(
+                    SymbolUtilityServices.GetBlockModelSpaceId(db), OpenMode.ForWrite);
+
+                var pplIds = new List<Oid>();
+                foreach (Oid id in ms)
+                    if (id.ObjectClass.Name == "AeccDbProfileProjectionLabel")
+                        pplIds.Add(id);
+                total = pplIds.Count;
+
+                foreach (Oid pid in pplIds)
+                {
+                    if (limit > 0 && made >= limit) break;
+                    try
+                    {
+                        NpplPlaceInput? item = NpplCreateFor(tr, ms, pid, modelHeight);
+                        if (item.HasValue)
+                        {
+                            made++; created.Add(item.Value);
+                            if (eraseOriginals)
+                                ((Entity)tr.GetObject(pid, OpenMode.ForWrite)).Erase();
+                        }
+                        else failed++;
+                    }
+                    catch (System.Exception ex)
+                    {
+                        failed++;
+                        ed.WriteMessage($"\n  {pid.Handle}: {ex.Message}");
+                    }
+                }
+                tr.Commit();
+            }
+
+            // Pass 1.5: de-clutter. Group by ProfileView and run the placement.
+            NpplPlaceAll(db, created, modelHeight);
+
+            // Pass 2: attach persistent reactors. The creation transaction has
+            // committed, so the CogoPoint / ProfileView are no longer open — the
+            // native ForWrite open inside AttachReactors no longer clashes. The
+            // NorsynObjectsManaged runtime drains these on idle to keep labels synced.
+            using (Transaction tr = db.TransactionManager.StartTransaction())
+            {
+                foreach (NpplPlaceInput it in created)
+                {
+                    try
+                    {
+                        if (tr.GetObject(it.NpplId, OpenMode.ForRead) is Npp np)
+                            np.AttachReactors();
+                    }
+                    catch { /* skip a label that won't attach */ }
+                }
+                tr.Commit();
+            }
+
+            ed.WriteMessage(
+                $"\nNDHPPL: total={total} created={made} failed={failed} " +
+                $"erased={(eraseOriginals ? made : 0)}\n");
+        }
+
+        // Build one NPPL from a Civil ProfileProjectionLabel. Sets the caches and a
+        // provisional (directly-above) text position; the real text position is
+        // assigned by the placement pass. Returns the placement inputs, or null if the
+        // label has no usable CogoPoint/ProfileView.
+        private static NpplPlaceInput? NpplCreateFor(Transaction tr, BlockTableRecord ms, Oid pplId,
+                                                     double modelHeight)
+        {
+            var ppl = (ProfileProjectionLabel)tr.GetObject(pplId, OpenMode.ForRead);
+            if (ppl.ProjectionSourceId.IsNull || ppl.ViewId.IsNull) return null;
+            if (ppl.ProjectionSourceId.ObjectClass.Name != "AeccDbCogoPoint") return null;
+
+            var cp = (CogoPoint)tr.GetObject(ppl.ProjectionSourceId, OpenMode.ForRead);
+            var pv = (ProfileView)tr.GetObject(ppl.ViewId, OpenMode.ForRead);
+            var al = (Alignment)tr.GetObject(pv.AlignmentId, OpenMode.ForRead);
+
+            // Projection location P0 = (station, point elevation) mapped to the view.
+            double sta = 0, off = 0;
+            al.StationOffset(cp.Location.X, cp.Location.Y, ref sta, ref off);
+            double px = 0, py = 0;
+            pv.FindXYAtStationAndElevation(sta, cp.Location.Z, ref px, ref py);
+            var p0 = new Point3d(px, py, 0);
+
+            // Shelf candidate: 5 m above the surface (top) profile at this station.
+            double surf = NpplSurfaceElevation(tr, al, sta);
+            double tx = px, ty = py + NpplSurfaceClearance;
+            if (!double.IsNaN(surf))
+                pv.FindXYAtStationAndElevation(sta, surf + NpplSurfaceClearance, ref tx, ref ty);
+
+            string desc = cp.RawDescription ?? string.Empty;
+
+            var nppl = new Npp
+            {
+                CogoPointId = ppl.ProjectionSourceId,
+                ProfileViewId = ppl.ViewId,
+                Description = desc,
+                ProjectionLocation = p0,
+                TextPosition = new Point3d(px, ty, 0),   // provisional; placed below
+                MiddleSegmentElevation = (py + ty) * 0.5,
+                TextSizeMm = NpplDefaultTextSizeMm,
+            };
+
+            var ent = (Entity)nppl;
+            ms.AppendEntity(ent);
+            tr.AddNewlyCreatedDBObject(ent, true);
+            ent.LayerId = ppl.LayerId;   // inherit layer from the projection
+            ent.Color = ppl.Color;       // inherit colour (ByLayer / explicit)
+            // children built by the placement pass (after the final text position)
+
+            return new NpplPlaceInput(ent.ObjectId, ppl.ViewId, px, py, ty, NpplMeasureTextWidth(desc, modelHeight));
+        }
+
+        // De-clutter every created label: group by ProfileView, then assign each label
+        // a text position so the columns don't overlap and the leaders don't cross.
+        private static void NpplPlaceAll(Database db, List<NpplPlaceInput> items, double modelHeight)
+        {
+            if (items.Count == 0) return;
+            double gap = modelHeight + NpplReadabilityGap;
+
+            var byView = new Dictionary<Oid, List<NpplPlaceInput>>();
+            foreach (NpplPlaceInput it in items)
+            {
+                if (!byView.TryGetValue(it.ViewId, out var list))
+                    byView[it.ViewId] = list = new List<NpplPlaceInput>();
+                list.Add(it);
+            }
+
+            using (Transaction tr = db.TransactionManager.StartTransaction())
+            {
+                foreach (var kv in byView)
+                {
+                    if (tr.GetObject(kv.Key, OpenMode.ForRead) is not ProfileView pv) continue;
+                    var bounds = ((Entity)pv).GeometricExtents;
+                    double lo = bounds.MinPoint.X + modelHeight;
+                    double hi = bounds.MaxPoint.X - modelHeight;
+
+                    // sort by projection x (== station order) -> non-crossing order
+                    var ordered = kv.Value.OrderBy(p => p.P0x).ToList();
+                    double[] targets = ordered.Select(p => p.P0x).ToArray();
+                    double shelf = ordered.Max(p => p.ShelfYCand);   // one shared text baseline
+                    double projTop = ordered.Max(p => p.P0y);        // top of the projection band
+
+                    NPPLPlacement.Slot[] slots = NPPLPlacement.Place(targets, gap, lo, hi, shelf, projTop);
+
+                    for (int i = 0; i < ordered.Count; i++)
+                    {
+                        if (tr.GetObject(ordered[i].NpplId, OpenMode.ForWrite) is not Npp np) continue;
+                        np.TextPosition = new Point3d(slots[i].X, shelf, 0);
+                        // straight leaders ignore the shoulder (P3x == P0x); give the
+                        // clustered ones their own ladder rung so each is traceable.
+                        np.MiddleSegmentElevation = slots[i].Straight
+                            ? (ordered[i].P0y + shelf) * 0.5
+                            : slots[i].GripY;
+                        np.RebuildChildren();
+                    }
+                }
+                tr.Commit();
+            }
+        }
+
+        // Annotative text column thickness = nominal mm * (DrawingUnits/PaperUnits).
+        private static double NpplModelTextHeight(Database db)
+        {
+            double mm = NpplDefaultTextSizeMm;
+            try
+            {
+                var cs = db.Cannoscale;
+                if (cs != null && cs.PaperUnits > 0)
+                    return mm * (cs.DrawingUnits / cs.PaperUnits);
+            }
+            catch { /* fall through to nominal */ }
+            return mm;
+        }
+
+        // Length of the description rendered at the model height (vertical extent of
+        // the rotated text column). Informational; the column thickness drives spacing.
+        private static double NpplMeasureTextWidth(string text, double height)
+        {
+            if (string.IsNullOrEmpty(text)) return 0.0;
+            try
+            {
+                using (var t = new DBText { TextString = text, Height = height, Position = Point3d.Origin })
+                {
+                    var e = t.GeometricExtents;
+                    return e.MaxPoint.X - e.MinPoint.X;
+                }
+            }
+            catch { return text.Length * height * 0.6; }
+        }
+
+        // The "surface" profile = the topmost profile at this station. Max elevation
+        // across the alignment's profiles; NaN if none is evaluable here.
+        private static double NpplSurfaceElevation(Transaction tr, Alignment al, double sta)
+        {
+            double best = double.NaN;
+            foreach (Oid pid in al.GetProfileIds())
+            {
+                try
+                {
+                    var prof = (Profile)tr.GetObject(pid, OpenMode.ForRead);
+                    double e = prof.ElevationAt(sta);
+                    if (double.IsNaN(best) || e > best) best = e;
+                }
+                catch { /* station outside this profile's range */ }
+            }
+            return best;
+        }
+
+        // Object factories aren't auto-registered when the interop is referenced (not
+        // NETLOADed), so register both explicitly (idempotent; needs the dbx loaded).
+        private static void NpplEnsureFactories()
+        {
+            if (s_npplFactoriesReady) return;
+            Editor ed = Application.DocumentManager.MdiActiveDocument?.Editor;
+            try { NorsynObjectsInterop.NorsynContainer.RegisterObjectFactory(); }
+            catch (System.Exception e) { ed?.WriteMessage("\nNorsynContainer factory: " + e.Message); }
+            try { Npp.RegisterObjectFactory(); }
+            catch (System.Exception e) { ed?.WriteMessage("\nNPPL factory: " + e.Message); }
+            s_npplFactoriesReady = true;
+        }
+        #endregion
 
         /// <command>SETLABELSLENGTH</command>
         /// <summary>
