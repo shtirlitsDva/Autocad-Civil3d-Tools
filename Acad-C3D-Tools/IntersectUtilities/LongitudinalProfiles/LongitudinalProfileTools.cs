@@ -5120,12 +5120,13 @@ namespace IntersectUtilities
 
         #region NDHPPLREPLACE — replace Civil ProfileProjectionLabels with NPPLs
         // The de-cluttering placement of NPPLs (NorsynProjectionProfileLabel) lives
-        // here as user-driven "manipulation" code; the always-loaded machinery
-        // (object factories + live refresh) lives in the NorsynObjectsManaged runtime
-        // in the NorsynDrawingTools repo. This command reads Civil (which the native
-        // C++ cannot), builds an NPPL per ProfileProjectionLabel, spreads them so the
-        // text columns don't overlap and the leaders don't cross (NPPLPlacement), and
-        // attaches the per-object reactors so the runtime keeps them in sync.
+        // here as user-driven "manipulation" code; the demand-loaded machinery
+        // (object factory + live refresh) lives in the standalone
+        // NorsynProjectionProfileLabelManaged runtime in the NorsynDrawingTools repo.
+        // This command reads Civil (which the native C++ cannot), builds an NPPL per
+        // ProfileProjectionLabel, and spreads them so the text columns don't overlap
+        // and the leaders don't cross (NPPLPlacement). The runtime then self-discovers
+        // the new labels and keeps them in sync — no reactor attach needed.
 
         // The label sits this far above the surface (top) profile at its station.
         private const double NpplSurfaceClearance = 5.0;
@@ -5171,9 +5172,8 @@ namespace IntersectUtilities
             var created = new List<NpplPlaceInput>();
             double modelHeight = NpplModelTextHeight(db);   // text column thickness (annotative)
 
-            // Pass 1: create the NPPLs (reads Civil; sources open ForRead, so reactors
-            // are NOT attached here). Each label is created with caches set but NOT yet
-            // placed — the placement pass below assigns the text position.
+            // Pass 1: create the NPPLs (reads Civil). Each label is created with caches
+            // set but NOT yet placed — the placement pass below assigns the text position.
             using (Transaction tr = db.TransactionManager.StartTransaction())
             {
                 var ms = (BlockTableRecord)tr.GetObject(
@@ -5211,23 +5211,11 @@ namespace IntersectUtilities
             // Pass 1.5: de-clutter. Group by ProfileView and run the placement.
             NpplPlaceAll(db, created, modelHeight);
 
-            // Pass 2: attach persistent reactors. The creation transaction has
-            // committed, so the CogoPoint / ProfileView are no longer open — the
-            // native ForWrite open inside AttachReactors no longer clashes. The
-            // NorsynObjectsManaged runtime drains these on idle to keep labels synced.
-            using (Transaction tr = db.TransactionManager.StartTransaction())
-            {
-                foreach (NpplPlaceInput it in created)
-                {
-                    try
-                    {
-                        if (tr.GetObject(it.NpplId, OpenMode.ForRead) is Npp np)
-                            np.AttachReactors();
-                    }
-                    catch { /* skip a label that won't attach */ }
-                }
-                tr.Commit();
-            }
+            // No reactor-attach pass: the standalone NorsynProjectionProfileLabelManaged
+            // runtime self-discovers the newly-appended NPPLs (SourceWatcher's
+            // ObjectAppended marks the source map stale) and keeps them in sync via the
+            // database channel. The old per-object AttachReactors path was removed when
+            // NPPL was split into its own vertical.
 
             ed.WriteMessage(
                 $"\nNDHPPL: total={total} created={made} failed={failed} " +

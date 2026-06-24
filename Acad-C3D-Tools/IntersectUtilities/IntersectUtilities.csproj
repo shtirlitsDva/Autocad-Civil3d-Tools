@@ -118,11 +118,19 @@
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\Map\ManagedMapApi.dll</HintPath>
 			<Private>False</Private>
 		</Reference>
-		<!-- NorsynProjectionProfileLabel (NPPL) managed wrapper, from NorsynDrawingTools.
-		     Compile-time only: the live instance is the one loaded in-process by the
-		     NorsynObjectsManaged runtime (registry demand-load). Never copy. -->
+		<!-- NPPL machinery from the NorsynDrawingTools repo, COMPILE-TIME ONLY
+		     (Private=False, never copied): the live instances are loaded in-process —
+		     NorsynObjectsInterop by the NorsynObjects package at startup, and
+		     NorsynProjectionProfileLabelInterop by the standalone NPPL dbx bootstrap.
+		     NorsynContainer (the base) lives in the former; the
+		     NorsynProjectionProfileLabel wrapper moved to the latter when NPPL was
+		     split into its own vertical. -->
 		<Reference Include="NorsynObjectsInterop">
 			<HintPath>..\..\..\..\DamgaardRI\NorsynDrawingTools\x64\Debug\NorsynObjectsInterop.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="NorsynProjectionProfileLabelInterop">
+			<HintPath>..\..\..\..\DamgaardRI\NorsynDrawingTools\x64\Debug\NorsynProjectionProfileLabelInterop.dll</HintPath>
 			<Private>False</Private>
 		</Reference>
 	</ItemGroup>
