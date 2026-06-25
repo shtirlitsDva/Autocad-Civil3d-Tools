@@ -72,8 +72,7 @@ internal static class ZoneRenderer
         mp.Transparency = new AcTransparency((byte)110);
         mp.Layer = ZoneLayer;
 
-        Envelope env = face.Polygon.EnvelopeInternal;
-        double h = Math.Max(Math.Min(env.Width, env.Height) / 12.0, 0.5);
+        double h = LabelHeight(face);
         var anchor = new Point3d(face.LabelPoint.X, face.LabelPoint.Y, 0);
         var up = new Vector3d(0, h * 0.85, 0);
 
@@ -84,6 +83,18 @@ internal static class ZoneRenderer
 
     public static string FormatTitle(ZoneFace face) =>
         string.IsNullOrWhiteSpace(face.Name) ? $"#{face.Number}" : $"#{face.Number}  {face.Name}";
+
+    /// <summary>
+    /// Label text height: the user's global <see cref="GlobalSettings.LabelHeight"/> when set,
+    /// otherwise auto — a fraction of the zone's smaller extent (floored). Shared by the live
+    /// render and the AutoCAD export so both honour the remembered size.
+    /// </summary>
+    public static double LabelHeight(ZoneFace face)
+    {
+        if (GlobalSettings.LabelHeight is double h && h > 0) return h;
+        Envelope env = face.Polygon.EnvelopeInternal;
+        return Math.Max(Math.Min(env.Width, env.Height) / 12.0, 0.5);
+    }
 
     private static MText MakeLabel(string text, double height, Point3d location) => new()
     {

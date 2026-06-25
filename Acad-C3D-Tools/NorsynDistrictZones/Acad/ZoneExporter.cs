@@ -39,8 +39,7 @@ internal static class ZoneExporter
                 DrawRing(ms, tx, face.Polygon.GetInteriorRingN(i), face.ColorArgb);
 
             string price = ZoneService.PriceFace(face, catalog, pipes, out _);
-            Envelope env = face.Polygon.EnvelopeInternal;
-            double h = Math.Max(Math.Min(env.Width, env.Height) / 12.0, 0.5);
+            double h = ZoneRenderer.LabelHeight(face); // honour the global text-size setting
             var anchor = new Point3d(face.LabelPoint.X, face.LabelPoint.Y, 0);
             var up = new Vector3d(0, h * 0.85, 0);
             AddText(ms, tx, ZoneRenderer.FormatTitle(face), h, anchor + up);

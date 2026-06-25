@@ -155,6 +155,41 @@ public sealed class NdzCommands
         catch (System.Exception ex) { doc.Editor.WriteMessage($"\nNDZRECALC failed:\n{ex}\n"); }
     }
 
+    /// <summary>
+    /// Set the zone-label text height, remembered globally for all drawings (enter 0 for
+    /// auto). Re-renders the current drawing's zones so the change shows immediately; the
+    /// AutoCAD export honours the same size.
+    /// </summary>
+    [CommandMethod("NDZTEXTSIZE")]
+    [CommandSummary("Set zone-label text height, remembered for all drawings (0 = auto).")]
+    public void NdzTextSize()
+    {
+        var doc = AcApp.DocumentManager.MdiActiveDocument;
+        if (doc is null) return;
+        Editor ed = doc.Editor;
+        try
+        {
+            double? cur = GlobalSettings.LabelHeight;
+            var pdo = new PromptDoubleOptions(
+                $"\nZone label text height (0 = auto) <{(cur is double c ? c.ToString("0.###") : "auto")}>: ")
+            {
+                AllowNegative = false,
+                AllowNone = true,            // Enter keeps the current value
+                UseDefaultValue = cur is double,
+                DefaultValue = cur ?? 0.0,
+            };
+            PromptDoubleResult r = ed.GetDouble(pdo);
+            if (r.Status != PromptStatus.OK) return;
+
+            GlobalSettings.LabelHeight = r.Value > 0 ? r.Value : (double?)null;
+            int n = ZoneService.RecomputeAll(doc.Database);
+            ed.WriteMessage(
+                $"\nLabel text height = {(r.Value > 0 ? r.Value.ToString("0.###") : "auto")} " +
+                $"(global); re-rendered {n} zone(s).\n");
+        }
+        catch (System.Exception ex) { ed.WriteMessage($"\nNDZTEXTSIZE failed:\n{ex}\n"); }
+    }
+
     /// <summary>Export every zone as plain AutoCAD geometry (polylines + labels) on layer NDZ-EXPORT.</summary>
     [CommandMethod("NDZEXPORTACAD")]
     [CommandSummary("Export zones as plain AutoCAD geometry on layer NDZ-EXPORT.")]
