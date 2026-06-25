@@ -3,17 +3,11 @@ using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
 
-using IntersectUtilities.UtilsCommon.Enums;
-
-using NetTopologySuite.Geometries;
-
 using NorsynDistrictZones.Acad;
-using NorsynDistrictZones.Model;
 using NorsynDistrictZones.Pricing;
 using NorsynDistrictZones.UI;
 
 using NhsPipeType = NorsynHydraulicCalc.PipeType;
-using NhsSegmentType = NorsynHydraulicCalc.SegmentType;
 using AcApp = Autodesk.AutoCAD.ApplicationServices.Application;
 using AcPolyline = Autodesk.AutoCAD.DatabaseServices.Polyline;
 using NsContainer = NorsynObjectsInterop.NorsynContainer;
@@ -30,6 +24,7 @@ public sealed class NdzCommands
     /// the automatic reactor (P8) will call the same ZoneService primitives.
     /// </summary>
     [CommandMethod("NDZZONE")]
+    [CommandSummary("Make a zone from a closed polyline (prices the Xref pipes inside).")]
     public void NdzZone()
     {
         var doc = AcApp.DocumentManager.MdiActiveDocument;
@@ -78,49 +73,9 @@ public sealed class NdzCommands
         }
     }
 
-    /// <summary>
-    /// No-prompt demo: render a sample 60×40 zone with one synthetic Stål DN50 pipe
-    /// crossing it (clipped length 60 m → priced). Used to validate the render path.
-    /// </summary>
-    [CommandMethod("NDZDEMO")]
-    public void NdzDemo()
-    {
-        var doc = AcApp.DocumentManager.MdiActiveDocument;
-        if (doc is null) return;
-        Database db = doc.Database;
-        Editor ed = doc.Editor;
-        try
-        {
-            using Transaction tx = db.TransactionManager.StartTransaction();
-            var gf = NetTopologySuite.NtsGeometryServices.Instance.CreateGeometryFactory();
-            var poly = gf.CreatePolygon(new[]
-            {
-                new Coordinate(0, 0), new Coordinate(60, 0),
-                new Coordinate(60, 40), new Coordinate(0, 40), new Coordinate(0, 0),
-            });
-            var pipeLine = gf.CreateLineString(new[] { new Coordinate(-10, 20), new Coordinate(70, 20) });
-            var pipes = new List<PipeSegment>
-            {
-                new(PipeSystemEnum.Stål, PipeTypeEnum.Enkelt, 50,
-                    NhsSegmentType.Fordelingsledning, true, pipeLine, pipeLine.Length),
-            };
-            var catalog = PipePriceCatalog.SeedFromDefaults();
-            var ms = (BlockTableRecord)tx.GetObject(
-                SymbolUtilityServices.GetBlockModelSpaceId(db), OpenMode.ForWrite);
-
-            var face = ZoneService.CreateAndRender(
-                db, tx, ms, poly, catalog, pipes, Guid.NewGuid, new Random());
-            tx.Commit();
-            ed.WriteMessage($"\nNDZDEMO created zone #{face.Number}.");
-        }
-        catch (System.Exception ex)
-        {
-            ed.WriteMessage($"\nNDZDEMO failed:\n{ex}\n");
-        }
-    }
-
     /// <summary>Open the standalone price editor; on OK, persist catalogs and recompute zones.</summary>
     [CommandMethod("NDZPRICES")]
+    [CommandSummary("Open the price-catalog editor; on save, recompute all zones.")]
     public void NdzPrices()
     {
         var doc = AcApp.DocumentManager.MdiActiveDocument;
@@ -145,6 +100,7 @@ public sealed class NdzCommands
 
     /// <summary>Rename a zone — pick it, type a name; the name shows above the price and persists.</summary>
     [CommandMethod("NDZRENAME")]
+    [CommandSummary("Rename a zone (name shows above the price and persists).")]
     public void NdzRename()
     {
         var doc = AcApp.DocumentManager.MdiActiveDocument;
@@ -186,6 +142,7 @@ public sealed class NdzCommands
 
     /// <summary>Re-price and re-render all zones (e.g. after re-exporting / reloading the Xref).</summary>
     [CommandMethod("NDZRECALC")]
+    [CommandSummary("Re-price and re-render all zones (after re-export / Xref reload).")]
     public void NdzRecalc()
     {
         var doc = AcApp.DocumentManager.MdiActiveDocument;
@@ -200,6 +157,7 @@ public sealed class NdzCommands
 
     /// <summary>Export every zone as plain AutoCAD geometry (polylines + labels) on layer NDZ-EXPORT.</summary>
     [CommandMethod("NDZEXPORTACAD")]
+    [CommandSummary("Export zones as plain AutoCAD geometry on layer NDZ-EXPORT.")]
     public void NdzExportAcad()
     {
         var doc = AcApp.DocumentManager.MdiActiveDocument;
@@ -220,6 +178,7 @@ public sealed class NdzCommands
 
     /// <summary>Export every zone to a GeoJSON file (polygons + number/name/price/area properties).</summary>
     [CommandMethod("NDZEXPORTGEOJSON")]
+    [CommandSummary("Export zones to a GeoJSON file (polygons + number/name/price/area).")]
     public void NdzExportGeoJson()
     {
         var doc = AcApp.DocumentManager.MdiActiveDocument;
@@ -250,6 +209,7 @@ public sealed class NdzCommands
 
     /// <summary>Self-test of the pure domain (translator + price catalog). No drawing data required.</summary>
     [CommandMethod("NDZSELFTEST")]
+    [CommandSummary("Self-test the pricing domain — translator + catalog (no drawing data).")]
     public void NdzSelfTest()
     {
         Editor? ed = AcApp.DocumentManager.MdiActiveDocument?.Editor;

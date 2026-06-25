@@ -61,14 +61,15 @@
 		     DevReload's shared-assembly loader (SharedAssemblies.Config.json) can
 		     LoadFrom it into the default ALC and share it with this plugin's ALC. -->
 		<Reference Include="NorsynObjectsInterop">
-			<HintPath>..\..\..\..\DamgaardRI\NorsynDrawingTools\x64\Debug\NorsynObjectsInterop.dll</HintPath>
+			<HintPath>X:\AutoCAD DRI - 01 Civil 3D\Appload\2025\NorsynObjectsInterop.dll</HintPath>
 			<Private>True</Private>
 		</Reference>
 	</ItemGroup>
 
 	<ItemGroup>
-		<!-- Required by NorsynObjectsInterop.dll (C++/CLI) to bootstrap the CLR shim. -->
-		<None Include="..\..\..\..\DamgaardRI\NorsynDrawingTools\x64\Debug\Ijwhost.dll">
+		<!-- Required by NorsynObjectsInterop.dll (C++/CLI) to bootstrap the CLR shim.
+		     From the same Appload bundle as the NOI build it hosts. -->
+		<None Include="X:\AutoCAD DRI - 01 Civil 3D\Appload\2025\Ijwhost.dll">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>
 	</ItemGroup>

@@ -7,9 +7,11 @@ using NorsynDistrictZones.Reactors;
 using AcApp = Autodesk.AutoCAD.ApplicationServices.Application;
 
 [assembly: ExtensionApplication(typeof(NorsynDistrictZones.NdzExtension))]
-[assembly: CommandClass(typeof(NorsynDistrictZones.NdzCommands))]
+[assembly: CommandClass(typeof(NorsynDistrictZones.NoCommands))]
 
 namespace NorsynDistrictZones;
+
+public class NoCommands {  }
 
 /// <summary>
 /// Plugin lifecycle. The automatic zone reactor is wired per document here in
@@ -33,7 +35,8 @@ public sealed class NdzExtension : IExtensionApplication
             dm.DocumentToBeDestroyed += OnDocumentToBeDestroyed;
             foreach (Document d in dm) Attach(d);
 
-            dm.MdiActiveDocument?.Editor?.WriteMessage("\nNorsyn District Zones loaded (auto-zone reactor active).\n");
+            dm.MdiActiveDocument?.Editor?.WriteMessage(
+                CommandBanner.Build(typeof(NdzExtension).Assembly));
         }
         catch (System.Exception ex)
         {
