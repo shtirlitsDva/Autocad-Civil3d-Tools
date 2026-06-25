@@ -60,9 +60,11 @@ internal static class ZoneService
         price = PriceCalculator.PriceZone(catalog, contributions);
 
         if (price.PipeCount == 0) return "— no pipes —";
-        string s = $"{price.Total:N0} DKK";
-        if (price.AnyProvisional) s += " (est.)";
-        return s;
+        // Fail LOUD, not silent-wrong (user decision): if any pipe in the zone lacks
+        // authoritative FL/SL identity (NORSYN_NHS_PIPE XData), the stik surcharge can't be
+        // trusted, so show a clear call-to-action instead of a possibly-wrong total.
+        if (price.AnyProvisional) return "re-export DIM (no FL/SL data)";
+        return $"{price.Total:N0} DKK";
     }
 
     /// <summary>Re-price and re-render every zone with the active catalog (config switch / NDZRECALC).</summary>
