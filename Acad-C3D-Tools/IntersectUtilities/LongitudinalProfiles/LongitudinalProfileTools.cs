@@ -866,7 +866,23 @@ namespace IntersectUtilities
                             {
                                 if (string.IsNullOrEmpty(originalString))
                                     return originalString;
-                                const string appendText = "Kote Ukendt.";
+
+                                // ─── HORRIBLE QUICK HACK — untangle later ──────────────────────
+                                // The "Kote Ukendt" marker is language-dependent, but there is no
+                                // proper localization service yet. Derive the language straight from
+                                // the active NSCMD configuration: anything starting with "DE" is
+                                // German, everything else (DKv1 / DKv2) stays Danish.
+                                bool german =
+                                    ConfigurationManager.ActiveConfiguration?.StartsWith(
+                                        "DE", StringComparison.OrdinalIgnoreCase) == true;
+
+                                string appendText = german ? "Höhe unbekannt." : "Kote Ukendt.";
+
+                                // For German drawings, any previously-written Danish marker must be
+                                // converted in place rather than left next to the German one.
+                                if (german && originalString.Contains("Kote Ukendt"))
+                                    return originalString.Replace("Kote Ukendt", "Höhe unbekannt");
+                                // ───────────────────────────────────────────────────────────────
 
                                 if (originalString.EndsWith(appendText))
                                     return originalString;
@@ -5158,7 +5174,16 @@ namespace IntersectUtilities
         /// </summary>
         /// <category>Longitudinal Profiles</category>
         [CommandMethod("NDHPPLREPLACE")]
-        public void ndhpplreplace() => NpplRun(eraseOriginals: true, limit: 0);
+        public void ndhpplreplace()
+        {
+            // Load the proxy-only NorsynProjectionProfileLabel dbx BEFORE any NPPL type
+            // is touched. This method must not reference NPPL interop types directly: the
+            // JIT loads a method's referenced assemblies on entry, and the interop cannot
+            // load until its dbx is present. All NPPL usage lives in NpplRun (separate
+            // method, JITted only after EnsureLoaded has loaded the dbx).
+            Norsyn.OnDemandLoading.NorsynProjectionProfileLabelLoader.EnsureLoaded();
+            NpplRun(eraseOriginals: true, limit: 0);
+        }
 
         private static void NpplRun(bool eraseOriginals, int limit)
         {

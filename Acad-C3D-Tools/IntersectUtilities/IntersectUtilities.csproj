@@ -118,22 +118,38 @@
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\Map\ManagedMapApi.dll</HintPath>
 			<Private>False</Private>
 		</Reference>
-		<!-- NPPL machinery from the NorsynDrawingTools repo, COMPILE-TIME ONLY
-		     (Private=False, never copied): the live instances are loaded in-process —
-		     NorsynObjectsInterop by the NorsynObjects package at startup, and
-		     NorsynProjectionProfileLabelInterop by the standalone NPPL dbx bootstrap.
-		     NorsynContainer (the base) lives in the former; the
-		     NorsynProjectionProfileLabel wrapper moved to the latter when NPPL was
-		     split into its own vertical. -->
+		<!-- NorsynObjectsInterop: THE shared base object-container interop, used across
+		     verticals. Loaded the DimensioneringV2 way — referenced from the Appload
+		     bundle, copied into this plugin's build dir (Private=True), and listed in
+		     bin\<cfg>\SharedAssemblies.Config.json as shared + mixed-mode so devreload
+		     loads it once into the DEFAULT ALC. It is mixed-mode C++/CLI, so it CANNOT
+		     live in the collectible plugin ALC; the shared load + ALC fallback is how
+		     consumers see it. Ijwhost.dll (the IJW bootstrap shim) is copied alongside —
+		     the mixed-mode LoadFrom needs it. Runtime prerequisite: NSNorsynObjects.dbx
+		     (startup-loaded, 0x0f) supplies the native NorsynContainer base. Pinned
+		     AssemblyVersion (1.0.0.0) keeps the compile-time and runtime identity equal. -->
 		<Reference Include="NorsynObjectsInterop">
-			<HintPath>..\..\..\..\DamgaardRI\NorsynDrawingTools\x64\Debug\NorsynObjectsInterop.dll</HintPath>
-			<Private>False</Private>
+			<HintPath>X:\AutoCAD DRI - 01 Civil 3D\Appload\2025\NorsynObjectsInterop.dll</HintPath>
+			<Private>True</Private>
 		</Reference>
+		<None Include="X:\AutoCAD DRI - 01 Civil 3D\Appload\2025\Ijwhost.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<!-- NorsynProjectionProfileLabelInterop: SELDOM-used vertical wrapper, NOT shared.
+		     COMPILE-TIME ONLY (Private=False, never copied, NOT in the shared config). At
+		     runtime it is loaded on demand into the DEFAULT ALC by
+		     NorsynProjectionProfileLabelLoader.EnsureLoaded() (shared import below), which
+		     first loads its proxy-only dbx. Pinned AssemblyVersion (1.0.0.0). -->
 		<Reference Include="NorsynProjectionProfileLabelInterop">
-			<HintPath>..\..\..\..\DamgaardRI\NorsynDrawingTools\x64\Debug\NorsynProjectionProfileLabelInterop.dll</HintPath>
+			<HintPath>X:\AutoCAD DRI - 01 Civil 3D\Appload\2025\NorsynProjectionProfileLabelInterop.dll</HintPath>
 			<Private>False</Private>
 		</Reference>
 	</ItemGroup>
+
+	<!-- On-demand loader (shared source from the NorsynDrawingTools repo). Provides
+	     NorsynProjectionProfileLabelLoader.EnsureLoaded(), called at the start of any
+	     command that uses NPPL types so the proxy-only dbx is loaded before the interop. -->
+	<Import Project="..\..\..\..\DamgaardRI\NorsynDrawingTools\shared\NorsynOnDemandLoading\NorsynOnDemandLoading.projitems" Label="Shared" />
 	<ItemGroup>
 		<Content Include="DebugCommandLineAttribute.txt" />
 	</ItemGroup>
