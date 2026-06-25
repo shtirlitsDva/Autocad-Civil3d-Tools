@@ -4,6 +4,7 @@
         Title="District Zones — Price Editor"
         Height="620" Width="800"
         WindowStartupLocation="CenterScreen"
+        Language="da-DK"
         Background="{DynamicResource Background}">
     <Window.Resources>
         <ResourceDictionary>
@@ -26,33 +27,42 @@
                        Foreground="{DynamicResource Text}" />
             <ComboBox Width="230" ItemsSource="{Binding Catalogs}" DisplayMemberPath="Name"
                       SelectedItem="{Binding SelectedCatalog}"
-                      Style="{StaticResource DarkComboBoxStyle}" />
-            <TextBlock Text="Rename:" VerticalAlignment="Center" Margin="14,0,8,0"
-                       Foreground="{DynamicResource TextMuted}" />
-            <TextBox Width="190" VerticalAlignment="Center"
-                     Text="{Binding SelectedCatalog.Name, UpdateSourceTrigger=LostFocus}"
-                     Style="{StaticResource FormTextBoxStyle}" />
+                      Style="{StaticResource ModernDarkComboBox}" />
         </StackPanel>
 
         <WrapPanel Grid.Row="1" Margin="0,0,0,10">
             <Button Content="New" Command="{Binding NewCatalogCommand}" Style="{StaticResource SecondaryButtonStyle}" Margin="0,0,6,0" />
             <Button Content="Copy" Command="{Binding CopyCatalogCommand}" Style="{StaticResource SecondaryButtonStyle}" Margin="0,0,6,0" />
+            <Button Content="Rename…" Command="{Binding RenameCatalogCommand}" Style="{StaticResource SecondaryButtonStyle}" Margin="0,0,6,0" />
             <Button Content="Delete" Command="{Binding DeleteCatalogCommand}" Style="{StaticResource SecondaryButtonStyle}" Margin="0,0,6,0" />
             <Button Content="Set Active" Command="{Binding MakeActiveCommand}" Style="{StaticResource SecondaryButtonStyle}" Margin="0,0,6,0" />
             <Button Content="Import…" Command="{Binding ImportCommand}" Style="{StaticResource SecondaryButtonStyle}" Margin="0,0,6,0" />
             <Button Content="Export…" Command="{Binding ExportCommand}" Style="{StaticResource SecondaryButtonStyle}" />
         </WrapPanel>
 
-        <DataGrid Grid.Row="2" ItemsSource="{Binding Entries}"
-                  Style="{StaticResource DarkDataGridStyle}"
-                  AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False">
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="Pipe type" Binding="{Binding PipeType}" IsReadOnly="True" Width="*" />
-                <DataGridTextColumn Header="DN" Binding="{Binding Dn}" IsReadOnly="True" Width="70" />
-                <DataGridTextColumn Header="DKK / m" Binding="{Binding PricePerMeter, StringFormat=N2}" Width="130" />
-                <DataGridTextColumn Header="DKK / fitting" Binding="{Binding PricePerFitting, StringFormat=N2}" Width="130" />
-            </DataGrid.Columns>
-        </DataGrid>
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding Groups}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Expander Header="{Binding Header}" IsExpanded="False" Margin="0,0,0,6">
+                            <DataGrid ItemsSource="{Binding Entries}"
+                                      Style="{StaticResource DarkDataGridStyle}"
+                                      ColumnHeaderStyle="{StaticResource CompactDataGridColumnHeaderStyle}"
+                                      HeadersVisibility="Column"
+                                      IsReadOnly="{Binding DataContext.SelectedCatalogIsReadOnly, RelativeSource={RelativeSource AncestorType=Window}}"
+                                      AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
+                                      ScrollViewer.VerticalScrollBarVisibility="Disabled">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Dimension" Binding="{Binding Dn}" IsReadOnly="True" Width="90" />
+                                    <DataGridTextColumn Header="DKK / m" Binding="{Binding PricePerMeter, StringFormat=N0, ConverterCulture=da-DK}" Width="*" />
+                                    <DataGridTextColumn Header="DKK / pr. stik" Binding="{Binding PricePerFitting, StringFormat=N0, ConverterCulture=da-DK}" Width="*" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Expander>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
 
         <DockPanel Grid.Row="3" Margin="0,10,0,0">
             <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center" Foreground="{DynamicResource Text}">

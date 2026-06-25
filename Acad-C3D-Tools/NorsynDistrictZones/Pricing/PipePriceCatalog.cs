@@ -19,8 +19,20 @@ public sealed class PipePriceEntry
 /// </summary>
 public sealed class PipePriceCatalog
 {
-    public string Name { get; set; } = "Default";
+    /// <summary>The reserved name of the built-in catalog seeded from the NHS defaults.</summary>
+    public const string DefaultName = "Default";
+
+    public string Name { get; set; } = DefaultName;
     public List<PipePriceEntry> Entries { get; set; } = new();
+
+    /// <summary>
+    /// The built-in "Default" catalog is a read-only copy of the NorsynHydraulicShared
+    /// prices — it cannot be edited, renamed or deleted. Only user-created catalogs are
+    /// editable. Derived from the name (the same anchor <see cref="CatalogStore"/> uses),
+    /// so it survives a JSON round-trip without storing a separate flag.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool IsReadOnly => string.Equals(Name, DefaultName, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Builds a fresh catalog from the NHS embedded defaults (a copy, never a live reference).</summary>
     public static PipePriceCatalog SeedFromDefaults(string name = "Default")

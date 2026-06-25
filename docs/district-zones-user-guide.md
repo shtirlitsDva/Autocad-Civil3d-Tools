@@ -9,8 +9,8 @@ record (`docs/district-zones-plan.md`). Reflects the shipped command set.
 You attach a DimensioneringV2 pipe export as an Xref, draw polylines to carve the
 drawing into **zones**, and each zone shows its **name + live pipe price** in the
 middle. Drawing inside a zone subdivides it; dragging boundary grips reshapes
-neighbours together; deleting a boundary merges zones. Prices come from a named,
-editable catalog and are recomputed live from the Xref — never frozen into the file.
+neighbours together; `NDZMERGE` folds two adjacent zones into one. Prices come from a
+named, editable catalog and are recomputed live from the Xref — never frozen into the file.
 </at-a-glance>
 
 ---
@@ -21,8 +21,10 @@ editable catalog and are recomputed live from the Xref — never frozen into the
 | `NDZZONE` | Turn a selected CLOSED polyline into a zone. |
 | `NDZPRICES` | Open the price-catalog editor (named catalogs, per-metre + per-fitting). |
 | `NDZRENAME` | Rename a zone. |
+| `NDZMERGE` | Merge two adjacent zones into one (keeps the first zone's identity). |
 | `NDZRECALC` | Re-price + re-render every zone (after the Xref changes). |
 | `NDZTEXTSIZE` | Set the zone-label text height, remembered for all drawings (0 = auto). |
+| `NDZTRANSPARENCY` | Set the zone fill transparency 0–90 %, remembered for all drawings. |
 | `NDZEXPORTACAD` | Export zones as plain AutoCAD geometry on layer `NDZ-EXPORT`. |
 | `NDZEXPORTGEOJSON` | Export zones to a `.geojson` file. |
 | `NDZSELFTEST` | Sanity-check the pricing domain (no drawing data needed). |
@@ -87,16 +89,18 @@ sub-millimetre differences are ignored (they don't matter for pricing). Each suc
 operation is a single Undo step, and affected zones re-price.
 </step-4-subdivide-by-drawing-inside>
 
-<step-5-reshape-and-merge-with-grips>
-Select a zone and use its **grips** (one per boundary vertex):
+<step-5-reshape-and-merge>
+**Reshape with grips** — select a zone and drag its grips (one per boundary vertex):
 
 - **Drag a vertex shared with a neighbour → both zones adapt together**, no gap opens
-  between them (shared-edge editing).
-- **Delete a boundary between two zones → they merge** into one (one identity wins, the
-  price recomputes).
+  between them (shared-edge editing). The boundary follows the cursor live during the
+  drag and re-prices on drop. Boundaries are snappable (OSnap works).
 
-Boundaries are snappable (OSnap works).
-</step-5-reshape-and-merge-with-grips>
+**Merge with `NDZMERGE`** — run the command, pick the zone to **keep** (its number, name
+and colour survive), then pick the zone to **fold into** it. The shared boundary is
+dissolved and the merged zone re-prices. The two zones must be adjacent (touch along an
+edge); if they aren't, nothing changes and the command says so.
+</step-5-reshape-and-merge>
 
 <step-6-name-recompute-and-text-size>
 - `NDZRENAME` → pick a zone, type a name. The name shows **above** the price and is
@@ -106,6 +110,9 @@ Boundaries are snappable (OSnap works).
 - `NDZTEXTSIZE` → set the label text height. The value is **remembered globally** (all
   drawings); enter `0` to go back to the per-zone automatic size. The current drawing
   re-renders immediately, and the AutoCAD export uses the same size.
+- `NDZTRANSPARENCY` → set the zone fill transparency, `0 %` (opaque) to `90 %` (faintest),
+  **remembered globally** (all drawings). The current drawing re-renders immediately. Only
+  the live zone fill uses it — the `NDZEXPORTACAD` output is plain geometry with no fill.
 </step-6-name-recompute-and-text-size>
 
 <step-7-export>
@@ -121,7 +128,8 @@ Boundaries are snappable (OSnap works).
 <what-persists-and-what-does-not>
 - **Persisted in the drawing:** each zone's identity + geometry (so zones survive
   save/reload), and the named price catalogs.
-- **Persisted per user (all drawings):** the label text size (`NDZTEXTSIZE`).
+- **Persisted per user (all drawings):** the label text size (`NDZTEXTSIZE`) and the zone
+  fill transparency (`NDZTRANSPARENCY`).
 - **Never persisted (always recomputed):** the prices themselves. The number you see is
   always derived from the *current* Xref pipes × the *active* catalog — so swapping the
   Xref or editing prices and running `NDZRECALC` always reflects reality.

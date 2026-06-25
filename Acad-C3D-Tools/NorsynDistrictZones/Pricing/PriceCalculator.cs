@@ -1,8 +1,12 @@
+using System.Linq;
+
 using IntersectUtilities.UtilsCommon.Enums;
 
 using NorsynHydraulicCalc;
 
 using NorsynDistrictZones.Model;
+
+using NhsPipeType = NorsynHydraulicCalc.PipeType;
 
 namespace NorsynDistrictZones.Pricing;
 
@@ -10,52 +14,78 @@ namespace NorsynDistrictZones.Pricing;
 public static class PriceCalculator
 {
     /// <summary>
-    /// Price one clipped pipe length. <paramref name="lengthInside"/> is already the
-    /// in-zone portion (clipped in memory). The per-fitting (stik) surcharge is added
-    /// once when the pipe is a service line — but FL/SL is provisional until P12, so
-    /// today this only fires if a caller has authoritatively set Stikledning.
+    /// One priced line of a zone: all in-zone pipe of a single authoritative (NHS type, DN),
+    /// with its total length, total pipe cost, the number of Stikledning pipes in it, and their
+    /// total fitting (stik) cost. <see cref="Total"/> = pipe + stik. This is the atom both the
+    /// model-space label total and the Excel breakdown are built from — one source, no drift.
     /// </summary>
-    public static double PriceClippedPipe(
-        PipePriceCatalog catalog, PipeSystemEnum system, int dn, SegmentType segment,
-        double lengthInside, bool addFittingForServiceLine)
+    public readonly record struct ZoneLine(
+        NhsPipeType Type, int Dn, double Length, double PipeCost, int StikCount, double StikCost)
     {
-        NorsynHydraulicCalc.PipeType? nhs = PipeTypeTranslator.ToNhs(system, segment);
-        if (nhs is null) return 0.0;
-
-        PipePriceEntry? entry = catalog.Find(nhs.Value, dn);
-        if (entry is null) return 0.0;
-
-        double price = entry.PricePerMeter * lengthInside;
-        if (addFittingForServiceLine && segment == SegmentType.Stikledning)
-            price += entry.PricePerFitting;
-        return price;
+        public double Total => PipeCost + StikCost;
     }
 
-    /// <summary>Result of pricing all pipes inside one zone.</summary>
-    public readonly record struct ZonePrice(double Total, double LengthInside, int PipeCount, bool AnyProvisional);
+    /// <summary>
+    /// Result of pricing all pipes inside one zone. <see cref="Total"/> is the sum of
+    /// <see cref="Lines"/>. <see cref="AnyProvisional"/> flags an unstamped (unidentifiable)
+    /// pipe; <see cref="MissingEntries"/> lists the distinct (type, DN) the active catalog had
+    /// no price for — both are reasons the total is untrusted. Provisional and missing pipes
+    /// contribute no line (they cannot be priced) but are still counted in PipeCount/LengthInside.
+    /// </summary>
+    public readonly record struct ZonePrice(
+        double Total, double LengthInside, int PipeCount, bool AnyProvisional,
+        IReadOnlyList<(NhsPipeType Type, int Dn)> MissingEntries,
+        IReadOnlyList<ZoneLine> Lines);
+
+    private struct LineAcc
+    {
+        public double Length;
+        public double PipeCost;
+        public int StikCount;
+        public double StikCost;
+    }
 
     /// <summary>
-    /// Sum the cost of every (already in-memory-clipped) pipe contribution in a zone.
-    /// Each contribution is (segment, clipped length). <paramref name="anyProvisional"/>
-    /// flags that at least one pipe's FL/SL was a provisional default → price is an estimate.
+    /// Price every (already in-memory-clipped) pipe contribution in a zone, aggregated into one
+    /// line per authoritative (NHS type, DN). <c>AnyProvisional</c> flags an unstamped pipe;
+    /// <c>MissingEntries</c> collects stamped pipes the catalog couldn't price — the caller
+    /// reports both. The grand total is the sum of the line totals (single pricing source).
     /// </summary>
     public static ZonePrice PriceZone(
         PipePriceCatalog catalog,
         IEnumerable<(PipeSegment Pipe, double LengthInside)> contributions)
     {
-        double total = 0, len = 0;
+        var acc = new Dictionary<(NhsPipeType Type, int Dn), LineAcc>();
+        double len = 0;
         int count = 0;
         bool provisional = false;
+        var missing = new List<(NhsPipeType Type, int Dn)>();
+
         foreach (var (pipe, lengthInside) in contributions)
         {
             if (lengthInside <= 0) continue;
-            total += PriceClippedPipe(
-                catalog, pipe.System, pipe.Dn, pipe.Segment, lengthInside,
-                addFittingForServiceLine: !pipe.SegmentIsProvisional);
             len += lengthInside;
             count++;
-            provisional |= pipe.SegmentIsProvisional;
+
+            if (pipe.NhsType is null) { provisional = true; continue; }
+            var key = (pipe.NhsType.Value, pipe.Dn);
+
+            PipePriceEntry? entry = catalog.Find(key.Item1, key.Item2);
+            if (entry is null) { missing.Add(key); continue; }
+
+            bool isStik = pipe.Segment == SegmentType.Stikledning;
+            acc.TryGetValue(key, out LineAcc a);
+            a.Length += lengthInside;
+            a.PipeCost += entry.PricePerMeter * lengthInside;
+            if (isStik) { a.StikCount++; a.StikCost += entry.PricePerFitting; }
+            acc[key] = a;
         }
-        return new ZonePrice(total, len, count, provisional);
+
+        var lines = acc
+            .Select(kv => new ZoneLine(
+                kv.Key.Type, kv.Key.Dn, kv.Value.Length, kv.Value.PipeCost, kv.Value.StikCount, kv.Value.StikCost))
+            .ToList();
+        double total = lines.Sum(l => l.Total);
+        return new ZonePrice(total, len, count, provisional, missing.Distinct().ToList(), lines);
     }
 }

@@ -1,22 +1,23 @@
-using IntersectUtilities.UtilsCommon.Enums;   // PSv2 enums
-
 using NetTopologySuite.Geometries;
 
 using NorsynHydraulicCalc;                     // SegmentType
+using NhsPipeType = NorsynHydraulicCalc.PipeType;
 
 namespace NorsynDistrictZones.Model;
 
 /// <summary>
-/// A single pipe read from the source Xref. Identity comes from the PSv2 layer
-/// name; <see cref="Segment"/> (FL/SL) is provisional until the DimV2 export
-/// carries it as XData (see the FL/SL pricing blocker — P12). Geometry is the
-/// WCS NTS line; zone pricing clips it per face in memory, never in the drawing.
+/// A single pipe read from the source Xref. <see cref="NhsType"/> (pipe type) and
+/// <see cref="Segment"/> (FL/SL role) are the AUTHORITATIVE NorsynHydraulicShared identity
+/// stamped on the pipe by the DimV2 export (XData <c>NORSYN_NHS_PIPE</c>); pricing keys on
+/// them directly. They are two INDEPENDENT axes — a Fællesstikledning is an SL-typed pipe in
+/// the Fordelingsledning role — so neither is ever derived from the other or from the layer.
+/// Both are null exactly when the export never stamped the pipe; such a pipe is
+/// UNIDENTIFIABLE and the zone reports incomplete data (no price is guessed). Geometry is the
+/// WCS NTS line; zone pricing clips it per face in memory.
 /// </summary>
 public sealed record PipeSegment(
-    PipeSystemEnum System,
-    PipeTypeEnum PipeType,
     int Dn,
-    SegmentType Segment,
-    bool SegmentIsProvisional,
+    SegmentType? Segment,
+    NhsPipeType? NhsType,
     Geometry Geometry,
     double FullLength);

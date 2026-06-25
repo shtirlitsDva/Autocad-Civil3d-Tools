@@ -58,7 +58,24 @@ internal static class ZoneRenderer
         mp.Dispose(); top.Dispose(); price.Dispose();
     }
 
-    private static (MPolygon, MText, MText) BuildChildren(ZoneFace face, string priceText)
+    /// <summary>
+    /// Live grip-drag preview: swap ONLY the boundary MPolygon (child 0) on a
+    /// transaction-less, non-database-resident container clone, leaving the labels in
+    /// place. AutoCAD draws the clone as the drag image, so the boundary follows the
+    /// cursor. The committed move (full rebuild + repricing on the real entity) happens
+    /// later via <see cref="Update"/>. Render order is (MPolygon, title, price), so the
+    /// boundary is always child 0.
+    /// </summary>
+    public static void ReplaceBoundaryPreview(NsContainer nc, ZoneFace face)
+    {
+        if (nc.Count == 0) return;
+        nc.RemoveAt(0);
+        MPolygon mp = BuildMPolygon(face);
+        nc.Add(mp);
+        mp.Dispose();
+    }
+
+    private static MPolygon BuildMPolygon(ZoneFace face)
     {
         AcColor color = ToAcColor(face.ColorArgb);
 
@@ -69,8 +86,18 @@ internal static class ZoneRenderer
         mp.SetPattern(HatchPatternType.PreDefined, "SOLID");
         mp.PatternColor = color;
         mp.Color = color;
-        mp.Transparency = new AcTransparency((byte)110);
+        mp.Transparency = new AcTransparency(AlphaFromPercent(GlobalSettings.ZoneTransparencyPercent));
         mp.Layer = ZoneLayer;
+        return mp;
+    }
+
+    /// <summary>AutoCAD transparency percent (0 = opaque, 90 = faintest) → alpha byte (255 = opaque).</summary>
+    private static byte AlphaFromPercent(int percent) =>
+        (byte)Math.Round(255.0 * (100 - Math.Clamp(percent, 0, 90)) / 100.0);
+
+    private static (MPolygon, MText, MText) BuildChildren(ZoneFace face, string priceText)
+    {
+        MPolygon mp = BuildMPolygon(face);
 
         double h = LabelHeight(face);
         var anchor = new Point3d(face.LabelPoint.X, face.LabelPoint.Y, 0);

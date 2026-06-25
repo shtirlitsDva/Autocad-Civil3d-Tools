@@ -5,6 +5,7 @@ using Autodesk.AutoCAD.Runtime;
 
 using NorsynDistrictZones.Acad;
 using NorsynDistrictZones.Pricing;
+using NorsynDistrictZones.Topology;
 using NorsynDistrictZones.UI;
 
 using NhsPipeType = NorsynHydraulicCalc.PipeType;
@@ -140,6 +141,70 @@ public sealed class NdzCommands
         catch (System.Exception ex) { ed.WriteMessage($"\nNDZRENAME failed:\n{ex}\n"); }
     }
 
+    /// <summary>
+    /// Merge two adjacent zones into one. Pick the zone whose identity (number/name/
+    /// colour) survives, then the zone folded into it; the boundary between them is
+    /// dissolved (NTS union) and the result is re-priced. Rejects non-adjacent zones.
+    /// </summary>
+    [CommandMethod("NDZMERGE")]
+    [CommandSummary("Merge two adjacent zones into one (the first zone's identity is kept).")]
+    public void NdzMerge()
+    {
+        var doc = AcApp.DocumentManager.MdiActiveDocument;
+        if (doc is null) return;
+        Database db = doc.Database;
+        Editor ed = doc.Editor;
+        try
+        {
+            ObjectId idA = PickZone(ed, "\nSelect the zone to KEEP (its number/name/colour survives): ");
+            if (idA.IsNull) return;
+            ObjectId idB = PickZone(ed, "\nSelect the zone to MERGE INTO it: ");
+            if (idB.IsNull) return;
+            if (idA == idB) { ed.WriteMessage("\nPick two different zones."); return; }
+
+            using Transaction tx = db.TransactionManager.StartTransaction();
+            ZoneFace? faceA = ReadZoneFace(tx, idA);
+            ZoneFace? faceB = ReadZoneFace(tx, idB);
+            if (faceA is null || faceB is null)
+            {
+                ed.WriteMessage("\nBoth selections must be District Zones with NDZ data.");
+                return;
+            }
+
+            var merged = ZoneGeometryOps.Merge(faceA.Polygon, faceB.Polygon);
+            if (merged is null)
+            {
+                ed.WriteMessage(
+                    "\nThose zones are not adjacent (their union is not a single area) — nothing merged.");
+                return;
+            }
+            faceA.Polygon = merged; // keep A's identity, take the dissolved geometry
+
+            var nc = (NsContainer)tx.GetObject(idA, OpenMode.ForWrite);
+            var pipes = PipeReader.ReadFromXrefs(db, tx, null);
+            string price = ZoneService.PriceFace(faceA, CatalogStore.GetActive(db), pipes, out _);
+            ZoneRenderer.Update(db, tx, nc, faceA, price);
+
+            ((Entity)tx.GetObject(idB, OpenMode.ForWrite)).Erase();
+
+            tx.Commit();
+            Reactors.ZoneSession.For(db).Clear();
+            ed.WriteMessage($"\nMerged zone #{faceB.Number} into #{faceA.Number}.\n");
+        }
+        catch (System.Exception ex) { ed.WriteMessage($"\nNDZMERGE failed:\n{ex}\n"); }
+    }
+
+    private static ObjectId PickZone(Editor ed, string prompt)
+    {
+        PromptEntityResult per = ed.GetEntity(new PromptEntityOptions(prompt));
+        return per.Status == PromptStatus.OK ? per.ObjectId : ObjectId.Null;
+    }
+
+    private static ZoneFace? ReadZoneFace(Transaction tx, ObjectId id) =>
+        tx.GetObject(id, OpenMode.ForRead) is Entity ent && ent.GetRXClass().Name == "NorsynContainer"
+            ? ZoneXData.ReadFace(ent)
+            : null;
+
     /// <summary>Re-price and re-render all zones (e.g. after re-exporting / reloading the Xref).</summary>
     [CommandMethod("NDZRECALC")]
     [CommandSummary("Re-price and re-render all zones (after re-export / Xref reload).")]
@@ -188,6 +253,41 @@ public sealed class NdzCommands
                 $"(global); re-rendered {n} zone(s).\n");
         }
         catch (System.Exception ex) { ed.WriteMessage($"\nNDZTEXTSIZE failed:\n{ex}\n"); }
+    }
+
+    /// <summary>
+    /// Set the zone fill transparency (0 % = opaque … 90 % = faintest), remembered globally
+    /// for all drawings. Re-renders the current drawing's zones so the change shows
+    /// immediately. (Only the live zone fill uses it — the AutoCAD export is plain geometry.)
+    /// </summary>
+    [CommandMethod("NDZTRANSPARENCY")]
+    [CommandSummary("Set zone fill transparency 0-90% (0 = opaque), remembered for all drawings.")]
+    public void NdzTransparency()
+    {
+        var doc = AcApp.DocumentManager.MdiActiveDocument;
+        if (doc is null) return;
+        Editor ed = doc.Editor;
+        try
+        {
+            int cur = GlobalSettings.ZoneTransparencyPercent;
+            var pio = new PromptIntegerOptions(
+                $"\nZone fill transparency in % (0 = opaque, 90 = faintest) <{cur}>: ")
+            {
+                AllowNegative = false,
+                AllowNone = true,            // Enter keeps the current value
+                UseDefaultValue = true,
+                DefaultValue = cur,
+                LowerLimit = 0,
+                UpperLimit = 90,
+            };
+            PromptIntegerResult r = ed.GetInteger(pio);
+            if (r.Status != PromptStatus.OK) return;
+
+            GlobalSettings.ZoneTransparencyPercent = r.Value;
+            int n = ZoneService.RecomputeAll(doc.Database);
+            ed.WriteMessage($"\nZone transparency = {r.Value}% (global); re-rendered {n} zone(s).\n");
+        }
+        catch (System.Exception ex) { ed.WriteMessage($"\nNDZTRANSPARENCY failed:\n{ex}\n"); }
     }
 
     /// <summary>Export every zone as plain AutoCAD geometry (polylines + labels) on layer NDZ-EXPORT.</summary>
@@ -240,6 +340,64 @@ public sealed class NdzCommands
             ed.WriteMessage($"\nExported zones to {path}\n");
         }
         catch (System.Exception ex) { ed.WriteMessage($"\nNDZEXPORTGEOJSON failed:\n{ex}\n"); }
+    }
+
+    /// <summary>
+    /// Export a per-area pipe length &amp; price breakdown to a styled Excel workbook: one table
+    /// per zone (coloured to match the drawing), with a zone subtotal and a grand total. Prices
+    /// are computed live via the same path as the model-space labels, so the grand total matches.
+    /// </summary>
+    [CommandMethod("NDZEXPORTPRISER")]
+    [CommandSummary("Export a per-area pipe length & price breakdown to Excel.")]
+    public void NdzExportPriser()
+    {
+        var doc = AcApp.DocumentManager.MdiActiveDocument;
+        if (doc is null) return;
+        Database db = doc.Database;
+        Editor ed = doc.Editor;
+        try
+        {
+            var zones = new List<NorsynDistrictZones.Export.ZoneBreakdown>();
+            string catalogName;
+            double grand = 0;
+
+            using (Transaction tx = db.TransactionManager.StartTransaction())
+            {
+                var pipes = PipeReader.ReadFromXrefs(db, tx, null);
+                var catalog = CatalogStore.GetActive(db);
+                catalogName = catalog.Name;
+                var warned = new HashSet<(NhsPipeType Type, int Dn)>();
+                foreach (var (_, face) in ZoneReader.ReadAll(db, tx))
+                {
+                    ZoneService.PriceFace(face, catalog, pipes, out var zp, warned);
+                    zones.Add(new NorsynDistrictZones.Export.ZoneBreakdown(
+                        face.Number, face.Name ?? string.Empty, face.ColorArgb,
+                        PriceBreakdown.Rows(zp), zp.Total, zp.AnyProvisional));
+                    grand += zp.Total;
+                }
+                tx.Commit();
+            }
+
+            if (zones.Count == 0) { ed.WriteMessage("\nNo zones to export."); return; }
+
+            string dwg = db.Filename;
+            var dlg = new Microsoft.Win32.SaveFileDialog
+            {
+                Filter = "Excel-projektmappe (*.xlsx)|*.xlsx",
+                DefaultExt = "xlsx",
+                AddExtension = true,
+                FileName = string.IsNullOrEmpty(dwg)
+                    ? "ndz_priser.xlsx"
+                    : System.IO.Path.GetFileNameWithoutExtension(dwg) + "_priser.xlsx",
+            };
+            if (!string.IsNullOrEmpty(dwg))
+                dlg.InitialDirectory = System.IO.Path.GetDirectoryName(dwg);
+            if (dlg.ShowDialog() != true) return;
+
+            NorsynDistrictZones.Export.PriceBreakdownWorkbook.Save(dlg.FileName, zones, grand, catalogName);
+            ed.WriteMessage($"\nEksporterede prisoverslag for {zones.Count} zone(r) til {dlg.FileName}\n");
+        }
+        catch (System.Exception ex) { ed.WriteMessage($"\nNDZEXPORTPRISER failed:\n{ex}\n"); }
     }
 
     /// <summary>Self-test of the pure domain (translator + price catalog). No drawing data required.</summary>

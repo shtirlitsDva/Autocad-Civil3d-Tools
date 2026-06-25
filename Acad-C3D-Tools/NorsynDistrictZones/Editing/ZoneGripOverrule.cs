@@ -81,13 +81,38 @@ internal sealed class ZoneGripOverrule : GripOverrule
             return;
         }
 
-        try { Apply(entity, moves); }
+        try
+        {
+            // During drag AutoCAD passes a non-database-resident clone (Database is null);
+            // mutating it draws the live preview. The real entity (Database set) only
+            // arrives on commit — that's where we do the full rebuild + neighbour adapt.
+            if (entity.Database is null) DragPreview(entity, moves);
+            else Apply(entity, moves);
+        }
         catch (System.Exception ex)
         {
             entity.Database?.TransactionManager?.QueueForGraphicsFlush();
             Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager
                 .MdiActiveDocument?.Editor?.WriteMessage($"\nNDZ grip edit failed: {ex.Message}\n");
         }
+    }
+
+    /// <summary>
+    /// Reshape only the gripped container's own boundary, in memory, with no transaction —
+    /// the idiomatic drag-image update on the temporary clone. Neighbours and pricing are
+    /// deliberately left for the committed <see cref="Apply"/> on the real entity.
+    /// </summary>
+    private static void DragPreview(Entity clone, List<(Point3d Old, Point3d New)> moves)
+    {
+        ZoneFace? face = ZoneXData.ReadFace(clone);
+        if (face is null) return;
+
+        bool changed = false;
+        Polygon moved = MoveVertices(face.Polygon, moves, ref changed);
+        if (!changed) return;
+
+        face.Polygon = moved;
+        ZoneRenderer.ReplaceBoundaryPreview((NsContainer)clone, face);
     }
 
     /// <summary>

@@ -25,28 +25,34 @@ internal static class CatalogStore
     public static PipePriceCatalog GetActive(Database db)
     {
         Persisted p = Load(db);
+        // The built-in Default is a LIVE mirror of the NHS library — always rebuilt, never
+        // read from storage, so it can never go stale as new pipe types/DNs are added.
+        if (IsDefault(p.Active)) return PipePriceCatalog.SeedFromDefaults();
         PipePriceCatalog? cat = p.Catalogs.FirstOrDefault(c =>
-            string.Equals(c.Name, p.Active, StringComparison.OrdinalIgnoreCase));
-        return cat ?? p.Catalogs.FirstOrDefault() ?? PipePriceCatalog.SeedFromDefaults();
+            !c.IsReadOnly && string.Equals(c.Name, p.Active, StringComparison.OrdinalIgnoreCase));
+        return cat ?? PipePriceCatalog.SeedFromDefaults();
     }
 
     public static (List<PipePriceCatalog> Catalogs, string Active) LoadAll(Database db)
     {
         Persisted p = Load(db);
-        if (p.Catalogs.Count == 0)
-        {
-            p.Catalogs.Add(PipePriceCatalog.SeedFromDefaults());
-            p.Active = p.Catalogs[0].Name;
-        }
-        return (p.Catalogs, p.Active);
+        // Always present a fresh, complete Default (read-only) first; only user catalogs come
+        // from storage. Any stale persisted "Default" is discarded — it is never authoritative.
+        var catalogs = new List<PipePriceCatalog> { PipePriceCatalog.SeedFromDefaults() };
+        catalogs.AddRange(p.Catalogs.Where(c => !c.IsReadOnly));
+        string active = string.IsNullOrEmpty(p.Active) ? PipePriceCatalog.DefaultName : p.Active;
+        return (catalogs, active);
     }
 
     public static void SaveAll(Database db, IEnumerable<PipePriceCatalog> catalogs, string active)
     {
-        var p = new Persisted { Active = active, Catalogs = catalogs.ToList() };
-        string json = JsonSerializer.Serialize(p);
-        WriteJson(db, json);
+        // The Default is derived from the library, never stored — persist only user catalogs.
+        var p = new Persisted { Active = active, Catalogs = catalogs.Where(c => !c.IsReadOnly).ToList() };
+        WriteJson(db, JsonSerializer.Serialize(p));
     }
+
+    private static bool IsDefault(string name) =>
+        string.Equals(name, PipePriceCatalog.DefaultName, StringComparison.OrdinalIgnoreCase);
 
     private static Persisted Load(Database db)
     {

@@ -1,10 +1,13 @@
 using Autodesk.AutoCAD.DatabaseServices;
+using Autodesk.AutoCAD.EditorInput;
 
 using NetTopologySuite.Geometries;
 
 using NorsynDistrictZones.Model;
 using NorsynDistrictZones.Pricing;
 using NorsynDistrictZones.Topology;
+
+using NhsPipeType = NorsynHydraulicCalc.PipeType;
 
 namespace NorsynDistrictZones.Acad;
 
@@ -15,6 +18,11 @@ namespace NorsynDistrictZones.Acad;
 /// </summary>
 internal static class ZoneService
 {
+    /// <summary>EU/Danish number formatting for the price label (dot thousands, comma decimal),
+    /// independent of AutoCAD's host culture.</summary>
+    private static readonly System.Globalization.CultureInfo Da =
+        System.Globalization.CultureInfo.GetCultureInfo("da-DK");
+
     /// <summary>Next free zone number = max existing NDZ zone number + 1 (1 if none).</summary>
     public static int NextNumber(Transaction tx, BlockTableRecord ms)
     {
@@ -48,10 +56,16 @@ internal static class ZoneService
         return face;
     }
 
-    /// <summary>Price all pipe portions that fall inside the face (in-memory clip), formatted for the label.</summary>
+    /// <summary>
+    /// Price all pipe portions that fall inside the face (in-memory clip), formatted for the
+    /// label. Any (type, DN) the active catalog can't price is posted as a warning to the
+    /// command line; pass a shared <paramref name="warned"/> set across a bulk recompute to
+    /// suppress duplicate warnings for the same missing entry.
+    /// </summary>
     public static string PriceFace(
         ZoneFace face, PipePriceCatalog catalog, IReadOnlyList<PipeSegment> pipes,
-        out PriceCalculator.ZonePrice price)
+        out PriceCalculator.ZonePrice price,
+        ISet<(NhsPipeType Type, int Dn)>? warned = null)
     {
         var contributions = pipes
             .Select(p => (Pipe: p, LengthInside: ZoneGeometryOps.InsideLength(face.Polygon, p.Geometry)))
@@ -59,12 +73,16 @@ internal static class ZoneService
 
         price = PriceCalculator.PriceZone(catalog, contributions);
 
+        if (price.MissingEntries.Count > 0)
+            WarnMissingEntries(catalog.Name, price.MissingEntries, warned);
+
         if (price.PipeCount == 0) return "— no pipes —";
-        // Fail LOUD, not silent-wrong (user decision): if any pipe in the zone lacks
-        // authoritative FL/SL identity (NORSYN_NHS_PIPE XData), the stik surcharge can't be
-        // trusted, so show a clear call-to-action instead of a possibly-wrong total.
-        if (price.AnyProvisional) return "re-export DIM (no FL/SL data)";
-        return $"{price.Total:N0} DKK";
+        // Fail LOUD, never silent-wrong (user decision): if any pipe in the zone lacks the
+        // authoritative NHS identity (NORSYN_NHS_PIPE XData: pipe type + FL/SL role), the pipe
+        // is unidentifiable and NOTHING is guessed — show a clear call-to-action instead of a
+        // partial/possibly-wrong total.
+        if (price.AnyProvisional) return "incomplete pipe data — re-export DIM";
+        return $"{price.Total.ToString("N0", Da)} DKK";
     }
 
     /// <summary>Re-price and re-render every zone with the active catalog (config switch / NDZRECALC).</summary>
@@ -73,17 +91,41 @@ internal static class ZoneService
         using Transaction tx = db.TransactionManager.StartTransaction();
         IReadOnlyList<PipeSegment> pipes = PipeReader.ReadFromXrefs(db, tx, null);
         PipePriceCatalog catalog = CatalogStore.GetActive(db);
+        var warned = new HashSet<(NhsPipeType Type, int Dn)>();
         int n = 0;
         foreach (var (cid, face) in ZoneReader.ReadAll(db, tx))
         {
             var nc = (NorsynObjectsInterop.NorsynContainer)tx.GetObject(cid, OpenMode.ForWrite);
-            string price = PriceFace(face, catalog, pipes, out _);
+            string price = PriceFace(face, catalog, pipes, out _, warned);
             ZoneRenderer.Update(db, tx, nc, face, price);
             n++;
         }
         tx.Commit();
         Reactors.ZoneSession.For(db).Clear();
         return n;
+    }
+
+    /// <summary>
+    /// Post a command-line warning for every distinct (type, DN) the active catalog couldn't
+    /// price. A missing entry understates the zone total, so it must never pass silently — it
+    /// is the catalog-side twin of the missing-stamp failure. <paramref name="warned"/>, when
+    /// supplied, suppresses repeats of the same entry across a multi-zone recompute.
+    /// </summary>
+    private static void WarnMissingEntries(
+        string catalogName,
+        IReadOnlyList<(NhsPipeType Type, int Dn)> missing,
+        ISet<(NhsPipeType Type, int Dn)>? warned)
+    {
+        Editor? ed = Autodesk.AutoCAD.ApplicationServices.Application
+            .DocumentManager.MdiActiveDocument?.Editor;
+        if (ed is null) return;
+        foreach (var m in missing)
+        {
+            if (warned is not null && !warned.Add(m)) continue;
+            ed.WriteMessage(
+                $"\nNDZ WARNING: price catalog '{catalogName}' has no entry for {m.Type} DN{m.Dn}; " +
+                "that pipe priced as 0 and the zone total is understated.");
+        }
     }
 
     private static int RandomColorArgb(Random rng)

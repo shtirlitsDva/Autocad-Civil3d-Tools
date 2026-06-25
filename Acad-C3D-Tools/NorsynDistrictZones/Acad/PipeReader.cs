@@ -6,6 +6,7 @@ using NorsynDistrictZones.Pricing;
 
 using AcPolyline = Autodesk.AutoCAD.DatabaseServices.Polyline;
 using NhsSegmentType = NorsynHydraulicCalc.SegmentType;
+using NhsPipeType = NorsynHydraulicCalc.PipeType;
 
 namespace NorsynDistrictZones.Acad;
 
@@ -52,7 +53,9 @@ internal static class PipeReader
             {
                 Entity? ent = tx.GetObject(eid, OpenMode.ForRead) as Entity;
                 if (ent is null) continue;
-                if (!PipeTypeTranslator.TryParseLayer(ent.Layer, out var sys, out var typ, out int dn))
+                // The layer only gates "is this an FJV pipe?" and yields the DN; the pipe's
+                // type and FL/SL role come authoritatively from the export XData below.
+                if (!PipeTypeTranslator.TryParseLayer(ent.Layer, out _, out _, out int dn))
                     continue;
 
                 NetTopologySuite.Geometries.LineString? ls = ent switch
@@ -63,14 +66,17 @@ internal static class PipeReader
                 };
                 if (ls is null || ls.Length <= 0) continue;
 
-                // Prefer authoritative FL/SL from XData (written by the DimV2 export — P12).
-                // Falls back to provisional Fordelingsledning when the export hasn't stamped it yet.
-                (bool hasSeg, NhsSegmentType seg) = TryReadSegment(ent);
+                // Authoritative NHS pipe type + FL/SL role from XData (written by the DimV2
+                // export). These are the SINGLE TRUTH for pricing — NEVER re-derive either from
+                // (layer-system, role): that collapse mis-prices Fællesstikledning (an SL-typed
+                // pipe in the Fordelingsledning role) as the FL variant. An unstamped pipe is
+                // unidentifiable: it carries null identity and the zone reports incomplete data.
+                (bool hasId, NhsPipeType nhsType, NhsSegmentType seg) = TryReadIdentity(ent);
 
                 result.Add(new PipeSegment(
-                    sys, typ, dn,
-                    hasSeg ? seg : NhsSegmentType.Fordelingsledning,
-                    SegmentIsProvisional: !hasSeg,
+                    Dn: dn,
+                    Segment: hasId ? seg : (NhsSegmentType?)null,
+                    NhsType: hasId ? nhsType : (NhsPipeType?)null,
                     Geometry: ls,
                     FullLength: ls.Length));
             }
@@ -85,22 +91,29 @@ internal static class PipeReader
     public const string PipeIdentityApp = "NORSYN_NHS_PIPE";
 
     /// <summary>
-    /// Read the FL/SL segment type from the pipe's XData if the export stamped it
-    /// (schema: [regapp, pipeType, segmentType, dn]). This is the FL/SL-blocker fix
-    /// contract — until the DimV2 write side ships, pipes have no such XData and
-    /// pricing stays provisional.
+    /// Read the AUTHORITATIVE NHS identity the export stamped on the pipe
+    /// (schema: [regapp, pipeTypeName, segmentTypeName, dn]). The pipe-type name is the
+    /// exact NorsynHydraulicShared <see cref="NhsPipeType"/> that DimV2 sized and priced
+    /// against (e.g. AluPEXSL for a Fællesstikledning); pricing keys on it directly so the
+    /// two apps agree. Returns false (⇒ provisional) only if the XData is absent or either
+    /// value is unparseable — pipe type and FL/SL role are recognised regardless of order.
     /// </summary>
-    private static (bool ok, NhsSegmentType seg) TryReadSegment(Entity ent)
+    private static (bool ok, NhsPipeType type, NhsSegmentType seg) TryReadIdentity(Entity ent)
     {
         ResultBuffer? rb = ent.GetXDataForApplication(PipeIdentityApp);
-        if (rb is null) return (false, default);
+        if (rb is null) return (false, default, default);
+
+        NhsPipeType? type = null;
+        NhsSegmentType? seg = null;
         foreach (TypedValue tv in rb)
         {
             if (tv.TypeCode != (short)DxfCode.ExtendedDataAsciiString) continue;
             string s = (tv.Value as string) ?? string.Empty;
-            if (s.Equals("Stikledning", StringComparison.OrdinalIgnoreCase)) return (true, NhsSegmentType.Stikledning);
-            if (s.Equals("Fordelingsledning", StringComparison.OrdinalIgnoreCase)) return (true, NhsSegmentType.Fordelingsledning);
+            if (type is null && Enum.TryParse(s, ignoreCase: true, out NhsPipeType pt)) { type = pt; continue; }
+            if (s.Equals("Stikledning", StringComparison.OrdinalIgnoreCase)) seg = NhsSegmentType.Stikledning;
+            else if (s.Equals("Fordelingsledning", StringComparison.OrdinalIgnoreCase)) seg = NhsSegmentType.Fordelingsledning;
         }
-        return (false, default);
+        if (type is null || seg is null) return (false, default, default);
+        return (true, type.Value, seg.Value);
     }
 }

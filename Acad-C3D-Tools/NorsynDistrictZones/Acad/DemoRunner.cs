@@ -1,8 +1,6 @@
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 
-using IntersectUtilities.UtilsCommon.Enums;
-
 using NetTopologySuite.Geometries;
 
 using NorsynDistrictZones.Editing;
@@ -11,6 +9,7 @@ using NorsynDistrictZones.Pricing;
 using NorsynDistrictZones.Topology;
 
 using NhsSegmentType = NorsynHydraulicCalc.SegmentType;
+using NhsPipeType = NorsynHydraulicCalc.PipeType;
 
 namespace NorsynDistrictZones.Acad;
 
@@ -31,8 +30,7 @@ public static class DemoRunner
             var pipeLine = gf.CreateLineString(new[] { new Coordinate(-10, 20), new Coordinate(70, 20) });
             var pipes = new List<PipeSegment>
             {
-                new(PipeSystemEnum.Stål, PipeTypeEnum.Enkelt, 50,
-                    NhsSegmentType.Fordelingsledning, true, pipeLine, pipeLine.Length),
+                new(50, NhsSegmentType.Fordelingsledning, NhsPipeType.Stål, pipeLine, pipeLine.Length),
             };
             var catalog = PipePriceCatalog.SeedFromDefaults();
             var ms = (BlockTableRecord)tx.GetObject(

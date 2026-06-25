@@ -18,10 +18,26 @@ namespace NorsynDistrictZones.UI;
 public partial class PriceEditorViewModel : ObservableObject
 {
     [ObservableProperty] private ObservableCollection<PipePriceCatalog> catalogs = new();
-    [ObservableProperty] private PipePriceCatalog? selectedCatalog;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SelectedCatalogIsReadOnly))]
+    [NotifyPropertyChangedFor(nameof(SelectedCatalogIsEditable))]
+    [NotifyCanExecuteChangedFor(nameof(RenameCatalogCommand))]
+    [NotifyCanExecuteChangedFor(nameof(DeleteCatalogCommand))]
+    private PipePriceCatalog? selectedCatalog;
+
     [ObservableProperty] private string activeName = string.Empty;
 
-    public ObservableCollection<PipePriceEntry> Entries { get; } = new();
+    /// <summary>True for the built-in "Default" catalog — its prices, name and existence are locked.</summary>
+    public bool SelectedCatalogIsReadOnly => SelectedCatalog?.IsReadOnly ?? false;
+    public bool SelectedCatalogIsEditable => SelectedCatalog is { IsReadOnly: false };
+    public bool CanDeleteCatalog => SelectedCatalogIsEditable && Catalogs.Count > 1;
+
+    /// <summary>The View supplies the rename dialog: current name in, chosen name out (null ⇒ cancelled).</summary>
+    public Func<string, string?>? RenameRequested;
+
+    /// <summary>One collapsible table per pipe type, built dynamically from the catalog.</summary>
+    public ObservableCollection<PipeTypePriceGroup> Groups { get; } = new();
     public bool Saved { get; private set; }
     public event Action? RequestClose;
 
@@ -34,10 +50,12 @@ public partial class PriceEditorViewModel : ObservableObject
 
     partial void OnSelectedCatalogChanged(PipePriceCatalog? value)
     {
-        Entries.Clear();
+        Groups.Clear();
         if (value is null) return;
-        foreach (PipePriceEntry e in value.Entries.OrderBy(x => x.PipeType).ThenBy(x => x.Dn))
-            Entries.Add(e);
+        // Generic: one group per pipe type actually present in the catalog (no hardcoded list).
+        // The entries are the SAME references, so in-grid edits mutate the catalog directly.
+        foreach (var g in value.Entries.GroupBy(e => e.PipeType).OrderBy(g => g.Key))
+            Groups.Add(new PipeTypePriceGroup(g.Key.ToString(), g.OrderBy(e => e.Dn)));
     }
 
     [RelayCommand]
@@ -57,10 +75,28 @@ public partial class PriceEditorViewModel : ObservableObject
         SelectedCatalog = c;
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(SelectedCatalogIsEditable))]
+    private void RenameCatalog()
+    {
+        if (SelectedCatalog is null || RenameRequested is null) return;
+        string? proposed = RenameRequested(SelectedCatalog.Name);
+        if (string.IsNullOrWhiteSpace(proposed)) return;
+
+        string oldName = SelectedCatalog.Name;
+        string newName = UniqueName(proposed.Trim(), SelectedCatalog);
+        if (string.Equals(newName, oldName, StringComparison.Ordinal)) return;
+
+        SelectedCatalog.Name = newName;
+        if (string.Equals(ActiveName, oldName, StringComparison.OrdinalIgnoreCase)) ActiveName = newName;
+
+        // PipePriceCatalog.Name is a plain model property — refresh the ComboBox's view so it redraws.
+        System.Windows.Data.CollectionViewSource.GetDefaultView(Catalogs).Refresh();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanDeleteCatalog))]
     private void DeleteCatalog()
     {
-        if (SelectedCatalog is null || Catalogs.Count <= 1) return;
+        if (SelectedCatalog is null || SelectedCatalog.IsReadOnly || Catalogs.Count <= 1) return;
         int i = Catalogs.IndexOf(SelectedCatalog);
         Catalogs.Remove(SelectedCatalog);
         SelectedCatalog = Catalogs[Math.Max(0, i - 1)];
@@ -104,12 +140,26 @@ public partial class PriceEditorViewModel : ObservableObject
     [RelayCommand]
     private void Cancel() { Saved = false; RequestClose?.Invoke(); }
 
-    private string UniqueName(string baseName)
+    private string UniqueName(string baseName, PipePriceCatalog? excluding = null)
     {
         string n = baseName;
         int i = 2;
-        while (Catalogs.Any(c => string.Equals(c.Name, n, StringComparison.OrdinalIgnoreCase)))
+        while (Catalogs.Any(c => !ReferenceEquals(c, excluding) && string.Equals(c.Name, n, StringComparison.OrdinalIgnoreCase)))
             n = $"{baseName} {i++}";
         return n;
+    }
+}
+
+/// <summary>A pipe type's price rows, shown as one collapsible table in the editor.</summary>
+public sealed class PipeTypePriceGroup
+{
+    public string Name { get; }
+    public ObservableCollection<PipePriceEntry> Entries { get; }
+    public string Header => $"{Name}   ({Entries.Count} dimensioner)";
+
+    public PipeTypePriceGroup(string name, IEnumerable<PipePriceEntry> entries)
+    {
+        Name = name;
+        Entries = new ObservableCollection<PipePriceEntry>(entries);
     }
 }

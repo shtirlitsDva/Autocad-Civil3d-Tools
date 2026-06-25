@@ -6,12 +6,19 @@ namespace NorsynDistrictZones;
 /// <summary>
 /// Per-USER NDZ settings — global across every drawing (user's explicit choice), persisted
 /// as JSON under <c>%APPDATA%\Norsyn\NorsynDistrictZones\settings.json</c>. Cached in memory
-/// and written through on change. Currently just the zone-label text height: set it once and
-/// every drawing renders/exports labels at that height.
+/// and written through on change. Holds the zone-label text height and the zone fill
+/// transparency: set once and every drawing renders accordingly.
 /// </summary>
 internal static class GlobalSettings
 {
-    private sealed class Data { public double? LabelHeight { get; set; } }
+    /// <summary>Zone fill transparency (%) when the user has never set one — ≈ alpha 110, the original look.</summary>
+    public const int DefaultTransparencyPercent = 57;
+
+    private sealed class Data
+    {
+        public double? LabelHeight { get; set; }
+        public int? ZoneTransparencyPercent { get; set; }
+    }
 
     private static readonly string Dir = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -29,6 +36,16 @@ internal static class GlobalSettings
     {
         get => Current.LabelHeight;
         set { Current.LabelHeight = value is > 0 ? value : null; Save(); }
+    }
+
+    /// <summary>
+    /// Zone fill transparency in percent (0 = opaque, 90 = faintest — AutoCAD's range).
+    /// Falls back to <see cref="DefaultTransparencyPercent"/> until the user sets one.
+    /// </summary>
+    public static int ZoneTransparencyPercent
+    {
+        get => Current.ZoneTransparencyPercent ?? DefaultTransparencyPercent;
+        set { Current.ZoneTransparencyPercent = Math.Clamp(value, 0, 90); Save(); }
     }
 
     private static Data Load()
