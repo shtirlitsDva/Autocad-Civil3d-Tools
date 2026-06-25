@@ -147,9 +147,16 @@ internal sealed class ZoneReactor : IDisposable
             return true;
         }
 
-        // Touched a face but produced no clean split → flag it; otherwise stay silent
-        // (don't harass every unrelated polyline the user draws).
-        if (touchedAFace) _marker.Show(pl);
+        // Touched a face but produced no clean split → flag it AND say why; otherwise
+        // stay silent (don't harass every unrelated polyline the user draws).
+        if (touchedAFace)
+        {
+            _marker.Show(pl);
+            _doc.Editor.WriteMessage(
+                "\nNDZ: that line touched a zone but did not divide it (marked red). " +
+                "To split a zone, draw an OPEN polyline that runs edge-to-edge — both ends " +
+                "on (or just across) the zone boundary, crossing the interior between them.\n");
+        }
         return false;
     }
 

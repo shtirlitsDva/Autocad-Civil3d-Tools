@@ -3,6 +3,8 @@ using Autodesk.AutoCAD.Geometry;
 
 using NetTopologySuite.Geometries;
 
+using NorsynDistrictZones.Topology;   // NdzGeometry (the zone-precision grid + factory)
+
 using AcPolyline = Autodesk.AutoCAD.DatabaseServices.Polyline;
 
 namespace NorsynDistrictZones.Acad;
@@ -10,7 +12,10 @@ namespace NorsynDistrictZones.Acad;
 /// <summary>
 /// Minimal AutoCAD ↔ NetTopologySuite geometry adapter. Deliberately tiny (this
 /// is a mechanical projection, not domain logic) so the plugin does not have to
-/// link the heavy IntersectUtilities NTSConversion graph.
+/// link the heavy IntersectUtilities NTSConversion graph. Every coordinate is
+/// snapped onto the shared <see cref="NdzGeometry"/> grid here, at the single point
+/// where AutoCAD geometry enters the NTS world — so all downstream topology is
+/// grid-aligned and the overlay noder is robust (see <see cref="NdzGeometry"/>).
 /// </summary>
 internal static class AcadNts
 {
@@ -43,8 +48,9 @@ internal static class AcadNts
         }
         coords.Add(ToCoord(pl.GetPoint2dAt(pl.Closed ? 0 : n - 1), transform));
 
+        SnapAll(coords);
         Dedup(coords);
-        return coords.Count >= 2 ? new LineString(coords.ToArray()) : EmptyLine();
+        return coords.Count >= 2 ? NdzGeometry.Factory.CreateLineString(coords.ToArray()) : EmptyLine();
     }
 
     /// <summary>Project an old-style 2D polyline (vertex list) to a WCS NTS LineString.</summary>
@@ -57,19 +63,19 @@ internal static class AcadNts
                 coords.Add(ToCoord3(v.Position, transform));
         }
         if (pl.Closed && coords.Count >= 2) coords.Add(coords[0]);
+        SnapAll(coords);
         Dedup(coords);
-        return coords.Count >= 2 ? new LineString(coords.ToArray()) : EmptyLine();
+        return coords.Count >= 2 ? NdzGeometry.Factory.CreateLineString(coords.ToArray()) : EmptyLine();
     }
 
     /// <summary>Project a CLOSED lwpolyline to a WCS NTS Polygon (outer ring only).</summary>
     public static Polygon? ToPolygon(AcPolyline pl, Matrix3d transform)
     {
-        LineString ring = ToLineString(pl, transform);
+        LineString ring = ToLineString(pl, transform); // already snapped to the grid
         var coords = ring.Coordinates.ToList();
         if (coords.Count >= 1 && !coords[0].Equals2D(coords[^1])) coords.Add(coords[0].Copy());
         if (coords.Count < 4) return null;
-        var gf = NetTopologySuite.NtsGeometryServices.Instance.CreateGeometryFactory();
-        try { return gf.CreatePolygon(coords.ToArray()); }
+        try { return NdzGeometry.Factory.CreatePolygon(coords.ToArray()); }
         catch { return null; }
     }
 
@@ -85,12 +91,19 @@ internal static class AcadNts
         return new Coordinate(w.X, w.Y);
     }
 
+    /// <summary>Snap every coordinate onto the shared zone grid (in place), before dedup.</summary>
+    private static void SnapAll(List<Coordinate> coords)
+    {
+        foreach (Coordinate c in coords) NdzGeometry.Snap(c);
+    }
+
     private static void Dedup(List<Coordinate> coords)
     {
+        // After grid-snapping, coincident-on-grid neighbours collapse here.
         for (int i = coords.Count - 2; i >= 0; i--)
             if (coords[i].Distance(coords[i + 1]) < 1e-6) coords.RemoveAt(i + 1);
     }
 
     private static LineString EmptyLine() =>
-        new LineString(new[] { new Coordinate(0, 0), new Coordinate(0, 0) });
+        NdzGeometry.Factory.CreateLineString(new[] { new Coordinate(0, 0), new Coordinate(0, 0) });
 }

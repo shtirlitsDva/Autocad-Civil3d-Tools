@@ -17,7 +17,7 @@ public static class ZoneGeometryOps
     /// </summary>
     public static IReadOnlyList<Polygon> SplitByLine(Polygon face, LineString cut)
     {
-        Geometry noded = face.Boundary.Union(cut);
+        Geometry noded = NdzGeometry.Union(face.Boundary, cut);
         var polygonizer = new Polygonizer();
         polygonizer.Add(noded);
 
@@ -38,7 +38,7 @@ public static class ZoneGeometryOps
     {
         if (!parent.Contains(closed)) return null;
 
-        Geometry diff = parent.Difference(closed);
+        Geometry diff = NdzGeometry.Difference(parent, closed);
         Polygon? parentWithHole = diff switch
         {
             Polygon p => p,
@@ -54,7 +54,7 @@ public static class ZoneGeometryOps
     /// </summary>
     public static Polygon? Merge(Polygon a, Polygon b)
     {
-        Geometry union = a.Union(b);
+        Geometry union = NdzGeometry.Union(a, b);
         return union as Polygon; // non-adjacent faces union to a MultiPolygon → null
     }
 
@@ -66,7 +66,7 @@ public static class ZoneGeometryOps
     public static double InsideLength(Polygon face, Geometry pipeLine)
     {
         if (pipeLine is null) return 0;
-        Geometry inside = face.Intersection(pipeLine);
+        Geometry inside = NdzGeometry.Intersection(face, pipeLine);
         return inside?.Length ?? 0.0;
     }
 
