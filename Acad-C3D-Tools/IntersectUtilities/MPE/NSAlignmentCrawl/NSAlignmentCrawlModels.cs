@@ -19,7 +19,9 @@ internal static class NSAlignmentCrawlConstants
     // bridge), never for general clustering, so distinct ports are never merged.
     public const double StudConnectTolerance = 0.3; // metres (300 mm)
 
-    public const string XrefName = "FV_Fremtid";
+    // Substring, matched case-insensitively (see IsTargetXref), so this catches any xref whose
+    // name contains "Fremtid" regardless of project prefix/suffix or casing.
+    public const string XrefName = "Fremtid";
     public const string OutputLayer = "0";
 }
 
