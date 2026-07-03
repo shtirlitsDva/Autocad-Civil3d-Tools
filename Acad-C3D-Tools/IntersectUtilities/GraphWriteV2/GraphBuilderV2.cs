@@ -32,10 +32,26 @@ namespace IntersectUtilities.GraphWriteV2
             // Map entities
             var entities = allEntities.ToDictionary(e => e.Handle, e => e);
 
-            // Build GraphEntity for connectivity (unvisited working set)
-            var unvisited = entities.Values
-                .Select(e => new GraphEntity(e, _psmGraph))
-                .ToHashSet();
+            // Build GraphEntity for connectivity (unvisited working set). An entity whose connectivity
+            // PropertySet is empty (i.e. not connected) makes the GraphEntity ctor throw. Collect ALL such
+            // entities and surface them together as a DebugEntityException, so GRAPHWRITEV2's handler can
+            // run the interactive inspector and zoom to each — rather than the ctor throwing a bare
+            // Exception on the first one, which the command's generic catch would swallow with no zoom.
+            var unvisited = new HashSet<GraphEntity>();
+            var disconnected = new List<Entity>();
+            foreach (var e in entities.Values)
+            {
+                try { unvisited.Add(new GraphEntity(e, _psmGraph)); }
+                catch (System.Exception) { disconnected.Add(e); }
+            }
+            if (disconnected.Count > 0)
+            {
+                prdDbg($"ERROR: {disconnected.Count} entity/entities have no connectivity data (not connected).");
+                prdDbg("Run GRAPHPOPULATE or fix the connection; the objects are listed for inspection.");
+                throw new DebugEntityException(
+                    $"{disconnected.Count} entity/entities have no connectivity data (not connected).",
+                    disconnected);
+            }
 
             // Stable lookup for neighbor resolution
             var byHandle = unvisited.ToDictionary(x => x.OwnerHandle, x => x);

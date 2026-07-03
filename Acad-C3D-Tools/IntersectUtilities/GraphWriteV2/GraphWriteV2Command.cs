@@ -1,5 +1,6 @@
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
+using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
 
 using IntersectUtilities.UtilsCommon;
@@ -301,6 +302,8 @@ document.addEventListener(""DOMContentLoaded"", () => {{
 ";
                 File.WriteAllText(@"C:\Temp\MyGraph.html", htmlContent);
 
+                // Open the HTML report (QA table + graph). Selection of flagged objects is handled by the
+                // report's ahk:// links, so no in-CAD dropdown is needed on this path.
                 string mSedgePath = @"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe";
                 if (File.Exists(mSedgePath))
                 {
@@ -322,24 +325,38 @@ document.addEventListener(""DOMContentLoaded"", () => {{
 
                 tx.Abort();
 
-                using var dtx = localDb.TransactionManager.StartTransaction();
-                foreach (var e in dbex.DebugEntities)
+                // Capture zoom-to data for the completely disconnected objects. Entities are re-opened by
+                // ObjectId in a fresh transaction (the ones on the exception came from the now-aborted
+                // transaction). No debug markers are drawn — the inspector below zooms to and highlights each.
+                var discItems = new List<GraphWriteV2.GraphErrorItem>();
+                using (var dtx = localDb.TransactionManager.StartTransaction())
                 {
-                    switch (e)
+                    foreach (var e in dbex.DebugEntities)
                     {
-                        case Polyline pl:
-                            DebugHelper.CreateDebugLine(
-                                pl.GetPointAtDist(pl.Length / 2), ColorByName("red"));
-                            break;
-                        case BlockReference br:
-                            DebugHelper.CreateDebugLine(
-                                br.Position, ColorByName("red"));
-                            break;
-                        default:
-                            break;
+                        if (dtx.GetObject(e.ObjectId, OpenMode.ForRead) is not Entity ent) continue;
+
+                        Extents3d ext;
+                        try { ext = ent.GeometricExtents; }
+                        catch
+                        {
+                            Point3d p = ent switch
+                            {
+                                Polyline pl => pl.GetPointAtDist(pl.Length / 2),
+                                BlockReference br => br.Position,
+                                _ => Point3d.Origin,
+                            };
+                            var v = new Vector3d(1, 1, 0);
+                            ext = new Extents3d(p - v, p + v);
+                        }
+                        discItems.Add(new GraphWriteV2.GraphErrorItem(
+                            ent.Handle.ToString(), ent.ObjectId, ext, "Ikke forbundet"));
                     }
+                    dtx.Commit();
                 }
-                dtx.Commit();
+
+                // Interactive zoom-to dropdown over the completely disconnected objects only.
+                GraphWriteV2.GraphErrorInspector.Run(
+                    docCol.MdiActiveDocument, "Ikke-forbundne objekter", discItems);
                 return;
             }
             catch (System.Exception ex)
@@ -349,7 +366,6 @@ document.addEventListener(""DOMContentLoaded"", () => {{
                 return;
             }
             tx.Commit();
-
         }
     }
 }
