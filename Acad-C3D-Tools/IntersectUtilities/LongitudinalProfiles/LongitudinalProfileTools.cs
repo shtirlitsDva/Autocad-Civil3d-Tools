@@ -847,6 +847,10 @@ namespace IntersectUtilities
                                 //Assume only one intersection
                                 cogoPoint.Elevation = p3dInt.Z;
 
+                                bool german =
+                                    ConfigurationManager.ActiveConfiguration?.StartsWith(
+                                        "DE", StringComparison.OrdinalIgnoreCase) == true;
+
                                 if (cogoPoint.Elevation == 0)
                                 {
                                     editor.WriteMessage(
@@ -857,8 +861,16 @@ namespace IntersectUtilities
                                 }
                                 else
                                 {
-                                    kote = $"K: {p3dInt.Z.ToString("#.00", danishCulture)}, ";
-                                    description = kote + description;
+                                    if (german)
+                                    {
+                                        kote = $", K: {p3dInt.Z.ToString("#.00", danishCulture)}";
+                                        description = description + kote;
+                                    }
+                                    else
+                                    {
+                                        kote = $"K: {p3dInt.Z.ToString("#.00", danishCulture)}, ";
+                                        description = kote + description;
+                                    }
                                 }
                             }
 
@@ -4988,9 +5000,9 @@ namespace IntersectUtilities
                     }
                     catch (System.Exception ex)
                     {
-                        
+
                         throw;
-                    }                   
+                    }
 
                     Oid rightStyleId = profileProjection_RIGHT_Style;
                     Oid leftStyleId = profileProjection_LEFT_Style;
@@ -6089,7 +6101,7 @@ namespace IntersectUtilities
                             layerId, profileStyleId, profileLabelSetStylesId);
 
                     Profile profile = pId.Go<Profile>(tx, OpenMode.ForWrite);
-                    
+
                     Polyline polyline = plObjId.Go<Polyline>(tx);
 
                     //Check direction
