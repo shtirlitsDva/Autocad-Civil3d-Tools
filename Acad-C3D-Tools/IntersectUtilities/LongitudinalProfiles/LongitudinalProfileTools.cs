@@ -5194,10 +5194,14 @@ namespace IntersectUtilities
             // load until its dbx is present. All NPPL usage lives in NpplRun (separate
             // method, JITted only after EnsureLoaded has loaded the dbx).
             Norsyn.OnDemandLoading.NorsynProjectionProfileLabelLoader.EnsureLoaded();
-            NpplRun(eraseOriginals: true, limit: 0);
+            // Project/etape selection (auto-detected from the drawing filename) — needed to
+            // open the Fremtid plan drawing where the pipe DN data lives. Null => cancelled.
+            var dro = DataReferencesOptions.Create();
+            if (dro == null) return;
+            NpplRun(eraseOriginals: true, limit: 0, dro);
         }
 
-        private static void NpplRun(bool eraseOriginals, int limit)
+        private static void NpplRun(bool eraseOriginals, int limit, DataReferencesOptions dro)
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
             if (doc == null) return;
@@ -5245,6 +5249,13 @@ namespace IntersectUtilities
                 tr.Commit();
             }
 
+            // Pass 1b: convert DRISizeChangeAnno component blocks into static, TOP-anchored
+            // German NPPLs. Appends to `created` so the placement pass below de-clutters them
+            // together with the projection labels. Never lets a failure abort the projection run.
+            int blockMade = 0, blockSkipped = 0;
+            try { blockMade = NpplBlockPass(db, dro, created, modelHeight, out blockSkipped); }
+            catch (System.Exception ex) { ed.WriteMessage($"\nNDHPPL block pass failed: {ex.Message}"); }
+
             // Pass 1.5: de-clutter. Group by ProfileView and run the placement.
             NpplPlaceAll(db, created, modelHeight);
 
@@ -5256,7 +5267,8 @@ namespace IntersectUtilities
 
             ed.WriteMessage(
                 $"\nNDHPPL: total={total} created={made} failed={failed} " +
-                $"erased={(eraseOriginals ? made : 0)}\n");
+                $"erased={(eraseOriginals ? made : 0)} " +
+                $"blockLabels={blockMade} blockSkipped={blockSkipped}\n");
         }
 
         // Build one NPPL from a Civil ProfileProjectionLabel. Sets the caches and a
@@ -5404,6 +5416,343 @@ namespace IntersectUtilities
                 catch { /* station outside this profile's range */ }
             }
             return best;
+        }
+
+        // ===================== DRISizeChangeAnno -> German NPPL =====================
+        // The component-annotation blocks (DRISizeChangeAnno, attr LEFTSIZE) are turned into
+        // static NPPLs: anchored to the TOP profile at the block's station, text translated
+        // Danish->German with the pipe DN filled in. These labels carry NO source ids
+        // (CogoPointId/ProfileViewId both null) so the live runtime never touches them.
+
+        // One label to create (a group of overlapping identical blocks collapses to one).
+        private sealed class NpplBlockGroup
+        {
+            public Oid ViewId;              // local ProfileView (for the shared placement pass)
+            public string ViewAlignment;    // alignment name (== pipeline name in the network)
+            public double Station;          // block station in the view
+            public Point3d Anchor;          // P0 on the TOP profile (leader end)
+            public double ShelfY;           // view-Y a bit above TOP (shelf candidate)
+            public Oid LayerId;             // inherited from the source block
+            public string Left = "";        // LEFTSIZE (component type text, or "DN nnn")
+            public string Right = "";       // RIGHTSIZE (branch alignment name, for tees)
+            public string SourceHandle = "";// DriSourceReference.SourceEntityHandle (empty for type B)
+            public bool AtViewEnd;          // station at the view's start/end (terminal callout)
+            public int Count = 1;           // #overlapping identical blocks (enkelt pair -> 2)
+            public readonly List<Oid> BlockIds = new();
+            public string German;           // resolved text; null => suppress (no label)
+        }
+
+        private static readonly Regex s_npplBareDnRx =
+            new(@"^DN\s*\d+$", RegexOptions.Compiled);
+        private static readonly Regex s_npplLBendRx =
+            new(@"^Præisoleret bøjning, L\s*([\d.,]+)x([\d.,]+)\s*m,\s*V\s*([\d.,]+)°?$",
+                RegexOptions.Compiled);
+
+        // Convert DRISizeChangeAnno blocks to NPPLs. Appends the created labels' placement
+        // inputs to `created`; returns the number of labels made (out: number skipped).
+        private static int NpplBlockPass(Database db, DataReferencesOptions dro,
+                                         List<NpplPlaceInput> created, double modelHeight,
+                                         out int skipped)
+        {
+            skipped = 0;
+            PropertySetManager.UpdatePropertySetDefinition(
+                db, PSetDefs.DefinedSets.DriSourceReference);
+
+            // ---- Phase 1: read local geometry, assign blocks to views, group overlaps ----
+            var groups = new List<NpplBlockGroup>();
+            using (Transaction tx = db.TransactionManager.StartTransaction())
+            {
+                var psmSrc = new PropertySetManager(db, PSetDefs.DefinedSets.DriSourceReference);
+                var srcDef = new PSetDefs.DriSourceReference();
+
+                // profile views + their alignment / TOP profile / buffered bbox / station span
+                var views = new List<(Oid id, Extents3d ext, string aln, Profile top,
+                                      ProfileView pv, double stStart, double stEnd)>();
+                var ms = (BlockTableRecord)tx.GetObject(
+                    SymbolUtilityServices.GetBlockModelSpaceId(db), OpenMode.ForRead);
+                foreach (Oid id in ms)
+                {
+                    if (id.ObjectClass.Name != "AeccDbGraphProfile") continue;
+                    var pv = (ProfileView)tx.GetObject(id, OpenMode.ForRead);
+                    var al = (Alignment)tx.GetObject(pv.AlignmentId, OpenMode.ForRead);
+                    Profile top = al.GetProfileIds().Cast<Oid>()
+                        .Select(pid => (Profile)tx.GetObject(pid, OpenMode.ForRead))
+                        .FirstOrDefault(p => p.Name.ToUpper().Contains("TOP"));
+                    Extents3d ext;
+                    try { ext = ((Entity)pv).GetBufferedXYGeometricExtents(10.0); }
+                    catch { continue; }
+                    views.Add((id, ext, al.Name, top, pv, pv.StationStart, pv.StationEnd));
+                }
+
+                var recs = new List<NpplBlockGroup>();
+                foreach (Oid id in ms)
+                {
+                    if (id.ObjectClass.Name != "AcDbBlockReference") continue;
+                    var br = (BlockReference)tx.GetObject(id, OpenMode.ForRead);
+                    if (br.RealName() != "DRISizeChangeAnno") continue;
+
+                    string left = "", right = "";
+                    foreach (Oid aid in br.AttributeCollection)
+                    {
+                        if (tx.GetObject(aid, OpenMode.ForRead) is not AttributeReference ar) continue;
+                        if (ar.Tag == "LEFTSIZE") left = ar.TextString ?? "";
+                        else if (ar.Tag == "RIGHTSIZE") right = ar.TextString ?? "";
+                    }
+
+                    Point3d pos = br.Position;
+                    var hit = views.FirstOrDefault(v => v.ext.IsPointInsideXY(pos));
+                    if (hit.pv == null) { skipped++; continue; }
+
+                    double sta = double.NaN, elev = 0;
+                    try { hit.pv.FindStationAndElevationAtXY(pos.X, pos.Y, ref sta, ref elev); }
+                    catch { }
+                    if (double.IsNaN(sta)) { skipped++; continue; }
+
+                    // TOP anchor P0 (skip if no TOP or station outside its range)
+                    if (hit.top == null) { skipped++; continue; }
+                    double topElev; try { topElev = hit.top.ElevationAt(sta); } catch { skipped++; continue; }
+                    double ax = 0, ay = 0, sx = 0, shelfY = 0;
+                    hit.pv.FindXYAtStationAndElevation(sta, topElev, ref ax, ref ay);
+                    hit.pv.FindXYAtStationAndElevation(sta, topElev + NpplSurfaceClearance, ref sx, ref shelfY);
+
+                    string src = "";
+                    try { src = psmSrc.ReadPropertyString(br, srcDef.SourceEntityHandle) ?? ""; }
+                    catch { }
+
+                    double endTol = 0.5;
+                    bool atEnd = sta <= hit.stStart + endTol || sta >= hit.stEnd - endTol;
+
+                    var r = new NpplBlockGroup
+                    {
+                        ViewId = hit.id, ViewAlignment = hit.aln, Station = sta,
+                        Anchor = new Point3d(ax, ay, 0), ShelfY = shelfY,
+                        LayerId = br.LayerId, Left = left, Right = right, SourceHandle = src,
+                        AtViewEnd = atEnd,
+                    };
+                    r.BlockIds.Add(id);
+                    // stash the extents on the first block id via a parallel dict below
+                    s_npplExt[id] = SafeExt(br);
+                    recs.Add(r);
+                }
+
+                // cluster: same view + identical LEFTSIZE + overlapping bbox -> one group
+                foreach (var byView in recs.GroupBy(r => r.ViewId))
+                    foreach (var byLeft in byView.GroupBy(r => r.Left))
+                    {
+                        var list = byLeft.ToList();
+                        var used = new bool[list.Count];
+                        for (int i = 0; i < list.Count; i++)
+                        {
+                            if (used[i]) continue;
+                            var g = list[i]; used[i] = true;
+                            Extents3d gi = s_npplExt[g.BlockIds[0]];
+                            for (int j = i + 1; j < list.Count; j++)
+                            {
+                                if (used[j]) continue;
+                                if (NpplXYOverlap(gi, s_npplExt[list[j].BlockIds[0]]))
+                                { g.BlockIds.Add(list[j].BlockIds[0]); g.Count++; used[j] = true; }
+                            }
+                            groups.Add(g);
+                        }
+                    }
+                tx.Commit();
+            }
+            s_npplExt.Clear();
+            if (groups.Count == 0) return 0;
+
+            // ---- Phase 2: resolve DN + German text via the Fremtid plan drawing ----
+            DataManager dm = new(dro);
+            using (Database fremDb = dm.Fremtid())
+            using (Transaction fremTx = fremDb.TransactionManager.StartTransaction())
+            using (Database alDb = dm.Alignments())
+            using (Transaction alTx = alDb.TransactionManager.StartTransaction())
+            {
+                var ents = fremDb.GetFjvEntities(fremTx);
+                var map = new Dictionary<string, Entity>();
+                foreach (var e in ents) map[e.Handle.ToString()] = e;
+
+                // The network is only needed for tee branch DN + reducer before/after. If it
+                // fails to build (e.g. a malformed connection string on one Fremtid entity),
+                // don't lose every label — degrade those two cases to "xx" and carry on; the
+                // main/single DN comes from the source handle and needs no network.
+                PipelineNetwork pn = null;
+                try
+                {
+                    var pnTry = new PipelineNetwork();
+                    pnTry.CreatePipelineNetwork(ents, alDb.HashSetOfType<Alignment>(alTx));
+                    pnTry.CreatePipelineGraph();
+                    pnTry.CreateSizeArrays();
+                    pn = pnTry;
+                }
+                catch (System.Exception ex)
+                { prdDbg($"NDHPPL: PipelineNetwork build failed ({ex.Message}); branch/reducer DN -> 'xx'."); }
+
+                foreach (var g in groups)
+                {
+                    string german = NpplTranslate(g, map, pn, out bool forceTwoX);
+                    if (german == null) { g.German = null; continue; }
+                    int n = g.Count;
+                    if (forceTwoX) n = System.Math.Max(n, 2);
+                    if (n > 1) german = $"{n}x " + german;
+                    g.German = german;
+                }
+                fremTx.Commit(); alTx.Commit();
+            }
+
+            // ---- Phase 3: create the NPPLs and erase the converted blocks ----
+            int made = 0;
+            using (Transaction tx = db.TransactionManager.StartTransaction())
+            {
+                var ms = (BlockTableRecord)tx.GetObject(
+                    SymbolUtilityServices.GetBlockModelSpaceId(db), OpenMode.ForWrite);
+                foreach (var g in groups)
+                {
+                    if (g.German == null) { skipped++; continue; } // suppressed -> leave blocks
+                    try
+                    {
+                        var nppl = new Npp
+                        {
+                            Description = g.German,
+                            ProjectionLocation = g.Anchor,
+                            TextPosition = new Point3d(g.Anchor.X, g.ShelfY, 0),
+                            MiddleSegmentElevation = (g.Anchor.Y + g.ShelfY) * 0.5,
+                            TextSizeMm = NpplDefaultTextSizeMm,
+                            // CogoPointId / ProfileViewId intentionally left null (static label)
+                        };
+                        var ent = (Entity)nppl;
+                        ms.AppendEntity(ent);
+                        tx.AddNewlyCreatedDBObject(ent, true);
+                        ent.LayerId = g.LayerId;
+                        created.Add(new NpplPlaceInput(
+                            ent.ObjectId, g.ViewId, g.Anchor.X, g.Anchor.Y, g.ShelfY,
+                            NpplMeasureTextWidth(g.German, modelHeight)));
+                        made++;
+                        foreach (Oid bid in g.BlockIds)
+                            ((Entity)tx.GetObject(bid, OpenMode.ForWrite)).Erase();
+                    }
+                    catch (System.Exception ex)
+                    { prdDbg($"NDHPPL block '{g.Left}': {ex.Message}"); }
+                }
+                tx.Commit();
+            }
+            return made;
+        }
+
+        // Scratch map: block id -> its XY extents (filled/cleared within phase 1).
+        private static readonly Dictionary<Oid, Extents3d> s_npplExt = new();
+        private static Extents3d SafeExt(Entity e)
+        { try { return e.GeometricExtents; } catch { var p = ((BlockReference)e).Position; return new Extents3d(p, p); } }
+        private static bool NpplXYOverlap(Extents3d a, Extents3d b) =>
+            a.MinPoint.X <= b.MaxPoint.X && a.MaxPoint.X >= b.MinPoint.X &&
+            a.MinPoint.Y <= b.MaxPoint.Y && a.MaxPoint.Y >= b.MinPoint.Y;
+
+        // Danish LEFTSIZE -> German (DN filled from the source component / network).
+        // Returns null to suppress (empty text, or a terminal size callout at a view end).
+        private static string NpplTranslate(NpplBlockGroup g, Dictionary<string, Entity> map,
+                                            PipelineNetwork pn, out bool forceTwoX)
+        {
+            forceTwoX = false;
+            string left = (g.Left ?? "").Trim();
+            if (left.Length == 0) return null;
+
+            // Type B: bare "DN nnn" — reducer (mid) or terminal callout (start/end -> ignore).
+            if (s_npplBareDnRx.IsMatch(left))
+            {
+                if (g.AtViewEnd) return null;
+                var (b, a, enkelt) = NpplReducerDNs(pn, g.ViewAlignment, g.Station);
+                forceTwoX = enkelt;
+                return $"Reduzierungen DN {NpplDn(b)}/{NpplDn(a)}";
+            }
+
+            // Type A: main DN from the source component block (DN1).
+            int mainDn = NpplSourceDN(g.SourceHandle, map);
+            string dn = mainDn > 0 ? mainDn.ToString() : "xx";
+
+            var mL = s_npplLBendRx.Match(left);
+            if (mL.Success)
+                return $"Bogen DN {dn}, L.{NpplComma(mL.Groups[1].Value)}x" +
+                       $"{NpplComma(mL.Groups[2].Value)} m, W. {NpplComma(mL.Groups[3].Value)}°";
+
+            string Branch() { var d = NpplBranchDN(pn, g.Right); return d.HasValue ? d.Value.ToString() : "xx"; }
+
+            switch (left)
+            {
+                case "Endebund": return "Klöpperboden + Endmuffe";
+                case "Præisoleret bøjning, 90gr": return $"90°-Bogen DN {dn}";
+                case "Kedelrørsbøjning": return $"Stahlrohrbogen DN {dn}";
+                case "Kedelrørsbøjning, vertikal": return $"Vertikaler Stahlrohrbogen DN {dn}";
+                case "Afgrening med spring": return $"45° T-Abzweig DN{dn}/{Branch()}";
+                case "Lige afgrening": return $"Senkrecht-Abzweig DN{dn}/{Branch()}";
+                case "Parallelafgrening":
+                case "Afgrening, parallel": return $"Parallel-Abzweig DN {dn}/{Branch()}";
+                case "Afgreningsstuds": return $"Anbohrung DN {dn}/{Branch()}";
+                case "Reduktion":
+                {
+                    var (b, a, enkelt) = NpplReducerDNs(pn, g.ViewAlignment, g.Station);
+                    forceTwoX = enkelt;
+                    return $"Reduzierungen DN {NpplDn(b)}/{NpplDn(a)}";
+                }
+                case "Engangsventil": return $"Einmalkugelhahn DN {dn}";
+                case "Præisoleret ventil": return $"Erdeinbau-Kugelhahn DN {dn}";
+                case "Præventil med udluftning": return $"Erdeinbau-Kugelhahn mit Entlüftung DN {dn}";
+                default:
+                    prdDbg($"NDHPPL: no German mapping for LEFTSIZE '{left}' — kept as-is.");
+                    return left;
+            }
+        }
+
+        private static string NpplComma(string s) => (s ?? "").Replace('.', ',');
+        private static string NpplDn(int dn) => dn > 0 ? dn.ToString() : "xx";
+
+        // Main/single DN read directly from the source FJV component block (dynamic DN1).
+        private static int NpplSourceDN(string handle, Dictionary<string, Entity> map)
+        {
+            if (string.IsNullOrWhiteSpace(handle)) return 0;
+            if (!map.TryGetValue(handle.Trim(), out var ent)) return 0;
+            if (ent is BlockReference br)
+            {
+                try { return System.Convert.ToInt32(br.ReadDynamicCsvProperty(DynamicProperty.DN1, true)); }
+                catch { return 0; }
+            }
+            try { return GetPipeDN(ent); } catch { return 0; }
+        }
+
+        // Branch DN for a tee: find the branch pipeline (by alignment name in RIGHTSIZE) in
+        // the network tree and read its DN at the point it connects to its parent.
+        private static int? NpplBranchDN(PipelineNetwork pn, string branchName)
+        {
+            if (pn == null || string.IsNullOrWhiteSpace(branchName)) return null;
+            var node = pn.PipelineGraphs.SelectMany(gr => gr)
+                .FirstOrDefault(n => n.Value.Name == branchName.Trim());
+            if (node?.Parent == null) return null;
+            try
+            {
+                Point3d con = node.Value.GetConnectionLocationToParent(node.Parent.Value, 0.05);
+                double st = node.Value.GetStationAtPoint(con);
+                return node.Value.PipelineSizes.GetSizeAtStation(st).DN;
+            }
+            catch { return null; }
+        }
+
+        // Reducer before/after DN from the pipeline's size array (boundary nearest station),
+        // plus whether the system is enkelt at that station (-> 2x prefix).
+        private static (int before, int after, bool enkelt) NpplReducerDNs(
+            PipelineNetwork pn, string alName, double station)
+        {
+            if (pn == null) return (0, 0, false);
+            var sa = pn.GetPipeline(alName)?.PipelineSizes;
+            if (sa == null || sa.Length == 0) return (0, 0, false);
+            bool enkelt = sa.GetSizeAtStation(station).Type == PipeTypeEnum.Enkelt;
+            var sizes = sa.Sizes.ToList();
+            int bi = -1; double best = double.MaxValue;
+            for (int i = 0; i < sizes.Count - 1; i++)
+            {
+                if (sizes[i].DN == sizes[i + 1].DN) continue;
+                double d = System.Math.Abs(sizes[i].EndStation - station);
+                if (d < best) { best = d; bi = i; }
+            }
+            if (bi < 0) { int dn = sa.GetSizeAtStation(station).DN; return (dn, dn, enkelt); }
+            return (sizes[bi].DN, sizes[bi + 1].DN, enkelt);
         }
 
         // Object factories aren't auto-registered when the interop is referenced (not
