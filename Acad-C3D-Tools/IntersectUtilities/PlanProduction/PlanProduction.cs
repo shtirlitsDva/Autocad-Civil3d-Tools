@@ -104,7 +104,7 @@ namespace IntersectUtilities
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
             // DK vs DE finalization differs only in: the profile-view style
-            // (DK "1:250:100" = 2.5x / DE "1:200:50" = 4x exaggeration), the elevation-description prefix
+            // (DK "1:250:100" = 2.5x / DE "1:200:50 DE" = 4x exaggeration), the elevation-description prefix
             // ("K:" / "Hö:", assigned in createlerdatapssmethod2), and a DE-only pass at the
             // very end that replaces the Civil projection labels with German NPPLs. The active
             // configuration (set via NSCMD, e.g. DKv1 / DKv2 / DEv1) is the single switch.
@@ -181,7 +181,7 @@ namespace IntersectUtilities
                     try
                     {
                         pvStyleId = civilDoc.Styles.ProfileViewStyles[
-                            german ? "PROFILE VIEW L TO R 1:200:50" : "PROFILE VIEW L TO R 1:250:100"];
+                            german ? "PROFILE VIEW L TO R 1:200:50 DE" : "PROFILE VIEW L TO R 1:250:100"];
                     }
                     catch (System.Exception)
                     {
@@ -191,7 +191,7 @@ namespace IntersectUtilities
                     }
 
                     // The LER-block stretch below must match the applied style's vertical
-                    // exaggeration (2.5x for DK "1:250:100", 4x for DE "1:200:50"). Read it
+                    // exaggeration (2.5x for DK "1:250:100", 4x for DE "1:200:50 DE"). Read it
                     // from the style instead of hardcoding so DK and DE both stay correct.
                     double vertExag = pvStyleId.Go<ProfileViewStyle>(tx)
                         .GraphStyle.VerticalExaggeration;
