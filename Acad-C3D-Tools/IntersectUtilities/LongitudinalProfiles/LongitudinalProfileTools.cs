@@ -863,7 +863,7 @@ namespace IntersectUtilities
                                 {
                                     if (german)
                                     {
-                                        kote = $", K: {p3dInt.Z.ToString("#.00", danishCulture)}";
+                                        kote = $", Hö: {p3dInt.Z.ToString("#.00", danishCulture)}";
                                         description = description + kote;
                                     }
                                     else

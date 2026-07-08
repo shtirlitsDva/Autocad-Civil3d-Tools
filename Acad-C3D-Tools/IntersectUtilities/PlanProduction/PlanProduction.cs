@@ -103,6 +103,14 @@ namespace IntersectUtilities
             Editor ed = docCol.MdiActiveDocument.Editor;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
+            // DK vs DE finalization differs only in: the profile-view style
+            // (DK "1:250:100" = 2.5x / DE "1:200:50" = 4x exaggeration), the elevation-description prefix
+            // ("K:" / "Hö:", assigned in createlerdatapssmethod2), and a DE-only pass at the
+            // very end that replaces the Civil projection labels with German NPPLs. The active
+            // configuration (set via NSCMD, e.g. DKv1 / DKv2 / DEv1) is the single switch.
+            bool german = ConfigurationManager.ActiveConfiguration?.StartsWith(
+                "DE", StringComparison.OrdinalIgnoreCase) == true;
+
             resetprofileviews();
             importcivilstyles();
 
@@ -172,7 +180,8 @@ namespace IntersectUtilities
                     Oid pvStyleId = Oid.Null;
                     try
                     {
-                        pvStyleId = civilDoc.Styles.ProfileViewStyles["PROFILE VIEW L TO R 1:250:100"];
+                        pvStyleId = civilDoc.Styles.ProfileViewStyles[
+                            german ? "PROFILE VIEW L TO R 1:200:50" : "PROFILE VIEW L TO R 1:250:100"];
                     }
                     catch (System.Exception)
                     {
@@ -180,6 +189,12 @@ namespace IntersectUtilities
                         tx.Abort();
                         return false;
                     }
+
+                    // The LER-block stretch below must match the applied style's vertical
+                    // exaggeration (2.5x for DK "1:250:100", 4x for DE "1:200:50"). Read it
+                    // from the style instead of hardcoding so DK and DE both stay correct.
+                    double vertExag = pvStyleId.Go<ProfileViewStyle>(tx)
+                        .GraphStyle.VerticalExaggeration;
 
                     foreach (ProfileView pv in pvs)
                     {
@@ -236,7 +251,7 @@ namespace IntersectUtilities
                             foreach (Oid oid in brefIds)
                             {
                                 BlockReference bref = oid.Go<BlockReference>(tx, OpenMode.ForWrite);
-                                bref.ScaleFactors = new Scale3d(1, 2.5, 1);
+                                bref.ScaleFactors = new Scale3d(1, vertExag, 1);
                             }
                         }
                         #endregion
@@ -525,6 +540,18 @@ namespace IntersectUtilities
             staggerlabelsall();
             drawviewportrectangles();
             colorizealllerlayersmethod();
+
+            // DE only: replace the (now styled, colored, staggered) Civil projection labels
+            // with German NPPLs, de-cluttered per partial profile view. Runs last so the NPPLs
+            // inherit the final layer/color and the already-exaggerated geometry; the
+            // station/elevation round-trip inside NpplRun makes the 4x exaggeration correct.
+            // DK keeps the Civil PPLs staggered above. Reuses NDHPPLREPLACE's engine — no
+            // duplicate conversion code.
+            if (german)
+            {
+                Norsyn.OnDemandLoading.NorsynProjectionProfileLabelLoader.EnsureLoaded();
+                NpplRun(eraseOriginals: true, limit: 0, dro);
+            }
 
             return true;
         }
