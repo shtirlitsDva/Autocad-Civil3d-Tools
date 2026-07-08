@@ -368,6 +368,7 @@ namespace IntersectUtilities
                             //Profile View Style
                             ProfileViewStyleCollection pvsc = stylesDoc.Styles.ProfileViewStyles;
                             objIds.Add(pvsc["PROFILE VIEW L TO R 1:250:100"]);
+                            objIds.Add(pvsc["PROFILE VIEW L TO R 1:200:50 DE"]);
                             objIds.Add(pvsc["PROFILE VIEW L TO R NO SCALE"]);
                             //Alignment styles
                             var ass = stylesDoc.Styles.AlignmentStyles;
@@ -389,8 +390,10 @@ namespace IntersectUtilities
                             objIds.Add(plss["Radius Sag"]);
                             //Band set style
                             objIds.Add(stylesDoc.Styles.BandStyles.ProfileViewProfileDataBandStyles["Elevations and Stations"]);
+                            objIds.Add(stylesDoc.Styles.BandStyles.ProfileViewProfileDataBandStyles["Elevations and Stations DE"]);
                             objIds.Add(stylesDoc.Styles.BandStyles.ProfileViewProfileDataBandStyles["TitleBuffer"]);
                             objIds.Add(stylesDoc.Styles.ProfileViewBandSetStyles["EG-FG Elevations and Stations"]);
+                            objIds.Add(stylesDoc.Styles.ProfileViewBandSetStyles["EG-FG Elevations and Stations DE"]);
                             //Matchline styles
                             objIds.Add(stylesDoc.Styles.MatchLineStyles["Basic"]);
                             //Point styles
