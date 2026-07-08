@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.DatabaseServices;
@@ -7,6 +8,8 @@ using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.GraphicsInterface;
 using Autodesk.AutoCAD.Runtime;
+using IntersectUtilities.MPE.Ler3DNetwork;
+using IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork;
 using static IntersectUtilities.UtilsCommon.Utils;
 using AcadApp = Autodesk.AutoCAD.ApplicationServices.Application;
 
@@ -16,12 +19,26 @@ namespace IntersectUtilities
     {
         private const string Ler2ProjectCommandName = "Ler2Project";
 
+        // Remembered across invocations in the same AutoCAD session, so each run
+        // pre-fills the last used values. Seeded with LERConnectNetwork's palette
+        // defaults (20 per-mille slope, 0.1 m check distance).
+        private static double _ler2ProjectSlopePermille = 20.0;
+        private static double _ler2ProjectDistance = 0.1;
+
         /// <command>Ler2Project</command>
         /// <summary>
-        /// Prompts for one or more source 3D polylines, previews how the nearest endpoint of each selected source polyline
-        /// will project onto the target 3D polyline, and then rebuilds each source polyline with its projected endpoint
-        /// when the target polyline is selected. Every source polyline must contain at least two vertices, and the target
-        /// polyline cannot also be part of the source selection.
+        /// A single-target, non-palette form of LERCONNECTNETWORK. Window/crossing multi-selects the source 3D polylines,
+        /// then previews how each source connects onto a hovered target 3D polyline and rebuilds each source when the target is
+        /// picked. The target prompt carries an inline "Settings" keyword to change the minimum slope in per-mille and/or the
+        /// check distance (both persist as the defaults for later runs, and the hover preview reflects changes live); Settings
+        /// lives here rather than on the source prompt because GetSelection ignores inline keywords on this AutoCAD build. The
+        /// connection reuses LERCONNECTNETWORK's projection unchanged:
+        /// both source and target are flattened to XY, the source's nearest end is extended along its tangent to intersect
+        /// the target in XY (or pivots at an existing crossing), that point is lifted to the target's real elevation, and the
+        /// source is rebuilt sloping upward away from the pivot at the given per-mille. Because the target is picked
+        /// explicitly, the connection is never rejected by distance (unlike LERCONNECTNETWORK); the check distance only drives
+        /// the "too long / misses target" flag. Each source is rewritten in place, keeping its ObjectId, layer, XData and
+        /// property sets. Every source polyline must contain at least two vertices, and the target cannot also be a source.
         /// </summary>
         /// <category>MPE</category>
         [CommandMethod(Ler2ProjectCommandName, CommandFlags.Modal)]
@@ -34,40 +51,58 @@ namespace IntersectUtilities
 
             try
             {
-                PromptSelectionResult sourceResult = PromptForSourcePolylines(editor, "\nSelect polyline 1: ");
-                if (sourceResult.Status != PromptStatus.OK || sourceResult.Value is null)
-                {
-                    return;
-                }
-
+                // Window/crossing multi-select of the source polylines. Settings is NOT
+                // offered here: GetSelection silently ignores inline keywords on this AutoCAD
+                // build (verified), so it lives on the target prompt (GetEntity) instead.
                 List<Ler2ProjectSourcePolyline> sourcePolylines = new List<Ler2ProjectSourcePolyline>();
                 HashSet<ObjectId> sourceIds = new HashSet<ObjectId>();
                 using (Transaction sourceTx = localDb.TransactionManager.StartTransaction())
                 {
                     try
                     {
+                        PromptSelectionOptions pso = new PromptSelectionOptions
+                        {
+                            MessageForAdding = "\nSelect source polylines:"
+                        };
+                        SelectionFilter filter = new SelectionFilter(
+                            new[] { new TypedValue((int)DxfCode.Start, "POLYLINE") });
+
+                        PromptSelectionResult sourceResult = editor.GetSelection(pso, filter);
+                        if (sourceResult.Status != PromptStatus.OK || sourceResult.Value is null)
+                        {
+                            sourceTx.Abort();
+                            return;
+                        }
+
                         foreach (ObjectId sourceId in sourceResult.Value.GetObjectIds())
                         {
+                            if (!sourceIds.Add(sourceId))
+                            {
+                                continue;
+                            }
+
                             if (sourceTx.GetObject(sourceId, OpenMode.ForRead, false) is not Polyline3d source)
                             {
                                 editor.WriteMessage("\nSelection must contain only 3D polylines.");
-                                return;
+                                sourceIds.Remove(sourceId);
+                                continue;
                             }
 
                             List<Point3d> sourcePoints = GetVertices(source, sourceTx);
                             if (sourcePoints.Count < 2)
                             {
-                                editor.WriteMessage("\nEach polyline 1 must contain at least two vertices.");
-                                return;
+                                editor.WriteMessage("\nEach source polyline must contain at least two vertices.");
+                                sourceIds.Remove(sourceId);
+                                continue;
                             }
 
                             sourcePolylines.Add(new Ler2ProjectSourcePolyline(sourceId, sourcePoints));
-                            sourceIds.Add(sourceId);
                         }
 
                         if (sourcePolylines.Count == 0)
                         {
-                            editor.WriteMessage("\nNo 3D polylines were selected.");
+                            editor.WriteMessage("\nNo valid source polylines selected.");
+                            sourceTx.Abort();
                             return;
                         }
                     }
@@ -82,57 +117,99 @@ namespace IntersectUtilities
                     sourceTx.Commit();
                 }
 
+                // The preview reads the current slope/distance live (from the static fields),
+                // so changing them via Settings on the target prompt refreshes the preview.
                 using var preview = new Ler2ProjectPreview(localDb, editor, sourcePolylines);
 
-                PromptEntityResult targetResult = PromptForPolyline3d(editor, "\nSelect polyline 2: ");
-                if (targetResult.Status != PromptStatus.OK)
+                // Target prompt carries the inline [Settings] keyword (GetEntity honors
+                // keywords, unlike GetSelection). Choosing Settings changes slope/distance and
+                // re-prompts; picking a polyline proceeds to the projection.
+                ObjectId targetId;
+                while (true)
                 {
-                    return;
+                    PromptEntityOptions peo = new PromptEntityOptions("\nSelect target polyline or");
+                    peo.SetRejectMessage("\nSelect a 3D polyline.");
+                    peo.AddAllowedClass(typeof(Polyline3d), false);
+                    peo.Keywords.Add("Settings");
+
+                    PromptEntityResult targetResult = editor.GetEntity(peo);
+                    if (targetResult.Status == PromptStatus.Keyword)
+                    {
+                        PromptForSettings(editor);
+                        continue;
+                    }
+                    if (targetResult.Status != PromptStatus.OK)
+                    {
+                        return;
+                    }
+                    if (sourceIds.Contains(targetResult.ObjectId))
+                    {
+                        editor.WriteMessage("\nTarget polyline cannot also be part of the source selection.");
+                        continue;
+                    }
+                    targetId = targetResult.ObjectId;
+                    break;
                 }
 
-                if (sourceIds.Contains(targetResult.ObjectId))
-                {
-                    editor.WriteMessage("\nPolyline 2 cannot also be part of the polyline 1 selection.");
-                    return;
-                }
+                // Current (possibly Settings-adjusted) projection parameters.
+                double permille = _ler2ProjectSlopePermille;
+                double distance = _ler2ProjectDistance;
 
                 using Transaction tx = localDb.TransactionManager.StartTransaction();
                 try
                 {
-                    Polyline3d target = (Polyline3d)tx.GetObject(targetResult.ObjectId, OpenMode.ForRead);
+                    Polyline3d target = (Polyline3d)tx.GetObject(targetId, OpenMode.ForRead);
+                    List<Point3d> targetPoints = GetVertices(target, tx);
+                    if (targetPoints.Count < 2)
+                    {
+                        editor.WriteMessage("\nTarget polyline must contain at least two vertices.");
+                        tx.Abort();
+                        return;
+                    }
+
+                    LERNetwork[] networks = { BuildTargetNetwork(targetId, targetPoints) };
+
                     int rebuiltCount = 0;
+                    int flaggedCount = 0;
+                    int failedCount = 0;
 
                     foreach (Ler2ProjectSourcePolyline sourceData in sourcePolylines)
                     {
-                        Polyline3d source = (Polyline3d)tx.GetObject(sourceData.SourceId, OpenMode.ForWrite);
-                        List<Point3d> sourcePoints = GetVertices(source, tx);
-                        if (sourcePoints.Count < 2)
+                        LERConnectionResult? result = Connect(sourceData, networks[0], permille, distance);
+                        if (result is null || result.Status != LERConnectionStatus.Connected || result.NewPoints is null)
                         {
-                            editor.WriteMessage("\nEach polyline 1 must contain at least two vertices.");
-                            return;
+                            failedCount++;
+                            continue;
                         }
 
-                        Ler2ProjectProjectionResult projection = ProjectEndpoint(sourcePoints, target);
-                        sourcePoints[projection.EndpointIndex] = projection.ProjectedPoint;
+                        if (result.Error != LERConnectionError.None)
+                        {
+                            flaggedCount++;
+                        }
 
-                        BlockTableRecord owner = (BlockTableRecord)tx.GetObject(source.OwnerId, OpenMode.ForWrite);
-                        var rebuiltPolyline = new Polyline3d(
-                            source.PolyType,
-                            new Point3dCollection(sourcePoints.ToArray()),
-                            source.Closed);
-                        rebuiltPolyline.SetPropertiesFrom(source);
-
-                        owner.AppendEntity(rebuiltPolyline);
-                        tx.AddNewlyCreatedDBObject(rebuiltPolyline, true);
-
-                        source.Erase();
-                        rebuiltCount++;
+                        // Rewrite in place — keeps ObjectId, layer, XData and property sets.
+                        if (LerRebuild.ReplacePolyline3d(tx, sourceData.SourceId, result.NewPoints))
+                        {
+                            rebuiltCount++;
+                        }
+                        else
+                        {
+                            failedCount++;
+                        }
                     }
 
                     tx.Commit();
 
-                    editor.WriteMessage(
-                        $"\nProjected {rebuiltCount} polyline 1 object(s) onto polyline 2.");
+                    string message = $"\nProjected {rebuiltCount} source polyline(s) onto the target.";
+                    if (flaggedCount > 0)
+                    {
+                        message += $" {flaggedCount} flagged (too long / misses target).";
+                    }
+                    if (failedCount > 0)
+                    {
+                        message += $" {failedCount} could not connect.";
+                    }
+                    editor.WriteMessage(message);
                 }
                 catch (System.Exception ex)
                 {
@@ -149,28 +226,67 @@ namespace IntersectUtilities
             }
         }
 
-        private static PromptSelectionResult PromptForSourcePolylines(Editor editor, string message)
+        // Sub-menu reached via the "Settings" keyword. Lets the operator change the
+        // slope and/or the check distance; both persist in the session-static fields
+        // and become the defaults for subsequent runs. Enter/Exit returns to selection.
+        // The exit keyword is "Exit" (not "Done") so its shortcut "E" doesn't collide
+        // with "Distance" on the letter "D".
+        private static void PromptForSettings(Editor editor)
         {
-            PromptSelectionOptions options = new PromptSelectionOptions
+            while (true)
             {
-                MessageForAdding = message,
-                MessageForRemoval = "\nRemove polyline 1: "
-            };
-            SelectionFilter filter = new SelectionFilter(
-                new[]
-                {
-                    new TypedValue((int)DxfCode.Start, "POLYLINE")
-                });
+                PromptKeywordOptions options = new PromptKeywordOptions(
+                    $"\nSettings: slope={_ler2ProjectSlopePermille:0.###} per-mille, "
+                    + $"distance={_ler2ProjectDistance:0.###} m - change");
+                options.Keywords.Add("Slope");
+                options.Keywords.Add("Distance");
+                options.Keywords.Add("Exit");
+                options.Keywords.Default = "Exit";
+                options.AllowNone = true;
 
-            return editor.GetSelection(options, filter);
+                PromptResult result = editor.GetKeywords(options);
+                if (result.Status != PromptStatus.OK)
+                {
+                    return;
+                }
+
+                switch (result.StringResult)
+                {
+                    case "Slope":
+                        if (PromptForPositiveDouble(
+                                editor, "\nMinimum slope (per-mille): ", _ler2ProjectSlopePermille, out double slope))
+                        {
+                            _ler2ProjectSlopePermille = slope;
+                        }
+                        break;
+
+                    case "Distance":
+                        if (PromptForPositiveDouble(
+                                editor, "\nCheck distance (m): ", _ler2ProjectDistance, out double distance))
+                        {
+                            _ler2ProjectDistance = distance;
+                        }
+                        break;
+
+                    default:
+                        return;
+                }
+            }
         }
 
-        private static PromptEntityResult PromptForPolyline3d(Editor editor, string message)
+        private static bool PromptForPositiveDouble(Editor editor, string message, double defaultValue, out double value)
         {
-            PromptEntityOptions options = new PromptEntityOptions(message);
-            options.SetRejectMessage("\nSelect a 3D polyline.");
-            options.AddAllowedClass(typeof(Polyline3d), false);
-            return editor.GetEntity(options);
+            PromptDoubleOptions options = new PromptDoubleOptions(message)
+            {
+                DefaultValue = defaultValue,
+                UseDefaultValue = true,
+                AllowNegative = false,
+                AllowZero = false,
+                AllowNone = false
+            };
+            PromptDoubleResult result = editor.GetDouble(options);
+            value = result.Value;
+            return result.Status == PromptStatus.OK;
         }
 
         private static List<Point3d> GetVertices(Polyline3d polyline, Transaction transaction)
@@ -185,23 +301,37 @@ namespace IntersectUtilities
             return points;
         }
 
-        private static Ler2ProjectProjectionResult ProjectEndpoint(IReadOnlyList<Point3d> sourcePoints, Polyline3d target)
+        // Wraps the single picked target polyline as a one-member LERNetwork so the
+        // LERConnectNetwork analyzer can be reused verbatim.
+        private static LERNetwork BuildTargetNetwork(ObjectId targetId, IReadOnlyList<Point3d> targetPoints)
         {
-            Point3d startPoint = sourcePoints[0];
-            Point3d endPoint = sourcePoints[sourcePoints.Count - 1];
-
-            Point3d startProjection = target.GetClosestPointTo(startPoint, false);
-            Point3d endProjection = target.GetClosestPointTo(endPoint, false);
-
-            double startDistance = startPoint.DistanceTo(startProjection);
-            double endDistance = endPoint.DistanceTo(endProjection);
-
-            return startDistance <= endDistance
-                ? new Ler2ProjectProjectionResult(0, startProjection)
-                : new Ler2ProjectProjectionResult(sourcePoints.Count - 1, endProjection);
+            LERNetwork network = new LERNetwork(0, LERConnectNetworkAnalyzer.ColorForIndex(0));
+            network.MemberIds.Add(targetId);
+            network.MemberPoints.Add(targetPoints);
+            return network;
         }
 
-        private readonly record struct Ler2ProjectProjectionResult(int EndpointIndex, Point3d ProjectedPoint);
+        // Runs the full LERConnectNetwork projection for one source against the
+        // single target. AssignMain is called with an unbounded distance so the
+        // explicitly-picked target is never rejected — it only decides which of the
+        // source's two ends connects. Solve then does the XY tangent-extension /
+        // crossing projection and the per-mille slope lift; the prompted distance
+        // drives Solve's "too long / misses target" flag only.
+        private static LERConnectionResult? Connect(
+            Ler2ProjectSourcePolyline source, LERNetwork target, double permille, double distance)
+        {
+            LERNetwork[] networks = { target };
+            LERMainAssignment? assignment =
+                LERConnectNetworkAnalyzer.AssignMain(source.SourcePoints, networks, double.MaxValue);
+            if (assignment is null)
+            {
+                return null;
+            }
+
+            return LERConnectNetworkAnalyzer.Solve(
+                source.SourcePoints, source.SourceId, target, assignment.ConnectAtEnd, permille, distance);
+        }
+
         private readonly record struct Ler2ProjectSourcePolyline(ObjectId SourceId, List<Point3d> SourcePoints);
 
         private sealed class Ler2ProjectPreview : IDisposable
@@ -214,7 +344,10 @@ namespace IntersectUtilities
             private readonly List<Entity> transientEntities = new List<Entity>();
             private ObjectId lastTargetId = ObjectId.Null;
 
-            public Ler2ProjectPreview(Database database, Editor editor, List<Ler2ProjectSourcePolyline> sourcePolylines)
+            public Ler2ProjectPreview(
+                Database database,
+                Editor editor,
+                List<Ler2ProjectSourcePolyline> sourcePolylines)
             {
                 this.database = database;
                 this.editor = editor;
@@ -266,7 +399,14 @@ namespace IntersectUtilities
                         return;
                     }
 
-                    ShowPreview(BuildPreviewEntities(target));
+                    List<Point3d> targetPoints = GetVertices(target, tx);
+                    if (targetPoints.Count < 2)
+                    {
+                        ClearPreview();
+                        return;
+                    }
+
+                    ShowPreview(BuildPreviewEntities(targetId, targetPoints));
                     lastTargetId = targetId;
                 }
                 catch (System.Exception ex)
@@ -276,21 +416,31 @@ namespace IntersectUtilities
                 }
             }
 
-            private List<Entity> BuildPreviewEntities(Polyline3d target)
+            private List<Entity> BuildPreviewEntities(ObjectId targetId, IReadOnlyList<Point3d> targetPoints)
             {
                 List<Entity> previewEntities = new List<Entity>();
+                LERNetwork network = BuildTargetNetwork(targetId, targetPoints);
+
+                // Read the current settings live so a Settings change on the target prompt
+                // is reflected on the next hover.
+                double permille = _ler2ProjectSlopePermille;
+                double distance = _ler2ProjectDistance;
+
                 foreach (Ler2ProjectSourcePolyline sourcePolyline in sourcePolylines)
                 {
-                    List<Point3d> previewPoints = new List<Point3d>(sourcePolyline.SourcePoints);
-                    Ler2ProjectProjectionResult projection = ProjectEndpoint(previewPoints, target);
-                    previewPoints[projection.EndpointIndex] = projection.ProjectedPoint;
+                    LERConnectionResult? result = Connect(sourcePolyline, network, permille, distance);
+                    if (result is null || result.Status != LERConnectionStatus.Connected || result.NewPoints is null)
+                    {
+                        continue;
+                    }
 
                     Polyline3d preview = new Polyline3d(
                         Poly3dType.SimplePoly,
-                        new Point3dCollection(previewPoints.ToArray()),
+                        new Point3dCollection(result.NewPoints.ToArray()),
                         false)
                     {
-                        ColorIndex = 8,
+                        // Grey for a clean connection, magenta when flagged.
+                        ColorIndex = result.Error == LERConnectionError.None ? (short)8 : (short)6,
                         Transparency = new Transparency(150)
                     };
 
