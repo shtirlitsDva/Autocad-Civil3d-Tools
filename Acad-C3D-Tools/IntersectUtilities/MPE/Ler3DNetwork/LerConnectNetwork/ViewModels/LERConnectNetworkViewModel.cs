@@ -93,7 +93,15 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork.ViewModels
         [RelayCommand]
         public void LoadDrawing()
         {
-            _state?.Gather();
+            _state?.GatherVisible();
+            PushVisibility();
+            RefreshResult();
+        }
+
+        [RelayCommand]
+        public void SelectObjects()
+        {
+            _state?.SelectAndGather();
             PushVisibility();
             RefreshResult();
         }
@@ -161,7 +169,7 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork.ViewModels
 
             int errors = _state.ErrorCount;
             ErrorText = errors > 0
-                ? $"{errors} fejl: stik der ikke rammer hovedledning / for lange"
+                ? $"{errors} fejl: krydser flere steder / rammer ikke / for lange"
                 : "Ingen fejl";
             ErrorColor = ColorFor(errors > 0 ? LerStatusKind.Error : LerStatusKind.Info);
         }

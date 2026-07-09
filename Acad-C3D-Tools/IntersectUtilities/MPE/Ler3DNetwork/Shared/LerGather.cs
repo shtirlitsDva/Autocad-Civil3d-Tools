@@ -42,9 +42,10 @@ namespace IntersectUtilities.MPE.Ler3DNetwork
         }
 
         // Reads and classifies every Polyline3d in the drawing (any layer), under
-        // a document lock. Lines with fewer than two vertices are skipped. The
-        // only database read either command performs.
-        public static List<LerClassifiedLine> GatherAll(Document owner)
+        // a document lock. Lines with fewer than two vertices are skipped. When
+        // visibleOnly is set, lines that are hidden or sit on a frozen/off layer
+        // are excluded (the "whatever is visible" input path).
+        public static List<LerClassifiedLine> GatherAll(Document owner, bool visibleOnly = false)
         {
             List<LerClassifiedLine> lines = new();
             using (DocumentLock docLock = owner.LockDocument())
@@ -54,6 +55,7 @@ namespace IntersectUtilities.MPE.Ler3DNetwork
                 {
                     foreach (Polyline3d pl in owner.Database.HashSetOfType<Polyline3d>(tx))
                     {
+                        if (visibleOnly && !IsVisible(pl, tx)) continue;
                         List<Point3d> pts = pl.GetVertices(tx).Select(v => v.Position).ToList();
                         if (pts.Count < 2) continue;
                         lines.Add(new LerClassifiedLine(pl.ObjectId, pts, Classify(pts), pl.Layer));
@@ -67,6 +69,43 @@ namespace IntersectUtilities.MPE.Ler3DNetwork
                 }
             }
             return lines;
+        }
+
+        // Reads and classifies exactly the given ids that are Polyline3d (the
+        // manual-selection input path). Non-Polyline3d ids, erased ids, and lines
+        // with fewer than two vertices are skipped.
+        public static List<LerClassifiedLine> GatherFromIds(Document owner, IEnumerable<ObjectId> ids)
+        {
+            List<LerClassifiedLine> lines = new();
+            using (DocumentLock docLock = owner.LockDocument())
+            using (Transaction tx = owner.Database.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    foreach (ObjectId id in ids.Distinct())
+                    {
+                        if (!id.IsValid || id.IsErased) continue;
+                        if (tx.GetObject(id, OpenMode.ForRead, false) is not Polyline3d pl) continue;
+                        List<Point3d> pts = pl.GetVertices(tx).Select(v => v.Position).ToList();
+                        if (pts.Count < 2) continue;
+                        lines.Add(new LerClassifiedLine(pl.ObjectId, pts, Classify(pts), pl.Layer));
+                    }
+                    tx.Commit();
+                }
+                catch (System.Exception)
+                {
+                    tx.Abort();
+                    throw;
+                }
+            }
+            return lines;
+        }
+
+        private static bool IsVisible(Polyline3d pl, Transaction tx)
+        {
+            if (!pl.Visible) return false;
+            LayerTableRecord layer = (LayerTableRecord)tx.GetObject(pl.LayerId, OpenMode.ForRead);
+            return !layer.IsFrozen && !layer.IsOff;
         }
     }
 }

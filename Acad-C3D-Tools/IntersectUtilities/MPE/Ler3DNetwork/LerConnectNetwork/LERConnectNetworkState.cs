@@ -4,6 +4,7 @@ using System.Linq;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.DatabaseServices;
+using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Geometry;
 using CadColor = Autodesk.AutoCAD.Colors.Color;
 using IntersectUtilities.UtilsCommon;
@@ -79,43 +80,99 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork
 
         // ---- Gather (the only database read) --------------------------------
 
-        public void Gather()
+        // "Whatever is visible": every visible drainage polyline in the drawing
+        // (the "Afløbsledning" subset). Mirrors LerCompareTerrain's "Load all".
+        public void GatherVisible()
         {
             if (!IsActive()) return;
 
             try
             {
-                _preview.Clear();
-                _networks.Clear();
-                _networkById.Clear();
-                _assignments.Clear();
-                _results = new();
-                HasComputed = false;
-                ConnectedCount = 0;
-                ConflictCount = 0;
-                NoMainCount = 0;
-                ErrorCount = 0;
-
-                // Gather the whole drawing, then keep only the drainage subset
-                // (LerConnectNetwork operates on the "Afløbsledning" lines).
-                _lines = LerGather.GatherAll(Owner)
+                List<LerClassifiedLine> lines = LerGather.GatherAll(Owner, visibleOnly: true)
                     .Where(l => LerGather.IsTargetLayer(l.Layer))
                     .ToList();
-                _threeD = _lines.Where(l => l.Kind == LerLineKind.ThreeD).ToList();
-                _twoD = _lines.Where(l => l.Kind == LerLineKind.TwoD).ToList();
-
-                RenderPreview();
-
-                SetStatus(
-                    $"Indlæst {_lines.Count} polylinjer på \"{LerGather.TargetLayerFragment}\"-lag: "
-                    + $"{_threeD.Count} 3D, {_twoD.Count} 2D.",
-                    _lines.Count > 0 ? LerStatusKind.Ok : LerStatusKind.Warning);
+                GatherCore(lines, $"synlige polylinjer på \"{LerGather.TargetLayerFragment}\"-lag");
             }
             catch (System.Exception ex)
             {
                 prdDbg(ex);
                 SetStatus("Indlæsning fejlede. Se debug output.", LerStatusKind.Error);
             }
+        }
+
+        // Manual selection: the operator picks the polylines to operate on.
+        // Mirrors LerCompareTerrain's "Select". Only the tool's own generated
+        // output (LER_N_ prefix) is excluded, so a re-run cannot feed its results
+        // back in; any other picked Polyline3d is trusted as-is.
+        public void SelectAndGather()
+        {
+            if (!IsActive()) return;
+
+            try
+            {
+                List<ObjectId>? ids = PromptForPolylines();
+                if (ids == null) return; // cancelled or empty — status already set
+
+                List<LerClassifiedLine> lines = LerGather.GatherFromIds(Owner, ids)
+                    .Where(l => !l.Layer.StartsWith(LerGather.GeneratedLayerPrefix, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                GatherCore(lines, "valgte polylinjer");
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg(ex);
+                SetStatus("Valg fejlede. Se debug output.", LerStatusKind.Error);
+            }
+        }
+
+        // Resets all derived state and installs a freshly gathered working set.
+        // Shared by both input paths so they behave identically downstream.
+        private void GatherCore(List<LerClassifiedLine> lines, string sourceDescription)
+        {
+            _preview.Clear();
+            _networks.Clear();
+            _networkById.Clear();
+            _assignments.Clear();
+            _results = new();
+            HasComputed = false;
+            ConnectedCount = 0;
+            ConflictCount = 0;
+            NoMainCount = 0;
+            ErrorCount = 0;
+
+            _lines = lines;
+            _threeD = _lines.Where(l => l.Kind == LerLineKind.ThreeD).ToList();
+            _twoD = _lines.Where(l => l.Kind == LerLineKind.TwoD).ToList();
+
+            RenderPreview();
+
+            SetStatus(
+                $"Indlæst {_lines.Count} {sourceDescription}: {_threeD.Count} 3D, {_twoD.Count} 2D.",
+                _lines.Count > 0 ? LerStatusKind.Ok : LerStatusKind.Warning);
+        }
+
+        // Interactive pick of polylines on the owning document. Returns the picked
+        // ObjectIds, or null when the selection was cancelled or empty.
+        private List<ObjectId>? PromptForPolylines()
+        {
+            Editor editor = Owner.Editor;
+            SelectionFilter filter = new SelectionFilter(new[]
+            {
+                new TypedValue((int)DxfCode.Start, "POLYLINE")
+            });
+            PromptSelectionOptions options = new PromptSelectionOptions
+            {
+                MessageForAdding = "\nVælg polylinjer til tilslutning: "
+            };
+
+            PromptSelectionResult result = editor.GetSelection(options, filter);
+            if (result.Status != PromptStatus.OK || result.Value == null || result.Value.Count == 0)
+            {
+                SetStatus("Valg annulleret eller tomt.", LerStatusKind.Warning);
+                return null;
+            }
+
+            return result.Value.GetObjectIds().ToList();
         }
 
         // ---- Update preview: group networks, match mains, solve connections -
@@ -178,8 +235,9 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork
 
                 // The connector is always built when a local main exists; problematic
                 // ones are flagged (Error) using the check distance as the yardstick.
+                // All networks are passed so a stub crossing two mains can be flagged.
                 results.Add(LERConnectNetworkAnalyzer.Solve(
-                    twoD.Points, twoD.Id, main, pair.Value.ConnectAtEnd, permille, distance));
+                    twoD.Points, twoD.Id, main, pair.Value.ConnectAtEnd, permille, distance, _networks));
             }
             return results;
         }
@@ -395,27 +453,17 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork
         }
 
         // True when the live drawing still matches the snapshot the results were
-        // solved from: same set of target lines, each with identical vertices.
-        // Runs inside the apply document lock so no edit can slip in between.
+        // solved from: every line in the working set still exists with identical
+        // vertices. Validated by ObjectId against the exact working set (not a
+        // re-scan of the drawing) so a manual subset selection is honoured. Runs
+        // inside the apply document lock so no edit can slip in between.
         private bool SnapshotMatches(Transaction tx)
         {
-            Dictionary<ObjectId, List<Point3d>> current = new();
-            foreach (Polyline3d pl in Owner.Database.HashSetOfType<Polyline3d>(tx))
-            {
-                if (!LerGather.IsTargetLayer(pl.Layer)) continue;
-                List<Point3d> pts = pl.GetVertices(tx).Select(v => v.Position).ToList();
-                if (pts.Count < 2) continue;
-                current[pl.ObjectId] = pts;
-            }
-
-            if (current.Count != _lines.Count)
-            {
-                return false;
-            }
-
             foreach (LerClassifiedLine line in _lines)
             {
-                if (!current.TryGetValue(line.Id, out List<Point3d>? pts)) return false;
+                if (!line.Id.IsValid || line.Id.IsErased) return false;
+                if (tx.GetObject(line.Id, OpenMode.ForRead, false) is not Polyline3d pl) return false;
+                List<Point3d> pts = pl.GetVertices(tx).Select(v => v.Position).ToList();
                 if (pts.Count != line.Points.Count) return false;
                 for (int i = 0; i < pts.Count; i++)
                 {

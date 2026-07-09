@@ -18,9 +18,22 @@
                            TextWrapping="Wrap" />
             </GroupBox>
 
-            <Button Content="Indlæs / genindlæs tegning"
-                    Margin="0,4,0,0"
-                    Command="{Binding LoadDrawingCommand}" />
+            <Grid Margin="0,4,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Button Grid.Column="0" Margin="0,0,3,0"
+                        Content="Indlæs synlige"
+                        ToolTip="Indlæs alle synlige Afløbsledning-polylinjer i tegningen"
+                        Command="{Binding LoadDrawingCommand}" />
+
+                <Button Grid.Column="1" Margin="3,0,0,0"
+                        Content="Vælg objekter"
+                        ToolTip="Vælg polylinjer manuelt i tegningen"
+                        Command="{Binding SelectObjectsCommand}" />
+            </Grid>
 
             <GroupBox Header="Parametre">
                 <Grid>

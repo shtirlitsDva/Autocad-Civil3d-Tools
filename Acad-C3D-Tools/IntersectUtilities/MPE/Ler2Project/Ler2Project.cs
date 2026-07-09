@@ -329,7 +329,7 @@ namespace IntersectUtilities
             }
 
             return LERConnectNetworkAnalyzer.Solve(
-                source.SourcePoints, source.SourceId, target, assignment.ConnectAtEnd, permille, distance);
+                source.SourcePoints, source.SourceId, target, assignment.ConnectAtEnd, permille, distance, networks);
         }
 
         private readonly record struct Ler2ProjectSourcePolyline(ObjectId SourceId, List<Point3d> SourcePoints);

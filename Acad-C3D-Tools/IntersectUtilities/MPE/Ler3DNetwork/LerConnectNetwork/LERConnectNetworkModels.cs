@@ -20,8 +20,9 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork
     internal enum LERConnectionError
     {
         None = 0,
-        MissesMain = 1, // the connector's forward extension never reaches the main
-        TooLong = 2     // the connector stub is far longer than the check distance
+        MissesMain = 1,     // the connector's forward extension never reaches the main
+        TooLong = 2,        // the connector stub is far longer than the check distance
+        MultipleMains = 4   // the stub crosses the main network at two or more distinct points
     }
 
     // A connected component of touching 3D lines. Members keep their real point

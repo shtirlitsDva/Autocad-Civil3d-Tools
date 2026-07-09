@@ -147,7 +147,10 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork
         // ---- Main assignment ------------------------------------------------
 
         // For one 2D line, find the nearest network in XY measured from either
-        // endpoint. Returns null when nothing is within maxDistance.
+        // endpoint. A stub that truly crosses a network counts as touching it
+        // (distance 0), so mid-span crossings are assigned even when both
+        // endpoints sit farther than maxDistance. Returns null when nothing is
+        // within maxDistance.
         public static LERMainAssignment? AssignMain(
             IReadOnlyList<Point3d> twoDPoints,
             IReadOnlyList<LERNetwork> networks,
@@ -168,6 +171,16 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork
             for (int ni = 0; ni < networks.Count; ni++)
             {
                 double startDist = MinXyDistanceToNetwork(startXy, networks[ni]);
+                double endDist = MinXyDistanceToNetwork(endXy, networks[ni]);
+
+                // A real crossing means the stub touches the main; treat both ends
+                // as distance 0 so the crossing is always assigned.
+                if (StubCrossesNetwork(twoDPoints, networks[ni]))
+                {
+                    startDist = 0.0;
+                    endDist = 0.0;
+                }
+
                 if (startDist < bestDistance)
                 {
                     bestDistance = startDist;
@@ -175,7 +188,6 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork
                     bestConnectAtEnd = false;
                 }
 
-                double endDist = MinXyDistanceToNetwork(endXy, networks[ni]);
                 if (endDist < bestDistance)
                 {
                     bestDistance = endDist;
@@ -190,6 +202,74 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork
             }
 
             return new LERMainAssignment(networks[bestNetwork].Id, bestConnectAtEnd, bestDistance);
+        }
+
+        // True when any segment of the stub truly crosses (segment-segment XY
+        // intersection within both spans) any member segment of the network.
+        private static bool StubCrossesNetwork(IReadOnlyList<Point3d> twoDPoints, LERNetwork network)
+        {
+            for (int i = 0; i < twoDPoints.Count - 1; i++)
+            {
+                Point2d p0 = Xy(twoDPoints[i]);
+                Point2d p1 = Xy(twoDPoints[i + 1]);
+                foreach (IReadOnlyList<Point3d> member in network.MemberPoints)
+                {
+                    for (int j = 0; j < member.Count - 1; j++)
+                    {
+                        if (TrySegmentIntersection(p0, p1, Xy(member[j]), Xy(member[j + 1]), out _, out _))
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        // Number of spatially DISTINCT points where the stub crosses any main
+        // member, across all networks. Counting points (not networks or raw
+        // segment hits) is what separates the two cases:
+        //   * crossing two mains at two places  -> two distinct points -> flag
+        //   * touching a single junction shared  -> one point (both polylines'
+        //     segments meet the stub there)      -> one distinct point -> no flag
+        // Points within EndpointTolerance are treated as the same location, the
+        // same rule BuildNetworks uses to decide two endpoints coincide.
+        private static int CountDistinctCrossingPoints(
+            IReadOnlyList<Point3d> twoDPoints,
+            IReadOnlyList<LERNetwork> networks)
+        {
+            List<Point2d> distinct = new();
+            for (int i = 0; i < twoDPoints.Count - 1; i++)
+            {
+                Point2d p0 = Xy(twoDPoints[i]);
+                Point2d p1 = Xy(twoDPoints[i + 1]);
+                foreach (LERNetwork network in networks)
+                {
+                    foreach (IReadOnlyList<Point3d> member in network.MemberPoints)
+                    {
+                        for (int j = 0; j < member.Count - 1; j++)
+                        {
+                            if (!TrySegmentIntersection(p0, p1, Xy(member[j]), Xy(member[j + 1]), out double tP, out _))
+                            {
+                                continue;
+                            }
+
+                            Point2d pt = new Point2d(p0.X + (tP * (p1.X - p0.X)), p0.Y + (tP * (p1.Y - p0.Y)));
+                            bool duplicate = false;
+                            foreach (Point2d existing in distinct)
+                            {
+                                if (existing.GetDistanceTo(pt) <= EndpointTolerance)
+                                {
+                                    duplicate = true;
+                                    break;
+                                }
+                            }
+                            if (!duplicate) distinct.Add(pt);
+                        }
+                    }
+                }
+            }
+            return distinct.Count;
         }
 
         private static double MinXyDistanceToNetwork(Point2d q, LERNetwork network)
@@ -212,26 +292,36 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork
         private const double TooLongFactor = 20.0;
 
         // Two modes. CROSSING: if the stik already crosses the main, pivot at that
-        // crossing X1 and mutate the stik in place (handled inline below). EXTEND
-        // (this comment's path): otherwise extend the connecting end C along its
-        // tangent, intersect the main in XY, lift to the main's real Z, then slope
-        // the rebuilt line upward away from that pivot, appending X (A..C,X). Extend
-        // connectors are always built when a local main exists; problematic ones
-        // (forward extension misses the main, or stub > 20x the check distance) are
-        // still Connected but carry an Error flag.
+        // crossing X1 (at the main's real elevation, the lowest point) and mutate the
+        // stik in place — a V where BOTH endpoints rise away from the pivot at the
+        // slope. EXTEND (this comment's path): otherwise extend the connecting end C
+        // along its tangent, intersect the main in XY, lift to the main's real Z, then
+        // slope the rebuilt line upward away from that pivot, appending X (A..C,X).
+        // Connectors are always built when a local main exists; problematic ones
+        // (forward extension misses the main, stub > 20x the check distance, or the
+        // stub crosses two or more mains) are still Connected but carry an Error flag.
         public static LERConnectionResult Solve(
             IReadOnlyList<Point3d> twoDPoints,
             ObjectId sourceId,
             LERNetwork main,
             bool connectAtEnd,
             double permille,
-            double distance)
+            double distance,
+            IReadOnlyList<LERNetwork> allNetworks)
         {
             int n = twoDPoints.Count;
             if (n < 2)
             {
                 return new LERConnectionResult(sourceId, null, main.Id, LERConnectionStatus.Degenerate);
             }
+
+            // A stub that crosses the mains at two or more DISTINCT points is
+            // ambiguous (it genuinely hits the main network in two places, not at a
+            // single shared junction): still built against its assigned main, but
+            // flagged so Apply skips it for manual review.
+            LERConnectionError baseError = CountDistinctCrossingPoints(twoDPoints, allNetworks) >= 2
+                ? LERConnectionError.MultipleMains
+                : LERConnectionError.None;
 
             int cIndex = connectAtEnd ? n - 1 : 0;
             int bIndex = connectAtEnd ? n - 2 : 1;
@@ -240,23 +330,22 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork
             Point2d b = Xy(twoDPoints[bIndex]);
 
             // Crossing mode: if the stik already crosses the main at X1, pivot there
-            // and mutate the stik in place — a straight constant-slope line through X1
-            // (at the main's elevation), the endpoint furthest from X1 highest and the
-            // nearer endpoint below the main. No extension, no vertex inserted, so the
-            // rebuilt point count matches the original (an in-place Z move on apply).
-            if (TryFindCrossing(twoDPoints, c, main, out Point2d x1, out double x1z, out double arcAtX1, out double totalLen))
+            // and mutate the stik in place — a straight V through X1 (at the main's
+            // elevation), with BOTH endpoints rising from the pivot at the slope. No
+            // extension, no vertex inserted, so the rebuilt point count matches the
+            // original (an in-place Z move on apply).
+            if (TryFindCrossing(twoDPoints, c, main, out Point2d x1, out double x1z, out double arcAtX1, out _))
             {
                 double f = permille / 1000.0;
-                double dir = (totalLen - arcAtX1) >= arcAtX1 ? 1.0 : -1.0;
                 List<Point3d> mutated = new(n);
                 double cum = 0.0;
                 for (int i = 0; i < n; i++)
                 {
                     if (i > 0) cum += Xy(twoDPoints[i - 1]).GetDistanceTo(Xy(twoDPoints[i]));
-                    double zCross = x1z + (f * dir * (cum - arcAtX1));
+                    double zCross = x1z + (f * Math.Abs(cum - arcAtX1));
                     mutated.Add(new Point3d(twoDPoints[i].X, twoDPoints[i].Y, zCross));
                 }
-                return new LERConnectionResult(sourceId, mutated, main.Id, LERConnectionStatus.Connected);
+                return new LERConnectionResult(sourceId, mutated, main.Id, LERConnectionStatus.Connected, baseError);
             }
 
             Vector2d tangent = c - b;
@@ -273,7 +362,7 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork
 
             // Flag (but still build) problematic connectors: a forward extension that
             // never truly reaches the main, or a stub far longer than the check distance.
-            LERConnectionError error = LERConnectionError.None;
+            LERConnectionError error = baseError;
             if (!cleanHit) error |= LERConnectionError.MissesMain;
             if (c.GetDistanceTo(hitXy) > TooLongFactor * distance) error |= LERConnectionError.TooLong;
 

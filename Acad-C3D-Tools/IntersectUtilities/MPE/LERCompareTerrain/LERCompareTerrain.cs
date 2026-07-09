@@ -938,6 +938,18 @@ namespace IntersectUtilities
                 return;
             }
 
+            if (_visibleClassifications.Count == 0)
+            {
+                UpdateStatus("No classifications are toggled for export. Check at least one legend entry.");
+                return;
+            }
+
+            if (!_lastPreviewResult!.Pieces.Any(piece => _visibleClassifications.Contains(piece.Classification)))
+            {
+                UpdateStatus("The toggled classifications have no pieces to export. Adjust the legend toggles.");
+                return;
+            }
+
             try
             {
                 using DocumentLock docLock = _document.LockDocument();
@@ -1058,6 +1070,12 @@ namespace IntersectUtilities
                 foreach (LERCompareTerrainPiece piece in _lastPreviewResult.Pieces)
                 {
                     if (piece.Points.Count < 2)
+                    {
+                        continue;
+                    }
+
+                    // Only export classifications the user has toggled on in the legend.
+                    if (!_visibleClassifications.Contains(piece.Classification))
                     {
                         continue;
                     }
@@ -1251,6 +1269,14 @@ namespace IntersectUtilities
             {
                 Text = "Legend (toggle to filter)",
                 FontWeight = FontWeights.Bold,
+                Foreground = ForegroundBrushValue,
+                Margin = new Thickness(0, 0, 0, 2)
+            });
+            rows.Children.Add(new WinLabel
+            {
+                Text = "Toggle for export: only checked classes are written by Export to Civil.",
+                FontStyle = FontStyles.Italic,
+                TextWrapping = TextWrapping.Wrap,
                 Foreground = ForegroundBrushValue,
                 Margin = new Thickness(0, 0, 0, 6)
             });
@@ -1648,12 +1674,19 @@ namespace IntersectUtilities
 
     internal sealed class LERCompareTerrainTransientRenderer
     {
-        private readonly TransientManager _transientManager = TransientManager.CurrentTransientManager;
         private readonly List<AcEntity> _currentEntities = new List<AcEntity>();
+        // The transient manager is bound to the document active when it is read.
+        // Because this renderer lives on a session-wide singleton palette, it must be
+        // re-acquired for the current document each time we draw, and the same instance
+        // reused for the matching erase — never cached at construction.
+        private TransientManager? _activeManager;
 
         public void Show(IReadOnlyList<LERCompareTerrainPiece> pieces)
         {
             Clear();
+
+            TransientManager transientManager = TransientManager.CurrentTransientManager;
+            _activeManager = transientManager;
 
             foreach (LERCompareTerrainPiece piece in pieces)
             {
@@ -1671,9 +1704,11 @@ namespace IntersectUtilities
                 };
 
                 _currentEntities.Add(previewPolyline);
-                _transientManager.AddTransient(
+                // Main (not DirectShortTerm) so the preview is re-projected on every
+                // view regen — DirectShortTerm freezes as a 2D snapshot when orbiting in 3D.
+                transientManager.AddTransient(
                     previewPolyline,
-                    TransientDrawingMode.DirectShortTerm,
+                    TransientDrawingMode.Main,
                     128,
                     new IntegerCollection());
             }
@@ -1681,11 +1716,15 @@ namespace IntersectUtilities
 
         public void Clear()
         {
+            // Erase against the manager the transients were added to, not the currently
+            // active document's manager.
+            TransientManager transientManager = _activeManager ?? TransientManager.CurrentTransientManager;
+
             foreach (AcEntity entity in _currentEntities)
             {
                 try
                 {
-                    _transientManager.EraseTransient(entity, new IntegerCollection());
+                    transientManager.EraseTransient(entity, new IntegerCollection());
                 }
                 catch
                 {
@@ -1696,6 +1735,7 @@ namespace IntersectUtilities
             }
 
             _currentEntities.Clear();
+            _activeManager = null;
         }
     }
 
@@ -1703,7 +1743,10 @@ namespace IntersectUtilities
     {
         private static readonly CadColor TerrainColor = CadColor.FromColor(System.Drawing.Color.FromArgb(0x88, 0x88, 0x99));
         private static readonly CadColor DepthColor = CadColor.FromColor(System.Drawing.Color.FromArgb(0xCC, 0x99, 0x66));
-        private readonly TransientManager _transientManager = TransientManager.CurrentTransientManager;
+        // Re-acquired per draw for the current document; never cached at construction,
+        // because this renderer lives on a session-wide singleton palette. See
+        // LERCompareTerrainTransientRenderer for the multi-document rationale.
+        private TransientManager? _activeManager;
         private readonly List<AcEntity> _terrainEntities = new List<AcEntity>();
         private readonly List<AcEntity> _depthEntities = new List<AcEntity>();
 
@@ -1768,21 +1811,30 @@ namespace IntersectUtilities
             mesh.SetSubDMesh(vertexArray, faceArray, 0);
             mesh.Color = color;
 
+            TransientManager transientManager = TransientManager.CurrentTransientManager;
+            _activeManager = transientManager;
+
             bucket.Add(mesh);
-            _transientManager.AddTransient(
+            // Main (not DirectShortTerm) so the surface mesh re-projects on orbit/pan/zoom
+            // instead of freezing as a 2D snapshot.
+            transientManager.AddTransient(
                 mesh,
-                TransientDrawingMode.DirectShortTerm,
+                TransientDrawingMode.Main,
                 128,
                 new IntegerCollection());
         }
 
         private void Erase(List<AcEntity> bucket)
         {
+            // Erase against the manager the transients were added to (see Populate),
+            // not the currently active document's manager.
+            TransientManager transientManager = _activeManager ?? TransientManager.CurrentTransientManager;
+
             foreach (AcEntity entity in bucket)
             {
                 try
                 {
-                    _transientManager.EraseTransient(entity, new IntegerCollection());
+                    transientManager.EraseTransient(entity, new IntegerCollection());
                 }
                 catch
                 {
