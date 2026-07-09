@@ -19,7 +19,8 @@
       "PowerShell(& \"C:\\\\Program Files\\\\Microsoft Visual Studio\\\\18\\\\Community\\\\MSBuild\\\\Current\\\\Bin\\\\MSBuild.exe\" \"C:\\\\Users\\\\mpe\\\\Github\\\\shtirlitsDva\\\\Autocad-Civil3d-Tools\\\\Acad-C3D-Tools\\\\IntersectUtilities\\\\IntersectUtilities.csproj\" /t:Rebuild /p:Configuration=Debug /p:Platform=x64 \"/clp:ErrorsOnly;Summary\" /nologo)",
       "mcp__plugin_devreload_devreload__acad_list_instances",
       "mcp__plugin_devreload_devreload__acad_attach",
-      "Bash(git -C \"C:/Users/mpe/Github/shtirlitsDva/Autocad-Civil3d-Tools\" diff --stat HEAD)"
+      "Bash(git -C \"C:/Users/mpe/Github/shtirlitsDva/Autocad-Civil3d-Tools\" diff --stat HEAD)",
+      "Bash(node *)"
     ]
   },
   "outputStyle": "Explanatory"
