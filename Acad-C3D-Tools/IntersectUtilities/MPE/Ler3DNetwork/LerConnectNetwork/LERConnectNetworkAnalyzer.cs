@@ -47,6 +47,38 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork
                 RegisterEndpoint(pts[pts.Count - 1], i, grid, parent, tol2);
             }
 
+            // T-junction merge. Endpoint hashing above only joins lines that touch
+            // end-to-end. District-heating mains routinely branch as a tee, where a
+            // branch's endpoint lands on the MIDDLE of another line's segment. Union
+            // those too, so both a star (shared end node) and a tee collapse into one
+            // network. Without this, "how many mains does this stub touch" miscounts a
+            // tee as two mains and wrongly skips a valid single-main connection.
+            // Cost is O(n^2 x segments) worst case, but the Find short-circuit skips
+            // any pair already in the same component, which collapses fast on real,
+            // well-connected mains. This runs once per "Opdater forhåndsvisning".
+            for (int i = 0; i < n; i++)
+            {
+                IReadOnlyList<Point3d> pi = threeDLines[i].Points;
+                if (pi.Count == 0) continue;
+                Point3d iStart = pi[0];
+                Point3d iEnd = pi[pi.Count - 1];
+                for (int j = 0; j < n; j++)
+                {
+                    if (i == j) continue;
+                    if (Find(parent, i) == Find(parent, j)) continue; // already one network
+                    IReadOnlyList<Point3d> pj = threeDLines[j].Points;
+                    for (int s = 0; s < pj.Count - 1; s++)
+                    {
+                        if (SquaredPointToSegment(iStart, pj[s], pj[s + 1]) <= tol2
+                            || SquaredPointToSegment(iEnd, pj[s], pj[s + 1]) <= tol2)
+                        {
+                            Union(parent, i, j);
+                            break;
+                        }
+                    }
+                }
+            }
+
             // Materialise components in first-seen order so colours are stable.
             Dictionary<int, LERNetwork> byRoot = new();
             List<LERNetwork> networks = new();
@@ -119,6 +151,17 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork
             double dy = a.Y - b.Y;
             double dz = a.Z - b.Z;
             return (dx * dx) + (dy * dy) + (dz * dz);
+        }
+
+        // Squared 3D distance from point q to segment a->b (clamped to the span).
+        private static double SquaredPointToSegment(Point3d q, Point3d a, Point3d b)
+        {
+            Vector3d ab = b - a;
+            double len2 = ab.DotProduct(ab);
+            if (len2 < Epsilon) return SquaredDistance(q, a);
+            double t = Math.Clamp((q - a).DotProduct(ab) / len2, 0.0, 1.0);
+            Point3d closest = a + (ab * t);
+            return SquaredDistance(q, closest);
         }
 
         private static int Find(int[] parent, int i)
@@ -226,50 +269,68 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork
             return false;
         }
 
-        // Number of spatially DISTINCT points where the stub crosses any main
-        // member, across all networks. Counting points (not networks or raw
-        // segment hits) is what separates the two cases:
-        //   * crossing two mains at two places  -> two distinct points -> flag
-        //   * touching a single junction shared  -> one point (both polylines'
-        //     segments meet the stub there)      -> one distinct point -> no flag
-        // Points within EndpointTolerance are treated as the same location, the
-        // same rule BuildNetworks uses to decide two endpoints coincide.
-        private static int CountDistinctCrossingPoints(
+        // How many DISTINCT networks (mains) this stub touches. A stub "touches" a
+        // network when it either crosses the network in XY OR any point along the
+        // stub lies within `threshold` of the network in XY. One touched main is a
+        // normal connection; two or more is ambiguous and gets flagged for manual
+        // review. Branches meeting at a junction are already one network (see
+        // BuildNetworks), so a stub near a star/tee junction still counts as one.
+        private static int CountNetworksInvolved(
             IReadOnlyList<Point3d> twoDPoints,
-            IReadOnlyList<LERNetwork> networks)
+            IReadOnlyList<LERNetwork> networks,
+            double threshold)
         {
-            List<Point2d> distinct = new();
+            int count = 0;
+            foreach (LERNetwork network in networks)
+            {
+                if (StubCrossesNetwork(twoDPoints, network)
+                    || StubWithinThresholdOfNetwork(twoDPoints, network, threshold))
+                {
+                    count++;
+                }
+            }
+            return count;
+        }
+
+        // True when any part of the stub lies within `threshold` of any member of
+        // the network in XY (true segment-to-segment distance, not just endpoints).
+        private static bool StubWithinThresholdOfNetwork(
+            IReadOnlyList<Point3d> twoDPoints,
+            LERNetwork network,
+            double threshold)
+        {
             for (int i = 0; i < twoDPoints.Count - 1; i++)
             {
-                Point2d p0 = Xy(twoDPoints[i]);
-                Point2d p1 = Xy(twoDPoints[i + 1]);
-                foreach (LERNetwork network in networks)
+                Point2d s0 = Xy(twoDPoints[i]);
+                Point2d s1 = Xy(twoDPoints[i + 1]);
+                foreach (IReadOnlyList<Point3d> member in network.MemberPoints)
                 {
-                    foreach (IReadOnlyList<Point3d> member in network.MemberPoints)
+                    for (int j = 0; j < member.Count - 1; j++)
                     {
-                        for (int j = 0; j < member.Count - 1; j++)
+                        if (SegmentSegmentXyDistance(s0, s1, Xy(member[j]), Xy(member[j + 1])) <= threshold)
                         {
-                            if (!TrySegmentIntersection(p0, p1, Xy(member[j]), Xy(member[j + 1]), out double tP, out _))
-                            {
-                                continue;
-                            }
-
-                            Point2d pt = new Point2d(p0.X + (tP * (p1.X - p0.X)), p0.Y + (tP * (p1.Y - p0.Y)));
-                            bool duplicate = false;
-                            foreach (Point2d existing in distinct)
-                            {
-                                if (existing.GetDistanceTo(pt) <= EndpointTolerance)
-                                {
-                                    duplicate = true;
-                                    break;
-                                }
-                            }
-                            if (!duplicate) distinct.Add(pt);
+                            return true;
                         }
                     }
                 }
             }
-            return distinct.Count;
+            return false;
+        }
+
+        // Shortest XY distance between two segments: 0 if they cross, else the
+        // minimum of the four endpoint-to-opposite-segment distances.
+        private static double SegmentSegmentXyDistance(Point2d p0, Point2d p1, Point2d q0, Point2d q1)
+        {
+            if (TrySegmentIntersection(p0, p1, q0, q1, out _, out _))
+            {
+                return 0.0;
+            }
+
+            double d0 = XyDistanceToSegment(p0, q0, q1, out _, out _);
+            double d1 = XyDistanceToSegment(p1, q0, q1, out _, out _);
+            double d2 = XyDistanceToSegment(q0, p0, p1, out _, out _);
+            double d3 = XyDistanceToSegment(q1, p0, p1, out _, out _);
+            return Math.Min(Math.Min(d0, d1), Math.Min(d2, d3));
         }
 
         private static double MinXyDistanceToNetwork(Point2d q, LERNetwork network)
@@ -288,8 +349,11 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork
 
         // ---- Connection solve -----------------------------------------------
 
-        // A stub longer than this multiple of the check distance is flagged TooLong.
-        private const double TooLongFactor = 20.0;
+        // A connector whose extension (the added segment from the connecting end to
+        // the main) exceeds this multiple of the check distance is flagged TooLong,
+        // so Apply skips it and the operator resolves it by hand. Keeps the tool from
+        // extending unreasonably far when a stub grazes its main at a shallow angle.
+        private const double TooLongFactor = 2.0;
 
         // Two modes. CROSSING: if the stik already crosses the main, pivot at that
         // crossing X1 (at the main's real elevation, the lowest point) and mutate the
@@ -315,11 +379,11 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork
                 return new LERConnectionResult(sourceId, null, main.Id, LERConnectionStatus.Degenerate);
             }
 
-            // A stub that crosses the mains at two or more DISTINCT points is
-            // ambiguous (it genuinely hits the main network in two places, not at a
-            // single shared junction): still built against its assigned main, but
-            // flagged so Apply skips it for manual review.
-            LERConnectionError baseError = CountDistinctCrossingPoints(twoDPoints, allNetworks) >= 2
+            // A stub that touches two or more DISTINCT mains — by crossing them or by
+            // running within the check distance of them — is ambiguous: still built
+            // against its assigned main, but flagged so Apply skips it for manual
+            // review. Junction branches count as one main (BuildNetworks merges them).
+            LERConnectionError baseError = CountNetworksInvolved(twoDPoints, allNetworks, distance) >= 2
                 ? LERConnectionError.MultipleMains
                 : LERConnectionError.None;
 
@@ -501,13 +565,15 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork
                 && tQ >= -Epsilon && tQ <= 1.0 + Epsilon;
         }
 
-        // Connect C to the LOCAL main: find the main segment nearest to C in XY,
-        // then intersect the tangent line through C with that one segment's line.
-        // Returns false only when the main has no segment or the tangent is
-        // parallel to the local main. Otherwise returns a best-effort hit (clamped
-        // onto the segment span) plus cleanHit = whether the forward extension truly
-        // lands within the segment. Z is interpolated along the segment from its real
-        // elevations.
+        // Connect C to the LOCAL main by extending along the stub's tangent `dir`.
+        // Searches ALL segments of the assigned main (not just the nearest one) and
+        // returns the CLOSEST forward intersection that actually lands within a
+        // segment span — so a stub near a bend or tee still connects even when the
+        // single nearest segment happens to be parallel to the tangent. If no clean
+        // forward hit exists on any segment, falls back to the nearest point on the
+        // main (best-effort, cleanHit = false) so the caller can flag it. Returns
+        // false only when the main has no segment at all. Z is interpolated along the
+        // hit segment from its real elevations.
         private static bool TryFindLocalIntersection(
             Point2d c,
             Vector2d dir,
@@ -520,53 +586,75 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork
             hitZ = 0.0;
             cleanHit = false;
 
-            // 1. Nearest main segment to C (by perpendicular XY distance).
-            double bestDist = double.MaxValue;
-            Point3d nearA = default;
-            Point3d nearB = default;
-            bool any = false;
+            // Best clean forward intersection: smallest t >= 0 that lands on a span.
+            double bestT = double.MaxValue;
+            bool anyClean = false;
+
+            // Best-effort fallback: nearest point on the main by perpendicular XY.
+            double bestFallbackDist = double.MaxValue;
+            bool anyFallback = false;
+            Point2d fallbackXy = c;
+            double fallbackZ = 0.0;
+
             foreach (IReadOnlyList<Point3d> member in main.MemberPoints)
             {
                 for (int i = 0; i < member.Count - 1; i++)
                 {
-                    double d = XyDistanceToSegment(c, Xy(member[i]), Xy(member[i + 1]), out _, out _);
-                    if (d < bestDist)
+                    Point3d segA = member[i];
+                    Point3d segB = member[i + 1];
+                    Point2d a = Xy(segA);
+                    Point2d b = Xy(segB);
+
+                    // Track the nearest point on this segment for the fallback.
+                    double perp = XyDistanceToSegment(c, a, b, out double tSeg, out _);
+                    if (perp < bestFallbackDist)
                     {
-                        bestDist = d;
-                        nearA = member[i];
-                        nearB = member[i + 1];
-                        any = true;
+                        bestFallbackDist = perp;
+                        fallbackXy = new Point2d(a.X + ((b.X - a.X) * tSeg), a.Y + ((b.Y - a.Y) * tSeg));
+                        fallbackZ = segA.Z + (tSeg * (segB.Z - segA.Z));
+                        anyFallback = true;
+                    }
+
+                    // Forward tangent-line vs. segment-line intersection.
+                    Vector2d e = b - a;
+                    double det = (e.X * dir.Y) - (dir.X * e.Y);
+                    if (Math.Abs(det) < Epsilon)
+                    {
+                        continue; // tangent parallel to this segment — try the next one
+                    }
+
+                    Vector2d w = a - c;
+                    double u = ((dir.X * w.Y) - (w.X * dir.Y)) / det; // param along the segment
+                    double t = ((e.X * w.Y) - (w.X * e.Y)) / det;     // distance along dir to the hit
+                    if (t < -Epsilon) continue;                        // behind C, not a forward extension
+                    if (u < -Epsilon || u > 1.0 + Epsilon) continue;   // misses this segment's span
+
+                    if (t < bestT)
+                    {
+                        bestT = t;
+                        double uc = Math.Clamp(u, 0.0, 1.0);
+                        hitXy = new Point2d(a.X + (e.X * uc), a.Y + (e.Y * uc));
+                        hitZ = segA.Z + (uc * (segB.Z - segA.Z));
+                        anyClean = true;
                     }
                 }
             }
-            if (!any)
+
+            if (anyClean)
             {
-                return false;
+                cleanHit = true;
+                return true;
             }
 
-            // 2. Intersect the tangent line through C with the nearest segment's line.
-            Point2d a = Xy(nearA);
-            Point2d b = Xy(nearB);
-            Vector2d e = b - a;
-            double det = (e.X * dir.Y) - (dir.X * e.Y);
-            if (Math.Abs(det) < Epsilon)
+            if (anyFallback)
             {
-                return false; // tangent parallel to the local main
+                hitXy = fallbackXy;
+                hitZ = fallbackZ;
+                cleanHit = false; // caller flags this as MissesMain
+                return true;
             }
 
-            Vector2d w = a - c;
-            double u = ((dir.X * w.Y) - (w.X * dir.Y)) / det; // param along the segment
-            double t = ((e.X * w.Y) - (w.X * e.Y)) / det;     // distance along dir (unit) to the hit
-            double uc = Math.Clamp(u, 0.0, 1.0);
-
-            hitXy = new Point2d(a.X + (e.X * uc), a.Y + (e.Y * uc));
-            hitZ = nearA.Z + (uc * (nearB.Z - nearA.Z));
-
-            // 3. Clean hit only when the forward extension (t >= 0) lands within the
-            // segment span (u in [0,1]). Otherwise it was clamped to an end or points
-            // backward — returned as a best-effort point for the caller to flag.
-            cleanHit = t >= -Epsilon && u >= -Epsilon && u <= 1.0 + Epsilon;
-            return true;
+            return false; // main had no segment
         }
 
         // ---- Small geometry helpers -----------------------------------------
