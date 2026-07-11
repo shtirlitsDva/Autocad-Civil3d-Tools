@@ -127,8 +127,20 @@ namespace NSLOAD
             var ed = GetEditor();
             foreach (string asmName in sharedNames)
             {
-                string dllPath = Path.Combine(pluginDir, asmName + ".dll");
+                // External assemblies (recorded in AssemblyLocations) load from their
+                // referenced dir (e.g. Appload); everything else from the plugin dir.
+                string dir = saConfig.AssemblyLocations.TryGetValue(asmName, out var extDir)
+                    ? extDir
+                    : pluginDir;
+                string dllPath = Path.Combine(dir, asmName + ".dll");
                 if (!File.Exists(dllPath)) continue;
+
+                // If a shared assembly is already in the default ALC — brought in by an
+                // external loader (e.g. a Civil 3D object-enabler demand-load from its
+                // own install path) or a previous load — bind to THAT instance; a second
+                // LoadFrom of a different-path copy of the same name throws. Parity with
+                // DevReload's SharedAssemblyPreloader.
+                if (IsLoadedInDefaultAlc(asmName)) continue;
 
                 if (mixedSet.Contains(asmName))
                 {
@@ -216,6 +228,22 @@ namespace NSLOAD
             string ijwPath = Path.Combine(asmDir, "Ijwhost.dll");
             if (!File.Exists(ijwPath))
                 ed?.WriteMessage($"\n[NSLOAD] WARNING: Ijwhost.dll not found in {asmDir}");
+        }
+
+        // True when an assembly with this simple name is already present in the default
+        // ALC (an external demand-load at startup, or a previous plugin load). An ALC
+        // holds at most one assembly per simple name; once present, name-based binding
+        // from the collectible plugin ALC already resolves to it, so any further load is
+        // a no-op at best and a hard error at worst (different on-disk path, same name).
+        private static bool IsLoadedInDefaultAlc(string simpleName)
+        {
+            foreach (var asm in AssemblyLoadContext.Default.Assemblies)
+            {
+                if (string.Equals(
+                        asm.GetName().Name, simpleName, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+            return false;
         }
 
         private static PluginRegistration GetRegistration(string pluginName)

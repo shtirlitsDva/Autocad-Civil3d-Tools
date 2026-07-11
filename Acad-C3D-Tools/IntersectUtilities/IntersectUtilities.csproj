@@ -118,23 +118,22 @@
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\Map\ManagedMapApi.dll</HintPath>
 			<Private>False</Private>
 		</Reference>
-		<!-- NorsynObjectsInterop: THE shared base object-container interop, used across
-		     verticals. Loaded the DimensioneringV2 way — referenced from the Appload
-		     bundle, copied into this plugin's build dir (Private=True), and listed in
-		     bin\<cfg>\SharedAssemblies.Config.json as shared + mixed-mode so devreload
-		     loads it once into the DEFAULT ALC. It is mixed-mode C++/CLI, so it CANNOT
-		     live in the collectible plugin ALC; the shared load + ALC fallback is how
-		     consumers see it. Ijwhost.dll (the IJW bootstrap shim) is copied alongside —
-		     the mixed-mode LoadFrom needs it. Runtime prerequisite: NSNorsynObjects.dbx
-		     (startup-loaded, 0x0f) supplies the native NorsynContainer base. Pinned
-		     AssemblyVersion (1.0.0.0) keeps the compile-time and runtime identity equal. -->
+		<!-- NorsynObjectsInterop: THE shared base object-container interop (mixed-mode
+		     C++/CLI). NO private copy (Private=False) — the NSLOAD / DevReload shared-
+		     assembly loader loads it into the DEFAULT ALC straight from the Appload
+		     HintPath below, recorded as an external "assemblyLocations" entry in
+		     SharedAssemblies.Config.json. Appload holds the matched NorsynObjectsInterop.dll
+		     + Ijwhost.dll + runtimeconfig.json as ONE deploy-machinery.cmd set, so there is
+		     a single source of truth and no local copy to drift stale (which previously
+		     caused the "procedure imported could not be loaded" mismatch). Compile-time
+		     reference only. Runtime prerequisite: NSNorsynObjects.dbx (startup-loaded,
+		     0x0f) supplies the native NorsynContainer base. It is mixed-mode C++/CLI, so it
+		     CANNOT live in the collectible plugin ALC — the default-ALC load is how
+		     consumers see it (IsolatedPluginContext binds shared names to that instance). -->
 		<Reference Include="NorsynObjectsInterop">
 			<HintPath>X:\AutoCAD DRI - 01 Civil 3D\Appload\2025\NorsynObjectsInterop.dll</HintPath>
-			<Private>True</Private>
+			<Private>False</Private>
 		</Reference>
-		<None Include="X:\AutoCAD DRI - 01 Civil 3D\Appload\2025\Ijwhost.dll">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</None>
 		<!-- NorsynProjectionProfileLabelInterop: SELDOM-used vertical wrapper, NOT shared.
 		     COMPILE-TIME ONLY (Private=False, never copied, NOT in the shared config). At
 		     runtime it is loaded on demand into the DEFAULT ALC by
@@ -148,8 +147,10 @@
 
 	<!-- On-demand loader (shared source from the NorsynDrawingTools repo). Provides
 	     NorsynProjectionProfileLabelLoader.EnsureLoaded(), called at the start of any
-	     command that uses NPPL types so the proxy-only dbx is loaded before the interop. -->
-	<Import Project="..\..\..\..\DamgaardRI\NorsynDrawingTools\shared\NorsynOnDemandLoading\NorsynOnDemandLoading.projitems" Label="Shared" />
+	     command that uses NPPL types so the proxy-only dbx is loaded before the interop.
+	     ABSOLUTE path on purpose: this repo lives on H:\ but NorsynDrawingTools lives on
+	     X:\, and a relative Import cannot cross drives. -->
+	<Import Project="X:\GitHub\DamgaardRI\NorsynDrawingTools\managed\NorsynOnDemandLoadingSHARED\NorsynOnDemandLoadingSHARED.projitems" Label="Shared" />
 	<ItemGroup>
 		<Content Include="DebugCommandLineAttribute.txt" />
 	</ItemGroup>
