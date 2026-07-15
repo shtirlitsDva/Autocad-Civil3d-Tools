@@ -13,28 +13,6 @@ namespace IntersectUtilities;
 
 public partial class Intersect
 {
-    /// <command>PPSPLIT</command>
-    /// <summary>Splits a metadata-enabled PipePlan object into two new independent PipePlan objects. The split must resolve to a valid straight portion of the baked polyline; arc regions and invalid split positions are rejected.</summary>
-    /// <category>PipePlan</category>
-    [CommandMethod("PPSPLIT")]
-    public void PipePlanSplit()
-    {
-        Document? document = GetActiveDocument();
-        if (document is null)
-        {
-            return;
-        }
-
-        try
-        {
-            ExecuteSplit(document);
-        }
-        catch (System.Exception exception)
-        {
-            HandleCommandException(document, "PPSPLIT", exception);
-        }
-    }
-
     /// <command>PPEDIT</command>
     /// <summary>Edits an existing metadata-enabled PipePlan object by moving control handles or segment handles while preserving PipePlan constraints. The command previews each move live, rejects infeasible edits, and finishes when Enter is pressed at the handle prompt.</summary>
     /// <category>PipePlan</category>
@@ -148,17 +126,6 @@ public partial class Intersect
     private static Document? GetActiveDocument()
     {
         return Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
-    }
-
-    private static void ExecuteSplit(Document document)
-    {
-        if (!PipePlanSplitService.TrySplit(document, out string message))
-        {
-            ReportMessage(document, message, PipePlanStatusKind.Warning);
-            return;
-        }
-
-        ReportMessage(document, message, PipePlanStatusKind.Ok);
     }
 
     private static void ExecuteCollapse(Document document)

@@ -1,6 +1,6 @@
 # PipePlan User Manual
 
-PipePlan is a guided, constrained way to draft district-heating ("fjernvarme") pipes in plan view inside AutoCAD / Civil 3D 2025. Instead of drawing a raw polyline and hoping the bend radii work, you give PipePlan a sequence of control points and it produces a polyline whose arcs already match the project bending rules for the chosen dimension. The result is a polyline with attached metadata, so it can later be continued, edited, or split without losing what PipePlan knows about it.
+PipePlan is a guided, constrained way to draft district-heating ("fjernvarme") pipes in plan view inside AutoCAD / Civil 3D 2025. Instead of drawing a raw polyline and hoping the bend radii work, you give PipePlan a sequence of control points and it produces a polyline whose arcs already match the project bending rules for the chosen dimension. The result is a polyline with attached metadata, so it can later be continued or edited without losing what PipePlan knows about it.
 
 This document is for colleagues who will *use* the tool. The internal solver, snapping logic, and metadata format are out of scope — see `README.md` and the source if you need that.
 
@@ -29,14 +29,13 @@ If your active layer is on a different combination (e.g. `FJV-FREM-DN200`), Pipe
 
 ---
 
-## 2. The five commands at a glance
+## 2. The four commands at a glance
 
 | Command      | What it does                                                                                  |
 |--------------|-----------------------------------------------------------------------------------------------|
 | `PPDRAW`     | Draw a new pipe, or continue from the end of an existing PipePlan pipe.                       |
 | `PPCONVERT`  | Turn an existing hand-drawn FJV polyline into a PipePlan-managed pipe.                        |
 | `PPEDIT`     | Move corners or segments of a PipePlan pipe, or change the bend radius at a specific corner. |
-| `PPSPLIT`    | Cut a PipePlan pipe into two independent PipePlan pipes at a point on a straight segment.    |
 | `PPSETTINGS` | Open the settings palette: per-DN bending radius table + straight-snap tolerance.            |
 
 The next sections walk through each one.
@@ -108,7 +107,7 @@ When you press `Enter` to bake, the existing polyline is mutated in place: its `
 
 ## 5. PPCONVERT — turn an existing polyline into a PipePlan object
 
-Use this when you have a polyline that was drawn before PipePlan existed, or by hand, and you want PPEDIT / PPSPLIT / PPDRAW Continue to work on it.
+Use this when you have a polyline that was drawn before PipePlan existed, or by hand, and you want PPEDIT / PPDRAW Continue to work on it.
 
 1. Run `PPCONVERT`.
 2. Pick a polyline. It must be:
@@ -126,7 +125,7 @@ Use this when you have a polyline that was drawn before PipePlan existed, or by 
 - Polyline is closed.
 - Polyline is on a layer that is not a recognised FJV combination, or on an unsupported System × Type.
 - No bending radius is defined for the dimension (set one in `PPSETTINGS`).
-- The polyline contains an arc that is not flanked by straight segments — PipePlan requires the pattern `line → arc → line` for each bend.
+- A bend is too sharp for its radius, or two bends are so close together that even a merged arc-to-arc curve cannot fit within the available segment lengths. (Arc-to-arc bends themselves are fine — PPCONVERT reads each arc as a corner with its own radius, whether it is flanked by straights or by another arc.)
 
 ---
 
@@ -165,35 +164,21 @@ Endpoint vertices have no bend radius — the `Radius` option is rejected if you
 
 ### When PPEDIT will reject a move
 
-The same constraints as PPDRAW apply: every bend must fit at its assigned radius, segments must be long enough on either side of every corner, and the polyline must remain a valid sequence of `line → arc → line` joins. If the move violates any of this, the preview turns red and the click is ignored; the status line tells you what went wrong.
+The same constraints as PPDRAW apply: every bend must fit at its assigned radius, and segments must be long enough on either side of every corner (or, where two bends crowd together, the merged arc-to-arc curve must fit). If the move violates any of this, the preview turns red and the click is ignored; the status line tells you what went wrong.
 
 ---
 
-## 7. PPSPLIT — cut a pipe in two
-
-1. Run `PPSPLIT`.
-2. Pick a PipePlan polyline.
-3. Pick a point on a **straight segment** of the polyline. The point must be:
-   - Not on an arc.
-   - Not at or very near a corner.
-   - Not at or very near an endpoint.
-4. PipePlan creates two new PipePlan polylines, each carrying its own metadata, layer, and width. The original polyline is erased.
-
-If the picked point is on an arc, on a corner, or otherwise invalid, the command rejects it with the reason and you can try again. Note that the new "endpoint" created by the split is a corner with radius 0 (it's an endpoint, not an interior corner), so subsequent edits at that point use endpoint rules.
-
----
-
-## 8. Drawing-wide settings worth knowing
+## 7. Drawing-wide settings worth knowing
 
 - **Polyline width** at bake is the result of looking up the pipe outer diameter (`KOd`) for the active layer with **series S2** and dividing by 1000 (so units are metres). To render at S1 or S3 instead, change the series in NSPalette and run `Polylinjer bredde opdater` — it does the same lookup with the new series.
 - **Metadata** attached to every PipePlan polyline:
   - `pipeTag` XData with system, type, DN — used by `OPDATER` and other layer-aware tooling.
-  - A `pipeGeometryData` Xrecord with control points, per-vertex bend radii, and the straight-snap tolerance setting at bake time. This is what `PPEDIT`, `PPSPLIT`, and `PPDRAW Continue` read.
+  - A `pipeGeometryData` Xrecord with control points, per-vertex bend radii, and the straight-snap tolerance setting at bake time. This is what `PPEDIT` and `PPDRAW Continue` read.
 - **Per-drawing state** — PipePlan's draft, manual radius override, and palette state are kept per drawing. Switching documents in the AutoCAD MDI rebinds the palette to the new document's state. Closing a drawing discards its draft.
 
 ---
 
-## 9. Status messages — quick reference
+## 8. Status messages — quick reference
 
 The palette status line and the AutoCAD command line both show short messages. The colour in the palette tells you the kind:
 
@@ -205,7 +190,7 @@ The palette status line and the AutoCAD command line both show short messages. T
 
 ---
 
-## 10. Common errors and what they mean
+## 9. Common errors and what they mean
 
 | Message                                                                | What to do                                                                                                                                |
 |------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------|
@@ -217,8 +202,6 @@ The palette status line and the AutoCAD command line both show short messages. T
 | `Polylinjen har ingen PipePlan-data. Kør PPCONVERT først.`             | The polyline pre-dates PipePlan. Run `PPCONVERT` on it.                                                                                   |
 | `Polylinjen er fra en ældre PipePlan-version. Kør PPCONVERT først.`    | Metadata is missing or stale. Re-converting will regenerate it.                                                                            |
 | `Lukkede polylinjer understøttes ikke.`                                | Open the polyline (remove the close) and retry.                                                                                            |
-| `PPSPLIT virker kun på lige segmenter.`                                | Pick a different point — on a straight portion, away from corners.                                                                         |
-| `Vælg et punkt på et lige segment, væk fra hjørner og endepunkter.`   | Same — too close to a corner or endpoint.                                                                                                  |
 | `Punkt afvist: …` / `Redigering afvist: …`                            | The candidate move violates a constraint (bend won't fit, segment too short, etc.). The text after the colon names which.                  |
 | `Tangent-reference er slettet/flyttet/ikke længere en PipePlan-polylinje.` | Tangent mode had cached a snap whose target has changed since. Tangent is dropped automatically; pick again.                          |
 | `Næste segment for kort: kræver X, har Y.`                             | Tangent fillet needs more length on the next pipe. Move the next pipe further away, or reduce the radius with `R`.                         |
@@ -226,23 +209,22 @@ The palette status line and the AutoCAD command line both show short messages. T
 
 ---
 
-## 11. Limitations — read this once
+## 10. Limitations — read this once
 
 These are the things PipePlan does **not** currently handle. Knowing them up front saves time:
 
 1. **No single-pipe steel.** Only `Stål Twin`, `AluPex Twin`, `AluPex Frem`, `AluPex Retur` are accepted. Single Stål `Frem` / `Retur` will be rejected.
-2. **No closed polylines.** PPCONVERT, PPEDIT, and PPSPLIT all refuse closed polylines.
-3. **No arcs without flanking straights.** PPCONVERT requires every arc to sit between two straight segments. Hand-drawn polylines that go arc-to-arc, or arc-then-end, will be rejected.
-4. **Editing outside PipePlan can desync metadata.** If you grip-edit, `STRETCH`, or delete a vertex with a non-PipePlan command, the polyline's geometry will change but the stored control points will not. Subsequent `PPEDIT`, `PPSPLIT`, or `PPDRAW Continue` will detect the mismatch and ask you to run `PPCONVERT` again. **Rule of thumb: edit PipePlan pipes with PipePlan commands.**
-5. **Vertex deletion is not yet a PipePlan command.** If you need to remove a corner, the safest path today is `PPSPLIT` to detach a portion, or `PPCONVERT` after the edit to refresh metadata. See `TODO.md`.
-6. **Bending radius comes from the dimension, not from each polyline.** A polyline can have *per-corner* radii (set by `PPEDIT`'s Radius keyword or recovered by `PPCONVERT`), but newly placed corners during PPDRAW use the dimension's default (or the in-draft manual override). Adjust the default in `PPSETTINGS` to change project-wide defaults.
-7. **Width is set at bake from series S2.** Switching to S1 or S3 requires running `Polylinjer bredde opdater` after changing the NSPalette series — PipePlan does not track series.
-8. **One pipe at a time.** PipePlan commands operate on a single polyline. Bulk conversion of many polylines must be done one by one.
-9. **No undo of partial draft state.** Pressing `Esc` during PPDRAW discards the entire draft. There is no per-point undo while drafting — pick carefully, or finish and use `PPEDIT`.
+2. **No closed polylines.** PPCONVERT and PPEDIT both refuse closed polylines.
+3. **Editing outside PipePlan can desync metadata.** If you grip-edit, `STRETCH`, or delete a vertex with a non-PipePlan command, the polyline's geometry will change but the stored control points will not. Subsequent `PPEDIT` or `PPDRAW Continue` will detect the mismatch and ask you to run `PPCONVERT` again. **Rule of thumb: edit PipePlan pipes with PipePlan commands.**
+4. **To refresh metadata after an outside edit, re-run `PPCONVERT`.** It rebuilds the control points and radii from the current geometry — including arc-to-arc bends, which are now recovered directly.
+5. **Bending radius comes from the dimension, not from each polyline.** A polyline can have *per-corner* radii (set by `PPEDIT`'s Radius keyword or recovered by `PPCONVERT`), but newly placed corners during PPDRAW use the dimension's default (or the in-draft manual override). Adjust the default in `PPSETTINGS` to change project-wide defaults.
+6. **Width is set at bake from series S2.** Switching to S1 or S3 requires running `Polylinjer bredde opdater` after changing the NSPalette series — PipePlan does not track series.
+7. **One pipe at a time.** PipePlan commands operate on a single polyline. Bulk conversion of many polylines must be done one by one.
+8. **No undo of partial draft state.** Pressing `Esc` during PPDRAW discards the entire draft. There is no per-point undo while drafting — pick carefully, or finish and use `PPEDIT`.
 
 ---
 
-## 12. Typical session — putting it together
+## 11. Typical session — putting it together
 
 A complete sample workflow:
 
@@ -252,12 +234,11 @@ A complete sample workflow:
 4. **Run `PPDRAW`**, press `Enter` for New, pick points along the route. Hold `Ctrl` for straight extensions. Press `Enter` to bake.
 5. **Continue from the bake point in another dimension** if the route changes size: activate the new dimension in NSPalette, run `PPDRAW`, choose `Continue`, pick near the end of the pipe you just baked, then keep drawing. The new section is drawn on the new dimension's layer.
 6. **Edit later with `PPEDIT`.** Move corners, change radii, slide segments.
-7. **Split at a branch point with `PPSPLIT`** if you need two independent pipes for downstream work.
-8. **Inherit a legacy polyline with `PPCONVERT`** if a colleague hand-drew a section without PipePlan.
+7. **Inherit a legacy polyline with `PPCONVERT`** if a colleague hand-drew a section without PipePlan.
 
 ---
 
-## 13. Quick reference
+## 12. Quick reference
 
 | Action                                          | How                                                          |
 |-------------------------------------------------|--------------------------------------------------------------|
@@ -271,5 +252,4 @@ A complete sample workflow:
 | Move a corner                                   | `PPEDIT`, pick polyline, click vertex handle, drag, click    |
 | Change one corner's bend radius                 | `PPEDIT`, pick vertex, type `R`, enter radius, Enter, drag/Enter |
 | Move a whole segment                            | `PPEDIT`, click the segment handle (midpoint), drag, click   |
-| Split a pipe                                    | `PPSPLIT`, pick polyline, pick a point on a straight segment |
 | Set per-DN radii or snap tolerance              | `PPSETTINGS`, edit, `Save`                                   |

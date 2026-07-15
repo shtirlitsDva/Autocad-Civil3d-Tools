@@ -68,7 +68,90 @@ internal sealed class PipePlanEditSession : IDisposable
     public void ShowHandles()
     {
         _state.ClearPreview();
-        _markerManager.Show(_document, _data.ControlPoints);
+
+        // Solve the baked geometry so the handles can be accompanied by perpendicular
+        // divider ticks at every straight<->arc junction (visible as soon as the pipe is
+        // picked, before any drag).
+        IReadOnlyList<PipePlanSegmentDivider> dividers = [];
+        IReadOnlyList<PipePlanArcDimension> arcDimensions = [];
+        PipePlanAnalysis analysis = _solver.Analyze(_data.ControlPoints, _data.BendRadii);
+        if (analysis.IsFeasible)
+        {
+            dividers = ComputeSegmentDividers(analysis);
+            arcDimensions = ComputeArcDimensions(analysis);
+        }
+
+        double pipeWidth = _state.ActiveContext is PipePlanActiveContext context
+            ? PipePlanWidthCalculator.ResolveDrawingWidth(context.LayerName)
+            : 0.0;
+
+        _markerManager.Show(_document, _data.ControlPoints, dividers, arcDimensions, pipeWidth);
+    }
+
+    // Divider ticks sit at every segment junction that involves an arc: straight<->arc
+    // tangent points and arc<->arc joins inside a merged chain. (Pure straight-straight
+    // joins carry no divider.) The tangent at such a vertex is G1-continuous, so the
+    // incoming segment's end-tangent gives the perpendicular basis for the tick.
+    private IReadOnlyList<PipePlanSegmentDivider> ComputeSegmentDividers(PipePlanAnalysis analysis)
+    {
+        IReadOnlyList<PolylineVertexData> vertices = analysis.Vertices;
+        if (vertices.Count < 3)
+        {
+            return [];
+        }
+
+        double z = _data.ControlPoints.Count > 0 ? _data.ControlPoints[0].Z : 0.0;
+        List<PipePlanSegmentDivider> dividers = [];
+        for (int k = 1; k < vertices.Count - 1; k++)
+        {
+            bool arcBefore = PipePlanArcGeometry.IsArcBulge(vertices[k - 1].Bulge);
+            bool arcAfter = PipePlanArcGeometry.IsArcBulge(vertices[k].Bulge);
+            if (!arcBefore && !arcAfter)
+            {
+                continue; // straight-straight join — nothing to separate
+            }
+
+            Vector2d tangent = PipePlanArcGeometry.TangentAtEnd(
+                vertices[k - 1].Point, vertices[k].Point, vertices[k - 1].Bulge);
+            if (tangent.Length < 1e-9)
+            {
+                continue;
+            }
+
+            Point2d point = vertices[k].Point;
+            dividers.Add(new PipePlanSegmentDivider(new Point3d(point.X, point.Y, z), tangent));
+        }
+
+        return dividers;
+    }
+
+    // One DIMARC-style annotation per arc segment (fillets and every arc in a merged chain).
+    private IReadOnlyList<PipePlanArcDimension> ComputeArcDimensions(PipePlanAnalysis analysis)
+    {
+        IReadOnlyList<PolylineVertexData> vertices = analysis.Vertices;
+        double z = _data.ControlPoints.Count > 0 ? _data.ControlPoints[0].Z : 0.0;
+        List<PipePlanArcDimension> dimensions = [];
+        for (int i = 0; i < vertices.Count - 1; i++)
+        {
+            double bulge = vertices[i].Bulge;
+            if (!PipePlanArcGeometry.IsArcBulge(bulge))
+            {
+                continue;
+            }
+
+            Point2d start = vertices[i].Point;
+            Point2d end = vertices[i + 1].Point;
+            Point2d center = PipePlanArcGeometry.ArcCenter(start, end, bulge);
+            double radius = PipePlanArcGeometry.ArcRadius(start, end, bulge);
+            dimensions.Add(new PipePlanArcDimension(
+                new Point3d(start.X, start.Y, z),
+                new Point3d(end.X, end.Y, z),
+                new Point3d(center.X, center.Y, z),
+                radius,
+                bulge > 0.0));
+        }
+
+        return dimensions;
     }
 
     public void ClearVisuals()

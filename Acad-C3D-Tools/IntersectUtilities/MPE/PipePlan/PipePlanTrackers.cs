@@ -1,4 +1,4 @@
-using Autodesk.AutoCAD.ApplicationServices;
+﻿using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Geometry;
@@ -56,7 +56,7 @@ internal sealed class CandidatePointTracker : IDisposable
         {
             // Fresh data always wins. If fresh.SourceId differs from the cached
             // SourceId, the cursor has moved to a different polyline near the
-            // same anchor — replacement here is exactly the identity invalidation
+            // same anchor â€” replacement here is exactly the identity invalidation
             // the Codex finding called out as missing.
             _stickySnap = fresh;
             return fresh;
@@ -82,7 +82,7 @@ internal sealed class CandidatePointTracker : IDisposable
         try
         {
             using ViewTableRecord view = _document.Editor.GetCurrentView();
-            // ≈2.5% of the visible drawing height — generous enough to absorb
+            // â‰ˆ2.5% of the visible drawing height â€” generous enough to absorb
             // OSnap dropouts at typical zoom levels, tight enough that a real
             // cursor move away from the anchor invalidates the cache.
             return Math.Clamp(view.Height / 40.0, 0.1, 5.0);
@@ -202,14 +202,14 @@ internal sealed class CandidatePointTracker : IDisposable
         {
             Vector3d derivative = polyline.GetFirstDerivative(sampleOn);
             // GetFirstDerivative points along the polyline's parameter direction
-            // (start → end). For our fillet math we need the vector pointing INTO PP2
+            // (start â†’ end). For our fillet math we need the vector pointing INTO PP2
             // from the endpoint, so flip at the end-endpoint.
             if (atEnd)
             {
                 derivative = derivative.Negate();
             }
             // GetFirstDerivative's magnitude reflects local parameterization
-            // (≈ segment length for straight polyline segments), not unit. Normalize so
+            // (â‰ˆ segment length for straight polyline segments), not unit. Normalize so
             // downstream code can treat the vector as a direction.
             Vector2d direction = new(derivative.X, derivative.Y);
             double length = direction.Length;
@@ -295,7 +295,7 @@ internal sealed class PipePlanInsertTracker : IDisposable
 
         if (candidate.Analysis.IsFeasible)
         {
-            _state.SetStatus("Klik for at placere hjørnet.", PipePlanStatusKind.Ok);
+            _state.SetStatus("Klik for at placere hjÃ¸rnet.", PipePlanStatusKind.Ok);
         }
         else
         {
@@ -341,7 +341,7 @@ internal sealed class PipePlanDeleteTracker : IDisposable
         {
             _state.ShowPreview(candidate.Analysis);
             ShowDeleteMarker(_session.ControlPoints[vertexIndex]);
-            _state.SetStatus("Klik for at slette dette hjørne.", PipePlanStatusKind.Ok);
+            _state.SetStatus("Klik for at slette dette hjÃ¸rne.", PipePlanStatusKind.Ok);
         }
         else
         {
@@ -381,101 +381,6 @@ internal sealed class PipePlanDeleteTracker : IDisposable
             catch
             {
                 // Best effort cleanup for transient delete markers.
-            }
-
-            marker.Dispose();
-        }
-
-        _markers.Clear();
-    }
-
-    private static Line CreateMarkerLine(Point3d startPoint, Point3d endPoint)
-    {
-        Line line = new(startPoint, endPoint)
-        {
-            Color = Autodesk.AutoCAD.Colors.Color.FromRgb(255, 80, 80),
-            LineWeight = LineWeight.LineWeight050
-        };
-        return line;
-    }
-
-    private static double GetMarkerSize(Document document)
-    {
-        using ViewTableRecord view = document.Editor.GetCurrentView();
-        return Math.Clamp(view.Height / 120.0, 0.1, 2.0);
-    }
-}
-
-internal sealed class PipePlanSplitTracker : IDisposable
-{
-    private readonly Document _document;
-    private readonly Autodesk.AutoCAD.DatabaseServices.Polyline _polyline;
-    private readonly IReadOnlyList<Point3d> _controlPoints;
-    private readonly double _radius;
-    private readonly IntegerCollection _viewportNumbers = [];
-    private readonly List<Entity> _markers = [];
-
-    public PipePlanSplitTracker(Document document, Autodesk.AutoCAD.DatabaseServices.Polyline polyline, IReadOnlyList<Point3d> controlPoints, double radius)
-    {
-        _document = document;
-        _polyline = polyline;
-        _controlPoints = controlPoints;
-        _radius = radius;
-        _document.Editor.PointMonitor += OnPointMonitor;
-    }
-
-    public void Dispose()
-    {
-        _document.Editor.PointMonitor -= OnPointMonitor;
-        ClearMarkers();
-    }
-
-    private void OnPointMonitor(object? sender, PointMonitorEventArgs eventArgs)
-    {
-        ClearMarkers();
-
-        if (!PipePlanSplitService.TryResolveSplit(
-                _polyline,
-                _controlPoints,
-                _radius,
-                eventArgs.Context.ComputedPoint,
-                out _,
-                out Point3d splitPoint,
-                out _))
-        {
-            return;
-        }
-
-        double markerSize = GetMarkerSize(_document);
-        AddMarker(CreateMarkerLine(
-            new Point3d(splitPoint.X - markerSize, splitPoint.Y - markerSize, splitPoint.Z),
-            new Point3d(splitPoint.X + markerSize, splitPoint.Y + markerSize, splitPoint.Z)));
-        AddMarker(CreateMarkerLine(
-            new Point3d(splitPoint.X - markerSize, splitPoint.Y + markerSize, splitPoint.Z),
-            new Point3d(splitPoint.X + markerSize, splitPoint.Y - markerSize, splitPoint.Z)));
-    }
-
-    private void AddMarker(Entity entity)
-    {
-        _markers.Add(entity);
-        TransientManager.CurrentTransientManager.AddTransient(
-            entity,
-            TransientDrawingMode.DirectShortTerm,
-            129,
-            _viewportNumbers);
-    }
-
-    private void ClearMarkers()
-    {
-        foreach (Entity marker in _markers)
-        {
-            try
-            {
-                TransientManager.CurrentTransientManager.EraseTransient(marker, _viewportNumbers);
-            }
-            catch
-            {
-                // Best effort cleanup for transient split markers.
             }
 
             marker.Dispose();
