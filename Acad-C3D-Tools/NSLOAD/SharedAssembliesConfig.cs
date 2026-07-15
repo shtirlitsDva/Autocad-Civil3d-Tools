@@ -16,6 +16,14 @@ namespace NSLOAD
         // MixedModeAssemblies (native deps need directory probing, which the
         // streamed/location-unknown path cannot provide).
         public List<string> StreamedAssemblies { get; set; } = new();
+
+        // Optional per-assembly external source directory (name -> dir). When an entry
+        // is present the loader resolves THAT assembly from this dir instead of the
+        // plugin dir, so a plugin can load a shared/interop assembly straight from its
+        // csproj HintPath location (e.g. Appload) with no private copy. Absent/empty ⇒
+        // resolve from the plugin dir (original behaviour).
+        public Dictionary<string, string> AssemblyLocations { get; set; } =
+            new(StringComparer.OrdinalIgnoreCase);
     }
 
     public static class SharedAssembliesConfigLoader
@@ -36,8 +44,14 @@ namespace NSLOAD
             try
             {
                 string json = File.ReadAllText(path);
-                return JsonSerializer.Deserialize<SharedAssembliesConfig>(
+                var cfg = JsonSerializer.Deserialize<SharedAssembliesConfig>(
                     json, _jsonOptions) ?? new SharedAssembliesConfig();
+                // Normalise to case-insensitive so name lookups in LoadCore match
+                // regardless of key casing (or if the field is absent).
+                cfg.AssemblyLocations = cfg.AssemblyLocations == null
+                    ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    : new Dictionary<string, string>(cfg.AssemblyLocations, StringComparer.OrdinalIgnoreCase);
+                return cfg;
             }
             catch
             {
