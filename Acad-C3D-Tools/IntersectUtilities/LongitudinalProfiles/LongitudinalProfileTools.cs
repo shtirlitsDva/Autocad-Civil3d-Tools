@@ -8325,6 +8325,57 @@ namespace IntersectUtilities
             }
         }
 
+#if DEBUG
+        [CommandMethod("CREATEELEVATIONREPORTDEBUG")]
+        public void createelevationreportdebug()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;            
+
+            var dro = DataReferencesOptions.Create();
+            if (dro == null) return;
+            var dm = new DataManager(dro);            
+            using Database alDb = dm.Alignments();
+            HashSet<Database> længdeprofilerdbs = dm.Længdeprofiler().ToHashSet();
+
+            using Transaction fjvTx = localDb.TransactionManager.StartTransaction();
+            using Transaction alTx = alDb.TransactionManager.StartTransaction();
+
+            try
+            {
+                var ents = localDb.GetFjvEntities(fjvTx, false, false);
+                var als = alDb.HashSetOfType<Alignment>(alTx);
+
+                PipelineNetwork pn = new PipelineNetwork();
+                pn.CreatePipelineNetwork(ents, als);
+                pn.CreatePipelineGraph();
+
+                KoteReport.BuildGraphs(pn.PipelineGraphs);
+                KoteReport.GenerateKoteReport(længdeprofilerdbs, 50 / 1000.0);
+
+                prdDbg("Finshed!");
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg(ex);
+                return;
+            }
+            finally
+            {
+                fjvTx.Abort();
+                fjvTx.Dispose();                
+
+                alTx.Abort();
+                alTx.Dispose();
+                alDb.Dispose();
+
+                foreach (var db in længdeprofilerdbs)
+                    db.Dispose();
+            }
+        }
+
+#endif
+
         /// <command>PLACEELEVATIONLABELS</command>
         /// <summary>
         /// Labels elevations of parent profiles on MIDT profiles.
