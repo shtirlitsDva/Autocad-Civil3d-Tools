@@ -1,4 +1,4 @@
-﻿using IntersectUtilities.PipelineNetworkSystem;
+using IntersectUtilities.PipelineNetworkSystem;
 using IntersectUtilities.PipelineNetworkSystem.QuikGraphClasses;
 using IntersectUtilities.UtilsCommon;
 using static IntersectUtilities.UtilsCommon.Utils;
@@ -414,26 +414,6 @@ namespace IntersectUtilities.LongitudinalProfiles.KoteReport
 
                 sb.AppendLine("</TABLE>");
                 sb.AppendLine(">];");
-            }
-
-            return sb.ToString();
-        }
-
-        private static string NodesToDotRecord(AdjacencyGraph<KRNode, KREdge> graph)
-        {
-            StringBuilder sb = new StringBuilder();
-
-            //Then print nodes
-            foreach (var node in graph.Vertices.OrderBy(x => x.Value.Name))
-            {
-                sb.AppendLine();
-                sb.Append($"\"node{node.Value.Name}\" " +
-                    $"[label=\"{{{node.Value.Name}}}");
-                foreach (var con in node.Connections)
-                {
-                    sb.Append(con.ToLabelHtml(node.Connections.IndexOf(con)));
-                }
-                sb.Append("\"];");
             }
 
             return sb.ToString();
