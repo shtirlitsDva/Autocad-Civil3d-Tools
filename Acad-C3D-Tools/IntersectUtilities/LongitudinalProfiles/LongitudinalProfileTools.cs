@@ -6435,7 +6435,7 @@ namespace IntersectUtilities
                     Oid profileStyleId;
                     try
                     {
-                        profileStyleId = doc.Styles.ProfileStyles["PROFIL STYLE MGO"];
+                        profileStyleId = doc.Styles.ProfileStyles["PROFIL STYLE MGO MIDT"];
                     }
                     catch (System.Exception)
                     {
@@ -6445,8 +6445,15 @@ namespace IntersectUtilities
                     Oid profileLabelSetStylesId = doc.Styles.LabelSetStyles.ProfileLabelSetStyles
                         .FirstOrDefault();
 
+                    // Derive the profile name from the profile view name.
+                    // PV names follow the pattern "017_PV" -> number "017" -> profile "017 MIDT".
+                    string profileName = "New Profile";
+                    string pvNumber = pv.Name?.Split('_').FirstOrDefault();
+                    if (!string.IsNullOrWhiteSpace(pvNumber))
+                        profileName = $"{pvNumber} MIDT";
+
                     Oid pId =
-                        Profile.CreateByLayout("New Profile", pv.AlignmentId,
+                        Profile.CreateByLayout(profileName, pv.AlignmentId,
                             layerId, profileStyleId, profileLabelSetStylesId);
 
                     Profile profile = pId.Go<Profile>(tx, OpenMode.ForWrite);
@@ -7718,12 +7725,21 @@ namespace IntersectUtilities
             Extents3d bufferedOriginalBbox = default;
             Oid alId = Oid.Null;
 
+            // Preserve user-placed Station Elevation Labels across the view rebuild.
+            // The ProfileView is erased below (taking its owned labels with it), so we
+            // capture each label's station/elevation, styles, and dragged offset here
+            // and re-create them on the freshly built view afterwards.
+            string? pvName = null;
+            var savedStnElevLabels =
+                new List<(double station, double elevation, Oid styleId, Vector3d offset)>();
+
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
                 {
                     #region Get Profile view and location
                     ProfileView pv = pvId.Go<ProfileView>(tx);
+                    pvName = pv.Name;
                     prdDbg($"Updating ProfileView: {pv.Name}");
                     System.Windows.Forms.Application.DoEvents();
 
@@ -7775,6 +7791,35 @@ namespace IntersectUtilities
                             item.Erase();
                         }
                     }
+                    #endregion
+
+                    #region Capture Station Elevation Labels before erasing the view
+                    foreach (var lbl in localDb.HashSetOfType<StationElevationLabel>(tx))
+                    {
+                        // Guard each label individually: a single unreadable label
+                        // (e.g. FindXYAtStationAndElevation throwing on an out-of-range
+                        // elevation) must not abort the whole erase/rebuild transaction.
+                        try
+                        {
+                            if (lbl.ViewId != pvId) continue;
+
+                            double lblSta = lbl.Station;
+                            double lblElev = lbl.Elevation;
+                            double ax = 0.0, ay = 0.0;
+                            pv.FindXYAtStationAndElevation(lblSta, lblElev, ref ax, ref ay);
+                            Vector3d offset = lbl.LabelLocation - new Point3d(ax, ay, 0.0);
+
+                            savedStnElevLabels.Add(
+                                (lblSta, lblElev, lbl.StyleId, offset));
+                        }
+                        catch (System.Exception ex)
+                        {
+                            prdDbg($"Skipped capturing a Station Elevation Label: {ex.Message}");
+                        }
+                    }
+                    if (savedStnElevLabels.Count > 0)
+                        prdDbg($"Captured {savedStnElevLabels.Count} Station Elevation " +
+                            $"Label(s) for restoration.");
                     #endregion
 
                     #region Erase PV
@@ -7855,6 +7900,67 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
+
+            #region Restore captured Station Elevation Labels onto the rebuilt view
+            if (savedStnElevLabels.Count > 0)
+            {
+                using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                {
+                    try
+                    {
+                        ProfileView? newPv = localDb.ListOfType<ProfileView>(tx)
+                            .FirstOrDefault(x => x.Name == pvName);
+
+                        if (newPv == null)
+                            prdDbg($"Could not find rebuilt ProfileView '{pvName}'; " +
+                                $"{savedStnElevLabels.Count} Station Elevation Label(s) not restored.");
+                        else
+                        {
+                            // StationElevationLabel.Create requires a marker style, but the
+                            // label never exposes the original back. Reuse the project's
+                            // canonical marker (same one used elsewhere for these labels).
+                            var markerStyles = CivilApplication.ActiveDocument.Styles.MarkerStyles;
+                            Oid markerStyleId;
+                            try { markerStyleId = markerStyles["Basic Circle with Cross"]; }
+                            catch (System.Exception) { markerStyleId = markerStyles.FirstOrDefault(); }
+
+                            int restored = 0;
+                            foreach (var s in savedStnElevLabels)
+                            {
+                                try
+                                {
+                                    Oid newLblId = StationElevationLabel.Create(
+                                        newPv.Id, s.styleId, markerStyleId,
+                                        s.station, s.elevation);
+                                    var newLbl = newLblId.Go<StationElevationLabel>(
+                                        tx, OpenMode.ForWrite);
+                                    double ax = 0.0, ay = 0.0;
+                                    newPv.FindXYAtStationAndElevation(
+                                        s.station, s.elevation, ref ax, ref ay);
+                                    newLbl.LabelLocation =
+                                        new Point3d(ax, ay, 0.0) + s.offset;
+                                    restored++;
+                                }
+                                catch (System.Exception ex)
+                                {
+                                    prdDbg($"Failed to restore Station Elevation Label at " +
+                                        $"(Sta: {s.station:F3}, El: {s.elevation:F3}): " +
+                                        $"{ex.Message}");
+                                }
+                            }
+                            prdDbg($"Restored {restored}/{savedStnElevLabels.Count} " +
+                                $"Station Elevation Label(s).");
+                        }
+                    }
+                    catch (System.Exception ex)
+                    {
+                        tx.Abort();
+                        prdDbg(ex);
+                    }
+                    tx.Commit();
+                }
+            }
+            #endregion
 
             using (doc.LockDocument())
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
