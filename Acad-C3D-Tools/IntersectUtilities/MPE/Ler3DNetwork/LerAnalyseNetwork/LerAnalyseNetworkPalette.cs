@@ -10,9 +10,11 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerAnalyseNetwork
     internal sealed class LerAnalyseNetworkPalette : IDisposable
     {
         private static readonly Guid PaletteGuid = new("C7A3B5E2-9D14-4F68-8A2B-1E0C9F7D6B53");
+        private static readonly System.Drawing.Size DefaultPaletteSize = new(1000, 800);
 
         private readonly PaletteSet _paletteSet;
         private readonly LerAnalyseNetworkViewModel _viewModel;
+        private bool _sizedOnce;
 
         public LerAnalyseNetworkPalette()
         {
@@ -34,6 +36,13 @@ namespace IntersectUtilities.MPE.Ler3DNetwork.LerAnalyseNetwork
         public void Show()
         {
             _paletteSet.Visible = true;
+
+            // First show only, so a size the user later drags is respected; see PaletteSizing.
+            if (!_sizedOnce)
+            {
+                _sizedOnce = true;
+                IntersectUtilities.MPE.Shared.PaletteSizing.ApplyDefault(_paletteSet, DefaultPaletteSize);
+            }
         }
 
         public void RebindTo(LerAnalyseNetworkState state)

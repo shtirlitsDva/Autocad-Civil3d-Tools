@@ -69,8 +69,12 @@ namespace IntersectUtilities
         private static PaletteSet? _palette;
         private static LERCompareTerrainControl? _control;
 
+        private static readonly System.Drawing.Size DefaultPaletteSize = new System.Drawing.Size(1000, 1000);
+
         public static void Show(Document document)
         {
+            bool justCreated = _palette == null;
+
             if (_palette == null)
             {
                 _control = new LERCompareTerrainControl();
@@ -80,8 +84,7 @@ namespace IntersectUtilities
                     new Guid("5E98E32A-B975-4E2E-B313-4B6DCC932E82"))
                 {
                     Style = PaletteSetStyles.ShowPropertiesMenu | PaletteSetStyles.ShowCloseButton,
-                    MinimumSize = new System.Drawing.Size(360, 260),
-                    Size = new System.Drawing.Size(460, 520)
+                    MinimumSize = new System.Drawing.Size(360, 260)
                 };
 
                 _palette.AddVisual("Compare", _control);
@@ -98,6 +101,13 @@ namespace IntersectUtilities
 
             _control!.AttachDocument(document);
             _palette.Visible = true;
+
+            // Applied only on first show; see PaletteSizing for why Size in the initializer alone
+            // does not stick.
+            if (justCreated)
+            {
+                IntersectUtilities.MPE.Shared.PaletteSizing.ApplyDefault(_palette, DefaultPaletteSize);
+            }
         }
 
         // Disposes the cached palette on plugin unload (called from IExtensionApplication.Terminate)
@@ -120,8 +130,12 @@ namespace IntersectUtilities
 
     internal sealed class LERCompareTerrainControl : UserControl
     {
-        private static readonly System.Windows.Media.Brush PageBackgroundBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(35, 43, 58));
-        private static readonly System.Windows.Media.Brush PanelBackgroundBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(46, 56, 74));
+        // Matches the stepped-card look of the TerrainKoteCompare palette: deeper page behind raised
+        // section cards, a muted brush for secondary text, and a blue step badge.
+        private static readonly System.Windows.Media.Brush PageBackgroundBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(26, 32, 44));
+        private static readonly System.Windows.Media.Brush PanelBackgroundBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(41, 50, 66));
+        private static readonly System.Windows.Media.Brush CardBackgroundBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(41, 50, 66));
+        private static readonly System.Windows.Media.Brush StatBackgroundBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(31, 39, 52));
         private static readonly System.Windows.Media.Brush InputBackgroundBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(49, 59, 79));
         private static readonly System.Windows.Media.Brush ButtonBackgroundBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(85, 98, 122));
         private static readonly System.Windows.Media.Brush AccentButtonBackgroundBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(95, 166, 220));
@@ -129,8 +143,10 @@ namespace IntersectUtilities
         private static readonly System.Windows.Media.Brush ButtonPressedBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(70, 82, 104));
         private static readonly System.Windows.Media.Brush AccentButtonHoverBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(109, 181, 235));
         private static readonly System.Windows.Media.Brush AccentButtonPressedBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(74, 145, 198));
-        private static readonly System.Windows.Media.Brush BorderBrushValue = new SolidColorBrush(System.Windows.Media.Color.FromRgb(92, 108, 136));
-        private static readonly System.Windows.Media.Brush ForegroundBrushValue = new SolidColorBrush(System.Windows.Media.Color.FromRgb(238, 243, 250));
+        private static readonly System.Windows.Media.Brush BorderBrushValue = new SolidColorBrush(System.Windows.Media.Color.FromRgb(74, 88, 112));
+        private static readonly System.Windows.Media.Brush ForegroundBrushValue = new SolidColorBrush(System.Windows.Media.Color.FromRgb(240, 245, 252));
+        private static readonly System.Windows.Media.Brush MutedForegroundBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(148, 161, 183));
+        private static readonly System.Windows.Media.Brush StepBadgeBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(95, 166, 220));
         private readonly LERCompareTerrainTransientRenderer _renderer = new LERCompareTerrainTransientRenderer();
         private readonly TextBox _surfacePathTextBox;
         private readonly ComboBox _surfaceComboBox;
@@ -174,31 +190,18 @@ namespace IntersectUtilities
         {
             Background = PageBackgroundBrush;
 
-            Grid root = new Grid
+            StackPanel root = new StackPanel
             {
-                Margin = new Thickness(10),
+                Orientation = Orientation.Vertical,
+                Margin = new Thickness(14),
                 Background = Background
             };
 
-            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(92) });
-            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(110) });
-
-            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-
-            AddToGrid(root, CreateLabel("Surface DWG"), 0, 0);
-
+            // ---- 1 · Terrain surface ------------------------------------------------------------
             _surfacePathTextBox = new TextBox
             {
                 IsReadOnly = true,
-                Margin = new Thickness(0, 0, 6, 6),
+                Margin = new Thickness(0, 0, 6, 0),
                 VerticalContentAlignment = VerticalAlignment.Center,
                 Background = InputBackgroundBrush,
                 Foreground = ForegroundBrushValue,
@@ -206,15 +209,17 @@ namespace IntersectUtilities
                 BorderThickness = new Thickness(1),
                 Padding = new Thickness(8, 6, 8, 6)
             };
-            AddToGrid(root, _surfacePathTextBox, 0, 1);
-
             Button browseButton = CreateButton("Browse...");
+            browseButton.Margin = new Thickness(0);
             browseButton.Click += (_, _) => BrowseForSurfaceDwg();
-            AddToGrid(root, browseButton, 0, 2);
 
-            AddToGrid(root, CreateLabel("TIN Surface"), 1, 0);
-
-            WrapPanel surfaceSelectionPanel = CreateHorizontalPanel();
+            Grid pathRow = new Grid { Margin = new Thickness(0, 0, 0, 8) };
+            pathRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            pathRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            Grid.SetColumn(_surfacePathTextBox, 0);
+            Grid.SetColumn(browseButton, 1);
+            pathRow.Children.Add(_surfacePathTextBox);
+            pathRow.Children.Add(browseButton);
 
             _surfaceComboBox = new ComboBox
             {
@@ -226,34 +231,53 @@ namespace IntersectUtilities
                 BorderThickness = new Thickness(1),
                 Padding = new Thickness(10, 6, 10, 6),
                 Style = CreateComboBoxStyle(),
-                MinWidth = 220
+                MinWidth = 220,
+                MinHeight = 32,
+                VerticalAlignment = VerticalAlignment.Center
             };
-            surfaceSelectionPanel.Children.Add(_surfaceComboBox);
 
             _loadButton = CreateButton("Load Surface", true);
             _loadButton.Click += (_, _) => LoadSelectedSurface();
-
             _unloadButton = CreateButton("Unload Surface");
             _unloadButton.Click += (_, _) => UnloadSurface();
-
             _terrainToggleButton = CreateButton("Preview Terrain");
             _terrainToggleButton.Click += (_, _) => ToggleTerrain();
             _terrainToggleButton.IsEnabled = false;
-
             _depthToggleButton = CreateButton("Preview Depth");
             _depthToggleButton.Click += (_, _) => ToggleDepth();
             _depthToggleButton.IsEnabled = false;
 
-            surfaceSelectionPanel.Children.Add(_loadButton);
-            surfaceSelectionPanel.Children.Add(_unloadButton);
-            surfaceSelectionPanel.Children.Add(_terrainToggleButton);
-            surfaceSelectionPanel.Children.Add(_depthToggleButton);
-            AddToGrid(root, surfaceSelectionPanel, 1, 1, 2);
+            WrapPanel surfaceRow = new WrapPanel { Orientation = Orientation.Horizontal };
+            surfaceRow.Children.Add(_surfaceComboBox);
+            surfaceRow.Children.Add(_loadButton);
+            surfaceRow.Children.Add(_unloadButton);
+            surfaceRow.Children.Add(_terrainToggleButton);
+            surfaceRow.Children.Add(_depthToggleButton);
 
-            AddToGrid(root, CreateLabel("Threshold (m)"), 2, 0);
+            StackPanel terrainBody = new StackPanel { Orientation = Orientation.Vertical };
+            terrainBody.Children.Add(pathRow);
+            terrainBody.Children.Add(surfaceRow);
+            root.Children.Add(CreateSection("1", "Terrain surface", terrainBody));
 
-            WrapPanel thresholdPanel = CreateHorizontalPanel();
+            // ---- 2 · Select 3D polylines --------------------------------------------------------
+            _loadAllButton = CreateButton("Load all", true);
+            _loadAllButton.Click += (_, _) => LoadAllPolylines();
+            _selectButton = CreateButton("Select");
+            _selectButton.Click += (_, _) => SelectPolylines();
 
+            WrapPanel polylineRow = new WrapPanel { Orientation = Orientation.Horizontal };
+            polylineRow.Children.Add(_loadAllButton);
+            polylineRow.Children.Add(_selectButton);
+
+            _selectionLabel = CreateMutedText("Selected 3D polylines: 0");
+            _selectionLabel.Margin = new Thickness(2, 8, 0, 0);
+
+            StackPanel polylineBody = new StackPanel { Orientation = Orientation.Vertical };
+            polylineBody.Children.Add(polylineRow);
+            polylineBody.Children.Add(_selectionLabel);
+            root.Children.Add(CreateSection("2", "Select 3D polylines", polylineBody));
+
+            // ---- 3 · Threshold & compute --------------------------------------------------------
             _thresholdNumericUpDown = new TextBox
             {
                 Text = "2.5",
@@ -266,47 +290,25 @@ namespace IntersectUtilities
                 BorderThickness = new Thickness(1),
                 Padding = new Thickness(8, 6, 8, 6)
             };
-            thresholdPanel.Children.Add(_thresholdNumericUpDown);
-
             _applyButton = CreateButton("Apply");
             _applyButton.Click += (_, _) => RefreshPreview();
-            thresholdPanel.Children.Add(_applyButton);
-            AddToGrid(root, thresholdPanel, 2, 1, 2);
-
-            WrapPanel buttonPanel = CreateHorizontalPanel();
-
-            _loadAllButton = CreateButton("Load all");
-            _loadAllButton.Click += (_, _) => LoadAllPolylines();
-
-            _selectButton = CreateButton("Select");
-            _selectButton.Click += (_, _) => SelectPolylines();
-
-            _previewButton = CreateButton("Compute and Preview");
+            _previewButton = CreateButton("Compute and Preview", true);
             _previewButton.Click += (_, _) => RefreshPreview();
 
-            _clearButton = CreateButton("Clear Preview");
-            _clearButton.Click += (_, _) => ClearPreview();
-
-            _bakeButton = CreateButton("Export to Civil");
-            _bakeButton.Click += (_, _) => BakePreview();
-
-            buttonPanel.Children.Add(_loadAllButton);
-            buttonPanel.Children.Add(_selectButton);
-            buttonPanel.Children.Add(_previewButton);
-            buttonPanel.Children.Add(_clearButton);
-            buttonPanel.Children.Add(_bakeButton);
-            AddToGrid(root, buttonPanel, 3, 0, 3);
-
-            _selectionLabel = CreateLabel("Selected 3D polylines: 0");
-            AddToGrid(root, _selectionLabel, 4, 0, 3);
-
-            Grid statusContainer = new Grid
+            WrapPanel computeRow = new WrapPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            computeRow.Children.Add(new WinLabel
             {
-                Margin = new Thickness(0, 0, 0, 6)
-            };
-            statusContainer.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            statusContainer.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                Text = "Threshold (m)",
+                Foreground = MutedForegroundBrush,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 8, 6)
+            });
+            computeRow.Children.Add(_thresholdNumericUpDown);
+            computeRow.Children.Add(_applyButton);
+            computeRow.Children.Add(_previewButton);
+            root.Children.Add(CreateSection("3", "Threshold & compute", computeRow));
 
+            // ---- 4 · Review results -------------------------------------------------------------
             _statusTextBox = new TextBox
             {
                 IsReadOnly = true,
@@ -314,26 +316,119 @@ namespace IntersectUtilities
                 TextWrapping = TextWrapping.Wrap,
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                MinHeight = 150,
                 Margin = new Thickness(0, 0, 6, 0),
-                Background = PanelBackgroundBrush,
+                Background = StatBackgroundBrush,
                 Foreground = ForegroundBrushValue,
                 BorderBrush = BorderBrushValue,
                 BorderThickness = new Thickness(1),
                 Padding = new Thickness(10, 8, 10, 8)
             };
-            Grid.SetColumn(_statusTextBox, 0);
-            statusContainer.Children.Add(_statusTextBox);
 
+            Grid reviewRow = new Grid();
+            reviewRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            reviewRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            Grid.SetColumn(_statusTextBox, 0);
+            reviewRow.Children.Add(_statusTextBox);
             UIElement legendPanel = CreateLegendPanel();
             Grid.SetColumn(legendPanel, 1);
-            statusContainer.Children.Add(legendPanel);
+            reviewRow.Children.Add(legendPanel);
+            root.Children.Add(CreateSection("4", "Review results", reviewRow));
 
-            AddToGrid(root, statusContainer, 5, 0, 3);
+            // ---- 5 · Export ---------------------------------------------------------------------
+            _clearButton = CreateButton("Clear Preview");
+            _clearButton.Click += (_, _) => ClearPreview();
+            _bakeButton = CreateButton("Export to Civil");
+            _bakeButton.Click += (_, _) => BakePreview();
 
-            AddToGrid(root, CreateLabel("Preview uses the selected 3D polylines, not the terrain surface."), 6, 0, 3);
+            WrapPanel exportRow = new WrapPanel { Orientation = Orientation.Horizontal };
+            exportRow.Children.Add(_clearButton);
+            exportRow.Children.Add(_bakeButton);
 
-            Content = root;
+            StackPanel exportBody = new StackPanel { Orientation = Orientation.Vertical };
+            exportBody.Children.Add(exportRow);
+            exportBody.Children.Add(CreateMutedText("Preview uses the selected 3D polylines, not the terrain surface."));
+            root.Children.Add(CreateSection("5", "Export", exportBody));
+
+            // The palette often docks shorter than the content; without this the bottom controls are
+            // simply unreachable.
+            Content = new ScrollViewer
+            {
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                Background = PageBackgroundBrush,
+                Padding = new Thickness(0, 0, 4, 0),
+                Content = root
+            };
+
             UpdateStatus("Use Load all or Select, then load a terrain DWG and choose a TIN surface.");
+        }
+
+        // A stepped section card: numbered badge, title, and a body. Mirrors the TerrainKoteCompare
+        // palette so the two tools read the same way.
+        private UIElement CreateSection(string step, string title, UIElement body)
+        {
+            Grid header = new Grid { Margin = new Thickness(0, 0, 0, 12) };
+            header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            Border badge = new Border
+            {
+                Width = 26,
+                Height = 26,
+                CornerRadius = new CornerRadius(13),
+                Background = StepBadgeBrush,
+                Margin = new Thickness(0, 0, 10, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                Child = new WinLabel
+                {
+                    Text = step,
+                    Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(20, 26, 36)),
+                    FontWeight = FontWeights.Bold,
+                    FontSize = 13,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center
+                }
+            };
+            Grid.SetColumn(badge, 0);
+            header.Children.Add(badge);
+
+            WinLabel titleText = new WinLabel
+            {
+                Text = title,
+                Foreground = ForegroundBrushValue,
+                FontWeight = FontWeights.Bold,
+                FontSize = 15,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(titleText, 1);
+            header.Children.Add(titleText);
+
+            StackPanel content = new StackPanel { Orientation = Orientation.Vertical };
+            content.Children.Add(header);
+            content.Children.Add(body);
+
+            return new Border
+            {
+                Background = CardBackgroundBrush,
+                BorderBrush = BorderBrushValue,
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(14),
+                Margin = new Thickness(0, 0, 0, 12),
+                Child = content
+            };
+        }
+
+        private static WinLabel CreateMutedText(string text)
+        {
+            return new WinLabel
+            {
+                Text = text,
+                Foreground = MutedForegroundBrush,
+                TextWrapping = TextWrapping.Wrap,
+                FontSize = 12
+            };
         }
 
         public void AttachDocument(Document document)
@@ -1206,18 +1301,6 @@ namespace IntersectUtilities
             _depthToggleButton.IsEnabled = surfaceLoaded;
         }
 
-        private static void AddToGrid(Grid grid, UIElement element, int row, int column, int columnSpan = 1)
-        {
-            Grid.SetRow(element, row);
-            Grid.SetColumn(element, column);
-            if (columnSpan > 1)
-            {
-                Grid.SetColumnSpan(element, columnSpan);
-            }
-
-            grid.Children.Add(element);
-        }
-
         private static Button CreateButton(string text, bool isAccent = false)
         {
             Button button = new Button
@@ -1239,27 +1322,6 @@ namespace IntersectUtilities
             button.PreviewMouseLeftButtonUp += (_, _) => ApplyButtonVisualState(button, isPressed: false);
             button.LostMouseCapture += (_, _) => ResetButtonVisualState(button);
             return button;
-        }
-
-        private static WinLabel CreateLabel(string text)
-        {
-            return new WinLabel
-            {
-                Text = text,
-                Margin = new Thickness(0, 6, 8, 10),
-                VerticalAlignment = VerticalAlignment.Center,
-                TextWrapping = TextWrapping.Wrap,
-                Foreground = ForegroundBrushValue,
-                FontWeight = FontWeights.SemiBold
-            };
-        }
-
-        private static WrapPanel CreateHorizontalPanel()
-        {
-            return new WrapPanel
-            {
-                Margin = new Thickness(0, 0, 0, 8)
-            };
         }
 
         private UIElement CreateLegendPanel()

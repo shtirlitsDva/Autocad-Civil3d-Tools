@@ -14,6 +14,7 @@ internal static class PipePlanMetadata
     private const string PipeGeometryDataVersionV2 = "PIPEPLAN_V2";
     private const string PipeGeometryDataVersionV3 = "PIPEPLAN_V3";
     private const string PipeGeometryDataVersionV4 = "PIPEPLAN_V4";
+    private const string PipeGeometryDataVersionV5 = "PIPEPLAN_V5";
 
     public static ResultBuffer CreatePipeTag(PipeSystemEnum system, PipeTypeEnum type, int dn)
     {
@@ -108,7 +109,7 @@ internal static class PipePlanMetadata
     {
         List<TypedValue> values =
         [
-            new TypedValue((int)DxfCode.Text, PipeGeometryDataVersionV4),
+            new TypedValue((int)DxfCode.Text, PipeGeometryDataVersionV5),
             new TypedValue((int)DxfCode.Text, data.ObjectToken),
             new TypedValue((int)DxfCode.Int32, (int)data.System),
             new TypedValue((int)DxfCode.Int32, (int)data.Type),
@@ -119,6 +120,14 @@ internal static class PipePlanMetadata
 
         values.AddRange(data.ControlPoints.Select(point => new TypedValue((int)DxfCode.XCoordinate, point)));
         values.AddRange(data.BendRadii.Select(r => new TypedValue((int)DxfCode.Real, r)));
+
+        // V5 trailing block: optional authoritative baked geometry. A count of 0 (the
+        // only case until the arc-arc solver lands) means "no override — derive from
+        // control points", so a plain fillet pipe's V5 record is V4 + a single 0.
+        IReadOnlyList<PolylineVertexData> baked = data.BakedGeometry ?? [];
+        values.Add(new TypedValue((int)DxfCode.Int32, baked.Count));
+        values.AddRange(baked.Select(v => new TypedValue((int)DxfCode.XCoordinate, new Point3d(v.Point.X, v.Point.Y, 0.0))));
+        values.AddRange(baked.Select(v => new TypedValue((int)DxfCode.Real, v.Bulge)));
         return new ResultBuffer(values.ToArray());
     }
 
@@ -133,12 +142,72 @@ internal static class PipePlanMetadata
         string? versionToken = values[0].Value as string;
         return versionToken switch
         {
+            PipeGeometryDataVersionV5 => TryReadV5(values, out data),
             PipeGeometryDataVersionV4 => TryReadV4(values, out data),
             PipeGeometryDataVersionV3 => TryReadV3(values, out data),
             PipeGeometryDataVersionV2 => TryReadV2(values, out data),
             PipeGeometryDataVersionV1 => TryReadV1(values, out data),
             _ => false
         };
+    }
+
+    private static bool TryReadV5(TypedValue[] values, out PipePlanStoredData? data)
+    {
+        data = null;
+        if (values.Length < 7) return false;
+
+        string? objectToken = values[1].Value as string;
+        if (string.IsNullOrWhiteSpace(objectToken)) return false;
+        if (values[2].Value is not int systemValue) return false;
+        if (values[3].Value is not int typeValue) return false;
+        if (values[4].Value is not int dn || dn <= 0) return false;
+        string? snapToleranceText = values[5].Value as string;
+        if (string.IsNullOrWhiteSpace(snapToleranceText)) return false;
+
+        if (!TryReadPointCount(values[6], 7, values.Length - 7, out int pointCount)) return false;
+
+        int radiiStart = 7 + pointCount;
+        int bakedCountIndex = radiiStart + pointCount;
+        // The V5 record always carries the baked-count marker after the radii, even
+        // when it is 0; anything shorter is a truncated/corrupt payload.
+        if (values.Length <= bakedCountIndex) return false;
+
+        if (!TryReadControlPoints(values, 7, pointCount, out List<Point3d>? controlPoints) || controlPoints is null) return false;
+
+        List<double> radii = new(pointCount);
+        for (int i = 0; i < pointCount; i++)
+        {
+            if (values[radiiStart + i].Value is not double r) return false;
+            radii.Add(r);
+        }
+
+        if (values[bakedCountIndex].Value is not int bakedCount || bakedCount < 0) return false;
+        int bakedVerticesStart = bakedCountIndex + 1;
+        int bakedBulgesStart = bakedVerticesStart + bakedCount;
+        if (values.Length != bakedBulgesStart + bakedCount) return false;
+
+        List<PolylineVertexData>? bakedGeometry = null;
+        if (bakedCount > 0)
+        {
+            bakedGeometry = new List<PolylineVertexData>(bakedCount);
+            for (int i = 0; i < bakedCount; i++)
+            {
+                if (values[bakedVerticesStart + i].Value is not Point3d vertex) return false;
+                if (values[bakedBulgesStart + i].Value is not double bulge) return false;
+                bakedGeometry.Add(new PolylineVertexData(new Point2d(vertex.X, vertex.Y), bulge));
+            }
+        }
+
+        data = new PipePlanStoredData(
+            (PipeSystemEnum)systemValue,
+            (PipeTypeEnum)typeValue,
+            dn,
+            radii,
+            snapToleranceText!,
+            controlPoints,
+            objectToken,
+            bakedGeometry);
+        return true;
     }
 
     private static bool TryReadV4(TypedValue[] values, out PipePlanStoredData? data)

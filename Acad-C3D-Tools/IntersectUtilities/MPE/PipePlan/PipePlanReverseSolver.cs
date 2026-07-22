@@ -40,50 +40,40 @@ internal static class PipePlanReverseSolver
 
             if (segmentType == SegmentType.Arc)
             {
-                if (i == 0 || i == segmentCount - 1)
-                {
-                    error = "Polylinjen skal starte og slutte med et lige segment.";
-                    return false;
-                }
-                if (polyline.GetSegmentType(i - 1) != SegmentType.Line ||
-                    polyline.GetSegmentType(i + 1) != SegmentType.Line)
-                {
-                    error = "Hver bue skal omsluttes af lige segmenter.";
-                    return false;
-                }
-
-                LineSegment2d prevLine = polyline.GetLineSegment2dAt(i - 1);
+                // Recover the arc's virtual corner from its OWN tangent lines: the tangent
+                // at the arc start and at the arc end, extended until they meet. For a
+                // classic line-arc-line fillet this is identical to intersecting the two
+                // flanking straights, but it also works when the arc abuts another arc (a
+                // PipePlan crowded-corner chain) or sits at the polyline start/end — cases
+                // the old "arc must be bracketed by straights" rule rejected outright.
                 CircularArc2d arc = polyline.GetArcSegment2dAt(i);
-                LineSegment2d nextLine = polyline.GetLineSegment2dAt(i + 1);
+                Point3d arcStart = GetPoint3dAt(polyline, i);
+                Point3d arcEnd = GetPoint3dAt(polyline, i + 1);
 
-                Vector2d prevDir = prevLine.EndPoint - prevLine.StartPoint;
-                Vector2d nextDir = nextLine.EndPoint - nextLine.StartPoint;
-
-                Point3d prevOrigin = new(prevLine.StartPoint.X, prevLine.StartPoint.Y, 0.0);
-                Point3d nextOrigin = new(nextLine.StartPoint.X, nextLine.StartPoint.Y, 0.0);
-
-                if (!PipePlanGeometryUtil.TryIntersectLines2D(prevOrigin, prevDir, nextOrigin, nextDir, out Point3d corner))
+                Vector3d startTangent = polyline.GetFirstDerivative((double)i + 1e-6);
+                Vector3d endTangent = polyline.GetFirstDerivative((double)(i + 1) - 1e-6);
+                Vector2d startDir = new(startTangent.X, startTangent.Y);
+                Vector2d endDir = new(endTangent.X, endTangent.Y);
+                if (startDir.Length <= DistanceTolerance || endDir.Length <= DistanceTolerance)
                 {
+                    error = "Buens tangent kunne ikke bestemmes.";
+                    return false;
+                }
+
+                if (!PipePlanGeometryUtil.TryIntersectLines2D(arcStart, startDir, arcEnd, endDir, out Point3d corner))
+                {
+                    // Tangents are (anti)parallel — a straight or a full half-turn, neither
+                    // a fillet corner. Refuse rather than emit a bogus control point.
                     error = "Buens geometri er inkonsistent — kan ikke konvertere.";
                     return false;
                 }
 
                 controlPoints.Add(corner);
-                // arc.Radius is computed from the polyline's bulge via trig
-                // (R = chord / (2·sin(δ/2))), so the recovered value carries
-                // ~1 ULP of floating-point noise per transcendental call. Round
-                // to 3 decimal places — sub-millimetre precision when drawings
-                // are in metres, well below physical bend-radius tolerance, and
-                // enough to keep the UI showing 38 instead of 38.0000000003875.
+                // arc.Radius carries ~1 ULP of transcendental noise (R = chord/(2·sin(δ/2)));
+                // round to 3 decimals (sub-mm at metre scale) so the UI shows 38 instead of
+                // 38.0000000003875.
                 radii.Add(Math.Round(arc.Radius, 3));
 
-                // Advance to the straight segment that trails the arc rather than
-                // skipping past it (i += 2). For a native PipePlan fillet that
-                // trailing line ends at a tangent point flowing into the next arc,
-                // so the line branch below finds next == Arc and adds nothing.
-                // But when another polyline has been PEDIT-joined at that vertex it
-                // becomes a genuine sharp corner; landing on the line lets the
-                // deflection test fire instead of silently absorbing the corner.
                 i += 1;
                 continue;
             }

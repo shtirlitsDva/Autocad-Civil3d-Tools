@@ -21,7 +21,8 @@ internal sealed class PipePlanStoredData
         IReadOnlyList<double> bendRadii,
         string straightSnapToleranceText,
         IReadOnlyList<Point3d> controlPoints,
-        string? objectToken = null)
+        string? objectToken = null,
+        IReadOnlyList<PolylineVertexData>? bakedGeometry = null)
     {
         if (bendRadii.Count != controlPoints.Count)
         {
@@ -35,6 +36,7 @@ internal sealed class PipePlanStoredData
         BendRadii = [.. bendRadii];
         StraightSnapToleranceText = straightSnapToleranceText;
         ControlPoints = [.. controlPoints];
+        BakedGeometry = bakedGeometry is null ? null : [.. bakedGeometry];
     }
 
     public string ObjectToken { get; set; }
@@ -50,6 +52,13 @@ internal sealed class PipePlanStoredData
     public string StraightSnapToleranceText { get; set; }
 
     public List<Point3d> ControlPoints { get; }
+
+    // Authoritative solved polyline geometry (vertices + bulges), stored only when the
+    // pipe contains free tangent arcs that are NOT re-derivable from ControlPoints +
+    // BendRadii alone (crowded-corner arc-arc merges, line-after-arc re-tangency).
+    // Null for plain fillet pipes, which stay fully control-point-derived by the solver.
+    // Persisted in the PIPEPLAN_V5 geometry record; see PipePlanMetadata.
+    public IReadOnlyList<PolylineVertexData>? BakedGeometry { get; }
 
     public string SizeDisplay => $"{System} {Type} DN{Dn}";
 
@@ -88,6 +97,24 @@ internal readonly record struct PipePlanRadiusAnnotation(
 internal readonly record struct PipePlanFilletEndpointMarker(
     Point3d TangentIn,
     Point3d TangentOut);
+
+// A segment junction on the baked polyline that involves an arc (straight<->arc tangent
+// point or arc<->arc join), shown in PPEDIT as a perpendicular tick that visually separates
+// the segments. Tangent is the (unnormalised) pipe direction at the junction; the tick is
+// drawn perpendicular to it.
+internal readonly record struct PipePlanSegmentDivider(
+    Point3d Center,
+    Vector2d Tangent);
+
+// A DIMARC-style radius annotation for one arc segment: a concentric arc offset a constant
+// distance out from the pipe arc, radial extension lines joining the two arcs' endpoints,
+// and an "R=" label at the mid. Rendered in the PPEDIT select display.
+internal readonly record struct PipePlanArcDimension(
+    Point3d Start,
+    Point3d End,
+    Point3d Center,
+    double Radius,
+    bool IsCcw);
 
 internal sealed record PipePlanCandidateResult(
     Point3d RawPoint,

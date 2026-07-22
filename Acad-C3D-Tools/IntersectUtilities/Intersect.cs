@@ -85,6 +85,7 @@ namespace IntersectUtilities
             SafeReset("NSCMD palette", IntersectUtilities.CmdUI.UI.NsCmdPaletteSet.Reset);
             SafeReset("VejkantOffset palette", IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.UI.Views.OffsetPaletteViewModelVisualizer.Reset);
             SafeReset("LERCompareTerrain palette", LERCompareTerrainPaletteHost.Reset);
+            SafeReset("TerrainKoteCompare palette", IntersectUtilities.MPE.TerrainKoteCompare.TerrainKoteComparePaletteHost.Reset);
             SafeReset("LERConnectNetwork palette", IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork.LERConnectNetworkRuntime.Reset);
             SafeReset("LerAnalyseNetwork palette", IntersectUtilities.MPE.Ler3DNetwork.LerAnalyseNetwork.LerAnalyseNetworkRuntime.Reset);
             SafeReset("Alignment direction overlay", ResetAlignmentDirectionOverlay);
@@ -390,10 +391,12 @@ namespace IntersectUtilities
                             objIds.Add(plss["Radius Sag"]);
                             //Band set style
                             objIds.Add(stylesDoc.Styles.BandStyles.ProfileViewProfileDataBandStyles["Elevations and Stations"]);
-                            objIds.Add(stylesDoc.Styles.BandStyles.ProfileViewProfileDataBandStyles["Elevations and Stations DE"]);
+                            objIds.Add(stylesDoc.Styles.BandStyles.ProfileViewProfileDataBandStyles["Elevations and Stations DE Frem"]);
+                            objIds.Add(stylesDoc.Styles.BandStyles.ProfileViewProfileDataBandStyles["Elevations and Stations DE Retur"]);
                             objIds.Add(stylesDoc.Styles.BandStyles.ProfileViewProfileDataBandStyles["TitleBuffer"]);
                             objIds.Add(stylesDoc.Styles.ProfileViewBandSetStyles["EG-FG Elevations and Stations"]);
-                            objIds.Add(stylesDoc.Styles.ProfileViewBandSetStyles["EG-FG Elevations and Stations DE"]);
+                            objIds.Add(stylesDoc.Styles.ProfileViewBandSetStyles["EG-FG Elevations and Stations DE Frem"]);
+                            objIds.Add(stylesDoc.Styles.ProfileViewBandSetStyles["EG-FG Elevations and Stations DE Retur"]);
                             //Matchline styles
                             objIds.Add(stylesDoc.Styles.MatchLineStyles["Basic"]);
                             //Point styles

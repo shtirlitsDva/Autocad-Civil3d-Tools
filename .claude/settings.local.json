@@ -20,7 +20,9 @@
       "mcp__plugin_devreload_devreload__acad_list_instances",
       "mcp__plugin_devreload_devreload__acad_attach",
       "Bash(git -C \"C:/Users/mpe/Github/shtirlitsDva/Autocad-Civil3d-Tools\" diff --stat HEAD)",
-      "Bash(node *)"
+      "Bash(node *)",
+      "Bash(/c/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/MSBuild.exe *)",
+      "PowerShell($msb = \"C:\\\\Program Files\\\\Microsoft Visual Studio\\\\2022\\\\Community\\\\MSBuild\\\\Current\\\\Bin\\\\MSBuild.exe\"; if \\(Test-Path $msb\\) { & $msb \"Acad-C3D-Tools\\\\IntersectUtilities\\\\IntersectUtilities.csproj\" /p:Configuration=Debug /clp:ErrorsOnly /nologo /v:q } else { \"MSBuild not found at $msb\" })"
     ]
   },
   "outputStyle": "Explanatory"

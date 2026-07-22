@@ -1,4 +1,5 @@
-﻿using Autodesk.AutoCAD.DatabaseServices;
+using Autodesk.AutoCAD.ApplicationServices;
+using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 using Autodesk.Civil.DatabaseServices;
 
@@ -16,6 +17,7 @@ using System.Linq;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 
+using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 
@@ -1103,8 +1105,9 @@ namespace IntersectUtilities.PipelineNetworkSystem
                     con = parentPlRef.GetClosestPointTo(thisEnd, false);
 
                 if (ent1 == null && ent2 == null)
-                    throw new Exception(
-                        $"Could not find connection location between {this.Name} and {parent.Name}!"
+                    throw new DebugEntityException(
+                        $"Could not find connection location between {this.Name} and {parent.Name}!",
+                        [parentPlRef, thisPlRef]
                     );
                 else
                 {
@@ -1136,6 +1139,37 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 throw new Exception(
                     $"Could not find connection location between {this.Name} and {parent.Name}!"
                 );
+            }
+            catch (DebugEntityException dex)
+            {
+                prdDbg(dex);
+
+                Database db = Application.DocumentManager.MdiActiveDocument.Database;
+
+                using Transaction tx = db.TransactionManager.StartTransaction();
+
+                foreach (var ent in dex.DebugEntities)
+                {
+                    if (ent is Polyline ppl)
+                    {
+                        Polyline pl = new Polyline(ppl.NumberOfVertices);
+                        for (int i = 0; i < ppl.NumberOfVertices; i++)
+                        {
+                            pl.AddVertexAt(
+                                i,
+                                ppl.GetPoint2dAt(i),
+                                ppl.GetBulgeAt(i),
+                                ppl.GetStartWidthAt(i),
+                                ppl.GetEndWidthAt(i)
+                            );
+                        }
+                        pl.AddEntityToDbModelSpace(db);
+                    }
+                }
+
+                tx.Commit();
+
+                throw;
             }
             catch (Exception ex)
             {

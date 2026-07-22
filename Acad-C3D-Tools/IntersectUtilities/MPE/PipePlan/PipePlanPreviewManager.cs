@@ -8,6 +8,11 @@ namespace IntersectUtilities.MPE.PipePlan;
 
 internal sealed class PipePlanPreviewManager : IDisposable
 {
+    // Arc segments are overlaid in a darker green than the straight-segment green so the
+    // bends are visually distinct from the straights while drawing/editing.
+    private static readonly Autodesk.AutoCAD.Colors.Color ArcPreviewColor =
+        Autodesk.AutoCAD.Colors.Color.FromRgb(0, 100, 45);
+
     private readonly IntegerCollection _transientViewportNumbers = [];
     private readonly List<Entity> _previewEntities = [];
     private readonly Document _owner;
@@ -52,8 +57,38 @@ internal sealed class PipePlanPreviewManager : IDisposable
         Autodesk.AutoCAD.DatabaseServices.Polyline previewPolyline = CreatePreviewPolyline(analysis, globalWidth);
         AddTransient(previewPolyline);
 
+        // Only distinguish arcs in the plain feasible (green) preview; leave the red
+        // "infeasible" and blue/cyan snap states as one solid colour so they read clearly.
+        if (analysis.IsFeasible && analysis.PreviewKind == PipePlanPreviewKind.Standard)
+        {
+            AddArcOverlays(analysis, globalWidth);
+        }
+
         AddRadiusLabels(analysis);
         AddFilletEndpointMarkers(analysis, globalWidth);
+    }
+
+    // Overlays each arc segment with a dark-green copy on top of the green base polyline,
+    // so straights stay green and arcs (non-zero bulge) read dark green.
+    private void AddArcOverlays(PipePlanAnalysis analysis, double globalWidth)
+    {
+        IReadOnlyList<PolylineVertexData> vertices = analysis.Vertices;
+        for (int i = 0; i < vertices.Count - 1; i++)
+        {
+            double bulge = vertices[i].Bulge;
+            if (!PipePlanArcGeometry.IsArcBulge(bulge))
+            {
+                continue;
+            }
+
+            Autodesk.AutoCAD.DatabaseServices.Polyline arc = new();
+            arc.AddVertexAt(0, vertices[i].Point, bulge, 0.0, 0.0);
+            arc.AddVertexAt(1, vertices[i + 1].Point, 0.0, 0.0, 0.0);
+            arc.Color = ArcPreviewColor;
+            arc.ConstantWidth = globalWidth;
+            arc.LineWeight = LineWeight.LineWeight050;
+            AddTransient(arc);
+        }
     }
 
     private Autodesk.AutoCAD.DatabaseServices.Polyline CreatePreviewPolyline(PipePlanAnalysis analysis, double globalWidth)
