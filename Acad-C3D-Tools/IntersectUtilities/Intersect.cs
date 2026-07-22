@@ -85,6 +85,7 @@ namespace IntersectUtilities
             SafeReset("NSCMD palette", IntersectUtilities.CmdUI.UI.NsCmdPaletteSet.Reset);
             SafeReset("VejkantOffset palette", IntersectUtilities.FjernvarmeFremtidig.VejkantOffset.UI.Views.OffsetPaletteViewModelVisualizer.Reset);
             SafeReset("LERCompareTerrain palette", LERCompareTerrainPaletteHost.Reset);
+            SafeReset("TerrainKoteCompare palette", IntersectUtilities.MPE.TerrainKoteCompare.TerrainKoteComparePaletteHost.Reset);
             SafeReset("LERConnectNetwork palette", IntersectUtilities.MPE.Ler3DNetwork.LerConnectNetwork.LERConnectNetworkRuntime.Reset);
             SafeReset("LerAnalyseNetwork palette", IntersectUtilities.MPE.Ler3DNetwork.LerAnalyseNetwork.LerAnalyseNetworkRuntime.Reset);
             SafeReset("Alignment direction overlay", ResetAlignmentDirectionOverlay);
