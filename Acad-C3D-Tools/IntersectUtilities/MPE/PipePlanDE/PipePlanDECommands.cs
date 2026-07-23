@@ -710,7 +710,7 @@ public partial class Intersect
             PromptPointResult pick;
             using (new PipePlanDEInsertTracker(document, session, radius))
             {
-                PromptPointOptions options = new("\nPlacer nyt hjørne på et segment [Radius/Back] eller Enter for at afslutte: ") { AllowNone = true };
+                PromptPointOptions options = new("\nPlacer nyt hjørne [Radius/Back] eller Enter for at afslutte: ") { AllowNone = true };
                 options.Keywords.Add("Radius");
                 options.Keywords.Add("Back");
                 pick = editor.GetPoint(options);
@@ -1039,42 +1039,61 @@ public partial class Intersect
         Editor editor = document.Editor;
         Database db = document.Database;
 
-        // Select the centrelines directly; the [Settings] keyword (S) opens the style/offset
-        // dialog mid-prompt and then re-prompts for selection.
-        SelectionFilter filter = new([new TypedValue((int)DxfCode.Start, "LWPOLYLINE")]);
-        bool settingsRequested = false;
-        PromptSelectionResult selection;
+        // On this C3D 2025 (R25) build, keywords on GetSelection are swallowed — the prompt
+        // never returns until ESC, so a [Settings] keyword there won't open the dialog. Pick
+        // centrelines one at a time with GetEntity (which DOES honor keywords): click a
+        // polyline to add it, type S anytime for Settings, Enter to finish.
+        List<ObjectId> pickedIds = new();
         while (true)
         {
-            settingsRequested = false;
-            PromptSelectionOptions selectionOptions = new()
+            PromptEntityOptions entityOptions = new(
+                pickedIds.Count == 0
+                    ? "\nVælg akse-polylinje (0-Centerline) at annotere eller [Settings]: "
+                    : "\nVælg næste akse-polylinje eller [Settings] (Enter for at afslutte): ");
+            entityOptions.SetRejectMessage("\nVælg en polylinje.");
+            entityOptions.AddAllowedClass(typeof(Polyline), exactMatch: false);
+            entityOptions.Keywords.Add("Settings");
+            entityOptions.AllowNone = true; // Enter finishes the pick loop
+
+            PromptEntityResult entityResult = editor.GetEntity(entityOptions);
+
+            if (entityResult.Status == PromptStatus.Keyword)
             {
-                MessageForAdding = "\nVælg akse-polylinjer (0-Centerline) at annotere eller [Settings]: "
-            };
-            selectionOptions.Keywords.Add("Settings");
-            selectionOptions.KeywordInput += (_, e) =>
-            {
-                if (string.Equals(e.Input, "Settings", StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(entityResult.StringResult, "Settings", StringComparison.OrdinalIgnoreCase))
                 {
-                    settingsRequested = true;
+                    PipePlanDEAnnotationSettingsDialog.Show(db);
                 }
-            };
 
-            selection = editor.GetSelection(selectionOptions, filter);
-
-            if (settingsRequested || selection.Status == PromptStatus.Keyword)
-            {
-                PipePlanDEAnnotationSettingsDialog.Show(db);
                 continue;
             }
 
-            if (selection.Status != PromptStatus.OK)
+            if (entityResult.Status == PromptStatus.None)
             {
-                ReportDE(editor, "PDANNOTATE annulleret.");
-                return;
+                break; // Enter with no pick → done selecting
             }
 
-            break;
+            if (entityResult.Status != PromptStatus.OK)
+            {
+                if (pickedIds.Count == 0)
+                {
+                    ReportDE(editor, "PDANNOTATE annulleret.");
+                    return;
+                }
+
+                break; // ESC after some picks → annotate what we have
+            }
+
+            if (!pickedIds.Contains(entityResult.ObjectId))
+            {
+                pickedIds.Add(entityResult.ObjectId);
+                editor.WriteMessage($"\n{pickedIds.Count} akse(r) valgt.");
+            }
+        }
+
+        if (pickedIds.Count == 0)
+        {
+            ReportDE(editor, "Ingen akse-polylinjer valgt.");
+            return;
         }
 
         PipePlanDEAnnotationSettings settings = PipePlanDEAnnotationStore.Get(db);
@@ -1086,7 +1105,7 @@ public partial class Intersect
             // Gather valid PDDRAW centrelines (the drawn, filleted polylines).
             List<(Polyline Drawn, double Elevation)> centrelines = new();
             int skipped = 0;
-            foreach (ObjectId id in selection.Value.GetObjectIds())
+            foreach (ObjectId id in pickedIds)
             {
                 if (transaction.GetObject(id, OpenMode.ForRead) is not Polyline polyline)
                 {

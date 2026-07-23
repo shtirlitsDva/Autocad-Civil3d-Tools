@@ -16,6 +16,23 @@ internal static class PipePlanMetadata
     private const string PipeGeometryDataVersionV4 = "PIPEPLAN_V4";
     private const string PipeGeometryDataVersionV5 = "PIPEPLAN_V5";
 
+    public static void EnsurePipeTagApp(Database database, Transaction transaction)
+    {
+        RegAppTable regAppTable = (RegAppTable)transaction.GetObject(database.RegAppTableId, OpenMode.ForRead);
+        if (regAppTable.Has(PipeTagAppName))
+        {
+            return;
+        }
+
+        regAppTable.UpgradeOpen();
+        RegAppTableRecord regApp = new()
+        {
+            Name = PipeTagAppName
+        };
+        regAppTable.Add(regApp);
+        transaction.AddNewlyCreatedDBObject(regApp, add: true);
+    }
+
     public static ResultBuffer CreatePipeTag(PipeSystemEnum system, PipeTypeEnum type, int dn)
     {
         return new ResultBuffer(
@@ -25,6 +42,11 @@ internal static class PipePlanMetadata
 
     public static void Write(Polyline polyline, PipePlanStoredData data, Transaction transaction)
     {
+        // XData is tagged with the "pipeTag" RegApp; set_XData throws eRegappIdNotFound
+        // unless that app is present in the drawing's RegAppTable. A drawing that has
+        // never had a PipePlan pipe baked into it (e.g. the PPCONVERT path on a fresh
+        // file) won't have it, so register it here rather than relying on the caller.
+        EnsurePipeTagApp(polyline.Database, transaction);
         polyline.XData = CreatePipeTag(data.System, data.Type, data.Dn);
 
         if (polyline.ExtensionDictionary == ObjectId.Null)

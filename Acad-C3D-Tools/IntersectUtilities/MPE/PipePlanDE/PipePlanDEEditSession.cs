@@ -210,8 +210,10 @@ internal sealed class PipePlanDEEditSession : IDisposable
         List<Point3d> cps = [.. _controlPoints];
         List<double> radii = [.. _rMinRadii];
 
-        Point3d insert = ProjectOntoSegment(cursor, cps[segmentIndex], cps[segmentIndex + 1]);
-        cps.Insert(segmentIndex + 1, new Point3d(insert.X, insert.Y, cps[segmentIndex].Z));
+        // Place the new corner at the free cursor (matching PPEDIT), NOT projected onto the
+        // segment. Projecting pinned the vertex onto the straight chord, so it stayed collinear
+        // with its neighbours — no bend, and the preview looked identical to the original.
+        cps.Insert(segmentIndex + 1, new Point3d(cursor.X, cursor.Y, cps[segmentIndex].Z));
         radii.Insert(segmentIndex + 1, radius);
         return Analyze(cps, radii);
     }

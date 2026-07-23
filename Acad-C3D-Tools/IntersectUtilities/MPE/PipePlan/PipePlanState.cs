@@ -414,7 +414,7 @@ internal sealed class PipePlanState : IDisposable
         try
         {
             string layerName = EnsureBakeLayer(document.Database, context, transaction);
-            EnsurePipeTagApp(document.Database, transaction);
+            PipePlanMetadata.EnsurePipeTagApp(document.Database, transaction);
             WriteBakedGeometry(document.Database, transaction, context, analysis, layerName);
             transaction.Commit();
         }
@@ -520,23 +520,6 @@ internal sealed class PipePlanState : IDisposable
         }
 
         return layerName;
-    }
-
-    private static void EnsurePipeTagApp(Database database, Transaction transaction)
-    {
-        RegAppTable regAppTable = (RegAppTable)transaction.GetObject(database.RegAppTableId, OpenMode.ForRead);
-        if (regAppTable.Has(PipePlanMetadata.PipeTagAppName))
-        {
-            return;
-        }
-
-        regAppTable.UpgradeOpen();
-        RegAppTableRecord regApp = new()
-        {
-            Name = PipePlanMetadata.PipeTagAppName
-        };
-        regAppTable.Add(regApp);
-        transaction.AddNewlyCreatedDBObject(regApp, add: true);
     }
 
     private void WriteBakedGeometry(

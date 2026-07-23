@@ -113,6 +113,28 @@ internal sealed class PipePlanDEPreviewManager : IDisposable
         {
             AddSnapIndicator(centerline, snapMode, indicatorSize);
         }
+
+        RefreshTransients();
+    }
+
+    // AddTransient only paints reliably while the cursor is moving — the PDDRAW draw preview
+    // gets away with it because you are always moving while placing points. A hover-and-stop
+    // gesture (PDEDIT delete, where you settle on a vertex to read the result) needs an
+    // explicit UpdateTransient to repaint at rest; Editor.UpdateScreen() inside a PointMonitor
+    // is deferred until AutoCAD is next idle, so it does not help here.
+    private void RefreshTransients()
+    {
+        foreach (Entity entity in _entities)
+        {
+            try
+            {
+                TransientManager.CurrentTransientManager.UpdateTransient(entity, _viewports);
+            }
+            catch
+            {
+                // Best effort — ignore refresh failures during pan/zoom races.
+            }
+        }
     }
 
     // Overlays each arc segment of the centreline with a dark-green copy so straights stay

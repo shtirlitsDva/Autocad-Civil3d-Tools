@@ -115,20 +115,19 @@ internal sealed class PipePlanDEDeleteTracker : IDisposable
     {
         ClearMarkers();
         Point3d cursor = e.Context.ComputedPoint;
-        if (!_session.TryGetNearestVertexIndex(cursor, _session.GetPickTolerance(), out int index))
+        if (_session.TryGetNearestVertexIndex(cursor, _session.GetPickTolerance(), out int index)
+            && _session.TryBuildRemoveVertexCandidate(index, out PipePlanDEEditCandidate? candidate, out _)
+            && candidate is not null)
+        {
+            // ShowCandidatePreview → PreviewManager.Show forces an UpdateTransient so the
+            // reroute paints even while the cursor dwells on the vertex (this mode's gesture).
+            _session.ShowCandidatePreview(candidate);
+            ShowDeleteMarker(_session.ControlPoints[index]);
+        }
+        else
         {
             _session.ClearPreview();
-            return;
         }
-
-        if (!_session.TryBuildRemoveVertexCandidate(index, out PipePlanDEEditCandidate? candidate, out _) || candidate is null)
-        {
-            _session.ClearPreview();
-            return;
-        }
-
-        _session.ShowCandidatePreview(candidate);
-        ShowDeleteMarker(_session.ControlPoints[index]);
     }
 
     private void ShowDeleteMarker(Point3d point)
@@ -143,6 +142,9 @@ internal sealed class PipePlanDEDeleteTracker : IDisposable
         entity.Color = MarkerColor;
         _markers.Add(entity);
         TransientManager.CurrentTransientManager.AddTransient(entity, TransientDrawingMode.DirectShortTerm, 130, _viewports);
+        // Paint at rest (see PreviewManager.RefreshTransients) — the hovered-vertex X must
+        // appear while the cursor dwells, not only during motion.
+        TransientManager.CurrentTransientManager.UpdateTransient(entity, _viewports);
     }
 
     private void ClearMarkers()
