@@ -602,6 +602,9 @@ namespace IntersectUtilities
             string projectName = dro.ProjectName;
             string etapeName = dro.EtapeName;
 
+            bool german = ConfigurationManager.ActiveConfiguration?.StartsWith(
+                "DE", StringComparison.OrdinalIgnoreCase) == true;
+
             #region Load LER data
             ILer3dManager lman = Ler3dManagerFactory.LoadLer3d(dm);
             #endregion
@@ -846,10 +849,6 @@ namespace IntersectUtilities
 
                                 //Assume only one intersection
                                 cogoPoint.Elevation = p3dInt.Z;
-
-                                bool german =
-                                    ConfigurationManager.ActiveConfiguration?.StartsWith(
-                                        "DE", StringComparison.OrdinalIgnoreCase) == true;
 
                                 if (cogoPoint.Elevation == 0)
                                 {
@@ -1143,6 +1142,8 @@ namespace IntersectUtilities
                         ProfileView pv = pvs[i];
 
                         #region Determine profile top and bottom elevations
+                        //why this way? it seems there's no api method to determine the max/min elevations
+                        //of profiles within a specific view, if you use ElevationMin/Max -> you get the GLOBAL values
                         double pvStStart = pv.StationStart;
                         double pvStEnd = pv.StationEnd;
 
@@ -1169,7 +1170,7 @@ namespace IntersectUtilities
                             topElevs.Add(topTestEl);
                             double bottomTestEl = 0;
                             try
-                            {
+                            {                                
                                 bottomTestEl = bottomProfile.ElevationAt(pvStStart + delta * j);
                             }
                             catch (System.Exception)
@@ -1211,7 +1212,9 @@ namespace IntersectUtilities
                         pv.CheckOrOpenForWrite();
                         pv.ElevationRangeMode = ElevationRangeType.UserSpecified;
                         pv.ElevationMax = Math.Ceiling(maxEl);
-                        pv.ElevationMin = Math.Floor(minEl) - 2;
+
+                        if (german) pv.ElevationMin = Math.Floor(minEl);
+                        else pv.ElevationMin = Math.Floor(minEl) - 2;
 
                         //Project the points
 
@@ -5156,8 +5159,12 @@ namespace IntersectUtilities
         // and the leaders don't cross (NPPLPlacement). The runtime then self-discovers
         // the new labels and keeps them in sync — no reactor attach needed.
 
-        // The label sits this far above the surface (top) profile at its station.
-        private const double NpplSurfaceClearance = 5.0;
+        // A label's text baseline sits this far (in elevation) above the surface
+        // (top) profile at its station. Labels follow the terrain: each interaction
+        // COMPONENT gets its own shelf at this clearance above the component's
+        // highest surface point, lifted only if that component's leader ladder needs
+        // the room (see NpplPlaceAll + NPPLPlacement.PlaceView).
+        private const double NpplSurfaceClearance = 0.35;
         private const double NpplDefaultTextSizeMm = 1.5;
         // Readability gap added to the text-column thickness when spreading labels.
         private const double NpplReadabilityGap = 0.2;
@@ -5293,7 +5300,7 @@ namespace IntersectUtilities
             pv.FindXYAtStationAndElevation(sta, cp.Location.Z, ref px, ref py);
             var p0 = new Point3d(px, py, 0);
 
-            // Shelf candidate: 5 m above the surface (top) profile at this station.
+            // Shelf candidate: NpplSurfaceClearance above the surface (top) profile here.
             double surf = NpplSurfaceElevation(tr, al, sta);
             double tx = px, ty = py + NpplSurfaceClearance;
             if (!double.IsNaN(surf))
@@ -5307,6 +5314,7 @@ namespace IntersectUtilities
                 ProfileViewId = ppl.ViewId,
                 Description = desc,
                 ProjectionLocation = p0,
+                Elevation = cp.Location.Z,   // initial cache; runtime keeps it in sync
                 TextPosition = new Point3d(px, ty, 0),   // provisional; placed below
                 MiddleSegmentElevation = (py + ty) * 0.5,
                 TextSizeMm = NpplDefaultTextSizeMm,
@@ -5322,8 +5330,11 @@ namespace IntersectUtilities
             return new NpplPlaceInput(ent.ObjectId, ppl.ViewId, px, py, ty, NpplMeasureTextWidth(desc, modelHeight));
         }
 
-        // De-clutter every created label: group by ProfileView, then assign each label
-        // a text position so the columns don't overlap and the leaders don't cross.
+        // De-clutter every created label: group by ProfileView, then place each
+        // view in ONE global solve. X-spread and the shoulder ladder are solved over
+        // the whole view at once, and labels are grouped by interaction component so
+        // each component follows the terrain on its own shelf. Columns never overlap
+        // and leaders never cross (see NPPLPlacement.PlaceView).
         private static void NpplPlaceAll(Database db, List<NpplPlaceInput> items, double modelHeight)
         {
             if (items.Count == 0) return;
@@ -5348,21 +5359,26 @@ namespace IntersectUtilities
 
                     // sort by projection x (== station order) -> non-crossing order
                     var ordered = kv.Value.OrderBy(p => p.P0x).ToList();
-                    double[] targets = ordered.Select(p => p.P0x).ToArray();
-                    double shelf = ordered.Max(p => p.ShelfYCand);   // one shared text baseline
-                    double projTop = ordered.Max(p => p.P0y);        // top of the projection band
+                    int n = ordered.Count;
 
-                    NPPLPlacement.Slot[] slots = NPPLPlacement.Place(targets, gap, lo, hi, shelf, projTop);
+                    var p0x = new double[n];
+                    var p0y = new double[n];
+                    var shelfY = new double[n];
+                    for (int i = 0; i < n; i++)
+                    {
+                        p0x[i] = ordered[i].P0x;
+                        p0y[i] = ordered[i].P0y;
+                        shelfY[i] = ordered[i].ShelfYCand;   // surface + clearance at this station
+                    }
 
-                    for (int i = 0; i < ordered.Count; i++)
+                    NPPLPlacement.Placed[] placed =
+                        NPPLPlacement.PlaceView(p0x, p0y, shelfY, gap, lo, hi);
+
+                    for (int i = 0; i < n; i++)
                     {
                         if (tr.GetObject(ordered[i].NpplId, OpenMode.ForWrite) is not Npp np) continue;
-                        np.TextPosition = new Point3d(slots[i].X, shelf, 0);
-                        // straight leaders ignore the shoulder (P3x == P0x); give the
-                        // clustered ones their own ladder rung so each is traceable.
-                        np.MiddleSegmentElevation = slots[i].Straight
-                            ? (ordered[i].P0y + shelf) * 0.5
-                            : slots[i].GripY;
+                        np.TextPosition = new Point3d(placed[i].X, placed[i].Baseline, 0);
+                        np.MiddleSegmentElevation = placed[i].GripY;
                         np.RebuildChildren();
                     }
                 }
@@ -5428,6 +5444,8 @@ namespace IntersectUtilities
         private sealed class NpplBlockGroup
         {
             public Oid ViewId;              // local ProfileView (for the shared placement pass)
+            public Oid TopProfileId;        // TOP profile the label follows (soft source for the NPPL)
+            public double TopElevation;     // TOP profile elevation at Station (real-world, initial cache)
             public string ViewAlignment;    // alignment name (== pipeline name in the network)
             public double Station;          // block station in the view
             public Point3d Anchor;          // P0 on the TOP profile (leader end)
@@ -5467,7 +5485,7 @@ namespace IntersectUtilities
 
                 // profile views + their alignment / TOP profile / buffered bbox / station span
                 var views = new List<(Oid id, Extents3d ext, string aln, Profile top,
-                                      ProfileView pv, double stStart, double stEnd)>();
+                                      Alignment al, ProfileView pv, double stStart, double stEnd)>();
                 var ms = (BlockTableRecord)tx.GetObject(
                     SymbolUtilityServices.GetBlockModelSpaceId(db), OpenMode.ForRead);
                 foreach (Oid id in ms)
@@ -5481,7 +5499,7 @@ namespace IntersectUtilities
                     Extents3d ext;
                     try { ext = ((Entity)pv).GetBufferedXYGeometricExtents(10.0); }
                     catch { continue; }
-                    views.Add((id, ext, al.Name, top, pv, pv.StationStart, pv.StationEnd));
+                    views.Add((id, ext, al.Name, top, al, pv, pv.StationStart, pv.StationEnd));
                 }
 
                 var recs = new List<NpplBlockGroup>();
@@ -5511,9 +5529,18 @@ namespace IntersectUtilities
                     // TOP anchor P0 (skip if no TOP or station outside its range)
                     if (hit.top == null) { skipped++; continue; }
                     double topElev; try { topElev = hit.top.ElevationAt(sta); } catch { skipped++; continue; }
+
+                    // P0 follows the pipe profile at topElev (typically BELOW ground).
+                    // The text shelf must sit above the GROUND SURFACE, not above the
+                    // pipe — otherwise the label lands below the surface. Surface =
+                    // highest profile at this station (same rule the cogo path uses).
+                    double surfElev = NpplSurfaceElevation(tx, hit.al, sta);
+                    double shelfElev = double.IsNaN(surfElev)
+                        ? topElev : System.Math.Max(surfElev, topElev);
+
                     double ax = 0, ay = 0, sx = 0, shelfY = 0;
                     hit.pv.FindXYAtStationAndElevation(sta, topElev, ref ax, ref ay);
-                    hit.pv.FindXYAtStationAndElevation(sta, topElev + NpplSurfaceClearance, ref sx, ref shelfY);
+                    hit.pv.FindXYAtStationAndElevation(sta, shelfElev + NpplSurfaceClearance, ref sx, ref shelfY);
 
                     string src = "";
                     try { src = psmSrc.ReadPropertyString(br, srcDef.SourceEntityHandle) ?? ""; }
@@ -5524,9 +5551,17 @@ namespace IntersectUtilities
 
                     var r = new NpplBlockGroup
                     {
-                        ViewId = hit.id, ViewAlignment = hit.aln, Station = sta,
-                        Anchor = new Point3d(ax, ay, 0), ShelfY = shelfY,
-                        LayerId = br.LayerId, Left = left, Right = right, SourceHandle = src,
+                        ViewId = hit.id,
+                        TopProfileId = hit.top.ObjectId,
+                        TopElevation = topElev,
+                        ViewAlignment = hit.aln,
+                        Station = sta,
+                        Anchor = new Point3d(ax, ay, 0),
+                        ShelfY = shelfY,
+                        LayerId = br.LayerId,
+                        Left = left,
+                        Right = right,
+                        SourceHandle = src,
                         AtViewEnd = atEnd,
                     };
                     r.BlockIds.Add(id);
@@ -5610,14 +5645,27 @@ namespace IntersectUtilities
                     if (g.German == null) { skipped++; continue; } // suppressed -> leave blocks
                     try
                     {
+                        // Append the followed profile's elevation as ", Hö: <kote>"
+                        // (same format the cogo labels use), so the label reports the
+                        // pipe height at its station.
+                        string german = g.German +
+                            $", Hö: {g.TopElevation.ToString("#.00", danishCulture)}";
+
                         var nppl = new Npp
                         {
-                            Description = g.German,
+                            Description = german,
                             ProjectionLocation = g.Anchor,
                             TextPosition = new Point3d(g.Anchor.X, g.ShelfY, 0),
                             MiddleSegmentElevation = (g.Anchor.Y + g.ShelfY) * 0.5,
                             TextSizeMm = NpplDefaultTextSizeMm,
-                            // CogoPointId / ProfileViewId intentionally left null (static label)
+                            // Follow the TOP profile at this station: the runtime
+                            // recomputes ProjectionLocation from profile.ElevationAt(Station)
+                            // on every profile edit. CogoPointId stays null (profile source,
+                            // not a cogo projection); Description is authored once here.
+                            ProfileId = g.TopProfileId,
+                            ProfileViewId = g.ViewId,
+                            Station = g.Station,
+                            Elevation = g.TopElevation, // initial cache; runtime keeps it in sync via ElevationAt(Station)
                         };
                         var ent = (Entity)nppl;
                         ms.AppendEntity(ent);
@@ -5625,7 +5673,7 @@ namespace IntersectUtilities
                         ent.LayerId = g.LayerId;
                         created.Add(new NpplPlaceInput(
                             ent.ObjectId, g.ViewId, g.Anchor.X, g.Anchor.Y, g.ShelfY,
-                            NpplMeasureTextWidth(g.German, modelHeight)));
+                            NpplMeasureTextWidth(german, modelHeight)));
                         made++;
                         foreach (Oid bid in g.BlockIds)
                             ((Entity)tx.GetObject(bid, OpenMode.ForWrite)).Erase();
@@ -5687,11 +5735,11 @@ namespace IntersectUtilities
                 case "Afgrening, parallel": return $"Parallel-Abzweig DN {dn}/{Branch()}";
                 case "Afgreningsstuds": return $"Anbohrung DN {dn}/{Branch()}";
                 case "Reduktion":
-                {
-                    var (b, a, enkelt) = NpplReducerDNs(pn, g.ViewAlignment, g.Station);
-                    forceTwoX = enkelt;
-                    return $"Reduzierungen DN {NpplDn(b)}/{NpplDn(a)}";
-                }
+                    {
+                        var (b, a, enkelt) = NpplReducerDNs(pn, g.ViewAlignment, g.Station);
+                        forceTwoX = enkelt;
+                        return $"Reduzierungen DN {NpplDn(b)}/{NpplDn(a)}";
+                    }
                 case "Engangsventil": return $"Einmalkugelhahn DN {dn}";
                 case "Præisoleret ventil": return $"Erdeinbau-Kugelhahn DN {dn}";
                 case "Præventil med udluftning": return $"Erdeinbau-Kugelhahn mit Entlüftung DN {dn}";
@@ -8436,11 +8484,11 @@ namespace IntersectUtilities
         public void createelevationreportdebug()
         {
             DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;            
+            Database localDb = docCol.MdiActiveDocument.Database;
 
             var dro = DataReferencesOptions.Create();
             if (dro == null) return;
-            var dm = new DataManager(dro);            
+            var dm = new DataManager(dro);
             using Database alDb = dm.Alignments();
             HashSet<Database> længdeprofilerdbs = dm.Længdeprofiler().ToHashSet();
 
@@ -8469,7 +8517,7 @@ namespace IntersectUtilities
             finally
             {
                 fjvTx.Abort();
-                fjvTx.Dispose();                
+                fjvTx.Dispose();
 
                 alTx.Abort();
                 alTx.Dispose();

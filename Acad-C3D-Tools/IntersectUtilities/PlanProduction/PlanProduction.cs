@@ -128,7 +128,7 @@ namespace IntersectUtilities
                     }
                     catch (System.Exception)
                     {
-                        ed.WriteMessage($"\nProfile view style missing! Run IMPORTLABELSTYLES.");
+                        ed.WriteMessage($"\nProfile view style missing! Run IMPORTCIVILSTYLES.");
                         tx.Abort();
                         return false;
                     }
@@ -185,7 +185,7 @@ namespace IntersectUtilities
                     }
                     catch (System.Exception)
                     {
-                        ed.WriteMessage($"\nProfile view style missing! Run IMPORTLABELSTYLES.");
+                        ed.WriteMessage($"\nProfile view style missing! Run IMPORTCIVILSTYLES.");
                         tx.Abort();
                         return false;
                     }
@@ -218,12 +218,18 @@ namespace IntersectUtilities
                         if (topProfile != null) topProfileId = topProfile.ObjectId;
                         else ed.WriteMessage("\nTop profile not found!");
 
-                        Oid pvbsId = civilDoc.Styles.ProfileViewBandSetStyles["EG-FG Elevations and Stations"];
+                        Oid pvbsId;
+
+                        if (german) pvbsId = civilDoc.Styles.ProfileViewBandSetStyles["EG-FG Elevations and Stations DE Frem"];
+                        else pvbsId = civilDoc.Styles.ProfileViewBandSetStyles["EG-FG Elevations and Stations"];
                         ProfileViewBandSet pvbs = pv.Bands;
                         pvbs.ImportBandSetStyle(pvbsId);
 
-                        Oid pvBSId1 = civilDoc.Styles.BandStyles.ProfileViewProfileDataBandStyles["Elevations and Stations"];
+                        Oid pvBSId1;
                         Oid pvBSId2 = civilDoc.Styles.BandStyles.ProfileViewProfileDataBandStyles["TitleBuffer"];
+                        if (german) pvBSId1 = civilDoc.Styles.BandStyles.ProfileViewProfileDataBandStyles["Elevations and Stations DE Frem"];
+                        else pvBSId1 = civilDoc.Styles.BandStyles.ProfileViewProfileDataBandStyles["Elevations and Stations"];
+                        
                         ProfileViewBandItemCollection pvic = new ProfileViewBandItemCollection(pv.Id, BandLocationType.Bottom);
                         pvic.Add(pvBSId1);
                         pvic.Add(pvBSId2);
@@ -405,7 +411,7 @@ namespace IntersectUtilities
                     }
                     catch (System.Exception)
                     {
-                        ed.WriteMessage($"\nPROFIL STYLE MGO KANT style missing! Run IMPORTLABELSTYLES.");
+                        ed.WriteMessage($"\nPROFIL STYLE MGO KANT style missing! Run IMPORTCIVILSTYLES.");
                         tx.Abort();
                         return false;
                     }
@@ -417,7 +423,7 @@ namespace IntersectUtilities
                     }
                     catch (System.Exception)
                     {
-                        ed.WriteMessage($"\nPROFIL STYLE MGO MIDT style missing! Run IMPORTLABELSTYLES.");
+                        ed.WriteMessage($"\nPROFIL STYLE MGO MIDT style missing! Run IMPORTCIVILSTYLES.");
                         tx.Abort();
                         return false;
                     }
@@ -429,7 +435,7 @@ namespace IntersectUtilities
                     }
                     catch (System.Exception)
                     {
-                        ed.WriteMessage($"\nTerræn style missing! Run IMPORTLABELSTYLES.");
+                        ed.WriteMessage($"\nTerræn style missing! Run IMPORTCIVILSTYLES.");
                         tx.Abort();
                         return false;
                     }
@@ -441,7 +447,7 @@ namespace IntersectUtilities
                     }
                     catch (System.Exception)
                     {
-                        ed.WriteMessage($"\nFJV TRACE NO SHOW style missing! Run IMPORTLABELSTYLES.");
+                        ed.WriteMessage($"\nFJV TRACE NO SHOW style missing! Run IMPORTCIVILSTYLES.");
                         tx.Abort();
                         return false;
                     }
@@ -453,7 +459,7 @@ namespace IntersectUtilities
                     }
                     catch (System.Exception)
                     {
-                        ed.WriteMessage($"\nSTD 20-5 style missing! Run IMPORTLABELSTYLES.");
+                        ed.WriteMessage($"\nSTD 20-5 style missing! Run IMPORTCIVILSTYLES.");
                         tx.Abort();
                         return false;
                     }
@@ -465,7 +471,7 @@ namespace IntersectUtilities
                     }
                     catch (System.Exception)
                     {
-                        ed.WriteMessage($"\nRADIUS CREST style missing! Run IMPORTLABELSTYLES.");
+                        ed.WriteMessage($"\nRADIUS CREST style missing! Run IMPORTCIVILSTYLES.");
                         tx.Abort();
                         return false;
                     }
@@ -477,7 +483,7 @@ namespace IntersectUtilities
                     }
                     catch (System.Exception)
                     {
-                        ed.WriteMessage($"\nRADIUS SAG style missing! Run IMPORTLABELSTYLES.");
+                        ed.WriteMessage($"\nRADIUS SAG style missing! Run IMPORTCIVILSTYLES.");
                         tx.Abort();
                         return false;
                     }
@@ -708,7 +714,7 @@ namespace IntersectUtilities
                     }
                     catch (System.Exception)
                     {
-                        ed.WriteMessage($"\nProfile view style missing! Run IMPORTLABELSTYLES.");
+                        ed.WriteMessage($"\nProfile view style missing! Run IMPORTCIVILSTYLES.");
                         tx.Abort();
                         return;
                     }
