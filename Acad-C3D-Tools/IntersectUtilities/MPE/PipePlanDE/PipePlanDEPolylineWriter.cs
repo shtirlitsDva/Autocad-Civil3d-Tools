@@ -1,6 +1,7 @@
 using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
+using IntersectUtilities.MPE.PipePlan;
 using IntersectUtilities.UtilsCommon;
 
 namespace IntersectUtilities.MPE.PipePlanDE;
@@ -8,7 +9,8 @@ namespace IntersectUtilities.MPE.PipePlanDE;
 /// <summary>
 /// Bakes a German pipe run as real entities: the routing centreline on
 /// <see cref="CenterlineLayer"/> plus two mantle-OD-wide frem/retur polylines
-/// mitered around it, each tagged with DN metadata for the later PDTRENCH command.
+/// filleted (elastic bending radius) parallel to it, each tagged with DN metadata
+/// for the later PDTRENCH command.
 /// </summary>
 internal static class PipePlanDEPolylineWriter
 {
@@ -29,13 +31,20 @@ internal static class PipePlanDEPolylineWriter
         Database db,
         Transaction transaction,
         IReadOnlyList<Point3d> controlPoints,
+        IReadOnlyList<double> rMinRadii,
         int dn,
         PipePlanDEParameters parameters,
         bool flip,
+        bool straight,
         PipePlanDETrenchDepth depth,
+        string? tokenOverride,
+        out string token,
+        out ObjectId[] createdIds,
         out string error)
     {
         error = string.Empty;
+        token = string.Empty;
+        createdIds = [];
 
         if (controlPoints.Count < 2)
         {
@@ -43,13 +52,16 @@ internal static class PipePlanDEPolylineWriter
             return false;
         }
 
-        if (!PipePlanDEOffsetBuilder.TryBuild(controlPoints, parameters.PipeSpacing, out List<Point3d> left, out List<Point3d> right, out error))
+        if (!PipePlanDEGeometryBuilder.TryBuild(
+                controlPoints, rMinRadii, parameters, flip, straight,
+                out List<PolylineVertexData> centre,
+                out List<PolylineVertexData> fremPoints,
+                out List<PolylineVertexData> returPoints,
+                out _,
+                out error))
         {
             return false;
         }
-
-        // Flip swaps which physical side is frem (supply) vs retur.
-        (List<Point3d> fremPoints, List<Point3d> returPoints) = flip ? (right, left) : (left, right);
 
         string fremLayer = SupplyLayer(dn);
         string returLayer = ReturnLayer(dn);
@@ -59,19 +71,32 @@ internal static class PipePlanDEPolylineWriter
         EnsureLayer(db, transaction, returLayer, ReturnColorIndex, ReturnLinetype);
 
         BlockTableRecord modelSpace = db.GetModelspaceForWrite();
+        double elevation = controlPoints[0].Z;
 
-        Append(modelSpace, transaction, BuildPolyline(controlPoints, 0.0, CenterlineLayer), dn, PipePlanDERole.Centerline, depth);
-        Append(modelSpace, transaction, BuildPolyline(fremPoints, parameters.D, fremLayer), dn, PipePlanDERole.Supply, depth);
-        Append(modelSpace, transaction, BuildPolyline(returPoints, parameters.D, returLayer), dn, PipePlanDERole.Return, depth);
+        // One token shared by the three polylines so PDEDIT can re-group them as one run.
+        token = string.IsNullOrEmpty(tokenOverride) ? Guid.NewGuid().ToString("N") : tokenOverride!;
 
+        // The centreline carries the authoring block; the bands carry only {token,dn,role,depth}.
+        // Straight runs still store the modes but the radii are the (unused) endpoint-0 array.
+        PipePlanDEAuthoring authoring = new(straight, flip, [.. controlPoints], [.. rMinRadii]);
+
+        ObjectId centreId = Append(modelSpace, transaction, BuildPolyline(centre, 0.0, CenterlineLayer, elevation),
+            new PipePlanDEStoredData(dn, PipePlanDERole.Centerline, depth, token, authoring));
+        ObjectId fremId = Append(modelSpace, transaction, BuildPolyline(fremPoints, parameters.D, fremLayer, elevation),
+            new PipePlanDEStoredData(dn, PipePlanDERole.Supply, depth, token));
+        ObjectId returId = Append(modelSpace, transaction, BuildPolyline(returPoints, parameters.D, returLayer, elevation),
+            new PipePlanDEStoredData(dn, PipePlanDERole.Return, depth, token));
+
+        createdIds = [centreId, fremId, returId];
         return true;
     }
 
-    private static void Append(BlockTableRecord modelSpace, Transaction transaction, Polyline polyline, int dn, PipePlanDERole role, PipePlanDETrenchDepth depth)
+    private static ObjectId Append(BlockTableRecord modelSpace, Transaction transaction, Polyline polyline, PipePlanDEStoredData data)
     {
         modelSpace.AppendEntity(polyline);
         transaction.AddNewlyCreatedDBObject(polyline, add: true);
-        PipePlanDEMetadata.Write(polyline, new PipePlanDEStoredData(dn, role, depth), transaction);
+        PipePlanDEMetadata.Write(polyline, data, transaction);
+        return polyline.ObjectId;
     }
 
     /// <summary>
@@ -113,17 +138,17 @@ internal static class PipePlanDEPolylineWriter
         return linetypeTable.Has(linetypeName) ? linetypeTable[linetypeName] : db.ContinuousLinetype;
     }
 
-    private static Polyline BuildPolyline(IReadOnlyList<Point3d> points, double width, string layer)
+    private static Polyline BuildPolyline(IReadOnlyList<PolylineVertexData> vertices, double width, string layer, double elevation)
     {
         Polyline polyline = new();
-        for (int i = 0; i < points.Count; i++)
+        for (int i = 0; i < vertices.Count; i++)
         {
-            polyline.AddVertexAt(i, new Point2d(points[i].X, points[i].Y), 0.0, width, width);
+            polyline.AddVertexAt(i, vertices[i].Point, vertices[i].Bulge, width, width);
         }
 
         polyline.Closed = false;
         polyline.Layer = layer;
-        polyline.Elevation = points[0].Z;
+        polyline.Elevation = elevation;
         polyline.Normal = Vector3d.ZAxis;
         return polyline;
     }

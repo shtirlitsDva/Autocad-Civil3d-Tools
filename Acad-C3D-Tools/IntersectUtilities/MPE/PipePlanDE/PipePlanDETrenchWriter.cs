@@ -7,13 +7,19 @@ using NetTopologySuite.Operation.Buffer;
 
 namespace IntersectUtilities.MPE.PipePlanDE;
 
+/// <summary>One trench axis fed to <see cref="PipePlanDETrenchWriter"/>: its densified
+/// centreline points and its own B (Regelgrabenbreite). Each axis may have a different
+/// width (different DN / excavation depth).</summary>
+internal readonly record struct PipePlanDETrenchRun(IReadOnlyList<Point3d> Axis, double Width);
+
 /// <summary>
 /// Draws the trench as a true SOLID Hatch (80% transparent) on the "Gravearbejde"
-/// layer. The hatch boundary is the axis BUFFERED by B/2 (total width = B, the
-/// Regelgrabenbreite). Buffering — rather than naively offsetting two edges — yields
-/// a valid, non-self-intersecting band outline even at sharp bends where the inner
-/// offset would otherwise fold and bowtie the fill. Mitre joins + flat end caps give
-/// the square trench corners and ends.
+/// layer. Each axis is BUFFERED by its own B/2 (total width = B), and the buffers of all
+/// selected axes are UNIONED so trenches that meet merge into one region (a shared
+/// boundary dissolves) while separate runs stay separate. Buffering — rather than naively
+/// offsetting two edges — yields a valid, non-self-intersecting band outline even at sharp
+/// bends where the inner offset would otherwise fold and bowtie the fill. Mitre joins +
+/// flat end caps give the square trench corners and ends.
 /// </summary>
 internal static class PipePlanDETrenchWriter
 {
@@ -25,27 +31,35 @@ internal static class PipePlanDETrenchWriter
     public static bool TryWrite(
         Database db,
         Transaction transaction,
-        IReadOnlyList<Point3d> axisPoints,
-        double width,
+        IReadOnlyList<PipePlanDETrenchRun> runs,
         out string error)
     {
         error = string.Empty;
 
-        // width = B (Regelgrabenbreite), the total trench width centred on the axis.
-        if (width <= 0.0)
+        // Buffer every valid axis by its own half-width (B/2).
+        List<Geometry> buffers = new();
+        foreach (PipePlanDETrenchRun run in runs)
         {
-            error = "Grabenbredden B er 0.";
+            if (run.Width > 0.0 && run.Axis.Count >= 2)
+            {
+                buffers.Add(BuildBuffer(run.Axis, run.Width / 2.0));
+            }
+        }
+
+        if (buffers.Count == 0)
+        {
+            error = "Ingen gyldige akse-polylinjer.";
             return false;
         }
 
-        if (axisPoints.Count < 2)
+        // Dissolve overlapping/touching trenches into single regions.
+        Geometry merged = buffers[0];
+        for (int i = 1; i < buffers.Count; i++)
         {
-            error = "Mindst to punkter kræves.";
-            return false;
+            merged = merged.Union(buffers[i]);
         }
 
-        Geometry buffered = BuildBuffer(axisPoints, width / 2.0);
-        List<Polygon> polygons = ExtractPolygons(buffered);
+        List<Polygon> polygons = ExtractPolygons(merged);
         if (polygons.Count == 0)
         {
             error = "Kunne ikke danne grav-omrids.";
@@ -55,24 +69,28 @@ internal static class PipePlanDETrenchWriter
         db.CheckOrCreateLayer(TrenchLayer);
         BlockTableRecord modelSpace = db.GetModelspaceForWrite();
 
-        double elevation = axisPoints[0].Z;
+        double elevation = runs[0].Axis[0].Z;
         foreach (Polygon polygon in polygons)
         {
             AppendHatch(modelSpace, transaction, polygon, elevation);
         }
 
-        // The trench linework is just the two long sides (open polylines along the
-        // route, like the pipes) — no short end caps. This only makes sense for the
-        // normal single-band result; the rare split case falls back to closed rings.
-        if (polygons.Count == 1)
+        // A single un-merged run keeps the nice two-long-sides linework (no end caps);
+        // once trenches merge (or split) the outline is arbitrary, so draw each region's
+        // exterior + hole rings as closed polylines matching the fill.
+        if (runs.Count == 1 && buffers.Count == 1 && polygons.Count == 1)
         {
-            AppendLongEdges(modelSpace, transaction, polygons[0], axisPoints, width / 2.0, elevation);
+            AppendLongEdges(modelSpace, transaction, polygons[0], runs[0].Axis, runs[0].Width / 2.0, elevation);
         }
         else
         {
             foreach (Polygon polygon in polygons)
             {
                 AppendRingPolyline(modelSpace, transaction, polygon.ExteriorRing, elevation);
+                foreach (LineString hole in polygon.InteriorRings)
+                {
+                    AppendRingPolyline(modelSpace, transaction, hole, elevation);
+                }
             }
         }
 
@@ -106,23 +124,26 @@ internal static class PipePlanDETrenchWriter
     private static List<Polygon> ExtractPolygons(Geometry geometry)
     {
         List<Polygon> polygons = new();
+        CollectPolygons(geometry, polygons);
+        return polygons;
+    }
+
+    private static void CollectPolygons(Geometry geometry, List<Polygon> polygons)
+    {
         switch (geometry)
         {
             case Polygon polygon when !polygon.IsEmpty:
                 polygons.Add(polygon);
                 break;
-            case MultiPolygon multi:
-                foreach (Geometry part in multi.Geometries)
+            // MultiPolygon and the general GeometryCollection (a union can return either)
+            // are walked recursively so nested polygon parts are all collected.
+            case GeometryCollection collection:
+                foreach (Geometry part in collection.Geometries)
                 {
-                    if (part is Polygon p && !p.IsEmpty)
-                    {
-                        polygons.Add(p);
-                    }
+                    CollectPolygons(part, polygons);
                 }
                 break;
         }
-
-        return polygons;
     }
 
     private static void AppendHatch(BlockTableRecord modelSpace, Transaction transaction, Polygon polygon, double elevation)
