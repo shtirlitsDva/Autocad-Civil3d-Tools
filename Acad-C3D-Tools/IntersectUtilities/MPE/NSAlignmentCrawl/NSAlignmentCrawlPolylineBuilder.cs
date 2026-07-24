@@ -73,8 +73,75 @@ internal static class NSAlignmentCrawlPolylineBuilder
         }
     }
 
+    /// <summary>
+    /// Removes redundant nodes on straight runs so the baked alignment carries a vertex only where
+    /// the direction actually changes: an interior vertex is dropped when both of its incident
+    /// segments are straight (bulge ≈ 0) and collinear within
+    /// <see cref="NSAlignmentCrawlConstants.CollinearAngleTolerance"/> (a zero-length hop counts as
+    /// collinear). Arc segments carry a non-zero bulge, so an arc endpoint is never dropped — which
+    /// is why a reduction keeps its "arc end → single line element → arc start" shape. The endpoints
+    /// (start X / end) are always preserved, so station 0 and the terminus are untouched.
+    /// </summary>
+    public static List<(Point2d Pt, double OutBulge)> Weed(IReadOnlyList<(Point2d Pt, double OutBulge)> vertices)
+    {
+        if (vertices.Count <= 2)
+        {
+            return [.. vertices];
+        }
+
+        List<(Point2d Pt, double OutBulge)> result = new(vertices.Count) { vertices[0] };
+        for (int i = 1; i < vertices.Count - 1; i++)
+        {
+            (Point2d Pt, double OutBulge) prev = result[^1];
+            (Point2d Pt, double OutBulge) cur = vertices[i];
+            (Point2d Pt, double OutBulge) next = vertices[i + 1];
+            if (IsRedundantStraightNode(prev, cur, next))
+            {
+                // Drop cur: the segment becomes prev → next. prev's outgoing bulge is already 0
+                // (guaranteed straight by IsRedundantStraightNode), so the merged run stays straight.
+                continue;
+            }
+
+            result.Add(cur);
+        }
+
+        result.Add(vertices[^1]);
+        return result;
+    }
+
+    /// <summary>
+    /// True when <paramref name="cur"/> is a removable node on a straight run: both incident segments
+    /// are straight (bulge ≈ 0) and their directions agree within tolerance (or one hop is degenerate).
+    /// </summary>
+    private static bool IsRedundantStraightNode(
+        (Point2d Pt, double OutBulge) prev,
+        (Point2d Pt, double OutBulge) cur,
+        (Point2d Pt, double OutBulge) next)
+    {
+        const double bulgeEpsilon = 1e-6;
+
+        // An arc on either side means this vertex is an arc endpoint — never redundant.
+        if (Math.Abs(prev.OutBulge) > bulgeEpsilon || Math.Abs(cur.OutBulge) > bulgeEpsilon)
+        {
+            return false;
+        }
+
+        Vector2d incoming = prev.Pt.GetVectorTo(cur.Pt);
+        Vector2d outgoing = cur.Pt.GetVectorTo(next.Pt);
+
+        // A duplicate/zero-length hop carries no direction of its own, so cur adds nothing.
+        if (incoming.Length <= NSAlignmentCrawlConstants.Tolerance
+            || outgoing.Length <= NSAlignmentCrawlConstants.Tolerance)
+        {
+            return true;
+        }
+
+        return incoming.GetAngleTo(outgoing) <= NSAlignmentCrawlConstants.CollinearAngleTolerance;
+    }
+
     public static Polyline? Build(IReadOnlyList<(Point2d Pt, double OutBulge)> vertices, string layer)
     {
+        vertices = Weed(vertices);
         if (vertices.Count < 2)
         {
             return null;

@@ -14,6 +14,13 @@ internal static class NSAlignmentCrawlConstants
 {
     public const double Tolerance = 0.025; // metres (25 mm)
 
+    // Two straight segments meeting at less than this angle are treated as one line: the shared
+    // vertex is a redundant node on a straight run and gets weeded out of the baked polyline. Kept
+    // deliberately tight (~0.057°) — real direction changes at fittings are whole degrees, and
+    // elastic bends are arcs (carried as bulges, never as chords), so this only removes drafting/
+    // split noise and never collapses an intended bend.
+    public const double CollinearAngleTolerance = 0.001; // radians
+
     // Weld-on studs (AFGRSTUDS / SH LIGE) attach loosely: the branch port can sit ~100 mm from its
     // pipe. This larger tolerance is used only when wiring a stud's ports onto the network (split or
     // bridge), never for general clustering, so distinct ports are never merged.
