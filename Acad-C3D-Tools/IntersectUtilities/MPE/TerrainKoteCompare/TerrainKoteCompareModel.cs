@@ -87,7 +87,7 @@ namespace IntersectUtilities.MPE.TerrainKoteCompare
     // "Create Labels" will produce — the preview only adds the marker circles.
     internal static class TerrainKoteCompareTextLayout
     {
-        private const double MarkerGapFactor = 1.4;
+        private const double MarkerGapFactor = 0.5;
 
         // Up-right of the point. Used as the MText BottomLeft attachment point, so the two-line
         // label (number over value) grows up and to the right, clear of the marker.

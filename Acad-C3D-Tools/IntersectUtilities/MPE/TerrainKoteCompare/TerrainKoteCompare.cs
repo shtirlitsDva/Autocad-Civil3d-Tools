@@ -28,7 +28,8 @@ namespace IntersectUtilities
 
         /// <command>TERRAINKOTECOMPARE</command>
         /// <summary>
-        /// Opens an MPE palette for comparing surveyed terrain kote points ("terrænkote" blocks) against one or more
+        /// Opens an MPE palette for comparing surveyed terrain kote points (AutoCAD POINT nodes carrying the surveyed
+        /// Z) against one or more
         /// TIN terrain models loaded from external DWG files. Every TinSurface found in every loaded file is active;
         /// where several surfaces cover the same point the one whose elevation is closest to the surveyed Z wins.
         /// Each point is projected in Z onto the terrain and the signed difference is reported, positive when the
@@ -153,11 +154,11 @@ namespace IntersectUtilities.MPE.TerrainKoteCompare
 
         // Fixed presentation/numbering constants. These were briefly exposed as palette inputs but
         // are not things a user needs to tune per run: the row height only has to be coarse enough
-        // to band a survey grid into reading order, and the marker/text sizes suit the 1:250-ish
-        // plans this tool is used on.
+        // to band a survey grid into reading order, and the marker/text sizes are kept small so the
+        // tool's marks don't add to the clutter of the survey's own dense ID texts.
         private const double RowHeight = 5.0;
-        private const double MarkerSize = 0.5;
-        private const double TextHeight = 0.5;
+        private const double MarkerSize = 0.1;
+        private const double TextHeight = 0.1;
 
         private readonly TerrainKoteCompareTransientRenderer _renderer = new TerrainKoteCompareTransientRenderer();
         private readonly TerrainKoteCompareSurfaceSet _surfaceSet = new TerrainKoteCompareSurfaceSet();
@@ -220,20 +221,7 @@ namespace IntersectUtilities.MPE.TerrainKoteCompare
                 headerActions: new[] { chooseTerrainButton, clearFilesButton }));
 
             // ---- 2 · Point layer ----------------------------------------------------------------
-            _pointLayerComboBox = new ComboBox
-            {
-                Margin = new Thickness(0, 0, 8, 0),
-                IsEditable = false,
-                Background = InputBackgroundBrush,
-                Foreground = ForegroundBrushValue,
-                BorderBrush = BorderBrushValue,
-                BorderThickness = new Thickness(1),
-                Padding = new Thickness(10, 6, 10, 6),
-                Style = CreateComboBoxStyle(),
-                MinWidth = 240,
-                MinHeight = 32,
-                VerticalAlignment = VerticalAlignment.Center
-            };
+            _pointLayerComboBox = CreateLayerComboBox();
             _pointLayerComboBox.DropDownOpened += (_, _) => RefreshLayerList();
 
             Button loadAllButton = CreateButton("Load all", isAccent: true);
@@ -538,7 +526,7 @@ namespace IntersectUtilities.MPE.TerrainKoteCompare
             string? layerName = _pointLayerComboBox.SelectedItem as string;
             if (string.IsNullOrWhiteSpace(layerName))
             {
-                UpdateStatus("Select the layer that carries the terrain kote blocks.");
+                UpdateStatus("Select the layer that carries the terrain kote points.");
                 return;
             }
 
@@ -554,12 +542,12 @@ namespace IntersectUtilities.MPE.TerrainKoteCompare
                 List<ObjectId> pointIds = new List<ObjectId>();
                 foreach (ObjectId objectId in modelSpace)
                 {
-                    if (tx.GetObject(objectId, OpenMode.ForRead, false) is not BlockReference blockReference)
+                    if (tx.GetObject(objectId, OpenMode.ForRead, false) is not DBPoint dbPoint)
                     {
                         continue;
                     }
 
-                    if (!string.Equals(blockReference.Layer, layerName, StringComparison.OrdinalIgnoreCase))
+                    if (!string.Equals(dbPoint.Layer, layerName, StringComparison.OrdinalIgnoreCase))
                     {
                         continue;
                     }
@@ -569,7 +557,7 @@ namespace IntersectUtilities.MPE.TerrainKoteCompare
 
                 tx.Commit();
                 SetSelection(pointIds);
-                UpdateStatus($"Loaded {pointIds.Count} terrain kote block(s) from layer \"{layerName}\".");
+                UpdateStatus($"Loaded {pointIds.Count} terrain kote point(s) from layer \"{layerName}\".");
             }
             catch (System.Exception ex)
             {
@@ -592,11 +580,11 @@ namespace IntersectUtilities.MPE.TerrainKoteCompare
                 SelectionFilter filter = new SelectionFilter(
                     new[]
                     {
-                        new TypedValue((int)DxfCode.Start, "INSERT")
+                        new TypedValue((int)DxfCode.Start, "POINT")
                     });
                 PromptSelectionOptions options = new PromptSelectionOptions
                 {
-                    MessageForAdding = "\nSelect terrain kote blocks to compare against the terrain: "
+                    MessageForAdding = "\nSelect terrain kote points to compare against the terrain: "
                 };
 
                 PromptSelectionResult selectionResult = editor.GetSelection(options, filter);
@@ -612,7 +600,7 @@ namespace IntersectUtilities.MPE.TerrainKoteCompare
                 List<ObjectId> pointIds = new List<ObjectId>();
                 foreach (ObjectId objectId in selectionResult.Value.GetObjectIds())
                 {
-                    if (tx.GetObject(objectId, OpenMode.ForRead, false) is BlockReference)
+                    if (tx.GetObject(objectId, OpenMode.ForRead, false) is DBPoint)
                     {
                         pointIds.Add(objectId);
                     }
@@ -622,12 +610,12 @@ namespace IntersectUtilities.MPE.TerrainKoteCompare
 
                 if (pointIds.Count == 0)
                 {
-                    UpdateStatus("Selection did not contain any block references.");
+                    UpdateStatus("Selection did not contain any points.");
                     return;
                 }
 
                 SetSelection(pointIds);
-                UpdateStatus($"Loaded {pointIds.Count} selected block(s).");
+                UpdateStatus($"Loaded {pointIds.Count} selected point(s).");
             }
             catch (System.Exception ex)
             {
@@ -646,9 +634,9 @@ namespace IntersectUtilities.MPE.TerrainKoteCompare
             UpdatePointsSummary();
         }
 
-        // The KOTE attribute is a field displaying the block's own insertion-point Z, so Position.Z
-        // is the authoritative height. The attribute is only consulted as a fallback for surveys
-        // delivered as flat blocks with the elevation typed into the attribute instead.
+        // Each survey point is an AutoCAD POINT node whose Position carries the surveyed X/Y/Z (the
+        // circle you see is just AutoCAD's point-display glyph). Points are numbered in reading order
+        // by the analyzer's snake-sorting; there is no per-point ID text.
         private List<TerrainKoteComparePoint> CollectPoints(Transaction tx)
         {
             List<TerrainKoteComparePoint> points = new List<TerrainKoteComparePoint>(_selectedPointIds.Count);
@@ -656,43 +644,18 @@ namespace IntersectUtilities.MPE.TerrainKoteCompare
             foreach (ObjectId objectId in _selectedPointIds)
             {
                 if (objectId.IsErased) continue;
-                if (tx.GetObject(objectId, OpenMode.ForRead, false) is not BlockReference blockReference) continue;
+                if (tx.GetObject(objectId, OpenMode.ForRead, false) is not DBPoint dbPoint) continue;
 
-                double? elevation = Math.Abs(blockReference.Position.Z) > 1e-9
-                    ? blockReference.Position.Z
-                    : TryReadElevationFromAttributes(blockReference, tx);
+                double? elevation = Math.Abs(dbPoint.Position.Z) > 1e-9 ? dbPoint.Position.Z : (double?)null;
 
                 points.Add(new TerrainKoteComparePoint(
                     objectId,
-                    blockReference.Handle.ToString(),
-                    blockReference.Position,
+                    dbPoint.Handle.ToString(),
+                    dbPoint.Position,
                     elevation));
             }
 
             return points;
-        }
-
-        private static double? TryReadElevationFromAttributes(BlockReference blockReference, Transaction tx)
-        {
-            foreach (ObjectId attributeId in blockReference.AttributeCollection)
-            {
-                if (tx.GetObject(attributeId, OpenMode.ForRead, false) is not AttributeReference attribute) continue;
-
-                string text = attribute.TextString?.Trim() ?? string.Empty;
-                if (text.Length == 0) continue;
-
-                if (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out double invariantValue))
-                {
-                    return invariantValue;
-                }
-
-                if (double.TryParse(text, NumberStyles.Float, new CultureInfo("da-DK"), out double danishValue))
-                {
-                    return danishValue;
-                }
-            }
-
-            return null;
         }
 
         #endregion
@@ -729,7 +692,7 @@ namespace IntersectUtilities.MPE.TerrainKoteCompare
 
                 if (points.Count == 0)
                 {
-                    UpdateStatus("None of the loaded objects could be read as block references.");
+                    UpdateStatus("None of the loaded objects could be read as points.");
                     return;
                 }
 
@@ -1328,6 +1291,24 @@ namespace IntersectUtilities.MPE.TerrainKoteCompare
             });
 
             return row;
+        }
+
+        private static ComboBox CreateLayerComboBox()
+        {
+            return new ComboBox
+            {
+                Margin = new Thickness(0, 0, 8, 0),
+                IsEditable = false,
+                Background = InputBackgroundBrush,
+                Foreground = ForegroundBrushValue,
+                BorderBrush = BorderBrushValue,
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(10, 6, 10, 6),
+                Style = CreateComboBoxStyle(),
+                MinWidth = 240,
+                MinHeight = 32,
+                VerticalAlignment = VerticalAlignment.Center
+            };
         }
 
         private static Style CreateComboBoxStyle()
