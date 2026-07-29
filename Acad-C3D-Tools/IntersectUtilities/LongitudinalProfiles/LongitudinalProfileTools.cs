@@ -5728,7 +5728,17 @@ namespace IntersectUtilities
                 case "Endebund": return "Klöpperboden + Endmuffe";
                 case "Præisoleret bøjning, 90gr": return $"90°-Bogen DN {dn}";
                 case "Kedelrørsbøjning": return $"Stahlrohrbogen DN {dn}";
-                case "Kedelrørsbøjning, vertikal": return $"Vertikaler Stahlrohrbogen DN {dn}";
+                case "Kedelrørsbøjning, vertikal":
+                    {
+                        // Only the plain BØJN KDLR VERT gets an angle callout — VERT 45 and
+                        // VERT 5D share this CSV Type but keep the generic German wording.
+                        if (NpplSourceBlockName(g.SourceHandle, map) == "BØJN KDLR VERT")
+                        {
+                            string vinkel = NpplSourceVinkel(g.SourceHandle, map);
+                            if (vinkel != null) return $"{vinkel}° Stahlrohrbögen DN {dn}";
+                        }
+                        return $"Vertikaler Stahlrohrbogen DN {dn}";
+                    }
                 case "Afgrening med spring": return $"45° T-Abzweig DN{dn}/{Branch()}";
                 case "Lige afgrening": return $"Senkrecht-Abzweig DN{dn}/{Branch()}";
                 case "Parallelafgrening":
@@ -5765,6 +5775,39 @@ namespace IntersectUtilities
                 catch { return 0; }
             }
             try { return GetPipeDN(ent); } catch { return 0; }
+        }
+
+        // Effective block name of the source FJV component (dynamic blocks report an
+        // anonymous name, so RealName() is required).
+        private static string NpplSourceBlockName(string handle, Dictionary<string, Entity> map)
+        {
+            if (string.IsNullOrWhiteSpace(handle)) return "";
+            if (!map.TryGetValue(handle.Trim(), out var ent)) return "";
+            return ent is BlockReference br ? br.RealName() : "";
+        }
+
+        // Bend angle in degrees, DE-formatted (comma decimal, trailing zeros trimmed).
+        // The CSV Vinkel column resolves to an attribute (#GRADER) or a dynamic property
+        // ($Vinkel) depending on the block version — ReadDynamicCsvProperty handles both.
+        // Null when there is no readable/positive angle, so the caller can fall back.
+        private static string NpplSourceVinkel(string handle, Dictionary<string, Entity> map)
+        {
+            if (string.IsNullOrWhiteSpace(handle)) return null;
+            if (!map.TryGetValue(handle.Trim(), out var ent)) return null;
+            if (ent is not BlockReference br) return null;
+
+            string raw;
+            try { raw = br.ReadDynamicCsvProperty(DynamicProperty.Vinkel) ?? ""; }
+            catch { return null; }
+
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            var style = System.Globalization.NumberStyles.Float;
+            // GRADER is hand-typed, so accept a Danish decimal comma too.
+            if (!double.TryParse(raw, style, inv, out double deg) &&
+                !double.TryParse(raw, style, danishCulture, out deg)) return null;
+            if (deg <= 0) return null;
+
+            return NpplComma(deg.ToString("0.##", inv));
         }
 
         // Branch DN for a tee: find the branch pipeline (by alignment name in RIGHTSIZE) in
