@@ -131,6 +131,7 @@ namespace IntersectUtilities.MPE.TerrainKoteCompare
         {
             "Nr",
             "Handle",
+            "Punktlag",
             "X",
             "Y",
             "Kote opmålt",
@@ -163,6 +164,7 @@ namespace IntersectUtilities.MPE.TerrainKoteCompare
             {
                 point.Number,
                 point.Source.Handle,
+                point.Source.Layer,
                 point.Position.X,
                 point.Position.Y,
                 point.Source.SurveyElevation,

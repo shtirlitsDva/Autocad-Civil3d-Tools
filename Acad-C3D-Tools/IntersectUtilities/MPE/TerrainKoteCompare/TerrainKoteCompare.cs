@@ -164,7 +164,9 @@ namespace IntersectUtilities.MPE.TerrainKoteCompare
         private readonly TerrainKoteCompareSurfaceSet _surfaceSet = new TerrainKoteCompareSurfaceSet();
 
         private readonly StackPanel _fileListPanel;
-        private readonly ComboBox _pointLayerComboBox;
+        private readonly StackPanel _layerListPanel;
+        private readonly TextBox _layerFilterTextBox;
+        private readonly WinLabel _layerSummaryText;
         private readonly WinLabel _pointsSummaryText;
         private readonly WinLabel _terrainSummaryText;
         private readonly WinLabel _resultDetailText;
@@ -178,6 +180,17 @@ namespace IntersectUtilities.MPE.TerrainKoteCompare
 
         private Document? _document;
         private List<ObjectId> _selectedPointIds = new List<ObjectId>();
+
+        // The drawing's layer names as last read, and the subset the user has ticked. The selection is
+        // held by name rather than by list index so it survives a refresh, a filter change and a switch
+        // to another document — only layers that no longer exist are dropped.
+        private readonly List<string> _allLayerNames = new List<string>();
+        private readonly HashSet<string> _selectedLayerNames =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private bool _layerListInitialized;
+        // Set while All/None drives the checkboxes, so their Checked/Unchecked handlers don't each
+        // rewrite the selection and summary once per row.
+        private bool _suppressLayerCheckEvents;
         private TerrainKoteCompareResult? _lastResult;
         private TerrainKoteCompareValueMode _valueMode = TerrainKoteCompareValueMode.Difference;
         private bool _previewVisible;
@@ -220,27 +233,69 @@ namespace IntersectUtilities.MPE.TerrainKoteCompare
                 "1", "Terrain sources", terrainBody,
                 headerActions: new[] { chooseTerrainButton, clearFilesButton }));
 
-            // ---- 2 · Point layer ----------------------------------------------------------------
-            _pointLayerComboBox = CreateLayerComboBox();
-            _pointLayerComboBox.DropDownOpened += (_, _) => RefreshLayerList();
+            // ---- 2 · Point layers ---------------------------------------------------------------
+            // A checklist rather than a dropdown: surveys routinely split their kote points across
+            // several layers, and all of them have to be loaded into one comparison run.
+            Button refreshLayersButton = CreateButton("Refresh");
+            refreshLayersButton.ToolTip = "Re-read the layer table of the active drawing";
+            refreshLayersButton.Click += (_, _) => RefreshLayerList();
+
+            _layerFilterTextBox = CreateFilterTextBox();
+            _layerFilterTextBox.TextChanged += (_, _) => RebuildLayerChecklist();
+
+            Button checkAllButton = CreateButton("All");
+            checkAllButton.ToolTip = "Tick every layer currently listed";
+            checkAllButton.Click += (_, _) => SetListedLayersChecked(true);
+            Button checkNoneButton = CreateButton("None");
+            checkNoneButton.ToolTip = "Untick every layer currently listed";
+            checkNoneButton.Click += (_, _) => SetListedLayersChecked(false);
+
+            WrapPanel layerFilterRow = new WrapPanel { Orientation = Orientation.Horizontal };
+            layerFilterRow.Children.Add(_layerFilterTextBox);
+            layerFilterRow.Children.Add(checkAllButton);
+            layerFilterRow.Children.Add(checkNoneButton);
+
+            _layerListPanel = new StackPanel { Orientation = Orientation.Vertical };
+            Border layerListBorder = new Border
+            {
+                Background = StatBackgroundBrush,
+                BorderBrush = BorderBrushValue,
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(10, 6, 10, 6),
+                Child = new ScrollViewer
+                {
+                    VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                    HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                    MaxHeight = 190,
+                    Content = _layerListPanel
+                }
+            };
+
+            _layerSummaryText = CreateMutedText("No layers ticked.");
+            _layerSummaryText.Margin = new Thickness(2, 8, 0, 0);
 
             Button loadAllButton = CreateButton("Load all", isAccent: true);
             loadAllButton.Click += (_, _) => LoadAllPoints();
             Button selectButton = CreateButton("Select from drawing");
             selectButton.Click += (_, _) => SelectPoints();
 
-            WrapPanel pointRow = new WrapPanel { Orientation = Orientation.Horizontal };
-            pointRow.Children.Add(_pointLayerComboBox);
+            WrapPanel pointRow = new WrapPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 10, 0, 0) };
             pointRow.Children.Add(loadAllButton);
             pointRow.Children.Add(selectButton);
 
             StackPanel pointBody = new StackPanel { Orientation = Orientation.Vertical };
+            pointBody.Children.Add(layerFilterRow);
+            pointBody.Children.Add(layerListBorder);
+            pointBody.Children.Add(_layerSummaryText);
             pointBody.Children.Add(pointRow);
             _pointsSummaryText = CreateMutedText("No points loaded.");
-            _pointsSummaryText.Margin = new Thickness(2, 8, 0, 0);
+            _pointsSummaryText.Margin = new Thickness(2, 2, 0, 0);
             pointBody.Children.Add(_pointsSummaryText);
 
-            root.Children.Add(CreateSection("2", "Point layer", pointBody));
+            root.Children.Add(CreateSection(
+                "2", "Point layers", pointBody,
+                headerActions: new[] { refreshLayersButton }));
 
             // ---- 3 · Compute --------------------------------------------------------------------
             Button computeButton = CreateButton("Compute terrain comparison", isAccent: true);
@@ -305,6 +360,7 @@ namespace IntersectUtilities.MPE.TerrainKoteCompare
             UpdateSwitchKoteCaption();
             UpdateShowHideCaption();
             RefreshFileList();
+            RebuildLayerChecklist();
             UpdateResultCounts();
             UpdateStatus("Step 1: choose one or more terrain DWG files.");
         }
@@ -318,8 +374,9 @@ namespace IntersectUtilities.MPE.TerrainKoteCompare
             UpdateResultCounts();
         }
 
-        // Fills the layer dropdown from the drawing's layer table, keeping whatever was already
-        // selected. On first fill it prefers the conventional survey layer if the drawing has it.
+        // Re-reads the drawing's layer table into the checklist. Ticks are remembered by name, so a
+        // refresh keeps whatever is still present and silently drops layers that have gone. On the
+        // first fill it pre-ticks the conventional survey layer if the drawing has it.
         private void RefreshLayerList()
         {
             if (_document == null)
@@ -329,8 +386,6 @@ namespace IntersectUtilities.MPE.TerrainKoteCompare
 
             try
             {
-                string? previouslySelected = _pointLayerComboBox.SelectedItem as string;
-
                 List<string> layerNames = new List<string>();
                 using (DocumentLock documentLock = _document.LockDocument())
                 using (Transaction tx = _document.Database.TransactionManager.StartTransaction())
@@ -349,26 +404,146 @@ namespace IntersectUtilities.MPE.TerrainKoteCompare
 
                 layerNames.Sort(StringComparer.OrdinalIgnoreCase);
 
-                _pointLayerComboBox.Items.Clear();
-                foreach (string layerName in layerNames)
+                _allLayerNames.Clear();
+                _allLayerNames.AddRange(layerNames);
+                _selectedLayerNames.IntersectWith(layerNames);
+
+                if (!_layerListInitialized)
                 {
-                    _pointLayerComboBox.Items.Add(layerName);
+                    _layerListInitialized = true;
+                    string? defaultLayer = layerNames.FirstOrDefault(
+                        name => string.Equals(name, DefaultPointLayerName, StringComparison.OrdinalIgnoreCase));
+                    if (defaultLayer != null)
+                    {
+                        _selectedLayerNames.Add(defaultLayer);
+                    }
                 }
 
-                string? target = previouslySelected ?? layerNames.FirstOrDefault(
-                    name => string.Equals(name, DefaultPointLayerName, StringComparison.OrdinalIgnoreCase));
-
-                int index = target == null
-                    ? -1
-                    : layerNames.FindIndex(name => string.Equals(name, target, StringComparison.OrdinalIgnoreCase));
-
-                _pointLayerComboBox.SelectedIndex = index >= 0 ? index : (layerNames.Count > 0 ? 0 : -1);
+                RebuildLayerChecklist();
             }
             catch (System.Exception ex)
             {
                 prdDbg(ex);
                 UpdateStatus("Reading the drawing's layers failed. See debug output for details.");
             }
+        }
+
+        // Rebuilds the checkbox rows from the cached layer names, honouring the filter box. Ticked
+        // layers sort to the top so the current selection stays visible in a drawing with hundreds of
+        // layers; the order is only recomputed here, never while the user is clicking rows.
+        private void RebuildLayerChecklist()
+        {
+            _layerListPanel.Children.Clear();
+
+            if (_allLayerNames.Count == 0)
+            {
+                _layerListPanel.Children.Add(CreateMutedText(
+                    "No layers read yet. Open a drawing and click Refresh."));
+                UpdateLayerSummary();
+                return;
+            }
+
+            string filter = _layerFilterTextBox.Text?.Trim() ?? string.Empty;
+            List<string> listed = _allLayerNames
+                .Where(name => filter.Length == 0
+                    || name.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0)
+                .OrderByDescending(name => _selectedLayerNames.Contains(name))
+                .ThenBy(name => name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (listed.Count == 0)
+            {
+                _layerListPanel.Children.Add(CreateMutedText($"No layer name contains \"{filter}\"."));
+                UpdateLayerSummary();
+                return;
+            }
+
+            foreach (string layerName in listed)
+            {
+                _layerListPanel.Children.Add(CreateLayerCheckRow(layerName));
+            }
+
+            UpdateLayerSummary();
+        }
+
+        private CheckBox CreateLayerCheckRow(string layerName)
+        {
+            CheckBox checkBox = new CheckBox
+            {
+                Content = layerName,
+                IsChecked = _selectedLayerNames.Contains(layerName),
+                Foreground = ForegroundBrushValue,
+                Margin = new Thickness(0, 3, 0, 3),
+                VerticalContentAlignment = VerticalAlignment.Center,
+                ToolTip = layerName
+            };
+
+            checkBox.Checked += (_, _) =>
+            {
+                if (_suppressLayerCheckEvents) return;
+                _selectedLayerNames.Add(layerName);
+                UpdateLayerSummary();
+            };
+            checkBox.Unchecked += (_, _) =>
+            {
+                if (_suppressLayerCheckEvents) return;
+                _selectedLayerNames.Remove(layerName);
+                UpdateLayerSummary();
+            };
+
+            return checkBox;
+        }
+
+        // All / None deliberately act on the rows the filter is currently showing, so typing a prefix
+        // and clicking All is a quick way to tick a whole family of layers without disturbing the rest
+        // of the selection.
+        private void SetListedLayersChecked(bool isChecked)
+        {
+            _suppressLayerCheckEvents = true;
+            try
+            {
+                foreach (CheckBox checkBox in _layerListPanel.Children.OfType<CheckBox>())
+                {
+                    if (checkBox.Content is not string layerName) continue;
+
+                    checkBox.IsChecked = isChecked;
+                    if (isChecked)
+                    {
+                        _selectedLayerNames.Add(layerName);
+                    }
+                    else
+                    {
+                        _selectedLayerNames.Remove(layerName);
+                    }
+                }
+            }
+            finally
+            {
+                _suppressLayerCheckEvents = false;
+            }
+
+            UpdateLayerSummary();
+        }
+
+        private void UpdateLayerSummary()
+        {
+            if (_selectedLayerNames.Count == 0)
+            {
+                _layerSummaryText.Text = _allLayerNames.Count == 0
+                    ? "No layers ticked."
+                    : $"No layers ticked — tick one or more of the drawing's {_allLayerNames.Count} layer(s).";
+                return;
+            }
+
+            List<string> names = _selectedLayerNames
+                .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            string listed = names.Count <= 3
+                ? string.Join(", ", names)
+                : $"{string.Join(", ", names.Take(3))} +{names.Count - 3} more";
+
+            _layerSummaryText.Text = $"{names.Count} layer(s) ticked: {listed}";
         }
 
         public void DisposeSurfaces()
@@ -523,10 +698,9 @@ namespace IntersectUtilities.MPE.TerrainKoteCompare
                 return;
             }
 
-            string? layerName = _pointLayerComboBox.SelectedItem as string;
-            if (string.IsNullOrWhiteSpace(layerName))
+            if (_selectedLayerNames.Count == 0)
             {
-                UpdateStatus("Select the layer that carries the terrain kote points.");
+                UpdateStatus("Tick at least one layer that carries the terrain kote points.");
                 return;
             }
 
@@ -540,6 +714,9 @@ namespace IntersectUtilities.MPE.TerrainKoteCompare
                     blockTable[BlockTableRecord.ModelSpace], OpenMode.ForRead);
 
                 List<ObjectId> pointIds = new List<ObjectId>();
+                Dictionary<string, int> countByLayer =
+                    new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
                 foreach (ObjectId objectId in modelSpace)
                 {
                     if (tx.GetObject(objectId, OpenMode.ForRead, false) is not DBPoint dbPoint)
@@ -547,17 +724,31 @@ namespace IntersectUtilities.MPE.TerrainKoteCompare
                         continue;
                     }
 
-                    if (!string.Equals(dbPoint.Layer, layerName, StringComparison.OrdinalIgnoreCase))
+                    if (!_selectedLayerNames.Contains(dbPoint.Layer))
                     {
                         continue;
                     }
 
                     pointIds.Add(objectId);
+                    countByLayer.TryGetValue(dbPoint.Layer, out int seen);
+                    countByLayer[dbPoint.Layer] = seen + 1;
                 }
 
                 tx.Commit();
                 SetSelection(pointIds);
-                UpdateStatus($"Loaded {pointIds.Count} terrain kote point(s) from layer \"{layerName}\".");
+
+                // Report every ticked layer, including the ones that contributed nothing, so a layer
+                // ticked by mistake is visible instead of silently adding zero points.
+                string breakdown = string.Join(
+                    Environment.NewLine,
+                    _selectedLayerNames
+                        .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+                        .Select(name =>
+                            $"  {name}: {(countByLayer.TryGetValue(name, out int count) ? count : 0)} point(s)"));
+
+                UpdateStatus(
+                    $"Loaded {pointIds.Count} terrain kote point(s) from {_selectedLayerNames.Count} layer(s)."
+                    + Environment.NewLine + breakdown);
             }
             catch (System.Exception ex)
             {
@@ -651,6 +842,7 @@ namespace IntersectUtilities.MPE.TerrainKoteCompare
                 points.Add(new TerrainKoteComparePoint(
                     objectId,
                     dbPoint.Handle.ToString(),
+                    dbPoint.Layer,
                     dbPoint.Position,
                     elevation));
             }
@@ -1293,176 +1485,22 @@ namespace IntersectUtilities.MPE.TerrainKoteCompare
             return row;
         }
 
-        private static ComboBox CreateLayerComboBox()
+        private static TextBox CreateFilterTextBox()
         {
-            return new ComboBox
+            return new TextBox
             {
-                Margin = new Thickness(0, 0, 8, 0),
-                IsEditable = false,
+                Margin = new Thickness(0, 0, 6, 6),
+                MinWidth = 220,
+                MinHeight = 32,
+                Padding = new Thickness(10, 6, 10, 6),
                 Background = InputBackgroundBrush,
                 Foreground = ForegroundBrushValue,
+                CaretBrush = ForegroundBrushValue,
                 BorderBrush = BorderBrushValue,
                 BorderThickness = new Thickness(1),
-                Padding = new Thickness(10, 6, 10, 6),
-                Style = CreateComboBoxStyle(),
-                MinWidth = 240,
-                MinHeight = 32,
-                VerticalAlignment = VerticalAlignment.Center
+                VerticalContentAlignment = VerticalAlignment.Center,
+                ToolTip = "Type to narrow the layer list"
             };
-        }
-
-        private static Style CreateComboBoxStyle()
-        {
-            Style style = new Style(typeof(ComboBox));
-            style.Setters.Add(new Setter(Control.TemplateProperty, CreateComboBoxTemplate()));
-            style.Setters.Add(new Setter(ComboBox.ItemContainerStyleProperty, CreateComboBoxItemStyle()));
-            return style;
-        }
-
-        private static Style CreateComboBoxItemStyle()
-        {
-            Style style = new Style(typeof(ComboBoxItem));
-            style.Setters.Add(new Setter(Control.BackgroundProperty, InputBackgroundBrush));
-            style.Setters.Add(new Setter(Control.ForegroundProperty, ForegroundBrushValue));
-            style.Setters.Add(new Setter(Control.BorderBrushProperty, BorderBrushValue));
-            style.Setters.Add(new Setter(Control.BorderThicknessProperty, new Thickness(0)));
-            style.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(10, 6, 10, 6)));
-
-            System.Windows.Controls.ControlTemplate template =
-                new System.Windows.Controls.ControlTemplate(typeof(ComboBoxItem));
-            FrameworkElementFactory border = new FrameworkElementFactory(typeof(Border));
-            border.SetBinding(Border.BackgroundProperty, new System.Windows.Data.Binding("Background") { RelativeSource = System.Windows.Data.RelativeSource.TemplatedParent });
-            border.SetValue(Border.CornerRadiusProperty, new CornerRadius(6));
-            border.SetValue(Border.MarginProperty, new Thickness(4, 2, 4, 2));
-
-            FrameworkElementFactory presenter = new FrameworkElementFactory(typeof(ContentPresenter));
-            presenter.SetBinding(ContentPresenter.ContentProperty, new System.Windows.Data.Binding("Content") { RelativeSource = System.Windows.Data.RelativeSource.TemplatedParent });
-            presenter.SetBinding(ContentPresenter.ContentTemplateProperty, new System.Windows.Data.Binding("ContentTemplate") { RelativeSource = System.Windows.Data.RelativeSource.TemplatedParent });
-            presenter.SetValue(HorizontalAlignmentProperty, HorizontalAlignment.Left);
-            presenter.SetValue(VerticalAlignmentProperty, VerticalAlignment.Center);
-
-            border.AppendChild(presenter);
-            template.VisualTree = border;
-
-            Trigger highlightTrigger = new Trigger
-            {
-                Property = ComboBoxItem.IsHighlightedProperty,
-                Value = true
-            };
-            highlightTrigger.Setters.Add(new Setter(Control.BackgroundProperty, ButtonBackgroundBrush));
-            template.Triggers.Add(highlightTrigger);
-
-            style.Setters.Add(new Setter(Control.TemplateProperty, template));
-            return style;
-        }
-
-        // A ToggleButton that renders nothing but is still hit-testable (a Transparent brush is
-        // hit-tested; a null Background is not).
-        private static System.Windows.Controls.ControlTemplate CreateTransparentToggleTemplate()
-        {
-            System.Windows.Controls.ControlTemplate template =
-                new System.Windows.Controls.ControlTemplate(typeof(ToggleButton));
-
-            FrameworkElementFactory border = new FrameworkElementFactory(typeof(Border));
-            border.SetBinding(Border.BackgroundProperty, new System.Windows.Data.Binding("Background") { RelativeSource = System.Windows.Data.RelativeSource.TemplatedParent });
-
-            template.VisualTree = border;
-            return template;
-        }
-
-        private static System.Windows.Controls.ControlTemplate CreateComboBoxTemplate()
-        {
-            System.Windows.Controls.ControlTemplate template =
-                new System.Windows.Controls.ControlTemplate(typeof(ComboBox));
-
-            FrameworkElementFactory grid = new FrameworkElementFactory(typeof(Grid));
-
-            FrameworkElementFactory outerBorder = new FrameworkElementFactory(typeof(Border));
-            outerBorder.SetValue(Border.CornerRadiusProperty, new CornerRadius(8));
-            outerBorder.SetBinding(Border.BackgroundProperty, new System.Windows.Data.Binding("Background") { RelativeSource = System.Windows.Data.RelativeSource.TemplatedParent });
-            outerBorder.SetBinding(Border.BorderBrushProperty, new System.Windows.Data.Binding("BorderBrush") { RelativeSource = System.Windows.Data.RelativeSource.TemplatedParent });
-            outerBorder.SetBinding(Border.BorderThicknessProperty, new System.Windows.Data.Binding("BorderThickness") { RelativeSource = System.Windows.Data.RelativeSource.TemplatedParent });
-            // Without this the control's Padding is dropped and the ComboBox renders ~18px tall,
-            // noticeably shorter than the TextBoxes it sits next to.
-            outerBorder.SetBinding(Border.PaddingProperty, new System.Windows.Data.Binding("Padding") { RelativeSource = System.Windows.Data.RelativeSource.TemplatedParent });
-
-            FrameworkElementFactory innerGrid = new FrameworkElementFactory(typeof(Grid));
-            FrameworkElementFactory textColumn = new FrameworkElementFactory(typeof(ColumnDefinition));
-            textColumn.SetValue(ColumnDefinition.WidthProperty, new GridLength(1, GridUnitType.Star));
-            FrameworkElementFactory iconColumn = new FrameworkElementFactory(typeof(ColumnDefinition));
-            iconColumn.SetValue(ColumnDefinition.WidthProperty, new GridLength(28));
-            innerGrid.AppendChild(textColumn);
-            innerGrid.AppendChild(iconColumn);
-
-            FrameworkElementFactory presenter = new FrameworkElementFactory(typeof(ContentPresenter));
-            presenter.SetValue(Grid.ColumnProperty, 0);
-            presenter.SetValue(ContentPresenter.MarginProperty, new Thickness(10, 0, 6, 0));
-            presenter.SetValue(VerticalAlignmentProperty, VerticalAlignment.Center);
-            presenter.SetBinding(ContentPresenter.ContentProperty, new System.Windows.Data.Binding("SelectionBoxItem") { RelativeSource = System.Windows.Data.RelativeSource.TemplatedParent });
-            presenter.SetBinding(ContentPresenter.ContentTemplateProperty, new System.Windows.Data.Binding("SelectionBoxItemTemplate") { RelativeSource = System.Windows.Data.RelativeSource.TemplatedParent });
-
-            FrameworkElementFactory arrow = new FrameworkElementFactory(typeof(WinLabel));
-            arrow.SetValue(Grid.ColumnProperty, 1);
-            arrow.SetValue(WinLabel.TextProperty, "▼");
-            arrow.SetValue(WinLabel.ForegroundProperty, ForegroundBrushValue);
-            arrow.SetValue(WinLabel.FontSizeProperty, 10.0);
-            arrow.SetValue(WinLabel.HorizontalAlignmentProperty, HorizontalAlignment.Center);
-            arrow.SetValue(WinLabel.VerticalAlignmentProperty, VerticalAlignment.Center);
-
-            innerGrid.AppendChild(presenter);
-            innerGrid.AppendChild(arrow);
-            outerBorder.AppendChild(innerGrid);
-            grid.AppendChild(outerBorder);
-
-            // ComboBox does NOT open its own popup on click — the template is expected to supply a
-            // ToggleButton two-way bound to IsDropDownOpen with ClickMode.Press. Omit it and the
-            // control is dead to the mouse (only F4 / Alt+Down still work). It sits on top of the
-            // chrome with a transparent, content-less template so it captures the click without
-            // painting over the selected-item text.
-            FrameworkElementFactory toggle = new FrameworkElementFactory(typeof(ToggleButton));
-            toggle.SetValue(ToggleButton.ClickModeProperty, ClickMode.Press);
-            toggle.SetValue(ToggleButton.FocusableProperty, false);
-            toggle.SetValue(ToggleButton.BackgroundProperty, System.Windows.Media.Brushes.Transparent);
-            toggle.SetValue(ToggleButton.TemplateProperty, CreateTransparentToggleTemplate());
-            toggle.SetBinding(
-                ToggleButton.IsCheckedProperty,
-                new System.Windows.Data.Binding("IsDropDownOpen")
-                {
-                    RelativeSource = System.Windows.Data.RelativeSource.TemplatedParent,
-                    Mode = System.Windows.Data.BindingMode.TwoWay
-                });
-            grid.AppendChild(toggle);
-
-            // PART_Popup is required by ComboBox's own code — without the named part the dropdown
-            // never opens, which also means DropDownOpened (our refresh hook) never fires.
-            FrameworkElementFactory popup = new FrameworkElementFactory(typeof(Popup));
-            popup.SetValue(FrameworkElement.NameProperty, "PART_Popup");
-            popup.SetValue(Popup.PlacementProperty, PlacementMode.Bottom);
-            popup.SetValue(Popup.AllowsTransparencyProperty, true);
-            popup.SetBinding(Popup.IsOpenProperty, new System.Windows.Data.Binding("IsDropDownOpen") { RelativeSource = System.Windows.Data.RelativeSource.TemplatedParent });
-            popup.SetBinding(Popup.WidthProperty, new System.Windows.Data.Binding("ActualWidth") { RelativeSource = System.Windows.Data.RelativeSource.TemplatedParent });
-
-            FrameworkElementFactory popupBorder = new FrameworkElementFactory(typeof(Border));
-            popupBorder.SetValue(Border.MarginProperty, new Thickness(0, 4, 0, 0));
-            popupBorder.SetValue(Border.CornerRadiusProperty, new CornerRadius(8));
-            popupBorder.SetValue(Border.BackgroundProperty, PanelBackgroundBrush);
-            popupBorder.SetValue(Border.BorderBrushProperty, BorderBrushValue);
-            popupBorder.SetValue(Border.BorderThicknessProperty, new Thickness(1));
-            popupBorder.SetValue(Border.PaddingProperty, new Thickness(4));
-
-            FrameworkElementFactory scrollViewer = new FrameworkElementFactory(typeof(ScrollViewer));
-            scrollViewer.SetValue(ScrollViewer.CanContentScrollProperty, true);
-            scrollViewer.SetValue(ScrollViewer.MaxHeightProperty, 320.0);
-            scrollViewer.SetValue(ScrollViewer.VerticalScrollBarVisibilityProperty, ScrollBarVisibility.Auto);
-
-            FrameworkElementFactory itemsPresenter = new FrameworkElementFactory(typeof(ItemsPresenter));
-            scrollViewer.AppendChild(itemsPresenter);
-            popupBorder.AppendChild(scrollViewer);
-            popup.AppendChild(popupBorder);
-            grid.AppendChild(popup);
-
-            template.VisualTree = grid;
-            return template;
         }
 
         private static System.Windows.Controls.ControlTemplate CreateButtonTemplate()

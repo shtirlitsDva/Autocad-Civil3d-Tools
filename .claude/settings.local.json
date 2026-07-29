@@ -22,7 +22,8 @@
       "Bash(git -C \"C:/Users/mpe/Github/shtirlitsDva/Autocad-Civil3d-Tools\" diff --stat HEAD)",
       "Bash(node *)",
       "Bash(/c/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/MSBuild.exe *)",
-      "PowerShell($msb = \"C:\\\\Program Files\\\\Microsoft Visual Studio\\\\2022\\\\Community\\\\MSBuild\\\\Current\\\\Bin\\\\MSBuild.exe\"; if \\(Test-Path $msb\\) { & $msb \"Acad-C3D-Tools\\\\IntersectUtilities\\\\IntersectUtilities.csproj\" /p:Configuration=Debug /clp:ErrorsOnly /nologo /v:q } else { \"MSBuild not found at $msb\" })"
+      "PowerShell($msb = \"C:\\\\Program Files\\\\Microsoft Visual Studio\\\\2022\\\\Community\\\\MSBuild\\\\Current\\\\Bin\\\\MSBuild.exe\"; if \\(Test-Path $msb\\) { & $msb \"Acad-C3D-Tools\\\\IntersectUtilities\\\\IntersectUtilities.csproj\" /p:Configuration=Debug /clp:ErrorsOnly /nologo /v:q } else { \"MSBuild not found at $msb\" })",
+      "PowerShell($p='C:\\\\Users\\\\mpe\\\\Github\\\\shtirlitsDva\\\\Autocad-Civil3d-Tools\\\\Acad-C3D-Tools\\\\IntersectUtilities\\\\MPE\\\\TerrainKoteCompare\\\\TerrainKoteCompare.cs'; $b=[System.IO.File]::ReadAllBytes\\($p\\); \"first bytes: $\\($b[0..3] -join ','\\)\"; \"CRLF count: \" + \\([regex]::Matches\\([System.Text.Encoding]::UTF8.GetString\\($b\\),\"`r`n\"\\)\\).Count)"
     ]
   },
   "outputStyle": "Explanatory"

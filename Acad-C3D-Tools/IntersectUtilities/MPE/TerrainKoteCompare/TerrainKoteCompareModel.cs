@@ -303,16 +303,25 @@ namespace IntersectUtilities.MPE.TerrainKoteCompare
 
     internal sealed class TerrainKoteComparePoint
     {
-        public TerrainKoteComparePoint(ObjectId objectId, string handle, Point3d position, double? surveyElevation)
+        public TerrainKoteComparePoint(
+            ObjectId objectId,
+            string handle,
+            string layer,
+            Point3d position,
+            double? surveyElevation)
         {
             ObjectId = objectId;
             Handle = handle;
+            Layer = layer;
             Position = position;
             SurveyElevation = surveyElevation;
         }
 
         public ObjectId ObjectId { get; }
         public string Handle { get; }
+        // The drawing layer the point was picked up from. Carried through to the export because a run
+        // can now draw its points from several ticked layers at once.
+        public string Layer { get; }
         public Point3d Position { get; }
         public double? SurveyElevation { get; }
     }
