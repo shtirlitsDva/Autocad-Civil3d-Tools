@@ -5741,8 +5741,10 @@ namespace IntersectUtilities
                         return $"Reduzierungen DN {NpplDn(b)}/{NpplDn(a)}";
                     }
                 case "Engangsventil": return $"Einmalkugelhahn DN {dn}";
-                case "Præisoleret ventil": return $"Erdeinbau-Kugelhahn DN {dn}";
-                case "Præventil med udluftning": return $"Erdeinbau-Kugelhahn mit Entlüftung DN {dn}";
+                // Both valve types read "Erdeinbau-Kugelhahn" in DE — the vent
+                // ("mit Entlüftung") is not called out on the German drawings.
+                case "Præisoleret ventil":
+                case "Præventil med udluftning": return $"Erdeinbau-Kugelhahn DN {dn}";
                 default:
                     prdDbg($"NDHPPL: no German mapping for LEFTSIZE '{left}' — kept as-is.");
                     return left;
