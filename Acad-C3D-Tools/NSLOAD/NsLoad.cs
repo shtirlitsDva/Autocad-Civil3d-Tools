@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
@@ -33,6 +33,23 @@ namespace NSLOAD
         public void Initialize()
         {
             Editor? ed = Application.DocumentManager.MdiActiveDocument?.Editor;
+
+            // Take AutoCAD's assembly scan off NSLOAD-loaded plugins before
+            // anything can load one. Without this the host registers their
+            // commands permanently and builds its own plugin instance.
+            try
+            {
+                AutoCadScanSuppressor.Install();
+            }
+            catch (System.Exception ex)
+            {
+                // Loud, not silent: without suppression every plugin needs the
+                // NoCommands marker, and PluginManager must not call Initialize.
+                ed?.WriteMessage(
+                    "\nNSLOAD: WARNING - could not suppress AutoCAD's assembly scan " +
+                    $"({ex.Message}) Plugins on this AutoCAD version still need the " +
+                    "NoCommands marker class.");
+            }
 
             string csvPath = @"X:\AutoCAD DRI - 01 Civil 3D\NetloadV2\Register-2025.csv";
             try
@@ -100,6 +117,8 @@ namespace NSLOAD
         public void Terminate()
         {
             PluginManager.UnloadAll();
+
+            try { AutoCadScanSuppressor.Restore(); } catch { }
 
             // Dispose the cached management palette so it doesn't survive an unload/reload cycle.
             if (_mgmtPalette != null)
