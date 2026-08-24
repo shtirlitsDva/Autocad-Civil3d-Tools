@@ -1,4 +1,4 @@
-using Autodesk.AutoCAD.ApplicationServices;
+﻿using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
@@ -5606,10 +5606,12 @@ namespace IntersectUtilities
                 var map = new Dictionary<string, Entity>();
                 foreach (var e in ents) map[e.Handle.ToString()] = e;
 
-                // The network is only needed for tee branch DN + reducer before/after. If it
-                // fails to build (e.g. a malformed connection string on one Fremtid entity),
-                // don't lose every label — degrade those two cases to "xx" and carry on; the
-                // main/single DN comes from the source handle and needs no network.
+                // The network is only needed for the reducer before/after DNs (which are
+                // station-ordered, so they cannot be read off the block: an inserted reducer
+                // may be rotated 180 deg). If it fails to build (e.g. a malformed connection
+                // string on one Fremtid entity), don't lose every label — degrade that one
+                // case to "xx" and carry on; every other DN (main DN1, tee branch DN2) is
+                // read straight off the source component block and needs no network.
                 PipelineNetwork pn = null;
                 try
                 {
@@ -5713,15 +5715,17 @@ namespace IntersectUtilities
             }
 
             // Type A: main DN from the source component block (DN1).
-            int mainDn = NpplSourceDN(g.SourceHandle, map);
-            string dn = mainDn > 0 ? mainDn.ToString() : "xx";
+            int mainDn = NpplSourceDN(g.SourceHandle, map, DynamicProperty.DN1);
+            string dn = NpplDn(mainDn);
 
             var mL = s_npplLBendRx.Match(left);
             if (mL.Success)
                 return $"Bogen DN {dn}, L.{NpplComma(mL.Groups[1].Value)}x" +
                        $"{NpplComma(mL.Groups[2].Value)} m, W. {NpplComma(mL.Groups[3].Value)}°";
 
-            string Branch() { var d = NpplBranchDN(pn, g.Right); return d.HasValue ? d.Value.ToString() : "xx"; }
+            // Branch DN comes off the SAME source block (DN2) — a tee's dynamic "Type"
+            // property already carries both sizes ("200x50"), so no graph walk is needed.
+            string Branch() => NpplDn(NpplSourceDN(g.SourceHandle, map, DynamicProperty.DN2));
 
             switch (left)
             {
@@ -5764,16 +5768,22 @@ namespace IntersectUtilities
         private static string NpplComma(string s) => (s ?? "").Replace('.', ',');
         private static string NpplDn(int dn) => dn > 0 ? dn.ToString() : "xx";
 
-        // Main/single DN read directly from the source FJV component block (dynamic DN1).
-        private static int NpplSourceDN(string handle, Dictionary<string, Entity> map)
+        // DN read directly off the source FJV component block via the CSV component table:
+        // DN1 = main/run size, DN2 = branch size. For every tee/afgrening row both columns
+        // resolve to the block's dynamic "Type" property ("200x50"), so the component itself
+        // is the authority on its branch size. Returns 0 when unreadable (-> "xx").
+        // The Polyline fallback (GetPipeDN) only makes sense for the main size.
+        private static int NpplSourceDN(string handle, Dictionary<string, Entity> map,
+                                        DynamicProperty prop)
         {
             if (string.IsNullOrWhiteSpace(handle)) return 0;
             if (!map.TryGetValue(handle.Trim(), out var ent)) return 0;
             if (ent is BlockReference br)
             {
-                try { return System.Convert.ToInt32(br.ReadDynamicCsvProperty(DynamicProperty.DN1, true)); }
+                try { return System.Convert.ToInt32(br.ReadDynamicCsvProperty(prop, true)); }
                 catch { return 0; }
             }
+            if (prop != DynamicProperty.DN1) return 0;
             try { return GetPipeDN(ent); } catch { return 0; }
         }
 
@@ -5810,23 +5820,6 @@ namespace IntersectUtilities
             return NpplComma(deg.ToString("0.##", inv));
         }
 
-        // Branch DN for a tee: find the branch pipeline (by alignment name in RIGHTSIZE) in
-        // the network tree and read its DN at the point it connects to its parent.
-        private static int? NpplBranchDN(PipelineNetwork pn, string branchName)
-        {
-            if (pn == null || string.IsNullOrWhiteSpace(branchName)) return null;
-            var node = pn.PipelineGraphs.SelectMany(gr => gr)
-                .FirstOrDefault(n => n.Value.Name == branchName.Trim());
-            if (node?.Parent == null) return null;
-            try
-            {
-                Point3d con = node.Value.GetConnectionLocationToParent(node.Parent.Value, 0.05);
-                double st = node.Value.GetStationAtPoint(con);
-                return node.Value.PipelineSizes.GetSizeAtStation(st).DN;
-            }
-            catch { return null; }
-        }
-
         // Reducer before/after DN from the pipeline's size array (boundary nearest station),
         // plus whether the system is enkelt at that station (-> 2x prefix).
         private static (int before, int after, bool enkelt) NpplReducerDNs(
@@ -5846,6 +5839,39 @@ namespace IntersectUtilities
             }
             if (bi < 0) { int dn = sa.GetSizeAtStation(station).DN; return (dn, dn, enkelt); }
             return (sizes[bi].DN, sizes[bi + 1].DN, enkelt);
+        }
+
+        // Purge every NPPL from model space. The conversion pass only erases its SOURCES
+        // (Civil projection labels / DRISizeChangeAnno blocks), never labels it made
+        // earlier — so without this a second run stacks a whole new set of labels on top
+        // of the first. RESETPROFILEVIEWS is the clean-slate step every finalization
+        // starts from, which is where this belongs.
+        // Kept in its own method (and with no NPPL type in its signature) so the caller's
+        // JIT doesn't pull the interop in before EnsureLoaded() has loaded the dbx —
+        // same rule as NpplRun. Returns the number erased.
+        private static int NpplEraseAll(Database db)
+        {
+            NpplEnsureFactories();
+
+            int erased = 0;
+            using (Transaction tr = db.TransactionManager.StartTransaction())
+            {
+                var ms = (BlockTableRecord)tr.GetObject(
+                    SymbolUtilityServices.GetBlockModelSpaceId(db), OpenMode.ForRead);
+
+                // Collect first, erase after — don't mutate the BTR while iterating it.
+                var ids = new List<Oid>();
+                foreach (Oid id in ms)
+                    if (tr.GetObject(id, OpenMode.ForRead) is Npp) ids.Add(id);
+
+                foreach (Oid id in ids)
+                {
+                    ((Entity)tr.GetObject(id, OpenMode.ForWrite)).Erase();
+                    erased++;
+                }
+                tr.Commit();
+            }
+            return erased;
         }
 
         // Object factories aren't auto-registered when the interop is referenced (not
