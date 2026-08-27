@@ -3461,7 +3461,7 @@ namespace IntersectUtilities
 
         /// <command>FINDALIGNMENT</command>
         /// <summary>
-        /// Selects all entities that belong to a specific alignment.
+        /// Selects all entities that belong to a specific alignment and zooms to them.
         /// </summary>
         /// <category>Alignments</category>
         [CommandMethod("FINDALIGNMENT")]
@@ -3469,6 +3469,10 @@ namespace IntersectUtilities
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
+
+            // Zoom is applied after the transaction closes, so it isn't rolled back with it.
+            Extents3d? zoomTo = null;
+
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
@@ -3486,10 +3490,10 @@ namespace IntersectUtilities
                     sgf.ShowDialog();
                     if (sgf.SelectedValue != null)
                     {
-                        var result = ents.Where(x => psmPipeLineData
+                        var selected = ents.Where(x => psmPipeLineData
                         .FilterPropetyString(x, driPipelineData.BelongsToAlignment, sgf.SelectedValue))
-                        .Select(x => x.Id)
                         .ToArray();
+                        var result = selected.Select(x => x.Id).ToArray();
                         if (result.Length == 0)
                         {
                             prdDbg("No entities found with this alignment name!");
@@ -3499,6 +3503,22 @@ namespace IntersectUtilities
                         docCol.MdiActiveDocument.Editor.SetImpliedSelection(
                             result
                             );
+
+                        // Union of the selection's extents; entities without valid extents are skipped.
+                        foreach (var ent in selected)
+                        {
+                            Extents3d ext;
+                            try { ext = ent.GeometricExtents; }
+                            catch { continue; }
+
+                            if (zoomTo.HasValue)
+                            {
+                                var acc = zoomTo.Value;
+                                acc.AddExtents(ext);
+                                zoomTo = acc;
+                            }
+                            else zoomTo = ext;
+                        }
                     }
                     else { prdDbg("Cancelled!"); }
                 }
@@ -3509,6 +3529,17 @@ namespace IntersectUtilities
                     return;
                 }
                 tx.Commit();
+            }
+
+            if (zoomTo.HasValue)
+            {
+                var e = zoomTo.Value;
+                // Pad by a fraction of the larger side so the alignment doesn't fill the viewport edge-to-edge.
+                double pad = Math.Max(
+                    Math.Max(e.MaxPoint.X - e.MinPoint.X, e.MaxPoint.Y - e.MinPoint.Y), 1.0) * 0.05;
+                Interaction.ZoomView(new Extents3d(
+                    new Point3d(e.MinPoint.X - pad, e.MinPoint.Y - pad, 0),
+                    new Point3d(e.MaxPoint.X + pad, e.MaxPoint.Y + pad, 0)));
             }
         }
 

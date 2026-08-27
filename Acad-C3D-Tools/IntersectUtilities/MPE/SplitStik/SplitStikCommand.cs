@@ -1,0 +1,163 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+
+using Autodesk.AutoCAD.Runtime;
+
+using IntersectUtilities.MPE.SplitStik;
+
+using static IntersectUtilities.UtilsCommon.Utils;
+
+using OpenFileDialog = Microsoft.Win32.OpenFileDialog;
+
+namespace IntersectUtilities
+{
+    public partial class Intersect
+    {
+        private const string SplitStikStikSuffix = " - Stik";
+        private const string SplitStikHovedSuffix = " - Hovedledning";
+
+        /// <command>SPLITSTIK</command>
+        /// <summary>
+        /// Imports a DimensioneringV2 result file (.d2r) and writes the calculated network out as
+        /// two standalone drawings next to it: one holding only the stikledninger and one holding
+        /// only the hovedledningerne. Both are named after the result's own Id, e.g.
+        /// "Calc 012 - Stik.dwg" and "Calc 012 - Hovedledning.dwg", and are overwritten on re-run.
+        /// Each stikledning becomes its own polyline. Hovedledninger are merged into continuous
+        /// runs that are broken only where the dimension changes — a run therefore passes straight
+        /// through a stik branch, and splits at every genuine network junction. Polylines get the
+        /// usual FJV layer, constant width, linetype and Plinegen, plus NORSYN_NHS_PIPE XData
+        /// carrying the pipe family, the FL/SL role and the DN, because the layer name alone cannot
+        /// distinguish a fordelingsledning from a stikledning. Segments that DimensioneringV2 never
+        /// sized are skipped and reported. The active drawing is not modified.
+        /// </summary>
+        /// <category>Dimensionering</category>
+        [CommandMethod("SPLITSTIK")]
+        public void splitstik()
+        {
+            OpenFileDialog dialog = new()
+            {
+                Title = "Choose the DimensioneringV2 result file to import: ",
+                DefaultExt = "d2r",
+                Filter = "D2R Files (*.d2r)|*.d2r|All Files (*.*)|*.*",
+                CheckFileExists = true,
+                FilterIndex = 0,
+            };
+
+            if (dialog.ShowDialog() != true) return;
+            string d2rPath = dialog.FileName;
+
+            try
+            {
+                D2rNetwork network = D2rReader.Read(d2rPath);
+
+                prdDbg(
+                    $"Read \"{network.Id ?? Path.GetFileNameWithoutExtension(d2rPath)}\" "
+                        + $"(FormatVersion {network.FormatVersion}, calculated "
+                        + $"{network.CalculatedAt ?? "at an unknown time"}).");
+
+                SplitStikStats stats = new();
+                List<PipeRun> runs = new();
+                int vertexCount = 0;
+
+                foreach (D2rGraph graph in network.Graphs)
+                {
+                    vertexCount += graph.Vertices.Count;
+                    runs.AddRange(SplitStikRunBuilder.Build(graph, stats));
+                }
+
+                prdDbg(
+                    $"{network.Graphs.Count} graph(s), {vertexCount} vertices, "
+                        + $"{stats.TotalEdges} edges.");
+
+                if (runs.Count == 0)
+                {
+                    prdDbg("Nothing to draw — no sized segments found. Aborting.");
+                    return;
+                }
+
+                List<PipeRun> stik = runs.Where(x => x.IsServiceLine).ToList();
+                List<PipeRun> hoved = runs.Where(x => !x.IsServiceLine).ToList();
+
+                string folder =
+                    Path.GetDirectoryName(d2rPath)
+                    ?? throw new InvalidOperationException(
+                        $"Cannot determine the folder of \"{d2rPath}\".");
+
+                string baseName = SanitizeFileName(
+                    string.IsNullOrWhiteSpace(network.Id)
+                        ? Path.GetFileNameWithoutExtension(d2rPath)
+                        : network.Id!);
+
+                string stikPath = Path.Combine(folder, baseName + SplitStikStikSuffix + ".dwg");
+                string hovedPath = Path.Combine(folder, baseName + SplitStikHovedSuffix + ".dwg");
+
+                int stikWritten = SplitStikWriter.Write(stikPath, stik, stats);
+                prdDbg($"{stikWritten} stikledninger -> {stikPath}");
+
+                int hovedWritten = SplitStikWriter.Write(hovedPath, hoved, stats);
+                prdDbg($"{hovedWritten} hovedledninger -> {hovedPath}");
+
+                ReportStats(stats, hoved);
+                prdDbg("Finished!");
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg(ex);
+            }
+        }
+
+        private static void ReportStats(SplitStikStats stats, IReadOnlyList<PipeRun> hoved)
+        {
+            if (hoved.Count > 0)
+            {
+                int merged = stats.MainEdgesUsed - hoved.Count;
+                prdDbg(
+                    $"Hovedledning: {stats.MainEdgesUsed} edges merged into {hoved.Count} runs "
+                        + $"({merged} joins), total length "
+                        + $"{hoved.Sum(x => x.SourceLength):F3} m.");
+            }
+
+            if (stats.EdgesPerSubGraph.Count > 1)
+                prdDbg(
+                    "Subgraphs (all imported): "
+                        + string.Join(
+                            ", ",
+                            stats.EdgesPerSubGraph.Select(x => $"{x.Key}={x.Value} edges")));
+
+            if (!stats.HasAnomalies) return;
+
+            prdDbg("--- Skipped / anomalies ---");
+
+            if (stats.SkippedNoDim > 0)
+                prdDbg(
+                    $"{stats.SkippedNoDim} segment(s) had no dimension and were skipped "
+                        + "(they supply nothing).");
+
+            if (stats.SkippedDegenerateGeometry > 0)
+                prdDbg(
+                    $"{stats.SkippedDegenerateGeometry} segment(s) had fewer than 2 vertices "
+                        + "and were skipped.");
+
+            if (stats.SkippedUnknownType > 0)
+                prdDbg(
+                    $"{stats.SkippedUnknownType} segment(s) had an unknown type tag "
+                        + $"({string.Join(", ", stats.UnknownTypeTags)}) and were skipped.");
+
+            if (stats.SkippedUnknownFamily > 0)
+                prdDbg(
+                    $"{stats.SkippedUnknownFamily} run(s) had an unknown pipe family "
+                        + $"({string.Join(", ", stats.UnknownFamilies)}) and were skipped. "
+                        + "Add a case to SplitStikWriter.TranslateFamilyNameToSystem.");
+
+            if (stats.SeamMismatches > 0)
+                prdDbg(
+                    $"{stats.SeamMismatches} chain(s) were split early because the geometry did "
+                        + "not meet at the shared node.");
+        }
+
+        private static string SanitizeFileName(string name) =>
+            string.Join("_", name.Split(Path.GetInvalidFileNameChars())).Trim();
+    }
+}
