@@ -1,4 +1,4 @@
-using Autodesk.AutoCAD.ApplicationServices;
+﻿using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
@@ -5462,6 +5462,8 @@ namespace IntersectUtilities
 
         private static readonly Regex s_npplBareDnRx =
             new(@"^DN\s*\d+$", RegexOptions.Compiled);
+        private static readonly Regex s_npplSizeTailRx =
+            new(@"(?<dn>\d+)$", RegexOptions.Compiled);
         private static readonly Regex s_npplLBendRx =
             new(@"^Præisoleret bøjning, L\s*([\d.,]+)x([\d.,]+)\s*m,\s*V\s*([\d.,]+)°?$",
                 RegexOptions.Compiled);
@@ -5606,10 +5608,11 @@ namespace IntersectUtilities
                 var map = new Dictionary<string, Entity>();
                 foreach (var e in ents) map[e.Handle.ToString()] = e;
 
-                // The network is only needed for tee branch DN + reducer before/after. If it
-                // fails to build (e.g. a malformed connection string on one Fremtid entity),
-                // don't lose every label — degrade those two cases to "xx" and carry on; the
-                // main/single DN comes from the source handle and needs no network.
+                // Every DN is now read off the annotation/source block itself. The network
+                // survives for exactly one thing: telling Enkelt from Twin at a reducer, so
+                // the label can say "2x". If it fails to build (e.g. a malformed connection
+                // string on one Fremtid entity), don't lose every label — drop the "2x" and
+                // carry on; all sizes stay correct.
                 PipelineNetwork pn = null;
                 try
                 {
@@ -5704,24 +5707,31 @@ namespace IntersectUtilities
             if (left.Length == 0) return null;
 
             // Type B: bare "DN nnn" — reducer (mid) or terminal callout (start/end -> ignore).
+            // CREATEDETAILING stamps the whole transition onto the annotation block itself:
+            // LEFTSIZE = the size BEFORE the change, RIGHTSIZE = the size AFTER, both taken
+            // from consecutive SizeArray entries, so they are already in station order.
+            // (These blocks carry no source reference — the size array, not a component
+            // block, is what produced them.)
             if (s_npplBareDnRx.IsMatch(left))
             {
                 if (g.AtViewEnd) return null;
-                var (b, a, enkelt) = NpplReducerDNs(pn, g.ViewAlignment, g.Station);
-                forceTwoX = enkelt;
-                return $"Reduzierungen DN {NpplDn(b)}/{NpplDn(a)}";
+                forceTwoX = NpplIsEnkeltAt(pn, g.ViewAlignment, g.Station);
+                return $"Reduzierungen DN {NpplDn(NpplSizeTextDN(left))}/" +
+                       $"{NpplDn(NpplSizeTextDN(g.Right))}";
             }
 
             // Type A: main DN from the source component block (DN1).
-            int mainDn = NpplSourceDN(g.SourceHandle, map);
-            string dn = mainDn > 0 ? mainDn.ToString() : "xx";
+            int mainDn = NpplSourceDN(g.SourceHandle, map, DynamicProperty.DN1);
+            string dn = NpplDn(mainDn);
 
             var mL = s_npplLBendRx.Match(left);
             if (mL.Success)
                 return $"Bogen DN {dn}, L.{NpplComma(mL.Groups[1].Value)}x" +
                        $"{NpplComma(mL.Groups[2].Value)} m, W. {NpplComma(mL.Groups[3].Value)}°";
 
-            string Branch() { var d = NpplBranchDN(pn, g.Right); return d.HasValue ? d.Value.ToString() : "xx"; }
+            // Branch DN comes off the SAME source block (DN2) — a tee's dynamic "Type"
+            // property already carries both sizes ("200x50"), so no graph walk is needed.
+            string Branch() => NpplDn(NpplSourceDN(g.SourceHandle, map, DynamicProperty.DN2));
 
             switch (left)
             {
@@ -5744,11 +5754,16 @@ namespace IntersectUtilities
                 case "Parallelafgrening":
                 case "Afgrening, parallel": return $"Parallel-Abzweig DN {dn}/{Branch()}";
                 case "Afgreningsstuds": return $"Anbohrung DN {dn}/{Branch()}";
+                // Unreachable with the current detailing commands — both CREATEDETAILING and
+                // CREATEDETAILINGPRELIMINARY skip Reduktion component blocks, so a reducer
+                // only ever reaches us as the Type B size-change block above. Kept for
+                // legacy drawings; DN1/DN2 come off the source block (the CSV normalises
+                // which end is which per block version).
                 case "Reduktion":
                     {
-                        var (b, a, enkelt) = NpplReducerDNs(pn, g.ViewAlignment, g.Station);
-                        forceTwoX = enkelt;
-                        return $"Reduzierungen DN {NpplDn(b)}/{NpplDn(a)}";
+                        forceTwoX = NpplIsEnkeltAt(pn, g.ViewAlignment, g.Station);
+                        return $"Reduzierungen DN {dn}/" +
+                               $"{NpplDn(NpplSourceDN(g.SourceHandle, map, DynamicProperty.DN2))}";
                     }
                 case "Engangsventil": return $"Einmalkugelhahn DN {dn}";
                 // Both valve types read "Erdeinbau-Kugelhahn" in DE — the vent
@@ -5764,16 +5779,22 @@ namespace IntersectUtilities
         private static string NpplComma(string s) => (s ?? "").Replace('.', ',');
         private static string NpplDn(int dn) => dn > 0 ? dn.ToString() : "xx";
 
-        // Main/single DN read directly from the source FJV component block (dynamic DN1).
-        private static int NpplSourceDN(string handle, Dictionary<string, Entity> map)
+        // DN read directly off the source FJV component block via the CSV component table:
+        // DN1 = main/run size, DN2 = branch size. For every tee/afgrening row both columns
+        // resolve to the block's dynamic "Type" property ("200x50"), so the component itself
+        // is the authority on its branch size. Returns 0 when unreadable (-> "xx").
+        // The Polyline fallback (GetPipeDN) only makes sense for the main size.
+        private static int NpplSourceDN(string handle, Dictionary<string, Entity> map,
+                                        DynamicProperty prop)
         {
             if (string.IsNullOrWhiteSpace(handle)) return 0;
             if (!map.TryGetValue(handle.Trim(), out var ent)) return 0;
             if (ent is BlockReference br)
             {
-                try { return System.Convert.ToInt32(br.ReadDynamicCsvProperty(DynamicProperty.DN1, true)); }
+                try { return System.Convert.ToInt32(br.ReadDynamicCsvProperty(prop, true)); }
                 catch { return 0; }
             }
+            if (prop != DynamicProperty.DN1) return 0;
             try { return GetPipeDN(ent); } catch { return 0; }
         }
 
@@ -5810,42 +5831,59 @@ namespace IntersectUtilities
             return NpplComma(deg.ToString("0.##", inv));
         }
 
-        // Branch DN for a tee: find the branch pipeline (by alignment name in RIGHTSIZE) in
-        // the network tree and read its DN at the point it connects to its parent.
-        private static int? NpplBranchDN(PipelineNetwork pn, string branchName)
+        // Trailing number of a LEFTSIZE/RIGHTSIZE size callout ("DN 150" -> 150). 0 when the
+        // attribute is empty, which is how CREATEDETAILING marks the open side of a
+        // start-/end-of-view callout.
+        private static int NpplSizeTextDN(string sizeText)
         {
-            if (pn == null || string.IsNullOrWhiteSpace(branchName)) return null;
-            var node = pn.PipelineGraphs.SelectMany(gr => gr)
-                .FirstOrDefault(n => n.Value.Name == branchName.Trim());
-            if (node?.Parent == null) return null;
-            try
-            {
-                Point3d con = node.Value.GetConnectionLocationToParent(node.Parent.Value, 0.05);
-                double st = node.Value.GetStationAtPoint(con);
-                return node.Value.PipelineSizes.GetSizeAtStation(st).DN;
-            }
-            catch { return null; }
+            if (string.IsNullOrWhiteSpace(sizeText)) return 0;
+            var m = s_npplSizeTailRx.Match(sizeText.Trim());
+            return m.Success && int.TryParse(m.Groups["dn"].Value, out int dn) ? dn : 0;
         }
 
-        // Reducer before/after DN from the pipeline's size array (boundary nearest station),
-        // plus whether the system is enkelt at that station (-> 2x prefix).
-        private static (int before, int after, bool enkelt) NpplReducerDNs(
-            PipelineNetwork pn, string alName, double station)
+        // Is the pipeline Enkelt at this station? Enkelt runs frem and retur as two separate
+        // pipes, so one size change means two physical reducers but only one annotation block
+        // -> the label gets a "2x" prefix. This is the ONE fact the annotation block does not
+        // record, so it still needs the network; false (no prefix) when unavailable.
+        private static bool NpplIsEnkeltAt(PipelineNetwork pn, string alName, double station)
         {
-            if (pn == null) return (0, 0, false);
-            var sa = pn.GetPipeline(alName)?.PipelineSizes;
-            if (sa == null || sa.Length == 0) return (0, 0, false);
-            bool enkelt = sa.GetSizeAtStation(station).Type == PipeTypeEnum.Enkelt;
-            var sizes = sa.Sizes.ToList();
-            int bi = -1; double best = double.MaxValue;
-            for (int i = 0; i < sizes.Count - 1; i++)
+            var sa = pn?.GetPipeline(alName)?.PipelineSizes;
+            if (sa == null || sa.Length == 0) return false;
+            try { return sa.GetSizeAtStation(station).Type == PipeTypeEnum.Enkelt; }
+            catch { return false; }
+        }
+
+        // Purge every NPPL from model space. The conversion pass only erases its SOURCES
+        // (Civil projection labels / DRISizeChangeAnno blocks), never labels it made
+        // earlier — so without this a second run stacks a whole new set of labels on top
+        // of the first. RESETPROFILEVIEWS is the clean-slate step every finalization
+        // starts from, which is where this belongs.
+        // Kept in its own method (and with no NPPL type in its signature) so the caller's
+        // JIT doesn't pull the interop in before EnsureLoaded() has loaded the dbx —
+        // same rule as NpplRun. Returns the number erased.
+        private static int NpplEraseAll(Database db)
+        {
+            NpplEnsureFactories();
+
+            int erased = 0;
+            using (Transaction tr = db.TransactionManager.StartTransaction())
             {
-                if (sizes[i].DN == sizes[i + 1].DN) continue;
-                double d = System.Math.Abs(sizes[i].EndStation - station);
-                if (d < best) { best = d; bi = i; }
+                var ms = (BlockTableRecord)tr.GetObject(
+                    SymbolUtilityServices.GetBlockModelSpaceId(db), OpenMode.ForRead);
+
+                // Collect first, erase after — don't mutate the BTR while iterating it.
+                var ids = new List<Oid>();
+                foreach (Oid id in ms)
+                    if (tr.GetObject(id, OpenMode.ForRead) is Npp) ids.Add(id);
+
+                foreach (Oid id in ids)
+                {
+                    ((Entity)tr.GetObject(id, OpenMode.ForWrite)).Erase();
+                    erased++;
+                }
+                tr.Commit();
             }
-            if (bi < 0) { int dn = sa.GetSizeAtStation(station).DN; return (dn, dn, enkelt); }
-            return (sizes[bi].DN, sizes[bi + 1].DN, enkelt);
+            return erased;
         }
 
         // Object factories aren't auto-registered when the interop is referenced (not

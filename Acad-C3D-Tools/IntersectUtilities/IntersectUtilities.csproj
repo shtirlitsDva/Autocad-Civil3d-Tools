@@ -148,9 +148,16 @@
 	<!-- On-demand loader (shared source from the NorsynDrawingTools repo). Provides
 	     NorsynProjectionProfileLabelLoader.EnsureLoaded(), called at the start of any
 	     command that uses NPPL types so the proxy-only dbx is loaded before the interop.
-	     ABSOLUTE path on purpose: this repo lives on H:\ but NorsynDrawingTools lives on
-	     X:\, and a relative Import cannot cross drives. -->
-	<Import Project="X:\GitHub\DamgaardRI\NorsynDrawingTools\managed\NorsynOnDemandLoadingSHARED\NorsynOnDemandLoadingSHARED.projitems" Label="Shared" />
+	     Prefer the shared X: workspace path, with a local source\repos fallback for machines
+	     where the DamgaardRI repo is not mounted on X:. -->
+	<PropertyGroup>
+		<NorsynDrawingToolsRoot Condition="'$(NorsynDrawingToolsRoot)' == '' And Exists('X:\GitHub\DamgaardRI\NorsynDrawingTools\managed\NorsynOnDemandLoadingSHARED\NorsynOnDemandLoadingSHARED.projitems')">X:\GitHub\DamgaardRI\NorsynDrawingTools</NorsynDrawingToolsRoot>
+		<NorsynDrawingToolsRoot Condition="'$(NorsynDrawingToolsRoot)' == '' And Exists('$(USERPROFILE)\source\repos\DamgaardRI\NorsynDrawingTools\managed\NorsynOnDemandLoadingSHARED\NorsynOnDemandLoadingSHARED.projitems')">$(USERPROFILE)\source\repos\DamgaardRI\NorsynDrawingTools</NorsynDrawingToolsRoot>
+	</PropertyGroup>
+	<Import Project="$(NorsynDrawingToolsRoot)\managed\NorsynOnDemandLoadingSHARED\NorsynOnDemandLoadingSHARED.projitems" Label="Shared" Condition="'$(NorsynDrawingToolsRoot)' != ''" />
+	<Target Name="ValidateNorsynOnDemandLoadingSharedImport" BeforeTargets="BeforeBuild" Condition="'$(NorsynDrawingToolsRoot)' == ''">
+		<Error Text="Could not find NorsynOnDemandLoadingSHARED.projitems. Set NorsynDrawingToolsRoot to the NorsynDrawingTools repo root, or clone/mount it at X:\GitHub\DamgaardRI\NorsynDrawingTools or $(USERPROFILE)\source\repos\DamgaardRI\NorsynDrawingTools." />
+	</Target>
 	<ItemGroup>
 		<Content Include="DebugCommandLineAttribute.txt" />
 	</ItemGroup>

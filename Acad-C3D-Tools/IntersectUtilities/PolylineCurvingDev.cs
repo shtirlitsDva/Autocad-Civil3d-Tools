@@ -1,4 +1,4 @@
-﻿using Autodesk.AutoCAD.ApplicationServices;
+using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
@@ -39,18 +39,8 @@ namespace IntersectUtilities
     /// <summary>
     /// Class for intersection tools.
     /// </summary>
-    public class PolylineCurvingDev : IExtensionApplication
+    public class PolylineCurvingDev
     {
-        #region IExtensionApplication members
-        public void Initialize()
-        {
-        }
-
-        public void Terminate()
-        {
-        }
-        #endregion
-
         [CommandMethod("CALCULATESLOPE")]
         public void calculateslope()
         {

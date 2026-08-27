@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -51,12 +51,29 @@ namespace NSLOAD
                 exportedTypes = ex.Types.Where(t => t != null).ToArray()!;
             }
 
-            foreach (Type type in exportedTypes)
+            // Same two branches AutoCAD's own loader takes: the assembly-level
+            // [ExtensionApplication] names the type outright, and only without
+            // one does the first non-abstract exported implementation win. An
+            // assembly can export several implementations, so scanning where the
+            // author declared a type would pick a different one than AutoCAD did.
+            Type? declared = pluginAssembly
+                .GetCustomAttributes<Autodesk.AutoCAD.Runtime.ExtensionApplicationAttribute>()
+                .FirstOrDefault()?.Type;
+
+            if (declared != null)
             {
-                if (typeof(TPlugin).IsAssignableFrom(type) && !type.IsAbstract)
+                if (typeof(TPlugin).IsAssignableFrom(declared) && !declared.IsAbstract)
+                    pluginType = declared;
+            }
+            else
+            {
+                foreach (Type type in exportedTypes)
                 {
-                    pluginType = type;
-                    break;
+                    if (typeof(TPlugin).IsAssignableFrom(type) && !type.IsAbstract)
+                    {
+                        pluginType = type;
+                        break;
+                    }
                 }
             }
 

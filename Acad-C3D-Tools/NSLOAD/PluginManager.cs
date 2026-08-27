@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -158,6 +158,14 @@ namespace NSLOAD
             }
 
             var plugin = reg.Host.Load(reg.DllPath, sharedNames);
+
+            // Before the commands, matching the order AutoCAD's own scan used:
+            // it initialized the plugin during LoadFromStream, and NSLOAD
+            // registered commands afterwards. Guarded, because when suppression
+            // is off the host has already called this and a second call would
+            // initialize the plugin twice.
+            if (AutoCadScanSuppressor.IsActive)
+                plugin.Initialize();
 
             if (reg.Registrar != null)
                 reg.Registrar.RegisterFromAssembly(reg.Host.LoadedAssembly!);

@@ -1,4 +1,4 @@
-using Autodesk.AutoCAD.ApplicationServices;
+﻿using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
@@ -663,7 +663,8 @@ namespace IntersectUtilities
 
         /// <command>RESETPROFILEVIEWS</command>
         /// <summary>
-        /// Resets the profile views by deleting detailing and cogo points, 
+        /// Resets the profile views by deleting detailing, cogo points and any
+        /// NorsynProjectionProfileLabels from a previous DE finalization,
         /// and setting styles with no scale in preparation for finalization.
         /// Use this command to reset profile views that already have beed finalized.
         /// </summary>
@@ -678,6 +679,16 @@ namespace IntersectUtilities
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
             deletedetailingmethod(localDb);
+
+            // NPPLs (DE finalization) are a custom object class, so nothing in the block/
+            // MLeader/CogoPoint cleanup above can see them. NpplRun only erases its SOURCES,
+            // never the labels a previous run made — so unless they are purged here, a second
+            // finalization stacks a whole new set of labels on top of the old one.
+            // EnsureLoaded first: the dbx must be present before the interop is touched, and
+            // the erase lives in NpplEraseAll so this method's JIT never pulls it in early.
+            Norsyn.OnDemandLoading.NorsynProjectionProfileLabelLoader.EnsureLoaded();
+            int npplErased = NpplEraseAll(localDb);
+            if (npplErased > 0) prdDbg($"RESETPROFILEVIEWS: erased {npplErased} NPPL(s).");
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
