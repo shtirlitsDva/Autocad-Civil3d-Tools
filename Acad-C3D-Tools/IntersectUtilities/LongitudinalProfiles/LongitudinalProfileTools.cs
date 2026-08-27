@@ -5462,6 +5462,8 @@ namespace IntersectUtilities
 
         private static readonly Regex s_npplBareDnRx =
             new(@"^DN\s*\d+$", RegexOptions.Compiled);
+        private static readonly Regex s_npplSizeTailRx =
+            new(@"(?<dn>\d+)$", RegexOptions.Compiled);
         private static readonly Regex s_npplLBendRx =
             new(@"^Præisoleret bøjning, L\s*([\d.,]+)x([\d.,]+)\s*m,\s*V\s*([\d.,]+)°?$",
                 RegexOptions.Compiled);
@@ -5606,12 +5608,11 @@ namespace IntersectUtilities
                 var map = new Dictionary<string, Entity>();
                 foreach (var e in ents) map[e.Handle.ToString()] = e;
 
-                // The network is only needed for the reducer before/after DNs (which are
-                // station-ordered, so they cannot be read off the block: an inserted reducer
-                // may be rotated 180 deg). If it fails to build (e.g. a malformed connection
-                // string on one Fremtid entity), don't lose every label — degrade that one
-                // case to "xx" and carry on; every other DN (main DN1, tee branch DN2) is
-                // read straight off the source component block and needs no network.
+                // Every DN is now read off the annotation/source block itself. The network
+                // survives for exactly one thing: telling Enkelt from Twin at a reducer, so
+                // the label can say "2x". If it fails to build (e.g. a malformed connection
+                // string on one Fremtid entity), don't lose every label — drop the "2x" and
+                // carry on; all sizes stay correct.
                 PipelineNetwork pn = null;
                 try
                 {
@@ -5706,12 +5707,17 @@ namespace IntersectUtilities
             if (left.Length == 0) return null;
 
             // Type B: bare "DN nnn" — reducer (mid) or terminal callout (start/end -> ignore).
+            // CREATEDETAILING stamps the whole transition onto the annotation block itself:
+            // LEFTSIZE = the size BEFORE the change, RIGHTSIZE = the size AFTER, both taken
+            // from consecutive SizeArray entries, so they are already in station order.
+            // (These blocks carry no source reference — the size array, not a component
+            // block, is what produced them.)
             if (s_npplBareDnRx.IsMatch(left))
             {
                 if (g.AtViewEnd) return null;
-                var (b, a, enkelt) = NpplReducerDNs(pn, g.ViewAlignment, g.Station);
-                forceTwoX = enkelt;
-                return $"Reduzierungen DN {NpplDn(b)}/{NpplDn(a)}";
+                forceTwoX = NpplIsEnkeltAt(pn, g.ViewAlignment, g.Station);
+                return $"Reduzierungen DN {NpplDn(NpplSizeTextDN(left))}/" +
+                       $"{NpplDn(NpplSizeTextDN(g.Right))}";
             }
 
             // Type A: main DN from the source component block (DN1).
@@ -5748,11 +5754,16 @@ namespace IntersectUtilities
                 case "Parallelafgrening":
                 case "Afgrening, parallel": return $"Parallel-Abzweig DN {dn}/{Branch()}";
                 case "Afgreningsstuds": return $"Anbohrung DN {dn}/{Branch()}";
+                // Unreachable with the current detailing commands — both CREATEDETAILING and
+                // CREATEDETAILINGPRELIMINARY skip Reduktion component blocks, so a reducer
+                // only ever reaches us as the Type B size-change block above. Kept for
+                // legacy drawings; DN1/DN2 come off the source block (the CSV normalises
+                // which end is which per block version).
                 case "Reduktion":
                     {
-                        var (b, a, enkelt) = NpplReducerDNs(pn, g.ViewAlignment, g.Station);
-                        forceTwoX = enkelt;
-                        return $"Reduzierungen DN {NpplDn(b)}/{NpplDn(a)}";
+                        forceTwoX = NpplIsEnkeltAt(pn, g.ViewAlignment, g.Station);
+                        return $"Reduzierungen DN {dn}/" +
+                               $"{NpplDn(NpplSourceDN(g.SourceHandle, map, DynamicProperty.DN2))}";
                     }
                 case "Engangsventil": return $"Einmalkugelhahn DN {dn}";
                 // Both valve types read "Erdeinbau-Kugelhahn" in DE — the vent
@@ -5820,25 +5831,26 @@ namespace IntersectUtilities
             return NpplComma(deg.ToString("0.##", inv));
         }
 
-        // Reducer before/after DN from the pipeline's size array (boundary nearest station),
-        // plus whether the system is enkelt at that station (-> 2x prefix).
-        private static (int before, int after, bool enkelt) NpplReducerDNs(
-            PipelineNetwork pn, string alName, double station)
+        // Trailing number of a LEFTSIZE/RIGHTSIZE size callout ("DN 150" -> 150). 0 when the
+        // attribute is empty, which is how CREATEDETAILING marks the open side of a
+        // start-/end-of-view callout.
+        private static int NpplSizeTextDN(string sizeText)
         {
-            if (pn == null) return (0, 0, false);
-            var sa = pn.GetPipeline(alName)?.PipelineSizes;
-            if (sa == null || sa.Length == 0) return (0, 0, false);
-            bool enkelt = sa.GetSizeAtStation(station).Type == PipeTypeEnum.Enkelt;
-            var sizes = sa.Sizes.ToList();
-            int bi = -1; double best = double.MaxValue;
-            for (int i = 0; i < sizes.Count - 1; i++)
-            {
-                if (sizes[i].DN == sizes[i + 1].DN) continue;
-                double d = System.Math.Abs(sizes[i].EndStation - station);
-                if (d < best) { best = d; bi = i; }
-            }
-            if (bi < 0) { int dn = sa.GetSizeAtStation(station).DN; return (dn, dn, enkelt); }
-            return (sizes[bi].DN, sizes[bi + 1].DN, enkelt);
+            if (string.IsNullOrWhiteSpace(sizeText)) return 0;
+            var m = s_npplSizeTailRx.Match(sizeText.Trim());
+            return m.Success && int.TryParse(m.Groups["dn"].Value, out int dn) ? dn : 0;
+        }
+
+        // Is the pipeline Enkelt at this station? Enkelt runs frem and retur as two separate
+        // pipes, so one size change means two physical reducers but only one annotation block
+        // -> the label gets a "2x" prefix. This is the ONE fact the annotation block does not
+        // record, so it still needs the network; false (no prefix) when unavailable.
+        private static bool NpplIsEnkeltAt(PipelineNetwork pn, string alName, double station)
+        {
+            var sa = pn?.GetPipeline(alName)?.PipelineSizes;
+            if (sa == null || sa.Length == 0) return false;
+            try { return sa.GetSizeAtStation(station).Type == PipeTypeEnum.Enkelt; }
+            catch { return false; }
         }
 
         // Purge every NPPL from model space. The conversion pass only erases its SOURCES
