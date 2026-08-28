@@ -436,7 +436,10 @@ namespace IntersectUtilities.GraphWriteV2
         }
         private static bool IsSpecialTransitionNode(PipelineElementType kind)
         {
-            return kind == PipelineElementType.F_Model || kind == PipelineElementType.Y_Model;
+            return 
+                kind == PipelineElementType.F_Model ||
+                kind == PipelineElementType.Y_Model ||
+                kind == PipelineElementType.H_Model;
         }
         private static bool IsFremOrRetur(PipeTypeEnum t)
         {

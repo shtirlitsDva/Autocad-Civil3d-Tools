@@ -124,6 +124,7 @@ namespace IntersectUtilities.UtilsCommon.Enums
         Stikafgrening, 
         Muffetee, //TeeFormstykke
         Materialeskift, //Materialeskift
+        H_Model,
     }
     #endregion
 

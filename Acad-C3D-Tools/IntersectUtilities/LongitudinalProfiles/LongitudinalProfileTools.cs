@@ -1,4 +1,4 @@
-﻿using Autodesk.AutoCAD.ApplicationServices;
+using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
@@ -2661,7 +2661,7 @@ namespace IntersectUtilities
             Database dB = database ?? docCol.MdiActiveDocument.Database;
             Editor ed = docCol.MdiActiveDocument.Editor;
 
-            Dictionary<string, Polyline> alPlDict = new Dictionary<string, Polyline>();
+            Dictionary<Alignment, Polyline> alPlDict = new();
 
             using (Transaction tx = dB.TransactionManager.StartTransaction())
             {
@@ -2688,17 +2688,14 @@ namespace IntersectUtilities
                 string weldNumberBlockName = "DRIWeldAnnoText";
                 //////////////////////////////////////
 
+                
+
                 try
                 {
                     #region Common variables
                     BlockTable bt = tx.GetObject(dB.BlockTableId, OpenMode.ForRead) as BlockTable;
                     HashSet<Alignment> als = dB.HashSetOfType<Alignment>(tx);
-                    foreach (Alignment al in als)
-                    {
-                        Polyline alPline = al.GetPolyline().Go<Polyline>(tx)!;
-                        if (alPline == null) continue;
-                        alPlDict.Add(al.Name, alPline);
-                    }
+                    alPlDict = als.ToDictionary(x => x, y => y.GetPolyline().Go<Polyline>(tx));
                     #endregion
 
                     #region Initialize PS for source object reference
@@ -3580,7 +3577,7 @@ namespace IntersectUtilities
                                             //Determine if centre of arc is within view
                                             CircularArc2d arcSegment2dAt = pline.GetArcSegment2dAt(i);
                                             Point2d samplePoint = ((Curve2d)arcSegment2dAt).GetSamplePoints(11)[5];
-                                            Point3d location = alPlDict[al.Name].GetClosestPointTo(
+                                            Point3d location = alPlDict[al].GetClosestPointTo(
                                                 new Point3d(samplePoint.X, samplePoint.Y, 0),
                                                 false);
                                             double centreStation = 0;
@@ -3632,7 +3629,7 @@ namespace IntersectUtilities
                                                 ref offset
                                             );
 
-                                            location = al.GetClosestPointTo(
+                                            location = alPlDict[al].GetClosestPointTo(
                                                 pline.GetPoint3dAt(i + 1),
                                                 false
                                             );
@@ -8186,13 +8183,7 @@ namespace IntersectUtilities
 
             // open the xref database
             using Database fremDb = dm.Fremtid();
-            using Transaction fremTx = fremDb.TransactionManager.StartTransaction();
-
-            HashSet<Curve> allCurves = fremDb.GetFjvPipes(fremTx).Cast<Curve>().ToHashSet();
-            var allBrs = fremDb
-                .GetFjvEntities(fremTx)
-                .Where(x => x is BlockReference)
-                .Cast<BlockReference>();
+            using Transaction fremTx = fremDb.TransactionManager.StartTransaction();            
             #endregion
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
@@ -8244,33 +8235,17 @@ namespace IntersectUtilities
                                 $"Alignment {al.Name} does not have required number of profile views!\n"
                                     + $"Has {vs.Count()} but we are expecting 1."
                             );
-                        #endregion
-
-                        #region GetCurvesAndBRs from fremtidig
-                        HashSet<Curve> curves = allCurves
-                            .Where(x =>
-                                psmPipeLineData.FilterPropetyString(
-                                    x,
-                                    driPipelineData.BelongsToAlignment,
-                                    al.Name
-                                )
-                            )
-                            .ToHashSet();
-
-                        HashSet<BlockReference> brs = allBrs
-                            .Where(x =>
-                                psmPipeLineData.FilterPropetyString(
-                                    x,
-                                    driPipelineData.BelongsToAlignment,
-                                    al.Name
-                                )
-                            )
-                            .ToHashSet();
-                        prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
-                        #endregion
+                        #endregion                        
 
                         #region Build size array
-                        PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves, brs);
+                        var sizeArray =
+                            PipelineSizeArrayFactory.CreateSizeArray(
+                                PipelineV2Factory.Create(
+                                    fremDb.GetFjvEntities(tx).Where(x =>
+                                    psmPipeLineData.FilterPropetyString(
+                                        x,
+                                        driPipelineData.BelongsToAlignment,
+                                        al.Name)), al));
                         //prdDbg(sizeArray.ToString());
                         #endregion
 
@@ -8300,9 +8275,9 @@ namespace IntersectUtilities
                             else
                                 continue;
 
-                            SizeEntry se = sizeArray.GetSizeAtStation(currentStation);
+                            SizeEntryV2 se = sizeArray.GetSizeAtStation(currentStation);
 
-                            if (se.Equals(default(SizeEntry)))
+                            if (se.Equals(default(SizeEntryV2)))
                             {
                                 prdDbg($"Station {currentStation} failed to get SizeEntry!");
                                 continue;

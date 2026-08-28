@@ -400,6 +400,7 @@ namespace IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray
             {
                 case PipelineElementType.F_Model: //X_Model DN can be read directly
                 case PipelineElementType.Y_Model:
+                case PipelineElementType.H_Model:
                     //TryGetDN(pipeline, start, end, out dn); <-- this failed when a materiale skift was placed
                     //directly on one end of the Y-Model because of change in placement strategy for MSs
                     //TryGetDN tries to find the DN looking at the sides of the block
@@ -512,6 +513,7 @@ namespace IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray
                     break;
                 case PipelineElementType.F_Model:
                 case PipelineElementType.Y_Model:
+                case PipelineElementType.H_Model:
                 case PipelineElementType.Reduktion: //PipeSystemType can be read directly
                     string psStr = current.ReadDynamicCsvProperty(DynamicProperty.SysNavn);
                     Enum.TryParse(psStr, out ps);
@@ -537,6 +539,7 @@ namespace IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray
             {
                 case PipelineElementType.F_Model:
                 case PipelineElementType.Y_Model: //Need to look at sides
+                case PipelineElementType.H_Model:
                     if (!TryGetPipeType(pipeline, start, end, out pt))
                     {//If operation fails, try other side   
 
@@ -582,6 +585,7 @@ namespace IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray
             {
                 case PipelineElementType.F_Model:
                 case PipelineElementType.Y_Model: //Need to look at sides
+                case PipelineElementType.H_Model: //Need to look at sides
                 case PipelineElementType.Materialeskift: //because block information is unreliable
                 case PipelineElementType.Reduktion:
                     TryGetPipeSeries(pipeline, start, end, out serie);
@@ -626,7 +630,7 @@ namespace IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray
         //    // Determine if it is the case
         //    string type = br.ReadDynamicCsvProperty(
         //        DynamicProperty.Type, false);
-        //    if (type == "F-Model" || type == "Y-Model")
+        //    if (type == "F-Model" || type == "Y-Model" || type == "H-Model")
         //    {
         //        if (ce.Count == 3)
         //        {

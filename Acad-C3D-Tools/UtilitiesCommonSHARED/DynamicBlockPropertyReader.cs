@@ -1,4 +1,4 @@
-﻿using Autodesk.AutoCAD.ApplicationServices;
+using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
@@ -198,7 +198,7 @@ namespace IntersectUtilities.DynamicBlocks
                 string type = ReadStringParameterFromDataTable(
                     br.RealName(), fjvTable, "Type", 0, version);
 
-                if (endType != default && (type == "F-Model" || type == "Y-Model"))
+                if (endType != default && (type == "F-Model" || type == "Y-Model" || type == "H-Model"))
                 {
                     if (endType == EndType.Main) return "Twin";
                     else if (endType == EndType.Branch) return "Enkelt";
@@ -368,7 +368,7 @@ namespace IntersectUtilities.DynamicBlocks
                 // Special care for F-Model og Y-Rør
                 string type = fjv.Type(br.RealName(), version) ?? "";
 
-                if (endType != default && (type == "F-Model" || type == "Y-Model"))
+                if (endType != default && (type == "F-Model" || type == "Y-Model" || type == "H-Model"))
                 {
                     if (endType == EndType.Main) return "Twin";
                     else if (endType == EndType.Branch) return "Enkelt";

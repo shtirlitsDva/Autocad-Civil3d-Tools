@@ -28,6 +28,7 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.BlockDetailing
             PipelineElementType.Engangsventil or
             PipelineElementType.F_Model or
             PipelineElementType.Y_Model or
+            PipelineElementType.H_Model or
             PipelineElementType.Kedelrørsbøjning or
             PipelineElementType.PræisoleretBøjning90gr or
             PipelineElementType.PræisoleretBøjning45gr or
