@@ -1,4 +1,4 @@
-using Autodesk.AutoCAD.DatabaseServices;
+﻿using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 
 namespace IntersectUtilities.MPE.NSAlignmentCrawl;
@@ -14,12 +14,14 @@ internal static class NSAlignmentCrawlConstants
 {
     public const double Tolerance = 0.025; // metres (25 mm)
 
-    // Two straight segments meeting at less than this angle are treated as one line: the shared
-    // vertex is a redundant node on a straight run and gets weeded out of the baked polyline. Kept
-    // deliberately tight (~0.057°) — real direction changes at fittings are whole degrees, and
-    // elastic bends are arcs (carried as bulges, never as chords), so this only removes drafting/
-    // split noise and never collapses an intended bend.
-    public const double CollinearAngleTolerance = 0.001; // radians
+    // How far off the line between its neighbours a vertex may sit and still count as collinear,
+    // measured as perpendicular distance so it means the same at every segment length. This is a
+    // precision floor, not a geometric tolerance: the drawing's UTM coordinates (~6.19e6) carry about
+    // 1 nm per double ulp, so points drawn dead straight still produce a non-zero triangle
+    // determinant and an exact == 0 test never fires. Measured on real crawl output, float noise at
+    // a parallel joint reaches ~2e-9 m while the smallest genuine bend is ~1e-3 m — a micron sits
+    // ~500x above the noise and ~1000x below the smallest real feature.
+    public const double CollinearDeviation = 1e-6; // metres (1 micron)
 
     // Weld-on studs (AFGRSTUDS / SH LIGE) attach loosely: the branch port can sit ~100 mm from its
     // pipe. This larger tolerance is used only when wiring a stud's ports onto the network (split or
