@@ -65,3 +65,17 @@ Bonded pipes exist in all pipe dimensions. There are two distinct steel pipes wi
 
 #### Twin pipes
 Twin pipes exist in sizes up to DN 200 (250 sometimes). There are two steel pipes in one plastic jacket. The return pipe is above the supply pipe. This system is drawn using one polyline.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live as GitHub issues in `shtirlitsDva/Autocad-Civil3d-Tools`, managed with the `gh` CLI (not yet installed locally). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five canonical triage roles, each label string equal to its name: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` and `docs/adr/` at the repo root. Neither exists yet — `/domain-modeling` creates them lazily. See `docs/agents/domain.md`.

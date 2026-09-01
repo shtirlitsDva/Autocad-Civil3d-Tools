@@ -200,6 +200,10 @@
 	  <EmbeddedResource Include="MPE\PipePlanDE\Views\RegelGrabenprofil.png">
 	    <LogicalName>IntersectUtilities.MPE.PipePlanDE.RegelGrabenprofil.png</LogicalName>
 	  </EmbeddedResource>
+	  <Page Remove="MPE\MatchBBR\Views\MatchBbrTheme.xaml" />
+	  <EmbeddedResource Include="MPE\MatchBBR\Views\MatchBbrTheme.xaml">
+	    <LogicalName>IntersectUtilities.MPE.MatchBBR.MatchBbrTheme.xaml</LogicalName>
+	  </EmbeddedResource>
 	</ItemGroup>
 	<ItemGroup Condition="Exists('..\..\..\..\DamgaardRI\DimensioneringV2\src\DimensioneringV2.UI\UI\Theme.xaml')">
 	  <Page Include="..\..\..\..\DamgaardRI\DimensioneringV2\src\DimensioneringV2.UI\UI\Theme.xaml" Link="CmdUI\UI\Theme.xaml">

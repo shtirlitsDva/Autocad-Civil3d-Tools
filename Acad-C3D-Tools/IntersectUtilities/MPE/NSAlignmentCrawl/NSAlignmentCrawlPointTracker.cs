@@ -1,4 +1,4 @@
-using Autodesk.AutoCAD.ApplicationServices;
+﻿using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Geometry;
@@ -17,15 +17,18 @@ internal sealed class NSAlignmentCrawlPointTracker : IDisposable
     private readonly Document _document;
     private readonly NSAlignmentCrawlPreviewManager _preview;
     private readonly Func<Point3d, List<(Point2d Pt, double OutBulge)>?> _build;
+    private readonly CrawlPinSet _pins;
 
     public NSAlignmentCrawlPointTracker(
         Document document,
         NSAlignmentCrawlPreviewManager preview,
-        Func<Point3d, List<(Point2d Pt, double OutBulge)>?> build)
+        Func<Point3d, List<(Point2d Pt, double OutBulge)>?> build,
+        CrawlPinSet pins)
     {
         _document = document;
         _preview = preview;
         _build = build;
+        _pins = pins;
         _document.Editor.PointMonitor += OnPointMonitor;
     }
 
@@ -39,7 +42,8 @@ internal sealed class NSAlignmentCrawlPointTracker : IDisposable
             List<(Point2d Pt, double OutBulge)>? vertices = _build(raw);
             if (vertices is not null)
             {
-                Polyline? polyline = NSAlignmentCrawlPolylineBuilder.Build(vertices, NSAlignmentCrawlConstants.OutputLayer);
+                Polyline? polyline = NSAlignmentCrawlPolylineBuilder.Build(
+                        vertices, NSAlignmentCrawlConstants.OutputLayer, _pins);
                 if (polyline is not null)
                 {
                     _preview.Show(polyline);

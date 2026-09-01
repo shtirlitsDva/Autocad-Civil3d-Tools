@@ -1,4 +1,4 @@
-using Autodesk.AutoCAD.DatabaseServices;
+﻿using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 
 namespace IntersectUtilities.MPE.NSAlignmentCrawl;
@@ -75,14 +75,19 @@ internal static class NSAlignmentCrawlPolylineBuilder
 
     /// <summary>
     /// Removes redundant nodes on straight runs so the baked alignment carries a vertex only where
-    /// the direction actually changes: an interior vertex is dropped when both of its incident
+    /// the direction actually changes.
+    ///
+    /// Pinned vertices come first: a vertex sitting on a component joint (see <see cref="CrawlPinSet"/>)
+    /// is kept unconditionally, however straight the run through it looks. Only after that does the
+    /// flatness test apply — an interior vertex is dropped when both of its incident
     /// segments are straight (bulge ≈ 0) and collinear within
     /// <see cref="NSAlignmentCrawlConstants.CollinearAngleTolerance"/> (a zero-length hop counts as
     /// collinear). Arc segments carry a non-zero bulge, so an arc endpoint is never dropped — which
     /// is why a reduction keeps its "arc end → single line element → arc start" shape. The endpoints
     /// (start X / end) are always preserved, so station 0 and the terminus are untouched.
     /// </summary>
-    public static List<(Point2d Pt, double OutBulge)> Weed(IReadOnlyList<(Point2d Pt, double OutBulge)> vertices)
+    public static List<(Point2d Pt, double OutBulge)> Weed(
+        IReadOnlyList<(Point2d Pt, double OutBulge)> vertices, CrawlPinSet? pins = null)
     {
         if (vertices.Count <= 2)
         {
@@ -95,6 +100,15 @@ internal static class NSAlignmentCrawlPolylineBuilder
             (Point2d Pt, double OutBulge) prev = result[^1];
             (Point2d Pt, double OutBulge) cur = vertices[i];
             (Point2d Pt, double OutBulge) next = vertices[i + 1];
+
+            // Priority 1: a component joint always survives.
+            if (pins is not null && pins.IsPinned(cur.Pt))
+            {
+                result.Add(cur);
+                continue;
+            }
+
+            // Priority 2: drop it only if the run through it is flat.
             if (IsRedundantStraightNode(prev, cur, next))
             {
                 // Drop cur: the segment becomes prev → next. prev's outgoing bulge is already 0
@@ -139,9 +153,10 @@ internal static class NSAlignmentCrawlPolylineBuilder
         return incoming.GetAngleTo(outgoing) <= NSAlignmentCrawlConstants.CollinearAngleTolerance;
     }
 
-    public static Polyline? Build(IReadOnlyList<(Point2d Pt, double OutBulge)> vertices, string layer)
+    public static Polyline? Build(
+        IReadOnlyList<(Point2d Pt, double OutBulge)> vertices, string layer, CrawlPinSet? pins = null)
     {
-        vertices = Weed(vertices);
+        vertices = Weed(vertices, pins);
         if (vertices.Count < 2)
         {
             return null;
