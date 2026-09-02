@@ -110,6 +110,25 @@
                     </Grid.ColumnDefinitions>
 
                     <Label Grid.Column="0"
+                           Content="Linetype"
+                           Style="{StaticResource FormLabelStyle}"/>
+                    <ComboBox Grid.Column="1"
+                              ItemsSource="{Binding DataContext.AvailableLinetypes,
+                                                    RelativeSource={RelativeSource AncestorType=Window}}"
+                              SelectedItem="{Binding Linetype}"
+                              Style="{StaticResource ModernDarkComboBox}"
+                              HorizontalAlignment="Left"
+                              Width="200"
+                              ToolTip="Linetype the circle is drawn with. Lists the linetypes loaded in the active drawing. A profile whose linetype is not loaded in the drawing on screen draws Continuous. Whether a dashed pattern shows at all depends on LTSCALE."/>
+                </Grid>
+
+                <Grid Style="{StaticResource FormRowStyle}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="140"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Label Grid.Column="0"
                            Content="Colour"
                            Style="{StaticResource FormLabelStyle}"/>
                     <StackPanel Grid.Column="1" Orientation="Horizontal">

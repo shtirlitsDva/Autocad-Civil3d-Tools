@@ -21,6 +21,9 @@ namespace AcadOverrules
     /// - Colour is either a fully saturated marker colour on the complementary hue of the
     ///   polyline's own colour, or one fixed ACI, see <see cref="MarkerColor"/>.
     /// - Lineweight is a configurable multiple of the polyline's lineweight.
+    /// - Linetype is a fixed setting, Continuous by default. Whether a dashed pattern shows
+    ///   on a circle this small depends on LTSCALE - a linetype pattern is measured in
+    ///   drawing units, not in fractions of the circumference.
     /// </summary>
     public class PolylineVertexCircles : Autodesk.AutoCAD.GraphicsInterface.DrawableOverrule
     {
@@ -97,6 +100,9 @@ namespace AcadOverrules
 
             wd.SubEntityTraits.TrueColor = markerColor;
             wd.SubEntityTraits.LineWeight = thickerLineWeight;
+
+            ObjectId linetypeId = LinetypeResolver.Resolve(pline.Database, settings.Linetype);
+            if (!linetypeId.IsNull) wd.SubEntityTraits.LineType = linetypeId;
 
             double radius = settings.Radius;
             if (radius <= 0.0) return true;

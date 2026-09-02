@@ -41,6 +41,13 @@ namespace AcadOverrules.VertexCircles
         public double LineWeightFactor { get; set; } = DefaultLineWeightFactor;
 
         /// <summary>
+        /// Name of the linetype the circle is drawn with. Resolved against the linetype table
+        /// of the drawing the polyline lives in, so a profile carried to a drawing that does
+        /// not have the linetype loaded falls back to <see cref="DefaultLinetype"/>.
+        /// </summary>
+        public string Linetype { get; set; } = DefaultLinetype;
+
+        /// <summary>
         /// Layer names and layer name masks the overrule applies to. AutoCAD wildcards are
         /// supported, so <c>0-FJV-*</c> works the same way it does in the layer manager.
         /// An empty list means "every layer".
@@ -51,6 +58,9 @@ namespace AcadOverrules.VertexCircles
         public const string DefaultFixedColor = "#FF00FF";
         public const double DefaultLineWeightFactor = 2.0;
 
+        /// <summary>Present in every drawing, so it is always resolvable.</summary>
+        public const string DefaultLinetype = "Continuous";
+
         public VertexCirclesSettings Clone() =>
             new VertexCirclesSettings
             {
@@ -58,6 +68,7 @@ namespace AcadOverrules.VertexCircles
                 ColorMode = ColorMode,
                 FixedColor = FixedColor,
                 LineWeightFactor = LineWeightFactor,
+                Linetype = Linetype,
                 LayerFilters = LayerFilters.ToList(),
             };
     }

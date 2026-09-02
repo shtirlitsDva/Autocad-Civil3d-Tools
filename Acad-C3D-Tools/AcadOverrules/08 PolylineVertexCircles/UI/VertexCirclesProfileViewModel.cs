@@ -38,6 +38,14 @@ namespace AcadOverrules.VertexCircles.UI
         [ObservableProperty]
         private string fixedColor;
 
+        /// <summary>
+        /// Name of the linetype the circle is drawn with. Bound to a ComboBox, so the value
+        /// is always one of the names the owner offers - see
+        /// <see cref="VertexCirclesSettingsViewModel.AvailableLinetypes"/>.
+        /// </summary>
+        [ObservableProperty]
+        private string linetype;
+
         private double _radius;
         private double _lineWeightFactor;
 
@@ -55,6 +63,7 @@ namespace AcadOverrules.VertexCircles.UI
 
             useFixedColor = profile.Settings.ColorMode == MarkerColorMode.FixedColor;
             fixedColor = profile.Settings.FixedColor;
+            linetype = profile.Settings.Linetype;
 
             foreach (string filter in profile.Settings.LayerFilters)
                 LayerFilters.Add(new LayerFilterViewModel(filter));
@@ -99,6 +108,11 @@ namespace AcadOverrules.VertexCircles.UI
                         ? MarkerColorMode.FixedColor
                         : MarkerColorMode.ComplementaryHue,
                     FixedColor = FixedColor,
+                    //A ComboBox with no match sets the bound value to null; the default is
+                    //the only sensible reading of "no linetype chosen".
+                    Linetype = string.IsNullOrWhiteSpace(Linetype)
+                        ? VertexCirclesSettings.DefaultLinetype
+                        : Linetype.Trim(),
                     LayerFilters = LayerFilters
                         .Select(f => f.Pattern.Trim())
                         .Where(p => !string.IsNullOrWhiteSpace(p))

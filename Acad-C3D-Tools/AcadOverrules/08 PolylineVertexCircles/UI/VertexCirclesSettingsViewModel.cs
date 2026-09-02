@@ -1,8 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows;
 using System.Windows.Threading;
+
+using Autodesk.AutoCAD.DatabaseServices;
 
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -56,6 +59,8 @@ namespace AcadOverrules.VertexCircles.UI
 
             isOverruleEnabled = Commands.IsOverruleActive<PolylineVertexCircles>();
 
+            AvailableLinetypes = BuildLinetypeChoices();
+
             _livePreview.Tick += (_, _) =>
             {
                 _livePreview.Stop();
@@ -65,6 +70,15 @@ namespace AcadOverrules.VertexCircles.UI
 
         /// <summary>Where the profiles are stored, shown as a hint in the window.</summary>
         public string SettingsPath => VertexCirclesSettingsStore.SettingsPath;
+
+        /// <summary>
+        /// The linetype names offered in the Circle group: the ones loaded in the active
+        /// drawing plus the ones the profiles already store. A profile travels between
+        /// drawings, so its linetype need not be loaded here - keeping the stored name in the
+        /// list is what stops the ComboBox from clearing it. A name that is not loaded in the
+        /// drawing on screen draws as Continuous, see <see cref="LinetypeResolver"/>.
+        /// </summary>
+        public IReadOnlyList<string> AvailableLinetypes { get; }
 
         public bool CanDeleteProfile => Profiles.Count > 1;
 
@@ -231,6 +245,77 @@ namespace AcadOverrules.VertexCircles.UI
             //Apply first, so the overrule starts up with what is on screen.
             _service.SetConfig(BuildConfig());
             Commands.SetOverruleActive<PolylineVertexCircles>(value);
+        }
+
+        /// <summary>
+        /// Builds <see cref="AvailableLinetypes"/> and, on the way, snaps every profile onto
+        /// the drawing's spelling of its linetype: the ComboBox matches items with Equals, so
+        /// a stored "DASHED" would not select a table entry named "Dashed".
+        /// </summary>
+        private IReadOnlyList<string> BuildLinetypeChoices()
+        {
+            var names = new SortedSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                VertexCirclesSettings.DefaultLinetype,
+            };
+
+            foreach (string name in ReadLinetypeNames()) names.Add(name);
+
+            foreach (VertexCirclesProfileViewModel profile in Profiles)
+            {
+                string stored = (profile.Linetype ?? string.Empty).Trim();
+
+                if (stored.Length == 0)
+                {
+                    profile.Linetype = VertexCirclesSettings.DefaultLinetype;
+                    continue;
+                }
+
+                if (!names.TryGetValue(stored, out string? loaded))
+                {
+                    names.Add(stored);
+                    if (!string.Equals(profile.Linetype, stored, StringComparison.Ordinal))
+                        profile.Linetype = stored;
+                    continue;
+                }
+
+                if (!string.Equals(profile.Linetype, loaded, StringComparison.Ordinal))
+                    profile.Linetype = loaded;
+            }
+
+            return names.ToList();
+        }
+
+        /// <summary>The linetypes loaded in the active drawing.</summary>
+        private static IEnumerable<string> ReadLinetypeNames()
+        {
+            var names = new List<string>();
+
+            Autodesk.AutoCAD.ApplicationServices.Document? doc =
+                Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
+            if (doc == null) return names;
+
+            using (Transaction tx = doc.Database.TransactionManager.StartOpenCloseTransaction())
+            {
+                var table = (LinetypeTable)tx.GetObject(doc.Database.LinetypeTableId, OpenMode.ForRead);
+
+                foreach (ObjectId id in table)
+                {
+                    var record = (LinetypeTableRecord)tx.GetObject(id, OpenMode.ForRead);
+
+                    //ByLayer and ByBlock are records in the table but not a look a marker can
+                    //have - the overrule sets the trait outright, so what they would resolve
+                    //to is not predictable. They are left out of the list on purpose.
+                    if (string.Equals(record.Name, "ByLayer", StringComparison.OrdinalIgnoreCase)) continue;
+                    if (string.Equals(record.Name, "ByBlock", StringComparison.OrdinalIgnoreCase)) continue;
+
+                    names.Add(record.Name);
+                }
+
+                tx.Commit();
+            }
+
+            return names;
         }
 
         private VertexCirclesConfig BuildConfig() =>

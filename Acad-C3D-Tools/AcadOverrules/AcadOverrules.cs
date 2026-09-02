@@ -122,9 +122,9 @@ namespace AcadOverrules
         /// <command>TOGGLEPOLYVERTICESSETTINGS</command>
         /// <summary>
         /// Opens the settings window for TOGGLEPOLYVERTICES: circle radius, which layers the
-        /// overrule applies to (layer names and AutoCAD wildcard masks), marker colour and
-        /// lineweight factor. Settings are grouped in named profiles; the active profile is
-        /// saved when the window closes. Edits preview live in the drawing.
+        /// overrule applies to (layer names and AutoCAD wildcard masks), marker colour,
+        /// lineweight factor and linetype. Settings are grouped in named profiles; the active
+        /// profile is saved when the window closes. Edits preview live in the drawing.
         /// </summary>
         /// <category>Overrules</category>
         [CommandMethod("TOGGLEPOLYVERTICESSETTINGS")]
