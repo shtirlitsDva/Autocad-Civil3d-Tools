@@ -5,6 +5,7 @@ using Autodesk.AutoCAD.Runtime;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 
 using AcadOverrules.ViewFrameGripOverrule;
+using AcadOverrules.VertexCircles.UI;
 using System;
 using System.Collections.Generic;
 
@@ -35,8 +36,27 @@ namespace AcadOverrules
         private static void Toggle<T>() where T : Overrule, new()
         {
             OverruleRegistry.Toggle<T>(typeof(Polyline));
-            Application.DocumentManager.MdiActiveDocument?.Editor.Regen();
+            RegenActiveDocument();
         }
+
+        /// <summary>
+        /// Whether the overrule is currently registered. Lets a settings UI show the same
+        /// state as the TOGGLE command that owns it.
+        /// </summary>
+        internal static bool IsOverruleActive<T>() where T : Overrule =>
+            OverruleRegistry.IsActive<T>();
+
+        /// <summary>
+        /// Turns an overrule on or off explicitly, as opposed to <see cref="Toggle{T}"/>.
+        /// </summary>
+        internal static void SetOverruleActive<T>(bool active) where T : Overrule, new()
+        {
+            if (active == OverruleRegistry.IsActive<T>()) return;
+            Toggle<T>();
+        }
+
+        internal static void RegenActiveDocument() =>
+            Application.DocumentManager.MdiActiveDocument?.Editor.Regen();
 
         /// <command>TOGGLEFJVLABEL</command>
         /// <summary>
@@ -87,6 +107,49 @@ namespace AcadOverrules
         [CommandMethod("TOGGLEDRAFTVERTICES")]
         public static void toggledraftvertices() => Toggle<DraftPolylineVerticeMark>();
 
+        /// <command>TOGGLEPOLYVERTICES</command>
+        /// <summary>
+        /// Draws a circle at every vertex of every polyline in the drawing.
+        /// The circle diameter is 0.01 larger than the polyline's width, so it always
+        /// sits just outside the drawn band, with a 0.05 floor for zero width polylines.
+        /// It is drawn in a vivid marker colour on the complementary hue of the polyline
+        /// (magenta for white/black/grey polylines) with twice the polyline's lineweight.
+        /// </summary>
+        /// <category>Overrules</category>
+        [CommandMethod("TOGGLEPOLYVERTICES")]
+        public static void togglepolyvertices() => Toggle<PolylineVertexCircles>();
+
+        /// <command>TOGGLEPOLYVERTICESSETTINGS</command>
+        /// <summary>
+        /// Opens the settings window for TOGGLEPOLYVERTICES: circle radius, which layers the
+        /// overrule applies to (layer names and AutoCAD wildcard masks), marker colour,
+        /// lineweight factor and linetype. Settings are grouped in named profiles; the active
+        /// profile is saved when the window closes. Edits preview live in the drawing.
+        /// </summary>
+        /// <category>Overrules</category>
+        [CommandMethod("TOGGLEPOLYVERTICESSETTINGS")]
+        public static void togglepolyverticessettings()
+        {
+            try
+            {
+                new VertexCirclesSettingsWindow().ShowDialog();
+            }
+            catch (System.Exception ex)
+            {
+                Application.DocumentManager.MdiActiveDocument?.Editor.WriteMessage(
+                    $"\nFailed to open the vertex circles settings: {ex}\n");
+            }
+        }
+
+        /// <command>TOGGELPOLYVERTICESSETTINGS</command>
+        /// <summary>
+        /// Alias for TOGGLEPOLYVERTICESSETTINGS, kept because the command was first asked for
+        /// under this spelling.
+        /// </summary>
+        /// <category>Overrules</category>
+        [CommandMethod("TOGGELPOLYVERTICESSETTINGS")]
+        public static void toggelpolyverticessettings() => togglepolyverticessettings();
+
 #if DEBUG
         [CommandMethod("TOGGLEGRIPOR")]
         public static void togglegripoverrule() => Toggle<GripVectorOverrule>();
@@ -105,6 +168,10 @@ namespace AcadOverrules
     {
         private static readonly Dictionary<Type, (RXClass TargetClass, Overrule Instance)> _active =
             new Dictionary<Type, (RXClass, Overrule)>();
+
+        /// <summary>True while <typeparamref name="T"/> is registered.</summary>
+        public static bool IsActive<T>() where T : Overrule =>
+            _active.ContainsKey(typeof(T));
 
         /// <summary>
         /// Enables <typeparamref name="T"/> against <paramref name="targetType"/> if it is
