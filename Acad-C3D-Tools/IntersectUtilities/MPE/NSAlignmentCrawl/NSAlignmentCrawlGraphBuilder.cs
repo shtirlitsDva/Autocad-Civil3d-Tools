@@ -54,42 +54,13 @@ internal static class NSAlignmentCrawlGraphBuilder
 
         foreach (CrawlComponent component in snapshot.Components)
         {
-            // A 2-port component carries a simple centreline chain between its two ports — use the real
-            // geometry so curved fittings (BUERØR, radiused bends) crawl along their true arc. Branched
-            // components (3-port tees/Y) would need mid-segment splitting and are never curved here, so
-            // they keep the straight-star model below, which is faithful for straight junctions.
-            if (component.Ports.Count == 2 && component.Centerlines.Count > 0)
+            // Whenever a component carries its own centreline geometry, crawl along that instead of a
+            // straight spoke — whatever its port count. The geometry is the only thing that knows the
+            // fitting's real shape: the arc of a BUERØR, and the right-angle kink in the branch of a
+            // parallelafgrening, which a straight port→centre spoke cuts off entirely.
+            if (component.Centerlines.Count > 0)
             {
-                foreach (IReadOnlyList<(Point2d Pt, double Bulge)> centerline in component.Centerlines)
-                {
-                    if (centerline.Count < 2)
-                    {
-                        continue;
-                    }
-
-                    Polyline pl = new();
-                    for (int i = 0; i < centerline.Count; i++)
-                    {
-                        pl.AddVertexAt(i, centerline[i].Pt, centerline[i].Bulge, 0.0, 0.0);
-                    }
-
-                    pl.Closed = false;
-                    int a = clusterer.GetOrAdd(centerline[0].Pt);
-                    int b = clusterer.GetOrAdd(centerline[^1].Pt);
-                    if (a == b)
-                    {
-                        pl.Dispose();
-                        continue;
-                    }
-
-                    net.AddPipeEdge(a, b, pl);
-                    if (component.IsWeldStud)
-                    {
-                        weldEndpoints.Add(a);
-                        weldEndpoints.Add(b);
-                    }
-                }
-
+                AddCenterlineEdges(net, clusterer, component, weldEndpoints);
                 continue;
             }
 
@@ -125,6 +96,157 @@ internal static class NSAlignmentCrawlGraphBuilder
 
         net.RebuildAdjacency();
         return net;
+    }
+
+    /// <summary>
+    /// Adds a component's own centreline chains as pipe edges, then reconnects the internal junctions
+    /// the drawing leaves implicit.
+    ///
+    /// A branched fitting is drawn as a through run plus a branch that stops on top of it: the through
+    /// run is one unbroken line with no vertex where the branch lands, so adding the chains verbatim
+    /// leaves the branch dangling. Any chain end that no other chain shares and that is not one of the
+    /// component's ports is exactly such a junction, and gets spliced into the run it sits on.
+    ///
+    /// The splice is gated on <see cref="NSAlignmentCrawlConstants.Tolerance"/>, which is also what
+    /// keeps symbol geometry out of the graph: the tick marks some blocks draw on their "*komponent*"
+    /// layer are read as chains too, but they sit hundreds of mm off the centreline and so stay the
+    /// harmless dangling edges they already were.
+    /// </summary>
+    private static void AddCenterlineEdges(
+        CrawlNetwork net, NodeClusterer clusterer, CrawlComponent component, List<int> weldEndpoints)
+    {
+        List<int> edgeIndices = [];
+        Dictionary<int, int> endpointUses = [];
+
+        foreach (IReadOnlyList<(Point2d Pt, double Bulge)> centerline in component.Centerlines)
+        {
+            if (centerline.Count < 2)
+            {
+                continue;
+            }
+
+            Polyline pl = new();
+            for (int i = 0; i < centerline.Count; i++)
+            {
+                pl.AddVertexAt(i, centerline[i].Pt, centerline[i].Bulge, 0.0, 0.0);
+            }
+
+            pl.Closed = false;
+            int a = clusterer.GetOrAdd(centerline[0].Pt);
+            int b = clusterer.GetOrAdd(centerline[^1].Pt);
+            if (a == b)
+            {
+                pl.Dispose();
+                continue;
+            }
+
+            edgeIndices.Add(net.AddPipeEdge(a, b, pl).Index);
+            endpointUses[a] = endpointUses.TryGetValue(a, out int usesA) ? usesA + 1 : 1;
+            endpointUses[b] = endpointUses.TryGetValue(b, out int usesB) ? usesB + 1 : 1;
+            if (component.IsWeldStud)
+            {
+                weldEndpoints.Add(a);
+                weldEndpoints.Add(b);
+            }
+        }
+
+        foreach ((int node, int uses) in endpointUses)
+        {
+            // Shared with another chain, or a port the surrounding pipes connect to — already wired.
+            if (uses > 1 || IsPort(net.Nodes[node].Position, component))
+            {
+                continue;
+            }
+
+            SpliceJunctionIntoRun(net, node, edgeIndices);
+        }
+    }
+
+    private static bool IsPort(Point2d p, CrawlComponent component)
+    {
+        foreach (Point2d port in component.Ports)
+        {
+            if (port.GetDistanceTo(p) <= NSAlignmentCrawlConstants.Tolerance)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Splits whichever of <paramref name="edgeIndices"/> passes through <paramref name="node"/> so the
+    /// node becomes a real junction on it. No-op when nothing passes close enough, or when the closest
+    /// point is already an end of that edge (clustering has joined them already).
+    /// </summary>
+    private static void SpliceJunctionIntoRun(CrawlNetwork net, int node, List<int> edgeIndices)
+    {
+        Point2d sp = net.Nodes[node].Position;
+        Point3d p = new(sp.X, sp.Y, 0.0);
+
+        NetworkEdge? best = null;
+        Point3d bestCp = Point3d.Origin;
+        double bestDist = double.MaxValue;
+        foreach (int index in edgeIndices)
+        {
+            NetworkEdge e = net.Edges[index];
+            if (e.Removed || e.Curve is null || e.FromNode == node || e.ToNode == node)
+            {
+                continue;
+            }
+
+            Point3d cp;
+            try
+            {
+                cp = e.Curve.GetClosestPointTo(p, false);
+            }
+            catch
+            {
+                continue;
+            }
+
+            double d = cp.DistanceTo(p);
+            if (d < bestDist)
+            {
+                bestDist = d;
+                best = e;
+                bestCp = cp;
+            }
+        }
+
+        if (best is null || bestDist > NSAlignmentCrawlConstants.Tolerance)
+        {
+            return;
+        }
+
+        double length = best.Curve!.Length;
+        double distFromStart;
+        try
+        {
+            distFromStart = best.Curve.GetDistAtPoint(bestCp);
+        }
+        catch
+        {
+            return;
+        }
+
+        if (distFromStart <= NSAlignmentCrawlConstants.Tolerance
+            || length - distFromStart <= NSAlignmentCrawlConstants.Tolerance)
+        {
+            return;
+        }
+
+        if (!TrySplit(best.Curve, bestCp, out Polyline seg1, out Polyline seg2))
+        {
+            return;
+        }
+
+        best.Removed = true;
+        best.Curve.Dispose();
+        best.Curve = null;
+        net.AddPipeEdge(best.FromNode, node, seg1);
+        net.AddPipeEdge(node, best.ToNode, seg2);
     }
 
     /// <summary>

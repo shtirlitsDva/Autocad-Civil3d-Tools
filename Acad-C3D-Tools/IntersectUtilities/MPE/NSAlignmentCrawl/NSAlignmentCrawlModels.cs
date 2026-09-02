@@ -67,7 +67,6 @@ internal enum EdgeKind
 
 internal sealed class NetworkNode
 {
-    public int Index { get; init; }
     public Point2d Position { get; init; }
 }
 
@@ -105,7 +104,7 @@ internal sealed class CrawlNetwork : IDisposable
     public int AddNode(Point2d position)
     {
         int index = Nodes.Count;
-        Nodes.Add(new NetworkNode { Index = index, Position = position });
+        Nodes.Add(new NetworkNode { Position = position });
         return index;
     }
 
