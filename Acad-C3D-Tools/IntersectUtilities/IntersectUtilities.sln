@@ -1,19 +1,19 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
-VisualStudioVersion = 18.6.11806.211 stable
+VisualStudioVersion = 18.6.11806.211
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IntersectUtilities", "IntersectUtilities.csproj", "{C67822C0-5330-95D6-0B7C-0B7D6CF90CDF}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
-		Debug|Any CPU = Debug|Any CPU
-		Release|Any CPU = Release|Any CPU
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{C67822C0-5330-95D6-0B7C-0B7D6CF90CDF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{C67822C0-5330-95D6-0B7C-0B7D6CF90CDF}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{C67822C0-5330-95D6-0B7C-0B7D6CF90CDF}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{C67822C0-5330-95D6-0B7C-0B7D6CF90CDF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C67822C0-5330-95D6-0B7C-0B7D6CF90CDF}.Debug|x64.ActiveCfg = Debug|x64
+		{C67822C0-5330-95D6-0B7C-0B7D6CF90CDF}.Debug|x64.Build.0 = Debug|x64
+		{C67822C0-5330-95D6-0B7C-0B7D6CF90CDF}.Release|x64.ActiveCfg = Release|x64
+		{C67822C0-5330-95D6-0B7C-0B7D6CF90CDF}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -26,5 +26,6 @@ Global
 		..\FormsSHARED\FormsSHARED.projitems*{c67822c0-5330-95d6-0b7c-0b7d6cf90cdf}*SharedItemsImports = 5
 		..\PipelineSHARED\PipelineSHARED.projitems*{c67822c0-5330-95d6-0b7c-0b7d6cf90cdf}*SharedItemsImports = 5
 		..\UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{c67822c0-5330-95d6-0b7c-0b7d6cf90cdf}*SharedItemsImports = 5
+		X:\GitHub\DamgaardRI\NorsynDrawingTools\managed\NorsynOnDemandLoadingSHARED\NorsynOnDemandLoadingSHARED.projitems*{c67822c0-5330-95d6-0b7c-0b7d6cf90cdf}*SharedItemsImports = 5
 	EndGlobalSection
 EndGlobal
