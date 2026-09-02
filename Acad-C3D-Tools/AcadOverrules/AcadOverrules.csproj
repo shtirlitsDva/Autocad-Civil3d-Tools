@@ -118,7 +118,22 @@
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
 		<GenerateDocumentationFile>True</GenerateDocumentationFile>
 	</PropertyGroup>
+	<!-- The shared dark theme and its title bar helper live in the DimensioneringV2 repo,
+	     linked in the same way IntersectUtilities does it. All WPF styling belongs there. -->
+	<ItemGroup Condition="Exists('..\..\..\..\DamgaardRI\DimensioneringV2\src\DimensioneringV2.UI\UI\Theme.xaml')">
+		<Page Include="..\..\..\..\DamgaardRI\DimensioneringV2\src\DimensioneringV2.UI\UI\Theme.xaml" Link="CmdUI\UI\Theme.xaml">
+			<Generator>MSBuild:Compile</Generator>
+		</Page>
+	</ItemGroup>
+	<ItemGroup Condition="Exists('..\..\..\..\DamgaardRI\DimensioneringV2\src\DimensioneringV2.UI\UI\DarkTitleBarHelper.cs')">
+		<Compile Include="..\..\..\..\DamgaardRI\DimensioneringV2\src\DimensioneringV2.UI\UI\DarkTitleBarHelper.cs" Link="CmdUI\UI\DarkTitleBarHelper.cs" />
+		<!-- The linked helper is written for a project with ImplicitUsings on. Turning those on
+		     wholesale here would make System.Drawing/System.Windows.Forms ambiguous with WPF in
+		     the existing overrules, so only the one namespace it needs is made global. -->
+		<Using Include="System" />
+	</ItemGroup>
 	<ItemGroup>
+		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
 		<PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
 		<PackageReference Include="Microsoft.VisualBasic" Version="10.3.0" />
 		<PackageReference Include="System.Data.DataSetExtensions" Version="4.5.0" />

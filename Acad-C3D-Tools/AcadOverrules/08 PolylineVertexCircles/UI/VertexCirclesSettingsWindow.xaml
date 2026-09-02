@@ -1,0 +1,240 @@
+<Window x:Class="AcadOverrules.VertexCircles.UI.VertexCirclesSettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        mc:Ignorable="d"
+        Title="Polyline vertex circles"
+        Width="560" Height="640"
+        MinWidth="480" MinHeight="520"
+        Style="{DynamicResource DialogWindowStyle}"
+        Background="{DynamicResource Background}"
+        WindowStartupLocation="CenterScreen">
+    <Window.Resources>
+        <ResourceDictionary Source="pack://application:,,,/AcadOverrules;component/CmdUI/UI/Theme.xaml"/>
+    </Window.Resources>
+
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Profiles -->
+        <GroupBox Grid.Row="0"
+                  Header="Profile"
+                  Style="{StaticResource ModernGroupBox}"
+                  Margin="0,0,0,10">
+            <Grid Margin="4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <ComboBox Grid.Column="0"
+                          ItemsSource="{Binding Profiles}"
+                          SelectedItem="{Binding SelectedProfile}"
+                          DisplayMemberPath="Name"
+                          Style="{StaticResource ModernDarkComboBox}"
+                          HorizontalAlignment="Stretch"
+                          VerticalAlignment="Center"
+                          Margin="0,0,8,0"/>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button Content="New"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Command="{Binding NewProfileCommand}"
+                            Margin="0,0,4,0"/>
+                    <Button Content="Copy"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Command="{Binding CopyProfileCommand}"
+                            Margin="0,0,4,0"/>
+                    <Button Content="Rename"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Command="{Binding RenameProfileCommand}"
+                            Margin="0,0,4,0"/>
+                    <Button Content="Delete"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Command="{Binding DeleteProfileCommand}"
+                            IsEnabled="{Binding CanDeleteProfile}"/>
+                </StackPanel>
+            </Grid>
+        </GroupBox>
+
+        <!-- Appearance -->
+        <GroupBox Grid.Row="1"
+                  Header="Circle"
+                  Style="{StaticResource ModernGroupBox}"
+                  Margin="0,0,0,10"
+                  DataContext="{Binding SelectedProfile}">
+            <StackPanel Margin="4">
+                <Grid Style="{StaticResource FormRowStyle}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="140"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Label Grid.Column="0"
+                           Content="Radius"
+                           Style="{StaticResource FormLabelStyle}"/>
+                    <TextBox Grid.Column="1"
+                             Text="{Binding RadiusText, UpdateSourceTrigger=PropertyChanged}"
+                             Style="{StaticResource FormTextBoxStyle}"
+                             Width="90"
+                             ToolTip="Circle radius in drawing units. Fixed - it no longer follows the polyline width."/>
+                </Grid>
+
+                <Grid Style="{StaticResource FormRowStyle}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="140"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Label Grid.Column="0"
+                           Content="Lineweight factor"
+                           Style="{StaticResource FormLabelStyle}"/>
+                    <TextBox Grid.Column="1"
+                             Text="{Binding LineWeightFactorText, UpdateSourceTrigger=PropertyChanged}"
+                             Style="{StaticResource FormTextBoxStyle}"
+                             Width="90"
+                             ToolTip="How much thicker the circle is drawn than the polyline. Needs LWDISPLAY on to be visible."/>
+                </Grid>
+
+                <Grid Style="{StaticResource FormRowStyle}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="140"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Label Grid.Column="0"
+                           Content="Colour"
+                           Style="{StaticResource FormLabelStyle}"/>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <CheckBox Content="Use a fixed colour"
+                                  IsChecked="{Binding UseFixedColor}"
+                                  Style="{StaticResource FormCheckBoxStyle}"
+                                  VerticalAlignment="Center"
+                                  Margin="0,0,10,0"
+                                  ToolTip="Off: the complementary hue of each polyline's own colour, always fully saturated."/>
+                        <Border Width="22" Height="18"
+                                Background="{Binding FixedColorBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}"
+                                BorderThickness="1"
+                                VerticalAlignment="Center"
+                                Margin="0,0,6,0"
+                                IsEnabled="{Binding UseFixedColor}"/>
+                        <Button Content="Pick..."
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Command="{Binding DataContext.PickFixedColorCommand,
+                                                  RelativeSource={RelativeSource AncestorType=Window}}"
+                                IsEnabled="{Binding UseFixedColor}"/>
+                    </StackPanel>
+                </Grid>
+
+                <TextBlock Text="Radius and lineweight factor must be positive numbers."
+                           Style="{StaticResource DialogLabelStyle}"
+                           Foreground="{DynamicResource SeverityWarningBrush}"
+                           Margin="0,6,0,0"
+                           Visibility="{Binding IsInvalid,
+                                                Converter={StaticResource BoolToVisibilityConverter}}"/>
+            </StackPanel>
+        </GroupBox>
+
+        <!-- Layers -->
+        <GroupBox Grid.Row="2"
+                  Header="Layers"
+                  Style="{StaticResource ModernGroupBox}"
+                  DataContext="{Binding SelectedProfile}">
+            <Grid Margin="4">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0"
+                           Text="Layer names or masks, AutoCAD wildcards allowed (0-FJV-*). An empty list means every layer."
+                           Style="{StaticResource DialogLabelStyle}"
+                           TextWrapping="Wrap"
+                           Margin="0,0,0,8"/>
+
+                <ListBox Grid.Row="1"
+                         ItemsSource="{Binding LayerFilters}"
+                         HorizontalContentAlignment="Stretch">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Margin="0,1">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBox Grid.Column="0"
+                                         Text="{Binding Pattern, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource FormTextBoxStyle}"
+                                         HorizontalAlignment="Stretch"
+                                         Margin="0,0,6,0"/>
+
+                                <Button Grid.Column="1"
+                                        Content="Remove"
+                                        Style="{StaticResource SecondaryButtonStyle}"
+                                        Command="{Binding DataContext.RemoveFilterCommand,
+                                                          RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                        CommandParameter="{Binding}"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+
+                <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,8,0,0">
+                    <Button Content="Add mask"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Command="{Binding AddMaskCommand}"
+                            Margin="0,0,6,0"/>
+                    <Button Content="Add from drawing..."
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Command="{Binding DataContext.AddLayersFromDrawingCommand,
+                                              RelativeSource={RelativeSource AncestorType=Window}}"
+                            Margin="0,0,6,0"/>
+                    <Button Content="Clear"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Command="{Binding ClearFiltersCommand}"/>
+                </StackPanel>
+            </Grid>
+        </GroupBox>
+
+        <TextBlock Grid.Row="3"
+                   Text="{Binding SettingsPath}"
+                   Style="{StaticResource DialogLabelStyle}"
+                   Foreground="{DynamicResource TextMuted}"
+                   TextTrimming="CharacterEllipsis"
+                   ToolTip="{Binding SettingsPath}"
+                   Margin="0,10,0,0"/>
+
+        <!-- Footer -->
+        <Grid Grid.Row="4" Margin="0,10,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                <CheckBox Content="Overrule enabled"
+                          IsChecked="{Binding IsOverruleEnabled}"
+                          Style="{StaticResource FormCheckBoxStyle}"
+                          VerticalAlignment="Center"
+                          Margin="0,0,10,0"
+                          ToolTip="Same switch as TOGGLEPOLYVERTICES"/>
+                <Button Content="Reset profile"
+                        Style="{StaticResource SecondaryButtonStyle}"
+                        Command="{Binding ResetProfileCommand}"/>
+            </StackPanel>
+
+            <Button Content="Close"
+                    Style="{StaticResource PrimaryButtonStyle}"
+                    HorizontalAlignment="Right"
+                    MinWidth="90"
+                    IsDefault="True"
+                    IsCancel="True"
+                    Click="OnCloseClick"/>
+        </Grid>
+    </Grid>
+</Window>
