@@ -1,0 +1,407 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+        Grid chrome for the MatchBBR palette.
+
+        Merged on top of PipePlan's DarkTheme.xaml, which covers TextBlock, Button, TextBox,
+        ComboBox, CheckBox, GroupBox, ScrollBar, ListBox and RadioButton but has no DataGrid at
+        all. The repo's one DarkDataGridStyle lives in CmdUI/UI/Theme.xaml, which is linked
+        conditionally from the sibling DamgaardRI repo and is not present on every machine — so
+        this file carries its own, with literal colours rather than StaticResource references
+        into the base dictionary (a dictionary loaded through XamlReader cannot resolve keys
+        from the dictionary it will later be merged into).
+    -->
+
+    <Color x:Key="MbBackgroundColor">#3B4453</Color>
+    <Color x:Key="MbSurfaceColor">#2D3442</Color>
+    <Color x:Key="MbSurfaceLightColor">#4A5568</Color>
+    <Color x:Key="MbBorderColor">#5A6A80</Color>
+    <Color x:Key="MbForegroundColor">#E2E8F0</Color>
+    <Color x:Key="MbMutedColor">#A0AEC0</Color>
+    <Color x:Key="MbAccentColor">#63B3ED</Color>
+
+    <SolidColorBrush x:Key="MbBackgroundBrush" Color="{StaticResource MbBackgroundColor}" />
+    <SolidColorBrush x:Key="MbSurfaceBrush" Color="{StaticResource MbSurfaceColor}" />
+    <SolidColorBrush x:Key="MbSurfaceLightBrush" Color="{StaticResource MbSurfaceLightColor}" />
+    <SolidColorBrush x:Key="MbBorderBrush" Color="{StaticResource MbBorderColor}" />
+    <SolidColorBrush x:Key="MbForegroundBrush" Color="{StaticResource MbForegroundColor}" />
+    <SolidColorBrush x:Key="MbMutedBrush" Color="{StaticResource MbMutedColor}" />
+    <SolidColorBrush x:Key="MbAccentBrush" Color="{StaticResource MbAccentColor}" />
+
+    <!--
+        This dictionary is parsed on its own by XamlReader.Load and only merged into PipePlan's
+        theme afterwards, so it cannot reference keys defined over there — it needs its own
+        converter rather than reusing the base theme's BoolToVis.
+    -->
+    <BooleanToVisibilityConverter x:Key="MbBoolToVis" />
+
+    <!--
+        The rule table has two halves that mean different things — what comes out of the workbook
+        and what comes out of the drawing — and reading a row wrong is the easiest mistake to make
+        here. Each half gets its own tint and header band, with a divider between them.
+    -->
+    <SolidColorBrush x:Key="MbExcelPanelBrush" Color="#33405A" />
+    <SolidColorBrush x:Key="MbExcelHeaderBrush" Color="#3E5075" />
+    <SolidColorBrush x:Key="MbBbrPanelBrush" Color="#334A46" />
+    <SolidColorBrush x:Key="MbBbrHeaderBrush" Color="#3B5E58" />
+    <SolidColorBrush x:Key="MbDividerBrush" Color="#63B3ED" />
+
+    <Style x:Key="MbPanelHeader" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{StaticResource MbForegroundBrush}" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="Margin" Value="8,3" />
+    </Style>
+
+    <!-- The "add another column" affordance in a rule's Excel half. -->
+    <Style x:Key="MbAddButton" TargetType="Button">
+        <Setter Property="Width" Value="32" />
+        <Setter Property="Height" Value="26" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="FontSize" Value="17" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="ToolTip" Value="Tilføj endnu en Excel-kolonne til denne regel" />
+    </Style>
+
+    <!--
+        Buttons inside the column-filter popup. Fully templated here rather than inheriting the
+        base theme's button chrome: the popup is small and busy, and these are the only way out of
+        a filter, so they need to read clearly instead of fading into the panel behind them.
+    -->
+    <Style x:Key="MbPopupButton" TargetType="Button">
+        <Setter Property="Foreground" Value="{StaticResource MbForegroundBrush}" />
+        <Setter Property="Background" Value="{StaticResource MbSurfaceLightBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource MbAccentBrush}" />
+        <Setter Property="MinHeight" Value="28" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Padding" Value="10,4" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Chrome"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="3">
+                        <ContentPresenter HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          Margin="{TemplateBinding Padding}" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Chrome" Property="Background"
+                                    Value="{StaticResource MbAccentBrush}" />
+                            <Setter Property="Foreground" Value="#1A202C" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Chrome" Property="Background"
+                                    Value="{StaticResource MbSurfaceBrush}" />
+                            <Setter Property="Foreground" Value="{StaticResource MbForegroundBrush}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="MbTinyButton" TargetType="Button">
+        <Setter Property="Width" Value="18" />
+        <Setter Property="Height" Value="18" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="FontSize" Value="10" />
+        <Setter Property="Margin" Value="2,0,6,0" />
+    </Style>
+
+    <!--
+        Row tints for the five comparison outcomes. Kept dark enough that the white row text stays
+        readable — these are backgrounds, not badges.
+    -->
+    <SolidColorBrush x:Key="MbStatusMatchBrush" Color="#2A5A3E" />
+    <SolidColorBrush x:Key="MbStatusAfvigelseBrush" Color="#7A5410" />
+    <SolidColorBrush x:Key="MbStatusKunIExcelBrush" Color="#6E2A2A" />
+    <SolidColorBrush x:Key="MbStatusKunITegningBrush" Color="#7A4310" />
+    <SolidColorBrush x:Key="MbStatusDubletBrush" Color="#4A5568" />
+
+    <!--
+        The invisible drag handles either side of a column header. WPF's DataGrid finds them by
+        name — PART_LeftHeaderGripper / PART_RightHeaderGripper — so a custom header template that
+        omits them silently makes every column non-resizable. Double-clicking one auto-fits the
+        column to its content.
+    -->
+    <Style x:Key="MbHeaderGripper" TargetType="Thumb">
+        <Setter Property="Width" Value="8" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Cursor" Value="SizeWE" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Thumb">
+                    <Border Background="{TemplateBinding Background}" />
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Column header: a flat band, no Aero gradient. -->
+    <Style x:Key="MbColumnHeaderStyle" TargetType="DataGridColumnHeader">
+        <Setter Property="Background" Value="{StaticResource MbSurfaceBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource MbForegroundBrush}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Padding" Value="6,4" />
+        <Setter Property="HorizontalContentAlignment" Value="Left" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="DataGridColumnHeader">
+                    <Grid>
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{StaticResource MbBorderBrush}"
+                                BorderThickness="0,0,1,1">
+                            <ContentPresenter Margin="{TemplateBinding Padding}"
+                                              VerticalAlignment="Center"
+                                              HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" />
+                        </Border>
+                        <Thumb x:Name="PART_LeftHeaderGripper"
+                               HorizontalAlignment="Left"
+                               Style="{StaticResource MbHeaderGripper}" />
+                        <Thumb x:Name="PART_RightHeaderGripper"
+                               HorizontalAlignment="Right"
+                               Style="{StaticResource MbHeaderGripper}" />
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+        Same header, plus a tooltip carrying the full text — column names like
+        "EstimeretVarmeForbrug (Excel)" are wider than any sensible column, so the visible label
+        is usually trimmed.
+    -->
+    <Style x:Key="MbColumnHeaderWithTooltip" TargetType="DataGridColumnHeader"
+           BasedOn="{StaticResource MbColumnHeaderStyle}">
+        <Setter Property="ToolTip"
+                Value="{Binding RelativeSource={RelativeSource Self}, Path=Content}" />
+    </Style>
+
+    <!--
+        Cells get a bare template so the stock selection fill and dotted focus rectangle do not
+        paint over the status row tint.
+    -->
+    <Style x:Key="MbCellStyle" TargetType="DataGridCell">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{StaticResource MbForegroundBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="6,3" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="DataGridCell">
+                    <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter VerticalAlignment="Center" />
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="IsSelected" Value="True">
+                <Setter Property="Foreground" Value="White" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="MbRowStyle" TargetType="DataGridRow">
+        <Setter Property="Background" Value="{StaticResource MbBackgroundBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource MbForegroundBrush}" />
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{StaticResource MbSurfaceLightBrush}" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!--
+        The comparison grid's rows, tinted by outcome. Bound to StatusText rather than to the
+        MatchStatus enum so the XAML needs no clr-namespace mapping into the plugin assembly.
+    -->
+    <Style x:Key="MbComparisonRowStyle" TargetType="DataGridRow" BasedOn="{StaticResource MbRowStyle}">
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding StatusText}" Value="Match">
+                <Setter Property="Background" Value="{StaticResource MbStatusMatchBrush}" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding StatusText}" Value="Afvigelse">
+                <Setter Property="Background" Value="{StaticResource MbStatusAfvigelseBrush}" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding StatusText}" Value="Kun i Excel">
+                <Setter Property="Background" Value="{StaticResource MbStatusKunIExcelBrush}" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding StatusText}" Value="Kun i tegning">
+                <Setter Property="Background" Value="{StaticResource MbStatusKunITegningBrush}" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding StatusText}" Value="Dublet">
+                <Setter Property="Background" Value="{StaticResource MbStatusDubletBrush}" />
+            </DataTrigger>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="BorderBrush" Value="{StaticResource MbAccentBrush}" />
+                <Setter Property="BorderThickness" Value="0,1,0,1" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="MbDataGridStyle" TargetType="DataGrid">
+        <Setter Property="Background" Value="{StaticResource MbBackgroundBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource MbForegroundBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource MbBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="RowBackground" Value="Transparent" />
+        <Setter Property="AlternatingRowBackground" Value="Transparent" />
+        <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource MbBorderBrush}" />
+        <Setter Property="VerticalGridLinesBrush" Value="{StaticResource MbBorderBrush}" />
+        <Setter Property="GridLinesVisibility" Value="Horizontal" />
+        <Setter Property="HeadersVisibility" Value="Column" />
+        <Setter Property="RowHeight" Value="24" />
+        <Setter Property="AutoGenerateColumns" Value="False" />
+        <Setter Property="CanUserAddRows" Value="False" />
+        <Setter Property="CanUserDeleteRows" Value="False" />
+        <Setter Property="CanUserResizeRows" Value="False" />
+        <Setter Property="SelectionUnit" Value="FullRow" />
+        <Setter Property="SelectionMode" Value="Single" />
+        <Setter Property="EnableRowVirtualization" Value="True" />
+        <Setter Property="EnableColumnVirtualization" Value="True" />
+        <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True" />
+        <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling" />
+        <Setter Property="ScrollViewer.IsDeferredScrollingEnabled" Value="True" />
+        <Setter Property="ColumnHeaderStyle" Value="{StaticResource MbColumnHeaderStyle}" />
+        <Setter Property="CellStyle" Value="{StaticResource MbCellStyle}" />
+        <Setter Property="RowStyle" Value="{StaticResource MbRowStyle}" />
+    </Style>
+
+    <Style x:Key="MbComparisonGridStyle" TargetType="DataGrid" BasedOn="{StaticResource MbDataGridStyle}">
+        <Setter Property="RowStyle" Value="{StaticResource MbComparisonRowStyle}" />
+        <Setter Property="IsReadOnly" Value="True" />
+    </Style>
+
+    <!--
+        Excel-style filter dropdown, hosted in a preview-grid column header. The header's
+        DataContext is that column's ColumnFilterViewModel, so the whole thing is declarative.
+        A narrowed column turns its funnel accent-coloured and shows "checked/total", which is
+        what makes an active filter visible without opening every dropdown.
+    -->
+    <DataTemplate x:Key="MbFilterHeaderTemplate">
+        <Grid>
+            <DockPanel LastChildFill="True">
+                <ToggleButton x:Name="FilterToggle"
+                              DockPanel.Dock="Right"
+                              Width="18"
+                              Height="18"
+                              Padding="0"
+                              Margin="4,0,0,0"
+                              VerticalAlignment="Center"
+                              Background="{StaticResource MbSurfaceLightBrush}"
+                              Foreground="{StaticResource MbForegroundBrush}"
+                              BorderBrush="{StaticResource MbBorderBrush}"
+                              IsChecked="{Binding IsOpen, Mode=TwoWay}"
+                              ToolTip="Filtrér på denne kolonne">
+                    <TextBlock Text="▾" FontSize="10" />
+                </ToggleButton>
+                <TextBlock DockPanel.Dock="Right"
+                           Text="{Binding Summary}"
+                           FontSize="9"
+                           VerticalAlignment="Center"
+                           Margin="4,0,0,0"
+                           Foreground="{StaticResource MbAccentBrush}" />
+                <TextBlock Text="{Binding Header}"
+                           VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis" />
+            </DockPanel>
+
+            <Popup IsOpen="{Binding IsOpen, Mode=TwoWay}"
+                   PlacementTarget="{Binding ElementName=FilterToggle}"
+                   Placement="Bottom"
+                   StaysOpen="False"
+                   AllowsTransparency="True"
+                   PopupAnimation="Fade">
+                <Border Background="{StaticResource MbSurfaceBrush}"
+                        BorderBrush="{StaticResource MbBorderBrush}"
+                        BorderThickness="1"
+                        Padding="6"
+                        MinWidth="270">
+                    <StackPanel>
+                        <TextBlock Text="{Binding TooManyValuesText}"
+                                   TextWrapping="Wrap"
+                                   Foreground="{StaticResource MbMutedBrush}"
+                                   MaxWidth="220">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsFilterable}" Value="False">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+
+                        <StackPanel Visibility="{Binding IsFilterable, Converter={StaticResource MbBoolToVis}}">
+                            <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                                     ToolTip="Søg i værdier" />
+                            <ListBox ItemsSource="{Binding VisibleValues}"
+                                     MaxHeight="260"
+                                     Margin="0,4,0,0"
+                                     Background="Transparent"
+                                     BorderThickness="0">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <CheckBox Content="{Binding Display}"
+                                                  IsChecked="{Binding IsChecked, Mode=TwoWay}" />
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <UniformGrid Columns="3" Margin="0,8,0,0">
+                                <Button Content="Vælg alle"
+                                        Style="{StaticResource MbPopupButton}"
+                                        Margin="0,0,4,0"
+                                        Command="{Binding SelectAllCommand}"
+                                        ToolTip="Sæt flueben ved alle viste værdier" />
+                                <Button Content="Ryd"
+                                        Style="{StaticResource MbPopupButton}"
+                                        Margin="4,0,4,0"
+                                        Command="{Binding ClearAllCommand}"
+                                        ToolTip="Fjern flueben ved alle viste værdier" />
+                                <Button Content="Luk"
+                                        Style="{StaticResource MbPopupButton}"
+                                        Margin="4,0,0,0"
+                                        Command="{Binding CloseCommand}" />
+                            </UniformGrid>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Popup>
+        </Grid>
+
+        <DataTemplate.Triggers>
+            <DataTrigger Binding="{Binding IsActive}" Value="True">
+                <Setter TargetName="FilterToggle" Property="Background"
+                        Value="{StaticResource MbAccentBrush}" />
+            </DataTrigger>
+        </DataTemplate.Triggers>
+    </DataTemplate>
+
+    <!-- Section heading above each block of controls. -->
+    <Style x:Key="MbSectionHeader" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{StaticResource MbMutedBrush}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Margin" Value="0,8,0,4" />
+    </Style>
+
+    <!-- Compact square button for the per-cell write arrow. -->
+    <Style x:Key="MbCellButton" TargetType="Button">
+        <Setter Property="Width" Value="20" />
+        <Setter Property="Height" Value="18" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Margin" Value="2,0,0,0" />
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="ToolTip" Value="Skriv Excel-værdien til BBR-blokken" />
+    </Style>
+
+</ResourceDictionary>

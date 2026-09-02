@@ -1,4 +1,4 @@
-using Autodesk.AutoCAD.ApplicationServices;
+﻿using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Geometry;
@@ -73,6 +73,10 @@ public partial class Intersect
 
         using CrawlNetwork net = NSAlignmentCrawlGraphBuilder.Build(snapshot);
 
+        // The component joints (ports, block centres, centreline ends) that weeding must never drop,
+        // so the baked alignment always carries a vertex where a pipe meets a fitting.
+        CrawlPinSet pins = CrawlPinSet.FromSnapshot(snapshot);
+
         // 2. Pick the start point. A yellow X follows the cursor, snapped to the network, so you can
         //    see where station 0 will land on the xref pipes/blocks before committing.
         PromptPointResult startResult;
@@ -132,7 +136,7 @@ public partial class Intersect
 
         using (NSAlignmentCrawlPreviewManager preview = new())
         using (NSAlignmentCrawlStartMarker startMarker = new(CadColor.FromRgb(255, 255, 0)))
-        using (new NSAlignmentCrawlPointTracker(document, preview, BuildPreview))
+        using (new NSAlignmentCrawlPointTracker(document, preview, BuildPreview, pins))
         {
             startMarker.Show(document, session.StartPosition);
 
@@ -157,7 +161,7 @@ public partial class Intersect
         }
 
         // 4. Confirm direction, then bake the crawl polyline.
-        TransformToAlignment(document, editor, db, finalVertices);
+        TransformToAlignment(document, editor, db, finalVertices, pins);
     }
 
     /// <summary>
@@ -167,7 +171,8 @@ public partial class Intersect
     /// at the X — the arrows are the real direction.
     /// </summary>
     private static void TransformToAlignment(
-        Document document, Editor editor, Database db, List<(Point2d Pt, double OutBulge)> finalVertices)
+        Document document, Editor editor, Database db, List<(Point2d Pt, double OutBulge)> finalVertices,
+        CrawlPinSet pins)
     {
         List<(Point2d Pt, double OutBulge)> verts = finalVertices;
 
@@ -185,9 +190,9 @@ public partial class Intersect
             // Flip reverses (repeatable), Enter accepts the shown direction.
             while (true)
             {
-                ShowPath(pathPreview, verts);
+                ShowPath(pathPreview, verts, pins);
                 startMarker.Show(document, verts[0].Pt);
-                arrows.Show(document, BuildArrowAnchors(verts));
+                arrows.Show(document, BuildArrowAnchors(verts, pins));
 
                 PromptKeywordOptions dir = new(
                     "\nBekræft alignment-retning — [Flip] vender retningen, Enter accepterer");
@@ -207,7 +212,7 @@ public partial class Intersect
 
                 if (res.StringResult == "Flip")
                 {
-                    verts = ReversePath(verts);
+                    verts = ReversePath(verts, pins);
                 }
             }
         }
@@ -216,7 +221,8 @@ public partial class Intersect
         using (DocumentLock documentLock = document.LockDocument())
         using (Transaction tx = db.TransactionManager.StartTransaction())
         {
-            Polyline? polyline = NSAlignmentCrawlPolylineBuilder.Build(verts, NSAlignmentCrawlConstants.OutputLayer);
+            Polyline? polyline = NSAlignmentCrawlPolylineBuilder.Build(
+                verts, NSAlignmentCrawlConstants.OutputLayer, pins);
             if (polyline is null)
             {
                 tx.Abort();
@@ -235,9 +241,13 @@ public partial class Intersect
         }
     }
 
-    private static void ShowPath(NSAlignmentCrawlPreviewManager preview, IReadOnlyList<(Point2d Pt, double OutBulge)> verts)
+    private static void ShowPath(
+        NSAlignmentCrawlPreviewManager preview,
+        IReadOnlyList<(Point2d Pt, double OutBulge)> verts,
+        CrawlPinSet pins)
     {
-        Polyline? polyline = NSAlignmentCrawlPolylineBuilder.Build(verts, NSAlignmentCrawlConstants.OutputLayer);
+        Polyline? polyline = NSAlignmentCrawlPolylineBuilder.Build(
+            verts, NSAlignmentCrawlConstants.OutputLayer, pins);
         if (polyline is not null)
         {
             preview.Show(polyline);
@@ -248,10 +258,12 @@ public partial class Intersect
     /// Samples direction arrowheads along the path: a handful of evenly spaced anchors, each with the
     /// unit tangent in travel direction, for <see cref="LerSlopeArrowManager"/> to render.
     /// </summary>
-    private static List<LerSlopeAnchor> BuildArrowAnchors(IReadOnlyList<(Point2d Pt, double OutBulge)> verts)
+    private static List<LerSlopeAnchor> BuildArrowAnchors(
+        IReadOnlyList<(Point2d Pt, double OutBulge)> verts, CrawlPinSet pins)
     {
         List<LerSlopeAnchor> anchors = [];
-        Polyline? pl = NSAlignmentCrawlPolylineBuilder.Build(verts, NSAlignmentCrawlConstants.OutputLayer);
+        Polyline? pl = NSAlignmentCrawlPolylineBuilder.Build(
+            verts, NSAlignmentCrawlConstants.OutputLayer, pins);
         if (pl is null)
         {
             return anchors;
@@ -296,9 +308,11 @@ public partial class Intersect
     }
 
     /// <summary>Reverses the path, negating arc bulges so curves stay correct (reuses the builder).</summary>
-    private static List<(Point2d Pt, double OutBulge)> ReversePath(IReadOnlyList<(Point2d Pt, double OutBulge)> verts)
+    private static List<(Point2d Pt, double OutBulge)> ReversePath(
+        IReadOnlyList<(Point2d Pt, double OutBulge)> verts, CrawlPinSet pins)
     {
-        using Polyline pl = NSAlignmentCrawlPolylineBuilder.Build(verts, NSAlignmentCrawlConstants.OutputLayer)!;
+        using Polyline pl = NSAlignmentCrawlPolylineBuilder.Build(
+            verts, NSAlignmentCrawlConstants.OutputLayer, pins)!;
         return NSAlignmentCrawlPolylineBuilder.ReadReversed(pl);
     }
 }

@@ -1,0 +1,256 @@
+<UserControl x:Class="IntersectUtilities.MPE.MatchBBR.Views.MatchBbrExcelView"
+             x:ClassModifier="internal"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             Background="{StaticResource BackgroundBrush}"
+             d:DesignWidth="1100" d:DesignHeight="760">
+
+    <Grid Margin="8">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Source workbook -->
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="160" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Column="0" Text="Excel-fil" VerticalAlignment="Center" Margin="0,0,6,0" />
+            <TextBox Grid.Column="1"
+                     Text="{Binding WorkbookPath, UpdateSourceTrigger=PropertyChanged}"
+                     VerticalContentAlignment="Center" />
+            <Button Grid.Column="2" Content="Gennemse…" Margin="6,0,0,0" Command="{Binding BrowseCommand}" />
+            <TextBlock Grid.Column="3" Text="Ark" VerticalAlignment="Center" Margin="12,0,6,0" />
+            <ComboBox Grid.Column="4"
+                      ItemsSource="{Binding SheetNames}"
+                      SelectedItem="{Binding SelectedSheet, Mode=TwoWay}" />
+            <Button Grid.Column="5" Content="Genindlæs" Margin="6,0,0,0" Command="{Binding ReloadCommand}" />
+        </Grid>
+
+        <!--
+            Comparison rules. The row is split down the middle: everything left of the divider
+            comes from the workbook, everything right of it from the drawing's BBR property set.
+            Header bands and background tints carry that split, since a row read the wrong way
+            round is the easiest mistake to make here.
+        -->
+        <GroupBox Grid.Row="1" Header="Sammenligningsregler" Margin="0,10,0,0">
+            <StackPanel>
+                <!-- Header bands -->
+                <Grid Margin="0,0,0,3">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="40" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="3" />
+                        <ColumnDefinition Width="170" />
+                        <ColumnDefinition Width="150" />
+                        <ColumnDefinition Width="112" />
+                        <ColumnDefinition Width="30" />
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Column="0" Grid.ColumnSpan="2" Background="{StaticResource MbExcelHeaderBrush}">
+                        <TextBlock Text="EXCEL" Style="{StaticResource MbPanelHeader}" />
+                    </Border>
+                    <Border Grid.Column="3" Grid.ColumnSpan="4" Background="{StaticResource MbBbrHeaderBrush}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="BBR" Style="{StaticResource MbPanelHeader}" />
+                            <TextBlock Text="— egenskab · regel · tolerance"
+                                       Style="{StaticResource MbPanelHeader}"
+                                       FontWeight="Normal"
+                                       Opacity="0.75"
+                                       Margin="0,3,8,3" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <ItemsControl ItemsSource="{Binding Rules}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                          <StackPanel Margin="0,1">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="40" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="3" />
+                                    <ColumnDefinition Width="170" />
+                                    <ColumnDefinition Width="150" />
+                                    <ColumnDefinition Width="112" />
+                                    <ColumnDefinition Width="30" />
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Half tints, painted behind the controls -->
+                                <Border Grid.Column="0" Grid.ColumnSpan="2"
+                                        Background="{StaticResource MbExcelPanelBrush}" />
+                                <Border Grid.Column="2" Background="{StaticResource MbDividerBrush}" />
+                                <Border Grid.Column="3" Grid.ColumnSpan="4"
+                                        Background="{StaticResource MbBbrPanelBrush}" />
+
+                                <RadioButton Grid.Column="0"
+                                             IsChecked="{Binding IsKey, Mode=TwoWay}"
+                                             VerticalAlignment="Center"
+                                             HorizontalAlignment="Center"
+                                             ToolTip="Nøglereglen — den der parrer Excel-rækker med BBR-blokke" />
+
+                                <!--
+                                    Any number of columns, joined with a space in the order shown.
+                                    The + is docked right so it stays put as columns are added.
+                                -->
+                                <DockPanel Grid.Column="1" Margin="0,3,6,3" LastChildFill="True">
+                                    <Button DockPanel.Dock="Right"
+                                            Content="+"
+                                            Style="{StaticResource MbAddButton}"
+                                            Command="{Binding AddColumnCommand}" />
+                                    <ItemsControl ItemsSource="{Binding ExcelColumns}" VerticalAlignment="Center">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel Orientation="Horizontal" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Orientation="Horizontal" Margin="0,1,4,1">
+                                                    <ComboBox MinWidth="150"
+                                                              ItemsSource="{Binding Columns}"
+                                                              SelectedItem="{Binding Selected, Mode=TwoWay}"
+                                                              DisplayMemberPath="Display" />
+                                                    <Button Content="✕"
+                                                            Style="{StaticResource MbTinyButton}"
+                                                            VerticalAlignment="Center"
+                                                            Command="{Binding RemoveCommand}"
+                                                            ToolTip="Fjern denne kolonne fra reglen"
+                                                            Visibility="{Binding CanRemove, Converter={StaticResource BoolToVis}}" />
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </DockPanel>
+
+                                <ComboBox Grid.Column="3"
+                                          Margin="6,3,6,3"
+                                          VerticalAlignment="Center"
+                                          ItemsSource="{Binding BbrProperties}"
+                                          SelectedItem="{Binding BbrProperty, Mode=TwoWay}" />
+
+                                <ComboBox Grid.Column="4"
+                                          Margin="0,3,6,3"
+                                          VerticalAlignment="Center"
+                                          ItemsSource="{Binding Kinds}"
+                                          SelectedItem="{Binding Kind, Mode=TwoWay}"
+                                          DisplayMemberPath="Display" />
+
+                                <Grid Grid.Column="5"
+                                      Margin="0,3,6,3"
+                                      VerticalAlignment="Center"
+                                      Visibility="{Binding IsNumeric, Converter={StaticResource BoolToVis}}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0"
+                                             Text="{Binding ToleranceText, UpdateSourceTrigger=LostFocus}"
+                                             HorizontalContentAlignment="Right" />
+                                    <CheckBox Grid.Column="1"
+                                              Content="%"
+                                              Margin="4,0,0,0"
+                                              VerticalAlignment="Center"
+                                              IsChecked="{Binding ToleranceIsPercent, Mode=TwoWay}"
+                                              ToolTip="Slå fra for absolut tolerance" />
+                                </Grid>
+
+                                <Button Grid.Column="6"
+                                        Content="✕"
+                                        Height="24"
+                                        Margin="0,3,3,3"
+                                        Padding="0"
+                                        VerticalAlignment="Center"
+                                        Style="{StaticResource DangerButton}"
+                                        Command="{Binding RemoveCommand}"
+                                        ToolTip="Slet hele reglen" />
+                            </Grid>
+
+                            <!-- A numeric rule needs exactly one column; joined text has no
+                                 number to read. On its own line so it never overlaps the row. -->
+                            <TextBlock Text="⚠ En tal-regel kan kun læse én kolonne — fjern de øvrige"
+                                       Foreground="#FFD37A"
+                                       FontSize="10"
+                                       Margin="44,0,0,3"
+                                       Visibility="{Binding IsNumericWithJoinedColumns, Converter={StaticResource BoolToVis}}" />
+                          </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <Button Content="+ Tilføj regel"
+                        HorizontalAlignment="Left"
+                        Margin="0,6,0,0"
+                        Command="{Binding AddRuleCommand}" />
+            </StackPanel>
+        </GroupBox>
+
+        <!--
+            Options only. Row filtering now lives in the preview grid's own column headers, the
+            way it does in Excel, so the panel that used to hold a column picker and a value list
+            is gone and the grid gets the space back.
+        -->
+        <Grid Grid.Row="2" Margin="0,8,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="260" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Column="0"
+                       Text="Distriktskolonne"
+                       VerticalAlignment="Center"
+                       Margin="0,0,6,0" />
+            <ComboBox Grid.Column="1"
+                      ItemsSource="{Binding Columns}"
+                      SelectedItem="{Binding DistrictColumn, Mode=TwoWay}"
+                      DisplayMemberPath="Display"
+                      ToolTip="Vises i kolonnen Distrikt på fanen Sammenlign og følger med i eksporten" />
+            <CheckBox Grid.Column="2"
+                      Margin="16,0,0,0"
+                      VerticalAlignment="Center"
+                      Content="Spring Type = &quot;Ingen&quot; over"
+                      IsChecked="{Binding SkipTypeIngen, Mode=TwoWay}" />
+        </Grid>
+
+        <!-- Preview -->
+        <GroupBox Grid.Row="3" Header="Rækker" Margin="0,10,0,0">
+            <DataGrid x:Name="RowsGrid"
+                      Style="{StaticResource MbDataGridStyle}"
+                      ItemsSource="{Binding RowsView}" />
+        </GroupBox>
+
+        <!-- Footer -->
+        <Grid Grid.Row="4" Margin="0,8,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Button Grid.Column="0" Content="Markér alle" Command="{Binding SelectAllRowsCommand}" />
+            <Button Grid.Column="1" Content="Fjern alle" Margin="6,0,0,0" Command="{Binding DeselectAllRowsCommand}" />
+            <TextBlock Grid.Column="2"
+                       Margin="12,0,0,0"
+                       VerticalAlignment="Center"
+                       Text="{Binding Status}"
+                       Foreground="{Binding StatusColor}"
+                       TextTrimming="CharacterEllipsis" />
+        </Grid>
+    </Grid>
+
+</UserControl>

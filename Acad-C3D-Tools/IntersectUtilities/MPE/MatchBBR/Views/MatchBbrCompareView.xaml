@@ -1,0 +1,110 @@
+<UserControl x:Class="IntersectUtilities.MPE.MatchBBR.Views.MatchBbrCompareView"
+             x:ClassModifier="internal"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             Background="{StaticResource BackgroundBrush}"
+             d:DesignWidth="1100" d:DesignHeight="760">
+
+    <Grid Margin="8">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Drawing side -->
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Button Grid.Column="0" Content="Vælg område" Command="{Binding PickBoundaryCommand}" />
+            <Button Grid.Column="1" Content="Genindlæs tegning" Margin="6,0,0,0"
+                    Command="{Binding ReloadDrawingCommand}" />
+            <Button Grid.Column="2" Content="Sammenlign" Margin="6,0,0,0"
+                    Style="{StaticResource PrimaryButton}"
+                    Command="{Binding CompareCommand}" />
+            <TextBlock Grid.Column="3" Margin="12,0,0,0" VerticalAlignment="Center"
+                       Foreground="{StaticResource ForegroundMutedBrush}"
+                       Text="{Binding BoundaryText}" />
+            <TextBlock Grid.Column="4" Margin="12,0,0,0" VerticalAlignment="Center"
+                       TextTrimming="CharacterEllipsis"
+                       Text="{Binding Counts}" />
+        </Grid>
+
+        <!-- Status filters -->
+        <Grid Grid.Row="1" Margin="0,10,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="220" />
+            </Grid.ColumnDefinitions>
+
+            <CheckBox Grid.Column="0" Content="Match" IsChecked="{Binding ShowMatch, Mode=TwoWay}" Margin="0,0,10,0" />
+            <CheckBox Grid.Column="1" Content="Afvigelse" IsChecked="{Binding ShowAfvigelse, Mode=TwoWay}" Margin="0,0,10,0" />
+            <CheckBox Grid.Column="2" Content="Kun i Excel" IsChecked="{Binding ShowKunIExcel, Mode=TwoWay}" Margin="0,0,10,0" />
+            <CheckBox Grid.Column="3" Content="Kun i tegning" IsChecked="{Binding ShowKunITegning, Mode=TwoWay}" Margin="0,0,10,0" />
+            <CheckBox Grid.Column="4" Content="Dublet" IsChecked="{Binding ShowDublet, Mode=TwoWay}" Margin="0,0,10,0" />
+            <TextBox Grid.Column="6"
+                     Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                     ToolTip="Søg i adresser, distrikter, værdier og årsager" />
+        </Grid>
+
+        <!-- Comparison grid. Columns are built in code-behind: the per-rule value columns depend
+             on the rule table, which the user edits on the Excel tab. -->
+        <DataGrid x:Name="ComparisonGrid"
+                  Grid.Row="2"
+                  Margin="0,10,0,0"
+                  Style="{StaticResource MbComparisonGridStyle}"
+                  ItemsSource="{Binding RowsView}"
+                  SelectedItem="{Binding SelectedRow, Mode=TwoWay}" />
+
+        <!-- Actions -->
+        <Grid Grid.Row="3" Margin="0,8,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Button Grid.Column="0"
+                    Content="{Binding PreviewButtonText}"
+                    MinWidth="150"
+                    Command="{Binding TogglePreviewCommand}"
+                    ToolTip="Midlertidige cirkler om de viste rækker. Intet gemmes i tegningen — de forsvinder når du slår dem fra eller lukker paletten." />
+            <Button Grid.Column="1" Content="Tegn cirkler" Margin="6,0,0,0"
+                    Command="{Binding ExportCirclesCommand}"
+                    ToolTip="Tegner de viste cirkler som rigtige objekter i tegningen, på lag efter status. Cirkler fra en tidligere kørsel erstattes." />
+            <Button Grid.Column="2" Content="Slet cirkler" Margin="6,0,0,0"
+                    Command="{Binding EraseCirclesCommand}"
+                    ToolTip="Sletter alle cirkler dette værktøj har tegnet. Rører ikke anden geometri." />
+            <Button Grid.Column="3" Content="Skriv til blokke" Margin="6,0,0,0"
+                    Command="{Binding WriteAllCommand}"
+                    ToolTip="Skriver Excel-værdierne for alle ikke-nøgleregler til de matchede BBR-blokke" />
+            <Button Grid.Column="4" Content="Eksportér…" Margin="6,0,0,0" Command="{Binding ExportCommand}" />
+        </Grid>
+
+        <TextBlock Grid.Row="4"
+                   Margin="0,8,0,0"
+                   Text="{Binding Status}"
+                   Foreground="{Binding StatusColor}"
+                   TextWrapping="Wrap" />
+    </Grid>
+
+</UserControl>

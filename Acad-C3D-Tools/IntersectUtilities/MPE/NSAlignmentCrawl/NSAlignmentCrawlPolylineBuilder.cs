@@ -1,4 +1,4 @@
-using Autodesk.AutoCAD.DatabaseServices;
+﻿using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 
 namespace IntersectUtilities.MPE.NSAlignmentCrawl;
@@ -75,14 +75,22 @@ internal static class NSAlignmentCrawlPolylineBuilder
 
     /// <summary>
     /// Removes redundant nodes on straight runs so the baked alignment carries a vertex only where
-    /// the direction actually changes: an interior vertex is dropped when both of its incident
-    /// segments are straight (bulge ≈ 0) and collinear within
-    /// <see cref="NSAlignmentCrawlConstants.CollinearAngleTolerance"/> (a zero-length hop counts as
-    /// collinear). Arc segments carry a non-zero bulge, so an arc endpoint is never dropped — which
+    /// the direction actually changes.
+    ///
+    /// A vertex sitting on a component joint (see <see cref="CrawlPinSet"/>) is removed ONLY when it
+    /// is genuinely collinear — it is exempt from the short-hop shortcut below, which drops a vertex
+    /// for merely being close to its neighbour rather than for being straight. A joint on a dead
+    /// straight run still collapses; a joint at any real change of direction always survives.
+    ///
+    /// Otherwise an interior vertex is dropped when both of its incident
+    /// segments are straight (bulge exactly 0) and the three points are collinear to within
+    /// <see cref="NSAlignmentCrawlConstants.CollinearDeviation"/> (a
+    /// duplicate point counts as collinear). Arc segments carry a non-zero bulge, so an arc endpoint is never dropped — which
     /// is why a reduction keeps its "arc end → single line element → arc start" shape. The endpoints
     /// (start X / end) are always preserved, so station 0 and the terminus are untouched.
     /// </summary>
-    public static List<(Point2d Pt, double OutBulge)> Weed(IReadOnlyList<(Point2d Pt, double OutBulge)> vertices)
+    public static List<(Point2d Pt, double OutBulge)> Weed(
+        IReadOnlyList<(Point2d Pt, double OutBulge)> vertices, CrawlPinSet? pins = null)
     {
         if (vertices.Count <= 2)
         {
@@ -95,7 +103,9 @@ internal static class NSAlignmentCrawlPolylineBuilder
             (Point2d Pt, double OutBulge) prev = result[^1];
             (Point2d Pt, double OutBulge) cur = vertices[i];
             (Point2d Pt, double OutBulge) next = vertices[i + 1];
-            if (IsRedundantStraightNode(prev, cur, next))
+
+            bool pinned = pins is not null && pins.IsPinned(cur.Pt);
+            if (IsRedundantStraightNode(prev, cur, next, pinned))
             {
                 // Drop cur: the segment becomes prev → next. prev's outgoing bulge is already 0
                 // (guaranteed straight by IsRedundantStraightNode), so the merged run stays straight.
@@ -110,18 +120,29 @@ internal static class NSAlignmentCrawlPolylineBuilder
     }
 
     /// <summary>
-    /// True when <paramref name="cur"/> is a removable node on a straight run: both incident segments
-    /// are straight (bulge ≈ 0) and their directions agree within tolerance (or one hop is degenerate).
+    /// True when <paramref name="cur"/> is a removable node on a straight run.
+    ///
+    /// Collinearity is the classic determinant — twice the signed area of the triangle
+    /// (prev, cur, next) — divided by the base, which turns that area into the perpendicular distance
+    /// from cur to the chord prev→next: exactly the error introduced by dropping the vertex. It is
+    /// compared against a precision floor rather than an exact zero because the drawing's own
+    /// coordinates are not bit-exactly collinear — see
+    /// <see cref="NSAlignmentCrawlConstants.CollinearDeviation"/>.
+    ///
+    /// <paramref name="pinned"/> governs the one remaining tolerance, which is not a collinearity test
+    /// at all: an ordinary vertex is absorbed by a neighbour lying within the 25 mm connection
+    /// tolerance, which is how duplicate vertices from drafting and from curve splitting disappear. A
+    /// component joint is exempt — for a joint, exact collinearity is the only thing that removes it.
     /// </summary>
     private static bool IsRedundantStraightNode(
         (Point2d Pt, double OutBulge) prev,
         (Point2d Pt, double OutBulge) cur,
-        (Point2d Pt, double OutBulge) next)
+        (Point2d Pt, double OutBulge) next,
+        bool pinned)
     {
-        const double bulgeEpsilon = 1e-6;
-
-        // An arc on either side means this vertex is an arc endpoint — never redundant.
-        if (Math.Abs(prev.OutBulge) > bulgeEpsilon || Math.Abs(cur.OutBulge) > bulgeEpsilon)
+        // An arc on either side means this vertex is an arc endpoint — never redundant. A straight
+        // segment stores a bulge of exactly 0, and reversing negates it, so this comparison is exact.
+        if (prev.OutBulge != 0.0 || cur.OutBulge != 0.0)
         {
             return false;
         }
@@ -129,19 +150,40 @@ internal static class NSAlignmentCrawlPolylineBuilder
         Vector2d incoming = prev.Pt.GetVectorTo(cur.Pt);
         Vector2d outgoing = cur.Pt.GetVectorTo(next.Pt);
 
-        // A duplicate/zero-length hop carries no direction of its own, so cur adds nothing.
-        if (incoming.Length <= NSAlignmentCrawlConstants.Tolerance
-            || outgoing.Length <= NSAlignmentCrawlConstants.Tolerance)
+        // The same point twice carries no direction, so cur adds nothing whatever its neighbours do.
+        if (IsZero(incoming) || IsZero(outgoing))
         {
             return true;
         }
 
-        return incoming.GetAngleTo(outgoing) <= NSAlignmentCrawlConstants.CollinearAngleTolerance;
+        // The only tolerance left, and it is not a collinearity test: an ordinary vertex sitting on
+        // top of its neighbour is drafting/split noise. A component joint is exempt.
+        if (!pinned
+            && (incoming.Length <= NSAlignmentCrawlConstants.Tolerance
+                || outgoing.Length <= NSAlignmentCrawlConstants.Tolerance))
+        {
+            return true;
+        }
+
+        // A reversal is never a straight run, however collinear the three points are: on a spur that
+        // doubles back, cur sits exactly on the prev→next line yet is the whole point of the detour.
+        if (incoming.DotProduct(outgoing) <= 0.0)
+        {
+            return false;
+        }
+
+        // |2 x triangle area| / base = perpendicular distance from cur to the chord.
+        Vector2d chord = prev.Pt.GetVectorTo(next.Pt);
+        double doubleArea = Math.Abs((chord.X * incoming.Y) - (chord.Y * incoming.X));
+        return doubleArea <= NSAlignmentCrawlConstants.CollinearDeviation * chord.Length;
     }
 
-    public static Polyline? Build(IReadOnlyList<(Point2d Pt, double OutBulge)> vertices, string layer)
+    private static bool IsZero(Vector2d v) => v.X == 0.0 && v.Y == 0.0;
+
+    public static Polyline? Build(
+        IReadOnlyList<(Point2d Pt, double OutBulge)> vertices, string layer, CrawlPinSet? pins = null)
     {
-        vertices = Weed(vertices);
+        vertices = Weed(vertices, pins);
         if (vertices.Count < 2)
         {
             return null;
