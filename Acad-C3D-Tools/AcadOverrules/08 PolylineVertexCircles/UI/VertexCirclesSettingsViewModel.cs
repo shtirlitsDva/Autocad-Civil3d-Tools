@@ -72,8 +72,8 @@ namespace AcadOverrules.VertexCircles.UI
         public string SettingsPath => VertexCirclesSettingsStore.SettingsPath;
 
         /// <summary>
-        /// The linetype names offered in the Circle group: the ones loaded in the active
-        /// drawing plus the ones the profiles already store. A profile travels between
+        /// The linetype names offered in both tabs of the Circle group: the ones loaded in the
+        /// active drawing plus the ones the profiles already store. A profile travels between
         /// drawings, so its linetype need not be loaded here - keeping the stored name in the
         /// list is what stops the ComboBox from clearing it. A name that is not loaded in the
         /// drawing on screen draws as Continuous, see <see cref="LinetypeResolver"/>.
@@ -202,21 +202,6 @@ namespace AcadOverrules.VertexCircles.UI
         }
 
         [RelayCommand]
-        private void PickFixedColor()
-        {
-            if (SelectedProfile == null) return;
-
-            var dialog = new Autodesk.AutoCAD.Windows.ColorDialog();
-            dialog.Color = ToAcadColor(SelectedProfile.FixedColor);
-
-            if (dialog.ShowDialog() != System.Windows.Forms.DialogResult.OK) return;
-
-            //ColorValue resolves ACI and true colour alike, so any tab of the dialog works.
-            SelectedProfile.FixedColor = HtmlColor.Format(dialog.Color.ColorValue);
-            SelectedProfile.UseFixedColor = true;
-        }
-
-        [RelayCommand]
         private void ResetProfile()
         {
             if (SelectedProfile == null) return;
@@ -248,42 +233,51 @@ namespace AcadOverrules.VertexCircles.UI
         }
 
         /// <summary>
-        /// Builds <see cref="AvailableLinetypes"/> and, on the way, snaps every profile onto
-        /// the drawing's spelling of its linetype: the ComboBox matches items with Equals, so
-        /// a stored "DASHED" would not select a table entry named "Dashed".
+        /// Builds <see cref="AvailableLinetypes"/> from the drawing and from what the profiles
+        /// already store, then snaps every style onto the list.
         /// </summary>
         private IReadOnlyList<string> BuildLinetypeChoices()
         {
             var names = new SortedSet<string>(StringComparer.OrdinalIgnoreCase)
             {
-                VertexCirclesSettings.DefaultLinetype,
+                MarkerStyle.DefaultLinetype,
             };
 
             foreach (string name in ReadLinetypeNames()) names.Add(name);
 
             foreach (VertexCirclesProfileViewModel profile in Profiles)
-            {
-                string stored = (profile.Linetype ?? string.Empty).Trim();
-
-                if (stored.Length == 0)
-                {
-                    profile.Linetype = VertexCirclesSettings.DefaultLinetype;
-                    continue;
-                }
-
-                if (!names.TryGetValue(stored, out string? loaded))
-                {
-                    names.Add(stored);
-                    if (!string.Equals(profile.Linetype, stored, StringComparison.Ordinal))
-                        profile.Linetype = stored;
-                    continue;
-                }
-
-                if (!string.Equals(profile.Linetype, loaded, StringComparison.Ordinal))
-                    profile.Linetype = loaded;
-            }
+                foreach (MarkerStyleViewModel style in profile.Styles)
+                    SnapToDrawingSpelling(style, names);
 
             return names.ToList();
+        }
+
+        /// <summary>
+        /// Makes sure a style's stored linetype is in <paramref name="names"/> and spelled the
+        /// way the drawing spells it: the ComboBox matches items with Equals, so a stored
+        /// "DASHED" would not select a table entry named "Dashed". A name the drawing does not
+        /// have is kept as it stands, because the profile travels between drawings.
+        /// </summary>
+        private static void SnapToDrawingSpelling(MarkerStyleViewModel style, SortedSet<string> names)
+        {
+            string stored = (style.Linetype ?? string.Empty).Trim();
+
+            if (stored.Length == 0)
+            {
+                style.Linetype = MarkerStyle.DefaultLinetype;
+                return;
+            }
+
+            if (!names.TryGetValue(stored, out string? loaded))
+            {
+                names.Add(stored);
+                if (!string.Equals(style.Linetype, stored, StringComparison.Ordinal))
+                    style.Linetype = stored;
+                return;
+            }
+
+            if (!string.Equals(style.Linetype, loaded, StringComparison.Ordinal))
+                style.Linetype = loaded;
         }
 
         /// <summary>The linetypes loaded in the active drawing.</summary>
@@ -369,12 +363,6 @@ namespace AcadOverrules.VertexCircles.UI
                 string numbered = $"{candidate} {i}";
                 if (!Taken(numbered)) return numbered;
             }
-        }
-
-        private static Autodesk.AutoCAD.Colors.Color ToAcadColor(string html)
-        {
-            System.Drawing.Color rgb = HtmlColor.Parse(html);
-            return Autodesk.AutoCAD.Colors.Color.FromRgb(rgb.R, rgb.G, rgb.B);
         }
     }
 }

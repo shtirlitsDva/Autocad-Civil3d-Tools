@@ -16,6 +16,9 @@ namespace AcadOverrules
     /// colour are not hard coded - they come from the active profile in
     /// <see cref="VertexCirclesSettingsService"/>, edited with TOGGLEPOLYVERTICESSETTINGS.
     ///
+    /// A vertex is classified by the segments touching it and each class gets its own style,
+    /// so a bend can be told from a plain corner at a glance - see <see cref="VertexClass"/>.
+    ///
     /// The circle is styled relative to the polyline it belongs to:
     /// - Radius is a fixed setting, it does not follow the polyline width.
     /// - Colour is either a fully saturated marker colour on the complementary hue of the
@@ -24,9 +27,25 @@ namespace AcadOverrules
     /// - Linetype is a fixed setting, Continuous by default. Whether a dashed pattern shows
     ///   on a circle this small depends on LTSCALE - a linetype pattern is measured in
     ///   drawing units, not in fractions of the circumference.
+    ///
+    /// Segment-level differentiation is a different overrule: <see cref="PolylineArcHighlight"/>
+    /// redraws the arc segments themselves and flags non-tangent junctions.
     /// </summary>
     public class PolylineVertexCircles : Autodesk.AutoCAD.GraphicsInterface.DrawableOverrule
     {
+        /// <summary>
+        /// What a vertex sits between. Determined by the incoming and outgoing segment, so it
+        /// is a property of the vertex's neighbours rather than of the vertex itself.
+        /// </summary>
+        private enum VertexClass
+        {
+            /// <summary>Every segment meeting the vertex is a line.</summary>
+            Straight = 0,
+
+            /// <summary>At least one segment meeting the vertex is an arc.</summary>
+            Arc = 1,
+        }
+
         /// <summary>
         /// Lineweight (hundredths of a mm) substituted when the polyline's effective
         /// lineweight is zero or unresolved (ByLayer/ByBlock/Default) - multiplying those
@@ -93,24 +112,107 @@ namespace AcadOverrules
             Polyline pline = (Polyline)drawable;
             VertexCirclesSettings settings = Settings;
 
-            //Read the polyline's traits before overwriting them
-            EntityColor markerColor = MarkerColor(pline, wd.SubEntityTraits, settings);
-            LineWeight thickerLineWeight = ScaledLineWeight(
-                wd.SubEntityTraits.LineWeight, settings.LineWeightFactor);
+            if (pline.NumberOfVertices < 1) return true;
 
-            wd.SubEntityTraits.TrueColor = markerColor;
-            wd.SubEntityTraits.LineWeight = thickerLineWeight;
+            //Both classes derive colour and lineweight from the polyline, so read its traits
+            //once here - the first class to draw overwrites them.
+            System.Drawing.Color polylineRgb = EffectiveRgb(pline, wd.SubEntityTraits);
+            LineWeight polylineLineWeight = wd.SubEntityTraits.LineWeight;
 
-            ObjectId linetypeId = LinetypeResolver.Resolve(pline.Database, settings.Linetype);
-            if (!linetypeId.IsNull) wd.SubEntityTraits.LineType = linetypeId;
+            VertexClass[] classes = ClassifyVertices(pline, out int straightCount, out int arcCount);
 
-            double radius = settings.Radius;
-            if (radius <= 0.0) return true;
+            //One trait assignment per class, not per vertex.
+            DrawClass(wd, pline, classes, VertexClass.Straight, straightCount,
+                settings.StraightVertex, polylineRgb, polylineLineWeight);
 
-            for (int i = 0; i < pline.NumberOfVertices; i++)
-                wd.Geometry.Circle(pline.GetPoint3dAt(i), radius, Vector3d.ZAxis);
+            DrawClass(wd, pline, classes, VertexClass.Arc, arcCount,
+                settings.ArcVertex, polylineRgb, polylineLineWeight);
 
             return true;
+        }
+
+        /// <summary>
+        /// The class of every vertex, indexed by vertex number.
+        ///
+        /// Vertex <c>i</c> is bounded by the incoming segment <c>i-1</c> and the outgoing
+        /// segment <c>i</c>. On a closed polyline both indices wrap; on an open one the first
+        /// vertex has no incoming segment and the last has no outgoing one.
+        /// </summary>
+        private static VertexClass[] ClassifyVertices(
+            Polyline pline, out int straightCount, out int arcCount)
+        {
+            int vertexCount = pline.NumberOfVertices;
+            int segmentCount = pline.Closed ? vertexCount : vertexCount - 1;
+
+            var classes = new VertexClass[vertexCount];
+            straightCount = 0;
+            arcCount = 0;
+
+            for (int i = 0; i < vertexCount; i++)
+            {
+                int incoming = pline.Closed && segmentCount > 0
+                    ? (i - 1 + segmentCount) % segmentCount
+                    : i - 1;
+
+                bool touchesArc =
+                    IsArcSegment(pline, incoming, segmentCount) ||
+                    IsArcSegment(pline, i, segmentCount);
+
+                classes[i] = touchesArc ? VertexClass.Arc : VertexClass.Straight;
+
+                if (touchesArc) arcCount++;
+                else straightCount++;
+            }
+
+            return classes;
+        }
+
+        /// <summary>
+        /// True when segment <paramref name="index"/> is an arc. An out of range index is the
+        /// missing neighbour at the end of an open polyline and is not an arc. Coincident,
+        /// Point and Empty segments are degenerate rather than curved, so a duplicate vertex
+        /// counts as a straight vertex.
+        /// </summary>
+        private static bool IsArcSegment(Polyline pline, int index, int segmentCount)
+        {
+            if (index < 0 || index >= segmentCount) return false;
+
+            return pline.GetSegmentType(index) == SegmentType.Arc;
+        }
+
+        /// <summary>
+        /// Sets the traits for one vertex class once, then draws every vertex in that class.
+        /// Does nothing when the class is empty, which keeps an all-straight polyline from
+        /// paying for the arc style's linetype lookup on every regen.
+        /// </summary>
+        private static void DrawClass(
+            Autodesk.AutoCAD.GraphicsInterface.WorldDraw wd,
+            Polyline pline,
+            VertexClass[] classes,
+            VertexClass wanted,
+            int count,
+            MarkerStyle style,
+            System.Drawing.Color polylineRgb,
+            LineWeight polylineLineWeight)
+        {
+            if (count <= 0) return;
+
+            double radius = style.Radius;
+            if (radius <= 0.0) return;
+
+            wd.SubEntityTraits.TrueColor = MarkerColor(style, polylineRgb);
+            wd.SubEntityTraits.LineWeight =
+                ScaledLineWeight(polylineLineWeight, style.LineWeightFactor);
+
+            ObjectId linetypeId = LinetypeResolver.Resolve(pline.Database, style.Linetype);
+            if (!linetypeId.IsNull) wd.SubEntityTraits.LineType = linetypeId;
+
+            for (int i = 0; i < classes.Length; i++)
+            {
+                if (classes[i] != wanted) continue;
+
+                wd.Geometry.Circle(pline.GetPoint3dAt(i), radius, Vector3d.ZAxis);
+            }
         }
 
         /// <summary>
@@ -123,23 +225,18 @@ namespace AcadOverrules
         /// Achromatic polylines (white, black, grey) have no hue to complement and get
         /// <see cref="AchromaticMarkerColor"/> instead.
         /// </summary>
-        private static EntityColor MarkerColor(
-            Polyline pline,
-            Autodesk.AutoCAD.GraphicsInterface.SubEntityTraits traits,
-            VertexCirclesSettings settings)
+        private static EntityColor MarkerColor(MarkerStyle style, System.Drawing.Color polylineRgb)
         {
-            if (settings.ColorMode == MarkerColorMode.FixedColor)
+            if (style.ColorMode == MarkerColorMode.FixedColor)
             {
-                System.Drawing.Color fixedColor = HtmlColor.Parse(settings.FixedColor);
+                System.Drawing.Color fixedColor = HtmlColor.Parse(style.FixedColor);
                 return new EntityColor(fixedColor.R, fixedColor.G, fixedColor.B);
             }
 
-            System.Drawing.Color source = EffectiveRgb(pline, traits);
-
-            if (source.GetSaturation() < AchromaticSaturationLimit)
+            if (polylineRgb.GetSaturation() < AchromaticSaturationLimit)
                 return AchromaticMarkerColor;
 
-            return FullySaturatedFromHue((source.GetHue() + 180.0) % 360.0);
+            return FullySaturatedFromHue((polylineRgb.GetHue() + 180.0) % 360.0);
         }
 
         /// <summary>
@@ -250,7 +347,7 @@ namespace AcadOverrules
             int hundredthsMm = (int)current;
             if (hundredthsMm <= 0) hundredthsMm = FallbackLineWeightHundredthsMm;
 
-            if (factor <= 0.0) factor = VertexCirclesSettings.DefaultLineWeightFactor;
+            if (factor <= 0.0) factor = MarkerStyle.DefaultLineWeightFactor;
 
             int target = (int)Math.Round(hundredthsMm * factor);
 
