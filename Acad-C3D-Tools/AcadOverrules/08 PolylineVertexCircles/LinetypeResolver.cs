@@ -26,7 +26,7 @@ namespace AcadOverrules.VertexCircles
             //The default costs no transaction, and it is what most profiles use.
             string wanted = (name ?? string.Empty).Trim();
             if (wanted.Length == 0 ||
-                string.Equals(wanted, VertexCirclesSettings.DefaultLinetype,
+                string.Equals(wanted, MarkerStyle.DefaultLinetype,
                     System.StringComparison.OrdinalIgnoreCase))
                 return Continuous(db);
 

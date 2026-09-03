@@ -15,16 +15,16 @@ namespace AcadOverrules.VertexCircles
         ComplementaryHue = 0,
 
         /// <summary>
-        /// One fixed colour for all markers, see <see cref="VertexCirclesSettings.FixedColor"/>.
+        /// One fixed colour for all markers, see <see cref="MarkerStyle.FixedColor"/>.
         /// </summary>
         FixedColor = 1,
     }
 
     /// <summary>
-    /// Everything <see cref="PolylineVertexCircles"/> needs to draw. Plain serialisable state -
-    /// no behaviour, no AutoCAD types, so it can be round tripped through JSON as is.
+    /// The look of the circle drawn at one class of vertex. A profile holds two of these,
+    /// see <see cref="VertexCirclesSettings"/>.
     /// </summary>
-    public sealed class VertexCirclesSettings
+    public sealed class MarkerStyle
     {
         /// <summary>Circle radius in drawing units.</summary>
         public double Radius { get; set; } = DefaultRadius;
@@ -47,13 +47,6 @@ namespace AcadOverrules.VertexCircles
         /// </summary>
         public string Linetype { get; set; } = DefaultLinetype;
 
-        /// <summary>
-        /// Layer names and layer name masks the overrule applies to. AutoCAD wildcards are
-        /// supported, so <c>0-FJV-*</c> works the same way it does in the layer manager.
-        /// An empty list means "every layer".
-        /// </summary>
-        public List<string> LayerFilters { get; set; } = new List<string>();
-
         public const double DefaultRadius = 0.05;
         public const string DefaultFixedColor = "#FF00FF";
         public const double DefaultLineWeightFactor = 2.0;
@@ -61,14 +54,58 @@ namespace AcadOverrules.VertexCircles
         /// <summary>Present in every drawing, so it is always resolvable.</summary>
         public const string DefaultLinetype = "Continuous";
 
-        public VertexCirclesSettings Clone() =>
-            new VertexCirclesSettings
+        /// <summary>
+        /// Default radius for arc vertices. Twice <see cref="DefaultRadius"/>, so the two
+        /// classes are already distinguishable before the user configures anything - a
+        /// feature whose whole point is telling them apart should not ship looking identical.
+        /// </summary>
+        public const double DefaultArcRadius = 0.1;
+
+        public static MarkerStyle ForStraightVertices() => new MarkerStyle();
+
+        public static MarkerStyle ForArcVertices() =>
+            new MarkerStyle { Radius = DefaultArcRadius };
+
+        public MarkerStyle Clone() =>
+            new MarkerStyle
             {
                 Radius = Radius,
                 ColorMode = ColorMode,
                 FixedColor = FixedColor,
                 LineWeightFactor = LineWeightFactor,
                 Linetype = Linetype,
+            };
+    }
+
+    /// <summary>
+    /// Everything <see cref="PolylineVertexCircles"/> needs to draw. Plain serialisable state -
+    /// no behaviour, no AutoCAD types, so it can be round tripped through JSON as is.
+    ///
+    /// A vertex is classified by the segments touching it, and each class gets its own style:
+    /// a vertex whose neighbouring segments are all lines is a straight vertex, a vertex with
+    /// at least one arc neighbour is an arc vertex. Degenerate segments (Coincident, Point,
+    /// Empty) are not arcs, so a duplicate vertex counts as straight.
+    /// </summary>
+    public sealed class VertexCirclesSettings
+    {
+        /// <summary>The circle drawn where only line segments meet.</summary>
+        public MarkerStyle StraightVertex { get; set; } = MarkerStyle.ForStraightVertices();
+
+        /// <summary>The circle drawn where at least one arc segment meets the vertex.</summary>
+        public MarkerStyle ArcVertex { get; set; } = MarkerStyle.ForArcVertices();
+
+        /// <summary>
+        /// Layer names and layer name masks the overrule applies to. AutoCAD wildcards are
+        /// supported, so <c>0-FJV-*</c> works the same way it does in the layer manager.
+        /// An empty list means "every layer".
+        /// </summary>
+        public List<string> LayerFilters { get; set; } = new List<string>();
+
+        public VertexCirclesSettings Clone() =>
+            new VertexCirclesSettings
+            {
+                StraightVertex = StraightVertex.Clone(),
+                ArcVertex = ArcVertex.Clone(),
                 LayerFilters = LayerFilters.ToList(),
             };
     }
