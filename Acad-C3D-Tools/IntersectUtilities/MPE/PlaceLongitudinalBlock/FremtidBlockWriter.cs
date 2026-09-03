@@ -8,6 +8,7 @@ using Autodesk.Civil.DatabaseServices;
 using IntersectUtilities.PipelineNetworkSystem;
 using IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray;
 using IntersectUtilities.UtilsCommon;
+using IntersectUtilities.UtilsCommon.DataManager.CsvData;
 using IntersectUtilities.UtilsCommon.Enums;
 
 using static IntersectUtilities.Utils;
@@ -127,6 +128,28 @@ internal static class FremtidBlockWriter
         string blockName,
         out string message)
     {
+        if (TryFindForeignLock(fremtidPath, out string lockOwner))
+        {
+            message = ForeignLockMessage(fremtidPath, lockOwner);
+            return false;
+        }
+
+        // Snapshot the file so a write landing between our read and our save is caught rather than
+        // silently overwritten. Re-checked immediately before the save in SaveOverwriting.
+        DateTime stampBefore;
+        long lengthBefore;
+        try
+        {
+            FileInfo info = new(fremtidPath);
+            stampBefore = info.LastWriteTimeUtc;
+            lengthBefore = info.Length;
+        }
+        catch (System.Exception exception)
+        {
+            message = $"Kan ikke læse filoplysninger for FV_Fremtid: {exception.Message}\n{fremtidPath}";
+            return false;
+        }
+
         // Deliberately not a `using` declaration: AbortGracefully owns disposal on the failure path,
         // and combining the two double-disposes on every path.
         Database fremDb = new(false, true);
@@ -147,10 +170,10 @@ internal static class FremtidBlockWriter
                 fremTx.Commit();
             }
 
-            // Release the handle on the source DWG before saving; SaveAs with bBakAndRename renames
-            // the original to .bak, which cannot happen while the read handle is still open.
+            // Release the handle on the source DWG before saving; the swap below renames the
+            // original, which cannot happen while the read handle is still open.
             fremDb.CloseInput(true);
-            fremDb.SaveAs(fremtidPath, true, DwgVersion.Current, fremDb.SecurityParameters);
+            SaveOverwriting(fremDb, fremtidPath, stampBefore, lengthBefore);
         }
         catch (System.Exception exception)
         {
@@ -166,6 +189,109 @@ internal static class FremtidBlockWriter
         fremDb.Dispose();
         message = Describe(blockName, picks, reports);
         return true;
+    }
+
+    /// <summary>
+    /// True when FV_Fremtid is held open by an AutoCAD session OTHER than this one. AutoCAD guards
+    /// an open drawing with an advisory .dwl sidecar, not an OS lock, so ReadDwgFile and SaveAs both
+    /// SUCCEED against a drawing another session has open — and that session's own save then discards
+    /// this write without a word. The sidecar is the only signal there is, so it is what we gate on.
+    /// </summary>
+    internal static bool TryFindForeignLock(string fremtidPath, out string owner)
+    {
+        owner = string.Empty;
+
+        // Open in THIS session is not a conflict: TryPlace edits the live document instead.
+        if (FindOpenDocument(fremtidPath) is not null)
+        {
+            return false;
+        }
+
+        string dwlPath = Path.ChangeExtension(fremtidPath, ".dwl");
+        if (!File.Exists(dwlPath))
+        {
+            return false;
+        }
+
+        try
+        {
+            // The .dwl's first line is the owner's login name; the fuller record lives in .dwl2.
+            using FileStream stream = new(dwlPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            using StreamReader reader = new(stream);
+            owner = (reader.ReadLine() ?? string.Empty).Trim();
+        }
+        catch (System.Exception exception)
+        {
+            // An unreadable sidecar still means someone has the drawing open.
+            prdDbg($"Kunne ikke læse {dwlPath}: {exception.Message}");
+        }
+
+        return true;
+    }
+
+    internal static string ForeignLockMessage(string fremtidPath, string owner) =>
+        (owner.Length > 0
+            ? $"FV_Fremtid er åben i en anden AutoCAD-session ({owner})."
+            : "FV_Fremtid er åben i en anden AutoCAD-session.") +
+        "\nEn sidegemning ville blive overskrevet uden varsel, når den session gemmer, så der er " +
+        "IKKE skrevet noget.\nLuk tegningen der, eller åbn den i DENNE session — så skriver " +
+        $"kommandoen direkte i den åbne tegning.\n{fremtidPath}\n" +
+        "(Er AutoCAD crashet, kan .dwl-filen være efterladt — slet den manuelt.)";
+
+    /// <summary>
+    /// Saves the side-loaded database back over FV_Fremtid without ever leaving the original
+    /// missing. SaveAs(bBakAndRename: true) renames the original to .bak BEFORE writing, so a save
+    /// that fails midway takes the original with it — and the transaction is already committed, so
+    /// nothing can be rolled back. Writing a temp DWG in the same folder and swapping it in with
+    /// File.Replace keeps the original in place until a complete file exists, and hands the previous
+    /// content to the .bak in the same step.
+    /// </summary>
+    private static void SaveOverwriting(
+        Database fremDb,
+        string fremtidPath,
+        DateTime stampBefore,
+        long lengthBefore)
+    {
+        // As late as possible: the drawing can be changed elsewhere while the user is picking.
+        FileInfo info = new(fremtidPath);
+        if (info.LastWriteTimeUtc != stampBefore || info.Length != lengthBefore)
+        {
+            throw new System.Exception(
+                "FV_Fremtid er blevet ændret af en anden, efter kommandoen læste den. " +
+                "Intet er gemt — kør kommandoen igen.");
+        }
+
+        string directory = Path.GetDirectoryName(fremtidPath)!;
+        string tempPath = Path.Combine(directory, $"~plb-{Guid.NewGuid():N}.dwg");
+        string backupPath = Path.ChangeExtension(fremtidPath, ".bak");
+
+        try
+        {
+            fremDb.SaveAs(tempPath, false, DwgVersion.Current, fremDb.SecurityParameters);
+
+            // Atomic on NTFS: either the old file or the complete new one is in place, never neither.
+            File.Replace(tempPath, fremtidPath, backupPath);
+        }
+        catch
+        {
+            TryDelete(tempPath);
+            throw;
+        }
+    }
+
+    private static void TryDelete(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+        catch (System.Exception exception)
+        {
+            prdDbg($"Kunne ikke slette midlertidig fil {path}: {exception.Message}");
+        }
     }
 
     /// <summary>
@@ -267,6 +393,19 @@ internal static class FremtidBlockWriter
         Dictionary<string, IPipelineSizeArrayV2?> sizeArrays,
         out string note)
     {
+        // A definition already present in FV_Fremtid is never refreshed — CheckOrImportBlockRecord
+        // imports only when the name is ABSENT — so a drawing carrying an older VERSION of the block
+        // resolves every catalogue lookup to "" and lands on its defaults. Say that, rather than the
+        // generic "no parameters to set" note it would otherwise produce.
+        if (!CatalogueHasRowForVersion(br, out string blockVersion))
+        {
+            note =
+                $"ADVARSEL: blokdefinitionen '{br.RealName()}' i FV_Fremtid har VERSION " +
+                $"'{blockVersion}', som ikke findes i FJV Dynamiske Komponenter.csv — INGEN " +
+                $"dimensioner er sat. Opdatér blokken i FV_Fremtid fra Symboler.dwg.";
+            return;
+        }
+
         if (!sizeArrays.TryGetValue(pick.AlignmentName, out IPipelineSizeArrayV2? sizeArray))
         {
             sizeArray = BuildSizeArray(fremDb, fremTx, localDb, pick);
@@ -346,6 +485,24 @@ internal static class FremtidBlockWriter
     /// names (DN vs DN1 vs Dim), so hard-coding them silently sizes nothing on most components.
     /// Returns false when this block has no settable parameter for the column.
     /// </summary>
+    /// <summary>
+    /// True when the catalogue holds a row matching this reference's Navn AND its VERSION attribute
+    /// — the exact pair <see cref="ComponentSchedule.ReadDynamicCsvProperty"/> matches on. Mirrors
+    /// that comparison (ordinal, both columns) so this check cannot disagree with the lookup it
+    /// guards.
+    /// </summary>
+    private static bool CatalogueHasRowForVersion(BlockReference br, out string blockVersion)
+    {
+        // Copied to a local because an out parameter cannot be captured by the lambda below.
+        string version = br.GetAttributeStringValue("VERSION") ?? string.Empty;
+        string name = br.RealName();
+        blockVersion = version;
+
+        return Csv.FjvDynamicComponents.Rows.Any(row =>
+            CsvDataSource.Col(row, FjvDynamicComponents.Columns.Navn) == name &&
+            CsvDataSource.Col(row, FjvDynamicComponents.Columns.Version) == version);
+    }
+
     private static bool TrySetCsvDrivenProperty(BlockReference br, DynamicProperty property, string value)
     {
         // parseProperty: false gives the raw catalogue cell — the spec — instead of a resolved value.

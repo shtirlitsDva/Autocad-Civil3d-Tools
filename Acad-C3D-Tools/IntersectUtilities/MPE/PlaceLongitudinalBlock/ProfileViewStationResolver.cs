@@ -107,7 +107,13 @@ internal static class ProfileViewStationResolver
                 return StationPickStatus.Cancelled;
             }
 
-            if (TryResolvePoint(localDb, result.Value, out pick, out string resolveError))
+            // GetPoint returns the point in the CURRENT UCS, but IsPointInsideXY and
+            // FindStationAndElevationAtXY below both work in WCS. Under a rotated or shifted UCS —
+            // routine on profile sheets — an untransformed point misses every profile view, or
+            // resolves a station in the wrong one.
+            Point3d picked = result.Value.TransformBy(editor.CurrentUserCoordinateSystem);
+
+            if (TryResolvePoint(localDb, picked, out pick, out string resolveError))
             {
                 return StationPickStatus.Ok;
             }

@@ -185,8 +185,16 @@ public partial class Intersect
             return false;
         }
 
-        // Deliberately no lock check: FV_Fremtid is routinely open in another session. If the save
-        // does fail, TryPlace reports it explicitly.
+        // FV_Fremtid open in ANOTHER session has to be caught here, before the user invests any
+        // picking. AutoCAD's .dwl is advisory, not an OS lock, so a side-save against it SUCCEEDS
+        // and is then silently discarded when that session saves — the save failing is not the
+        // safety net it looks like. Open in THIS session is fine: the write goes to the live
+        // document instead. Re-checked at save time, since it can be opened while picking.
+        if (FremtidBlockWriter.TryFindForeignLock(path, out string lockOwner))
+        {
+            message = FremtidBlockWriter.ForeignLockMessage(path, lockOwner);
+            return false;
+        }
 
         fremtidPath = path;
         message = string.Empty;
