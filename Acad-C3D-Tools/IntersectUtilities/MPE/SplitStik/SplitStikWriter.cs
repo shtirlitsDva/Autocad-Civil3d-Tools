@@ -54,18 +54,25 @@ namespace IntersectUtilities.MPE.SplitStik
                 tx.Commit();
             }
 
-            // SaveAs overwrites an existing file silently, which is what we want. The one way
-            // it can fail is the target already being open in AutoCAD (or read-only), and the
-            // raw exception for that reads as a mystery — so name the cause.
+            // SaveAs overwrites an existing file silently, which is what we want. Do NOT guess at
+            // the cause when it fails: report what actually went wrong, then offer the likely cause
+            // as a hint. SaveAs writes straight onto the target, so an existing file may also have
+            // been left partly overwritten — the user has to be told that before they open it.
             try
             {
                 db.SaveAs(path, DwgVersion.Current);
             }
-            catch (System.Exception ex) when (File.Exists(path))
+            catch (System.Exception ex)
             {
+                bool existed = File.Exists(path);
                 throw new InvalidOperationException(
-                    $"Could not overwrite \"{path}\". It is most likely open in AutoCAD or "
-                        + "read-only — close it and run SPLITSTIK again.",
+                    $"Could not save \"{path}\".\n"
+                        + $"{ex.GetType().Name}: {ex.Message}\n"
+                        + (existed
+                            ? "A file exists at that path and may now be INCOMPLETE — check it "
+                                + "before using it. If it is open in AutoCAD or is read-only, "
+                                + "close it and run SPLITSTIK again."
+                            : "No file was created at that path."),
                     ex);
             }
 
@@ -141,6 +148,8 @@ namespace IntersectUtilities.MPE.SplitStik
                 string layerName = PSv2.GetLayerName(dn, ps, pt);
                 CheckOrCreateLayerForPipe(db, tx, layerName, ps, pt);
 
+                double kOd = ResolveKOd(ps, dn, pt, stats);
+
                 Polyline pline = new(run.Vertices.Length);
                 pline.SetDatabaseDefaults(db);
                 for (int i = 0; i < run.Vertices.Length; i++)
@@ -149,7 +158,7 @@ namespace IntersectUtilities.MPE.SplitStik
                 pline.AddEntityToDbModelSpace(db);
 
                 pline.Layer = layerName;
-                pline.ConstantWidth = PSv2.GetPipeKOd(ps, dn, pt, PipeSeriesEnum.S3) / 1000;
+                pline.ConstantWidth = kOd / 1000;
                 pline.Plinegen = true;
 
                 string lineTypeName = "LT-" + PSv2.GetLineTypeLayerPrefix(ps) + dn;
@@ -171,6 +180,50 @@ namespace IntersectUtilities.MPE.SplitStik
             }
 
             return written;
+        }
+
+        /// <summary>
+        /// Series to try for the jacket diameter, thickest insulation first.
+        ///
+        /// S3 is what this export wants, but most systems simply do not stock it: only DN,
+        /// FIBREFLEX and PRTPIPE carry Twin/S3 rows. Asking for S3 alone therefore produced a
+        /// width of ZERO — GetPipeKOd reports a miss as 0 rather than throwing — for every size
+        /// of ALUPEX, AQTHRM11, CU, PE and PRTFLEXL, i.e. five of the eight systems drew as
+        /// hairlines. Descending S3 -> S2 -> S1 resolves every size in every system, and leaves
+        /// the three that already had S3 rows picking S3 exactly as before.
+        /// </summary>
+        private static readonly PipeSeriesEnum[] SeriesPreference =
+            new[] { PipeSeriesEnum.S3, PipeSeriesEnum.S2, PipeSeriesEnum.S1 };
+
+        /// <summary>
+        /// The jacket diameter for this pipe, falling back down the series when the schedule holds
+        /// no row for the preferred one. Records which series actually supplied the width whenever
+        /// it was not the preferred one, so a width that did not come from S3 is visible in the
+        /// report rather than silently assumed.
+        /// </summary>
+        private static double ResolveKOd(
+            PipeSystemEnum ps,
+            int dn,
+            PipeTypeEnum pt,
+            SplitStikStats stats)
+        {
+            foreach (PipeSeriesEnum series in SeriesPreference)
+            {
+                double kOd = PSv2.GetPipeKOd(ps, dn, pt, series);
+                if (kOd <= 0) continue;
+
+                if (series != SeriesPreference[0])
+                    stats.SeriesFallbacks.Add(
+                        $"{ps} DN{dn} {pt}: {SeriesPreference[0]} -> {series}");
+
+                return kOd;
+            }
+
+            // No series has this pipe at all — a genuine gap between what DimensioneringV2 sized
+            // and what the pipe schedule carries.
+            stats.RunsWithoutWidth++;
+            stats.MissingWidths.Add($"{ps} DN{dn} {pt}");
+            return 0;
         }
 
         private static void EnsureRegApp(Database db, Transaction tx, string appName)

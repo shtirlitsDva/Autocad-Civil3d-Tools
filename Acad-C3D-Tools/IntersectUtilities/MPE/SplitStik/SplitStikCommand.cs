@@ -93,11 +93,25 @@ namespace IntersectUtilities
                 string stikPath = Path.Combine(folder, baseName + SplitStikStikSuffix + ".dwg");
                 string hovedPath = Path.Combine(folder, baseName + SplitStikHovedSuffix + ".dwg");
 
-                int stikWritten = SplitStikWriter.Write(stikPath, stik, stats);
-                prdDbg($"{stikWritten} stikledninger -> {stikPath}");
+                // The two drawings are written one after the other, so a failure on the second
+                // leaves the first updated and the second stale from an earlier run — with nothing
+                // on disk to say so. Track what actually landed and spell it out on the way out.
+                List<string> saved = new();
+                try
+                {
+                    int stikWritten = SplitStikWriter.Write(stikPath, stik, stats);
+                    saved.Add(stikPath);
+                    prdDbg($"{stikWritten} stikledninger -> {stikPath}");
 
-                int hovedWritten = SplitStikWriter.Write(hovedPath, hoved, stats);
-                prdDbg($"{hovedWritten} hovedledninger -> {hovedPath}");
+                    int hovedWritten = SplitStikWriter.Write(hovedPath, hoved, stats);
+                    saved.Add(hovedPath);
+                    prdDbg($"{hovedWritten} hovedledninger -> {hovedPath}");
+                }
+                catch (System.Exception)
+                {
+                    ReportPartialWrite(saved, new[] { stikPath, hovedPath });
+                    throw;
+                }
 
                 ReportStats(stats, hoved);
                 prdDbg("Finished!");
@@ -108,16 +122,49 @@ namespace IntersectUtilities
             }
         }
 
+        /// <summary>
+        /// Names every output file and whether THIS run wrote it. Without this the user cannot tell
+        /// a freshly written drawing from one left behind by an earlier run, because both files are
+        /// always overwritten in place and carry no marker.
+        /// </summary>
+        private static void ReportPartialWrite(
+            IReadOnlyList<string> saved,
+            IReadOnlyList<string> all)
+        {
+            prdDbg("--- SPLITSTIK stopped part-way ---");
+
+            foreach (string path in all)
+                prdDbg(
+                    saved.Contains(path)
+                        ? $"WRITTEN by this run: {path}"
+                        : $"NOT written — any file at this path is left over from an earlier "
+                            + $"run: {path}");
+
+            if (saved.Count > 0)
+                prdDbg(
+                    "The two drawings therefore do NOT belong together. Fix the error below and "
+                        + "run SPLITSTIK again before using either of them.");
+        }
+
         private static void ReportStats(SplitStikStats stats, IReadOnlyList<PipeRun> hoved)
         {
             if (hoved.Count > 0)
             {
                 int merged = stats.MainEdgesUsed - hoved.Count;
+                double totalLength = hoved.Sum(x => x.SourceLength);
                 prdDbg(
                     $"Hovedledning: {stats.MainEdgesUsed} edges merged into {hoved.Count} runs "
                         + $"({merged} joins), total length "
-                        + $"{hoved.Sum(x => x.SourceLength):F3} m.");
+                        + (double.IsFinite(totalLength)
+                            ? $"{totalLength:F3} m."
+                            : "UNKNOWN — the .d2r carries non-finite segment lengths."));
             }
+
+            if (stats.SeriesFallbacks.Count > 0)
+                prdDbg(
+                    "Pipe series fallback — the schedule has no S3 row for these, so the next "
+                        + "series down supplied the width: "
+                        + $"{string.Join(", ", stats.SeriesFallbacks)}.");
 
             if (stats.EdgesPerSubGraph.Count > 1)
                 prdDbg(
@@ -139,6 +186,20 @@ namespace IntersectUtilities
                 prdDbg(
                     $"{stats.SkippedDegenerateGeometry} segment(s) had fewer than 2 vertices "
                         + "and were skipped.");
+
+            if (stats.SkippedNonFiniteGeometry > 0)
+                prdDbg(
+                    $"{stats.SkippedNonFiniteGeometry} segment(s) had NaN or Infinity coordinates "
+                        + "in the .d2r and were skipped — they would have produced a corrupt "
+                        + "polyline. This means DimensioneringV2 wrote an unsized/failed geometry.");
+
+            if (stats.RunsWithoutWidth > 0)
+                prdDbg(
+                    $"{stats.RunsWithoutWidth} run(s) were drawn with ZERO width because "
+                        + "PipeScheduleV2 has no row in ANY series for: "
+                        + $"{string.Join(", ", stats.MissingWidths)}. "
+                        + "Geometry, layer and XData are correct; add the size to the pipe "
+                        + "schedule to get the right width.");
 
             if (stats.SkippedUnknownType > 0)
                 prdDbg(

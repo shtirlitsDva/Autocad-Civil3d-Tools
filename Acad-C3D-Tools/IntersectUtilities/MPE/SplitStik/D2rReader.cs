@@ -36,7 +36,15 @@ namespace IntersectUtilities.MPE.SplitStik
                     "This is not a DimensioneringV2 result file. A .d2r holding a bare graph "
                         + "array is a pre-V1 file and is not supported.");
 
-            int version = GetInt(root, "FormatVersion");
+            // A missing or non-numeric FormatVersion means this is not a .d2r at all. Reported
+            // separately from a version mismatch: telling the user to re-save a file that was never
+            // a result file sends them off in the wrong direction entirely.
+            if (!root.TryGetProperty("FormatVersion", out JsonElement versionElement)
+                || versionElement.ValueKind != JsonValueKind.Number
+                || !versionElement.TryGetInt32(out int version))
+                throw new InvalidDataException(
+                    "This file has no numeric \"FormatVersion\" field, so it is not a "
+                        + $"DimensioneringV2 result file: \"{path}\".");
 
             if (version > SupportedFormatVersion)
                 throw new InvalidDataException(

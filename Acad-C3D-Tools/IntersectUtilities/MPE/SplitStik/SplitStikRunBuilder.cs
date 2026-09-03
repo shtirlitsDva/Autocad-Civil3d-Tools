@@ -22,20 +22,30 @@ namespace IntersectUtilities.MPE.SplitStik
         public int TotalEdges;
         public int SkippedNoDim;
         public int SkippedDegenerateGeometry;
+        public int SkippedNonFiniteGeometry;
         public int SkippedUnknownType;
+        public int RunsWithoutWidth;
         public int SeamMismatches;
         public int MainEdgesUsed;
         public int ServiceEdgesUsed;
         public int SkippedUnknownFamily;
         public readonly HashSet<string> UnknownTypeTags = new(StringComparer.Ordinal);
         public readonly HashSet<string> UnknownFamilies = new(StringComparer.Ordinal);
+
+        /// <summary>System/DN combinations PipeScheduleV2 has no width for in ANY series.</summary>
+        public readonly HashSet<string> MissingWidths = new(StringComparer.Ordinal);
+
+        /// <summary>Combinations whose width came from a series other than the preferred one.</summary>
+        public readonly HashSet<string> SeriesFallbacks = new(StringComparer.Ordinal);
         public readonly SortedDictionary<int, int> EdgesPerSubGraph = new();
 
         public bool HasAnomalies =>
             SkippedNoDim > 0
             || SkippedDegenerateGeometry > 0
+            || SkippedNonFiniteGeometry > 0
             || SkippedUnknownType > 0
             || SkippedUnknownFamily > 0
+            || RunsWithoutWidth > 0
             || SeamMismatches > 0;
     }
 
@@ -83,6 +93,16 @@ namespace IntersectUtilities.MPE.SplitStik
                 if (feature.Geometry.Length < 2)
                 {
                     stats.SkippedDegenerateGeometry++;
+                    continue;
+                }
+
+                // The .d2r may legally carry NaN/Infinity (AllowNamedFloatingPointLiterals, see
+                // D2rReader), and every distance guard downstream compares FALSE on those rather
+                // than catching them — so a non-finite vertex would reach Polyline.AddVertexAt and
+                // either throw or write a corrupt polyline. Reject it here and say so in the report.
+                if (!IsFinite(feature.Geometry))
+                {
+                    stats.SkippedNonFiniteGeometry++;
                     continue;
                 }
 
@@ -211,6 +231,15 @@ namespace IntersectUtilities.MPE.SplitStik
 
         private static int OtherEnd(D2rEdge edge, int node) =>
             edge.SourceIndex == node ? edge.TargetIndex : edge.SourceIndex;
+
+        private static bool IsFinite(Point2d[] geometry)
+        {
+            foreach (Point2d point in geometry)
+                if (!double.IsFinite(point.X) || !double.IsFinite(point.Y))
+                    return false;
+
+            return true;
+        }
 
         private static bool Touches(Point2d[] geometry, Point2d node) =>
             geometry.Length >= 2
