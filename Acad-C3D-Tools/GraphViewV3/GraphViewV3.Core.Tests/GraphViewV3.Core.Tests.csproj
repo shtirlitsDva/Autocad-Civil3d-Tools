@@ -22,6 +22,7 @@
        AcadEventManager.cs itself is not, because it references acmgd/acdbmgd; it is the thin
        wiring layer that closes these types over the real AutoCAD events. -->
   <ItemGroup>
+    <Compile Include="..\..\EventManager\BoundHook.cs" Link="EventManager\BoundHook.cs" />
     <Compile Include="..\..\EventManager\EventManagerTrace.cs" Link="EventManager\EventManagerTrace.cs" />
     <Compile Include="..\..\EventManager\HookSlot.cs" Link="EventManager\HookSlot.cs" />
   </ItemGroup>

@@ -52,6 +52,8 @@ namespace EventManager
         public AcadEventManager(Action<string, Exception?>? log = null)
         {
             _trace = new EventManagerTrace(log);
+            _dbBinding = new BoundHook<DbServices.Database>(
+                AttachToDatabase, DetachFromDatabase, _trace);
             Application.DocumentManager.DocumentToBeDestroyed += OnDocToBeDestroyed;
         }
 
@@ -531,7 +533,11 @@ namespace EventManager
         // These aggregate events follow the active document automatically: subscribe once and you
         // receive the active drawing's append/modify/erase events, rebinding on document switch.
         private bool _dbHookInstalled;
-        private DbServices.Database? _boundDb;
+
+        /// <summary>
+        /// The active document's database and the three object-event handlers attached to it.
+        /// </summary>
+        private readonly BoundHook<DbServices.Database> _dbBinding;
 
         private HookSlot<DbServices.ObjectEventHandler>? _activeObjectAppended;
         public event DbServices.ObjectEventHandler ActiveObjectAppended
@@ -562,7 +568,7 @@ namespace EventManager
             DocumentToBeDeactivated += OnActiveDocDeactivated;
             DocumentToBeDestroyed += OnActiveDocToBeDestroyed;
             DocumentDestroyed += OnActiveDocDestroyed;
-            BindDatabase(Application.DocumentManager.MdiActiveDocument?.Database);
+            BindDatabase(ActiveDatabase());
         }
 
         /// <summary>
@@ -588,8 +594,43 @@ namespace EventManager
 
         private static bool StillListening(IHookSlot? slot) => slot != null && slot.Installed;
 
+        /// <summary>
+        /// Reads a document's database. AutoCAD raises the lifecycle events this is called from
+        /// while documents are part way through teardown, so the read itself can throw -- and it
+        /// must not escape, because the caller is AutoCAD's own dispatch.
+        /// </summary>
+        private DbServices.Database? DatabaseOf(Document? doc, string what)
+        {
+            try
+            {
+                return doc?.Database;
+            }
+            catch (Exception ex)
+            {
+                _trace.Report(what, ex);
+                return null;
+            }
+        }
+
+        private DbServices.Database? ActiveDatabase()
+        {
+            Document? active;
+            try
+            {
+                active = Application.DocumentManager.MdiActiveDocument;
+            }
+            catch (Exception ex)
+            {
+                _trace.Report("failed to read the active document", ex);
+                return null;
+            }
+
+            return DatabaseOf(active, "failed to read the active document's database");
+        }
+
         private void OnActiveDocChanged(object? s, DocumentCollectionEventArgs e)
-            => BindDatabase(e.Document?.Database);
+            => BindDatabase(DatabaseOf(
+                e.Document, "failed to read the database of the document being activated"));
 
         private void OnActiveDocDeactivated(object? s, DocumentCollectionEventArgs e)
             => BindDatabase(null);
@@ -601,20 +642,15 @@ namespace EventManager
         /// </summary>
         private void OnActiveDocToBeDestroyed(object? s, DocumentCollectionEventArgs e)
         {
-            DbServices.Database? dying = null;
-            try
-            {
-                dying = e.Document?.Database;
-            }
-            catch (Exception ex)
-            {
-                // The document is already on its way out. Treat it as unidentifiable and let go;
-                // OnActiveDocDestroyed rebinds to whatever is active once the dust settles.
-                _trace.Report(
-                    "failed to read the database of a document being destroyed", ex);
-            }
+            var dying = DatabaseOf(
+                e.Document, "failed to read the database of a document being destroyed");
 
-            if (dying == null || ReferenceEquals(dying, _boundDb)) BindDatabase(null);
+            // Let go only when the dying database is positively the one held. A document that
+            // cannot be identified is NOT evidence that it is ours: unbinding on that guess
+            // detaches the live active drawing, and every edit on it is then silently dropped.
+            // OnActiveDocDestroyed is the backstop for the unidentifiable case -- it rebinds to
+            // whatever is active once the dust settles, which releases a dead database then.
+            if (dying != null && ReferenceEquals(dying, _dbBinding.Bound)) BindDatabase(null);
         }
 
         /// <summary>
@@ -624,54 +660,26 @@ namespace EventManager
         /// resolvable document.
         /// </summary>
         private void OnActiveDocDestroyed(object? s, DocumentDestroyedEventArgs e)
-        {
-            Document? active = null;
-            try
-            {
-                active = Application.DocumentManager.MdiActiveDocument;
-            }
-            catch (Exception ex)
-            {
-                _trace.Report(
-                    "failed to read the active document after a document was destroyed", ex);
-            }
+            => BindDatabase(ActiveDatabase());
 
-            BindDatabase(active?.Database);
+        /// <summary>
+        /// Follows the active document's database. Never throws, and never ends up claiming a
+        /// database it is only partly attached to -- see <see cref="BoundHook{TTarget}"/>.
+        /// </summary>
+        private void BindDatabase(DbServices.Database? db) => _dbBinding.BindTo(db);
+
+        private void AttachToDatabase(DbServices.Database db)
+        {
+            db.ObjectAppended += FwdObjectAppended;
+            db.ObjectModified += FwdObjectModified;
+            db.ObjectErased += FwdObjectErased;
         }
 
-        private void BindDatabase(DbServices.Database? db)
+        private void DetachFromDatabase(DbServices.Database db)
         {
-            if (ReferenceEquals(_boundDb, db)) return;
-
-            var previous = _boundDb;
-
-            // Move the field off the old database BEFORE detaching from it. AutoCAD may already
-            // have torn that one down, in which case the detach throws; staying bound to a dead
-            // Database afterwards is worse than leaking three handler references on an object
-            // that is going away regardless.
-            _boundDb = db;
-
-            if (previous != null)
-            {
-                try
-                {
-                    previous.ObjectAppended -= FwdObjectAppended;
-                    previous.ObjectModified -= FwdObjectModified;
-                    previous.ObjectErased -= FwdObjectErased;
-                }
-                catch (Exception ex)
-                {
-                    _trace.Report(
-                        "failed to detach from the previously bound database", ex);
-                }
-            }
-
-            if (db != null)
-            {
-                db.ObjectAppended += FwdObjectAppended;
-                db.ObjectModified += FwdObjectModified;
-                db.ObjectErased += FwdObjectErased;
-            }
+            db.ObjectAppended -= FwdObjectAppended;
+            db.ObjectModified -= FwdObjectModified;
+            db.ObjectErased -= FwdObjectErased;
         }
 
         private void FwdObjectAppended(object? s, DbServices.ObjectEventArgs e)
