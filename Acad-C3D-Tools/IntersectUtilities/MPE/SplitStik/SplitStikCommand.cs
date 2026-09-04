@@ -57,6 +57,15 @@ namespace IntersectUtilities
                         + $"(FormatVersion {network.FormatVersion}, calculated "
                         + $"{network.CalculatedAt ?? "at an unknown time"}).");
 
+                // A newer file is read anyway — the reader ignores properties it does not know
+                // and the anomaly counters below catch a key that moved. Say so, so an odd
+                // result is traceable to the version rather than to the drawing.
+                if (network.FormatVersion > D2rReader.VerifiedFormatVersion)
+                    prdDbg(
+                        $"NOTE: FormatVersion {network.FormatVersion} is newer than the "
+                            + $"{D2rReader.VerifiedFormatVersion} this command was verified "
+                            + "against. Reading it anyway — check the counts below.");
+
                 SplitStikStats stats = new();
                 List<PipeRun> runs = new();
                 int vertexCount = 0;

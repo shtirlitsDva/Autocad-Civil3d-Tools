@@ -23,7 +23,22 @@ namespace IntersectUtilities.MPE.SplitStik
     /// </summary>
     internal static class D2rReader
     {
-        internal const int SupportedFormatVersion = 6;
+        /// <summary>
+        /// The oldest .d2r shape this reader is known to handle. Files below it are rejected
+        /// rather than guessed at, because the fields read here were retyped/restructured in the
+        /// V3 and V4 bumps.
+        /// </summary>
+        internal const int MinimumFormatVersion = 6;
+
+        /// <summary>
+        /// The newest .d2r shape that has actually been verified against this reader. A newer
+        /// file is NOT rejected: this reader only touches the graph topology, "Type",
+        /// "Geometry25832" and a handful of "Attributes" keys, ignores every other property, and
+        /// every way a renamed key could break it (no Dim, unknown Type tag, degenerate geometry)
+        /// is already counted and reported by SplitStikRunBuilder. A version above this is worth
+        /// a warning, not a stop — see the caller.
+        /// </summary>
+        internal const int VerifiedFormatVersion = 6;
 
         internal static D2rNetwork Read(string path)
         {
@@ -46,16 +61,10 @@ namespace IntersectUtilities.MPE.SplitStik
                     "This file has no numeric \"FormatVersion\" field, so it is not a "
                         + $"DimensioneringV2 result file: \"{path}\".");
 
-            if (version > SupportedFormatVersion)
+            if (version < MinimumFormatVersion)
                 throw new InvalidDataException(
-                    $"The file has FormatVersion {version}, but this command understands at most "
-                        + $"{SupportedFormatVersion}. It was written by a newer DimensioneringV2 — "
-                        + "update IntersectUtilities.");
-
-            if (version < SupportedFormatVersion)
-                throw new InvalidDataException(
-                    $"The file has FormatVersion {version}, but this command requires "
-                        + $"{SupportedFormatVersion}. Open it in DimensioneringV2 and save it again "
+                    $"The file has FormatVersion {version}, but this command requires at least "
+                        + $"{MinimumFormatVersion}. Open it in DimensioneringV2 and save it again "
                         + "to upgrade it, then retry.");
 
             List<D2rGraph> graphs = new();
