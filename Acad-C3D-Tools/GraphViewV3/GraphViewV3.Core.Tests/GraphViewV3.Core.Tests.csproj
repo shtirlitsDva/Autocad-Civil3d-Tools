@@ -25,6 +25,7 @@
     <Compile Include="..\..\EventManager\BoundHook.cs" Link="EventManager\BoundHook.cs" />
     <Compile Include="..\..\EventManager\EventManagerTrace.cs" Link="EventManager\EventManagerTrace.cs" />
     <Compile Include="..\..\EventManager\HookSlot.cs" Link="EventManager\HookSlot.cs" />
+    <Compile Include="..\..\EventManager\IdleDrain.cs" Link="EventManager\IdleDrain.cs" />
     <Compile Include="..\..\EventManager\SharedHook.cs" Link="EventManager\SharedHook.cs" />
     <Compile Include="..\..\EventManager\SubscriptionLedger.cs" Link="EventManager\SubscriptionLedger.cs" />
   </ItemGroup>

@@ -56,10 +56,12 @@ namespace EventManager
         {
             _trace = new EventManagerTrace(log);
             _subscriptions = new SubscriptionLedger<Document>(_trace);
+            _idleDrain = new IdleDrain(() => Idle += OnIdleTick, () => Idle -= OnIdleTick, _trace);
             _dbBinding = new BoundHook<DbServices.Database>(
                 AttachToDatabase, DetachFromDatabase, _trace);
             _dbHook = new SharedHook(
                 InstallDbHook, UninstallDbHook, DbHookStillNeeded, _trace);
+
             Application.DocumentManager.DocumentToBeDestroyed += OnDocToBeDestroyed;
         }
 
@@ -96,10 +98,11 @@ namespace EventManager
 
         #region One-Shot Idle
 
-        /// <summary>Actions waiting for the next idle tick, in the order they were queued.</summary>
-        private readonly List<Action> _idleQueue = new();
-        private bool _idleTickArmed;
-        private bool _idleDraining;
+        /// <summary>
+        /// The queue and its arm/disarm bookkeeping. Assigned in the constructor, where it is
+        /// closed over this manager's own <see cref="Idle"/> event.
+        /// </summary>
+        private readonly IdleDrain _idleDrain;
 
         /// <summary>
         /// Runs <paramref name="action"/> once, on the next <see cref="Idle"/>, and then lets go
@@ -152,59 +155,10 @@ namespace EventManager
             if (action == null) throw new ArgumentNullException(nameof(action));
             if (_disposed) throw new ObjectDisposedException(nameof(AcadEventManager));
 
-            _idleQueue.Add(action);
-            if (_idleTickArmed) return;
-
-            _idleTickArmed = true;
-            try
-            {
-                Idle += OnIdleTick;
-            }
-            catch
-            {
-                _idleTickArmed = false;
-                _idleQueue.Remove(action);
-                throw;
-            }
+            _idleDrain.Enqueue(action);
         }
 
-        private void OnIdleTick(object? sender, EventArgs e)
-        {
-            // Bail out BEFORE detaching. A queued action may pump messages, and AutoCAD then
-            // re-raises Idle with this drain still on the stack; consuming the arming here would
-            // throw away the subscription that whatever ran inside the modal just took out.
-            if (_idleDraining) return;
-
-            // One shot per arming: detach first and unconditionally, so a later failure cannot
-            // leave the drain running on every tick.
-            _idleTickArmed = false;
-            Idle -= OnIdleTick;
-
-            if (_idleQueue.Count == 0) return;
-
-            var due = _idleQueue.ToArray();
-            _idleQueue.Clear();
-
-            _idleDraining = true;
-            try
-            {
-                foreach (var queued in due)
-                {
-                    try
-                    {
-                        queued();
-                    }
-                    catch (Exception ex)
-                    {
-                        _trace.Report("an action queued for the next idle threw", ex);
-                    }
-                }
-            }
-            finally
-            {
-                _idleDraining = false;
-            }
-        }
+        private void OnIdleTick(object? sender, EventArgs e) => _idleDrain.Tick();
 
         #endregion
 
@@ -732,10 +686,9 @@ namespace EventManager
 
             _subscriptions.ReleaseAll();
 
-            // Anything still waiting for an idle tick is dropped: the tick that would have run it
-            // belongs to a manager that no longer exists.
-            _idleQueue.Clear();
-            _idleTickArmed = false;
+            // Anything still queued for an idle tick is dropped, and the idle hook let go of. A
+            // generation already being drained is not withdrawable and will finish running.
+            _idleDrain.Abandon();
 
             // Index loop: releasing one slot can touch another (the database hook unsubscribes
             // itself from DocumentActivated), and _slots must tolerate that.
