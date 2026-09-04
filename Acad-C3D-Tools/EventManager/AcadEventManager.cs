@@ -54,6 +54,8 @@ namespace EventManager
             _trace = new EventManagerTrace(log);
             _dbBinding = new BoundHook<DbServices.Database>(
                 AttachToDatabase, DetachFromDatabase, _trace);
+            _dbHook = new SharedHook(
+                InstallDbHook, UninstallDbHook, DbHookStillNeeded, _trace);
             Application.DocumentManager.DocumentToBeDestroyed += OnDocToBeDestroyed;
         }
 
@@ -532,7 +534,11 @@ namespace EventManager
         // Object change notifications live on the Database, not on Application/DocumentManager.
         // These aggregate events follow the active document automatically: subscribe once and you
         // receive the active drawing's append/modify/erase events, rebinding on document switch.
-        private bool _dbHookInstalled;
+        /// <summary>
+        /// The document-lifecycle subscriptions the three ActiveObject* events share, installed
+        /// atomically so a failure part way through leaves them re-armable.
+        /// </summary>
+        private readonly SharedHook _dbHook;
 
         /// <summary>
         /// The active document's database and the three object-event handlers attached to it.
@@ -560,36 +566,60 @@ namespace EventManager
             remove => _activeObjectErased?.Remove(value);
         }
 
-        private void EnsureDbHook()
+        /// <summary>Install action of the three ActiveObject* slots.</summary>
+        private void EnsureDbHook() => _dbHook.Ensure();
+
+        /// <summary>
+        /// Uninstall action of the three ActiveObject* slots: releases the shared hook once the
+        /// last of them has lost its handlers. The slot that triggered this has already cleared
+        /// its own Installed flag, so <see cref="DbHookStillNeeded"/> sees only the siblings that
+        /// are genuinely still listening.
+        /// </summary>
+        private void ReleaseDbHook() => _dbHook.ReleaseIfUnused();
+
+        private bool DbHookStillNeeded()
+            => StillListening(_activeObjectAppended)
+            || StillListening(_activeObjectModified)
+            || StillListening(_activeObjectErased);
+
+        private void InstallDbHook()
         {
-            if (_dbHookInstalled) return;
-            _dbHookInstalled = true;
-            DocumentActivated += OnActiveDocChanged;
-            DocumentToBeDeactivated += OnActiveDocDeactivated;
-            DocumentToBeDestroyed += OnActiveDocToBeDestroyed;
-            DocumentDestroyed += OnActiveDocDestroyed;
+            try
+            {
+                DocumentActivated += OnActiveDocChanged;
+                DocumentToBeDeactivated += OnActiveDocDeactivated;
+                DocumentToBeDestroyed += OnActiveDocToBeDestroyed;
+                DocumentDestroyed += OnActiveDocDestroyed;
+            }
+            catch
+            {
+                // Unwind whatever got through before rethrowing. SharedHook leaves the hook
+                // reported as not installed, so a later attempt starts over -- and it must not
+                // find half of these subscriptions still in place and end up subscribed twice.
+                DetachDocumentLifecycleHooks();
+                throw;
+            }
+
             BindDatabase(ActiveDatabase());
         }
 
-        /// <summary>
-        /// Releases the shared database hook once the last of the three ActiveObject* events has
-        /// lost its handlers. Each of them uses this as its uninstall action, and the slot that
-        /// triggered it has already cleared its own Installed flag, so the check below sees only
-        /// the siblings that are genuinely still listening.
-        /// </summary>
-        private void ReleaseDbHook()
+        private void UninstallDbHook()
         {
-            if (!_dbHookInstalled) return;
-            if (StillListening(_activeObjectAppended)
-                || StillListening(_activeObjectModified)
-                || StillListening(_activeObjectErased)) return;
+            DetachDocumentLifecycleHooks();
+            BindDatabase(null);
+        }
 
-            _dbHookInstalled = false;
+        /// <summary>
+        /// Drops the four document-lifecycle subscriptions. Unsubscribing a handler that was never
+        /// subscribed is a no-op, which is what makes this usable as the rollback for a partial
+        /// install as well as the teardown for a complete one.
+        /// </summary>
+        private void DetachDocumentLifecycleHooks()
+        {
             DocumentActivated -= OnActiveDocChanged;
             DocumentToBeDeactivated -= OnActiveDocDeactivated;
             DocumentToBeDestroyed -= OnActiveDocToBeDestroyed;
             DocumentDestroyed -= OnActiveDocDestroyed;
-            BindDatabase(null);
         }
 
         private static bool StillListening(IHookSlot? slot) => slot != null && slot.Installed;
@@ -719,6 +749,12 @@ namespace EventManager
             // itself from DocumentActivated), and _slots must tolerate that.
             for (int i = 0; i < _slots.Count; i++) _slots[i].Release();
             _slots.Clear();
+
+            // Belt and braces. The slot releases above should already have taken these down
+            // through their uninstall actions, but teardown must not depend on that chain being
+            // reached: if it were not, the manager would leave a live database hook behind.
+            _dbHook.Release();
+            BindDatabase(null);
 
             Application.DocumentManager.DocumentToBeDestroyed -= OnDocToBeDestroyed;
         }
