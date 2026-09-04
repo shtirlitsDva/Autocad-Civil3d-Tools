@@ -426,6 +426,8 @@ namespace EventManager
             _dbHookInstalled = true;
             DocumentActivated += OnActiveDocChanged;
             DocumentToBeDeactivated += OnActiveDocDeactivated;
+            DocumentToBeDestroyed += OnActiveDocToBeDestroyed;
+            DocumentDestroyed += OnActiveDocDestroyed;
             BindDatabase(Application.DocumentManager.MdiActiveDocument?.Database);
         }
 
@@ -435,6 +437,8 @@ namespace EventManager
             _dbHookInstalled = false;
             DocumentActivated -= OnActiveDocChanged;
             DocumentToBeDeactivated -= OnActiveDocDeactivated;
+            DocumentToBeDestroyed -= OnActiveDocToBeDestroyed;
+            DocumentDestroyed -= OnActiveDocDestroyed;
             BindDatabase(null);
         }
 
@@ -444,21 +448,83 @@ namespace EventManager
         private void OnActiveDocDeactivated(object? s, DocumentCollectionEventArgs e)
             => BindDatabase(null);
 
+        /// <summary>
+        /// A drawing can be closed while it is still the active document, in which case no
+        /// deactivate precedes the destroy and nothing else would release the binding. Let go of
+        /// the database here, while unsubscribing from it is still safe.
+        /// </summary>
+        private void OnActiveDocToBeDestroyed(object? s, DocumentCollectionEventArgs e)
+        {
+            DbServices.Database? dying = null;
+            try
+            {
+                dying = e.Document?.Database;
+            }
+            catch (Exception ex)
+            {
+                // The document is already on its way out. Treat it as unidentifiable and let go;
+                // OnActiveDocDestroyed rebinds to whatever is active once the dust settles.
+                EventManagerTrace.Report(
+                    "failed to read the database of a document being destroyed", ex);
+            }
+
+            if (dying == null || ReferenceEquals(dying, _boundDb)) BindDatabase(null);
+        }
+
+        /// <summary>
+        /// The document is gone. Rebind to whatever is active now: null when the last drawing was
+        /// closed, the next drawing otherwise. This is also the backstop that releases a dead
+        /// database if a destroy ever arrives without either a preceding deactivate or a
+        /// resolvable document.
+        /// </summary>
+        private void OnActiveDocDestroyed(object? s, DocumentDestroyedEventArgs e)
+        {
+            Document? active = null;
+            try
+            {
+                active = Application.DocumentManager.MdiActiveDocument;
+            }
+            catch (Exception ex)
+            {
+                EventManagerTrace.Report(
+                    "failed to read the active document after a document was destroyed", ex);
+            }
+
+            BindDatabase(active?.Database);
+        }
+
         private void BindDatabase(DbServices.Database? db)
         {
             if (ReferenceEquals(_boundDb, db)) return;
-            if (_boundDb != null)
-            {
-                _boundDb.ObjectAppended -= FwdObjectAppended;
-                _boundDb.ObjectModified -= FwdObjectModified;
-                _boundDb.ObjectErased -= FwdObjectErased;
-            }
+
+            var previous = _boundDb;
+
+            // Move the field off the old database BEFORE detaching from it. AutoCAD may already
+            // have torn that one down, in which case the detach throws; staying bound to a dead
+            // Database afterwards is worse than leaking three handler references on an object
+            // that is going away regardless.
             _boundDb = db;
-            if (_boundDb != null)
+
+            if (previous != null)
             {
-                _boundDb.ObjectAppended += FwdObjectAppended;
-                _boundDb.ObjectModified += FwdObjectModified;
-                _boundDb.ObjectErased += FwdObjectErased;
+                try
+                {
+                    previous.ObjectAppended -= FwdObjectAppended;
+                    previous.ObjectModified -= FwdObjectModified;
+                    previous.ObjectErased -= FwdObjectErased;
+                }
+                catch (Exception ex)
+                {
+                    EventManagerTrace.Report(
+                        "failed to detach from the previously bound database", ex);
+                }
+            }
+
+            if (db != null)
+            {
+                db.ObjectAppended += FwdObjectAppended;
+                db.ObjectModified += FwdObjectModified;
+                db.ObjectErased += FwdObjectErased;
             }
         }
 
