@@ -17,9 +17,14 @@ namespace EventManager
     /// </summary>
     /// <remarks>
     /// Every exposed event is backed by a <see cref="HookSlot{THandler}"/>: the underlying AutoCAD
-    /// hook is installed the first time a handler subscribes, and the handlers themselves live in a
-    /// multicast delegate, so dispatch reads an immutable snapshot and a handler is free to
-    /// subscribe or unsubscribe from inside another handler.
+    /// hook is installed the first time a handler subscribes and uninstalled again when the last
+    /// one unsubscribes, so the manager holds only the hooks somebody is actually listening to.
+    /// The handlers themselves live in a multicast delegate, so dispatch reads an immutable
+    /// snapshot and a handler is free to subscribe or unsubscribe from inside another handler.
+    /// <para>
+    /// Subscribing after <see cref="Dispose"/> throws <see cref="ObjectDisposedException"/>: the
+    /// hook it installed would have no owner left to release it. Unsubscribing stays safe.
+    /// </para>
     /// <para>
     /// Not thread safe. Every member is expected to be used on the AutoCAD main thread.
     /// </para>
@@ -63,10 +68,16 @@ namespace EventManager
         /// <summary>
         /// Returns the slot backing one event, creating and registering it on first use.
         /// </summary>
+        /// <exception cref="ObjectDisposedException">
+        /// The manager has been disposed. Subscribing afterwards would install an AutoCAD hook
+        /// that nothing is left to uninstall, so it is refused rather than silently leaked.
+        /// </exception>
         private HookSlot<THandler> Slot<THandler>(
             ref HookSlot<THandler>? slot, Action install, Action uninstall)
             where THandler : Delegate
         {
+            if (_disposed) throw new ObjectDisposedException(nameof(AcadEventManager));
+
             if (slot == null)
             {
                 slot = new HookSlot<THandler>(install, uninstall);
@@ -431,9 +442,19 @@ namespace EventManager
             BindDatabase(Application.DocumentManager.MdiActiveDocument?.Database);
         }
 
+        /// <summary>
+        /// Releases the shared database hook once the last of the three ActiveObject* events has
+        /// lost its handlers. Each of them uses this as its uninstall action, and the slot that
+        /// triggered it has already cleared its own Installed flag, so the check below sees only
+        /// the siblings that are genuinely still listening.
+        /// </summary>
         private void ReleaseDbHook()
         {
             if (!_dbHookInstalled) return;
+            if (StillListening(_activeObjectAppended)
+                || StillListening(_activeObjectModified)
+                || StillListening(_activeObjectErased)) return;
+
             _dbHookInstalled = false;
             DocumentActivated -= OnActiveDocChanged;
             DocumentToBeDeactivated -= OnActiveDocDeactivated;
@@ -441,6 +462,8 @@ namespace EventManager
             DocumentDestroyed -= OnActiveDocDestroyed;
             BindDatabase(null);
         }
+
+        private static bool StillListening(IHookSlot? slot) => slot != null && slot.Installed;
 
         private void OnActiveDocChanged(object? s, DocumentCollectionEventArgs e)
             => BindDatabase(e.Document?.Database);

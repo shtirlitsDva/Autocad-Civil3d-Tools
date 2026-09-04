@@ -25,8 +25,10 @@ namespace EventManager
     /// <remarks>
     /// The handlers live in a multicast delegate rather than a list, so <see cref="Handlers"/>
     /// hands the forwarder an immutable snapshot: a subscriber may subscribe or unsubscribe from
-    /// inside a dispatch without invalidating it. The underlying hook is installed lazily, on the
-    /// first subscription, so a manager exposing many events does not hook all of them up front.
+    /// inside a dispatch without invalidating it. The underlying hook is installed lazily on the
+    /// first subscription and uninstalled again when the last handler leaves, so a manager
+    /// exposing many events hooks only the ones somebody is listening to, for exactly as long as
+    /// somebody is listening. The pair is idempotent and re-armable any number of times.
     /// <para>
     /// Not thread safe. Expected to be used on the AutoCAD main thread.
     /// </para>
@@ -77,20 +79,30 @@ namespace EventManager
         }
 
         /// <summary>
-        /// Removes a handler. Removing one that was never added is a no-op.
+        /// Removes a handler, uninstalling the underlying hook once the last one is gone.
+        /// Removing one that was never added is a no-op. The slot stays usable: a later
+        /// <see cref="Add"/> installs the hook again, any number of times.
         /// </summary>
         internal void Remove(THandler? value)
         {
             if (value == null || _handlers == null) return;
             _handlers = (THandler?)Delegate.Remove(_handlers, value);
+            if (_handlers == null) Uninstall();
         }
 
         /// <inheritdoc />
         public void Release()
         {
             _handlers = null;
+            Uninstall();
+        }
+
+        private void Uninstall()
+        {
             if (!_installed) return;
 
+            // Clear the flag first: the uninstall action may consult this slot's state, and a
+            // failing uninstall must not leave the slot claiming a hook it no longer owns.
             _installed = false;
             try
             {
@@ -98,8 +110,9 @@ namespace EventManager
             }
             catch (Exception ex)
             {
-                // Releasing runs during teardown, often while AutoCAD is already unwinding a
-                // document. A failure here must not abort the rest of the teardown.
+                // Uninstalling runs on the last unsubscribe and during teardown, often while
+                // AutoCAD is already unwinding a document. A failure here must neither abort the
+                // rest of the teardown nor escape a subscriber's `-=`.
                 EventManagerTrace.Report("failed to uninstall an event hook", ex);
             }
         }

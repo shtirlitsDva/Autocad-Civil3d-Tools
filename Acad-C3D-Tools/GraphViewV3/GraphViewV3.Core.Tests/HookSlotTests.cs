@@ -153,6 +153,119 @@ public class HookSlotTests
     }
 
     [Fact]
+    public void RemovingTheLastHandlerUninstallsTheHook()
+    {
+        var hook = new Hook();
+        var slot = hook.NewSlot();
+        Action handler = () => { };
+        slot.Add(handler);
+
+        slot.Remove(handler);
+
+        Assert.Equal(1, hook.Uninstalls);
+        Assert.False(hook.Live);
+        Assert.False(slot.Installed);
+        Assert.Null(slot.Handlers);
+    }
+
+    [Fact]
+    public void RemovingOneOfTwoHandlersKeepsTheHookInstalled()
+    {
+        var hook = new Hook();
+        var slot = hook.NewSlot();
+        Action first = () => { };
+        slot.Add(first);
+        slot.Add(() => { });
+
+        slot.Remove(first);
+
+        Assert.Equal(0, hook.Uninstalls);
+        Assert.True(slot.Installed);
+    }
+
+    [Fact]
+    public void RemovingAHandlerThatWasNeverAddedDoesNotUninstall()
+    {
+        var hook = new Hook();
+        var slot = hook.NewSlot();
+        slot.Add(() => { });
+
+        slot.Remove(() => { });
+
+        Assert.Equal(0, hook.Uninstalls);
+        Assert.True(slot.Installed);
+    }
+
+    [Fact]
+    public void SubscribeUnsubscribeCyclesReinstallEveryTime()
+    {
+        var hook = new Hook();
+        var slot = hook.NewSlot();
+
+        for (int i = 0; i < 3; i++)
+        {
+            Action handler = () => { };
+            slot.Add(handler);
+            Assert.True(hook.Live);
+            slot.Remove(handler);
+            Assert.False(hook.Live);
+        }
+
+        Assert.Equal(3, hook.Installs);
+        Assert.Equal(3, hook.Uninstalls);
+    }
+
+    [Fact]
+    public void ReleaseAfterTheLastRemoveDoesNotUninstallTwice()
+    {
+        var hook = new Hook();
+        var slot = hook.NewSlot();
+        Action handler = () => { };
+        slot.Add(handler);
+        slot.Remove(handler);
+
+        slot.Release();
+
+        Assert.Equal(1, hook.Uninstalls);
+    }
+
+    [Fact]
+    public void LastHandlerUnsubscribingItselfDuringDispatch_UninstallsWithoutBreakingTheDispatch()
+    {
+        var hook = new Hook();
+        var slot = hook.NewSlot();
+        var ran = 0;
+
+        Action? only = null;
+        only = () =>
+        {
+            ran++;
+            slot.Remove(only);
+        };
+        slot.Add(only);
+
+        slot.Handlers?.Invoke();
+
+        Assert.Equal(1, ran);
+        Assert.Equal(1, hook.Uninstalls);
+        Assert.False(slot.Installed);
+    }
+
+    [Fact]
+    public void FailingUninstallOnTheLastRemoveDoesNotEscapeToTheSubscriber()
+    {
+        var hook = new Hook { UninstallThrows = true };
+        var slot = hook.NewSlot();
+        Action handler = () => { };
+        slot.Add(handler);
+
+        slot.Remove(handler);
+
+        Assert.False(slot.Installed);
+        Assert.Equal(1, hook.Uninstalls);
+    }
+
+    [Fact]
     public void Release_DropsHandlersAndUninstallsOnce()
     {
         var hook = new Hook();
