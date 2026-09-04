@@ -17,4 +17,17 @@
     <ProjectReference Include="..\GraphViewV3.Core\GraphViewV3.Core.csproj" />
   </ItemGroup>
 
+  <!-- The parts of the shared EventManager that are plain BCL code: each takes the AutoCAD hook
+       it drives as injected actions, so they are linked in here and exercised without AutoCAD.
+       AcadEventManager.cs itself is not, because it references acmgd/acdbmgd; it is the thin
+       wiring layer that closes these types over the real AutoCAD events. -->
+  <ItemGroup>
+    <Compile Include="..\..\EventManager\BoundHook.cs" Link="EventManager\BoundHook.cs" />
+    <Compile Include="..\..\EventManager\EventManagerTrace.cs" Link="EventManager\EventManagerTrace.cs" />
+    <Compile Include="..\..\EventManager\HookSlot.cs" Link="EventManager\HookSlot.cs" />
+    <Compile Include="..\..\EventManager\IdleDrain.cs" Link="EventManager\IdleDrain.cs" />
+    <Compile Include="..\..\EventManager\SharedHook.cs" Link="EventManager\SharedHook.cs" />
+    <Compile Include="..\..\EventManager\SubscriptionLedger.cs" Link="EventManager\SubscriptionLedger.cs" />
+  </ItemGroup>
+
 </Project>
