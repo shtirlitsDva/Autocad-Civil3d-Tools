@@ -303,6 +303,137 @@ public class HookSlotTests
     }
 
     [Fact]
+    public void AHandlerThatRemovesThenReAddsItselfDuringDispatch_ReinstallsTheHook()
+    {
+        // Exactly the manager's own idle tick: the only handler unsubscribes at the top -- which
+        // takes the hook down -- and something running underneath it arms again before the
+        // dispatch returns. If the slot did not re-install here, idle would be dead for good.
+        var hook = new Hook();
+        var slot = hook.NewSlot();
+        var runs = 0;
+        var installedAfterSelfRemoval = true;
+
+        Action? tick = null;
+        tick = () =>
+        {
+            runs++;
+            slot.Remove(tick!);
+            if (runs == 1)
+            {
+                installedAfterSelfRemoval = slot.Installed;
+                slot.Add(tick!);
+            }
+        };
+        slot.Add(tick);
+
+        slot.Handlers?.Invoke();
+
+        Assert.Equal(1, runs);
+        Assert.False(installedAfterSelfRemoval);
+        Assert.True(slot.Installed);
+        Assert.True(hook.Live);
+        Assert.Equal(2, hook.Installs);
+        Assert.Equal(1, hook.Uninstalls);
+
+        // The re-arm took, so the next dispatch runs it again -- and this time it does not re-add.
+        slot.Handlers?.Invoke();
+        Assert.Equal(2, runs);
+        Assert.False(slot.Installed);
+        Assert.Equal(2, hook.Uninstalls);
+    }
+
+    [Fact]
+    public void ALaterHandlerInTheSameSnapshotCanReinstallAHookTheFirstOneTookDown()
+    {
+        var hook = new Hook();
+        var slot = hook.NewSlot();
+        var seen = new List<string>();
+        Action replacement = () => seen.Add("replacement");
+
+        Action? first = null;
+        Action? second = null;
+        first = () =>
+        {
+            seen.Add("first");
+            slot.Remove(first!);
+            slot.Remove(second!);   // the last handler goes: the hook comes down here
+        };
+        second = () =>
+        {
+            seen.Add("second");
+            slot.Add(replacement);  // and goes back up here, in the same dispatch
+        };
+        slot.Add(first);
+        slot.Add(second);
+
+        slot.Handlers?.Invoke();
+
+        Assert.Equal(new[] { "first", "second" }, seen);
+        Assert.Equal(1, hook.Uninstalls);
+        Assert.Equal(2, hook.Installs);
+        Assert.True(slot.Installed);
+        Assert.True(hook.Live);
+
+        seen.Clear();
+        slot.Handlers?.Invoke();
+        Assert.Equal(new[] { "replacement" }, seen);
+    }
+
+    [Fact]
+    public void AddAfterAFailedAddInstallsOnceTheInstallStopsFailing()
+    {
+        var hook = new Hook { InstallThrows = true };
+        var slot = hook.NewSlot();
+        Assert.Throws<InvalidOperationException>(() => slot.Add(() => { }));
+
+        hook.InstallThrows = false;
+        Action handler = () => { };
+        slot.Add(handler);
+
+        Assert.True(slot.Installed);
+        Assert.True(hook.Live);
+        Assert.Equal(1, hook.Installs);
+
+        // Only the second handler is subscribed -- the rolled-back one left nothing behind.
+        slot.Remove(handler);
+        Assert.Null(slot.Handlers);
+        Assert.False(slot.Installed);
+    }
+
+    [Fact]
+    public void ReleaseFromInsideADispatchOfTheSameSlotUninstallsAndLetsTheSnapshotFinish()
+    {
+        var hook = new Hook();
+        var slot = hook.NewSlot();
+        var seen = new List<string>();
+
+        slot.Add(() =>
+        {
+            seen.Add("first");
+            slot.Release();
+        });
+        slot.Add(() => seen.Add("second"));
+
+        slot.Handlers?.Invoke();
+
+        // Standard event semantics: the snapshot the forwarder is holding runs to the end.
+        Assert.Equal(new[] { "first", "second" }, seen);
+        Assert.False(slot.Installed);
+        Assert.False(hook.Live);
+        Assert.Equal(1, hook.Uninstalls);
+        Assert.Null(slot.Handlers);
+
+        seen.Clear();
+        slot.Handlers?.Invoke();
+        Assert.Empty(seen);
+
+        // And the slot is still usable afterwards.
+        slot.Add(() => seen.Add("later"));
+        Assert.True(slot.Installed);
+        Assert.Equal(2, hook.Installs);
+    }
+
+    [Fact]
     public void NullHandlersAreIgnored()
     {
         var hook = new Hook();
