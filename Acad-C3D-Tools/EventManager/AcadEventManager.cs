@@ -86,6 +86,120 @@ namespace EventManager
             return slot;
         }
 
+        #region One-Shot Idle
+
+        /// <summary>Actions waiting for the next idle tick, in the order they were queued.</summary>
+        private readonly List<Action> _idleQueue = new();
+        private bool _idleTickArmed;
+        private bool _idleDraining;
+
+        /// <summary>
+        /// Runs <paramref name="action"/> once, on the next <see cref="Idle"/>, and then lets go
+        /// of the idle hook again unless something is still queued.
+        /// </summary>
+        /// <remarks>
+        /// This is the arm-work-disarm debounce as a shared primitive: arm when work appears,
+        /// detach as soon as it has been done, so an idle tick costs nothing while there is
+        /// nothing to do. It replaces a hand-rolled <c>Application.Idle += / -=</c> pair and
+        /// nothing more -- the arming policy stays with the caller.
+        /// <para>The contract, in full, because callers depend on all of it:</para>
+        /// <list type="bullet">
+        /// <item><description>
+        /// <b>One shot.</b> The action runs exactly once per call and is then forgotten. Queue it
+        /// again to have it run again.
+        /// </description></item>
+        /// <item><description>
+        /// <b>No de-duplication.</b> Two calls with the same action run it twice. A caller that
+        /// arms on every change keeps its own "already armed" flag, exactly as it did around the
+        /// raw pair.
+        /// </description></item>
+        /// <item><description>
+        /// <b>FIFO, and one generation per tick.</b> Everything queued before a tick runs on that
+        /// tick, in queue order. Anything queued from inside the tick runs on a later one.
+        /// </description></item>
+        /// <item><description>
+        /// <b>Isolated.</b> An exception out of one action is reported and swallowed -- it must
+        /// not reach AutoCAD's message pump -- and the actions queued behind it still run.
+        /// </description></item>
+        /// <item><description>
+        /// <b>Re-entrancy.</b> An action that pumps messages (a modal dialog does) makes AutoCAD
+        /// raise Idle again while the drain is still on the stack. That nested tick returns
+        /// immediately <i>without</i> consuming the arming, so work queued from inside the modal
+        /// still runs on a later real idle. It does <i>not</i> give an action mutual exclusion
+        /// with itself: a caller whose own pass must not re-enter keeps its own re-entrancy guard.
+        /// </description></item>
+        /// <item><description>
+        /// <b>No cancellation.</b> A queued action cannot be withdrawn. A caller that may be torn
+        /// down before the tick checks its own disposed flag at the top of the action.
+        /// </description></item>
+        /// </list>
+        /// <para>
+        /// Runs on the AutoCAD main thread, like every other member here, and is not thread safe.
+        /// </para>
+        /// </remarks>
+        /// <exception cref="ArgumentNullException"><paramref name="action"/> is null.</exception>
+        /// <exception cref="ObjectDisposedException">The manager has been disposed.</exception>
+        public void RunOnNextIdle(Action action)
+        {
+            if (action == null) throw new ArgumentNullException(nameof(action));
+            if (_disposed) throw new ObjectDisposedException(nameof(AcadEventManager));
+
+            _idleQueue.Add(action);
+            if (_idleTickArmed) return;
+
+            _idleTickArmed = true;
+            try
+            {
+                Idle += OnIdleTick;
+            }
+            catch
+            {
+                _idleTickArmed = false;
+                _idleQueue.Remove(action);
+                throw;
+            }
+        }
+
+        private void OnIdleTick(object? sender, EventArgs e)
+        {
+            // Bail out BEFORE detaching. A queued action may pump messages, and AutoCAD then
+            // re-raises Idle with this drain still on the stack; consuming the arming here would
+            // throw away the subscription that whatever ran inside the modal just took out.
+            if (_idleDraining) return;
+
+            // One shot per arming: detach first and unconditionally, so a later failure cannot
+            // leave the drain running on every tick.
+            _idleTickArmed = false;
+            Idle -= OnIdleTick;
+
+            if (_idleQueue.Count == 0) return;
+
+            var due = _idleQueue.ToArray();
+            _idleQueue.Clear();
+
+            _idleDraining = true;
+            try
+            {
+                foreach (var queued in due)
+                {
+                    try
+                    {
+                        queued();
+                    }
+                    catch (Exception ex)
+                    {
+                        EventManagerTrace.Report("an action queued for the next idle threw", ex);
+                    }
+                }
+            }
+            finally
+            {
+                _idleDraining = false;
+            }
+        }
+
+        #endregion
+
         #region Application Events
 
         private HookSlot<EventHandler>? _beginCustomizationMode;
@@ -578,6 +692,11 @@ namespace EventManager
             _disposed = true;
             foreach (var doc in _subscriptions.Keys.ToList())
                 CleanupDocument(doc);
+
+            // Anything still waiting for an idle tick is dropped: the tick that would have run it
+            // belongs to a manager that no longer exists.
+            _idleQueue.Clear();
+            _idleTickArmed = false;
 
             // Index loop: releasing one slot can touch another (the database hook unsubscribes
             // itself from DocumentActivated), and _slots must tolerate that.
