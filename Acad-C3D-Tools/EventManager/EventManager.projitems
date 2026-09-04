@@ -10,5 +10,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)AcadEventManager.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)HookSlot.cs" />
   </ItemGroup>
 </Project>
