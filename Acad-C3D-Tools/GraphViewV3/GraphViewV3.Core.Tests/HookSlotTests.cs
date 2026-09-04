@@ -17,8 +17,9 @@ public class HookSlotTests
         public bool InstallThrows;
         public bool UninstallThrows;
         public bool Live;
+        public readonly RecordingTrace Trace = new();
 
-        public HookSlot<Action> NewSlot() => new(Install, Uninstall);
+        public HookSlot<Action> NewSlot() => new(Install, Uninstall, Trace.Trace);
 
         private void Install()
         {
@@ -252,7 +253,7 @@ public class HookSlotTests
     }
 
     [Fact]
-    public void FailingUninstallOnTheLastRemoveDoesNotEscapeToTheSubscriber()
+    public void FailingUninstallOnTheLastRemoveIsReportedAndDoesNotEscapeToTheSubscriber()
     {
         var hook = new Hook { UninstallThrows = true };
         var slot = hook.NewSlot();
@@ -263,6 +264,11 @@ public class HookSlotTests
 
         Assert.False(slot.Installed);
         Assert.Equal(1, hook.Uninstalls);
+
+        // The counter above only proves the uninstall was attempted. What matters to a user
+        // reporting "it just stopped updating" is that the failure reached a log at all.
+        Assert.True(hook.Trace.Reported("uninstall an event hook"));
+        Assert.IsType<InvalidOperationException>(hook.Trace.Reports.Single().Error);
     }
 
     [Fact]
@@ -292,6 +298,8 @@ public class HookSlotTests
 
         Assert.False(slot.Installed);
         Assert.Equal(1, hook.Uninstalls);
+        Assert.True(hook.Trace.Reported("uninstall an event hook"));
+        Assert.IsType<InvalidOperationException>(hook.Trace.Reports.Single().Error);
     }
 
     [Fact]

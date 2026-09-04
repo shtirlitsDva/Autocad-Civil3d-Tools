@@ -39,10 +39,19 @@ namespace EventManager
         /// </summary>
         private readonly List<IHookSlot> _slots = new();
 
+        private readonly EventManagerTrace _trace;
         private bool _disposed;
 
-        public AcadEventManager()
+        /// <param name="log">
+        /// Where to report a failure the manager swallowed -- a hook that would not uninstall, a
+        /// database that would not detach, an action queued for idle that threw. Those are the
+        /// failures a user experiences as "it just stopped updating", so a plugin should pass its
+        /// own logger here. Left null they go to <see cref="System.Diagnostics.Trace"/>, which in
+        /// a Release AutoCAD process reaches only a native debugger.
+        /// </param>
+        public AcadEventManager(Action<string, Exception?>? log = null)
         {
+            _trace = new EventManagerTrace(log);
             Application.DocumentManager.DocumentToBeDestroyed += OnDocToBeDestroyed;
         }
 
@@ -80,7 +89,7 @@ namespace EventManager
 
             if (slot == null)
             {
-                slot = new HookSlot<THandler>(install, uninstall);
+                slot = new HookSlot<THandler>(install, uninstall, _trace);
                 _slots.Add(slot);
             }
             return slot;
@@ -188,7 +197,7 @@ namespace EventManager
                     }
                     catch (Exception ex)
                     {
-                        EventManagerTrace.Report("an action queued for the next idle threw", ex);
+                        _trace.Report("an action queued for the next idle threw", ex);
                     }
                 }
             }
@@ -601,7 +610,7 @@ namespace EventManager
             {
                 // The document is already on its way out. Treat it as unidentifiable and let go;
                 // OnActiveDocDestroyed rebinds to whatever is active once the dust settles.
-                EventManagerTrace.Report(
+                _trace.Report(
                     "failed to read the database of a document being destroyed", ex);
             }
 
@@ -623,7 +632,7 @@ namespace EventManager
             }
             catch (Exception ex)
             {
-                EventManagerTrace.Report(
+                _trace.Report(
                     "failed to read the active document after a document was destroyed", ex);
             }
 
@@ -652,7 +661,7 @@ namespace EventManager
                 }
                 catch (Exception ex)
                 {
-                    EventManagerTrace.Report(
+                    _trace.Report(
                         "failed to detach from the previously bound database", ex);
                 }
             }

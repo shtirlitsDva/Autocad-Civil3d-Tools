@@ -37,13 +37,15 @@ namespace EventManager
     {
         private readonly Action _install;
         private readonly Action _uninstall;
+        private readonly EventManagerTrace _trace;
         private THandler? _handlers;
         private bool _installed;
 
-        internal HookSlot(Action install, Action uninstall)
+        internal HookSlot(Action install, Action uninstall, EventManagerTrace trace)
         {
             _install = install ?? throw new ArgumentNullException(nameof(install));
             _uninstall = uninstall ?? throw new ArgumentNullException(nameof(uninstall));
+            _trace = trace ?? throw new ArgumentNullException(nameof(trace));
         }
 
         /// <summary>
@@ -104,28 +106,11 @@ namespace EventManager
             // Clear the flag first: the uninstall action may consult this slot's state, and a
             // failing uninstall must not leave the slot claiming a hook it no longer owns.
             _installed = false;
-            try
-            {
-                _uninstall();
-            }
-            catch (Exception ex)
-            {
-                // Uninstalling runs on the last unsubscribe and during teardown, often while
-                // AutoCAD is already unwinding a document. A failure here must neither abort the
-                // rest of the teardown nor escape a subscriber's `-=`.
-                EventManagerTrace.Report("failed to uninstall an event hook", ex);
-            }
-        }
-    }
 
-    /// <summary>
-    /// The one place the EventManager reports a swallowed failure. The shared project has no
-    /// logging dependency of its own, so this goes to <see cref="System.Diagnostics.Trace"/>,
-    /// which is compiled in for both Debug and Release builds.
-    /// </summary>
-    internal static class EventManagerTrace
-    {
-        internal static void Report(string message, Exception ex)
-            => System.Diagnostics.Trace.WriteLine($"AcadEventManager: {message}: {ex}");
+            // Uninstalling runs on the last unsubscribe and during teardown, often while AutoCAD
+            // is already unwinding a document. A failure here must neither abort the rest of the
+            // teardown nor escape a subscriber's `-=`.
+            _trace.Guard("failed to uninstall an event hook", _uninstall);
+        }
     }
 }
