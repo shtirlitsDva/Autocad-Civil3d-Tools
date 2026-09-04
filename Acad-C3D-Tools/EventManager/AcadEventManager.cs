@@ -2,7 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 using Autodesk.AutoCAD.ApplicationServices;
 
@@ -31,7 +30,11 @@ namespace EventManager
     /// </remarks>
     public class AcadEventManager : IDisposable
     {
-        private readonly Dictionary<Document, List<Action>> _subscriptions = new();
+        /// <summary>
+        /// Unsubscribe callbacks parked by a plugin against a document, released together when
+        /// that document is destroyed.
+        /// </summary>
+        private readonly SubscriptionLedger<Document> _subscriptions;
 
         /// <summary>
         /// Every slot created so far, in creation order, so <see cref="Dispose"/> can release the
@@ -39,31 +42,38 @@ namespace EventManager
         /// </summary>
         private readonly List<IHookSlot> _slots = new();
 
+        private readonly EventManagerTrace _trace;
         private bool _disposed;
 
-        public AcadEventManager()
+        /// <param name="log">
+        /// Where to report a failure the manager swallowed -- a hook that would not uninstall, a
+        /// database that would not detach, an action queued for idle that threw. Those are the
+        /// failures a user experiences as "it just stopped updating", so a plugin should pass its
+        /// own logger here. Left null they go to <see cref="System.Diagnostics.Trace"/>, which in
+        /// a Release AutoCAD process reaches only a native debugger.
+        /// </param>
+        public AcadEventManager(Action<string, Exception?>? log = null)
         {
+            _trace = new EventManagerTrace(log);
+            _subscriptions = new SubscriptionLedger<Document>(_trace);
+            _idleDrain = new IdleDrain(() => Idle += OnIdleTick, () => Idle -= OnIdleTick, _trace);
+            _dbBinding = new BoundHook<DbServices.Database>(
+                AttachToDatabase, DetachFromDatabase, _trace);
+            _dbHook = new SharedHook(
+                InstallDbHook, UninstallDbHook, DbHookStillNeeded, _trace);
+
             Application.DocumentManager.DocumentToBeDestroyed += OnDocToBeDestroyed;
         }
 
         public void Track(Document doc, Action unsubscribe)
-        {
-            if (!_subscriptions.TryGetValue(doc, out var list))
-            {
-                list = new List<Action>();
-                _subscriptions[doc] = list;
-            }
-            list.Add(unsubscribe);
-        }
+            => _subscriptions.Track(doc, unsubscribe);
 
         public IReadOnlyDictionary<Document, int> GetSubscriptions()
-            => _subscriptions.ToDictionary(kv => kv.Key, kv => kv.Value.Count);
+            => _subscriptions.Counts();
 
-        public bool HasSubscriptions(Document doc)
-            => _subscriptions.ContainsKey(doc);
+        public bool HasSubscriptions(Document doc) => _subscriptions.Has(doc);
 
-        public int GetSubscriptionCount(Document doc)
-            => _subscriptions.TryGetValue(doc, out var list) ? list.Count : 0;
+        public int GetSubscriptionCount(Document doc) => _subscriptions.CountFor(doc);
 
         /// <summary>
         /// Returns the slot backing one event, creating and registering it on first use.
@@ -80,7 +90,7 @@ namespace EventManager
 
             if (slot == null)
             {
-                slot = new HookSlot<THandler>(install, uninstall);
+                slot = new HookSlot<THandler>(install, uninstall, _trace);
                 _slots.Add(slot);
             }
             return slot;
@@ -88,10 +98,11 @@ namespace EventManager
 
         #region One-Shot Idle
 
-        /// <summary>Actions waiting for the next idle tick, in the order they were queued.</summary>
-        private readonly List<Action> _idleQueue = new();
-        private bool _idleTickArmed;
-        private bool _idleDraining;
+        /// <summary>
+        /// The queue and its arm/disarm bookkeeping. Assigned in the constructor, where it is
+        /// closed over this manager's own <see cref="Idle"/> event.
+        /// </summary>
+        private readonly IdleDrain _idleDrain;
 
         /// <summary>
         /// Runs <paramref name="action"/> once, on the next <see cref="Idle"/>, and then lets go
@@ -144,59 +155,10 @@ namespace EventManager
             if (action == null) throw new ArgumentNullException(nameof(action));
             if (_disposed) throw new ObjectDisposedException(nameof(AcadEventManager));
 
-            _idleQueue.Add(action);
-            if (_idleTickArmed) return;
-
-            _idleTickArmed = true;
-            try
-            {
-                Idle += OnIdleTick;
-            }
-            catch
-            {
-                _idleTickArmed = false;
-                _idleQueue.Remove(action);
-                throw;
-            }
+            _idleDrain.Enqueue(action);
         }
 
-        private void OnIdleTick(object? sender, EventArgs e)
-        {
-            // Bail out BEFORE detaching. A queued action may pump messages, and AutoCAD then
-            // re-raises Idle with this drain still on the stack; consuming the arming here would
-            // throw away the subscription that whatever ran inside the modal just took out.
-            if (_idleDraining) return;
-
-            // One shot per arming: detach first and unconditionally, so a later failure cannot
-            // leave the drain running on every tick.
-            _idleTickArmed = false;
-            Idle -= OnIdleTick;
-
-            if (_idleQueue.Count == 0) return;
-
-            var due = _idleQueue.ToArray();
-            _idleQueue.Clear();
-
-            _idleDraining = true;
-            try
-            {
-                foreach (var queued in due)
-                {
-                    try
-                    {
-                        queued();
-                    }
-                    catch (Exception ex)
-                    {
-                        EventManagerTrace.Report("an action queued for the next idle threw", ex);
-                    }
-                }
-            }
-            finally
-            {
-                _idleDraining = false;
-            }
-        }
+        private void OnIdleTick(object? sender, EventArgs e) => _idleDrain.Tick();
 
         #endregion
 
@@ -521,8 +483,16 @@ namespace EventManager
         // Object change notifications live on the Database, not on Application/DocumentManager.
         // These aggregate events follow the active document automatically: subscribe once and you
         // receive the active drawing's append/modify/erase events, rebinding on document switch.
-        private bool _dbHookInstalled;
-        private DbServices.Database? _boundDb;
+        /// <summary>
+        /// The document-lifecycle subscriptions the three ActiveObject* events share, installed
+        /// atomically so a failure part way through leaves them re-armable.
+        /// </summary>
+        private readonly SharedHook _dbHook;
+
+        /// <summary>
+        /// The active document's database and the three object-event handlers attached to it.
+        /// </summary>
+        private readonly BoundHook<DbServices.Database> _dbBinding;
 
         private HookSlot<DbServices.ObjectEventHandler>? _activeObjectAppended;
         public event DbServices.ObjectEventHandler ActiveObjectAppended
@@ -545,42 +515,101 @@ namespace EventManager
             remove => _activeObjectErased?.Remove(value);
         }
 
-        private void EnsureDbHook()
+        /// <summary>Install action of the three ActiveObject* slots.</summary>
+        private void EnsureDbHook() => _dbHook.Ensure();
+
+        /// <summary>
+        /// Uninstall action of the three ActiveObject* slots: releases the shared hook once the
+        /// last of them has lost its handlers. The slot that triggered this has already cleared
+        /// its own Installed flag, so <see cref="DbHookStillNeeded"/> sees only the siblings that
+        /// are genuinely still listening.
+        /// </summary>
+        private void ReleaseDbHook() => _dbHook.ReleaseIfUnused();
+
+        private bool DbHookStillNeeded()
+            => StillListening(_activeObjectAppended)
+            || StillListening(_activeObjectModified)
+            || StillListening(_activeObjectErased);
+
+        private void InstallDbHook()
         {
-            if (_dbHookInstalled) return;
-            _dbHookInstalled = true;
-            DocumentActivated += OnActiveDocChanged;
-            DocumentToBeDeactivated += OnActiveDocDeactivated;
-            DocumentToBeDestroyed += OnActiveDocToBeDestroyed;
-            DocumentDestroyed += OnActiveDocDestroyed;
-            BindDatabase(Application.DocumentManager.MdiActiveDocument?.Database);
+            try
+            {
+                DocumentActivated += OnActiveDocChanged;
+                DocumentToBeDeactivated += OnActiveDocDeactivated;
+                DocumentToBeDestroyed += OnActiveDocToBeDestroyed;
+                DocumentDestroyed += OnActiveDocDestroyed;
+            }
+            catch
+            {
+                // Unwind whatever got through before rethrowing. SharedHook leaves the hook
+                // reported as not installed, so a later attempt starts over -- and it must not
+                // find half of these subscriptions still in place and end up subscribed twice.
+                DetachDocumentLifecycleHooks();
+                throw;
+            }
+
+            BindDatabase(ActiveDatabase());
+        }
+
+        private void UninstallDbHook()
+        {
+            DetachDocumentLifecycleHooks();
+            BindDatabase(null);
         }
 
         /// <summary>
-        /// Releases the shared database hook once the last of the three ActiveObject* events has
-        /// lost its handlers. Each of them uses this as its uninstall action, and the slot that
-        /// triggered it has already cleared its own Installed flag, so the check below sees only
-        /// the siblings that are genuinely still listening.
+        /// Drops the four document-lifecycle subscriptions. Unsubscribing a handler that was never
+        /// subscribed is a no-op, which is what makes this usable as the rollback for a partial
+        /// install as well as the teardown for a complete one.
         /// </summary>
-        private void ReleaseDbHook()
+        private void DetachDocumentLifecycleHooks()
         {
-            if (!_dbHookInstalled) return;
-            if (StillListening(_activeObjectAppended)
-                || StillListening(_activeObjectModified)
-                || StillListening(_activeObjectErased)) return;
-
-            _dbHookInstalled = false;
             DocumentActivated -= OnActiveDocChanged;
             DocumentToBeDeactivated -= OnActiveDocDeactivated;
             DocumentToBeDestroyed -= OnActiveDocToBeDestroyed;
             DocumentDestroyed -= OnActiveDocDestroyed;
-            BindDatabase(null);
         }
 
         private static bool StillListening(IHookSlot? slot) => slot != null && slot.Installed;
 
+        /// <summary>
+        /// Reads a document's database. AutoCAD raises the lifecycle events this is called from
+        /// while documents are part way through teardown, so the read itself can throw -- and it
+        /// must not escape, because the caller is AutoCAD's own dispatch.
+        /// </summary>
+        private DbServices.Database? DatabaseOf(Document? doc, string what)
+        {
+            try
+            {
+                return doc?.Database;
+            }
+            catch (Exception ex)
+            {
+                _trace.Report(what, ex);
+                return null;
+            }
+        }
+
+        private DbServices.Database? ActiveDatabase()
+        {
+            Document? active;
+            try
+            {
+                active = Application.DocumentManager.MdiActiveDocument;
+            }
+            catch (Exception ex)
+            {
+                _trace.Report("failed to read the active document", ex);
+                return null;
+            }
+
+            return DatabaseOf(active, "failed to read the active document's database");
+        }
+
         private void OnActiveDocChanged(object? s, DocumentCollectionEventArgs e)
-            => BindDatabase(e.Document?.Database);
+            => BindDatabase(DatabaseOf(
+                e.Document, "failed to read the database of the document being activated"));
 
         private void OnActiveDocDeactivated(object? s, DocumentCollectionEventArgs e)
             => BindDatabase(null);
@@ -592,20 +621,15 @@ namespace EventManager
         /// </summary>
         private void OnActiveDocToBeDestroyed(object? s, DocumentCollectionEventArgs e)
         {
-            DbServices.Database? dying = null;
-            try
-            {
-                dying = e.Document?.Database;
-            }
-            catch (Exception ex)
-            {
-                // The document is already on its way out. Treat it as unidentifiable and let go;
-                // OnActiveDocDestroyed rebinds to whatever is active once the dust settles.
-                EventManagerTrace.Report(
-                    "failed to read the database of a document being destroyed", ex);
-            }
+            var dying = DatabaseOf(
+                e.Document, "failed to read the database of a document being destroyed");
 
-            if (dying == null || ReferenceEquals(dying, _boundDb)) BindDatabase(null);
+            // Let go only when the dying database is positively the one held. A document that
+            // cannot be identified is NOT evidence that it is ours: unbinding on that guess
+            // detaches the live active drawing, and every edit on it is then silently dropped.
+            // OnActiveDocDestroyed is the backstop for the unidentifiable case -- it rebinds to
+            // whatever is active once the dust settles, which releases a dead database then.
+            if (dying != null && ReferenceEquals(dying, _dbBinding.Bound)) BindDatabase(null);
         }
 
         /// <summary>
@@ -615,54 +639,26 @@ namespace EventManager
         /// resolvable document.
         /// </summary>
         private void OnActiveDocDestroyed(object? s, DocumentDestroyedEventArgs e)
-        {
-            Document? active = null;
-            try
-            {
-                active = Application.DocumentManager.MdiActiveDocument;
-            }
-            catch (Exception ex)
-            {
-                EventManagerTrace.Report(
-                    "failed to read the active document after a document was destroyed", ex);
-            }
+            => BindDatabase(ActiveDatabase());
 
-            BindDatabase(active?.Database);
+        /// <summary>
+        /// Follows the active document's database. Never throws, and never ends up claiming a
+        /// database it is only partly attached to -- see <see cref="BoundHook{TTarget}"/>.
+        /// </summary>
+        private void BindDatabase(DbServices.Database? db) => _dbBinding.BindTo(db);
+
+        private void AttachToDatabase(DbServices.Database db)
+        {
+            db.ObjectAppended += FwdObjectAppended;
+            db.ObjectModified += FwdObjectModified;
+            db.ObjectErased += FwdObjectErased;
         }
 
-        private void BindDatabase(DbServices.Database? db)
+        private void DetachFromDatabase(DbServices.Database db)
         {
-            if (ReferenceEquals(_boundDb, db)) return;
-
-            var previous = _boundDb;
-
-            // Move the field off the old database BEFORE detaching from it. AutoCAD may already
-            // have torn that one down, in which case the detach throws; staying bound to a dead
-            // Database afterwards is worse than leaking three handler references on an object
-            // that is going away regardless.
-            _boundDb = db;
-
-            if (previous != null)
-            {
-                try
-                {
-                    previous.ObjectAppended -= FwdObjectAppended;
-                    previous.ObjectModified -= FwdObjectModified;
-                    previous.ObjectErased -= FwdObjectErased;
-                }
-                catch (Exception ex)
-                {
-                    EventManagerTrace.Report(
-                        "failed to detach from the previously bound database", ex);
-                }
-            }
-
-            if (db != null)
-            {
-                db.ObjectAppended += FwdObjectAppended;
-                db.ObjectModified += FwdObjectModified;
-                db.ObjectErased += FwdObjectErased;
-            }
+            db.ObjectAppended -= FwdObjectAppended;
+            db.ObjectModified -= FwdObjectModified;
+            db.ObjectErased -= FwdObjectErased;
         }
 
         private void FwdObjectAppended(object? s, DbServices.ObjectEventArgs e)
@@ -675,35 +671,39 @@ namespace EventManager
         #endregion
 
         private void OnDocToBeDestroyed(object? sender, DocumentCollectionEventArgs e)
-        {
-            CleanupDocument(e.Document);
-        }
+            => _subscriptions.Release(e.Document);
 
-        private void CleanupDocument(Document doc)
-        {
-            if (!_subscriptions.TryGetValue(doc, out var list)) return;
-            foreach (var unsub in list) unsub();
-            _subscriptions.Remove(doc);
-        }
-
+        /// <summary>
+        /// Releases everything the manager installed. Each step is independent: one that fails is
+        /// reported and the rest still run, because a step throwing out of here would leave the
+        /// hooks of an unloading plugin installed in AutoCAD permanently -- and a second
+        /// <see cref="Dispose"/> would return early without retrying them.
+        /// </summary>
         public void Dispose()
         {
             if (_disposed) return;
             _disposed = true;
-            foreach (var doc in _subscriptions.Keys.ToList())
-                CleanupDocument(doc);
 
-            // Anything still waiting for an idle tick is dropped: the tick that would have run it
-            // belongs to a manager that no longer exists.
-            _idleQueue.Clear();
-            _idleTickArmed = false;
+            _subscriptions.ReleaseAll();
+
+            // Anything still queued for an idle tick is dropped, and the idle hook let go of. A
+            // generation already being drained is not withdrawable and will finish running.
+            _idleDrain.Abandon();
 
             // Index loop: releasing one slot can touch another (the database hook unsubscribes
             // itself from DocumentActivated), and _slots must tolerate that.
             for (int i = 0; i < _slots.Count; i++) _slots[i].Release();
             _slots.Clear();
 
-            Application.DocumentManager.DocumentToBeDestroyed -= OnDocToBeDestroyed;
+            // Belt and braces. The slot releases above should already have taken these down
+            // through their uninstall actions, but teardown must not depend on that chain being
+            // reached: if it were not, the manager would leave a live database hook behind.
+            _dbHook.Release();
+            BindDatabase(null);
+
+            _trace.Guard(
+                "failed to detach the document-destroy hook",
+                () => Application.DocumentManager.DocumentToBeDestroyed -= OnDocToBeDestroyed);
         }
     }
 }
