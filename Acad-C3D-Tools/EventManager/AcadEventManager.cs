@@ -2,7 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 using Autodesk.AutoCAD.ApplicationServices;
 
@@ -31,7 +30,11 @@ namespace EventManager
     /// </remarks>
     public class AcadEventManager : IDisposable
     {
-        private readonly Dictionary<Document, List<Action>> _subscriptions = new();
+        /// <summary>
+        /// Unsubscribe callbacks parked by a plugin against a document, released together when
+        /// that document is destroyed.
+        /// </summary>
+        private readonly SubscriptionLedger<Document> _subscriptions;
 
         /// <summary>
         /// Every slot created so far, in creation order, so <see cref="Dispose"/> can release the
@@ -52,6 +55,7 @@ namespace EventManager
         public AcadEventManager(Action<string, Exception?>? log = null)
         {
             _trace = new EventManagerTrace(log);
+            _subscriptions = new SubscriptionLedger<Document>(_trace);
             _dbBinding = new BoundHook<DbServices.Database>(
                 AttachToDatabase, DetachFromDatabase, _trace);
             _dbHook = new SharedHook(
@@ -60,23 +64,14 @@ namespace EventManager
         }
 
         public void Track(Document doc, Action unsubscribe)
-        {
-            if (!_subscriptions.TryGetValue(doc, out var list))
-            {
-                list = new List<Action>();
-                _subscriptions[doc] = list;
-            }
-            list.Add(unsubscribe);
-        }
+            => _subscriptions.Track(doc, unsubscribe);
 
         public IReadOnlyDictionary<Document, int> GetSubscriptions()
-            => _subscriptions.ToDictionary(kv => kv.Key, kv => kv.Value.Count);
+            => _subscriptions.Counts();
 
-        public bool HasSubscriptions(Document doc)
-            => _subscriptions.ContainsKey(doc);
+        public bool HasSubscriptions(Document doc) => _subscriptions.Has(doc);
 
-        public int GetSubscriptionCount(Document doc)
-            => _subscriptions.TryGetValue(doc, out var list) ? list.Count : 0;
+        public int GetSubscriptionCount(Document doc) => _subscriptions.CountFor(doc);
 
         /// <summary>
         /// Returns the slot backing one event, creating and registering it on first use.
@@ -722,23 +717,20 @@ namespace EventManager
         #endregion
 
         private void OnDocToBeDestroyed(object? sender, DocumentCollectionEventArgs e)
-        {
-            CleanupDocument(e.Document);
-        }
+            => _subscriptions.Release(e.Document);
 
-        private void CleanupDocument(Document doc)
-        {
-            if (!_subscriptions.TryGetValue(doc, out var list)) return;
-            foreach (var unsub in list) unsub();
-            _subscriptions.Remove(doc);
-        }
-
+        /// <summary>
+        /// Releases everything the manager installed. Each step is independent: one that fails is
+        /// reported and the rest still run, because a step throwing out of here would leave the
+        /// hooks of an unloading plugin installed in AutoCAD permanently -- and a second
+        /// <see cref="Dispose"/> would return early without retrying them.
+        /// </summary>
         public void Dispose()
         {
             if (_disposed) return;
             _disposed = true;
-            foreach (var doc in _subscriptions.Keys.ToList())
-                CleanupDocument(doc);
+
+            _subscriptions.ReleaseAll();
 
             // Anything still waiting for an idle tick is dropped: the tick that would have run it
             // belongs to a manager that no longer exists.
@@ -756,7 +748,9 @@ namespace EventManager
             _dbHook.Release();
             BindDatabase(null);
 
-            Application.DocumentManager.DocumentToBeDestroyed -= OnDocToBeDestroyed;
+            _trace.Guard(
+                "failed to detach the document-destroy hook",
+                () => Application.DocumentManager.DocumentToBeDestroyed -= OnDocToBeDestroyed);
         }
     }
 }

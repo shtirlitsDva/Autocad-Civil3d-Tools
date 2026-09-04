@@ -14,5 +14,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)EventManagerTrace.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)HookSlot.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)SharedHook.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)SubscriptionLedger.cs" />
   </ItemGroup>
 </Project>
