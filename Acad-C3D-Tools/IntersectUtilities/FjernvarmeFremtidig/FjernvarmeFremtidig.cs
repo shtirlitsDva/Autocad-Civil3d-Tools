@@ -429,9 +429,10 @@ namespace IntersectUtilities
                                 {
                                     if (alDetected) break;
                                     detectedAl = resArray[i].al;
+                                    var detectedAlPl = alPls[detectedAl];
 
-                                    Point3d oneFourthClosestPoint = detectedAl.GetClosestPointTo(oneFourthPoint, false);
-                                    Point3d threeFourthClosestPoint = detectedAl.GetClosestPointTo(threeFourthPoint, false);
+                                    Point3d oneFourthClosestPoint = detectedAlPl.GetClosestPointTo(oneFourthPoint, false);
+                                    Point3d threeFourthClosestPoint = detectedAlPl.GetClosestPointTo(threeFourthPoint, false);
 
                                     if (oneFourthPoint.DistanceHorizontalTo(oneFourthClosestPoint) < distThreshold &&
                                         threeFourthPoint.DistanceHorizontalTo(threeFourthClosestPoint) < distThreshold)
@@ -635,6 +636,11 @@ namespace IntersectUtilities
                     tx.Abort();
                     prdDbg(ex);
                     return;
+                }
+                foreach (var alPl in alPls.Values)
+                {
+                    alPl.CheckOrOpenForWrite();
+                    alPl.Erase(true);
                 }
                 alTx.Abort();
                 alTx.Dispose();
