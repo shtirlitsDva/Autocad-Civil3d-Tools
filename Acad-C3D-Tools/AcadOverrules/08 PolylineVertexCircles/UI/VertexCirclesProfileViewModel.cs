@@ -14,7 +14,7 @@ namespace AcadOverrules.VertexCircles.UI
     /// The editable state of one profile. This is the source of truth while the window is
     /// open - <see cref="ToModel"/> projects it back to a serialisable
     /// <see cref="VertexCirclesProfile"/> whenever the settings need to be applied or saved.
-    /// Any edit anywhere in the profile, including inside the two marker styles and the layer
+    /// Any edit anywhere in the profile, including inside the four styles and the layer
     /// filter rows, surfaces as <see cref="Changed"/> so the owner can push a live preview.
     /// </summary>
     public partial class VertexCirclesProfileViewModel : ObservableObject
@@ -25,29 +25,50 @@ namespace AcadOverrules.VertexCircles.UI
         [ObservableProperty]
         private string name;
 
+        /// <summary>The start vertex of an arc segment counts as an arc vertex.</summary>
+        [ObservableProperty]
+        private bool arcVertexAtArcStart;
+
+        /// <summary>The end vertex of an arc segment counts as an arc vertex.</summary>
+        [ObservableProperty]
+        private bool arcVertexAtArcEnd;
+
         public ObservableCollection<LayerFilterViewModel> LayerFilters { get; } = new();
 
-        /// <summary>The circle drawn where only line segments meet.</summary>
+        /// <summary>The circle drawn at a straight vertex.</summary>
         public MarkerStyleViewModel Straight { get; }
 
-        /// <summary>The circle drawn where at least one arc segment meets the vertex.</summary>
+        /// <summary>The circle drawn at an arc vertex.</summary>
         public MarkerStyleViewModel Arc { get; }
 
-        /// <summary>Both styles, for the operations that apply to the profile as a whole.</summary>
-        public IReadOnlyList<MarkerStyleViewModel> Styles { get; }
+        /// <summary>How line segments are drawn, when overridden.</summary>
+        public SegmentStyleViewModel StraightSegment { get; }
+
+        /// <summary>How arc segments are drawn, when overridden.</summary>
+        public SegmentStyleViewModel ArcSegment { get; }
+
+        /// <summary>All four styles, for the operations that apply to the profile as a whole.</summary>
+        public IReadOnlyList<StyleViewModelBase> Styles { get; }
 
         public VertexCirclesProfileViewModel(VertexCirclesProfile profile)
         {
             name = profile.Name;
 
-            Straight = new MarkerStyleViewModel(profile.Settings.StraightVertex);
-            Arc = new MarkerStyleViewModel(profile.Settings.ArcVertex);
-            Styles = new[] { Straight, Arc };
+            VertexCirclesSettings settings = profile.Settings;
 
-            foreach (MarkerStyleViewModel style in Styles)
+            arcVertexAtArcStart = settings.ArcVertexAtArcStart;
+            arcVertexAtArcEnd = settings.ArcVertexAtArcEnd;
+
+            Straight = new MarkerStyleViewModel(settings.StraightVertex);
+            Arc = new MarkerStyleViewModel(settings.ArcVertex);
+            StraightSegment = new SegmentStyleViewModel(settings.StraightSegment);
+            ArcSegment = new SegmentStyleViewModel(settings.ArcSegment);
+            Styles = new StyleViewModelBase[] { Straight, Arc, StraightSegment, ArcSegment };
+
+            foreach (StyleViewModelBase style in Styles)
                 style.PropertyChanged += OnStyleChanged;
 
-            foreach (string filter in profile.Settings.LayerFilters)
+            foreach (string filter in settings.LayerFilters)
                 LayerFilters.Add(new LayerFilterViewModel(filter));
 
             foreach (LayerFilterViewModel item in LayerFilters)
@@ -56,11 +77,17 @@ namespace AcadOverrules.VertexCircles.UI
             LayerFilters.CollectionChanged += OnLayerFiltersCollectionChanged;
         }
 
-        /// <summary>True while every numeric field in both styles is parseable and positive.</summary>
+        /// <summary>True while every numeric field in every style is parseable and positive.</summary>
         public bool IsValid => Styles.All(s => s.IsValid);
 
         /// <summary>Drives the warning line in the window.</summary>
         public bool IsInvalid => !IsValid;
+
+        /// <summary>
+        /// With neither arc start nor arc end marked, no vertex can be an arc vertex and the
+        /// Arc vertices tab is dead. Drives a hint in the window.
+        /// </summary>
+        public bool MarksNoArcVertices => !ArcVertexAtArcStart && !ArcVertexAtArcEnd;
 
         public VertexCirclesProfile ToModel() =>
             new VertexCirclesProfile
@@ -70,6 +97,10 @@ namespace AcadOverrules.VertexCircles.UI
                 {
                     StraightVertex = Straight.ToModel(),
                     ArcVertex = Arc.ToModel(),
+                    ArcVertexAtArcStart = ArcVertexAtArcStart,
+                    ArcVertexAtArcEnd = ArcVertexAtArcEnd,
+                    StraightSegment = StraightSegment.ToModel(),
+                    ArcSegment = ArcSegment.ToModel(),
                     LayerFilters = LayerFilters
                         .Select(f => f.Pattern.Trim())
                         .Where(p => !string.IsNullOrWhiteSpace(p))
@@ -110,8 +141,14 @@ namespace AcadOverrules.VertexCircles.UI
             Changed?.Invoke(this, EventArgs.Empty);
         }
 
+        partial void OnArcVertexAtArcStartChanged(bool value) =>
+            OnPropertyChanged(nameof(MarksNoArcVertices));
+
+        partial void OnArcVertexAtArcEndChanged(bool value) =>
+            OnPropertyChanged(nameof(MarksNoArcVertices));
+
         /// <summary>
-        /// An edit in either style can flip the validity of the whole profile, which drives
+        /// An edit in any style can flip the validity of the whole profile, which drives
         /// the warning line. Raising it here also raises <see cref="Changed"/> through the
         /// override above, which is what pushes the live preview.
         /// </summary>

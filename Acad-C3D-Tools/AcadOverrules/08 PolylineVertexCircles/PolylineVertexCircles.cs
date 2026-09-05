@@ -11,15 +11,16 @@ using AcadOverrules.VertexCircles;
 namespace AcadOverrules
 {
     /// <summary>
-    /// Draws a circle at every vertex of every <see cref="Polyline"/> on the layers the user
-    /// has selected. Unlike <see cref="DraftPolylineVerticeMark"/> the layer, the size and the
-    /// colour are not hard coded - they come from the active profile in
+    /// Restyles every <see cref="Polyline"/> on the layers the user has selected. Unlike
+    /// <see cref="DraftPolylineVerticeMark"/> the layer, the sizes and the colours are not
+    /// hard coded - they come from the active profile in
     /// <see cref="VertexCirclesSettingsService"/>, edited with TOGGLEPOLYVERTICESSETTINGS.
     ///
-    /// A vertex is classified by the segments touching it and each class gets its own style,
-    /// so a bend can be told from a plain corner at a glance - see <see cref="VertexClass"/>.
+    /// Two things are drawn:
     ///
-    /// The circle is styled relative to the polyline it belongs to:
+    /// Vertex circles. A vertex is classified by the segments touching it and each class gets
+    /// its own style, so a bend can be told from a plain corner at a glance - see
+    /// <see cref="VertexClass"/>. The circle is extra geometry on top of the polyline:
     /// - Radius is a fixed setting, it does not follow the polyline width.
     /// - Colour is either a fully saturated marker colour on the complementary hue of the
     ///   polyline's own colour, or one fixed ACI, see <see cref="MarkerColor"/>.
@@ -28,8 +29,14 @@ namespace AcadOverrules
     ///   on a circle this small depends on LTSCALE - a linetype pattern is measured in
     ///   drawing units, not in fractions of the circumference.
     ///
-    /// Segment-level differentiation is a different overrule: <see cref="PolylineArcHighlight"/>
-    /// redraws the arc segments themselves and flags non-tangent junctions.
+    /// Segment overrides. Each class of segment (line or arc) can replace the polyline's own
+    /// graphics. When a profile overrides at least one class the polyline is not asked to draw
+    /// itself at all: the overrule walks the segments and draws each run of same-class
+    /// segments with the traits of that class - the override traits, or the polyline's own
+    /// traits for a class that is not overridden. This differs from
+    /// <see cref="PolylineArcHighlight"/>, which lets the polyline draw and paints arcs on top.
+    /// The cost is that a linetype pattern restarts at every class change instead of running
+    /// continuously along the polyline.
     /// </summary>
     public class PolylineVertexCircles : Autodesk.AutoCAD.GraphicsInterface.DrawableOverrule
     {
@@ -39,11 +46,50 @@ namespace AcadOverrules
         /// </summary>
         private enum VertexClass
         {
-            /// <summary>Every segment meeting the vertex is a line.</summary>
+            /// <summary>Not an arc vertex under the active profile's rule.</summary>
             Straight = 0,
 
-            /// <summary>At least one segment meeting the vertex is an arc.</summary>
+            /// <summary>
+            /// Start vertex of an arc when the profile marks arc starts, or end vertex of an
+            /// arc when the profile marks arc ends.
+            /// </summary>
             Arc = 1,
+        }
+
+        /// <summary>
+        /// What a segment is. Degenerate segments (Coincident, Point, Empty) draw nothing, so
+        /// they ride along with the straight class.
+        /// </summary>
+        private enum SegmentClass
+        {
+            Straight = 0,
+            Arc = 1,
+        }
+
+        /// <summary>
+        /// The traits the polyline itself would be drawn with, read at the top of WorldDraw
+        /// before anything overwrites them. Restored for segment classes that are not
+        /// overridden and used as the base for the relative settings.
+        /// </summary>
+        private readonly struct EntryTraits
+        {
+            public EntryTraits(Autodesk.AutoCAD.GraphicsInterface.SubEntityTraits traits)
+            {
+                TrueColor = traits.TrueColor;
+                LineWeight = traits.LineWeight;
+                LineType = traits.LineType;
+            }
+
+            public EntityColor TrueColor { get; }
+            public LineWeight LineWeight { get; }
+            public ObjectId LineType { get; }
+
+            public void Restore(Autodesk.AutoCAD.GraphicsInterface.SubEntityTraits traits)
+            {
+                traits.TrueColor = TrueColor;
+                traits.LineWeight = LineWeight;
+                if (!LineType.IsNull) traits.LineType = LineType;
+            }
         }
 
         /// <summary>
@@ -106,30 +152,38 @@ namespace AcadOverrules
             Autodesk.AutoCAD.GraphicsInterface.Drawable drawable,
             Autodesk.AutoCAD.GraphicsInterface.WorldDraw wd)
         {
-            //Draw the polyline itself first, then the vertex circles on top
-            base.WorldDraw(drawable, wd);
-
             Polyline pline = (Polyline)drawable;
             VertexCirclesSettings settings = Settings;
 
+            //Everything below derives colour and lineweight from the polyline, so read its
+            //traits once, before any drawing overwrites them.
+            var entry = new EntryTraits(wd.SubEntityTraits);
+            System.Drawing.Color polylineRgb = EffectiveRgb(pline, wd.SubEntityTraits);
+
+            int segmentCount = SegmentCount(pline);
+
+            if (settings.OverridesAnySegment && segmentCount > 0)
+                DrawSegments(wd, pline, settings, segmentCount, entry, polylineRgb);
+            else
+                base.WorldDraw(drawable, wd);
+
             if (pline.NumberOfVertices < 1) return true;
 
-            //Both classes derive colour and lineweight from the polyline, so read its traits
-            //once here - the first class to draw overwrites them.
-            System.Drawing.Color polylineRgb = EffectiveRgb(pline, wd.SubEntityTraits);
-            LineWeight polylineLineWeight = wd.SubEntityTraits.LineWeight;
-
-            VertexClass[] classes = ClassifyVertices(pline, out int straightCount, out int arcCount);
+            VertexClass[] classes = ClassifyVertices(
+                pline, segmentCount, settings, out int straightCount, out int arcCount);
 
             //One trait assignment per class, not per vertex.
             DrawClass(wd, pline, classes, VertexClass.Straight, straightCount,
-                settings.StraightVertex, polylineRgb, polylineLineWeight);
+                settings.StraightVertex, polylineRgb, entry.LineWeight);
 
             DrawClass(wd, pline, classes, VertexClass.Arc, arcCount,
-                settings.ArcVertex, polylineRgb, polylineLineWeight);
+                settings.ArcVertex, polylineRgb, entry.LineWeight);
 
             return true;
         }
+
+        private static int SegmentCount(Polyline pline) =>
+            pline.Closed ? pline.NumberOfVertices : pline.NumberOfVertices - 1;
 
         /// <summary>
         /// The class of every vertex, indexed by vertex number.
@@ -137,12 +191,14 @@ namespace AcadOverrules
         /// Vertex <c>i</c> is bounded by the incoming segment <c>i-1</c> and the outgoing
         /// segment <c>i</c>. On a closed polyline both indices wrap; on an open one the first
         /// vertex has no incoming segment and the last has no outgoing one.
+        /// The vertex is an arc vertex when its outgoing segment is an arc and the profile
+        /// marks arc starts, or its incoming segment is an arc and the profile marks arc ends.
         /// </summary>
         private static VertexClass[] ClassifyVertices(
-            Polyline pline, out int straightCount, out int arcCount)
+            Polyline pline, int segmentCount, VertexCirclesSettings settings,
+            out int straightCount, out int arcCount)
         {
             int vertexCount = pline.NumberOfVertices;
-            int segmentCount = pline.Closed ? vertexCount : vertexCount - 1;
 
             var classes = new VertexClass[vertexCount];
             straightCount = 0;
@@ -154,13 +210,14 @@ namespace AcadOverrules
                     ? (i - 1 + segmentCount) % segmentCount
                     : i - 1;
 
-                bool touchesArc =
-                    IsArcSegment(pline, incoming, segmentCount) ||
-                    IsArcSegment(pline, i, segmentCount);
+                bool startsArc = settings.ArcVertexAtArcStart && IsArcSegment(pline, i, segmentCount);
+                bool endsArc = settings.ArcVertexAtArcEnd && IsArcSegment(pline, incoming, segmentCount);
 
-                classes[i] = touchesArc ? VertexClass.Arc : VertexClass.Straight;
+                bool isArcVertex = startsArc || endsArc;
 
-                if (touchesArc) arcCount++;
+                classes[i] = isArcVertex ? VertexClass.Arc : VertexClass.Straight;
+
+                if (isArcVertex) arcCount++;
                 else straightCount++;
             }
 
@@ -178,6 +235,112 @@ namespace AcadOverrules
             if (index < 0 || index >= segmentCount) return false;
 
             return pline.GetSegmentType(index) == SegmentType.Arc;
+        }
+
+        /// <summary>
+        /// Draws the polyline segment by segment in place of the polyline's own graphics.
+        /// Consecutive segments of the same class are drawn as one run, so the traits are set
+        /// once per run and a linetype pattern runs unbroken within the run. A run never wraps
+        /// past the closing segment of a closed polyline - the geometry call takes a
+        /// contiguous index range.
+        /// </summary>
+        private static void DrawSegments(
+            Autodesk.AutoCAD.GraphicsInterface.WorldDraw wd,
+            Polyline pline,
+            VertexCirclesSettings settings,
+            int segmentCount,
+            EntryTraits entry,
+            System.Drawing.Color polylineRgb)
+        {
+            int runStart = 0;
+            SegmentClass runClass = ClassifySegment(pline, 0);
+
+            for (int i = 1; i <= segmentCount; i++)
+            {
+                SegmentClass current = i < segmentCount ? ClassifySegment(pline, i) : runClass;
+
+                if (i < segmentCount && current == runClass) continue;
+
+                DrawRun(wd, pline, settings, runStart, i - runStart, runClass, entry, polylineRgb);
+
+                runStart = i;
+                runClass = current;
+            }
+        }
+
+        private static SegmentClass ClassifySegment(Polyline pline, int index) =>
+            pline.GetSegmentType(index) == SegmentType.Arc
+                ? SegmentClass.Arc
+                : SegmentClass.Straight;
+
+        private static void DrawRun(
+            Autodesk.AutoCAD.GraphicsInterface.WorldDraw wd,
+            Polyline pline,
+            VertexCirclesSettings settings,
+            int fromIndex,
+            int count,
+            SegmentClass segmentClass,
+            EntryTraits entry,
+            System.Drawing.Color polylineRgb)
+        {
+            SegmentStyle style = segmentClass == SegmentClass.Arc
+                ? settings.ArcSegment
+                : settings.StraightSegment;
+
+            if (style.Override)
+                ApplySegmentTraits(wd.SubEntityTraits, pline, style, entry, polylineRgb);
+            else
+                entry.Restore(wd.SubEntityTraits);
+
+            wd.Geometry.Polyline(pline, fromIndex, count);
+        }
+
+        /// <summary>
+        /// Sets colour, lineweight and linetype for an overridden segment class. Every setting
+        /// has a "same as the polyline" value that puts the entry trait back, so a style with
+        /// only the colour changed leaves lineweight and linetype exactly as the polyline had
+        /// them - ByLayer stays ByLayer, it is not resolved and re-applied.
+        /// </summary>
+        private static void ApplySegmentTraits(
+            Autodesk.AutoCAD.GraphicsInterface.SubEntityTraits traits,
+            Polyline pline,
+            SegmentStyle style,
+            EntryTraits entry,
+            System.Drawing.Color polylineRgb)
+        {
+            traits.TrueColor = SegmentColor(style, entry, polylineRgb);
+
+            traits.LineWeight = IsUnity(style.LineWeightFactor)
+                ? entry.LineWeight
+                : ScaledLineWeight(entry.LineWeight, style.LineWeightFactor);
+
+            if (style.UsesPolylineLinetype)
+            {
+                if (!entry.LineType.IsNull) traits.LineType = entry.LineType;
+            }
+            else
+            {
+                ObjectId linetypeId = LinetypeResolver.Resolve(pline.Database, style.Linetype);
+                if (!linetypeId.IsNull) traits.LineType = linetypeId;
+            }
+        }
+
+        private static bool IsUnity(double factor) => Math.Abs(factor - 1.0) < 1e-9;
+
+        private static EntityColor SegmentColor(
+            SegmentStyle style, EntryTraits entry, System.Drawing.Color polylineRgb)
+        {
+            switch (style.ColorMode)
+            {
+                case SegmentColorMode.FixedColor:
+                    return FixedEntityColor(style.FixedColor);
+
+                case SegmentColorMode.ComplementaryHue:
+                    return ComplementaryColor(polylineRgb);
+
+                default:
+                    return entry.TrueColor;
+            }
         }
 
         /// <summary>
@@ -216,6 +379,23 @@ namespace AcadOverrules
         }
 
         /// <summary>
+        /// The marker colour: a fixed colour, or <see cref="ComplementaryColor"/>.
+        /// </summary>
+        private static EntityColor MarkerColor(MarkerStyle style, System.Drawing.Color polylineRgb)
+        {
+            if (style.ColorMode == MarkerColorMode.FixedColor)
+                return FixedEntityColor(style.FixedColor);
+
+            return ComplementaryColor(polylineRgb);
+        }
+
+        private static EntityColor FixedEntityColor(string html)
+        {
+            System.Drawing.Color fixedColor = HtmlColor.Parse(html);
+            return new EntityColor(fixedColor.R, fixedColor.G, fixedColor.B);
+        }
+
+        /// <summary>
         /// A highly visible colour that is clearly distinct from the colour the polyline is
         /// drawn with: the complementary hue, forced to full saturation and full brightness.
         /// Rotating the hue guarantees the marker cannot be confused with the polyline, while
@@ -225,14 +405,8 @@ namespace AcadOverrules
         /// Achromatic polylines (white, black, grey) have no hue to complement and get
         /// <see cref="AchromaticMarkerColor"/> instead.
         /// </summary>
-        private static EntityColor MarkerColor(MarkerStyle style, System.Drawing.Color polylineRgb)
+        private static EntityColor ComplementaryColor(System.Drawing.Color polylineRgb)
         {
-            if (style.ColorMode == MarkerColorMode.FixedColor)
-            {
-                System.Drawing.Color fixedColor = HtmlColor.Parse(style.FixedColor);
-                return new EntityColor(fixedColor.R, fixedColor.G, fixedColor.B);
-            }
-
             if (polylineRgb.GetSaturation() < AchromaticSaturationLimit)
                 return AchromaticMarkerColor;
 

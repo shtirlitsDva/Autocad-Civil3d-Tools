@@ -4,7 +4,6 @@ using Autodesk.AutoCAD.Runtime;
 
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 
-using AcadOverrules.ViewFrameGripOverrule;
 using AcadOverrules.VertexCircles.UI;
 using System;
 using System.Collections.Generic;
@@ -109,11 +108,12 @@ namespace AcadOverrules
 
         /// <command>TOGGLEPOLYVERTICES</command>
         /// <summary>
-        /// Draws a circle at every vertex of every polyline in the drawing.
-        /// The circle diameter is 0.01 larger than the polyline's width, so it always
-        /// sits just outside the drawn band, with a 0.05 floor for zero width polylines.
-        /// It is drawn in a vivid marker colour on the complementary hue of the polyline
-        /// (magenta for white/black/grey polylines) with twice the polyline's lineweight.
+        /// Restyles the polylines on the layers chosen in TOGGLEPOLYVERTICESSETTINGS.
+        /// Draws a circle at every vertex, styled by class: straight vertices and arc vertices
+        /// (the start and/or end vertex of an arc segment, as configured) each have their own
+        /// radius, colour, lineweight factor and linetype. Optionally replaces the polyline's
+        /// own graphics for straight and/or arc segments with a chosen colour, lineweight
+        /// factor and linetype, so a segment class can be told apart along its whole length.
         /// </summary>
         /// <category>Overrules</category>
         [CommandMethod("TOGGLEPOLYVERTICES")]
@@ -121,10 +121,12 @@ namespace AcadOverrules
 
         /// <command>TOGGLEPOLYVERTICESSETTINGS</command>
         /// <summary>
-        /// Opens the settings window for TOGGLEPOLYVERTICES: circle radius, which layers the
-        /// overrule applies to (layer names and AutoCAD wildcard masks), marker colour,
-        /// lineweight factor and linetype. Settings are grouped in named profiles; the active
-        /// profile is saved when the window closes. Edits preview live in the drawing.
+        /// Opens the settings window for TOGGLEPOLYVERTICES: which layers the overrule applies
+        /// to (layer names and AutoCAD wildcard masks), the circle style per vertex class,
+        /// which arc vertices (start, end) count as arc vertices, and the optional segment
+        /// overrides for straight and arc segments. Settings are grouped in named profiles;
+        /// the active profile is saved when the window closes. Edits preview live in the
+        /// drawing.
         /// </summary>
         /// <category>Overrules</category>
         [CommandMethod("TOGGLEPOLYVERTICESSETTINGS")]
@@ -149,14 +151,6 @@ namespace AcadOverrules
         /// <category>Overrules</category>
         [CommandMethod("TOGGELPOLYVERTICESSETTINGS")]
         public static void toggelpolyverticessettings() => togglepolyverticessettings();
-
-#if DEBUG
-        [CommandMethod("TOGGLEGRIPOR")]
-        public static void togglegripoverrule() => Toggle<GripVectorOverrule>();
-
-        [CommandMethod("TOGGLEVIEWFRAMESOVERRULE")]
-        public static void toggleviewframeoverrule() => Toggle<ViewFrameCentreGripOverrule>();
-#endif
     }
 
     /// <summary>
@@ -196,9 +190,15 @@ namespace AcadOverrules
 
         /// <summary>
         /// Removes and disposes every active overrule. Safe to call when none are active.
+        /// Regenerates the active document afterwards, as <see cref="Toggle{T}"/> does: the
+        /// graphics an overrule produced stay in the display cache after the overrule is
+        /// removed, so without a regen a hot reload leaves the old markers on screen and the
+        /// settings window, truthfully, shows the overrule as off.
         /// </summary>
         public static void DisableAll()
         {
+            if (_active.Count == 0) return;
+
             foreach (var entry in _active.Values)
             {
                 try
@@ -212,6 +212,16 @@ namespace AcadOverrules
                 }
             }
             _active.Clear();
+
+            try
+            {
+                Commands.RegenActiveDocument();
+            }
+            catch
+            {
+                // Terminate also runs while AutoCAD shuts down; a regen that fails there
+                // must not turn into an unhandled exception.
+            }
         }
     }
 

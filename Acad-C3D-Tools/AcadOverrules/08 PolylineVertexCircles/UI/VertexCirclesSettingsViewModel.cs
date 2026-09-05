@@ -60,6 +60,10 @@ namespace AcadOverrules.VertexCircles.UI
             isOverruleEnabled = Commands.IsOverruleActive<PolylineVertexCircles>();
 
             AvailableLinetypes = BuildLinetypeChoices();
+            AvailableSegmentLinetypes =
+                new[] { SegmentStyleViewModel.PolylineLinetypeChoice }
+                    .Concat(AvailableLinetypes)
+                    .ToList();
 
             _livePreview.Tick += (_, _) =>
             {
@@ -72,13 +76,21 @@ namespace AcadOverrules.VertexCircles.UI
         public string SettingsPath => VertexCirclesSettingsStore.SettingsPath;
 
         /// <summary>
-        /// The linetype names offered in both tabs of the Circle group: the ones loaded in the
-        /// active drawing plus the ones the profiles already store. A profile travels between
-        /// drawings, so its linetype need not be loaded here - keeping the stored name in the
-        /// list is what stops the ComboBox from clearing it. A name that is not loaded in the
-        /// drawing on screen draws as Continuous, see <see cref="LinetypeResolver"/>.
+        /// The linetype names offered in the vertex tabs of the Appearance group: the ones
+        /// loaded in the active drawing plus the ones the profiles already store. A profile
+        /// travels between drawings, so its linetype need not be loaded here - keeping the
+        /// stored name in the list is what stops the ComboBox from clearing it. A name that is
+        /// not loaded in the drawing on screen draws as Continuous, see
+        /// <see cref="LinetypeResolver"/>.
         /// </summary>
         public IReadOnlyList<string> AvailableLinetypes { get; }
+
+        /// <summary>
+        /// The same list for the segment tabs, with "same as the polyline" in front: a
+        /// segment override can keep the linetype of the polyline, a circle has no polyline
+        /// linetype to keep.
+        /// </summary>
+        public IReadOnlyList<string> AvailableSegmentLinetypes { get; }
 
         public bool CanDeleteProfile => Profiles.Count > 1;
 
@@ -246,7 +258,7 @@ namespace AcadOverrules.VertexCircles.UI
             foreach (string name in ReadLinetypeNames()) names.Add(name);
 
             foreach (VertexCirclesProfileViewModel profile in Profiles)
-                foreach (MarkerStyleViewModel style in profile.Styles)
+                foreach (StyleViewModelBase style in profile.Styles)
                     SnapToDrawingSpelling(style, names);
 
             return names.ToList();
@@ -257,10 +269,19 @@ namespace AcadOverrules.VertexCircles.UI
         /// way the drawing spells it: the ComboBox matches items with Equals, so a stored
         /// "DASHED" would not select a table entry named "Dashed". A name the drawing does not
         /// have is kept as it stands, because the profile travels between drawings.
+        /// A segment style showing the "same as the polyline" placeholder is not a table
+        /// entry and is left alone.
         /// </summary>
-        private static void SnapToDrawingSpelling(MarkerStyleViewModel style, SortedSet<string> names)
+        private static void SnapToDrawingSpelling(StyleViewModelBase style, SortedSet<string> names)
         {
             string stored = (style.Linetype ?? string.Empty).Trim();
+
+            if (style is SegmentStyleViewModel &&
+                SegmentStyleViewModel.IsPolylineLinetypeChoice(stored))
+            {
+                style.Linetype = SegmentStyleViewModel.PolylineLinetypeChoice;
+                return;
+            }
 
             if (stored.Length == 0)
             {

@@ -5,8 +5,8 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         mc:Ignorable="d"
         Title="Polyline vertex circles"
-        Width="560" Height="780"
-        MinWidth="480" MinHeight="660"
+        Width="580" Height="840"
+        MinWidth="500" MinHeight="720"
         Style="{DynamicResource DialogWindowStyle}"
         Background="{DynamicResource Background}"
         WindowStartupLocation="CenterScreen">
@@ -16,8 +16,8 @@
                 <ResourceDictionary Source="pack://application:,,,/AcadOverrules;component/CmdUI/UI/Theme.xaml"/>
             </ResourceDictionary.MergedDictionaries>
 
-            <!-- One marker style. Bound to a MarkerStyleViewModel, so the Straight tab and the
-                 Arc tab are this same template over different instances. -->
+            <!-- One marker style. Bound to a MarkerStyleViewModel, so the Straight vertices tab
+                 and the Arc vertices tab are this same template over different instances. -->
             <DataTemplate x:Key="MarkerStyleTemplate">
                 <StackPanel Margin="4">
                     <Grid Style="{StaticResource FormRowStyle}">
@@ -102,6 +102,89 @@
                     </Grid>
                 </StackPanel>
             </DataTemplate>
+
+            <!-- One segment style. Bound to a SegmentStyleViewModel, so the Straight segments
+                 tab and the Arc segments tab are this same template over different instances.
+                 Every setting has a "same as the polyline" value, so a freshly enabled
+                 override changes nothing until something is picked. -->
+            <DataTemplate x:Key="SegmentStyleTemplate">
+                <StackPanel Margin="4">
+                    <CheckBox Content="Override how these segments are drawn"
+                              IsChecked="{Binding IsOverridden}"
+                              Style="{StaticResource FormCheckBoxStyle}"
+                              Margin="0,0,0,8"
+                              ToolTip="Off: the polyline draws these segments itself. On: the overrule draws them with the settings below in place of the polyline's own graphics."/>
+
+                    <StackPanel IsEnabled="{Binding IsOverridden}">
+                        <Grid Style="{StaticResource FormRowStyle}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="140"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <Label Grid.Column="0"
+                                   Content="Colour"
+                                   Style="{StaticResource FormLabelStyle}"/>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                <ComboBox ItemsSource="{Binding ColorModes}"
+                                          SelectedValuePath="Mode"
+                                          DisplayMemberPath="Label"
+                                          SelectedValue="{Binding ColorMode}"
+                                          Style="{StaticResource ModernDarkComboBox}"
+                                          Width="170"
+                                          Margin="0,0,10,0"
+                                          ToolTip="Same as the polyline: no change. Complementary hue: the fully saturated complement of each polyline's own colour, the same rule the circles use. Fixed colour: the colour picked here."/>
+                                <Border Width="22" Height="18"
+                                        Background="{Binding FixedColorBrush}"
+                                        BorderBrush="{DynamicResource BorderBrush}"
+                                        BorderThickness="1"
+                                        VerticalAlignment="Center"
+                                        Margin="0,0,6,0"
+                                        IsEnabled="{Binding IsFixedColor}"/>
+                                <Button Content="Pick..."
+                                        Style="{StaticResource SecondaryButtonStyle}"
+                                        Command="{Binding PickFixedColorCommand}"
+                                        IsEnabled="{Binding IsFixedColor}"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <Grid Style="{StaticResource FormRowStyle}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="140"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <Label Grid.Column="0"
+                                   Content="Lineweight factor"
+                                   Style="{StaticResource FormLabelStyle}"/>
+                            <TextBox Grid.Column="1"
+                                     Text="{Binding LineWeightFactorText, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource FormTextBoxStyle}"
+                                     Width="90"
+                                     ToolTip="How much thicker the segment is drawn than the polyline. 1 keeps the polyline's lineweight as it is. Needs LWDISPLAY on to be visible."/>
+                        </Grid>
+
+                        <Grid Style="{StaticResource FormRowStyle}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="140"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <Label Grid.Column="0"
+                                   Content="Linetype"
+                                   Style="{StaticResource FormLabelStyle}"/>
+                            <ComboBox Grid.Column="1"
+                                      ItemsSource="{Binding DataContext.AvailableSegmentLinetypes,
+                                                            RelativeSource={RelativeSource AncestorType=Window}}"
+                                      SelectedItem="{Binding Linetype}"
+                                      Style="{StaticResource ModernDarkComboBox}"
+                                      HorizontalAlignment="Left"
+                                      Width="200"
+                                      ToolTip="Linetype the segment is drawn with. Same as the polyline keeps the polyline's own. Otherwise lists the linetypes loaded in the active drawing; a name not loaded in the drawing on screen draws Continuous."/>
+                        </Grid>
+                    </StackPanel>
+                </StackPanel>
+            </DataTemplate>
         </ResourceDictionary>
     </Window.Resources>
 
@@ -157,12 +240,12 @@
 
         <!-- Appearance -->
         <GroupBox Grid.Row="1"
-                  Header="Circle"
+                  Header="Appearance"
                   Style="{StaticResource ModernGroupBox}"
                   Margin="0,0,0,10"
                   DataContext="{Binding SelectedProfile}">
             <StackPanel Margin="4">
-                <TextBlock Text="Straight: every segment at the vertex is a line. Arc: at least one of them is an arc."
+                <TextBlock Text="Vertices get a circle: straight, or arc when the vertex starts or ends an arc segment as chosen below. Segments can replace the polyline's own graphics with their own colour, lineweight and linetype."
                            Style="{StaticResource DialogLabelStyle}"
                            TextWrapping="Wrap"
                            Margin="0,0,0,8"/>
@@ -173,12 +256,54 @@
                                         ContentTemplate="{StaticResource MarkerStyleTemplate}"/>
                     </TabItem>
                     <TabItem Header="Arc vertices">
-                        <ContentControl Content="{Binding Arc}"
-                                        ContentTemplate="{StaticResource MarkerStyleTemplate}"/>
+                        <StackPanel>
+                            <Grid Style="{StaticResource FormRowStyle}" Margin="4,4,4,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="140"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <Label Grid.Column="0"
+                                       Content="Counts as arc vertex"
+                                       Style="{StaticResource FormLabelStyle}"/>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                    <CheckBox Content="Start of an arc"
+                                              IsChecked="{Binding ArcVertexAtArcStart}"
+                                              Style="{StaticResource FormCheckBoxStyle}"
+                                              VerticalAlignment="Center"
+                                              Margin="0,0,12,0"
+                                              ToolTip="The vertex where an arc segment begins - the arc is the segment leaving the vertex."/>
+                                    <CheckBox Content="End of an arc"
+                                              IsChecked="{Binding ArcVertexAtArcEnd}"
+                                              Style="{StaticResource FormCheckBoxStyle}"
+                                              VerticalAlignment="Center"
+                                              ToolTip="The vertex where an arc segment ends - the arc is the segment arriving at the vertex. With both on, every vertex touching an arc is an arc vertex; turn one off to tell a straight segment between two arcs from a third arc."/>
+                                </StackPanel>
+                            </Grid>
+
+                            <TextBlock Text="Neither is on, so no vertex is an arc vertex and every vertex uses the Straight vertices style."
+                                       Style="{StaticResource DialogLabelStyle}"
+                                       Foreground="{DynamicResource SeverityWarningBrush}"
+                                       TextWrapping="Wrap"
+                                       Margin="4,2,4,0"
+                                       Visibility="{Binding MarksNoArcVertices,
+                                                            Converter={StaticResource BoolToVisibilityConverter}}"/>
+
+                            <ContentControl Content="{Binding Arc}"
+                                            ContentTemplate="{StaticResource MarkerStyleTemplate}"/>
+                        </StackPanel>
+                    </TabItem>
+                    <TabItem Header="Straight segments">
+                        <ContentControl Content="{Binding StraightSegment}"
+                                        ContentTemplate="{StaticResource SegmentStyleTemplate}"/>
+                    </TabItem>
+                    <TabItem Header="Arc segments">
+                        <ContentControl Content="{Binding ArcSegment}"
+                                        ContentTemplate="{StaticResource SegmentStyleTemplate}"/>
                     </TabItem>
                 </TabControl>
 
-                <TextBlock Text="Radius and lineweight factor must be positive numbers in both tabs."
+                <TextBlock Text="Radius and lineweight factor must be positive numbers in every tab."
                            Style="{StaticResource DialogLabelStyle}"
                            Foreground="{DynamicResource SeverityWarningBrush}"
                            Margin="0,6,0,0"
@@ -200,7 +325,7 @@
                 </Grid.RowDefinitions>
 
                 <TextBlock Grid.Row="0"
-                           Text="Layer names or masks, AutoCAD wildcards allowed (0-FJV-*). An empty list means every layer."
+                           Text="Layer names or masks, AutoCAD wildcards allowed (0-FJV-*). An empty list means every layer. The filter applies to the circles and to the segment overrides alike."
                            Style="{StaticResource DialogLabelStyle}"
                            TextWrapping="Wrap"
                            Margin="0,0,0,8"/>
