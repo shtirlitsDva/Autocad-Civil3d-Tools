@@ -76,6 +76,32 @@ namespace EventManager
         public int GetSubscriptionCount(Document doc) => _subscriptions.CountFor(doc);
 
         /// <summary>
+        /// How many underlying AutoCAD hooks this manager is holding installed right now:
+        /// one per event somebody is subscribed to, plus the shared database hook and the
+        /// active-document database binding when those are up. Zero before the first
+        /// subscription, and zero again after <see cref="Dispose"/>.
+        /// </summary>
+        /// <remarks>
+        /// A teardown probe, not bookkeeping any consumer routes through -- its point is that
+        /// "the plugin unloaded and left nothing hooked" can be asserted rather than reasoned
+        /// about. <see cref="GetSubscriptions"/> answers a different question (how many
+        /// unsubscribe callbacks a plugin has parked against each document) and has never
+        /// known anything about these hooks, which is what made it the wrong instrument when
+        /// it was named for this job.
+        /// </remarks>
+        public int InstalledHookCount
+        {
+            get
+            {
+                int count = 0;
+                if (_dbHook.Installed) count++;
+                if (_dbBinding.Bound != null) count++;
+                foreach (IHookSlot slot in _slots) if (slot.Installed) count++;
+                return count;
+            }
+        }
+
+        /// <summary>
         /// Returns the slot backing one event, creating and registering it on first use.
         /// </summary>
         /// <exception cref="ObjectDisposedException">
