@@ -52,6 +52,7 @@ using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using Npp = NorsynObjectsInterop.NorsynProjectionProfileLabel;
 
+
 namespace IntersectUtilities
 {
     public partial class Intersect
@@ -1495,6 +1496,12 @@ namespace IntersectUtilities
                             var diaOriginal = psm.ReadPropertyInt(fEnt, dcd.Diameter);
 
                             double dia = Convert.ToDouble(diaOriginal) / 1000.0;
+
+                            if (dia < 0)
+                            {
+                                prdDbg($"Diameter for entity {fEnt.Handle} is negative: {diaOriginal}! LER skal fikses!");
+                                throw new System.Exception($"Diameter for entity {fEnt.Handle} is negative: {diaOriginal}");
+                            }                                
 
                             if (dia == 0 || diaOriginal == 999)
                                 dia = 0.11;
