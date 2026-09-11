@@ -977,6 +977,21 @@ namespace IntersectUtilities.PipelineNetworkSystem
             #endregion
         }
 
+        /// <summary>
+        /// A pipeline whose path is already known - e.g. the exact centreline
+        /// traced from its pipes and components - so no connectivity traversal
+        /// is done. Stations are distances along <paramref name="topology"/>.
+        /// The pipeline keeps the polyline: pass one it may own.
+        /// </summary>
+        public PipelineV2Na(IEnumerable<Entity> source, Polyline topology)
+            : base(source)
+        {
+            if (_pipelineEntities == null || _pipelineEntities.Count == 0)
+                throw new Exception("PipelineV2Na cannot be created without entities!");
+
+            this.topology = topology ?? throw new ArgumentNullException(nameof(topology));
+        }
+
         public override string Name =>
             _psh.Pipeline.ReadPropertyString(
                 this.PipelineEntities.First(),
@@ -1289,6 +1304,12 @@ namespace IntersectUtilities.PipelineNetworkSystem
             else
                 return new PipelineV2Alignment(ents, al);
         }
+        /// <summary>
+        /// Creates a pipeline stationed along a known path instead of an
+        /// alignment or a traversal of its connectivity graph.
+        /// </summary>
+        public static IPipelineV2 CreateFromTopology(IEnumerable<Entity> ents, Polyline topology) =>
+            new PipelineV2Na(ents, topology);
     }
     public enum ConnectionType
     {
