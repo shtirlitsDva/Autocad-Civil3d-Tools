@@ -145,10 +145,10 @@
 		</Reference>
 	</ItemGroup>
 
-	<Import Project="$(NorsynDrawingToolsRoot)\managed\NorsynOnDemandLoadingSHARED\NorsynOnDemandLoadingSHARED.projitems" Label="Shared" Condition="'$(NorsynDrawingToolsRoot)' != ''" />
-	<Target Name="ValidateNorsynOnDemandLoadingSharedImport" BeforeTargets="BeforeBuild" Condition="'$(NorsynDrawingToolsRoot)' == ''">
-		<Error Text="Could not find NorsynOnDemandLoadingSHARED.projitems. Set NorsynDrawingToolsRoot to the NorsynDrawingTools repo root, or clone/mount it at X:\GitHub\DamgaardRI\NorsynDrawingTools, $(USERPROFILE)\source\repos\DamgaardRI\NorsynDrawingTools or $(USERPROFILE)\GitHub\DamgaardRI\NorsynDrawingTools." />
-	</Target>
+	<!-- On-demand loader: shared source from the NorsynDrawingTools repo on X:. Provides
+	     NorsynProjectionProfileLabelLoader.EnsureLoaded(), called at the start of any command
+	     that uses NPPL types so the proxy-only dbx is loaded before the interop. -->
+	<Import Project="X:\GitHub\DamgaardRI\NorsynDrawingTools\managed\NorsynOnDemandLoadingSHARED\NorsynOnDemandLoadingSHARED.projitems" Label="Shared" />
 	<ItemGroup>
 		<Content Include="DebugCommandLineAttribute.txt" />
 	</ItemGroup>
