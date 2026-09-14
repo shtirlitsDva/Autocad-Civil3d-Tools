@@ -62,7 +62,7 @@ namespace IntersectUtilities
                     {
                         PromptSelectionOptions pso = new PromptSelectionOptions
                         {
-                            MessageForAdding = "\nSelect source polylines:"
+                            MessageForAdding = "\nSelect polylines to project:"
                         };
                         SelectionFilter filter = new SelectionFilter(
                             new[] { new TypedValue((int)DxfCode.Start, "POLYLINE") });
