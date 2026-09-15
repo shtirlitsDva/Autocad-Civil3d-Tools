@@ -27,10 +27,11 @@ namespace IntersectUtilities.NdhTrace;
 /// it, where the new pipeline centres its own part. The first stretch starts
 /// the pipeline and has no change; its ChangeDist is its StartDist.
 /// </param>
-/// <param name="HasPipe">
-/// Whether a legacy pipe of this identity lies on the stretch. A stretch with
-/// none is the length of the parts around it - a Y-model with a materialeskift
-/// welded to its end, a reducer at a pipeline end - and not pipe.
+/// <param name="HoldsPipeOrPart">
+/// Whether anything of the stretch's own lies on it: a legacy pipe of its
+/// identity, or a part standing inside it (a valve, an elbow). A stretch with
+/// neither is only the length of the parts that make its changes - a
+/// materialeskift welded to the end of a Y-model - and is no pipe at all.
 /// </param>
 internal readonly record struct LegacyIdentitySpan(
     double StartDist,
@@ -40,7 +41,7 @@ internal readonly record struct LegacyIdentitySpan(
     int Dn,
     PipeSeriesEnum Series,
     double ChangeDist,
-    bool HasPipe)
+    bool HoldsPipeOrPart)
 {
     /// <summary>One identity as the pipeline sees it: Frem, Retur and Enkelt are all the bonded pair.</summary>
     public static (PipeSystemEnum System, bool Twin, int Dn) IdentityOf(
@@ -191,9 +192,11 @@ internal static class FjvLegacyPipelineReader
             IPipelineV2 pipeline = PipelineV2Factory.CreateFromTopology(
                 ents, (Polyline)centreline.Clone());
             IPipelineSizeArrayV2 sizes = PipelineSizeArrayFactory.CreateSizeArray(pipeline);
-            List<(double Station, BlockReference Block)> sizeBlocks = blocks
-                .Where(x => x.ReadDynamicCsvProperty(DynamicProperty.Function, false) == "SizeArray")
+            List<(double Station, BlockReference Block)> stationed = blocks
                 .Select(x => (pipeline.GetBlockStation(x), x))
+                .ToList();
+            List<(double Station, BlockReference Block)> sizeBlocks = stationed
+                .Where(x => x.Block.ReadDynamicCsvProperty(DynamicProperty.Function, false) == "SizeArray")
                 .ToList();
             List<LegacyPipe> pipePieces = pipes.Select(x => PipeOn(x, centreline)).ToList();
 
@@ -215,7 +218,8 @@ internal static class FjvLegacyPipelineReader
                     start, end, s.System, s.Type, s.DN, s.Series,
                     i == 0 ? start : ChangeCentre(sizeBlocks, s.StartStation, centreline, tx),
                     pipePieces.Any(p => p.Identity == identity &&
-                        Math.Min(p.EndDist, end) - Math.Max(p.StartDist, start) >= MinSpanLength)));
+                        Math.Min(p.EndDist, end) - Math.Max(p.StartDist, start) >= MinSpanLength) ||
+                    stationed.Any(x => x.Station > start + MinSpanLength && x.Station < end - MinSpanLength)));
             }
 
             if (spans.Count == 0)

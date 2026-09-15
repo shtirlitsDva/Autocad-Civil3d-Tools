@@ -82,10 +82,11 @@ internal static partial class NdhRouteBuilder
     /// Replaces every run of two or more consecutive elastic corners (bends and
     /// legacy arcs) by the fewest arcs that follow the trace within
     /// <see cref="MaxTraceDeviation"/>. A fitted arc never covers an identity
-    /// change: the change needs a straight to stand on.
+    /// change or the straight its parts take: they need a straight to stand on.
     /// </summary>
     private static void FitArcs(
-        List<RouteVertex> vs, Polyline centreline, IReadOnlyList<LegacyIdentitySpan> identities, List<string> notes)
+        List<RouteVertex> vs, Polyline centreline, IReadOnlyList<LegacyIdentitySpan> identities,
+        IReadOnlyList<ChangeStraight> parts, List<string> notes)
     {
         List<(int A, int B)> runs = new List<(int, int)>();
         for (int i = 1; i < vs.Count - 1;)
@@ -99,7 +100,10 @@ internal static partial class NdhRouteBuilder
         if (runs.Count == 0) return;
 
         TraceSamples trace = new TraceSamples(centreline);
-        double[] changes = identities.Skip(1).Select(s => s.ChangeDist).ToArray();
+        (double Lo, double Hi)[] changes = identities
+            .Select((s, i) => (s.ChangeDist - parts[i].Back, s.ChangeDist + parts[i].Forward))
+            .Skip(1)
+            .ToArray();
         //From the last run back, so a fitted run leaves the earlier runs' indices alone.
         for (int r = runs.Count - 1; r >= 0; r--)
             FitRun(vs, runs[r].A, runs[r].B, trace, centreline, changes, notes);
@@ -114,7 +118,8 @@ internal static partial class NdhRouteBuilder
     /// deviation - wins. Pieces on a shared leg may not overlap.
     /// </summary>
     private static void FitRun(
-        List<RouteVertex> vs, int a, int b, TraceSamples trace, Polyline cl, double[] changes, List<string> notes)
+        List<RouteVertex> vs, int a, int b, TraceSamples trace, Polyline cl, (double Lo, double Hi)[] changes,
+        List<string> notes)
     {
         List<ArcPiece> pieces = new List<ArcPiece>();
         for (int k = a; k <= b; k++) pieces.Add(KeptPiece(vs, k));
@@ -128,8 +133,8 @@ internal static partial class NdhRouteBuilder
         if (pieces.All(x => x.Kept)) return;
 
         //A corner kept as it is needs no room check: the run as it was is always a way through.
-        double roomIn = vs[a - 1].Kind == VertexKind.End ? BoundaryRoom : 0.0;
-        double roomOut = vs[b + 1].Kind == VertexKind.End ? BoundaryRoom : 0.0;
+        double roomIn = vs[a - 1].Kind == VertexKind.End ? EndRoom : 0.0;
+        double roomOut = vs[b + 1].Kind == VertexKind.End ? EndRoom : 0.0;
         double lastLeg = vs[b].P.GetDistanceTo(vs[b + 1].P);
         Dictionary<ArcPiece, (int Count, double Deviation, ArcPiece? Before)> best = new();
         foreach (ArcPiece c in pieces.OrderBy(x => x.Q).ThenBy(x => x.P))
@@ -194,7 +199,8 @@ internal static partial class NdhRouteBuilder
     /// (infinite when no arc can stand there at all).
     /// </summary>
     private static ArcPiece? FitArc(
-        List<RouteVertex> vs, int p, int q, TraceSamples trace, Polyline cl, double[] changes, out double off)
+        List<RouteVertex> vs, int p, int q, TraceSamples trace, Polyline cl, (double Lo, double Hi)[] changes,
+        out double off)
     {
         off = double.PositiveInfinity;
         Point2d from = vs[p].P, to = vs[q + 1].P;
@@ -248,7 +254,7 @@ internal static partial class NdhRouteBuilder
         if (back > MaxTraceDeviation) return null;
 
         double d0 = DistAt(cl, start), d1 = DistAt(cl, end);
-        if (changes.Any(c => c > Math.Min(d0, d1) - BoundaryRoom && c < Math.Max(d0, d1) + BoundaryRoom))
+        if (changes.Any(c => c.Hi > Math.Min(d0, d1) && c.Lo < Math.Max(d0, d1)))
         {
             off = double.PositiveInfinity;
             return null;

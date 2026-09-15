@@ -37,7 +37,7 @@ internal sealed class NdhImportReport
 /// </summary>
 internal static class NdhFromFjvImport
 {
-    public static NdhImportReport Run(string fjvPath, INdhPipelineBuilder builder)
+    public static NdhImportReport Run(string fjvPath, INdhPipelineBuilder builder, INdhChangeStraight straight)
     {
         NdhImportReport report = new NdhImportReport();
         List<(string Name, NdhRoute Route)> routes = new List<(string, NdhRoute)>();
@@ -55,7 +55,7 @@ internal static class NdhFromFjvImport
             {
                 try
                 {
-                    routes.Add((t.Name, NdhRouteBuilder.Build(t)));
+                    routes.Add((t.Name, NdhRouteBuilder.Build(t, straight)));
                 }
                 catch (Exception ex)
                 {

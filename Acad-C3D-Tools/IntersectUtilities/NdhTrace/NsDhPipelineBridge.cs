@@ -7,19 +7,22 @@ namespace IntersectUtilities.NdhTrace;
 
 /// <summary>
 /// Builds pipelines through the NDH district-heating module's flat C export
-/// NsDh_BuildPipeline (contract: NorsynDrawingTools
+/// NsDh_BuildPipeline, and asks it how much straight a change takes through
+/// NsDh_ChangeStraight (contract: NorsynDrawingTools
 /// src/NorsynDistrictHeatingObjects/Api/NsDhPipelineBridge.h).
 ///
 /// The module is never loaded or [DllImport]ed here: that would pin the dbx and
 /// break its hot reload. The exports are looked up in the module AutoCAD already
 /// has mapped, on every call, so no pointer outlives a reload.
 /// </summary>
-internal sealed class NsDhPipelineBridge : INdhPipelineBuilder
+internal sealed class NsDhPipelineBridge : INdhPipelineBuilder, INdhChangeStraight
 {
     private const string DbxModule = "NSNorsynDistrictHeating.dbx";
 
     //Must match kNsDhPipelineBuildVersion in NsDhPipelineBridge.h.
     private const int ExpectedBuildVersion = 1;
+    //Must match kNsDhChangeStraightVersion in NsDhPipelineBridge.h.
+    private const int ExpectedChangeStraightVersion = 1;
 
     private const int StatusOk = 0;
 
@@ -51,8 +54,31 @@ internal sealed class NsDhPipelineBridge : INdhPipelineBuilder
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 512)] public string Detail;
     }
 
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct PipeIdentity
+    {
+        public int Dn;
+        public int Reserved;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)] public string System;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)] public string Type;
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct ChangeStraightResult
+    {
+        public int Status;
+        public int Reserved;
+        public double BackM;
+        public double ForwardM;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 512)] public string Detail;
+    }
+
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    private delegate int BuildVersionFn();
+    private delegate int VersionFn();
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
+    private delegate int ChangeStraightFn(
+        in PipeIdentity before, in PipeIdentity after, out ChangeStraightResult result);
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
     private delegate int BuildPipelineFn(
@@ -71,7 +97,8 @@ internal sealed class NsDhPipelineBridge : INdhPipelineBuilder
 
     public NdhBuildOutcome Build(string name, NdhRoute route)
     {
-        BuildPipelineFn build = Resolve<BuildPipelineFn>("NsDh_BuildPipeline");
+        BuildPipelineFn build = Resolve<BuildPipelineFn>(
+            "NsDh_BuildPipeline", "NsDh_PipelineBuildVersion", "pipeline build", ExpectedBuildVersion);
 
         RouteVertex[] vertices = new RouteVertex[route.Vertices.Count];
         for (int i = 0; i < vertices.Length; i++)
@@ -106,26 +133,53 @@ internal sealed class NsDhPipelineBridge : INdhPipelineBuilder
     }
 
     /// <summary>
-    /// The export, from the module as it is mapped right now, after checking
-    /// the module speaks the layout this file mirrors.
+    /// The straight the parts of a change take, under the working drawing's own
+    /// catalogue and settings. A refusal is the module's sentence: the importer
+    /// cannot place a change without it.
     /// </summary>
-    private static TDelegate Resolve<TDelegate>(string export) where TDelegate : Delegate
+    public ChangeStraight Of(LegacyIdentitySpan before, LegacyIdentitySpan after)
+    {
+        ChangeStraightFn ask = Resolve<ChangeStraightFn>(
+            "NsDh_ChangeStraight", "NsDh_ChangeStraightVersion", "change straight",
+            ExpectedChangeStraightVersion);
+
+        int status = ask(IdentityOf(before), IdentityOf(after), out ChangeStraightResult r);
+        if (status != StatusOk)
+            throw new InvalidOperationException(
+                $"The straight of the change from {before.System} {before.Type} {before.Dn} to " +
+                $"{after.System} {after.Type} {after.Dn} could not be asked ({StatusName(status)}): {r.Detail}");
+        return new ChangeStraight(r.BackM, r.ForwardM);
+
+        static PipeIdentity IdentityOf(LegacyIdentitySpan s) => new PipeIdentity
+        {
+            Dn = s.Dn,
+            System = SystemToken(s.System),
+            Type = TypeToken(s.Type),
+        };
+    }
+
+    /// <summary>
+    /// The export, from the module as it is mapped right now, after checking
+    /// the module speaks the layout this file mirrors for that surface.
+    /// </summary>
+    private static TDelegate Resolve<TDelegate>(
+        string export, string versionExport, string surface, int expectedVersion) where TDelegate : Delegate
     {
         IntPtr module = GetModuleHandleW(DbxModule);
         if (module == IntPtr.Zero)
             throw new InvalidOperationException(
                 $"{DbxModule} is not loaded. Load the district-heating module and try again.");
 
-        IntPtr versionProc = GetProcAddress(module, "NsDh_PipelineBuildVersion");
+        IntPtr versionProc = GetProcAddress(module, versionExport);
         if (versionProc == IntPtr.Zero)
             throw new InvalidOperationException(
-                $"{DbxModule} has no pipeline build export. Update the district-heating module.");
+                $"{DbxModule} has no {surface} export. Update the district-heating module.");
 
-        int actual = Marshal.GetDelegateForFunctionPointer<BuildVersionFn>(versionProc)();
-        if (actual != ExpectedBuildVersion)
+        int actual = Marshal.GetDelegateForFunctionPointer<VersionFn>(versionProc)();
+        if (actual != expectedVersion)
             throw new InvalidOperationException(
-                $"{DbxModule} exposes pipeline build version {actual}, but this build " +
-                $"expects {ExpectedBuildVersion}. Rebuild so the module and IntersectUtilities match.");
+                $"{DbxModule} exposes {surface} version {actual}, but this build " +
+                $"expects {expectedVersion}. Rebuild so the module and IntersectUtilities match.");
 
         IntPtr proc = GetProcAddress(module, export);
         if (proc == IntPtr.Zero)

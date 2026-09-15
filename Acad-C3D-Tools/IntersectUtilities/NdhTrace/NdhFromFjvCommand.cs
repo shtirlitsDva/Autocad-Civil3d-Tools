@@ -55,7 +55,8 @@ namespace IntersectUtilities
             {
                 //No transaction of ours may be open here: every build opens and
                 //closes the working drawing's model space itself.
-                report = NdhFromFjvImport.Run(fjvPath, new NsDhPipelineBridge());
+                NsDhPipelineBridge ndh = new NsDhPipelineBridge();
+                report = NdhFromFjvImport.Run(fjvPath, ndh, ndh);
             }
             catch (System.Exception ex)
             {

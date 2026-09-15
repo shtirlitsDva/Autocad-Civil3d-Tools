@@ -23,6 +23,19 @@ internal readonly record struct NdhRouteVertex(double X, double Y, double BendRa
 internal readonly record struct NdhIdentityBoundary(
     int VertexIndex, PipeSystemEnum System, PipeTypeEnum Type, int Dn);
 
+/// <summary>
+/// The straight the parts of one identity change take, as the new pipeline lays
+/// them: <paramref name="Back"/> metres back from the change's vertex (its first
+/// part) and <paramref name="Forward"/> metres on (to the end of its last).
+/// </summary>
+internal readonly record struct ChangeStraight(double Back, double Forward);
+
+/// <summary>Asks the new pipeline how much straight a change takes.</summary>
+internal interface INdhChangeStraight
+{
+    ChangeStraight Of(LegacyIdentitySpan before, LegacyIdentitySpan after);
+}
+
 internal sealed class NdhRoute
 {
     public List<NdhRouteVertex> Vertices { get; } = new List<NdhRouteVertex>();
@@ -49,11 +62,14 @@ internal sealed class NdhRoute
 /// angle: the block is the evidence of the part, the drafted corner only near it.
 ///
 /// An identity change stands where the centre of its legacy part stands, which
-/// is where the new pipeline centres its own part; elastic bends are sized
-/// around it. A change inside a legacy arc or on a sharp corner is moved clear
-/// onto a straight and reported. A stretch with no legacy pipe of its own is the
-/// length of the parts around it, so the changes on either side of it are ONE
-/// change: a Y-model with a materialeskift welded to its end is sent as bonded
+/// is where the new pipeline centres its own part - unless the parts the new
+/// pipeline lays for it would reach into a bend or a corner: the straight they
+/// take is the new pipeline's answer (<see cref="INdhChangeStraight"/>), never a
+/// length kept here, and the change moves along its straight until they fit;
+/// elastic bends are sized around them. A change inside a legacy arc or on a
+/// sharp corner is moved onto a straight the same way and reported. A stretch holding no legacy pipe and no part of
+/// its own is only the length of the parts around it, so the changes on either
+/// side of it are ONE change: a Y-model with a materialeskift welded to its end is sent as bonded
 /// steel to twin AluPex, and the new pipeline lays the Y-rør and the
 /// materialeskift itself, at the catalogue's distances.
 /// </summary>
@@ -91,16 +107,12 @@ internal static partial class NdhRouteBuilder
     private static readonly double MaxTurn = ToRad(179.0);
     //A boundary this close to a vertex is put on that vertex.
     private const double VertexSnap = 1e-3;
-    //A boundary moved off a legacy arc or a corner stands this far clear of
-    //it, or in the middle of a straight too short for that - its own fitting
-    //has length.
-    private const double MovedBoundaryClearance = 2.0;
-    //A boundary stays at least this far from the corner of an elastic
-    //bend...
+    //The parts of a change stay at least this far from the corner of an
+    //elastic bend, so the bend - sized after the change is placed - keeps an
+    //arc of its own instead of a sharp corner.
     private const double BendMargin = 1.0;
-    //...and every bend keeps this much straight between itself and a
-    //boundary or a pipeline end.
-    private const double BoundaryRoom = 0.5;
+    //Every bend keeps this much straight between itself and a pipeline end.
+    private const double EndRoom = 0.5;
     //Setbacks must fit their leg with this much to spare.
     private const double LegSlack = 1e-6;
     //An F-rør merges twin and bonded AND turns, so a Twin<->Enkelt change may
@@ -157,10 +169,13 @@ internal static partial class NdhRouteBuilder
         public double D0, D1;
         //The turn of the legacy elbow making this corner; NaN if none or any.
         public double NominalTurn = double.NaN;
+        //The straight the parts of the change on this vertex take; none on a
+        //vertex that changes nothing.
+        public ChangeStraight Parts;
         public bool Turns => Kind is not (VertexKind.End or VertexKind.Straight);
     }
 
-    public static NdhRoute Build(LegacyPipelineTrace trace)
+    public static NdhRoute Build(LegacyPipelineTrace trace, INdhChangeStraight straight)
     {
         Polyline centreline = trace.Centreline;
         if (trace.Spans.Count == 0) throw new ArgumentException("No identity spans.", nameof(trace));
@@ -177,11 +192,14 @@ internal static partial class NdhRouteBuilder
 
         SnapFittingAngles(vs, route.Adjustments);
         List<LegacyIdentitySpan> identities = CleanSpans(trace.Spans, route.Adjustments);
-        FitArcs(vs, centreline, identities, route.Adjustments);
+        List<ChangeStraight> parts = identities
+            .Select((s, i) => i == 0 ? new ChangeStraight() : straight.Of(identities[i - 1], s))
+            .ToList();
+        FitArcs(vs, centreline, identities, parts, route.Adjustments);
         FitFillets(vs, route.Adjustments);
         FilletZones(vs, centreline);
         List<(RouteVertex V, LegacyIdentitySpan Span)> bounds = PlaceBoundaries(
-            vs, identities, centreline, route.Adjustments);
+            vs, identities, parts, centreline, route.Adjustments);
         //A boundary kept right at a fillet's tangent point can leave the leg
         //between them a hair short of the fillet's setback.
         FitFillets(vs, route.Adjustments);
@@ -603,8 +621,8 @@ internal static partial class NdhRouteBuilder
     /// Gives every elastic bend the largest radius whose arc stays within
     /// <see cref="MaxTraceDeviation"/> of its kink and whose setback stays within
     /// its share of both legs: what a fillet's setback leaves of a leg, the
-    /// leg less <see cref="BoundaryRoom"/> toward a boundary or an end, half the
-    /// leg toward any other corner.
+    /// leg less the straight a change's parts take toward a boundary, less
+    /// <see cref="EndRoom"/> toward an end, half the leg toward any other corner.
     /// </summary>
     private static void SizeBends(List<RouteVertex> vs, List<string> notes)
     {
@@ -618,8 +636,8 @@ internal static partial class NdhRouteBuilder
             if (v.Kind != VertexKind.Bend) continue;
 
             double avail = Math.Min(
-                Share(vs[i - 1], setback[i - 1], v.P.GetDistanceTo(vs[i - 1].P)),
-                Share(vs[i + 1], setback[i + 1], v.P.GetDistanceTo(vs[i + 1].P)));
+                Share(vs[i - 1], setback[i - 1], v.P.GetDistanceTo(vs[i - 1].P), vs[i - 1].Parts.Forward),
+                Share(vs[i + 1], setback[i + 1], v.P.GetDistanceTo(vs[i + 1].P), vs[i + 1].Parts.Back));
             if (avail <= MinSegmentLength)
             {
                 notes.Add($"bend at {v.D0:F2} m has no leg room, left sharp");
@@ -637,9 +655,11 @@ internal static partial class NdhRouteBuilder
             v.D1 += sb;
         }
 
-        static double Share(RouteVertex n, double nSetback, double leg) => n.Kind switch
+        //partsToward: how far the parts of a change on n reach toward the bend.
+        static double Share(RouteVertex n, double nSetback, double leg, double partsToward) => n.Kind switch
         {
-            VertexKind.End or VertexKind.Straight => Math.Max(0.0, leg - BoundaryRoom),
+            VertexKind.End => Math.Max(0.0, leg - EndRoom),
+            VertexKind.Straight => Math.Max(0.0, leg - partsToward - LegSlack),
             VertexKind.Fillet => Math.Max(0.0, leg - nSetback - LegSlack),
             _ => leg / 2.0,
         };
@@ -668,8 +688,8 @@ internal static partial class NdhRouteBuilder
     #region Boundaries
     /// <summary>
     /// The identity spans the pipeline is built with: neighbours of one
-    /// identity merged, and every span with no legacy pipe of its own dropped -
-    /// it is the length of the parts around it. The pipe after it then starts
+    /// identity merged, and every span holding no legacy pipe and no part of its
+    /// own dropped - it is only the length of the parts around it. The pipe after it then starts
     /// where it started, and its change stands where the dropped span's did: at
     /// the first part met, which the new pipeline puts on the change's vertex
     /// and lays the rest of the chain downstream of.
@@ -678,28 +698,28 @@ internal static partial class NdhRouteBuilder
         IReadOnlyList<LegacyIdentitySpan> spans, List<string> notes)
     {
         List<LegacyIdentitySpan> result = Merge(spans);
-        for (int i = result.FindIndex(s => !s.HasPipe); i >= 0 && result.Count > 1;
-             i = result.FindIndex(s => !s.HasPipe))
+        for (int i = result.FindIndex(s => !s.HoldsPipeOrPart); i >= 0 && result.Count > 1;
+             i = result.FindIndex(s => !s.HoldsPipeOrPart))
         {
             LegacyIdentitySpan s = result[i];
             result.RemoveAt(i);
             if (i == 0)
             {
                 result[0] = result[0] with { StartDist = s.StartDist, ChangeDist = s.StartDist };
-                notes.Add($"{s.EndDist - s.StartDist:F2} m of {Describe(s)} at the pipeline start has no pipe " +
-                    "of its own, dropped");
+                notes.Add($"{s.EndDist - s.StartDist:F2} m of {Describe(s)} at the pipeline start holds no pipe " +
+                    "or part of its own, dropped");
             }
             else if (i < result.Count)
             {
                 result[i] = result[i] with { StartDist = s.StartDist, ChangeDist = s.ChangeDist };
-                notes.Add($"{s.EndDist - s.StartDist:F2} m of {Describe(s)} at {s.StartDist:F2} m has no pipe " +
-                    $"of its own: the change to {Describe(result[i])} stands at {s.ChangeDist:F2} m");
+                notes.Add($"{s.EndDist - s.StartDist:F2} m of {Describe(s)} at {s.StartDist:F2} m holds no pipe " +
+                    $"or part of its own: the change to {Describe(result[i])} stands at {s.ChangeDist:F2} m");
             }
             else
             {
                 result[i - 1] = result[i - 1] with { EndDist = s.EndDist };
-                notes.Add($"{s.EndDist - s.StartDist:F2} m of {Describe(s)} at the pipeline end has no pipe " +
-                    "of its own, dropped");
+                notes.Add($"{s.EndDist - s.StartDist:F2} m of {Describe(s)} at the pipeline end holds no pipe " +
+                    "or part of its own, dropped");
             }
             result = Merge(result);
         }
@@ -713,7 +733,7 @@ internal static partial class NdhRouteBuilder
         {
             if (merged.Count > 0 && SameIdentity(merged[merged.Count - 1], s))
                 merged[merged.Count - 1] = merged[merged.Count - 1] with
-                { EndDist = s.EndDist, HasPipe = merged[merged.Count - 1].HasPipe || s.HasPipe };
+                { EndDist = s.EndDist, HoldsPipeOrPart = merged[merged.Count - 1].HoldsPipeOrPart || s.HoldsPipeOrPart };
             else merged.Add(s);
         }
         return merged;
@@ -729,6 +749,7 @@ internal static partial class NdhRouteBuilder
     private static List<(RouteVertex, LegacyIdentitySpan)> PlaceBoundaries(
         List<RouteVertex> vs,
         List<LegacyIdentitySpan> spans,
+        List<ChangeStraight> parts,
         Polyline centreline,
         List<string> notes)
     {
@@ -751,7 +772,7 @@ internal static partial class NdhRouteBuilder
             }
             else
             {
-                d = StraightDistance(vs, s.ChangeDist, prev, s, out string? why);
+                d = StraightDistance(vs, s.ChangeDist, prev, s, parts[w], out string? why);
                 if (why != null) notes.Add($"{what} {why}, moved to {d:F2} m");
                 v = VertexOnStraight(vs, d, centreline);
                 if (v == null)
@@ -759,6 +780,7 @@ internal static partial class NdhRouteBuilder
                     notes.Add($"{what} has no straight to stand on, dropped");
                     continue;
                 }
+                v.Parts = parts[w];
             }
 
             if (d <= placed[0].D + VertexSnap)
@@ -812,12 +834,16 @@ internal static partial class NdhRouteBuilder
     /// <summary>
     /// Where on a straight a change at distance <paramref name="d"/> goes: its
     /// own position, unless that is inside a legacy arc or on a corner (moved
-    /// clear, see <see cref="MoveClear"/>) or within <see cref="BendMargin"/> of
-    /// an elastic bend. <paramref name="why"/> says why it moved; null if not.
+    /// onto a neighbouring straight, see <see cref="MoveClear"/>), or its
+    /// <paramref name="parts"/> would reach past its straight - into a fillet, a
+    /// corner, or within <see cref="BendMargin"/> of an elastic bend. A straight
+    /// too short for the parts keeps the change in its middle, and the new
+    /// pipeline says so on the change. <paramref name="why"/> says why it moved;
+    /// null if not.
     /// </summary>
     private static double StraightDistance(
         List<RouteVertex> vs, double d, LegacyIdentitySpan prev, LegacyIdentitySpan next,
-        out string? why)
+        ChangeStraight parts, out string? why)
     {
         why = null;
         int hit = vs.FindIndex(v => v.Turns && (v.Kind == VertexKind.Fillet
@@ -837,22 +863,23 @@ internal static partial class NdhRouteBuilder
             target = d;
         }
 
-        double lo = vs[leg].D1, hi = vs[leg + 1].D0;
+        double lo = vs[leg].D1 + parts.Back, hi = vs[leg + 1].D0 - parts.Forward;
         if (vs[leg].Kind == VertexKind.Bend) lo += BendMargin;
         if (vs[leg + 1].Kind == VertexKind.Bend) hi -= BendMargin;
         if (lo > hi) lo = hi = (vs[leg].D1 + vs[leg + 1].D0) / 2.0;
 
         double clamped = Math.Max(lo, Math.Min(hi, target));
-        if (why == null && Math.Abs(clamped - target) > VertexSnap) why = "is too close to a bend";
+        if (why == null && Math.Abs(clamped - target) > VertexSnap)
+            why = $"has too little straight for its parts ({parts.Back:F2} m back, {parts.Forward:F2} m on)";
         return clamped;
     }
 
     /// <summary>
     /// The leg and distance a change falling on the fitting of vertex
     /// <paramref name="i"/> moves to: the twin side of a Twin&lt;-&gt;Enkelt
-    /// change, otherwise the longer neighbouring straight;
-    /// <see cref="MovedBoundaryClearance"/> clear of the fitting, or mid-straight
-    /// when the straight is too short for that.
+    /// change, otherwise the longer neighbouring straight; at its end by the
+    /// fitting, from where the change's parts push it along the straight
+    /// (<see cref="StraightDistance"/>).
     /// </summary>
     private static (int Leg, double D) MoveClear(
         List<RouteVertex> vs, int i, LegacyIdentitySpan prev, LegacyIdentitySpan next)
@@ -864,11 +891,7 @@ internal static partial class NdhRouteBuilder
             ? IsTwin(prev.Type)
             : backHi - backLo > foreHi - foreLo;
 
-        (double lo, double hi) = back ? (backLo, backHi) : (foreLo, foreHi);
-        double d = hi - lo < 2.0 * MovedBoundaryClearance
-            ? (lo + hi) / 2.0
-            : back ? hi - MovedBoundaryClearance : lo + MovedBoundaryClearance;
-        return (back ? i - 1 : i, d);
+        return back ? (i - 1, backHi) : (i, foreLo);
     }
 
     /// <summary>
