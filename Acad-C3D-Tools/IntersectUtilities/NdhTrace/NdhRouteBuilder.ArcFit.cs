@@ -86,7 +86,7 @@ internal static partial class NdhRouteBuilder
     /// </summary>
     private static void FitArcs(
         List<RouteVertex> vs, Polyline centreline, IReadOnlyList<LegacyIdentitySpan> identities,
-        IReadOnlyList<ChangeStraight> parts, List<string> notes)
+        IReadOnlyList<PartStraight> parts, List<string> notes)
     {
         List<(int A, int B)> runs = new List<(int, int)>();
         for (int i = 1; i < vs.Count - 1;)

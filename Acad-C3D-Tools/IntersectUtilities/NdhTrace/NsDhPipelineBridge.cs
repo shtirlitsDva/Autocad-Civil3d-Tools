@@ -7,15 +7,15 @@ namespace IntersectUtilities.NdhTrace;
 
 /// <summary>
 /// Builds pipelines through the NDH district-heating module's flat C export
-/// NsDh_BuildPipeline, and asks it how much straight a change takes through
-/// NsDh_ChangeStraight (contract: NorsynDrawingTools
+/// NsDh_BuildPipeline, and asks it how much straight a change's and an elbow's
+/// parts take through NsDh_ChangeStraight and NsDh_ElbowStraight (contract: NorsynDrawingTools
 /// src/NorsynDistrictHeatingObjects/Api/NsDhPipelineBridge.h).
 ///
 /// The module is never loaded or [DllImport]ed here: that would pin the dbx and
 /// break its hot reload. The exports are looked up in the module AutoCAD already
 /// has mapped, on every call, so no pointer outlives a reload.
 /// </summary>
-internal sealed class NsDhPipelineBridge : INdhPipelineBuilder, INdhChangeStraight
+internal sealed class NsDhPipelineBridge : INdhPipelineBuilder, INdhPartStraight
 {
     private const string DbxModule = "NSNorsynDistrictHeating.dbx";
 
@@ -70,6 +70,7 @@ internal sealed class NsDhPipelineBridge : INdhPipelineBuilder, INdhChangeStraig
         public int Reserved;
         public double BackM;
         public double ForwardM;
+        public double MinimumPipeM;
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 512)] public string Detail;
     }
 
@@ -79,6 +80,10 @@ internal sealed class NsDhPipelineBridge : INdhPipelineBuilder, INdhChangeStraig
     [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
     private delegate int ChangeStraightFn(
         in PipeIdentity before, in PipeIdentity after, out ChangeStraightResult result);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
+    private delegate int ElbowStraightFn(
+        in PipeIdentity pipe, double turnDegrees, out ChangeStraightResult result);
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
     private delegate int BuildPipelineFn(
@@ -137,26 +142,44 @@ internal sealed class NsDhPipelineBridge : INdhPipelineBuilder, INdhChangeStraig
     /// catalogue and settings. A refusal is the module's sentence: the importer
     /// cannot place a change without it.
     /// </summary>
-    public ChangeStraight Of(LegacyIdentitySpan before, LegacyIdentitySpan after)
+    public PartStraight OfChange(LegacyIdentitySpan before, LegacyIdentitySpan after)
     {
         ChangeStraightFn ask = Resolve<ChangeStraightFn>(
             "NsDh_ChangeStraight", "NsDh_ChangeStraightVersion", "change straight",
             ExpectedChangeStraightVersion);
 
         int status = ask(IdentityOf(before), IdentityOf(after), out ChangeStraightResult r);
-        if (status != StatusOk)
-            throw new InvalidOperationException(
-                $"The straight of the change from {before.System} {before.Type} {before.Dn} to " +
-                $"{after.System} {after.Type} {after.Dn} could not be asked ({StatusName(status)}): {r.Detail}");
-        return new ChangeStraight(r.BackM, r.ForwardM);
-
-        static PipeIdentity IdentityOf(LegacyIdentitySpan s) => new PipeIdentity
-        {
-            Dn = s.Dn,
-            System = SystemToken(s.System),
-            Type = TypeToken(s.Type),
-        };
+        return Answered(status, r,
+            $"the change from {before.System} {before.Type} {before.Dn} to {after.System} {after.Type} {after.Dn}");
     }
+
+    /// <summary>
+    /// The legs of the elbow a pipe takes on a sharp corner, asked the same way.
+    /// </summary>
+    public PartStraight OfElbow(LegacyIdentitySpan pipe, double turnDegrees)
+    {
+        //The elbow is versioned with the change straight: one surface.
+        ElbowStraightFn ask = Resolve<ElbowStraightFn>(
+            "NsDh_ElbowStraight", "NsDh_ChangeStraightVersion", "change straight",
+            ExpectedChangeStraightVersion);
+
+        int status = ask(IdentityOf(pipe), turnDegrees, out ChangeStraightResult r);
+        return Answered(status, r,
+            $"the {turnDegrees:F1} degree elbow of {pipe.System} {pipe.Type} {pipe.Dn}");
+    }
+
+    private static PartStraight Answered(int status, ChangeStraightResult r, string what) =>
+        status == StatusOk
+            ? new PartStraight(r.BackM, r.ForwardM, r.MinimumPipeM)
+            : throw new InvalidOperationException(
+                $"The straight of {what} could not be asked ({StatusName(status)}): {r.Detail}");
+
+    private static PipeIdentity IdentityOf(LegacyIdentitySpan s) => new PipeIdentity
+    {
+        Dn = s.Dn,
+        System = SystemToken(s.System),
+        Type = TypeToken(s.Type),
+    };
 
     /// <summary>
     /// The export, from the module as it is mapped right now, after checking
