@@ -145,10 +145,19 @@
 		</Reference>
 	</ItemGroup>
 
-	<!-- On-demand loader: shared source from the NorsynDrawingTools repo on X:. Provides
+	<!-- On-demand loader: shared source from the NorsynDrawingTools repo. Provides
 	     NorsynProjectionProfileLabelLoader.EnsureLoaded(), called at the start of any command
 	     that uses NPPL types so the proxy-only dbx is loaded before the interop. -->
-	<Import Project="X:\GitHub\DamgaardRI\NorsynDrawingTools\managed\NorsynOnDemandLoadingSHARED\NorsynOnDemandLoadingSHARED.projitems" Label="Shared" />
+	<PropertyGroup>
+		<NorsynDrawingToolsRoot Condition="'$(NorsynDrawingToolsRoot)' == '' And Exists('X:\GitHub\DamgaardRI\NorsynDrawingTools\managed\NorsynOnDemandLoadingSHARED\NorsynOnDemandLoadingSHARED.projitems')">X:\GitHub\DamgaardRI\NorsynDrawingTools</NorsynDrawingToolsRoot>
+		<NorsynDrawingToolsRoot Condition="'$(NorsynDrawingToolsRoot)' == '' And Exists('$(MSBuildProjectDirectory)\..\..\..\..\DamgaardRI\NorsynDrawingTools\managed\NorsynOnDemandLoadingSHARED\NorsynOnDemandLoadingSHARED.projitems')">$(MSBuildProjectDirectory)\..\..\..\..\DamgaardRI\NorsynDrawingTools</NorsynDrawingToolsRoot>
+		<NorsynDrawingToolsRoot Condition="'$(NorsynDrawingToolsRoot)' == '' And Exists('$(USERPROFILE)\source\repos\DamgaardRI\NorsynDrawingTools\managed\NorsynOnDemandLoadingSHARED\NorsynOnDemandLoadingSHARED.projitems')">$(USERPROFILE)\source\repos\DamgaardRI\NorsynDrawingTools</NorsynDrawingToolsRoot>
+		<NorsynOnDemandLoadingSharedProjItems>$(NorsynDrawingToolsRoot)\managed\NorsynOnDemandLoadingSHARED\NorsynOnDemandLoadingSHARED.projitems</NorsynOnDemandLoadingSharedProjItems>
+	</PropertyGroup>
+	<Import Project="$(NorsynOnDemandLoadingSharedProjItems)" Label="Shared" Condition="Exists('$(NorsynOnDemandLoadingSharedProjItems)')" />
+	<Target Name="EnsureNorsynOnDemandLoadingSharedProjItemsExists" BeforeTargets="PrepareForBuild" Condition="'$(NorsynDrawingToolsRoot)' == '' Or !Exists('$(NorsynOnDemandLoadingSharedProjItems)')">
+		<Error Text="Could not locate NorsynOnDemandLoadingSHARED.projitems. Set the MSBuild property NorsynDrawingToolsRoot to the NorsynDrawingTools repo root, or restore the old X:\GitHub\DamgaardRI\NorsynDrawingTools path." />
+	</Target>
 	<ItemGroup>
 		<Content Include="DebugCommandLineAttribute.txt" />
 	</ItemGroup>
