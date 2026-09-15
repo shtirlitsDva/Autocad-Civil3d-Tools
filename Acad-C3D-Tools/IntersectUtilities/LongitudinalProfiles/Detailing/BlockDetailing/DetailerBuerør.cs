@@ -23,10 +23,12 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.BlockDetailing
             double firstStation = 0, secondStation = 0, offset = 0;
             Point3d pos = default;
             pos = locations.First();
-            var res1 = context.Alignment.GetStationOffset(pos);
+            if (!TryGetProjectedStationOffset(context, sourceBlock, pos, out StationOffsetResult res1))
+                return;
             firstStation = res1.Station; offset = res1.Offset;
             pos = locations.Last();
-            var res2 = context.Alignment.GetStationOffset(pos);
+            if (!TryGetProjectedStationOffset(context, sourceBlock, pos, out StationOffsetResult res2))
+                return;
             secondStation = res2.Station; offset = res2.Offset;
 
             double station = firstStation > secondStation
@@ -35,7 +37,7 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.BlockDetailing
 
             double bueRorLength = Math.Abs(firstStation - secondStation);
 
-            if (!(station > context.ProfileViewStartStation && station < context.ProfileViewEndStation))
+            if (!IsWithinProfileView(station, context))
                 return;
 
             Point3d insertion = ComputeInsertionPoint(station, context);
@@ -58,6 +60,27 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.BlockDetailing
             SetAttribute(target, "TEXT", augmentedType);
 
             WriteSourceReference(target, context, sourceBlock.Handle.ToString(), station);
+        }
+
+        private static bool TryGetProjectedStationOffset(
+            BlockDetailingContext context,
+            BlockReference sourceBlock,
+            Point3d point,
+            out StationOffsetResult result)
+        {
+            result = default;
+            try
+            {
+                Point3d location = context.AlignmentPolyline.GetClosestPointTo(point, false);
+                result = context.Alignment.GetStationOffset(location);
+                return true;
+            }
+            catch (Autodesk.Civil.PointNotOnEntityException)
+            {
+                UtilsCommon.Utils.prdDbg(
+                    $"Skipping Buerør block {sourceBlock.Handle}: MuffeIntern point {point} cannot be stationed on the alignment.");
+                return false;
+            }
         }
 
         private static List<Point3d> FindMuffeInternWorldPositions(BlockReference br, Transaction tx)
