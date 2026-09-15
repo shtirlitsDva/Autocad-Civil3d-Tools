@@ -99,7 +99,7 @@ internal static partial class NdhRouteBuilder
         if (runs.Count == 0) return;
 
         TraceSamples trace = new TraceSamples(centreline);
-        double[] changes = identities.Skip(1).Select(s => s.StartDist).ToArray();
+        double[] changes = identities.Skip(1).Select(s => s.ChangeDist).ToArray();
         //From the last run back, so a fitted run leaves the earlier runs' indices alone.
         for (int r = runs.Count - 1; r >= 0; r--)
             FitRun(vs, runs[r].A, runs[r].B, trace, centreline, changes, notes);

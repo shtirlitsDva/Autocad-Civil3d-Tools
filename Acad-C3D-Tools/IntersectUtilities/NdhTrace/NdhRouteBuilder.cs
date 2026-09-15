@@ -48,11 +48,14 @@ internal sealed class NdhRoute
 /// A corner made by a fixed-angle legacy elbow is nudged to turn exactly that
 /// angle: the block is the evidence of the part, the drafted corner only near it.
 ///
-/// Identity changes keep their legacy position wherever it is on a straight:
-/// elastic bends are sized around them. A change inside a legacy arc or on a
-/// sharp corner is moved clear onto a straight and reported. A Twin&lt;-&gt;Enkelt
-/// change goes to the centre of its legacy Y-rør, where the new pipeline
-/// centres its own.
+/// An identity change stands where the centre of its legacy part stands, which
+/// is where the new pipeline centres its own part; elastic bends are sized
+/// around it. A change inside a legacy arc or on a sharp corner is moved clear
+/// onto a straight and reported. A stretch with no legacy pipe of its own is the
+/// length of the parts around it, so the changes on either side of it are ONE
+/// change: a Y-model with a materialeskift welded to its end is sent as bonded
+/// steel to twin AluPex, and the new pipeline lays the Y-rør and the
+/// materialeskift itself, at the catalogue's distances.
 /// </summary>
 internal static partial class NdhRouteBuilder
 {
@@ -98,10 +101,6 @@ internal static partial class NdhRouteBuilder
     //...and every bend keeps this much straight between itself and a
     //boundary or a pipeline end.
     private const double BoundaryRoom = 0.5;
-    //An identity span this short at a pipeline end, or between two spans of
-    //one identity, is the size of a component (a transition stub, a tee), not
-    //of pipe.
-    private const double ShortSpanLength = 1.0;
     //Setbacks must fit their leg with this much to spare.
     private const double LegSlack = 1e-6;
     //An F-rør merges twin and bonded AND turns, so a Twin<->Enkelt change may
@@ -121,9 +120,6 @@ internal static partial class NdhRouteBuilder
     //Gauss-Newton settles the snap in a handful of steps; needing more means
     //the constraints conflict.
     private const int MaxSnapIterations = 50;
-    //How far a Twin<->Enkelt change may be from the centre of the Y-rør that
-    //makes it: half the longest Y-rør, with room.
-    private const double YChangeReach = 3.0;
 
     private enum Kind { Line, Arc }
 
@@ -185,7 +181,7 @@ internal static partial class NdhRouteBuilder
         FitFillets(vs, route.Adjustments);
         FilletZones(vs, centreline);
         List<(RouteVertex V, LegacyIdentitySpan Span)> bounds = PlaceBoundaries(
-            vs, identities, trace.YCentres, centreline, route.Adjustments);
+            vs, identities, centreline, route.Adjustments);
         //A boundary kept right at a fillet's tangent point can leave the leg
         //between them a hair short of the fillet's setback.
         FitFillets(vs, route.Adjustments);
@@ -672,34 +668,40 @@ internal static partial class NdhRouteBuilder
     #region Boundaries
     /// <summary>
     /// The identity spans the pipeline is built with: neighbours of one
-    /// identity merged, and a span shorter than <see cref="ShortSpanLength"/>
-    /// dropped where it is a component's size rather than pipe - at either end
-    /// of the pipeline, or between two lengths of one identity.
+    /// identity merged, and every span with no legacy pipe of its own dropped -
+    /// it is the length of the parts around it. The pipe after it then starts
+    /// where it started, and its change stands where the dropped span's did: at
+    /// the first part met, which the new pipeline puts on the change's vertex
+    /// and lays the rest of the chain downstream of.
     /// </summary>
     private static List<LegacyIdentitySpan> CleanSpans(
         IReadOnlyList<LegacyIdentitySpan> spans, List<string> notes)
     {
         List<LegacyIdentitySpan> result = Merge(spans);
-        for (int i = 0; i < result.Count && result.Count > 1;)
+        for (int i = result.FindIndex(s => !s.HasPipe); i >= 0 && result.Count > 1;
+             i = result.FindIndex(s => !s.HasPipe))
         {
             LegacyIdentitySpan s = result[i];
-            double length = s.EndDist - s.StartDist;
-            bool atEnd = i == 0 || i == result.Count - 1;
-            bool blip = !atEnd && SameIdentity(result[i - 1], result[i + 1]);
-            if (length >= ShortSpanLength || !(atEnd || blip))
-            {
-                i++;
-                continue;
-            }
-
-            notes.Add($"{length:F2} m of {Describe(s)} at {s.StartDist:F2} m " +
-                (atEnd ? "at the pipeline end" : $"between two lengths of {Describe(result[i - 1])}") +
-                " dropped");
             result.RemoveAt(i);
-            if (i == 0) result[0] = result[0] with { StartDist = s.StartDist };
-            else result[i - 1] = result[i - 1] with { EndDist = s.EndDist };
+            if (i == 0)
+            {
+                result[0] = result[0] with { StartDist = s.StartDist, ChangeDist = s.StartDist };
+                notes.Add($"{s.EndDist - s.StartDist:F2} m of {Describe(s)} at the pipeline start has no pipe " +
+                    "of its own, dropped");
+            }
+            else if (i < result.Count)
+            {
+                result[i] = result[i] with { StartDist = s.StartDist, ChangeDist = s.ChangeDist };
+                notes.Add($"{s.EndDist - s.StartDist:F2} m of {Describe(s)} at {s.StartDist:F2} m has no pipe " +
+                    $"of its own: the change to {Describe(result[i])} stands at {s.ChangeDist:F2} m");
+            }
+            else
+            {
+                result[i - 1] = result[i - 1] with { EndDist = s.EndDist };
+                notes.Add($"{s.EndDist - s.StartDist:F2} m of {Describe(s)} at the pipeline end has no pipe " +
+                    "of its own, dropped");
+            }
             result = Merge(result);
-            i = 0;
         }
         return result;
     }
@@ -710,7 +712,8 @@ internal static partial class NdhRouteBuilder
         foreach (LegacyIdentitySpan s in spans)
         {
             if (merged.Count > 0 && SameIdentity(merged[merged.Count - 1], s))
-                merged[merged.Count - 1] = merged[merged.Count - 1] with { EndDist = s.EndDist };
+                merged[merged.Count - 1] = merged[merged.Count - 1] with
+                { EndDist = s.EndDist, HasPipe = merged[merged.Count - 1].HasPipe || s.HasPipe };
             else merged.Add(s);
         }
         return merged;
@@ -718,15 +721,14 @@ internal static partial class NdhRouteBuilder
 
     /// <summary>
     /// A vertex per identity change, in route order: on the F-rør corner the
-    /// change is served by, else on the straight at its legacy position (for a
-    /// Twin&lt;-&gt;Enkelt change, the centre of its Y-rør), else moved clear of
-    /// the legacy arc or corner it falls on. A change moved onto or past the one
-    /// before it leaves that one no length; that one is dropped.
+    /// change is served by, else on the straight at the centre of its legacy
+    /// part, else moved clear of the legacy arc or corner it falls on. A change
+    /// moved onto or past the one before it leaves that one no length; that one
+    /// is dropped.
     /// </summary>
     private static List<(RouteVertex, LegacyIdentitySpan)> PlaceBoundaries(
         List<RouteVertex> vs,
         List<LegacyIdentitySpan> spans,
-        IReadOnlyList<double> yCentres,
         Polyline centreline,
         List<string> notes)
     {
@@ -735,24 +737,21 @@ internal static partial class NdhRouteBuilder
         {
             LegacyIdentitySpan prev = spans[w - 1];
             LegacyIdentitySpan s = spans[w];
-            string what = $"change to {Describe(s)} at {s.StartDist:F2} m";
+            string what = $"change to {Describe(s)} at {s.ChangeDist:F2} m";
 
             RouteVertex? v;
             double d;
-            int fc = FCornerFor(vs, s.StartDist, prev, s);
+            int fc = FCornerFor(vs, s.ChangeDist, prev, s);
             if (fc >= 0)
             {
                 v = vs[fc];
                 d = v.D0;
-                if (Math.Abs(d - s.StartDist) > VertexSnap)
+                if (Math.Abs(d - s.ChangeDist) > VertexSnap)
                     notes.Add($"{what} put on the F-rør corner at {d:F2} m");
             }
             else
             {
-                double legacy = YCentreFor(yCentres, s.StartDist, prev, s) ?? s.StartDist;
-                if (Math.Abs(legacy - s.StartDist) > VertexSnap)
-                    notes.Add($"{what} put on the centre of its Y-rør at {legacy:F2} m");
-                d = StraightDistance(vs, legacy, prev, s, out string? why);
+                d = StraightDistance(vs, s.ChangeDist, prev, s, out string? why);
                 if (why != null) notes.Add($"{what} {why}, moved to {d:F2} m");
                 v = VertexOnStraight(vs, d, centreline);
                 if (v == null)
@@ -787,25 +786,6 @@ internal static partial class NdhRouteBuilder
         }
 
         return placed.Select(p => (p.V, p.Span)).ToList();
-    }
-
-    /// <summary>
-    /// The centre of the Y-rør making a Twin&lt;-&gt;Enkelt change at distance
-    /// <paramref name="d"/>. The new pipeline centres its Y-rør on the change's
-    /// vertex, where the legacy size array puts the change at the Y's end. Null
-    /// for any other change, or with no Y-rør within <see cref="YChangeReach"/>.
-    /// </summary>
-    private static double? YCentreFor(
-        IReadOnlyList<double> yCentres, double d, LegacyIdentitySpan prev, LegacyIdentitySpan next)
-    {
-        if (IsTwin(prev.Type) == IsTwin(next.Type)) return null;
-
-        double? best = null;
-        foreach (double y in yCentres)
-            if (Math.Abs(y - d) <= YChangeReach &&
-                (best == null || Math.Abs(y - d) < Math.Abs(best.Value - d)))
-                best = y;
-        return best;
     }
 
     /// <summary>
@@ -924,9 +904,7 @@ internal static partial class NdhRouteBuilder
 
     private static bool IsTwin(PipeTypeEnum type) => type == PipeTypeEnum.Twin;
 
-    /// <summary>One identity as the pipeline sees it: Frem, Retur and Enkelt are all the bonded pair.</summary>
-    private static bool SameIdentity(LegacyIdentitySpan a, LegacyIdentitySpan b) =>
-        a.System == b.System && IsTwin(a.Type) == IsTwin(b.Type) && a.Dn == b.Dn;
+    private static bool SameIdentity(LegacyIdentitySpan a, LegacyIdentitySpan b) => a.Identity == b.Identity;
 
     private static string Describe(LegacyIdentitySpan s) => $"{s.System} {s.Type} DN{s.Dn}";
     #endregion

@@ -22,13 +22,32 @@ namespace IntersectUtilities.NdhTrace;
 /// One stretch of constant pipe identity along a traced Centreline, measured as
 /// distance along that Centreline.
 /// </summary>
+/// <param name="ChangeDist">
+/// Where the change INTO this stretch stands: the centre of the part that makes
+/// it, where the new pipeline centres its own part. The first stretch starts
+/// the pipeline and has no change; its ChangeDist is its StartDist.
+/// </param>
+/// <param name="HasPipe">
+/// Whether a legacy pipe of this identity lies on the stretch. A stretch with
+/// none is the length of the parts around it - a Y-model with a materialeskift
+/// welded to its end, a reducer at a pipeline end - and not pipe.
+/// </param>
 internal readonly record struct LegacyIdentitySpan(
     double StartDist,
     double EndDist,
     PipeSystemEnum System,
     PipeTypeEnum Type,
     int Dn,
-    PipeSeriesEnum Series);
+    PipeSeriesEnum Series,
+    double ChangeDist,
+    bool HasPipe)
+{
+    /// <summary>One identity as the pipeline sees it: Frem, Retur and Enkelt are all the bonded pair.</summary>
+    public static (PipeSystemEnum System, bool Twin, int Dn) IdentityOf(
+        PipeSystemEnum system, PipeTypeEnum type, int dn) => (system, type == PipeTypeEnum.Twin, dn);
+
+    public (PipeSystemEnum System, bool Twin, int Dn) Identity => IdentityOf(System, Type, Dn);
+}
 
 internal enum LegacyCornerKind
 {
@@ -57,22 +76,18 @@ internal sealed class LegacyPipelineTrace : IDisposable
         string name,
         Polyline centreline,
         IReadOnlyList<LegacyIdentitySpan> spans,
-        IReadOnlyList<LegacyCorner> corners,
-        IReadOnlyList<double> yCentres)
+        IReadOnlyList<LegacyCorner> corners)
     {
         Name = name;
         Centreline = centreline;
         Spans = spans;
         Corners = corners;
-        YCentres = yCentres;
     }
 
     public string Name { get; }
     public Polyline Centreline { get; }
     public IReadOnlyList<LegacyIdentitySpan> Spans { get; }
     public IReadOnlyList<LegacyCorner> Corners { get; }
-    /// <summary>Centreline distance of the centre of every Y-rør on the pipeline, ascending.</summary>
-    public IReadOnlyList<double> YCentres { get; }
 
     public void Dispose() => Centreline.Dispose();
 }
@@ -176,6 +191,11 @@ internal static class FjvLegacyPipelineReader
             IPipelineV2 pipeline = PipelineV2Factory.CreateFromTopology(
                 ents, (Polyline)centreline.Clone());
             IPipelineSizeArrayV2 sizes = PipelineSizeArrayFactory.CreateSizeArray(pipeline);
+            List<(double Station, BlockReference Block)> sizeBlocks = blocks
+                .Where(x => x.ReadDynamicCsvProperty(DynamicProperty.Function, false) == "SizeArray")
+                .Select(x => (pipeline.GetBlockStation(x), x))
+                .ToList();
+            List<LegacyPipe> pipePieces = pipes.Select(x => PipeOn(x, centreline)).ToList();
 
             List<LegacyIdentitySpan> spans = new List<LegacyIdentitySpan>();
             for (int i = 0; i < sizes.Length; i++)
@@ -190,8 +210,12 @@ internal static class FjvLegacyPipelineReader
                 //end) yields an empty size entry: there is no pipe of it.
                 if (end - start < MinSpanLength) continue;
 
+                (PipeSystemEnum, bool, int) identity = LegacyIdentitySpan.IdentityOf(s.System, s.Type, s.DN);
                 spans.Add(new LegacyIdentitySpan(
-                    start, end, s.System, s.Type, s.DN, s.Series));
+                    start, end, s.System, s.Type, s.DN, s.Series,
+                    i == 0 ? start : ChangeCentre(sizeBlocks, s.StartStation, centreline, tx),
+                    pipePieces.Any(p => p.Identity == identity &&
+                        Math.Min(p.EndDist, end) - Math.Max(p.StartDist, start) >= MinSpanLength)));
             }
 
             if (spans.Count == 0)
@@ -203,9 +227,9 @@ internal static class FjvLegacyPipelineReader
             spans[spans.Count - 1] = spans[spans.Count - 1] with { EndDist = centreline.Length };
             for (int i = 1; i < spans.Count; i++)
                 spans[i] = spans[i] with { StartDist = spans[i - 1].EndDist };
+            spans[0] = spans[0] with { ChangeDist = 0.0 };
 
-            return new LegacyPipelineTrace(
-                name, centreline, spans, Corners(blocks), YCentres(blocks, centreline, tx));
+            return new LegacyPipelineTrace(name, centreline, spans, Corners(blocks));
         }
         catch
         {
@@ -244,9 +268,6 @@ internal static class FjvLegacyPipelineReader
         [PipelineElementType.Kedelrørsbøjning] = double.NaN,
     };
 
-    //A Y-rør further than this off the Centreline sits on another pipeline.
-    private const double YReach = 2.0;
-
     private static List<LegacyCorner> Corners(IEnumerable<BlockReference> blocks)
     {
         List<LegacyCorner> corners = new List<LegacyCorner>();
@@ -264,30 +285,36 @@ internal static class FjvLegacyPipelineReader
         return corners;
     }
 
-    /// <summary>
-    /// The Centreline distance of each Y-rør's centre: the middle of the
-    /// block's own geometry, taken in block space so it is the middle along
-    /// the part's axis.
-    /// </summary>
-    private static List<double> YCentres(
-        IEnumerable<BlockReference> blocks, Polyline centreline, Transaction tx)
+    /// <summary>One legacy pipe, as the stretch of Centreline it lies along.</summary>
+    private readonly record struct LegacyPipe(
+        double StartDist, double EndDist, (PipeSystemEnum System, bool Twin, int Dn) Identity);
+
+    private static LegacyPipe PipeOn(Polyline pipe, Polyline centreline)
     {
-        List<double> stations = new List<double>();
-        foreach (BlockReference br in blocks)
-        {
-            if (!TryGetType(br, out PipelineElementType type) ||
-                type != PipelineElementType.Y_Model) continue;
-
-            Point3d? centre = DefinitionCentre(br, tx);
-            if (centre == null) continue;
-
-            Point3d on = centreline.GetClosestPointTo(centre.Value, false);
-            if (on.DistanceHorizontalTo(centre.Value) > YReach) continue;
-            stations.Add(centreline.GetDistAtPoint(on));
-        }
-        stations.Sort();
-        return stations;
+        double a = DistAt(centreline, pipe.StartPoint), b = DistAt(centreline, pipe.EndPoint);
+        return new LegacyPipe(Math.Min(a, b), Math.Max(a, b),
+            LegacyIdentitySpan.IdentityOf(GetPipeSystem(pipe), GetPipeType(pipe), GetPipeDN(pipe)));
     }
+
+    /// <summary>
+    /// The Centreline distance of the centre of the size block making the change
+    /// at <paramref name="station"/>: the size array breaks at each such block's
+    /// station, so it is the one standing there. The centre is the middle of the
+    /// block's own geometry, taken in block space so it is the middle along the
+    /// part's axis - a Y-model is inserted at one of its ends.
+    /// </summary>
+    private static double ChangeCentre(
+        List<(double Station, BlockReference Block)> sizeBlocks, double station,
+        Polyline centreline, Transaction tx)
+    {
+        BlockReference maker = sizeBlocks.MinBy(x => Math.Abs(x.Station - station)).Block;
+        return DefinitionCentre(maker, tx) is Point3d centre
+            ? DistAt(centreline, centre)
+            : Clamp(station, centreline.Length);
+    }
+
+    private static double DistAt(Polyline centreline, Point3d p) =>
+        centreline.GetDistAtPoint(centreline.GetClosestPointTo(p, false));
 
     private static Point3d? DefinitionCentre(BlockReference br, Transaction tx)
     {
