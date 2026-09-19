@@ -71,23 +71,28 @@ namespace IntersectUtilities
             }
             if (fjvPath == null) return;
 
-            NdhImportReport report;
+            //The command owns the report, so an import that throws half way
+            //still says what it already built and connected before it says
+            //that it stopped (review of #319, I2).
+            NdhImportReport report = new NdhImportReport();
             try
             {
                 //No transaction of ours may be open here: every NDH export opens
                 //and closes the working drawing's objects itself. Everything
                 //happens inside this one command, so one UNDO takes it all back.
                 NsDhPipelineBridge ndh = new NsDhPipelineBridge();
-                report = NdhFromFjvImport.Run(fjvPath, new NdhImportServices(
+                NdhFromFjvImport.Run(fjvPath, new NdhImportServices(
                     ndh,
                     ndh,
                     new NsDhConnectionBridge(),
                     new NsDhSettingsBridge(),
                     new WpfImportDialogs(),
-                    new AcadImportMarkers(localDb)));
+                    new AcadImportMarkers(localDb)), report);
             }
             catch (System.Exception ex)
             {
+                //Nothing to say before the legacy drawing was read.
+                if (report.LegacyPipelineCount > 0) PrintNdhImportReport(report, fjvPath);
                 prdDbg($"NDHFROMFJV stoppede: {ex.Message}");
                 prdDbg(ex);
                 return;
@@ -114,8 +119,8 @@ namespace IntersectUtilities
             PrintNdhSection("Afvist", report.Refused);
             PrintNdhSection("Producent", report.ProducerReport);
             PrintNdhSection("Serierapport", report.SeriesReport);
-            if (report.Skipped.Count > 0 || report.Refused.Count > 0)
-                prdDbg($"Markeringer ligger på laget {AcadImportMarkers.Layer}.");
+            if (report.MarkersPlaced > 0)
+                prdDbg($"{report.MarkersPlaced} markeringer ligger på laget {AcadImportMarkers.Layer}.");
         }
 
         private static void PrintNdhSection(string title, List<string> lines)

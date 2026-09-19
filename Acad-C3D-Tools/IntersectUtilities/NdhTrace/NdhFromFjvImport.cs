@@ -37,6 +37,8 @@ internal sealed class NdhImportReport
     public List<string> Refused { get; } = new List<string>();
     public List<string> ProducerReport { get; } = new List<string>();
     public List<string> SeriesReport { get; } = new List<string>();
+    /// <summary>How many markers were placed on the marker layer.</summary>
+    public int MarkersPlaced { get; set; }
 }
 
 /// <summary>Everything the import talks to, so each piece can be replaced.</summary>
@@ -63,13 +65,15 @@ internal sealed record NdhImportServices(
 /// Everything runs inside the one NDHFROMFJV command, so one UNDO takes the
 /// whole import back: the NDH exports commit undoable transactions of the
 /// command, and the markers are written in the command too.
+///
+/// The report belongs to the caller and is filled as the import goes: when a
+/// step throws after the first write, what was already built and connected is
+/// still in it, for the command to print (review of #319, I2).
 /// </summary>
 internal static class NdhFromFjvImport
 {
-    public static NdhImportReport Run(string fjvPath, NdhImportServices services)
+    public static void Run(string fjvPath, NdhImportServices services, NdhImportReport report)
     {
-        NdhImportReport report = new NdhImportReport();
-
         //1.
         using LegacyDrawing legacy = LegacyDrawingReader.Read(fjvPath);
         report.LegacyPipelineCount = legacy.Traces.Traces.Count + legacy.Traces.Skipped.Count;
@@ -77,7 +81,7 @@ internal static class NdhFromFjvImport
 
         //2. + 3.
         if (!DrawingSettingsStep.Apply(legacy.Settings, services.Settings, services.Dialogs, report))
-            return report;
+            return;
 
         //4.
         using MergedTraces merged = LegacyTraceMerger.Merge(legacy.Traces.Traces, legacy.Joins, legacy.DepthOf);
@@ -91,9 +95,7 @@ internal static class NdhFromFjvImport
         List<ImportMarker> markers = BranchConnectionStep.Run(legacy, merged, built, services.Connector, report);
 
         //7.
-        services.Markers.Place(markers);
-
-        return report;
+        report.MarkersPlaced = services.Markers.Place(markers);
     }
 
     /// <summary>

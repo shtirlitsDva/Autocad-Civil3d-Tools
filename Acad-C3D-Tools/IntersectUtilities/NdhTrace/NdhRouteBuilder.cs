@@ -145,8 +145,10 @@ internal static partial class NdhRouteBuilder
     //turns within this of it; further off it is not that part.
     private static readonly double MaxAngleSnap = ToRad(2.0);
     //Snapped corners turn their angle to within this (radians), and elbow
-    //legs keep their length to within this (metres) - well inside the
-    //pipeline's own angle tolerance of 1e-3 degrees.
+    //legs keep their length to within this (metres) - ten times inside NDH's
+    //own angle tolerance, kPipeAngleTolerance = 1e-6 radians (NorsynCore
+    //BendCalculator.h; about 5.7e-5 degrees), the figure FCornerSquare above
+    //reads too.
     private const double SnappedTurnTolerance = 1e-7;
     //A leg up to this long between two snapped elbows, or from one to a
     //pipeline end, is the elbows' own leg: snapping keeps its length.
@@ -747,8 +749,12 @@ internal static partial class NdhRouteBuilder
     /// may not be a part of fixed angle or a change's straight vertex (its turn
     /// would change), the other leg must be at least twice the move, and the
     /// moved corner stays within half of <see cref="MaxTraceDeviation"/> of the
-    /// trace (the arc SizeBends puts there takes the other half). Otherwise the
-    /// bend stays, and the report says why.
+    /// trace (the arc SizeBends puts there takes the other half). The moved
+    /// bend may not land in ANY junction's seat - two junctions close together
+    /// would otherwise trade one bend between them (review of #319, I8): the
+    /// nearer edge is tried first, then the farther one. Otherwise the bend
+    /// stays, the report says why, and NDH refuses the junction loudly as it
+    /// would have anyway - never a silent move into a worse place.
     /// </summary>
     private static void ClearJunctions(
         List<RouteVertex> vs, IReadOnlyList<(double Lo, double Hi)> seats, List<string> notes)
@@ -761,36 +767,56 @@ internal static partial class NdhRouteBuilder
                 RouteVertex v = vs[i];
                 if (v.Kind != VertexKind.Bend || v.D0 <= lo || v.D0 >= hi) continue;
 
-                bool back = v.D0 - lo <= hi - v.D0;
-                //The neighbour on the junction's side keeps its leg's line; the
-                //other one's leg swings.
-                RouteVertex keep = back ? vs[i + 1] : vs[i - 1];
-                RouteVertex other = back ? vs[i - 1] : vs[i + 1];
-                double s = (back ? v.D0 - lo : hi - v.D0) + JunctionClearance;
-                Point2d moved = v.P + (v.P - keep.P).GetNormal() * s;
-
-                string? why =
-                    other.Kind == VertexKind.Straight || !double.IsNaN(other.NominalTurn)
-                        ? "its other neighbour may not turn"
-                    : s > v.P.GetDistanceTo(other.P) / 2.0 ? "its other leg is too short"
-                    //The kept straight runs on over the old corner, so the
-                    //route strays furthest at the moved corner, off the
-                    //trace's other leg.
-                    : SegmentDistance(moved, v.P, other.P) > MaxTraceDeviation / 2.0
-                        ? "the route would stray too far from the trace"
-                    : null;
-                if (why != null)
+                bool nearerIsBack = v.D0 - lo <= hi - v.D0;
+                BendMove near = MoveOutOfSeat(vs, i, lo, hi, nearerIsBack, seats);
+                BendMove move = near.Why == null ? near : MoveOutOfSeat(vs, i, lo, hi, !nearerIsBack, seats);
+                if (move.Why != null)
                 {
-                    notes.Add($"bend at {v.D0:F2} m stands in the branch junction at {seat} and stays: {why}");
+                    notes.Add($"bend at {v.D0:F2} m stands in the branch junction at {seat} and stays: " +
+                        $"{near.Why}; out the other side, {move.Why}");
                     continue;
                 }
 
-                notes.Add($"bend at {v.D0:F2} m moved {s:F2} m out of the branch junction at {seat}, " +
+                notes.Add($"bend at {v.D0:F2} m moved {move.Distance:F2} m out of the branch junction at {seat}, " +
                     "so the main runs straight through it");
-                v.P = moved;
-                v.D0 = v.D1 = back ? v.D0 - s : v.D0 + s;
+                v.P = move.To;
+                v.D0 = v.D1 = move.ToD;
             }
         }
+    }
+
+    /// <summary>A bend moved out of a seat: where to, or why it may not go (then the rest is meaningless).</summary>
+    private readonly record struct BendMove(Point2d To, double ToD, double Distance, string? Why);
+
+    /// <summary>
+    /// Bend <paramref name="i"/> moved out of the seat [lo, hi] through its back
+    /// (toward the route's start) or front edge and <see cref="JunctionClearance"/>
+    /// on, along the straight on the junction's side of it.
+    /// </summary>
+    private static BendMove MoveOutOfSeat(
+        List<RouteVertex> vs, int i, double lo, double hi, bool back, IReadOnlyList<(double Lo, double Hi)> seats)
+    {
+        RouteVertex v = vs[i];
+        //The neighbour on the junction's side keeps its leg's line; the other
+        //one's leg swings.
+        RouteVertex keep = back ? vs[i + 1] : vs[i - 1];
+        RouteVertex other = back ? vs[i - 1] : vs[i + 1];
+        double s = (back ? v.D0 - lo : hi - v.D0) + JunctionClearance;
+        Point2d moved = v.P + (v.P - keep.P).GetNormal() * s;
+        double movedD = back ? v.D0 - s : v.D0 + s;
+
+        string? why =
+            other.Kind == VertexKind.Straight || !double.IsNaN(other.NominalTurn)
+                ? "its other neighbour may not turn"
+            : s > v.P.GetDistanceTo(other.P) / 2.0 ? "its other leg is too short"
+            //The kept straight runs on over the old corner, so the route
+            //strays furthest at the moved corner, off the trace's other leg.
+            : SegmentDistance(moved, v.P, other.P) > MaxTraceDeviation / 2.0
+                ? "the route would stray too far from the trace"
+            : seats.Any(x => movedD > x.Lo && movedD < x.Hi)
+                ? "moved out, it would stand in another branch junction"
+            : null;
+        return new BendMove(moved, movedD, s, why);
     }
     #endregion
 

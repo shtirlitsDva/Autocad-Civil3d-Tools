@@ -96,20 +96,32 @@ internal static class LegacyBranchFinder
     }
 
     /// <summary>
-    /// The candidates grouped into junctions: the same part joining the same
-    /// two pipelines, their branch ports within <see cref="JunctionReach"/> of
-    /// the group's first.
+    /// The branch a candidate resolved: "" when it names none, or names its
+    /// own main (the svanehals / drawing-error filing <see cref="Add"/> sorts out).
+    /// </summary>
+    private static string ResolvedBranch(Candidate c) =>
+        c.BranchName.IsNotNoE() && c.BranchName != c.MainName ? c.BranchName : "";
+
+    /// <summary>
+    /// The candidates grouped into junctions: the same part on the same main,
+    /// their branch ports within <see cref="JunctionReach"/> of the group's
+    /// first, and no two DIFFERENT branches named. The branch is not part of
+    /// the key: the two carriers of a bonded junction are two blocks, and one
+    /// may resolve its branch while the other does not (review of #319, I3 -
+    /// keyed on the branch too, such a pair split into one junction connected
+    /// and one marked "names no branch").
     /// </summary>
     private static List<List<Candidate>> Junctions(List<Candidate> candidates)
     {
         List<List<Candidate>> junctions = new List<List<Candidate>>();
         foreach (Candidate c in candidates)
         {
+            string branch = ResolvedBranch(c);
             List<Candidate>? same = junctions.FirstOrDefault(j =>
                 j[0].Part.Navn == c.Part.Navn &&
                 j[0].MainName == c.MainName &&
-                j[0].BranchName == c.BranchName &&
-                j[0].Part.BranchPort.GetDistanceTo(c.Part.BranchPort) <= JunctionReach);
+                j[0].Part.BranchPort.GetDistanceTo(c.Part.BranchPort) <= JunctionReach &&
+                (branch.IsNoE() || j.All(o => ResolvedBranch(o).IsNoE() || ResolvedBranch(o) == branch)));
             if (same != null) same.Add(c);
             else junctions.Add(new List<Candidate> { c });
         }
@@ -119,7 +131,9 @@ internal static class LegacyBranchFinder
     private static void Add(
         List<Candidate> junction, Dictionary<string, LegacyPipelineTrace> traces, LegacyDrawing drawing)
     {
-        Candidate first = junction[0];
+        //The part that resolved the branch speaks for the junction; with none
+        //resolved, the first says what it names.
+        Candidate first = junction.FirstOrDefault(c => ResolvedBranch(c).IsNotNoE()) ?? junction[0];
         string navn = first.Part.Navn;
         string handles = string.Join(", ", junction.Select(c => c.Part.Handle));
         string mainName = first.MainName, branchName = first.BranchName;

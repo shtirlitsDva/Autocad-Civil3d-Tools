@@ -15,8 +15,11 @@ internal sealed record BuiltPipeline(string Handle, NdhRoute Route);
 /// drafter must see:
 /// - a branch NDH squared by more than <see cref="SilentLimitDeg"/> gets a
 ///   yellow MLeader describing the change; every correction is in Justeret;
-/// - a branch that is not connected - untranslatable, refused by NDH, or not
-///   whole in the legacy drawing - gets a yellow circle and an English note.
+/// - a branch connected but not reading back as asked is listed as connected
+///   with a warning, and gets an MLeader saying what to check;
+/// - a branch that is not connected - untranslatable, refused by NDH, not
+///   whole in the legacy drawing, or its main or branch pipeline not created -
+///   gets a yellow circle and an English note.
 ///
 /// Branches are connected root first (by their main's distance from the
 /// network's root): a branch that is itself a main is squared onto ITS main
@@ -46,7 +49,7 @@ internal static class BranchConnectionStep
         foreach (LegacyBranchProblem p in legacy.Problems)
         {
             report.Skipped.Add($"{p.What}: {p.Reason} - ikke forbundet.");
-            markers.Add(new ImportMarker(ImportMarkerKind.NotConnected, p.Site, p.Note));
+            markers.Add(new NotConnectedMarker(p.Site, p.Note));
         }
 
         IEnumerable<LegacyBranch> ordered = legacy.Branches
@@ -78,7 +81,7 @@ internal static class BranchConnectionStep
             //The part joins two legacy pipelines that were merged end to end
             //elsewhere: a ring through a tee. NDH cannot branch a pipeline off itself.
             report.Skipped.Add($"{what}: afgrening og hovedledning er sammenlagt til én rørledning - ikke forbundet.");
-            markers.Add(new ImportMarker(ImportMarkerKind.NotConnected, b.Site,
+            markers.Add(new NotConnectedMarker(b.Site,
                 $"{noteHead}: both were merged into one pipeline; a pipeline cannot branch off itself."));
             return;
         }
@@ -87,7 +90,7 @@ internal static class BranchConnectionStep
         if (translation is UntranslatedBranch u)
         {
             report.Skipped.Add($"{what}: {u.Reason} - ikke forbundet.");
-            markers.Add(new ImportMarker(ImportMarkerKind.NotConnected, b.Site, $"{noteHead}: {u.Note}."));
+            markers.Add(new NotConnectedMarker(b.Site, $"{noteHead}: {u.Note}."));
             return;
         }
         TranslatedBranch t = (TranslatedBranch)translation;
@@ -95,10 +98,14 @@ internal static class BranchConnectionStep
         if (!built.TryGetValue(mainName, out BuiltPipeline? main) ||
             !built.TryGetValue(branchName, out BuiltPipeline? branch))
         {
-            //The pipeline's own refusal is already reported; there is nothing
-            //in the drawing to mark.
-            string missing = built.ContainsKey(mainName) ? branchName : mainName;
-            report.Skipped.Add($"{what}: {missing} blev ikke oprettet - ikke forbundet.");
+            //The pipeline's own refusal is reported where it was built; the
+            //junction it leaves unconnected is marked here, where the drafter
+            //will look for it (review of #319, I1).
+            string[] missing = new[] { mainName, branchName }.Where(n => !built.ContainsKey(n)).ToArray();
+            report.Skipped.Add($"{what}: {string.Join(" og ", missing)} blev ikke oprettet - ikke forbundet.");
+            markers.Add(new NotConnectedMarker(b.Site,
+                $"{noteHead} (legacy part '{b.Navn}'): the NDH pipeline " +
+                $"{string.Join(" and ", missing.Select(n => $"'{n}'"))} was not created."));
             return;
         }
 
@@ -111,7 +118,7 @@ internal static class BranchConnectionStep
             report.Refused.Add($"{what}, {t.Produkt}: {o.Status}" +
                 (o.MainVertexIndex >= 0 ? $" (hovedledningens punkt {o.MainVertexIndex})" : "") +
                 (o.Detail.Length > 0 ? $" - {o.Detail}" : ""));
-            markers.Add(new ImportMarker(ImportMarkerKind.NotConnected, b.Site,
+            markers.Add(new NotConnectedMarker(b.Site,
                 $"{noteHead} ({t.Produkt}, legacy part '{b.Navn}'): {RefusalSentence(o.Status, t.Produkt)}." +
                 (o.Detail.Length > 0 ? $" NDH: {o.Detail}" : "")));
             return;
@@ -120,33 +127,39 @@ internal static class BranchConnectionStep
         string outlet = t.Outlet == NdhBranchOutlet.AlongMain ? "langs hovedledningen" : "vinkelret";
         Point2d port = new Point2d(o.PortX, o.PortY);
 
+        report.Connected.Add($"{what}: {t.Produkt}, {outlet}");
+
+        //What the drafter must check at this port, gathered into one leader.
+        List<string> notes = new List<string>();
+
+        //NDH answered Ok, so the connection stands: a read-back that disagrees
+        //is a connection to check, never a refusal (review of #319, I4).
         string? mismatch = ReadBack(connector, main.Handle, branch.Handle, t.Produkt);
         if (mismatch != null)
         {
-            report.Refused.Add($"{what}: forbundet, men {mismatch}");
-            markers.Add(new ImportMarker(ImportMarkerKind.NotConnected, port,
-                $"NDHFROMFJV: '{branchName}' was connected to '{mainName}', but the connection does not " +
-                $"read back as '{t.Produkt}' pinned. Check it."));
-            return;
+            report.Connected.Add($"  ADVARSEL: {branchName} → {mainName} er forbundet, men {mismatch}");
+            notes.Add($"NDHFROMFJV connected '{branchName}' to '{mainName}', but the connection does not " +
+                $"read back as '{t.Produkt}' pinned. Check it.");
         }
 
-        report.Connected.Add($"{what}: {t.Produkt}, {outlet}");
+        if (o.DeviationDeg > DeviationNoiseDeg || o.LargestMoveM > MoveNoiseM)
+        {
+            bool loud = o.DeviationDeg > SilentLimitDeg;
+            report.Adjusted.Add(
+                $"{branchName} → {mainName}: afgreningen rettet {o.DeviationDeg:F2}° " +
+                $"({(t.Outlet == NdhBranchOutlet.AlongMain ? "til langs hovedledningen" : "til 90°")}); " +
+                $"enden flyttet {o.EndMoveM:F3} m ind på hovedledningens centerlinje, " +
+                $"øvrige punkter op til {o.LargestMoveM:F3} m" + (loud ? " - MLeader placeret." : "."));
+            if (loud)
+                notes.Add($"NDHFROMFJV squared branch '{branchName}' onto '{mainName}' ({t.Produkt}): " +
+                    $"the legacy branch stood {o.DeviationDeg:F1}° off " +
+                    $"{(t.Outlet == NdhBranchOutlet.AlongMain ? "the main's direction" : "90° to the main")}. " +
+                    $"Its connected end moved {o.EndMoveM:F2} m onto the main's centreline; " +
+                    $"its other vertices moved up to {o.LargestMoveM:F2} m.");
+        }
 
-        if (o.DeviationDeg <= DeviationNoiseDeg && o.LargestMoveM <= MoveNoiseM) return;
-
-        bool loud = o.DeviationDeg > SilentLimitDeg;
-        report.Adjusted.Add(
-            $"{branchName} → {mainName}: afgreningen rettet {o.DeviationDeg:F2}° " +
-            $"({(t.Outlet == NdhBranchOutlet.AlongMain ? "til langs hovedledningen" : "til 90°")}); " +
-            $"enden flyttet {o.EndMoveM:F3} m ind på hovedledningens centerlinje, " +
-            $"øvrige punkter op til {o.LargestMoveM:F3} m" + (loud ? " - MLeader placeret." : "."));
-        if (loud)
-            markers.Add(new ImportMarker(ImportMarkerKind.Corrected, port,
-                $"NDHFROMFJV squared branch '{branchName}' onto '{mainName}' ({t.Produkt}): " +
-                $"the legacy branch stood {o.DeviationDeg:F1}° off " +
-                $"{(t.Outlet == NdhBranchOutlet.AlongMain ? "the main's direction" : "90° to the main")}. " +
-                $"Its connected end moved {o.EndMoveM:F2} m onto the main's centreline; " +
-                $"its other vertices moved up to {o.LargestMoveM:F2} m."));
+        //\P is MText's paragraph break.
+        if (notes.Count > 0) markers.Add(new ConnectionMarker(port, string.Join("\\P", notes)));
     }
 
     /// <summary>Whether the built route's first vertex, rather than its last, is nearer the legacy branch port.</summary>
