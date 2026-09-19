@@ -26,6 +26,23 @@ namespace IntersectUtilities
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = db ?? docCol.MdiActiveDocument.Database;
+            try
+            {
+                PopulateGraph(localDb);
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg(ex);
+            }
+        }
+
+        /// <summary>
+        /// Writes every FJV entity's DriGraph ConnectedEntities from the points
+        /// where it meets the others, in its own committed transaction. Throws
+        /// when it fails, and then writes nothing.
+        /// </summary>
+        internal static void PopulateGraph(Database localDb)
+        {
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
@@ -54,11 +71,10 @@ namespace IntersectUtilities
                         }
                     }
                 }
-                catch (System.Exception ex)
+                catch
                 {
-                    prdDbg(ex);
                     tx.Abort();
-                    return;
+                    throw;
                 }
                 tx.Commit();
             }
@@ -162,22 +178,36 @@ namespace IntersectUtilities
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = db ?? docCol.MdiActiveDocument.Database;
+            try
+            {
+                ClearGraph(localDb);
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg(ex);
+            }
+        }
+
+        /// <summary>
+        /// Empties every FJV entity's DriGraph ConnectedEntities, in its own
+        /// committed transaction. Throws when it fails, and then writes nothing.
+        /// </summary>
+        internal static void ClearGraph(Database localDb)
+        {
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
                 {
-                    var komponenter = Csv.FjvDynamicComponents;
                     HashSet<Entity> allEnts = localDb.GetFjvEntities(tx, true, false);
                     PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriGraph);
                     PSetDefs.DriGraph driGraph = new PSetDefs.DriGraph();
                     foreach (var item in allEnts)
                         psm.WritePropertyString(item, driGraph.ConnectedEntities, "");
                 }
-                catch (System.Exception ex)
+                catch
                 {
-                    prdDbg(ex);
                     tx.Abort();
-                    return;
+                    throw;
                 }
                 tx.Commit();
             }

@@ -22,6 +22,12 @@ namespace IntersectUtilities.NdhTrace;
 /// One stretch of constant pipe identity along a traced Centreline, measured as
 /// distance along that Centreline.
 /// </summary>
+/// <param name="StartDist">Centreline distance where the stretch starts.</param>
+/// <param name="EndDist">Centreline distance where the stretch ends.</param>
+/// <param name="System">The stretch's pipe system.</param>
+/// <param name="Type">The stretch's pipe type (Frem, Retur and Enkelt are the bonded pair).</param>
+/// <param name="Dn">DN for steel, outer diameter in mm for the others.</param>
+/// <param name="Series">The legacy series read with the stretch.</param>
 /// <param name="ChangeDist">
 /// Where the change INTO this stretch stands: the centre of the part that makes
 /// it, where the new pipeline centres its own part. The first stretch starts
@@ -98,6 +104,12 @@ internal sealed class LegacyTraceResult : IDisposable
     public List<LegacyPipelineTrace> Traces { get; } = new List<LegacyPipelineTrace>();
     /// <summary>Pipelines that produced no trace, with the reason.</summary>
     public List<string> Skipped { get; } = new List<string>();
+    /// <summary>
+    /// The pipes and components of every named legacy pipeline, traced or not,
+    /// by pipeline name. Database resident in the source drawing: valid only
+    /// while its transaction is open.
+    /// </summary>
+    public Dictionary<string, List<Entity>> Groups { get; } = new Dictionary<string, List<Entity>>();
 
     public void Dispose()
     {
@@ -146,9 +158,11 @@ internal static class FjvLegacyPipelineReader
                     continue;
                 }
 
+                List<Entity> members = pipeline.ToList();
+                result.Groups[pipeline.Key] = members;
                 try
                 {
-                    result.Traces.Add(Trace(pipeline.Key, pipeline.ToList(), fjv, tx));
+                    result.Traces.Add(Trace(pipeline.Key, members, fjv, tx));
                 }
                 catch (Exception ex)
                 {
@@ -418,7 +432,7 @@ internal static class FjvLegacyPipelineReader
     /// last vertex of <paramref name="target"/> when they lie within
     /// <see cref="ChainTol"/>.
     /// </summary>
-    private static void AppendVertices(Polyline target, Polyline src, bool reversed)
+    internal static void AppendVertices(Polyline target, Polyline src, bool reversed)
     {
         int n = src.NumberOfVertices;
         for (int i = 0; i < n; i++)

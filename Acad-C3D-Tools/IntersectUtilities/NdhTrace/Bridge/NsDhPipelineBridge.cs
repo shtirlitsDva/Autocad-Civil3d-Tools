@@ -1,5 +1,3 @@
-using IntersectUtilities.UtilsCommon.Enums;
-
 using System;
 using System.Runtime.InteropServices;
 
@@ -8,22 +6,11 @@ namespace IntersectUtilities.NdhTrace;
 /// <summary>
 /// Builds pipelines through the NDH district-heating module's flat C export
 /// NsDh_BuildPipeline, and asks it how much straight a change's and an elbow's
-/// parts take through NsDh_ChangeStraight and NsDh_ElbowStraight (contract: NorsynDrawingTools
-/// src/NorsynDistrictHeatingObjects/Api/NsDhPipelineBridge.h).
-///
-/// The module is never loaded or [DllImport]ed here: that would pin the dbx and
-/// break its hot reload. The exports are looked up in the module AutoCAD already
-/// has mapped, on every call, so no pointer outlives a reload.
+/// parts take through NsDh_ChangeStraight and NsDh_ElbowStraight. The module is
+/// reached through <see cref="NsDhModule"/>.
 /// </summary>
 internal sealed class NsDhPipelineBridge : INdhPipelineBuilder, INdhPartStraight
 {
-    private const string DbxModule = "NSNorsynDistrictHeating.dbx";
-
-    //Must match kNsDhPipelineBuildVersion in NsDhPipelineBridge.h.
-    private const int ExpectedBuildVersion = 1;
-    //Must match kNsDhChangeStraightVersion in NsDhPipelineBridge.h.
-    private const int ExpectedChangeStraightVersion = 1;
-
     private const int StatusOk = 0;
 
     [StructLayout(LayoutKind.Sequential)]
@@ -74,9 +61,6 @@ internal sealed class NsDhPipelineBridge : INdhPipelineBuilder, INdhPartStraight
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 512)] public string Detail;
     }
 
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    private delegate int VersionFn();
-
     [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
     private delegate int ChangeStraightFn(
         in PipeIdentity before, in PipeIdentity after, out ChangeStraightResult result);
@@ -94,16 +78,9 @@ internal sealed class NsDhPipelineBridge : INdhPipelineBuilder, INdhPartStraight
         int boundaryCount,
         out BuildResult result);
 
-    [DllImport("kernel32", CharSet = CharSet.Unicode, SetLastError = true)]
-    private static extern IntPtr GetModuleHandleW(string moduleName);
-
-    [DllImport("kernel32", CharSet = CharSet.Ansi, SetLastError = true, ExactSpelling = true)]
-    private static extern IntPtr GetProcAddress(IntPtr module, string procName);
-
     public NdhBuildOutcome Build(string name, NdhRoute route)
     {
-        BuildPipelineFn build = Resolve<BuildPipelineFn>(
-            "NsDh_BuildPipeline", "NsDh_PipelineBuildVersion", "pipeline build", ExpectedBuildVersion);
+        BuildPipelineFn build = NsDhModule.Resolve<BuildPipelineFn>(NsDhSurface.Build, "NsDh_BuildPipeline");
 
         RouteVertex[] vertices = new RouteVertex[route.Vertices.Count];
         for (int i = 0; i < vertices.Length; i++)
@@ -120,8 +97,8 @@ internal sealed class NsDhPipelineBridge : INdhPipelineBuilder, INdhPartStraight
             {
                 VertexIndex = b.VertexIndex,
                 Dn = b.Dn,
-                System = SystemToken(b.System),
-                Type = TypeToken(b.Type),
+                System = NsDhModule.SystemToken(b.System),
+                Type = NsDhModule.TypeToken(b.Type),
             };
         }
 
@@ -144,9 +121,8 @@ internal sealed class NsDhPipelineBridge : INdhPipelineBuilder, INdhPartStraight
     /// </summary>
     public PartStraight OfChange(LegacyIdentitySpan before, LegacyIdentitySpan after)
     {
-        ChangeStraightFn ask = Resolve<ChangeStraightFn>(
-            "NsDh_ChangeStraight", "NsDh_ChangeStraightVersion", "change straight",
-            ExpectedChangeStraightVersion);
+        ChangeStraightFn ask = NsDhModule.Resolve<ChangeStraightFn>(
+            NsDhSurface.ChangeStraight, "NsDh_ChangeStraight");
 
         int status = ask(IdentityOf(before), IdentityOf(after), out ChangeStraightResult r);
         return Answered(status, r,
@@ -159,9 +135,8 @@ internal sealed class NsDhPipelineBridge : INdhPipelineBuilder, INdhPartStraight
     public PartStraight OfElbow(LegacyIdentitySpan pipe, double turnDegrees)
     {
         //The elbow is versioned with the change straight: one surface.
-        ElbowStraightFn ask = Resolve<ElbowStraightFn>(
-            "NsDh_ElbowStraight", "NsDh_ChangeStraightVersion", "change straight",
-            ExpectedChangeStraightVersion);
+        ElbowStraightFn ask = NsDhModule.Resolve<ElbowStraightFn>(
+            NsDhSurface.ChangeStraight, "NsDh_ElbowStraight");
 
         int status = ask(IdentityOf(pipe), turnDegrees, out ChangeStraightResult r);
         return Answered(status, r,
@@ -177,62 +152,8 @@ internal sealed class NsDhPipelineBridge : INdhPipelineBuilder, INdhPartStraight
     private static PipeIdentity IdentityOf(LegacyIdentitySpan s) => new PipeIdentity
     {
         Dn = s.Dn,
-        System = SystemToken(s.System),
-        Type = TypeToken(s.Type),
-    };
-
-    /// <summary>
-    /// The export, from the module as it is mapped right now, after checking
-    /// the module speaks the layout this file mirrors for that surface.
-    /// </summary>
-    private static TDelegate Resolve<TDelegate>(
-        string export, string versionExport, string surface, int expectedVersion) where TDelegate : Delegate
-    {
-        IntPtr module = GetModuleHandleW(DbxModule);
-        if (module == IntPtr.Zero)
-            throw new InvalidOperationException(
-                $"{DbxModule} is not loaded. Load the district-heating module and try again.");
-
-        IntPtr versionProc = GetProcAddress(module, versionExport);
-        if (versionProc == IntPtr.Zero)
-            throw new InvalidOperationException(
-                $"{DbxModule} has no {surface} export. Update the district-heating module.");
-
-        int actual = Marshal.GetDelegateForFunctionPointer<VersionFn>(versionProc)();
-        if (actual != expectedVersion)
-            throw new InvalidOperationException(
-                $"{DbxModule} exposes {surface} version {actual}, but this build " +
-                $"expects {expectedVersion}. Rebuild so the module and IntersectUtilities match.");
-
-        IntPtr proc = GetProcAddress(module, export);
-        if (proc == IntPtr.Zero)
-            throw new InvalidOperationException($"{DbxModule} does not export {export}.");
-        return Marshal.GetDelegateForFunctionPointer<TDelegate>(proc);
-    }
-
-    /// <summary>The catalogue's edit token for a system: the enumerator's name, ASCII-spelled.</summary>
-    private static string SystemToken(PipeSystemEnum system) => system switch
-    {
-        PipeSystemEnum.Stål => "Staal",
-        PipeSystemEnum.Kobberflex => "Kobberflex",
-        PipeSystemEnum.AluPex => "AluPex",
-        PipeSystemEnum.PertFlextra => "PertFlextra",
-        PipeSystemEnum.PertPIPE => "PertPIPE",
-        PipeSystemEnum.AquaTherm11 => "AquaTherm11",
-        PipeSystemEnum.PE => "PE",
-        PipeSystemEnum.FibreFlex => "FibreFlex",
-        _ => throw new ArgumentOutOfRangeException(nameof(system), system, "No pipe system."),
-    };
-
-    /// <summary>
-    /// Twin is one run; everything else is the bonded pair, which the new
-    /// pipeline models as ONE Enkelt run (both carriers).
-    /// </summary>
-    private static string TypeToken(PipeTypeEnum type) => type switch
-    {
-        PipeTypeEnum.Twin => "Twin",
-        PipeTypeEnum.Frem or PipeTypeEnum.Retur or PipeTypeEnum.Enkelt => "Enkelt",
-        _ => throw new ArgumentOutOfRangeException(nameof(type), type, "No pipe type."),
+        System = NsDhModule.SystemToken(s.System),
+        Type = NsDhModule.TypeToken(s.Type),
     };
 
     private static string StatusName(int status) => status switch
