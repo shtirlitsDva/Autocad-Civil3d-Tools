@@ -3236,26 +3236,9 @@ namespace IntersectUtilities
                                 //The idea is to get the muffer at ends
                                 //Get the station at both muffe intern
                                 //And then use the station values to calculate position and length
-                                BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(
-                                    fremTx
-                                );
-
-                                List<Point3d> locs = new List<Point3d>();
-
-                                foreach (Oid id in btr)
-                                {
-                                    if (!id.IsDerivedFrom<BlockReference>())
-                                        continue;
-                                    BlockReference nestedBr = id.Go<BlockReference>(fremTx);
-                                    if (!nestedBr.Name.Contains("MuffeIntern"))
-                                        continue;
-                                    Point3d wPt = nestedBr.Position;
-                                    wPt = wPt.TransformBy(br.BlockTransform);
-
-                                    locs.Add(wPt);
-                                    //Line line = new Line(new Point3d(), wPt);
-                                    //line.AddEntityToDbModelSpace(localDb);
-                                }
+                                List<Point3d> locs = ComponentPorts.Read(br, fremTx)
+                                    .Select(p => p.Position)
+                                    .ToList();
 
                                 if (locs.Count > 2)
                                     prdDbg($"Block: {br.Handle} have more than two locations!");
@@ -8523,6 +8506,17 @@ namespace IntersectUtilities
                 KoteReport.GenerateKoteReport(længdeprofilerdbs, tolerance / 1000.0);
 
                 prdDbg("Finshed!");
+            }
+            catch (DebugEntityException dex)
+            {
+                //Two pipelines the report could not connect: their paths are
+                //drawn in this drawing for the user to find them.
+                prdDbg(dex);
+                using Transaction dtx = localDb.TransactionManager.StartTransaction();
+                foreach (Entity ent in dex.DebugEntities)
+                    ent.AddEntityToDbModelSpace(localDb);
+                dtx.Commit();
+                return;
             }
             catch (System.Exception ex)
             {

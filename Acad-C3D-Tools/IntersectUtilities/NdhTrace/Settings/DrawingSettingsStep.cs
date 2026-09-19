@@ -128,9 +128,9 @@ internal static class DrawingSettingsStep
         {
             NdhSettingsOutcome outcome = settings.SetSeriesMatrix(cells.Select(x => x.Cell).ToList());
             if (outcome.Success) break;
-            if (!outcome.Unservable || outcome.CellIndex < 0 || outcome.CellIndex >= cells.Count)
+            if (outcome.Status != NdhSettingsStatus.Unservable || outcome.CellIndex < 0 || outcome.CellIndex >= cells.Count)
                 throw new InvalidOperationException(
-                    $"Seriematricen kunne ikke sættes ({outcome.StatusName}): {outcome.Detail}");
+                    $"Seriematricen kunne ikke sættes ({outcome.Status}): {outcome.Detail}");
 
             (NdhSeriesCell cell, SeriesKey? key) = cells[outcome.CellIndex];
             cells.RemoveAt(outcome.CellIndex);
@@ -150,7 +150,7 @@ internal static class DrawingSettingsStep
     {
         if (!outcome.Success)
             throw new InvalidOperationException(
-                $"{what} kunne ikke sættes ({outcome.StatusName}): {outcome.Detail}");
+                $"{what} kunne ikke sættes ({outcome.Status}): {outcome.Detail}");
     }
 
     /// <summary>A cell read back from the drawing, named as the drafter reads it (F7).</summary>

@@ -29,9 +29,21 @@ internal sealed class FjvCentrelineResult
     public List<string> UnpairedRuns { get; } = new List<string>();
     public List<string> UntypedRuns { get; } = new List<string>();
     public List<string> MixedRuns { get; } = new List<string>();
-    public List<string> UnjoinedTransitions { get; } = new List<string>();
+    public List<UnjoinedTransition> UnjoinedTransitions { get; } = new List<UnjoinedTransition>();
     public List<string> FallbackBlocks { get; } = new List<string>();
     public List<string> UnresolvedBlocks { get; } = new List<string>();
+}
+
+/// <summary>
+/// A transition (Y-model, F-model, H-model) the twin and bonded Centrelines
+/// were not joined across.
+/// </summary>
+/// <param name="Part">The transition block: its real name and handle.</param>
+/// <param name="At">Where it stands (its insertion point).</param>
+/// <param name="Reason">Why it was not joined (English).</param>
+internal sealed record UnjoinedTransition(string Part, Point2d At, string Reason)
+{
+    public override string ToString() => $"{Part}: {Reason}";
 }
 
 /// <summary>
@@ -512,11 +524,12 @@ internal static class FjvCentreline
                     .Distinct().ToList();
 
                 string id = $"{tr.Br.RealName()} {tr.Br.Handle}";
+                Point2d at = new Point2d(tr.Br.Position.X, tr.Br.Position.Y);
                 if (twinEnds.Count != 1 || bondedEnds.Count != 1)
                 {
-                    result.UnjoinedTransitions.Add(
-                        $"{id}: {twinEnds.Count} twin and {bondedEnds.Count} bonded " +
-                        "Centreline end(s) at its ports, expected 1 and 1");
+                    result.UnjoinedTransitions.Add(new UnjoinedTransition(id, at,
+                        $"{twinEnds.Count} twin and {bondedEnds.Count} bonded " +
+                        "Centreline end(s) at its ports, expected 1 and 1"));
                     continue;
                 }
 
@@ -527,9 +540,9 @@ internal static class FjvCentreline
 
                 if (!TryJoin(a, ta, b, tb, out Point3d? corner))
                 {
-                    result.UnjoinedTransitions.Add(
-                        $"{id}: the twin and bonded Centreline ends do not meet " +
-                        $"within {MaxTransitionReach} m");
+                    result.UnjoinedTransitions.Add(new UnjoinedTransition(id, at,
+                        "the twin and bonded Centreline ends do not meet " +
+                        $"within {MaxTransitionReach} m"));
                     continue;
                 }
 

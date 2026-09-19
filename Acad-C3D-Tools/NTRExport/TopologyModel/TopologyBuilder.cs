@@ -100,7 +100,7 @@ namespace NTRExport.TopologyModel
                     var node = NodeAt(cadPort.Position.To3d());
                     var port = new TPort(cadPort.Role, node, tf);
                     tf.AddPort(port);
-                    if (cadPort.Role == PortRole.Main)
+                    if (cadPort.Role == ComponentPortRole.Main)
                         mainPortNodes.Add(node);
                 }
                 g.Elements.Add(tf);
@@ -124,8 +124,8 @@ namespace NTRExport.TopologyModel
                         var tp = new TPipe(
                             pl.Handle,
                             s,
-                            self => new TPort(PortRole.Neutral, a, self),
-                            self => new TPort(PortRole.Neutral, b, self));
+                            self => new TPort(ComponentPortRole.Neutral, a, self),
+                            self => new TPort(ComponentPortRole.Neutral, b, self));
                         g.Elements.Add(tp);
                     }
                     else if (s is CircularArc2d arc)
@@ -174,8 +174,8 @@ namespace NTRExport.TopologyModel
                                 pl.Handle,
                                 NTRExport.Utils.Utils.GetTangentPoint(arc),
                                 PipelineElementType.Kedelrørsbøjning);
-                            elbow.AddPort(new TPort(PortRole.Neutral, a, elbow));
-                            elbow.AddPort(new TPort(PortRole.Neutral, b, elbow));
+                            elbow.AddPort(new TPort(ComponentPortRole.Neutral, a, elbow));
+                            elbow.AddPort(new TPort(ComponentPortRole.Neutral, b, elbow));
                             g.Elements.Add(elbow);
                         }
                         else
@@ -221,8 +221,8 @@ namespace NTRExport.TopologyModel
                                     pl.Handle,
                                     tpnt == default ? NTRExport.Utils.Utils.GetTangentPoint(arc) : tpnt,
                                     PipelineElementType.Kedelrørsbøjning);
-                                sub.AddPort(new TPort(PortRole.Neutral, n0, sub));
-                                sub.AddPort(new TPort(PortRole.Neutral, n1, sub));
+                                sub.AddPort(new TPort(ComponentPortRole.Neutral, n0, sub));
+                                sub.AddPort(new TPort(ComponentPortRole.Neutral, n1, sub));
                                 g.Elements.Add(sub);
                             }
                         }
@@ -240,7 +240,7 @@ namespace NTRExport.TopologyModel
 
                 foreach (var fit in g.Fittings)
                 {
-                    foreach (var port in fit.Ports.Where(p => p.Role == PortRole.Main))
+                    foreach (var port in fit.Ports.Where(p => p.Role == ComponentPortRole.Main))
                     {
                         var p = port.Node.Pos;
 
@@ -310,8 +310,8 @@ namespace NTRExport.TopologyModel
                             var np = new TPipe(
                                 tp.Source,
                                 seg,
-                                self => new TPort(PortRole.Neutral, n0, self),
-                                self => new TPort(PortRole.Neutral, n1, self));
+                                self => new TPort(ComponentPortRole.Neutral, n0, self),
+                                self => new TPort(ComponentPortRole.Neutral, n1, self));
                             newElements.Add(np);
                         }
                     }

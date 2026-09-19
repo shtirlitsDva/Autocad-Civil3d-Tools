@@ -12,7 +12,7 @@ namespace IntersectUtilities.NdhTrace;
 /// <summary>
 /// A legacy component block as the connection reading needs it. The pipeline
 /// properties are a snapshot taken before anything in the reading can repair
-/// them (the legacy network's Case 4 writes BranchesOffToAlignment).
+/// them (the graph writer fills in a svanehals's missing BelongsToAlignment).
 /// </summary>
 internal sealed record LegacyComponent(
     BlockReference Block,
@@ -23,14 +23,14 @@ internal sealed record LegacyComponent(
     LegacyPartRole Role,
     string BelongsTo,
     string BranchesOffTo,
-    IReadOnlyList<LegacyPort> Ports)
+    IReadOnlyList<ComponentPort> Ports)
 {
     /// <summary>Where the branch pipe meets the part: the middle of its branch ports, else its insertion.</summary>
     public Point2d BranchPort
     {
         get
         {
-            List<LegacyPort> branch = Ports.Where(p => p.Role == LegacyPortRole.Branch).ToList();
+            List<ComponentPort> branch = Ports.Where(p => p.Role == ComponentPortRole.Branch).ToList();
             if (branch.Count == 0) return new Point2d(Block.Position.X, Block.Position.Y);
             return new Point2d(branch.Average(p => p.Position.X), branch.Average(p => p.Position.Y));
         }
@@ -39,7 +39,7 @@ internal sealed record LegacyComponent(
     /// <summary>Whether any port, or the insertion, lies within <paramref name="tol"/> of <paramref name="p"/>.</summary>
     public bool Touches(Point2d p, double tol) =>
         new Point2d(Block.Position.X, Block.Position.Y).GetDistanceTo(p) <= tol ||
-        Ports.Any(x => x.Position.GetDistanceTo(p) <= tol);
+        Ports.Any(x => x.Position.To2d().GetDistanceTo(p) <= tol);
 }
 
 internal static class LegacyComponentReader
@@ -60,7 +60,7 @@ internal static class LegacyComponentReader
                 LegacyPartRoles.Of(type),
                 psh.Pipeline.ReadPropertyString(br, psh.PipelineDef.BelongsToAlignment),
                 psh.Pipeline.ReadPropertyString(br, psh.PipelineDef.BranchesOffToAlignment),
-                LegacyPortReader.Read(br, tx)));
+                ComponentPorts.Read(br, tx)));
         }
         return result;
     }

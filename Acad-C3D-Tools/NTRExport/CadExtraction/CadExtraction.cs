@@ -31,7 +31,7 @@ namespace NTRExport.CadExtraction
     internal class CadPort
     {
         public Point2d Position { get; init; }
-        public PortRole Role { get; init; }
+        public ComponentPortRole Role { get; init; }
         public Handle Owner { get; init; }
         public string Tag { get; init; } = "";
     }
@@ -106,38 +106,21 @@ namespace NTRExport.CadExtraction
         }
     }
 
-    // Finds nested MuffeIntern* blocks and returns world coordinates
+    // The component's ports as CadPorts, read by the shared ComponentPorts reader
     static class MuffeInternReader
     {
         public static List<CadPort> ReadPorts(BlockReference owner)
         {
-            var result = new List<CadPort>();
-            var db = owner.Database;
-            using var tr = db.TransactionManager.StartOpenCloseTransaction();
-            var btr = (BlockTableRecord)tr.GetObject(owner.BlockTableRecord, OpenMode.ForRead);
-
-            foreach (ObjectId id in btr)
-            {
-                if (!id.ObjectClass.IsDerivedFrom(RXClass.GetClass(typeof(BlockReference)))) continue;
-                var nested = (BlockReference)tr.GetObject(id, OpenMode.ForRead);
-                var name = nested.Name ?? string.Empty;
-                if (!name.Contains("MuffeIntern", StringComparison.OrdinalIgnoreCase)) continue;
-
-                var wpt = nested.Position.TransformBy(owner.BlockTransform);
-                var role =
-                    name.Contains("BRANCH", StringComparison.OrdinalIgnoreCase) ? PortRole.Branch :
-                    name.Contains("MAIN", StringComparison.OrdinalIgnoreCase) ? PortRole.Main :
-                    PortRole.Neutral;
-
-                result.Add(new CadPort
+            using var tr = owner.Database.TransactionManager.StartOpenCloseTransaction();
+            List<CadPort> result = ComponentPorts.Read(owner, tr)
+                .Select(p => new CadPort
                 {
-                    Position = new Point2d(wpt.X, wpt.Y),
-                    Role = role,
+                    Position = new Point2d(p.Position.X, p.Position.Y),
+                    Role = p.Role,
                     Owner = owner.Handle,
-                    Tag = name
-                });
-            }
-
+                    Tag = p.Tag
+                })
+                .ToList();
             tr.Commit();
             return result;
         }

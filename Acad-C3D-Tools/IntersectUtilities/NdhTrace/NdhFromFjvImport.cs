@@ -1,3 +1,5 @@
+using IntersectUtilities.PlanDetailing;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,7 +12,28 @@ namespace IntersectUtilities.NdhTrace;
 /// where; -1 when it names none.
 /// </summary>
 internal readonly record struct NdhBuildOutcome(
-    bool Success, string Status, string Handle, int VertexIndex, int SegmentIndex, string Detail);
+    NdhBuildStatus Status, string Handle, int VertexIndex, int SegmentIndex, string Detail)
+{
+    public bool Success => Status == NdhBuildStatus.Ok;
+}
+
+/// <summary>NsDh_BuildPipeline status codes (kNsDhPipelineBuild*); NsDh_ChangeStraight and NsDh_ElbowStraight answer in them too.</summary>
+internal enum NdhBuildStatus
+{
+    Ok = 0,
+    /// <summary>The call is malformed: a caller bug, not a statement about the pipeline.</summary>
+    BadArgs = -1,
+    /// <summary>The request breaks a rule of its own (too few vertices, an unknown token, ...).</summary>
+    InvalidRequest = -2,
+    /// <summary>The solver refused the route.</summary>
+    RouteDoesNotSolve = -3,
+    /// <summary>The name is empty, or another pipeline holds it.</summary>
+    NameUnavailable = -4,
+    /// <summary>A boundary stands on a vertex that already carries an elbow.</summary>
+    TwoFittingsAtOneVertex = -5,
+    /// <summary>Anything else; NDHTRACE carries the reason.</summary>
+    BuildFailed = -6,
+}
 
 /// <summary>Creates one new pipeline in the working drawing from a route.</summary>
 internal interface INdhPipelineBuilder
@@ -78,6 +101,7 @@ internal static class NdhFromFjvImport
         using LegacyDrawing legacy = LegacyDrawingReader.Read(fjvPath);
         report.LegacyPipelineCount = legacy.Traces.Traces.Count + legacy.Traces.Skipped.Count;
         foreach (string s in legacy.Traces.Skipped) report.Skipped.Add($"Rørledning ikke sporet: {s}");
+        List<ImportMarker> transitionMarkers = UnjoinedTransitions(legacy, report);
 
         //2. + 3.
         if (!DrawingSettingsStep.Apply(legacy.Settings, services.Settings, services.Dialogs, report))
@@ -93,9 +117,31 @@ internal static class NdhFromFjvImport
 
         //6.
         List<ImportMarker> markers = BranchConnectionStep.Run(legacy, merged, built, services.Connector, report);
+        markers.AddRange(transitionMarkers);
 
         //7.
         report.MarkersPlaced = services.Markers.Place(markers);
+    }
+
+    /// <summary>
+    /// A construction change the legacy pipeline's Centreline does not run
+    /// through is not in the new pipeline: NDH lays a change where the pipe's
+    /// identity changes along ONE pipeline, and this one stands where the
+    /// pipeline stops, or between two sides that never met. The import
+    /// translates and never designs, so it does not invent the change; it
+    /// reports it and marks where the legacy drawing has it, as it does every
+    /// other part it could not carry across (decided from the drafter's seat).
+    /// </summary>
+    private static List<ImportMarker> UnjoinedTransitions(LegacyDrawing legacy, NdhImportReport report)
+    {
+        List<ImportMarker> markers = new List<ImportMarker>();
+        foreach ((string pipeline, UnjoinedTransition t) in legacy.Traces.UnjoinedTransitions)
+        {
+            report.Skipped.Add($"{pipeline}: konstruktionsskift {t.Part} er ikke overført ({t.Reason}).");
+            markers.Add(new NotConnectedMarker(t.At,
+                $"NDHFROMFJV: legacy transition {t.Part} on '{pipeline}' not carried across: {t.Reason}."));
+        }
+        return markers;
     }
 
     /// <summary>

@@ -26,8 +26,8 @@ namespace IntersectUtilities.NdhTrace;
 ///   a materialeskift at that end makes it a branch (Direkte påsvejsning on a
 ///   steel main), anything else is marked.
 ///
-/// The Try form is used so a pair it cannot place never writes debug
-/// polylines into the active (working) drawing, as the throwing form does.
+/// The Try form is used so a pair it cannot place answers false instead of
+/// throwing; both forms only read.
 /// </summary>
 internal static class LegacyNetwork
 {

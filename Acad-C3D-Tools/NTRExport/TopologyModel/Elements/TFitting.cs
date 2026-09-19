@@ -76,7 +76,7 @@ namespace NTRExport.TopologyModel
 
         // Resolve DN to use for a neighboring connection based on the neighbor's port role.
         // Default behavior: use this fitting's DN for any role.
-        public virtual bool TryGetDnForPortRole(PortRole role, out int dn)
+        public virtual bool TryGetDnForPortRole(ComponentPortRole role, out int dn)
         {
             dn = DN;
             return true;

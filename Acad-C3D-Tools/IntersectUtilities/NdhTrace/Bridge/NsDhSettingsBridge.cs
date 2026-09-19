@@ -12,8 +12,6 @@ namespace IntersectUtilities.NdhTrace;
 /// </summary>
 internal sealed class NsDhSettingsBridge : INdhDrawingSettings
 {
-    private const int SettingsOk = 0;
-    private const int SettingsBufferTooSmall = -5;
     //NsDh_ReadProducer asks for at least 16 characters.
     private const int ProducerCapacity = 64;
 
@@ -52,16 +50,8 @@ internal sealed class NsDhSettingsBridge : INdhDrawingSettings
 
     static NsDhSettingsBridge()
     {
-        CheckSize<SeriesCell>(72);
-        CheckSize<SettingsResult>(1032);
-    }
-
-    private static void CheckSize<T>(int expected)
-    {
-        int actual = Marshal.SizeOf<T>();
-        if (actual != expected)
-            throw new InvalidOperationException(
-                $"{typeof(T).Name} marshals to {actual} bytes, the NDH header says {expected}.");
+        NsDhModule.RequireLayout<SeriesCell>(72);
+        NsDhModule.RequireLayout<SettingsResult>(1032);
     }
 
     public string ReadProducer()
@@ -70,10 +60,11 @@ internal sealed class NsDhSettingsBridge : INdhDrawingSettings
             NsDhSurface.DrawingSettings, "NsDh_ReadProducer");
 
         StringBuilder output = new StringBuilder(ProducerCapacity);
-        int status = read(output, ProducerCapacity);
-        if (status != SettingsOk)
+        (NdhSettingsStatus status, string said) = NsDhModule.Named(
+            read(output, ProducerCapacity), null, NdhSettingsStatus.Failed);
+        if (status != NdhSettingsStatus.Ok)
             throw new InvalidOperationException(
-                $"The drawing's producer could not be read (status {status}).");
+                $"The drawing's producer could not be read ({status}). {said}".TrimEnd());
         return output.ToString();
     }
 
@@ -82,8 +73,7 @@ internal sealed class NsDhSettingsBridge : INdhDrawingSettings
         SetProducerFn set = NsDhModule.Resolve<SetProducerFn>(
             NsDhSurface.DrawingSettings, "NsDh_SetProducer");
 
-        int status = set(producerToken, out SettingsResult r);
-        return new NdhSettingsOutcome(status, r.CellIndex, r.Detail ?? "");
+        return Outcome(set(producerToken, out SettingsResult r), r);
     }
 
     public IReadOnlyList<NdhSeriesCell> ReadSeriesMatrix()
@@ -92,15 +82,17 @@ internal sealed class NsDhSettingsBridge : INdhDrawingSettings
             NsDhSurface.DrawingSettings, "NsDh_ReadSeriesMatrix");
 
         SeriesCell[] cells = new SeriesCell[64];
-        int status = read(cells, cells.Length, out int count);
-        if (status == SettingsBufferTooSmall)
+        (NdhSettingsStatus status, string said) = NsDhModule.Named(
+            read(cells, cells.Length, out int count), null, NdhSettingsStatus.Failed);
+        if (status == NdhSettingsStatus.BufferTooSmall)
         {
             cells = new SeriesCell[count];
-            status = read(cells, cells.Length, out count);
+            (status, said) = NsDhModule.Named(
+                read(cells, cells.Length, out count), null, NdhSettingsStatus.Failed);
         }
-        if (status != SettingsOk)
+        if (status != NdhSettingsStatus.Ok)
             throw new InvalidOperationException(
-                $"The drawing's series matrix could not be read (status {status}).");
+                $"The drawing's series matrix could not be read ({status}). {said}".TrimEnd());
 
         List<NdhSeriesCell> result = new List<NdhSeriesCell>(count);
         for (int i = 0; i < count; i++)
@@ -123,7 +115,12 @@ internal sealed class NsDhSettingsBridge : INdhDrawingSettings
                 Type = cells[i].TypeToken,
             };
 
-        int status = set(native, native.Length, out SettingsResult r);
-        return new NdhSettingsOutcome(status, r.CellIndex, r.Detail ?? "");
+        return Outcome(set(native, native.Length, out SettingsResult r), r);
+    }
+
+    private static NdhSettingsOutcome Outcome(int code, SettingsResult r)
+    {
+        (NdhSettingsStatus status, string detail) = NsDhModule.Named(code, r.Detail, NdhSettingsStatus.Failed);
+        return new NdhSettingsOutcome(status, r.CellIndex, detail);
     }
 }

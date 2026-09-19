@@ -66,6 +66,34 @@ internal static class NsDhModule
         return module;
     }
 
+    /// <summary>
+    /// Throws when the mirror <typeparamref name="T"/> does not marshal to the
+    /// size the header static_asserts for its counterpart. Every bridge checks
+    /// its mirrors with this in its static constructor: a drift is a build
+    /// defect, caught before any call can corrupt memory.
+    /// </summary>
+    public static void RequireLayout<T>(int headerSize) where T : struct
+    {
+        int actual = Marshal.SizeOf<T>();
+        if (actual != headerSize)
+            throw new InvalidOperationException(
+                $"{typeof(T).Name} marshals to {actual} bytes, the NDH header says {headerSize}.");
+    }
+
+    /// <summary>
+    /// A returned status code as the header names it. A code this build does
+    /// not know is still a refusal: it reads as <paramref name="unknown"/>, and
+    /// its number is kept in the detail so it is not lost.
+    /// </summary>
+    public static (TStatus Status, string Detail) Named<TStatus>(int code, string? detail, TStatus unknown)
+        where TStatus : struct, Enum
+    {
+        string said = detail ?? "";
+        return Enum.IsDefined(typeof(TStatus), code)
+            ? ((TStatus)Enum.ToObject(typeof(TStatus), code), said)
+            : (unknown, $"(status {code}) {said}");
+    }
+
     /// <summary>The catalogue's edit token for a system: the enumerator's name, ASCII-spelled.</summary>
     public static string SystemToken(PipeSystemEnum system) => system switch
     {

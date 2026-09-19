@@ -199,6 +199,7 @@ namespace IntersectUtilities
                     PipelineNetwork pn = new PipelineNetwork();
                     pn.CreatePipelineNetwork(ents, als);
                     pn.CreatePipelineGraph();
+                    pn.RepairBranchReferences();
                     pn.AutoReversePolylines();
                 }
                 catch (System.Exception ex)
@@ -251,6 +252,7 @@ namespace IntersectUtilities
                     pn.CreatePipelineNetwork(ents, als);
                     pn.CreatePipelineGraph();
                     //pn.AutoReversePolylines();
+                    pn.RepairBranchReferences();
                     pn.AutoCorrectLengths();
                 }
                 catch (System.Exception ex)

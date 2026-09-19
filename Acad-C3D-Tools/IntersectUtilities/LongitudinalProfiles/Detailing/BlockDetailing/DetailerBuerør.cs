@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
-using Autodesk.AutoCAD.Runtime;
 
 namespace IntersectUtilities.LongitudinalProfiles.Detailing.BlockDetailing
 {
@@ -14,7 +13,9 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.BlockDetailing
     {
         public void Detail(BlockReference sourceBlock, BlockDetailingContext context, UtilsCommon.Enums.PipelineElementType elementType)
         {
-            List<Point3d> locations = FindMuffeInternWorldPositions(sourceBlock, context.Transaction);
+            List<Point3d> locations = UtilsCommon.ComponentPorts.Read(sourceBlock, context.Transaction)
+                .Select(p => p.Position)
+                .ToList();
             if (locations.Count == 0) return;
             if (locations.Count > 2)
                 UtilsCommon.Utils.prdDbg($"Block: {sourceBlock.Handle} have more than two locations!");
@@ -81,23 +82,6 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.BlockDetailing
                     $"Skipping Buerør block {sourceBlock.Handle}: MuffeIntern point {point} cannot be stationed on the alignment.");
                 return false;
             }
-        }
-
-        private static List<Point3d> FindMuffeInternWorldPositions(BlockReference br, Transaction tx)
-        {
-            var btr = (BlockTableRecord)tx.GetObject(br.BlockTableRecord, OpenMode.ForRead);
-            var points = new List<Point3d>();
-            foreach (ObjectId id in btr)
-            {
-                if (!id.ObjectClass.IsDerivedFrom(RXClass.GetClass(typeof(BlockReference))))
-                    continue;
-                BlockReference nested = (BlockReference)tx.GetObject(id, OpenMode.ForRead);
-                if (!nested.Name.Contains("MuffeIntern"))
-                    continue;
-                Point3d wPt = nested.Position.TransformBy(br.BlockTransform);
-                points.Add(wPt);
-            }
-            return points;
         }
     }
 }

@@ -99,21 +99,68 @@ internal sealed class LegacyPipelineTrace : IDisposable
     public void Dispose() => Centreline.Dispose();
 }
 
+/// <summary>
+/// A construction change (Y-model, F-model, H-model) of a traced pipeline that
+/// its Centreline does not run through: one side of it is not in the
+/// pipeline, or the two sides do not meet. The pipeline is imported without
+/// it, so the drafter must be shown where it stands.
+/// </summary>
+/// <param name="Pipeline">The legacy pipeline the change was read with.</param>
+/// <param name="Transition">The change and why it was not joined.</param>
+internal sealed record LegacyUnjoinedTransition(string Pipeline, UnjoinedTransition Transition);
+
+/// <summary>
+/// Every traced pipeline of a legacy drawing, and what the tracing could not
+/// carry. Plain data: nothing here refers to the source drawing, which is
+/// closed once it is read.
+/// </summary>
 internal sealed class LegacyTraceResult : IDisposable
 {
     public List<LegacyPipelineTrace> Traces { get; } = new List<LegacyPipelineTrace>();
     /// <summary>Pipelines that produced no trace, with the reason.</summary>
     public List<string> Skipped { get; } = new List<string>();
-    /// <summary>
-    /// The pipes and components of every named legacy pipeline, traced or not,
-    /// by pipeline name. Database resident in the source drawing: valid only
-    /// while its transaction is open.
-    /// </summary>
-    public Dictionary<string, List<Entity>> Groups { get; } = new Dictionary<string, List<Entity>>();
+    /// <summary>Construction changes of traced pipelines their Centreline does not run through.</summary>
+    public List<LegacyUnjoinedTransition> UnjoinedTransitions { get; } = new List<LegacyUnjoinedTransition>();
 
     public void Dispose()
     {
         foreach (LegacyPipelineTrace t in Traces) t.Dispose();
+    }
+}
+
+/// <summary>
+/// The pipes and components of every legacy pipeline, grouped by pipeline
+/// name (BelongsToAlignment), in name order. The entities are database
+/// resident in the source drawing and valid only while the transaction they
+/// were read in is open: a group is read and used inside
+/// <see cref="LegacyDrawingReader.Read"/> and is never kept past it.
+/// </summary>
+internal sealed class LegacyPipelineGroups
+{
+    private LegacyPipelineGroups(IReadOnlyList<(string Name, List<Entity> Members)> named, int unnamed)
+    {
+        Named = named;
+        ByName = named.ToDictionary(x => x.Name, x => x.Members, StringComparer.Ordinal);
+        Unnamed = unnamed;
+    }
+
+    /// <summary>Every named pipeline's members, in name order.</summary>
+    public IReadOnlyList<(string Name, List<Entity> Members)> Named { get; }
+    public IReadOnlyDictionary<string, List<Entity>> ByName { get; }
+    /// <summary>How many elements belong to no pipeline.</summary>
+    public int Unnamed { get; }
+
+    public static LegacyPipelineGroups Read(Database fjvDb, Transaction tx, PropertySetHelper psh)
+    {
+        List<IGrouping<string, Entity>> groups = fjvDb
+            .GetFjvEntities(tx, true, true)
+            .GroupBy(psh.Pipeline.BelongsToAlignment)
+            .OrderBy(x => x.Key)
+            .ToList();
+
+        return new LegacyPipelineGroups(
+            groups.Where(g => !g.Key.IsNoE()).Select(g => (g.Key, g.ToList())).ToList(),
+            groups.Where(g => g.Key.IsNoE()).Sum(g => g.Count()));
     }
 }
 
@@ -136,37 +183,29 @@ internal static class FjvLegacyPipelineReader
     //on the fixture.
     private const double ChainTol = 0.05;
 
-    public static LegacyTraceResult Read(Database fjvDb, Transaction tx)
+    public static LegacyTraceResult Read(LegacyPipelineGroups pipelines, Transaction tx)
     {
         LegacyTraceResult result = new LegacyTraceResult();
         FjvDynamicComponents fjv = Csv.FjvDynamicComponents;
-        PropertySetHelper psh = new PropertySetHelper(fjvDb);
 
         try
         {
-            IEnumerable<IGrouping<string, Entity>> pipelines = fjvDb
-                .GetFjvEntities(tx, true, true)
-                .GroupBy(psh.Pipeline.BelongsToAlignment)
-                .OrderBy(x => x.Key);
+            if (pipelines.Unnamed > 0)
+                result.Skipped.Add($"{pipelines.Unnamed} element(s) belong to no pipeline.");
 
-            foreach (IGrouping<string, Entity> pipeline in pipelines)
+            foreach ((string name, List<Entity> members) in pipelines.Named)
             {
-                if (pipeline.Key.IsNoE())
-                {
-                    result.Skipped.Add(
-                        $"{pipeline.Count()} element(s) belong to no pipeline.");
-                    continue;
-                }
-
-                List<Entity> members = pipeline.ToList();
-                result.Groups[pipeline.Key] = members;
                 try
                 {
-                    result.Traces.Add(Trace(pipeline.Key, members, fjv, tx));
+                    (LegacyPipelineTrace trace, IReadOnlyList<UnjoinedTransition> unjoined) =
+                        Trace(name, members, fjv, tx);
+                    result.Traces.Add(trace);
+                    result.UnjoinedTransitions.AddRange(
+                        unjoined.Select(u => new LegacyUnjoinedTransition(name, u)));
                 }
                 catch (Exception ex)
                 {
-                    result.Skipped.Add($"{pipeline.Key}: {ex.Message}");
+                    result.Skipped.Add($"{name}: {ex.Message}");
                 }
             }
 
@@ -179,7 +218,11 @@ internal static class FjvLegacyPipelineReader
         }
     }
 
-    private static LegacyPipelineTrace Trace(
+    /// <summary>
+    /// The pipeline's trace, and the construction changes among its parts its
+    /// Centreline does not run through, for the importer to mark.
+    /// </summary>
+    private static (LegacyPipelineTrace Trace, IReadOnlyList<UnjoinedTransition> Unjoined) Trace(
         string name, List<Entity> ents, FjvDynamicComponents fjv, Transaction tx)
     {
         List<Polyline> pipes = ents
@@ -247,7 +290,7 @@ internal static class FjvLegacyPipelineReader
                 spans[i] = spans[i] with { StartDist = spans[i - 1].EndDist };
             spans[0] = spans[0] with { ChangeDist = 0.0 };
 
-            return new LegacyPipelineTrace(name, centreline, spans, Corners(blocks));
+            return (new LegacyPipelineTrace(name, centreline, spans, Corners(blocks)), cl.UnjoinedTransitions);
         }
         catch
         {

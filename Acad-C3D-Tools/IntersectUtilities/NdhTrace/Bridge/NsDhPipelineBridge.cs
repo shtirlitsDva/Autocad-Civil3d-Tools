@@ -11,8 +11,7 @@ namespace IntersectUtilities.NdhTrace;
 /// </summary>
 internal sealed class NsDhPipelineBridge : INdhPipelineBuilder, INdhPartStraight
 {
-    private const int StatusOk = 0;
-
+    //sizeof 24
     [StructLayout(LayoutKind.Sequential)]
     private struct RouteVertex
     {
@@ -21,6 +20,7 @@ internal sealed class NsDhPipelineBridge : INdhPipelineBuilder, INdhPartStraight
         public double BendRadius;
     }
 
+    //sizeof 72
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct IdentityBoundary
     {
@@ -30,6 +30,7 @@ internal sealed class NsDhPipelineBridge : INdhPipelineBuilder, INdhPartStraight
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)] public string Type;
     }
 
+    //sizeof 1104
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct BuildResult
     {
@@ -41,6 +42,7 @@ internal sealed class NsDhPipelineBridge : INdhPipelineBuilder, INdhPartStraight
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 512)] public string Detail;
     }
 
+    //sizeof 72
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct PipeIdentity
     {
@@ -50,6 +52,7 @@ internal sealed class NsDhPipelineBridge : INdhPipelineBuilder, INdhPartStraight
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)] public string Type;
     }
 
+    //sizeof 1056
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct ChangeStraightResult
     {
@@ -78,6 +81,15 @@ internal sealed class NsDhPipelineBridge : INdhPipelineBuilder, INdhPartStraight
         int boundaryCount,
         out BuildResult result);
 
+    static NsDhPipelineBridge()
+    {
+        NsDhModule.RequireLayout<RouteVertex>(24);
+        NsDhModule.RequireLayout<IdentityBoundary>(72);
+        NsDhModule.RequireLayout<BuildResult>(1104);
+        NsDhModule.RequireLayout<PipeIdentity>(72);
+        NsDhModule.RequireLayout<ChangeStraightResult>(1056);
+    }
+
     public NdhBuildOutcome Build(string name, NdhRoute route)
     {
         BuildPipelineFn build = NsDhModule.Resolve<BuildPipelineFn>(NsDhSurface.Build, "NsDh_BuildPipeline");
@@ -102,16 +114,15 @@ internal sealed class NsDhPipelineBridge : INdhPipelineBuilder, INdhPartStraight
             };
         }
 
-        int status = build(
-            name, vertices, vertices.Length, boundaries, boundaries.Length, out BuildResult r);
+        int code = build(name, vertices, vertices.Length, boundaries, boundaries.Length, out BuildResult r);
+        (NdhBuildStatus status, string detail) = NsDhModule.Named(code, r.Detail, NdhBuildStatus.BuildFailed);
 
         return new NdhBuildOutcome(
-            status == StatusOk,
-            StatusName(status),
+            status,
             r.PipelineHandle ?? "",
             r.VertexIndex,
             r.SegmentIndex,
-            r.Detail ?? "");
+            detail);
     }
 
     /// <summary>
@@ -124,8 +135,7 @@ internal sealed class NsDhPipelineBridge : INdhPipelineBuilder, INdhPartStraight
         ChangeStraightFn ask = NsDhModule.Resolve<ChangeStraightFn>(
             NsDhSurface.ChangeStraight, "NsDh_ChangeStraight");
 
-        int status = ask(IdentityOf(before), IdentityOf(after), out ChangeStraightResult r);
-        return Answered(status, r,
+        return Answered(ask(IdentityOf(before), IdentityOf(after), out ChangeStraightResult r), r,
             $"the change from {before.System} {before.Type} {before.Dn} to {after.System} {after.Type} {after.Dn}");
     }
 
@@ -138,33 +148,23 @@ internal sealed class NsDhPipelineBridge : INdhPipelineBuilder, INdhPartStraight
         ElbowStraightFn ask = NsDhModule.Resolve<ElbowStraightFn>(
             NsDhSurface.ChangeStraight, "NsDh_ElbowStraight");
 
-        int status = ask(IdentityOf(pipe), turnDegrees, out ChangeStraightResult r);
-        return Answered(status, r,
+        return Answered(ask(IdentityOf(pipe), turnDegrees, out ChangeStraightResult r), r,
             $"the {turnDegrees:F1} degree elbow of {pipe.System} {pipe.Type} {pipe.Dn}");
     }
 
-    private static PartStraight Answered(int status, ChangeStraightResult r, string what) =>
-        status == StatusOk
+    private static PartStraight Answered(int code, ChangeStraightResult r, string what)
+    {
+        (NdhBuildStatus status, string detail) = NsDhModule.Named(code, r.Detail, NdhBuildStatus.BuildFailed);
+        return status == NdhBuildStatus.Ok
             ? new PartStraight(r.BackM, r.ForwardM, r.MinimumPipeM)
             : throw new InvalidOperationException(
-                $"The straight of {what} could not be asked ({StatusName(status)}): {r.Detail}");
+                $"The straight of {what} could not be asked ({status}): {detail}");
+    }
 
     private static PipeIdentity IdentityOf(LegacyIdentitySpan s) => new PipeIdentity
     {
         Dn = s.Dn,
         System = NsDhModule.SystemToken(s.System),
         Type = NsDhModule.TypeToken(s.Type),
-    };
-
-    private static string StatusName(int status) => status switch
-    {
-        0 => "Ok",
-        -1 => "BadArgs",
-        -2 => "InvalidRequest",
-        -3 => "RouteDoesNotSolve",
-        -4 => "NameUnavailable",
-        -5 => "TwoFittingsAtOneVertex",
-        -6 => "BuildFailed",
-        _ => $"Status{status}",
     };
 }

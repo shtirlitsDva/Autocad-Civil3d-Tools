@@ -11,9 +11,6 @@ namespace IntersectUtilities.NdhTrace;
 /// </summary>
 internal sealed class NsDhConnectionBridge : INdhConnector
 {
-    private const int ReadOk = 0;
-    private const int ReadBufferTooSmall = -3;
-
     //sizeof 264
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct BranchConnectRequest
@@ -67,19 +64,9 @@ internal sealed class NsDhConnectionBridge : INdhConnector
 
     static NsDhConnectionBridge()
     {
-        //The mirrors must keep the header's layout; a drift is a build defect,
-        //caught before any call can corrupt memory.
-        CheckSize<BranchConnectRequest>(264);
-        CheckSize<BranchConnectResult>(1072);
-        CheckSize<ConnectionRow>(360);
-    }
-
-    private static void CheckSize<T>(int expected)
-    {
-        int actual = Marshal.SizeOf<T>();
-        if (actual != expected)
-            throw new InvalidOperationException(
-                $"{typeof(T).Name} marshals to {actual} bytes, the NDH header says {expected}.");
+        NsDhModule.RequireLayout<BranchConnectRequest>(264);
+        NsDhModule.RequireLayout<BranchConnectResult>(1072);
+        NsDhModule.RequireLayout<ConnectionRow>(360);
     }
 
     public NdhConnectOutcome Connect(NdhConnectRequest request)
@@ -96,16 +83,8 @@ internal sealed class NsDhConnectionBridge : INdhConnector
             Produkt = request.Produkt,
         };
 
-        int status = connect(native, out BranchConnectResult r);
-
-        //A code this build does not know is still a refusal; its number is kept
-        //in the detail so it is not lost.
-        NdhConnectStatus named = Enum.IsDefined(typeof(NdhConnectStatus), status)
-            ? (NdhConnectStatus)status
-            : NdhConnectStatus.Failed;
-        string detail = named == (NdhConnectStatus)status
-            ? r.Detail ?? ""
-            : $"(status {status}) {r.Detail}";
+        (NdhConnectStatus named, string detail) = NsDhModule.Named(
+            connect(native, out BranchConnectResult r), r.Detail, NdhConnectStatus.Failed);
 
         return new NdhConnectOutcome(
             named, r.MainVertexIndex, r.DeviationDeg, r.EndMoveM, r.LargestMoveM, r.PortX, r.PortY, detail);
@@ -117,15 +96,17 @@ internal sealed class NsDhConnectionBridge : INdhConnector
             NsDhSurface.PipelineRead, "NsDh_ReadPipelineConnections");
 
         ConnectionRow[] rows = new ConnectionRow[8];
-        int status = read(pipelineHandle, rows, rows.Length, out int count);
-        if (status == ReadBufferTooSmall)
+        (NdhPipelineReadStatus status, string said) = NsDhModule.Named(
+            read(pipelineHandle, rows, rows.Length, out int count), null, NdhPipelineReadStatus.Failed);
+        if (status == NdhPipelineReadStatus.BufferTooSmall)
         {
             rows = new ConnectionRow[count];
-            status = read(pipelineHandle, rows, rows.Length, out count);
+            (status, said) = NsDhModule.Named(
+                read(pipelineHandle, rows, rows.Length, out count), null, NdhPipelineReadStatus.Failed);
         }
-        if (status != ReadOk)
+        if (status != NdhPipelineReadStatus.Ok)
             throw new InvalidOperationException(
-                $"The connections of pipeline {pipelineHandle} could not be read (status {status}).");
+                $"The connections of pipeline {pipelineHandle} could not be read ({status}). {said}".TrimEnd());
 
         List<NdhConnectionRow> result = new List<NdhConnectionRow>(count);
         for (int i = 0; i < count; i++)
@@ -137,4 +118,16 @@ internal sealed class NsDhConnectionBridge : INdhConnector
         }
         return result;
     }
+}
+
+/// <summary>The pipeline-read exports' status codes (kNsDhPipelineRead*).</summary>
+internal enum NdhPipelineReadStatus
+{
+    Ok = 0,
+    BadArgs = -1,
+    /// <summary>The handle names no live Pipeline.</summary>
+    NotAPipeline = -2,
+    /// <summary>The rows did not fit; the count says how many to ask for.</summary>
+    BufferTooSmall = -3,
+    Failed = -4,
 }
