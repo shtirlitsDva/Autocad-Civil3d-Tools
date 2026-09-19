@@ -20,8 +20,8 @@ namespace NTRExport.TopologyModel
     {
         public AfgreningsStuds(Handle source)
             : base(source, PipelineElementType.Afgreningsstuds) { }
-        public TPort Main => Ports.First(x => x.Role == PortRole.Main);
-        public TPort Branch => Ports.First(x => x.Role == PortRole.Branch);
+        public TPort Main => Ports.First(x => x.Role == ComponentPortRole.Main);
+        public TPort Branch => Ports.First(x => x.Role == ComponentPortRole.Branch);
         protected int DnM =>
             _entity switch
             {

@@ -18,6 +18,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Schema\DF DAR Husnummer Class.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\DatabaseList.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ComponentSchedule.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ComponentPorts.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)DataManager\DataManager.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)DataManager\DataReferenceOptions.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)DataManager\FileResolvers\FileResolverLer.cs" />

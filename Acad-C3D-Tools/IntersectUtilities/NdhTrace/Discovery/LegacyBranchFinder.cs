@@ -183,7 +183,7 @@ internal static class LegacyBranchFinder
             (site, system, type) = SiteOn(mainTrace, port);
 
         List<Point2d> mainPorts = junction
-            .SelectMany(c => c.Part.Ports.Where(p => p.Role == LegacyPortRole.Main).Select(p => p.Position))
+            .SelectMany(c => c.Part.Ports.Where(p => p.Role != ComponentPortRole.Branch).Select(p => p.Position.To2d()))
             .ToList();
 
         drawing.Branches.Add(new LegacyBranch(

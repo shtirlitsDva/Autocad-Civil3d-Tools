@@ -522,13 +522,8 @@ namespace IntersectUtilities.UtilsCommon
                     $"{transition.RealName()}, {transition.Handle}!");
             }
 
-            BlockTableRecord btr = transition.BlockTableRecord.Go<BlockTableRecord>(tx);
-
-            var points = btr
-                .ToIEnumerable()
-                .Select(id => id.Go<BlockReference>(tx))
-                .Where(br => br != null && br.Name.Contains("MuffeIntern"))
-                .Select(br => br.Position)
+            var points = ComponentPorts.Read(transition, tx)
+                .Select(p => p.Position)
                 .Take(2)
                 .ToArray();
 
@@ -548,13 +543,8 @@ namespace IntersectUtilities.UtilsCommon
                     $"{transition.RealName()}, {transition.Handle}!");
             }
 
-            BlockTableRecord btr = transition.BlockTableRecord.Go<BlockTableRecord>(tx);
-
-            var points = btr
-                .ToIEnumerable()
-                .Select(id => id.Go<BlockReference>(tx))
-                .Where(br => br != null && br.Name.Contains("MuffeIntern"))
-                .Select(br => br.Position.TransformBy(transition.BlockTransform))
+            var points = ComponentPorts.Read(transition, tx)
+                .Select(p => p.Position)
                 .ToArray();
 
             if (points.Length != 2) throw new System.Exception(
@@ -3160,27 +3150,7 @@ namespace IntersectUtilities.UtilsCommon
 
         public static HashSet<Point3d> GetAllEndPoints(this BlockReference br)
         {
-            HashSet<Point3d> result = new HashSet<Point3d>();
-
-            Transaction tx = GetTopTx(br);
-
-            BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
-
-            foreach (Oid oid in btr)
-            {
-                if (!oid.IsDerivedFrom<BlockReference>())
-                    continue;
-                BlockReference nestedBr = oid.Go<BlockReference>(tx);
-                if (!nestedBr.Name.Contains("MuffeIntern"))
-                    continue;
-
-                Point3d wPt = nestedBr.Position;
-                wPt = wPt.TransformBy(br.BlockTransform);
-
-                result.Add(wPt);
-            }
-
-            return result;
+            return ComponentPorts.Read(br, GetTopTx(br)).Select(p => p.Position).ToHashSet();
         }
 
         public static HashSet<Point3d> GetAllEndPoints(this Entity ent)

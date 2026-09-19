@@ -49,11 +49,11 @@ namespace NTRExport.TopologyModel
 
         private PortAssignment ClassifyPorts(Topology topo)
         {
-            var twinPorts = Ports.Where(p => p.Role == PortRole.Neutral).ToList();
+            var twinPorts = Ports.Where(p => p.Role == ComponentPortRole.Neutral).ToList();
             if (twinPorts.Count != 1)
                 throw new InvalidOperationException($"FModel {Source}: expected exactly one neutral (twin) port.");
 
-            var bondedPorts = Ports.Where(p => p.Role != PortRole.Neutral).ToList();
+            var bondedPorts = Ports.Where(p => p.Role != ComponentPortRole.Neutral).ToList();
             if (bondedPorts.Count != 2)
                 throw new InvalidOperationException($"FModel {Source}: expected exactly two bonded ports.");
 

@@ -149,6 +149,17 @@ namespace IntersectUtilities.PipelineNetworkSystem
             cmd.StartInfo.Arguments = @"/c ""dot -Tpdf SegmentsGraph.dot > SegmentsGraph.pdf""";
             cmd.Start();
         }
+        /// <summary>
+        /// Writes every branch pipeline's name into the tee it leaves its parent
+        /// through, where the legacy drawing left that out
+        /// (<see cref="IPipelineV2.RepairBranchReferenceToParent"/>).
+        /// </summary>
+        public void RepairBranchReferences()
+        {
+            PipelineGraphWorker gw = new PipelineGraphWorker();
+            gw.RepairBranchReferences(_pipelineGraphs
+                ?? throw new InvalidOperationException("CreatePipelineGraph must run before RepairBranchReferences."));
+        }
         public void AutoReversePolylines()
         {
             PipelineGraphWorker gw = new PipelineGraphWorker();
@@ -303,6 +314,13 @@ namespace IntersectUtilities.PipelineNetworkSystem
     }
     public class PipelineGraphWorker
     {
+        public void RepairBranchReferences(GraphCollection<IPipelineV2> graphs)
+        {
+            foreach (var graph in graphs)
+                foreach (var node in graph.Dfs())
+                    if (node.Parent != null)
+                        node.Value.RepairBranchReferenceToParent(node.Parent.Value, 0.05);
+        }
         public void AutoReversePolylines(GraphCollection<IPipelineV2> graphs)
         {
             foreach (var graph in graphs)
@@ -660,14 +678,9 @@ namespace IntersectUtilities.PipelineNetworkSystem
                                 {
                                     var type = br.GetPipelineType();
 
-                                    BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
-                                    foreach (Oid oid in btr)
+                                    foreach (ComponentPort port in ComponentPorts.Read(br, tx))
                                     {
-                                        if (!oid.IsDerivedFrom<BlockReference>()) continue;
-                                        BlockReference nestedBr = oid.Go<BlockReference>(tx);
-                                        if (!nestedBr.Name.Contains("MuffeIntern")) continue;
-                                        Point3d wPt = nestedBr.Position;
-                                        wPt = wPt.TransformBy(br.BlockTransform);
+                                        Point3d wPt = port.Position;
 
                                         var deriv = pipeline.GetFirstDerivative(wPt);
                                         var rotation = Math.Atan2(deriv.Y, deriv.X);
@@ -675,7 +688,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                                         #region Read DN
                                         int DN = 0;
                                         bool parseSuccess = false;
-                                        if (nestedBr.Name.Contains("BRANCH"))
+                                        if (port.Role == ComponentPortRole.Branch)
                                         {
                                             parseSuccess = int.TryParse(
                                                 br.ReadDynamicCsvProperty(DynamicProperty.DN2), out DN);

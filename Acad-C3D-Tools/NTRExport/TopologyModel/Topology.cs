@@ -30,11 +30,11 @@ namespace NTRExport.TopologyModel
 
     internal class TPort
     {
-        public PortRole Role { get; init; }
+        public ComponentPortRole Role { get; init; }
         public TNode Node { get; init; }
         public ElementBase Owner { get; init; }
 
-        public TPort(PortRole role, TNode node, ElementBase owner)
+        public TPort(ComponentPortRole role, TNode node, ElementBase owner)
         {
             Role = role;
             Node = node;

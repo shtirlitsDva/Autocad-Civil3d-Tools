@@ -24,8 +24,7 @@ namespace IntersectUtilities.NdhTrace;
 /// graph (DriGraph ConnectedEntities) rewritten, inside that transaction, as
 /// GRAPHPOPULATE would (the file's own copy may be stale): the graph writer
 /// also "repairs" a svanehals's missing BelongsToAlignment with its main, and
-/// the network's Case 4 repairs tees' BranchesOffToAlignment - neither may
-/// change what the traces or the parts say.
+/// that may not change what the traces or the parts say.
 /// </summary>
 internal static class LegacyDrawingReader
 {
@@ -35,16 +34,16 @@ internal static class LegacyDrawingReader
         fjvDb.ReadDwgFile(fjvPath, FileOpenMode.OpenForReadAndAllShare, true, "");
 
         using Transaction tx = fjvDb.TransactionManager.StartTransaction();
-        LegacyDrawing drawing = new LegacyDrawing(FjvLegacyPipelineReader.Read(fjvDb, tx));
+        PropertySetHelper psh = new PropertySetHelper(fjvDb);
+        //Database resident: used only in this method, while tx is open.
+        LegacyPipelineGroups groups = LegacyPipelineGroups.Read(fjvDb, tx, psh);
+        LegacyDrawing drawing = new LegacyDrawing(FjvLegacyPipelineReader.Read(groups, tx));
         try
         {
-            PropertySetHelper psh = new PropertySetHelper(fjvDb);
             List<LegacyComponent> parts = LegacyComponentReader.Read(fjvDb, tx, psh);
 
-            HashSet<string> traced = drawing.Traces.Traces.Select(t => t.Name).ToHashSet(StringComparer.Ordinal);
-            Dictionary<string, List<Entity>> importedGroups = drawing.Traces.Groups
-                .Where(x => traced.Contains(x.Key))
-                .ToDictionary(x => x.Key, x => x.Value, StringComparer.Ordinal);
+            Dictionary<string, List<Entity>> importedGroups = drawing.Traces.Traces
+                .ToDictionary(t => t.Name, t => groups.ByName[t.Name], StringComparer.Ordinal);
             LegacySettingsReader.Read(parts, importedGroups, drawing.Settings);
 
             try
