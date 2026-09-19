@@ -1,7 +1,8 @@
-using Autodesk.AutoCAD.DatabaseServices;
+using IntersectUtilities.PlanDetailing;
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace IntersectUtilities.NdhTrace;
 
@@ -11,7 +12,28 @@ namespace IntersectUtilities.NdhTrace;
 /// where; -1 when it names none.
 /// </summary>
 internal readonly record struct NdhBuildOutcome(
-    bool Success, string Status, string Handle, int VertexIndex, int SegmentIndex, string Detail);
+    NdhBuildStatus Status, string Handle, int VertexIndex, int SegmentIndex, string Detail)
+{
+    public bool Success => Status == NdhBuildStatus.Ok;
+}
+
+/// <summary>NsDh_BuildPipeline status codes (kNsDhPipelineBuild*); NsDh_ChangeStraight and NsDh_ElbowStraight answer in them too.</summary>
+internal enum NdhBuildStatus
+{
+    Ok = 0,
+    /// <summary>The call is malformed: a caller bug, not a statement about the pipeline.</summary>
+    BadArgs = -1,
+    /// <summary>The request breaks a rule of its own (too few vertices, an unknown token, ...).</summary>
+    InvalidRequest = -2,
+    /// <summary>The solver refused the route.</summary>
+    RouteDoesNotSolve = -3,
+    /// <summary>The name is empty, or another pipeline holds it.</summary>
+    NameUnavailable = -4,
+    /// <summary>A boundary stands on a vertex that already carries an elbow.</summary>
+    TwoFittingsAtOneVertex = -5,
+    /// <summary>Anything else; NDHTRACE carries the reason.</summary>
+    BuildFailed = -6,
+}
 
 /// <summary>Creates one new pipeline in the working drawing from a route.</summary>
 internal interface INdhPipelineBuilder
@@ -19,72 +41,151 @@ internal interface INdhPipelineBuilder
     NdhBuildOutcome Build(string name, NdhRoute route);
 }
 
+/// <summary>What NDHFROMFJV did, section by section, for the command's (Danish) report.</summary>
 internal sealed class NdhImportReport
 {
     public int LegacyPipelineCount { get; set; }
+    /// <summary>Set when the drafter stopped the import in a dialog; nothing was written.</summary>
+    public string? Cancelled { get; set; }
     public List<string> Created { get; } = new List<string>();
-    /// <summary>Pipelines the builder refused, with its reason.</summary>
-    public List<string> Refused { get; } = new List<string>();
-    /// <summary>Legacy pipelines that produced no route, with the reason.</summary>
-    public List<string> Skipped { get; } = new List<string>();
-    /// <summary>Per created pipeline, every place its route deviates from the trace.</summary>
+    /// <summary>Per merged pipeline, the legacy pipelines it absorbed.</summary>
+    public List<string> Merged { get; } = new List<string>();
+    /// <summary>Branches connected to their mains, with the Produkt pinned.</summary>
+    public List<string> Connected { get; } = new List<string>();
+    /// <summary>Every place the import changed the legacy geometry: routes and squared branches.</summary>
     public List<string> Adjusted { get; } = new List<string>();
+    /// <summary>What the import left out, and why: untraced pipelines, untranslatable parts, stik.</summary>
+    public List<string> Skipped { get; } = new List<string>();
+    /// <summary>What NDH refused: pipelines and connections.</summary>
+    public List<string> Refused { get; } = new List<string>();
+    public List<string> ProducerReport { get; } = new List<string>();
+    public List<string> SeriesReport { get; } = new List<string>();
+    /// <summary>How many markers were placed on the marker layer.</summary>
+    public int MarkersPlaced { get; set; }
 }
 
+/// <summary>Everything the import talks to, so each piece can be replaced.</summary>
+internal sealed record NdhImportServices(
+    INdhPipelineBuilder Builder,
+    INdhPartStraight Straight,
+    INdhConnector Connector,
+    INdhDrawingSettings Settings,
+    IImportDialogs Dialogs,
+    IImportMarkers Markers);
+
 /// <summary>
-/// Traces every legacy FJV pipeline of a source drawing and creates a new
-/// pipeline for each in the working drawing.
+/// NDHFROMFJV (#319): translates a legacy FJV drawing word for word into NDH
+/// pipelines and their connections, in the order the spec fixes:
+/// 1. read the legacy drawing;
+/// 2. infer the drawing settings, asking where the legacy drawing is ambiguous;
+/// 3. set the drawing's producer and series matrix;
+/// 4. merge end-to-end chains;
+/// 5. build the pipelines;
+/// 6. connect the branches;
+/// 7. place the markers;
+/// 8. report (the command prints it).
+///
+/// Everything runs inside the one NDHFROMFJV command, so one UNDO takes the
+/// whole import back: the NDH exports commit undoable transactions of the
+/// command, and the markers are written in the command too.
+///
+/// The report belongs to the caller and is filled as the import goes: when a
+/// step throws after the first write, what was already built and connected is
+/// still in it, for the command to print (review of #319, I2).
 /// </summary>
 internal static class NdhFromFjvImport
 {
-    public static NdhImportReport Run(string fjvPath, INdhPipelineBuilder builder, INdhPartStraight straight)
+    public static void Run(string fjvPath, NdhImportServices services, NdhImportReport report)
     {
-        NdhImportReport report = new NdhImportReport();
-        List<(string Name, NdhRoute Route)> routes = new List<(string, NdhRoute)>();
+        //1.
+        using LegacyDrawing legacy = LegacyDrawingReader.Read(fjvPath);
+        report.LegacyPipelineCount = legacy.Traces.Traces.Count + legacy.Traces.Skipped.Count;
+        foreach (string s in legacy.Traces.Skipped) report.Skipped.Add($"Rørledning ikke sporet: {s}");
+        List<ImportMarker> transitionMarkers = UnjoinedTransitions(legacy, report);
 
-        using (Database fjvDb = new Database(false, true))
+        //2. + 3.
+        if (!DrawingSettingsStep.Apply(legacy.Settings, services.Settings, services.Dialogs, report))
+            return;
+
+        //4.
+        using MergedTraces merged = LegacyTraceMerger.Merge(legacy.Traces.Traces, legacy.Joins, legacy.DepthOf);
+        report.Merged.AddRange(merged.Merged);
+        report.Skipped.AddRange(merged.Notes);
+
+        //5.
+        Dictionary<string, BuiltPipeline> built = Build(legacy, merged, services, report);
+
+        //6.
+        List<ImportMarker> markers = BranchConnectionStep.Run(legacy, merged, built, services.Connector, report);
+        markers.AddRange(transitionMarkers);
+
+        //7.
+        report.MarkersPlaced = services.Markers.Place(markers);
+    }
+
+    /// <summary>
+    /// A construction change the legacy pipeline's Centreline does not run
+    /// through is not in the new pipeline: NDH lays a change where the pipe's
+    /// identity changes along ONE pipeline, and this one stands where the
+    /// pipeline stops, or between two sides that never met. The import
+    /// translates and never designs, so it does not invent the change; it
+    /// reports it and marks where the legacy drawing has it, as it does every
+    /// other part it could not carry across (decided from the drafter's seat).
+    /// </summary>
+    private static List<ImportMarker> UnjoinedTransitions(LegacyDrawing legacy, NdhImportReport report)
+    {
+        List<ImportMarker> markers = new List<ImportMarker>();
+        foreach ((string pipeline, UnjoinedTransition t) in legacy.Traces.UnjoinedTransitions)
         {
-            fjvDb.ReadDwgFile(fjvPath, FileOpenMode.OpenForReadAndAllShare, true, "");
-            using Transaction tx = fjvDb.TransactionManager.StartTransaction();
-            using LegacyTraceResult traces = FjvLegacyPipelineReader.Read(fjvDb, tx);
+            report.Skipped.Add($"{pipeline}: konstruktionsskift {t.Part} er ikke overført ({t.Reason}).");
+            markers.Add(new NotConnectedMarker(t.At,
+                $"NDHFROMFJV: legacy transition {t.Part} on '{pipeline}' not carried across: {t.Reason}."));
+        }
+        return markers;
+    }
 
-            report.LegacyPipelineCount = traces.Traces.Count + traces.Skipped.Count;
-            report.Skipped.AddRange(traces.Skipped);
+    /// <summary>
+    /// Routes and builds every pipeline, without any transaction of ours open:
+    /// the builder opens the working drawing's model space itself. Each route
+    /// is told where the legacy branches sit on it, so it stays straight across
+    /// them: a legacy junction stands on a straight (live run 2026-09-19, F2).
+    /// </summary>
+    private static Dictionary<string, BuiltPipeline> Build(
+        LegacyDrawing legacy, MergedTraces merged, NdhImportServices services, NdhImportReport report)
+    {
+        ILookup<string, NdhJunctionSeat> seats = legacy.Branches.ToLookup(
+            b => merged.NameOf(b.MainName),
+            b => new NdhJunctionSeat(b.Site, b.MainPorts),
+            StringComparer.Ordinal);
 
-            foreach (LegacyPipelineTrace t in traces.Traces)
+        Dictionary<string, BuiltPipeline> built = new Dictionary<string, BuiltPipeline>(StringComparer.Ordinal);
+        foreach (LegacyPipelineTrace t in merged.Traces)
+        {
+            NdhRoute route;
+            try
             {
-                try
-                {
-                    routes.Add((t.Name, NdhRouteBuilder.Build(t, straight)));
-                }
-                catch (Exception ex)
-                {
-                    report.Skipped.Add($"{t.Name}: {ex.Message}");
-                }
+                route = NdhRouteBuilder.Build(t, services.Straight, seats[t.Name].ToList());
+            }
+            catch (Exception ex)
+            {
+                report.Skipped.Add($"Rørledning ikke sporet: {t.Name}: {ex.Message}");
+                continue;
             }
 
-            //The source is only read; nothing in it may be kept.
-            tx.Abort();
-        }
-
-        //Built only after the source is closed and without any transaction of
-        //ours: the builder opens the working drawing's model space itself.
-        foreach ((string name, NdhRoute route) in routes)
-        {
-            NdhBuildOutcome outcome = builder.Build(name, route);
+            NdhBuildOutcome outcome = services.Builder.Build(t.Name, route);
             if (!outcome.Success)
             {
                 string at =
                     outcome.VertexIndex >= 0 ? $" (vertex {outcome.VertexIndex})" :
                     outcome.SegmentIndex >= 0 ? $" (segment {outcome.SegmentIndex})" : "";
-                report.Refused.Add($"{name}: {outcome.Status}{at} - {outcome.Detail}");
+                report.Refused.Add($"{t.Name}: {outcome.Status}{at} - {outcome.Detail}");
                 continue;
             }
 
-            report.Created.Add(name);
-            foreach (string note in route.Adjustments) report.Adjusted.Add($"{name}: {note}");
+            built[t.Name] = new BuiltPipeline(outcome.Handle, route);
+            report.Created.Add(t.Name);
+            foreach (string note in route.Adjustments) report.Adjusted.Add($"{t.Name}: {note}");
         }
-
-        return report;
+        return built;
     }
 }

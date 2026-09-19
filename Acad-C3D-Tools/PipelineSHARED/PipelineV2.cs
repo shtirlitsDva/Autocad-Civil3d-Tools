@@ -46,6 +46,18 @@ namespace IntersectUtilities.PipelineNetworkSystem
         Vector3d GetFirstDerivative(Point3d pt);
         bool IsConnectedTo(IPipelineV2 other, double tol);
         Point3d GetConnectionLocationToParent(IPipelineV2 other, double tol);
+        /// <summary>
+        /// The connection location as <see cref="GetConnectionLocationToParent"/> finds it;
+        /// false when there is none. Both only read.
+        /// </summary>
+        bool TryGetConnectionLocationToParent(IPipelineV2 parent, double tol, out Point3d location);
+        /// <summary>
+        /// Fills in the parent's record of this pipeline where the legacy drawing
+        /// left it out: writes this pipeline's name into BranchesOffToAlignment of
+        /// the tee-like part of the parent that this pipeline's end sits on. A
+        /// write to the drawing, for a command that commits its changes.
+        /// </summary>
+        void RepairBranchReferenceToParent(IPipelineV2 parent, double tol);
         bool DetermineUnconnectedEndPoint(IPipelineV2 other, double tol, out Point3d freeEnd);
         void AutoReversePolylines(Point3d connectionLocation);
         IEnumerable<Entity> GetEntitiesWithinStations(double start, double end);
@@ -180,6 +192,9 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 return ss > es;
         }
         public abstract Point3d GetConnectionLocationToParent(IPipelineV2 parent, double tol);
+        public abstract bool TryGetConnectionLocationToParent(
+            IPipelineV2 parent, double tol, out Point3d location);
+        public abstract void RepairBranchReferenceToParent(IPipelineV2 parent, double tol);
         /// <summary>
         /// Determines start or end point for max DN.
         /// Cannot be used for pipelines supplied from the middle.
@@ -544,6 +559,36 @@ namespace IntersectUtilities.PipelineNetworkSystem
 
         public override Point3d GetConnectionLocationToParent(IPipelineV2 parent, double tol)
         {
+            try
+            {
+                if (parent is PipelineV2Na pna)
+                    throw new Exception(
+                        $"Alignment pipeline {this.Name} cannot have NA {pna.Name} as parent!"
+                    );
+                if (TryGetConnectionLocationToParent(parent, tol, out Point3d location))
+                    return location;
+
+                //If we get here, we have failed to find a connection location
+                throw new Exception(
+                    $"Could not find connection location between {this.Name} and {parent.Name}!"
+                );
+            }
+            catch (Exception ex)
+            {
+                prdDbg(ex);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Nothing to repair: an alignment pipeline meets its (alignment) parent
+        /// on the parent's path itself, never through one of its parts.
+        /// </summary>
+        public override void RepairBranchReferenceToParent(IPipelineV2 parent, double tol) { }
+
+        public override bool TryGetConnectionLocationToParent(
+            IPipelineV2 parent, double tol, out Point3d location)
+        {
             //Assumptions:
             //This is connected to parent by endpoints -> ConnectionType: start or end
             //Parent is connected to this by start or end -> ConnectionType: middle
@@ -551,6 +596,18 @@ namespace IntersectUtilities.PipelineNetworkSystem
             //1. Parent is connected S/E to this && this S/E is coincident with parent S/E -> end to end, start or end
             //2. Parent is not connected S/E to this && this S/E is connected to P -> afgrening
             //3. Parent is connected S/E to this && this S/E is not coincident with parent S/E -> middle
+            location = Point3d.Origin;
+            switch (parent)
+            {
+                case PipelineV2Alignment:
+                    break;
+                case PipelineV2Na:
+                    //An alignment pipeline never has an NA parent.
+                    return false;
+                default:
+                    throw new Exception($"Unknown pipeline type {parent.GetType()}!");
+            }
+            PipelineV2Alignment pal = (PipelineV2Alignment)parent;
 
             //use a variable to cache the polyline reference
             //remember to erase it at the end
@@ -558,68 +615,68 @@ namespace IntersectUtilities.PipelineNetworkSystem
             Polyline thisPlRef = null;
             try
             {
-                switch (parent)
+                parentPlRef = pal
+                    .al.GetPolyline()
+                    .Go<Polyline>(pal.al.Database.TransactionManager.TopTransaction);
+                thisPlRef = this
+                    .al.GetPolyline()
+                    .Go<Polyline>(this.al.Database.TransactionManager.TopTransaction);
+
+                Point3d parentStart = pal.al.StartPoint;
+                Point3d parentEnd = pal.al.EndPoint;
+                Point3d thisStart = this.al.StartPoint;
+                Point3d thisEnd = this.al.EndPoint;
+
+                Point3d testPS;
+                Point3d testPE;
+
+                //Test for Case 1.
+                if (
+                    parentStart.DistanceHorizontalTo(thisStart) < tol
+                    || parentEnd.DistanceHorizontalTo(thisStart) < tol
+                )
                 {
-                    case PipelineV2Alignment pal:
-                        parentPlRef = pal
-                            .al.GetPolyline()
-                            .Go<Polyline>(pal.al.Database.TransactionManager.TopTransaction);
-                        thisPlRef = this
-                            .al.GetPolyline()
-                            .Go<Polyline>(this.al.Database.TransactionManager.TopTransaction);
-
-                        Point3d parentStart = pal.al.StartPoint;
-                        Point3d parentEnd = pal.al.EndPoint;
-                        Point3d thisStart = this.al.StartPoint;
-                        Point3d thisEnd = this.al.EndPoint;
-
-                        Point3d testPS;
-                        Point3d testPE;
-
-                        //Test for Case 1.
-                        if (
-                            parentStart.DistanceHorizontalTo(thisStart) < tol
-                            || parentEnd.DistanceHorizontalTo(thisStart) < tol
-                        )
-                            return thisStart;
-                        if (
-                            parentStart.DistanceHorizontalTo(thisEnd) < tol
-                            || parentEnd.DistanceHorizontalTo(thisEnd) < tol
-                        )
-                            return thisEnd;
-
-                        //Test for Case 2.
-                        testPS = parentPlRef.GetClosestPointTo(thisStart, false);
-                        if (testPS.DistanceHorizontalTo(thisStart) < tol)
-                            return thisStart;
-                        testPE = parentPlRef.GetClosestPointTo(thisEnd, false);
-                        if (testPE.DistanceHorizontalTo(thisEnd) < tol)
-                            return thisEnd;
-
-                        //Test for Case 3.
-                        testPS = thisPlRef.GetClosestPointTo(parentStart, false);
-                        if (testPS.DistanceHorizontalTo(parentStart) < tol)
-                            return testPS;
-                        testPE = thisPlRef.GetClosestPointTo(parentEnd, false);
-                        if (testPE.DistanceHorizontalTo(parentEnd) < tol)
-                            return testPE;
-
-                        //If we get here, we have failed to find a connection location
-                        throw new Exception(
-                            $"Could not find connection location between {this.Name} and {parent.Name}!"
-                        );
-                    case PipelineV2Na pna:
-                        throw new Exception(
-                            $"Alignment pipeline {this.Name} cannot have NA {pna.Name} as parent!"
-                        );
-                    default:
-                        throw new Exception($"Unknown pipeline type {parent.GetType()}!");
+                    location = thisStart;
+                    return true;
                 }
-            }
-            catch (Exception ex)
-            {
-                prdDbg(ex);
-                throw;
+                if (
+                    parentStart.DistanceHorizontalTo(thisEnd) < tol
+                    || parentEnd.DistanceHorizontalTo(thisEnd) < tol
+                )
+                {
+                    location = thisEnd;
+                    return true;
+                }
+
+                //Test for Case 2.
+                testPS = parentPlRef.GetClosestPointTo(thisStart, false);
+                if (testPS.DistanceHorizontalTo(thisStart) < tol)
+                {
+                    location = thisStart;
+                    return true;
+                }
+                testPE = parentPlRef.GetClosestPointTo(thisEnd, false);
+                if (testPE.DistanceHorizontalTo(thisEnd) < tol)
+                {
+                    location = thisEnd;
+                    return true;
+                }
+
+                //Test for Case 3.
+                testPS = thisPlRef.GetClosestPointTo(parentStart, false);
+                if (testPS.DistanceHorizontalTo(parentStart) < tol)
+                {
+                    location = testPS;
+                    return true;
+                }
+                testPE = thisPlRef.GetClosestPointTo(parentEnd, false);
+                if (testPE.DistanceHorizontalTo(parentEnd) < tol)
+                {
+                    location = testPE;
+                    return true;
+                }
+
+                return false;
             }
             finally
             {
@@ -1041,6 +1098,91 @@ namespace IntersectUtilities.PipelineNetworkSystem
 
         public override Point3d GetConnectionLocationToParent(IPipelineV2 parent, double tol)
         {
+            if (TryLocate(parent, tol, out Point3d location, out _))
+                return location;
+
+            //The two paths travel with the exception, in memory: the command
+            //that catches it decides whether to draw them.
+            throw new DebugEntityException(
+                $"Could not find connection location between {this.Name} and {parent.Name}!",
+                [parent.GetTopologyPolyline(), this.GetTopologyPolyline()]
+            );
+        }
+
+        public override bool TryGetConnectionLocationToParent(
+            IPipelineV2 parent, double tol, out Point3d location) =>
+            TryLocate(parent, tol, out location, out _);
+
+        /// <summary>
+        /// Case 4 finds this pipeline's end on one of the parent's parts. A
+        /// tee-like part there should name this pipeline in its
+        /// BranchesOffToAlignment; legacy drawings often leave it out. Writes it.
+        /// </summary>
+        public override void RepairBranchReferenceToParent(IPipelineV2 parent, double tol)
+        {
+            if (!TryLocate(parent, tol, out _, out Entity? partAtJoint)) return;
+            if (partAtJoint is not BlockReference br) return;
+            if (!TeeLikeTypes.Contains(br.ReadDynamicCsvProperty(DynamicProperty.Type))) return;
+
+            _psh.Pipeline.WritePropertyString(
+                br,
+                _psh.PipelineDef.BranchesOffToAlignment,
+                this.Name
+            );
+        }
+
+        //The parts whose BranchesOffToAlignment names the pipeline branching off them.
+        private static readonly HashSet<string> TeeLikeTypes =
+        [
+            "Afgrening med spring",
+            "Lige afgrening",
+            "Muffetee",
+            "Parallelafgrening",
+            "Preskobling tee",
+        ];
+
+        /// <summary>
+        /// Where this pipeline connects to <paramref name="parent"/>, and the
+        /// parent's part this pipeline's end was found on when only Case 4
+        /// places it (null otherwise). Reads only.
+        /// </summary>
+        private bool TryLocate(
+            IPipelineV2 parent, double tol, out Point3d location, out Entity? partAtJoint)
+        {
+            Polyline parentPlRef = null;
+            try
+            {
+                parentPlRef = TopologyOf(parent);
+                return TryLocateConnection(parent, parentPlRef, tol, out location, out partAtJoint);
+            }
+            finally
+            {
+                if (parentPlRef != null && parent is PipelineV2Alignment)
+                {
+                    parentPlRef.UpgradeOpen();
+                    parentPlRef.Erase(true);
+                }
+            }
+        }
+
+        /// <summary>
+        /// The parent's path as a polyline. An alignment's is a new database
+        /// resident polyline the caller must erase; an NA's is its topology.
+        /// </summary>
+        private static Polyline TopologyOf(IPipelineV2 parent) => parent switch
+        {
+            PipelineV2Alignment pal => pal
+                .al.GetPolyline()
+                .Go<Polyline>(pal.al.Database.TransactionManager.TopTransaction)
+                ?? throw new Exception($"Alignment {pal.Name} gave no polyline!"),
+            PipelineV2Na pna => pna.topology,
+            _ => throw new Exception($"Unknown pipeline type {parent.GetType()}!"),
+        };
+
+        private bool TryLocateConnection(
+            IPipelineV2 parent, Polyline parentPlRef, double tol,
+            out Point3d location, out Entity? partAtJoint)
+        {
             //Assumptions:
             //This is connected to parent by endpoints -> ConnectionType: start or end
             //Parent is connected to this by start or end -> ConnectionType: middle
@@ -1051,154 +1193,78 @@ namespace IntersectUtilities.PipelineNetworkSystem
 
             //4. Case where the NA is connected to a tee like and does not reach the alignment geometry
             //   In this case we need to find the connection point to the tee like using geometry of components
-
-            //use a variable to cache the polyline reference
-            //remember to erase it at the end
-            Polyline parentPlRef = null;
             Polyline thisPlRef = this.topology;
-            try
+
+            Point3d parentStart = parentPlRef.StartPoint;
+            Point3d parentEnd = parentPlRef.EndPoint;
+            Point3d thisStart = thisPlRef.StartPoint;
+            Point3d thisEnd = thisPlRef.EndPoint;
+
+            Point3d testPS;
+            Point3d testPE;
+
+            location = Point3d.Origin;
+            partAtJoint = null;
+
+            //Test for Case 1.
+            if (
+                parentStart.DistanceHorizontalTo(thisStart) < tol
+                || parentEnd.DistanceHorizontalTo(thisStart) < tol
+            )
             {
-                switch (parent)
-                {
-                    case PipelineV2Alignment pal:
-                        parentPlRef = pal
-                            .al.GetPolyline()
-                            .Go<Polyline>(pal.al.Database.TransactionManager.TopTransaction);
-                        break;
-                    case PipelineV2Na pna:
-                        parentPlRef = pna.topology;
-                        break;
-                    default:
-                        throw new Exception($"Unknown pipeline type {parent.GetType()}!");
-                }
-
-                Point3d parentStart = parentPlRef.StartPoint;
-                Point3d parentEnd = parentPlRef.EndPoint;
-                Point3d thisStart = thisPlRef.StartPoint;
-                Point3d thisEnd = thisPlRef.EndPoint;
-
-                Point3d testPS;
-                Point3d testPE;
-
-                //Test for Case 1.
-                if (
-                    parentStart.DistanceHorizontalTo(thisStart) < tol
-                    || parentEnd.DistanceHorizontalTo(thisStart) < tol
-                )
-                    return thisStart;
-                if (
-                    parentStart.DistanceHorizontalTo(thisEnd) < tol
-                    || parentEnd.DistanceHorizontalTo(thisEnd) < tol
-                )
-                    return thisEnd;
-
-                //Test for Case 2.
-                testPS = parentPlRef.GetClosestPointTo(thisStart, false);
-                if (testPS.DistanceHorizontalTo(thisStart) < tol)
-                    return thisStart;
-                testPE = parentPlRef.GetClosestPointTo(thisEnd, false);
-                if (testPE.DistanceHorizontalTo(thisEnd) < tol)
-                    return thisEnd;
-
-                //Test for Case 3.
-                testPS = thisPlRef.GetClosestPointTo(parentStart, false);
-                if (testPS.DistanceHorizontalTo(parentStart) < tol)
-                    return testPS;
-                testPE = thisPlRef.GetClosestPointTo(parentEnd, false);
-                if (testPE.DistanceHorizontalTo(parentEnd) < tol)
-                    return testPE;
-
-                //Test for Case 4.
-                Point3d con = Point3d.Origin;
-                var ent1 = parent.PipelineEntities.GetEntityByPoint(thisStart);
-                var ent2 = parent.PipelineEntities.GetEntityByPoint(thisEnd);
-                var ent = ent1 ?? ent2;
-
-                if (ent1 != null)
-                    con = parentPlRef.GetClosestPointTo(thisStart, false);
-                else if (ent2 != null)
-                    con = parentPlRef.GetClosestPointTo(thisEnd, false);
-
-                if (ent1 == null && ent2 == null)
-                    throw new DebugEntityException(
-                        $"Could not find connection location between {this.Name} and {parent.Name}!",
-                        [parentPlRef, thisPlRef]
-                    );
-                else
-                {
-                    //Dirty fix for missing branch connection references
-                    HashSet<string> names =
-                    [
-                        "Afgrening med spring",
-                        "Lige afgrening",
-                        "Muffetee",
-                        "Parallelafgrening",
-                        "Preskobling tee",
-                    ];
-                    if (
-                        ent is BlockReference br
-                        && names.Contains(br.ReadDynamicCsvProperty(DynamicProperty.Type))
-                    )
-                    {
-                        _psh.Pipeline.WritePropertyString(
-                            ent,
-                            _psh.PipelineDef.BranchesOffToAlignment,
-                            this.Name
-                        );
-                    }
-
-                    return con;
-                }
-
-                //If we get here, we have failed to find a connection location
-                throw new Exception(
-                    $"Could not find connection location between {this.Name} and {parent.Name}!"
-                );
+                location = thisStart;
+                return true;
             }
-            catch (DebugEntityException dex)
+            if (
+                parentStart.DistanceHorizontalTo(thisEnd) < tol
+                || parentEnd.DistanceHorizontalTo(thisEnd) < tol
+            )
             {
-                prdDbg(dex);
-
-                Database db = Application.DocumentManager.MdiActiveDocument.Database;
-
-                using Transaction tx = db.TransactionManager.StartTransaction();
-
-                foreach (var ent in dex.DebugEntities)
-                {
-                    if (ent is Polyline ppl)
-                    {
-                        Polyline pl = new Polyline(ppl.NumberOfVertices);
-                        for (int i = 0; i < ppl.NumberOfVertices; i++)
-                        {
-                            pl.AddVertexAt(
-                                i,
-                                ppl.GetPoint2dAt(i),
-                                ppl.GetBulgeAt(i),
-                                ppl.GetStartWidthAt(i),
-                                ppl.GetEndWidthAt(i)
-                            );
-                        }
-                        pl.AddEntityToDbModelSpace(db);
-                    }
-                }
-
-                tx.Commit();
-
-                throw;
+                location = thisEnd;
+                return true;
             }
-            catch (Exception ex)
+
+            //Test for Case 2.
+            testPS = parentPlRef.GetClosestPointTo(thisStart, false);
+            if (testPS.DistanceHorizontalTo(thisStart) < tol)
             {
-                prdDbg(ex);
-                throw;
+                location = thisStart;
+                return true;
             }
-            finally
+            testPE = parentPlRef.GetClosestPointTo(thisEnd, false);
+            if (testPE.DistanceHorizontalTo(thisEnd) < tol)
             {
-                if (parentPlRef != null && parent is PipelineV2Alignment)
-                {
-                    parentPlRef.UpgradeOpen();
-                    parentPlRef.Erase(true);
-                }
+                location = thisEnd;
+                return true;
             }
+
+            //Test for Case 3.
+            testPS = thisPlRef.GetClosestPointTo(parentStart, false);
+            if (testPS.DistanceHorizontalTo(parentStart) < tol)
+            {
+                location = testPS;
+                return true;
+            }
+            testPE = thisPlRef.GetClosestPointTo(parentEnd, false);
+            if (testPE.DistanceHorizontalTo(parentEnd) < tol)
+            {
+                location = testPE;
+                return true;
+            }
+
+            //Test for Case 4.
+            var ent1 = parent.PipelineEntities.GetEntityByPoint(thisStart);
+            var ent2 = parent.PipelineEntities.GetEntityByPoint(thisEnd);
+
+            if (ent1 != null)
+                location = parentPlRef.GetClosestPointTo(thisStart, false);
+            else if (ent2 != null)
+                location = parentPlRef.GetClosestPointTo(thisEnd, false);
+            else
+                return false;
+
+            partAtJoint = ent1 ?? ent2;
+            return true;
         }
 
         public override Vector3d GetFirstDerivative(Point3d pt) =>
@@ -1234,24 +1300,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                         EndPoints = [pl.StartPoint, pl.EndPoint];
                         break;
                     case BlockReference br:
-                        BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(
-                            br.Database.TransactionManager.TopTransaction
-                        );
-                        HashSet<Point3d> collect = new();
-                        foreach (Oid oid in btr)
-                        {
-                            if (!oid.IsDerivedFrom<BlockReference>())
-                                continue;
-                            BlockReference nestedBr = oid.Go<BlockReference>(
-                                br.Database.TransactionManager.TopTransaction
-                            );
-                            if (!nestedBr.Name.Contains("MuffeIntern"))
-                                continue;
-                            Point3d wPt = nestedBr.Position;
-                            wPt = wPt.TransformBy(br.BlockTransform);
-                            collect.Add(wPt);
-                        }
-                        EndPoints = collect.ToArray();
+                        EndPoints = br.GetAllEndPoints().ToArray();
                         break;
                     default:
                         throw new System.Exception($"Unknown entity type {entity.GetType()}!");

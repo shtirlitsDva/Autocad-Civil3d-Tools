@@ -62,7 +62,6 @@ namespace IntersectUtilities.GraphWrite
                     break;
                 case BlockReference br:
                     Transaction tx = br.Database.TransactionManager.TopTransaction;
-                    BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
 
                     //Quick and dirty fix for missing data
                     if (br.RealName() == "SH LIGE" || br.RealName() == "SH VINKLET")
@@ -76,15 +75,11 @@ namespace IntersectUtilities.GraphWrite
                         }
                     }
 
-                    foreach (Oid oid in btr)
+                    foreach (ComponentPort port in ComponentPorts.Read(br, tx))
                     {
-                        if (!oid.IsDerivedFrom<BlockReference>()) continue;
-                        BlockReference nestedBr = oid.Go<BlockReference>(tx);
-                        if (!nestedBr.Name.Contains("MuffeIntern")) continue;
-                        Point3d wPt = nestedBr.Position;
-                        wPt = wPt.TransformBy(br.BlockTransform);
+                        Point3d wPt = port.Position;
                         EndType endType;
-                        if (nestedBr.Name.Contains("BRANCH")) { endType = EndType.Branch; }
+                        if (port.Role == ComponentPortRole.Branch) { endType = EndType.Branch; }
                         else
                         {
                             endType = EndType.Main;

@@ -19,24 +19,45 @@ namespace IntersectUtilities
     {
         /// <command>NDHFROMFJV</command>
         /// <summary>
-        /// Sporer alle eksisterende fjernvarmerørledninger i den xref'ede FJV-tegning og
-        /// opretter en ny NDH-rørledning for hver af dem i den aktuelle tegning.
+        /// Oversætter den xref'ede FJV-tegning ord for ord til NDH: en NDH-rørledning for
+        /// hver gammel rørledning, og hver gammel afgrening som en NDH-forbindelse med den
+        /// oversatte del fastlåst.
         ///
         /// Rørledningens rute er den eksakte centerlinje fra DRAWFJVCL. System, type og
         /// dimension langs ruten tages fra rørledningens størrelsesarray (PipelineSizeArrayV2).
         /// Buer bliver til bøjninger med buens radius; skarpe knæk bliver kun til
         /// knæ, hvor den gamle tegning har en bøjningskomponent eller et F-rør, ellers til
         /// en elastisk bøjning. Et skift af dimension eller type der falder i en bøjning
-        /// flyttes ud på et lige stykke.
+        /// flyttes ud på et lige stykke. Rørledninger der mødes ende mod ende uden
+        /// afgreningsdel lægges sammen til én, opkaldt efter den der er nærmest nettets rod.
         ///
-        /// Kræver at NDH-modulet (NSNorsynDistrictHeating.dbx) er indlæst. Til sidst
-        /// rapporteres hvilke rørledninger der blev oprettet, afvist eller justeret.
+        /// Tegningens producent og seriematrix sættes fra den gamle tegning; hvor den er
+        /// tvetydig, vælges i en dialog. En afgrening der ikke står vinkelret rettes med
+        /// mindst mulig flytning af afgreningen (over 3° med en gul MLeader). Hvad der ikke
+        /// kan forbindes, markeres med en gul cirkel og en note på laget NDH-IMPORT-NOTE.
+        ///
+        /// Kræver at NDH-modulet (NSNorsynDistrictHeating.dbx) er indlæst i den version,
+        /// denne build forventer. Til sidst rapporteres oprettet, sammenlagt, forbundet,
+        /// justeret, sprunget over og afvist, samt producent og serier. Én UNDO fortryder
+        /// hele importen.
         /// </summary>
         /// <category>Fjernvarme Fremtidig</category>
         [CommandMethod("NDHFROMFJV")]
         public void ndhfromfjv()
         {
             Database localDb = Application.DocumentManager.MdiActiveDocument.Database;
+
+            //Refuse before anything is read or written when the module is
+            //missing or speaks another version of any surface the import uses.
+            try
+            {
+                foreach (NsDhSurface surface in NsDhSurface.UsedByImport) NsDhModule.Verify(surface);
+            }
+            catch (InvalidOperationException ex)
+            {
+                prdDbg($"NDHFROMFJV: {ex.Message}");
+                return;
+            }
 
             string? fjvPath;
             try
@@ -50,37 +71,63 @@ namespace IntersectUtilities
             }
             if (fjvPath == null) return;
 
-            NdhImportReport report;
+            //The command owns the report, so an import that throws half way
+            //still says what it already built and connected before it says
+            //that it stopped (review of #319, I2).
+            NdhImportReport report = new NdhImportReport();
             try
             {
-                //No transaction of ours may be open here: every build opens and
-                //closes the working drawing's model space itself.
+                //No transaction of ours may be open here: every NDH export opens
+                //and closes the working drawing's objects itself. Everything
+                //happens inside this one command, so one UNDO takes it all back.
                 NsDhPipelineBridge ndh = new NsDhPipelineBridge();
-                report = NdhFromFjvImport.Run(fjvPath, ndh, ndh);
+                NdhFromFjvImport.Run(fjvPath, new NdhImportServices(
+                    ndh,
+                    ndh,
+                    new NsDhConnectionBridge(),
+                    new NsDhSettingsBridge(),
+                    new WpfImportDialogs(),
+                    new AcadImportMarkers(localDb)), report);
             }
             catch (System.Exception ex)
             {
+                //Nothing to say before the legacy drawing was read.
+                if (report.LegacyPipelineCount > 0) PrintNdhImportReport(report, fjvPath);
+                prdDbg($"NDHFROMFJV stoppede: {ex.Message}");
                 prdDbg(ex);
                 return;
             }
 
-            prdDbg($"NDHFROMFJV: {report.Created.Count} af {report.LegacyPipelineCount} " +
-                $"rørledninger oprettet fra {fjvPath}.");
-            if (report.Skipped.Count > 0)
+            PrintNdhImportReport(report, fjvPath);
+        }
+
+        private static void PrintNdhImportReport(NdhImportReport report, string fjvPath)
+        {
+            if (report.Cancelled != null)
             {
-                prdDbg($"Ikke sporet ({report.Skipped.Count}):");
-                foreach (string s in report.Skipped) prdDbg("  " + s);
+                prdDbg($"NDHFROMFJV: {report.Cancelled}");
+                return;
             }
-            if (report.Refused.Count > 0)
-            {
-                prdDbg($"Afvist ({report.Refused.Count}):");
-                foreach (string s in report.Refused) prdDbg("  " + s);
-            }
-            if (report.Adjusted.Count > 0)
-            {
-                prdDbg($"Justeret ({report.Adjusted.Count}):");
-                foreach (string s in report.Adjusted) prdDbg("  " + s);
-            }
+
+            prdDbg($"NDHFROMFJV: {report.Created.Count} rørledninger oprettet af " +
+                $"{report.LegacyPipelineCount} gamle fra {fjvPath}.");
+            PrintNdhSection("Oprettet", report.Created);
+            PrintNdhSection("Sammenlagt", report.Merged);
+            PrintNdhSection("Forbundet", report.Connected);
+            PrintNdhSection("Justeret", report.Adjusted);
+            PrintNdhSection("Sprunget over", report.Skipped);
+            PrintNdhSection("Afvist", report.Refused);
+            PrintNdhSection("Producent", report.ProducerReport);
+            PrintNdhSection("Serierapport", report.SeriesReport);
+            if (report.MarkersPlaced > 0)
+                prdDbg($"{report.MarkersPlaced} markeringer ligger på laget {AcadImportMarkers.Layer}.");
+        }
+
+        private static void PrintNdhSection(string title, List<string> lines)
+        {
+            if (lines.Count == 0) return;
+            prdDbg($"{title} ({lines.Count}):");
+            foreach (string s in lines) prdDbg("  " + s);
         }
 
         /// <summary>
@@ -92,10 +139,10 @@ namespace IntersectUtilities
             List<string> paths = new List<string>();
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
-                BlockTable bt = localDb.BlockTableId.Go<BlockTable>(tx);
+                BlockTable bt = (BlockTable)tx.GetObject(localDb.BlockTableId, OpenMode.ForRead);
                 foreach (ObjectId id in bt)
                 {
-                    BlockTableRecord btr = id.Go<BlockTableRecord>(tx);
+                    BlockTableRecord btr = (BlockTableRecord)tx.GetObject(id, OpenMode.ForRead);
                     if (!btr.IsFromExternalReference || !btr.IsResolved) continue;
 
                     //false: an unloaded xref is not loaded for this.

@@ -57,10 +57,10 @@ namespace NTRExport.TopologyModel
                     $"Entity {Source} is not a BlockReference!"
                 ),
             };
-        public TPort MainPort1 => Ports.First(p => p.Role == PortRole.Main);
-        public TPort MainPort2 => Ports.Last(p => p.Role == PortRole.Main);
+        public TPort MainPort1 => Ports.First(p => p.Role == ComponentPortRole.Main);
+        public TPort MainPort2 => Ports.Last(p => p.Role == ComponentPortRole.Main);
         public Point2d MidPoint => MainPort1.Node.Pos.To2d().MidPoint(MainPort2.Node.Pos.To2d());
-        public TPort BranchPort => Ports.First(p => p.Role == PortRole.Branch);
+        public TPort BranchPort => Ports.First(p => p.Role == ComponentPortRole.Branch);
         public (double zUp, double zLow) OffsetMain;
 
         protected List<(TPort exitPort, double exitZ, double exitSlope)> RouteMain(
@@ -482,8 +482,8 @@ namespace NTRExport.TopologyModel
             var exits = new List<(TPort exitPort, double exitZ, double exitSlope)>();
 
             // Ports by role - AfgreningMedSpring must have exactly 2 Main ports and 1 Branch port
-            var mains = Ports.Where(p => p.Role == PortRole.Main).ToArray();
-            var branch = Ports.FirstOrDefault(p => p.Role == PortRole.Branch);
+            var mains = Ports.Where(p => p.Role == ComponentPortRole.Main).ToArray();
+            var branch = Ports.FirstOrDefault(p => p.Role == ComponentPortRole.Branch);
             if (mains.Length != 2 || branch == null)
             {
                 throw new System.Exception(

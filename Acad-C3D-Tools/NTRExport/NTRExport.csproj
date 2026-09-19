@@ -102,9 +102,6 @@
 		<Compile Include="..\IntersectUtilities\GroupByCluster.cs">
 			<Link>Links\GroupByCluster.cs</Link>
 		</Compile>
-		<Compile Include="..\IntersectUtilities\Json.cs">
-			<Link>Links\Json.cs</Link>
-		</Compile>
 		<Compile Include="..\IntersectUtilities\MoreLinq\DistinctBy.cs">
 			<Link>Links\MoreLinq\DistinctBy.cs</Link>
 		</Compile>

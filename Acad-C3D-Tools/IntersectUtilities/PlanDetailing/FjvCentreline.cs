@@ -29,9 +29,21 @@ internal sealed class FjvCentrelineResult
     public List<string> UnpairedRuns { get; } = new List<string>();
     public List<string> UntypedRuns { get; } = new List<string>();
     public List<string> MixedRuns { get; } = new List<string>();
-    public List<string> UnjoinedTransitions { get; } = new List<string>();
+    public List<UnjoinedTransition> UnjoinedTransitions { get; } = new List<UnjoinedTransition>();
     public List<string> FallbackBlocks { get; } = new List<string>();
     public List<string> UnresolvedBlocks { get; } = new List<string>();
+}
+
+/// <summary>
+/// A transition (Y-model, F-model, H-model) the twin and bonded Centrelines
+/// were not joined across.
+/// </summary>
+/// <param name="Part">The transition block: its real name and handle.</param>
+/// <param name="At">Where it stands (its insertion point).</param>
+/// <param name="Reason">Why it was not joined (English).</param>
+internal sealed record UnjoinedTransition(string Part, Point2d At, string Reason)
+{
+    public override string ToString() => $"{Part}: {Reason}";
 }
 
 /// <summary>
@@ -349,7 +361,7 @@ internal static class FjvCentreline
 
             List<Run> twinRuns = new List<Run>();
             List<Run> fremRuns = new List<Run>();
-            List<Polyline> returRuns = new List<Polyline>();
+            List<Run> returRuns = new List<Run>();
 
             foreach (List<int> chain in chains)
             {
@@ -392,7 +404,7 @@ internal static class FjvCentreline
                         result.RunLines.Add(outPl);
                         break;
                     case PipeTypeEnum.Retur:
-                        returRuns.Add(outPl);
+                        returRuns.Add(run);
                         result.RunLines.Add(outPl);
                         break;
                 }
@@ -429,7 +441,7 @@ internal static class FjvCentreline
                 AddEndAt(twinEndsAt, t.EndNode, (idx, 1));
             }
 
-            List<RunGeom> returIdx = returRuns.Select(BuildRunGeom).ToList();
+            List<RunGeom> returIdx = returRuns.Select(r => BuildRunGeom(r.Pl)).ToList();
 
             foreach (Run f in fremRuns)
             {
@@ -456,6 +468,48 @@ internal static class FjvCentreline
             }
             #endregion
 
+            #region Bonded sides too short to trace
+            //A bonded side with a carrier that has no pipe at all - the part at
+            //its far end welded straight onto the transition - has no pair of
+            //runs to bisect, so no piece stands at the transition's bonded ports
+            //and the twin side would be joined to nothing. Its Centreline is the
+            //straight from the middle of the transition's bonded ports to the
+            //middle of the two carriers' far ends. (Live run 2026-09-19, F3:
+            //branch 059 leaves 035 through two T ENKELT whose frem one is welded
+            //onto the F-MODEL, the retur one 0.81 m away; the bonded stub and the
+            //F corner were dropped and 059 started parallel to its main.)
+            foreach (Transition tr in transitions)
+            {
+                if (!tr.PortNodes.Any(twinEndsAt.ContainsKey) ||
+                    tr.PortNodes.Any(bondedEndsAt.ContainsKey)) continue;
+
+                List<(int Piece, int End)> twinEnds = tr.PortNodes
+                    .SelectMany(n => twinEndsAt.TryGetValue(n, out var l) ? l : new())
+                    .Distinct().ToList();
+                List<int> bondedPorts = tr.PortNodes.Distinct()
+                    .Where(n => !twinEndsAt.ContainsKey(n)).ToList();
+                if (twinEnds.Count != 1) continue;
+
+                Polyline? side = ShortBondedSide(
+                    bondedPorts, fremRuns.Concat(returRuns).ToList(), graph);
+                if (side == null) continue;
+
+                //Only a side the twin Centreline can be joined to is kept: an
+                //unjoined piece would split the pipeline's one Centreline.
+                (Point3d ta, Vector3d da) = EndFrame(pieces[twinEnds[0].Piece], twinEnds[0].End);
+                (Point3d sa, Vector3d ds) = EndFrame(side, 0);
+                if (!TryJoin(ta, da, sa, ds, out _))
+                {
+                    side.Dispose();
+                    continue;
+                }
+
+                int idx = pieces.Count;
+                pieces.Add(side);
+                foreach (int n in bondedPorts) AddEndAt(bondedEndsAt, n, (idx, 0));
+            }
+            #endregion
+
             #region Join twin and bonded Centrelines across every transition
             Dictionary<(int Piece, int End), (int Piece, int End, Point3d? Corner)> link =
                 new();
@@ -470,11 +524,12 @@ internal static class FjvCentreline
                     .Distinct().ToList();
 
                 string id = $"{tr.Br.RealName()} {tr.Br.Handle}";
+                Point2d at = new Point2d(tr.Br.Position.X, tr.Br.Position.Y);
                 if (twinEnds.Count != 1 || bondedEnds.Count != 1)
                 {
-                    result.UnjoinedTransitions.Add(
-                        $"{id}: {twinEnds.Count} twin and {bondedEnds.Count} bonded " +
-                        "Centreline end(s) at its ports, expected 1 and 1");
+                    result.UnjoinedTransitions.Add(new UnjoinedTransition(id, at,
+                        $"{twinEnds.Count} twin and {bondedEnds.Count} bonded " +
+                        "Centreline end(s) at its ports, expected 1 and 1"));
                     continue;
                 }
 
@@ -485,9 +540,9 @@ internal static class FjvCentreline
 
                 if (!TryJoin(a, ta, b, tb, out Point3d? corner))
                 {
-                    result.UnjoinedTransitions.Add(
-                        $"{id}: the twin and bonded Centreline ends do not meet " +
-                        $"within {MaxTransitionReach} m");
+                    result.UnjoinedTransitions.Add(new UnjoinedTransition(id, at,
+                        "the twin and bonded Centreline ends do not meet " +
+                        $"within {MaxTransitionReach} m"));
                     continue;
                 }
 
@@ -543,6 +598,50 @@ internal static class FjvCentreline
     private sealed record Transition(BlockReference Br, List<int> PortNodes);
 
     private sealed record Run(Polyline Pl, int StartNode, int EndNode, string Sources);
+
+    /// <summary>
+    /// The Centreline of a bonded side too short to trace (see Build): null
+    /// unless the transition has exactly two bonded ports, at least one of them
+    /// meets no carrier run at all, and the other meets at most one straight run
+    /// no longer than <see cref="MaxTransitionReach"/>. It starts at the middle
+    /// of the ports, so its start faces the transition.
+    /// </summary>
+    private static Polyline? ShortBondedSide(List<int> bondedPorts, List<Run> carrierRuns, Graph graph)
+    {
+        if (bondedPorts.Count != 2) return null;
+
+        Point3d[] far = new Point3d[2];
+        int bare = 0;
+        for (int k = 0; k < 2; k++)
+        {
+            int port = bondedPorts[k];
+            List<Run> runs = carrierRuns.Where(r => r.StartNode == port || r.EndNode == port).ToList();
+            if (runs.Count > 1) return null;
+            if (runs.Count == 0)
+            {
+                far[k] = graph.NodePts[port];
+                bare++;
+                continue;
+            }
+
+            Run run = runs[0];
+            if (run.Pl.Length > MaxTransitionReach) return null;
+            for (int i = 0; i < run.Pl.NumberOfVertices - 1; i++)
+                if (Math.Abs(run.Pl.GetBulgeAt(i)) > 1e-9) return null;
+            far[k] = graph.NodePts[run.StartNode == port ? run.EndNode : run.StartNode];
+        }
+        if (bare == 0) return null;
+
+        Point3d a = graph.NodePts[bondedPorts[0]], b = graph.NodePts[bondedPorts[1]];
+        Point2d near = new Point2d((a.X + b.X) / 2.0, (a.Y + b.Y) / 2.0);
+        Point2d away = new Point2d((far[0].X + far[1].X) / 2.0, (far[0].Y + far[1].Y) / 2.0);
+        if (near.GetDistanceTo(away) < Tol) return null;
+
+        Polyline side = new Polyline();
+        side.AddVertexAt(0, near, 0.0, 0.0, 0.0);
+        side.AddVertexAt(1, away, 0.0, 0.0, 0.0);
+        return side;
+    }
 
     private static void AddEndAt(
         Dictionary<int, List<(int Piece, int End)>> map, int node, (int Piece, int End) end)

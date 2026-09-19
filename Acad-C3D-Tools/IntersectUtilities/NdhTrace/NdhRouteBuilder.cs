@@ -41,6 +41,12 @@ internal interface INdhPartStraight
     PartStraight OfElbow(LegacyIdentitySpan pipe, double turnDegrees);
 }
 
+/// <summary>
+/// Where a legacy branch sits on the pipeline being routed: its place on the
+/// centreline and where its part(s) meet the main (their main-run ports).
+/// </summary>
+internal sealed record NdhJunctionSeat(Point2d Site, IReadOnlyList<Point2d> MainPorts);
+
 internal sealed class NdhRoute
 {
     public List<NdhRouteVertex> Vertices { get; } = new List<NdhRouteVertex>();
@@ -77,6 +83,12 @@ internal sealed class NdhRoute
 /// side of it are ONE change: a Y-model with a materialeskift welded to its end is sent as bonded
 /// steel to twin AluPex, and the new pipeline lays the Y-rør and the
 /// materialeskift itself, at the catalogue's distances.
+///
+/// A legacy branch junction stands on a straight, so the route stays straight
+/// across every junction seated on it (<see cref="NdhJunctionSeat"/>): no fitted
+/// arc or elastic bend reaches into it, and a drafting kink standing inside it
+/// is moved out along the junction's straight. Only a legacy ARC through a
+/// junction is kept: the legacy drawing really curves there, and NDH says so.
 /// </summary>
 internal static partial class NdhRouteBuilder
 {
@@ -120,20 +132,32 @@ internal static partial class NdhRouteBuilder
     private const double EndRoom = 0.5;
     //Setbacks must fit their leg with this much to spare.
     private const double LegSlack = 1e-6;
-    //An F-rør merges twin and bonded AND turns, so a Twin<->Enkelt change may
-    //sit on its corner when the corner turns within this range.
-    private static readonly double FCornerMinTurn = ToRad(80.0);
-    private static readonly double FCornerMaxTurn = ToRad(100.0);
+    //An F-rør merges twin and bonded AND turns exactly 90 degrees, so a
+    //Twin<->Enkelt change sits on its corner only when the corner turns 90
+    //degrees to within this (radians) - NDH's own angle tolerance, the one its
+    //square-corner test reads (kPipeAngleTolerance). The corner is snapped
+    //there first (SnapFittingAngles), as a fixed-angle elbow's is. (Live run
+    //2026-09-19, F5: 014's F corner turned 90.087 degrees; NDH stopped
+    //accepting that on 2026-09-16 and refused the whole pipeline with
+    //TwoFittingsAtOneVertex, losing its five branches.)
+    private const double FCornerSquare = 1e-6;
     //A corner by a fixed-angle elbow is snapped to the elbow's angle when it
     //turns within this of it; further off it is not that part.
     private static readonly double MaxAngleSnap = ToRad(2.0);
     //Snapped corners turn their angle to within this (radians), and elbow
-    //legs keep their length to within this (metres) - well inside the
-    //pipeline's own angle tolerance of 1e-3 degrees.
+    //legs keep their length to within this (metres) - ten times inside NDH's
+    //own angle tolerance, kPipeAngleTolerance = 1e-6 radians (NorsynCore
+    //BendCalculator.h; about 5.7e-5 degrees), the figure FCornerSquare above
+    //reads too.
     private const double SnappedTurnTolerance = 1e-7;
     //A leg up to this long between two snapped elbows, or from one to a
     //pipeline end, is the elbows' own leg: snapping keeps its length.
     private const double ElbowLegLength = 5.0;
+    //A junction's straight reaches this far past its legacy part's main-run
+    //ports on either side, so the new pipeline's part - not drawn to the
+    //legacy block's length - keeps a straight too, and the bends sized
+    //against it keep an arc of their own.
+    private const double JunctionClearance = 0.5;
     //Gauss-Newton settles the snap in a handful of steps; needing more means
     //the constraints conflict.
     private const int MaxSnapIterations = 50;
@@ -180,7 +204,8 @@ internal static partial class NdhRouteBuilder
         public bool Turns => Kind is not (VertexKind.End or VertexKind.Straight);
     }
 
-    public static NdhRoute Build(LegacyPipelineTrace trace, INdhPartStraight straight)
+    public static NdhRoute Build(
+        LegacyPipelineTrace trace, INdhPartStraight straight, IReadOnlyList<NdhJunctionSeat> junctions)
     {
         Polyline centreline = trace.Centreline;
         if (trace.Spans.Count == 0) throw new ArgumentException("No identity spans.", nameof(trace));
@@ -200,7 +225,8 @@ internal static partial class NdhRouteBuilder
         List<PartStraight> parts = identities
             .Select((s, i) => i == 0 ? new PartStraight() : straight.OfChange(identities[i - 1], s))
             .ToList();
-        FitArcs(vs, centreline, identities, parts, route.Adjustments);
+        List<(double Lo, double Hi)> seats = Seats(junctions, centreline);
+        FitArcs(vs, centreline, identities, parts, seats, route.Adjustments);
         FitFillets(vs, route.Adjustments);
         FilletZones(vs, centreline);
         List<(RouteVertex V, LegacyIdentitySpan Span)> bounds = PlaceBoundaries(
@@ -208,7 +234,8 @@ internal static partial class NdhRouteBuilder
         //A boundary kept right at a fillet's tangent point can leave the leg
         //between them a hair short of the fillet's setback.
         FitFillets(vs, route.Adjustments);
-        SizeBends(vs, route.Adjustments);
+        ClearJunctions(vs, seats, route.Adjustments);
+        SizeBends(vs, seats, route.Adjustments);
 
         foreach (RouteVertex v in vs)
             route.Vertices.Add(new NdhRouteVertex(v.P.X, v.P.Y, v.Radius));
@@ -414,14 +441,14 @@ internal static partial class NdhRouteBuilder
             if (c.Kind == LegacyCornerKind.Elbow && d <= ElbowReach)
                 return (VertexKind.Elbow, c.NominalTurn);
             if (c.Kind == LegacyCornerKind.FModel && d <= FModelReach)
-                return (VertexKind.FCorner, double.NaN);
+                return (VertexKind.FCorner, c.NominalTurn);
         }
         return (VertexKind.Bend, double.NaN);
     }
 
     /// <summary>
-    /// Makes every corner a fixed-angle legacy elbow stands on turn exactly the
-    /// elbow's angle. Only a corner already within <see cref="MaxAngleSnap"/> is
+    /// Makes every corner a fixed-angle legacy elbow or an F-model stands on turn
+    /// exactly the part's angle. Only a corner already within <see cref="MaxAngleSnap"/> is
     /// snapped; one further off is not that part, and the pipeline reports it.
     ///
     /// An elbow leg (see <see cref="ElbowLegLength"/>) keeps its length, so
@@ -524,7 +551,8 @@ internal static partial class NdhRouteBuilder
             notes.Add(vs[i].Kind == VertexKind.End
                 ? $"pipeline end moved {moved:F3} m to keep its legacy elbow at its exact angle"
                 : $"corner at {vs[i].D0:F2} m moved {moved:F3} m to turn exactly " +
-                    $"{vs[i].NominalTurn * 180.0 / Math.PI:F0}° like its legacy elbow");
+                    $"{vs[i].NominalTurn * 180.0 / Math.PI:F0}° like its legacy " +
+                    (vs[i].Kind == VertexKind.FCorner ? "F-rør" : "elbow"));
         }
     }
 
@@ -629,7 +657,8 @@ internal static partial class NdhRouteBuilder
     /// leg less the straight a change's parts take toward a boundary, less
     /// <see cref="EndRoom"/> toward an end, half the leg toward any other corner.
     /// </summary>
-    private static void SizeBends(List<RouteVertex> vs, List<string> notes)
+    private static void SizeBends(
+        List<RouteVertex> vs, IReadOnlyList<(double Lo, double Hi)> seats, List<string> notes)
     {
         double[] setback = new double[vs.Count];
         for (int i = 1; i < vs.Count - 1; i++)
@@ -641,8 +670,10 @@ internal static partial class NdhRouteBuilder
             if (v.Kind != VertexKind.Bend) continue;
 
             double avail = Math.Min(
-                Share(vs[i - 1], setback[i - 1], v.P.GetDistanceTo(vs[i - 1].P), vs[i - 1].Parts.Forward),
-                Share(vs[i + 1], setback[i + 1], v.P.GetDistanceTo(vs[i + 1].P), vs[i + 1].Parts.Back));
+                Math.Min(
+                    Share(vs[i - 1], setback[i - 1], v.P.GetDistanceTo(vs[i - 1].P), vs[i - 1].Parts.Forward),
+                    Share(vs[i + 1], setback[i + 1], v.P.GetDistanceTo(vs[i + 1].P), vs[i + 1].Parts.Back)),
+                JunctionRoom(v.D0, seats));
             if (avail <= MinSegmentLength)
             {
                 notes.Add($"bend at {v.D0:F2} m has no leg room, left sharp");
@@ -669,6 +700,125 @@ internal static partial class NdhRouteBuilder
             _ => leg / 2.0,
         };
     }
+
+    #region Junctions
+    /// <summary>
+    /// Each junction's seat on the route, as centreline distances: from its
+    /// part's main-run ports and its site, widened by <see cref="JunctionClearance"/>.
+    /// </summary>
+    private static List<(double Lo, double Hi)> Seats(IReadOnlyList<NdhJunctionSeat> junctions, Polyline cl)
+    {
+        List<(double Lo, double Hi)> seats = new List<(double Lo, double Hi)>();
+        foreach (NdhJunctionSeat j in junctions)
+        {
+            List<double> ds = j.MainPorts.Append(j.Site).Select(p => DistAt(cl, p)).ToList();
+            seats.Add((ds.Min() - JunctionClearance, ds.Max() + JunctionClearance));
+        }
+        return seats;
+    }
+
+    /// <summary>
+    /// How far an elastic bend at distance <paramref name="d"/> may reach before
+    /// it runs into a junction's seat. A seat the bend stands inside does not
+    /// limit it: <see cref="ClearJunctions"/> could not move that bend, and the
+    /// route keeps the legacy drafting there rather than a sharp kink no part
+    /// can make; NDH then refuses the junction, which the drafter sees marked.
+    /// </summary>
+    private static double JunctionRoom(double d, IReadOnlyList<(double Lo, double Hi)> seats)
+    {
+        double room = double.PositiveInfinity;
+        foreach ((double lo, double hi) in seats)
+        {
+            if (hi <= d) room = Math.Min(room, d - hi);
+            else if (lo >= d) room = Math.Min(room, lo - d);
+        }
+        return room;
+    }
+
+    /// <summary>
+    /// Moves every elastic bend that stands inside a junction's seat out of it,
+    /// through the seat's nearer edge and <see cref="JunctionClearance"/> on,
+    /// along the straight the junction stands on: that straight is kept, the
+    /// leg on the other side swings to the moved corner. Such a bend is a
+    /// drafting kink where a pipe was joined to the part askew (live run
+    /// 2026-09-19, F2: 024's tee on 036 had a 0.87 degree kink at its own port,
+    /// and every tee NDH refused as PortOnArc had an elastic bend's arc sized
+    /// straight through it).
+    ///
+    /// The move is made only where it costs nothing else: the other neighbour
+    /// may not be a part of fixed angle or a change's straight vertex (its turn
+    /// would change), the other leg must be at least twice the move, and the
+    /// moved corner stays within half of <see cref="MaxTraceDeviation"/> of the
+    /// trace (the arc SizeBends puts there takes the other half). The moved
+    /// bend may not land in ANY junction's seat - two junctions close together
+    /// would otherwise trade one bend between them (review of #319, I8): the
+    /// nearer edge is tried first, then the farther one. Otherwise the bend
+    /// stays, the report says why, and NDH refuses the junction loudly as it
+    /// would have anyway - never a silent move into a worse place.
+    /// </summary>
+    private static void ClearJunctions(
+        List<RouteVertex> vs, IReadOnlyList<(double Lo, double Hi)> seats, List<string> notes)
+    {
+        foreach ((double lo, double hi) in seats)
+        {
+            string seat = $"{lo + JunctionClearance:F2}-{hi - JunctionClearance:F2} m";
+            for (int i = 1; i < vs.Count - 1; i++)
+            {
+                RouteVertex v = vs[i];
+                if (v.Kind != VertexKind.Bend || v.D0 <= lo || v.D0 >= hi) continue;
+
+                bool nearerIsBack = v.D0 - lo <= hi - v.D0;
+                BendMove near = MoveOutOfSeat(vs, i, lo, hi, nearerIsBack, seats);
+                BendMove move = near.Why == null ? near : MoveOutOfSeat(vs, i, lo, hi, !nearerIsBack, seats);
+                if (move.Why != null)
+                {
+                    notes.Add($"bend at {v.D0:F2} m stands in the branch junction at {seat} and stays: " +
+                        $"{near.Why}; out the other side, {move.Why}");
+                    continue;
+                }
+
+                notes.Add($"bend at {v.D0:F2} m moved {move.Distance:F2} m out of the branch junction at {seat}, " +
+                    "so the main runs straight through it");
+                v.P = move.To;
+                v.D0 = v.D1 = move.ToD;
+            }
+        }
+    }
+
+    /// <summary>A bend moved out of a seat: where to, or why it may not go (then the rest is meaningless).</summary>
+    private readonly record struct BendMove(Point2d To, double ToD, double Distance, string? Why);
+
+    /// <summary>
+    /// Bend <paramref name="i"/> moved out of the seat [lo, hi] through its back
+    /// (toward the route's start) or front edge and <see cref="JunctionClearance"/>
+    /// on, along the straight on the junction's side of it.
+    /// </summary>
+    private static BendMove MoveOutOfSeat(
+        List<RouteVertex> vs, int i, double lo, double hi, bool back, IReadOnlyList<(double Lo, double Hi)> seats)
+    {
+        RouteVertex v = vs[i];
+        //The neighbour on the junction's side keeps its leg's line; the other
+        //one's leg swings.
+        RouteVertex keep = back ? vs[i + 1] : vs[i - 1];
+        RouteVertex other = back ? vs[i - 1] : vs[i + 1];
+        double s = (back ? v.D0 - lo : hi - v.D0) + JunctionClearance;
+        Point2d moved = v.P + (v.P - keep.P).GetNormal() * s;
+        double movedD = back ? v.D0 - s : v.D0 + s;
+
+        string? why =
+            other.Kind == VertexKind.Straight || !double.IsNaN(other.NominalTurn)
+                ? "its other neighbour may not turn"
+            : s > v.P.GetDistanceTo(other.P) / 2.0 ? "its other leg is too short"
+            //The kept straight runs on over the old corner, so the route
+            //strays furthest at the moved corner, off the trace's other leg.
+            : SegmentDistance(moved, v.P, other.P) > MaxTraceDeviation / 2.0
+                ? "the route would stray too far from the trace"
+            : seats.Any(x => movedD > x.Lo && movedD < x.Hi)
+                ? "moved out, it would stand in another branch junction"
+            : null;
+        return new BendMove(moved, movedD, s, why);
+    }
+    #endregion
 
     /// <summary>Absolute turn of the route at interior vertex <paramref name="i"/>.</summary>
     private static double TurnAt(List<RouteVertex> vs, int i) =>
@@ -819,8 +969,10 @@ internal static partial class NdhRouteBuilder
     /// <summary>
     /// The F-rør corner serving a Twin&lt;-&gt;Enkelt change at distance
     /// <paramref name="d"/>: a sharp corner by an F-model, within reach, turning
-    /// about a right angle, with nothing but the construction changing. -1 when
-    /// there is none.
+    /// exactly a right angle (snapped there by <see cref="SnapFittingAngles"/>),
+    /// with nothing but the construction changing. -1 when there is none: an F
+    /// corner drafted too far off square to snap has no F-rør, and the change
+    /// moves off it like off any corner.
     /// </summary>
     private static int FCornerFor(
         List<RouteVertex> vs, double d, LegacyIdentitySpan prev, LegacyIdentitySpan next)
@@ -831,8 +983,7 @@ internal static partial class NdhRouteBuilder
         for (int i = 1; i < vs.Count - 1; i++)
         {
             if (vs[i].Kind != VertexKind.FCorner || Math.Abs(vs[i].D0 - d) > FModelReach) continue;
-            double turn = TurnAt(vs, i);
-            if (turn >= FCornerMinTurn && turn <= FCornerMaxTurn) return i;
+            if (Math.Abs(TurnAt(vs, i) - Math.PI / 2.0) <= FCornerSquare) return i;
         }
         return -1;
     }
