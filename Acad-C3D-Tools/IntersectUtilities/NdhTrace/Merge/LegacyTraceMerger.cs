@@ -210,25 +210,32 @@ internal static class LegacyTraceMerger
                 double offset = centreline.NumberOfVertices > 1 ? centreline.Length : 0.0;
                 FjvLegacyPipelineReader.AppendVertices(centreline, t.Centreline, reversed);
 
-                foreach (LegacyIdentitySpan s in Oriented(t, reversed))
+                List<LegacyIdentitySpan> own = Oriented(t, reversed);
+                for (int k = 0; k < own.Count; k++)
                 {
+                    LegacyIdentitySpan s = own[k];
+                    //A member's first stretch changes AT the join, where the
+                    //legacy pipelines meet; every later one keeps the change
+                    //its own legacy part makes. (Live run 2026-09-19, F6:
+                    //every stretch after the chain's first was put at the
+                    //join, so 023's reducer and materialeskift, 5 m into it,
+                    //came to stand at 036's end and 021's tee sat on AluPex
+                    //where the legacy drawing has steel Twin DN65.)
                     LegacyIdentitySpan shifted = s with
                     {
                         StartDist = s.StartDist + offset,
                         EndDist = s.EndDist + offset,
-                        ChangeDist = s.ChangeDist + offset,
+                        ChangeDist = k == 0 ? offset : s.ChangeDist + offset,
                     };
 
-                    //The same pipe on both sides of the join is one stretch;
-                    //anything else changes AT the join, where the legacy
-                    //pipelines meet.
+                    //The same pipe on both sides of the join is one stretch.
                     if (spans.Count > 0 && spans[^1].Identity == shifted.Identity)
                         spans[^1] = spans[^1] with
                         {
                             EndDist = shifted.EndDist,
                             HoldsPipeOrPart = spans[^1].HoldsPipeOrPart || shifted.HoldsPipeOrPart,
                         };
-                    else spans.Add(spans.Count == 0 ? shifted : shifted with { ChangeDist = offset });
+                    else spans.Add(shifted);
                 }
                 corners.AddRange(t.Corners);
             }

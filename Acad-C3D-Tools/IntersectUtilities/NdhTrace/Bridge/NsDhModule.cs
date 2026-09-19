@@ -80,6 +80,20 @@ internal static class NsDhModule
         _ => throw new ArgumentOutOfRangeException(nameof(system), system, "No pipe system."),
     };
 
+    /// <summary>The system an edit token names; false for a token no system has.</summary>
+    public static bool TrySystemOfToken(string token, out PipeSystemEnum system)
+    {
+        foreach (PipeSystemEnum candidate in Enum.GetValues<PipeSystemEnum>())
+        {
+            if (candidate == PipeSystemEnum.Ukendt) continue;
+            if (SystemToken(candidate) != token) continue;
+            system = candidate;
+            return true;
+        }
+        system = PipeSystemEnum.Ukendt;
+        return false;
+    }
+
     /// <summary>
     /// Twin is one run; everything else is the bonded pair, which the new
     /// pipeline models as ONE Enkelt run (both carriers).

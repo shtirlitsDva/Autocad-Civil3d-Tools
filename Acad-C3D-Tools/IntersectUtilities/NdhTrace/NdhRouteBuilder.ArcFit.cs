@@ -82,11 +82,12 @@ internal static partial class NdhRouteBuilder
     /// Replaces every run of two or more consecutive elastic corners (bends and
     /// legacy arcs) by the fewest arcs that follow the trace within
     /// <see cref="MaxTraceDeviation"/>. A fitted arc never covers an identity
-    /// change or the straight its parts take: they need a straight to stand on.
+    /// change or the straight its parts take, nor a branch junction's seat
+    /// (<paramref name="seats"/>): they need a straight to stand on.
     /// </summary>
     private static void FitArcs(
         List<RouteVertex> vs, Polyline centreline, IReadOnlyList<LegacyIdentitySpan> identities,
-        IReadOnlyList<PartStraight> parts, List<string> notes)
+        IReadOnlyList<PartStraight> parts, IReadOnlyList<(double Lo, double Hi)> seats, List<string> notes)
     {
         List<(int A, int B)> runs = new List<(int, int)>();
         for (int i = 1; i < vs.Count - 1;)
@@ -103,6 +104,7 @@ internal static partial class NdhRouteBuilder
         (double Lo, double Hi)[] changes = identities
             .Select((s, i) => (s.ChangeDist - parts[i].Back, s.ChangeDist + parts[i].Forward))
             .Skip(1)
+            .Concat(seats)
             .ToArray();
         //From the last run back, so a fitted run leaves the earlier runs' indices alone.
         for (int r = runs.Count - 1; r >= 0; r--)

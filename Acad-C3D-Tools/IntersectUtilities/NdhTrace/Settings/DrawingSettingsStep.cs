@@ -136,7 +136,7 @@ internal static class DrawingSettingsStep
             cells.RemoveAt(outcome.CellIndex);
             if (key is SeriesKey k) dropped.Add(k);
             else report.SeriesReport.Add(
-                $"{cell.SystemToken} {cell.TypeToken} {cell.Dn}: tegningens egen serie S{cell.Series} " +
+                $"{Display(cell)}: tegningens egen serie S{cell.Series} " +
                 $"afvises af kataloget - udeladt ({outcome.Detail}).");
         }
 
@@ -152,6 +152,12 @@ internal static class DrawingSettingsStep
             throw new InvalidOperationException(
                 $"{what} kunne ikke sættes ({outcome.StatusName}): {outcome.Detail}");
     }
+
+    /// <summary>A cell read back from the drawing, named as the drafter reads it (F7).</summary>
+    private static string Display(NdhSeriesCell cell) =>
+        NsDhModule.TrySystemOfToken(cell.SystemToken, out PipeSystemEnum system)
+            ? SeriesKey.Display(system, cell.TypeToken == NsDhModule.TypeToken(true), cell.Dn)
+            : $"{cell.SystemToken} {cell.TypeToken} {cell.Dn}";
 
     private static string Name(PipeSeriesEnum s) => s == PipeSeriesEnum.Undefined ? "ukendt serie" : s.ToString();
 }

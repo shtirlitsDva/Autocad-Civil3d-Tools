@@ -46,6 +46,10 @@ internal static class LegacyBranchTranslator
         "PertFlextra/PertPIPE tees have no NDH part yet (NorsynDrawingTools #318)",
         "PertFlextra/PertPIPE-afgreninger findes ikke i NDH endnu (#318)");
 
+    private static readonly IBranchPartRule AluPexPress321 = new MarkedRule(
+        "AluPex press-coupling tees have no NDH part yet (NorsynDrawingTools #321)",
+        "AluPex-preskoblingstees findes ikke i NDH endnu (#321)");
+
     private static readonly Dictionary<string, IBranchPartRule> ByNavn = new(StringComparer.Ordinal)
     {
         ["T ENKELT S2"] = new FixedRule(AfgreningMedSpring, NdhBranchOutlet.Perpendicular),
@@ -81,7 +85,8 @@ internal static class LegacyBranchTranslator
         ["PRT-PIPE-TEE"] = Pert318,
         ["PRESKOBLING-TEE-PRT"] = Pert318,
         ["PRT-PIPE-PRESKOBLING-TEE"] = Pert318,
-        //ALUPEX-PRESKOBLING-TEE is deliberately absent: no NDH counterpart (D9).
+        //No NDH counterpart yet (D9); its own issue says what is missing.
+        ["ALUPEX-PRESKOBLING-TEE"] = AluPexPress321,
     };
 
     public static BranchTranslation Translate(LegacyBranch branch) =>

@@ -21,15 +21,30 @@ namespace IntersectUtilities.NdhTrace;
 /// svanehals whose BelongsToAlignment is its main - the branch is the pipeline
 /// of whatever the legacy connection graph (DriGraph, freshly written) meets at
 /// the part's BRANCH port.
+///
+/// One junction is one branch, however many parts draw it: a junction on a
+/// bonded main is one part per carrier (live run 2026-09-19, F1: every T
+/// ENKELT and SH LIGE on a bonded main was sent to NDH twice, and the second
+/// attempt refused BranchEndOccupied).
 /// </summary>
 internal static class LegacyBranchFinder
 {
+    //How far apart the parts of one junction may stand: the carriers of a
+    //bonded main are up to 2 x 0.73 m apart centre to centre (DN600), so the
+    //branch ports of the pair are well within this. Two separate junctions of
+    //the same pipelines, through the same part, are a whole branch apart.
+    private const double JunctionReach = 3.0;
+
+    /// <summary>One legacy part, with the pipelines it joins as the reading resolved them.</summary>
+    private sealed record Candidate(LegacyComponent Part, string MainName, string BranchName, string NamedBy);
+
     public static void Read(
         IReadOnlyList<LegacyComponent> parts, Database fjvDb, Transaction tx, PropertySetHelper psh,
         LegacyDrawing drawing)
     {
         Dictionary<string, LegacyPipelineTrace> traces = drawing.Traces.Traces.ToDictionary(t => t.Name, StringComparer.Ordinal);
 
+        List<Candidate> candidates = new List<Candidate>();
         foreach (LegacyComponent part in parts)
         {
             switch (part.Role)
@@ -41,13 +56,10 @@ internal static class LegacyBranchFinder
                         drawing.ServiceConnections.TryGetValue(main, out int n) ? n + 1 : 1;
                     continue;
                 case LegacyPartRole.Tee:
-                    Add(part, part.BelongsTo, part.BranchesOffTo, fjvDb, tx, psh, traces, drawing);
+                    candidates.Add(Resolve(part, part.BelongsTo, part.BranchesOffTo, fjvDb, tx, psh));
                     continue;
                 case LegacyPartRole.Stud:
-                    //A svanehals within 15 degrees of its main's axis was filed
-                    //with BelongsTo = the main itself: that names no branch.
-                    string branch = part.BelongsTo == part.BranchesOffTo ? "" : part.BelongsTo;
-                    Add(part, part.BranchesOffTo, branch, fjvDb, tx, psh, traces, drawing);
+                    candidates.Add(Resolve(part, part.BranchesOffTo, part.BelongsTo, fjvDb, tx, psh));
                     continue;
                 default:
                     //Materialeskift branches are found where two pipelines meet
@@ -55,35 +67,96 @@ internal static class LegacyBranchFinder
                     continue;
             }
         }
+
+        foreach (List<Candidate> junction in Junctions(candidates))
+            Add(junction, traces, drawing);
+    }
+
+    /// <summary>
+    /// The pipelines one part joins. A part naming the SAME pipeline as its
+    /// main and its branch names no branch: a svanehals within 15 degrees of
+    /// its main's axis is filed that way, and a tee filed that way is a legacy
+    /// drawing error. Either way the branch is what the connection graph meets
+    /// at the part's BRANCH port, if anything other than the main.
+    /// </summary>
+    private static Candidate Resolve(
+        LegacyComponent part, string mainName, string branchName, Database fjvDb, Transaction tx, PropertySetHelper psh)
+    {
+        if (branchName.IsNotNoE() && branchName != mainName)
+            return new Candidate(part, mainName, branchName, "BranchesOffToAlignment/BelongsToAlignment");
+        if (mainName.IsNoE())
+            return new Candidate(part, mainName, "", "");
+
+        string fromGraph = BranchFromGraph(part, mainName, fjvDb, tx, psh);
+        //Kept as the part filed it when the graph finds nothing: the report
+        //then says what the part names.
+        return fromGraph.IsNotNoE()
+            ? new Candidate(part, mainName, fromGraph, "DriGraph (BRANCH-port)")
+            : new Candidate(part, mainName, branchName, "");
+    }
+
+    /// <summary>
+    /// The candidates grouped into junctions: the same part joining the same
+    /// two pipelines, their branch ports within <see cref="JunctionReach"/> of
+    /// the group's first.
+    /// </summary>
+    private static List<List<Candidate>> Junctions(List<Candidate> candidates)
+    {
+        List<List<Candidate>> junctions = new List<List<Candidate>>();
+        foreach (Candidate c in candidates)
+        {
+            List<Candidate>? same = junctions.FirstOrDefault(j =>
+                j[0].Part.Navn == c.Part.Navn &&
+                j[0].MainName == c.MainName &&
+                j[0].BranchName == c.BranchName &&
+                j[0].Part.BranchPort.GetDistanceTo(c.Part.BranchPort) <= JunctionReach);
+            if (same != null) same.Add(c);
+            else junctions.Add(new List<Candidate> { c });
+        }
+        return junctions;
     }
 
     private static void Add(
-        LegacyComponent part, string mainName, string branchName,
-        Database fjvDb, Transaction tx, PropertySetHelper psh,
-        Dictionary<string, LegacyPipelineTrace> traces, LegacyDrawing drawing)
+        List<Candidate> junction, Dictionary<string, LegacyPipelineTrace> traces, LegacyDrawing drawing)
     {
-        Point2d port = part.BranchPort;
-        string namedBy = "BranchesOffToAlignment/BelongsToAlignment";
+        Candidate first = junction[0];
+        string navn = first.Part.Navn;
+        string handles = string.Join(", ", junction.Select(c => c.Part.Handle));
+        string mainName = first.MainName, branchName = first.BranchName;
+        Point2d port = new Point2d(
+            junction.Average(c => c.Part.BranchPort.X), junction.Average(c => c.Part.BranchPort.Y));
 
         if (mainName.IsNoE())
         {
             drawing.Problems.Add(new LegacyBranchProblem(
-                $"{part.Navn} ({part.Handle})", port,
-                $"NDHFROMFJV: legacy part '{part.Navn}' names no main pipeline; not connected.",
+                $"{navn} ({handles})", port,
+                $"NDHFROMFJV: legacy part '{navn}' names no main pipeline; not connected.",
                 "den gamle del angiver ingen hovedledning"));
             return;
         }
-
-        if (branchName.IsNoE())
+        //A svanehals filed with its main on both sides is the legacy way of
+        //filing one within 15 degrees of the main's axis: it names no branch.
+        if (branchName == mainName && first.Part.Role == LegacyPartRole.Stud) branchName = "";
+        if (branchName == mainName)
         {
-            branchName = BranchFromGraph(part, mainName, fjvDb, tx, psh);
-            namedBy = "DriGraph (BRANCH-port)";
+            //Live run 2026-09-19, F4: the T ENKELT pair at the start of 057 is
+            //filed with 057 as both its main and its branch, and its main-run
+            //ports meet no pipe - the legacy drawing does not say what 057
+            //leaves. That is the legacy drawing's error, and the note says so.
+            drawing.Problems.Add(new LegacyBranchProblem(
+                $"{navn} ({handles}) på {mainName}", port,
+                $"NDHFROMFJV: legacy part '{navn}' names '{mainName}' as both its main and its branch, " +
+                "and nothing else meets its branch port - an error in the legacy drawing " +
+                "(fix BelongsToAlignment/BranchesOffToAlignment there); not connected.",
+                $"den gamle del angiver '{mainName}' som både hovedledning og afgrening - " +
+                "fejl i den gamle tegning"));
+            return;
         }
         if (branchName.IsNoE())
         {
             drawing.Problems.Add(new LegacyBranchProblem(
-                $"{part.Navn} ({part.Handle}) på {mainName}", port,
-                $"NDHFROMFJV: legacy part '{part.Navn}' on '{mainName}' names no branch pipeline, " +
+                $"{navn} ({handles}) på {mainName}", port,
+                $"NDHFROMFJV: legacy part '{navn}' on '{mainName}' names no branch pipeline, " +
                 "and nothing meets its branch port; not connected.",
                 "den gamle del angiver ingen afgrening, og intet møder dens afgreningsport"));
             return;
@@ -95,8 +168,12 @@ internal static class LegacyBranchFinder
         if (traces.TryGetValue(mainName, out LegacyPipelineTrace? mainTrace))
             (site, system, type) = SiteOn(mainTrace, port);
 
+        List<Point2d> mainPorts = junction
+            .SelectMany(c => c.Part.Ports.Where(p => p.Role == LegacyPortRole.Main).Select(p => p.Position))
+            .ToList();
+
         drawing.Branches.Add(new LegacyBranch(
-            mainName, branchName, part.Navn, part.Handle, port, site, system, type, namedBy));
+            mainName, branchName, navn, handles, port, site, mainPorts, system, type, first.NamedBy));
     }
 
     /// <summary>

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace IntersectUtilities.NdhTrace;
 
@@ -84,7 +85,7 @@ internal static class NdhFromFjvImport
         report.Skipped.AddRange(merged.Notes);
 
         //5.
-        Dictionary<string, BuiltPipeline> built = Build(merged, services, report);
+        Dictionary<string, BuiltPipeline> built = Build(legacy, merged, services, report);
 
         //6.
         List<ImportMarker> markers = BranchConnectionStep.Run(legacy, merged, built, services.Connector, report);
@@ -97,18 +98,25 @@ internal static class NdhFromFjvImport
 
     /// <summary>
     /// Routes and builds every pipeline, without any transaction of ours open:
-    /// the builder opens the working drawing's model space itself.
+    /// the builder opens the working drawing's model space itself. Each route
+    /// is told where the legacy branches sit on it, so it stays straight across
+    /// them: a legacy junction stands on a straight (live run 2026-09-19, F2).
     /// </summary>
     private static Dictionary<string, BuiltPipeline> Build(
-        MergedTraces merged, NdhImportServices services, NdhImportReport report)
+        LegacyDrawing legacy, MergedTraces merged, NdhImportServices services, NdhImportReport report)
     {
+        ILookup<string, NdhJunctionSeat> seats = legacy.Branches.ToLookup(
+            b => merged.NameOf(b.MainName),
+            b => new NdhJunctionSeat(b.Site, b.MainPorts),
+            StringComparer.Ordinal);
+
         Dictionary<string, BuiltPipeline> built = new Dictionary<string, BuiltPipeline>(StringComparer.Ordinal);
         foreach (LegacyPipelineTrace t in merged.Traces)
         {
             NdhRoute route;
             try
             {
-                route = NdhRouteBuilder.Build(t, services.Straight);
+                route = NdhRouteBuilder.Build(t, services.Straight, seats[t.Name].ToList());
             }
             catch (Exception ex)
             {

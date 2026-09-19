@@ -297,8 +297,10 @@ internal static class FjvLegacyPipelineReader
                 corners.Add(new LegacyCorner(
                     br.Position.To2d(), LegacyCornerKind.Elbow, deg * Math.PI / 180.0));
             else if (type == PipelineElementType.F_Model)
+                //An F-rør is made for exactly 90 degrees (NDH has refused any
+                //other turn since 2026-09-16): it is a fixed-angle part too.
                 corners.Add(new LegacyCorner(
-                    br.Position.To2d(), LegacyCornerKind.FModel, double.NaN));
+                    br.Position.To2d(), LegacyCornerKind.FModel, Math.PI / 2.0));
         }
         return corners;
     }

@@ -15,7 +15,15 @@ internal readonly record struct SeriesKey(PipeSystemEnum System, bool Twin, int 
 {
     public string SystemToken => NsDhModule.SystemToken(System);
     public string TypeToken => NsDhModule.TypeToken(Twin);
-    public override string ToString() => $"{SystemToken} {TypeToken} {Dn}";
+    /// <summary>
+    /// The size as the drafter reads it: the system's own (Danish) name, never
+    /// its edit token - "Stål", not "Staal" (live run 2026-09-19, F7). Tokens go
+    /// on the wire only. Steel sizes by DN, every other system by ø.
+    /// </summary>
+    public override string ToString() => Display(System, Twin, Dn);
+
+    public static string Display(PipeSystemEnum system, bool twin, int dn) =>
+        $"{system} {NsDhModule.TypeToken(twin)} {(system == PipeSystemEnum.Stål ? "DN" : "ø")}{dn}";
 
     public int CompareTo(SeriesKey other)
     {
