@@ -41,14 +41,11 @@ internal static class LegacyBranchTranslator
     private const string Afgreningsstuds = "Afgreningsstuds";
     private const string Svanehals = "Svanehals";
     private const string DirektePaasvejsning = "Direkte påsvejsning";
+    private const string PreskoblingTStykke = "Preskobling T-stykke";
 
     private static readonly IBranchPartRule Pert318 = new MarkedRule(
         "PertFlextra/PertPIPE tees have no NDH part yet (NorsynDrawingTools #318)",
         "PertFlextra/PertPIPE-afgreninger findes ikke i NDH endnu (#318)");
-
-    private static readonly IBranchPartRule AluPexPress321 = new MarkedRule(
-        "AluPex press-coupling tees have no NDH part yet (NorsynDrawingTools #321)",
-        "AluPex-preskoblingstees findes ikke i NDH endnu (#321)");
 
     private static readonly Dictionary<string, IBranchPartRule> ByNavn = new(StringComparer.Ordinal)
     {
@@ -85,8 +82,9 @@ internal static class LegacyBranchTranslator
         ["PRT-PIPE-TEE"] = Pert318,
         ["PRESKOBLING-TEE-PRT"] = Pert318,
         ["PRT-PIPE-PRESKOBLING-TEE"] = Pert318,
-        //No NDH counterpart yet (D9); its own issue says what is missing.
-        ["ALUPEX-PRESKOBLING-TEE"] = AluPexPress321,
+
+        //AluPex onto AluPex only; NDH refuses a bonded main or a child in another material.
+        ["ALUPEX-PRESKOBLING-TEE"] = new FixedRule(PreskoblingTStykke, NdhBranchOutlet.Perpendicular),
     };
 
     public static BranchTranslation Translate(LegacyBranch branch) =>
