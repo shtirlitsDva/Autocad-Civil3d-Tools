@@ -50,6 +50,13 @@ internal sealed record NdhJunctionSeat(Point2d Site, IReadOnlyList<Point2d> Main
 internal sealed class NdhRoute
 {
     public List<NdhRouteVertex> Vertices { get; } = new List<NdhRouteVertex>();
+
+    /// <summary>
+    /// The legacy block whose corner made each vertex, index-aligned with
+    /// <see cref="Vertices"/>; empty for a vertex no block made (an end, a
+    /// bend the centreline itself turns, a vertex a boundary asked for).
+    /// </summary>
+    public List<string> VertexCauseHandles { get; } = new List<string>();
     public List<NdhIdentityBoundary> Boundaries { get; } = new List<NdhIdentityBoundary>();
     /// <summary>Every place the route had to deviate from the trace, for the report.</summary>
     public List<string> Adjustments { get; } = new List<string>();
@@ -205,6 +212,10 @@ internal static partial class NdhRouteBuilder
         public double D0, D1;
         //The turn of the legacy elbow making this corner; NaN if none or any.
         public double NominalTurn = double.NaN;
+        //WHICH LEGACY BLOCK MADE THIS CORNER, empty on a vertex no block made.
+        //It rides here so the import can name the component this vertex will
+        //carry once the pipeline stands - the route itself is only geometry.
+        public string CauseHandle = "";
         //The straight the parts of the change on this vertex take; none on a
         //vertex that changes nothing.
         public PartStraight Parts;
@@ -248,7 +259,13 @@ internal static partial class NdhRouteBuilder
         SizeBends(vs, seats, route.Adjustments);
 
         foreach (RouteVertex v in vs)
+        {
             route.Vertices.Add(new NdhRouteVertex(v.P.X, v.P.Y, v.Radius));
+            //INDEX-ALIGNED WITH Vertices, and so with the causes the build hands
+            //back: the i-th vertex the importer asks for is the i-th id it is
+            //given, and this says which legacy block that vertex answers for.
+            route.VertexCauseHandles.Add(v.CauseHandle);
+        }
         foreach ((RouteVertex v, LegacyIdentitySpan s) in bounds)
             route.Boundaries.Add(new NdhIdentityBoundary(vs.IndexOf(v), s.System, s.Type, s.Dn));
 
@@ -418,9 +435,12 @@ internal static partial class NdhRouteBuilder
             bool lineToLine = s.Kind == Kind.Line && n.Kind == Kind.Line;
             if (turn > (lineToLine ? StraightTurn : ArcJoinTolerance))
             {
-                (VertexKind kind, double nominal) = CornerKind(s.B, turn, corners);
+                (VertexKind kind, double nominal, string cause) = CornerKind(s.B, turn, corners);
                 vs.Add(new RouteVertex
-                { P = s.B, Kind = kind, NominalTurn = nominal, D0 = s.D1, D1 = s.D1 });
+                {
+                    P = s.B, Kind = kind, NominalTurn = nominal, CauseHandle = cause,
+                    D0 = s.D1, D1 = s.D1,
+                });
             }
         }
 
@@ -440,20 +460,25 @@ internal static partial class NdhRouteBuilder
         return vs;
     }
 
-    /// <summary>What makes the corner at <paramref name="p"/>, and the turn its elbow is made for.</summary>
-    private static (VertexKind Kind, double NominalTurn) CornerKind(
+    /// <summary>
+    /// What makes the corner at <paramref name="p"/>, the turn its elbow is
+    /// made for, and WHICH BLOCK it was - the last so that the component this
+    /// vertex ends up carrying can be named afterwards. A corner no block
+    /// explains answers with an empty handle, not with a nearest guess.
+    /// </summary>
+    private static (VertexKind Kind, double NominalTurn, string CauseHandle) CornerKind(
         Point2d p, double turn, IReadOnlyList<LegacyCorner> corners)
     {
-        if (turn < MinFittingTurn) return (VertexKind.Bend, double.NaN);
+        if (turn < MinFittingTurn) return (VertexKind.Bend, double.NaN, "");
         foreach (LegacyCorner c in corners)
         {
             double d = c.Position.GetDistanceTo(p);
             if (c.Kind == LegacyCornerKind.Elbow && d <= ElbowReach)
-                return (VertexKind.Elbow, c.NominalTurn);
+                return (VertexKind.Elbow, c.NominalTurn, c.Handle);
             if (c.Kind == LegacyCornerKind.FModel && d <= FModelReach)
-                return (VertexKind.FCorner, c.NominalTurn);
+                return (VertexKind.FCorner, c.NominalTurn, c.Handle);
         }
-        return (VertexKind.Bend, double.NaN);
+        return (VertexKind.Bend, double.NaN, "");
     }
 
     /// <summary>

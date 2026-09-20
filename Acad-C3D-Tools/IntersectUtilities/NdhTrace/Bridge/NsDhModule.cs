@@ -1,6 +1,7 @@
 ﻿using IntersectUtilities.UtilsCommon.Enums;
 
 using System;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
 namespace IntersectUtilities.NdhTrace;
@@ -134,6 +135,26 @@ internal static class NsDhModule
     };
 
     public static string TypeToken(bool twin) => twin ? "Twin" : "Enkelt";
+
+    private static readonly NdhRun[] TwinRuns = { NdhRun.Twin };
+    private static readonly NdhRun[] BondedRuns = { NdhRun.Frem, NdhRun.Retur };
+
+    /// <summary>
+    /// THE RUNS A CONSTRUCTION HAS. A Twin pipeline has one and it is
+    /// <see cref="NdhRun.Twin"/>; a bonded one has two, and one authored cause
+    /// yields a SEPARATE, independently overridable component on each - so a
+    /// component named on a bonded pipeline is two rows, never one.
+    ///
+    /// It sits beside <see cref="TypeToken(PipeTypeEnum)"/> because it is the
+    /// same kind of statement about the same enum: what this construction IS,
+    /// said once, rather than a decision each caller re-takes.
+    /// </summary>
+    public static IReadOnlyList<NdhRun> RunsOf(PipeTypeEnum type) => type switch
+    {
+        PipeTypeEnum.Twin => TwinRuns,
+        PipeTypeEnum.Frem or PipeTypeEnum.Retur or PipeTypeEnum.Enkelt => BondedRuns,
+        _ => throw new ArgumentOutOfRangeException(nameof(type), type, "No pipe type."),
+    };
 }
 
 /// <summary>

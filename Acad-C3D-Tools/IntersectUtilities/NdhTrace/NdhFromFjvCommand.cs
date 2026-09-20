@@ -86,6 +86,7 @@ namespace IntersectUtilities
                     ndh,
                     new NsDhConnectionBridge(),
                     new NsDhSettingsBridge(),
+                    new NsDhModifyBridge(),
                     new WpfImportDialogs(),
                     new AcadImportMarkers(localDb)), report);
             }
@@ -171,6 +172,7 @@ namespace IntersectUtilities
             PrintNdhSection("Afvist", report.Refused);
             PrintNdhSection("Producent", report.ProducerReport);
             PrintNdhSection("Serierapport", report.SeriesReport);
+            PrintNdhSection("Fittings", report.FittingReport);
             if (report.MarkersPlaced > 0)
                 prdDbg($"{report.MarkersPlaced} markeringer ligger på laget {AcadImportMarkers.Layer}.");
         }

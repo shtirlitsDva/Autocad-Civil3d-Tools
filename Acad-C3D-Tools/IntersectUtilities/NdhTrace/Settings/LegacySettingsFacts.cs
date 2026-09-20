@@ -1,4 +1,4 @@
-using IntersectUtilities.UtilsCommon.Enums;
+﻿using IntersectUtilities.UtilsCommon.Enums;
 
 using System;
 using System.Collections.Generic;
@@ -55,6 +55,13 @@ internal sealed class LegacySettingsFacts
     /// <summary>Per size, the series its legacy pipes are drawn in.</summary>
     public SortedDictionary<SeriesKey, SortedDictionary<PipeSeriesEnum, SeriesTally>> Series { get; } =
         new SortedDictionary<SeriesKey, SortedDictionary<PipeSeriesEnum, SeriesTally>>();
+
+    /// <summary>
+    /// WHAT THE OLD DRAWING DREW, per pipe system and situation: the count the
+    /// drawing's fitting rule sheet is fitted to. A drawing-wide fact like the
+    /// other two, read in the same pass.
+    /// </summary>
+    public FittingCensus Fittings { get; } = new FittingCensus();
 
     /// <summary>Legacy parts naming a producer NDH does not set (not steel), with counts.</summary>
     public SortedDictionary<string, int> IgnoredProducerParts { get; } = new SortedDictionary<string, int>(StringComparer.Ordinal);

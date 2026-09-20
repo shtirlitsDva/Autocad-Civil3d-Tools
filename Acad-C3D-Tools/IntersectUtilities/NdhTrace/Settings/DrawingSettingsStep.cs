@@ -1,4 +1,4 @@
-using IntersectUtilities.UtilsCommon.Enums;
+﻿using IntersectUtilities.UtilsCommon.Enums;
 
 using System;
 using System.Collections.Generic;
@@ -16,6 +16,11 @@ namespace IntersectUtilities.NdhTrace;
 ///
 /// - Producer (contract D8): no producer named - keep the drawing's own and say
 ///   so; exactly one - set it; two - the drafter chooses.
+/// - Fittings: the census's majority part per pipe system and situation becomes
+///   ONE unbanded rule row, and the systems it speaks for have their rows
+///   REPLACED. A system the old drawing does not draw keeps its seed rows. The
+///   components that disagree with the fitted policy are named individually
+///   after their pipelines are built, not here.
 /// - Series: a size drawn in one series gets it; a size drawn in several is
 ///   settled by the drafter; a size whose pipes' series cannot be read is left
 ///   to the drawing and reported. The matrix export replaces a system's whole
@@ -27,8 +32,15 @@ namespace IntersectUtilities.NdhTrace;
 internal static class DrawingSettingsStep
 {
     public static bool Apply(
-        LegacySettingsFacts facts, INdhDrawingSettings settings, IImportDialogs dialogs, NdhImportReport report)
+        LegacySettingsFacts facts, INdhDrawingSettings settings, IImportDialogs dialogs,
+        NdhImportReport report, out FittedSheet fitted)
     {
+        //THE POLICY THE OLD DRAWING IMPLIES, worked out before any question is
+        //asked, so a cancelled dialog leaves it unwritten like everything else.
+        //It is handed back whatever happens: the components that disagree with
+        //it are named after their pipelines stand, which is not here.
+        fitted = facts.Fittings.Fit();
+
         //1. Decide.
         string? producer = null;
         string producerLine;
@@ -88,6 +100,7 @@ internal static class DrawingSettingsStep
             report.ProducerReport.Add($"Ignoreret (NDH's producent gælder stål): {navn} ×{n}.");
 
         HashSet<SeriesKey> dropped = WriteSeries(decided, settings, report);
+        WriteFittingRules(fitted, settings, report);
 
         //3. Report every size the legacy drawing draws.
         foreach ((SeriesKey key, SortedDictionary<PipeSeriesEnum, SeriesTally> seen) in facts.Series)
@@ -103,6 +116,47 @@ internal static class DrawingSettingsStep
                 report.SeriesReport.Add($"{key}: {Name(series)} ({legacy}).");
         }
         return true;
+    }
+
+    /// <summary>
+    /// Writes the fitted policy, replacing the rows of every pipe system the
+    /// old drawing speaks for and leaving the rest at their seed.
+    ///
+    /// A REFUSAL IS REPORTED AND NOTHING IS RETRIED. The series matrix drops a
+    /// cell the catalogue cannot serve and sends the rest, because a cell is a
+    /// fact about one size and the others are still true. A rule sheet is not
+    /// like that: the rows are an ORDERED policy, and sending it minus the row
+    /// that refused would leave the drawing governed by a policy nobody wrote.
+    /// So the drawing keeps the policy it had, and the report says which row
+    /// and why.
+    /// </summary>
+    private static void WriteFittingRules(
+        FittedSheet fitted, INdhDrawingSettings settings, NdhImportReport report)
+    {
+        foreach (string line in fitted.Report) report.FittingReport.Add(line);
+        if (fitted.Rows.Count == 0)
+        {
+            report.FittingReport.Add(
+                "Den gamle tegning afgør ingen fittingregler - tegningens egne regler beholdes.");
+            return;
+        }
+
+        NdhSettingsOutcome outcome = settings.SetFittingRules(fitted.Rows);
+        if (outcome.Success)
+        {
+            report.FittingReport.Add(
+                $"{fitted.Rows.Count} fittingregel(ler) skrevet; de berørte rørsystemers regler " +
+                "er erstattet, de øvrige står urørt.");
+            return;
+        }
+
+        string which = outcome.CellIndex >= 0 && outcome.CellIndex < fitted.Rows.Count
+            ? $"regel {outcome.CellIndex} ({fitted.Rows[outcome.CellIndex].SystemToken}/" +
+              $"{fitted.Rows[outcome.CellIndex].SituationToken})"
+            : "reglerne";
+        report.FittingReport.Add(
+            $"Fittingreglerne blev IKKE skrevet - {which} blev afvist: {outcome.Detail} " +
+            "Tegningens egne regler er urørte.");
     }
 
     /// <summary>Writes the decided cells over the drawing's own; returns the cells the catalogue refused.</summary>

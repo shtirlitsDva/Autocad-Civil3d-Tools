@@ -1,4 +1,4 @@
-using Autodesk.AutoCAD.DatabaseServices;
+﻿using Autodesk.AutoCAD.DatabaseServices;
 
 using IntersectUtilities.UtilsCommon.Enums;
 
@@ -22,6 +22,8 @@ namespace IntersectUtilities.NdhTrace;
 /// - Series: every legacy pipe of an imported pipeline, by system, Twin or the
 ///   bonded pair, and size, read from the pipe's width as the pipe schedule
 ///   reads it (PipeScheduleV2.GetPipeSeriesV2).
+/// - Fittings: which part the drawing drew in each situation it drew, so the
+///   drawing's own fitting policy can be fitted to it (the census).
 /// </summary>
 internal static class LegacySettingsReader
 {
@@ -38,6 +40,8 @@ internal static class LegacySettingsReader
         IReadOnlyList<LegacyComponent> parts, IReadOnlyDictionary<string, List<Entity>> groups,
         LegacySettingsFacts facts)
     {
+        facts.Fittings.Read(parts);
+
         foreach (LegacyComponent part in parts)
         {
             string? token = ProducerIn(part.Navn);

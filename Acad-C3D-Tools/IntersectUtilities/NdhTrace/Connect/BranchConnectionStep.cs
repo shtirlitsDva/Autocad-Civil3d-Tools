@@ -7,7 +7,21 @@ using System.Linq;
 namespace IntersectUtilities.NdhTrace;
 
 /// <summary>A pipeline the import built: its handle and the route it was built from.</summary>
-internal sealed record BuiltPipeline(string Handle, NdhRoute Route);
+/// <summary>
+/// A pipeline the import built. <paramref name="VertexCauses"/> is the durable
+/// id NDH gave each vertex the importer asked for, index-aligned with the
+/// route's own vertices - the name a component standing on that vertex is
+/// written under. It is carried rather than looked up again because the built
+/// route lays extra vertices of its own, so the i-th vertex NDH holds is not
+/// the i-th vertex that was asked for.
+/// </summary>
+internal sealed record BuiltPipeline(
+    string Handle, NdhRoute Route, IReadOnlyList<ulong> VertexCauses)
+{
+    /// <summary>The id of the vertex the importer asked for at this index; 0 when unnamed.</summary>
+    public ulong CauseAt(int authoredIndex) =>
+        authoredIndex >= 0 && authoredIndex < VertexCauses.Count ? VertexCauses[authoredIndex] : 0UL;
+}
 
 /// <summary>
 /// Connects every legacy branch to its main through NDH, with the translated

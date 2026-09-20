@@ -1,4 +1,4 @@
-using Autodesk.AutoCAD.DatabaseServices;
+﻿using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 
 using IntersectUtilities.PipelineNetworkSystem;
@@ -68,8 +68,17 @@ internal enum LegacyCornerKind
 /// A component that puts a sharp corner into the Centreline near its position.
 /// NominalTurn is the turn the part is made for, in radians; NaN for a part
 /// made to any angle.
+///
+/// HANDLE IS WHICH BLOCK IT WAS. The route that comes out of this corner is
+/// geometry and carries no identity of its own, so without the handle nothing
+/// downstream can say which legacy part a built vertex answers for - and the
+/// import could fit the drawing's policy but never name the components that
+/// disagree with it. Matching back by position afterwards is not the same
+/// thing: the vertex is not where the block stands, and it moves again while
+/// the route is fitted.
 /// </summary>
-internal readonly record struct LegacyCorner(Point2d Position, LegacyCornerKind Kind, double NominalTurn);
+internal readonly record struct LegacyCorner(
+    Point2d Position, LegacyCornerKind Kind, double NominalTurn, string Handle);
 
 /// <summary>
 /// A legacy FJV pipeline reduced to what a new pipeline needs: its exact
@@ -336,14 +345,15 @@ internal static class FjvLegacyPipelineReader
         {
             if (!TryGetType(br, out PipelineElementType type)) continue;
 
+            string handle = br.Handle.ToString();
             if (ElbowTurns.TryGetValue(type, out double deg))
                 corners.Add(new LegacyCorner(
-                    br.Position.To2d(), LegacyCornerKind.Elbow, deg * Math.PI / 180.0));
+                    br.Position.To2d(), LegacyCornerKind.Elbow, deg * Math.PI / 180.0, handle));
             else if (type == PipelineElementType.F_Model)
                 //An F-rør is made for exactly 90 degrees (NDH has refused any
                 //other turn since 2026-09-16): it is a fixed-angle part too.
                 corners.Add(new LegacyCorner(
-                    br.Position.To2d(), LegacyCornerKind.FModel, Math.PI / 2.0));
+                    br.Position.To2d(), LegacyCornerKind.FModel, Math.PI / 2.0, handle));
         }
         return corners;
     }

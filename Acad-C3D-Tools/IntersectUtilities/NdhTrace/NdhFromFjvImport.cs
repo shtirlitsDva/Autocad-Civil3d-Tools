@@ -77,6 +77,7 @@ internal sealed class NdhImportReport
     public List<string> Refused { get; } = new List<string>();
     public List<string> ProducerReport { get; } = new List<string>();
     public List<string> SeriesReport { get; } = new List<string>();
+    public List<string> FittingReport { get; } = new List<string>();
     /// <summary>How many markers were placed on the marker layer.</summary>
     public int MarkersPlaced { get; set; }
     /// <summary>
@@ -92,6 +93,7 @@ internal sealed record NdhImportServices(
     INdhPartStraight Straight,
     INdhConnector Connector,
     INdhDrawingSettings Settings,
+    INdhPipelineModifier Modifier,
     IImportDialogs Dialogs,
     IImportMarkers Markers);
 
@@ -102,7 +104,8 @@ internal sealed record NdhImportServices(
 /// 2. infer the drawing settings, asking where the legacy drawing is ambiguous;
 /// 3. set the drawing's producer and series matrix;
 /// 4. merge end-to-end chains;
-/// 5. build the pipelines;
+/// 5. build the pipelines, then name the components whose legacy block
+///    disagrees with the fitted policy;
 /// 6. connect the branches;
 /// 7. place the markers;
 /// 8. report (the command prints it).
@@ -126,7 +129,8 @@ internal static class NdhFromFjvImport
         List<ImportMarker> transitionMarkers = UnjoinedTransitions(legacy, report);
 
         //2. + 3.
-        if (!DrawingSettingsStep.Apply(legacy.Settings, services.Settings, services.Dialogs, report))
+        if (!DrawingSettingsStep.Apply(
+                legacy.Settings, services.Settings, services.Dialogs, report, out FittedSheet fitted))
             return;
 
         //4.
@@ -136,6 +140,10 @@ internal static class NdhFromFjvImport
 
         //5.
         Dictionary<string, BuiltPipeline> built = Build(legacy, merged, services, report);
+
+        //5b. The fitted policy is the drawing's; the blocks that disagree with
+        //it are named one by one, now that the components exist to be named.
+        FittingDeviationStep.Run(fitted, built, services.Modifier, report);
 
         //6.
         List<ImportMarker> markers = BranchConnectionStep.Run(legacy, merged, built, services.Connector, report);
@@ -244,7 +252,7 @@ internal static class NdhFromFjvImport
                 continue;
             }
 
-            built[t.Name] = new BuiltPipeline(outcome.Handle, route);
+            built[t.Name] = new BuiltPipeline(outcome.Handle, route, outcome.VertexCauses);
             report.Created.Add(t.Name);
             report.Built.Add((t.Name, outcome.Handle));
             foreach (string note in route.Adjustments) report.Adjusted.Add($"{t.Name}: {note}");
