@@ -151,8 +151,10 @@ internal sealed record NsDhSurface(string Name, string VersionExport, int Expect
     public static readonly NsDhSurface BranchConnect = new("branch connect", "NsDh_BranchConnectVersion", 1);
     //kNsDhDrawingSettingsVersion
     public static readonly NsDhSurface DrawingSettings = new("drawing settings", "NsDh_DrawingSettingsVersion", 1);
-    //kNsDhPipelineReadVersion: 3 added NsDh_ReadPipelineConnections.
-    public static readonly NsDhSurface PipelineRead = new("pipeline read", "NsDh_PipelineReadVersion", 3);
+    //kNsDhPipelineReadVersion: 3 added NsDh_ReadPipelineConnections; 4 gave
+    //NsDhPlanIssue the complaint's MEASURE as a number, so a caller can act on
+    //it instead of reading it back out of the sentence.
+    public static readonly NsDhSurface PipelineRead = new("pipeline read", "NsDh_PipelineReadVersion", 4);
 
     /// <summary>Every surface NDHFROMFJV uses; probed before the import touches anything.</summary>
     public static readonly NsDhSurface[] UsedByImport =

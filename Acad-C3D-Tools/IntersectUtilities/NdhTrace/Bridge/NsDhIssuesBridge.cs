@@ -37,18 +37,24 @@ internal interface INdhPipelineIssues
 /// </summary>
 internal sealed class NsDhIssuesBridge : INdhPipelineIssues
 {
-    //sizeof 2176
+    //sizeof 2192
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct PlanIssue
     {
-        public int Code;       //off 0
-        public int Place;      //off 4
-        public double Station; //off 8
-        public double X;       //off 16
-        public double Y;       //off 24
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 40)] public string CodeName;  //off 32
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 8)] public string Run;        //off 112
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 1024)] public string Detail;  //off 128
+        public int Code;        //off 0
+        public int Place;       //off 4
+        //HasMeasure is what says whether MeasureM means anything - NOT the
+        //number, because zero is a real measured value (two footprints sharing
+        //nothing is contact, which is legal).
+        public int HasMeasure;  //off 8
+        public int Reserved;    //off 12, explicit padding in the header
+        public double MeasureM; //off 16
+        public double Station;  //off 24
+        public double X;        //off 32
+        public double Y;        //off 40
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 40)] public string CodeName;  //off 48
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 8)] public string Run;        //off 128
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 1024)] public string Detail;  //off 144
     }
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
@@ -58,7 +64,7 @@ internal sealed class NsDhIssuesBridge : INdhPipelineIssues
         int capacity,
         out int outCount);
 
-    static NsDhIssuesBridge() => NsDhModule.RequireLayout<PlanIssue>(2176);
+    static NsDhIssuesBridge() => NsDhModule.RequireLayout<PlanIssue>(2192);
 
     public IReadOnlyList<NdhIssueRow> Read(string pipelineHandle)
     {
