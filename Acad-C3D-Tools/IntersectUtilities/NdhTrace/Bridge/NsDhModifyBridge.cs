@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
@@ -14,7 +14,16 @@ internal sealed class NsDhModifyBridge : INdhPipelineModifier
     private const int EditSlideVertex = 0;
     private const int EditFittingSelection = 7;
 
-    //sizeof 200
+    //kNsDhCause* / kNsDhRun* are NdhCause and NdhRun - the enums hold the wire
+    //values themselves, so this file declares no constants for them and casts
+    //straight through. They are the other two thirds of a component's name: one
+    //route vertex causes SEVERAL components - an elbow and a reducer can share
+    //a boundary vertex, and a bonded pair's Frem and Retur each carry their own
+    //at that one vertex - so an override that states only the vertex names none
+    //of them. Before modify version 3 the dbx filled these in as Elbow and
+    //Twin, and an override on anything else was a silent no-op returning Ok.
+
+    //sizeof 208
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct PipelineEdit
     {
@@ -23,14 +32,15 @@ internal sealed class NsDhModifyBridge : INdhPipelineModifier
         public int End;            //off 8
         public int Present;        //off 12
         public int Custom;         //off 16
-        public int Reserved;       //off 20
-        public double AlongM;      //off 24
-        public double Dx;          //off 32
-        public double Dy;          //off 40
-        public double ByM;         //off 48
-        public double LegMm;       //off 56
-        public ulong CauseHandle;  //off 64
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 64)] public string Name; //off 72
+        public int CauseKind;      //off 20
+        public int RunRole;        //off 24
+        public double AlongM;      //off 32
+        public double Dx;          //off 40
+        public double Dy;          //off 48
+        public double ByM;         //off 56
+        public double LegMm;       //off 64
+        public ulong CauseHandle;  //off 72
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 64)] public string Name; //off 80
     }
 
     //sizeof 2096
@@ -58,7 +68,7 @@ internal sealed class NsDhModifyBridge : INdhPipelineModifier
 
     static NsDhModifyBridge()
     {
-        NsDhModule.RequireLayout<PipelineEdit>(200);
+        NsDhModule.RequireLayout<PipelineEdit>(208);
         NsDhModule.RequireLayout<ModifyResult>(2096);
     }
 
@@ -66,7 +76,8 @@ internal sealed class NsDhModifyBridge : INdhPipelineModifier
         string pipelineHandle, IReadOnlyList<(int Vertex, double AlongM)> slides)
     {
         //Every field an arm does not own is left at its default: the header
-        //states that a field the kind does not read is not read.
+        //states that a field the kind does not read is not read. A route arm
+        //names no component, so CauseKind and RunRole are among them.
         return Apply(pipelineHandle, slides, nameof(slides), s => new PipelineEdit
         {
             Kind = EditSlideVertex,
@@ -77,13 +88,15 @@ internal sealed class NsDhModifyBridge : INdhPipelineModifier
     }
 
     public NdhModifyOutcome SetFittingChoices(
-        string pipelineHandle, IReadOnlyList<(ulong CauseHandle, NdhFittingChoice Choice)> choices)
+        string pipelineHandle, IReadOnlyList<NdhFittingOverride> choices)
     {
         //The choice spells its own wire state; nothing here asks what it is.
         return Apply(pipelineHandle, choices, nameof(choices), c => new PipelineEdit
         {
             Kind = EditFittingSelection,
-            CauseHandle = c.CauseHandle,
+            CauseHandle = c.Component.CauseHandle,
+            CauseKind = (int)c.Component.Cause,
+            RunRole = (int)c.Component.Run,
             Present = c.Choice.Present,
             Name = c.Choice.Name,
         });

@@ -1,4 +1,4 @@
-using IntersectUtilities.UtilsCommon.Enums;
+﻿using IntersectUtilities.UtilsCommon.Enums;
 
 using System;
 using System.Runtime.InteropServices;
@@ -159,8 +159,10 @@ internal sealed record NsDhSurface(string Name, string VersionExport, int Expect
     //stands, which the import's repair pass slides a tee through. 2 added the
     //fitting-selection arm - which part one component uses - with no layout
     //change; the bump is so a newer caller meets an older dbx at this check
-    //rather than at an unknown edit kind.
-    public static readonly NsDhSurface PipelineModify = new("pipeline modify", "NsDh_PipelineModifyVersion", 2);
+    //rather than at an unknown edit kind. 3 gave every override arm the other
+    //two thirds of a component's name - its cause kind and its run role -
+    //which until then the dbx filled in as Elbow and Twin for all of them.
+    public static readonly NsDhSurface PipelineModify = new("pipeline modify", "NsDh_PipelineModifyVersion", 3);
 
     /// <summary>Every surface NDHFROMFJV uses; probed before the import touches anything.</summary>
     public static readonly NsDhSurface[] UsedByImport =

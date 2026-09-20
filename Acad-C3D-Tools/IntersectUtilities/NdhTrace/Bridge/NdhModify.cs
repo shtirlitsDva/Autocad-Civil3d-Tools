@@ -1,4 +1,4 @@
-namespace IntersectUtilities.NdhTrace;
+﻿namespace IntersectUtilities.NdhTrace;
 
 /// <summary>NsDh_ModifyPipeline status codes (kNsDhModify*).</summary>
 internal enum NdhModifyStatus
@@ -64,8 +64,75 @@ internal interface INdhPipelineModifier
     /// </summary>
     NdhModifyOutcome SetFittingChoices(
         string pipelineHandle,
-        System.Collections.Generic.IReadOnlyList<(ulong CauseHandle, NdhFittingChoice Choice)> choices);
+        System.Collections.Generic.IReadOnlyList<NdhFittingOverride> choices);
 }
+
+/// <summary>
+/// WHAT KIND OF COMPONENT a vertex caused. The values ARE the wire's
+/// kNsDhCause* (NsDhPipelineBridge.h) - this enum is that vocabulary named, not
+/// a second one mapped onto it, so nothing has to translate between them.
+///
+/// A BRANCH is deliberately absent. A branch component is named by a cause, a
+/// run AND an assembly member - which body, which reducer - so it cannot be
+/// named through this door, and the dbx refuses it by name rather than
+/// resolving it to something else.
+/// </summary>
+internal enum NdhCause
+{
+    Elbow = 0,
+    Reducer = 1,
+    ConstructionChange = 3,
+    Arc = 4,
+    VerticalElbow = 5,
+}
+
+/// <summary>
+/// WHICH RUN a component stands on. A TWIN pipeline has one run and it is
+/// <see cref="Twin"/>. A BONDED pipeline has two, and one authored cause yields
+/// a SEPARATE, independently overridable component on each - so overriding a
+/// bonded reduction is TWO rows, Frem and Retur, not one.
+/// </summary>
+internal enum NdhRun
+{
+    Twin = 0,
+    Frem = 1,
+    Retur = 2,
+}
+
+/// <summary>
+/// THE NAME OF ONE COMPONENT: the vertex that caused it, which KIND of
+/// component it is, and which run it stands on. All three, because one route
+/// vertex causes several - an elbow and a reducer can share a boundary vertex.
+///
+/// Naming only the vertex is not a partial answer, it is a WRONG one: the dbx
+/// used to complete it as "the elbow of the twin run" and return Ok while the
+/// component kept resolving through the rule sheet.
+/// </summary>
+internal readonly record struct NdhComponent(ulong CauseHandle, NdhCause Cause, NdhRun Run)
+{
+    /// <summary>The elbow at this vertex, on this run.</summary>
+    public static NdhComponent Elbow(ulong causeHandle, NdhRun run) =>
+        new(causeHandle, NdhCause.Elbow, run);
+
+    /// <summary>The reducer at this boundary vertex, on this run.</summary>
+    public static NdhComponent Reducer(ulong causeHandle, NdhRun run) =>
+        new(causeHandle, NdhCause.Reducer, run);
+
+    /// <summary>The transition between a bonded and a twin construction.</summary>
+    public static NdhComponent ConstructionChange(ulong causeHandle, NdhRun run) =>
+        new(causeHandle, NdhCause.ConstructionChange, run);
+
+    /// <summary>The arc - a bend drawn as a curve rather than a corner.</summary>
+    public static NdhComponent Arc(ulong causeHandle, NdhRun run) =>
+        new(causeHandle, NdhCause.Arc, run);
+
+    /// <summary>The elbow that turns out of plan - a vertical bend.</summary>
+    public static NdhComponent VerticalElbow(ulong causeHandle, NdhRun run) =>
+        new(causeHandle, NdhCause.VerticalElbow, run);
+}
+
+/// <summary>One component, and the part it should use.</summary>
+internal readonly record struct NdhFittingOverride(NdhComponent Component, NdhFittingChoice Choice);
 
 /// <summary>
 /// WHICH PART A COMPONENT USES, when the drawing's rule sheet does not answer
