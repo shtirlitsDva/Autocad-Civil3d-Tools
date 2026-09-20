@@ -5,17 +5,55 @@ using System.Collections.Generic;
 
 namespace IntersectUtilities.NdhTrace;
 
+/// <summary>
+/// WHO HEARS WHAT A LEGACY BRANCH BECOMES. Three outcomes, each its own method,
+/// so no caller tests a translation's type to find out what to do with it.
+/// </summary>
+internal interface IBranchAudience
+{
+    /// <summary>Connect, with this Produkt pinned, leaving the main this way.</summary>
+    void Connect(string produkt, NdhBranchOutlet outlet);
+
+    /// <summary>
+    /// Not connected: <paramref name="note"/> (English) goes in the drawing,
+    /// <paramref name="reason"/> (Danish) in the report.
+    /// </summary>
+    void CannotConnect(string note, string reason);
+
+    /// <summary>
+    /// Nothing to connect and nothing to say - a part NDH deliberately does not
+    /// model. Silence is the law here, not an oversight
+    /// (legacy-fjv-import.md &lt;every-block-settled-2026-09-21&gt;).
+    /// </summary>
+    void Ignore(string why);
+}
+
 /// <summary>What a legacy branch becomes in NDH.</summary>
-internal abstract record BranchTranslation;
+internal abstract record BranchTranslation
+{
+    internal abstract void Tell(IBranchAudience audience);
+}
 
 /// <summary>Connect with this NDH Produkt pinned, leaving the main this way.</summary>
-internal sealed record TranslatedBranch(string Produkt, NdhBranchOutlet Outlet) : BranchTranslation;
+internal sealed record TranslatedBranch(string Produkt, NdhBranchOutlet Outlet) : BranchTranslation
+{
+    internal override void Tell(IBranchAudience audience) => audience.Connect(Produkt, Outlet);
+}
 
 /// <summary>
 /// Not connected: marked in the drawing with <paramref name="Note"/> (English)
 /// and reported with <paramref name="Reason"/> (Danish).
 /// </summary>
-internal sealed record UntranslatedBranch(string Note, string Reason) : BranchTranslation;
+internal sealed record UntranslatedBranch(string Note, string Reason) : BranchTranslation
+{
+    internal override void Tell(IBranchAudience audience) => audience.CannotConnect(Note, Reason);
+}
+
+/// <summary>A part NDH deliberately does not model. Skipped in silence.</summary>
+internal sealed record IgnoredBranch(string Why) : BranchTranslation
+{
+    internal override void Tell(IBranchAudience audience) => audience.Ignore(Why);
+}
 
 /// <summary>How one legacy part (by its block name, Navn) translates.</summary>
 internal interface IBranchPartRule
@@ -24,110 +62,149 @@ internal interface IBranchPartRule
 }
 
 /// <summary>
-/// The legacy branch part to NDH Produkt table (legacy-fjv-import.md
-/// fittings-translation-settled-2026-09-18). Keyed on the block's real name,
-/// not on its legacy element type: the types collide (a PertFlextra tee and a
-/// twin steel tee are both "Lige afgrening"), the names do not. A part not in
-/// the table is never guessed: it is marked (contract D9).
+/// WHERE A LEGACY BRANCH LEAVES ITS MAIN - and nothing else.
+///
+/// WHICH PRODUKT a block is belongs to <see cref="LegacyPartRegister"/>, which
+/// covers the whole company register and is generated from the reference table.
+/// This class used to carry its own copy of that answer for the branch blocks,
+/// which is two tables that can silently disagree; it now asks. What stays here
+/// is the one fact the register cannot hold, because it is not a fact about the
+/// BLOCK: the outlet, and the two readings that depend on the MAIN the part
+/// happens to sit on.
+///
+/// Keyed on the block's real name, not on its legacy element type: the types
+/// collide (a PertFlextra tee and a twin steel tee are both "Lige afgrening"),
+/// the names do not.
 /// </summary>
 internal static class LegacyBranchTranslator
 {
-    //NDH Produkt names, exactly as the NDH catalogue publishes them.
-    private const string AfgreningMedSpring = "Afgrening med spring";
-    private const string Parallelafgrening = "Parallelafgrening";
-    private const string PraeisoleretTStykke = "Præisoleret T-stykke";
-    private const string IndsvejstForgrening = "Indsvejst forgrening";
-    private const string AquaThermT = "AquaTherm-T";
-    private const string Afgreningsstuds = "Afgreningsstuds";
-    private const string Svanehals = "Svanehals";
+    //The one Produkt name this class owns, and it is deliberately NOT the
+    //register's answer for the block: a materialeskift is Direkte påsvejsning
+    //HERE, welded onto a steel main, and Materialeskift where it sits inline
+    //between two systems. The block name cannot tell the two apart, so POSITION
+    //decides, and this is the position that knows (legacy-fjv-import.md,
+    //2026-09-21).
     private const string DirektePaasvejsning = "Direkte påsvejsning";
-    private const string PreskoblingTStykke = "Preskobling T-stykke";
 
-    private static readonly IBranchPartRule Pert318 = new MarkedRule(
-        "PertFlextra/PertPIPE tees have no NDH part yet (NorsynDrawingTools #318)",
-        "PertFlextra/PertPIPE-afgreninger findes ikke i NDH endnu (#318)");
+    private static readonly IBranchPartRule Square = new OutletRule(NdhBranchOutlet.Perpendicular);
+    private static readonly IBranchPartRule Along = new OutletRule(NdhBranchOutlet.AlongMain);
 
     private static readonly Dictionary<string, IBranchPartRule> ByNavn = new(StringComparer.Ordinal)
     {
-        ["T ENKELT S2"] = new FixedRule(AfgreningMedSpring, NdhBranchOutlet.Perpendicular),
-        ["T ENKELT S3"] = new FixedRule(AfgreningMedSpring, NdhBranchOutlet.Perpendicular),
+        ["T ENKELT S2"] = Square,
+        ["T ENKELT S3"] = Square,
 
         //A parallel branch leaves along its main.
-        ["T PARALLEL S3 E"] = new FixedRule(Parallelafgrening, NdhBranchOutlet.AlongMain),
-        ["PA TWIN S3"] = new FixedRule(Parallelafgrening, NdhBranchOutlet.AlongMain),
-        ["T PARALLEL S3 E VARIABEL"] = new MarkedRule(
-            "Parallelafgrening VARIABEL is not translated yet",
-            "Parallelafgrening VARIABEL oversættes ikke endnu"),
+        ["T PARALLEL S3 E"] = Along,
+        ["PA TWIN S3"] = Along,
+        //VARIABEL is in the register as NOT IMPLEMENTED; the outlet is stated
+        //anyway, so the day the part exists this row needs no edit.
+        ["T PARALLEL S3 E VARIABEL"] = Along,
 
-        ["T TWIN S2"] = new FixedRule(PraeisoleretTStykke, NdhBranchOutlet.Perpendicular),
-        ["T TWIN S3"] = new FixedRule(PraeisoleretTStykke, NdhBranchOutlet.Perpendicular),
-        ["T-TWIN-S2-ISOPLUS"] = new FixedRule(PraeisoleretTStykke, NdhBranchOutlet.Perpendicular),
-        ["T-TWIN-S2-LOGSTOR"] = new FixedRule(PraeisoleretTStykke, NdhBranchOutlet.Perpendicular),
-        ["T-TWIN-S3-ISOPLUS"] = new FixedRule(PraeisoleretTStykke, NdhBranchOutlet.Perpendicular),
-        ["T-TWIN-S3-LOGSTOR"] = new FixedRule(PraeisoleretTStykke, NdhBranchOutlet.Perpendicular),
-        ["ALUPEX-PRÆ-TEE"] = new FixedRule(PraeisoleretTStykke, NdhBranchOutlet.Perpendicular),
+        ["T TWIN S2"] = Square,
+        ["T TWIN S3"] = Square,
+        ["T-TWIN-S2-ISOPLUS"] = Square,
+        ["T-TWIN-S2-LOGSTOR"] = Square,
+        ["T-TWIN-S3-ISOPLUS"] = Square,
+        ["T-TWIN-S3-LOGSTOR"] = Square,
+        ["ALUPEX-PRÆ-TEE"] = Square,
 
-        ["TEE KDLR"] = new FixedRule(IndsvejstForgrening, NdhBranchOutlet.Perpendicular),
-        ["AT11-TEE"] = new FixedRule(AquaThermT, NdhBranchOutlet.Perpendicular),
-        ["AFGRSTUDS"] = new FixedRule(Afgreningsstuds, NdhBranchOutlet.Perpendicular),
+        ["TEE KDLR"] = Square,
+        ["AT11-TEE"] = Square,
+        ["AFGRSTUDS"] = Square,
 
         //For now SH LIGE leaves at 90 degrees and SH VINKLET along the main.
-        ["SH LIGE"] = new SvanehalsRule(Svanehals, NdhBranchOutlet.Perpendicular),
-        ["SH VINKLET"] = new SvanehalsRule(Svanehals, NdhBranchOutlet.AlongMain),
+        ["SH LIGE"] = new SvanehalsRule(NdhBranchOutlet.Perpendicular),
+        ["SH VINKLET"] = new SvanehalsRule(NdhBranchOutlet.AlongMain),
 
-        ["MATERIALESKIFT"] = new MaterialeskiftRule(DirektePaasvejsning),
-        ["PRT-PIPE-MATSKIFT"] = new MaterialeskiftRule(DirektePaasvejsning),
+        ["MATERIALESKIFT"] = new MaterialeskiftRule(),
+        ["PRT-PIPE-MATSKIFT"] = new MaterialeskiftRule(),
 
-        ["PRTFLX-TEE"] = Pert318,
-        ["PRT-PIPE-TEE"] = Pert318,
-        ["PRESKOBLING-TEE-PRT"] = Pert318,
-        ["PRT-PIPE-PRESKOBLING-TEE"] = Pert318,
+        //The four Pert branches and the two stik need no row of their own any
+        //more: the register says NOT IMPLEMENTED for the first four (#318) and
+        //NOT NEEDED for the stik, and the outlet below is what they would use.
+        ["PRTFLX-TEE"] = Square,
+        ["PRT-PIPE-TEE"] = Square,
+        ["PRESKOBLING-TEE-PRT"] = Square,
+        ["PRT-PIPE-PRESKOBLING-TEE"] = Square,
+        ["STIKAFGRENING"] = Square,
+        ["STIKTEE"] = Square,
 
         //AluPex onto AluPex only; NDH refuses a bonded main or a child in another material.
-        ["ALUPEX-PRESKOBLING-TEE"] = new FixedRule(PreskoblingTStykke, NdhBranchOutlet.Perpendicular),
+        ["ALUPEX-PRESKOBLING-TEE"] = Square,
     };
 
     public static BranchTranslation Translate(LegacyBranch branch) =>
         ByNavn.TryGetValue(branch.Navn, out IBranchPartRule? rule)
             ? rule.Translate(branch)
-            : NoCounterpart(branch.Navn);
+            : FromRegister(branch.Navn, NdhBranchOutlet.Perpendicular);
 
     internal static UntranslatedBranch NoCounterpart(string navn) => new(
         $"no NDH counterpart for legacy part '{navn}'",
         $"ingen NDH-modpart til den gamle del '{navn}'");
 
-    private sealed class FixedRule(string produkt, NdhBranchOutlet outlet) : IBranchPartRule
+    /// <summary>
+    /// The register's verdict for this block, said in the branch path's own
+    /// words. The four verdicts collapse to three here because a branch has no
+    /// use for the difference between a part we do not model and a thing that
+    /// is not a part: both are silence.
+    /// </summary>
+    private static BranchTranslation FromRegister(string navn, NdhBranchOutlet outlet)
     {
-        public BranchTranslation Translate(LegacyBranch branch) => new TranslatedBranch(produkt, outlet);
+        BranchRelay relay = new BranchRelay(outlet);
+        LegacyPartRegister.Of(navn).Tell(navn, relay);
+        return relay.Translation;
     }
 
-    private sealed class MarkedRule(string note, string reason) : IBranchPartRule
+    private sealed class BranchRelay(NdhBranchOutlet outlet) : ILegacyVerdictAudience
     {
-        public BranchTranslation Translate(LegacyBranch branch) => new UntranslatedBranch(note, reason);
+        //Set by exactly one of the three below. The register always says one of
+        //them - including for a name it does not know - so it is never unset.
+        public BranchTranslation Translation { get; private set; } =
+            new IgnoredBranch("the register said nothing");
+
+        public void Translates(string navn, string produkt) =>
+            Translation = new TranslatedBranch(produkt, outlet);
+
+        public void Missing(string navn, string note, string reason) =>
+            Translation = new UntranslatedBranch(note, reason);
+
+        public void Skipped(string navn, string why) => Translation = new IgnoredBranch(why);
+    }
+
+    private sealed class OutletRule(NdhBranchOutlet outlet) : IBranchPartRule
+    {
+        public BranchTranslation Translate(LegacyBranch branch) =>
+            FromRegister(branch.Navn, outlet);
     }
 
     /// <summary>
     /// A svanehals is welded on top of a BONDED main; one found on a twin main
     /// is an error in the legacy drawing, marked for the drafter to fix there.
     /// </summary>
-    private sealed class SvanehalsRule(string produkt, NdhBranchOutlet outlet) : IBranchPartRule
+    private sealed class SvanehalsRule(NdhBranchOutlet outlet) : IBranchPartRule
     {
         public BranchTranslation Translate(LegacyBranch branch) => branch.MainType == PipeTypeEnum.Twin
             ? new UntranslatedBranch(
                 $"svanehals '{branch.Navn}' sits on a twin main - legacy drawing error " +
                 "(a svanehals is welded onto a bonded main)",
                 "svanehals på en twin-hovedledning er en fejl i den gamle tegning")
-            : new TranslatedBranch(produkt, outlet);
+            : FromRegister(branch.Navn, outlet);
     }
 
     /// <summary>
     /// A materialeskift sitting on a STEEL main is welded straight onto it:
     /// Direkte påsvejsning. On any other main it has no NDH counterpart.
+    ///
+    /// This is the one rule that does NOT ask the register, and deliberately:
+    /// the register answers what the BLOCK is, which for a materialeskift is
+    /// the inline part of the same name. Here it is a branch, and a branch is a
+    /// different part.
     /// </summary>
-    private sealed class MaterialeskiftRule(string produkt) : IBranchPartRule
+    private sealed class MaterialeskiftRule : IBranchPartRule
     {
         public BranchTranslation Translate(LegacyBranch branch) => branch.MainSystem == PipeSystemEnum.Stål
-            ? new TranslatedBranch(produkt, NdhBranchOutlet.Perpendicular)
+            ? new TranslatedBranch(DirektePaasvejsning, NdhBranchOutlet.Perpendicular)
             : new UntranslatedBranch(
                 $"no NDH counterpart for legacy part '{branch.Navn}' on a {branch.MainSystem} main",
                 $"ingen NDH-modpart til den gamle del '{branch.Navn}' på en {branch.MainSystem}-hovedledning");

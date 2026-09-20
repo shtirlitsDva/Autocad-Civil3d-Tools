@@ -1,4 +1,4 @@
-using Autodesk.AutoCAD.Geometry;
+﻿using Autodesk.AutoCAD.Geometry;
 
 using System;
 using System.Collections.Generic;
@@ -86,15 +86,46 @@ internal static class BranchConnectionStep
             return;
         }
 
-        BranchTranslation translation = LegacyBranchTranslator.Translate(b);
-        if (translation is UntranslatedBranch u)
-        {
-            report.Skipped.Add($"{what}: {u.Reason} - ikke forbundet.");
-            markers.Add(new NotConnectedMarker(b.Site, $"{noteHead}: {u.Note}."));
-            return;
-        }
-        TranslatedBranch t = (TranslatedBranch)translation;
+        //THE TRANSLATION SAYS WHAT HAPPENS TO IT. Nothing here reads its type:
+        //a part that connects connects, a part with no counterpart is marked,
+        //and a part NDH deliberately does not model passes in silence - which
+        //is a law and not an omission
+        //(legacy-fjv-import.md <every-block-settled-2026-09-21>).
+        LegacyBranchTranslator.Translate(b).Tell(new BranchAudience(
+            b, what, noteHead, mainName, branchName, built, connector, report, markers));
+    }
 
+    /// <summary>
+    /// The three things that can happen to one legacy branch. It holds what
+    /// <see cref="Connect"/> already worked out, so each outcome reads as the
+    /// one sentence it is.
+    /// </summary>
+    private sealed class BranchAudience(
+        LegacyBranch b, string what, string noteHead, string mainName, string branchName,
+        IReadOnlyDictionary<string, BuiltPipeline> built, INdhConnector connector,
+        NdhImportReport report, List<ImportMarker> markers) : IBranchAudience
+    {
+        public void Connect(string produkt, NdhBranchOutlet outlet) => ConnectTranslated(
+            b, what, noteHead, mainName, branchName, produkt, outlet,
+            built, connector, report, markers);
+
+        public void CannotConnect(string note, string reason)
+        {
+            report.Skipped.Add($"{what}: {reason} - ikke forbundet.");
+            markers.Add(new NotConnectedMarker(b.Site, $"{noteHead}: {note}."));
+        }
+
+        //Silent BY LAW: a mark here would ask the drafter to fix something that
+        //is not broken.
+        public void Ignore(string why) { }
+    }
+
+    private static void ConnectTranslated(
+        LegacyBranch b, string what, string noteHead, string mainName, string branchName,
+        string produkt, NdhBranchOutlet outletWay,
+        IReadOnlyDictionary<string, BuiltPipeline> built, INdhConnector connector,
+        NdhImportReport report, List<ImportMarker> markers)
+    {
         if (!built.TryGetValue(mainName, out BuiltPipeline? main) ||
             !built.TryGetValue(branchName, out BuiltPipeline? branch))
         {
@@ -111,35 +142,35 @@ internal static class BranchConnectionStep
 
         bool atStart = NearestEndIsStart(branch.Route, b.BranchPort);
         NdhConnectOutcome o = connector.Connect(new NdhConnectRequest(
-            main.Handle, branch.Handle, atStart, t.Outlet, t.Produkt));
+            main.Handle, branch.Handle, atStart, outletWay, produkt));
 
         if (!o.Success)
         {
-            report.Refused.Add($"{what}, {t.Produkt}: {o.Status}" +
+            report.Refused.Add($"{what}, {produkt}: {o.Status}" +
                 (o.MainVertexIndex >= 0 ? $" (hovedledningens punkt {o.MainVertexIndex})" : "") +
                 (o.Detail.Length > 0 ? $" - {o.Detail}" : ""));
             markers.Add(new NotConnectedMarker(b.Site,
-                $"{noteHead} ({t.Produkt}, legacy part '{b.Navn}'): {RefusalSentence(o.Status, t.Produkt)}." +
+                $"{noteHead} ({produkt}, legacy part '{b.Navn}'): {RefusalSentence(o.Status, produkt)}." +
                 (o.Detail.Length > 0 ? $" NDH: {o.Detail}" : "")));
             return;
         }
 
-        string outlet = t.Outlet == NdhBranchOutlet.AlongMain ? "langs hovedledningen" : "vinkelret";
+        string outletWords = outletWay == NdhBranchOutlet.AlongMain ? "langs hovedledningen" : "vinkelret";
         Point2d port = new Point2d(o.PortX, o.PortY);
 
-        report.Connected.Add($"{what}: {t.Produkt}, {outlet}");
+        report.Connected.Add($"{what}: {produkt}, {outletWords}");
 
         //What the drafter must check at this port, gathered into one leader.
         List<string> notes = new List<string>();
 
         //NDH answered Ok, so the connection stands: a read-back that disagrees
         //is a connection to check, never a refusal (review of #319, I4).
-        string? mismatch = ReadBack(connector, main.Handle, branch.Handle, t.Produkt);
+        string? mismatch = ReadBack(connector, main.Handle, branch.Handle, produkt);
         if (mismatch != null)
         {
             report.Connected.Add($"  ADVARSEL: {branchName} → {mainName} er forbundet, men {mismatch}");
             notes.Add($"NDHFROMFJV connected '{branchName}' to '{mainName}', but the connection does not " +
-                $"read back as '{t.Produkt}' pinned. Check it.");
+                $"read back as '{produkt}' pinned. Check it.");
         }
 
         if (o.DeviationDeg > DeviationNoiseDeg || o.LargestMoveM > MoveNoiseM)
@@ -147,13 +178,13 @@ internal static class BranchConnectionStep
             bool loud = o.DeviationDeg > SilentLimitDeg;
             report.Adjusted.Add(
                 $"{branchName} → {mainName}: afgreningen rettet {o.DeviationDeg:F2}° " +
-                $"({(t.Outlet == NdhBranchOutlet.AlongMain ? "til langs hovedledningen" : "til 90°")}); " +
+                $"({(outletWay == NdhBranchOutlet.AlongMain ? "til langs hovedledningen" : "til 90°")}); " +
                 $"enden flyttet {o.EndMoveM:F3} m ind på hovedledningens centerlinje, " +
                 $"øvrige punkter op til {o.LargestMoveM:F3} m" + (loud ? " - MLeader placeret." : "."));
             if (loud)
-                notes.Add($"NDHFROMFJV squared branch '{branchName}' onto '{mainName}' ({t.Produkt}): " +
+                notes.Add($"NDHFROMFJV squared branch '{branchName}' onto '{mainName}' ({produkt}): " +
                     $"the legacy branch stood {o.DeviationDeg:F1}° off " +
-                    $"{(t.Outlet == NdhBranchOutlet.AlongMain ? "the main's direction" : "90° to the main")}. " +
+                    $"{(outletWay == NdhBranchOutlet.AlongMain ? "the main's direction" : "90° to the main")}. " +
                     $"Its connected end moved {o.EndMoveM:F2} m onto the main's centreline; " +
                     $"its other vertices moved up to {o.LargestMoveM:F2} m.");
         }
