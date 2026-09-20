@@ -56,4 +56,50 @@ internal interface INdhPipelineModifier
     /// </summary>
     NdhModifyOutcome SlideVertices(
         string pipelineHandle, System.Collections.Generic.IReadOnlyList<(int Vertex, double AlongM)> slides);
+
+    /// <summary>
+    /// Write the fitting override on one or more components, all of them as
+    /// ONE edit. <c>CauseHandle</c> is the CAUSE VERTEX the component stands
+    /// on, as the durable id the Issue Ledger is written in.
+    /// </summary>
+    NdhModifyOutcome SetFittingChoices(
+        string pipelineHandle,
+        System.Collections.Generic.IReadOnlyList<(ulong CauseHandle, NdhFittingChoice Choice)> choices);
+}
+
+/// <summary>
+/// WHICH PART A COMPONENT USES, when the drawing's rule sheet does not answer
+/// what this particular component is. THREE states, each its own type, because
+/// "the sheet governs" and "no part at all" are different answers and a
+/// nullable string would collapse them into one.
+///
+/// Each state carries its own wire spelling, so nothing anywhere asks a choice
+/// what it is (kNsDhFitting* in NsDhPipelineBridge.h).
+/// </summary>
+internal abstract record NdhFittingChoice
+{
+    /// <summary>kNsDhFitting*: which of the three states this is.</summary>
+    internal abstract int Present { get; }
+
+    /// <summary>The Produkt name, where the state has one.</summary>
+    internal virtual string Name => "";
+}
+
+/// <summary>Hand this component back to the rule sheet: the override is erased.</summary>
+internal sealed record NdhFromRuleSheet : NdhFittingChoice
+{
+    internal override int Present => 0;  //kNsDhFittingErase
+}
+
+/// <summary>This component uses this Produkt, whatever the sheet says.</summary>
+internal sealed record NdhFittingProdukt(string Produkt) : NdhFittingChoice
+{
+    internal override int Present => 1;  //kNsDhFittingProdukt
+    internal override string Name => Produkt;
+}
+
+/// <summary>This component carries no part at all - the drafter's own answer.</summary>
+internal sealed record NdhNoFitting : NdhFittingChoice
+{
+    internal override int Present => 2;  //kNsDhFittingNothing
 }

@@ -156,8 +156,11 @@ internal sealed record NsDhSurface(string Name, string VersionExport, int Expect
     //it instead of reading it back out of the sentence.
     public static readonly NsDhSurface PipelineRead = new("pipeline read", "NsDh_PipelineReadVersion", 4);
     //kNsDhPipelineModifyVersion: the door for changing a pipeline that already
-    //stands, which the import's repair pass slides a tee through.
-    public static readonly NsDhSurface PipelineModify = new("pipeline modify", "NsDh_PipelineModifyVersion", 1);
+    //stands, which the import's repair pass slides a tee through. 2 added the
+    //fitting-selection arm - which part one component uses - with no layout
+    //change; the bump is so a newer caller meets an older dbx at this check
+    //rather than at an unknown edit kind.
+    public static readonly NsDhSurface PipelineModify = new("pipeline modify", "NsDh_PipelineModifyVersion", 2);
 
     /// <summary>Every surface NDHFROMFJV uses; probed before the import touches anything.</summary>
     public static readonly NsDhSurface[] UsedByImport =

@@ -12,6 +12,7 @@ internal sealed class NsDhModifyBridge : INdhPipelineModifier
 {
     //kNsDhEdit* - which fields of an edit row are read.
     private const int EditSlideVertex = 0;
+    private const int EditFittingSelection = 7;
 
     //sizeof 200
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
@@ -64,25 +65,46 @@ internal sealed class NsDhModifyBridge : INdhPipelineModifier
     public NdhModifyOutcome SlideVertices(
         string pipelineHandle, IReadOnlyList<(int Vertex, double AlongM)> slides)
     {
-        if (slides.Count == 0)
-            throw new ArgumentException("An edit list with no arms.", nameof(slides));
+        //Every field an arm does not own is left at its default: the header
+        //states that a field the kind does not read is not read.
+        return Apply(pipelineHandle, slides, nameof(slides), s => new PipelineEdit
+        {
+            Kind = EditSlideVertex,
+            Vertex = s.Vertex,
+            AlongM = s.AlongM,
+            Name = "",
+        });
+    }
+
+    public NdhModifyOutcome SetFittingChoices(
+        string pipelineHandle, IReadOnlyList<(ulong CauseHandle, NdhFittingChoice Choice)> choices)
+    {
+        //The choice spells its own wire state; nothing here asks what it is.
+        return Apply(pipelineHandle, choices, nameof(choices), c => new PipelineEdit
+        {
+            Kind = EditFittingSelection,
+            CauseHandle = c.CauseHandle,
+            Present = c.Choice.Present,
+            Name = c.Choice.Name,
+        });
+    }
+
+    /// <summary>
+    /// ONE LIST IS ONE EDIT, whatever the arms are: the marshalling, the call
+    /// and the reading of the result are the same for every arm, and only the
+    /// row each one writes differs.
+    /// </summary>
+    private static NdhModifyOutcome Apply<T>(
+        string pipelineHandle, IReadOnlyList<T> arms, string argName, Func<T, PipelineEdit> row)
+    {
+        if (arms.Count == 0)
+            throw new ArgumentException("An edit list with no arms.", argName);
 
         ModifyPipelineFn modify = NsDhModule.Resolve<ModifyPipelineFn>(
             NsDhSurface.PipelineModify, "NsDh_ModifyPipeline");
 
-        PipelineEdit[] edits = new PipelineEdit[slides.Count];
-        for (int i = 0; i < slides.Count; i++)
-        {
-            //Every field an arm does not own is left at its default: the header
-            //states that a field the kind does not read is not read.
-            edits[i] = new PipelineEdit
-            {
-                Kind = EditSlideVertex,
-                Vertex = slides[i].Vertex,
-                AlongM = slides[i].AlongM,
-                Name = "",
-            };
-        }
+        PipelineEdit[] edits = new PipelineEdit[arms.Count];
+        for (int i = 0; i < arms.Count; i++) edits[i] = row(arms[i]);
 
         (NdhModifyStatus named, string detail) = NsDhModule.Named(
             modify(pipelineHandle, edits, edits.Length, out ModifyResult r),
