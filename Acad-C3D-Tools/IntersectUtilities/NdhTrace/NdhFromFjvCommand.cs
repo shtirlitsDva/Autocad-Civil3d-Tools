@@ -99,41 +99,33 @@ namespace IntersectUtilities
             }
 
             PrintNdhImportReport(report, fjvPath);
-            PrintNdhComplaintsWhenSettled(report);
+            PrintNdhComplaints(report);
         }
 
         /// <summary>
-        /// Prints what NDH says about the pipelines the import built, once the
-        /// command is over.
+        /// Prints what NDH says about the pipelines the import built.
         ///
-        /// It cannot be printed with the rest of the report: a pipeline's plan
-        /// sweep is what files its Issue Ledger, and a branch's sweep does not
-        /// always run before NsDh_ConnectBranch returns. Live run 2026-09-20:
-        /// pipeline 059 read no complaints inside the command and one the
-        /// moment it was over, and an Editor.Regen() inside the command did not
-        /// settle it. So we ask on the first idle after the command, when the
-        /// drawing has drawn itself and every sweep has run.
+        /// Read inline, because NDH settles both ledgers before it answers.
+        /// This used to wait for the first <c>Application.Idle</c> after the
+        /// command: a branch's own runs were not re-planned by the time
+        /// <c>NsDh_ConnectBranch</c> returned, so pipeline 059 read no
+        /// complaints inside the command and one the moment it was over
+        /// (2026-09-20), and a <c>Regen</c> did not settle it either. NDH now
+        /// re-derives the CHILD as well as the main as step (5) of a connect,
+        /// and the inline read matches the deferred one - 10 and 10.
         /// </summary>
-        private static void PrintNdhComplaintsWhenSettled(NdhImportReport report)
+        private static void PrintNdhComplaints(NdhImportReport report)
         {
             if (report.Cancelled != null || report.Built.Count == 0) return;
-            List<(string Name, string Handle)> built = report.Built.ToList();
-
-            void OnIdle(object? sender, EventArgs e)
+            try
             {
-                Application.Idle -= OnIdle;
-                try
-                {
-                    PrintNdhSection("Bemærkninger fra NDH",
-                        NdhFromFjvImport.Complaints(built, new NsDhIssuesBridge()));
-                }
-                catch (System.Exception ex)
-                {
-                    prdDbg($"NDHFROMFJV: NDH's bemærkninger kunne ikke læses: {ex.Message}");
-                }
+                PrintNdhSection("Bemærkninger fra NDH",
+                    NdhFromFjvImport.Complaints(report.Built, new NsDhIssuesBridge()));
             }
-
-            Application.Idle += OnIdle;
+            catch (System.Exception ex)
+            {
+                prdDbg($"NDHFROMFJV: NDH's bemærkninger kunne ikke læses: {ex.Message}");
+            }
         }
 
         private static void PrintNdhImportReport(NdhImportReport report, string fjvPath)

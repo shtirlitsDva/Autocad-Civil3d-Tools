@@ -134,11 +134,11 @@ internal static class NdhFromFjvImport
     /// rather than passed over: a silent ledger and an unreadable one must not
     /// look alike.
     ///
-    /// Read this AFTER the import command has ended, never inside it: a
-    /// pipeline's sweep is what files its ledger, and a branch's sweep does not
-    /// always run before NsDh_ConnectBranch returns - live run 2026-09-20, 059
-    /// read 0 complaints inside the command and 1 the moment it was over, and a
-    /// Regen inside the command did not settle it either.
+    /// Safe to read as soon as the pipelines are built: a connect re-derives
+    /// BOTH sides, so a ledger is settled when NsDh_ConnectBranch returns. That
+    /// was not always true - before NDH's step (5) landed (2026-09-20) pipeline
+    /// 059 read 0 complaints inside the command and 1 the moment it was over,
+    /// and a Regen inside the command did not settle it either.
     /// </summary>
     public static List<string> Complaints(
         IReadOnlyList<(string Name, string Handle)> built, INdhPipelineIssues issues)
