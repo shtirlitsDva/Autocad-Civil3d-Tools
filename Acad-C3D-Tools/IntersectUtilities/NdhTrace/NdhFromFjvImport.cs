@@ -12,9 +12,26 @@ namespace IntersectUtilities.NdhTrace;
 /// where; -1 when it names none.
 /// </summary>
 internal readonly record struct NdhBuildOutcome(
-    NdhBuildStatus Status, string Handle, int VertexIndex, int SegmentIndex, string Detail)
+    NdhBuildStatus Status, string Handle, int VertexIndex, int SegmentIndex, string Detail,
+    IReadOnlyList<ulong> VertexCauses)
 {
     public bool Success => Status == NdhBuildStatus.Ok;
+
+    /// <summary>
+    /// THE DURABLE CAUSE OF THE VERTEX THE CALLER ASKED FOR AT
+    /// <paramref name="authoredIndex"/> - the id an override arm names, so that
+    /// what this pipeline drew can be argued with afterwards.
+    ///
+    /// IN THE CALLER'S OWN NUMBERING. A boundary asks for parts and each part
+    /// takes a vertex of its own, so the pipeline that stands carries more
+    /// vertices than were asked for; those belong to parts nobody authored and
+    /// are not named here.
+    ///
+    /// Zero for a build that refused, and for an index outside the route. Zero
+    /// is no vertex, and an override written on it would be refused by name.
+    /// </summary>
+    public ulong CauseAt(int authoredIndex) =>
+        authoredIndex >= 0 && authoredIndex < VertexCauses.Count ? VertexCauses[authoredIndex] : 0UL;
 }
 
 /// <summary>NsDh_BuildPipeline status codes (kNsDhPipelineBuild*); NsDh_ChangeStraight and NsDh_ElbowStraight answer in them too.</summary>

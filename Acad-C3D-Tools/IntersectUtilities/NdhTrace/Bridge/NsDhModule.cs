@@ -144,7 +144,10 @@ internal static class NsDhModule
 internal sealed record NsDhSurface(string Name, string VersionExport, int ExpectedVersion)
 {
     //kNsDhPipelineBuildVersion
-    public static readonly NsDhSurface Build = new("pipeline build", "NsDh_PipelineBuildVersion", 1);
+    //2: the build hands back the durable cause of every vertex the caller
+    //authored, which is how a component is named. Until 2 nothing outside the
+    //dbx could learn one, so the override lane could not be addressed at all.
+    public static readonly NsDhSurface Build = new("pipeline build", "NsDh_PipelineBuildVersion", 2);
     //kNsDhChangeStraightVersion (the elbow straight rides on it)
     public static readonly NsDhSurface ChangeStraight = new("change straight", "NsDh_ChangeStraightVersion", 1);
     //kNsDhBranchConnectVersion

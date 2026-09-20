@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Runtime.InteropServices;
 
 namespace IntersectUtilities.NdhTrace;
@@ -79,7 +79,8 @@ internal sealed class NsDhPipelineBridge : INdhPipelineBuilder, INdhPartStraight
         int vertexCount,
         [In] IdentityBoundary[] boundaries,
         int boundaryCount,
-        out BuildResult result);
+        out BuildResult result,
+        [In, Out] ulong[] vertexCauses);
 
     static NsDhPipelineBridge()
     {
@@ -114,7 +115,13 @@ internal sealed class NsDhPipelineBridge : INdhPipelineBuilder, INdhPartStraight
             };
         }
 
-        int code = build(name, vertices, vertices.Length, boundaries, boundaries.Length, out BuildResult r);
+        //ONE SLOT PER VERTEX THE CALLER ASKED FOR. The dbx zeroes them before
+        //it builds anything, so a refusal hands back zeroes rather than
+        //whatever this array happened to hold.
+        ulong[] causes = new ulong[vertices.Length];
+
+        int code = build(name, vertices, vertices.Length, boundaries, boundaries.Length,
+                         out BuildResult r, causes);
         (NdhBuildStatus status, string detail) = NsDhModule.Named(code, r.Detail, NdhBuildStatus.BuildFailed);
 
         return new NdhBuildOutcome(
@@ -122,7 +129,8 @@ internal sealed class NsDhPipelineBridge : INdhPipelineBuilder, INdhPartStraight
             r.PipelineHandle ?? "",
             r.VertexIndex,
             r.SegmentIndex,
-            detail);
+            detail,
+            causes);
     }
 
     /// <summary>
