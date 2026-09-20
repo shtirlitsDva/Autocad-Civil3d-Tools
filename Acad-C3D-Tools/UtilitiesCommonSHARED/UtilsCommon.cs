@@ -171,8 +171,23 @@ namespace IntersectUtilities.UtilsCommon
                 return ToUtm32NFromWGS84(coords[1], coords[0]);
         }
 
-        public static void prdDbg(string msg = "") =>
-            Application.DocumentManager.MdiActiveDocument.Editor.WriteMessage("\n" + msg);
+        /// <summary>
+        /// Print to the command line, if there is one.
+        /// </summary>
+        /// <remarks>
+        /// MdiActiveDocument is null whenever no drawing is current — during
+        /// IExtensionApplication.Initialize, and any time the AutoCAD Start tab
+        /// holds focus. Dereferencing it there threw a NullReferenceException that
+        /// took the whole plugin load down, from a debug printer. There is nowhere
+        /// to print in that state, so the text goes to the debug output instead of
+        /// disappearing entirely.
+        /// </remarks>
+        public static void prdDbg(string msg = "")
+        {
+            var ed = Application.DocumentManager.MdiActiveDocument?.Editor;
+            if (ed != null) ed.WriteMessage("\n" + msg);
+            else System.Diagnostics.Debug.WriteLine("[prdDbg] " + msg);
+        }
 
         public static void prdDbg(object obj)
         {
