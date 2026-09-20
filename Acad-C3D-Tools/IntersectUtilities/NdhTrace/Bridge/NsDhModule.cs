@@ -155,8 +155,11 @@ internal sealed record NsDhSurface(string Name, string VersionExport, int Expect
     //NsDhPlanIssue the complaint's MEASURE as a number, so a caller can act on
     //it instead of reading it back out of the sentence.
     public static readonly NsDhSurface PipelineRead = new("pipeline read", "NsDh_PipelineReadVersion", 4);
+    //kNsDhPipelineModifyVersion: the door for changing a pipeline that already
+    //stands, which the import's repair pass slides a tee through.
+    public static readonly NsDhSurface PipelineModify = new("pipeline modify", "NsDh_PipelineModifyVersion", 1);
 
     /// <summary>Every surface NDHFROMFJV uses; probed before the import touches anything.</summary>
     public static readonly NsDhSurface[] UsedByImport =
-        [Build, ChangeStraight, BranchConnect, DrawingSettings, PipelineRead];
+        [Build, ChangeStraight, BranchConnect, DrawingSettings, PipelineRead, PipelineModify];
 }

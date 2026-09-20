@@ -20,9 +20,16 @@ internal enum NdhIssuePlace
 /// <paramref name="CodeName"/> is the planner's own word for it -
 /// "FootprintOverlap", "SpoolTooShort", "RunNotDerivable", ... - which is what
 /// a caller classifies by.
+///
+/// <paramref name="MeasureM"/> is how far wrong it is, in metres, when the
+/// complaint IS a measurement: the metres two footprints share, the metres a
+/// spool is short. It is null when the code is not a measurement - a missing
+/// product is not short by a distance - and a real zero is a real value, so
+/// the two cannot be the same thing. The repair pass nudges by this number.
 /// </summary>
 internal readonly record struct NdhIssueRow(
-    string CodeName, NdhIssuePlace Place, string Run, double Station, double X, double Y, string Detail);
+    string CodeName, NdhIssuePlace Place, string Run, double Station, double X, double Y, string Detail,
+    double? MeasureM);
 
 /// <summary>Reads back what NDH thinks of a pipeline the import built.</summary>
 internal interface INdhPipelineIssues
@@ -91,7 +98,8 @@ internal sealed class NsDhIssuesBridge : INdhPipelineIssues
         {
             PlanIssue r = rows[i];
             result.Add(new NdhIssueRow(
-                r.CodeName ?? "", (NdhIssuePlace)r.Place, r.Run ?? "", r.Station, r.X, r.Y, r.Detail ?? ""));
+                r.CodeName ?? "", (NdhIssuePlace)r.Place, r.Run ?? "", r.Station, r.X, r.Y, r.Detail ?? "",
+                r.HasMeasure != 0 ? r.MeasureM : null));
         }
         return result;
     }

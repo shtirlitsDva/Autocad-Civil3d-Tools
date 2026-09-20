@@ -99,7 +99,32 @@ namespace IntersectUtilities
             }
 
             PrintNdhImportReport(report, fjvPath);
+            RepairAndPrint(report);
             PrintNdhComplaints(report);
+        }
+
+        /// <summary>
+        /// Slides a tee onto its neighbour where the import left it a fraction
+        /// of a millimetre short, and says what it moved.
+        ///
+        /// It runs BEFORE the complaints are printed, so what the drafter reads
+        /// is what is still wrong - and after the import is otherwise finished,
+        /// because a repair is made against the complaint that asked for it
+        /// (legacy-fjv-import.md &lt;the-repair-pass-settled-2026-09-20&gt;).
+        /// </summary>
+        private static void RepairAndPrint(NdhImportReport report)
+        {
+            if (report.Cancelled != null || report.Built.Count == 0) return;
+            try
+            {
+                PrintNdhSection("Rettet", new NdhTeeSlideRepair(
+                    new NsDhIssuesBridge(), new NsDhConnectionBridge(), new NsDhModifyBridge())
+                    .Repair(report.Built));
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg($"NDHFROMFJV: rettelserne kunne ikke køres: {ex.Message}");
+            }
         }
 
         /// <summary>
