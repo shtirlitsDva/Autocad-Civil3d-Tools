@@ -1,4 +1,4 @@
-using Autodesk.AutoCAD.ApplicationServices;
+﻿using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Runtime;
 
@@ -99,6 +99,41 @@ namespace IntersectUtilities
             }
 
             PrintNdhImportReport(report, fjvPath);
+            PrintNdhComplaintsWhenSettled(report);
+        }
+
+        /// <summary>
+        /// Prints what NDH says about the pipelines the import built, once the
+        /// command is over.
+        ///
+        /// It cannot be printed with the rest of the report: a pipeline's plan
+        /// sweep is what files its Issue Ledger, and a branch's sweep does not
+        /// always run before NsDh_ConnectBranch returns. Live run 2026-09-20:
+        /// pipeline 059 read no complaints inside the command and one the
+        /// moment it was over, and an Editor.Regen() inside the command did not
+        /// settle it. So we ask on the first idle after the command, when the
+        /// drawing has drawn itself and every sweep has run.
+        /// </summary>
+        private static void PrintNdhComplaintsWhenSettled(NdhImportReport report)
+        {
+            if (report.Cancelled != null || report.Built.Count == 0) return;
+            List<(string Name, string Handle)> built = report.Built.ToList();
+
+            void OnIdle(object? sender, EventArgs e)
+            {
+                Application.Idle -= OnIdle;
+                try
+                {
+                    PrintNdhSection("Bemærkninger fra NDH",
+                        NdhFromFjvImport.Complaints(built, new NsDhIssuesBridge()));
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg($"NDHFROMFJV: NDH's bemærkninger kunne ikke læses: {ex.Message}");
+                }
+            }
+
+            Application.Idle += OnIdle;
         }
 
         private static void PrintNdhImportReport(NdhImportReport report, string fjvPath)

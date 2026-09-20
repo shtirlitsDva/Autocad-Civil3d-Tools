@@ -1,4 +1,4 @@
-using IntersectUtilities.PlanDetailing;
+﻿using IntersectUtilities.PlanDetailing;
 
 using System;
 using System.Collections.Generic;
@@ -62,6 +62,11 @@ internal sealed class NdhImportReport
     public List<string> SeriesReport { get; } = new List<string>();
     /// <summary>How many markers were placed on the marker layer.</summary>
     public int MarkersPlaced { get; set; }
+    /// <summary>
+    /// Every pipeline the import built, in build order, with the handle NDH
+    /// gave it: what the caller needs to ask NDH about them afterwards.
+    /// </summary>
+    public List<(string Name, string Handle)> Built { get; } = new List<(string, string)>();
 }
 
 /// <summary>Everything the import talks to, so each piece can be replaced.</summary>
@@ -121,6 +126,46 @@ internal static class NdhFromFjvImport
 
         //7.
         report.MarkersPlaced = services.Markers.Place(markers);
+    }
+
+    /// <summary>
+    /// NDH's Issue Ledger for the pipelines the import built, one sentence per
+    /// complaint, in build order. A pipeline that cannot be read is said so
+    /// rather than passed over: a silent ledger and an unreadable one must not
+    /// look alike.
+    ///
+    /// Read this AFTER the import command has ended, never inside it: a
+    /// pipeline's sweep is what files its ledger, and a branch's sweep does not
+    /// always run before NsDh_ConnectBranch returns - live run 2026-09-20, 059
+    /// read 0 complaints inside the command and 1 the moment it was over, and a
+    /// Regen inside the command did not settle it either.
+    /// </summary>
+    public static List<string> Complaints(
+        IReadOnlyList<(string Name, string Handle)> built, INdhPipelineIssues issues)
+    {
+        List<string> said = new List<string>();
+        foreach ((string name, string handle) in built)
+        {
+            IReadOnlyList<NdhIssueRow> rows;
+            try
+            {
+                rows = issues.Read(handle);
+            }
+            catch (Exception ex)
+            {
+                said.Add($"{name}: NDH's bemærkninger kunne ikke læses ({ex.Message}).");
+                continue;
+            }
+
+            foreach (NdhIssueRow r in rows)
+            {
+                string where =
+                    r.Place == NdhIssuePlace.OnPipeline ? "" :
+                    r.Run.Length > 0 ? $" [{r.Run} {r.Station:F1} m]" : $" [{r.Station:F1} m]";
+                said.Add($"{name}{where} {r.CodeName}: {r.Detail}");
+            }
+        }
+        return said;
     }
 
     /// <summary>
@@ -184,6 +229,7 @@ internal static class NdhFromFjvImport
 
             built[t.Name] = new BuiltPipeline(outcome.Handle, route);
             report.Created.Add(t.Name);
+            report.Built.Add((t.Name, outcome.Handle));
             foreach (string note in route.Adjustments) report.Adjusted.Add($"{t.Name}: {note}");
         }
         return built;

@@ -1,4 +1,4 @@
-using Autodesk.AutoCAD.DatabaseServices;
+﻿using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 
 using IntersectUtilities.UtilsCommon.Enums;
@@ -153,6 +153,13 @@ internal static partial class NdhRouteBuilder
     //A leg up to this long between two snapped elbows, or from one to a
     //pipeline end, is the elbows' own leg: snapping keeps its length.
     private const double ElbowLegLength = 5.0;
+    //An arc split at a junction keeps at least this much arc on each side of
+    //the straight: less is not an arc, it is drafting noise.
+    private const double ArcSplitKeep = 0.15;
+    //The straight opened through a junction reaches this far past the legacy
+    //part's own span, so NDH's junction - not drawn to the legacy block's
+    //length - has straight of its own either side of the port.
+    private const double JunctionPortStraight = 0.25;
     //A junction's straight reaches this far past its legacy part's main-run
     //ports on either side, so the new pipeline's part - not drawn to the
     //legacy block's length - keeps a straight too, and the bends sized
@@ -229,8 +236,11 @@ internal static partial class NdhRouteBuilder
         FitArcs(vs, centreline, identities, parts, seats, route.Adjustments);
         FitFillets(vs, route.Adjustments);
         FilletZones(vs, centreline);
+        SplitArcsAtJunctions(vs, seats, centreline, route.Adjustments);
+        FitFillets(vs, route.Adjustments);
+        FilletZones(vs, centreline);
         List<(RouteVertex V, LegacyIdentitySpan Span)> bounds = PlaceBoundaries(
-            vs, identities, parts, straight, centreline, route.Adjustments);
+            vs, identities, parts, straight, centreline, seats, route.Adjustments);
         //A boundary kept right at a fillet's tangent point can leave the leg
         //between them a hair short of the fillet's setback.
         FitFillets(vs, route.Adjustments);
@@ -718,6 +728,98 @@ internal static partial class NdhRouteBuilder
     }
 
     /// <summary>
+    /// Opens a straight through every branch junction that sits inside a LEGACY
+    /// arc, by splitting that arc into two arcs of the same radius with the
+    /// chord across the junction's seat between them. NDH cannot weld a
+    /// connection into a curve (issue #12), so without this the junction is
+    /// refused PortOnArc and the branch is left hanging - three of them on the
+    /// reference drawing (038 on 016 at R=250 m, 012 on 013 at R=25 m, 048 on
+    /// 047 on an elastic bend ClearJunctions could not move).
+    ///
+    /// The chord is the only thing that changes: both arcs keep the legacy
+    /// radius, the route's tangents either side are the legacy ones, and the
+    /// straight stays within <see cref="MaxTraceDeviation"/> of the arc it
+    /// replaces (a 1.4 m seat on a 25 m radius strays 10 mm). Where it would
+    /// stray further, or where the arc has no room for an arc on both sides of
+    /// the seat, the arc is left as the legacy drawing drew it and NDH refuses
+    /// the junction loudly, exactly as it does today.
+    /// </summary>
+    private static void SplitArcsAtJunctions(
+        List<RouteVertex> vs, IReadOnlyList<(double Lo, double Hi)> seats, Polyline cl, List<string> notes)
+    {
+        foreach ((double lo, double hi) in seats)
+        {
+            //The legacy part's own site, which is where NDH will look for the
+            //port. A seat merely REACHING into an arc is no reason to open one:
+            //the port is then on the straight beside it and NDH takes it.
+            double site = (lo + hi) / 2.0;
+            int i = -1;
+            for (int k = 1; k < vs.Count - 1; k++)
+                if (vs[k].Kind == VertexKind.Fillet && vs[k].D0 < site && vs[k].D1 > site) { i = k; break; }
+            if (i < 0) continue;
+
+            RouteVertex v = vs[i];
+            double zone = v.D1 - v.D0;
+            if (zone <= MinSegmentLength) continue;
+
+            //The straight WANTS the legacy part's whole span plus room either
+            //side; it MUST at least carry the site and that room, wherever the
+            //squared port lands on it. An ARC is left on both sides: the chord
+            //cannot start where the leg before it arrives, or the route would
+            //kink there instead of curving.
+            double wantLo = lo + JunctionClearance - JunctionPortStraight;
+            double wantHi = hi - JunctionClearance + JunctionPortStraight;
+            double mustLo = site - JunctionPortStraight, mustHi = site + JunctionPortStraight;
+            double margin = Math.Min(0.2, ArcSplitKeep / zone);
+            double f0 = Math.Clamp((wantLo - v.D0) / zone, margin, 1.0 - margin);
+            double f1 = Math.Clamp((wantHi - v.D0) / zone, margin, 1.0 - margin);
+            if (f1 - f0 < 1e-9 ||
+                v.D0 + f0 * zone > mustLo + VertexSnap ||
+                v.D0 + f1 * zone < mustHi - VertexSnap)
+            {
+                notes.Add($"the branch junction at {lo:F2}-{hi:F2} m stands in the legacy arc at " +
+                    $"{v.D0:F2}-{v.D1:F2} m and no straight can be opened in it");
+                continue;
+            }
+
+            Vector2d u = (v.P - vs[i - 1].P).GetNormal();
+            Vector2d w = (vs[i + 1].P - v.P).GetNormal();
+            double sweep = Turn(u, w);
+            if (Math.Abs(sweep) < StraightTurn) continue;
+
+            //Straying from the arc by the sagitta of the chord it replaces.
+            double stray = v.Radius * (1.0 - Math.Cos(Math.Abs(sweep) * (f1 - f0) / 2.0));
+            if (stray > MaxTraceDeviation)
+            {
+                notes.Add($"the branch junction at {lo:F2}-{hi:F2} m stands in the legacy arc at " +
+                    $"{v.D0:F2}-{v.D1:F2} m; a straight through it would stray {stray:F3} m from the trace");
+                continue;
+            }
+
+            double setback = v.Radius * Math.Tan(Math.Abs(sweep) / 2.0);
+            Point2d t0 = v.P - u * setback;
+            //The centre is the arc's own: square to the arriving tangent, on the side it turns to.
+            Vector2d n = new Vector2d(-u.Y, u.X) * Math.Sign(sweep);
+            Point2d c = t0 + n * v.Radius;
+            Point2d a = Rotate(t0, c, sweep * f0);
+            Point2d b = Rotate(t0, c, sweep * f1);
+            Vector2d chord = (b - a).GetNormal();
+
+            if (!TryIntersect(t0, u, a, chord, out Point2d pi0)) continue;
+            Point2d t1 = v.P + w * setback;
+            if (!TryIntersect(a, chord, t1, w, out Point2d pi1)) continue;
+
+            vs[i] = new RouteVertex
+            { P = pi0, Kind = VertexKind.Fillet, Radius = v.Radius, D0 = v.D0, D1 = v.D0 };
+            vs.Insert(i + 1, new RouteVertex
+            { P = pi1, Kind = VertexKind.Fillet, Radius = v.Radius, D0 = v.D1, D1 = v.D1 });
+            notes.Add($"the legacy arc at {v.D0:F2}-{v.D1:F2} m split into two arcs of R={v.Radius:F2} " +
+                $"with a straight across the branch junction at {lo:F2}-{hi:F2} m " +
+                $"({stray:F3} m from the trace)");
+        }
+    }
+
+    /// <summary>
     /// How far an elastic bend at distance <paramref name="d"/> may reach before
     /// it runs into a junction's seat. A seat the bend stands inside does not
     /// limit it: <see cref="ClearJunctions"/> could not move that bend, and the
@@ -772,6 +874,31 @@ internal static partial class NdhRouteBuilder
                 BendMove move = near.Why == null ? near : MoveOutOfSeat(vs, i, lo, hi, !nearerIsBack, seats);
                 if (move.Why != null)
                 {
+                    //A bend that cannot be moved out can still be taken out:
+                    //the kink is drafting noise (047's was 1.6 degrees), and
+                    //the trace it strays from is the drafter's own hand at the
+                    //very place the legacy part stood. Straight is what the
+                    //junction needs, and the route must still hold the trace.
+                    double stray = SegmentDistance(v.P, vs[i - 1].P, vs[i + 1].P);
+                    if (stray <= MaxTraceDeviation)
+                    {
+                        notes.Add($"bend at {v.D0:F2} m could not be moved out of the branch junction at " +
+                            $"{seat} ({near.Why}); its {ToDeg(TurnAt(vs, i)):F2}° kink is taken out instead, " +
+                            $"{stray:F3} m from the trace, so the main runs straight through it");
+                        vs.RemoveAt(i);
+                        //The kink the corner held does not vanish: a change's
+                        //straight vertex beside it was collinear with the leg
+                        //that has just swung, and would now turn by the kink -
+                        //a second fitting on a boundary, which NDH refuses
+                        //(live run 2026-09-20: 047 lost its whole pipeline and
+                        //its three branches to TwoFittingsAtOneVertex). It is
+                        //slid back onto the line of its neighbours, which is
+                        //what a straight vertex is allowed to do.
+                        ReStraighten(vs, i - 1);
+                        ReStraighten(vs, i);
+                        i--;
+                        continue;
+                    }
                     notes.Add($"bend at {v.D0:F2} m stands in the branch junction at {seat} and stays: " +
                         $"{near.Why}; out the other side, {move.Why}");
                     continue;
@@ -783,6 +910,22 @@ internal static partial class NdhRouteBuilder
                 v.D0 = v.D1 = move.ToD;
             }
         }
+    }
+
+    /// <summary>
+    /// Puts the change's straight vertex at <paramref name="j"/> back on the
+    /// line of its neighbours, so it still carries no turn. Does nothing to any
+    /// other kind of vertex: a corner is meant to turn.
+    /// </summary>
+    private static void ReStraighten(List<RouteVertex> vs, int j)
+    {
+        if (j <= 0 || j >= vs.Count - 1 || vs[j].Kind != VertexKind.Straight) return;
+        Point2d a = vs[j - 1].P, b = vs[j + 1].P;
+        Vector2d ab = b - a;
+        double len = ab.Length;
+        if (len < MinSegmentLength) return;
+        double t = ((vs[j].P - a).DotProduct(ab)) / (len * len);
+        vs[j].P = a + ab * Math.Clamp(t, 0.0, 1.0);
     }
 
     /// <summary>A bend moved out of a seat: where to, or why it may not go (then the rest is meaningless).</summary>
@@ -907,6 +1050,7 @@ internal static partial class NdhRouteBuilder
         List<PartStraight> parts,
         INdhPartStraight straight,
         Polyline centreline,
+        IReadOnlyList<(double Lo, double Hi)> seats,
         List<string> notes)
     {
         List<(double D, RouteVertex V, LegacyIdentitySpan Span)> placed = new() { (0.0, vs[0], spans[0]) };
@@ -928,7 +1072,7 @@ internal static partial class NdhRouteBuilder
             }
             else
             {
-                d = StraightDistance(vs, s.ChangeDist, prev, s, parts[w], straight, out string? why);
+                d = StraightDistance(vs, s.ChangeDist, prev, s, parts[w], straight, seats, out string? why);
                 if (why != null) notes.Add($"{what} {why}, moved to {d:F2} m");
                 v = VertexOnStraight(vs, d, centreline);
                 if (v == null)
@@ -1002,7 +1146,8 @@ internal static partial class NdhRouteBuilder
     /// </summary>
     private static double StraightDistance(
         List<RouteVertex> vs, double d, LegacyIdentitySpan prev, LegacyIdentitySpan next,
-        PartStraight parts, INdhPartStraight straight, out string? why)
+        PartStraight parts, INdhPartStraight straight,
+        IReadOnlyList<(double Lo, double Hi)> seats, out string? why)
     {
         why = null;
         int hit = vs.FindIndex(v => v.Turns && (v.Kind == VertexKind.Fillet
@@ -1031,12 +1176,53 @@ internal static partial class NdhRouteBuilder
         if (why == null && Math.Abs(clamped - target) > VertexSnap)
             why = $"has too little straight for its parts ({parts.Back:F2} m back, {parts.Forward:F2} m on)";
 
+        double cleared = ClearOfSeats(clamped, parts, seats, lo, hi);
+        if (why == null && Math.Abs(cleared - clamped) > VertexSnap)
+            why = "stands in a branch junction";
+        clamped = cleared;
+
         double touching = clamped - lo < from.ContactWithin ? lo
             : hi - clamped < to.ContactWithin ? hi
             : clamped;
         if (why == null && Math.Abs(touching - clamped) > VertexSnap)
             why = "would leave too short a pipe to its elbow, put in contact with it";
         return touching;
+    }
+
+    /// <summary>
+    /// A change moved out of every branch junction's seat it stands in. The
+    /// junction's own fitting owns that stretch of the main, so a reducer or a
+    /// materialeskift left inside it lands in the fitting's interior and NDH
+    /// files a FootprintOverlap on the new pipeline (live run 2026-09-20: eight
+    /// of the seventeen issues were exactly this, every one of them an AluPex
+    /// Preskobling T-stykke with its reducer a few millimetres away).
+    ///
+    /// The change keeps the SIDE of the junction the legacy drawing drew it on.
+    /// Moving it past the junction would change the pipe the junction itself is
+    /// made in - a different Produkt at a different size - which is designing,
+    /// not translating. Where its own side has no room, the change stays where
+    /// it is and NDH says so loudly, exactly as it does today.
+    /// </summary>
+    private static double ClearOfSeats(
+        double d, PartStraight parts, IReadOnlyList<(double Lo, double Hi)> seats, double lo, double hi)
+    {
+        //Seats can overlap; each move is re-tested against all of them, and the
+        //pass count bounds the walk.
+        for (int pass = 0; pass <= seats.Count; pass++)
+        {
+            int hit = -1;
+            for (int i = 0; i < seats.Count; i++)
+                if (d + parts.Forward > seats[i].Lo + VertexSnap &&
+                    d - parts.Back < seats[i].Hi - VertexSnap) { hit = i; break; }
+            if (hit < 0) return d;
+
+            double moved = d <= (seats[hit].Lo + seats[hit].Hi) / 2.0
+                ? seats[hit].Lo - parts.Forward
+                : seats[hit].Hi + parts.Back;
+            if (moved < lo - VertexSnap || moved > hi + VertexSnap) return d;
+            d = moved;
+        }
+        return d;
     }
 
     /// <summary>
