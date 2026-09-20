@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace IntersectUtilities.NdhTrace;
 
@@ -51,4 +51,25 @@ internal interface INdhDrawingSettings
     /// the cells given for it, in one undoable step (contract D6).
     /// </summary>
     NdhSettingsOutcome SetSeriesMatrix(IReadOnlyList<NdhSeriesCell> cells);
+
+    /// <summary>
+    /// The whole sheet the drawing holds, in its own order, every system. A row
+    /// whose situation this build does not publish comes back AS FILED: it is
+    /// inert, not absent, and a fitter replacing a system's policy has to see
+    /// which row it is replacing.
+    /// </summary>
+    IReadOnlyList<NdhFittingRule> ReadFittingRules();
+
+    /// <summary>
+    /// Every pipe system named in <paramref name="rows"/> has its rows in the
+    /// sheet REPLACED by the rows given for it, IN THE ORDER GIVEN - order is
+    /// policy, first match wins - in one undoable step. A system not named
+    /// keeps its rows untouched, seed rows included.
+    ///
+    /// There is no add, no edit-by-index and no move: an index into a sheet the
+    /// caller did not author is a race it cannot see. A fitter states a whole
+    /// system's policy at once, and keeps a seed row by reading it and handing
+    /// it back.
+    /// </summary>
+    NdhSettingsOutcome SetFittingRules(IReadOnlyList<NdhFittingRule> rows);
 }

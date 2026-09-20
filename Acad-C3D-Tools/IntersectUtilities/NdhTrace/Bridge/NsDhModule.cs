@@ -150,7 +150,11 @@ internal sealed record NsDhSurface(string Name, string VersionExport, int Expect
     //kNsDhBranchConnectVersion
     public static readonly NsDhSurface BranchConnect = new("branch connect", "NsDh_BranchConnectVersion", 1);
     //kNsDhDrawingSettingsVersion
-    public static readonly NsDhSurface DrawingSettings = new("drawing settings", "NsDh_DrawingSettingsVersion", 1);
+    //2: the surface gained the FITTING RULE SHEET (NsDh_SetFittingRules /
+    //NsDh_ReadFittingRules). The producer and the series matrix are unchanged;
+    //a caller that uses neither of the new two still meets the bump, because a
+    //version is what a whole surface agrees on.
+    public static readonly NsDhSurface DrawingSettings = new("drawing settings", "NsDh_DrawingSettingsVersion", 2);
     //kNsDhPipelineReadVersion: 3 added NsDh_ReadPipelineConnections; 4 gave
     //NsDhPlanIssue the complaint's MEASURE as a number, so a caller can act on
     //it instead of reading it back out of the sentence.
