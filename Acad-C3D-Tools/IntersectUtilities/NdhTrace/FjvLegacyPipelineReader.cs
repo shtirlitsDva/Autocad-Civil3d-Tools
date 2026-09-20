@@ -78,7 +78,7 @@ internal enum LegacyCornerKind
 /// the route is fitted.
 /// </summary>
 internal readonly record struct LegacyCorner(
-    Point2d Position, LegacyCornerKind Kind, double NominalTurn, string Handle);
+    Point2d Position, LegacyCornerKind Kind, double NominalTurn, string Handle, LegacyLegs Legs);
 
 /// <summary>
 /// A legacy FJV pipeline reduced to what a new pipeline needs: its exact
@@ -346,14 +346,17 @@ internal static class FjvLegacyPipelineReader
             if (!TryGetType(br, out PipelineElementType type)) continue;
 
             string handle = br.Handle.ToString();
+            //READ WHILE THE LEGACY DRAWING IS STILL OPEN. Everything downstream
+            //is plain data and the block is gone by then.
+            LegacyLegs legs = LegacyElbowLegs.Read(br);
             if (ElbowTurns.TryGetValue(type, out double deg))
                 corners.Add(new LegacyCorner(
-                    br.Position.To2d(), LegacyCornerKind.Elbow, deg * Math.PI / 180.0, handle));
+                    br.Position.To2d(), LegacyCornerKind.Elbow, deg * Math.PI / 180.0, handle, legs));
             else if (type == PipelineElementType.F_Model)
                 //An F-rør is made for exactly 90 degrees (NDH has refused any
                 //other turn since 2026-09-16): it is a fixed-angle part too.
                 corners.Add(new LegacyCorner(
-                    br.Position.To2d(), LegacyCornerKind.FModel, Math.PI / 2.0, handle));
+                    br.Position.To2d(), LegacyCornerKind.FModel, Math.PI / 2.0, handle, legs));
         }
         return corners;
     }

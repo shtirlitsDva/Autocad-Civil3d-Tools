@@ -65,7 +65,27 @@ internal interface INdhPipelineModifier
     NdhModifyOutcome SetFittingChoices(
         string pipelineHandle,
         System.Collections.Generic.IReadOnlyList<NdhFittingOverride> choices);
+
+    /// <summary>
+    /// Give an elbow its own two leg lengths, all of them as ONE edit. The
+    /// legs are named by the SIDE of the corner they are on, never by the
+    /// neighbour they point at, so they survive a reattach.
+    /// </summary>
+    NdhModifyOutcome SetElbowLegs(
+        string pipelineHandle,
+        System.Collections.Generic.IReadOnlyList<NdhElbowLegs> legs);
 }
+
+/// <summary>
+/// AN ELBOW'S TWO LEGS, in millimetres. Ben 1 (<paramref name="LoMm"/>) is the
+/// leg toward the LOWER-station neighbour and Ben 2 (<paramref name="HiMm"/>)
+/// toward the higher - the corner SIDE, which is what makes the name durable.
+///
+/// Writing them turns the elbow's Specialmål mode on, because that is what
+/// makes per-leg lengths editable at all; a leg given 0 is handed back to the
+/// catalogue.
+/// </summary>
+internal readonly record struct NdhElbowLegs(NdhComponent Component, double LoMm, double HiMm);
 
 /// <summary>
 /// WHAT KIND OF COMPONENT a vertex caused. The values ARE the wire's

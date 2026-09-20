@@ -12,6 +12,9 @@ internal sealed class NsDhModifyBridge : INdhPipelineModifier
 {
     //kNsDhEdit* - which fields of an edit row are read.
     private const int EditSlideVertex = 0;
+    private const int EditElbowCustomLegs = 3;
+    private const int EditElbowLegLoMm = 4;
+    private const int EditElbowLegHiMm = 5;
     private const int EditFittingSelection = 7;
 
     //kNsDhCause* / kNsDhRun* are NdhCause and NdhRun - the enums hold the wire
@@ -107,17 +110,58 @@ internal sealed class NsDhModifyBridge : INdhPipelineModifier
     /// and the reading of the result are the same for every arm, and only the
     /// row each one writes differs.
     /// </summary>
+    /// <summary>
+    /// ONE ELBOW'S LEGS ARE THREE ROWS: the Specialmål mode bit, then the two
+    /// lengths. The bit is what makes a leg editable at all, so writing a
+    /// length without it would be accepted and have no effect - the worst kind
+    /// of success. All three ride in the one list, so an elbow is never left
+    /// with its mode on and its lengths unwritten.
+    /// </summary>
+    public NdhModifyOutcome SetElbowLegs(string pipelineHandle, IReadOnlyList<NdhElbowLegs> legs)
+    {
+        if (legs.Count == 0)
+            throw new ArgumentException("An edit list with no arms.", nameof(legs));
+
+        List<PipelineEdit> rows = new List<PipelineEdit>(legs.Count * 3);
+        foreach (NdhElbowLegs l in legs)
+        {
+            rows.Add(Named(l.Component, EditElbowCustomLegs, custom: 1, present: 0, mm: 0.0));
+            rows.Add(Named(l.Component, EditElbowLegLoMm, custom: 0, present: 1, mm: l.LoMm));
+            rows.Add(Named(l.Component, EditElbowLegHiMm, custom: 0, present: 1, mm: l.HiMm));
+        }
+        return Send(pipelineHandle, rows);
+    }
+
+    private static PipelineEdit Named(NdhComponent c, int kind, int custom, int present, double mm) =>
+        new PipelineEdit
+        {
+            Kind = kind,
+            CauseHandle = c.CauseHandle,
+            CauseKind = (int)c.Cause,
+            RunRole = (int)c.Run,
+            Custom = custom,
+            Present = present,
+            LegMm = mm,
+            Name = "",
+        };
+
     private static NdhModifyOutcome Apply<T>(
         string pipelineHandle, IReadOnlyList<T> arms, string argName, Func<T, PipelineEdit> row)
     {
         if (arms.Count == 0)
             throw new ArgumentException("An edit list with no arms.", argName);
 
+        PipelineEdit[] edits = new PipelineEdit[arms.Count];
+        for (int i = 0; i < arms.Count; i++) edits[i] = row(arms[i]);
+        return Send(pipelineHandle, edits);
+    }
+
+    private static NdhModifyOutcome Send(string pipelineHandle, IReadOnlyList<PipelineEdit> rows)
+    {
         ModifyPipelineFn modify = NsDhModule.Resolve<ModifyPipelineFn>(
             NsDhSurface.PipelineModify, "NsDh_ModifyPipeline");
 
-        PipelineEdit[] edits = new PipelineEdit[arms.Count];
-        for (int i = 0; i < arms.Count; i++) edits[i] = row(arms[i]);
+        PipelineEdit[] edits = rows as PipelineEdit[] ?? System.Linq.Enumerable.ToArray(rows);
 
         (NdhModifyStatus named, string detail) = NsDhModule.Named(
             modify(pipelineHandle, edits, edits.Length, out ModifyResult r),

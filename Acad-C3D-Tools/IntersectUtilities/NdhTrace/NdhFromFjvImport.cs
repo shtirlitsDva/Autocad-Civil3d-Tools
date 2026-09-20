@@ -144,6 +144,7 @@ internal static class NdhFromFjvImport
         //5b. The fitted policy is the drawing's; the blocks that disagree with
         //it are named one by one, now that the components exist to be named.
         FittingDeviationStep.Run(fitted, built, services.Modifier, report);
+        ElbowLegStep.Run(built, services.Modifier, report);
 
         //6.
         List<ImportMarker> markers = BranchConnectionStep.Run(legacy, merged, built, services.Connector, report);
