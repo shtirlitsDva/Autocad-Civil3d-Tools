@@ -11,7 +11,7 @@ internal enum FaultKind { InvalidArgs, NotFound, NotInitialized, Gdal, Internal 
 
 internal sealed record Fault(FaultKind Kind, string Message);
 
-internal union Result<T>(Ok<T>, Fault);
+internal readonly union Result<T>(Ok<T>, Fault);
 
 internal sealed record Some<T>(T Value);
 
@@ -21,7 +21,7 @@ internal sealed record None
     private None() { }
 }
 
-internal union Option<T>(Some<T>, None);
+internal readonly union Option<T>(Some<T>, None);
 
 internal static class ResultExtensions
 {

@@ -48,12 +48,13 @@ internal sealed class FileSystemTileCatalog : ITileCatalog
         try
         {
             return new Ok<IReadOnlyList<TileFile>>(
-                new DirectoryInfo(elevationsDir)
+            [
+                .. new DirectoryInfo(elevationsDir)
                     .EnumerateFiles("*.tif", SearchOption.TopDirectoryOnly)
                     .Where(f => tileName.IsMatch(f.Name))
                     .OrderBy(f => f.Name, StringComparer.OrdinalIgnoreCase)
-                    .Select(f => new TileFile(f.FullName, f.Length, f.LastWriteTimeUtc))
-                    .ToList());
+                    .Select(f => new TileFile(f.FullName, f.Length, f.LastWriteTimeUtc)),
+            ]);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException)
         {

@@ -29,9 +29,7 @@ internal static class ServiceHarness
     public static (string Stdout, string Stderr) Run(params string[] lines) => Run(GdalForTests.Loaded, _ => { }, lines);
 
     public static List<JsonElement> Replies(string stdout) =>
-        stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries)
-            .Select(line => JsonDocument.Parse(line).RootElement.Clone())
-            .ToList();
+        [.. stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(line => JsonElement.Parse(line))];
 
     public static int Status(JsonElement reply) => reply.GetProperty("status").GetInt32();
 }

@@ -21,21 +21,20 @@ internal sealed record Outside
 
 internal sealed record ReadFailed(string Reason);
 
-internal union Sample(Elevation, NoData, Outside, ReadFailed)
+internal readonly union Sample(Elevation, NoData, Outside, ReadFailed)
 {
     // The one place a raw pixel value becomes a Sample. A NaN pixel is no data
     // whether or not the band declares NaN as its NoData value, and so is an
     // infinity: neither is a ground level.
-    public static Sample Classify(double pixel, Option<double> noData)
-    {
-        if (!double.IsFinite(pixel)) { return NoData.Instance; }
-        return noData switch
-        {
-            Some<double> declared when pixel == declared.Value => NoData.Instance,
-            Some<double> => new Elevation(pixel),
-            None => new Elevation(pixel),
-        };
-    }
+    public static Sample Classify(double pixel, Option<double> noData) =>
+        !double.IsFinite(pixel)
+            ? NoData.Instance
+            : noData switch
+            {
+                Some<double> declared when pixel == declared.Value => NoData.Instance,
+                Some<double> => new Elevation(pixel),
+                None => new Elevation(pixel),
+            };
 
     // The wire's names for the four cases, unchanged from the old protocol.
     public string WireStatus => this switch

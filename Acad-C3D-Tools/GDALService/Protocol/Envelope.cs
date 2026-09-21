@@ -14,7 +14,7 @@ internal sealed record Unaddressed
     private Unaddressed() { }
 }
 
-internal union ReplyTo(RequestId, Unaddressed)
+internal readonly union ReplyTo(RequestId, Unaddressed)
 {
     public Option<RequestId> Id => this switch
     {

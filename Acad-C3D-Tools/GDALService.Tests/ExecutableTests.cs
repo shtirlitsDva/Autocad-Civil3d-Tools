@@ -11,6 +11,10 @@ namespace GDALService.Tests;
 // the console encoding and the GDAL start-up next to the executable.
 public sealed class ExecutableTests : IDisposable
 {
+    // Raw UTF-8 letters, as nlohmann::json writes them - not ø escapes,
+    // which would reach the service as plain ASCII and prove nothing.
+    private static readonly JsonSerializerOptions RawUtf8 = new() { Encoder = JavaScriptEncoder.Create(UnicodeRanges.All) };
+
     private readonly TileFolder _folder = new("Grønnegård æøå");
 
     public void Dispose() => _folder.Dispose();
@@ -39,15 +43,12 @@ public sealed class ExecutableTests : IDisposable
 
         using var process = Process.Start(start)!;
         var request = new { id = "p", type = "SET_PROJECT", payload = new { projectId = "TST", basePath = _folder.BasePath } };
-        // Raw UTF-8 letters, as nlohmann::json writes them - not ø escapes,
-        // which would reach the service as plain ASCII and prove nothing.
-        var raw = new JsonSerializerOptions { Encoder = JavaScriptEncoder.Create(UnicodeRanges.All) };
-        var line = JsonSerializer.Serialize(request, raw);
+        var line = JsonSerializer.Serialize(request, RawUtf8);
         Assert.Contains("ø", line);
         process.StandardInput.WriteLine(line);
         process.StandardInput.Close();
 
-        var reply = JsonDocument.Parse(process.StandardOutput.ReadLine() ?? "{}").RootElement;
+        var reply = JsonElement.Parse(process.StandardOutput.ReadLine() ?? "{}");
         Assert.True(process.WaitForExit(30_000));
 
         Assert.Equal(0, reply.GetProperty("status").GetInt32());

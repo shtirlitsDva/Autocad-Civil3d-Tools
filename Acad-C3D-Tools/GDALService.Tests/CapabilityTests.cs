@@ -2,7 +2,6 @@ using System.Text.Json;
 
 using GDALService.Capabilities;
 using GDALService.Common;
-using GDALService.Domain;
 using GDALService.Project;
 using GDALService.Protocol;
 using GDALService.Terrain;
@@ -19,8 +18,7 @@ internal static class CapabilityTesting
     public static Envelope Request(string line) => Expect.Ok(RequestReader.Read(line).Envelope);
 
     public static JsonElement Result(Result<Reply> reply) =>
-        JsonDocument.Parse(ReplyWriter.Serialize(new RequestId("t"), reply.Map(r => r.Body)))
-            .RootElement.GetProperty("result").Clone();
+        JsonElement.Parse(ReplyWriter.Serialize(new RequestId("t"), reply.Map(r => r.Body))).GetProperty("result");
 
     // Pixel (2, 1) cannot be read; (3, 3) is the declared NoData; (4, 4) is NaN.
     public static FakeRaster Tst() =>
@@ -127,6 +125,7 @@ public class CapabilityPayloadTests
 public class CapabilityReplyTests
 {
     private static readonly Sampler Sampler = new(new SamplingOptions());
+    private static readonly string[] ListedStatuses = ["OK", "NODATA"];
 
     private static string Line(string id, string type, object payload) => JsonSerializer.Serialize(new { id, type, payload });
 
@@ -196,7 +195,7 @@ public class CapabilityReplyTests
         Assert.Equal(21 * 11, total);
         Assert.Equal(listed, rows.Count);
         Assert.True(result.GetProperty("outside").GetInt32() > 0);
-        Assert.All(rows, r => Assert.Contains(r.GetProperty("status").GetString(), new[] { "OK", "NODATA" }));
+        Assert.All(rows, r => Assert.Contains(r.GetProperty("status").GetString(), ListedStatuses));
         Assert.All(rows, r => Assert.Equal(r.GetProperty("status").GetString() == "OK", r.TryGetProperty("z", out _)));
     }
 
@@ -212,7 +211,7 @@ public class CapabilityReplyTests
         // 81 x 41 = 3321 cells, reported every 500.
         var lines = stderr.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
         Assert.Equal(6, lines.Length);
-        var first = JsonDocument.Parse(lines[0]).RootElement;
+        var first = JsonElement.Parse(lines[0]);
         Assert.Equal(("g7", "PROGRESS", 3321), (first.GetProperty("id").GetString(), first.GetProperty("type").GetString(),
                                                 first.GetProperty("total").GetInt32()));
     }
@@ -226,7 +225,7 @@ public class ReplyWriterTests
     }
 
     private static JsonElement Write(ReplyTo to, Result<IReplyBody> reply) =>
-        JsonDocument.Parse(ReplyWriter.Serialize(to, reply)).RootElement.Clone();
+        JsonElement.Parse(ReplyWriter.Serialize(to, reply));
 
     [Fact]
     public void A_success_has_a_result_object_and_no_error()

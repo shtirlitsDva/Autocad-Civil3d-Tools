@@ -23,13 +23,13 @@ internal sealed class Sampler
     public static Sample At(RasterInfo info, IPixelReader reader, double x, double y)
     {
         var (u, v) = info.ToPixel.Apply(x, y);
-        if (!(u >= 0 && v >= 0 && u < info.Width && v < info.Height)) { return Outside.Instance; }
-
-        return reader.Read((int)Math.Floor(u), (int)Math.Floor(v)) switch
-        {
-            Ok<double> pixel => Sample.Classify(pixel.Value, info.NoData),
-            Fault fault => new ReadFailed(fault.Message),
-        };
+        return !(u >= 0 && v >= 0 && u < info.Width && v < info.Height)
+            ? Outside.Instance
+            : reader.Read((int)Math.Floor(u), (int)Math.Floor(v)) switch
+            {
+                Ok<double> pixel => Sample.Classify(pixel.Value, info.NoData),
+                Fault fault => new ReadFailed(fault.Message),
+            };
     }
 
     // Rows come back in request order; the client matches them by seq.

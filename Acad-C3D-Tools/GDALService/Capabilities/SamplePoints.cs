@@ -49,7 +49,7 @@ internal sealed class SamplePoints : ICapability
         array.EnumerateArray()
             .Select((element, index) => (element, index))
             .Aggregate(
-                (Result<List<PointQuery>>)new Ok<List<PointQuery>>(new List<PointQuery>(array.GetArrayLength())),
+                (Result<List<PointQuery>>)new Ok<List<PointQuery>>([]),
                 (sofar, item) => sofar.Bind(list =>
                     ParsePoint(item.element, $"points[{item.index}]").Map(point =>
                     {

@@ -32,9 +32,10 @@ public class SourceRulesTests
     private static IEnumerable<string> RelativeSourceFiles() =>
         Directory.EnumerateFiles(ServiceDir(), "*.cs", SearchOption.AllDirectories)
             .Select(f => Path.GetRelativePath(ServiceDir(), f))
-            .Where(f => !f.StartsWith("obj" + Path.DirectorySeparatorChar) && !f.StartsWith("bin" + Path.DirectorySeparatorChar));
+            .Where(f => !f.StartsWith("obj" + Path.DirectorySeparatorChar, StringComparison.Ordinal)
+                        && !f.StartsWith("bin" + Path.DirectorySeparatorChar, StringComparison.Ordinal));
 
-    public static TheoryData<string> SourceFiles() => new(RelativeSourceFiles());
+    public static TheoryData<string> SourceFiles() => [.. RelativeSourceFiles()];
 
     private static SyntaxNode Parse(string relative)
     {
@@ -97,7 +98,7 @@ public class SourceRulesTests
         Assert.Empty(Parse(file).DescendantNodes().OfType<SwitchExpressionSyntax>()
             .Where(s => s.Arms.Any(a => a.Pattern is DiscardPatternSyntax)
                      && s.Arms.Any(a => a.Pattern is not DiscardPatternSyntax
-                                        && !(a.Pattern is ConstantPatternSyntax { Expression: LiteralExpressionSyntax })))
+                                           and not ConstantPatternSyntax { Expression: LiteralExpressionSyntax }))
             .Select(n => Where(n, file)));
 
     // `x is Some<T> s`, `x is Fault` and `x as T` handle the case they name and
@@ -139,12 +140,13 @@ public class SourceRulesTests
 
     // Capabilities are the classes under Capabilities/ that implement ICapability.
     private static readonly Lazy<string[]> CapabilityNames = new(() =>
-        RelativeSourceFiles()
+    [
+        .. RelativeSourceFiles()
             .Where(f => Under(f, "Capabilities"))
             .SelectMany(f => Parse(f).DescendantNodes().OfType<ClassDeclarationSyntax>())
             .Where(c => c.BaseList?.Types.Any(t => t.Type.ToString() == "ICapability") == true)
-            .Select(c => c.Identifier.Text)
-            .ToArray());
+            .Select(c => c.Identifier.Text),
+    ]);
 
     [Fact]
     public void The_rules_see_every_capability() => Assert.Equal(5, CapabilityNames.Value.Length);
