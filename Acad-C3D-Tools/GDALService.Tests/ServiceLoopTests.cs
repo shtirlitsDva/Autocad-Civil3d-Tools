@@ -1,7 +1,6 @@
 using System.Text.Json;
 
 using GDALService.Common;
-using GDALService.Hosting;
 
 namespace GDALService.Tests;
 
@@ -27,17 +26,10 @@ public sealed class ServiceLoopTests : IDisposable
 
     private static List<JsonElement> Run(params string[] lines) => Run(GdalForTests.Loaded, lines);
 
-    private static List<JsonElement> Run(Result<string> gdal, params string[] lines)
-    {
-        var output = new StringWriter();
-        new ServiceLoop(new StringReader(string.Join("\n", lines)), output, TextWriter.Null, gdal).Run();
-        return output.ToString()
-            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
-            .Select(line => JsonDocument.Parse(line).RootElement.Clone())
-            .ToList();
-    }
+    private static List<JsonElement> Run(Result<string> gdal, params string[] lines) =>
+        ServiceHarness.Replies(ServiceHarness.Run(gdal, _ => { }, lines).Stdout);
 
-    private static int Status(JsonElement reply) => reply.GetProperty("status").GetInt32();
+    private static int Status(JsonElement reply) => ServiceHarness.Status(reply);
 
     [Fact]
     public void A_scripted_session_answers_every_request_in_order()
@@ -119,5 +111,23 @@ public sealed class ServiceLoopTests : IDisposable
         Assert.Equal(0, Status(replies[0]));
         Assert.Equal(1, Status(replies[1]));
         Assert.Equal("GDAL native libraries are not usable", replies[1].GetProperty("error").GetString());
+    }
+
+    // Spec decision D6: without GDAL no project can open, so a sample request is
+    // told there is no project (4) rather than, as before, that GDAL is missing (1).
+    [Fact]
+    public void Without_gdal_a_sample_request_is_told_there_is_no_project()
+    {
+        var noGdal = new Fault(FaultKind.Gdal, "GDAL native libraries are not usable");
+        var replies = Run(noGdal, """{"id":"s","type":"SAMPLE_GRID","payload":{"gridDist":1}}""");
+        Assert.Equal(4, Status(replies[0]));
+    }
+
+    [Fact]
+    public void The_ready_line_names_the_gdal_release_or_why_there_is_none()
+    {
+        Assert.StartsWith("READY gdal=", ServiceHarness.Run().Stderr);
+        var noGdal = new Fault(FaultKind.Gdal, "not usable");
+        Assert.StartsWith("READY without GDAL: not usable", ServiceHarness.Run(noGdal, _ => { }).Stderr);
     }
 }

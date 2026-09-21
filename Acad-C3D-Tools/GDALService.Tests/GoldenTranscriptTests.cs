@@ -1,8 +1,6 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-using GDALService.Hosting;
-
 namespace GDALService.Tests;
 
 // The wire, pinned. One fixed session - every request type, every kind of bad
@@ -59,18 +57,9 @@ public sealed partial class GoldenTranscriptTests : IDisposable
     [Fact]
     public Task The_wire_is_unchanged()
     {
-        var (stdout, stderr) = Run(Transcript());
+        var (stdout, stderr) = ServiceHarness.Run(Transcript());
         var text = "== stdout ==\n" + stdout + "== stderr ==\n" + stderr;
         return Verify(Normalise(text)).UseDirectory("Golden");
-    }
-
-    // The same wiring the executable uses, with the console swapped for strings.
-    private static (string Stdout, string Stderr) Run(string[] lines)
-    {
-        var output = new StringWriter { NewLine = "\n" };
-        var error = new StringWriter { NewLine = "\n" };
-        new ServiceLoop(new StringReader(string.Join("\n", lines)), output, error, GdalForTests.Loaded).Run();
-        return (output.ToString(), error.ToString());
     }
 
     private string Normalise(string text) =>

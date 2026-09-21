@@ -1,5 +1,6 @@
 using GDALService.Common;
-using GDALService.Raster;
+using GDALService.Terrain;
+using GDALService.Terrain.GdalBackend;
 
 using OSGeo.GDAL;
 
@@ -30,7 +31,7 @@ internal static class Expect
 
 internal static class GdalForTests
 {
-    private static readonly Lazy<string> Release = new(() => Expect.Ok(GdalEdge.Initialise()));
+    private static readonly Lazy<string> Release = new(() => Expect.Ok(GdalBootstrap.Initialise()));
 
     public static void Ensure() => _ = Release.Value;
 

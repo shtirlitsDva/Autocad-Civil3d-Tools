@@ -15,9 +15,15 @@ namespace GDALService.Tests;
 //   - no `_` discard arm in a switch that matches on types - a discard there would
 //     swallow a newly added union case instead of failing the build;
 //   - no type test (`is`, `as`) and no switch statement outside the edges.
+// And the architecture's boundaries (spec "dependency-rules"):
+//   - GDAL (`OSGeo`) only under Terrain/GdalBackend/;
+//   - the file system (File, Directory, DirectoryInfo, FileInfo) only in the tile catalog;
+//   - a capability never names another capability;
+//   - Domain/ and Common/ depend on nothing else in the service.
 public class SourceRulesTests
 {
-    private static readonly string[] EdgeFiles = ["GdalEdge.cs", "JsonEdge.cs", "FileSystemEdge.cs", "StreamEdge.cs"];
+    private static readonly string[] EdgeFiles =
+        ["GdalEdge.cs", "GdalBootstrap.cs", "JsonEdge.cs", "FileSystemTileCatalog.cs", "StreamEdge.cs"];
     private const string LoopGuardFile = "ServiceLoop.cs";
 
     private static string ServiceDir([CallerFilePath] string here = "") =>
@@ -41,7 +47,7 @@ public class SourceRulesTests
 
     [Fact]
     public void The_rules_see_the_service_source() =>
-        Assert.Contains(Path.Combine("Raster", "GdalEdge.cs"), RelativeSourceFiles());
+        Assert.Contains(Path.Combine("Terrain", "GdalBackend", "GdalEdge.cs"), RelativeSourceFiles());
 
     [Theory]
     [MemberData(nameof(SourceFiles))]
@@ -106,6 +112,60 @@ public class SourceRulesTests
         Assert.Empty(Parse(file).DescendantNodes()
             .Where(n => n is IsPatternExpressionSyntax or SwitchStatementSyntax
                      || n.IsKind(SyntaxKind.IsExpression) || n.IsKind(SyntaxKind.AsExpression))
+            .Select(n => Where(n, file)));
+    }
+
+    private static bool Under(string file, params string[] folders) =>
+        file.StartsWith(Path.Combine(folders) + Path.DirectorySeparatorChar, StringComparison.Ordinal);
+
+    private static IEnumerable<IdentifierNameSyntax> Names(string file, params string[] names) =>
+        Parse(file).DescendantNodes().OfType<IdentifierNameSyntax>().Where(n => names.Contains(n.Identifier.Text));
+
+    [Theory]
+    [MemberData(nameof(SourceFiles))]
+    public void Gdal_is_used_only_in_the_gdal_backend(string file)
+    {
+        if (Under(file, "Terrain", "GdalBackend")) { return; }
+        Assert.Empty(Names(file, "OSGeo").Select(n => Where(n, file)));
+    }
+
+    [Theory]
+    [MemberData(nameof(SourceFiles))]
+    public void The_file_system_is_used_only_by_the_tile_catalog(string file)
+    {
+        if (Path.GetFileName(file) == "FileSystemTileCatalog.cs") { return; }
+        Assert.Empty(Names(file, "File", "Directory", "DirectoryInfo", "FileInfo").Select(n => Where(n, file)));
+    }
+
+    // Capabilities are the classes under Capabilities/ that implement ICapability.
+    private static readonly Lazy<string[]> CapabilityNames = new(() =>
+        RelativeSourceFiles()
+            .Where(f => Under(f, "Capabilities"))
+            .SelectMany(f => Parse(f).DescendantNodes().OfType<ClassDeclarationSyntax>())
+            .Where(c => c.BaseList?.Types.Any(t => t.Type.ToString() == "ICapability") == true)
+            .Select(c => c.Identifier.Text)
+            .ToArray());
+
+    [Fact]
+    public void The_rules_see_every_capability() => Assert.Equal(5, CapabilityNames.Value.Length);
+
+    [Theory]
+    [MemberData(nameof(SourceFiles))]
+    public void A_capability_never_names_another(string file)
+    {
+        if (!Under(file, "Capabilities")) { return; }
+        var own = Parse(file).DescendantNodes().OfType<ClassDeclarationSyntax>().Select(c => c.Identifier.Text).ToHashSet();
+        Assert.Empty(Names(file, [.. CapabilityNames.Value.Where(name => !own.Contains(name))]).Select(n => Where(n, file)));
+    }
+
+    [Theory]
+    [MemberData(nameof(SourceFiles))]
+    public void Domain_and_common_depend_on_nothing_else_in_the_service(string file)
+    {
+        if (!Under(file, "Domain") && !Under(file, "Common")) { return; }
+        Assert.Empty(Parse(file).DescendantNodes().OfType<UsingDirectiveSyntax>()
+            .Where(u => u.Name?.ToString() is string name && name.StartsWith("GDALService.", StringComparison.Ordinal)
+                        && name != "GDALService.Common")
             .Select(n => Where(n, file)));
     }
 }

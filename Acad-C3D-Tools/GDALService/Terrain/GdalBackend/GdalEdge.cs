@@ -4,7 +4,7 @@ using OSGeo.GDAL;
 
 using static OSGeo.GDAL.GdalConst;
 
-namespace GDALService.Raster;
+namespace GDALService.Terrain.GdalBackend;
 
 // The boundary to GDAL. GDAL's C# bindings report failure by throwing
 // ApplicationException (with UseExceptions on) or by handing back a null handle,
@@ -13,27 +13,6 @@ namespace GDALService.Raster;
 // a GDAL exception or tests a GDAL handle for null.
 internal static class GdalEdge
 {
-    // Loads the native libraries, switches GDAL to its exception mode so its
-    // errors have one known shape, and returns the GDAL release name.
-    public static Result<string> Initialise()
-    {
-        try
-        {
-            GdalConfiguration.ConfigureGdal();
-            if (!GdalConfiguration.Usable)
-            {
-                return new Fault(FaultKind.Gdal, "GDAL native libraries are not usable from " + AppContext.BaseDirectory);
-            }
-            Gdal.UseExceptions();
-            return new Ok<string>(Gdal.VersionInfo("RELEASE_NAME"));
-        }
-        catch (Exception ex) when (ex is DllNotFoundException or TypeInitializationException
-                                   or BadImageFormatException or ApplicationException)
-        {
-            return new Fault(FaultKind.Gdal, "GDAL could not be loaded: " + ex.Message);
-        }
-    }
-
     // Builds a VRT mosaic of the tiles at vrtPath (a /vsimem/ path) and closes
     // it again, so the VRT is flushed and can be reopened thread-safe.
     public static Result<string> BuildVrt(string vrtPath, IReadOnlyList<string> tiles)

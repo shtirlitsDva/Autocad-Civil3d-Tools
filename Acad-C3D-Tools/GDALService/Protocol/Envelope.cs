@@ -1,5 +1,6 @@
+using System.Text.Json;
+
 using GDALService.Common;
-using GDALService.Domain;
 
 namespace GDALService.Protocol;
 
@@ -22,12 +23,8 @@ internal union ReplyTo(RequestId, Unaddressed)
     };
 }
 
-internal sealed record Hello(RequestId Id);
-internal sealed record SetProject(RequestId Id, string ProjectId, string BasePath);
-internal sealed record SamplePoints(RequestId Id, IReadOnlyList<PointQuery> Points);
-internal sealed record SampleGrid(RequestId Id, double GridDist);
-internal sealed record Shutdown(RequestId Id);
-
-// Every request the service understands. A new request type is a new case here,
-// and every switch over Request stops compiling until it handles it.
-internal union Request(Hello, SetProject, SamplePoints, SampleGrid, Shutdown);
+// One request as read off the wire, before any capability looks at it: who
+// asked, for what, and the payload exactly as sent. What the payload must hold
+// is the capability's business. The payload is a clone, so it outlives the
+// parsed line.
+internal sealed record Envelope(RequestId Id, string Type, Option<JsonElement> Payload);

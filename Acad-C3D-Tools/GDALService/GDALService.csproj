@@ -23,6 +23,7 @@
 	<ItemGroup>
 		<PackageReference Include="GDAL" Version="3.11.3" />
 		<PackageReference Include="GDAL.Native" Version="3.11.3" />
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="11.0.0-rc.1.26425.128" />
 	</ItemGroup>
 
 	<!-- GDAL.Native copies its native gdal\ folder into the build output, but its
@@ -32,9 +33,7 @@
 	     the executable. -->
 	<Target Name="PublishGdalNativeFiles" AfterTargets="ComputeResolvedFilesToPublishList">
 		<ItemGroup>
-			<ResolvedFileToPublish Include="@(GDALInteropFiles)"
-			                       RelativePath="gdal\%(RecursiveDir)%(Filename)%(Extension)"
-			                       CopyToPublishDirectory="PreserveNewest" />
+			<ResolvedFileToPublish Include="@(GDALInteropFiles)" RelativePath="gdal\%(RecursiveDir)%(Filename)%(Extension)" CopyToPublishDirectory="PreserveNewest" />
 		</ItemGroup>
 	</Target>
 
