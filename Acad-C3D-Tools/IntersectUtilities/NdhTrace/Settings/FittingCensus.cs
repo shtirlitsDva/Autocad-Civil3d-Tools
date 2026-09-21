@@ -17,7 +17,7 @@ internal readonly record struct FittingPlace(string SystemToken, string Situatio
 /// is fitted to.
 ///
 /// It counts only what it can both PLACE and NAME: a block whose situation the
-/// rule sheet decides (Elbow, Reducer, Arc), whose part translates to a Produkt,
+/// rule sheet decides (Elbow and Reducer), whose part translates to a Produkt,
 /// and whose pipe system the block itself states. Everything else is tallied as
 /// a number and reported, never as a complaint - the part register already
 /// tells the drafter about a block NDH cannot place, and a second message about
@@ -26,6 +26,14 @@ internal readonly record struct FittingPlace(string SystemToken, string Situatio
 /// THE COUNT IS WHAT THE DRAWING DID, not what it should have done. Nothing
 /// here prefers a part because it is newer or better; the majority is policy
 /// because it is the majority.
+///
+/// AND A COUNT HAS TO BE ABLE TO SEE BOTH ANSWERS. Arc is on the sheet and is
+/// still not counted, because an elastic bend is a polyline ARC and not a
+/// block: counting blocks finds every buerør in the drawing and not one of the
+/// elastic bends beside them, so the sample is 100% buerør however the drawing
+/// was actually drawn, and the row fitted from it made EVERY curve a buerør
+/// (owner 2026-09-21). A situation whose two answers are not both blocks is
+/// classified NOT_IN_BLOCKS in the register's generator and never reaches here.
 /// </summary>
 internal sealed class FittingCensus
 {

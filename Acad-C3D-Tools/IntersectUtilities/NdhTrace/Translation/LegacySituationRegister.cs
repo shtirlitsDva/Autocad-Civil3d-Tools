@@ -14,14 +14,21 @@ namespace IntersectUtilities.NdhTrace;
 /// re-run. A legacy type nobody has classified refuses the generation: an
 /// unclassified block is one the census would pass over in silence.
 ///
-/// Only three situations can be FITTED as policy - Elbow, Reducer and Arc,
-/// and each states the CAUSE KIND of the component it becomes, so an
-/// override written for it names the component in full without anything
-/// having to translate a situation into a cause.
+/// Only two situations can be FITTED as policy - Elbow and Reducer, and each
+/// states the CAUSE KIND of the component it becomes, so an override written
+/// for it names the component in full without anything having to translate a
+/// situation into a cause.
 /// Everything else states why it is somebody else&apos;s: the afgreningsmatrix
 /// decides afgreninger, three roles take the only Produkt they publish and
 /// never read the sheet, a ventil has no component at all, a stik is not
 /// modelled, and a weld mark is not a part.
+///
+/// AND A BUER&#216;R, WHICH THE SHEET DECIDES AND NO COUNT CAN FIT. An elastic
+/// bend is a polyline arc rather than a block, so counting blocks sees every
+/// buer&#248;r in the drawing and none of the elastic bends beside them - a row
+/// fitted from that sample makes EVERY curve a buer&#248;r. The drawing keeps its
+/// own Arc rows instead, which read the published Projekteringsradius and
+/// give a buer&#248;r exactly where the run is too tight to be bent on site.
 /// </summary>
 internal static class LegacySituationRegister
 {
@@ -86,8 +93,8 @@ internal static class LegacySituationRegister
         ["Y-RØR-GLD-LOGSTOR"] = new DecidedElsewhere("the afgreningsmatrix decides afgreninger, never a rule row"),
         ["Y-RØR-ALUPEX"] = new DecidedElsewhere("the afgreningsmatrix decides afgreninger, never a rule row"),
         ["Y-RØR"] = new DecidedElsewhere("the afgreningsmatrix decides afgreninger, never a rule row"),
-        ["BUEROR1"] = new SheetDecides(NdhSituation.Arc, NdhCause.Arc),
-        ["BUEROR2"] = new SheetDecides(NdhSituation.Arc, NdhCause.Arc),
+        ["BUEROR1"] = new DecidedElsewhere("an elastic bend is a polyline arc and not a block, so a block count sees only buerør and would make every curve one"),
+        ["BUEROR2"] = new DecidedElsewhere("an elastic bend is a polyline arc and not a block, so a block count sees only buerør and would make every curve one"),
         ["STIKAFGRENING"] = new DecidedElsewhere("a stik is not modelled in NDH, so there is no place to stand in"),
         ["STIKTEE"] = new DecidedElsewhere("a stik is not modelled in NDH, so there is no place to stand in"),
         ["MATERIALESKIFT"] = new DecidedElsewhere("the planner takes the only Produkt this role publishes and never reads the sheet"),
