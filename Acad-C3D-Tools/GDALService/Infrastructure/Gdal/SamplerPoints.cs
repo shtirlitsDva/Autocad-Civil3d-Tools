@@ -58,7 +58,7 @@ namespace GDALService.Infrastructure.Gdal
                         if (ix < 0 || iy < 0 || ix >= local.Ds.RasterXSize || iy >= local.Ds.RasterYSize)
                         {
                             Interlocked.Increment(ref sum.Outside);
-                            bag.Add(new PointOut { GeomId = p.GeomId, Seq = p.Seq, S = p.S, X = p.X, Y = p.Y, Elev = double.NaN, Status = "OUTSIDE" });
+                            bag.Add(new PointOut { GeomId = p.GeomId, Seq = p.Seq, S = p.S, X = p.X, Y = p.Y, Elev = null, Status = "OUTSIDE" });
                         }
                         else
                         {
@@ -73,7 +73,7 @@ namespace GDALService.Infrastructure.Gdal
                             catch
                             {
                                 Interlocked.Increment(ref sum.Err);
-                                bag.Add(new PointOut { GeomId = p.GeomId, Seq = p.Seq, S = p.S, X = p.X, Y = p.Y, Elev = double.NaN, Status = "ERR" });
+                                bag.Add(new PointOut { GeomId = p.GeomId, Seq = p.Seq, S = p.S, X = p.X, Y = p.Y, Elev = null, Status = "ERR" });
                                 goto NEXT;
                             }
 
@@ -92,7 +92,7 @@ namespace GDALService.Infrastructure.Gdal
                     catch
                     {
                         Interlocked.Increment(ref sum.Err);
-                        bag.Add(new PointOut { GeomId = p.GeomId, Seq = p.Seq, S = p.S, X = p.X, Y = p.Y, Elev = double.NaN, Status = "ERR" });
+                        bag.Add(new PointOut { GeomId = p.GeomId, Seq = p.Seq, S = p.S, X = p.X, Y = p.Y, Elev = null, Status = "ERR" });
                         var d = Interlocked.Increment(ref done);
                         progress.MaybeReport(d, total);
                         return local;

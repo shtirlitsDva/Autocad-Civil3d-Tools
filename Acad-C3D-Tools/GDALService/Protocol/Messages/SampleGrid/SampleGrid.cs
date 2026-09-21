@@ -29,7 +29,7 @@ namespace GDALService.Protocol.Messages.SampleGrid
     {
         public double X { get; set; }
         public double Y { get; set; }
-        public double Z { get; set; }
+        public double? Z { get; set; }
         public string Status { get; set; } = "OK"; // OK|OUTSIDE|NODATA|ERR
     }
 }

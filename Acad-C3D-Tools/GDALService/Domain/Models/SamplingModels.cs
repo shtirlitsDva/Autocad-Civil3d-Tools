@@ -21,7 +21,7 @@ namespace GDALService.Domain.Models
         public double S { get; set; }
         public double X { get; set; }
         public double Y { get; set; }
-        public double Elev { get; set; }
+        public double? Elev { get; set; } // null when there is no elevation (OUTSIDE|ERR)
         public string Status { get; set; } = "OK"; // OK|OUTSIDE|NODATA|ERR
     }
 }
