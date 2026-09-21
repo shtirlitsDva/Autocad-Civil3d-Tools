@@ -20,7 +20,7 @@ internal sealed class Sampler
     // The single place a plan point becomes a Sample. A point is inside when its
     // pixel coordinate lies in [0, width) x [0, height); the comparisons are
     // written so that a NaN pixel coordinate also lands outside.
-    public static Sample At(RasterInfo info, IPixelReader reader, double x, double y)
+    private static Sample At(RasterInfo info, IPixelReader reader, double x, double y)
     {
         var (u, v) = info.ToPixel.Apply(x, y);
         return !(u >= 0 && v >= 0 && u < info.Width && v < info.Height)

@@ -17,11 +17,13 @@ namespace GDALService.Tests;
 //   - no `_` discard arm in a switch that matches on types - a discard there would
 //     swallow a newly added union case instead of failing the build;
 //   - no type test (`is`, `as`) and no switch statement outside the edges.
-// And the architecture's boundaries (spec "dependency-rules"):
-//   - GDAL (`OSGeo`) only under Terrain/GdalBackend/;
+// And the architecture's boundaries (spec "dependency-rules"), judged on
+// resolved symbols:
+//   - each namespace uses only the parts of the service below it;
+//   - GDAL (`OSGeo`) only in Terrain.GdalBackend;
 //   - the file system (File, Directory, DirectoryInfo, FileInfo) only in the tile catalog;
-//   - a capability never names another capability;
-//   - Domain/ and Common/ depend on nothing else in the service.
+//   - only the composition root names an edge implementation;
+//   - a capability never names another capability.
 public class SourceRulesTests
 {
     private static readonly string[] EdgeFiles =
@@ -118,37 +120,161 @@ public class SourceRulesTests
             .Select(n => Where(n, file)));
     }
 
-    private static bool Under(string file, params string[] folders) =>
-        file.StartsWith(Path.Combine(folders) + Path.DirectorySeparatorChar, StringComparison.Ordinal);
+    // The boundary rules below judge what a name *means*, not how it is spelled:
+    // every name is resolved against a compilation of the whole service, so a
+    // `global using`, an alias or a fully qualified name cannot slip past them.
+#if DEBUG
+    private const string Configuration = "Debug";
+#else
+    private const string Configuration = "Release";
+#endif
 
-    private static IEnumerable<IdentifierNameSyntax> Names(string file, params string[] names) =>
-        Parse(file).DescendantNodes().OfType<IdentifierNameSyntax>().Where(n => names.Contains(n.Identifier.Text));
+    // What the build adds to the service's own files: the SDK's implicit global
+    // usings and the GDAL package's GdalConfiguration, both generated into obj/
+    // by the build of this configuration, which the test build has just run.
+    private static IEnumerable<string> GeneratedSourceFiles()
+    {
+        var obj = Path.Combine(ServiceDir(), "obj", "x64", Configuration, "net11.0");
+        return Directory.EnumerateFiles(obj, "GDALService.GlobalUsings.g.cs", SearchOption.TopDirectoryOnly)
+            .Concat(Directory.EnumerateFiles(Path.Combine(obj, "NuGet"), "GdalConfiguration.cs", SearchOption.AllDirectories));
+    }
+
+    private static readonly Lazy<(CSharpCompilation Compilation, Dictionary<string, SyntaxTree> Trees)> Service = new(() =>
+    {
+        var options = new CSharpParseOptions(LanguageVersion.Preview);
+        var trees = RelativeSourceFiles().ToDictionary(
+            f => f,
+            f => CSharpSyntaxTree.ParseText(File.ReadAllText(Path.Combine(ServiceDir(), f)), options, path: f));
+        var generated = GeneratedSourceFiles()
+            .Select(f => CSharpSyntaxTree.ParseText(File.ReadAllText(f), options, path: f));
+        // The test host's trusted assemblies are the framework plus everything
+        // the service references (GDAL's managed API, the DI container).
+        var references = (AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")?.ToString() ?? "")
+            .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries)
+            .Select(path => MetadataReference.CreateFromFile(path));
+        var compilation = CSharpCompilation.Create("GDALService.Rules", trees.Values.Concat(generated), references,
+            new CSharpCompilationOptions(OutputKind.ConsoleApplication, nullableContextOptions: NullableContextOptions.Enable));
+        return (compilation, trees);
+    });
+
+    // Every type, method, property, field and event a file names, with where.
+    private static IEnumerable<(SyntaxNode Node, ISymbol Symbol)> Referenced(string file)
+    {
+        var (compilation, trees) = Service.Value;
+        var model = compilation.GetSemanticModel(trees[file]);
+        return trees[file].GetRoot().DescendantNodes().OfType<SimpleNameSyntax>()
+            .Select(name => (Node: (SyntaxNode)name, Symbol: model.GetSymbolInfo(name).Symbol))
+            .Where(r => r.Symbol is ITypeSymbol or IMethodSymbol or IPropertySymbol or IFieldSymbol or IEventSymbol)
+            .Select(r => (r.Node, Symbol: r.Symbol ?? throw new InvalidOperationException()));
+    }
+
+    private static string NamespaceOf(ISymbol symbol) => symbol.ContainingNamespace?.ToDisplayString() ?? "";
+
+    private static string DeclaredNamespace(string file) =>
+        Service.Value.Trees[file].GetRoot().DescendantNodes().OfType<BaseNamespaceDeclarationSyntax>()
+            .Select(n => n.Name.ToString()).Single();
+
+    private static INamedTypeSymbol? TypeOf(ISymbol symbol) => symbol as INamedTypeSymbol ?? symbol.ContainingType;
+
+    // A symbol declared in generated code (GdalConfiguration) is third-party,
+    // however its namespace is spelled; it is no part of the service's layers.
+    private static bool IsGenerated(ISymbol symbol) =>
+        TypeOf(symbol) is INamedTypeSymbol type
+        && type.Locations.Any(l => l.SourceTree is SyntaxTree tree && !Service.Value.Trees.ContainsValue(tree) && l.IsInSource);
+
+    // Every name must resolve, or a rule could miss it. The one error allowed is
+    // CS8795: source generators ([GeneratedRegex]) do not run here, so a
+    // generated partial method has its declaration but not its body.
+    [Fact]
+    public void The_rules_compile_the_service_as_the_build_does() =>
+        Assert.Empty(Service.Value.Compilation.GetDiagnostics()
+            .Where(d => d.Severity == DiagnosticSeverity.Error && d.Id != "CS8795")
+            .Select(d => d.ToString()));
+
+    // Which parts of the service each namespace may use; every namespace may use
+    // its own. The composition root (GDALService) wires everything and may use all.
+    private static readonly Dictionary<string, string[]> MayUse = new()
+    {
+        ["GDALService.Common"] = [],
+        ["GDALService.Domain"] = ["GDALService.Common"],
+        ["GDALService.Terrain"] = ["GDALService.Common", "GDALService.Domain"],
+        ["GDALService.Terrain.GdalBackend"] = ["GDALService.Common", "GDALService.Terrain"],
+        ["GDALService.Project"] = ["GDALService.Common", "GDALService.Terrain"],
+        ["GDALService.Protocol"] = ["GDALService.Common", "GDALService.Domain", "GDALService.Terrain"],
+        ["GDALService.Capabilities"] =
+            ["GDALService.Common", "GDALService.Domain", "GDALService.Protocol", "GDALService.Project", "GDALService.Terrain"],
+        ["GDALService.Hosting"] = ["GDALService.Common", "GDALService.Protocol", "GDALService.Capabilities"],
+    };
+
+    [Theory]
+    [MemberData(nameof(SourceFiles))]
+    public void Each_part_uses_only_the_parts_below_it(string file)
+    {
+        var own = DeclaredNamespace(file);
+        if (own == "GDALService") { return; }
+        Assert.True(MayUse.ContainsKey(own), $"{file}: namespace {own} has no entry in the dependency table");
+        Assert.Empty(Referenced(file)
+            .Where(r => !IsGenerated(r.Symbol) && NamespaceOf(r.Symbol) is var used
+                        && (used == "GDALService" || used.StartsWith("GDALService.", StringComparison.Ordinal))
+                        && used != own && !MayUse[own].Contains(used))
+            .Select(r => Where(r.Node, file)));
+    }
 
     [Theory]
     [MemberData(nameof(SourceFiles))]
     public void Gdal_is_used_only_in_the_gdal_backend(string file)
     {
-        if (Under(file, "Terrain", "GdalBackend")) { return; }
-        Assert.Empty(Names(file, "OSGeo").Select(n => Where(n, file)));
+        if (DeclaredNamespace(file) == "GDALService.Terrain.GdalBackend") { return; }
+        Assert.Empty(Referenced(file)
+            .Where(r => NamespaceOf(r.Symbol).StartsWith("OSGeo", StringComparison.Ordinal) || IsGenerated(r.Symbol))
+            .Select(r => Where(r.Node, file)));
     }
+
+    private static readonly string[] FileSystemTypes =
+        ["System.IO.File", "System.IO.Directory", "System.IO.FileInfo", "System.IO.DirectoryInfo"];
 
     [Theory]
     [MemberData(nameof(SourceFiles))]
     public void The_file_system_is_used_only_by_the_tile_catalog(string file)
     {
         if (Path.GetFileName(file) == "FileSystemTileCatalog.cs") { return; }
-        Assert.Empty(Names(file, "File", "Directory", "DirectoryInfo", "FileInfo").Select(n => Where(n, file)));
+        Assert.Empty(Referenced(file)
+            .Where(r => TypeOf(r.Symbol) is INamedTypeSymbol type && FileSystemTypes.Contains(type.ToDisplayString()))
+            .Select(r => Where(r.Node, file)));
     }
 
-    // Capabilities are the classes under Capabilities/ that implement ICapability.
-    private static readonly Lazy<string[]> CapabilityNames = new(() =>
-    [
-        .. RelativeSourceFiles()
-            .Where(f => Under(f, "Capabilities"))
-            .SelectMany(f => Parse(f).DescendantNodes().OfType<ClassDeclarationSyntax>())
-            .Where(c => c.BaseList?.Types.Any(t => t.Type.ToString() == "ICapability") == true)
-            .Select(c => c.Identifier.Text),
-    ]);
+    // The edges are the implementations of the I/O interfaces and everything in
+    // the GDAL backend. Only the composition root chooses them; the rest of the
+    // service sees the interfaces. Edge code may name other edge code.
+    private static readonly string[] BoundaryInterfaces =
+        ["GDALService.Project.ITileCatalog", "GDALService.Terrain.IRasterFactory",
+         "GDALService.Terrain.IRaster", "GDALService.Terrain.IPixelReader"];
+
+    private static bool IsEdge(INamedTypeSymbol type) =>
+        type.ContainingNamespace.ToDisplayString() == "GDALService.Terrain.GdalBackend"
+        || (type.TypeKind == TypeKind.Class && type.AllInterfaces.Any(i => BoundaryInterfaces.Contains(i.ToDisplayString())));
+
+    private static IEnumerable<INamedTypeSymbol> DeclaredTypes(string file)
+    {
+        var model = Service.Value.Compilation.GetSemanticModel(Service.Value.Trees[file]);
+        return Service.Value.Trees[file].GetRoot().DescendantNodes().OfType<BaseTypeDeclarationSyntax>()
+            .Select(declaration => model.GetDeclaredSymbol(declaration))
+            .OfType<INamedTypeSymbol>();
+    }
+
+    [Theory]
+    [MemberData(nameof(SourceFiles))]
+    public void Only_the_composition_root_names_an_edge(string file)
+    {
+        if (DeclaredNamespace(file) == "GDALService" || DeclaredTypes(file).Any(IsEdge)) { return; }
+        Assert.Empty(Referenced(file)
+            .Where(r => TypeOf(r.Symbol) is INamedTypeSymbol type && IsEdge(type.OriginalDefinition))
+            .Select(r => Where(r.Node, file)));
+    }
+
+    private static bool IsCapability(INamedTypeSymbol type) =>
+        type is { TypeKind: TypeKind.Class, IsAbstract: false }
+        && type.AllInterfaces.Any(i => i.ToDisplayString() == "GDALService.Capabilities.ICapability");
 
     [Fact]
     public void The_rules_see_every_capability() =>
@@ -157,25 +283,19 @@ public class SourceRulesTests
                 .Where(t => t is { IsClass: true, IsAbstract: false } && typeof(ICapability).IsAssignableFrom(t))
                 .Select(t => t.Name)
                 .Order(StringComparer.Ordinal),
-            CapabilityNames.Value.Order(StringComparer.Ordinal));
+            Service.Value.Trees.Keys.SelectMany(DeclaredTypes).Where(IsCapability)
+                .Select(t => t.Name)
+                .Order(StringComparer.Ordinal));
 
     [Theory]
     [MemberData(nameof(SourceFiles))]
     public void A_capability_never_names_another(string file)
     {
-        if (!Under(file, "Capabilities")) { return; }
-        var own = Parse(file).DescendantNodes().OfType<ClassDeclarationSyntax>().Select(c => c.Identifier.Text).ToHashSet();
-        Assert.Empty(Names(file, [.. CapabilityNames.Value.Where(name => !own.Contains(name))]).Select(n => Where(n, file)));
-    }
-
-    [Theory]
-    [MemberData(nameof(SourceFiles))]
-    public void Domain_and_common_depend_on_nothing_else_in_the_service(string file)
-    {
-        if (!Under(file, "Domain") && !Under(file, "Common")) { return; }
-        Assert.Empty(Parse(file).DescendantNodes().OfType<UsingDirectiveSyntax>()
-            .Where(u => u.Name?.ToString() is string name && name.StartsWith("GDALService.", StringComparison.Ordinal)
-                        && name != "GDALService.Common")
-            .Select(n => Where(n, file)));
+        var own = DeclaredTypes(file).Where(IsCapability).ToList();
+        if (own.Count == 0) { return; }
+        Assert.Empty(Referenced(file)
+            .Where(r => TypeOf(r.Symbol) is INamedTypeSymbol type && IsCapability(type)
+                        && !own.Contains(type, SymbolEqualityComparer.Default))
+            .Select(r => Where(r.Node, file)));
     }
 }

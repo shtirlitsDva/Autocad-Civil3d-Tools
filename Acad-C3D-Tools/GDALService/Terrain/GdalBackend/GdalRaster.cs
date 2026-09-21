@@ -12,6 +12,7 @@ internal sealed class GdalRaster : IRaster
 {
     private readonly Dataset _dataset;
     private readonly ServiceLog _log;
+    private bool _disposed;
 
     public RasterInfo Info { get; }
 
@@ -38,8 +39,11 @@ internal sealed class GdalRaster : IRaster
     public Result<IPixelReader> OpenReader() =>
         GdalEdge.FirstBand(_dataset).Map(band => (IPixelReader)new GdalPixelReader(band));
 
+    // Safe to call twice, as IDisposable requires: the VRT is released once.
     public void Dispose()
     {
+        if (_disposed) { return; }
+        _disposed = true;
         _dataset.Dispose();
         Release(Info.Source, _log);
     }

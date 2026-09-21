@@ -88,7 +88,8 @@ flowchart LR
     Store --> Factory[[IRasterFactory]]
     Sampler --> Raster[[IRaster / IPixelReader]]
     Cap -->|"Result&lt;Reply&gt;"| Writer[Protocol/ReplyWriter] --> stdout([stdout])
-    Sampler -.PROGRESS.-> stderr([stderr])
+    Cap --> Progress[Protocol/ProgressFactory] -.PROGRESS.-> Log[Common/ServiceLog] --> stderr([stderr])
+    Sampler -.each sample.-> Progress
 ```
 
 `[[double boxes]]` are the interfaces at the I/O boundaries. `FileSystemTileCatalog`
@@ -135,9 +136,13 @@ flowchart TD
 - **Unions matched only by switch expressions**, never by `is`/`as` or a switch
   statement, and never with a `_` arm. A new case then breaks the build everywhere it
   must be handled.
-- **Boundaries.** OSGeo is used only under `Terrain/GdalBackend`. `File`/`Directory` are
-  used only in `FileSystemTileCatalog.cs`. A capability never names another capability.
-  `Domain` and `Common` depend on nothing else in the service.
+- **Boundaries**, judged on resolved symbols from a Roslyn compilation of the service.
+  A `global using`, an alias or a fully qualified name cannot get round them.
+  - Each folder uses only the folders the diagram above allows.
+  - OSGeo (and the package's `GdalConfiguration`) is used only in `Terrain/GdalBackend`.
+  - `File`, `Directory`, `FileInfo` and `DirectoryInfo` are used only in `FileSystemTileCatalog.cs`.
+  - Only the composition root names an edge implementation.
+  - A capability never names another capability.
 
 The build also runs the .NET analyzers at `latest-recommended`, with warnings as errors.
 The house style is in `Acad-C3D-Tools/.editorconfig`.

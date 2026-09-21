@@ -5,6 +5,8 @@ using GDALService.Hosting;
 using GDALService.Terrain;
 using GDALService.Terrain.GdalBackend;
 
+using Microsoft.Extensions.DependencyInjection;
+
 namespace GDALService;
 
 internal static class Program
@@ -21,13 +23,13 @@ internal static class Program
         return ServiceComposition.Loop(provider) switch
         {
             Ok<ServiceLoop> loop => loop.Value.Run(),
-            Fault fault => Refuse(streams, fault),
+            Fault fault => Refuse(provider.GetRequiredService<ServiceLog>(), fault),
         };
     }
 
-    private static int Refuse(ServiceStreams streams, Fault fault)
+    private static int Refuse(ServiceLog log, Fault fault)
     {
-        streams.Error.WriteLine("BUG " + fault.Message);
+        log.Bug(fault.Message);
         return 1;
     }
 }

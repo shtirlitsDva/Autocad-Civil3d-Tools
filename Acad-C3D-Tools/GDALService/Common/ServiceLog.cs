@@ -18,7 +18,9 @@ internal sealed class ServiceLog
 
     public void Warn(string message) => _error.WriteLine("WARN " + message);
 
-    public void Bug(Exception bug) => _error.WriteLine("BUG " + bug);
+    public void Bug(Exception bug) => Bug(bug.ToString());
+
+    public void Bug(string bug) => _error.WriteLine("BUG " + bug);
 
     public void Line(string line) => _error.WriteLine(line);
 }

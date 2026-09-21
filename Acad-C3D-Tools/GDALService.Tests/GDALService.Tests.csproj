@@ -10,7 +10,6 @@
 		<!-- IDE0005 (unused usings) only runs on build when a documentation file
 		     is generated (dotnet/roslyn#41640). CS1591 is off in .editorconfig. -->
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
-		<NoWarn>$(NoWarn);CS8524</NoWarn>
 		<Platform>x64</Platform>
 		<Platforms>x64</Platforms>
 		<IsPackable>false</IsPackable>
