@@ -7,7 +7,7 @@ namespace IntersectUtilities.NdhTrace;
 
 /// <summary>
 /// The drawing-settings exports (NsDh_SetProducer, NsDh_ReadProducer,
-/// NsDh_SetSeriesMatrix, NsDh_ReadSeriesMatrix, NsDh_SetFittingRules,
+/// NsDh_SetSeriesMatrix, NsDh_ReadSeriesMatrix, NsDh_AddFittingRules,
 /// NsDh_ReadFittingRules), mirrored from NsDhPipelineBridge.h.
 /// </summary>
 internal sealed class NsDhSettingsBridge : INdhDrawingSettings
@@ -80,7 +80,10 @@ internal sealed class NsDhSettingsBridge : INdhDrawingSettings
     private delegate int ReadSeriesMatrixFn([In, Out] SeriesCell[] cells, int capacity, out int outCount);
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
-    private delegate int SetFittingRulesFn([In] FittingRule[] rows, int count, out SettingsResult result);
+    private delegate int AddFittingRulesFn([In] FittingRule[] rows, int count, out SettingsResult result);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
+    private delegate int UseSettingsProfileCopyFn(
+        [MarshalAs(UnmanagedType.LPWStr)] string wantedName, out SettingsResult result);
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
     private delegate int ReadFittingRulesFn([In, Out] FittingRule[] rows, int capacity, out int outCount);
@@ -191,10 +194,17 @@ internal sealed class NsDhSettingsBridge : INdhDrawingSettings
         return sheet;
     }
 
-    public NdhSettingsOutcome SetFittingRules(IReadOnlyList<NdhFittingRule> rows)
+    public NdhSettingsOutcome UseSettingsProfileCopy(string wantedName)
     {
-        SetFittingRulesFn set = NsDhModule.Resolve<SetFittingRulesFn>(
-            NsDhSurface.DrawingSettings, "NsDh_SetFittingRules");
+        UseSettingsProfileCopyFn use = NsDhModule.Resolve<UseSettingsProfileCopyFn>(
+            NsDhSurface.DrawingSettings, "NsDh_UseSettingsProfileCopy");
+        return Outcome(use(wantedName, out SettingsResult r), r);
+    }
+
+    public NdhSettingsOutcome AddFittingRules(IReadOnlyList<NdhFittingRule> rows)
+    {
+        AddFittingRulesFn set = NsDhModule.Resolve<AddFittingRulesFn>(
+            NsDhSurface.DrawingSettings, "NsDh_AddFittingRules");
 
         FittingRule[] native = NewRows(rows.Count);
         for (int i = 0; i < native.Length; i++)

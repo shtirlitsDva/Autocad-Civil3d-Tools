@@ -61,15 +61,32 @@ internal interface INdhDrawingSettings
     IReadOnlyList<NdhFittingRule> ReadFittingRules();
 
     /// <summary>
-    /// Every pipe system named in <paramref name="rows"/> has its rows in the
-    /// sheet REPLACED by the rows given for it, IN THE ORDER GIVEN - order is
-    /// policy, first match wins - in one undoable step. A system not named
-    /// keeps its rows untouched, seed rows included.
+    /// The rows are PREPENDED to the sheet, IN THE ORDER GIVEN, in one undoable
+    /// step. NOTHING IS DELETED: first match wins, so a row handed in here
+    /// beats the seed row it competes with, and the seed rows stay behind it
+    /// answering every situation this caller said nothing about.
     ///
-    /// There is no add, no edit-by-index and no move: an index into a sheet the
-    /// caller did not author is a race it cannot see. A fitter states a whole
-    /// system's policy at once, and keeps a seed row by reading it and handing
-    /// it back.
+    /// This replaced a call that wiped every row of every system it named. A
+    /// fitter reads an OLD DRAWING, and an old drawing only speaks for the
+    /// situations it happens to contain - so wiping a system's policy left
+    /// every other situation in that system with no rule at all, and the import
+    /// filled with complaints about corners the defaults had always covered.
+    ///
+    /// There is still no edit-by-index and no move: an index into a sheet the
+    /// caller did not author is a race it cannot see.
     /// </summary>
-    NdhSettingsOutcome SetFittingRules(IReadOnlyList<NdhFittingRule> rows);
+    NdhSettingsOutcome AddFittingRules(IReadOnlyList<NdhFittingRule> rows);
+
+    /// <summary>
+    /// Copy the settings profile the drawing is ON into a new one and switch to
+    /// it, so every setting written afterwards lands on the COPY.
+    /// <paramref name="wantedName"/> is a wish - a name already taken is
+    /// uniquified, never replaced - and the name it landed on comes back in the
+    /// outcome's detail.
+    ///
+    /// An import states a whole drawing's policy. Doing that to the profile the
+    /// drafter set up would overwrite work nobody asked us to touch; on a copy,
+    /// they switch back and their drawing is as they left it.
+    /// </summary>
+    NdhSettingsOutcome UseSettingsProfileCopy(string wantedName);
 }

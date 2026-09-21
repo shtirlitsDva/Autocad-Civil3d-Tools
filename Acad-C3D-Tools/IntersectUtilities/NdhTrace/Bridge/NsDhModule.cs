@@ -178,7 +178,12 @@ internal sealed record NsDhSurface(string Name, string VersionExport, int Expect
     //NsDh_ReadFittingRules). The producer and the series matrix are unchanged;
     //a caller that uses neither of the new two still meets the bump, because a
     //version is what a whole surface agrees on.
-    public static readonly NsDhSurface DrawingSettings = new("drawing settings", "NsDh_DrawingSettingsVersion", 2);
+    //3: NsDh_SetFittingRules is GONE, replaced by NsDh_AddFittingRules, which
+    //PREPENDS and deletes nothing. The name changed because the meaning did -
+    //binding the old name against a new dbx would silently do the opposite.
+    //Also adds NsDh_UseSettingsProfileCopy, so the import works on a copy of
+    //the drawing's settings instead of the drafter's own.
+    public static readonly NsDhSurface DrawingSettings = new("drawing settings", "NsDh_DrawingSettingsVersion", 3);
     //kNsDhPipelineReadVersion: 3 added NsDh_ReadPipelineConnections; 4 gave
     //NsDhPlanIssue the complaint's MEASURE as a number, so a caller can act on
     //it instead of reading it back out of the sentence.

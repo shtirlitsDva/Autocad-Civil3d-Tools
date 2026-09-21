@@ -93,6 +93,23 @@ internal static class DrawingSettingsStep
         }
 
         //2. Write.
+        //ONTO A COPY, NEVER THE DRAFTER'S OWN. An import states a whole
+        //drawing's policy - producer, series, rule sheet - and doing that to
+        //the profile the drafter set up would overwrite work nobody asked us
+        //to touch. On a copy they switch back and their drawing is as they
+        //left it. The register uniquifies the name, so a second import makes a
+        //second profile rather than eating the first.
+        NdhSettingsOutcome profile = settings.UseSettingsProfileCopy("FJV-import");
+        if (!profile.Success)
+        {
+            report.Cancelled =
+                $"Indstillingsprofilen kunne ikke oprettes: {profile.Detail} Intet er ændret.";
+            return false;
+        }
+        report.ProducerReport.Add(
+            $"Indstillingerne skrives til profilen '{profile.Detail}'; " +
+            "tegningens egen profil står urørt og kan vælges igen.");
+
         if (producer != null)
             Require(settings.SetProducer(producer), $"Producenten {producer}");
         report.ProducerReport.Add(producerLine);
@@ -119,8 +136,15 @@ internal static class DrawingSettingsStep
     }
 
     /// <summary>
-    /// Writes the fitted policy, replacing the rows of every pipe system the
-    /// old drawing speaks for and leaving the rest at their seed.
+    /// Writes the fitted policy ON TOP OF the rows already there, deleting
+    /// nothing. First match wins, so a fitted row beats the seed row it
+    /// competes with and the seed rows stay behind it, answering every
+    /// situation the old drawing never mentioned.
+    ///
+    /// This used to REPLACE the rows of every system the old drawing spoke
+    /// for. That cost the drawing every seed row for every situation the old
+    /// drawing did not happen to contain, and the import filled with rule-miss
+    /// complaints about corners the defaults had always covered.
     ///
     /// A REFUSAL IS REPORTED AND NOTHING IS RETRIED. The series matrix drops a
     /// cell the catalogue cannot serve and sends the rest, because a cell is a
@@ -141,12 +165,13 @@ internal static class DrawingSettingsStep
             return;
         }
 
-        NdhSettingsOutcome outcome = settings.SetFittingRules(fitted.Rows);
+        NdhSettingsOutcome outcome = settings.AddFittingRules(fitted.Rows);
         if (outcome.Success)
         {
             report.FittingReport.Add(
-                $"{fitted.Rows.Count} fittingregel(ler) skrevet; de berørte rørsystemers regler " +
-                "er erstattet, de øvrige står urørt.");
+                $"{fitted.Rows.Count} fittingregel(ler) tilføjet forrest i reglerne; " +
+                "tegningens øvrige regler er beholdt og gælder fortsat de situationer, " +
+                "den gamle tegning ikke nævner.");
             return;
         }
 
