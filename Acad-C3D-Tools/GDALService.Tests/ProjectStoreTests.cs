@@ -119,8 +119,7 @@ public class ProjectStoreTests
         };
         using var store = new ProjectStore(catalog, rasters);
 
-        var fault = Expect.Fault(store.Open("TST", @"C:
-owhere"));
+        var fault = Expect.Fault(store.Open("TST", @"C:\nowhere"));
 
         Assert.Equal((FaultKind.Gdal, "GDAL native libraries are not usable"), (fault.Kind, fault.Message));
         Assert.Equal(0, asked);

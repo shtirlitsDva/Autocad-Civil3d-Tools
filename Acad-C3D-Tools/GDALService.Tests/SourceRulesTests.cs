@@ -157,13 +157,19 @@ public class SourceRulesTests
         return (compilation, trees);
     });
 
-    // Every type, method, property, field and event a file names, with where.
+    // Every type, method, property, field and event a file uses, with where:
+    // each name it spells, and the type of each expression, so a type used
+    // without being named (a target-typed `new()`, a call's result) counts too.
     private static IEnumerable<(SyntaxNode Node, ISymbol Symbol)> Referenced(string file)
     {
         var (compilation, trees) = Service.Value;
         var model = compilation.GetSemanticModel(trees[file]);
-        return trees[file].GetRoot().DescendantNodes().OfType<SimpleNameSyntax>()
-            .Select(name => (Node: (SyntaxNode)name, Symbol: model.GetSymbolInfo(name).Symbol))
+        var nodes = trees[file].GetRoot().DescendantNodes().ToList();
+        var named = nodes.OfType<SimpleNameSyntax>()
+            .Select(name => (Node: (SyntaxNode)name, Symbol: model.GetSymbolInfo(name).Symbol));
+        var typed = nodes.OfType<ExpressionSyntax>()
+            .Select(expression => (Node: (SyntaxNode)expression, Symbol: (ISymbol?)model.GetTypeInfo(expression).Type));
+        return named.Concat(typed)
             .Where(r => r.Symbol is ITypeSymbol or IMethodSymbol or IPropertySymbol or IFieldSymbol or IEventSymbol)
             .Select(r => (r.Node, Symbol: r.Symbol ?? throw new InvalidOperationException()));
     }
@@ -171,8 +177,21 @@ public class SourceRulesTests
     private static string NamespaceOf(ISymbol symbol) => symbol.ContainingNamespace?.ToDisplayString() ?? "";
 
     private static string DeclaredNamespace(string file) =>
-        Service.Value.Trees[file].GetRoot().DescendantNodes().OfType<BaseNamespaceDeclarationSyntax>()
-            .Select(n => n.Name.ToString()).Single();
+        string.Join(", ", Service.Value.Trees[file].GetRoot().DescendantNodes().OfType<BaseNamespaceDeclarationSyntax>()
+            .Select(n => n.Name.ToString()));
+
+    // A file's part of the service is its folder: Terrain\GdalBackend\GdalEdge.cs
+    // is in GDALService.Terrain.GdalBackend, Program.cs in GDALService.
+    private static string LayerOf(string file) =>
+        string.Join(".", (Path.GetDirectoryName(file) ?? "").Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries)
+            .Prepend("GDALService"));
+
+    // The rules judge a file by its folder; a namespace that says otherwise
+    // would have the compiler resolve its names as if it sat somewhere else.
+    [Theory]
+    [MemberData(nameof(SourceFiles))]
+    public void Each_file_declares_the_namespace_of_its_folder(string file) =>
+        Assert.Equal(LayerOf(file), DeclaredNamespace(file));
 
     private static INamedTypeSymbol? TypeOf(ISymbol symbol) => symbol as INamedTypeSymbol ?? symbol.ContainingType;
 
@@ -210,7 +229,7 @@ public class SourceRulesTests
     [MemberData(nameof(SourceFiles))]
     public void Each_part_uses_only_the_parts_below_it(string file)
     {
-        var own = DeclaredNamespace(file);
+        var own = LayerOf(file);
         if (own == "GDALService") { return; }
         Assert.True(MayUse.ContainsKey(own), $"{file}: namespace {own} has no entry in the dependency table");
         Assert.Empty(Referenced(file)
@@ -224,7 +243,7 @@ public class SourceRulesTests
     [MemberData(nameof(SourceFiles))]
     public void Gdal_is_used_only_in_the_gdal_backend(string file)
     {
-        if (DeclaredNamespace(file) == "GDALService.Terrain.GdalBackend") { return; }
+        if (LayerOf(file) == "GDALService.Terrain.GdalBackend") { return; }
         Assert.Empty(Referenced(file)
             .Where(r => NamespaceOf(r.Symbol).StartsWith("OSGeo", StringComparison.Ordinal) || IsGenerated(r.Symbol))
             .Select(r => Where(r.Node, file)));
@@ -262,13 +281,24 @@ public class SourceRulesTests
             .OfType<INamedTypeSymbol>();
     }
 
+    // Whether the code at `node` is inside an edge type (or a type nested in one).
+    private static bool InsideAnEdge(string file, SyntaxNode node)
+    {
+        var model = Service.Value.Compilation.GetSemanticModel(Service.Value.Trees[file]);
+        return node.Ancestors().OfType<BaseTypeDeclarationSyntax>()
+            .Select(declaration => model.GetDeclaredSymbol(declaration))
+            .OfType<INamedTypeSymbol>()
+            .Any(IsEdge);
+    }
+
     [Theory]
     [MemberData(nameof(SourceFiles))]
     public void Only_the_composition_root_names_an_edge(string file)
     {
-        if (DeclaredNamespace(file) == "GDALService" || DeclaredTypes(file).Any(IsEdge)) { return; }
+        if (LayerOf(file) == "GDALService") { return; }
         Assert.Empty(Referenced(file)
-            .Where(r => TypeOf(r.Symbol) is INamedTypeSymbol type && IsEdge(type.OriginalDefinition))
+            .Where(r => TypeOf(r.Symbol) is INamedTypeSymbol type && IsEdge(type.OriginalDefinition)
+                        && !InsideAnEdge(file, r.Node))
             .Select(r => Where(r.Node, file)));
     }
 
