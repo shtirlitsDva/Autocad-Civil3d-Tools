@@ -130,19 +130,22 @@ flowchart TD
 `GDALService.Tests/SourceRulesTests.cs` parses every source file with Roslyn and fails the build's tests on:
 
 - **Null and exceptions as control flow.** There is no `!`, no `goto`. `null` and `catch`
-  appear only in the edge files (`GdalEdge`, `GdalBootstrap`, `JsonEdge`,
-  `FileSystemTileCatalog`, `StreamEdge`) and in the one guard in `ServiceLoop`. An
+  appear only in the edge files, named by path (`Terrain/GdalBackend/GdalEdge.cs`,
+  `Terrain/GdalBackend/GdalBootstrap.cs`, `Protocol/JsonEdge.cs`,
+  `Project/FileSystemTileCatalog.cs`, `Hosting/StreamEdge.cs`), and in the one guard in
+  `Hosting/ServiceLoop.cs`. An
   expected failure is a `Fault` inside a `Result<T>`.
 - **Unions matched only by switch expressions**, never by `is`/`as` or a switch
   statement, and never with a `_` arm. A new case then breaks the build everywhere it
   must be handled.
 - **Boundaries**, judged on resolved symbols from a Roslyn compilation of the service.
   A `global using`, an alias or a fully qualified name cannot get round them.
-  - Each folder uses only the folders the diagram above allows.
+  - A file's part of the service is its folder, and its namespace must match the folder.
+  - Each folder uses only the folders the diagram above allows, including through type arguments such as `IReadOnlyList<TileFile>`.
   - OSGeo (and the package's `GdalConfiguration`) is used only in `Terrain/GdalBackend`.
-  - `File`, `Directory`, `FileInfo` and `DirectoryInfo` are used only in `FileSystemTileCatalog.cs`.
-  - Only the composition root names an edge implementation.
-  - A capability never names another capability.
+  - `File`, `Directory`, `FileInfo` and `DirectoryInfo` are used only in `Project/FileSystemTileCatalog.cs`.
+  - The I/O interfaces are implemented only at the edges (`Terrain/GdalBackend` and `Project/FileSystemTileCatalog.cs`), and only the composition root names an edge.
+  - A capability never names another capability or anything nested in one.
 
 The build also runs the .NET analyzers at `latest-recommended`, with warnings as errors.
 The house style is in `Acad-C3D-Tools/.editorconfig`.

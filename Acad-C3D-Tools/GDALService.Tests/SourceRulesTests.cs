@@ -19,16 +19,25 @@ namespace GDALService.Tests;
 //   - no type test (`is`, `as`) and no switch statement outside the edges.
 // And the architecture's boundaries (spec "dependency-rules"), judged on
 // resolved symbols:
-//   - each namespace uses only the parts of the service below it;
-//   - GDAL (`OSGeo`) only in Terrain.GdalBackend;
+//   - a file's part of the service is its folder, and its namespace says so;
+//   - each part uses only the parts of the service below it;
+//   - GDAL (`OSGeo`) only in Terrain/GdalBackend;
 //   - the file system (File, Directory, DirectoryInfo, FileInfo) only in the tile catalog;
-//   - only the composition root names an edge implementation;
-//   - a capability never names another capability.
+//   - the I/O interfaces are implemented only at the edges, and only the
+//     composition root names an edge;
+//   - a capability never names another capability, nor anything nested in one.
+// Edge files are named by their path, so a file of the same name elsewhere
+// gets no exemption.
 public class SourceRulesTests
 {
+    private static readonly string TileCatalogFile = Path.Combine("Project", "FileSystemTileCatalog.cs");
+    private static readonly string GdalBackendDir = Path.Combine("Terrain", "GdalBackend");
     private static readonly string[] EdgeFiles =
-        ["GdalEdge.cs", "GdalBootstrap.cs", "JsonEdge.cs", "FileSystemTileCatalog.cs", "StreamEdge.cs"];
-    private const string LoopGuardFile = "ServiceLoop.cs";
+    [
+        Path.Combine(GdalBackendDir, "GdalEdge.cs"), Path.Combine(GdalBackendDir, "GdalBootstrap.cs"),
+        Path.Combine("Protocol", "JsonEdge.cs"), TileCatalogFile, Path.Combine("Hosting", "StreamEdge.cs"),
+    ];
+    private static readonly string LoopGuardFile = Path.Combine("Hosting", "ServiceLoop.cs");
 
     private static string ServiceDir([CallerFilePath] string here = "") =>
         Path.GetFullPath(Path.Combine(Path.GetDirectoryName(here)!, "..", "GDALService"));
@@ -46,6 +55,9 @@ public class SourceRulesTests
         var text = File.ReadAllText(Path.Combine(ServiceDir(), relative));
         return CSharpSyntaxTree.ParseText(text, new CSharpParseOptions(LanguageVersion.Preview)).GetRoot();
     }
+
+    private static bool Under(string file, string folder) =>
+        file.StartsWith(folder + Path.DirectorySeparatorChar, StringComparison.Ordinal);
 
     private static string Where(SyntaxNode node, string relative) =>
         $"{relative}:{node.GetLocation().GetLineSpan().StartLinePosition.Line + 1}: {node}";
@@ -70,7 +82,7 @@ public class SourceRulesTests
     [MemberData(nameof(SourceFiles))]
     public void Null_only_at_the_edges(string file)
     {
-        if (EdgeFiles.Contains(Path.GetFileName(file))) { return; }
+        if (EdgeFiles.Contains(file)) { return; }
         Assert.Empty(Parse(file).DescendantNodes()
             .Where(n => n.IsKind(SyntaxKind.NullLiteralExpression))
             .Select(n => Where(n, file)));
@@ -80,10 +92,9 @@ public class SourceRulesTests
     [MemberData(nameof(SourceFiles))]
     public void Catch_only_at_the_edges_and_in_the_loop_guard(string file)
     {
-        var name = Path.GetFileName(file);
         var catches = Parse(file).DescendantNodes().OfType<CatchClauseSyntax>().ToList();
-        if (EdgeFiles.Contains(name)) { return; }
-        if (name == LoopGuardFile)
+        if (EdgeFiles.Contains(file)) { return; }
+        if (file == LoopGuardFile)
         {
             Assert.Single(catches);
             return;
@@ -113,7 +124,7 @@ public class SourceRulesTests
     [MemberData(nameof(SourceFiles))]
     public void Unions_are_matched_only_by_switch_expressions(string file)
     {
-        if (EdgeFiles.Contains(Path.GetFileName(file))) { return; }
+        if (EdgeFiles.Contains(file)) { return; }
         Assert.Empty(Parse(file).DescendantNodes()
             .Where(n => n is IsPatternExpressionSyntax or SwitchStatementSyntax
                      || n.IsKind(SyntaxKind.IsExpression) || n.IsKind(SyntaxKind.AsExpression))
@@ -171,8 +182,20 @@ public class SourceRulesTests
             .Select(expression => (Node: (SyntaxNode)expression, Symbol: (ISymbol?)model.GetTypeInfo(expression).Type));
         return named.Concat(typed)
             .Where(r => r.Symbol is ITypeSymbol or IMethodSymbol or IPropertySymbol or IFieldSymbol or IEventSymbol)
-            .Select(r => (r.Node, Symbol: r.Symbol ?? throw new InvalidOperationException()));
+            .SelectMany(r => Parts(r.Symbol ?? throw new InvalidOperationException()).Select(part => (r.Node, Symbol: part)))
+            .DistinctBy(r => (r.Node.GetLocation().GetLineSpan().StartLinePosition.Line, r.Symbol.ToDisplayString()));
     }
+
+    // A symbol and every type it is built from: `IReadOnlyList<TileFile>` uses
+    // TileFile, `TileFile[]` uses TileFile, `Find<TileFile>()` uses TileFile.
+    private static IEnumerable<ISymbol> Parts(ISymbol symbol) =>
+        symbol switch
+        {
+            IArrayTypeSymbol array => Parts(array.ElementType),
+            INamedTypeSymbol type => type.TypeArguments.SelectMany(Parts).Prepend(type),
+            IMethodSymbol method => method.TypeArguments.SelectMany(Parts).Prepend(method),
+            _ => [symbol],
+        };
 
     private static string NamespaceOf(ISymbol symbol) => symbol.ContainingNamespace?.ToDisplayString() ?? "";
 
@@ -231,7 +254,7 @@ public class SourceRulesTests
     {
         var own = LayerOf(file);
         if (own == "GDALService") { return; }
-        Assert.True(MayUse.ContainsKey(own), $"{file}: namespace {own} has no entry in the dependency table");
+        Assert.True(MayUse.ContainsKey(own), $"{file}: part {own} has no entry in the dependency table");
         Assert.Empty(Referenced(file)
             .Where(r => !IsGenerated(r.Symbol) && NamespaceOf(r.Symbol) is var used
                         && (used == "GDALService" || used.StartsWith("GDALService.", StringComparison.Ordinal))
@@ -243,7 +266,7 @@ public class SourceRulesTests
     [MemberData(nameof(SourceFiles))]
     public void Gdal_is_used_only_in_the_gdal_backend(string file)
     {
-        if (LayerOf(file) == "GDALService.Terrain.GdalBackend") { return; }
+        if (Under(file, GdalBackendDir)) { return; }
         Assert.Empty(Referenced(file)
             .Where(r => NamespaceOf(r.Symbol).StartsWith("OSGeo", StringComparison.Ordinal) || IsGenerated(r.Symbol))
             .Select(r => Where(r.Node, file)));
@@ -256,22 +279,26 @@ public class SourceRulesTests
     [MemberData(nameof(SourceFiles))]
     public void The_file_system_is_used_only_by_the_tile_catalog(string file)
     {
-        if (Path.GetFileName(file) == "FileSystemTileCatalog.cs") { return; }
+        if (file == TileCatalogFile) { return; }
         Assert.Empty(Referenced(file)
             .Where(r => TypeOf(r.Symbol) is INamedTypeSymbol type && FileSystemTypes.Contains(type.ToDisplayString()))
             .Select(r => Where(r.Node, file)));
     }
 
-    // The edges are the implementations of the I/O interfaces and everything in
-    // the GDAL backend. Only the composition root chooses them; the rest of the
-    // service sees the interfaces. Edge code may name other edge code.
+    // The edges are where the service meets the outside: the GDAL backend and
+    // the file-system tile catalog. Only there are the I/O interfaces
+    // implemented, and only the composition root chooses an edge; the rest of
+    // the service sees the interfaces. An edge is known by where it is, not by
+    // what it implements, so no class can make itself one.
     private static readonly string[] BoundaryInterfaces =
         ["GDALService.Project.ITileCatalog", "GDALService.Terrain.IRasterFactory",
          "GDALService.Terrain.IRaster", "GDALService.Terrain.IPixelReader"];
 
+    private static bool IsEdgeFile(string file) => file == TileCatalogFile || Under(file, GdalBackendDir);
+
     private static bool IsEdge(INamedTypeSymbol type) =>
-        type.ContainingNamespace.ToDisplayString() == "GDALService.Terrain.GdalBackend"
-        || (type.TypeKind == TypeKind.Class && type.AllInterfaces.Any(i => BoundaryInterfaces.Contains(i.ToDisplayString())));
+        type.Locations.Any(l => l.SourceTree is SyntaxTree tree && Service.Value.Trees.ContainsValue(tree)
+                                && IsEdgeFile(tree.FilePath));
 
     private static IEnumerable<INamedTypeSymbol> DeclaredTypes(string file)
     {
@@ -281,24 +308,23 @@ public class SourceRulesTests
             .OfType<INamedTypeSymbol>();
     }
 
-    // Whether the code at `node` is inside an edge type (or a type nested in one).
-    private static bool InsideAnEdge(string file, SyntaxNode node)
+    [Theory]
+    [MemberData(nameof(SourceFiles))]
+    public void The_io_interfaces_are_implemented_only_at_the_edges(string file)
     {
-        var model = Service.Value.Compilation.GetSemanticModel(Service.Value.Trees[file]);
-        return node.Ancestors().OfType<BaseTypeDeclarationSyntax>()
-            .Select(declaration => model.GetDeclaredSymbol(declaration))
-            .OfType<INamedTypeSymbol>()
-            .Any(IsEdge);
+        if (IsEdgeFile(file)) { return; }
+        Assert.Empty(DeclaredTypes(file)
+            .Where(type => type.AllInterfaces.Any(i => BoundaryInterfaces.Contains(i.ToDisplayString())))
+            .Select(type => $"{file}: {type.Name}"));
     }
 
     [Theory]
     [MemberData(nameof(SourceFiles))]
     public void Only_the_composition_root_names_an_edge(string file)
     {
-        if (LayerOf(file) == "GDALService") { return; }
+        if (LayerOf(file) == "GDALService" || IsEdgeFile(file)) { return; }
         Assert.Empty(Referenced(file)
-            .Where(r => TypeOf(r.Symbol) is INamedTypeSymbol type && IsEdge(type.OriginalDefinition)
-                        && !InsideAnEdge(file, r.Node))
+            .Where(r => TypeOf(r.Symbol) is INamedTypeSymbol type && IsEdge(type.OriginalDefinition))
             .Select(r => Where(r.Node, file)));
     }
 
@@ -324,8 +350,12 @@ public class SourceRulesTests
         var own = DeclaredTypes(file).Where(IsCapability).ToList();
         if (own.Count == 0) { return; }
         Assert.Empty(Referenced(file)
-            .Where(r => TypeOf(r.Symbol) is INamedTypeSymbol type && IsCapability(type)
-                        && !own.Contains(type, SymbolEqualityComparer.Default))
+            .Where(r => TypeOf(r.Symbol) is INamedTypeSymbol type && CapabilityOf(type) is INamedTypeSymbol capability
+                        && !own.Contains(capability, SymbolEqualityComparer.Default))
             .Select(r => Where(r.Node, file)));
     }
+
+    // The capability a type is, or is nested in (Hello.Ack belongs to Hello).
+    private static INamedTypeSymbol? CapabilityOf(INamedTypeSymbol type) =>
+        IsCapability(type) ? type : type.ContainingType is INamedTypeSymbol outer ? CapabilityOf(outer) : null;
 }
