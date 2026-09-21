@@ -1,5 +1,7 @@
 using System.Runtime.CompilerServices;
 
+using GDALService.Capabilities;
+
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -149,7 +151,13 @@ public class SourceRulesTests
     ]);
 
     [Fact]
-    public void The_rules_see_every_capability() => Assert.Equal(5, CapabilityNames.Value.Length);
+    public void The_rules_see_every_capability() =>
+        Assert.Equal(
+            typeof(ICapability).Assembly.GetTypes()
+                .Where(t => t is { IsClass: true, IsAbstract: false } && typeof(ICapability).IsAssignableFrom(t))
+                .Select(t => t.Name)
+                .Order(StringComparer.Ordinal),
+            CapabilityNames.Value.Order(StringComparer.Ordinal));
 
     [Theory]
     [MemberData(nameof(SourceFiles))]

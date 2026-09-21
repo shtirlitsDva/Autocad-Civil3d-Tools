@@ -48,7 +48,7 @@ public class CapabilityRegistryTests
             .Where(t => t is { IsClass: true, IsAbstract: false } && typeof(ICapability).IsAssignableFrom(t))
             .ToHashSet();
 
-        Assert.Equal(5, declared.Count);
+        Assert.NotEmpty(declared);
         Assert.Equal(declared, registered);
         Assert.IsType<ServiceLoop>(Expect.Ok(ServiceComposition.Loop(provider)));
     }

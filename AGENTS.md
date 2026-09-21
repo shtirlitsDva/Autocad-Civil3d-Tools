@@ -65,6 +65,8 @@ Use four-space indentation and respect nullable reference types (`<Nullable>enab
 **Handle every case, checked by the compiler.** Match with a switch *expression* that has no `_` arm, so a new case breaks the build where it is not handled yet. Switch statements and type tests (`x is Some<T> s`, `x is Fault`, `x as T`) are not checked for exhaustiveness, so they are not used to match a union - not even when only one case needs action. Never use the null-forgiving `!`.
 
 Existing code predates this rule. New and rewritten code follows it. The reference implementation is `Acad-C3D-Tools/GDALService` (C# 15 `union` types; see `Common/Unions.cs`). `GDALService.Tests/SourceRulesTests.cs` enforces the rule there.
+
+GDALService's architecture, wire protocol and "how to add a capability" (request type) are in `Acad-C3D-Tools/GDALService/README.md`; read it before changing the service.
 </null-and-exceptions>
 
 ## Domain knowledge
