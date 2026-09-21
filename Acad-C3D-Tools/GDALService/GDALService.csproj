@@ -1,18 +1,41 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
 		<OutputType>Exe</OutputType>
-		<TargetFramework>net8.0-windows10.0.26100.0</TargetFramework>
+		<TargetFramework>net11.0</TargetFramework>
 		<ImplicitUsings>enable</ImplicitUsings>
-		<Platform>x64</Platform>
 		<Nullable>enable</Nullable>
-		<AssemblyName>GDALService</AssemblyName>
+		<TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+		<!-- CS8524 asks a switch over an enum to also handle values outside the
+		     named members (e.g. (FaultKind)5), which only a `_` arm can do - and a
+		     `_` arm would hide a newly added member. CS8509, the warning for a
+		     named member that is not handled, stays on. -->
+		<NoWarn>$(NoWarn);CS8524</NoWarn>
+		<Platform>x64</Platform>
 		<Platforms>x64</Platforms>
+		<AssemblyName>GDALService</AssemblyName>
 	</PropertyGroup>
-	
+
+	<ItemGroup>
+		<InternalsVisibleTo Include="GDALService.Tests" />
+	</ItemGroup>
+
 	<ItemGroup>
 		<PackageReference Include="GDAL" Version="3.11.3" />
 		<PackageReference Include="GDAL.Native" Version="3.11.3" />
 	</ItemGroup>
+
+	<!-- GDAL.Native copies its native gdal\ folder into the build output, but its
+	     publish hook only runs in the Visual Studio 2010-2022 web-publish
+	     pipeline, never in `dotnet publish` or VS 2026. Without this the published
+	     service starts with no GDAL. GdalConfiguration looks for gdal\ next to
+	     the executable. -->
+	<Target Name="PublishGdalNativeFiles" AfterTargets="ComputeResolvedFilesToPublishList">
+		<ItemGroup>
+			<ResolvedFileToPublish Include="@(GDALInteropFiles)"
+			                       RelativePath="gdal\%(RecursiveDir)%(Filename)%(Extension)"
+			                       CopyToPublishDirectory="PreserveNewest" />
+		</ItemGroup>
+	</Target>
 
 </Project>

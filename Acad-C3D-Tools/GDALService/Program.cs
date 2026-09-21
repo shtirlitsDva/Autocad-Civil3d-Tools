@@ -1,29 +1,19 @@
-﻿using System.Text;
+using System.Text;
 
-using GDALService.Configuration;
 using GDALService.Hosting;
-using System.Threading.Tasks;
+using GDALService.Raster;
 
-namespace GDALService
+namespace GDALService;
+
+internal static class Program
 {
-    internal static class Program
+    private static int Main()
     {
-        static async Task<int> Main()
-        {
-            try
-            {
-                var options = new ServiceOptions();
+        // Before Console.In is first touched: a basePath with æ/ø/å arrives as
+        // UTF-8 from the client and must not be read in the OEM code page.
+        Console.InputEncoding = Encoding.UTF8;
+        Console.OutputEncoding = Encoding.UTF8;
 
-                GdalConfiguration.ConfigureGdal();
-
-                var loop = new ServiceLoop(options);
-                return await loop.RunAsync();
-            }
-            catch (Exception ex)
-            {
-
-                throw;
-            }            
-        }
+        return new ServiceLoop(Console.In, Console.Out, Console.Error, GdalEdge.Initialise()).Run();
     }
 }

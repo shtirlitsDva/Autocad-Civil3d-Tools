@@ -54,6 +54,19 @@ Filter output to show only errors: `2>&1 | grep -E "(error|Error)"`
 ## Coding Style & Naming Conventions
 Use four-space indentation and respect nullable reference types (`<Nullable>enable</Nullable>` is the default). Favor PascalCase for public types, camelCase for locals, and avoid abbreviations not already established nearby. Keep command class names aligned with their AutoCAD command keyword (for example `ApplyDimCommand`). `.editorconfig` disables XML documentation warnings; prefer concise inline comments only when the intent is non-obvious.
 
+<null-and-exceptions>
+**Null is never control flow.** A null always means something out of the ordinary, never "not found", "not set yet" or "failed". An expected absence or failure is a value:
+- `Option<T>` (Some/None) for "there may be none"
+- `Result<T>` (Ok/Fault) for "this can fail"
+- a closed union for "it is one of these"
+
+**Exceptions are never control flow.** Catch only at the boundary to third-party code (GDAL, System.Text.Json, the file system, the AutoCAD API) and convert there to a `Result`. One last-resort guard per process or request loop is allowed; it exists for bugs.
+
+**Handle every case, checked by the compiler.** Match with a switch *expression* that has no `_` arm, so a new case breaks the build where it is not handled yet. Switch statements and type tests (`x is Some<T> s`, `x is Fault`, `x as T`) are not checked for exhaustiveness, so they are not used to match a union - not even when only one case needs action. Never use the null-forgiving `!`.
+
+Existing code predates this rule. New and rewritten code follows it. The reference implementation is `Acad-C3D-Tools/GDALService` (C# 15 `union` types; see `Common/Unions.cs`). `GDALService.Tests/SourceRulesTests.cs` enforces the rule there.
+</null-and-exceptions>
+
 ## Domain knowledge
 ### District heating pipe types
 District Heating steel piping systems currently have two general types:
