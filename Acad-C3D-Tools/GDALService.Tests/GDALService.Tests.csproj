@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net11.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+		<NoWarn>$(NoWarn);CS8524</NoWarn>
+		<Platform>x64</Platform>
+		<Platforms>x64</Platforms>
+		<IsPackable>false</IsPackable>
+		<IsTestProject>true</IsTestProject>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
+		<PackageReference Include="xunit" Version="2.9.3" />
+		<PackageReference Include="xunit.runner.visualstudio" Version="4.0.0" />
+		<!-- SourceRulesTests reads GDALService's own source to enforce the null and exception rules. -->
+		<PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" />
+		<!-- GDAL.Native copies its gdal\ native folder only into projects that
+		     reference it directly; the tests load GDAL from their own output. -->
+		<PackageReference Include="GDAL.Native" Version="3.11.3" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\GDALService\GDALService.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Using Include="Xunit" />
+	</ItemGroup>
+
+</Project>

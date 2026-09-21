@@ -1,0 +1,5 @@
+# The GDAL package drops GdalConfiguration.cs into obj/ as content. It is
+# third-party code written before nullable reference types; treat it as generated
+# so the warnings-as-errors build judges only our own code.
+[**/GdalConfiguration.cs]
+generated_code = true
