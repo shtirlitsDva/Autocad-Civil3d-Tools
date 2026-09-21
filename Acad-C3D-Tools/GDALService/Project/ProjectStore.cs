@@ -92,7 +92,11 @@ internal sealed class ProjectStore : IDisposable
                 Fault fault => ReleaseAndFail(built, fault),
             })
             .Map(raster => new OpenProject(projectId, fullBase, elevationsDir, tiles, raster));
-        if (opened is Ok<OpenProject> ok) { _current = new Some<OpenProject>(ok.Value); }
+        _current = opened switch
+        {
+            Ok<OpenProject> ok => new Some<OpenProject>(ok.Value),
+            Fault => None.Instance,
+        };
         return opened;
     }
 
@@ -104,11 +108,16 @@ internal sealed class ProjectStore : IDisposable
 
     private void Close()
     {
-        if (_current is Some<OpenProject> open)
+        var close = _current switch
         {
-            open.Value.Dispose();
-            Release(open.Value.Raster.Path);
-        }
+            Some<OpenProject> open => (Action)(() =>
+            {
+                open.Value.Dispose();
+                Release(open.Value.Raster.Path);
+            }),
+            None => () => { },
+        };
+        close();
         _current = None.Instance;
     }
 
@@ -116,7 +125,12 @@ internal sealed class ProjectStore : IDisposable
     // not treated as a failure of the request that replaced it.
     private void Release(string vrtPath)
     {
-        if (GdalEdge.Unlink(vrtPath) is Fault fault) { _log.WriteLine("WARN " + fault.Message); }
+        var report = GdalEdge.Unlink(vrtPath) switch
+        {
+            Ok<string> => (Action)(() => { }),
+            Fault fault => () => _log.WriteLine("WARN " + fault.Message),
+        };
+        report();
     }
 
     public void Dispose() => Close();

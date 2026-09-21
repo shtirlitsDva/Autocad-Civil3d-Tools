@@ -34,7 +34,7 @@ internal sealed class ServiceLoop
         });
 
         using var projects = new ProjectStore(_log);
-        while (_input.ReadLine() is string line)
+        foreach (var line in StreamEdge.Lines(_input))
         {
             if (line.Trim().Length == 0) { continue; }
 

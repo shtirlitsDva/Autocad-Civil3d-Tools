@@ -13,10 +13,11 @@ namespace GDALService.Tests;
 //   - `null` and `catch` only in the edge files that face third-party code, and
 //     `catch` additionally in the request loop's one last-resort guard;
 //   - no `_` discard arm in a switch that matches on types - a discard there would
-//     swallow a newly added union case instead of failing the build.
+//     swallow a newly added union case instead of failing the build;
+//   - no type test (`is`, `as`) and no switch statement outside the edges.
 public class SourceRulesTests
 {
-    private static readonly string[] EdgeFiles = ["GdalEdge.cs", "JsonEdge.cs", "FileSystemEdge.cs"];
+    private static readonly string[] EdgeFiles = ["GdalEdge.cs", "JsonEdge.cs", "FileSystemEdge.cs", "StreamEdge.cs"];
     private const string LoopGuardFile = "ServiceLoop.cs";
 
     private static string ServiceDir([CallerFilePath] string here = "") =>
@@ -92,4 +93,19 @@ public class SourceRulesTests
                      && s.Arms.Any(a => a.Pattern is not DiscardPatternSyntax
                                         && !(a.Pattern is ConstantPatternSyntax { Expression: LiteralExpressionSyntax })))
             .Select(n => Where(n, file)));
+
+    // `x is Some<T> s`, `x is Fault` and `x as T` handle the case they name and
+    // silently skip every other one, and so does a switch statement: none of them
+    // is checked for exhaustiveness. Outside the edges a union is matched only by
+    // a switch expression, so a new case fails the build where it is unhandled.
+    [Theory]
+    [MemberData(nameof(SourceFiles))]
+    public void Unions_are_matched_only_by_switch_expressions(string file)
+    {
+        if (EdgeFiles.Contains(Path.GetFileName(file))) { return; }
+        Assert.Empty(Parse(file).DescendantNodes()
+            .Where(n => n is IsPatternExpressionSyntax or SwitchStatementSyntax
+                     || n.IsKind(SyntaxKind.IsExpression) || n.IsKind(SyntaxKind.AsExpression))
+            .Select(n => Where(n, file)));
+    }
 }

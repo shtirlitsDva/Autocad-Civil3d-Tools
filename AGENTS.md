@@ -62,7 +62,7 @@ Use four-space indentation and respect nullable reference types (`<Nullable>enab
 
 **Exceptions are never control flow.** Catch only at the boundary to third-party code (GDAL, System.Text.Json, the file system, the AutoCAD API) and convert there to a `Result`. One last-resort guard per process or request loop is allowed; it exists for bugs.
 
-**Handle every case, checked by the compiler.** Match with a switch *expression* that has no `_` arm, so a new case breaks the build where it is not handled yet. Switch statements are not checked for exhaustiveness. Never use the null-forgiving `!`.
+**Handle every case, checked by the compiler.** Match with a switch *expression* that has no `_` arm, so a new case breaks the build where it is not handled yet. Switch statements and type tests (`x is Some<T> s`, `x is Fault`, `x as T`) are not checked for exhaustiveness, so they are not used to match a union - not even when only one case needs action. Never use the null-forgiving `!`.
 
 Existing code predates this rule. New and rewritten code follows it. The reference implementation is `Acad-C3D-Tools/GDALService` (C# 15 `union` types; see `Common/Unions.cs`). `GDALService.Tests/SourceRulesTests.cs` enforces the rule there.
 </null-and-exceptions>

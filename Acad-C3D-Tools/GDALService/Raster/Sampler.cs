@@ -99,7 +99,12 @@ internal static class Sampler
             },
             band =>
             {
-                if (band is Ok<Band> ok) { ok.Value.Dispose(); }
+                var release = band switch
+                {
+                    Ok<Band> ok => (Action)ok.Value.Dispose,
+                    Fault => () => { },
+                };
+                release();
             });
     }
 }
