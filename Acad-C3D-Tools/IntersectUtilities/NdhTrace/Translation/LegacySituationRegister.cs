@@ -20,8 +20,8 @@ namespace IntersectUtilities.NdhTrace;
 /// having to translate a situation into a cause.
 /// Everything else states why it is somebody else&apos;s: the afgreningsmatrix
 /// decides afgreninger, three roles take the only Produkt they publish and
-/// never read the sheet, a ventil has no component at all, and a weld mark
-/// is not a part.
+/// never read the sheet, a ventil has no component at all, a stik is not
+/// modelled, and a weld mark is not a part.
 /// </summary>
 internal static class LegacySituationRegister
 {
@@ -88,8 +88,8 @@ internal static class LegacySituationRegister
         ["Y-RØR"] = new DecidedElsewhere("the afgreningsmatrix decides afgreninger, never a rule row"),
         ["BUEROR1"] = new SheetDecides(NdhSituation.Arc, NdhCause.Arc),
         ["BUEROR2"] = new SheetDecides(NdhSituation.Arc, NdhCause.Arc),
-        ["STIKAFGRENING"] = new DecidedElsewhere("the afgreningsmatrix decides afgreninger, never a rule row"),
-        ["STIKTEE"] = new DecidedElsewhere("the afgreningsmatrix decides afgreninger, never a rule row"),
+        ["STIKAFGRENING"] = new DecidedElsewhere("a stik is not modelled in NDH, so there is no place to stand in"),
+        ["STIKTEE"] = new DecidedElsewhere("a stik is not modelled in NDH, so there is no place to stand in"),
         ["MATERIALESKIFT"] = new DecidedElsewhere("the planner takes the only Produkt this role publishes and never reads the sheet"),
         ["PRTFLX-TEE"] = new DecidedElsewhere("the afgreningsmatrix decides afgreninger, never a rule row"),
         ["PRTFLX-BØJN-90"] = new SheetDecides(NdhSituation.Elbow, NdhCause.Elbow),
