@@ -51,27 +51,21 @@ internal static class ReplyWriter
     // switch statements, because only the expression form is checked for
     // exhaustiveness: a new case of any of these unions fails the build here.
     private static void WriteId(Utf8JsonWriter json, ReplyTo to) =>
-        (to switch
-        {
-            RequestId id => (Action)(() => json.WriteString("id", id.Value)),
-            Unaddressed => () => { },
-        })();
+        to.Id.Switch(id => json.WriteString("id", id.Value), () => { });
 
     private static void WriteOutcome(Utf8JsonWriter json, Result<ReplyBody> reply) =>
-        (reply switch
-        {
-            Ok<ReplyBody> ok => (Action)(() =>
+        reply.Switch(
+            body =>
             {
                 json.WriteNumber("status", 0);
                 json.WritePropertyName("result");
-                WriteBody(json, ok.Value);
-            }),
-            Fault fault => () =>
+                WriteBody(json, body);
+            },
+            fault =>
             {
                 json.WriteNumber("status", StatusOf(fault.Kind));
                 json.WriteString("error", fault.Message);
-            },
-        })();
+            });
 
     // The wire's numeric status codes, unchanged from the old protocol.
     public static int StatusOf(FaultKind kind) => kind switch
@@ -119,21 +113,10 @@ internal static class ReplyWriter
     }
 
     private static void WriteProjection(Utf8JsonWriter json, Option<string> projection) =>
-        (projection switch
-        {
-            Some<string> wkt => (Action)(() => json.WriteString("projection", wkt.Value)),
-            None => () => { },
-        })();
+        projection.Switch(wkt => json.WriteString("projection", wkt), () => { });
 
-    // Only an Elevation has a height to write.
     private static void WriteHeight(Utf8JsonWriter json, string name, Sample sample) =>
-        (sample switch
-        {
-            Elevation elevation => (Action)(() => json.WriteNumber(name, elevation.Metres)),
-            NoData => () => { },
-            Outside => () => { },
-            ReadFailed => () => { },
-        })();
+        sample.Height.Switch(metres => json.WriteNumber(name, metres), () => { });
 
     private static void WriteSummary(Utf8JsonWriter json, SampleSummary sum)
     {

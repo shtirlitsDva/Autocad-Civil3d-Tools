@@ -108,30 +108,20 @@ internal sealed class ProjectStore : IDisposable
 
     private void Close()
     {
-        var close = _current switch
-        {
-            Some<OpenProject> open => (Action)(() =>
+        _current.Switch(
+            open =>
             {
-                open.Value.Dispose();
-                Release(open.Value.Raster.Path);
-            }),
-            None => () => { },
-        };
-        close();
+                open.Dispose();
+                Release(open.Raster.Path);
+            },
+            () => { });
         _current = None.Instance;
     }
 
     // An in-memory VRT that cannot be released only costs memory; it is logged,
     // not treated as a failure of the request that replaced it.
-    private void Release(string vrtPath)
-    {
-        var report = GdalEdge.Unlink(vrtPath) switch
-        {
-            Ok<string> => (Action)(() => { }),
-            Fault fault => () => _log.WriteLine("WARN " + fault.Message),
-        };
-        report();
-    }
+    private void Release(string vrtPath) =>
+        GdalEdge.Unlink(vrtPath).Switch(_ => { }, fault => _log.WriteLine("WARN " + fault.Message));
 
     public void Dispose() => Close();
 }

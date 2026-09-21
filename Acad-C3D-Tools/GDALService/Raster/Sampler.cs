@@ -97,14 +97,6 @@ internal static class Sampler
                 progress.Advance();
                 return band;
             },
-            band =>
-            {
-                var release = band switch
-                {
-                    Ok<Band> ok => (Action)ok.Value.Dispose,
-                    Fault => () => { },
-                };
-                release();
-            });
+            band => band.Switch(ok => ok.Dispose(), _ => { }));
     }
 }

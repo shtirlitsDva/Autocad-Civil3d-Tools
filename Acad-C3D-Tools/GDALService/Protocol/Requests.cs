@@ -1,3 +1,4 @@
+using GDALService.Common;
 using GDALService.Domain;
 
 namespace GDALService.Protocol;
@@ -12,7 +13,14 @@ internal sealed record Unaddressed
     private Unaddressed() { }
 }
 
-internal union ReplyTo(RequestId, Unaddressed);
+internal union ReplyTo(RequestId, Unaddressed)
+{
+    public Option<RequestId> Id => this switch
+    {
+        RequestId id => new Some<RequestId>(id),
+        Unaddressed => None.Instance,
+    };
+}
 
 internal sealed record Hello(RequestId Id);
 internal sealed record SetProject(RequestId Id, string ProjectId, string BasePath);

@@ -45,6 +45,15 @@ internal union Sample(Elevation, NoData, Outside, ReadFailed)
         Outside => "OUTSIDE",
         ReadFailed => "ERR",
     };
+
+    // Only an Elevation has a height; the wire writes one only when there is one.
+    public Option<double> Height => this switch
+    {
+        Elevation elevation => new Some<double>(elevation.Metres),
+        NoData => None.Instance,
+        Outside => None.Instance,
+        ReadFailed => None.Instance,
+    };
 }
 
 internal sealed record PointQuery(long GeomId, int Seq, double S, double X, double Y);
