@@ -15,6 +15,8 @@ internal sealed class GdalRasterFactory : IRasterFactory
 
     public GdalRasterFactory(ServiceLog log) { _log = log; }
 
+    public Option<Fault> Unavailable => None.Instance;
+
     public Result<IRaster> OpenMosaic(string name, IReadOnlyList<string> tilePaths)
     {
         var vrtPath = $"/vsimem/gdalservice/{name}-{Interlocked.Increment(ref s_builds)}.vrt";

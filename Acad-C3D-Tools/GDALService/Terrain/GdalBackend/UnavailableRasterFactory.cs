@@ -11,5 +11,7 @@ internal sealed class UnavailableRasterFactory : IRasterFactory
 
     public UnavailableRasterFactory(Fault why) { _why = why; }
 
+    public Option<Fault> Unavailable => new Some<Fault>(_why);
+
     public Result<IRaster> OpenMosaic(string name, IReadOnlyList<string> tilePaths) => _why;
 }

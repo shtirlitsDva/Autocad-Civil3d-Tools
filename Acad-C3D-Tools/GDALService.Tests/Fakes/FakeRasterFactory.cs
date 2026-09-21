@@ -14,6 +14,8 @@ internal sealed class FakeRasterFactory : IRasterFactory
 
     public static FakeRasterFactory Failing(Fault fault) => new((_, _) => fault);
 
+    public Option<Fault> Unavailable { get; init; } = None.Instance;
+
     public List<(string Name, IReadOnlyList<string> Tiles)> Opened { get; } = [];
 
     public Result<IRaster> OpenMosaic(string name, IReadOnlyList<string> tilePaths)

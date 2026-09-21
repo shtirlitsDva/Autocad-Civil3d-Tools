@@ -105,6 +105,29 @@ public class ProjectStoreTests
     }
 
     [Fact]
+    public void A_backend_that_can_open_nothing_is_the_answer_before_any_tile_is_looked_for()
+    {
+        var asked = 0;
+        var catalog = new FakeTileCatalog((_, _) =>
+        {
+            asked++;
+            return new Fault(FaultKind.NotFound, "Elevations folder not found");
+        });
+        var rasters = new FakeRasterFactory((_, _) => new Ok<IRaster>(Raster()))
+        {
+            Unavailable = new Some<Fault>(new Fault(FaultKind.Gdal, "GDAL native libraries are not usable")),
+        };
+        using var store = new ProjectStore(catalog, rasters);
+
+        var fault = Expect.Fault(store.Open("TST", @"C:
+owhere"));
+
+        Assert.Equal((FaultKind.Gdal, "GDAL native libraries are not usable"), (fault.Kind, fault.Message));
+        Assert.Equal(0, asked);
+        Assert.Empty(rasters.Opened);
+    }
+
+    [Fact]
     public void A_catalog_fault_is_the_answer_and_nothing_is_opened()
     {
         var rasters = NewRasterEachTime();

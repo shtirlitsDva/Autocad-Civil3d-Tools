@@ -113,6 +113,18 @@ public sealed class ServiceLoopTests : IDisposable
         Assert.Equal("GDAL native libraries are not usable", replies[1].GetProperty("error").GetString());
     }
 
+    // Spec decision D6: the cause, not a symptom - a folder that is missing too
+    // would not open a project without GDAL either.
+    [Fact]
+    public void Without_gdal_set_project_says_so_even_when_the_folder_is_missing()
+    {
+        var noGdal = new Fault(FaultKind.Gdal, "GDAL native libraries are not usable");
+        var replies = Run(noGdal, SetProjectLine(@"C:\definitely
+ot\here"));
+
+        Assert.Equal((1, "GDAL native libraries are not usable"), (Status(replies[0]), replies[0].GetProperty("error").GetString()));
+    }
+
     // Spec decision D6: without GDAL no project can open, so a sample request is
     // told there is no project (4) rather than, as before, that GDAL is missing (1).
     [Fact]

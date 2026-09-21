@@ -36,13 +36,19 @@ internal sealed class ProjectStore : IDisposable
         None => new Fault(FaultKind.NotInitialized, "No project initialized. Call SET_PROJECT first always!"),
     };
 
+    // Without a raster backend no project can open, whatever the folder holds,
+    // so that is the answer before the tiles are looked for.
     public Result<OpenProject> Open(string projectId, string basePath) =>
-        _catalog.Find(projectId, basePath).Bind(tiles =>
-            Reuse(projectId, tiles) switch
-            {
-                Some<OpenProject> same => new Ok<OpenProject>(same.Value),
-                None => Replace(projectId, tiles),
-            });
+        _rasters.Unavailable switch
+        {
+            Some<Fault> why => why.Value,
+            None => _catalog.Find(projectId, basePath).Bind(tiles =>
+                Reuse(projectId, tiles) switch
+                {
+                    Some<OpenProject> same => new Ok<OpenProject>(same.Value),
+                    None => Replace(projectId, tiles),
+                }),
+        };
 
     private Option<OpenProject> Reuse(string projectId, TileSet tiles) =>
         _current switch
