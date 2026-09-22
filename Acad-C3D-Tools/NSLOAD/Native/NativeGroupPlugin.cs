@@ -190,8 +190,7 @@ namespace NSLOAD.Native
             var held = StillMapped(manifest.Modules);
             if (!WarnIfHeld(held, say))
                 return GroupState.NotLoaded;
-            return new GroupState.HeldState(ReadReleaseInCatch(
-                held.Select(f => OarxModuleHost.MappedPathInThisProcess(f) ?? f)));
+            return GroupState.Held(ReadReleaseInCatch(held.Select(h => h.MappedPath)));
         }
 
         // Runs while a load exception is on its way out: a failure here must not
@@ -207,18 +206,21 @@ namespace NSLOAD.Native
             }
         }
 
-        // The file names, of the modules given, whose images are still in this
-        // process although the linker has released them.
-        private static List<string> StillMapped(IEnumerable<string> modules) =>
+        // The modules given whose images are still in this process although the
+        // linker has released them, with the path each is mapped from - taken from
+        // one probe, so the path belongs to the image that was found.
+        private static List<(string FileName, string MappedPath)> StillMapped(IEnumerable<string> modules) =>
             modules.Select(m => Path.GetFileName(m))
-                   .Where(f => OarxModuleHost.MappedPathInThisProcess(f) != null)
+                   .Select(f => (FileName: f, MappedPath: OarxModuleHost.MappedPathInThisProcess(f)))
+                   .Where(h => h.MappedPath != null)
+                   .Select(h => (h.FileName, h.MappedPath!))
                    .ToList();
 
         // Tells the drafter a released module never left memory. True when one did.
-        private bool WarnIfHeld(List<string> stillMapped, Action<string> say)
+        private bool WarnIfHeld(List<(string FileName, string MappedPath)> stillMapped, Action<string> say)
         {
             if (stillMapped.Count == 0) return false;
-            say($"{_name}: WARNING - AutoCAD released {string.Join(", ", stillMapped)} " +
+            say($"{_name}: WARNING - AutoCAD released {string.Join(", ", stillMapped.Select(h => h.FileName))} " +
                 "but it is still held in memory, so its file stays locked and OneDrive " +
                 "cannot update it. Restart Civil to get the new version.");
             return true;

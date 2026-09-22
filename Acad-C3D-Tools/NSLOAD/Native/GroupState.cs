@@ -50,6 +50,10 @@ namespace NSLOAD.Native
                 ? new LoadedState(manifest, whole.Version)
                 : new LoadedMixedState(manifest);
 
+        /// <summary>The state for images released by the linker that stayed in
+        /// memory, holding <paramref name="inMemory"/>.</summary>
+        public static GroupState Held(Release inMemory) => new HeldState(inMemory);
+
         /// <summary>The modules this group loaded and still answers for; empty
         /// when it answers for none.</summary>
         public virtual IReadOnlyList<string> TrackedModules => Array.Empty<string>();
@@ -114,7 +118,7 @@ namespace NSLOAD.Native
 
         // Released by the linker, but an image stayed in memory: its file stays
         // locked until Civil restarts.
-        public sealed class HeldState : GroupState
+        private sealed class HeldState : GroupState
         {
             private readonly Release _inMemory;
 
