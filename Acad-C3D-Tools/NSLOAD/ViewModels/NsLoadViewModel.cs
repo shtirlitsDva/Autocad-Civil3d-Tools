@@ -186,14 +186,20 @@ namespace NSLOAD.ViewModels
 
             string name = NewPluginName.Trim();
 
-            // Register rows count too: a second registration under a register
-            // row's name would replace it, and a group it had loaded would run on
-            // untracked until AutoCAD restarts.
-            if (_config.Plugins.Any(p =>
-                    p.Name.Equals(name, StringComparison.OrdinalIgnoreCase)) ||
-                PluginManager.GetRegisteredPluginNames().Any(n =>
-                    n.Equals(name, StringComparison.OrdinalIgnoreCase)))
+            // Register rows count too, even ones not registered this session (the
+            // register was unreadable at startup): a second registration under a
+            // register row's name would replace it, and a group it had loaded
+            // would run on untracked until AutoCAD restarts.
+            bool taken =
+                _config.Plugins.Any(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase)) ||
+                _config.PredefinedApps.Any(a => a.DisplayName.Equals(name, StringComparison.OrdinalIgnoreCase)) ||
+                PluginManager.GetRegisteredPluginNames().Any(n => n.Equals(name, StringComparison.OrdinalIgnoreCase));
+            if (taken)
+            {
+                Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument?
+                    .Editor.WriteMessage($"\n{name} is already the name of a plugin. Choose another name.");
                 return;
+            }
 
             var entry = new UserPluginEntry
             {
