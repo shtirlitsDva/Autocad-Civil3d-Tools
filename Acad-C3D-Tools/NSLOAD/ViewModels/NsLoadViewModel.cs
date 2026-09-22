@@ -161,14 +161,19 @@ namespace NSLOAD.ViewModels
         {
             var dlg = new OpenFileDialog
             {
-                Filter = "DLL files (*.dll)|*.dll",
-                Title = "Select plugin DLL",
+                Filter = "Plugins (*.dll;*.oarx.json)|*.dll;*.oarx.json",
+                Title = "Select a plugin DLL or a native group manifest",
             };
             if (dlg.ShowDialog() == true)
             {
                 NewPluginDllPath = dlg.FileName;
                 if (string.IsNullOrWhiteSpace(NewPluginName))
-                    NewPluginName = System.IO.Path.GetFileNameWithoutExtension(dlg.FileName);
+                {
+                    string fileName = System.IO.Path.GetFileName(dlg.FileName);
+                    NewPluginName = Native.NativeGroupManifest.IsManifestPath(fileName)
+                        ? fileName[..^Native.NativeGroupManifest.FileSuffix.Length]
+                        : System.IO.Path.GetFileNameWithoutExtension(fileName);
+                }
             }
         }
 
@@ -196,7 +201,7 @@ namespace NSLOAD.ViewModels
             NsLoadConfigLoader.Save(_config);
 
             PluginManager.Register(name)
-                .WithDllPath(entry.DllPath)
+                .WithPath(entry.DllPath)
                 .WithCommands()
                 .Commit();
 

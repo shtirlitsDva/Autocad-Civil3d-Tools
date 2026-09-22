@@ -31,15 +31,15 @@ namespace NSLOAD
                     return;
                 }
 
-                if (string.IsNullOrEmpty(reg.DllPath))
+                if (string.IsNullOrEmpty(reg.Path))
                 {
                     ed?.WriteMessage($"\n{pluginName} has no path configured.");
                     return;
                 }
 
-                if (!File.Exists(reg.DllPath))
+                if (!File.Exists(reg.Path))
                 {
-                    ed?.WriteMessage($"\n{pluginName} not found: {reg.DllPath}");
+                    ed?.WriteMessage($"\n{pluginName} not found: {reg.Path}");
                     return;
                 }
 
@@ -47,8 +47,7 @@ namespace NSLOAD
             }
             catch (Exception ex)
             {
-                ed?.WriteMessage($"\n{pluginName} load error: {ex.Message}");
-                ed?.WriteMessage($"\n{ex}");
+                ReportFailure(ed, $"{pluginName} load error", ex);
             }
         }
 
@@ -69,18 +68,22 @@ namespace NSLOAD
             }
             catch (Exception ex)
             {
-                ed?.WriteMessage($"\n{pluginName} unload error: {ex.Message}");
-                ed?.WriteMessage($"\n{ex}");
+                ReportFailure(ed, $"{pluginName} unload error", ex);
             }
         }
 
         /// <summary>AutoCAD is shutting down: let every plugin do its exit work.</summary>
-        public static void UnloadAll()
+        public static void ShutdownAll()
         {
             foreach (var reg in _plugins.Values)
             {
                 try { reg.Plugin.Shutdown(); }
-                catch { }
+                catch (Exception ex)
+                {
+                    // Keep going: one plugin failing its exit work must not stop
+                    // the others from doing theirs.
+                    NsLoadDiagnostics.Report($"{reg.PluginName} shutdown", ex);
+                }
             }
         }
 
@@ -108,6 +111,20 @@ namespace NSLOAD
             _plugins.Remove(pluginName);
         }
 
+        // A refusal is written for the drafter and shown as it is; anything else
+        // is unexpected and keeps its full detail for whoever has to fix it.
+        private static void ReportFailure(Editor? ed, string what, Exception ex)
+        {
+            if (ex is PluginRefusedException)
+            {
+                string cause = ex.InnerException != null ? $" ({ex.InnerException.Message})" : "";
+                ed?.WriteMessage($"\n{what}: {ex.Message}{cause}");
+                return;
+            }
+            ed?.WriteMessage($"\n{what}: {ex.Message}");
+            ed?.WriteMessage($"\n{ex}");
+        }
+
         private static PluginRegistration GetRegistration(string pluginName)
         {
             if (!_plugins.TryGetValue(pluginName, out var reg))
@@ -130,7 +147,10 @@ namespace NSLOAD
     internal class PluginRegistration
     {
         public required string PluginName { get; init; }
-        public required string DllPath { get; init; }
+
+        /// <summary>A plugin DLL, or a native group's manifest.</summary>
+        public required string Path { get; init; }
+
         public required string[] SharedAssemblyNames { get; init; }
         public required ILoadablePlugin Plugin { get; init; }
     }
@@ -138,7 +158,7 @@ namespace NSLOAD
     public class PluginRegistrationBuilder
     {
         private readonly string _pluginName;
-        private string? _dllPath;
+        private string? _path;
         private string[] _sharedAssemblyNames = Array.Empty<string>();
         private bool _useCommands;
 
@@ -147,9 +167,10 @@ namespace NSLOAD
             _pluginName = pluginName;
         }
 
-        public PluginRegistrationBuilder WithDllPath(string dllPath)
+        /// <summary>A plugin DLL, or a native group's <c>*.oarx.json</c>.</summary>
+        public PluginRegistrationBuilder WithPath(string path)
         {
-            _dllPath = dllPath;
+            _path = path;
             return this;
         }
 
@@ -167,14 +188,13 @@ namespace NSLOAD
 
         public void Commit()
         {
-            string path = _dllPath ?? "";
+            string path = _path ?? "";
             var reg = new PluginRegistration
             {
                 PluginName = _pluginName,
-                DllPath = path,
+                Path = path,
                 SharedAssemblyNames = _sharedAssemblyNames,
-                Plugin = PluginKinds.Create(
-                    _pluginName, path, _useCommands ? new CommandRegistrar() : null),
+                Plugin = PluginKinds.Create(_pluginName, path, _useCommands),
             };
 
             PluginManager.AddRegistration(reg);

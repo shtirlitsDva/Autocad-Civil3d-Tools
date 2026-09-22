@@ -52,19 +52,29 @@ namespace NSLOAD
             }
 
             string csvPath = @"X:\AutoCAD DRI - 01 Civil 3D\NetloadV2\Register-2025.csv";
+            bool registerRead;
             try
             {
                 _csvApps = CsvLoader.Load(csvPath);
+                registerRead = true;
             }
             catch (System.Exception ex)
             {
                 ed?.WriteMessage($"\nNSLOAD: Failed to read CSV: {ex.Message}");
                 _csvApps = new Dictionary<string, RegisterEntry>();
+                registerRead = false;
             }
 
-            _config = NsLoadConfigLoader.MergeWithCsv(
-                NsLoadConfigLoader.Load(), _csvApps);
-            NsLoadConfigLoader.Save(_config);
+            // Merge only against a register that was actually read. Merging against
+            // an unreadable one (X: offline, OneDrive not mounted yet) would drop
+            // every app from the saved config, and the drafter's own auto-load
+            // choices with them.
+            _config = NsLoadConfigLoader.Load() ?? new NsLoadConfig();
+            if (registerRead)
+            {
+                _config = NsLoadConfigLoader.MergeWithCsv(_config, _csvApps);
+                NsLoadConfigLoader.Save(_config);
+            }
 
             int predefinedLoaded = 0;
             foreach (var app in _config.PredefinedApps)
@@ -73,7 +83,7 @@ namespace NSLOAD
                     continue;
 
                 PluginManager.Register(app.DisplayName)
-                    .WithDllPath(entry.Path)
+                    .WithPath(entry.Path)
                     .WithCommands()
                     .Commit();
 
@@ -92,7 +102,7 @@ namespace NSLOAD
             foreach (var plugin in _config.Plugins)
             {
                 PluginManager.Register(plugin.Name)
-                    .WithDllPath(plugin.DllPath)
+                    .WithPath(plugin.DllPath)
                     .WithCommands()
                     .Commit();
 
@@ -116,7 +126,7 @@ namespace NSLOAD
 
         public void Terminate()
         {
-            PluginManager.UnloadAll();
+            PluginManager.ShutdownAll();
 
             try { AutoCadScanSuppressor.Restore(); } catch { }
 

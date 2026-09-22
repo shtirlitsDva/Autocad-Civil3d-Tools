@@ -28,17 +28,28 @@ namespace NSLOAD
     }
 
     /// <summary>
+    /// A refusal written for the drafter: the message says what is wrong and what
+    /// to do, so it is shown as it is, without a stack trace.
+    /// </summary>
+    public class PluginRefusedException : Exception
+    {
+        public PluginRefusedException(string message) : base(message) { }
+        public PluginRefusedException(string message, Exception inner) : base(message, inner) { }
+    }
+
+    /// <summary>
     /// The one place that decides what kind of plugin a register path names:
     /// a native group manifest (<c>*.oarx.json</c>) or a managed plugin DLL.
     /// </summary>
     internal static class PluginKinds
     {
-        public static ILoadablePlugin Create(
-            string pluginName, string path, CommandRegistrar? registrar)
+        public static ILoadablePlugin Create(string pluginName, string path, bool withCommands)
         {
+            // Commands are a managed-plugin notion: a native group's modules
+            // register their own with AutoCAD.
             return Native.NativeGroupManifest.IsManifestPath(path)
                 ? new Native.NativeGroupPlugin(pluginName, path)
-                : new ManagedPlugin(pluginName, path, registrar);
+                : new ManagedPlugin(pluginName, path, withCommands ? new CommandRegistrar() : null);
         }
     }
 }

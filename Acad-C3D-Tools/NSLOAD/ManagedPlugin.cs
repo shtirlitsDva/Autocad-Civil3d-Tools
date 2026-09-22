@@ -118,7 +118,12 @@ namespace NSLOAD
             if (_host.IsLoaded)
             {
                 try { _host.Plugin?.Terminate(); }
-                catch { }
+                catch (System.Exception ex)
+                {
+                    // The plugin is unloaded regardless; its own cleanup failing
+                    // must not stop that, but it must not pass unheard either.
+                    NsLoadDiagnostics.Report($"{_pluginName} Terminate", ex);
+                }
 
                 _host.Unload();
             }

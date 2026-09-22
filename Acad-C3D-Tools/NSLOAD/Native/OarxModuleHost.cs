@@ -14,7 +14,7 @@ namespace NSLOAD.Native
     /// Raised when a native module refuses to load or unload. Carries a message
     /// written for the drafter reading the command line, not a status code.
     /// </summary>
-    public class OarxModuleException : Exception
+    public class OarxModuleException : PluginRefusedException
     {
         public OarxModuleException(string message) : base(message) { }
         public OarxModuleException(string message, Exception inner) : base(message, inner) { }
@@ -151,26 +151,28 @@ namespace NSLOAD.Native
         }
 
         /// <summary>
-        /// Is a module of this file name still mapped into THIS process? After a
-        /// successful unload this is the proof that the image really left: a
-        /// module another module imports from stays mapped (and its file stays
-        /// locked) even though the linker has released it.
+        /// The full path a module of this file name is mapped from in THIS
+        /// process, or null when none is. After a successful unload a non-null
+        /// answer proves the image did NOT leave: a module another module imports
+        /// from stays mapped (and its file stays locked) even though the linker
+        /// has released it.
         /// </summary>
-        public static bool IsMappedInThisProcess(string moduleFileName)
+        public static string? MappedPathInThisProcess(string moduleFileName)
         {
             try
             {
                 using var self = Process.GetCurrentProcess();
                 return self.Modules
                     .Cast<ProcessModule>()
-                    .Any(m => string.Equals(
-                        m.ModuleName, moduleFileName, StringComparison.OrdinalIgnoreCase));
+                    .FirstOrDefault(m => string.Equals(
+                        m.ModuleName, moduleFileName, StringComparison.OrdinalIgnoreCase))
+                    ?.FileName;
             }
             catch (Exception ex)
             {
                 NsLoadDiagnostics.Report(
                     $"OarxModuleHost: module-table probe for {moduleFileName}", ex);
-                return false;
+                return null;
             }
         }
     }

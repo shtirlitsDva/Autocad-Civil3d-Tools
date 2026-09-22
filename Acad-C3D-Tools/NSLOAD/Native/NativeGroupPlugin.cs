@@ -26,6 +26,8 @@ namespace NSLOAD.Native
     /// <item>the loaded and on-disk versions are reported, so the drafter can see
     /// when OneDrive has finished.</item>
     /// </list>
+    /// Companions (the managed trace UI, pinned DLLs) are load-only: a change to
+    /// them reaches the drafter at the next Civil start, not at a reload.
     /// Design authority: NorsynDrawingTools
     /// <c>docs/shared-understanding/module-loading.md</c>, ndh-pipeline-user-delivery.
     /// </remarks>
@@ -34,10 +36,19 @@ namespace NSLOAD.Native
         private readonly string _name;
         private readonly string _manifestPath;
 
-        // The manifest as it was at the last successful load. Unload walks THESE
-        // modules, not a manifest that OneDrive may have changed since.
+        // The manifest as it was when this group last put modules into AutoCAD.
+        // Unload walks THESE modules, not a manifest OneDrive may have changed since.
         private NativeGroupManifest? _loaded;
         private string? _loadedVersion;
+
+        // Set when an unload released the modules but their images stayed in
+        // memory: the files stay locked until Civil restarts.
+        private bool _heldInMemory;
+
+        // FileVersionInfo on a cloud-only file makes OneDrive download it, and the
+        // palette asks every few seconds; read each file again only when it changes.
+        private readonly Dictionary<string, (DateTime WriteTime, string Version)> _versionCache =
+            new(StringComparer.OrdinalIgnoreCase);
 
         public NativeGroupPlugin(string name, string manifestPath)
         {
@@ -64,12 +75,21 @@ namespace NSLOAD.Native
                         $"there first, then load {_name}.");
             }
 
-            var stillMapped = manifest.Modules
-                .Select(Path.GetFileName)
-                .Where(f => OarxModuleHost.IsMappedInThisProcess(f!))
-                .ToList();
-            if (stillMapped.Count > 0)
-                say($"{_name}: WARNING - {string.Join(", ", stillMapped)} never left memory " +
+            var reused = new List<string>();
+            foreach (string module in manifest.Modules)
+            {
+                string fileName = Path.GetFileName(module);
+                string? mappedFrom = OarxModuleHost.MappedPathInThisProcess(fileName);
+                if (mappedFrom == null) continue;
+                if (!string.Equals(mappedFrom, module, StringComparison.OrdinalIgnoreCase))
+                    throw new OarxModuleException(
+                        $"{fileName} from {Path.GetDirectoryName(mappedFrom)} is still held in " +
+                        $"memory, so {_name} cannot load its own copy beside it. Restart Civil, " +
+                        $"then load {_name}.");
+                reused.Add(fileName);
+            }
+            if (reused.Count > 0)
+                say($"{_name}: WARNING - {string.Join(", ", reused)} never left memory " +
                     "after the last unload, so the version already in memory is used again. " +
                     "Restart Civil to get the new version.");
 
@@ -91,20 +111,32 @@ namespace NSLOAD.Native
             {
                 // Leave nothing half-loaded: an arx without its dbx (or the
                 // reverse) is worse than no group at all.
+                var leftBehind = new List<string>();
                 foreach (string fileName in Enumerable.Reverse(loadedSoFar))
                 {
                     try { OarxModuleHost.Unload(fileName); }
                     catch (Exception undoEx)
                     {
+                        leftBehind.Add(fileName);
                         say($"{_name}: WARNING - could not unload {fileName} after the " +
                             $"failed load: {undoEx.Message}");
                     }
+                }
+                if (leftBehind.Count > 0)
+                {
+                    // Still ours: keep them tracked so IsLoaded tells the truth and
+                    // Unload can be retried from the manager.
+                    _loaded = manifest;
+                    _loadedVersion = version;
+                    say($"{_name}: {string.Join(", ", leftBehind)} is still loaded by this " +
+                        "group. Unload it from NSLOADMGR before trying again.");
                 }
                 throw;
             }
 
             _loaded = manifest;
             _loadedVersion = version;
+            _heldInMemory = false;
             say($"{_name} loaded (v{version}).");
         }
 
@@ -120,13 +152,14 @@ namespace NSLOAD.Native
 
             var stillMapped = _loaded.Modules
                 .Select(Path.GetFileName)
-                .Where(f => OarxModuleHost.IsMappedInThisProcess(f!))
+                .Where(f => OarxModuleHost.MappedPathInThisProcess(f!) != null)
                 .ToList();
 
             _loaded = null;
             _loadedVersion = null;
+            _heldInMemory = stillMapped.Count > 0;
 
-            if (stillMapped.Count > 0)
+            if (_heldInMemory)
                 say($"{_name}: WARNING - AutoCAD released {string.Join(", ", stillMapped)} " +
                     "but it is still held in memory, so its file stays locked and OneDrive " +
                     "cannot update it. Restart Civil to get the new version.");
@@ -143,12 +176,11 @@ namespace NSLOAD.Native
         {
             get
             {
-                IReadOnlyList<string> modules;
                 List<string?> onDisk;
                 try
                 {
-                    modules = _loaded?.Modules ?? NativeGroupManifest.Read(_manifestPath).Modules;
-                    onDisk = modules.Select(ReadVersion).ToList();
+                    var modules = _loaded?.Modules ?? NativeGroupManifest.Read(_manifestPath).Modules;
+                    onDisk = modules.Select(ReadVersionCached).ToList();
                 }
                 catch (Exception ex)
                 {
@@ -163,13 +195,15 @@ namespace NSLOAD.Native
 
                 if (IsLoaded && _loadedVersion != null)
                 {
-                    if (disk == null || disk == _loadedVersion)
-                        return disk == null
-                            ? $"v{_loadedVersion} · OneDrive syncing…"
-                            : $"v{_loadedVersion}";
-                    return $"v{_loadedVersion} — v{disk} ready: Unload, then Load";
+                    if (disk == null)
+                        return $"v{_loadedVersion} · OneDrive syncing…";
+                    return disk == _loadedVersion
+                        ? $"v{_loadedVersion}"
+                        : $"v{_loadedVersion} — v{disk} ready: Unload, then Load";
                 }
 
+                if (_heldInMemory)
+                    return "Held in memory — restart Civil to update";
                 return disk == null ? "OneDrive syncing…" : $"on disk v{disk}";
             }
         }
@@ -184,20 +218,27 @@ namespace NSLOAD.Native
                 .Select(m => (File: Path.GetFileName(m), Version: ReadVersion(m)))
                 .ToList();
 
-            var missing = versions.Where(v => v.Version == null).Select(v => v.File).ToList();
-            if (missing.Count > 0)
-                throw new OarxModuleException(
-                    $"{_name} cannot load: {string.Join(", ", missing)} not found next to " +
-                    $"{Path.GetFileName(_manifestPath)}. OneDrive may still be syncing; " +
-                    "try again in a moment.");
-
-            if (versions.Select(v => v.Version).Distinct().Count() > 1)
+            bool missing = versions.Any(v => v.Version == null);
+            if (missing || versions.Select(v => v.Version).Distinct().Count() > 1)
                 throw new OarxModuleException(
                     $"OneDrive is still syncing {_name}: " +
-                    string.Join(", ", versions.Select(v => $"{v.File} v{v.Version}")) +
+                    string.Join(", ", versions.Select(v =>
+                        $"{v.File} {(v.Version == null ? "missing" : "v" + v.Version)}")) +
                     ". Try again in a moment.");
 
             return versions[0].Version!;
+        }
+
+        private string? ReadVersionCached(string path)
+        {
+            if (!File.Exists(path)) return null;
+            DateTime written = File.GetLastWriteTimeUtc(path);
+            if (_versionCache.TryGetValue(path, out var hit) && hit.WriteTime == written)
+                return hit.Version;
+
+            string? version = ReadVersion(path);
+            if (version != null) _versionCache[path] = (written, version);
+            return version;
         }
 
         /// <summary>The module's FileVersion as four numbers, or null when the
