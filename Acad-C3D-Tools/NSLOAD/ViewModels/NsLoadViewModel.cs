@@ -186,8 +186,13 @@ namespace NSLOAD.ViewModels
 
             string name = NewPluginName.Trim();
 
+            // Register rows count too: a second registration under a register
+            // row's name would replace it, and a group it had loaded would run on
+            // untracked until AutoCAD restarts.
             if (_config.Plugins.Any(p =>
-                    p.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+                    p.Name.Equals(name, StringComparison.OrdinalIgnoreCase)) ||
+                PluginManager.GetRegisteredPluginNames().Any(n =>
+                    n.Equals(name, StringComparison.OrdinalIgnoreCase)))
                 return;
 
             var entry = new UserPluginEntry

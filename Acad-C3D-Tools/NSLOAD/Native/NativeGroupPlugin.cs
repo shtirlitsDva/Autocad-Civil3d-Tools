@@ -127,11 +127,23 @@ namespace NSLOAD.Native
                 if (leftBehind.Count > 0)
                 {
                     // Still ours: keep them tracked so IsLoaded tells the truth and
-                    // Unload can be retried from the manager.
+                    // Unload can be retried from the manager. Their files are
+                    // locked, so the disk says what is in memory; null when those
+                    // disagree (the row then shows a mixed pair).
                     _loaded = manifest;
-                    _loadedVersion = version;
+                    _loadedVersion = SingleVersion(manifest.Modules
+                        .Where(m => leftBehind.Contains(Path.GetFileName(m), StringComparer.OrdinalIgnoreCase)));
                     say($"{_name}: {string.Join(", ", leftBehind)} is still loaded by this " +
                         "group. Unload it from NSLOADMGR before trying again.");
+                }
+                else
+                {
+                    // Unloaded, but an image may have stayed behind, exactly as
+                    // after an Unload; its locked file names the version in memory.
+                    var held = StillMapped(loadedSoFar);
+                    if (held.Count > 0)
+                        _heldVersion = ReadVersion(OarxModuleHost.MappedPathInThisProcess(held[0])!);
+                    WarnIfHeld(held, say);
                 }
                 throw;
             }
@@ -152,21 +164,37 @@ namespace NSLOAD.Native
             foreach (string module in _loaded.Modules.Reverse())
                 OarxModuleHost.Unload(Path.GetFileName(module));
 
-            var stillMapped = _loaded.Modules
-                .Select(Path.GetFileName)
-                .Where(f => OarxModuleHost.MappedPathInThisProcess(f!) != null)
-                .ToList();
+            var stillMapped = StillMapped(_loaded.Modules.Select(m => Path.GetFileName(m)));
 
             _heldVersion = stillMapped.Count > 0 ? _loadedVersion : null;
             _loaded = null;
             _loadedVersion = null;
 
-            if (_heldVersion != null)
-                say($"{_name}: WARNING - AutoCAD released {string.Join(", ", stillMapped)} " +
-                    "but it is still held in memory, so its file stays locked and OneDrive " +
-                    "cannot update it. Restart Civil to get the new version.");
-            else
+            if (!WarnIfHeld(stillMapped, say))
                 say($"{_name} unloaded. Load it again once NSLOADMGR shows the new version.");
+        }
+
+        // The modules, of those named, whose images are still in this process
+        // although the linker has released them.
+        private static List<string> StillMapped(IEnumerable<string> fileNames)
+            => fileNames.Where(f => OarxModuleHost.MappedPathInThisProcess(f) != null).ToList();
+
+        // Tells the drafter a released module never left memory. True when it did.
+        private bool WarnIfHeld(List<string> stillMapped, Action<string> say)
+        {
+            if (stillMapped.Count == 0) return false;
+            say($"{_name}: WARNING - AutoCAD released {string.Join(", ", stillMapped)} " +
+                "but it is still held in memory, so its file stays locked and OneDrive " +
+                "cannot update it. Restart Civil to get the new version.");
+            return true;
+        }
+
+        // The one version these module files carry, or null when they disagree
+        // or one is missing.
+        private static string? SingleVersion(IEnumerable<string> paths)
+        {
+            var versions = paths.Select(ReadVersion).Distinct().ToList();
+            return versions.Count == 1 ? versions[0] : null;
         }
 
         // AutoCAD tears native modules down itself at exit. Unloading them here
@@ -195,7 +223,12 @@ namespace NSLOAD.Native
                     ? null
                     : onDisk[0];
 
-                if (IsLoaded && _loadedVersion != null)
+                // Only after a failed load whose rollback could not unload a
+                // mixed pair: nothing sensible runs until it is unloaded.
+                if (IsLoaded && _loadedVersion == null)
+                    return "Mixed versions in memory — Unload, then Load";
+
+                if (IsLoaded)
                 {
                     if (disk == null)
                         return $"v{_loadedVersion} · OneDrive syncing…";
