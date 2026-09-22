@@ -29,10 +29,8 @@ public partial class Intersect
 
     /// <command>NSALIGNMENTDIRECTIONS</command>
     /// <summary>
-    /// Toggles a direction overlay on ALL Civil 3D alignments in the drawing: green arrowheads spaced
-    /// along each alignment pointing from station 0 toward the end, so you can read every alignment's
-    /// direction at a glance (like the slope arrows in the LER analyse tools). Run once to show, again
-    /// to hide. The arrows keep a constant screen size on zoom and persist through regen.
+    /// Toggles a direction overlay on all Civil 3D alignments in the drawing: green arrowheads pointing from station
+    /// 0 toward the end. Run once to show, again to hide.
     /// </summary>
     /// <category>NSAlignmentCrawl</category>
     [CommandMethod("NSALIGNMENTDIRECTIONS")]

@@ -20,17 +20,10 @@ namespace IntersectUtilities
 
         /// <command>SPLITSTIK</command>
         /// <summary>
-        /// Imports a DimensioneringV2 result file (.d2r) and writes the calculated network out as
-        /// two standalone drawings next to it: one holding only the stikledninger and one holding
-        /// only the hovedledningerne. Both are named after the result's own Id, e.g.
-        /// "Calc 012 - Stik.dwg" and "Calc 012 - Hovedledning.dwg", and are overwritten on re-run.
-        /// Each stikledning becomes its own polyline. Hovedledninger are merged into continuous
-        /// runs that are broken only where the dimension changes — a run therefore passes straight
-        /// through a stik branch, and splits at every genuine network junction. Polylines get the
-        /// usual FJV layer, constant width, linetype and Plinegen, plus NORSYN_NHS_PIPE XData
-        /// carrying the pipe family, the FL/SL role and the DN, because the layer name alone cannot
-        /// distinguish a fordelingsledning from a stikledning. Segments that DimensioneringV2 never
-        /// sized are skipped and reported. The active drawing is not modified.
+        /// Imports a DimensioneringV2 result file (.d2r) and writes the calculated network out as two standalone
+        /// drawings next to it, one with the stikledninger and one with the hovedledningerne, named after the result Id.
+        /// Hovedledninger are merged into continuous runs broken only where the dimension changes; polylines carry
+        /// NORSYN_NHS_PIPE XData with the pipe family, the FL/SL role and the DN. The active drawing is not modified.
         /// </summary>
         /// <category>Dimensionering</category>
         [CommandMethod("SPLITSTIK")]

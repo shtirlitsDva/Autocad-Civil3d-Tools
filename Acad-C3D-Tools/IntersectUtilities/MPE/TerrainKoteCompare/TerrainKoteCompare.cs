@@ -28,13 +28,10 @@ namespace IntersectUtilities
 
         /// <command>TERRAINKOTECOMPARE</command>
         /// <summary>
-        /// Opens an MPE palette for comparing surveyed terrain kote points (AutoCAD POINT nodes carrying the surveyed
-        /// Z) against one or more
-        /// TIN terrain models loaded from external DWG files. Every TinSurface found in every loaded file is active;
-        /// where several surfaces cover the same point the one whose elevation is closest to the surveyed Z wins.
-        /// Each point is projected in Z onto the terrain and the signed difference is reported, positive when the
-        /// surveyed point sits above the model. Results can be previewed as transient markers, numbered and labelled
-        /// in the drawing, and exported to Excel.
+        /// Opens a palette comparing surveyed terrain kote points (AutoCAD POINT nodes) against TIN surfaces loaded from
+        /// external DWG files, reporting the signed difference, positive when the point sits above the model. Where
+        /// several surfaces cover a point the closest elevation wins. Results can be previewed as transient markers,
+        /// labelled in the drawing and exported to Excel.
         /// </summary>
         /// <category>MPE</category>
         [CommandMethod(TerrainKoteCompareCommandName, CommandFlags.Modal)]

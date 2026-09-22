@@ -25,12 +25,9 @@ public partial class Intersect
 
     /// <command>PLACEALIGNMENTMARKER</command>
     /// <summary>
-    /// Places an X marker at a given station on a Civil 3D alignment. The alignment is chosen by name
-    /// from a list covering the drawing and all its xrefs (like FINDALIGNMENT), so xreffed alignments
-    /// work too. Type the station and a block reference (two crossing polylines) is inserted in the
-    /// host drawing at that station on layer 0-ALIGNMENT-MARKER, rotated to the alignment's tangent so
-    /// its legs straddle it at ±45°. The block definition is created in the drawing on first use.
-    /// Stations are raw alignment stations — station equations are not applied.
+    /// Places an X marker block at a typed station on a Civil 3D alignment chosen by name from the drawing and all
+    /// its xrefs. The block is inserted in the host drawing on layer 0-ALIGNMENT-MARKER, rotated to the alignment's
+    /// tangent. Stations are raw alignment stations - station equations are not applied.
     /// </summary>
     /// <category>MPE</category>
     [CommandMethod("PLACEALIGNMENTMARKER", CommandFlags.Modal)]

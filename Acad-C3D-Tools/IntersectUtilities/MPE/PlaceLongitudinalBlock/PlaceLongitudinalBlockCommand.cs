@@ -16,15 +16,10 @@ public partial class Intersect
 {
     /// <command>PLACELONGITUDINALBLOCK</command>
     /// <summary>
-    /// Places a component block in the FV_Fremtid plan drawing from a click in a længdeprofil. Pick a
-    /// point inside a profile view; the station is resolved from that point, then a component is
-    /// chosen from FJV Dynamiske Komponenter.csv (first system, then block). Answer Multiple at the
-    /// first prompt to pick ALL locations first and end with Enter; the block is then chosen once and
-    /// the SAME block is placed at every location, written and saved in one pass. The block is inserted in
-    /// FV_Fremtid — opened as a side drawing and saved — at the plan location of that station, on
-    /// layer 0-KOMPONENT, rotated along the alignment, sized from the pipe it lands on, and stamped
-    /// with BelongsToAlignment. The block is placed loose: the run polyline is NOT cut and no welds
-    /// are generated. Stations are raw alignment stations — station equations are not applied.
+    /// Places a component block in the FV_Fremtid plan drawing from a click in a længdeprofil: the station is
+    /// resolved from the picked point and a component is chosen from FJV Dynamiske Komponenter.csv. Answer Multiple
+    /// to pick all locations first and place the same block at each. The block is inserted loose on layer
+    /// 0-KOMPONENT - the run polyline is not cut and no welds are generated.
     /// </summary>
     /// <category>MPE</category>
     [CommandMethod("PLACELONGITUDINALBLOCK", CommandFlags.Modal)]

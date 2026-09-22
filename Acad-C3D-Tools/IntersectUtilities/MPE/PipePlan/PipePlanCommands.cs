@@ -14,7 +14,10 @@ namespace IntersectUtilities;
 public partial class Intersect
 {
     /// <command>PPEDIT</command>
-    /// <summary>Edits an existing metadata-enabled PipePlan object by moving control handles or segment handles while preserving PipePlan constraints. The command previews each move live, rejects infeasible edits, and finishes when Enter is pressed at the handle prompt.</summary>
+    /// <summary>
+    /// Edits an existing PipePlan object by dragging control handles or segment handles, previewing each move live
+    /// and rejecting infeasible edits. Enter at the handle prompt finishes.
+    /// </summary>
     /// <category>PipePlan</category>
     [CommandMethod("PPEDIT")]
     public void PipePlanEdit()
@@ -36,7 +39,10 @@ public partial class Intersect
     }
 
     /// <command>PPSETTINGS</command>
-    /// <summary>Shows the PipePlan settings palette so the per-DN bending radius (ProjekteringsRadius) and the straight-snap tolerance can be edited. Overrides are saved to the active drawing.</summary>
+    /// <summary>
+    /// Shows the PipePlan settings palette so the per-DN bending radius (ProjekteringsRadius) and the straight-snap
+    /// tolerance can be edited. Overrides are saved to the active drawing.
+    /// </summary>
     /// <category>PipePlan</category>
     [CommandMethod("PPSETTINGS")]
     public void PipePlanSettings()
@@ -58,7 +64,10 @@ public partial class Intersect
     }
 
     /// <command>PPDRAW</command>
-    /// <summary>Starts a new PipePlan draft or continues an existing metadata-enabled PipePlan object. Requires NSPalette to be loaded; the active FJV layer determines the pipe system, type, and DN. The bending radius comes from PPSETTINGS (per-drawing override or built-in default).</summary>
+    /// <summary>
+    /// Starts a new PipePlan draft or continues an existing one. Requires NSPalette; the active FJV layer determines
+    /// pipe system, type and DN, and the bending radius comes from PPSETTINGS.
+    /// </summary>
     /// <category>PipePlan</category>
     [CommandMethod("PPDRAW")]
     public void PipePlan()
@@ -80,7 +89,10 @@ public partial class Intersect
     }
 
     /// <command>PPCONVERT</command>
-    /// <summary>Converts an existing polyline on a recognised FJV layer into a metadata-enabled PipePlan object by reverse-engineering its control points and bend radii. Sharp interior corners are filleted at the project minimum bending radius.</summary>
+    /// <summary>
+    /// Converts an existing polyline on a recognised FJV layer into a PipePlan object by reverse-engineering its
+    /// control points and bend radii. Sharp interior corners are filleted at the project minimum bending radius.
+    /// </summary>
     /// <category>PipePlan</category>
     [CommandMethod("PPCONVERT")]
     public void PipePlanConvert()
@@ -102,7 +114,11 @@ public partial class Intersect
     }
 
     /// <command>PPCOLLAPSE</command>
-    /// <summary>Removes negligible bends from a metadata-enabled PipePlan object. Any fillet whose sagitta — the distance from the arc midpoint to the midpoint of the chord between its tangent points — is at or below a threshold (default 0.01) is collapsed by deleting its control vertex. A live preview shows the resulting pipe and marks the vertices to be removed; Enter confirms, a new value re-previews, Esc cancels.</summary>
+    /// <summary>
+    /// Removes negligible bends from a PipePlan object: any fillet whose sagitta is at or below a threshold
+    /// (default 0.01) is collapsed by deleting its control vertex. A live preview marks the vertices to be removed;
+    /// Enter confirms, a new value re-previews.
+    /// </summary>
     /// <category>PipePlan</category>
     [CommandMethod("PPCOLLAPSE")]
     public void PipePlanCollapse()

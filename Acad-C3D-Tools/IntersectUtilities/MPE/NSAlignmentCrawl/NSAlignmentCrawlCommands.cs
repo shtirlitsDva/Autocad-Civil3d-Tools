@@ -18,13 +18,9 @@ public partial class Intersect
 {
     /// <command>NSALIGNMENTCRAWL</command>
     /// <summary>
-    /// Prototype alignment crawler. Reads the FJV network (pipes + component blocks) from the
-    /// FV_Fremtid xref. A yellow X follows the cursor (snapped to the network) while you pick the
-    /// start; then you pick the end with a live preview of the shortest crawl path, which follows the
-    /// pipes and jumps through the blocks (port → block centre → port). Once the end is placed you
-    /// confirm the direction with a high-visibility arrow + start-X overlay (Flip reverses, Enter
-    /// accepts), then a single polyline following the crawl path is baked on layer 0 in the confirmed
-    /// direction — ready to be turned into a Civil 3D alignment with "Create Alignment from Objects".
+    /// Prototype alignment crawler. Pick a start and an end on the FJV network read from the FV_Fremtid xref and the
+    /// shortest path following the pipes and through the component blocks is previewed; after confirming the
+    /// direction it is baked as a single polyline on layer 0, ready for "Create Alignment from Objects".
     /// </summary>
     /// <category>NSAlignmentCrawl</category>
     [CommandMethod("NSALIGNMENTCRAWL")]

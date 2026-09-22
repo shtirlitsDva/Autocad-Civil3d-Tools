@@ -13,7 +13,10 @@ namespace IntersectUtilities;
 public partial class Intersect
 {
     /// <command>PDSETTINGS</command>
-    /// <summary>Shows the PipePlanDE settings palette: edit the per-DN parameter table (z1, d, x, … b, B, B1) next to the Regel-Grabenprofil reference diagram. Overrides are saved to the active drawing. Pick the DN to draw in the PDDRAW window instead.</summary>
+    /// <summary>
+    /// Shows the PipePlanDE settings palette for editing the per-DN parameter table (z1, d, x, ... b, B, B1) against
+    /// the Regel-Grabenprofil diagram. Overrides are saved to the active drawing; the DN to draw is picked in PDDRAW.
+    /// </summary>
     /// <category>PipePlanDE</category>
     [CommandMethod("PDSETTINGS")]
     public void PipePlanDESettings()
@@ -37,7 +40,12 @@ public partial class Intersect
     }
 
     /// <command>PDDRAW</command>
-    /// <summary>Opens the dimension picker and draws a single-pipe run. The window stays open to select the drawing size; if no DN is selected yet, PDDRAW just shows it and waits. With a DN selected, you draw the routing centreline interactively, and on Enter the centreline (layer 0-Centerline) plus two mantle-OD-wide frem/retur polylines are placed, corners filleted to the DN's minimum elastic bending radius (inner pipe = R_min, centreline and outer derived from the offsets). A corner too tight for that radius turns the preview red and is rejected on Enter. The [Straight] keyword toggles filleting off entirely — sharp mitered corners with no arcs. Closing the window and running PDDRAW reopens it.</summary>
+    /// <summary>
+    /// Opens the dimension picker and draws a single-pipe run: with a DN selected you draw the routing centreline
+    /// interactively, and on Enter the centreline (layer 0-Centerline) plus two mantle-OD-wide frem/retur polylines
+    /// are placed, corners filleted to the DN's minimum elastic bending radius. Corners too tight are rejected; the
+    /// [Straight] keyword draws sharp mitered corners instead.
+    /// </summary>
     /// <category>PipePlanDE</category>
     [CommandMethod("PDDRAW")]
     public void PipePlanDEDraw()
@@ -65,7 +73,10 @@ public partial class Intersect
     }
 
     /// <command>PDTRENCH</command>
-    /// <summary>Select one or more PDDRAW centrelines to draw their trench: a SOLID, 80%-transparent hatch on the "Gravearbejde" layer, each axis sized to its stored DN's Regelgrabenbreite (B). Each axis is buffered by B/2 (clean at sharp bends and along the fillet arcs); where trenches meet they are merged into one hatch, and separate runs stay separate.</summary>
+    /// <summary>
+    /// Select PDDRAW centrelines to draw their trench: a SOLID, 80%-transparent hatch on layer Gravearbejde, each
+    /// axis buffered by half its stored DN's Regelgrabenbreite (B). Trenches that meet are merged into one hatch.
+    /// </summary>
     /// <category>PipePlanDE</category>
     [CommandMethod("PDTRENCH")]
     public void PipePlanDETrench()
@@ -87,7 +98,11 @@ public partial class Intersect
     }
 
     /// <command>PDEDIT</command>
-    /// <summary>Edits a PDDRAW run (pick any of its three polylines): drag the orange vertex grips or yellow segment grips to reshape, [Add]/[Delete] corners, [Continue] to extend the run from an endpoint (like PPDRAW Continue), or [Radius] to set a single corner's bending radius (floored at the DN's minimum). The whole run (centreline + frem + retur) re-solves live and re-bakes on commit. Only runs drawn after filleting was added are editable; runs drawn without bends (Straight) must be redrawn.</summary>
+    /// <summary>
+    /// Edits a PDDRAW run (pick any of its three polylines): drag the vertex or segment grips, [Add]/[Delete]
+    /// corners, [Continue] to extend from an endpoint, or [Radius] to set one corner's bending radius. The whole run
+    /// re-solves live and re-bakes on commit; runs drawn with [Straight] are not editable.
+    /// </summary>
     /// <category>PipePlanDE</category>
     [CommandMethod("PDEDIT")]
     public void PipePlanDEEdit()
@@ -109,7 +124,11 @@ public partial class Intersect
     }
 
     /// <command>PDANNOTATE</command>
-    /// <summary>Select PDDRAW centrelines to dimension them: each corner-to-corner routing leg gets an aligned dimension (like DimAligned), split into separate dimensions where another selected centreline crosses it, plus a DIMARC arc-length dimension for each fillet bend. Type [Settings] (S) first to pick the dimension style and offset from a dropdown (persisted per drawing). Dimensions land on layer PD-Anno.</summary>
+    /// <summary>
+    /// Select PDDRAW centrelines to dimension them: an aligned dimension per routing leg, split where another
+    /// selected centreline crosses it, plus a DIMARC arc-length dimension per fillet bend. [Settings] picks the
+    /// dimension style and offset; dimensions land on layer PD-Anno.
+    /// </summary>
     /// <category>PipePlanDE</category>
     [CommandMethod("PDANNOTATE")]
     public void PipePlanDEAnnotate()

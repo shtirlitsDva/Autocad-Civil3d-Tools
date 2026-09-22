@@ -27,18 +27,10 @@ namespace IntersectUtilities
 
         /// <command>Ler2Project</command>
         /// <summary>
-        /// A single-target, non-palette form of LERCONNECTNETWORK. Window/crossing multi-selects the source 3D polylines,
-        /// then previews how each source connects onto a hovered target 3D polyline and rebuilds each source when the target is
-        /// picked. The target prompt carries an inline "Settings" keyword to change the minimum slope in per-mille and/or the
-        /// check distance (both persist as the defaults for later runs, and the hover preview reflects changes live); Settings
-        /// lives here rather than on the source prompt because GetSelection ignores inline keywords on this AutoCAD build. The
-        /// connection reuses LERCONNECTNETWORK's projection unchanged:
-        /// both source and target are flattened to XY, the source's nearest end is extended along its tangent to intersect
-        /// the target in XY (or pivots at an existing crossing), that point is lifted to the target's real elevation, and the
-        /// source is rebuilt sloping upward away from the pivot at the given per-mille. Because the target is picked
-        /// explicitly, the connection is never rejected by distance (unlike LERCONNECTNETWORK); the check distance only drives
-        /// the "too long / misses target" flag. Each source is rewritten in place, keeping its ObjectId, layer, XData and
-        /// property sets. Every source polyline must contain at least two vertices, and the target cannot also be a source.
+        /// Connects selected 3D LER polylines onto one picked target 3D polyline: each source is extended along its
+        /// tangent to meet the target in XY, lifted to the target's elevation, and rebuilt sloping upward at the given
+        /// per-mille. A single-target, non-palette form of LERCONNECTNETWORK; the Settings keyword on the target prompt
+        /// sets the minimum slope and the check distance.
         /// </summary>
         /// <category>MPE</category>
         [CommandMethod(Ler2ProjectCommandName, CommandFlags.Modal)]

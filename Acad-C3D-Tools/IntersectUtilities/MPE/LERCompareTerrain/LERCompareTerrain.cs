@@ -37,11 +37,9 @@ namespace IntersectUtilities
 
         /// <command>LERCompareTerrain</command>
         /// <summary>
-        /// Opens an MPE palette for comparing selected 3D LER polylines against a TIN terrain surface loaded from an
-        /// external DWG. The tool previews copied 3D pipe segments classified by vertical surface clearance relative to a
-        /// user-defined meter threshold and can bake the preview into layer-separated 3D polylines for "less", "more",
-        /// and "outside surface" segments. The preview is drawn on the source 3D polyline geometry, not on the terrain.
-        /// Re-run the command to change which 3D polylines are included in the palette session.
+        /// Opens a palette comparing selected 3D LER polylines against a TIN surface loaded from an external DWG.
+        /// Segments are classified by vertical clearance relative to a threshold and can be baked into layer-separated
+        /// 3D polylines for "less", "more" and "outside surface".
         /// </summary>
         /// <category>MPE</category>
         [CommandMethod(LERCompareTerrainCommandName, CommandFlags.Modal)]
