@@ -64,7 +64,7 @@ namespace NSLOAD
         }
 
         public static NsLoadConfig MergeWithCsv(
-            NsLoadConfig? config, Dictionary<string, string> csvApps)
+            NsLoadConfig? config, Dictionary<string, RegisterEntry> csvApps)
         {
             config ??= new NsLoadConfig();
 
@@ -78,7 +78,7 @@ namespace NSLOAD
                     config.PredefinedApps.Add(new PredefinedAppEntry
                     {
                         DisplayName = kvp.Key,
-                        AutoLoad = false,
+                        AutoLoad = kvp.Value.AutoLoadByDefault,
                     });
                 }
             }

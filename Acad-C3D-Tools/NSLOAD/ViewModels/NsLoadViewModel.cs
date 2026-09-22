@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
 using System.Windows.Data;
+using System.Windows.Threading;
 
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -16,7 +17,7 @@ namespace NSLOAD.ViewModels
     public partial class NsLoadViewModel : ObservableObject
     {
         private NsLoadConfig _config = new();
-        private Dictionary<string, string> _csvApps = new();
+        private Dictionary<string, RegisterEntry> _csvApps = new();
 
         public ObservableCollection<AppItemViewModel> PredefinedApps { get; } = new();
         public ObservableCollection<AppItemViewModel> UserPlugins { get; } = new();
@@ -28,11 +29,25 @@ namespace NSLOAD.ViewModels
         [ObservableProperty] private string _newPluginDllPath = "";
         [ObservableProperty] private bool _newPluginLoadOnStartup;
 
+        // Re-reads every row while the palette is visible, so a drafter waiting
+        // for OneDrive to deliver a new native-group version sees it arrive.
+        private readonly DispatcherTimer _liveRefresh =
+            new() { Interval = TimeSpan.FromSeconds(3) };
+
         public NsLoadViewModel()
         {
+            _liveRefresh.Tick += (_, _) => RefreshStates();
         }
 
-        public void Initialize(NsLoadConfig config, Dictionary<string, string> csvApps)
+        public void StartLiveRefresh()
+        {
+            RefreshStates();
+            _liveRefresh.Start();
+        }
+
+        public void StopLiveRefresh() => _liveRefresh.Stop();
+
+        public void Initialize(NsLoadConfig config, Dictionary<string, RegisterEntry> csvApps)
         {
             _config = config;
             _csvApps = csvApps;
@@ -218,6 +233,8 @@ namespace NSLOAD.ViewModels
         [ObservableProperty] private bool _isLoaded;
         [ObservableProperty] private string _status = "Unloaded";
         [ObservableProperty] private bool _autoLoad;
+        [ObservableProperty] private string? _versionText;
+        [ObservableProperty] private bool _hasVersionText;
 
         public AppItemViewModel(string name, bool isPredefined)
         {
@@ -229,6 +246,8 @@ namespace NSLOAD.ViewModels
         {
             IsLoaded = PluginManager.IsRegistered(Name) && PluginManager.IsLoaded(Name);
             Status = IsLoaded ? "Loaded" : "Unloaded";
+            VersionText = PluginManager.GetVersionStatus(Name);
+            HasVersionText = !string.IsNullOrEmpty(VersionText);
         }
     }
 

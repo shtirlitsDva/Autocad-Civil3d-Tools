@@ -9,7 +9,15 @@ namespace NSLOAD.Views
         public NsLoadPanel()
         {
             InitializeComponent();
-            DataContext = new NsLoadViewModel();
+            var vm = new NsLoadViewModel();
+            DataContext = vm;
+
+            // Poll only while the drafter can see the rows.
+            IsVisibleChanged += (_, e) =>
+            {
+                if ((bool)e.NewValue) vm.StartLiveRefresh();
+                else vm.StopLiveRefresh();
+            };
         }
     }
 }

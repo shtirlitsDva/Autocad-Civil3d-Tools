@@ -25,7 +25,7 @@ namespace NSLOAD
             new("A7E3F1B2-9C4D-4E8A-B6D5-2F1A3C7E9B04");
 
         private static NsLoadConfig _config = new();
-        private static Dictionary<string, string> _csvApps = new();
+        private static Dictionary<string, RegisterEntry> _csvApps = new();
 
         private static readonly List<(string Group, string Name, CommandCallback Callback)>
             _onDemandCommands = new();
@@ -59,7 +59,7 @@ namespace NSLOAD
             catch (System.Exception ex)
             {
                 ed?.WriteMessage($"\nNSLOAD: Failed to read CSV: {ex.Message}");
-                _csvApps = new Dictionary<string, string>();
+                _csvApps = new Dictionary<string, RegisterEntry>();
             }
 
             _config = NsLoadConfigLoader.MergeWithCsv(
@@ -69,11 +69,11 @@ namespace NSLOAD
             int predefinedLoaded = 0;
             foreach (var app in _config.PredefinedApps)
             {
-                if (!_csvApps.TryGetValue(app.DisplayName, out string? dllPath))
+                if (!_csvApps.TryGetValue(app.DisplayName, out RegisterEntry? entry))
                     continue;
 
                 PluginManager.Register(app.DisplayName)
-                    .WithDllPath(dllPath)
+                    .WithDllPath(entry.Path)
                     .WithCommands()
                     .Commit();
 
