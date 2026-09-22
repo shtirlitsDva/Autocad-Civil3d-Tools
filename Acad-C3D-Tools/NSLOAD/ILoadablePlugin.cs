@@ -51,5 +51,15 @@ namespace NSLOAD
                 ? new Native.NativeGroupPlugin(pluginName, path)
                 : new ManagedPlugin(pluginName, path, withCommands ? new CommandRegistrar() : null);
         }
+
+        /// <summary>The name a newly added plugin gets unless the user types
+        /// one: the file name without its kind's suffix.</summary>
+        public static string DefaultName(string path)
+        {
+            string fileName = System.IO.Path.GetFileName(path);
+            return Native.NativeGroupManifest.IsManifestPath(fileName)
+                ? fileName[..^Native.NativeGroupManifest.FileSuffix.Length]
+                : System.IO.Path.GetFileNameWithoutExtension(fileName);
+        }
     }
 }

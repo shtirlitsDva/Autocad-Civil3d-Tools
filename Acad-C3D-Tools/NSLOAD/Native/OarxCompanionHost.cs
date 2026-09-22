@@ -16,8 +16,11 @@ namespace NSLOAD.Native
     /// </summary>
     /// <remarks>
     /// COPIED from DevReload's <c>DevReload.Oarx.OarxCompanionHost</c> (DevReload
-    /// 932eba6); the progress HUD is replaced by a plain line writer. The two
-    /// copies are maintained by hand: a fix to one belongs in the other too.
+    /// 932eba6); the progress HUD is replaced by a plain line writer. Since then
+    /// this copy compares paths by file identity and warns about a managed
+    /// companion already loaded from another file; DevReload's copy still owes
+    /// both fixes. The two copies are maintained by hand: a fix to one belongs
+    /// in the other too.
     ///
     /// Two lessons are load-bearing:
     ///
@@ -61,7 +64,7 @@ namespace NSLOAD.Native
             {
                 var mapped = new System.Text.StringBuilder(1024);
                 if (GetModuleFileNameW(existing, mapped, 1024) != 0 &&
-                    !string.Equals(mapped.ToString(), fullPath, StringComparison.OrdinalIgnoreCase))
+                    !FileIdentity.Same(mapped.ToString(), fullPath))
                 {
                     say($"WARNING: {baseName} is already mapped from a NON-canonical path: " +
                         $"{mapped} (canonical: {fullPath}). Process-wide state in it is " +
@@ -83,16 +86,25 @@ namespace NSLOAD.Native
         /// Load one managed assembly through AutoCAD's extension loader — the
         /// NETLOAD-equivalent path, so IExtensionApplication.Initialize runs and
         /// [CommandMethod]s register. Default ALC, never unloaded, so this is
-        /// idempotent by assembly simple name. Never throws: the failure is
-        /// reported and the load continues.
+        /// idempotent by assembly simple name. When the assembly already came
+        /// from ANOTHER file (the other release folder, earlier this session),
+        /// that copy stays in use and the drafter is told. Never throws: the
+        /// failure is reported and the load continues.
         /// </summary>
         public static void LoadManaged(string fullPath, Action<string> say)
         {
             string simpleName = Path.GetFileNameWithoutExtension(fullPath);
-            bool alreadyLoaded = AppDomain.CurrentDomain.GetAssemblies().Any(a =>
+            var existing = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(a =>
                 string.Equals(a.GetName().Name, simpleName, StringComparison.OrdinalIgnoreCase));
-            if (alreadyLoaded)
+            if (existing != null)
+            {
+                // Location is empty for an assembly loaded from a stream; there is
+                // then no file to compare, and nothing to say.
+                if (!string.IsNullOrEmpty(existing.Location) && !FileIdentity.Same(existing.Location, fullPath))
+                    say($"WARNING: {simpleName} is already loaded from {existing.Location}, so that " +
+                        $"copy stays in use instead of {fullPath}. Restart AutoCAD to use this one.");
                 return;
+            }
 
             if (!File.Exists(fullPath))
             {

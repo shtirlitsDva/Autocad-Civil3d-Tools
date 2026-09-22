@@ -128,7 +128,8 @@ namespace NSLOAD
         {
             PluginManager.ShutdownAll();
 
-            try { AutoCadScanSuppressor.Restore(); } catch { }
+            try { AutoCadScanSuppressor.Restore(); }
+            catch (System.Exception ex) { NsLoadDiagnostics.Report("scan suppressor restore", ex); }
 
             // Dispose the cached management palette so it doesn't survive an unload/reload cycle.
             if (_mgmtPalette != null)
@@ -138,7 +139,7 @@ namespace NSLOAD
                     _mgmtPalette.Visible = false;
                     _mgmtPalette.Dispose();
                 }
-                catch { }
+                catch (System.Exception ex) { NsLoadDiagnostics.Report("manager palette dispose", ex); }
                 _mgmtPalette = null;
             }
         }

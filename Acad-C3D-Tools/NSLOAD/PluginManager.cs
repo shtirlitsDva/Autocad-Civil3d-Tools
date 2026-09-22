@@ -101,14 +101,21 @@ namespace NSLOAD
         public static string? GetVersionStatus(string pluginName)
             => _plugins.TryGetValue(pluginName, out var reg) ? reg.Plugin.VersionStatus : null;
 
-        public static void Unregister(string pluginName)
+        /// <summary>Unloads the plugin if needed and forgets it. Returns false,
+        /// keeping the registration, when the plugin is still loaded afterwards
+        /// (the unload was refused and has been reported).</summary>
+        public static bool Unregister(string pluginName)
         {
             if (!_plugins.TryGetValue(pluginName, out var reg))
-                return;
+                return true;
 
             if (reg.Plugin.IsLoaded)
                 Unload(pluginName);
+            if (reg.Plugin.IsLoaded)
+                return false;
+
             _plugins.Remove(pluginName);
+            return true;
         }
 
         // A refusal is written for the drafter and shown as it is; anything else

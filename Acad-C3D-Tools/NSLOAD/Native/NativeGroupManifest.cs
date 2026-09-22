@@ -72,7 +72,7 @@ namespace NSLOAD.Native
                 throw new OarxModuleException(
                     $"The manifest {manifestPath} is not valid: {ex.Message}", ex);
             }
-            catch (IOException ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 throw new OarxModuleException(
                     $"The manifest {manifestPath} could not be read: {ex.Message}", ex);

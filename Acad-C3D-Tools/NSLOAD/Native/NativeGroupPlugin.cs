@@ -41,9 +41,14 @@ namespace NSLOAD.Native
         private NativeGroupManifest? _loaded;
         private string? _loadedVersion;
 
-        // Set when an unload released the modules but their images stayed in
-        // memory: the files stay locked until Civil restarts.
-        private bool _heldInMemory;
+        // The version whose images stayed in memory after an unload released
+        // them; null when the last unload left nothing behind. Those files stay
+        // locked until Civil restarts.
+        private string? _heldVersion;
+
+        // The manifest as last read for the palette, re-read only when the file
+        // changes: the palette asks every few seconds, on AutoCAD's main thread.
+        private (DateTime WriteTime, NativeGroupManifest Manifest)? _manifestCache;
 
         // FileVersionInfo on a cloud-only file makes OneDrive download it, and the
         // palette asks every few seconds; read each file again only when it changes.
@@ -63,7 +68,6 @@ namespace NSLOAD.Native
         public void Load(Action<string> say)
         {
             var manifest = NativeGroupManifest.Read(_manifestPath);
-            string version = RequireConsistentVersion(manifest);
 
             foreach (string module in manifest.Modules)
             {
@@ -75,23 +79,12 @@ namespace NSLOAD.Native
                         $"there first, then load {_name}.");
             }
 
-            var reused = new List<string>();
-            foreach (string module in manifest.Modules)
-            {
-                string fileName = Path.GetFileName(module);
-                string? mappedFrom = OarxModuleHost.MappedPathInThisProcess(fileName);
-                if (mappedFrom == null) continue;
-                if (!string.Equals(mappedFrom, module, StringComparison.OrdinalIgnoreCase))
-                    throw new OarxModuleException(
-                        $"{fileName} from {Path.GetDirectoryName(mappedFrom)} is still held in " +
-                        $"memory, so {_name} cannot load its own copy beside it. Restart Civil, " +
-                        $"then load {_name}.");
-                reused.Add(fileName);
-            }
-            if (reused.Count > 0)
-                say($"{_name}: WARNING - {string.Join(", ", reused)} never left memory " +
-                    "after the last unload, so the version already in memory is used again. " +
-                    "Restart Civil to get the new version.");
+            // Before the pair check: a module held in memory keeps its file locked,
+            // so OneDrive may have updated only the others, and the pair on disk
+            // then describes neither what is in memory nor a whole release.
+            RequireHeldImagesReusable(manifest, say);
+
+            string version = RequireConsistentVersion(manifest);
 
             foreach (string pin in manifest.PreloadNative)
                 OarxCompanionHost.PinNative(pin, say);
@@ -106,6 +99,15 @@ namespace NSLOAD.Native
                     OarxModuleHost.Load(module);
                     loadedSoFar.Add(Path.GetFileName(module));
                 }
+
+                // The files are locked now and cannot change under us. If OneDrive
+                // swapped one between the check above and its load, the pair in
+                // memory is mixed and the arx would switch itself off: undo it.
+                string loadedVersion = RequireConsistentVersion(manifest);
+                if (loadedVersion != version)
+                    throw new OarxModuleException(
+                        $"OneDrive updated {_name} to v{loadedVersion} while v{version} was " +
+                        "loading. Load it again.");
             }
             catch (Exception)
             {
@@ -136,7 +138,7 @@ namespace NSLOAD.Native
 
             _loaded = manifest;
             _loadedVersion = version;
-            _heldInMemory = false;
+            _heldVersion = null;
             say($"{_name} loaded (v{version}).");
         }
 
@@ -155,11 +157,11 @@ namespace NSLOAD.Native
                 .Where(f => OarxModuleHost.MappedPathInThisProcess(f!) != null)
                 .ToList();
 
+            _heldVersion = stillMapped.Count > 0 ? _loadedVersion : null;
             _loaded = null;
             _loadedVersion = null;
-            _heldInMemory = stillMapped.Count > 0;
 
-            if (_heldInMemory)
+            if (_heldVersion != null)
                 say($"{_name}: WARNING - AutoCAD released {string.Join(", ", stillMapped)} " +
                     "but it is still held in memory, so its file stays locked and OneDrive " +
                     "cannot update it. Restart Civil to get the new version.");
@@ -179,7 +181,7 @@ namespace NSLOAD.Native
                 List<string?> onDisk;
                 try
                 {
-                    var modules = _loaded?.Modules ?? NativeGroupManifest.Read(_manifestPath).Modules;
+                    var modules = _loaded?.Modules ?? ReadManifestCached().Modules;
                     onDisk = modules.Select(ReadVersionCached).ToList();
                 }
                 catch (Exception ex)
@@ -202,7 +204,7 @@ namespace NSLOAD.Native
                         : $"v{_loadedVersion} — v{disk} ready: Unload, then Load";
                 }
 
-                if (_heldInMemory)
+                if (_heldVersion != null)
                     return "Held in memory — restart Civil to update";
                 return disk == null ? "OneDrive syncing…" : $"on disk v{disk}";
             }
@@ -227,6 +229,64 @@ namespace NSLOAD.Native
                     ". Try again in a moment.");
 
             return versions[0].Version!;
+        }
+
+        /// <summary>
+        /// Lets a load go ahead over modules whose images never left memory only
+        /// when that is harmless: they are this group's own files, and the disk
+        /// still carries exactly the version in memory. Warns that the image is
+        /// reused. Throws, telling the drafter to restart, in every other case:
+        /// loading beside another folder's image, or loading a release OneDrive
+        /// has (partly) delivered beside an old image, would run a mixed or stale
+        /// pair while claiming the new one.
+        /// </summary>
+        private void RequireHeldImagesReusable(NativeGroupManifest manifest, Action<string> say)
+        {
+            var held = manifest.Modules
+                .Select(m => (Module: m, Mapped: OarxModuleHost.MappedPathInThisProcess(Path.GetFileName(m))))
+                .Where(h => h.Mapped != null)
+                .ToList();
+            if (held.Count == 0) return;
+
+            foreach (var (module, mapped) in held)
+            {
+                if (!FileIdentity.Same(mapped!, module))
+                    throw new OarxModuleException(
+                        $"{Path.GetFileName(module)} from {Path.GetDirectoryName(mapped)} is still " +
+                        $"held in memory, so {_name} cannot load its own copy beside it. " +
+                        $"Restart Civil, then load {_name}.");
+            }
+
+            // What is in memory is what this group loaded before it was unloaded.
+            // An image this group never loaded (another loader's, earlier) is taken
+            // at its file's word, which is all there is to go on.
+            string? inMemory = _heldVersion ?? ReadVersion(held[0].Mapped!);
+            var onDisk = manifest.Modules
+                .Select(m => (File: Path.GetFileName(m), Version: ReadVersion(m)))
+                .ToList();
+            if (onDisk.Any(d => d.Version != inMemory))
+                throw new OarxModuleException(
+                    $"{string.Join(", ", held.Select(h => Path.GetFileName(h.Module)))} " +
+                    $"never left memory after the last unload, so v{inMemory} is still running, " +
+                    "and OneDrive has delivered " +
+                    string.Join(", ", onDisk.Select(d =>
+                        $"{d.File} {(d.Version == null ? "missing" : "v" + d.Version)}")) +
+                    $". Restart Civil to load the new version of {_name}.");
+
+            say($"{_name}: WARNING - {string.Join(", ", held.Select(h => Path.GetFileName(h.Module)))} " +
+                $"never left memory after the last unload, so v{inMemory} is used again. " +
+                "Restart Civil to get a new version.");
+        }
+
+        private NativeGroupManifest ReadManifestCached()
+        {
+            DateTime written = File.GetLastWriteTimeUtc(_manifestPath);
+            if (_manifestCache is { } hit && hit.WriteTime == written)
+                return hit.Manifest;
+
+            var manifest = NativeGroupManifest.Read(_manifestPath);
+            _manifestCache = (written, manifest);
+            return manifest;
         }
 
         private string? ReadVersionCached(string path)

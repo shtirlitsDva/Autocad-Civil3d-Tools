@@ -136,7 +136,10 @@ namespace NSLOAD.ViewModels
             var vm = UserPlugins.FirstOrDefault(p => p.Name == name);
             if (vm == null) return;
 
-            PluginManager.Unregister(name);
+            // A plugin that refused to unload stays registered and listed, so the
+            // manager can still unload it; forgetting it would leave it running
+            // untracked until AutoCAD restarts.
+            if (!PluginManager.Unregister(name)) return;
 
             _config.Plugins.RemoveAll(e =>
                 e.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
@@ -169,10 +172,7 @@ namespace NSLOAD.ViewModels
                 NewPluginDllPath = dlg.FileName;
                 if (string.IsNullOrWhiteSpace(NewPluginName))
                 {
-                    string fileName = System.IO.Path.GetFileName(dlg.FileName);
-                    NewPluginName = Native.NativeGroupManifest.IsManifestPath(fileName)
-                        ? fileName[..^Native.NativeGroupManifest.FileSuffix.Length]
-                        : System.IO.Path.GetFileNameWithoutExtension(fileName);
+                    NewPluginName = PluginKinds.DefaultName(dlg.FileName);
                 }
             }
         }
