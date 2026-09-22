@@ -97,8 +97,8 @@ internal static class LegacyBranchTranslator
         //A parallel branch leaves along its main.
         ["T PARALLEL S3 E"] = Along,
         ["PA TWIN S3"] = Along,
-        //VARIABEL is in the register as NOT IMPLEMENTED; the outlet is stated
-        //anyway, so the day the part exists this row needs no edit.
+        //VARIABEL is the same Parallelafgrening with its arm turned about the
+        //main; NDH derives the turn, so it leaves along its main like the rest.
         ["T PARALLEL S3 E VARIABEL"] = Along,
 
         ["T TWIN S2"] = Square,
