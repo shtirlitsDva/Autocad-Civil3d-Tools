@@ -1,4 +1,4 @@
-using Autodesk.AutoCAD.DatabaseServices;
+﻿using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 
 using IntersectUtilities.PipelineNetworkSystem;
@@ -175,7 +175,7 @@ internal static class LegacyNetwork
         {
             (Point2d site, var system, var type) = LegacyBranchFinder.SiteOn(mainTrace, end);
             drawing.Branches.Add(new LegacyBranch(
-                main.Name, branch.Name, skift.Navn, skift.Handle, end, site, Array.Empty<Point2d>(), system, type,
+                main.Name, branch.Name, skift.Navn, skift.Handle, end, site, system, type,
                 "materialeskift ved afgreningens ende"));
             return;
         }

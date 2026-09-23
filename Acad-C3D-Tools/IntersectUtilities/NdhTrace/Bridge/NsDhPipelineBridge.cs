@@ -1,15 +1,16 @@
 ﻿using System;
+using System.Linq;
 using System.Runtime.InteropServices;
 
 namespace IntersectUtilities.NdhTrace;
 
 /// <summary>
 /// Builds pipelines through the NDH district-heating module's flat C export
-/// NsDh_BuildPipeline, and asks it how much straight a change's and an elbow's
-/// parts take through NsDh_ChangeStraight and NsDh_ElbowStraight. The module is
-/// reached through <see cref="NsDhModule"/>.
+/// NsDh_BuildPipeline, and asks it how much straight the things standing at a
+/// vertex take through NsDh_VertexStraight. The module is reached through
+/// <see cref="NsDhModule"/>.
 /// </summary>
-internal sealed class NsDhPipelineBridge : INdhPipelineBuilder, INdhPartStraight
+internal sealed class NsDhPipelineBridge : INdhPipelineBuilder, INdhPartStraight, INdhJunctionStraight
 {
     //sizeof 24
     [StructLayout(LayoutKind.Sequential)]
@@ -54,7 +55,7 @@ internal sealed class NsDhPipelineBridge : INdhPipelineBuilder, INdhPartStraight
 
     //sizeof 1056
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    private struct ChangeStraightResult
+    private struct VertexStraightResult
     {
         public int Status;
         public int Reserved;
@@ -65,12 +66,25 @@ internal sealed class NsDhPipelineBridge : INdhPipelineBuilder, INdhPartStraight
     }
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
-    private delegate int ChangeStraightFn(
-        in PipeIdentity before, in PipeIdentity after, out ChangeStraightResult result);
+    private delegate int VertexStraightFn(
+        in PipeIdentity before, in PipeIdentity after, double turnDegrees, int turnedByAPart,
+        out VertexStraightResult result);
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct JunctionStraightResult
+    {
+        public int Status;
+        public int Reserved;
+        public double BackM;
+        public double ForwardM;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 512)] public string Detail;
+    }
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
-    private delegate int ElbowStraightFn(
-        in PipeIdentity pipe, double turnDegrees, out ChangeStraightResult result);
+    private delegate int JunctionStraightFn(
+        in PipeIdentity main, in PipeIdentity branch, int branchAtStart, int outlet,
+        [MarshalAs(UnmanagedType.LPWStr)] string produkt,
+        out JunctionStraightResult result);
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
     private delegate int BuildPipelineFn(
@@ -88,7 +102,7 @@ internal sealed class NsDhPipelineBridge : INdhPipelineBuilder, INdhPartStraight
         NsDhModule.RequireLayout<IdentityBoundary>(72);
         NsDhModule.RequireLayout<BuildResult>(1104);
         NsDhModule.RequireLayout<PipeIdentity>(72);
-        NsDhModule.RequireLayout<ChangeStraightResult>(1056);
+        NsDhModule.RequireLayout<VertexStraightResult>(1056);
     }
 
     public NdhBuildOutcome Build(string name, NdhRoute route)
@@ -134,33 +148,66 @@ internal sealed class NsDhPipelineBridge : INdhPipelineBuilder, INdhPartStraight
     }
 
     /// <summary>
-    /// The straight the parts of a change take, under the working drawing's own
-    /// catalogue and settings. A refusal is the module's sentence: the importer
-    /// cannot place a change without it.
+    /// The straight everything standing at a vertex takes, under the working
+    /// drawing's own catalogue and settings. A refusal is the module's
+    /// sentence: the importer cannot place a vertex without it.
     /// </summary>
-    public PartStraight OfChange(LegacyIdentitySpan before, LegacyIdentitySpan after)
+    public PartStraight At(
+        LegacyIdentitySpan before, LegacyIdentitySpan after, double turnDegrees,
+        bool turnedByAPart)
     {
-        ChangeStraightFn ask = NsDhModule.Resolve<ChangeStraightFn>(
-            NsDhSurface.ChangeStraight, "NsDh_ChangeStraight");
+        VertexStraightFn ask = NsDhModule.Resolve<VertexStraightFn>(
+            NsDhSurface.VertexStraight, "NsDh_VertexStraight");
 
-        return Answered(ask(IdentityOf(before), IdentityOf(after), out ChangeStraightResult r), r,
-            $"the change from {before.System} {before.Type} {before.Dn} to {after.System} {after.Type} {after.Dn}");
+        return Answered(
+            ask(IdentityOf(before), IdentityOf(after), turnDegrees, turnedByAPart ? 1 : 0,
+                out VertexStraightResult r),
+            r, Describe(before, after, turnDegrees, turnedByAPart));
     }
 
     /// <summary>
-    /// The legs of the elbow a pipe takes on a sharp corner, asked the same way.
+    /// The straight the connection takes out of its main, either side of the
+    /// branch point, under the working drawing's own catalogue and settings. A
+    /// refusal is the module's sentence: the importer cannot seat a junction
+    /// without it.
     /// </summary>
-    public PartStraight OfElbow(LegacyIdentitySpan pipe, double turnDegrees)
+    public JunctionStraight At(
+        LegacyIdentitySpan main, LegacyIdentitySpan branch, bool branchAtStart,
+        NdhBranchOutlet outlet, string produkt)
     {
-        //The elbow is versioned with the change straight: one surface.
-        ElbowStraightFn ask = NsDhModule.Resolve<ElbowStraightFn>(
-            NsDhSurface.ChangeStraight, "NsDh_ElbowStraight");
+        JunctionStraightFn ask = NsDhModule.Resolve<JunctionStraightFn>(
+            NsDhSurface.JunctionStraight, "NsDh_JunctionStraight");
 
-        return Answered(ask(IdentityOf(pipe), turnDegrees, out ChangeStraightResult r), r,
-            $"the {turnDegrees:F1} degree elbow of {pipe.System} {pipe.Type} {pipe.Dn}");
+        int code = ask(IdentityOf(main), IdentityOf(branch), branchAtStart ? 1 : 0,
+                       (int)outlet, produkt, out JunctionStraightResult r);
+        (NdhBuildStatus status, string detail) =
+            NsDhModule.Named(code, r.Detail, NdhBuildStatus.BuildFailed);
+        return status == NdhBuildStatus.Ok
+            ? new JunctionStraight(r.BackM, r.ForwardM)
+            : throw new InvalidOperationException(
+                $"The straight of the '{produkt}' joining " +
+                $"{branch.System} {branch.Type} {branch.Dn} to " +
+                $"{main.System} {main.Type} {main.Dn} could not be asked ({status}): {detail}");
     }
 
-    private static PartStraight Answered(int code, ChangeStraightResult r, string what)
+    private static string Describe(
+        LegacyIdentitySpan before, LegacyIdentitySpan after, double turnDegrees,
+        bool turnedByAPart)
+    {
+        string pipe = $"{before.System} {before.Type} {before.Dn}";
+        string change = before.System == after.System && before.Type == after.Type && before.Dn == after.Dn
+            ? ""
+            : $"the change from {pipe} to {after.System} {after.Type} {after.Dn}";
+        string turn = turnDegrees <= 0.0
+            ? ""
+            : turnedByAPart
+                ? $"the {turnDegrees:F1} degree elbow of {pipe}"
+                : $"the {turnDegrees:F1} degree bend of {pipe}";
+        string[] parts = new[] { change, turn }.Where(p => p.Length != 0).ToArray();
+        return parts.Length == 0 ? $"the vertex on {pipe}" : string.Join(" and ", parts);
+    }
+
+    private static PartStraight Answered(int code, VertexStraightResult r, string what)
     {
         (NdhBuildStatus status, string detail) = NsDhModule.Named(code, r.Detail, NdhBuildStatus.BuildFailed);
         return status == NdhBuildStatus.Ok

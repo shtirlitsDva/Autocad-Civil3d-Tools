@@ -1,4 +1,4 @@
-using Autodesk.AutoCAD.Geometry;
+﻿using Autodesk.AutoCAD.Geometry;
 
 using IntersectUtilities.UtilsCommon.Enums;
 
@@ -18,10 +18,6 @@ namespace IntersectUtilities.NdhTrace;
 /// <param name="BlockHandle">The legacy part's handle(s) in the source drawing, comma separated.</param>
 /// <param name="BranchPort">Where the branch pipe meets the part(s): the middle of their branch ports.</param>
 /// <param name="Site">The junction's place on the main's centreline.</param>
-/// <param name="MainPorts">
-/// Where the part(s) sit on the main: their main-run ports (a stud's or a
-/// svanehals's seat). The main must be straight across them.
-/// </param>
 /// <param name="MainSystem">The main's system at the site, as the legacy size array says it.</param>
 /// <param name="MainType">The main's type at the site.</param>
 /// <param name="NamedBy">Where the branch pipeline's name came from, for the report.</param>
@@ -32,7 +28,6 @@ internal sealed record LegacyBranch(
     string BlockHandle,
     Point2d BranchPort,
     Point2d Site,
-    IReadOnlyList<Point2d> MainPorts,
     PipeSystemEnum MainSystem,
     PipeTypeEnum MainType,
     string NamedBy);

@@ -34,7 +34,7 @@ internal readonly record struct NdhBuildOutcome(
         authoredIndex >= 0 && authoredIndex < VertexCauses.Count ? VertexCauses[authoredIndex] : 0UL;
 }
 
-/// <summary>NsDh_BuildPipeline status codes (kNsDhPipelineBuild*); NsDh_ChangeStraight and NsDh_ElbowStraight answer in them too.</summary>
+/// <summary>NsDh_BuildPipeline status codes (kNsDhPipelineBuild*); NsDh_VertexStraight answers in them too.</summary>
 internal enum NdhBuildStatus
 {
     Ok = 0,
@@ -91,6 +91,7 @@ internal sealed class NdhImportReport
 internal sealed record NdhImportServices(
     INdhPipelineBuilder Builder,
     INdhPartStraight Straight,
+    INdhJunctionStraight Junctions,
     INdhConnector Connector,
     INdhDrawingSettings Settings,
     INdhPipelineModifier Modifier,
@@ -218,16 +219,15 @@ internal static class NdhFromFjvImport
     /// <summary>
     /// Routes and builds every pipeline, without any transaction of ours open:
     /// the builder opens the working drawing's model space itself. Each route
-    /// is told where the legacy branches sit on it, so it stays straight across
-    /// them: a legacy junction stands on a straight (live run 2026-09-19, F2).
+    /// is told where its connections will stand and how much of it each will
+    /// occupy (<see cref="JunctionSeating"/>), so it stays straight across them:
+    /// a junction stands on a straight (live run 2026-09-19, F2).
     /// </summary>
     private static Dictionary<string, BuiltPipeline> Build(
         LegacyDrawing legacy, MergedTraces merged, NdhImportServices services, NdhImportReport report)
     {
-        ILookup<string, NdhJunctionSeat> seats = legacy.Branches.ToLookup(
-            b => merged.NameOf(b.MainName),
-            b => new NdhJunctionSeat(b.Site, b.MainPorts),
-            StringComparer.Ordinal);
+        ILookup<string, NdhJunctionSeat> seats =
+            JunctionSeating.Seats(legacy, merged, services.Junctions, report);
 
         Dictionary<string, BuiltPipeline> built = new Dictionary<string, BuiltPipeline>(StringComparer.Ordinal);
         foreach (LegacyPipelineTrace t in merged.Traces)
