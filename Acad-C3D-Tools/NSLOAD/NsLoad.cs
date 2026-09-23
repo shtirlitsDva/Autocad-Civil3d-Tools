@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
@@ -118,10 +118,10 @@ namespace NSLOAD
             Utils.AddCommand("NSLOAD", "NSLOADMGR", "NSLOADMGR",
                 CommandFlags.Modal, OpenManager);
 
-            ed?.WriteMessage(
-                $"\nNSLOAD: {_config.PredefinedApps.Count} predefined apps " +
-                $"({predefinedLoaded} auto-loaded), " +
-                $"{_config.Plugins.Count} user plugins ({userLoaded} auto-loaded).");
+            //ed?.WriteMessage(
+            //    $"\nNSLOAD: {_config.PredefinedApps.Count} predefined apps " +
+            //    $"({predefinedLoaded} auto-loaded), " +
+            //    $"{_config.Plugins.Count} user plugins ({userLoaded} auto-loaded).");
         }
 
         public void Terminate()
