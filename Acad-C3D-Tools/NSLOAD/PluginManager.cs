@@ -13,6 +13,15 @@ namespace NSLOAD
     {
         private static readonly Dictionary<string, PluginRegistration> _plugins = new();
 
+        /// <summary>
+        /// A plugin has been through a load or an unload, so whatever follows
+        /// from its loaded state - the command that loads it, a palette row -
+        /// can be put right. Raised after the attempt whether or not it changed
+        /// anything: a listener reads the state rather than being told what
+        /// happened, so a refused unload leaves the command where it belongs.
+        /// </summary>
+        public static event Action<string>? PluginStateChanged;
+
         public static PluginRegistrationBuilder Register(string pluginName)
         {
             return new PluginRegistrationBuilder(pluginName);
@@ -49,6 +58,10 @@ namespace NSLOAD
             {
                 ReportFailure(ed, $"{pluginName} load error", ex);
             }
+            finally
+            {
+                Announce(ed, pluginName);
+            }
         }
 
         public static void Unload(string pluginName)
@@ -70,6 +83,18 @@ namespace NSLOAD
             {
                 ReportFailure(ed, $"{pluginName} unload error", ex);
             }
+            finally
+            {
+                Announce(ed, pluginName);
+            }
+        }
+
+        // A listener that throws must not turn a good load into a failed one, so
+        // its failure is reported where every other swallowed one is.
+        private static void Announce(Editor? ed, string pluginName)
+        {
+            try { PluginStateChanged?.Invoke(pluginName); }
+            catch (Exception ex) { ReportFailure(ed, $"{pluginName} state change", ex); }
         }
 
         /// <summary>AutoCAD is shutting down: let every plugin do its exit work.</summary>

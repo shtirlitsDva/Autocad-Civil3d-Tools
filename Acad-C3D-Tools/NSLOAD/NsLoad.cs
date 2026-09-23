@@ -30,9 +30,20 @@ namespace NSLOAD
         private static readonly List<(string Group, string Name, CommandCallback Callback)>
             _onDemandCommands = new();
 
+        // The apps that answer to their own name as a command. Registered plugins
+        // the drafter added by hand are reached from NSLOAD and NSLOADMGR only:
+        // their names are theirs to choose and must not become commands.
+        private static readonly HashSet<string> _onDemandNames =
+            new(StringComparer.OrdinalIgnoreCase);
+
         public void Initialize()
         {
             Editor? ed = Application.DocumentManager.MdiActiveDocument?.Editor;
+
+            // A plugin that has just been loaded or unloaded gets its load
+            // command taken away or given back. Subscribed before anything can
+            // load, so the startup loads are seen too.
+            PluginManager.PluginStateChanged += SyncOnDemandCommand;
 
             // Take AutoCAD's assembly scan off NSLOAD-loaded plugins before
             // anything can load one. Without this the host registers their
@@ -87,14 +98,17 @@ namespace NSLOAD
                     .WithCommands()
                     .Commit();
 
+                // Every app from the register answers to its own name as a
+                // command whenever it is not loaded - including after an unload,
+                // which is why the command follows the state instead of being
+                // handed out once here.
+                _onDemandNames.Add(app.DisplayName);
+                SyncOnDemandCommand(app.DisplayName);
+
                 if (app.AutoLoad)
                 {
                     PluginManager.Load(app.DisplayName);
                     predefinedLoaded++;
-                }
-                else
-                {
-                    RegisterOnDemandCommand(app.DisplayName);
                 }
             }
 
@@ -126,6 +140,8 @@ namespace NSLOAD
 
         public void Terminate()
         {
+            PluginManager.PluginStateChanged -= SyncOnDemandCommand;
+
             PluginManager.ShutdownAll();
 
             try { AutoCadScanSuppressor.Restore(); }
@@ -163,7 +179,6 @@ namespace NSLOAD
             if (string.IsNullOrEmpty(selection))
                 return;
 
-            RemoveOnDemandCommand(selection);
             PluginManager.Load(selection);
         }
 
@@ -188,17 +203,32 @@ namespace NSLOAD
             _mgmtPalette.Visible = true;
         }
 
+        /// <summary>
+        /// Gives the app its load command when it is not loaded and takes it away
+        /// when it is, so the command says what it does at the moment it is typed.
+        /// Idempotent: this is the one place the two are reconciled, called at
+        /// startup and again on every load and unload.
+        /// </summary>
+        private static void SyncOnDemandCommand(string displayName)
+        {
+            if (!_onDemandNames.Contains(displayName)) return;
+
+            if (PluginManager.IsLoaded(displayName))
+                RemoveOnDemandCommand(displayName);
+            else
+                RegisterOnDemandCommand(displayName);
+        }
+
         private static void RegisterOnDemandCommand(string displayName)
         {
             string group = "NSLOAD";
             string cmdName = displayName.ToUpperInvariant();
             string name = displayName;
 
-            CommandCallback cb = () =>
-            {
-                RemoveOnDemandCommand(name);
-                PluginManager.Load(name);
-            };
+            if (_onDemandCommands.Any(c => c.Name == cmdName)) return;
+
+            // Loading raises the state change that takes this command away.
+            CommandCallback cb = () => PluginManager.Load(name);
 
             Utils.AddCommand(group, cmdName, cmdName, CommandFlags.Modal, cb);
             _onDemandCommands.Add((group, cmdName, cb));
