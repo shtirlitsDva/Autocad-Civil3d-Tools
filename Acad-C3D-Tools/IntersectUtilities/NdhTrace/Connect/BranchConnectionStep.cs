@@ -155,8 +155,10 @@ internal static class BranchConnectionStep
         }
 
         bool atStart = NearestEndIsStart(branch.Route, b.BranchPort);
+        //THE TEE HOLDS ITS SEAT: the connection stands where JunctionSeating
+        //seated it, which is where the main was routed straight and clear.
         NdhConnectOutcome o = connector.Connect(new NdhConnectRequest(
-            main.Handle, branch.Handle, atStart, outletWay, produkt));
+            main.Handle, branch.Handle, atStart, outletWay, produkt, b.Site));
 
         if (!o.Success)
         {
@@ -187,25 +189,44 @@ internal static class BranchConnectionStep
                 $"read back as '{produkt}' pinned. Check it.");
         }
 
-        if (o.DeviationDeg > DeviationNoiseDeg || o.LargestMoveM > MoveNoiseM)
+        //A corner shifted because no S-offset could be laid is more than drawing
+        //noise, so it is always said, and marked (the tee holds its seat).
+        bool noRoom = o.Correction == NdhCornerCorrection.ShiftedForWantOfRoom;
+        if (o.DeviationDeg > DeviationNoiseDeg || o.LargestMoveM > MoveNoiseM ||
+            o.Correction != NdhCornerCorrection.Shifted)
         {
-            bool loud = o.DeviationDeg > SilentLimitDeg;
+            bool loud = o.DeviationDeg > SilentLimitDeg || noRoom;
             report.Adjusted.Add(
                 $"{branchName} → {mainName}: afgreningen rettet {o.DeviationDeg:F2}° " +
                 $"({(outletWay == NdhBranchOutlet.AlongMain ? "til langs hovedledningen" : "til 90°")}); " +
                 $"enden flyttet {o.EndMoveM:F3} m ind på hovedledningens centerlinje, " +
-                $"øvrige punkter op til {o.LargestMoveM:F3} m" + (loud ? " - MLeader placeret." : "."));
+                $"øvrige punkter op til {o.LargestMoveM:F3} m" + CornerWords(o) +
+                (loud ? " - MLeader placeret." : "."));
             if (loud)
                 notes.Add($"NDHFROMFJV squared branch '{branchName}' onto '{mainName}' ({produkt}): " +
                     $"the legacy branch stood {o.DeviationDeg:F1}° off " +
                     $"{(outletWay == NdhBranchOutlet.AlongMain ? "the main's direction" : "90° to the main")}. " +
                     $"Its connected end moved {o.EndMoveM:F2} m onto the main's centreline; " +
-                    $"its other vertices moved up to {o.LargestMoveM:F2} m.");
+                    $"its other vertices moved up to {o.LargestMoveM:F2} m." +
+                    (noRoom
+                        ? $" Its first corner stood {o.CornerOffsetM:F3} m off the square line and was " +
+                          "moved: no S-offset could be laid in the first leg (the reason is in NDHTRACE)."
+                        : ""));
         }
 
         //\P is MText's paragraph break.
         if (notes.Count > 0) markers.Add(new ConnectionMarker(port, string.Join("\\P", notes)));
     }
+
+    /// <summary>What the branch did to take the tee's seat, as the report says it.</summary>
+    private static string CornerWords(NdhConnectOutcome o) => o.Correction switch
+    {
+        NdhCornerCorrection.Offset =>
+            $"; første ben fik en S-forskydning på {o.CornerOffsetM:F3} m, knækket står som tegnet",
+        NdhCornerCorrection.ShiftedForWantOfRoom =>
+            $"; knækket flyttet {o.CornerOffsetM:F3} m - en S-forskydning kunne ikke lægges her",
+        _ => "",
+    };
 
     /// <summary>Whether the built route's first vertex, rather than its last, is nearer the legacy branch port.</summary>
     private static bool NearestEndIsStart(NdhRoute route, Point2d port)

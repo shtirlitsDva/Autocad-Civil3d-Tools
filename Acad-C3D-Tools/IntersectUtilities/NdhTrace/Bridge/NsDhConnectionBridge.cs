@@ -11,7 +11,7 @@ namespace IntersectUtilities.NdhTrace;
 /// </summary>
 internal sealed class NsDhConnectionBridge : INdhConnector
 {
-    //sizeof 264
+    //sizeof 280
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct BranchConnectRequest
     {
@@ -20,9 +20,11 @@ internal sealed class NsDhConnectionBridge : INdhConnector
         public int BranchAtStart;                                                         //off 128
         public int Outlet;                                                                //off 132
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 64)] public string Produkt;      //off 136
+        public double SiteX;                                                              //off 264
+        public double SiteY;                                                              //off 272
     }
 
-    //sizeof 1072
+    //sizeof 1088
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct BranchConnectResult
     {
@@ -34,6 +36,9 @@ internal sealed class NsDhConnectionBridge : INdhConnector
         public double PortX;        //off 32
         public double PortY;        //off 40
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 512)] public string Detail; //off 48
+        public int Correction;      //off 1072
+        public int Reserved;        //off 1076
+        public double CornerOffsetM; //off 1080
     }
 
     //sizeof 360
@@ -64,8 +69,8 @@ internal sealed class NsDhConnectionBridge : INdhConnector
 
     static NsDhConnectionBridge()
     {
-        NsDhModule.RequireLayout<BranchConnectRequest>(264);
-        NsDhModule.RequireLayout<BranchConnectResult>(1072);
+        NsDhModule.RequireLayout<BranchConnectRequest>(280);
+        NsDhModule.RequireLayout<BranchConnectResult>(1088);
         NsDhModule.RequireLayout<ConnectionRow>(360);
     }
 
@@ -81,13 +86,16 @@ internal sealed class NsDhConnectionBridge : INdhConnector
             BranchAtStart = request.BranchAtStart ? 1 : 0,
             Outlet = (int)request.Outlet,
             Produkt = request.Produkt,
+            SiteX = request.Site.X,
+            SiteY = request.Site.Y,
         };
 
         (NdhConnectStatus named, string detail) = NsDhModule.Named(
             connect(native, out BranchConnectResult r), r.Detail, NdhConnectStatus.Failed);
 
         return new NdhConnectOutcome(
-            named, r.MainVertexIndex, r.DeviationDeg, r.EndMoveM, r.LargestMoveM, r.PortX, r.PortY, detail);
+            named, r.MainVertexIndex, r.DeviationDeg, r.EndMoveM, r.LargestMoveM, r.PortX, r.PortY,
+            (NdhCornerCorrection)r.Correction, r.CornerOffsetM, detail);
     }
 
     public IReadOnlyList<NdhConnectionRow> ReadConnections(string pipelineHandle)

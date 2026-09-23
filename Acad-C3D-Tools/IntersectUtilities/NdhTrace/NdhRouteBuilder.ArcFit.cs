@@ -1,4 +1,4 @@
-using Autodesk.AutoCAD.DatabaseServices;
+﻿using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 
 using System;
@@ -16,9 +16,15 @@ namespace IntersectUtilities.NdhTrace;
 internal static partial class NdhRouteBuilder
 {
     //The trace is compared with a fitted arc at points this far apart.
+    //
+    //NOT A REACH: it is the SEARCH's sampling step - how finely this fit
+    //measures its own error against the traced geometry. No part stands on it.
     private const double ArcFitSampleStep = 0.5;
     //A span whose best arc is this many tolerances off only gets worse as it
     //grows: stop extending it.
+    //
+    //NOT A REACH: a multiple of MaxTraceDeviation, not a length - it is when
+    //the search gives up, measured in tolerances.
     private const double ArcFitGiveUp = 2.0;
     //Radii tried log-spaced down to this fraction of the largest the legs
     //allow, before the best of them is refined by golden section.
@@ -87,7 +93,7 @@ internal static partial class NdhRouteBuilder
     /// </summary>
     private static void FitArcs(
         List<RouteVertex> vs, Polyline centreline, IReadOnlyList<LegacyIdentitySpan> identities,
-        IReadOnlyList<PartStraight> parts, IReadOnlyList<(double Lo, double Hi)> seats, List<string> notes)
+        IReadOnlyList<PartStraight> parts, IReadOnlyList<Seat> seats, List<string> notes)
     {
         List<(int A, int B)> runs = new List<(int, int)>();
         for (int i = 1; i < vs.Count - 1;)
@@ -104,7 +110,7 @@ internal static partial class NdhRouteBuilder
         (double Lo, double Hi)[] changes = identities
             .Select((s, i) => (s.ChangeDist - parts[i].Back, s.ChangeDist + parts[i].Forward))
             .Skip(1)
-            .Concat(seats)
+            .Concat(seats.Select(j => (j.Lo, j.Hi)))
             .ToArray();
         //From the last run back, so a fitted run leaves the earlier runs' indices alone.
         for (int r = runs.Count - 1; r >= 0; r--)
@@ -134,16 +140,17 @@ internal static partial class NdhRouteBuilder
             }
         if (pieces.All(x => x.Kept)) return;
 
-        //A corner kept as it is needs no room check: the run as it was is always a way through.
-        double roomIn = vs[a - 1].Kind == VertexKind.End ? EndRoom : 0.0;
-        double roomOut = vs[b + 1].Kind == VertexKind.End ? EndRoom : 0.0;
+        //A corner kept as it is needs no room check: the run as it was is always
+        //a way through. AN END TAKES NOTHING: the import places nothing there,
+        //so an arc may run right up to it. A flat half-metre used to be held
+        //back at every end - a reservation for a part that was never placed.
         double lastLeg = vs[b].P.GetDistanceTo(vs[b + 1].P);
         Dictionary<ArcPiece, (int Count, double Deviation, ArcPiece? Before)> best = new();
         foreach (ArcPiece c in pieces.OrderBy(x => x.Q).ThenBy(x => x.P))
         {
             if (c.P == a - 1)
             {
-                if (c.Kept || c.Start >= roomIn + LegSlack) best[c] = (1, c.Deviation, null);
+                if (c.Kept || c.Start >= LegSlack) best[c] = (1, c.Deviation, null);
                 continue;
             }
             foreach (ArcPiece before in pieces)
@@ -159,7 +166,7 @@ internal static partial class NdhRouteBuilder
         ArcPiece? last = null;
         foreach ((ArcPiece c, (int Count, double Deviation, ArcPiece? Before) reach) in best)
         {
-            if (c.Q != b || (!c.Kept && c.End > lastLeg - roomOut - LegSlack)) continue;
+            if (c.Q != b || (!c.Kept && c.End > lastLeg - LegSlack)) continue;
             if (last == null || reach.Count < best[last].Count ||
                 (reach.Count == best[last].Count && reach.Deviation < best[last].Deviation))
                 last = c;
@@ -233,6 +240,7 @@ internal static partial class NdhRouteBuilder
             double o = Off(rs[k]);
             if (o < bestOff) { bestOff = o; bestK = k; }
         }
+        //NOT A REACH: the golden ratio, for the section search below.
         const double golden = 0.6180339887498949;
         double lo = rs[Math.Max(0, bestK - 1)], hi = rs[Math.Min(ArcFitScanCount - 1, bestK + 1)];
         double x1 = hi - golden * (hi - lo), x2 = lo + golden * (hi - lo);

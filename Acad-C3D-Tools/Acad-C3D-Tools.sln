@@ -74,6 +74,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GraphViewV3.Core.Tests", "G
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GraphViewV3.Plugin", "GraphViewV3\GraphViewV3.Plugin\GraphViewV3.Plugin.csproj", "{8E6214D8-93EA-4729-99D1-C9D22FB2A29B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IntersectUtilities.NdhTrace.Tests", "IntersectUtilities.NdhTrace.Tests\IntersectUtilities.NdhTrace.Tests.csproj", "{A70AF939-6B14-4702-9714-3C758AE204A9}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -156,6 +158,10 @@ Global
 		{DA3EC352-EC82-40E6-8541-18C7A717F16E}.Debug|x64.Build.0 = Debug|x64
 		{DA3EC352-EC82-40E6-8541-18C7A717F16E}.Release|x64.ActiveCfg = Release|x64
 		{DA3EC352-EC82-40E6-8541-18C7A717F16E}.Release|x64.Build.0 = Release|x64
+		{A70AF939-6B14-4702-9714-3C758AE204A9}.Debug|x64.ActiveCfg = Debug|x64
+		{A70AF939-6B14-4702-9714-3C758AE204A9}.Debug|x64.Build.0 = Debug|x64
+		{A70AF939-6B14-4702-9714-3C758AE204A9}.Release|x64.ActiveCfg = Release|x64
+		{A70AF939-6B14-4702-9714-3C758AE204A9}.Release|x64.Build.0 = Release|x64
 		{59EFB8F9-2016-4915-A115-D5F902E60EF3}.Debug|x64.ActiveCfg = Debug|x64
 		{59EFB8F9-2016-4915-A115-D5F902E60EF3}.Debug|x64.Build.0 = Debug|x64
 		{59EFB8F9-2016-4915-A115-D5F902E60EF3}.Release|x64.ActiveCfg = Release|x64

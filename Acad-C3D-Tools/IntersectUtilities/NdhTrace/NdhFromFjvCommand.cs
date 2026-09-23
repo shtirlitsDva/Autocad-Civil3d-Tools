@@ -84,6 +84,7 @@ namespace IntersectUtilities
                 NdhFromFjvImport.Run(fjvPath, new NdhImportServices(
                     ndh,
                     ndh,
+                    ndh,
                     new NsDhConnectionBridge(),
                     new NsDhSettingsBridge(),
                     new NsDhModifyBridge(),

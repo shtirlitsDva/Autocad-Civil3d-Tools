@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 
+using Autodesk.AutoCAD.Geometry;
+
 namespace IntersectUtilities.NdhTrace;
 
 /// <summary>How a branch leaves its main (NDH BranchOutlet).</summary>
@@ -14,10 +16,27 @@ internal enum NdhBranchOutlet
 /// <summary>
 /// Connect the end of <paramref name="BranchHandle"/> (its first vertex when
 /// <paramref name="BranchAtStart"/>, else its last) to <paramref name="MainHandle"/>,
-/// with <paramref name="Produkt"/> pinned on the junction.
+/// with <paramref name="Produkt"/> pinned on the junction, the tee standing at
+/// <paramref name="Site"/> - the seat the main was routed around
+/// (<see cref="JunctionSeating"/>).
 /// </summary>
 internal readonly record struct NdhConnectRequest(
-    string MainHandle, string BranchHandle, bool BranchAtStart, NdhBranchOutlet Outlet, string Produkt);
+    string MainHandle, string BranchHandle, bool BranchAtStart, NdhBranchOutlet Outlet, string Produkt,
+    Point2d Site);
+
+/// <summary>
+/// How the branch took the tee's seat (kNsDhCorner*). The tee holds its seat,
+/// so the branch gives: its first corner shifts when it stands within the
+/// drawing's largest corner shift of the square line, and otherwise the first
+/// leg takes an S-offset and the corner stands as drawn.
+/// </summary>
+internal enum NdhCornerCorrection
+{
+    Shifted = 0,
+    Offset = 1,
+    /// <summary>An S-offset was due but could not be laid in the first leg; the corner moved anyway.</summary>
+    ShiftedForWantOfRoom = 2,
+}
 
 /// <summary>NsDh_ConnectBranch status codes (kNsDhConnect*).</summary>
 internal enum NdhConnectStatus
@@ -44,7 +63,9 @@ internal enum NdhConnectStatus
 /// <paramref name="EndMoveM"/> how far the connected end moved onto the main's
 /// centreline; <paramref name="LargestMoveM"/> the largest move of any other
 /// branch vertex. <paramref name="PortX"/>/<paramref name="PortY"/> is where the
-/// connected end landed (success only).
+/// connected end landed, <paramref name="Correction"/> how the branch took the
+/// seat and <paramref name="CornerOffsetM"/> how far its first corner was drawn
+/// off the square line (success only).
 /// </summary>
 internal readonly record struct NdhConnectOutcome(
     NdhConnectStatus Status,
@@ -54,6 +75,8 @@ internal readonly record struct NdhConnectOutcome(
     double LargestMoveM,
     double PortX,
     double PortY,
+    NdhCornerCorrection Correction,
+    double CornerOffsetM,
     string Detail)
 {
     public bool Success => Status == NdhConnectStatus.Ok;
