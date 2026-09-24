@@ -22,6 +22,12 @@ namespace IntersectUtilities.NSTBL
         public string System { get; set; }
         public string Serie { get; set; }
         public string SystemType { get; set; }
+        /// <summary>
+        /// Standard delivery length in metres (12/16 for steel, 100 for coils).
+        /// Only pipes carry a value; components leave it empty.
+        /// Written to the first reserved CWO field (Data!I).
+        /// </summary>
+        public string StdLength { get; set; }
         public virtual string ToString(ExportType exportType)
         {
             string dn2Value = DN2 == "0" ? "" : DN2;
@@ -30,7 +36,7 @@ namespace IntersectUtilities.NSTBL
                 case ExportType.Unknown:
                     break;
                 case ExportType.CWO:
-                    return $"{Vejnavn};Vejkl. {Vejklasse};{Belægning};{Navn};;;{DN1};{dn2Value};{System};{Serie};";
+                    return $"{Vejnavn};Vejkl. {Vejklasse};{Belægning};{Navn};{StdLength};;{DN1};{dn2Value};{System};{Serie};";
                 case ExportType.JJR:
                     return $"Vejkl. {Vejklasse};{Belægning};{Navn};{DN1};{dn2Value};{System};{Serie};";
                 default:
