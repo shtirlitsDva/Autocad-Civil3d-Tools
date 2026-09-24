@@ -11,7 +11,7 @@ internal enum FaultKind { InvalidArgs, NotFound, NotInitialized, Gdal, Internal 
 
 internal sealed record Fault(FaultKind Kind, string Message);
 
-internal union Result<T>(Ok<T>, Fault);
+internal readonly union Result<T>(Ok<T>, Fault);
 
 internal sealed record Some<T>(T Value);
 
@@ -21,7 +21,7 @@ internal sealed record None
     private None() { }
 }
 
-internal union Option<T>(Some<T>, None);
+internal readonly union Option<T>(Some<T>, None);
 
 internal static class ResultExtensions
 {
@@ -38,4 +38,24 @@ internal static class ResultExtensions
             Ok<TIn> ok => new Ok<TOut>(map(ok.Value)),
             Fault fault => fault,
         };
+
+    // A side effect per case. A switch statement would not be checked for
+    // exhaustiveness, so the expression picks the action and then runs it; this
+    // and its Option twin are the only places that pattern is written out.
+    public static void Switch<T>(this Result<T> result, Action<T> ok, Action<Fault> fault) =>
+        (result switch
+        {
+            Ok<T> value => (Action)(() => ok(value.Value)),
+            Fault failure => () => fault(failure),
+        })();
+}
+
+internal static class OptionExtensions
+{
+    public static void Switch<T>(this Option<T> option, Action<T> some, Action none) =>
+        (option switch
+        {
+            Some<T> value => (Action)(() => some(value.Value)),
+            None => none,
+        })();
 }

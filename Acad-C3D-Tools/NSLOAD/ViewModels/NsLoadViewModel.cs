@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
 using System.Windows.Data;
+using System.Windows.Threading;
 
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -16,7 +17,7 @@ namespace NSLOAD.ViewModels
     public partial class NsLoadViewModel : ObservableObject
     {
         private NsLoadConfig _config = new();
-        private Dictionary<string, string> _csvApps = new();
+        private Dictionary<string, RegisterEntry> _csvApps = new();
 
         public ObservableCollection<AppItemViewModel> PredefinedApps { get; } = new();
         public ObservableCollection<AppItemViewModel> UserPlugins { get; } = new();
@@ -28,11 +29,25 @@ namespace NSLOAD.ViewModels
         [ObservableProperty] private string _newPluginDllPath = "";
         [ObservableProperty] private bool _newPluginLoadOnStartup;
 
+        // Re-reads every row while the palette is visible, so a drafter waiting
+        // for OneDrive to deliver a new native-group version sees it arrive.
+        private readonly DispatcherTimer _liveRefresh =
+            new() { Interval = TimeSpan.FromSeconds(3) };
+
         public NsLoadViewModel()
         {
+            _liveRefresh.Tick += (_, _) => RefreshStates();
         }
 
-        public void Initialize(NsLoadConfig config, Dictionary<string, string> csvApps)
+        public void StartLiveRefresh()
+        {
+            RefreshStates();
+            _liveRefresh.Start();
+        }
+
+        public void StopLiveRefresh() => _liveRefresh.Stop();
+
+        public void Initialize(NsLoadConfig config, Dictionary<string, RegisterEntry> csvApps)
         {
             _config = config;
             _csvApps = csvApps;
@@ -121,7 +136,10 @@ namespace NSLOAD.ViewModels
             var vm = UserPlugins.FirstOrDefault(p => p.Name == name);
             if (vm == null) return;
 
-            PluginManager.Unregister(name);
+            // A plugin that refused to unload stays registered and listed, so the
+            // manager can still unload it; forgetting it would leave it running
+            // untracked until AutoCAD restarts.
+            if (!PluginManager.Unregister(name)) return;
 
             _config.Plugins.RemoveAll(e =>
                 e.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
@@ -146,14 +164,16 @@ namespace NSLOAD.ViewModels
         {
             var dlg = new OpenFileDialog
             {
-                Filter = "DLL files (*.dll)|*.dll",
-                Title = "Select plugin DLL",
+                Filter = "Plugins (*.dll;*.oarx.json)|*.dll;*.oarx.json",
+                Title = "Select a plugin DLL or a native group manifest",
             };
             if (dlg.ShowDialog() == true)
             {
                 NewPluginDllPath = dlg.FileName;
                 if (string.IsNullOrWhiteSpace(NewPluginName))
-                    NewPluginName = System.IO.Path.GetFileNameWithoutExtension(dlg.FileName);
+                {
+                    NewPluginName = PluginKinds.DefaultName(dlg.FileName);
+                }
             }
         }
 
@@ -166,9 +186,20 @@ namespace NSLOAD.ViewModels
 
             string name = NewPluginName.Trim();
 
-            if (_config.Plugins.Any(p =>
-                    p.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+            // Register rows count too, even ones not registered this session (the
+            // register was unreadable at startup): a second registration under a
+            // register row's name would replace it, and a group it had loaded
+            // would run on untracked until AutoCAD restarts.
+            bool taken =
+                _config.Plugins.Any(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase)) ||
+                _config.PredefinedApps.Any(a => a.DisplayName.Equals(name, StringComparison.OrdinalIgnoreCase)) ||
+                PluginManager.GetRegisteredPluginNames().Any(n => n.Equals(name, StringComparison.OrdinalIgnoreCase));
+            if (taken)
+            {
+                Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument?
+                    .Editor.WriteMessage($"\n{name} is already the name of a plugin. Choose another name.");
                 return;
+            }
 
             var entry = new UserPluginEntry
             {
@@ -181,7 +212,7 @@ namespace NSLOAD.ViewModels
             NsLoadConfigLoader.Save(_config);
 
             PluginManager.Register(name)
-                .WithDllPath(entry.DllPath)
+                .WithPath(entry.DllPath)
                 .WithCommands()
                 .Commit();
 
@@ -218,6 +249,8 @@ namespace NSLOAD.ViewModels
         [ObservableProperty] private bool _isLoaded;
         [ObservableProperty] private string _status = "Unloaded";
         [ObservableProperty] private bool _autoLoad;
+        [ObservableProperty] private string? _versionText;
+        [ObservableProperty] private bool _hasVersionText;
 
         public AppItemViewModel(string name, bool isPredefined)
         {
@@ -229,6 +262,8 @@ namespace NSLOAD.ViewModels
         {
             IsLoaded = PluginManager.IsRegistered(Name) && PluginManager.IsLoaded(Name);
             Status = IsLoaded ? "Loaded" : "Unloaded";
+            VersionText = PluginManager.GetVersionStatus(Name);
+            HasVersionText = !string.IsNullOrEmpty(VersionText);
         }
     }
 

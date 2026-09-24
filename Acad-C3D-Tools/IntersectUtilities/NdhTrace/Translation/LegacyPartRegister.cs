@@ -58,7 +58,7 @@ internal static class LegacyPartRegister
         ["T ENKELT S2"] = new PartIsProdukt(AfgreningMedSpring),
         ["T ENKELT S3"] = new PartIsProdukt(AfgreningMedSpring),
         ["T PARALLEL S3 E"] = new PartIsProdukt(Parallelafgrening),
-        ["T PARALLEL S3 E VARIABEL"] = new PartNotImplemented("Parallelafgrening VARIABEL has no NDH counterpart yet", "Parallelafgrening VARIABEL findes ikke i NDH endnu"),
+        ["T PARALLEL S3 E VARIABEL"] = new PartIsProdukt(Parallelafgrening),
         ["AFGRSTUDS"] = new PartIsProdukt(Afgreningsstuds),
         ["ENDEBUND"] = new PartIsProdukt(Endebund),
         ["VENTIL E"] = new PartNotImplemented("engangsventil: NDH's Ventil is a different part and must not be substituted", "engangsventil findes ikke i NDH endnu - NDH's Ventil er ikke den samme del"),

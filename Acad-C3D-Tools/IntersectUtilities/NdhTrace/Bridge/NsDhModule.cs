@@ -169,10 +169,17 @@ internal sealed record NsDhSurface(string Name, string VersionExport, int Expect
     //authored, which is how a component is named. Until 2 nothing outside the
     //dbx could learn one, so the override lane could not be addressed at all.
     public static readonly NsDhSurface Build = new("pipeline build", "NsDh_PipelineBuildVersion", 2);
-    //kNsDhChangeStraightVersion (the elbow straight rides on it)
-    public static readonly NsDhSurface ChangeStraight = new("change straight", "NsDh_ChangeStraightVersion", 1);
+    //kNsDhVertexStraightVersion - ONE question about what a vertex takes
+    //(reach-and-radius.md Law R1); version 2 is the collapse of the two.
+    public static readonly NsDhSurface VertexStraight = new("vertex straight", "NsDh_VertexStraightVersion", 2);
     //kNsDhBranchConnectVersion
-    public static readonly NsDhSurface BranchConnect = new("branch connect", "NsDh_BranchConnectVersion", 1);
+    public static readonly NsDhSurface BranchConnect = new("branch connect", "NsDh_BranchConnectVersion", 2);
+    //kNsDhJunctionStraightVersion - Law R1 asked of a JUNCTION: what the
+    //connection takes out of the main either side of the branch point. The one
+    //thing standing on a main that is not at a vertex of the main's own route,
+    //and the last two invented metres in this importer were standing in for it.
+    public static readonly NsDhSurface JunctionStraight =
+        new("junction straight", "NsDh_JunctionStraightVersion", 1);
     //kNsDhDrawingSettingsVersion
     //2: the surface gained the FITTING RULE SHEET (NsDh_SetFittingRules /
     //NsDh_ReadFittingRules). The producer and the series matrix are unchanged;
@@ -199,5 +206,5 @@ internal sealed record NsDhSurface(string Name, string VersionExport, int Expect
 
     /// <summary>Every surface NDHFROMFJV uses; probed before the import touches anything.</summary>
     public static readonly NsDhSurface[] UsedByImport =
-        [Build, ChangeStraight, BranchConnect, DrawingSettings, PipelineRead, PipelineModify];
+        [Build, VertexStraight, BranchConnect, JunctionStraight, DrawingSettings, PipelineRead, PipelineModify];
 }

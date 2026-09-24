@@ -5,7 +5,11 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 		<TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-		<NoWarn>$(NoWarn);CS8524</NoWarn>
+		<AnalysisLevel>latest-recommended</AnalysisLevel>
+		<EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+		<!-- IDE0005 (unused usings) only runs on build when a documentation file
+		     is generated (dotnet/roslyn#41640). CS1591 is off in .editorconfig. -->
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
 		<Platform>x64</Platform>
 		<Platforms>x64</Platforms>
 		<IsPackable>false</IsPackable>
@@ -14,6 +18,7 @@
 
 	<ItemGroup>
 		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
+		<PackageReference Include="Verify.Xunit" Version="31.12.5" />
 		<PackageReference Include="xunit" Version="2.9.3" />
 		<PackageReference Include="xunit.runner.visualstudio" Version="4.0.0" />
 		<!-- SourceRulesTests reads GDALService's own source to enforce the null and exception rules. -->

@@ -1,5 +1,5 @@
 using GDALService.Common;
-using GDALService.Raster;
+using GDALService.Terrain.GdalBackend;
 
 using OSGeo.GDAL;
 
@@ -30,7 +30,7 @@ internal static class Expect
 
 internal static class GdalForTests
 {
-    private static readonly Lazy<string> Release = new(() => Expect.Ok(GdalEdge.Initialise()));
+    private static readonly Lazy<string> Release = new(() => Expect.Ok(GdalBootstrap.Initialise()));
 
     public static void Ensure() => _ = Release.Value;
 
@@ -86,9 +86,12 @@ internal sealed class TileFolder : IDisposable
                   values ?? ((c, r) =>
                   {
                       int col = c + colOffset;
-                      if (col == 3 && r == 3) { return -9999f; }
-                      if (col == 4 && r == 4) { return float.NaN; }
-                      return (float)Expected(col, r);
+                      return (col, r) switch
+                      {
+                          (3, 3) => -9999f,
+                          (4, 4) => float.NaN,
+                          _ => (float)Expected(col, r),
+                      };
                   }));
     }
 

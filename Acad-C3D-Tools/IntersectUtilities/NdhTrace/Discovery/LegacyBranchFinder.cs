@@ -1,4 +1,4 @@
-using Autodesk.AutoCAD.DatabaseServices;
+﻿using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 
 using IntersectUtilities.UtilsCommon;
@@ -182,12 +182,8 @@ internal static class LegacyBranchFinder
         if (traces.TryGetValue(mainName, out LegacyPipelineTrace? mainTrace))
             (site, system, type) = SiteOn(mainTrace, port);
 
-        List<Point2d> mainPorts = junction
-            .SelectMany(c => c.Part.Ports.Where(p => p.Role != ComponentPortRole.Branch).Select(p => p.Position.To2d()))
-            .ToList();
-
         drawing.Branches.Add(new LegacyBranch(
-            mainName, branchName, navn, handles, port, site, mainPorts, system, type, first.NamedBy));
+            mainName, branchName, navn, handles, port, site, system, type, first.NamedBy));
     }
 
     /// <summary>

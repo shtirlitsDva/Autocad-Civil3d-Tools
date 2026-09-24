@@ -6,6 +6,11 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 		<TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+		<AnalysisLevel>latest-recommended</AnalysisLevel>
+		<EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+		<!-- IDE0005 (unused usings) only runs on build when a documentation file
+		     is generated (dotnet/roslyn#41640). CS1591 is off in .editorconfig. -->
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
 		<!-- CS8524 asks a switch over an enum to also handle values outside the
 		     named members (e.g. (FaultKind)5), which only a `_` arm can do - and a
 		     `_` arm would hide a newly added member. CS8509, the warning for a
@@ -23,6 +28,7 @@
 	<ItemGroup>
 		<PackageReference Include="GDAL" Version="3.11.3" />
 		<PackageReference Include="GDAL.Native" Version="3.11.3" />
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="11.0.0-rc.1.26425.128" />
 	</ItemGroup>
 
 	<!-- GDAL.Native copies its native gdal\ folder into the build output, but its
@@ -32,9 +38,7 @@
 	     the executable. -->
 	<Target Name="PublishGdalNativeFiles" AfterTargets="ComputeResolvedFilesToPublishList">
 		<ItemGroup>
-			<ResolvedFileToPublish Include="@(GDALInteropFiles)"
-			                       RelativePath="gdal\%(RecursiveDir)%(Filename)%(Extension)"
-			                       CopyToPublishDirectory="PreserveNewest" />
+			<ResolvedFileToPublish Include="@(GDALInteropFiles)" RelativePath="gdal\%(RecursiveDir)%(Filename)%(Extension)" CopyToPublishDirectory="PreserveNewest" />
 		</ItemGroup>
 	</Target>
 

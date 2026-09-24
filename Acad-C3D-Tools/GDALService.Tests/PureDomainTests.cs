@@ -1,6 +1,6 @@
 using GDALService.Common;
 using GDALService.Domain;
-using GDALService.Raster;
+using GDALService.Terrain;
 
 using OSGeo.GDAL;
 

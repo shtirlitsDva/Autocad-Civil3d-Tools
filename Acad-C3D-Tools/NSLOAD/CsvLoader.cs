@@ -1,13 +1,23 @@
+using System;
 using System.Collections.Generic;
 using Microsoft.VisualBasic.FileIO;
 
 namespace NSLOAD
 {
+    /// <summary>One row of the shared register.</summary>
+    /// <param name="Path">The plugin DLL, or a native group's <c>*.oarx.json</c>.</param>
+    /// <param name="AutoLoadByDefault">The optional third column reads
+    /// <c>autoload</c>: a user who meets this app for the first time gets it with
+    /// auto-load switched on. A user's own later choice always wins.</param>
+    public record RegisterEntry(string Path, bool AutoLoadByDefault);
+
     public static class CsvLoader
     {
-        public static Dictionary<string, string> Load(string csvPath)
+        private const string AutoLoadMarker = "autoload";
+
+        public static Dictionary<string, RegisterEntry> Load(string csvPath)
         {
-            var dict = new Dictionary<string, string>();
+            var dict = new Dictionary<string, RegisterEntry>();
 
             using (var parser = new TextFieldParser(csvPath))
             {
@@ -25,8 +35,10 @@ namespace NSLOAD
                     {
                         string displayName = fields[0].Trim();
                         string path = fields[1].Trim();
+                        bool autoLoad = fields.Length >= 3 &&
+                            fields[2].Trim().Equals(AutoLoadMarker, StringComparison.OrdinalIgnoreCase);
                         if (!string.IsNullOrEmpty(displayName) && !string.IsNullOrEmpty(path))
-                            dict[displayName] = path;
+                            dict[displayName] = new RegisterEntry(path, autoLoad);
                     }
                 }
             }

@@ -24,6 +24,11 @@
 		<Deterministic>false</Deterministic>
 		<AssemblyName>IntersectUtilities</AssemblyName>
 	</PropertyGroup>
+	<ItemGroup>
+		<!-- NdhTrace is internal; its tests are in the same trust boundary, exactly as
+		     GDALService.Tests is for GDALService. -->
+		<InternalsVisibleTo Include="IntersectUtilities.NdhTrace.Tests" />
+	</ItemGroup>
 	<PropertyGroup Condition=" '$(Platform)' == 'x64' ">
 		<DebugSymbols>true</DebugSymbols>
 	</PropertyGroup>

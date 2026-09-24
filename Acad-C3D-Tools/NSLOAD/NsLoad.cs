@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
@@ -25,7 +25,7 @@ namespace NSLOAD
             new("A7E3F1B2-9C4D-4E8A-B6D5-2F1A3C7E9B04");
 
         private static NsLoadConfig _config = new();
-        private static Dictionary<string, string> _csvApps = new();
+        private static Dictionary<string, RegisterEntry> _csvApps = new();
 
         private static readonly List<(string Group, string Name, CommandCallback Callback)>
             _onDemandCommands = new();
@@ -52,28 +52,38 @@ namespace NSLOAD
             }
 
             string csvPath = @"X:\AutoCAD DRI - 01 Civil 3D\NetloadV2\Register-2025.csv";
+            bool registerRead;
             try
             {
                 _csvApps = CsvLoader.Load(csvPath);
+                registerRead = true;
             }
             catch (System.Exception ex)
             {
                 ed?.WriteMessage($"\nNSLOAD: Failed to read CSV: {ex.Message}");
-                _csvApps = new Dictionary<string, string>();
+                _csvApps = new Dictionary<string, RegisterEntry>();
+                registerRead = false;
             }
 
-            _config = NsLoadConfigLoader.MergeWithCsv(
-                NsLoadConfigLoader.Load(), _csvApps);
-            NsLoadConfigLoader.Save(_config);
+            // Merge only against a register that was actually read. Merging against
+            // an unreadable one (X: offline, OneDrive not mounted yet) would drop
+            // every app from the saved config, and the drafter's own auto-load
+            // choices with them.
+            _config = NsLoadConfigLoader.Load() ?? new NsLoadConfig();
+            if (registerRead)
+            {
+                _config = NsLoadConfigLoader.MergeWithCsv(_config, _csvApps);
+                NsLoadConfigLoader.Save(_config);
+            }
 
             int predefinedLoaded = 0;
             foreach (var app in _config.PredefinedApps)
             {
-                if (!_csvApps.TryGetValue(app.DisplayName, out string? dllPath))
+                if (!_csvApps.TryGetValue(app.DisplayName, out RegisterEntry? entry))
                     continue;
 
                 PluginManager.Register(app.DisplayName)
-                    .WithDllPath(dllPath)
+                    .WithPath(entry.Path)
                     .WithCommands()
                     .Commit();
 
@@ -92,7 +102,7 @@ namespace NSLOAD
             foreach (var plugin in _config.Plugins)
             {
                 PluginManager.Register(plugin.Name)
-                    .WithDllPath(plugin.DllPath)
+                    .WithPath(plugin.DllPath)
                     .WithCommands()
                     .Commit();
 
@@ -108,17 +118,18 @@ namespace NSLOAD
             Utils.AddCommand("NSLOAD", "NSLOADMGR", "NSLOADMGR",
                 CommandFlags.Modal, OpenManager);
 
-            ed?.WriteMessage(
-                $"\nNSLOAD: {_config.PredefinedApps.Count} predefined apps " +
-                $"({predefinedLoaded} auto-loaded), " +
-                $"{_config.Plugins.Count} user plugins ({userLoaded} auto-loaded).");
+            //ed?.WriteMessage(
+            //    $"\nNSLOAD: {_config.PredefinedApps.Count} predefined apps " +
+            //    $"({predefinedLoaded} auto-loaded), " +
+            //    $"{_config.Plugins.Count} user plugins ({userLoaded} auto-loaded).");
         }
 
         public void Terminate()
         {
-            PluginManager.UnloadAll();
+            PluginManager.ShutdownAll();
 
-            try { AutoCadScanSuppressor.Restore(); } catch { }
+            try { AutoCadScanSuppressor.Restore(); }
+            catch (System.Exception ex) { NsLoadDiagnostics.Report("scan suppressor restore", ex); }
 
             // Dispose the cached management palette so it doesn't survive an unload/reload cycle.
             if (_mgmtPalette != null)
@@ -128,7 +139,7 @@ namespace NSLOAD
                     _mgmtPalette.Visible = false;
                     _mgmtPalette.Dispose();
                 }
-                catch { }
+                catch (System.Exception ex) { NsLoadDiagnostics.Report("manager palette dispose", ex); }
                 _mgmtPalette = null;
             }
         }

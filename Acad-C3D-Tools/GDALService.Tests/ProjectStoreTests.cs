@@ -1,116 +1,139 @@
 using GDALService.Common;
-using GDALService.Domain;
-using GDALService.Hosting;
 using GDALService.Project;
-using GDALService.Raster;
+using GDALService.Terrain;
+using GDALService.Tests.Fakes;
 
 namespace GDALService.Tests;
 
-public sealed class ProjectStoreTests : IDisposable
+// When SET_PROJECT reuses the open raster, when it replaces it, and what a
+// failed replacement leaves behind - over a fake catalog and fake rasters, so
+// every outcome is one the test chooses.
+public class ProjectStoreTests
 {
-    private readonly TileFolder _folder = new();
-    private readonly ProjectStore _store = new(TextWriter.Null);
+    private const string Base = @"C:\Projects\A";
 
-    public void Dispose()
-    {
-        _store.Dispose();
-        _folder.Dispose();
-    }
+    private static readonly TileSet Two = FakeTileCatalog.Tiles(Base, ("TST_1.tif", 100), ("TST_2.tif", 100));
 
-    private static Sample HeightAt(OpenProject project, double x, double y) =>
-        Sampler.Points(project.Raster, [new PointQuery(1, 0, 0, x, y)], new Progress("t", 1, TextWriter.Null))[0].Sample;
+    private static FakeRaster Raster() => new(20, 10, (_, _) => 1, None.Instance);
+
+    private static FakeRasterFactory NewRasterEachTime() => new((_, _) => new Ok<IRaster>(Raster()));
 
     [Fact]
-    public void Nothing_is_open_until_set_project()
+    public void Nothing_is_open_until_a_project_is()
     {
-        var fault = Expect.Fault(_store.Current);
-        Assert.Equal(FaultKind.NotInitialized, fault.Kind);
+        using var store = new ProjectStore(FakeTileCatalog.Serving(Two), NewRasterEachTime());
+        Assert.Equal(FaultKind.NotInitialized, Expect.Fault(store.Current).Kind);
     }
 
     [Fact]
-    public void Opening_builds_an_in_memory_mosaic_of_the_numbered_tiles_only()
+    public void Opening_builds_one_mosaic_of_the_catalogs_tiles_named_after_the_project()
     {
-        var project = Expect.Ok(_store.Open("TST", _folder.BasePath));
+        var rasters = NewRasterEachTime();
+        using var store = new ProjectStore(FakeTileCatalog.Serving(Two), rasters);
 
-        Assert.StartsWith("/vsimem/gdalservice/TST-", project.Raster.Path);
-        Assert.Equal((20, 10), (project.Raster.Width, project.Raster.Height));
-        Assert.Equal(["TST_1.tif", "TST_2.tif"], project.Tiles.Select(t => Path.GetFileName(t.Path)));
-        Assert.False(File.Exists(Path.Combine(_folder.ElevationsDir, "TST.vrt")));
-        Assert.Same(project, Expect.Ok(_store.Current));
+        var project = Expect.Ok(store.Open("TST", Base));
+
+        var (name, tiles) = Assert.Single(rasters.Opened);
+        Assert.Equal("TST", name);
+        Assert.Equal(Two.Tiles.Select(t => t.Path), tiles);
+        Assert.Same(project, Expect.Ok(store.Current));
     }
 
     [Fact]
-    public void The_same_project_from_the_same_folder_is_reused()
+    public void The_same_project_over_the_same_tiles_is_reused_whatever_the_case_of_its_id()
     {
-        var first = Expect.Ok(_store.Open("TST", _folder.BasePath));
-        var again = Expect.Ok(_store.Open("tst", _folder.BasePath + Path.DirectorySeparatorChar));
+        var rasters = NewRasterEachTime();
+        using var store = new ProjectStore(FakeTileCatalog.Serving(Two), rasters);
+
+        var first = Expect.Ok(store.Open("TST", Base));
+        var again = Expect.Ok(store.Open("tst", Base));
+
         Assert.Same(first, again);
+        Assert.Single(rasters.Opened);
     }
 
     [Fact]
-    public void The_same_project_id_from_another_folder_is_not_reused()
+    public void Another_folder_a_changed_tile_or_another_project_each_replace_the_open_raster()
     {
-        using var other = new TileFolder("Other");
-        // Same tile names and georeference, every height 500 higher.
-        other.WriteTstTile(1, 0, (c, r) => (float)TileFolder.Expected(c, r) + 500);
-        other.WriteTstTile(2, 1, (c, r) => (float)TileFolder.Expected(c + 10, r) + 500);
+        const string other = @"C:\Projects\B";
+        var catalog = FakeTileCatalog.Serving(Two);
+        var rasters = NewRasterEachTime();
+        using var store = new ProjectStore(catalog, rasters);
+        var first = Expect.Ok(store.Open("TST", Base));
 
-        var first = Expect.Ok(_store.Open("TST", _folder.BasePath));
-        var second = Expect.Ok(_store.Open("TST", other.BasePath));
+        catalog.Answer = (_, _) => new Ok<TileSet>(FakeTileCatalog.Tiles(other, ("TST_1.tif", 100), ("TST_2.tif", 100)));
+        var otherFolder = Expect.Ok(store.Open("TST", other));
+        catalog.Answer = (_, _) => new Ok<TileSet>(FakeTileCatalog.Tiles(other, ("TST_1.tif", 100), ("TST_2.tif", 101)));
+        var changedTile = Expect.Ok(store.Open("TST", other));
+        var otherProject = Expect.Ok(store.Open("OTHER", other));
 
-        Assert.NotSame(first, second);
-        var (x, y) = TileFolder.CentreOf(0, 0);
-        Assert.Equal(TileFolder.Expected(0, 0) + 500, Assert.IsType<Elevation>(HeightAt(second, x, y).Value).Metres, 4);
+        Assert.Equal(4, rasters.Opened.Count);
+        Assert.Equal(4, new[] { first, otherFolder, changedTile, otherProject }.Distinct().Count());
     }
 
     [Fact]
-    public void A_tile_added_after_opening_is_picked_up_by_the_next_set_project()
+    public void A_replaced_raster_is_disposed_once_and_the_last_one_with_the_store()
     {
-        var first = Expect.Ok(_store.Open("TST", _folder.BasePath));
-        TileFolder.WriteTile(Path.Combine(_folder.ElevationsDir, "TST_3.tif"), 1020, 2010, 10, 10, -9999f, (_, _) => 1f);
+        var first = Raster();
+        var second = Raster();
+        var queue = new Queue<FakeRaster>([first, second]);
+        var store = new ProjectStore(FakeTileCatalog.Serving(Two), new FakeRasterFactory((_, _) => new Ok<IRaster>(queue.Dequeue())));
 
-        var second = Expect.Ok(_store.Open("TST", _folder.BasePath));
+        Expect.Ok(store.Open("TST", Base));
+        Expect.Ok(store.Open("OTHER", Base));
+        Assert.Equal((1, 0), (first.DisposeCount, second.DisposeCount));
 
-        Assert.NotSame(first, second);
-        Assert.Equal(30, second.Raster.Width);
-    }
-
-    [Fact]
-    public void A_tile_removed_after_opening_is_noticed_by_the_next_set_project()
-    {
-        Expect.Ok(_store.Open("TST", _folder.BasePath));
-        File.Delete(Path.Combine(_folder.ElevationsDir, "TST_2.tif"));
-
-        var second = Expect.Ok(_store.Open("TST", _folder.BasePath));
-
-        Assert.Equal(10, second.Raster.Width);
-    }
-
-    [Fact]
-    public void A_folder_without_elevations_is_not_found()
-    {
-        var fault = Expect.Fault(_store.Open("TST", Path.Combine(_folder.BasePath, "nope")));
-        Assert.Equal(FaultKind.NotFound, fault.Kind);
-        Assert.StartsWith("Elevations folder not found", fault.Message);
-    }
-
-    [Fact]
-    public void A_project_id_with_no_tiles_is_not_found()
-    {
-        var fault = Expect.Fault(_store.Open("MISSING", _folder.BasePath));
-        Assert.Equal(FaultKind.NotFound, fault.Kind);
-        Assert.StartsWith("No GeoTIFF tiles for 'MISSING'", fault.Message);
+        store.Dispose();
+        Assert.Equal((1, 1), (first.DisposeCount, second.DisposeCount));
     }
 
     [Fact]
     public void A_failed_switch_closes_the_previous_project_rather_than_leaving_it_answering()
     {
-        Expect.Ok(_store.Open("TST", _folder.BasePath));
-        // A numbered tile that is not a raster: the mosaic cannot be built.
-        File.WriteAllText(Path.Combine(_folder.ElevationsDir, "BAD_1.tif"), "not a tiff");
+        var first = Raster();
+        var rasters = new FakeRasterFactory((name, _) => name == "TST"
+            ? new Ok<IRaster>(first)
+            : new Fault(FaultKind.Gdal, "GDALBuildVRT failed"));
+        using var store = new ProjectStore(FakeTileCatalog.Serving(Two), rasters);
+        Expect.Ok(store.Open("TST", Base));
 
-        Expect.Fault(_store.Open("BAD", _folder.BasePath));
+        var fault = Expect.Fault(store.Open("BAD", Base));
 
-        Assert.Equal(FaultKind.NotInitialized, Expect.Fault(_store.Current).Kind);
+        Assert.Equal("GDALBuildVRT failed", fault.Message);
+        Assert.Equal(FaultKind.NotInitialized, Expect.Fault(store.Current).Kind);
+        Assert.Equal(1, first.DisposeCount);
+    }
+
+    [Fact]
+    public void A_backend_that_can_open_nothing_is_the_answer_before_any_tile_is_looked_for()
+    {
+        var asked = 0;
+        var catalog = new FakeTileCatalog((_, _) =>
+        {
+            asked++;
+            return new Fault(FaultKind.NotFound, "Elevations folder not found");
+        });
+        var rasters = new FakeRasterFactory((_, _) => new Ok<IRaster>(Raster()))
+        {
+            Unavailable = new Some<Fault>(new Fault(FaultKind.Gdal, "GDAL native libraries are not usable")),
+        };
+        using var store = new ProjectStore(catalog, rasters);
+
+        var fault = Expect.Fault(store.Open("TST", @"C:\nowhere"));
+
+        Assert.Equal((FaultKind.Gdal, "GDAL native libraries are not usable"), (fault.Kind, fault.Message));
+        Assert.Equal(0, asked);
+        Assert.Empty(rasters.Opened);
+    }
+
+    [Fact]
+    public void A_catalog_fault_is_the_answer_and_nothing_is_opened()
+    {
+        var rasters = NewRasterEachTime();
+        var catalog = new FakeTileCatalog((_, _) => new Fault(FaultKind.NotFound, "Elevations folder not found: X"));
+        using var store = new ProjectStore(catalog, rasters);
+
+        Assert.Equal("Elevations folder not found: X", Expect.Fault(store.Open("TST", Base)).Message);
+        Assert.Empty(rasters.Opened);
     }
 }

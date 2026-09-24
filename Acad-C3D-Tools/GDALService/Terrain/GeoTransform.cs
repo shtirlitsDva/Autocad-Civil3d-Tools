@@ -1,6 +1,6 @@
 using GDALService.Common;
 
-namespace GDALService.Raster;
+namespace GDALService.Terrain;
 
 // GDAL's six-coefficient affine transform, pixel/line <-> georeferenced. Pure
 // arithmetic, so it lives outside the GDAL edge and is tested on its own.
