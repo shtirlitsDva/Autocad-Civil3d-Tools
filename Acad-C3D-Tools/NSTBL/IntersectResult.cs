@@ -44,6 +44,20 @@ namespace IntersectUtilities.NSTBL
             }
             return default;
         }
+        /// <summary>
+        /// One row of the CWO tilbudsliste sheet:
+        /// Egne noter;Vejklasse;Belægningstype;Komponent;StdLength;Materiale;DN;DN;Rørsystem;Serie;Antal.
+        /// Egne noter stays empty - the etape is written there in the sheet.
+        /// SystemType holds the material (PipeSystemEnum) for pipes and components alike.
+        /// </summary>
+        public string ToCwoV2Row()
+        {
+            string dn2Value = DN2 == "0" ? "" : DN2;
+            return $";Vejkl. {Vejklasse};{Belægning};{Navn};{StdLength};{SystemType};" +
+                $"{DN1};{dn2Value};{System};{Serie};{AntalCwoV2}";
+        }
+        /// <summary>Metres for a pipe, pieces for a component.</summary>
+        protected abstract string AntalCwoV2 { get; }
     }
     internal class IntersectResultPipe : IntersectResult
     {
@@ -57,6 +71,7 @@ namespace IntersectUtilities.NSTBL
         public override string ToString(ExportType exportType) => 
             base.ToString(exportType) + $"{Antal.ToString(new CultureInfo("da-DK"))};" +
             $"{Length.ToString(new CultureInfo("da-DK"))};{SystemType}";
+        protected override string AntalCwoV2 => Antal.ToString(new CultureInfo("da-DK"));
     }
     internal class IntersectResultComponent : IntersectResult
     {
@@ -66,6 +81,7 @@ namespace IntersectUtilities.NSTBL
         }
         public int Count { get; set; }
         public override string ToString(ExportType exportType) => base.ToString(exportType) + $"{Count};;{SystemType}";
+        protected override string AntalCwoV2 => Count.ToString(CultureInfo.InvariantCulture);
     }
     internal abstract class PropertyConfig
     {

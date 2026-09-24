@@ -136,7 +136,11 @@ namespace IntersectUtilities.NSTBL
             }
         }
 
-        internal HashSet<IntersectResult> gatherintersectdata()
+        /// <param name="inheritWeldSerie">
+        /// Welds without a Serie inherit it from the pipe or component they join (TBLEXPORTCWOV2).
+        /// The older exports keep the blank Serie so their output stays unchanged.
+        /// </param>
+        internal HashSet<IntersectResult> gatherintersectdata(bool inheritWeldSerie)
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
@@ -175,6 +179,23 @@ namespace IntersectUtilities.NSTBL
                     PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriOmråder);
                     PSetDefs.DriOmråder psDef = new PSetDefs.DriOmråder();
 
+                    #region Serie fallback for welds
+                    //Welds carry no Serie in FJV Dynamiske Komponenter.csv, so they export a blank
+                    //Serie and fall through the staging grid. They inherit it from whatever they
+                    //join: the pipe they sit on, or - for a weld between two components - the port
+                    //of the neighbouring component. Extents are cached up front so the per-weld
+                    //pipe lookup can reject most pipes without paying for a closest-point call.
+                    var pipesWithExtents = pipes
+                        .Where(p => p.Bounds.HasValue)
+                        .Select(p => (Pipe: p, Ext: p.Bounds.Value))
+                        .ToArray();
+                    //Reading ports costs an ARX call per component, and most welds are resolved by
+                    //the pipe lookup alone, so this is only built if a weld actually needs it.
+                    var componentPorts = new Lazy<(Point3d Port, string Serie)[]>(
+                        () => ReadComponentPortSeries(comps));
+                    var weldSerieCache = new Dictionary<Oid, string>();
+                    #endregion
+
                     #region Collect Intersection Results
                     for (int i = 0; i < cplines.Count; i++)
                     {
@@ -199,6 +220,14 @@ namespace IntersectUtilities.NSTBL
                             irp.Length = intersect.Length;
                             irp.SystemType = GetPipeSystem(pipe).ToString();
 
+                            //Standard delivery length from the pipe schedule (DefaultL).
+                            //0 means the system has no standard length defined (e.g. FibreFlex),
+                            //in which case the field must stay empty so it drops out of the key.
+                            double stdLength = GetPipeStdLength(pipe);
+                            irp.StdLength = stdLength > 0
+                                ? stdLength.ToString("0.##", CultureInfo.InvariantCulture)
+                                : "";
+
                             allResults.Add(irp);
                         }
 
@@ -217,6 +246,11 @@ namespace IntersectUtilities.NSTBL
                             irp.System = br.ReadDynamicCsvProperty(DynamicProperty.System, true);
                             irp.Serie = br.ReadDynamicCsvProperty(DynamicProperty.Serie, true);
                             irp.SystemType = br.ReadDynamicCsvProperty(DynamicProperty.SysNavn, true);
+
+                            if (inheritWeldSerie && irp.Serie.IsNoE() &&
+                                br.ReadDynamicCsvProperty(DynamicProperty.Type, false) == "Svejsning")
+                                irp.Serie = GetSerieFromNeighbour(
+                                    br, pipesWithExtents, componentPorts, weldSerieCache);
 
                             if (irp.System == "Frem" || irp.System == "Retur") irp.System = "Enkelt";
 
@@ -241,9 +275,72 @@ namespace IntersectUtilities.NSTBL
                 return allResults;
             }
         }
+        /// <summary>
+        /// A weld is placed at cluster.First().WeldPoint by PipelineNetwork.CreateWeldBlocks, which
+        /// clusters candidate points within 0.005. It can therefore sit up to that far from the very
+        /// geometry it joins, so the same tolerance is used here to decide what a weld is welded to.
+        /// </summary>
+        private const double weldSnapTolerance = 0.005;
+        /// <summary>
+        /// Welds have no Serie of their own, so they inherit it from what they are welded onto:
+        /// the pipe underneath, or - when two components are welded directly together - the port
+        /// of the neighbouring component. Returns "" when neither is found or when the pipe itself
+        /// has no series (non-steel systems); the caller then exports a blank Serie as before.
+        /// </summary>
+        private static string GetSerieFromNeighbour(
+            BlockReference br,
+            (Polyline Pipe, Extents3d Ext)[] pipes,
+            Lazy<(Point3d Port, string Serie)[]> componentPorts,
+            Dictionary<Oid, string> cache)
+        {
+            if (cache.TryGetValue(br.Id, out var cached)) return cached;
+
+            const double tol = weldSnapTolerance;
+            Point3d pos = br.Position;
+            string serie = "";
+
+            //A pipe states its series through its own geometry, so it is asked first.
+            foreach (var (pipe, ext) in pipes)
+            {
+                if (pos.X < ext.MinPoint.X - tol || pos.X > ext.MaxPoint.X + tol ||
+                    pos.Y < ext.MinPoint.Y - tol || pos.Y > ext.MaxPoint.Y + tol) continue;
+                if (pipe.GetClosestPointTo(pos, false).DistanceHorizontalTo(pos) > tol) continue;
+
+                var series = GetPipeSeriesV2(pipe);
+                if (series != PipeSeriesEnum.Undefined) { serie = series.ToString(); break; }
+            }
+
+            //No pipe under the weld: it joins two components, so ask the neighbouring port.
+            if (serie.IsNoE())
+                foreach (var (port, portSerie) in componentPorts.Value)
+                    if (port.DistanceHorizontalTo(pos) <= tol) { serie = portSerie; break; }
+
+            if (serie.IsNoE())
+                prdDbg($"Svejsning {br.Handle} kunne ikke arve Serie fra hverken rør eller komponent!");
+
+            cache[br.Id] = serie;
+            return serie;
+        }
+        /// <summary>
+        /// Port positions of every component that states a Serie, so a weld between two components
+        /// can inherit from its neighbour. Components without a Serie of their own are skipped -
+        /// they have nothing to give, and skipping them keeps the port read to known FJV components.
+        /// </summary>
+        private static (Point3d Port, string Serie)[] ReadComponentPortSeries(
+            IEnumerable<BlockReference> comps)
+        {
+            var ports = new List<(Point3d, string)>();
+            foreach (BlockReference br in comps)
+            {
+                string serie = br.ReadDynamicCsvProperty(DynamicProperty.Serie, true);
+                if (serie.IsNoE()) continue;
+                foreach (Point3d port in br.GetAllEndPoints()) ports.Add((port, serie));
+            }
+            return ports.ToArray();
+        }
         internal HashSet<IntersectResult> processintersectdataCWO()
         {
-            var results = gatherintersectdata();
+            var results = gatherintersectdata(false);
             if (results == null)
             {
                 prdDbg("Received null instead of results. Aborting.");
@@ -315,9 +412,84 @@ namespace IntersectUtilities.NSTBL
             return allResults;
             #endregion
         }
+        internal HashSet<IntersectResult> processintersectdataCWOV2()
+        {
+            var results = gatherintersectdata(true);
+            if (results == null)
+            {
+                prdDbg("Received null instead of results. Aborting.");
+                return null;
+            }
+            #region Process Intersection Results
+            //Vejnavn is not in the key: the row has no column for it, so grouping on it
+            //would emit rows that look identical in the sheet.
+            var pipeSummary = results
+                .Where(x => x is IntersectResultPipe)
+                .Cast<IntersectResultPipe>()
+                .GroupBy(x => new
+                {
+                    x.IntersectType,
+                    x.Vejklasse,
+                    x.Belægning,
+                    x.Navn,
+                    x.StdLength,
+                    x.DN1,
+                    x.System,
+                    x.Serie,
+                    x.SystemType
+                })
+                .Select(g => new IntersectResultPipe
+                {
+                    IntersectType = g.Key.IntersectType,
+                    Vejklasse = g.Key.Vejklasse,
+                    Belægning = g.Key.Belægning,
+                    Navn = g.Key.Navn,
+                    StdLength = g.Key.StdLength,
+                    DN1 = g.Key.DN1,
+                    System = g.Key.System,
+                    Serie = g.Key.Serie,
+                    Antal = g.Sum(x => x.Length),
+                    Length = g.Sum(x => x.Length),
+                    SystemType = g.Key.SystemType
+                });
+            var componentSummary = results
+                .Where(x => x is IntersectResultComponent)
+                .Cast<IntersectResultComponent>()
+                .GroupBy(x => new
+                {
+                    x.IntersectType,
+                    x.Vejklasse,
+                    x.Belægning,
+                    x.Navn,
+                    x.DN1,
+                    x.DN2,
+                    x.System,
+                    x.Serie,
+                    x.SystemType
+                })
+                .Select(g => new IntersectResultComponent
+                {
+                    IntersectType = g.Key.IntersectType,
+                    Vejklasse = g.Key.Vejklasse,
+                    Belægning = g.Key.Belægning,
+                    Navn = g.Key.Navn,
+                    DN1 = g.Key.DN1,
+                    DN2 = g.Key.DN2,
+                    System = g.Key.System,
+                    Serie = g.Key.Serie,
+                    Count = g.Count(),
+                    SystemType = g.Key.SystemType
+                });
+
+            HashSet<IntersectResult> allResults = new HashSet<IntersectResult>();
+            allResults.UnionWith(pipeSummary);
+            allResults.UnionWith(componentSummary);
+            return allResults;
+            #endregion
+        }
         internal HashSet<IntersectResult> processintersectdataJJR()
         {
-            var results = gatherintersectdata();
+            var results = gatherintersectdata(false);
             if (results == null)
             {
                 prdDbg("Received null instead of results. Aborting.");
@@ -417,6 +589,38 @@ namespace IntersectUtilities.NSTBL
             foreach (IntersectResult ir in results) sb.AppendLine(ir.ToString(ExportType.CWO));
 
             File.WriteAllText(@"C:\Temp\IntersectResult.csv", sb.ToString(), Encoding.UTF8);
+            prdDbg("I AM FINISH! (Results written to C:\\Temp\\IntersectResult.csv)");
+            #endregion
+        }
+
+        /// <command>TBLEXPORTCWOV2</command>
+        /// <summary>
+        /// Computes intersections between tender areas (layer "0-OMRÅDER-OK") and FJV objects, then
+        /// exports a CSV whose rows paste straight into the CWO tilbudsliste sheet:
+        /// Egne noter;Vejklasse;Belægningstype;Komponent;Standardlængde;Materiale;DN;DN;Rørsystem;Serie;Antal.
+        /// Egne noter is left empty for the etape to be written in the sheet. Pipes are summed by
+        /// length (Antal in metres) and split by standard delivery length; components are counted.
+        /// Welds without a Serie inherit it from the pipe or component they join. The file has no
+        /// header row. Output is written to C:\Temp\IntersectResult.csv.
+        /// </summary>
+        /// <category>Tilbudsliste</category>
+        [CommandMethod("TBLEXPORTCWOV2")]
+        public void tblexportcwov2()
+        {
+            var results = processintersectdataCWOV2();
+            if (results == null)
+            {
+                prdDbg("Received null instead of results. Aborting.");
+                return;
+            }
+
+            #region Export Intersection Results
+            StringBuilder sb = new StringBuilder();
+            foreach (IntersectResult ir in results.OrderBy(x => x.IntersectType))
+                sb.AppendLine(ir.ToCwoV2Row());
+
+            File.WriteAllText(@"C:\Temp\IntersectResult.csv", sb.ToString(), Encoding.UTF8);
+            prdDbg("BEMÆRK: Twin svejsninger bliver IKKE ganget med 2!");
             prdDbg("I AM FINISH! (Results written to C:\\Temp\\IntersectResult.csv)");
             #endregion
         }
