@@ -33,6 +33,7 @@ internal static class LegacyPartRegister
     private const string AquathermT = "AquaTherm-T";
     private const string Bueroer = "Buerør";
     private const string Endebund = "Endebund";
+    private const string Engangsventil = "Engangsventil";
     private const string FRoer = "F-rør";
     private const string IndsvejstForgrening = "Indsvejst forgrening";
     private const string Kedelroersboejning = "Kedelrørsbøjning";
@@ -61,7 +62,7 @@ internal static class LegacyPartRegister
         ["T PARALLEL S3 E VARIABEL"] = new PartIsProdukt(Parallelafgrening),
         ["AFGRSTUDS"] = new PartIsProdukt(Afgreningsstuds),
         ["ENDEBUND"] = new PartIsProdukt(Endebund),
-        ["VENTIL E"] = new PartNotImplemented("engangsventil: NDH's Ventil is a different part and must not be substituted", "engangsventil findes ikke i NDH endnu - NDH's Ventil er ikke den samme del"),
+        ["VENTIL E"] = new PartIsProdukt(Engangsventil),
         ["F MODEL"] = new PartIsProdukt(FRoer),
         ["F-MODEL-GLD"] = new PartIsProdukt(FRoer),
         ["F-MODEL-ISOPLUS"] = new PartIsProdukt(FRoer),
