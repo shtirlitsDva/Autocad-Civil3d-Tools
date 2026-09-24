@@ -731,7 +731,10 @@ namespace IntersectUtilities.PipelineNetworkSystem
 
                                                     }
                                                     break;
+                                                //Both ports are unnamed, so DN1 would be read on both sides.
+                                                //The size array changes size at the block's position, midway between the ports.
                                                 case PipelineElementType.Reduktion:
+                                                case PipelineElementType.Materialeskift:
                                                     var size = pipeline.PipelineSizes.GetSizeAtStation(
                                                         pipeline.GetStationAtPoint(wPt));
                                                     DN = size.DN;
@@ -793,6 +796,12 @@ namespace IntersectUtilities.PipelineNetworkSystem
                     .ToList();
             double GetDistance(WeldPointData2 first, WeldPointData2 second) =>
                 first.WeldPoint.DistanceHorizontalTo(second.WeldPoint);
+
+            //A pipe states its own size, so its point leads the cluster.
+            //A component port reads its size from the block, which does not always tell its ends apart.
+            var polylineClass = Autodesk.AutoCAD.Runtime.RXObject.GetClass(typeof(Polyline));
+            List<WeldPointData2> PipeFirst(IEnumerable<WeldPointData2> cluster) =>
+                cluster.OrderBy(x => x.SourceId.ObjectClass.IsDerivedFrom(polylineClass) ? 0 : 1).ToList();
             #endregion
 
 #if DEBUG
@@ -838,7 +847,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                         }
                         #endregion
 
-                        foreach (var cluster in chunk)
+                        foreach (var cluster in chunk.Select(PipeFirst))
                         {
 #if DEBUG
                             sw.Restart();
