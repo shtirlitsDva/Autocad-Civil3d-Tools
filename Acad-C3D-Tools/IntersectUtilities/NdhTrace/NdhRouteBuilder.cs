@@ -83,6 +83,22 @@ internal interface INdhJunctionStraight
 /// </summary>
 internal sealed record NdhJunctionSeat(Point2d Site, JunctionStraight Straight);
 
+/// <summary>
+/// WHICH PRODUKT THE LEGACY DRAWING DREW for the valve on one run. The rule
+/// sheet picks a valve's Produkt; this is what the old block said, for the
+/// import to name where the sheet says otherwise.
+/// </summary>
+internal readonly record struct NdhValveName(NdhRun Run, string Produkt);
+
+/// <summary>
+/// AN AUTHORED VALVE ON THE ROUTE: the vertex it stands on, in the numbering of
+/// <see cref="NdhRoute.Vertices"/>, and each carrier's stagger from that vertex
+/// along the route, in metres, + toward the finish. A twin valve has no
+/// stagger. <see cref="Names"/> is what the legacy blocks drew, run by run.
+/// </summary>
+internal sealed record NdhRouteValve(
+    int VertexIndex, double FremStaggerM, double ReturStaggerM, IReadOnlyList<NdhValveName> Names);
+
 internal sealed class NdhRoute
 {
     public List<NdhRouteVertex> Vertices { get; } = new List<NdhRouteVertex>();
@@ -102,6 +118,29 @@ internal sealed class NdhRoute
     public List<NdhIdentityBoundary> Boundaries { get; } = new List<NdhIdentityBoundary>();
     /// <summary>Every place the route had to deviate from the trace, for the report.</summary>
     public List<string> Adjustments { get; } = new List<string>();
+
+    /// <summary>The valves the route carries, each on a vertex of its own.</summary>
+    public List<NdhRouteValve> Valves { get; } = new List<NdhRouteValve>();
+
+    /// <summary>The legacy valves the route could not stand anywhere, and why.</summary>
+    public List<LostValve> LostValves { get; } = new List<LostValve>();
+
+    /// <summary>What the drafter should know about a valve that WAS carried across (Danish).</summary>
+    public List<string> ValveNotes { get; } = new List<string>();
+
+    /// <summary>
+    /// What the pipe IS at vertex <paramref name="index"/>: the last boundary at
+    /// or before it. The route states its identity in boundaries rather than
+    /// per vertex, so this is the reading, not an inference. A built route
+    /// always has a boundary on vertex 0.
+    /// </summary>
+    public NdhIdentityBoundary IdentityAt(int index)
+    {
+        NdhIdentityBoundary identity = Boundaries[0];
+        foreach (NdhIdentityBoundary b in Boundaries)
+            if (b.VertexIndex <= index) identity = b;
+        return identity;
+    }
 }
 
 /// <summary>
@@ -138,6 +177,13 @@ internal sealed class NdhRoute
 /// arc or elastic bend reaches into it, and a drafting kink standing inside it
 /// is moved out along the junction's straight. Only a legacy ARC through a
 /// junction is kept: the legacy drawing really curves there, and NDH says so.
+///
+/// A legacy valve stands on a vertex of its own, inserted on its straight
+/// AFTER every other pass, so nothing that moves or drops vertices can touch
+/// it; before that, no fitted arc and no elastic bend is let across where it
+/// stands. A valve with no straight to stand on - in an arc, on a corner, on a
+/// change of pipe, in a junction - is not carried across and is reported: the
+/// import translates and never makes room.
 /// </summary>
 internal static partial class NdhRouteBuilder
 {
@@ -246,6 +292,11 @@ internal static partial class NdhRouteBuilder
         FCorner,
         /// <summary>An elastic bend: its radius is what the legs allow.</summary>
         Bend,
+        /// <summary>
+        /// A straight-through vertex an authored valve stands on. Inserted by
+        /// the LAST pass, so no pass ever moves or removes one.
+        /// </summary>
+        Valve,
     }
 
     /// <summary>
@@ -301,7 +352,7 @@ internal static partial class NdhRouteBuilder
         //holds the LAID answer, rewritten from what survived the drops. The two
         //converge when the call returns, and only the laid reading leaves it.
         public IdentityChange? Change;
-        public bool Turns => Kind is not (VertexKind.End or VertexKind.Straight);
+        public bool Turns => Kind is not (VertexKind.End or VertexKind.Straight or VertexKind.Valve);
         //WHETHER THIS VERTEX'S TURN IS STILL TO COME OUT OF THE STRAIGHT. A
         //fillet's arc is already in D0/D1, so the straight measured against it
         //stops where the arc does and the vertex takes nothing more; an elbow,
@@ -379,7 +430,13 @@ internal static partial class NdhRouteBuilder
                 : straight.At(identities[i - 1], s, 0.0, false))
             .ToList();
         List<Seat> seats = Seats(junctions, centreline);
-        FitArcs(vs, centreline, identities, parts, seats, route.Adjustments);
+        List<PlannedValve> valves = trace.Valves.Select(v => PlannedValve.On(v, centreline)).ToList();
+        //A VALVE NEEDS ITS STRAIGHT EXACTLY AS A JUNCTION DOES, so no fitted arc
+        //is let across the stretch its valves stand on. It is not a seat for
+        //the passes that MOVE things out of a seat: the import makes no room
+        //for a valve, it stands one where there is room.
+        FitArcs(vs, centreline, identities, parts, seats.Concat(ValveSeats(vs, valves)).ToList(),
+                route.Adjustments);
         FitFillets(vs, route.Adjustments);
         FilletZones(vs, centreline);
         SplitArcsAtJunctions(vs, seats, centreline, route.Adjustments);
@@ -391,7 +448,10 @@ internal static partial class NdhRouteBuilder
         //between them a hair short of the fillet's setback.
         FitFillets(vs, route.Adjustments);
         ClearJunctions(vs, bounds, straight, seats, route.Adjustments);
-        SizeBends(vs, bounds, straight, seats, route.Adjustments);
+        SizeBends(vs, bounds, straight, seats, ValveSeats(vs, valves).ToList(), route.Adjustments);
+        //LAST, so that every pass that moves or drops a vertex has run: a valve
+        //vertex is never touched once it stands.
+        List<StoodValve> stood = PlaceValves(vs, valves, bounds, seats, centreline, route);
 
         foreach (RouteVertex v in vs)
         {
@@ -404,6 +464,10 @@ internal static partial class NdhRouteBuilder
         }
         foreach ((RouteVertex v, LegacyIdentitySpan s) in bounds)
             route.Boundaries.Add(new NdhIdentityBoundary(vs.IndexOf(v), s.System, s.Type, s.Dn));
+        //The index is resolved only now, as the boundaries' are: the vertex
+        //object is what was kept, and this is where its number is final.
+        foreach (StoodValve s in stood)
+            route.Valves.Add(new NdhRouteValve(vs.IndexOf(s.V), s.FremStagger, s.ReturStagger, s.Names));
 
         return route;
     }
@@ -929,10 +993,18 @@ internal static partial class NdhRouteBuilder
     /// radius exists yet. A flat half-metre once stood for every end and half a
     /// leg for every corner.
     /// </para>
+    /// <para>
+    /// A VALVE KEEPS ITS STRAIGHT (<paramref name="valves"/>), but only while
+    /// the bend beside it still gets an arc. A valve drafted so close to a kink
+    /// that honouring it would leave the bend sharp gives way instead: a sharp
+    /// vertex is an elbow to NDH, a part the old drawing never had, and the
+    /// valve is then reported as standing in the bend.
+    /// </para>
     /// </summary>
     private static void SizeBends(
         List<RouteVertex> vs, IReadOnlyList<(RouteVertex V, LegacyIdentitySpan Span)> bounds,
-        INdhPartStraight straight, IReadOnlyList<Seat> seats, List<string> notes)
+        INdhPartStraight straight, IReadOnlyList<Seat> seats, IReadOnlyList<Seat> valves,
+        List<string> notes)
     {
         //THE PIPE STANDING ON EACH VERTEX, READ FROM THE BOUNDARIES AS LAID.
         //`PlaceBoundaries` has already run and it MOVES boundaries - off a
@@ -989,6 +1061,10 @@ internal static partial class NdhRouteBuilder
                     Share(vs[i - 1], forward[i - 1], v.P.GetDistanceTo(vs[i - 1].P)),
                     Share(vs[i + 1], back[i + 1], v.P.GetDistanceTo(vs[i + 1].P))),
                 JunctionRoom(v.D0, seats));
+            //With slack, as a leg's share has: the valve's vertex cuts the leg
+            //there, and NDH wants the arc to fit its half, not to fill it.
+            double besideValves = Math.Min(avail, JunctionRoom(v.D0, valves) - 2.0 * LegSlack);
+            if (besideValves > MinSegmentLength) avail = besideValves;
             if (avail <= MinSegmentLength)
             {
                 notes.Add($"bend at {v.D0:F2} m has no leg room, left sharp");
@@ -1154,7 +1230,8 @@ internal static partial class NdhRouteBuilder
 
     /// <summary>
     /// How far an elastic bend at distance <paramref name="d"/> may reach before
-    /// it runs into a junction's seat. A seat the bend stands inside does not
+    /// it runs into a junction's seat - or, asked of the valves' stretches, into
+    /// a valve. A seat the bend stands inside does not
     /// limit it: <see cref="ClearJunctions"/> could not move that bend, and the
     /// route keeps the legacy drafting there rather than a sharp kink no part
     /// can make; NDH then refuses the junction, which the drafter sees marked.
@@ -1826,6 +1903,229 @@ internal static partial class NdhRouteBuilder
     private static bool SameIdentity(LegacyIdentitySpan a, LegacyIdentitySpan b) => a.Identity == b.Identity;
 
     private static string Describe(LegacyIdentitySpan s) => $"{s.System} {s.Type} DN{s.Dn}";
+    #endregion
+
+    #region Valves
+    /// <summary>
+    /// A legacy valve stationed on this route's centreline: where its vertex
+    /// goes (<paramref name="Site"/>), the stretch its blocks stand on
+    /// (<paramref name="Lo"/>..<paramref name="Hi"/>), and each carrier's
+    /// stagger from the site.
+    /// </summary>
+    private sealed record PlannedValve(
+        LegacyValve Legacy, double Site, double Lo, double Hi, double FremStagger, double ReturStagger)
+    {
+        /// <summary>
+        /// THE MIDPOINT AND THE REMAINDERS - the split NDH's own valve drag
+        /// commits. The vertex stands midway between the blocks, measured along
+        /// the centreline, and each carrier keeps what is left as its stagger:
+        /// its own block's station minus the midpoint. One block is its own
+        /// midpoint, so a twin valve and a lone bonded one get no stagger at
+        /// all, and a run with no block of its own gets none either.
+        /// </summary>
+        public static PlannedValve On(LegacyValve valve, Polyline cl)
+        {
+            double[] d = valve.Blocks.Select(b => DistAt(cl, b.At)).ToArray();
+            double site = d.Average();
+            double StaggerOf(NdhRun run) => valve.Blocks
+                .Zip(d)
+                .Where(x => x.First.Run == run)
+                .Select(x => x.Second - site)
+                .DefaultIfEmpty(0.0)
+                .First();
+            return new PlannedValve(
+                valve, site, d.Min(), d.Max(), StaggerOf(NdhRun.Frem), StaggerOf(NdhRun.Retur));
+        }
+
+        /// <summary>For the report: which blocks, and where.</summary>
+        public string What => $"ventil (blok {Legacy.Handles}) ved {Site:F2} m";
+    }
+
+    /// <summary>
+    /// The stretches the valves stand on, as seats the route must stay straight
+    /// across - leaving out every valve whose site is already on a corner or in
+    /// an arc. That valve cannot be carried across however the route is
+    /// rounded, and holding a bend off it would only turn an elastic bend into
+    /// a sharp corner for nothing.
+    /// </summary>
+    private static IEnumerable<Seat> ValveSeats(List<RouteVertex> vs, IReadOnlyList<PlannedValve> valves) =>
+        valves
+            .Where(v => !vs.Any(x => x.Turns && v.Site > x.D0 - VertexSnap && v.Site < x.D1 + VertexSnap))
+            .Select(v => new Seat(v.Site, v.Lo, v.Hi));
+
+    /// <summary>
+    /// Stands every valve on a vertex of its own, on the straight its site is
+    /// on, projected onto that straight so it turns nothing: an authored valve
+    /// is a part of the run, and NDH refuses one on a vertex that turns, carries
+    /// a boundary or is an end. A valve with no straight to stand on is not
+    /// carried across - no geometry is made for it - and goes into
+    /// <see cref="NdhRoute.LostValves"/>.
+    /// <para>
+    /// THE PIPE DECIDES THE RUNS. A valve on twin pipe is one valve with no
+    /// stagger; on bonded pipe it is a valve on each carrier. A bonded PAIR on
+    /// twin pipe cannot be one valve - it is two, staggered, on a pipe with one
+    /// run - and is not carried across either.
+    /// </para>
+    /// Answers each valve's vertex OBJECT: its number is only final once the
+    /// route is, and the caller reads it then.
+    /// </summary>
+    private static List<StoodValve> PlaceValves(
+        List<RouteVertex> vs, IReadOnlyList<PlannedValve> valves,
+        IReadOnlyList<(RouteVertex V, LegacyIdentitySpan Span)> bounds, IReadOnlyList<Seat> seats,
+        Polyline cl, NdhRoute route)
+    {
+        List<StoodValve> stood = new List<StoodValve>();
+        foreach (PlannedValve valve in valves)
+        {
+            if (!TryStraightFor(vs, valve.Site, seats, cl, out int leg, out Point2d at,
+                                out (string Note, string Reason) why))
+            {
+                Lose(valve, why, route);
+                continue;
+            }
+
+            //The pipe running on the leg the valve is about to split.
+            bool twin = IsTwin(PipesOn(vs, bounds)[leg].Type);
+            if (twin && valve.Legacy.Blocks.Count > 1)
+            {
+                Lose(valve, ("is a bonded pair of valves standing on twin pipe",
+                             "er et ventilpar til bonded rør, men står på twin-rør"), route);
+                continue;
+            }
+
+            RouteVertex v = new RouteVertex
+            { P = at, Kind = VertexKind.Valve, D0 = valve.Site, D1 = valve.Site };
+            vs.Insert(leg + 1, v);
+            stood.Add(twin
+                ? new StoodValve(v, 0.0, 0.0,
+                    new[] { new NdhValveName(NdhRun.Twin, valve.Legacy.Blocks[0].Produkt) })
+                : new StoodValve(v, valve.FremStagger, valve.ReturStagger,
+                    BondedNames(valve, route.ValveNotes)));
+        }
+        return stood;
+    }
+
+    /// <summary>A valve standing on its vertex, before the vertex has its final number.</summary>
+    private sealed record StoodValve(
+        RouteVertex V, double FremStagger, double ReturStagger, IReadOnlyList<NdhValveName> Names);
+
+    /// <summary>
+    /// What the blocks of a valve on bonded pipe drew, carrier by carrier. A
+    /// carrier with no block of its own is left to the rule sheet, and a lone
+    /// block is said so: NDH stands a valve on BOTH carriers of a bonded pipe,
+    /// and the old drawing showed only one.
+    /// </summary>
+    private static List<NdhValveName> BondedNames(PlannedValve valve, List<string> notes)
+    {
+        List<NdhValveName> names = new List<NdhValveName>();
+        foreach (LegacyValveBlock b in valve.Legacy.Blocks)
+        {
+            //A TWIN BLOCK ON BONDED PIPE drew one valve for the whole pipe, so
+            //both of its carriers are that valve.
+            IReadOnlyList<NdhRun> runs = b.Run == NdhRun.Twin
+                ? NsDhModule.RunsOf(PipeTypeEnum.Enkelt)
+                : new[] { b.Run };
+            names.AddRange(runs.Select(r => new NdhValveName(r, b.Produkt)));
+        }
+
+        if (valve.Legacy.Blocks.Count == 1)
+            notes.Add(valve.Legacy.Blocks[0].Run == NdhRun.Twin
+                ? $"{valve.What} er en twin-ventil på bonded rør; NDH sætter en ventil på " +
+                  "begge rør"
+                : $"{valve.What} står kun på {valve.Legacy.Blocks[0].Run}-røret i den gamle " +
+                  "tegning; NDH sætter en ventil på begge rør, side om side");
+        return names;
+    }
+
+    private static void Lose(PlannedValve valve, (string Note, string Reason) why, NdhRoute route) =>
+        route.LostValves.Add(new LostValve(
+            valve.Legacy.Blocks[0].At,
+            $"NDHFROMFJV: legacy valve ({valve.Legacy.Handles}) at {valve.Site:F2} m not carried " +
+            $"across: it {why.Note}.",
+            $"{valve.What} er ikke overført: den {why.Reason}"));
+
+    /// <summary>
+    /// The straight a valve at distance <paramref name="d"/> stands on: the leg
+    /// it splits (from vertex <paramref name="leg"/> to the next) and the point
+    /// on that leg. False, with <paramref name="why"/> in English and Danish,
+    /// when there is no straight there - the valve is at an end, in a
+    /// junction's seat, in an arc, on a vertex that already carries something,
+    /// or so near an arc that its vertex would leave the arc's setback no leg.
+    /// </summary>
+    private static bool TryStraightFor(
+        List<RouteVertex> vs, double d, IReadOnlyList<Seat> seats, Polyline cl,
+        out int leg, out Point2d at, out (string Note, string Reason) why)
+    {
+        leg = -1;
+        at = default;
+        why = ("", "");
+        (string, string) inArc = ("stands in an arc", "står i en bue");
+
+        if (d <= VertexSnap || d >= cl.Length - VertexSnap)
+        {
+            why = ("stands at the pipeline end", "står ved rørledningens ende");
+            return false;
+        }
+        if (seats.Any(s => d > s.Lo && d < s.Hi))
+        {
+            why = ("stands in a branch junction", "står i en afgrening");
+            return false;
+        }
+        //Strictly inside: a valve right at a tangent point is judged below, on
+        //the route's own geometry, which is what NDH will solve.
+        if (vs.Any(v => v.Radius > 0.0 && d > v.D0 && d < v.D1))
+        {
+            why = inArc;
+            return false;
+        }
+        //A vertex WITH an arc has its tangent points in D0/D1, not itself, and
+        //was judged just above; this is every vertex that is a point.
+        int on = vs.FindIndex(v => v.Radius == 0.0 && Math.Abs(v.D0 - d) <= VertexSnap);
+        if (on >= 0)
+        {
+            why = vs[on].Turns ? ("stands on a corner", "står på et knæk")
+                : vs[on].Kind == VertexKind.Valve ? ("stands on another valve", "står på en anden ventil")
+                : ("stands on a change of pipe", "står på et skift af rør");
+            return false;
+        }
+
+        leg = vs.FindLastIndex(v => v.D1 < d);
+        if (leg < 0 || leg >= vs.Count - 1)
+        {
+            why = ("stands at the pipeline end", "står ved rørledningens ende");
+            return false;
+        }
+
+        //PROJECTED ONTO THE LEG, so the vertex turns nothing: the leg is the
+        //straight as the route now runs it, which the passes may have moved a
+        //few millimetres off the trace.
+        Point2d a = vs[leg].P, b = vs[leg + 1].P;
+        Point3d onCl = cl.GetPointAtDist(d);
+        Vector2d ab = b - a;
+        double t = ((onCl.X - a.X) * ab.X + (onCl.Y - a.Y) * ab.Y) / ab.LengthSqrd;
+        if (t <= 0.0 || t >= 1.0)
+        {
+            why = ("has no straight to stand on", "har intet lige stykke at stå på");
+            return false;
+        }
+        at = a + ab * t;
+
+        //THE LEG IS CUT IN TWO, and NDH solves each half on its own: an arc's
+        //setback must fit the half beside it, or the pipeline is refused whole.
+        if (at.GetDistanceTo(a) < SetbackAt(vs, leg) + LegSlack ||
+            at.GetDistanceTo(b) < SetbackAt(vs, leg + 1) + LegSlack)
+        {
+            why = inArc;
+            return false;
+        }
+        return true;
+    }
+
+    /// <summary>How far the arc at vertex <paramref name="i"/> reaches along its legs; nought for a sharp one.</summary>
+    private static double SetbackAt(List<RouteVertex> vs, int i) =>
+        i > 0 && i < vs.Count - 1 && vs[i].Radius > 0.0
+            ? vs[i].Radius * Math.Tan(TurnAt(vs, i) / 2.0)
+            : 0.0;
     #endregion
 
     private static double ToRad(double deg) => deg * Math.PI / 180.0;

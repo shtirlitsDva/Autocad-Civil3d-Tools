@@ -31,6 +31,18 @@ internal sealed class NsDhPipelineBridge : INdhPipelineBuilder, INdhPartStraight
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)] public string Type;
     }
 
+    //sizeof 24. One authored valve on one of the caller's own vertices; the
+    //staggers are each carrier's offset from that vertex along the route, in
+    //metres, + toward the finish (nought on a twin pipe, which NDH enforces).
+    [StructLayout(LayoutKind.Sequential)]
+    private struct AuthoredValve
+    {
+        public int VertexIndex;
+        public int Reserved;
+        public double FremStaggerM;
+        public double ReturStaggerM;
+    }
+
     //sizeof 1104
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct BuildResult
@@ -93,6 +105,8 @@ internal sealed class NsDhPipelineBridge : INdhPipelineBuilder, INdhPartStraight
         int vertexCount,
         [In] IdentityBoundary[] boundaries,
         int boundaryCount,
+        [In] AuthoredValve[] valves,
+        int valveCount,
         out BuildResult result,
         [In, Out] ulong[] vertexCauses);
 
@@ -100,6 +114,7 @@ internal sealed class NsDhPipelineBridge : INdhPipelineBuilder, INdhPartStraight
     {
         NsDhModule.RequireLayout<RouteVertex>(24);
         NsDhModule.RequireLayout<IdentityBoundary>(72);
+        NsDhModule.RequireLayout<AuthoredValve>(24);
         NsDhModule.RequireLayout<BuildResult>(1104);
         NsDhModule.RequireLayout<PipeIdentity>(72);
         NsDhModule.RequireLayout<VertexStraightResult>(1056);
@@ -129,13 +144,26 @@ internal sealed class NsDhPipelineBridge : INdhPipelineBuilder, INdhPartStraight
             };
         }
 
+        //Named by the route's own vertex numbering, exactly as a boundary is.
+        AuthoredValve[] valves = new AuthoredValve[route.Valves.Count];
+        for (int i = 0; i < valves.Length; i++)
+        {
+            NdhRouteValve v = route.Valves[i];
+            valves[i] = new AuthoredValve
+            {
+                VertexIndex = v.VertexIndex,
+                FremStaggerM = v.FremStaggerM,
+                ReturStaggerM = v.ReturStaggerM,
+            };
+        }
+
         //ONE SLOT PER VERTEX THE CALLER ASKED FOR. The dbx zeroes them before
         //it builds anything, so a refusal hands back zeroes rather than
         //whatever this array happened to hold.
         ulong[] causes = new ulong[vertices.Length];
 
         int code = build(name, vertices, vertices.Length, boundaries, boundaries.Length,
-                         out BuildResult r, causes);
+                         valves, valves.Length, out BuildResult r, causes);
         (NdhBuildStatus status, string detail) = NsDhModule.Named(code, r.Detail, NdhBuildStatus.BuildFailed);
 
         return new NdhBuildOutcome(

@@ -61,14 +61,29 @@ internal static class Legacy
     public static LegacyCorner FModel((double X, double Y) at, string handle = "FMODEL") =>
         Corner(at, LegacyCornerKind.FModel, handle);
 
+    /// <summary>
+    /// A legacy valve block standing on the centreline at <paramref name="at"/>,
+    /// on carrier <paramref name="run"/>, which the register translates to
+    /// <paramref name="produkt"/>.
+    /// </summary>
+    public static LegacyValveBlock ValveBlock(
+        (double X, double Y) at, NdhRun run = NdhRun.Twin, string produkt = "Ventil",
+        string handle = "VALVE") =>
+        new LegacyValveBlock(new Point2d(at.X, at.Y), run, produkt, handle);
+
+    /// <summary>One valve: the one block, or the bonded pair of blocks, that NDH stands as one.</summary>
+    public static LegacyValve Valve(params LegacyValveBlock[] blocks) => new LegacyValve(blocks);
+
     public static NdhRoute Route(
         Polyline centreline, IEnumerable<LegacyIdentitySpan> spans, INdhPartStraight straight,
         IEnumerable<LegacyCorner>? corners = null,
-        IEnumerable<NdhJunctionSeat>? junctions = null)
+        IEnumerable<NdhJunctionSeat>? junctions = null,
+        IEnumerable<LegacyValve>? valves = null)
     {
         using LegacyPipelineTrace trace = new LegacyPipelineTrace(
             "fixture", centreline, spans.ToList(),
-            (corners ?? Enumerable.Empty<LegacyCorner>()).ToList());
+            (corners ?? Enumerable.Empty<LegacyCorner>()).ToList(),
+            (valves ?? Enumerable.Empty<LegacyValve>()).ToList());
         return NdhRouteBuilder.Build(
             trace, straight,
             (junctions ?? Enumerable.Empty<NdhJunctionSeat>()).ToList());
@@ -89,5 +104,8 @@ internal static class Legacy
                 $"  v{i}: ({v.X:F3}, {v.Y:F3}) R={v.BendRadius:F4}")
             .Concat(route.Boundaries.Select(b =>
                 $"  boundary v{b.VertexIndex}: {b.System} {b.Type} DN{b.Dn}"))
+            .Concat(route.Valves.Select(v =>
+                $"  valve v{v.VertexIndex}: frem {v.FremStaggerM:F3} retur {v.ReturStaggerM:F3}"))
+            .Concat(route.LostValves.Select(v => "  lost valve: " + v.Reason))
             .Concat(route.Adjustments.Select(a => "  note: " + a)));
 }

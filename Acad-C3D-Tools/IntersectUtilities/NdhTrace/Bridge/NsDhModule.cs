@@ -155,6 +155,20 @@ internal static class NsDhModule
         PipeTypeEnum.Frem or PipeTypeEnum.Retur or PipeTypeEnum.Enkelt => BondedRuns,
         _ => throw new ArgumentOutOfRangeException(nameof(type), type, "No pipe type."),
     };
+
+    /// <summary>
+    /// THE RUN ONE LEGACY CARRIER PIPE IS. A legacy drawing draws a bonded
+    /// pair's two carriers as separate Frem and Retur polylines, and a part
+    /// standing on one of them stands on that run and no other. Enkelt names
+    /// the pair, not a carrier, so it is no run and is refused.
+    /// </summary>
+    public static NdhRun RunOf(PipeTypeEnum carrier) => carrier switch
+    {
+        PipeTypeEnum.Twin => NdhRun.Twin,
+        PipeTypeEnum.Frem => NdhRun.Frem,
+        PipeTypeEnum.Retur => NdhRun.Retur,
+        _ => throw new ArgumentOutOfRangeException(nameof(carrier), carrier, "No carrier pipe."),
+    };
 }
 
 /// <summary>
@@ -168,7 +182,10 @@ internal sealed record NsDhSurface(string Name, string VersionExport, int Expect
     //2: the build hands back the durable cause of every vertex the caller
     //authored, which is how a component is named. Until 2 nothing outside the
     //dbx could learn one, so the override lane could not be addressed at all.
-    public static readonly NsDhSurface Build = new("pipeline build", "NsDh_PipelineBuildVersion", 2);
+    //3: the build takes AUTHORED VALVES, each on one of the caller's own
+    //vertices with a Frem and a Retur stagger. Until 3 a legacy valve had
+    //nowhere to go and the import dropped it silently.
+    public static readonly NsDhSurface Build = new("pipeline build", "NsDh_PipelineBuildVersion", 3);
     //kNsDhVertexStraightVersion - ONE question about what a vertex takes
     //(reach-and-radius.md Law R1); version 2 is the collapse of the two.
     public static readonly NsDhSurface VertexStraight = new("vertex straight", "NsDh_VertexStraightVersion", 2);
@@ -202,7 +219,10 @@ internal sealed record NsDhSurface(string Name, string VersionExport, int Expect
     //rather than at an unknown edit kind. 3 gave every override arm the other
     //two thirds of a component's name - its cause kind and its run role -
     //which until then the dbx filled in as Elbow and Twin for all of them.
-    public static readonly NsDhSurface PipelineModify = new("pipeline modify", "NsDh_PipelineModifyVersion", 3);
+    //4 named the authored valve as a cause kind (NdhCause.Valve), so the
+    //import can say which Produkt one valve is. No layout change; the bump is
+    //so a newer caller meets an older dbx here rather than at an unknown kind.
+    public static readonly NsDhSurface PipelineModify = new("pipeline modify", "NsDh_PipelineModifyVersion", 4);
 
     /// <summary>Every surface NDHFROMFJV uses; probed before the import touches anything.</summary>
     public static readonly NsDhSurface[] UsedByImport =

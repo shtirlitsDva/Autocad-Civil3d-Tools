@@ -6,8 +6,9 @@ namespace IntersectUtilities.NdhTrace;
 /// THE SITUATIONS THE DRAWING'S RULE SHEET DECIDES, by the token each situation
 /// class states about itself. Core is the authority on this vocabulary and the
 /// dbx refuses an unknown token BY NAME, so nothing here has to guess; these
-/// five are named because they are the five the planner actually asks the sheet
-/// about, and so the only five a fitter can move by writing a row.
+/// six are named because they are the six the planner actually asks the sheet
+/// about, and so the only six a caller can move by writing a row - or has to
+/// read a row of, as the valve naming does.
 ///
 /// Three other situations - Materialeskift, Endebund and Vertikal boejning -
 /// will be ACCEPTED as rows and never read: each is resolved as the only
@@ -34,6 +35,12 @@ internal static class NdhSituation
 
     /// <summary>The same change in a square corner. Axis: dn.</summary>
     public const string CornerTransition = "CornerTransition";
+
+    /// <summary>
+    /// An authored valve. Axis: dn (a bore, open-topped). The row decides
+    /// WHICH valve Produkt, never WHETHER there is a valve - that is authored.
+    /// </summary>
+    public const string Valve = "Valve";
 }
 
 /// <summary>

@@ -28,7 +28,10 @@ namespace IntersectUtilities
         /// Buer bliver til bøjninger med buens radius; skarpe knæk bliver kun til
         /// knæ, hvor den gamle tegning har en bøjningskomponent eller et F-rør, ellers til
         /// en elastisk bøjning. Et skift af dimension eller type der falder i en bøjning
-        /// flyttes ud på et lige stykke. Rørledninger der mødes ende mod ende uden
+        /// flyttes ud på et lige stykke. En ventil bliver til en NDH-ventil på sit eget
+        /// knudepunkt; et bonded ventilpar bliver til én ventil midt imellem de to, med
+        /// hvert rørs forskydning. En ventil i en bue, på et knæk eller i en afgrening
+        /// overføres ikke, men markeres. Rørledninger der mødes ende mod ende uden
         /// afgreningsdel lægges sammen til én, opkaldt efter den der er nærmest nettets rod.
         ///
         /// Tegningens producent og seriematrix sættes fra den gamle tegning; hvor den er

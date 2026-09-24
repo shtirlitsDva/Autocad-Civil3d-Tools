@@ -128,6 +128,7 @@ internal static class NdhFromFjvImport
         report.LegacyPipelineCount = legacy.Traces.Traces.Count + legacy.Traces.Skipped.Count;
         foreach (string s in legacy.Traces.Skipped) report.Skipped.Add($"Rørledning ikke sporet: {s}");
         List<ImportMarker> transitionMarkers = UnjoinedTransitions(legacy, report);
+        List<ImportMarker> valveMarkers = UncarriedValves(legacy, report);
 
         //2. + 3.
         if (!DrawingSettingsStep.Apply(
@@ -140,16 +141,18 @@ internal static class NdhFromFjvImport
         report.Skipped.AddRange(merged.Notes);
 
         //5.
-        Dictionary<string, BuiltPipeline> built = Build(legacy, merged, services, report);
+        Dictionary<string, BuiltPipeline> built = Build(legacy, merged, services, report, valveMarkers);
 
         //5b. The fitted policy is the drawing's; the blocks that disagree with
         //it are named one by one, now that the components exist to be named.
         FittingDeviationStep.Run(fitted, built, services.Modifier, report);
         ElbowLegStep.Run(built, services.Modifier, report);
+        ValveNamingStep.Run(built, services.Settings, services.Modifier, report);
 
         //6.
         List<ImportMarker> markers = BranchConnectionStep.Run(legacy, merged, built, services.Connector, report);
         markers.AddRange(transitionMarkers);
+        markers.AddRange(valveMarkers);
 
         //7.
         report.MarkersPlaced = services.Markers.Place(markers);
@@ -217,14 +220,35 @@ internal static class NdhFromFjvImport
     }
 
     /// <summary>
+    /// A legacy valve block the block register cannot translate is a valve NDH
+    /// cannot stand, and a drawing that quietly lost a valve is worse than one
+    /// that says so: reported and marked, as every other part left behind.
+    /// </summary>
+    private static List<ImportMarker> UncarriedValves(LegacyDrawing legacy, NdhImportReport report)
+    {
+        List<ImportMarker> markers = new List<ImportMarker>();
+        foreach ((string pipeline, LostValve v) in legacy.Traces.UncarriedValves)
+        {
+            report.Skipped.Add($"{pipeline}: {v.Reason}.");
+            markers.Add(new NotConnectedMarker(v.At, v.Note));
+        }
+        return markers;
+    }
+
+    /// <summary>
     /// Routes and builds every pipeline, without any transaction of ours open:
     /// the builder opens the working drawing's model space itself. Each route
     /// is told where its connections will stand and how much of it each will
     /// occupy (<see cref="JunctionSeating"/>), so it stays straight across them:
     /// a junction stands on a straight (live run 2026-09-19, F2).
+    ///
+    /// A valve the route found no straight for is reported and marked into
+    /// <paramref name="markers"/> - but only on a pipeline that was built: on
+    /// one NDH refused, the refusal already says everything that was lost.
     /// </summary>
     private static Dictionary<string, BuiltPipeline> Build(
-        LegacyDrawing legacy, MergedTraces merged, NdhImportServices services, NdhImportReport report)
+        LegacyDrawing legacy, MergedTraces merged, NdhImportServices services, NdhImportReport report,
+        List<ImportMarker> markers)
     {
         ILookup<string, NdhJunctionSeat> seats =
             JunctionSeating.Seats(legacy, merged, services.Junctions, report);
@@ -257,6 +281,12 @@ internal static class NdhFromFjvImport
             report.Created.Add(t.Name);
             report.Built.Add((t.Name, outcome.Handle));
             foreach (string note in route.Adjustments) report.Adjusted.Add($"{t.Name}: {note}");
+            foreach (string note in route.ValveNotes) report.Adjusted.Add($"{t.Name}: {note}");
+            foreach (LostValve v in route.LostValves)
+            {
+                report.Skipped.Add($"{t.Name}: {v.Reason}.");
+                markers.Add(new NotConnectedMarker(v.At, v.Note));
+            }
         }
         return built;
     }

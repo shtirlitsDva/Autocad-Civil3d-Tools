@@ -82,9 +82,9 @@ internal readonly record struct LegacyCorner(
 
 /// <summary>
 /// A legacy FJV pipeline reduced to what a new pipeline needs: its exact
-/// Centreline, the identity spans along it and the components that make its
-/// sharp corners. The Centreline is in memory, not database resident; the
-/// trace owns and disposes it.
+/// Centreline, the identity spans along it, the components that make its
+/// sharp corners and the valves standing on it. The Centreline is in memory,
+/// not database resident; the trace owns and disposes it.
 /// </summary>
 internal sealed class LegacyPipelineTrace : IDisposable
 {
@@ -92,18 +92,22 @@ internal sealed class LegacyPipelineTrace : IDisposable
         string name,
         Polyline centreline,
         IReadOnlyList<LegacyIdentitySpan> spans,
-        IReadOnlyList<LegacyCorner> corners)
+        IReadOnlyList<LegacyCorner> corners,
+        IReadOnlyList<LegacyValve> valves)
     {
         Name = name;
         Centreline = centreline;
         Spans = spans;
         Corners = corners;
+        Valves = valves;
     }
 
     public string Name { get; }
     public Polyline Centreline { get; }
     public IReadOnlyList<LegacyIdentitySpan> Spans { get; }
     public IReadOnlyList<LegacyCorner> Corners { get; }
+    /// <summary>The valves, each the one or two legacy blocks that are one NDH valve.</summary>
+    public IReadOnlyList<LegacyValve> Valves { get; }
 
     public void Dispose() => Centreline.Dispose();
 }
@@ -130,6 +134,8 @@ internal sealed class LegacyTraceResult : IDisposable
     public List<string> Skipped { get; } = new List<string>();
     /// <summary>Construction changes of traced pipelines their Centreline does not run through.</summary>
     public List<LegacyUnjoinedTransition> UnjoinedTransitions { get; } = new List<LegacyUnjoinedTransition>();
+    /// <summary>Valve blocks of traced pipelines the block register cannot translate, by pipeline.</summary>
+    public List<(string Pipeline, LostValve Valve)> UncarriedValves { get; } = new List<(string, LostValve)>();
 
     public void Dispose()
     {
@@ -206,11 +212,12 @@ internal static class FjvLegacyPipelineReader
             {
                 try
                 {
-                    (LegacyPipelineTrace trace, IReadOnlyList<UnjoinedTransition> unjoined) =
-                        Trace(name, members, fjv, tx);
+                    (LegacyPipelineTrace trace, IReadOnlyList<UnjoinedTransition> unjoined,
+                     IReadOnlyList<LostValve> uncarried) = Trace(name, members, fjv, tx);
                     result.Traces.Add(trace);
                     result.UnjoinedTransitions.AddRange(
                         unjoined.Select(u => new LegacyUnjoinedTransition(name, u)));
+                    result.UncarriedValves.AddRange(uncarried.Select(v => (name, v)));
                 }
                 catch (Exception ex)
                 {
@@ -228,10 +235,12 @@ internal static class FjvLegacyPipelineReader
     }
 
     /// <summary>
-    /// The pipeline's trace, and the construction changes among its parts its
-    /// Centreline does not run through, for the importer to mark.
+    /// The pipeline's trace, the construction changes among its parts its
+    /// Centreline does not run through, and the valve blocks the register
+    /// cannot translate - the last two for the importer to mark.
     /// </summary>
-    private static (LegacyPipelineTrace Trace, IReadOnlyList<UnjoinedTransition> Unjoined) Trace(
+    private static (LegacyPipelineTrace Trace, IReadOnlyList<UnjoinedTransition> Unjoined,
+                    IReadOnlyList<LostValve> Uncarried) Trace(
         string name, List<Entity> ents, FjvDynamicComponents fjv, Transaction tx)
     {
         List<Polyline> pipes = ents
@@ -299,7 +308,13 @@ internal static class FjvLegacyPipelineReader
                 spans[i] = spans[i] with { StartDist = spans[i - 1].EndDist };
             spans[0] = spans[0] with { ChangeDist = 0.0 };
 
-            return (new LegacyPipelineTrace(name, centreline, spans, Corners(blocks)), cl.UnjoinedTransitions);
+            //READ WHILE THE LEGACY DRAWING IS STILL OPEN, as the corners are:
+            //which carrier a valve sits on is read off its ports and the pipes.
+            List<LostValve> uncarried = new List<LostValve>();
+            List<LegacyValve> valves = LegacyValveReader.Read(blocks, pipes, centreline, tx, uncarried);
+
+            return (new LegacyPipelineTrace(name, centreline, spans, Corners(blocks), valves),
+                    cl.UnjoinedTransitions, uncarried);
         }
         catch
         {
@@ -417,7 +432,7 @@ internal static class FjvLegacyPipelineReader
 
     //GetPipelineType throws for a type the schedule does not know; such a
     //block is no fitting this reader needs.
-    private static bool TryGetType(BlockReference br, out PipelineElementType type)
+    internal static bool TryGetType(BlockReference br, out PipelineElementType type)
     {
         try
         {

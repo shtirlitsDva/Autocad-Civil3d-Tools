@@ -104,6 +104,12 @@ internal enum NdhCause
     ConstructionChange = 3,
     Arc = 4,
     VerticalElbow = 5,
+    /// <summary>
+    /// An authored valve. One valve vertex causes one valve per run - the twin
+    /// run's, or the bonded pair's Frem AND Retur - so naming the Produkt of a
+    /// bonded valve is two rows, exactly as a bonded reduction is.
+    /// </summary>
+    Valve = 6,
 }
 
 /// <summary>
@@ -149,6 +155,10 @@ internal readonly record struct NdhComponent(ulong CauseHandle, NdhCause Cause, 
     /// <summary>The elbow that turns out of plan - a vertical bend.</summary>
     public static NdhComponent VerticalElbow(ulong causeHandle, NdhRun run) =>
         new(causeHandle, NdhCause.VerticalElbow, run);
+
+    /// <summary>The valve standing on this vertex, on this run.</summary>
+    public static NdhComponent Valve(ulong causeHandle, NdhRun run) =>
+        new(causeHandle, NdhCause.Valve, run);
 }
 
 /// <summary>One component, and the part it should use.</summary>

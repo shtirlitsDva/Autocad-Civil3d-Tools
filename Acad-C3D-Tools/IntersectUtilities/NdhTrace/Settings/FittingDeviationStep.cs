@@ -1,6 +1,4 @@
-﻿using IntersectUtilities.UtilsCommon.Enums;
-
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace IntersectUtilities.NdhTrace;
 
@@ -106,22 +104,9 @@ internal static class FittingDeviationStep
                 return;
             }
 
-            foreach (NdhRun run in NsDhModule.RunsOf(ConstructionAt(vertex)))
+            foreach (NdhRun run in NsDhModule.RunsOf(pipeline.Route.IdentityAt(vertex).Type))
                 Choices.Add(new NdhFittingOverride(new NdhComponent(id, cause, run),
                                                    new NdhFittingProdukt(produkt)));
-        }
-
-        /// <summary>
-        /// What the pipe IS at this vertex: the last boundary at or before it.
-        /// The route states its identity in boundaries rather than per vertex,
-        /// so this is the reading, not an inference.
-        /// </summary>
-        private PipeTypeEnum ConstructionAt(int index)
-        {
-            PipeTypeEnum type = pipeline.Route.Boundaries[0].Type;
-            foreach (NdhIdentityBoundary b in pipeline.Route.Boundaries)
-                if (b.VertexIndex <= index) type = b.Type;
-            return type;
         }
     }
 }

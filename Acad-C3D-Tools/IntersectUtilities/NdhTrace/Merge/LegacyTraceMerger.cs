@@ -204,6 +204,9 @@ internal static class LegacyTraceMerger
         {
             List<LegacyIdentitySpan> spans = new List<LegacyIdentitySpan>();
             List<LegacyCorner> corners = new List<LegacyCorner>();
+            //A valve, like a corner, is where it stands, not a station: it
+            //carries across the join and the reversal untouched.
+            List<LegacyValve> valves = new List<LegacyValve>();
 
             foreach ((LegacyPipelineTrace t, bool reversed) in chain)
             {
@@ -238,6 +241,7 @@ internal static class LegacyTraceMerger
                     else spans.Add(shifted);
                 }
                 corners.AddRange(t.Corners);
+                valves.AddRange(t.Valves);
             }
 
             //Merged vertices shorten the chain by up to the chaining tolerance;
@@ -247,7 +251,7 @@ internal static class LegacyTraceMerger
                 spans[i] = spans[i] with { StartDist = spans[i - 1].EndDist };
             spans[^1] = spans[^1] with { EndDist = centreline.Length };
 
-            return new LegacyPipelineTrace(name, centreline, spans, corners);
+            return new LegacyPipelineTrace(name, centreline, spans, corners, valves);
         }
         catch
         {
