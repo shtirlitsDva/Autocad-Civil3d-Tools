@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This repo is a collection of AutoCAD / Civil 3D 2025 plugins (and supporting console tools) for district-heating design work. All source lives under `Acad-C3D-Tools/`, organized as one solution (`Acad-C3D-Tools.sln`) containing ~25 projects. The primary plugin is `IntersectUtilities/` — most other top-level folders are either supporting libraries (`*SHARED` projects, `PipelineSHARED`, `WpfSHARED`, `UtilitiesCommonSHARED`), companion plugins (`Dimensionering`, `NTRExport`, `ExportShapeFiles`, `NSLOAD`, `SheetCreationAutomation`, etc.), or standalone tools (`AcCoreConsoleAutomation`, `LERImporter`, `ReverseLayoutProfileLANDXML`).
 
-Within `IntersectUtilities/`, code is grouped by feature area (e.g. `MPE/`, `LongitudinalProfiles/`, `PipelineNetworkSystem/`, `PipeScheduleV2/`, `FjernvarmeFremtidig/`, `LER2.0/`, `PlanDetailing/`, `PlanProduction/`, `GraphClasses/`, `Dimensionering/`). New commands typically live in a partial class named **`IntersectUtilites`** (note: this is the established spelling — keep it consistent when adding partials, e.g. `public partial class IntersectUtilites` in `MPE/PipePlan/PipePlanCommands.cs`).
+Within `IntersectUtilities/`, code is grouped by feature area (e.g. `MPE/`, `LongitudinalProfiles/`, `PipelineNetworkSystem/`, `PipeScheduleV2/`, `FjernvarmeFremtidig/`, `LER2.0/`, `PlanDetailing/`, `PlanProduction/`, `GraphClasses/`, `Dimensionering/`). New commands typically live in `public partial class Intersect` (namespace `IntersectUtilities`, e.g. `MPE/PipePlan/PipePlanCommands.cs`); `Intersect.cs` holds the `IExtensionApplication` part. The "IntersectUtilites" misspelling only survives in a load message, not as a class.
 
 ## Building
 
@@ -42,7 +42,7 @@ There is no test project / test suite in this repo. `NTRExport.ConsoleTests/` is
 - **Indentation**: four spaces. PascalCase public types, camelCase locals. Avoid abbreviations not already used in the surrounding code.
 - **Command class names** should match the AutoCAD command keyword (`ApplyDimCommand` for `APPLYDIM`, etc.).
 - `.editorconfig` disables XML doc warnings (`CS1591`). Keep inline comments minimal — only when intent is non-obvious.
-- New IntersectUtilities commands go in `partial class IntersectUtilites` (the misspelling is intentional and preserved across the codebase).
+- New IntersectUtilities commands go in `public partial class Intersect` (namespace `IntersectUtilities`).
 - Avoid `2>&1` on native executables from PowerShell — it wraps each stderr line in an ErrorRecord and sets `$?` to `$false` even on success.
 
 ## AutoCAD plugin deployment
