@@ -64,7 +64,8 @@ A line whose `id` cannot be read is answered with no `id` at all.
 NoData -9999. NSGIS uses it to turn cached terrain tiles into a drawing's terrain.
 
 `CONTOUR` needs no open project either. It traces band 1 of `source` every `interval`
-(levels are multiples of it), leaves the raster's NoData out and writes GeoJSON at `outPath`
+(levels are multiples of it), leaves the raster's NoData and lines shorter than 1 mm out and
+writes GeoJSON at `outPath`
 (an existing file is replaced): 3D lines in the raster's CRS, the height as z and in the
 field `elev`. NSGIS runs it on a `CLIP_RASTER` cut to draw contours.
 
