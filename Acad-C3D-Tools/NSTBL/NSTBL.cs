@@ -140,7 +140,11 @@ namespace IntersectUtilities.NSTBL
         /// Welds without a Serie inherit it from the pipe or component they join (TBLEXPORTCWOV2).
         /// The older exports keep the blank Serie so their output stays unchanged.
         /// </param>
-        internal HashSet<IntersectResult> gatherintersectdata(bool inheritWeldSerie)
+        /// <param name="bendAngleInName">
+        /// Bends with a free angle get the drawn angle in their name instead of 90° (TBLEXPORTCWOV2).
+        /// </param>
+        internal HashSet<IntersectResult> gatherintersectdata(
+            bool inheritWeldSerie, bool bendAngleInName = false)
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
@@ -241,6 +245,7 @@ namespace IntersectUtilities.NSTBL
                             irp.Vejklasse = psm.ReadPropertyString(polygonPline, psDef.Vejklasse);
                             irp.Belægning = psm.ReadPropertyString(polygonPline, psDef.Belægning);
                             irp.Navn = br.ReadDynamicCsvProperty(DynamicProperty.TBLNavn, true);
+                            if (bendAngleInName) irp.Navn = NameWithBendAngle(br, irp.Navn);
                             irp.DN1 = br.ReadDynamicCsvProperty(DynamicProperty.DN1, true);
                             irp.DN2 = br.ReadDynamicCsvProperty(DynamicProperty.DN2, true);
                             irp.System = br.ReadDynamicCsvProperty(DynamicProperty.System, true);
@@ -412,9 +417,24 @@ namespace IntersectUtilities.NSTBL
             return allResults;
             #endregion
         }
+        /// <summary>
+        /// The variable præbøjning (PRÆBØJN-90GR-VARIABEL-GLD) has a free angle V, but its TBLNavn in
+        /// FJV Dynamiske Komponenter.csv is written for 90°. When a block's Vinkel is a parameter
+        /// rather than a fixed value, the "90°" in its name is replaced by the angle actually drawn,
+        /// so bends at other angles reach the tilbudsliste as their own component. 90° keeps its name.
+        /// </summary>
+        private static string NameWithBendAngle(BlockReference br, string navn)
+        {
+            if (navn.IsNoE() || !navn.Contains("90°")) return navn;
+            string vinkelDef = br.ReadDynamicCsvProperty(DynamicProperty.Vinkel, false);
+            if (!vinkelDef.StartsWith("$")) return navn;
+            string vinkel = br.ReadDynamicCsvProperty(DynamicProperty.Vinkel, true);
+            if (vinkel.IsNoE()) return navn;
+            return navn.Replace("90°", vinkel + "°");
+        }
         internal HashSet<IntersectResult> processintersectdataCWOV2()
         {
-            var results = gatherintersectdata(true);
+            var results = gatherintersectdata(true, true);
             if (results == null)
             {
                 prdDbg("Received null instead of results. Aborting.");
@@ -600,8 +620,9 @@ namespace IntersectUtilities.NSTBL
         /// Egne noter;Vejklasse;Belægningstype;Komponent;Standardlængde;Materiale;DN;DN;Rørsystem;Serie;Antal.
         /// Egne noter is left empty for the etape to be written in the sheet. Pipes are summed by
         /// length (Antal in metres) and split by standard delivery length; components are counted.
-        /// Welds without a Serie inherit it from the pipe or component they join. The file has no
-        /// header row. Output is written to C:\Temp\IntersectResult.csv.
+        /// Welds without a Serie inherit it from the pipe or component they join. Bends with a free
+        /// angle are named by the angle drawn ("… bøjning 45° 1.5m"). The file has no header row.
+        /// Output is written to C:\Temp\IntersectResult.csv.
         /// </summary>
         /// <category>Tilbudsliste</category>
         [CommandMethod("TBLEXPORTCWOV2")]
