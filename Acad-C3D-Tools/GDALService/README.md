@@ -54,7 +54,13 @@ A line whose `id` cannot be read is answered with no `id` at all.
 | `SET_PROJECT` | `{projectId, basePath}` | `{projectId, elevationsDir, vrtPath, width, height, bands, projection?}` |
 | `SAMPLE_POINTS` | `{points:[{geomId, seq, s, x, y}]}` | summary + `rows` in request order, `elev` only when `status` is `OK` |
 | `SAMPLE_GRID` | `{gridDist}` | summary + `rows` of `OK`/`NODATA` cells, `z` only when `OK` |
+| `CLIP_RASTER` | `{sources:[path], bounds:{minX,minY,maxX,maxY}, targetWkt, resolution, outPath}` | `{outPath, width, height}` |
 | `SHUTDOWN` | any | `{msg:"BYE"}`, and the process exits |
+
+`CLIP_RASTER` needs no open project. It mosaics the source rasters, warps them into
+`targetWkt` (WKT, so a CRS newer than the bundled PROJ database still works), cuts them to
+`bounds` at `resolution` (both in the target CRS, bilinear) and writes a DEFLATE GeoTIFF with
+NoData -9999. NSGIS uses it to turn cached terrain tiles into a drawing's terrain.
 
 A row's `status` is one of `OK`, `NODATA`, `OUTSIDE` or `ERR`. Tiles are
 `<basePath>\Elevations\<projectId>_<n>.tif`. They are mosaicked in memory, so nothing

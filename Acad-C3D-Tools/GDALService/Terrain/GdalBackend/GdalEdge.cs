@@ -31,6 +31,26 @@ internal static class GdalEdge
         }
     }
 
+    // gdalwarp from one source into a new file at outPath; the file is complete
+    // when this returns (the written dataset is closed here).
+    public static Result<ClippedRaster> Warp(string sourcePath, string outPath, string[] arguments)
+    {
+        try
+        {
+            using var source = Gdal.OpenEx(sourcePath, (uint)OF_RASTER, null, null, null);
+            if (source is null) { return new Fault(FaultKind.Gdal, "GDAL could not open " + sourcePath); }
+            using var options = new GDALWarpAppOptions(arguments);
+            using var warped = Gdal.Warp(outPath, [source], options, null, null);
+            return warped is null
+                ? new Fault(FaultKind.Gdal, "gdalwarp wrote nothing to " + outPath)
+                : new Ok<ClippedRaster>(new ClippedRaster(outPath, warped.RasterXSize, warped.RasterYSize));
+        }
+        catch (ApplicationException ex)
+        {
+            return new Fault(FaultKind.Gdal, "gdalwarp to " + outPath + " failed: " + ex.Message);
+        }
+    }
+
     public static Result<Dataset> OpenThreadSafe(string path)
     {
         try

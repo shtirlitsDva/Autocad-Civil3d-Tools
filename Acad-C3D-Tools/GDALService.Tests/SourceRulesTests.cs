@@ -291,7 +291,7 @@ public class SourceRulesTests
     // the service sees the interfaces. An edge is known by where it is, not by
     // what it implements, so no class can make itself one.
     private static readonly string[] BoundaryInterfaces =
-        ["GDALService.Project.ITileCatalog", "GDALService.Terrain.IRasterFactory",
+        ["GDALService.Project.ITileCatalog", "GDALService.Terrain.IRasterFactory", "GDALService.Terrain.IRasterClipper",
          "GDALService.Terrain.IRaster", "GDALService.Terrain.IPixelReader"];
 
     private static bool IsEdgeFile(string file) => file == TileCatalogFile || Under(file, GdalBackendDir);
