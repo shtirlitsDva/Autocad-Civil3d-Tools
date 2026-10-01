@@ -15,11 +15,14 @@ internal static class GdalBootstrap
         try
         {
             GdalConfiguration.ConfigureGdal();
+            GdalConfiguration.ConfigureOgr();
             if (!GdalConfiguration.Usable)
             {
                 return new Fault(FaultKind.Gdal, "GDAL native libraries are not usable from " + AppContext.BaseDirectory);
             }
             Gdal.UseExceptions();
+            OSGeo.OGR.Ogr.UseExceptions();
+            OSGeo.OSR.Osr.UseExceptions();
             return new Ok<string>(Gdal.VersionInfo("RELEASE_NAME"));
         }
         catch (Exception ex) when (ex is DllNotFoundException or TypeInitializationException

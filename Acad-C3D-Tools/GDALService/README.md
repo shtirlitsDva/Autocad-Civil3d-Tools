@@ -55,12 +55,18 @@ A line whose `id` cannot be read is answered with no `id` at all.
 | `SAMPLE_POINTS` | `{points:[{geomId, seq, s, x, y}]}` | summary + `rows` in request order, `elev` only when `status` is `OK` |
 | `SAMPLE_GRID` | `{gridDist}` | summary + `rows` of `OK`/`NODATA` cells, `z` only when `OK` |
 | `CLIP_RASTER` | `{sources:[path], bounds:{minX,minY,maxX,maxY}, targetWkt, resolution, outPath}` | `{outPath, width, height}` |
+| `CONTOUR` | `{source, interval, outPath}` | `{outPath, count}` |
 | `SHUTDOWN` | any | `{msg:"BYE"}`, and the process exits |
 
 `CLIP_RASTER` needs no open project. It mosaics the source rasters, warps them into
 `targetWkt` (WKT, so a CRS newer than the bundled PROJ database still works), cuts them to
 `bounds` at `resolution` (both in the target CRS, bilinear) and writes a DEFLATE GeoTIFF with
 NoData -9999. NSGIS uses it to turn cached terrain tiles into a drawing's terrain.
+
+`CONTOUR` needs no open project either. It traces band 1 of `source` every `interval`
+(levels are multiples of it), leaves the raster's NoData out and writes GeoJSON at `outPath`
+(an existing file is replaced): 3D lines in the raster's CRS, the height as z and in the
+field `elev`. NSGIS runs it on a `CLIP_RASTER` cut to draw contours.
 
 A row's `status` is one of `OK`, `NODATA`, `OUTSIDE` or `ERR`. Tiles are
 `<basePath>\Elevations\<projectId>_<n>.tif`. They are mosaicked in memory, so nothing
