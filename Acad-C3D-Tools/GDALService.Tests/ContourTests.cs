@@ -120,6 +120,24 @@ public sealed class GdalContourerTests : IDisposable
         Assert.Equal(2, second.Count); // levels 4 and 8 only
     }
 
+    // GDAL traces a level that only touches a pixel centre as a ring a few
+    // micrometres long, empty at the file's precision; such lines are left
+    // out, and the count is what the file holds.
+    [Fact]
+    public void Degenerate_lines_are_left_out()
+    {
+        string peak = Path.Combine(_dir, "peak.tif");
+        TileFolder.WriteTile(peak, Left, Top, 5, 5, -9999f, (c, r) => c == 2 && r == 2 ? 1f : c == 0 && r == 0 ? 0.5f : 0f);
+        string outPath = Path.Combine(_dir, "peak.geojson");
+
+        var lines = Expect.Ok(new GdalContourer().Contour(new ContourRequest(peak, 1, outPath)));
+
+        using var json = JsonDocument.Parse(File.ReadAllText(outPath));
+        var features = json.RootElement.GetProperty("features").EnumerateArray().ToList();
+        Assert.Equal(lines.Count, features.Count);
+        Assert.All(features, f => Assert.True(f.GetProperty("geometry").GetProperty("coordinates").GetArrayLength() >= 2));
+    }
+
     [Fact]
     public void A_missing_source_is_a_gdal_fault()
     {
