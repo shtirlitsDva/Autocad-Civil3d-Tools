@@ -29,7 +29,6 @@ namespace NSLOAD
     public static class NsLoadConfigLoader
     {
         private const string AppFolder = "NSLOAD";
-        private const string ConfigFileName = "config.json";
 
         private static readonly JsonSerializerOptions _jsonOptions = new()
         {
@@ -42,7 +41,7 @@ namespace NSLOAD
         {
             string appData = Environment.GetFolderPath(
                 Environment.SpecialFolder.ApplicationData);
-            return Path.Combine(appData, AppFolder, ConfigFileName);
+            return Path.Combine(appData, AppFolder, HostInfo.ConfigFileName);
         }
 
         public static NsLoadConfig? Load()

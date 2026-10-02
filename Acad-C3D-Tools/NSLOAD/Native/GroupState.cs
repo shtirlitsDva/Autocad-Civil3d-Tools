@@ -124,7 +124,7 @@ namespace NSLOAD.Native
 
             public HeldState(Release inMemory) => _inMemory = inMemory;
 
-            public override string Row(Release onDisk) => "Held in memory — restart Civil to update";
+            public override string Row(Release onDisk) => $"Held in memory — restart {HostInfo.RestartName} to update";
 
             public override Release InMemory(Func<Release> fromMappedFiles) => _inMemory;
         }

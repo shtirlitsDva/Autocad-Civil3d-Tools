@@ -60,7 +60,7 @@ namespace NSLOAD
     /// quietly leaving the scan on, and the caller reports it.
     /// </para>
     /// </remarks>
-    internal static class AutoCadScanSuppressor
+    internal static class HostScanSuppressor
     {
         private const string BackingField = "m_deferredAssemblyLoadEventHandler";
 

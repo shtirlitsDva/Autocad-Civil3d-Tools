@@ -1,0 +1,14 @@
+<!-- The manager's colours on AutoCAD / Civil 3D. Compiled as Views\Palette.xaml
+     by the AutoCAD build only (NSLOAD.csproj). Palette.BricsCAD.xaml must define
+     exactly the same keys. -->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Color x:Key="BgColor">#3B4453</Color>
+    <Color x:Key="SurfaceColor">#2D3442</Color>
+    <Color x:Key="BorderColor">#4A5568</Color>
+    <Color x:Key="AccentColor">#63B3ED</Color>
+    <Color x:Key="DangerColor">#E53E3E</Color>
+    <Color x:Key="SuccessColor">#48BB78</Color>
+    <Color x:Key="FgColor">#E2E8F0</Color>
+    <Color x:Key="MutedColor">#A0AEC0</Color>
+</ResourceDictionary>

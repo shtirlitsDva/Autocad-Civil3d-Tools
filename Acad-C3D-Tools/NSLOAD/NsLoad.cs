@@ -1,13 +1,18 @@
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
 
+#if BRICSCAD
+using Bricscad.ApplicationServices;
+using Bricscad.EditorInput;
+using Bricscad.Internal;
+using Teigha.Runtime;
+#else
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Internal;
 using Autodesk.AutoCAD.Runtime;
-using Autodesk.AutoCAD.Windows;
+#endif
 
 using NSLOAD.Views;
 
@@ -20,10 +25,6 @@ namespace NSLOAD
 
     public class NsLoader : IExtensionApplication
     {
-        private static PaletteSet? _mgmtPalette;
-        private static readonly Guid MgmtPaletteGuid =
-            new("A7E3F1B2-9C4D-4E8A-B6D5-2F1A3C7E9B04");
-
         private static NsLoadConfig _config = new();
         private static Dictionary<string, RegisterEntry> _csvApps = new();
 
@@ -45,24 +46,24 @@ namespace NSLOAD
             // load, so the startup loads are seen too.
             PluginManager.PluginStateChanged += SyncOnDemandCommand;
 
-            // Take AutoCAD's assembly scan off NSLOAD-loaded plugins before
+            // Take the host's assembly scan off NSLOAD-loaded plugins before
             // anything can load one. Without this the host registers their
             // commands permanently and builds its own plugin instance.
             try
             {
-                AutoCadScanSuppressor.Install();
+                HostScanSuppressor.Install();
             }
             catch (System.Exception ex)
             {
                 // Loud, not silent: without suppression every plugin needs the
                 // NoCommands marker, and PluginManager must not call Initialize.
                 ed?.WriteMessage(
-                    "\nNSLOAD: WARNING - could not suppress AutoCAD's assembly scan " +
-                    $"({ex.Message}) Plugins on this AutoCAD version still need the " +
+                    $"\nNSLOAD: WARNING - could not suppress {HostInfo.AppName}'s assembly scan " +
+                    $"({ex.Message}) Plugins on this {HostInfo.AppName} version still need the " +
                     "NoCommands marker class.");
             }
 
-            string csvPath = @"X:\AutoCAD DRI - 01 Civil 3D\NetloadV2\Register-2025.csv";
+            string csvPath = HostInfo.RegisterCsvPath;
             bool registerRead;
             try
             {
@@ -127,6 +128,22 @@ namespace NSLOAD
                 }
             }
 
+            // The manager shows the config, the register and what has loaded, so
+            // it is prepared once all three are settled. On BricsCAD that makes the
+            // panel now, so its icon is on the stack from startup; on AutoCAD the
+            // palette is made when NSLOADMGR first asks for it.
+            try
+            {
+                ManagerWindow.Prepare(() =>
+                {
+                    var panel = new NsLoadPanel();
+                    var vm = (ViewModels.NsLoadViewModel)panel.DataContext;
+                    vm.Initialize(_config, _csvApps);
+                    return panel;
+                });
+            }
+            catch (System.Exception ex) { NsLoadDiagnostics.Report("manager window", ex); }
+
             Utils.AddCommand("NSLOAD", "NSLOAD", "NSLOAD",
                 CommandFlags.Modal, NsLoadCommand);
             Utils.AddCommand("NSLOAD", "NSLOADMGR", "NSLOADMGR",
@@ -144,20 +161,10 @@ namespace NSLOAD
 
             PluginManager.ShutdownAll();
 
-            try { AutoCadScanSuppressor.Restore(); }
+            try { HostScanSuppressor.Restore(); }
             catch (System.Exception ex) { NsLoadDiagnostics.Report("scan suppressor restore", ex); }
 
-            // Dispose the cached management palette so it doesn't survive an unload/reload cycle.
-            if (_mgmtPalette != null)
-            {
-                try
-                {
-                    _mgmtPalette.Visible = false;
-                    _mgmtPalette.Dispose();
-                }
-                catch (System.Exception ex) { NsLoadDiagnostics.Report("manager palette dispose", ex); }
-                _mgmtPalette = null;
-            }
+            ManagerWindow.Release();
         }
 
         public static void NsLoadCommand()
@@ -182,26 +189,7 @@ namespace NSLOAD
             PluginManager.Load(selection);
         }
 
-        public static void OpenManager()
-        {
-            if (_mgmtPalette == null)
-            {
-                _mgmtPalette = new PaletteSet(
-                    "NSLOAD Manager", MgmtPaletteGuid)
-                {
-                    Size = new Size(400, 500),
-                    MinimumSize = new Size(300, 200),
-                    DockEnabled = DockSides.Left | DockSides.Right,
-                };
-
-                var panel = new NsLoadPanel();
-                var vm = (ViewModels.NsLoadViewModel)panel.DataContext;
-                vm.Initialize(_config, _csvApps);
-
-                _mgmtPalette.AddVisual("Plugins", panel);
-            }
-            _mgmtPalette.Visible = true;
-        }
+        public static void OpenManager() => ManagerWindow.BringForward();
 
         /// <summary>
         /// Gives the app its load command when it is not loaded and takes it away
