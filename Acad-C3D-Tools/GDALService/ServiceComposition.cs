@@ -32,11 +32,23 @@ internal static class ServiceComposition
                 Ok<string> => new GdalRasterFactory(provider.GetRequiredService<ServiceLog>()),
                 Fault why => new UnavailableRasterFactory(why),
             })
+            .AddSingleton<IRasterClipper>(_ => gdal switch
+            {
+                Ok<string> => new GdalClipper(),
+                Fault why => new UnavailableRasterClipper(why),
+            })
+            .AddSingleton<IContourer>(_ => gdal switch
+            {
+                Ok<string> => new GdalContourer(),
+                Fault why => new UnavailableContourer(why),
+            })
             .AddSingleton<ProjectStore>()
             .AddCapability<Hello>()
             .AddCapability<SetProject>()
             .AddCapability<SamplePoints>()
             .AddCapability<SampleGrid>()
+            .AddCapability<ClipRaster>()
+            .AddCapability<Contour>()
             .AddCapability<Shutdown>();
         configure(services);
         return services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });

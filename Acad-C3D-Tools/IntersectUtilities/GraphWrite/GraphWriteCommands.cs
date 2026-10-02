@@ -4,6 +4,7 @@ using Autodesk.AutoCAD.Runtime;
 
 using GroupByCluster;
 
+using IntersectUtilities.GraphWrite;
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.Graphs;
 using IntersectUtilities.UtilsCommon.DataManager.CsvData;
@@ -28,55 +29,11 @@ namespace IntersectUtilities
             Database localDb = db ?? docCol.MdiActiveDocument.Database;
             try
             {
-                PopulateGraph(localDb);
+                GraphPopulation.Populate(localDb);
             }
             catch (System.Exception ex)
             {
                 prdDbg(ex);
-            }
-        }
-
-        /// <summary>
-        /// Writes every FJV entity's DriGraph ConnectedEntities from the points
-        /// where it meets the others, in its own committed transaction. Throws
-        /// when it fails, and then writes nothing.
-        /// </summary>
-        internal static void PopulateGraph(Database localDb)
-        {
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    var komponenter = Csv.FjvDynamicComponents;
-                    HashSet<Entity> allEnts = localDb.GetFjvEntities(tx, true, false);
-                    PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriGraph);
-                    var graph = new GraphWrite.Graph(localDb, psm, komponenter);
-                    foreach (Entity entity in allEnts) graph.AddEntityToPOIs(entity);
-                    //Create clusters of POIs based on a maximum distance
-                    //Distance is reduced, because was having a bad day
-                    IEnumerable<IGrouping<POI, POI>> clusters
-                        = graph.POIs.GroupByCluster((x, y) => x.Point.GetDistanceTo(y.Point), 0.003);
-                    //Iterate over clusters
-                    foreach (IGrouping<POI, POI> cluster in clusters)
-                    {
-                        //Create unique pairs
-                        var pairs = cluster.SelectMany((value, index) => cluster.Skip(index + 1),
-                                                       (first, second) => new { first, second });
-                        //Create reference to each other for each pair
-                        foreach (var pair in pairs)
-                        {
-                            if (pair.first.Owner.Handle == pair.second.Owner.Handle) continue;
-                            pair.first.AddReference(pair.second);
-                            pair.second.AddReference(pair.first);
-                        }
-                    }
-                }
-                catch
-                {
-                    tx.Abort();
-                    throw;
-                }
-                tx.Commit();
             }
         }
 
@@ -180,36 +137,11 @@ namespace IntersectUtilities
             Database localDb = db ?? docCol.MdiActiveDocument.Database;
             try
             {
-                ClearGraph(localDb);
+                GraphPopulation.Clear(localDb);
             }
             catch (System.Exception ex)
             {
                 prdDbg(ex);
-            }
-        }
-
-        /// <summary>
-        /// Empties every FJV entity's DriGraph ConnectedEntities, in its own
-        /// committed transaction. Throws when it fails, and then writes nothing.
-        /// </summary>
-        internal static void ClearGraph(Database localDb)
-        {
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    HashSet<Entity> allEnts = localDb.GetFjvEntities(tx, true, false);
-                    PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriGraph);
-                    PSetDefs.DriGraph driGraph = new PSetDefs.DriGraph();
-                    foreach (var item in allEnts)
-                        psm.WritePropertyString(item, driGraph.ConnectedEntities, "");
-                }
-                catch
-                {
-                    tx.Abort();
-                    throw;
-                }
-                tx.Commit();
             }
         }
     }

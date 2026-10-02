@@ -1,6 +1,10 @@
+using System.Globalization;
+
 using GDALService.Common;
 
 using OSGeo.GDAL;
+using OSGeo.OGR;
+using OSGeo.OSR;
 
 using static OSGeo.GDAL.GdalConst;
 
@@ -29,6 +33,112 @@ internal static class GdalEdge
         {
             return new Fault(FaultKind.Gdal, "GDALBuildVRT failed: " + ex.Message);
         }
+    }
+
+    // gdalwarp from one source into a new file at outPath; the file is complete
+    // when this returns (the written dataset is closed here).
+    public static Result<ClippedRaster> Warp(string sourcePath, string outPath, string[] arguments)
+    {
+        try
+        {
+            using var source = Gdal.OpenEx(sourcePath, (uint)OF_RASTER, null, null, null);
+            if (source is null) { return new Fault(FaultKind.Gdal, "GDAL could not open " + sourcePath); }
+            using var options = new GDALWarpAppOptions(arguments);
+            using var warped = Gdal.Warp(outPath, [source], options, null, null);
+            return warped is null
+                ? new Fault(FaultKind.Gdal, "gdalwarp wrote nothing to " + outPath)
+                : new Ok<ClippedRaster>(new ClippedRaster(outPath, warped.RasterXSize, warped.RasterYSize));
+        }
+        catch (ApplicationException ex)
+        {
+            return new Fault(FaultKind.Gdal, "gdalwarp to " + outPath + " failed: " + ex.Message);
+        }
+    }
+
+    // gdal_contour into a new GeoJSON file at outPath (an existing one is
+    // replaced): 3D lines, the height as z and in the field "elev", the
+    // raster's NoData left out. The file is complete when this returns.
+    public static Result<ContourLines> Contour(string sourcePath, string outPath, double interval)
+    {
+        try
+        {
+            using var source = Gdal.OpenEx(sourcePath, (uint)OF_RASTER, null, null, null);
+            if (source is null) { return new Fault(FaultKind.Gdal, "GDAL could not open " + sourcePath); }
+            using var band = source.GetRasterBand(1);
+            band.GetNoDataValue(out double noData, out int hasNoData);
+            using var srs = new SpatialReference(source.GetProjectionRef());
+
+            // Traced into memory first: a level that only touches a pixel
+            // centre comes out as a ring a few micrometres long, which the
+            // file's millimetre precision turns into a line without points.
+            // Lines shorter than that precision are dropped on the way.
+            using var memory = Ogr.GetDriverByName("Memory");
+            if (memory is null) { return new Fault(FaultKind.Gdal, "OGR has no Memory driver"); }
+            using var traced = memory.CreateDataSource("contours", null);
+            using var tracedLayer = ContourLayer(traced, srs);
+            string[] options =
+            [
+                "LEVEL_INTERVAL=" + interval.ToString("R", CultureInfo.InvariantCulture),
+                "ID_FIELD=0", "ELEV_FIELD=1",
+                .. hasNoData != 0 ? ["NODATA=" + noData.ToString("R", CultureInfo.InvariantCulture)] : Array.Empty<string>(),
+            ];
+            var err = (CPLErr)Gdal.ContourGenerateEx(band, tracedLayer, options, null, null);
+            if (err != CPLErr.CE_None) { return new Fault(FaultKind.Gdal, $"gdal_contour on {sourcePath} failed: {err}"); }
+
+            using var geoJson = Ogr.GetDriverByName("GeoJSON");
+            if (geoJson is null) { return new Fault(FaultKind.Gdal, "OGR has no GeoJSON driver"); }
+            ReplaceTarget(geoJson, outPath);
+            using var target = geoJson.CreateDataSource(outPath, null);
+            if (target is null) { return new Fault(FaultKind.Gdal, "OGR could not create " + outPath); }
+            using var layer = ContourLayer(target, srs, ["COORDINATE_PRECISION=" + PrecisionDigits]);
+            long count = 0;
+            tracedLayer.ResetReading();
+            for (var line = tracedLayer.GetNextFeature(); line is not null; line = tracedLayer.GetNextFeature())
+            {
+                using (line)
+                {
+                    using var geometry = line.GetGeometryRef();
+                    if (geometry is null || geometry.Length() < Precision) { continue; }
+                    using var copy = new Feature(layer.GetLayerDefn());
+                    copy.SetFrom(line, 1);
+                    layer.CreateFeature(copy);
+                    count++;
+                }
+            }
+            return new Ok<ContourLines>(new ContourLines(outPath, count));
+        }
+        catch (ApplicationException ex)
+        {
+            return new Fault(FaultKind.Gdal, "gdal_contour on " + sourcePath + " failed: " + ex.Message);
+        }
+    }
+
+    // Contour files keep millimetres (in a metric CRS).
+    private const int PrecisionDigits = 3;
+    private const double Precision = 1e-3;
+
+    private static Layer ContourLayer(DataSource target, SpatialReference srs, string[]? options = null)
+    {
+        var layer = target.CreateLayer("contour", srs, wkbGeometryType.wkbLineString25D, options ?? []);
+        using (var id = new FieldDefn("ID", FieldType.OFTInteger)) { layer.CreateField(id, 1); }
+        using (var elev = new FieldDefn("elev", FieldType.OFTReal)) { layer.CreateField(elev, 1); }
+        return layer;
+    }
+
+    // The GeoJSON driver will not overwrite: an old file at the path is
+    // deleted first. No file there is the normal case, not a failure.
+    private static void ReplaceTarget(OSGeo.OGR.Driver driver, string path)
+    {
+        try
+        {
+            using var existing = Ogr.Open(path, 0);
+            if (existing is null) { return; }
+        }
+        catch (ApplicationException)
+        {
+            return;
+        }
+        driver.DeleteDataSource(path);
     }
 
     public static Result<Dataset> OpenThreadSafe(string path)
