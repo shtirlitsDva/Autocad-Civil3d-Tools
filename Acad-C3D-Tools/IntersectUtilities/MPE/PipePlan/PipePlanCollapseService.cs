@@ -44,7 +44,9 @@ internal static class PipePlanCollapseService
 
             while (true)
             {
-                bool built = TryBuildCollapse(solver, data, threshold, out CollapsePlan? plan, out string buildError);
+                bool built = TryBuildCollapse(
+                    data.ControlPoints, data.BendRadii, radiusOffset: 0.0, solver.Analyze, threshold,
+                    out CollapsePlan? plan, out string buildError);
                 if (built && plan is not null)
                 {
                     preview.Show(plan.Analysis, width);
@@ -121,18 +123,126 @@ internal static class PipePlanCollapseService
     }
 
     /// <summary>
+    /// PPCOLLAPSE on a bonded pair. The sagitta is measured on the centreline (radius
+    /// R_inner + c/2); a removed vertex re-solves all three members, which are rewritten
+    /// in place. Ok carries the summary; Fault the reason nothing changed.
+    /// </summary>
+    public static Result<string> CollapsePair(Document document, ObjectId memberId)
+    {
+        using DocumentLock documentLock = document.LockDocument();
+        using PipePlanSharpCornerMarkerManager markers = new();
+        using PipePlanPreviewManager preview = new(document);
+        using Transaction transaction = document.Database.TransactionManager.StartTransaction();
+
+        Result<string> outcome = PipePlanPairRunLocator.Locate(document.Database, transaction, memberId).Bind(run =>
+        {
+            foreach (string note in run.Notes)
+            {
+                document.Editor.WriteMessage($"\n{note}");
+            }
+
+            PipePlanPairSpacing spacing = PipePlanPairEditSession.CurrentSpacing(document.Database, transaction, run);
+            return CollapsePairInteractively(document, transaction, markers, preview, run, spacing);
+        });
+
+        transaction.Commit();
+        return outcome;
+    }
+
+    private static Result<string> CollapsePairInteractively(
+        Document document,
+        Transaction transaction,
+        PipePlanSharpCornerMarkerManager markers,
+        PipePlanPreviewManager preview,
+        PipePlanPairRun run,
+        PipePlanPairSpacing spacing)
+    {
+        PipePlanSolver solver = new();
+        Editor editor = document.Editor;
+        PipePlanPairAuthoring authoring = run.Data.Authoring;
+        double threshold = DefaultThreshold;
+
+        while (true)
+        {
+            bool built = TryBuildCollapse(
+                authoring.ControlPoints, authoring.InnerRadii, spacing.Half,
+                (points, radii) => PipePlanPairGeometry.Analyze(solver, points, radii, spacing.Half),
+                threshold, out CollapsePlan? plan, out string buildError);
+            if (built && plan is not null)
+            {
+                preview.ShowPair(plan.Analysis, spacing, authoring.Flip);
+                markers.Show(document, plan.RemovedPositions);
+                editor.UpdateScreen();
+            }
+            else
+            {
+                preview.Clear();
+                markers.Clear();
+                editor.WriteMessage($"\n{buildError}");
+            }
+
+            string countText = plan is not null ? plan.RemovedIndices.Count.ToString() : "?";
+            PromptDoubleOptions options = new(
+                $"\n{countText} bøjning(er) ≤ {threshold:0.###} (målt på centerlinjen) fjernes. Enter for at bekræfte, ny tærskel for at forhåndsvise, eller Esc for at annullere: ")
+            {
+                AllowNegative = false,
+                AllowZero = false,
+                AllowNone = true
+            };
+
+            PromptDoubleResult result = editor.GetDouble(options);
+            if (result.Status == PromptStatus.OK)
+            {
+                threshold = result.Value;
+                continue;
+            }
+
+            if (result.Status != PromptStatus.None)
+            {
+                return Result<string>.Failure("PPCOLLAPSE annulleret.");
+            }
+
+            if (plan is null)
+            {
+                editor.WriteMessage("\nKan ikke bekræfte: ugyldigt resultat ved denne tærskel.");
+                continue;
+            }
+
+            if (plan.RemovedIndices.Count == 0)
+            {
+                return Result<string>.Success($"Ingen bøjninger ≤ {threshold:0.###} — intet at fjerne.");
+            }
+
+            PipePlanPairAuthoring collapsed = authoring with { ControlPoints = plan.ControlPoints, InnerRadii = plan.Radii };
+            PipePlanPairStoredData data = run.Data with { Authoring = collapsed, Spacing = spacing };
+            int removed = plan.RemovedIndices.Count;
+            return PipePlanPairGeometry.Solve(plan.Analysis, spacing.Half, collapsed.Flip).Map(solution =>
+            {
+                PipePlanPairWriter.Write(document.Database, transaction, run.Slots, solution, data);
+                return $"{removed} bøjning(er) fjernet (tærskel {threshold:0.###}).";
+            });
+        }
+    }
+
+    /// <summary>
     /// Flags every interior bend whose sagitta — the distance from the arc midpoint to the
     /// midpoint of the chord between its tangent points, equal to R·(1 − cos(δ/2)) — is at
     /// or below <paramref name="threshold"/>, removes those control vertices, and re-solves.
     /// Returns false (with a reason) when the collapsed path is infeasible or degenerate.
+    /// <paramref name="radiusOffset"/> turns a stored radius into the solved one: 0 for a
+    /// single pipe, c/2 for a pair (whose stored radii are inner-pipe radii).
     /// </summary>
-    private static bool TryBuildCollapse(PipePlanSolver solver, PipePlanStoredData data, double threshold, out CollapsePlan? plan, out string error)
+    private static bool TryBuildCollapse(
+        IReadOnlyList<Point3d> controlPoints,
+        IReadOnlyList<double> radii,
+        double radiusOffset,
+        Func<IReadOnlyList<Point3d>, IReadOnlyList<double>, PipePlanAnalysis> analyze,
+        double threshold,
+        out CollapsePlan? plan,
+        out string error)
     {
         plan = null;
         error = string.Empty;
-
-        IReadOnlyList<Point3d> controlPoints = data.ControlPoints;
-        IReadOnlyList<double> radii = data.BendRadii;
 
         List<int> removeIndices = [];
         List<Point3d> removedPositions = [];
@@ -144,7 +254,7 @@ internal static class PipePlanCollapseService
                 continue;
             }
 
-            if (PipePlanBendCalculator.TryCompute(controlPoints[i - 1], controlPoints[i], controlPoints[i + 1], radius, out PipePlanBendGeometry bend) != PipePlanBendStatus.Bend)
+            if (PipePlanBendCalculator.TryCompute(controlPoints[i - 1], controlPoints[i], controlPoints[i + 1], radius + radiusOffset, out PipePlanBendGeometry bend) != PipePlanBendStatus.Bend)
             {
                 continue;
             }
@@ -176,7 +286,7 @@ internal static class PipePlanCollapseService
         newRadii[0] = 0.0;
         newRadii[^1] = 0.0;
 
-        PipePlanAnalysis analysis = solver.Analyze(newControlPoints, newRadii);
+        PipePlanAnalysis analysis = analyze(newControlPoints, newRadii);
         if (!analysis.IsFeasible)
         {
             error = $"Resultat ugyldigt: {analysis.Message}";

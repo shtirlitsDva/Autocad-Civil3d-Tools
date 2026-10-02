@@ -16,7 +16,8 @@ public partial class Intersect
     /// <command>PPEDIT</command>
     /// <summary>
     /// Edits an existing PipePlan object by dragging control handles or segment handles, previewing each move live
-    /// and rejecting infeasible edits. Enter at the handle prompt finishes.
+    /// and rejecting infeasible edits. Enter at the handle prompt finishes. Picking any pipe of a bonded pair edits
+    /// the pair by its centreline; [Flip] swaps which pipe is frem.
     /// </summary>
     /// <category>PipePlan</category>
     [CommandMethod("PPEDIT")]
@@ -40,8 +41,8 @@ public partial class Intersect
 
     /// <command>PPSETTINGS</command>
     /// <summary>
-    /// Shows the PipePlan settings palette so the per-DN bending radius (ProjekteringsRadius) and the straight-snap
-    /// tolerance can be edited. Overrides are saved to the active drawing.
+    /// Shows the PipePlan settings palette so the per-DN bending radius (ProjekteringsRadius), the bonded-pair gap
+    /// (min x) and the straight-snap tolerance can be edited. Overrides are saved to the active drawing.
     /// </summary>
     /// <category>PipePlan</category>
     [CommandMethod("PPSETTINGS")]
@@ -66,7 +67,9 @@ public partial class Intersect
     /// <command>PPDRAW</command>
     /// <summary>
     /// Starts a new PipePlan draft or continues an existing one. Requires NSPalette; the active FJV layer determines
-    /// pipe system, type and DN, and the bending radius comes from PPSETTINGS.
+    /// pipe system, type and DN, and the bending radius comes from PPSETTINGS. On a steel FREM/RETUR layer you draw
+    /// the centreline of a bonded pair: frem/retur are placed at c-c = jacket OD + min x, the radius is the inner
+    /// pipe's, and [Flip] puts frem on the right of the drawing direction.
     /// </summary>
     /// <category>PipePlan</category>
     [CommandMethod("PPDRAW")]
@@ -152,6 +155,25 @@ public partial class Intersect
             return;
         }
 
+        bool handled = PipePlanPick.Classify(document.Database, polylineId).Match(
+            pairMember =>
+            {
+                PipePlanCollapseService.CollapsePair(document, pairMember).Switch(
+                    message => ReportMessage(document, message, PipePlanStatusKind.Ok),
+                    message => ReportMessage(document, message, PipePlanStatusKind.Warning));
+                return true;
+            },
+            _ =>
+            {
+                ReportMessage(document, PipePlanPick.ConvertParkedMessage, PipePlanStatusKind.Warning);
+                return true;
+            },
+            () => false);
+        if (handled)
+        {
+            return;
+        }
+
         // The picked polyline has no usable PipePlan metadata (never converted, stale
         // version, or edited outside PipePlan). Auto-convert it in place — running the
         // interactive sharp-corner radius loop — then collapse the freshly baked
@@ -178,28 +200,52 @@ public partial class Intersect
 
     private static void ExecuteEdit(Document document)
     {
-        if (!TryCreateEditSession(document, out PipePlanEditSession? session))
-        {
-            return;
-        }
-
-        PipePlanEditSession activeSession = session;
-        using (activeSession)
-        {
-            RunEditLoop(document, activeSession);
-        }
-    }
-
-    private static bool TryCreateEditSession(Document document, [NotNullWhen(true)] out PipePlanEditSession? session)
-    {
-        session = null;
-        PipePlanState state = PipePlanRuntime.StateFor(document);
-
         if (!PipePlanEditSession.TryPickPolyline(document, out ObjectId polylineId, out string pickError))
         {
             ReportMessage(document, pickError, PipePlanStatusKind.Warning);
-            return false;
+            return;
         }
+
+        PipePlanState state = PipePlanRuntime.StateFor(document);
+        Option<PipePlanEditSessionBase> opened = PipePlanPick.Classify(document.Database, polylineId).Match(
+            pairMember => PipePlanPairEditSession.Open(document, state, pairMember).Match(
+                session =>
+                {
+                    foreach (string note in session.Notes)
+                    {
+                        ReportEditorMessage(document.Editor, note);
+                    }
+
+                    return Option<PipePlanEditSessionBase>.Of(session);
+                },
+                message =>
+                {
+                    ReportMessage(document, message, PipePlanStatusKind.Warning);
+                    return Option<PipePlanEditSessionBase>.Nothing;
+                }),
+            _ =>
+            {
+                ReportMessage(document, PipePlanPick.ConvertParkedMessage, PipePlanStatusKind.Warning);
+                return Option<PipePlanEditSessionBase>.Nothing;
+            },
+            () => TryCreateEditSession(document, polylineId, out PipePlanEditSession? single)
+                ? Option<PipePlanEditSessionBase>.Of(single)
+                : Option<PipePlanEditSessionBase>.Nothing);
+
+        opened.Switch(
+            session =>
+            {
+                using (session)
+                {
+                    RunEditLoop(document, session);
+                }
+            },
+            () => { });
+    }
+
+    private static bool TryCreateEditSession(Document document, ObjectId polylineId, [NotNullWhen(true)] out PipePlanEditSession? session)
+    {
+        PipePlanState state = PipePlanRuntime.StateFor(document);
 
         if (PipePlanEditSession.TryCreateFrom(document, state, polylineId, out session, out string loadError) && session is not null)
         {
@@ -228,18 +274,19 @@ public partial class Intersect
 
     private enum VertexRadiusEditOutcome { Locked, Cancelled }
 
-    private static void RunEditLoop(Document document, PipePlanEditSession session)
+    private static void RunEditLoop(Document document, PipePlanEditSessionBase session)
     {
         Editor editor = document.Editor;
+        string keywordHint = session.CanFlip ? "[Add/Delete/Flip]" : "[Add/Delete]";
         PipePlanRuntime.StateFor(document).SetStatus(
-            $"Redigerer {session.SizeLabel} (R={session.RadiusDisplay}). Vælg håndtag, [Add/Delete], eller Enter for at afslutte.",
+            $"Redigerer {session.SizeLabel} (R={session.RadiusDisplay}). Vælg håndtag, {keywordHint}, eller Enter for at afslutte.",
             PipePlanStatusKind.Info);
 
         while (true)
         {
             session.ShowHandles();
 
-            PromptPointResult pickResult = PromptForEditHandle(editor);
+            PromptPointResult pickResult = PromptForEditHandle(editor, session.CanFlip);
             if (pickResult.Status == PromptStatus.Keyword)
             {
                 if (string.Equals(pickResult.StringResult, "Add", StringComparison.OrdinalIgnoreCase))
@@ -249,6 +296,12 @@ public partial class Intersect
                 else if (string.Equals(pickResult.StringResult, "Delete", StringComparison.OrdinalIgnoreCase))
                 {
                     RunDeleteVertexMode(document, session);
+                }
+                else if (string.Equals(pickResult.StringResult, "Flip", StringComparison.OrdinalIgnoreCase))
+                {
+                    session.FlipSides().Switch(
+                        message => ReportMessage(document, message, PipePlanStatusKind.Ok),
+                        message => ReportMessage(document, message, PipePlanStatusKind.Warning));
                 }
                 continue;
             }
@@ -279,7 +332,7 @@ public partial class Intersect
         }
     }
 
-    private static bool RunHandleEditLoop(Document document, PipePlanEditSession session, PipePlanEditHandle handle)
+    private static bool RunHandleEditLoop(Document document, PipePlanEditSessionBase session, PipePlanEditHandle handle)
     {
         while (true)
         {
@@ -326,7 +379,7 @@ public partial class Intersect
 
     private static bool TryCommitFromLastDragPosition(
         Document document,
-        PipePlanEditSession session,
+        PipePlanEditSessionBase session,
         PipePlanEditHandle handle)
     {
         if (!session.TryGetPendingRadius(out _, out _))
@@ -346,7 +399,7 @@ public partial class Intersect
     /// corner. Each click commits one vertex; <c>Radius</c> re-prompts; <c>Back</c> or
     /// Enter returns to the move loop.
     /// </summary>
-    private static void RunAddVertexMode(Document document, PipePlanEditSession session)
+    private static void RunAddVertexMode(Document document, PipePlanEditSessionBase session)
     {
         Editor editor = document.Editor;
         PipePlanState state = PipePlanRuntime.StateFor(document);
@@ -413,7 +466,7 @@ public partial class Intersect
     /// previews how it will look with that vertex removed; clicking commits the removal.
     /// <c>Back</c> or Enter returns to the move loop.
     /// </summary>
-    private static void RunDeleteVertexMode(Document document, PipePlanEditSession session)
+    private static void RunDeleteVertexMode(Document document, PipePlanEditSessionBase session)
     {
         Editor editor = document.Editor;
         PipePlanState state = PipePlanRuntime.StateFor(document);
@@ -467,7 +520,7 @@ public partial class Intersect
     /// Default keyword) accepts the resolved per-DN default; any positive value overrides
     /// it. Returns false when cancelled or when no default radius is available.
     /// </summary>
-    private static bool TryPromptInsertRadius(Document document, PipePlanEditSession session, out double radius)
+    private static bool TryPromptInsertRadius(Document document, PipePlanEditSessionBase session, out double radius)
     {
         radius = 0.0;
         if (!session.TryGetInsertRadius(out double defaultRadius, out string radiusError))
@@ -476,7 +529,7 @@ public partial class Intersect
             return false;
         }
 
-        PromptDoubleOptions options = new($"\nBøjningsradius for nyt hjørne <{defaultRadius:0.###}> eller [Default]: ")
+        PromptDoubleOptions options = new($"\nBøjningsradius{session.RadiusQualifier} for nyt hjørne <{defaultRadius:0.###}> eller [Default]: ")
         {
             AllowNegative = false,
             AllowZero = false,
@@ -503,7 +556,7 @@ public partial class Intersect
         return false;
     }
 
-    private static VertexRadiusEditOutcome HandleVertexRadiusEdit(Document document, PipePlanEditSession session, PipePlanEditHandle handle)
+    private static VertexRadiusEditOutcome HandleVertexRadiusEdit(Document document, PipePlanEditSessionBase session, PipePlanEditHandle handle)
     {
         if (handle.Kind != PipePlanEditHandleKind.Vertex)
         {
@@ -526,8 +579,8 @@ public partial class Intersect
             string prompt = pendingRadius.HasValue
                 ? $"\nPreviewing radius {pendingRadius.Value}. Enter to lock, another value to preview, or [Default]: "
                 : current > 0.0
-                    ? $"\nNew radius for vertex <{current}> or [Default]: "
-                    : "\nNew radius for vertex or [Default]: ";
+                    ? $"\nNew radius{session.RadiusQualifier} for vertex <{current}> or [Default]: "
+                    : $"\nNew radius{session.RadiusQualifier} for vertex or [Default]: ";
 
             PromptDoubleOptions opts = new(prompt)
             {
@@ -587,7 +640,7 @@ public partial class Intersect
 
     private static bool TryPreviewDefaultVertexRadius(
         Document document,
-        PipePlanEditSession session,
+        PipePlanEditSessionBase session,
         PipePlanEditHandle handle,
         Point3d dragPosition,
         out double defaultRadius)
@@ -619,21 +672,28 @@ public partial class Intersect
         return true;
     }
 
-    private static PromptPointResult PromptForEditHandle(Editor editor)
+    private static PromptPointResult PromptForEditHandle(Editor editor, bool canFlip)
     {
-        PromptPointOptions pickOptions = new("\nPick a PipePlan control handle, [Add/Delete] vertex, or press Enter to finish: ")
+        string prompt = canFlip
+            ? "\nPick a PipePlan control handle, [Add/Delete] vertex, [Flip] frem/retur, or press Enter to finish: "
+            : "\nPick a PipePlan control handle, [Add/Delete] vertex, or press Enter to finish: ";
+        PromptPointOptions pickOptions = new(prompt)
         {
             AllowNone = true
         };
         pickOptions.Keywords.Add("Add");
         pickOptions.Keywords.Add("Delete");
+        if (canFlip)
+        {
+            pickOptions.Keywords.Add("Flip");
+        }
 
         return editor.GetPoint(pickOptions);
     }
 
     private static bool TryResolveEditHandle(
         Document document,
-        PipePlanEditSession session,
+        PipePlanEditSessionBase session,
         Editor editor,
         Point3d pickedPoint,
         out PipePlanEditHandle? handle)
@@ -651,7 +711,7 @@ public partial class Intersect
 
     private static PromptPointResult PromptForEditMove(
         Document document,
-        PipePlanEditSession session,
+        PipePlanEditSessionBase session,
         PipePlanEditHandle handle)
     {
         PipePlanRuntime.StateFor(document).LastEditDragPoint = handle.GripPoint;
@@ -677,7 +737,7 @@ public partial class Intersect
 
     private static void ApplyEditCandidate(
         Document document,
-        PipePlanEditSession session,
+        PipePlanEditSessionBase session,
         PipePlanEditHandle handle,
         Point3d candidatePoint)
     {
@@ -783,7 +843,13 @@ public partial class Intersect
                 return ConvertOutcome.Fail($"Polylinjen er ikke på et FJV-lag (lag: '{layerName}').", PipePlanStatusKind.Warning);
             }
 
-            if (!PipePlanRadiusStore.IsAcceptedCombo(system, type))
+            if (PipePlanPairSpacingResolver.IsBondedPair(system, type))
+            {
+                transaction.Commit();
+                return ConvertOutcome.Fail(PipePlanPick.ConvertParkedMessage, PipePlanStatusKind.Warning);
+            }
+
+            if (!PipePlanRadiusStore.IsSinglePipeCombo(system, type))
             {
                 transaction.Commit();
                 return ConvertOutcome.Fail($"{system} {type} understøttes ikke.", PipePlanStatusKind.Warning);
@@ -914,14 +980,7 @@ public partial class Intersect
             PromptPointResult result = PromptForNextDrawPoint(document);
             if (result.Status == PromptStatus.Keyword)
             {
-                if (string.Equals(result.StringResult, "Tangent", StringComparison.OrdinalIgnoreCase))
-                {
-                    HandleTangentKeyword(document);
-                }
-                else
-                {
-                    HandleRadiusKeyword(document, result.StringResult);
-                }
+                HandleDrawKeyword(document, result.StringResult);
                 continue;
             }
 
@@ -964,18 +1023,53 @@ public partial class Intersect
     {
         using CandidatePointTracker tracker = new(document, PipePlanRuntime.StateFor(document));
 
-        string tangentSuffix = PipePlanRuntime.StateFor(document).IsTangentMode ? "Tangent (on)" : "Tangent (off)";
-        PromptPointOptions options = new($"\nNext point [Radius/Default/{tangentSuffix}] or press Enter to finish: ")
+        PipePlanState state = PipePlanRuntime.StateFor(document);
+        PromptPointOptions options = new($"\nNext point [{DrawKeywordList(state)}] or press Enter to finish: ")
         {
-            BasePoint = PipePlanRuntime.StateFor(document).DraftPoints[^1],
+            BasePoint = state.DraftPoints[^1],
             UseBasePoint = true,
             AllowNone = true
         };
+        AddDrawKeywords(options, state);
+
+        return document.Editor.GetPoint(options);
+    }
+
+    // Radius/Default/Tangent always; Flip while drawing a new bonded pair.
+    private static string DrawKeywordList(PipePlanState state)
+    {
+        string tangentSuffix = state.IsTangentMode ? "Tangent (on)" : "Tangent (off)";
+        return state.CanFlip ? $"Radius/Default/{tangentSuffix}/Flip" : $"Radius/Default/{tangentSuffix}";
+    }
+
+    private static void AddDrawKeywords(PromptPointOptions options, PipePlanState state)
+    {
         options.Keywords.Add("Radius");
         options.Keywords.Add("Default");
         options.Keywords.Add("Tangent");
+        if (state.CanFlip)
+        {
+            options.Keywords.Add("Flip");
+        }
+    }
 
-        return document.Editor.GetPoint(options);
+    private static void HandleDrawKeyword(Document document, string keyword)
+    {
+        if (string.Equals(keyword, "Tangent", StringComparison.OrdinalIgnoreCase))
+        {
+            HandleTangentKeyword(document);
+        }
+        else if (string.Equals(keyword, "Flip", StringComparison.OrdinalIgnoreCase))
+        {
+            PipePlanState state = PipePlanRuntime.StateFor(document);
+            state.TogglePairFlip().Switch(
+                message => state.SetStatus(message, PipePlanStatusKind.Info),
+                message => state.SetStatus(message, PipePlanStatusKind.Warning));
+        }
+        else
+        {
+            HandleRadiusKeyword(document, keyword);
+        }
     }
 
     private static void HandleTangentKeyword(Document document)
@@ -1011,9 +1105,13 @@ public partial class Intersect
         Editor editor = document.Editor;
         bool anyValueEntered = false;
 
+        string prompt = PipePlanRuntime.StateFor(document).IsPairDraft
+            ? "\nBukkeradius for inderrør (Enter bekræfter): "
+            : "\nManual radius (Enter to confirm): ";
+
         while (true)
         {
-            PromptDoubleOptions options = new("\nManual radius (Enter to confirm): ")
+            PromptDoubleOptions options = new(prompt)
             {
                 AllowNegative = false,
                 AllowNone = true,
@@ -1103,25 +1201,22 @@ public partial class Intersect
             return false;
         }
 
+        PipePlanState state = PipePlanRuntime.StateFor(document);
+        if (state.IsPairDraft)
+        {
+            // Open with the status line that names size, series, c-c, R and side.
+            state.SetStatus("Vælg første punkt på centerlinjen.", PipePlanStatusKind.Info);
+        }
+
         while (true)
         {
-            string tangentSuffix = PipePlanRuntime.StateFor(document).IsTangentMode ? "Tangent (on)" : "Tangent (off)";
-            PromptPointOptions firstPointOptions = new($"\nFirst point [Radius/Default/{tangentSuffix}]: ");
-            firstPointOptions.Keywords.Add("Radius");
-            firstPointOptions.Keywords.Add("Default");
-            firstPointOptions.Keywords.Add("Tangent");
+            PromptPointOptions firstPointOptions = new($"\nFirst point [{DrawKeywordList(state)}]: ");
+            AddDrawKeywords(firstPointOptions, state);
 
             PromptPointResult firstPointResult = editor.GetPoint(firstPointOptions);
             if (firstPointResult.Status == PromptStatus.Keyword)
             {
-                if (string.Equals(firstPointResult.StringResult, "Tangent", StringComparison.OrdinalIgnoreCase))
-                {
-                    HandleTangentKeyword(document);
-                }
-                else
-                {
-                    HandleRadiusKeyword(document, firstPointResult.StringResult);
-                }
+                HandleDrawKeyword(document, firstPointResult.StringResult);
                 continue;
             }
 
@@ -1153,6 +1248,29 @@ public partial class Intersect
             PipePlanRuntime.StateFor(document).ClearPreview();
             PipePlanRuntime.StateFor(document).SetStatus("Tegning annulleret.", PipePlanStatusKind.Info);
             return false;
+        }
+
+        // A bonded pair continues as a pair; an unmanaged steel FREM/RETUR polyline would
+        // need PPCONVERT, which is parked for pairs.
+        string pairError = string.Empty;
+        Option<bool> pairOutcome = PipePlanPick.Classify(document.Database, result.ObjectId).Match(
+            pairMember => Option<bool>.Of(ContinuePair(document, pairMember, result.PickedPoint).Match(
+                _ => true,
+                message =>
+                {
+                    pairError = message;
+                    return false;
+                })),
+            _ =>
+            {
+                pairError = PipePlanPick.ConvertParkedMessage;
+                return Option<bool>.Of(false);
+            },
+            () => Option<bool>.Nothing);
+        if (pairOutcome.Match(_ => true, () => false))
+        {
+            errorMessage = pairError;
+            return pairOutcome.OrElse(false);
         }
 
         if (!TryReadContinuableData(document, result.ObjectId, out PipePlanStoredData? data, out errorMessage) || data is null)
@@ -1187,6 +1305,45 @@ public partial class Intersect
             $"Fortsætter {data.SizeDisplay} fra valgt endepunkt. Vælg næste punkt.",
             PipePlanStatusKind.Info);
         return true;
+    }
+
+    /// <summary>
+    /// PPDRAW Continue on a bonded run: locate the run (repairs and adopted transforms
+    /// are reported), take the current spacing, and draft on from the centreline end
+    /// nearest the pick. Flip is locked: the run's sides are fixed.
+    /// </summary>
+    private static Result<string> ContinuePair(Document document, ObjectId memberId, Point3d pickedPoint)
+    {
+        Result<(PipePlanPairRun Run, PipePlanPairSpacing Spacing)> located;
+        using (Transaction transaction = document.Database.TransactionManager.StartTransaction())
+        {
+            located = PipePlanPairRunLocator.Locate(document.Database, transaction, memberId)
+                .Map(run => (Run: run, Spacing: PipePlanPairEditSession.CurrentSpacing(document.Database, transaction, run)));
+            transaction.Commit();
+        }
+
+        return located.Bind(found =>
+        {
+            IReadOnlyList<Point3d> controlPoints = found.Run.Data.Authoring.ControlPoints;
+            if (!TryResolveEndpoint(pickedPoint, controlPoints, out bool reverse))
+            {
+                return Result<string>.Failure("For få hjørner til at fortsætte fra.");
+            }
+
+            foreach (string note in found.Run.Notes)
+            {
+                ReportEditorMessage(document.Editor, note);
+            }
+
+            PipePlanState state = PipePlanRuntime.StateFor(document);
+            state.BeginPairDraftFromExisting(found.Run, found.Spacing, reverse);
+            string spacingNote = found.Spacing.SameGeometryAs(found.Run.Data.Spacing)
+                ? string.Empty
+                : $" Afstand {found.Run.Data.Spacing.CentreToCentreMm:0} → {found.Spacing.CentreToCentreMm:0} mm.";
+            string message = $"Fortsætter {found.Run.Data.SizeDisplay} fra valgt endepunkt.{spacingNote} Vælg næste punkt.";
+            state.SetStatus(message, PipePlanStatusKind.Info);
+            return Result<string>.Success(message);
+        });
     }
 
     /// <summary>

@@ -3,17 +3,21 @@ using IntersectUtilities.UtilsCommon.Enums;
 
 namespace IntersectUtilities.MPE.PipePlan;
 
+/// <summary>What a new PPDRAW draft draws: the active size and whether it is a pair.</summary>
+internal sealed record PipePlanDraftSetup(PipePlanActiveContext Context, PipePlanShape Shape);
+
 internal static class PipePlanLayerResolver
 {
-    public static bool TryResolve(Database db, out PipePlanActiveContext? context, out string error)
+    /// <summary>
+    /// Reads the active FJV layer set by NSPalette. A steel FREM or RETUR layer means a
+    /// bonded pair (the drafter draws its centreline); everything PipePlan accepts besides
+    /// draws one polyline.
+    /// </summary>
+    public static Result<PipePlanDraftSetup> Resolve(Database db)
     {
-        context = null;
-        error = string.Empty;
-
         if (!TryReadActiveLayerName(db, out string layerName))
         {
-            error = "Kan ikke læse det aktive lag.";
-            return false;
+            return Result<PipePlanDraftSetup>.Failure("Kan ikke læse det aktive lag.");
         }
 
         PipeTypeEnum type = PipeScheduleV2.PipeScheduleV2.GetPipeType(layerName);
@@ -22,37 +26,46 @@ internal static class PipePlanLayerResolver
 
         if (system == PipeSystemEnum.Ukendt || type == PipeTypeEnum.Ukendt || dn <= 0)
         {
-            error = $"Intet aktivt FJV-lag ('{layerName}'). Vælg en dimension i NSPalette.";
-            return false;
+            return Result<PipePlanDraftSetup>.Failure($"Intet aktivt FJV-lag ('{layerName}'). Vælg en dimension i NSPalette.");
         }
 
-        if (IsEnkeltPipe(system, type))
-        {
-            error = "Enkelt-rør understøttes ikke. Brug Stål Twin eller ALUPEX.";
-            return false;
-        }
+        return PipePlanPairSpacingResolver.IsBondedPair(system, type)
+            ? ResolvePair(db, system, dn)
+            : ResolveSingle(db, system, type, dn, layerName);
+    }
 
-        if (!PipePlanRadiusStore.IsAcceptedCombo(system, type))
+    private static Result<PipePlanDraftSetup> ResolveSingle(Database db, PipeSystemEnum system, PipeTypeEnum type, int dn, string layerName)
+    {
+        if (!PipePlanRadiusStore.IsSinglePipeCombo(system, type))
         {
-            error = $"Laget '{layerName}' understøttes ikke. Skift til Stål Twin eller ALUPEX i NSPalette.";
-            return false;
+            return Result<PipePlanDraftSetup>.Failure($"Laget '{layerName}' understøttes ikke. Skift til Stål Twin, Stål Frem/Retur eller ALUPEX i NSPalette.");
         }
 
         if (!PipePlanRadiusStore.TryGet(db, system, type, dn, out double radius))
         {
-            error = $"Ingen bukkeradius for {system} {type} DN{dn}. Sæt den i PPSETTINGS.";
-            return false;
+            return Result<PipePlanDraftSetup>.Failure($"Ingen bukkeradius for {system} {type} DN{dn}. Sæt den i PPSETTINGS.");
         }
 
-        context = new PipePlanActiveContext(system, type, dn, radius, layerName);
-        return true;
+        return Result<PipePlanDraftSetup>.Success(new PipePlanDraftSetup(
+            new PipePlanActiveContext(system, type, dn, radius, layerName),
+            PipePlanShape.Single));
     }
 
-    private static bool IsEnkeltPipe(PipeSystemEnum system, PipeTypeEnum type)
+    private static Result<PipePlanDraftSetup> ResolvePair(Database db, PipeSystemEnum system, int dn)
     {
-        if (type == PipeTypeEnum.Enkelt) return true;
-        if (system == PipeSystemEnum.Stål && (type == PipeTypeEnum.Frem || type == PipeTypeEnum.Retur)) return true;
-        return false;
+        if (!PipePlanRadiusStore.TryGet(db, system, PipeTypeEnum.Enkelt, dn, out double radius))
+        {
+            return Result<PipePlanDraftSetup>.Failure($"Ingen bukkeradius for {system} Enkelt DN{dn}. Sæt den i PPSETTINGS.");
+        }
+
+        return PipePlanPairSpacingResolver.ForNewDraft(db, system, dn).Map(spacing => new PipePlanDraftSetup(
+            new PipePlanActiveContext(
+                system,
+                PipeTypeEnum.Enkelt,
+                dn,
+                radius,
+                PipePlanPairWriter.LayerFor(PipePlanPairRole.Frem, system, dn)),
+            new PipePlanShape.BondedPair(system, dn, spacing, Flip: false, FlipLocked: false)));
     }
 
     private static bool TryReadActiveLayerName(Database db, out string layerName)
@@ -72,5 +85,4 @@ internal static class PipePlanLayerResolver
             return false;
         }
     }
-
 }

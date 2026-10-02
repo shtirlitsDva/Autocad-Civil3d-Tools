@@ -28,6 +28,10 @@ internal sealed class PipePlanState : IDisposable
     // so external consumers tracking polylines by token would see drift even
     // though the polyline's handle is now preserved by in-place mutation.
     private string? _continuedObjectToken;
+    // What is being drawn or edited: one polyline, or a bonded pair drawn by its centreline.
+    private PipePlanShape _shape = PipePlanShape.Single;
+    // The bonded run a PPDRAW Continue extends; it is rewritten in place on bake.
+    private Option<PipePlanPairRun> _continuedRun = Option<PipePlanPairRun>.Nothing;
 
     public PipePlanState(Document owner)
     {
@@ -53,6 +57,40 @@ internal sealed class PipePlanState : IDisposable
     public bool IsTangentMode { get; private set; }
 
     public ObjectId ContinuedPolylineId => _continuedPolylineId;
+
+    public bool IsPairDraft => _shape.Match(() => false, _ => true);
+
+    /// <summary>Flip is offered while drawing a new pair, not while continuing one.</summary>
+    public bool CanFlip => _shape.Match(() => false, pair => !pair.FlipLocked);
+
+    /// <summary>The run token a pair Continue extends (empty otherwise), so tangent snapping
+    /// never snaps a run onto itself.</summary>
+    public string ContinuedPairToken => _continuedRun.Match(run => run.Data.RunToken, () => string.Empty);
+
+    public Result<string> TogglePairFlip() =>
+        _shape.Match(
+            () => Result<string>.Failure("Flip gælder kun enkeltrør-par."),
+            pair =>
+            {
+                if (pair.FlipLocked)
+                {
+                    return Result<string>.Failure("Siderne ligger fast, når et eksisterende par fortsættes.");
+                }
+
+                _shape = pair with { Flip = !pair.Flip };
+                RefreshCurrentPreview();
+                return Result<string>.Success(pair.Flip ? "Frem til venstre." : "Frem til højre.");
+            });
+
+    /// <summary>Pair mode for an edit session or a Continue: the active context becomes
+    /// the run's Stål Enkelt size, so radius lookups and defaults resolve per DN.</summary>
+    public void ApplyPairContext(PipePlanPairStoredData data, PipePlanPairSpacing spacing, bool flipLocked) =>
+        ApplyPairContext(data, spacing, data.Authoring.Flip, flipLocked);
+
+    public void LeavePairShape()
+    {
+        _shape = PipePlanShape.Single;
+    }
 
     public void SetTangentMode(bool enabled)
     {
@@ -109,15 +147,23 @@ internal sealed class PipePlanState : IDisposable
 
     public bool InitializeForCurrentLayer(Database db, out string error)
     {
-        error = string.Empty;
-        if (!PipePlanLayerResolver.TryResolve(db, out PipePlanActiveContext? context, out error) || context is null)
-        {
-            _activeContext = null;
-            return false;
-        }
-
-        _activeContext = context;
-        return true;
+        string resolveError = string.Empty;
+        bool resolved = PipePlanLayerResolver.Resolve(db).Match(
+            setup =>
+            {
+                _activeContext = setup.Context;
+                _shape = setup.Shape;
+                return true;
+            },
+            message =>
+            {
+                _activeContext = null;
+                _shape = PipePlanShape.Single;
+                resolveError = message;
+                return false;
+            });
+        error = resolveError;
+        return resolved;
     }
 
     public bool TryGetStraightSnapTolerance(out double tolerance)
@@ -174,6 +220,8 @@ internal sealed class PipePlanState : IDisposable
         IsTangentMode = false;
         _continuedPolylineId = ObjectId.Null;
         _continuedObjectToken = null;
+        _continuedRun = Option<PipePlanPairRun>.Nothing;
+        _shape = PipePlanShape.Single;
         _manualRadius = null;
         _previewManager.Clear();
         if (clearStatus)
@@ -276,6 +324,25 @@ internal sealed class PipePlanState : IDisposable
             return false;
         }
 
+        if (IsPairDraft)
+        {
+            string reason = string.Empty;
+            bool valid = PipePlanPairTangent.Revalidate(document.Database, snap).Match(
+                _ => true,
+                message =>
+                {
+                    reason = message;
+                    return false;
+                });
+            if (!valid)
+            {
+                _latestTangent = null;
+                failureReason = reason;
+            }
+
+            return valid;
+        }
+
         using Transaction transaction = document.Database.TransactionManager.StartTransaction();
         try
         {
@@ -352,10 +419,15 @@ internal sealed class PipePlanState : IDisposable
 
     public void ShowPreview(PipePlanAnalysis analysis)
     {
-        double globalWidth = _activeContext is { LayerName: var layerName }
-            ? PipePlanWidthCalculator.ResolveDrawingWidth(layerName)
-            : 0.0;
-        _previewManager.Show(analysis, globalWidth);
+        _shape.Switch(
+            () =>
+            {
+                double globalWidth = _activeContext is { LayerName: var layerName }
+                    ? PipePlanWidthCalculator.ResolveDrawingWidth(layerName)
+                    : 0.0;
+                _previewManager.Show(analysis, globalWidth);
+            },
+            pair => _previewManager.ShowPair(analysis, pair.Spacing, pair.Flip));
     }
 
     public void ClearPreview()
@@ -373,7 +445,11 @@ internal sealed class PipePlanState : IDisposable
         {
             return;
         }
-        PipePlanRuntime.NotifyPaletteStatus(message, kind);
+
+        // In pair mode the status always leads with everything that sets the geometry:
+        // size, series, c-c, inner radius and side.
+        string text = _shape.Match(() => message, pair => $"{pair.Describe(EffectiveRadius)}\n{message}");
+        PipePlanRuntime.NotifyPaletteStatus(text, kind);
     }
 
     public void BeginDraftFromExisting(ObjectId polylineId, PipePlanStoredData data, bool reverse)
@@ -400,6 +476,30 @@ internal sealed class PipePlanState : IDisposable
         RefreshDraftPreview();
     }
 
+    /// <summary>
+    /// PPDRAW Continue on a bonded run. The draft is the run's centreline, oriented so the
+    /// picked end is last; reversing it reverses the drawing direction, so the stored flip
+    /// is inverted to keep frem on the same physical side. Flip stays locked.
+    /// </summary>
+    public void BeginPairDraftFromExisting(PipePlanPairRun run, PipePlanPairSpacing spacing, bool reverse)
+    {
+        ApplyPairContext(run.Data, spacing, run.Data.Authoring.Flip ^ reverse, flipLocked: true);
+
+        _continuedPolylineId = ObjectId.Null;
+        _continuedObjectToken = null;
+        _continuedRun = Option<PipePlanPairRun>.Of(run);
+        DraftPoints.Clear();
+        DraftBendRadii.Clear();
+        _latestInteractiveCandidate = null;
+
+        IEnumerable<Point3d> points = run.Data.Authoring.ControlPoints;
+        IEnumerable<double> radii = run.Data.Authoring.InnerRadii;
+        DraftPoints.AddRange(reverse ? points.Reverse() : points);
+        DraftBendRadii.AddRange(reverse ? radii.Reverse() : radii);
+
+        RefreshDraftPreview();
+    }
+
     public void BakeDraft()
     {
         if (!TryPrepareBake(out PipePlanActiveContext? context, out PipePlanAnalysis? analysis) || context is null || analysis is null)
@@ -407,6 +507,50 @@ internal sealed class PipePlanState : IDisposable
             return;
         }
 
+        _shape.Switch(
+            () => BakeSingle(context, analysis),
+            pair => BakePair(analysis, pair));
+    }
+
+    private void BakePair(PipePlanAnalysis analysis, PipePlanShape.BondedPair pair)
+    {
+        string token = _continuedRun.Match(run => run.Data.RunToken, () => Guid.NewGuid().ToString("N"));
+        PipePlanPairSlots slots = _continuedRun.Match(run => run.Slots, () => PipePlanPairSlots.Empty);
+        PipePlanPairStoredData data = new(
+            token,
+            PipePlanPairRole.Centerline,
+            pair.System,
+            pair.Dn,
+            pair.Spacing,
+            StraightSnapToleranceText,
+            new PipePlanPairAuthoring([.. DraftPoints], [.. DraftBendRadii], pair.Flip));
+
+        PipePlanPairGeometry.Solve(analysis, pair.Spacing.Half, pair.Flip).Switch(
+            solution =>
+            {
+                Document document = _owner;
+                using (document.LockDocument())
+                using (Transaction transaction = document.Database.TransactionManager.StartTransaction())
+                {
+                    PipePlanPairWriter.Write(document.Database, transaction, slots, solution, data);
+                    transaction.Commit();
+                }
+
+                ResetDraft(clearStatus: false);
+                string successMessage =
+                    $"Tegnet {pair.SizeDisplay} ({pair.Spacing.Series}, c-c {pair.Spacing.CentreToCentreMm:0} mm): frem, retur og centerlinje.";
+                SetStatus(successMessage, PipePlanStatusKind.Ok);
+                document.Editor.WriteMessage($"\n{successMessage}");
+            },
+            message =>
+            {
+                ShowPreview(analysis);
+                SetStatus(message, PipePlanStatusKind.Error);
+            });
+    }
+
+    private void BakeSingle(PipePlanActiveContext context, PipePlanAnalysis analysis)
+    {
         Document document = _owner;
         using DocumentLock documentLock = document.LockDocument();
         using Transaction transaction = document.Database.TransactionManager.StartTransaction();
@@ -442,11 +586,30 @@ internal sealed class PipePlanState : IDisposable
             return PipePlanAnalysis.Invalid(points, "Ingen gyldig bukkeradius. Brug R eller sæt i PPSETTINGS.");
         }
 
-        return _solver.Analyze(points, radii);
+        // A pair's radii are inner-pipe radii; its draft points are the centreline.
+        return _shape.Match(
+            () => _solver.Analyze(points, radii),
+            pair => PipePlanPairGeometry.Analyze(_solver, points, radii, pair.Spacing.Half));
+    }
+
+    private void ApplyPairContext(PipePlanPairStoredData data, PipePlanPairSpacing spacing, bool flip, bool flipLocked)
+    {
+        StraightSnapToleranceText = data.StraightSnapToleranceText;
+        double radius = PipePlanRadiusStore.TryGet(_owner.Database, data.System, PipeTypeEnum.Enkelt, data.Dn, out double storeValue)
+            ? storeValue
+            : data.Authoring.InnerRadii.Where(r => r > 0.0).DefaultIfEmpty(0.0).First();
+        _activeContext = new PipePlanActiveContext(
+            data.System,
+            PipeTypeEnum.Enkelt,
+            data.Dn,
+            radius,
+            PipePlanPairWriter.LayerFor(PipePlanPairRole.Frem, data.System, data.Dn));
+        _shape = new PipePlanShape.BondedPair(data.System, data.Dn, spacing, flip, flipLocked);
     }
 
     public void ApplyStoredContext(PipePlanStoredData data)
     {
+        _shape = PipePlanShape.Single;
         StraightSnapToleranceText = data.StraightSnapToleranceText;
 
         string layerName = BuildLayerName(data.System, data.Type, data.Dn);
@@ -638,7 +801,9 @@ internal sealed class PipePlanState : IDisposable
             Vector2d dirEUnit = snap.Direction.GetNormal();
             double dot = Math.Clamp(dirP.DotProduct(dirEUnit), -1.0, 1.0);
             double deflection = Math.Acos(dot);
-            double tangentLength = EffectiveRadius * Math.Tan(deflection / 2.0);
+            // A pair's draft is its centreline, filleted at R_inner + c/2.
+            double solverRadius = _shape.Match(() => EffectiveRadius, pair => EffectiveRadius + pair.Spacing.Half);
+            double tangentLength = solverRadius * Math.Tan(deflection / 2.0);
 
             // PP2 side: T_B = X + tangentLength · dirE_unit. If T_B is past E, PP1 will
             // land inside PP2's body by (tangentLength − t). Reject only if that overshoot

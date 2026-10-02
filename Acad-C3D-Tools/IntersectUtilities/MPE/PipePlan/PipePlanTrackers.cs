@@ -110,6 +110,11 @@ internal sealed class CandidatePointTracker : IDisposable
             return null;
         }
 
+        if (_state.IsPairDraft)
+        {
+            return ResolvePairTangentSnap(pickedEntities, candidate).Match<PipePlanTangentSnap?>(snap => snap, () => null);
+        }
+
         using Transaction transaction = _document.Database.TransactionManager.StartTransaction();
         try
         {
@@ -188,6 +193,37 @@ internal sealed class CandidatePointTracker : IDisposable
         }
     }
 
+    // Bonded draft: any member of another bonded run snaps to that run's centreline end.
+    private Option<PipePlanTangentSnap> ResolvePairTangentSnap(FullSubentityPath[] pickedEntities, Point3d candidate)
+    {
+        PipePlanSolver solver = new();
+        string excludedToken = _state.ContinuedPairToken;
+        using Transaction transaction = _document.Database.TransactionManager.StartTransaction();
+        try
+        {
+            Option<PipePlanTangentSnap> best = pickedEntities
+                .Select(path => path.GetObjectIds())
+                .Where(ids => ids is { Length: > 0 })
+                .Select(ids => transaction.GetObject(ids[^1], OpenMode.ForRead))
+                .OfType<Autodesk.AutoCAD.DatabaseServices.Polyline>()
+                .Select(polyline => PipePlanPairTangent.Resolve(polyline, transaction, candidate, excludedToken, solver))
+                .SelectMany(snap => snap.Match(s => new[] { s }, () => Array.Empty<PipePlanTangentSnap>()))
+                .OrderBy(snap => snap.Pp2Anchor.DistanceTo(candidate))
+                .Take(1)
+                .Select(Option<PipePlanTangentSnap>.Of)
+                .DefaultIfEmpty(Option<PipePlanTangentSnap>.Nothing)
+                .First();
+            transaction.Commit();
+            return best;
+        }
+        catch (Autodesk.AutoCAD.Runtime.Exception)
+        {
+            // Boundary to the AutoCAD API inside a PointMonitor: a hovered entity that
+            // cannot be opened just means no snap on this tick.
+            return Option<PipePlanTangentSnap>.Nothing;
+        }
+    }
+
     private static Vector2d ResolveTangentDirection(Autodesk.AutoCAD.DatabaseServices.Polyline polyline, Point3d snapPoint)
     {
         bool atStart = snapPoint.DistanceTo(polyline.StartPoint) <= EndpointMatchTolerance;
@@ -226,10 +262,10 @@ internal sealed class PipePlanEditTracker : IDisposable
 {
     private readonly Document _document;
     private readonly PipePlanState _state;
-    private readonly PipePlanEditSession _session;
+    private readonly PipePlanEditSessionBase _session;
     private readonly PipePlanEditHandle _handle;
 
-    public PipePlanEditTracker(Document document, PipePlanState state, PipePlanEditSession session, PipePlanEditHandle handle)
+    public PipePlanEditTracker(Document document, PipePlanState state, PipePlanEditSessionBase session, PipePlanEditHandle handle)
     {
         _document = document;
         _state = state;
@@ -270,10 +306,10 @@ internal sealed class PipePlanInsertTracker : IDisposable
 {
     private readonly Document _document;
     private readonly PipePlanState _state;
-    private readonly PipePlanEditSession _session;
+    private readonly PipePlanEditSessionBase _session;
     private readonly double _radius;
 
-    public PipePlanInsertTracker(Document document, PipePlanState state, PipePlanEditSession session, double radius)
+    public PipePlanInsertTracker(Document document, PipePlanState state, PipePlanEditSessionBase session, double radius)
     {
         _document = document;
         _state = state;
@@ -312,11 +348,11 @@ internal sealed class PipePlanDeleteTracker : IDisposable
 {
     private readonly Document _document;
     private readonly PipePlanState _state;
-    private readonly PipePlanEditSession _session;
+    private readonly PipePlanEditSessionBase _session;
     private readonly IntegerCollection _viewportNumbers = [];
     private readonly List<Entity> _markers = [];
 
-    public PipePlanDeleteTracker(Document document, PipePlanState state, PipePlanEditSession session)
+    public PipePlanDeleteTracker(Document document, PipePlanState state, PipePlanEditSessionBase session)
     {
         _document = document;
         _state = state;

@@ -18,14 +18,15 @@ Three things must be in place before any PipePlan command will do anything usefu
 
 PipePlan only accepts these system / type combinations:
 
-| System  | Type   | Notes                                          |
-|---------|--------|------------------------------------------------|
-| Stål    | Twin   | Twin pipes only — single Stål Frem/Retur is **not** supported |
-| AluPex  | Twin   |                                                |
-| AluPex  | Frem   |                                                |
-| AluPex  | Retur  |                                                |
+| System  | Type        | Notes                                          |
+|---------|-------------|------------------------------------------------|
+| Stål    | Twin        | One polyline.                                  |
+| Stål    | Frem, Retur | **Bonded pair** — you draw the centreline; PipePlan bakes frem, retur and the centreline. See section 4.5. |
+| AluPex  | Twin        | One polyline.                                  |
+| AluPex  | Frem        | One polyline.                                  |
+| AluPex  | Retur       | One polyline.                                  |
 
-If your active layer is on a different combination (e.g. `FJV-FREM-DN200`), PipePlan will reject it with a message telling you to switch in NSPalette.
+If your active layer is on a different combination, PipePlan will reject it with a message telling you to switch in NSPalette.
 
 ---
 
@@ -50,12 +51,15 @@ Run `PPSETTINGS` to open the PipePlan palette. You will see:
 - **Straight snap tolerance** — a number, default `5`. This is the perpendicular tolerance (in drawing units) used when you hold `Ctrl` while drawing to snap the cursor onto the continuation of the previous straight segment.
 - **ProjekteringsRadius pr. dimension** — a row per supported System × Type × DN. For each row you see:
   - `Dimension` label, e.g. `Stål Twin DN65`.
-  - `Radius` — the editable value used as the default bend radius for that dimension.
+  - `Radius` — the editable value used as the default bend radius for that dimension. On `Stål Enkelt` rows it is the radius of the **inner** pipe of a bonded pair's bends.
+  - `min x mm` — `Stål Enkelt` rows only: the minimum gap between the frem and retur jackets. The default is NorsynDrawingTools' own default: 300 mm up to DN150, 400 mm up to DN450, 450 mm above.
+  - `c-c` — read-only: the resulting centre-to-centre spacing (jacket OD + min x) for the series NSPalette shows.
   - `Kilde` — where the value comes from:
     - `api` (grey) — the value is the built-in default from the project's pipe schedule.
     - `override` (blue) — the value has been edited and saved for *this drawing*.
     - `missing` (orange) — there is no value; you must enter one before drawing in this dimension.
-  - `Reset` — clears the override for the row and falls back to the API default.
+    - On `Stål Enkelt` rows two sources are shown, radius/min x — e.g. `api/ndh` (both defaults) or `api/ovr` (min x overridden).
+  - `Reset` — clears the overrides for the row and falls back to the defaults.
 
 **Save** writes overrides into the active drawing (so they travel with the DWG). **Reload** discards unsaved edits in the table and re-reads from the drawing.
 
@@ -102,6 +106,22 @@ Tangent mode also stays on across picks, so you can finish a leg with multiple t
 Type `C` at the `Start [New/Continue]` prompt and pick an existing PipePlan polyline near the end you want to extend from (PipePlan picks the closer endpoint automatically). The dimension, radius, and metadata of the existing pipe are loaded — you do **not** need to set the active layer manually; the original layer wins. Then continue picking points as in section 4.
 
 When you press `Enter` to bake, the existing polyline is mutated in place: its `Handle` and any third-party data attached to it survive the continue.
+
+### 4.5 Bonded pairs (Stål Frem / Retur)
+
+Activate a steel `FJV-FREM-DNxx` or `FJV-RETUR-DNxx` dimension in NSPalette — either one, the result is the same — and run `PPDRAW`. You now draw the **centreline** of the pair; PipePlan places frem and retur parallel to it.
+
+- **Spacing:** centre-to-centre = jacket OD of NSPalette's current series + `min x` from `PPSETTINGS` (DN100 S2: 225 + 300 = 525 mm).
+- **Radius:** the radius you set (per-DN default, `R`, or `PPEDIT`'s Radius) is the **inner** pipe's radius in every bend. The centreline is bent at that radius + half the spacing, and the outer pipe at that radius + the spacing. The R labels in the preview show the inner radius.
+- **Sides:** frem lies to the **left** of the drawing direction. Type `F` (**Flip**) while drawing to put frem on the right.
+- **Preview:** the centreline shows the status colour (green / red / blue); frem is red and retur blue at full jacket width.
+- **Bake:** three polylines — the centreline on `0-FJV-PP-CL` (not plotted), frem on `FJV-FREM-DNxx`, retur on `FJV-RETUR-DNxx`. All three carry the pair's data, so you can pick any of them later.
+- **Continue** works as for single pipes; the sides are fixed by the existing pair, so `Flip` is not offered.
+- **Tangent** snaps a pair only to another pair (any DN), at that pair's centreline end.
+- **PPEDIT:** pick any of the three — all three highlight, and the handles sit on the centreline. `Flip` in PPEDIT swaps which pipe is frem (the pipes stay where they are; their layers swap).
+- **Spacing changes:** if the series (jacket width) or `min x` has changed since the pair was drawn, the next PPEDIT / Continue / PPCOLLAPSE commit respaces the pair and reports `Afstand 525 → 575 mm`.
+- **Copying and moving:** MOVE, ROTATE, MIRROR or COPY all three members together and PipePlan follows along on the next PipePlan command (a mirror swaps the side; a copy becomes its own pair). A single copied pipe is just a polyline. A member that is erased or grip-edited is redrawn from the others on the next commit.
+- **Components** (elbows, buerør, Y/F/H transitions) are not placed by PipePlan.
 
 ---
 
@@ -196,8 +216,9 @@ The palette status line and the AutoCAD command line both show short messages. T
 |------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------|
 | `Indlæs NSPalette først.`                                              | NSPalette is not loaded. Open it and activate a size.                                                                                     |
 | `Intet aktivt FJV-lag …`                                               | The active layer is not a recognised FJV layer. Pick a dimension in NSPalette.                                                            |
-| `Enkelt-rør understøttes ikke. Brug Stål Twin eller ALUPEX.`           | You activated a single-pipe Stål dimension. Switch to `Stål Twin` or any `AluPex` dimension.                                              |
-| `Laget '<x>' understøttes ikke. Skift til Stål Twin eller ALUPEX …`    | The System × Type combination is not in the accepted list (see section 1).                                                                 |
+| `Enkeltrør uden PipePlan-data kan ikke konverteres endnu. …`           | You picked a hand-drawn steel FREM/RETUR polyline. Converting pairs is not available yet — draw the pair with `PPDRAW`.                    |
+| `Polylinjen (<h>) er flyttet eller kopieret uden resten af parret …`   | You picked a pipe that was copied or moved on its own. It is a plain polyline now; pick a member of an intact pair.                       |
+| `Laget '<x>' understøttes ikke. Skift til Stål Twin, Stål Frem/Retur eller ALUPEX …` | The System × Type combination is not in the accepted list (see section 1).                                                  |
 | `Ingen bukkeradius for <System> <Type> DN<dn>. Sæt den i PPSETTINGS.`  | Open `PPSETTINGS` and enter a radius for that row, then `Save`.                                                                            |
 | `Polylinjen har ingen PipePlan-data. Kør PPCONVERT først.`             | The polyline pre-dates PipePlan. Run `PPCONVERT` on it.                                                                                   |
 | `Polylinjen er fra en ældre PipePlan-version. Kør PPCONVERT først.`    | Metadata is missing or stale. Re-converting will regenerate it.                                                                            |
@@ -213,7 +234,7 @@ The palette status line and the AutoCAD command line both show short messages. T
 
 These are the things PipePlan does **not** currently handle. Knowing them up front saves time:
 
-1. **No single-pipe steel.** Only `Stål Twin`, `AluPex Twin`, `AluPex Frem`, `AluPex Retur` are accepted. Single Stål `Frem` / `Retur` will be rejected.
+1. **Bonded pairs cannot be converted yet.** Steel `Frem` / `Retur` is drawn as a pair with `PPDRAW` (section 4.5); a hand-drawn pair cannot be turned into a PipePlan pair with `PPCONVERT`.
 2. **No closed polylines.** PPCONVERT and PPEDIT both refuse closed polylines.
 3. **Editing outside PipePlan can desync metadata.** If you grip-edit, `STRETCH`, or delete a vertex with a non-PipePlan command, the polyline's geometry will change but the stored control points will not. Subsequent `PPEDIT` or `PPDRAW Continue` will detect the mismatch and ask you to run `PPCONVERT` again. **Rule of thumb: edit PipePlan pipes with PipePlan commands.**
 4. **To refresh metadata after an outside edit, re-run `PPCONVERT`.** It rebuilds the control points and radii from the current geometry — including arc-to-arc bends, which are now recovered directly.

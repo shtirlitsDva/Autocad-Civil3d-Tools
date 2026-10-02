@@ -20,18 +20,22 @@
                 <TextBox Text="{Binding StraightSnapTolerance, UpdateSourceTrigger=LostFocus}" />
             </GroupBox>
 
-            <GroupBox Header="ProjekteringsRadius pr. dimension">
+            <GroupBox Header="ProjekteringsRadius (enkeltrør: inderrør)">
                 <StackPanel>
                     <Grid Margin="0,0,0,6">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="90" />
-                            <ColumnDefinition Width="80" />
+                            <ColumnDefinition Width="66" />
+                            <ColumnDefinition Width="70" />
+                            <ColumnDefinition Width="50" />
+                            <ColumnDefinition Width="64" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <TextBlock Grid.Column="0" Text="Dimension" Style="{StaticResource LabelStyle}" />
                         <TextBlock Grid.Column="1" Text="Radius" Style="{StaticResource LabelStyle}" />
-                        <TextBlock Grid.Column="2" Text="Kilde" Style="{StaticResource LabelStyle}" />
+                        <TextBlock Grid.Column="2" Text="min x mm" Style="{StaticResource LabelStyle}" />
+                        <TextBlock Grid.Column="3" Text="{Binding CentreToCentreHeader}" Style="{StaticResource LabelStyle}" />
+                        <TextBlock Grid.Column="4" Text="Kilde" Style="{StaticResource LabelStyle}" />
                     </Grid>
 
                     <ItemsControl ItemsSource="{Binding Entries}">
@@ -40,8 +44,10 @@
                                 <Grid Margin="0,2">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="90" />
-                                        <ColumnDefinition Width="80" />
+                                        <ColumnDefinition Width="66" />
+                                        <ColumnDefinition Width="70" />
+                                        <ColumnDefinition Width="50" />
+                                        <ColumnDefinition Width="64" />
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0"
@@ -51,12 +57,22 @@
                                              Text="{Binding RadiusText, UpdateSourceTrigger=PropertyChanged}"
                                              Margin="4,0"
                                              HorizontalContentAlignment="Right" />
-                                    <TextBlock Grid.Column="2"
+                                    <TextBox Grid.Column="2"
+                                             Text="{Binding MinXText, UpdateSourceTrigger=PropertyChanged}"
+                                             Visibility="{Binding MinXVisibility}"
+                                             Margin="4,0"
+                                             HorizontalContentAlignment="Right" />
+                                    <TextBlock Grid.Column="3"
+                                               Text="{Binding CentreToCentreText}"
+                                               VerticalAlignment="Center"
+                                               HorizontalAlignment="Right"
+                                               Margin="4,0" />
+                                    <TextBlock Grid.Column="4"
                                                Text="{Binding SourceLabel}"
                                                Foreground="{Binding SourceColor}"
                                                VerticalAlignment="Center"
                                                Margin="4,0" />
-                                    <Button Grid.Column="3"
+                                    <Button Grid.Column="5"
                                             Content="Reset"
                                             Height="26"
                                             Padding="8,2"

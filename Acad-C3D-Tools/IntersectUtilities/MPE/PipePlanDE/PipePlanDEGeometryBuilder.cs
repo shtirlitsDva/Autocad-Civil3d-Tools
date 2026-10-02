@@ -21,9 +21,6 @@ namespace IntersectUtilities.MPE.PipePlanDE;
 internal static class PipePlanDEGeometryBuilder
 {
     private const double DistanceTolerance = 1e-6;
-    // Reject a miter when the two edges approach a 180° reversal: the offset
-    // intersection shoots to infinity (denominator 1 + n1·n2 → 0).
-    private const double MiterTolerance = 1e-3;
 
     /// <summary>
     /// Produces the centreline + frem + retur vertex lists. In filleted mode
@@ -120,8 +117,8 @@ internal static class PipePlanDEGeometryBuilder
         }
 
         analysis = result;
-        List<PolylineVertexData> left = Offset(centre, +half);
-        List<PolylineVertexData> right = Offset(centre, -half);
+        List<PolylineVertexData> left = PipePlanParallelOffset.Offset(centre, +half);
+        List<PolylineVertexData> right = PipePlanParallelOffset.Offset(centre, -half);
 
         // FREM is the left offset, RETUR the right (matching the drawing direction);
         // Flip swaps which physical side each one is.
@@ -140,6 +137,7 @@ internal static class PipePlanDEGeometryBuilder
     {
         frem = [];
         retur = [];
+        error = string.Empty;
 
         centre = new List<PolylineVertexData>(controlPoints.Count);
         foreach (Point3d p in controlPoints)
@@ -147,9 +145,26 @@ internal static class PipePlanDEGeometryBuilder
             centre.Add(new PolylineVertexData(new Point2d(p.X, p.Y), 0.0));
         }
 
-        if (!TryMiterOffset(controlPoints, +half, out List<PolylineVertexData> left, out error) ||
-            !TryMiterOffset(controlPoints, -half, out List<PolylineVertexData> right, out error))
+        List<PolylineVertexData> left = [];
+        List<PolylineVertexData> right = [];
+        string miterError = string.Empty;
+        bool built = PipePlanParallelOffset.Miter(controlPoints, +half).Bind(l =>
+                PipePlanParallelOffset.Miter(controlPoints, -half).Map(r => (Left: l, Right: r)))
+            .Match(
+                pair =>
+                {
+                    (left, right) = pair;
+                    return true;
+                },
+                message =>
+                {
+                    miterError = message;
+                    return false;
+                });
+
+        if (!built)
         {
+            error = miterError;
             centre = [];
             return false;
         }
@@ -157,98 +172,4 @@ internal static class PipePlanDEGeometryBuilder
         (frem, retur) = flip ? (right, left) : (left, right);
         return true;
     }
-
-    /// <summary>
-    /// Parallel offset of a G1 (filleted) vertex list. Each vertex moves by
-    /// <paramref name="offset"/> along the curve's continuous left-normal there; bulges
-    /// are preserved because the arcs' included angles are unchanged. At an arc endpoint
-    /// the tangent's left-normal is radial, so the offset arc is concentric with the
-    /// original — inner radius shrinks by |offset|, outer grows by |offset|.
-    /// </summary>
-    private static List<PolylineVertexData> Offset(IReadOnlyList<PolylineVertexData> vertices, double offset)
-    {
-        List<PolylineVertexData> result = new(vertices.Count);
-        for (int i = 0; i < vertices.Count; i++)
-        {
-            Vector2d tangent = TangentAt(vertices, i);
-            Vector2d normal = new(-tangent.Y, tangent.X); // rotate +90° (left)
-            Point2d point = vertices[i].Point + (normal * offset);
-            double bulge = i < vertices.Count - 1 ? vertices[i].Bulge : 0.0;
-            result.Add(new PolylineVertexData(point, bulge));
-        }
-
-        return result;
-    }
-
-    /// <summary>Unit tangent of the G1 curve at vertex <paramref name="i"/>. Continuous,
-    /// so the outgoing segment's start tangent equals the incoming segment's end tangent;
-    /// the last vertex uses the final segment's end tangent.</summary>
-    private static Vector2d TangentAt(IReadOnlyList<PolylineVertexData> vertices, int i)
-    {
-        if (i < vertices.Count - 1)
-        {
-            return PipePlanArcGeometry.TangentAtStart(vertices[i].Point, vertices[i + 1].Point, vertices[i].Bulge);
-        }
-
-        return PipePlanArcGeometry.TangentAtEnd(vertices[i - 1].Point, vertices[i].Point, vertices[i - 1].Bulge);
-    }
-
-    /// <summary>
-    /// Sharp mitered parallel offset of the raw control points (bulge-free), for straight
-    /// mode. Each interior offset vertex is the intersection of the two adjacent offset
-    /// edges, not a fillet arc — mirrors the retired PipePlanDEOffsetBuilder.
-    /// </summary>
-    private static bool TryMiterOffset(IReadOnlyList<Point3d> points, double offset, out List<PolylineVertexData> result, out string error)
-    {
-        result = new List<PolylineVertexData>(points.Count);
-        error = string.Empty;
-
-        Vector2d[] normals = new Vector2d[points.Count - 1];
-        for (int i = 0; i < points.Count - 1; i++)
-        {
-            Vector2d dir = To2D(points[i + 1] - points[i]);
-            double length = dir.Length;
-            if (length <= DistanceTolerance)
-            {
-                error = $"To punkter ligger oven på hinanden ved hjørne {i + 1}.";
-                return false;
-            }
-
-            dir /= length;
-            normals[i] = new Vector2d(-dir.Y, dir.X); // rotate +90° (left)
-        }
-
-        for (int i = 0; i < points.Count; i++)
-        {
-            Vector2d miter;
-            if (i == 0)
-            {
-                miter = normals[0] * offset;
-            }
-            else if (i == points.Count - 1)
-            {
-                miter = normals[^1] * offset;
-            }
-            else
-            {
-                Vector2d n1 = normals[i - 1];
-                Vector2d n2 = normals[i];
-                double denominator = 1.0 + n1.DotProduct(n2);
-                if (denominator <= MiterTolerance)
-                {
-                    error = $"Hjørne {i + 1} er for skarpt (næsten 180°) til at tegne rør.";
-                    return false;
-                }
-
-                // m satisfies n1·m = n2·m = 1; offset corner = P + offset * m.
-                miter = (n1 + n2) / denominator * offset;
-            }
-
-            result.Add(new PolylineVertexData(new Point2d(points[i].X + miter.X, points[i].Y + miter.Y), 0.0));
-        }
-
-        return true;
-    }
-
-    private static Vector2d To2D(Vector3d vector) => new(vector.X, vector.Y);
 }

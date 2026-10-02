@@ -6,7 +6,7 @@ PipePlan is a constrained plan-view pipe-drafting feature inside the `IntersectU
 
 | Command | Purpose |
 |---|---|
-| `PPDRAW` | Start a new draft, or continue from an existing PipePlan polyline. The active FJV layer determines the pipe system, type, and DN. The per-DN bending radius comes from `PPSETTINGS`. |
+| `PPDRAW` | Start a new draft, or continue from an existing PipePlan polyline. The active FJV layer determines the pipe system, type, and DN. The per-DN bending radius comes from `PPSETTINGS`. A steel `FJV-FREM`/`FJV-RETUR` layer draws a **bonded pair** by its centreline (see below). |
 | `PPCONVERT` | Convert an existing polyline on a recognised FJV layer into a PipePlan-managed object. Each arc is read as a corner with its own radius (arc-to-arc bends included); sharp interior corners are filleted at the project minimum bending radius, with preview circles shown before the conversion proceeds. |
 | `PPCOLLAPSE` | Remove negligible bends. Any fillet whose **sagitta** — the distance from the arc midpoint to the midpoint of the chord between its tangent points, equal to `R·(1 − cos(δ/2))` — is at or below a threshold (default `0.01`) is collapsed by deleting its control vertex. A live preview shows the resulting pipe (green) and red markers on the vertices to be removed; Enter confirms, a new value re-previews, Esc cancels. |
 | `PPEDIT` | Move control vertices or segment handles with live constraint preview; the `Radius` keyword at the drag prompt changes the bend radius of the selected vertex. The top-level prompt also offers two modes: **`Add`** (prompts for the bend radius — per-DN default or custom — then previews the new vertex following the cursor on the nearest segment; click to place, `Back` to return) and **`Delete`** (hover a vertex to preview the pipe with it removed; click to delete, `Back` to return). Infeasible edits are rejected. |
@@ -20,6 +20,17 @@ PipePlan is a constrained plan-view pipe-drafting feature inside the `IntersectU
   - `pipeTag` XData (system, type, DN) — picked up by Opdater and other layer-aware tooling.
   - `pipeGeometryData` Xrecord in the polyline's extension dictionary — control points, per-vertex bend radii, and the straight-snap tolerance. Required for `PPEDIT` and PPDRAW continue.
 - **Snap tolerance**: defaults to `5`, edited at the top of `PPSETTINGS`.
+
+## Bonded pairs
+
+Steel Frem/Retur is drawn as one centreline; the agreed behaviour is recorded in
+`docs/shared-understanding/ppdraw-bonded-pairs.md`. In short:
+
+- **Geometry**: the centreline is filleted at R_inner + c/2 and frem/retur are its ± c/2 offsets (`PipePlanPairGeometry`, offset routine shared with PDDRAW in `PipePlanParallelOffset`). c-c = kOd(DN, series) + min x (`PipePlanPairSpacingResolver`, `PipePlanPairGapStore`; min x defaults to NDH's 300/400/450 mm).
+- **Entities**: centreline on `0-FJV-PP-CL`, frem/retur on their FJV layers. All three carry the same `pipePairData` Xrecord (run token, role, authoring data, spacing used) — a different key from `pipeGeometryData`, so a pair member never reads as a single pipe.
+- **Membership** (`PipePlanPairRunLocator`): same token and geometry matching the stored data; one shared rigid transform (move/rotate/mirror) is adopted; missing or deformed members are rebuilt on the next commit (`PipePlanPairWriter`, in place, handles kept).
+- **Editing**: `PipePlanEditSessionBase` holds the control-polygon editing; `PipePlanEditSession` (single) and `PipePlanPairEditSession` (pair) solve and commit.
+- **Not yet**: PPCONVERT for hand-drawn pairs, twin↔bonded transitions, components.
 
 ## Build
 
@@ -60,5 +71,5 @@ See `docs/autocad-bundle-guide.md` for the bundle layout. AutoCAD 2025 picks up 
 
 - `PPEDIT` requires metadata-enabled PipePlan polylines. For pre-metadata polylines or polylines drawn outside PipePlan, run `PPCONVERT` first.
 - Closed polylines are not supported.
-- `Enkelt` steel (single-pipe steel) is not currently supported. Accepted combinations: `Stål Twin`, `AluPex Twin`, `AluPex Frem`, `AluPex Retur`.
+- Accepted combinations: `Stål Twin`, `Stål Frem/Retur` (bonded pair), `AluPex Twin`, `AluPex Frem`, `AluPex Retur`. Hand-drawn bonded pairs cannot be converted yet.
 - Open metadata-drift items (see `TODO.md`): vertex deletion outside PipePlan can desync metadata from geometry and break `PPEDIT` / PPDRAW continue.

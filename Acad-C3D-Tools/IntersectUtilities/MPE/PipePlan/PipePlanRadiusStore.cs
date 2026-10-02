@@ -21,7 +21,8 @@ internal static class PipePlanRadiusStore
 {
     private const string NodDictionaryName = "PIPEPLAN_RADII";
 
-    private static readonly IReadOnlyList<(PipeSystemEnum System, PipeTypeEnum Type)> AcceptedCombos =
+    // Combinations drawn as ONE polyline.
+    private static readonly IReadOnlyList<(PipeSystemEnum System, PipeTypeEnum Type)> SinglePipeCombos =
     [
         (PipeSystemEnum.Stål, PipeTypeEnum.Twin),
         (PipeSystemEnum.AluPex, PipeTypeEnum.Twin),
@@ -29,7 +30,19 @@ internal static class PipePlanRadiusStore
         (PipeSystemEnum.AluPex, PipeTypeEnum.Retur),
     ];
 
+    // Every combination with a radius row in PPSETTINGS: the single pipes plus the bonded
+    // steel pair, whose radius is its INNER-pipe radius (frem and retur share the row).
+    private static readonly IReadOnlyList<(PipeSystemEnum System, PipeTypeEnum Type)> AcceptedCombos =
+    [
+        SinglePipeCombos[0],
+        (PipeSystemEnum.Stål, PipeTypeEnum.Enkelt),
+        .. SinglePipeCombos.Skip(1),
+    ];
+
     public static IReadOnlyList<(PipeSystemEnum System, PipeTypeEnum Type)> GetAcceptedCombos() => AcceptedCombos;
+
+    public static bool IsSinglePipeCombo(PipeSystemEnum system, PipeTypeEnum type) =>
+        SinglePipeCombos.Any(c => c.System == system && c.Type == type);
 
     private static double GetApiRadius(PipeSystemEnum system, PipeTypeEnum type, int dn)
     {
@@ -44,16 +57,6 @@ internal static class PipePlanRadiusStore
         {
             return 0.0;
         }
-    }
-
-    public static bool IsAcceptedCombo(PipeSystemEnum system, PipeTypeEnum type)
-    {
-        foreach (var (s, t) in AcceptedCombos)
-        {
-            if (s == system && t == type) return true;
-        }
-
-        return false;
     }
 
     public static bool TryGet(Database db, PipeSystemEnum system, PipeTypeEnum type, int dn, out double radius)
