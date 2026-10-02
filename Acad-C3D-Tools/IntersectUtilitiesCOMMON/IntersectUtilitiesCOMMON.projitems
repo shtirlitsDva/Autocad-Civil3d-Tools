@@ -1,0 +1,47 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <MSBuildAllProjects Condition="'$(MSBuildVersion)' == '' Or '$(MSBuildVersion)' &lt; '16.0'">$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <HasSharedItems>true</HasSharedItems>
+    <SharedGUID>97064ee0-2883-4766-800d-491f01e6d604</SharedGUID>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <Import_RootNamespace>IntersectUtilitiesCOMMON</Import_RootNamespace>
+  </PropertyGroup>
+  <!--
+    The IntersectUtilities code that needs no Civil 3D, AEC, Map or MPolygon, so
+    it compiles for vanilla AutoCAD and for BricsCAD (BRICSCAD defined). Every
+    project that imports UtilitiesCommonSHARED or PipelineSHARED imports this.
+  -->
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\EntityCollection.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ComponentPorts.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ComponentSchedule.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)DataManager\CsvData\Csv.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)DataManager\CsvData\CsvDataSource.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)DataManager\CsvData\CsvRegistry.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)DataManager\CsvData\FjvDynamicComponents.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)DataManager\CsvData\PipeRadiusCsv.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)DataManager\CsvData\PipeScheduleCsv.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)DynamicBlockPropertyReader.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Enums.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)GraphWrite\GraphPopulation.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)GraphWrite\MyGraph.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Graphs\ConClass.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Graphs\Graph.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Graphs\GraphCollection.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Graphs\Node.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Graphs\POI.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Graphs\Styling\IDotStyler.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)GroupByCluster.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)MoreLinq\MoreLinq.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)PipeScheduleV2\PipeScheduleV2.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)PipelineNetwork\PipelineGraphBuilder.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)PipelineNetwork\PipelineSizeArray\PipelineSizeArrayV2.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)PipelineNetwork\PipelineV2.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)PlanDetailing\FjvCentreline.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)PropertySets\PSetDefs.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)PropertySets\PropertySetAccess.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)UtilsCommon.cs" />
+  </ItemGroup>
+</Project>

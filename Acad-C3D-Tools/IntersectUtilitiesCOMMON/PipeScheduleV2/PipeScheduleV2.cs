@@ -1,6 +1,14 @@
+#if BRICSCAD
+using Bricscad.ApplicationServices;
+using Teigha.DatabaseServices;
+using Bricscad.EditorInput;
+using Application = Bricscad.ApplicationServices.Application;
+#else
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
+using Application = Autodesk.AutoCAD.ApplicationServices.Core.Application;
+#endif
 
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.DataManager.CsvData;
@@ -12,8 +20,6 @@ using System.Linq;
 using System.Text.RegularExpressions;
 
 using static IntersectUtilities.UtilsCommon.Utils;
-
-using Application = Autodesk.AutoCAD.ApplicationServices.Core.Application;
 
 namespace IntersectUtilities.PipeScheduleV2
 {

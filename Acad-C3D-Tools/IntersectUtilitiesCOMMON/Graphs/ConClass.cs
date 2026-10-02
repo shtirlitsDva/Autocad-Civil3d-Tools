@@ -1,4 +1,8 @@
-﻿using Autodesk.AutoCAD.DatabaseServices;
+﻿#if BRICSCAD
+using Teigha.DatabaseServices;
+#else
+using Autodesk.AutoCAD.DatabaseServices;
+#endif
 
 using IntersectUtilities.UtilsCommon.Enums;
 

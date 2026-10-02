@@ -1,5 +1,11 @@
+#if BRICSCAD
+using Teigha.DatabaseServices;
+using Entity = Teigha.DatabaseServices.Entity;
+#else
 using Autodesk.AutoCAD.DatabaseServices;
-using Autodesk.Civil.DatabaseServices;
+using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
+#endif
+
 
 using IntersectUtilities.Collections;
 using IntersectUtilities.UtilsCommon.Enums;
@@ -13,20 +19,17 @@ using System.Text.Json.Serialization;
 using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 using static IntersectUtilities.UtilsCommon.Utils;
 
-using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
-
 namespace IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray
 {
-    public interface IPipelineSizeArrayV2
+    public partial interface IPipelineSizeArrayV2
     {
         SizeEntryV2 this[int index] { get; set; }
         int Length { get; }
         IEnumerable<SizeEntryV2> Sizes { get; }
-        IPipelineSizeArrayV2 GetPartialSizeArrayForPV(ProfileView pv);
         SizeEntryV2 GetSizeAtStation(double station);        
         string ToString();
     }
-    public abstract class PipelineSizeArrayV2Base : IPipelineSizeArrayV2
+    public abstract partial class PipelineSizeArrayV2Base : IPipelineSizeArrayV2
     {
         protected SizeEntryCollection sizes = new SizeEntryCollection();
         public IEnumerable<SizeEntryV2> Sizes { get => sizes; }
@@ -43,29 +46,6 @@ namespace IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray
                 if (station <= curEntry.EndStation) return curEntry;
             }
             return default;
-        }
-        private List<int> GetIndexesOfSizesAppearingInProfileView(
-            double pvStationStart, double pvStationEnd)
-        {
-            List<int> indexes = new List<int>();
-            for (int i = 0; i < sizes.Count; i++)
-            {
-                SizeEntryV2 curEntry = sizes[i];
-                if (pvStationStart < curEntry.EndStation &&
-                    curEntry.StartStation < pvStationEnd) indexes.Add(i);
-            }
-            return indexes;
-        }
-        private SizeEntryV2[] GetArrayOfSizesForPv(ProfileView pv)
-        {
-            var list = GetIndexesOfSizesAppearingInProfileView(pv.StationStart, pv.StationEnd);
-            SizeEntryV2[] partialAr = new SizeEntryV2[list.Count];
-            for (int i = 0; i < list.Count; i++) partialAr[i] = this[list[i]];
-            return partialAr;
-        }
-        public IPipelineSizeArrayV2 GetPartialSizeArrayForPV(ProfileView pv)
-        {
-            return new PipelineSizeArrayV2Partial(GetArrayOfSizesForPv(pv));
         }
         #endregion
         #region Methods to read properties of sizes

@@ -21,9 +21,8 @@ namespace IntersectUtilities.UtilsCommon.DataManager.CsvData
     /// string? layer2 = Csv.Krydsninger.Layer("0-EL_04kV", Krydsninger.Columns.Layer);
     /// </code>
     /// </remarks>
-    public static class Csv
+    public static partial class Csv
     {
-        private static readonly object _lock = new();
 
         // Configuration-aware-with-fallback data sources.
         // These resolve to a dedicated "{base}.{config}.csv" when one exists, otherwise to the
@@ -32,9 +31,6 @@ namespace IntersectUtilities.UtilsCommon.DataManager.CsvData
         // rebuild against the correct file rather than reusing a stale modtime baseline.
         private static Distances? _distances;
         private static Dybde? _dybde;
-
-        // Non-versioned data sources (lazy-initialized)
-        private static FjvDynamicComponents? _fjvDynamicComponents;
         private static Stier? _stier;
 
         // Versioned data sources (recreated when configuration changes)
@@ -106,24 +102,6 @@ namespace IntersectUtilities.UtilsCommon.DataManager.CsvData
                     }
                 }
                 return _dybde;
-            }
-        }
-
-        /// <summary>
-        /// Gets the FJV Dynamiske Komponenter data source.
-        /// </summary>
-        public static FjvDynamicComponents FjvDynamicComponents
-        {
-            get
-            {
-                if (_fjvDynamicComponents == null)
-                {
-                    lock (_lock)
-                    {
-                        _fjvDynamicComponents ??= new FjvDynamicComponents();
-                    }
-                }
-                return _fjvDynamicComponents;
             }
         }
 

@@ -1,5 +1,10 @@
-﻿using Autodesk.AutoCAD.DatabaseServices;
+﻿#if BRICSCAD
+using Teigha.DatabaseServices;
+using Teigha.Geometry;
+#else
+using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
+#endif
 
 using IntersectUtilities.UtilsCommon.Enums;
 
@@ -16,9 +21,9 @@ namespace IntersectUtilities.UtilsCommon.Graphs
         public Entity Owner { get; }
         public Point2d Point { get; }
         public EndType EndType { get; }
-        private PropertySetManager _psm { get; }
+        private IPropertySetAccess _psm { get; }
         private PSetDefs.DriGraph _driGraph = new();
-        public POI(Entity owner, Point2d point, EndType endType, PropertySetManager psm)
+        public POI(Entity owner, Point2d point, EndType endType, IPropertySetAccess psm)
         { Owner = owner; Point = point; EndType = endType; _psm = psm; }
         public bool IsSameOwner(POI toCompare) => Owner.Id == toCompare.Owner.Id;
         internal void AddReference(POI connectedEntity)
