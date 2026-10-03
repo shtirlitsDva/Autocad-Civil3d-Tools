@@ -5,6 +5,8 @@ using System.Windows.Threading;
 
 using Bricscad.ApplicationServices;
 
+using Teigha.DatabaseServices;
+
 using Exception = System.Exception;
 
 namespace NSLOAD.Native
@@ -29,7 +31,9 @@ namespace NSLOAD.Native
     ///
     /// <para>One drawing always stays open: BricsCAD on its Start tab has no
     /// document to run anything in. An unnamed drawing with no unsaved changes
-    /// (it holds no objects) is kept; without one, a blank drawing is added.</para>
+    /// (it holds no objects) is kept; without one, a blank drawing is added, and
+    /// closed again once the drawings are back - unless something was drawn in it
+    /// meanwhile, which is then kept and said.</para>
     ///
     /// <para>Documents close and open only in application context. NSLOADMGR's
     /// buttons run there; a typed command (NSLOAD, a plugin's own name) runs in
@@ -46,15 +50,19 @@ namespace NSLOAD.Native
         private static readonly TimeSpan RetryInterval = TimeSpan.FromMilliseconds(100);
 
         /// <summary>A cycle that closed nothing.</summary>
-        public static readonly DrawingCycle None = new(new List<string>(), null);
+        public static readonly DrawingCycle None = new(new List<string>(), null, null);
 
         private readonly List<string> _closed;
         private readonly string? _active;
+        // The blank drawing this cycle added to stay off the Start tab; none when
+        // an unnamed one was already open (that one is the drafter's).
+        private readonly Document? _placeholder;
 
-        private DrawingCycle(List<string> closed, string? active)
+        private DrawingCycle(List<string> closed, string? active, Document? placeholder)
         {
             _closed = closed;
             _active = active;
+            _placeholder = placeholder;
         }
 
         /// <summary>The drawings this cycle closed, by full path, in the order they were open.</summary>
@@ -82,7 +90,8 @@ namespace NSLOAD.Native
                     "reopens them after the next load. Nothing was closed or unloaded.");
 
             string? active = docs.MdiActiveDocument?.Name;
-            var keep = all.FirstOrDefault(d => !d.IsNamedDrawing) ?? docs.Add(string.Empty);
+            Document? placeholder = null;
+            var keep = all.FirstOrDefault(d => !d.IsNamedDrawing) ?? (placeholder = docs.Add(string.Empty));
 
             var closed = new List<string>();
             foreach (var d in all.Where(d => d.IsNamedDrawing))
@@ -94,7 +103,7 @@ namespace NSLOAD.Native
                 say($"closed {path}");
             }
             docs.MdiActiveDocument = keep;
-            return new DrawingCycle(closed, active);
+            return new DrawingCycle(closed, active, placeholder);
         }
 
         /// <summary>Opens the closed drawings again, in their order, and makes the
@@ -139,10 +148,46 @@ namespace NSLOAD.Native
                     say($"could NOT reopen {path}: {ex.Message}");
                 }
             }
+            ClosePlaceholder(say);
             if (_active == null) return;
             var active = docs.Cast<Document>().FirstOrDefault(d =>
                 string.Equals(d.Name, _active, StringComparison.OrdinalIgnoreCase));
             if (active != null) docs.MdiActiveDocument = active;
+        }
+
+        private void ClosePlaceholder(Action<string> say)
+        {
+            var docs = Application.DocumentManager;
+            if (_placeholder == null || !docs.Cast<Document>().Contains(_placeholder)) return;
+            // The last drawing stays: no reopened drawing to stand in for it.
+            if (docs.Count < 2) return;
+            if (!HoldsNothing(_placeholder))
+            {
+                say($"kept {_placeholder.Name}: something was drawn in it");
+                return;
+            }
+            string name = _placeholder.Name;
+            _placeholder.CloseAndDiscard();
+            say($"closed {name}, the blank drawing the unload needed");
+        }
+
+        /// <summary>Is model space empty? A blank from the template has nothing in
+        /// it; anything there is the drafter's. If it cannot be read, it counts as
+        /// holding something, and the drawing is kept.</summary>
+        private static bool HoldsNothing(Document d)
+        {
+            try
+            {
+                Database db = d.Database;
+                using var tr = db.TransactionManager.StartOpenCloseTransaction();
+                var space = (BlockTableRecord)tr.GetObject(SymbolUtilityServices.GetBlockModelSpaceId(db), OpenMode.ForRead);
+                return !space.Cast<ObjectId>().Any();
+            }
+            catch (Exception ex)
+            {
+                NsLoadDiagnostics.Report($"reading whether {d.Name} is blank", ex);
+                return false;
+            }
         }
 
         private static bool IsOpen(string path) =>
