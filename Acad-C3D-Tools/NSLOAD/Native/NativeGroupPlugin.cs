@@ -137,6 +137,9 @@ namespace NSLOAD.Native
             var reopen = _reopenAfterLoad;
             _reopenAfterLoad = DrawingCycle.None;
             reopen.Reopen(say);
+
+            // And the drawings read before the modules were in at all.
+            DrawingCycle.ReopenStandInHolders(_name, say);
         }
 
         public void Unload(Action<string> say)

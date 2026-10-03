@@ -6,6 +6,7 @@ using System.Windows.Threading;
 using Bricscad.ApplicationServices;
 
 using Teigha.DatabaseServices;
+using Teigha.Runtime;
 
 using Exception = System.Exception;
 
@@ -104,6 +105,85 @@ namespace NSLOAD.Native
             }
             docs.MdiActiveDocument = keep;
             return new DrawingCycle(closed, active, placeholder);
+        }
+
+        /// <summary>
+        /// Reopens every saved drawing that was read before the group's modules
+        /// were in, so its objects are read by them. BricsCAD runs a bundle's
+        /// Initialize only once the first drawing is open, so a double-clicked
+        /// drawing is always read before NSLOAD loads anything, and BricsCAD's
+        /// own late conversion of its stand-ins leaves some behind (the NDH
+        /// Pipeline umbrellas, 2026-10-03). A drawing with unsaved changes is not
+        /// touched: the drafter is told to save and reopen it. Inside a command,
+        /// waits for it to end.
+        /// </summary>
+        public static void ReopenStandInHolders(string group, Action<string> say) =>
+            WhenFree(Dispatcher.CurrentDispatcher, () => ReopenStandInHoldersNow(group, say));
+
+        private static void WhenFree(Dispatcher main, Action act)
+        {
+            if (Application.DocumentManager.IsApplicationContext)
+            {
+                act();
+                return;
+            }
+            _ = new DispatcherTimer(RetryInterval, DispatcherPriority.Background, (sender, _) =>
+            {
+                ((DispatcherTimer)sender!).Stop();
+                WhenFree(main, act);
+            }, main);
+        }
+
+        private static void ReopenStandInHoldersNow(string group, Action<string> say)
+        {
+            var docs = Application.DocumentManager;
+            var all = docs.Cast<Document>().ToList();
+            var holders = all.Where(d => d.IsNamedDrawing && HoldsLoadableStandIns(d)).ToList();
+            if (holders.Count == 0) return;
+
+            string? active = docs.MdiActiveDocument?.Name;
+            Document? placeholder = holders.Count == all.Count ? docs.Add(string.Empty) : null;
+            var closed = new List<string>();
+            foreach (var d in holders)
+            {
+                if (!IsSaved(d))
+                {
+                    say($"{d.Name} was read before {group} loaded and has unsaved changes: " +
+                        "save it and open it again to see its objects.");
+                    continue;
+                }
+                string path = d.Name;
+                // Saved (checked above), so discarding loses nothing.
+                d.CloseAndDiscard();
+                closed.Add(path);
+                say($"reopening {path}: it was read before {group} loaded");
+            }
+            new DrawingCycle(closed, active, placeholder).OpenAll(say);
+        }
+
+        /// <summary>Does model space hold a stand-in (proxy) for a class that is
+        /// registered now? If it cannot be read, it counts as holding none, and
+        /// the drawing is left as it is.</summary>
+        private static bool HoldsLoadableStandIns(Document d)
+        {
+            try
+            {
+                Database db = d.Database;
+                using var tr = db.TransactionManager.StartOpenCloseTransaction();
+                var space = (BlockTableRecord)tr.GetObject(SymbolUtilityServices.GetBlockModelSpaceId(db), OpenMode.ForRead);
+                foreach (ObjectId id in space)
+                {
+                    if (tr.GetObject(id, OpenMode.ForRead) is ProxyEntity proxy &&
+                        SystemObjects.ClassDictionary.Contains(proxy.OriginalClassName))
+                        return true;
+                }
+                return false;
+            }
+            catch (Exception ex)
+            {
+                NsLoadDiagnostics.Report($"looking for stand-ins in {d.Name}", ex);
+                return false;
+            }
         }
 
         /// <summary>Opens the closed drawings again, in their order, and makes the

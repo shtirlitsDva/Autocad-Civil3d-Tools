@@ -25,5 +25,10 @@ namespace NSLOAD.Native
 
         /// <summary>Nothing was closed, so nothing reopens.</summary>
         public void Reopen(Action<string> say) { }
+
+        /// <summary>Nothing: AutoCAD never converts a stand-in in a drawing that is
+        /// already open, so there is no half-converted drawing to repair. A drawing
+        /// read before the load shows its objects once it is opened again.</summary>
+        public static void ReopenStandInHolders(string group, Action<string> say) { }
     }
 }
