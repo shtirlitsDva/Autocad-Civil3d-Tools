@@ -117,8 +117,19 @@ namespace NSLOAD.Native
         /// touched: the drafter is told to save and reopen it. Inside a command,
         /// waits for it to end.
         /// </summary>
-        public static void ReopenStandInHolders(string group, Action<string> say) =>
-            WhenFree(Dispatcher.CurrentDispatcher, () => ReopenStandInHoldersNow(group, say));
+        /// <param name="savedBeforeLoad">From <see cref="SavedDrawings"/>, taken
+        /// BEFORE the load: BricsCAD's late conversion itself marks every drawing
+        /// it touches as modified, so asking afterwards always says "unsaved".</param>
+        public static void ReopenStandInHolders(string group, IReadOnlySet<string> savedBeforeLoad,
+                                                Action<string> say) =>
+            WhenFree(Dispatcher.CurrentDispatcher, () => ReopenStandInHoldersNow(group, savedBeforeLoad, say));
+
+        /// <summary>The open named drawings with no unsaved changes, by full path.</summary>
+        public static IReadOnlySet<string> SavedDrawings() =>
+            Application.DocumentManager.Cast<Document>()
+                .Where(d => d.IsNamedDrawing && IsSaved(d))
+                .Select(d => d.Name)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         private static void WhenFree(Dispatcher main, Action act)
         {
@@ -134,7 +145,8 @@ namespace NSLOAD.Native
             }, main);
         }
 
-        private static void ReopenStandInHoldersNow(string group, Action<string> say)
+        private static void ReopenStandInHoldersNow(string group, IReadOnlySet<string> savedBeforeLoad,
+                                                     Action<string> say)
         {
             var docs = Application.DocumentManager;
             var all = docs.Cast<Document>().ToList();
@@ -146,14 +158,15 @@ namespace NSLOAD.Native
             var closed = new List<string>();
             foreach (var d in holders)
             {
-                if (!IsSaved(d))
+                if (!savedBeforeLoad.Contains(d.Name))
                 {
                     say($"{d.Name} was read before {group} loaded and has unsaved changes: " +
                         "save it and open it again to see its objects.");
                     continue;
                 }
                 string path = d.Name;
-                // Saved (checked above), so discarding loses nothing.
+                // Saved before the load, and the load changed nothing the drafter
+                // made, so discarding loses nothing.
                 d.CloseAndDiscard();
                 closed.Add(path);
                 say($"reopening {path}: it was read before {group} loaded");

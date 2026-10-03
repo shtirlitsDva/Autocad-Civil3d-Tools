@@ -84,6 +84,10 @@ namespace NSLOAD.Native
 
             string version = RequireConsistentVersion(manifest);
 
+            // Before anything loads: BricsCAD's late conversion of stand-ins marks
+            // the drawings it touches as modified.
+            var savedBeforeLoad = DrawingCycle.SavedDrawings();
+
             foreach (string pin in manifest.PreloadNative)
                 OarxCompanionHost.PinNative(pin, say);
             foreach (string asm in manifest.PreloadManaged)
@@ -139,7 +143,7 @@ namespace NSLOAD.Native
             reopen.Reopen(say);
 
             // And the drawings read before the modules were in at all.
-            DrawingCycle.ReopenStandInHolders(_name, say);
+            DrawingCycle.ReopenStandInHolders(_name, savedBeforeLoad, say);
         }
 
         public void Unload(Action<string> say)
