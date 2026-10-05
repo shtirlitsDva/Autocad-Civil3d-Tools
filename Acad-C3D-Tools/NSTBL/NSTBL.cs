@@ -143,8 +143,14 @@ namespace IntersectUtilities.NSTBL
         /// <param name="bendAngleInName">
         /// Bends with a free angle get the drawn angle in their name instead of 90° (TBLEXPORTCWOV2).
         /// </param>
+        /// <param name="fixComponentData">
+        /// Component rows are made usable for the tilbudsliste (TBLEXPORTCWOV2): blocks with no row
+        /// in FJV Dynamiske Komponenter.csv are left out and listed, Materialeskift gets its plastic
+        /// system and steel-side serie, plastic components get their pipe's serie and their own
+        /// system's name prefix, and steel components without a serie get one. See FixComponentData.
+        /// </param>
         internal HashSet<IntersectResult> gatherintersectdata(
-            bool inheritWeldSerie, bool bendAngleInName = false)
+            bool inheritWeldSerie, bool bendAngleInName = false, bool fixComponentData = false)
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
@@ -195,10 +201,13 @@ namespace IntersectUtilities.NSTBL
                         .ToArray();
                     //Reading ports costs an ARX call per component, and most welds are resolved by
                     //the pipe lookup alone, so this is only built if a weld actually needs it.
-                    var componentPorts = new Lazy<(Point3d Port, string Serie)[]>(
+                    var componentPorts = new Lazy<(Point3d Port, string Serie, string SysNavn, Oid Owner)[]>(
                         () => ReadComponentPortSeries(comps));
                     var weldSerieCache = new Dictionary<Oid, string>();
                     #endregion
+
+                    var skippedBlocks = new Dictionary<string, int>();
+                    var componentNotes = new List<string>();
 
                     #region Collect Intersection Results
                     for (int i = 0; i < cplines.Count; i++)
@@ -245,6 +254,14 @@ namespace IntersectUtilities.NSTBL
                             irp.Vejklasse = psm.ReadPropertyString(polygonPline, psDef.Vejklasse);
                             irp.Belægning = psm.ReadPropertyString(polygonPline, psDef.Belægning);
                             irp.Navn = br.ReadDynamicCsvProperty(DynamicProperty.TBLNavn, true);
+                            //Every CSV row has a TBLNavn, so an empty one means the block has no
+                            //row at all (detailing blocks and the like): nothing to count.
+                            if (fixComponentData && irp.Navn.IsNoE())
+                            {
+                                string blockName = br.RealName();
+                                skippedBlocks[blockName] = skippedBlocks.GetValueOrDefault(blockName) + 1;
+                                continue;
+                            }
                             if (bendAngleInName) irp.Navn = NameWithBendAngle(br, irp.Navn);
                             irp.DN1 = br.ReadDynamicCsvProperty(DynamicProperty.DN1, true);
                             irp.DN2 = br.ReadDynamicCsvProperty(DynamicProperty.DN2, true);
@@ -252,10 +269,12 @@ namespace IntersectUtilities.NSTBL
                             irp.Serie = br.ReadDynamicCsvProperty(DynamicProperty.Serie, true);
                             irp.SystemType = br.ReadDynamicCsvProperty(DynamicProperty.SysNavn, true);
 
-                            if (inheritWeldSerie && irp.Serie.IsNoE() &&
-                                br.ReadDynamicCsvProperty(DynamicProperty.Type, false) == "Svejsning")
+                            bool isWeld = br.ReadDynamicCsvProperty(DynamicProperty.Type, false) == "Svejsning";
+                            if (inheritWeldSerie && irp.Serie.IsNoE() && isWeld)
                                 irp.Serie = GetSerieFromNeighbour(
                                     br, pipesWithExtents, componentPorts, weldSerieCache);
+                            if (fixComponentData && !isWeld)
+                                FixComponentData(br, irp, pipesWithExtents, componentPorts, componentNotes);
 
                             if (irp.System == "Frem" || irp.System == "Retur") irp.System = "Enkelt";
 
@@ -263,6 +282,10 @@ namespace IntersectUtilities.NSTBL
                         }
                     }
                     #endregion
+
+                    foreach (var (blockName, count) in skippedBlocks)
+                        prdDbg($"Udeladt, ingen række i FJV Dynamiske Komponenter.csv: {blockName} ({count} stk.)");
+                    foreach (string note in componentNotes) prdDbg(note);
                 }
                 catch (System.Exception ex)
                 {
@@ -295,7 +318,7 @@ namespace IntersectUtilities.NSTBL
         private static string GetSerieFromNeighbour(
             BlockReference br,
             (Polyline Pipe, Extents3d Ext)[] pipes,
-            Lazy<(Point3d Port, string Serie)[]> componentPorts,
+            Lazy<(Point3d Port, string Serie, string SysNavn, Oid Owner)[]> componentPorts,
             Dictionary<Oid, string> cache)
         {
             if (cache.TryGetValue(br.Id, out var cached)) return cached;
@@ -317,7 +340,7 @@ namespace IntersectUtilities.NSTBL
 
             //No pipe under the weld: it joins two components, so ask the neighbouring port.
             if (serie.IsNoE())
-                foreach (var (port, portSerie) in componentPorts.Value)
+                foreach (var (port, portSerie, _, _) in componentPorts.Value)
                     if (port.DistanceHorizontalTo(pos) <= tol) { serie = portSerie; break; }
 
             if (serie.IsNoE())
@@ -330,18 +353,138 @@ namespace IntersectUtilities.NSTBL
         /// Port positions of every component that states a Serie, so a weld between two components
         /// can inherit from its neighbour. Components without a Serie of their own are skipped -
         /// they have nothing to give, and skipping them keeps the port read to known FJV components.
+        /// The component's system and id come along so FixComponentData can ask only neighbours of
+        /// one system and never the component itself.
         /// </summary>
-        private static (Point3d Port, string Serie)[] ReadComponentPortSeries(
+        private static (Point3d Port, string Serie, string SysNavn, Oid Owner)[] ReadComponentPortSeries(
             IEnumerable<BlockReference> comps)
         {
-            var ports = new List<(Point3d, string)>();
+            var ports = new List<(Point3d, string, string, Oid)>();
             foreach (BlockReference br in comps)
             {
                 string serie = br.ReadDynamicCsvProperty(DynamicProperty.Serie, true);
                 if (serie.IsNoE()) continue;
-                foreach (Point3d port in br.GetAllEndPoints()) ports.Add((port, serie));
+                string sysNavn = br.ReadDynamicCsvProperty(DynamicProperty.SysNavn, true);
+                foreach (Point3d port in br.GetAllEndPoints()) ports.Add((port, serie, sysNavn, br.Id));
             }
             return ports.ToArray();
+        }
+        /// <summary>
+        /// A component port sits on the pipe end or on the neighbouring component's port; measured
+        /// in 7.21.12 they are at most 0.009 apart, while the next nearest geometry is 0.1 away.
+        /// </summary>
+        private const double componentPortTolerance = 0.01;
+        /// <summary>
+        /// Plastic TBL names start with their system's prefix. ALUPEX-REDUKTION's CSV row borrowed
+        /// PertFlextra's ("PRTFLEX Reduktion"), so the prefix is set from the block's SysNavn.
+        /// </summary>
+        private static readonly Dictionary<PipeSystemEnum, string> tblNamePrefix = new()
+        {
+            { PipeSystemEnum.AluPex, "ALUPEX" },
+            { PipeSystemEnum.PertFlextra, "PRTFLEX" },
+            { PipeSystemEnum.PertPIPE, "PRTPIPE" },
+        };
+        /// <summary>
+        /// TBLEXPORTCWOV2 only. Fills in what FJV Dynamiske Komponenter.csv cannot give a component row:
+        /// - Materialeskift: the CSV leaves "{M1}x{M2}" in the name and the system Ukendt. The block's
+        ///   Type (e.g. ALUPEX63xDN50) holds both sides; M1 is the DN1 side, M2 the side it changes
+        ///   to. The name drops the placeholders, the system becomes M2's, and the serie is that of
+        ///   the M1 side (the steel pipe, or the steel component it touches).
+        /// - Plastic components: the CSV gives one fixed serie per block (AluPex S2, PertFlextra S3)
+        ///   while the pipes are S1 or S2, so the serie comes from the pipe at the DN1 port (else a
+        ///   neighbouring plastic component, else the CSV value stays). The name prefix follows SysNavn.
+        /// - Steel components with no serie (the CSV column is empty, e.g. PRÆBØJN 90GR ENKELT v2 and
+        ///   VENTIL E): the block's own Serie parameter, else what it is joined to. These are listed
+        ///   on the command line, as are those still without a serie.
+        /// </summary>
+        private static void FixComponentData(
+            BlockReference br,
+            IntersectResultComponent irp,
+            (Polyline Pipe, Extents3d Ext)[] pipes,
+            Lazy<(Point3d Port, string Serie, string SysNavn, Oid Owner)[]> componentPorts,
+            List<string> notes)
+        {
+            if (irp.Navn.Contains("{M1}"))
+            {
+                string m1 = br.ReadDynamicCsvProperty(DynamicProperty.M1, true);
+                string m2 = br.ReadDynamicCsvProperty(DynamicProperty.M2, true);
+                PipeSystemEnum from = systemDict.TryGetValue(m1, out var f) ? f : PipeSystemEnum.Ukendt;
+                irp.Navn = irp.Navn.Replace("{M1}x{M2}", "").Trim();
+                if (from != PipeSystemEnum.Stål && from != PipeSystemEnum.Ukendt) irp.Navn += " fra " + from;
+                if (systemDict.TryGetValue(m2, out var to)) irp.SystemType = to.ToString();
+
+                string sideSerie = SerieAtPorts(br, pipes, componentPorts.Value, from, null);
+                if (!sideSerie.IsNoE()) irp.Serie = sideSerie;
+                else notes.Add($"{br.RealName()} {br.Handle}: intet {from} ved portene, Serie {irp.Serie} fra CSV beholdt.");
+                return;
+            }
+
+            if (!Enum.TryParse(irp.SystemType, out PipeSystemEnum system)) return;
+
+            if (system == PipeSystemEnum.Stål)
+            {
+                if (!irp.Serie.IsNoE()) return;
+                string own = OwnSerie(br);
+                if (!own.IsNoE()) { irp.Serie = own; return; }
+                string joined = SerieAtPorts(br, pipes, componentPorts.Value, PipeSystemEnum.Stål, irp.DN1);
+                irp.Serie = joined;
+                notes.Add(joined.IsNoE()
+                    ? $"{br.RealName()} {br.Handle}: ingen Serie i CSV, blok eller ved portene - Serie tom."
+                    : $"{br.RealName()} {br.Handle}: ingen Serie i CSV eller blok, {joined} hentet ved portene.");
+                return;
+            }
+
+            if (system == PipeSystemEnum.Ukendt) return;
+            if (tblNamePrefix.TryGetValue(system, out string ownPrefix))
+                foreach (string other in tblNamePrefix.Values)
+                    if (other != ownPrefix && irp.Navn.StartsWith(other + " "))
+                        irp.Navn = ownPrefix + irp.Navn.Substring(other.Length);
+            string pipeSerie = SerieAtPorts(br, pipes, componentPorts.Value, system, irp.DN1);
+            if (!pipeSerie.IsNoE()) irp.Serie = pipeSerie;
+        }
+        /// <summary>The block's own dynamic Serie parameter, or "" if it has none.</summary>
+        private static string OwnSerie(BlockReference br)
+        {
+            if (!br.IsDynamicBlock) return "";
+            foreach (DynamicBlockReferenceProperty p in br.DynamicBlockReferencePropertyCollection)
+                if (p.PropertyName == "Serie") return p.Value?.ToString() ?? "";
+            return "";
+        }
+        /// <summary>
+        /// The serie of what the component is joined to at its ports, of one system: a pipe at a
+        /// port first (of DN preferDn when given, else any), else a neighbouring component's port.
+        /// "" when nothing of that system is found.
+        /// </summary>
+        private static string SerieAtPorts(
+            BlockReference br,
+            (Polyline Pipe, Extents3d Ext)[] pipes,
+            (Point3d Port, string Serie, string SysNavn, Oid Owner)[] neighbours,
+            PipeSystemEnum system,
+            string preferDn)
+        {
+            const double tol = componentPortTolerance;
+            var ports = br.GetAllEndPoints();
+            string anyPipeSerie = "";
+            foreach (Point3d port in ports)
+                foreach (var (pipe, ext) in pipes)
+                {
+                    if (port.X < ext.MinPoint.X - tol || port.X > ext.MaxPoint.X + tol ||
+                        port.Y < ext.MinPoint.Y - tol || port.Y > ext.MaxPoint.Y + tol) continue;
+                    if (GetPipeSystem(pipe) != system) continue;
+                    if (pipe.GetClosestPointTo(port, false).DistanceHorizontalTo(port) > tol) continue;
+
+                    var series = GetPipeSeriesV2(pipe);
+                    if (series == PipeSeriesEnum.Undefined) continue;
+                    if (preferDn == null || GetPipeDN(pipe).ToString() == preferDn) return series.ToString();
+                    if (anyPipeSerie.IsNoE()) anyPipeSerie = series.ToString();
+                }
+            if (!anyPipeSerie.IsNoE()) return anyPipeSerie;
+
+            foreach (Point3d port in ports)
+                foreach (var (nPort, nSerie, nSysNavn, owner) in neighbours)
+                    if (owner != br.Id && nSysNavn == system.ToString() &&
+                        nPort.DistanceHorizontalTo(port) <= tol) return nSerie;
+            return "";
         }
         internal HashSet<IntersectResult> processintersectdataCWO()
         {
@@ -434,7 +577,7 @@ namespace IntersectUtilities.NSTBL
         }
         internal HashSet<IntersectResult> processintersectdataCWOV2()
         {
-            var results = gatherintersectdata(true, true);
+            var results = gatherintersectdata(true, true, true);
             if (results == null)
             {
                 prdDbg("Received null instead of results. Aborting.");
@@ -621,7 +764,10 @@ namespace IntersectUtilities.NSTBL
         /// Egne noter is left empty for the etape to be written in the sheet. Pipes are summed by
         /// length (Antal in metres) and split by standard delivery length; components are counted.
         /// Welds without a Serie inherit it from the pipe or component they join. Bends with a free
-        /// angle are named by the angle drawn ("… bøjning 45° 1.5m"). The file has no header row.
+        /// angle are named by the angle drawn ("… bøjning 45° 1.5m"). Blocks with no row in
+        /// FJV Dynamiske Komponenter.csv are left out and listed; Materialeskift, plastic components
+        /// and steel components without a serie are completed (FixComponentData). The file has no
+        /// header row.
         /// Output is written to C:\Temp\IntersectResult.csv.
         /// </summary>
         /// <category>Tilbudsliste</category>
