@@ -202,7 +202,7 @@ namespace IntersectUtilities.NSTBL
                     //Reading ports costs an ARX call per component, and most welds are resolved by
                     //the pipe lookup alone, so this is only built if a weld actually needs it.
                     var componentPorts = new Lazy<(Point3d Port, string Serie, string SysNavn, Oid Owner)[]>(
-                        () => ReadComponentPortSeries(comps));
+                        () => ReadComponentPortSeries(comps, pipesWithExtents));
                     var weldSerieCache = new Dictionary<Oid, string>();
                     #endregion
 
@@ -354,10 +354,12 @@ namespace IntersectUtilities.NSTBL
         /// can inherit from its neighbour. Components without a Serie of their own are skipped -
         /// they have nothing to give, and skipping them keeps the port read to known FJV components.
         /// The component's system and id come along so FixComponentData can ask only neighbours of
-        /// one system and never the component itself.
+        /// one system and never the component itself. A serie fixed in the CSV gives way to the
+        /// pipes at the component's ports (SerieFromPipesOverCsv), so a weld next to it inherits
+        /// the serie the component is exported with.
         /// </summary>
         private static (Point3d Port, string Serie, string SysNavn, Oid Owner)[] ReadComponentPortSeries(
-            IEnumerable<BlockReference> comps)
+            IEnumerable<BlockReference> comps, (Polyline Pipe, Extents3d Ext)[] pipes)
         {
             var ports = new List<(Point3d, string, string, Oid)>();
             foreach (BlockReference br in comps)
@@ -365,9 +367,38 @@ namespace IntersectUtilities.NSTBL
                 string serie = br.ReadDynamicCsvProperty(DynamicProperty.Serie, true);
                 if (serie.IsNoE()) continue;
                 string sysNavn = br.ReadDynamicCsvProperty(DynamicProperty.SysNavn, true);
+                string pipeSerie = SerieFromPipesOverCsv(br, pipes, sysNavn);
+                if (!pipeSerie.IsNoE()) serie = pipeSerie;
                 foreach (Point3d port in br.GetAllEndPoints()) ports.Add((port, serie, sysNavn, br.Id));
             }
             return ports.ToArray();
+        }
+        /// <summary>
+        /// Many CSV rows fix one serie per block (SH LIGE and PA TWIN S3, the T blocks S2 or S3,
+        /// Materialeskift S3) although the block is placed on pipes of any serie. For those the serie
+        /// of the pipe at the ports wins: of the block's own system and DN1 first, and for a
+        /// Materialeskift the pipe on its M1 side. "" when the CSV names a block parameter ("$Serie"),
+        /// which the drafter sets, or when no such pipe touches the block.
+        /// </summary>
+        private static string SerieFromPipesOverCsv(
+            BlockReference br, (Polyline Pipe, Extents3d Ext)[] pipes, string sysNavn)
+        {
+            string csvSerie = br.ReadDynamicCsvProperty(DynamicProperty.Serie, false);
+            if (csvSerie.IsNoE() || csvSerie.StartsWith("$")) return "";
+            var pipesOnly = Array.Empty<(Point3d, string, string, Oid)>();
+
+            string navn = br.ReadDynamicCsvProperty(DynamicProperty.TBLNavn, true);
+            if (navn.Contains("{M1}"))
+            {
+                string m1 = br.ReadDynamicCsvProperty(DynamicProperty.M1, true);
+                return systemDict.TryGetValue(m1, out var from)
+                    ? SerieAtPorts(br, pipes, pipesOnly, from, null) : "";
+            }
+
+            if (!Enum.TryParse(sysNavn, out PipeSystemEnum system) || system == PipeSystemEnum.Ukendt)
+                return "";
+            string dn1 = br.ReadDynamicCsvProperty(DynamicProperty.DN1, true);
+            return SerieAtPorts(br, pipes, pipesOnly, system, dn1);
         }
         /// <summary>
         /// A component port sits on the pipe end or on the neighbouring component's port; measured
@@ -396,6 +427,8 @@ namespace IntersectUtilities.NSTBL
         /// - Steel components with no serie (the CSV column is empty, e.g. PRÆBØJN 90GR ENKELT v2 and
         ///   VENTIL E): the block's own Serie parameter, else what it is joined to. These are listed
         ///   on the command line, as are those still without a serie.
+        /// - Steel components whose CSV serie is a fixed value (e.g. SH LIGE S3) on pipes of another
+        ///   serie: the pipe's serie (SerieFromPipesOverCsv), listed on the command line.
         /// </summary>
         private static void FixComponentData(
             BlockReference br,
@@ -423,7 +456,16 @@ namespace IntersectUtilities.NSTBL
 
             if (system == PipeSystemEnum.Stål)
             {
-                if (!irp.Serie.IsNoE()) return;
+                if (!irp.Serie.IsNoE())
+                {
+                    string atPorts = SerieFromPipesOverCsv(br, pipes, irp.SystemType);
+                    if (!atPorts.IsNoE() && atPorts != irp.Serie)
+                    {
+                        notes.Add($"{br.RealName()} {br.Handle}: Serie {irp.Serie} fra CSV erstattet af {atPorts} fra røret.");
+                        irp.Serie = atPorts;
+                    }
+                    return;
+                }
                 string own = OwnSerie(br);
                 if (!own.IsNoE()) { irp.Serie = own; return; }
                 string joined = SerieAtPorts(br, pipes, componentPorts.Value, PipeSystemEnum.Stål, irp.DN1);
@@ -611,7 +653,9 @@ namespace IntersectUtilities.NSTBL
                     DN1 = g.Key.DN1,
                     System = g.Key.System,
                     Serie = g.Key.Serie,
-                    Antal = g.Sum(x => x.Length),
+                    //The tilbudsliste prices pipes per kanalmeter. Enkelt is drawn as a frem and a
+                    //retur polyline, so the summed length is halved to give the route length.
+                    Antal = g.Sum(x => x.Length) / (g.Key.System == "Enkelt" ? 2 : 1),
                     Length = g.Sum(x => x.Length),
                     SystemType = g.Key.SystemType
                 });
@@ -762,7 +806,8 @@ namespace IntersectUtilities.NSTBL
         /// exports a CSV whose rows paste straight into the CWO tilbudsliste sheet:
         /// Egne noter;Vejklasse;Belægningstype;Komponent;Standardlængde;Materiale;DN;DN;Rørsystem;Serie;Antal.
         /// Egne noter is left empty for the etape to be written in the sheet. Pipes are summed by
-        /// length (Antal in metres) and split by standard delivery length; components are counted.
+        /// length (Antal in kanalmeter: enkelt frem + retur is halved) and split by standard delivery
+        /// length; components are counted per piece.
         /// Welds without a Serie inherit it from the pipe or component they join. Bends with a free
         /// angle are named by the angle drawn ("… bøjning 45° 1.5m"). Blocks with no row in
         /// FJV Dynamiske Komponenter.csv are left out and listed; Materialeskift, plastic components
