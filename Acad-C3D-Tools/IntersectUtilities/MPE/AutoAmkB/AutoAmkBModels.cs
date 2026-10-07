@@ -60,6 +60,9 @@ internal sealed record ValveLocation(Option<string> Alignment, Option<double> St
 
 internal sealed record DataFileInfo(string Role, string Path, Option<DateTime> Modified);
 
+/// <summary>One step of a run: what is being done, and how far the run has come (0 to 1).</summary>
+internal readonly record struct AmkProgress(string Text, double Done);
+
 internal sealed record AmkReport(
     string ProjectId,
     string EtapeId,
@@ -69,6 +72,7 @@ internal sealed record AmkReport(
     LoadedRules Rules,
     IReadOnlyList<Hit> Hits,
     IReadOnlyList<ValveLocation> Valves,
+    IReadOnlyList<AlignmentTrace> Traces,
     IReadOnlyList<DataFileInfo> DataFiles,
     IReadOnlyList<string> NotEvaluated,
     IReadOnlyList<string> Warnings);

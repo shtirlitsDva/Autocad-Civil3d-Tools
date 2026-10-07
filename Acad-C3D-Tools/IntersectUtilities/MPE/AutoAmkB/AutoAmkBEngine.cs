@@ -34,7 +34,7 @@ internal sealed record AmkRunInput(
 /// </summary>
 internal static class AutoAmkBEngine
 {
-    public static Result<AmkReport> Analyze(AmkRunInput input, Action<string> progress)
+    public static Result<AmkReport> Analyze(AmkRunInput input, Action<AmkProgress> progress)
     {
         DataManager dataManager = new DataManager(input.Project);
         return Boundary.Try(() => dataManager.Alignments(), "Alignment-tegningen fra Stier.csv kunne ikke åbnes")
@@ -48,7 +48,7 @@ internal static class AutoAmkBEngine
     }
 
     private static Result<AmkReport> AnalyzeWithAlignments(
-        AmkRunInput input, DataManager dataManager, Database alignmentDb, Action<string> progress)
+        AmkRunInput input, DataManager dataManager, Database alignmentDb, Action<AmkProgress> progress)
     {
         AmkRules rules = input.Rules.Rules;
         List<string> warnings = new List<string>(input.Sources.Warnings);
@@ -65,13 +65,14 @@ internal static class AutoAmkBEngine
             FileInfoOf("Alignments", alignmentDb.Filename),
         };
         List<Hit> hits = new List<Hit>();
+        List<AlignmentTrace> traces = new List<AlignmentTrace>();
 
         using Transaction alignmentTx = alignmentDb.TransactionManager.StartTransaction();
         Dictionary<string, Alignment> alignments = alignmentDb.ListOfType<Alignment>(alignmentTx)
             .GroupBy(alignment => alignment.Name, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
 
-        progress("Indlæser LER ...");
+        progress(new AmkProgress("Indlæser LER ...", 0.00));
         Option<ILer3dManager> ler = Boundary.Try(() => Ler3dManagerFactory.LoadLer3d(dataManager), "LER kunne ikke indlæses")
             .Match(
                 Option<ILer3dManager>.Of,
@@ -82,7 +83,7 @@ internal static class AutoAmkBEngine
                     return Option<ILer3dManager>.Nothing;
                 });
 
-        progress("Indlæser længdeprofiler ...");
+        progress(new AmkProgress("Indlæser længdeprofiler ...", 0.02));
         Option<DatabaseList> profileDatabases = Boundary.Try(() => dataManager.Længdeprofiler(), "Længdeprofilerne kunne ikke åbnes")
             .Match(
                 Option<DatabaseList>.Of,
@@ -106,7 +107,7 @@ internal static class AutoAmkBEngine
                 databases => files.AddRange(databases.Select(db => FileInfoOf("Længdeprofiler", db.Filename))),
                 () => { });
 
-            progress("Indlæser grundkort og jordforurening ...");
+            progress(new AmkProgress("Indlæser grundkort og jordforurening ...", 0.05));
             Option<SegmentIndex<string>> roadEdges = RoadEdges(input.Sources, rules, files, warnings, notEvaluated);
             Option<AreaIndex<string>> soilAreas = SoilAreas(input.Sources, rules, files, warnings, notEvaluated);
 
@@ -117,7 +118,11 @@ internal static class AutoAmkBEngine
             foreach (Alignment alignment in alignments.Values.OrderBy(alignment => alignment.Name, StringComparer.OrdinalIgnoreCase))
             {
                 index++;
-                progress($"Alignment {alignment.Name} ({index}/{alignments.Count}) ...");
+                // The alignments take about nine tenths of a run (7.21.12: 27.6 of 31.5 s), so they fill most of the bar.
+                // The text stays the same for all of them: the status bar restarts its meter when the text changes.
+                progress(new AmkProgress(
+                    $"Gennemgår {alignments.Count} alignments ...",
+                    0.08 + 0.87 * (index - 1) / alignments.Count));
 
                 AlignmentSampler.Sample(alignment, rules.SampleStep).Switch(
                     samples =>
@@ -138,11 +143,12 @@ internal static class AutoAmkBEngine
                             () => { });
                         roadEdges.Switch(edges => hits.AddRange(NarrowRoadCheck.Run(alignment.Name, samples, widths, edges, rules)), () => { });
                         soilAreas.Switch(areas => hits.AddRange(SoilCheck.Run(alignment.Name, samples, widths, areas, rules)), () => { });
+                        traces.Add(AlignmentTraces.Build(alignment, samples, widths, roadEdges, rules));
                     },
                     warnings.Add);
             }
 
-            progress("Finder ventiler ...");
+            progress(new AmkProgress("Finder ventiler ...", 0.95));
             IReadOnlyList<ValveLocation> valves = ValveCollector.Collect(
                 input.FremtidDb, input.FremtidTx, alignments, alignmentTx, rules, warnings);
 
@@ -161,6 +167,7 @@ internal static class AutoAmkBEngine
                 input.Rules,
                 ordered,
                 valves,
+                traces,
                 files,
                 notEvaluated,
                 warnings));

@@ -514,14 +514,25 @@ internal static class NarrowRoadCheck
             .ToList();
     }
 
-    // The search starts at each trench edge: a kerb line inside the trench footprint is dug through and does not
-    // bound the traffic. Traffic passes on the wider side; a station without a road edge on both sides is not in a road.
-    private static Option<RoadSection> Section(StationSample sample, double trenchWidth, SegmentIndex<string> roadEdges, AmkRules rules)
+    /// <summary>
+    /// Distance from each trench edge out to the nearest road edge within the search distance, left and right of
+    /// travel. The search starts at the trench edge: a kerb line inside the trench footprint is dug through and
+    /// does not bound the traffic.
+    /// </summary>
+    public static (Option<double> Left, Option<double> Right) EdgeGaps(
+        StationSample sample, double trenchWidth, SegmentIndex<string> roadEdges, AmkRules rules)
     {
         double half = trenchWidth / 2;
         double reach = half + rules.RoadSearchDistance;
-        Option<double> left = roadEdges.NearestDistanceAlong(sample.At(-half), sample.At(-reach));
-        Option<double> right = roadEdges.NearestDistanceAlong(sample.At(half), sample.At(reach));
+        return (
+            roadEdges.NearestDistanceAlong(sample.At(-half), sample.At(-reach)),
+            roadEdges.NearestDistanceAlong(sample.At(half), sample.At(reach)));
+    }
+
+    // Traffic passes on the wider side; a station without a road edge on both sides is not in a road.
+    private static Option<RoadSection> Section(StationSample sample, double trenchWidth, SegmentIndex<string> roadEdges, AmkRules rules)
+    {
+        (Option<double> left, Option<double> right) = EdgeGaps(sample, trenchWidth, roadEdges, rules);
         return left.Bind(gapLeft => right.Map(gapRight =>
             new RoadSection(
                 Math.Max(Math.Max(gapLeft, gapRight) - rules.RoadBarrierAllowance, 0),

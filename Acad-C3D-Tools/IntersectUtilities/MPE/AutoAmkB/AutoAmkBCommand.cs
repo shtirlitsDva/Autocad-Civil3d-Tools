@@ -30,13 +30,18 @@ namespace IntersectUtilities
         /// <command>AUTOAMKB</command>
         /// <summary>
         /// Finds the work-environment risks the AMK logbook and journal ask about along every alignment of the
-        /// active Fremtid drawing, and writes them to an Excel file next to the drawing, named
-        /// AUTOAMKB_[project]_[etape]_[date].xlsx. Logbook: crossings of cables of 10 kV and more and of gas and
+        /// active Fremtid drawing, and writes them into a map next to the drawing, AUTOAMKB_[project]_[etape]_kort.html,
+        /// for review in Edge or Chrome without AutoCAD. Logbook: crossings of cables of 10 kV and more and of gas and
         /// water mains of Ø100 and more (in service, known size only), gas mains running alongside the trench,
-        /// excavation deeper than 2.5 m, roads with under 3 m free width beside the trench and its barriers, and
+        /// excavation deeper than 2.5 m, roads with under 3 m free width beside the trench and its montagehul, and
         /// trench footprint over soil contamination V1/V2. Journal: three rows per valve placement. Slopes are not
-        /// evaluated yet and the run info says so. The sheets put rows where the AMK templates expect them, so
-        /// B14:F... pastes straight into a template as values; source data sits from column Q. Thresholds and texts
+        /// evaluated yet and the run info says so. The map shows the visible drawing and xrefs near the alignments,
+        /// every finding, LER data on the LER lines and a true-scale cross-section where you click. In the map,
+        /// Montagehul B can be changed for all alignments or one, and the narrow roads are redone exactly as AUTOAMKB
+        /// would; findings can be marked as not a problem; the map saves this into itself and exports the Excel file
+        /// for the AMK templates (rows from B14, so B14:F... pastes as values; source data from column Q; marked
+        /// findings on a sheet of their own). A rerun replaces the map and carries over what was saved in it; a map
+        /// it cannot read is first copied to ..._kort_backup.html. Thresholds and texts
         /// come from AutoAmkB.csv in the Conf folder, or built-in defaults when that file is missing. The project
         /// and etape are found through Stier.csv (subst drives are matched to their X: paths); the base map is
         /// taken from the drawing's xrefs and DKjord from the base map's folder, with a picker when that fails,
@@ -53,9 +58,10 @@ namespace IntersectUtilities
             Editor editor = doc.Editor;
 
             using Transaction tx = localDb.TransactionManager.StartTransaction();
+            using AmkStatusBar status = new AmkStatusBar();
             try
             {
-                AutoAmkBCommand.Run(doc, tx, Option<string>.Nothing, message => editor.WriteMessage($"\n{message}")).Switch(
+                AutoAmkBCommand.Run(doc, tx, Option<string>.Nothing, status.Show).Switch(
                     summary => editor.WriteMessage(summary),
                     fault => editor.WriteMessage($"\n{AutoAmkBCommandName} stoppede: {fault}"));
                 tx.Commit();
@@ -76,20 +82,20 @@ namespace IntersectUtilities.MPE.AutoAmkB
     internal static class AutoAmkBCommand
     {
         /// <summary>
-        /// Runs AUTOAMKB on a document that need not be the active one and writes to the given file instead of
-        /// next to the drawing. For scripted runs; returns the summary, or the reason it stopped.
+        /// Runs AUTOAMKB on a document that need not be the active one and writes the map to the given file instead
+        /// of next to the drawing. For scripted runs; returns the summary, or the reason it stopped.
         /// </summary>
         internal static string RunToFile(Document document, string outputPath)
         {
             using DocumentLock documentLock = document.LockDocument();
             using Transaction tx = document.Database.TransactionManager.StartTransaction();
-            string message = Run(document, tx, Option<string>.Of(outputPath), prdDbg)
+            string message = Run(document, tx, Option<string>.Of(outputPath), step => prdDbg(step.Text))
                 .Match(summary => summary, fault => $"AUTOAMKB stoppede: {fault}");
             tx.Commit();
             return message;
         }
 
-        public static Result<string> Run(Document document, Transaction tx, Option<string> outputPath, Action<string> progress)
+        public static Result<string> Run(Document document, Transaction tx, Option<string> outputPath, Action<AmkProgress> progress)
         {
             Database db = document.Database;
 
@@ -106,9 +112,13 @@ namespace IntersectUtilities.MPE.AutoAmkB
                             sources with { Warnings = project.Warnings.Concat(sources.Warnings).ToList() },
                             preconditions.Configuration);
 
+                        // The map is the only output: the Excel file for the templates is exported from it after review.
                         return AutoAmkBEngine.Analyze(input, progress).Bind(report =>
-                            AutoAmkBExport.Write(report, outputPath.OrElse(AmkOutput.PathFor(preconditions.DrawingPath, project.Options)))
-                                .Map(path => AmkOutput.Summary(report, path)));
+                        {
+                            progress(new AmkProgress("Tegner kort ...", 0.96));
+                            return AutoAmkBMap.Write(report, db, outputPath.OrElse(AmkOutput.PathFor(preconditions.DrawingPath, project.Options)))
+                                .Map(map => AmkOutput.Summary(report, map));
+                        });
                     })));
         }
     }
@@ -310,15 +320,19 @@ namespace IntersectUtilities.MPE.AutoAmkB
 
     internal static class AmkOutput
     {
+        // One map per project and etape, without a date: it is the working copy of the review, and a rerun replaces it.
         public static string PathFor(string drawingPath, DataReferencesOptions project) =>
             Path.Combine(
                 Path.GetDirectoryName(drawingPath) ?? "",
-                $"AUTOAMKB_{Safe(project.ProjectName)}_{Safe(project.EtapeName)}_{DateTime.Now:yyyy-MM-dd}.xlsx");
+                $"AUTOAMKB_{Safe(project.ProjectName)}_{Safe(project.EtapeName)}_kort.html");
 
         private static string Safe(string text) =>
             string.Concat(text.Trim().Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c));
 
-        public static string Summary(AmkReport report, string path)
+        private const int WarningsShown = 10;
+
+        // The warnings are listed here: there is no run-info sheet until the Excel file is exported from the map.
+        public static string Summary(AmkReport report, MapWritten map)
         {
             StringBuilder summary = new StringBuilder();
             summary.Append($"\nAUTOAMKB færdig: {report.Hits.Count} fund til logbogen, {report.Valves.Count} ventilplaceringer til journalen.");
@@ -328,10 +342,72 @@ namespace IntersectUtilities.MPE.AutoAmkB
                 if (count > 0) summary.Append($"\n  {kind.Name}: {count}");
             }
             foreach (string item in report.NotEvaluated) summary.Append($"\n  {item}");
-            if (report.Warnings.Count > 0) summary.Append($"\n{report.Warnings.Distinct().Count()} advarsler, se fanen Kørselsinfo.");
-            summary.Append($"\nGemt: {path}");
+
+            List<string> warnings = report.Warnings.Distinct().ToList();
+            if (warnings.Count > 0)
+            {
+                summary.Append($"\n{warnings.Count} advarsler:");
+                foreach (string warning in warnings.Take(WarningsShown)) summary.Append($"\n  - {warning}");
+                if (warnings.Count > WarningsShown)
+                {
+                    summary.Append($"\n  ... og {warnings.Count - WarningsShown} flere (fanen Kørselsinfo i Excel-filen fra kortet).");
+                }
+            }
+
+            summary.Append($"\nKort: {map.Path}");
+            summary.Append(map.Previous.Match(
+                () => "\nNyt kort.",
+                state => state.Marks + state.Overrides == 0 && !state.GlobalB.IsSome()
+                    ? "\nDet tidligere kort havde intet gemt at overtage."
+                    : $"\nOvertaget fra det tidligere kort{(state.SavedAt.Length > 0 ? $" (gemt {state.SavedAt})" : "")}: "
+                      + $"{Counted(state.Marks, "markering", "markeringer")}, {Counted(state.Overrides, "alignment-afvigelse", "alignment-afvigelser")}"
+                      + state.GlobalB.Match(value => $", global montagehul B {AmkNumbers.Meters(value)}", () => "") + ".",
+                reason => $"\nDet tidligere kort kunne ikke læses ({reason}); intet er overtaget."
+                    + map.Backup.Match(path => $" Det er gemt som {path}.", () => "")));
+            summary.Append("\nÅbn kortet i Edge eller Chrome. Excel-filen til logbog og journal eksporteres derfra.");
             return summary.ToString();
         }
+
+        private static string Counted(int count, string one, string many) => $"{count} {(count == 1 ? one : many)}";
+    }
+
+    /// <summary>
+    /// Shows each step of a run in AutoCAD's status bar, with a bar for how far the run has come. The command line
+    /// is not redrawn while a long command runs, so steps written there would only show up at the end.
+    /// </summary>
+    internal sealed class AmkStatusBar : IDisposable
+    {
+        private const int Steps = 100;
+        private readonly ProgressMeter _meter = new ProgressMeter();
+        private Option<string> _label = Option<string>.Nothing;
+        private int _position;
+
+        // AutoCAD draws the meter as it advances; restarting it on every step kept it from being drawn at all during
+        // a run. So it restarts only when the text changes (the meter only counts up), and otherwise moves on.
+        public void Show(AmkProgress step) =>
+            Boundary.TryOption(() =>
+            {
+                string label = $"AUTOAMKB: {step.Text}";
+                if (!_label.Map(current => current == label).OrElse(false))
+                {
+                    _label.Switch(_ => _meter.Stop(), () => { });
+                    _meter.SetLimit(Steps);
+                    _meter.Start(label);
+                    _label = Option<string>.Of(label);
+                    _position = 0;
+                }
+                int target = (int)Math.Round(Math.Clamp(step.Done, 0.0, 1.0) * Steps);
+                for (; _position < target; _position++) _meter.MeterProgress();
+                return true;
+            });
+
+        public void Dispose() =>
+            Boundary.TryOption(() =>
+            {
+                _label.Switch(_ => _meter.Stop(), () => { });
+                _meter.Dispose();
+                return true;
+            });
     }
 
     /// <summary>

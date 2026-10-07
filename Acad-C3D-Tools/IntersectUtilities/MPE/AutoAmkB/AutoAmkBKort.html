@@ -1,0 +1,1486 @@
+<!doctype html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AUTOAMKB kort</title>
+<style>
+/* Layout: sidebar with actions, filters and the list of findings; map canvas to the right with the B panel, the info
+   card and the marks stacked on the right edge. One dark look, like model space in AutoCAD */
+:root {
+  --bg: #15191c; --panel: #1d2226; --panel-2: #252b30; --fg: #e4e8ea; --muted: #96a0a6; --line: #343b40;
+  --accent: #6fb3ff; --sel: #ffffff; --warn: #ffb000; --ok: #5cbf86; --bad: #ef6a61;
+  --font: "Segoe UI", system-ui, -apple-system, sans-serif;
+  --mono: "Cascadia Mono", Consolas, ui-monospace, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; margin: 0; }
+body { background: var(--bg); color: var(--fg); font: 14px/1.45 var(--font); }
+#app { display: grid; grid-template-columns: 340px minmax(0, 1fr); height: 100%; }
+@media (max-width: 760px) { #app { grid-template-columns: minmax(0, 1fr); grid-template-rows: 46% 54%; } }
+#side { background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
+#side header { padding: 14px 16px 10px; border-bottom: 1px solid var(--line); }
+h1 { font-size: 17px; margin: 0; font-weight: 700; letter-spacing: .01em; }
+#meta { color: var(--muted); font-size: 12.5px; font-family: var(--mono); margin-top: 2px; }
+.actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+#saveState { font-size: 12.5px; color: var(--muted); }
+#saveState.dirty { color: var(--warn); }
+#status { font-size: 12.5px; margin-top: 6px; overflow-wrap: anywhere; }
+#status.bad { color: var(--bad); }
+.notice { margin-top: 8px; padding: 8px 10px; border: 1px solid var(--warn); border-radius: 4px; background: rgba(255,176,0,.08); font-size: 13px; display: grid; gap: 6px; }
+.notice .btns { display: flex; gap: 6px; flex-wrap: wrap; }
+.sec { padding: 10px 16px; border-bottom: 1px solid var(--line); }
+.sec h2 { font-size: 11.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 6px; display: flex; justify-content: space-between; align-items: center; font-weight: 600; }
+.sec h2 button { font: inherit; text-transform: none; letter-spacing: 0; background: var(--panel-2); color: var(--fg); border: 1px solid var(--line); border-radius: 3px; padding: 1px 8px; cursor: pointer; margin-left: 4px; }
+.row { display: flex; align-items: center; gap: 8px; padding: 2px 0; cursor: pointer; user-select: none; }
+.row input { margin: 0; accent-color: var(--accent); }
+.sw { width: 12px; height: 12px; border-radius: 2px; flex: none; border: 1px solid rgba(255,255,255,.25); }
+.cnt { margin-left: auto; color: var(--muted); font-family: var(--mono); font-size: 12px; }
+#layers { max-height: 30vh; overflow: auto; }
+.grp > .row { font-weight: 600; }
+.grp .kids { padding-left: 20px; display: none; }
+.grp.open .kids { display: block; }
+.caret { width: 14px; color: var(--muted); flex: none; text-align: center; }
+.kids .row { font-size: 13px; }
+.grow { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+#list { overflow: auto; flex: 1; min-height: 0; margin: 0 -16px; }
+.item { display: grid; grid-template-columns: 10px minmax(0, 1fr); gap: 10px; padding: 6px 16px; cursor: pointer; border-left: 3px solid transparent; }
+.item:hover { background: var(--panel-2); }
+.item.sel { background: var(--panel-2); border-left-color: var(--sel); }
+.item .dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 4px; }
+.item .id { font-family: var(--mono); font-weight: 600; }
+.item .k { color: var(--muted); font-size: 12.5px; }
+.item .d { font-size: 12.5px; overflow-wrap: anywhere; }
+.item.non { opacity: .55; }
+.tag { font: 600 11px var(--mono); color: var(--muted); border: 1px solid var(--line); border-radius: 3px; padding: 0 5px; margin-left: 4px; }
+.tag.check { color: var(--warn); border-color: var(--warn); }
+#mapWrap { position: relative; min-width: 0; min-height: 0; overflow: hidden; background: #0f1214; }
+#map { position: absolute; inset: 0; width: 100%; height: 100%; cursor: grab; touch-action: none; }
+#map.drag { cursor: grabbing; }
+#tools { position: absolute; top: 12px; left: 12px; display: flex; gap: 6px; }
+#tools button { font: 600 14px var(--font); background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 4px; min-width: 34px; height: 32px; padding: 0 10px; cursor: pointer; }
+#tools button:hover, .sec h2 button:hover { border-color: var(--accent); }
+#tools button.on { background: var(--accent); color: #0f1214; border-color: var(--accent); }
+#mread { position: absolute; top: 52px; left: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 6px 10px; font: 13px var(--mono); }
+#legend { display: grid; gap: 0; font-size: 12.5px; color: var(--muted); padding: 4px 0 2px 22px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+#right { position: absolute; top: 12px; right: 12px; bottom: 40px; width: min(372px, calc(100% - 24px)); display: flex; flex-direction: column; gap: 10px; pointer-events: none; overflow-y: auto; }
+#right > * { pointer-events: auto; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; box-shadow: 0 6px 24px rgba(0,0,0,.45); flex: none; }
+#info { overflow: auto; max-height: 42vh; }
+#nonPanel { display: flex; flex-direction: column; min-height: 140px; flex: 1 1 auto; gap: 6px; }
+.nhead { display: flex; align-items: center; gap: 8px; }
+.sbtn { font: 600 12.5px var(--font); background: var(--panel-2); color: var(--fg); border: 1px solid var(--line); border-radius: 3px; padding: 3px 9px; cursor: pointer; }
+.sbtn:hover { border-color: var(--accent); }
+.sbtn.primary { background: var(--accent); color: #0f1214; border-color: var(--accent); }
+.sbtn:disabled { opacity: .5; cursor: default; }
+.lnk { background: none; border: 0; color: var(--accent); cursor: pointer; padding: 0; font: inherit; text-decoration: underline; }
+#nList { overflow: auto; min-height: 0; margin: 0 -14px; }
+.nrow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 5px 14px; cursor: pointer; }
+.nrow:hover { background: var(--panel-2); }
+.nrow .id { font-family: var(--mono); font-weight: 600; }
+.nrow .k, .nrow .note { font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere; }
+.nrow .note { color: var(--fg); }
+.nrow .warn { font-size: 12.5px; color: var(--warn); }
+.nrow button { background: none; border: 0; color: var(--muted); font-size: 16px; cursor: pointer; align-self: start; }
+.mark { display: grid; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+.mark input { font: 13px var(--font); background: var(--bg); color: var(--fg); border: 1px solid var(--line); border-radius: 3px; padding: 5px 8px; }
+.mark .state { font-size: 12.5px; color: var(--muted); }
+.mark .state.check { color: var(--warn); }
+#info .top { display: flex; align-items: baseline; gap: 10px; }
+#info .id { font: 700 18px var(--mono); }
+#info .x { margin-left: auto; background: none; border: 0; color: var(--muted); font-size: 18px; cursor: pointer; }
+#info .kind { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; margin: 4px 0 8px; }
+#info dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 12px; margin: 0; font-size: 13px; }
+#info dt { color: var(--muted); }
+#info dd { margin: 0; overflow-wrap: anywhere; }
+/* Montagehul B: a window in the bottom-right corner, resized from its top-left corner */
+#bPanel { position: absolute; right: 12px; bottom: 12px; width: 380px; min-width: 300px; min-height: 120px; max-width: calc(100% - 24px); max-height: calc(100% - 24px); display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+#bGrip { position: absolute; left: 0; top: 0; width: 18px; height: 18px; cursor: nwse-resize; touch-action: none; z-index: 1; }
+#bGrip::before { content: ''; position: absolute; left: 4px; top: 4px; width: 8px; height: 8px; border-left: 2px solid var(--muted); border-top: 2px solid var(--muted); }
+#bGrip:hover::before { border-color: var(--accent); }
+.bbody { padding: 12px 14px 12px 18px; overflow: auto; flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.bhead { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+.bline { display: grid; grid-template-columns: 74px minmax(0, 1fr) 64px; align-items: center; gap: 8px; font-size: 13px; }
+.bline output { font: 600 13px var(--mono); color: var(--accent); text-align: right; }
+input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
+.bnote { font-size: 12.5px; color: var(--muted); margin: 2px 0 4px; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0; }
+.chip { font: 12px var(--mono); border: 1px solid var(--line); border-radius: 10px; padding: 1px 2px 1px 8px; display: inline-flex; gap: 2px; align-items: center; cursor: pointer; }
+.chip button { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 14px; line-height: 1; padding: 0 4px; }
+#bAl { border-top: 1px solid var(--line); margin-top: 8px; padding-top: 8px; display: grid; gap: 4px; }
+#bSec { border-top: 1px solid var(--line); margin-top: 8px; padding-top: 8px; display: flex; flex-direction: column; gap: 6px; flex: 1 1 auto; min-height: 0; }
+.shead { display: flex; align-items: center; gap: 8px; font: 13px var(--mono); }
+.shead #sLabel { flex: 1; text-align: center; }
+.shead button { background: var(--panel-2); color: var(--fg); border: 1px solid var(--line); border-radius: 3px; cursor: pointer; padding: 0 8px; font-size: 12px; }
+/* Below 220 px the true-scale drawing would be too small to read; the window scrolls instead */
+#sSvg { width: 100%; flex: 1 1 240px; min-height: 220px; display: block; background: #12171a; border-radius: 4px; }
+#sVerdict { font: 600 13px var(--mono); }
+#sVerdict.ok { color: var(--ok); }
+#sVerdict.bad { color: var(--bad); }
+#sNote { font-size: 12.5px; color: var(--muted); }
+.xs-soil { fill: #4a3c28; } .xs-walk { fill: #2c3236; } .xs-asph { fill: #59606a; }
+.xs-trench { fill: #9c8656; stroke: #6f5c3e; stroke-width: 1; }
+.xs-kerb { stroke: #e4e8ea; stroke-width: 3; } .xs-ext { stroke: #96a0a6; stroke-width: 1; stroke-dasharray: 3 3; }
+.xs-hbg { fill: #46211e; } .xs-hl { stroke: #ef6a61; stroke-width: 2; }
+.xs-board { fill: #f1f1f1; stroke: #ef6a61; stroke-width: 1; } .xs-stripe { fill: #ef6a61; }
+.xs-dim { stroke: #96a0a6; stroke-width: 1; fill: none; }
+.xs-t { fill: #e4e8ea; font: 11px var(--mono); } .xs-ts { fill: #96a0a6; font: 10.5px var(--font); } .xs-vk { fill: #e4e8ea; font: 700 10.5px var(--font); }
+.xs-ok { stroke: #5cbf86; stroke-width: 3; fill: none; } .xs-bad { stroke: #ef6a61; stroke-width: 3; fill: none; }
+.xs-tok { fill: #5cbf86; font: 600 11.5px var(--mono); } .xs-tbad { fill: #ef6a61; font: 600 11.5px var(--mono); }
+.xs-need { stroke: #e4e8ea; stroke-width: 1.5; stroke-dasharray: 5 4; fill: none; } .xs-short { stroke: #ef6a61; stroke-width: 4; }
+#scale { position: absolute; left: 12px; bottom: 12px; font: 12px var(--mono); color: var(--muted); }
+#scale i { display: block; height: 6px; border: 1px solid var(--muted); border-top: 0; margin-top: 2px; }
+#hint { position: absolute; left: 120px; bottom: 12px; font-size: 12px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="side">
+    <header>
+      <h1>AUTOAMKB kort</h1>
+      <div id="meta"></div>
+      <div class="actions">
+        <button class="sbtn primary" id="save" type="button" title="Gem montagehul B og markeringer i denne kort-fil">Gem</button>
+        <button class="sbtn" id="export" type="button" title="Gem, og skriv den endelige Excel-fil til logbog og journal">Eksportér Excel</button>
+        <span id="saveState" aria-live="polite"></span>
+      </div>
+      <div id="status" aria-live="polite"></div>
+      <div id="notices"></div>
+    </header>
+    <div class="sec">
+      <h2>Risici <span><button id="kOn" type="button">Alle</button><button id="kOff" type="button">Ingen</button></span></h2>
+      <div id="kinds"></div>
+    </div>
+    <div class="sec">
+      <h2>Tegning <span><button id="lOn" type="button">Alle</button><button id="lOff" type="button">Ingen</button></span></h2>
+      <div id="layers"></div>
+      <div id="legend">
+        <label class="row"><input type="checkbox" id="pv_trench" checked><i class="sw" style="background:rgba(234,217,168,.8)"></i>Rende (W)</label>
+        <label class="row"><input type="checkbox" id="pv_hole" checked><i class="sw" style="background:rgba(255,140,0,.75)"></i>Montagehul B</label>
+        <label class="row"><input type="checkbox" id="pv_ok" checked><i class="sw" style="background:rgba(60,200,120,.6)"></i>3 m bilpassage, plads</label>
+        <label class="row"><input type="checkbox" id="pv_miss" checked><i class="sw" style="background:rgba(255,50,50,.7)"></i>3 m bilpassage, mangler</label>
+      </div>
+    </div>
+    <div class="sec grow">
+      <h2>Fund <span id="count"></span></h2>
+      <div id="list"></div>
+    </div>
+  </aside>
+  <main id="mapWrap">
+    <canvas id="map" aria-label="Kort over tracéet med risici"></canvas>
+    <div id="tools">
+      <button id="zin" type="button" title="Zoom ind">+</button>
+      <button id="zout" type="button" title="Zoom ud">−</button>
+      <button id="zall" type="button">Hele tracéet</button>
+      <button id="measure" type="button" title="Klik punkter, dobbeltklik for at afslutte, Esc for at rydde">Mål</button>
+    </div>
+    <div id="mread" hidden></div>
+    <div id="right">
+      <div id="info" class="card" hidden></div>
+      <div id="nonPanel" class="card">
+        <div class="nhead"><b>Ikke-problemer</b><span class="cnt" id="nCount"></span></div>
+        <label class="row"><input type="checkbox" id="nHide"> Skjul dem på kortet og i listen</label>
+        <div id="nList"></div>
+      </div>
+    </div>
+    <div id="bPanel" class="card">
+      <div id="bGrip" title="Træk for at ændre størrelsen" aria-hidden="true"></div>
+      <div class="bbody">
+        <div class="bhead"><b>Montagehul B</b><span class="cnt" id="bCount"></span></div>
+        <div class="bline"><span>Global</span><input type="range" id="bGlobal" min="0" max="1.5" step="0.01" aria-label="Montagehul B, global"><output id="bGlobalOut" for="bGlobal"></output></div>
+        <div class="bnote" id="bStd"></div>
+        <div class="chips" id="bChips"></div>
+        <div id="bAl" hidden>
+          <label class="row"><input type="checkbox" id="bOnly"> Kun alignment <b id="bAlName"></b></label>
+          <div class="bline" id="bAlLine"><span id="bAlLabel"></span><input type="range" id="bAlRange" min="0" max="1.5" step="0.01" aria-label="Montagehul B for valgt alignment"><output id="bAlOut" for="bAlRange"></output></div>
+        </div>
+        <div id="bSec" hidden>
+          <div class="shead"><button id="sPrev" type="button" title="0,5 m tilbage">◀</button><span id="sLabel"></span><button id="sNext" type="button" title="0,5 m frem">▶</button><button id="sClose" type="button" title="Luk tværsnittet" aria-label="Luk tværsnittet">×</button></div>
+          <svg id="sSvg" role="img" aria-label="Tværsnit ved valgt station"></svg>
+          <div id="sVerdict"></div>
+          <div id="sNote"></div>
+        </div>
+        <div class="bnote" id="bHint">Klik ved tracéet for at se tværsnittet dér.</div>
+      </div>
+    </div>
+    <div id="scale"></div>
+    <div id="hint">Træk for at panorere · hjul for zoom · klik ved tracéet for tværsnit, på et fund eller en LER-ledning</div>
+  </main>
+</div>
+<script type="application/json" id="data">__DATA__</script>
+<script type="application/json" id="passage">__PASSAGE__</script>
+<script type="application/json" id="state">__STATE__</script>
+<script>
+(function () {
+  // The page as loaded, before anything here changes it: a browser without file access saves a copy of this.
+  var PRISTINE = '<!doctype html>\n' + document.documentElement.outerHTML;
+  var D = JSON.parse(document.getElementById('data').textContent);
+  var P = JSON.parse(document.getElementById('passage').textContent);
+  var SAVED = JSON.parse(document.getElementById('state').textContent) || {};
+
+  var KIND_COLOR = { EL_KRYDS: '#ffb000', EL_LANGS: '#ffd36b', GAS_KRYDS: '#ff4fa3', GAS_LANGS: '#ff9ccb', VAND_KRYDS: '#2fa8ff', VAND_LANGS: '#8fd0ff', DYBDE: '#b07cff', SMALVEJ: '#ff5a36', JORD: '#8bd450', VENTIL: '#00e0c0' };
+  var KIND_ORDER = D.excel.kinds.map(function (k) { return k.key; }).concat(['VENTIL']);
+  var KIND_TEXT = {};
+  D.excel.kinds.forEach(function (k) { KIND_TEXT[k.key] = k; });
+  var STEP = P.sampleStep, NEED = P.need, JOIN = P.joinGap, MINLEN = P.minLength, STD_B = P.B;
+  var FONT = getComputedStyle(document.body).fontFamily;
+
+  // ---- formatting, as AUTOAMKB writes it ----
+  function pad3(st) { var n = Math.floor(st + 1e-6), s = String(Math.abs(n)); while (s.length < 3) { s = '0' + s; } return (n < 0 ? '-' : '') + s; }
+  function fmt(v, d) { return v.toFixed(d).replace('.', ','); }
+  function m(v) { return fmt(v, 2) + ' m'; }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function nowText() { var d = new Date(), p = function (n) { return (n < 10 ? '0' : '') + n; }; return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()); }
+  function upper(s) { return String(s).toUpperCase(); }
+  function byName(a, b) { a = upper(a); b = upper(b); return a < b ? -1 : a > b ? 1 : 0; }
+  function own(o, k) { return Object.prototype.hasOwnProperty.call(o, k); }
+
+  // ---- alignments: the line with its stations, for placing stretches ----
+  var AL = {};
+  D.alignments.forEach(function (a) { AL[a.name] = a; });
+  function pointAt(al, st) {
+    var a = AL[al];
+    if (!a || !a.st.length) { return null; }
+    var s = a.st, p = a.pts, n = s.length;
+    if (st <= s[0]) { return [p[0], p[1]]; }
+    if (st >= s[n - 1]) { return [p[2 * n - 2], p[2 * n - 1]]; }
+    var lo = 1, hi = n - 1;
+    while (lo < hi) { var mid = (lo + hi) >> 1; if (s[mid] < st) { lo = mid + 1; } else { hi = mid; } }
+    var t = (st - s[lo - 1]) / (s[lo] - s[lo - 1]);
+    return [p[2 * lo - 2] + (p[2 * lo] - p[2 * lo - 2]) * t, p[2 * lo - 1] + (p[2 * lo + 1] - p[2 * lo - 1]) * t];
+  }
+  function between(al, from, to) {
+    var a = AL[al], out = [], p0 = pointAt(al, from), p1 = pointAt(al, to);
+    if (!p0) { return out; }
+    out.push(p0[0], p0[1]);
+    for (var i = 0; i < a.st.length; i++) { if (a.st[i] > from && a.st[i] < to) { out.push(a.pts[2 * i], a.pts[2 * i + 1]); } }
+    out.push(p1[0], p1[1]);
+    return out;
+  }
+  function rightAt(al, st) {
+    var p0 = pointAt(al, st - 0.05), p1 = pointAt(al, st + 0.05);
+    if (!p0 || !p1) { return [0, 0]; }
+    var tx = p1[0] - p0[0], ty = p1[1] - p0[1], l = Math.hypot(tx, ty) || 1;
+    return [ty / l, -tx / l];
+  }
+
+  // ---- the narrow-road measurement at every check sample: gaps in metres, -1 no road edge, -2 trench width unknown.
+  // They come as AUTOAMKB's exact doubles, so a sample right at the limit is judged the same way here ----
+  function exactDoubles(b64) {
+    var bin = atob(b64), bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) { bytes[i] = bin.charCodeAt(i); }
+    return new Float64Array(bytes.buffer);
+  }
+  var PA = {};
+  P.alignments.forEach(function (a) { a.g = exactDoubles(a.g); PA[a.name] = a; });
+  function sampleStation(a, i) { return i < a.n - 1 ? a.s0 + i * STEP : a.last; }
+  function sampleIndex(a, st) { return Math.max(0, Math.min(a.n - 1, Math.round((st - a.s0) / STEP))); }
+  function widthAt(a, i) {
+    var w = a.w, lo = 0, hi = w.length / 2 - 1, best = -1;
+    while (lo <= hi) { var mid = (lo + hi) >> 1; if (w[2 * mid] <= i) { best = mid; lo = mid + 1; } else { hi = mid - 1; } }
+    return best < 0 ? 0 : w[2 * best + 1];
+  }
+
+  // ---- setup: Montagehul B (global and per alignment) and the not-a-problem marks; saved into this file ----
+  var setup = { globalB: null, overrides: {}, marks: {} };
+  var savedAt = SAVED.savedAt || '';
+  function loadSetup(s) {
+    setup = { globalB: typeof s.globalB === 'number' ? s.globalB : null, overrides: s.overrides || {}, marks: s.marks || {} };
+  }
+  loadSetup(SAVED);
+  var standardB = typeof SAVED.standardB === 'number' ? SAVED.standardB : STD_B;
+  var pendingStandard = Math.abs(standardB - STD_B) > 1e-9;
+  function globalB() { return setup.globalB !== null ? setup.globalB : pendingStandard ? standardB : STD_B; }
+  function bFor(al) { return own(setup.overrides, al) ? setup.overrides[al] : globalB(); }
+  function setupJson() { return JSON.stringify({ g: setup.globalB, o: setup.overrides, m: setup.marks, s: pendingStandard ? standardB : STD_B }); }
+  var savedJson = setupJson();
+
+  // ---- findings: AUTOAMKB's own, except narrow roads, which are redone here with the B in force ----
+  var kinds = {};
+  function kindOf(key) {
+    if (!kinds[key]) { kinds[key] = { key: key, name: key === 'VENTIL' ? 'Ventil (journal)' : KIND_TEXT[key].name, color: KIND_COLOR[key] || '#dddddd', count: 0, on: true }; }
+    return kinds[key];
+  }
+  function bboxOf(pts) {
+    var b = [Infinity, Infinity, -Infinity, -Infinity];
+    for (var i = 0; i < pts.length; i += 2) { b[0] = Math.min(b[0], pts[i]); b[1] = Math.min(b[1], pts[i + 1]); b[2] = Math.max(b[2], pts[i]); b[3] = Math.max(b[3], pts[i + 1]); }
+    return b;
+  }
+  function hitItem(h) {
+    var it = {
+      hit: h, id: h.id, kind: kindOf(h.kind), alignment: h.alignment, from: h.from, to: h.to, stretch: h.stretch, pts: h.pts,
+      rows: [['Alignment', h.alignment], ['Station', h.stretch ? fmt(h.from, 1) + ' – ' + fmt(h.to, 1) + ' (' + fmt(h.to - h.from, 1) + ' m)' : fmt(h.from, 1)],
+             ['Detalje', h.detail], ['Ejer', h.owner], ['Kilde', h.source]].filter(function (r) { return r[1]; }),
+      text: h.detail
+    };
+    if (h.kind === 'SMALVEJ') { it.rows.push(['Montagehul B', m(h.B)]); }
+    it.bbox = bboxOf(it.pts);
+    return it;
+  }
+  var baseItems = D.hits.filter(function (h) { return h.kind !== 'SMALVEJ'; }).map(hitItem);
+  D.valves.forEach(function (v) {
+    var it = { valve: true, v: v, id: v.id || 'Ventil', kind: kindOf('VENTIL'), alignment: v.alignment, from: v.sta.length ? v.sta[0] : 0, to: v.sta.length ? v.sta[0] : 0,
+      stretch: false, pts: [v.x, v.y], rows: [['Alignment', v.alignment || '–'], ['Station', v.station || '–'], ['Ventiler', v.desc]], text: v.desc };
+    it.bbox = bboxOf(it.pts);
+    baseItems.push(it);
+  });
+  kindOf('SMALVEJ');
+
+  // The same check as AUTOAMKB's NarrowRoadCheck and StretchBuilder, on the same samples, with this alignment's B
+  function narrowFor(al) {
+    var a = PA[al];
+    if (!a) { return []; }
+    var B = bFor(al), out = [], open = false, from = 0, to = 0, vals = null;
+    for (var i = 0; i < a.n; i++) {
+      var gl = a.g[2 * i], gr = a.g[2 * i + 1];
+      if (gl < 0 || gr < 0) { continue; }
+      var free = Math.max(Math.max(gl, gr) - B, 0);
+      if (!(free < NEED - 1e-9)) { continue; }
+      var st = sampleStation(a, i);
+      if (!(open && st - to - STEP < JOIN - 1e-9)) {
+        if (open) { out.push({ from: from, to: to, vals: vals }); }
+        from = st; vals = []; open = true;
+      }
+      to = st; vals.push(i);
+    }
+    if (open) { out.push({ from: from, to: to, vals: vals }); }
+    return out.filter(function (s) { return s.to - s.from >= MINLEN - 1e-9; }).map(function (s) { return narrowItem(al, a, s, B); });
+  }
+  function narrowItem(al, a, s, B) {
+    var narrowest = Infinity, narrowIdx = s.vals[0], minRoad = Infinity, maxRoad = -Infinity;
+    s.vals.forEach(function (i) {
+      var gl = a.g[2 * i], gr = a.g[2 * i + 1], f = Math.max(Math.max(gl, gr) - B, 0), road = gl + widthAt(a, i) + gr;
+      if (f < narrowest) { narrowest = f; narrowIdx = i; }
+      minRoad = Math.min(minRoad, road); maxRoad = Math.max(maxRoad, road);
+    });
+    var p0 = pointAt(al, s.from) || [0, 0];
+    var it = hitItem({
+      kind: 'SMALVEJ', kindName: KIND_TEXT.SMALVEJ.name, id: al + ':' + pad3(s.from) + '-' + pad3(s.to), stretch: true, alignment: al, from: s.from, to: s.to,
+      detail: 'Fri bredde ned til ' + m(narrowest) + ', vejbredde ' + fmt(minRoad, 2) + '-' + m(maxRoad), owner: '', source: 'Grundkort (Vejkant)',
+      values: { min: fmt(narrowest, 2), 'længde': fmt(s.to - s.from, 1) }, count: 1, handle: '',
+      tx: p0[0] + D.origin[0], ty: p0[1] + D.origin[1], pts: between(al, s.from, s.to), B: B
+    });
+    it.narrowIdx = narrowIdx;
+    return it;
+  }
+  var narrowByAl = {}, items = [], kindList = [];
+  function redoNarrow(names) { names.forEach(function (al) { narrowByAl[al] = narrowFor(al); }); }
+  function rebuildItems() {
+    items = baseItems.slice();
+    Object.keys(narrowByAl).forEach(function (al) { items = items.concat(narrowByAl[al]); });
+    items.sort(function (a, b) { return a.id < b.id ? -1 : a.id > b.id ? 1 : KIND_ORDER.indexOf(a.kind.key) - KIND_ORDER.indexOf(b.kind.key); });
+    Object.keys(kinds).forEach(function (k) { kinds[k].count = 0; });
+    items.forEach(function (it) { it.kind.count++; });
+    kindList = Object.keys(kinds).map(function (k) { return kinds[k]; })
+      .filter(function (k) { return k.count > 0 || k.key === 'SMALVEJ'; })
+      .sort(function (a, b) { return KIND_ORDER.indexOf(a.key) - KIND_ORDER.indexOf(b.key); });
+    refreshMarks();
+  }
+
+  // ---- marks: by ID, except narrow roads, whose mark covers a station range so it survives a change of B ----
+  function markOf(it) {
+    if (it.kind.key === 'SMALVEJ') {
+      var partial = null;
+      for (var k in setup.marks) {
+        var mk = setup.marks[k];
+        if (mk.kind !== 'SMALVEJ' || mk.alignment !== it.alignment) { continue; }
+        if (it.from >= mk.from - 0.05 && it.to <= mk.to + 0.05) { return { key: k, mark: mk, state: mk.id === it.id ? 'mark' : 'arvet' }; }
+        if (!partial && it.from < mk.to && it.to > mk.from) { partial = { key: k, mark: mk, state: 'tjek' }; }
+      }
+      return partial;
+    }
+    var key = it.kind.key + '|' + it.id;
+    return own(setup.marks, key) ? { key: key, mark: setup.marks[key], state: 'mark' } : null;
+  }
+  function refreshMarks() { items.forEach(function (it) { it.ms = markOf(it); }); }
+  function isNon(it) { return !!it.ms && it.ms.state !== 'tjek'; }
+  function needsCheck(it) { return !!it.ms && it.ms.state === 'tjek'; }
+  var hideNon = false;
+  function visible(it) { return it.kind.on && !(hideNon && isNon(it)); }
+  function setMark(it, note) {
+    setup.marks[it.kind.key + '|' + it.id] = { kind: it.kind.key, kindName: it.kind.name, alignment: it.alignment || '', from: it.from, to: it.to, id: it.id, detail: it.text, note: note, time: nowText() };
+    changed(); refreshMarks(); buildNon(); buildList(); select(it, false);
+  }
+  function removeMark(key) { delete setup.marks[key]; changed(); refreshMarks(); buildNon(); buildList(); if (selected) { select(selected, false); } else { draw(); } }
+
+  // ---- drawing layers ----
+  var layers = D.layers.map(function (l) {
+    var p = new Path2D(), n = 0;
+    l.lines.forEach(function (a) { p.moveTo(a[0], a[1]); for (var i = 2; i < a.length; i += 2) { p.lineTo(a[i], a[i + 1]); } n++; });
+    var bar = l.name.indexOf('|'), info = l.info || [];
+    return { name: l.name, group: bar < 0 ? 'Fremtid (tegningen selv)' : l.name.slice(0, bar), label: bar < 0 ? l.name : l.name.slice(bar + 1),
+             rgb: l.rgb, path: p, texts: l.texts, n: n + l.texts.length, on: true, info: info, lines: info.length ? l.lines : [] };
+  });
+  // ---- LER data: a line's info is an index into lerInfos, whose entries are [kind, label, value, label, value, ...] in lerStrings ----
+  var LER_STR = D.lerStrings || [], LER_INFO = D.lerInfos || [], selLer = null;
+  function pickLer(mx, my) {
+    var x = wx(mx), y = wy(my), best = null, bd = 6 / view.s;
+    layers.forEach(function (l) {
+      if (!l.on || !l.info.length) { return; }
+      l.lines.forEach(function (a, r) {
+        if (l.info[r] < 0) { return; }
+        for (var i = 0; i + 3 < a.length; i += 2) {
+          var d = distSeg(x, y, a[i], a[i + 1], a[i + 2], a[i + 3]);
+          if (d < bd) { bd = d; best = { layer: l, run: r }; }
+        }
+      });
+    });
+    return best;
+  }
+  function selectLer(h) {
+    select(null);
+    selLer = h;
+    var rec = LER_INFO[h.layer.info[h.run]], rows = '', info = document.getElementById('info');
+    for (var i = 1; i + 1 < rec.length; i += 2) { rows += '<dt>' + esc(LER_STR[rec[i]]) + '</dt><dd>' + esc(LER_STR[rec[i + 1]]) + '</dd>'; }
+    info.hidden = false;
+    info.innerHTML = '<div class="top"><span class="id">' + esc(LER_STR[rec[0]]) + '</span><button class="x" type="button" aria-label="Luk">×</button></div>' +
+      '<div class="kind"><span class="sw" style="background:' + h.layer.rgb + '"></span>' + esc(h.layer.group + ' · ' + h.layer.label) + '</div>' +
+      '<dl>' + rows + '</dl>';
+    info.querySelector('.x').onclick = function () { select(null); };
+    draw();
+  }
+  function drawSelLer() {
+    if (!selLer || !selLer.layer.on) { return; }
+    var a = selLer.layer.lines[selLer.run];
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.moveTo(sx(a[0]), sy(a[1]));
+    for (var i = 2; i < a.length; i += 2) { ctx.lineTo(sx(a[i]), sy(a[i + 1])); }
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 7; ctx.stroke();
+    ctx.strokeStyle = selLer.layer.rgb; ctx.lineWidth = 3; ctx.stroke();
+  }
+  var STATION_LAYER = { name: '__stations', group: 'AUTOAMKB', label: 'Alignments og stationering', rgb: '#ffffff', on: true, n: D.alignments.length };
+
+  // ---- car-passage bands per alignment: trench, Montagehul B on both sides, 3 m for cars on the wider side ----
+  var PASSAGE_LAYER = { name: '__passage', group: 'AUTOAMKB', label: 'Bilpassage (rende, B og 3 m)', rgb: 'rgba(60,200,120,.8)', on: true, n: 0 };
+  var bands = {};
+  function buildBands(al) {
+    var a = PA[al], d = a.d, B = bFor(al), p = { trench: new Path2D(), hole: new Path2D(), ok: new Path2D(), miss: new Path2D() };
+    function quad(path, i, j, a0, b0, a1, b1, sg) {
+      path.moveTo(d[i + 1] + sg * a0 * d[i + 3], d[i + 2] + sg * a0 * d[i + 4]);
+      path.lineTo(d[j + 1] + sg * a1 * d[j + 3], d[j + 2] + sg * a1 * d[j + 4]);
+      path.lineTo(d[j + 1] + sg * b1 * d[j + 3], d[j + 2] + sg * b1 * d[j + 4]);
+      path.lineTo(d[i + 1] + sg * b0 * d[i + 3], d[i + 2] + sg * b0 * d[i + 4]);
+      path.closePath();
+    }
+    for (var i = 0; i + 15 < d.length; i += 8) {
+      var j = i + 8;
+      if (d[j] - d[i] > P.step * 1.5) { continue; }
+      var h0 = d[i + 5] / 2, h1 = d[j + 5] / 2;
+      quad(p.trench, i, j, -h0, h0, -h1, h1, 1);
+      quad(p.hole, i, j, h0, h0 + B, h1, h1 + B, 1);
+      quad(p.hole, i, j, h0, h0 + B, h1, h1 + B, -1);
+      var gl0 = d[i + 6], gr0 = d[i + 7], gl1 = d[j + 6], gr1 = d[j + 7];
+      if (gl0 < 0 || gr0 < 0 || gl1 < 0 || gr1 < 0) { continue; }
+      var sg = gr0 >= gl0 ? 1 : -1;
+      var e0 = h0 + (sg > 0 ? gr0 : gl0), e1 = h1 + (sg > 0 ? gr1 : gl1);
+      var lo0 = h0 + B, lo1 = h1 + B, top0 = lo0 + NEED, top1 = lo1 + NEED;
+      var ok0 = Math.max(lo0, Math.min(top0, e0)), ok1 = Math.max(lo1, Math.min(top1, e1));
+      if (ok0 > lo0 || ok1 > lo1) { quad(p.ok, i, j, lo0, ok0, lo1, ok1, sg); }
+      var m0 = Math.min(top0, Math.max(lo0, e0)), m1 = Math.min(top1, Math.max(lo1, e1));
+      if (m0 < top0 || m1 < top1) { quad(p.miss, i, j, m0, top0, m1, top1, sg); }
+    }
+    bands[al] = p;
+  }
+  var passShow = { trench: true, hole: true, ok: true, miss: true };
+  ['trench', 'hole', 'ok', 'miss'].forEach(function (k) {
+    document.getElementById('pv_' + k).onchange = function (e) { passShow[k] = e.target.checked; draw(); };
+  });
+  // Redo everything that depends on B for these alignments
+  function applyB(names) {
+    redoNarrow(names);
+    names.forEach(buildBands);
+    rebuildItems();
+    if (selected && selected.kind.key === 'SMALVEJ' && items.indexOf(selected) < 0) {
+      selected = sel && sel.al === selected.alignment ? narrowAt(sel.al, sel.i) : null;
+      if (selected) { renderInfo(selected); } else { document.getElementById('info').hidden = true; }
+    }
+    buildKinds(); buildList(); buildNon(); updateB(); draw();
+  }
+  function allAlignments() { return Object.keys(PA); }
+  function narrowAt(al, i) {
+    var st = sampleStation(PA[al], i);
+    return (narrowByAl[al] || []).filter(function (it) { return st >= it.from - 1e-6 && st <= it.to + 1e-6; })[0] || null;
+  }
+
+  var groups = {};
+  layers.concat([STATION_LAYER, PASSAGE_LAYER]).forEach(function (l) { (groups[l.group] = groups[l.group] || []).push(l); });
+
+  // ---- view ----
+  var canvas = document.getElementById('map'), ctx = canvas.getContext('2d');
+  var view = { cx: 0, cy: 0, s: 1 }, W = 0, H = 0, dpr = 1, selected = null, sel = null;
+  function fitBox(b, margin) {
+    var w = Math.max(b[2] - b[0], 30), h = Math.max(b[3] - b[1], 30);
+    view.cx = (b[0] + b[2]) / 2; view.cy = (b[1] + b[3]) / 2;
+    view.s = Math.min(W / (w * (1 + margin)), H / (h * (1 + margin)));
+  }
+  function allBox() {
+    var b = [Infinity, Infinity, -Infinity, -Infinity];
+    D.alignments.forEach(function (a) { for (var i = 0; i < a.pts.length; i += 2) { b[0] = Math.min(b[0], a.pts[i]); b[1] = Math.min(b[1], a.pts[i + 1]); b[2] = Math.max(b[2], a.pts[i]); b[3] = Math.max(b[3], a.pts[i + 1]); } });
+    return b;
+  }
+  function sx(x) { return (x - view.cx) * view.s + W / 2; }
+  function sy(y) { return H / 2 - (y - view.cy) * view.s; }
+  function wx(px) { return (px - W / 2) / view.s + view.cx; }
+  function wy(py) { return view.cy - (py - H / 2) / view.s; }
+  function resize() {
+    var r = canvas.getBoundingClientRect(); dpr = window.devicePixelRatio || 1;
+    W = r.width; H = r.height; canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+  }
+
+  var pending = false;
+  function draw() { if (!pending) { pending = true; requestAnimationFrame(render); } }
+  function render() {
+    pending = false;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = '#0f1214'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    var s = view.s * dpr;
+    ctx.setTransform(s, 0, 0, -s, (W / 2 - view.cx * view.s) * dpr, (H / 2 + view.cy * view.s) * dpr);
+    ctx.lineWidth = 1 / view.s; ctx.lineJoin = 'round';
+    layers.forEach(function (l) { if (l.on) { ctx.strokeStyle = l.rgb; ctx.stroke(l.path); } });
+    if (PASSAGE_LAYER.on && view.s > 0.8) {
+      Object.keys(bands).forEach(function (al) {
+        var p = bands[al];
+        if (passShow.ok) { ctx.fillStyle = 'rgba(60,200,120,.30)'; ctx.fill(p.ok); }
+        if (passShow.miss) { ctx.fillStyle = 'rgba(255,50,50,.45)'; ctx.fill(p.miss); }
+        if (passShow.hole) { ctx.fillStyle = 'rgba(255,140,0,.50)'; ctx.fill(p.hole); }
+        if (passShow.trench) { ctx.fillStyle = 'rgba(234,217,168,.60)'; ctx.fill(p.trench); }
+      });
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    drawTexts();
+    if (STATION_LAYER.on) { drawStations(); }
+    drawSelLer();
+    drawItems();
+    drawSection();
+    drawMeasure();
+    drawScale();
+  }
+
+  // ---- measure ----
+  var meas = { on: false, pts: [], hover: null, done: false };
+  var mBtn = document.getElementById('measure'), mRead = document.getElementById('mread');
+  function seg(a, b) { return Math.hypot(b[0] - a[0], b[1] - a[1]); }
+  function measPts() { var pts = meas.pts.slice(); if (meas.on && !meas.done && meas.hover && pts.length) { pts.push(meas.hover); } return pts; }
+  function updateRead() {
+    if (!meas.on) { mRead.hidden = true; return; }
+    var pts = measPts(), total = 0;
+    for (var i = 1; i < pts.length; i++) { total += seg(pts[i - 1], pts[i]); }
+    mRead.hidden = false;
+    mRead.textContent = pts.length < 2 ? 'Klik første punkt' : 'Stykke ' + fmt(seg(pts[pts.length - 2], pts[pts.length - 1]), 2) + ' m · i alt ' + fmt(total, 2) + ' m';
+  }
+  function drawMeasure() {
+    var pts = measPts();
+    if (!meas.on || !pts.length) { return; }
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.setLineDash([6, 4]);
+    ctx.beginPath();
+    pts.forEach(function (p, i) { if (i) { ctx.lineTo(sx(p[0]), sy(p[1])); } else { ctx.moveTo(sx(p[0]), sy(p[1])); } });
+    ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = '#ffffff';
+    meas.pts.forEach(function (p) { ctx.beginPath(); ctx.arc(sx(p[0]), sy(p[1]), 3.5, 0, Math.PI * 2); ctx.fill(); });
+    ctx.font = '600 13px ' + FONT; ctx.lineWidth = 4; ctx.strokeStyle = '#0f1214';
+    for (var i = 1; i < pts.length; i++) {
+      var a = pts[i - 1], b = pts[i], label = fmt(seg(a, b), 2) + ' m';
+      var tx = (sx(a[0]) + sx(b[0])) / 2, ty = (sy(a[1]) + sy(b[1])) / 2 - 8;
+      ctx.strokeText(label, tx, ty); ctx.fillText(label, tx, ty);
+    }
+  }
+  mBtn.onclick = function () {
+    meas.on = !meas.on; meas.pts = []; meas.done = false; meas.hover = null;
+    mBtn.classList.toggle('on', meas.on); canvas.style.cursor = meas.on ? 'crosshair' : '';
+    updateRead(); draw();
+  };
+  window.addEventListener('keydown', function (e) { if (e.key === 'Escape' && meas.on) { meas.pts = []; meas.done = false; updateRead(); draw(); } });
+  canvas.addEventListener('dblclick', function () {
+    if (!meas.on) { return; }
+    var n = meas.pts.length;
+    if (n >= 2 && seg(meas.pts[n - 1], meas.pts[n - 2]) * view.s < 4) { meas.pts.pop(); }
+    meas.done = true; updateRead(); draw();
+  });
+  function drawTexts() {
+    var x0 = wx(0), x1 = wx(W), y0 = wy(H), y1 = wy(0);
+    layers.forEach(function (l) {
+      if (!l.on || !l.texts.length) { return; }
+      ctx.fillStyle = l.rgb;
+      l.texts.forEach(function (t) {
+        var px = t[2] * view.s;
+        if (px < 5 || t[0] < x0 - 50 || t[0] > x1 + 50 || t[1] < y0 - 50 || t[1] > y1 + 50) { return; }
+        ctx.save(); ctx.translate(sx(t[0]), sy(t[1])); ctx.rotate(-t[3]);
+        ctx.font = px.toFixed(1) + 'px ' + FONT; ctx.fillText(t[4], 0, 0); ctx.restore();
+      });
+    });
+  }
+  function drawStations() {
+    ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.fillStyle = '#ffffff'; ctx.lineWidth = 1.2;
+    ctx.font = '600 12px ' + FONT;
+    D.alignments.forEach(function (a) {
+      ctx.beginPath(); ctx.moveTo(sx(a.pts[0]), sy(a.pts[1]));
+      for (var i = 2; i < a.pts.length; i += 2) { ctx.lineTo(sx(a.pts[i]), sy(a.pts[i + 1])); }
+      ctx.stroke();
+      var every = view.s > 4 ? 10 : view.s > 1.2 ? 50 : 0;
+      if (every) {
+        for (var j = 0; j < a.ticks.length; j += 5) {
+          var st = a.ticks[j], x = a.ticks[j + 1], y = a.ticks[j + 2], nx = a.ticks[j + 3], ny = a.ticks[j + 4];
+          if (Math.round(st) % every !== 0) { continue; }
+          var L = 6 / view.s;
+          ctx.beginPath(); ctx.moveTo(sx(x - nx * L), sy(y - ny * L)); ctx.lineTo(sx(x + nx * L), sy(y + ny * L)); ctx.stroke();
+          if (Math.round(st) % (every * (view.s > 4 ? 5 : 1)) === 0) { ctx.fillText(pad3(st), sx(x + nx * 9 / view.s), sy(y + ny * 9 / view.s)); }
+        }
+      }
+      if (view.s > 0.35) {
+        ctx.save(); ctx.fillStyle = '#ffffff'; ctx.font = '700 13px ' + FONT;
+        ctx.fillText(a.name, sx(a.pts[0]) + 6, sy(a.pts[1]) - 6); ctx.restore();
+      }
+    });
+  }
+  function itemPath(it) {
+    ctx.beginPath(); ctx.moveTo(sx(it.pts[0]), sy(it.pts[1]));
+    for (var i = 2; i < it.pts.length; i += 2) { ctx.lineTo(sx(it.pts[i]), sy(it.pts[i + 1])); }
+  }
+  function drawMarker(it, isSel) {
+    var c = isNon(it) && !isSel ? '#7d878d' : it.kind.color;
+    if (it.stretch) {
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      if (isSel) { itemPath(it); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 15; ctx.stroke(); }
+      itemPath(it); ctx.strokeStyle = c; ctx.globalAlpha = isSel ? 1 : 0.8; ctx.lineWidth = 9; ctx.stroke(); ctx.globalAlpha = 1;
+    } else {
+      var x = sx(it.pts[0]), y = sy(it.pts[1]);
+      if (isSel) { ctx.beginPath(); ctx.arc(x, y, 12, 0, Math.PI * 2); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3; ctx.stroke(); }
+      ctx.beginPath();
+      if (it.valve) { ctx.moveTo(x, y - 8); ctx.lineTo(x + 8, y); ctx.lineTo(x, y + 8); ctx.lineTo(x - 8, y); ctx.closePath(); }
+      else { ctx.arc(x, y, 7, 0, Math.PI * 2); }
+      ctx.fillStyle = c; ctx.fill(); ctx.strokeStyle = '#0f1214'; ctx.lineWidth = 2; ctx.stroke();
+    }
+  }
+  function drawItems() {
+    items.forEach(function (it) { if (visible(it) && it.stretch && it !== selected) { drawMarker(it, false); } });
+    items.forEach(function (it) { if (visible(it) && !it.stretch && it !== selected) { drawMarker(it, false); } });
+    if (selected && selected.kind.on) { drawMarker(selected, true); }
+  }
+  // The selected station: a line from road edge to road edge across the trench, as measured
+  function drawSection() {
+    if (!sel) { return; }
+    var a = PA[sel.al], st = sampleStation(a, sel.i), p = pointAt(sel.al, st);
+    if (!p) { return; }
+    var r = rightAt(sel.al, st), gl = a.g[2 * sel.i], gr = a.g[2 * sel.i + 1], w = widthAt(a, sel.i);
+    var L = gl >= 0 ? w / 2 + gl : w / 2 + 2, R = gr >= 0 ? w / 2 + gr : w / 2 + 2;
+    var x0 = sx(p[0] - r[0] * L), y0 = sy(p[1] - r[1] * L), x1 = sx(p[0] + r[0] * R), y1 = sy(p[1] + r[1] * R);
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#0f1214'; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+    ctx.fillStyle = '#ffffff';
+    [[x0, y0], [x1, y1]].forEach(function (q) { ctx.beginPath(); ctx.arc(q[0], q[1], 3.5, 0, Math.PI * 2); ctx.fill(); });
+  }
+  function drawScale() {
+    var target = 120 / view.s, p = Math.pow(10, Math.floor(Math.log10(target))), mm = target / p;
+    var len = (mm >= 5 ? 5 : mm >= 2 ? 2 : 1) * p;
+    document.getElementById('scale').innerHTML = (len >= 1 ? len : len.toFixed(1)) + ' m<i style="width:' + (len * view.s).toFixed(0) + 'px"></i>';
+  }
+
+  // ---- hit testing ----
+  function distSeg(px, py, ax, ay, bx, by) {
+    var dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy, t = l2 ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / l2)) : 0;
+    var x = ax + t * dx - px, y = ay + t * dy - py; return Math.sqrt(x * x + y * y);
+  }
+  function pick(mx, my) {
+    var best = null, bd = 12;
+    items.forEach(function (it) {
+      if (!visible(it)) { return; }
+      var d;
+      if (it.stretch) {
+        d = Infinity;
+        for (var i = 0; i + 3 < it.pts.length; i += 2) { d = Math.min(d, distSeg(mx, my, sx(it.pts[i]), sy(it.pts[i + 1]), sx(it.pts[i + 2]), sy(it.pts[i + 3]))); }
+        d += 2;
+      } else { d = Math.hypot(mx - sx(it.pts[0]), my - sy(it.pts[1])); }
+      if (d < bd) { bd = d; best = it; }
+    });
+    return best;
+  }
+  // The station where the user clicked: the click projected onto the nearest alignment, when it lies within the road
+  // search distance of it (or onto the given alignment, for a click on one of its findings)
+  var SEARCH = P.search || 15;
+  function project(al, x, y) {
+    var a = AL[al], p = a.pts, s = a.st, best = null;
+    for (var k = 0; k + 1 < s.length; k++) {
+      var ax = p[2 * k], ay = p[2 * k + 1], dx = p[2 * k + 2] - ax, dy = p[2 * k + 3] - ay, l2 = dx * dx + dy * dy;
+      var t = l2 ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / l2)) : 0;
+      var d = Math.hypot(x - ax - t * dx, y - ay - t * dy);
+      if (!best || d < best.d) { best = { d: d, st: s[k] + t * (s[k + 1] - s[k]) }; }
+    }
+    return best;
+  }
+  function spotAt(mx, my, onlyAl) {
+    var x = wx(mx), y = wy(my), best = null;
+    (onlyAl ? [onlyAl] : allAlignments()).forEach(function (al) {
+      if (!AL[al] || !PA[al]) { return; }
+      var r = project(al, x, y);
+      if (r && (!best || r.d < best.d)) { best = { d: r.d, st: r.st, al: al }; }
+    });
+    if (!best || (!onlyAl && best.d > SEARCH + 2)) { return null; }
+    return { al: best.al, i: sampleIndex(PA[best.al], best.st) };
+  }
+
+  // ---- Montagehul B panel ----
+  var bGlobal = document.getElementById('bGlobal'), bAlRange = document.getElementById('bAlRange'), bOnly = document.getElementById('bOnly');
+  function contextAl() { var al = sel ? sel.al : selected && selected.alignment; return al && PA[al] ? al : null; }
+  function updateB() {
+    var g = globalB();
+    bGlobal.value = g; document.getElementById('bGlobalOut').textContent = m(g);
+    var std = document.getElementById('bStd');
+    std.innerHTML = 'Standard ' + esc(m(STD_B)) + ' fra AutoAmkB.csv' + (setup.globalB !== null ? ' · ændret i kortet · <button class="lnk" type="button" id="bReset">Nulstil</button>' : '');
+    if (setup.globalB !== null) { document.getElementById('bReset').onclick = function () { setup.globalB = null; changed(); applyB(allAlignments().filter(function (al) { return !own(setup.overrides, al); })); }; }
+    var chips = document.getElementById('bChips'); chips.innerHTML = '';
+    Object.keys(setup.overrides).sort(byName).forEach(function (al) {
+      var c = document.createElement('span'); c.className = 'chip'; c.title = 'Kun alignment ' + al;
+      c.innerHTML = esc(al + ' ' + fmt(setup.overrides[al], 2)) + '<button type="button" aria-label="Fjern afvigelse for ' + esc(al) + '">×</button>';
+      c.onclick = function () { focusAlignment(al); };
+      c.querySelector('button').onclick = function (e) { e.stopPropagation(); delete setup.overrides[al]; changed(); applyB([al]); };
+      chips.appendChild(c);
+    });
+    var narrow = items.filter(function (it) { return it.kind.key === 'SMALVEJ'; }).length;
+    document.getElementById('bCount').textContent = narrow + ' smalle veje';
+    var al = contextAl(), alBox = document.getElementById('bAl');
+    alBox.hidden = !al;
+    if (al) {
+      var has = own(setup.overrides, al);
+      document.getElementById('bAlName').textContent = al;
+      bOnly.checked = has;
+      document.getElementById('bAlLine').hidden = !has;
+      document.getElementById('bAlLabel').textContent = al;
+      bAlRange.value = bFor(al); document.getElementById('bAlOut').textContent = m(bFor(al));
+    }
+    updateSection();
+  }
+  bGlobal.oninput = function () {
+    var v = Math.round(parseFloat(bGlobal.value) * 100) / 100;
+    setup.globalB = Math.abs(v - STD_B) < 1e-9 && !pendingStandard ? null : v;
+    changed(); applyB(allAlignments().filter(function (al) { return !own(setup.overrides, al); }));
+  };
+  bOnly.onchange = function () {
+    var al = contextAl(); if (!al) { return; }
+    if (bOnly.checked) { setup.overrides[al] = bFor(al); } else { delete setup.overrides[al]; }
+    changed(); applyB([al]);
+  };
+  bAlRange.oninput = function () {
+    var al = contextAl(); if (!al) { return; }
+    setup.overrides[al] = Math.round(parseFloat(bAlRange.value) * 100) / 100;
+    changed(); applyB([al]);
+  };
+  function focusAlignment(al) {
+    var a = PA[al]; if (!a) { return; }
+    var b = bboxOf(AL[al] ? AL[al].pts : []), first = (narrowByAl[al] || [])[0];
+    sel = { al: al, i: sel && sel.al === al ? sel.i : first ? first.narrowIdx : 0 };
+    fitBox([b[0] - 20, b[1] - 20, b[2] + 20, b[3] + 20], 0.1);
+    updateB(); draw();
+  }
+  document.getElementById('sClose').onclick = function () { sel = null; updateB(); draw(); };
+  document.getElementById('sPrev').onclick = function () { stepSection(-Math.round(0.5 / STEP)); };
+  document.getElementById('sNext').onclick = function () { stepSection(Math.round(0.5 / STEP)); };
+  function stepSection(k) { if (!sel) { return; } sel = { al: sel.al, i: Math.max(0, Math.min(PA[sel.al].n - 1, sel.i + k)) }; updateSection(); draw(); }
+
+  // ---- the cross-section at the selected station, drawn from the real numbers ----
+  var NS = 'http://www.w3.org/2000/svg';
+  function el(tag, attrs, parent) { var n = document.createElementNS(NS, tag); for (var k in attrs) { n.setAttribute(k, attrs[k]); } parent.appendChild(n); return n; }
+  function txt(parent, x, y, s, cls, anchor) { var t = el('text', { x: x, y: y, 'class': cls, 'text-anchor': anchor || 'middle' }, parent); t.textContent = s; }
+  function updateSection() {
+    var box = document.getElementById('bSec'), hint = document.getElementById('bHint');
+    box.hidden = !sel; hint.hidden = !!sel;
+    if (!sel) { return; }
+    var a = PA[sel.al], st = sampleStation(a, sel.i), gl = a.g[2 * sel.i], gr = a.g[2 * sel.i + 1], B = bFor(sel.al);
+    document.getElementById('sLabel').textContent = sel.al + ' · st. ' + fmt(st, 1);
+    var svg = document.getElementById('sSvg'), verdict = document.getElementById('sVerdict'), note = document.getElementById('sNote');
+    while (svg.firstChild) { svg.removeChild(svg.firstChild); }
+    verdict.className = ''; note.textContent = '';
+    svg.removeAttribute('hidden');
+    if (gl === -2) { svg.setAttribute('hidden', ''); verdict.textContent = 'Rendebredden kendes ikke her.'; return; }
+    if (gl < 0 || gr < 0) {
+      svg.setAttribute('hidden', '');
+      verdict.textContent = 'Ingen vejkant inden for søgeafstanden på ' + (gl < 0 && gr < 0 ? 'begge sider' : gl < 0 ? 'venstre side' : 'højre side') + '.';
+      note.textContent = 'Stationen ligger ikke i en vej og vurderes ikke.';
+      return;
+    }
+    var w = widthAt(a, sel.i), L = gl, R = gr, free = Math.max(0, Math.max(L, R) - B), flag = free < NEED - 1e-9;
+    sectionSvg(svg, w, L, R, B);
+    verdict.className = flag ? 'bad' : 'ok';
+    verdict.textContent = 'Fri bredde ' + m(free) + (flag ? ' < ' : ' ≥ ') + m(NEED) + (flag ? ' · smal vej' : ' · ok');
+    if (flag && !narrowAt(sel.al, sel.i)) { note.textContent = 'Kort udslag under ' + fmt(MINLEN, 1).replace(',0', '') + ' m, medtages ikke.'; }
+    else { note.textContent = 'Rende ' + m(w) + ' · B ' + m(B) + (own(setup.overrides, sel.al) ? ' (kun ' + sel.al + ')' : ''); }
+  }
+  // A true-scale section: road, kerbs, trench, montagehul and barriers share one scale in metres, fitted into the
+  // window and centred, so resizing the window never deforms them. Dimensions and text are annotation, in fixed pixel
+  // rows and sizes, as on paper. The trench depth is not in the map's data, so the trench is drawn a nominal 1 m deep.
+  var DEPTH = 1.0, SOIL = 0.2, BOARD = 1.0, KERB = 0.12, ASPHALT = 0.08;
+  function sectionSvg(svg, w, gl, gr, B) {
+    var road = gl + w + gr, pos = gl + w / 2, free = Math.max(0, Math.max(gl, gr) - B), flag = free < NEED - 1e-9, right = gr >= gl;
+    var start = right ? pos + w / 2 + B : pos - w / 2 - B, needEnd = right ? start + NEED : start - NEED;
+    var xMin = Math.min(-0.6, needEnd - 0.3), xMax = Math.max(road + 0.6, needEnd + 0.3), span = xMax - xMin;
+    var VW = Math.max(240, Math.round(svg.clientWidth || 360)), VH = Math.max(220, Math.round(svg.clientHeight || 240));
+    // Height: TOP px of dimension rows, then the barriers (at least ROWS px, room for the traffic-side rows), the trench
+    // and soil, and BOTTOM px for the trench dimension. The scale is the largest at which width and height both fit.
+    var TOP = 70, ROWS = 50, BOTTOM = 28;
+    var sTall = (VH - TOP - BOTTOM) / (BOARD + DEPTH + SOIL);
+    var sHeight = sTall * BOARD >= ROWS ? sTall : Math.min(ROWS / BOARD, (VH - TOP - ROWS - BOTTOM) / (DEPTH + SOIL));
+    var s = Math.max(2, Math.min((VW - 16) / span, sHeight));
+    var above = Math.max(BOARD * s, ROWS), used = TOP + above + (DEPTH + SOIL) * s + BOTTOM;
+    var ox = (VW - span * s) / 2, oy = Math.max(0, (VH - used) / 2), G = oy + TOP + above;
+    svg.setAttribute('viewBox', '0 0 ' + VW + ' ' + VH);
+    function X(x) { return ox + (x - xMin) * s; }
+    var defs = el('defs', {}, svg), pat = el('pattern', { id: 'xsHatch', width: 7, height: 7, patternUnits: 'userSpaceOnUse', patternTransform: 'rotate(45)' }, defs);
+    el('rect', { width: 7, height: 7, 'class': 'xs-hbg' }, pat);
+    el('line', { x1: 0, y1: 0, x2: 0, y2: 7, 'class': 'xs-hl' }, pat);
+    el('rect', { x: ox, y: G, width: span * s, height: (DEPTH + SOIL) * s, 'class': 'xs-soil' }, svg);
+    el('rect', { x: ox, y: G - KERB * s, width: X(0) - ox, height: (KERB + ASPHALT) * s, 'class': 'xs-walk' }, svg);
+    el('rect', { x: X(road), y: G - KERB * s, width: ox + span * s - X(road), height: (KERB + ASPHALT) * s, 'class': 'xs-walk' }, svg);
+    el('rect', { x: X(0), y: G, width: road * s, height: Math.max(2, ASPHALT * s), 'class': 'xs-asph' }, svg);
+    [0, road].forEach(function (kx) {
+      el('line', { x1: X(kx), y1: G - KERB * s, x2: X(kx), y2: oy + 16, 'class': 'xs-ext' }, svg);
+      el('line', { x1: X(kx), y1: G - KERB * s, x2: X(kx), y2: G + ASPHALT * s, 'class': 'xs-kerb' }, svg);
+      txt(svg, X(kx), oy + 12, 'Vejkant', 'xs-vk');
+    });
+    el('rect', { x: X(pos - w / 2), y: G, width: w * s, height: DEPTH * s, 'class': 'xs-trench' }, svg);
+    if (B > 0) {
+      var hatch = Math.max(3, 0.04 * s);
+      el('rect', { x: X(pos - w / 2 - B), y: G - hatch, width: B * s, height: hatch, fill: 'url(#xsHatch)' }, svg);
+      el('rect', { x: X(pos + w / 2), y: G - hatch, width: B * s, height: hatch, fill: 'url(#xsHatch)' }, svg);
+    }
+    function board(x0) {
+      var bw = Math.max(3, 0.08 * s), h = BOARD * s, top = G - h;
+      el('rect', { x: X(x0) - bw / 2, y: top, width: bw, height: h, 'class': 'xs-board' }, svg);
+      for (var i = 0; i < 4; i++) { el('rect', { x: X(x0) - bw / 2, y: top + (0.06 + i * 0.25) * h, width: bw, height: 0.12 * h, 'class': 'xs-stripe' }, svg); }
+    }
+    board(pos - w / 2 - B); board(pos + w / 2 + B);
+    // A label wider than its dimension goes beside it, to the right if there is room, so it never sits on a board
+    function dim(x0, x1, y, label, cls, tcls) {
+      var a = Math.min(x0, x1), b = Math.max(x0, x1), width = label ? label.length * 6.6 : 0;
+      el('line', { x1: X(a), y1: y, x2: X(b), y2: y, 'class': cls || 'xs-dim' }, svg);
+      [a, b].forEach(function (xx) { el('line', { x1: X(xx), y1: y - 4, x2: X(xx), y2: y + 4, 'class': cls || 'xs-dim' }, svg); });
+      if (!label) { return; }
+      if (X(b) - X(a) >= width + 4) { txt(svg, (X(a) + X(b)) / 2, y - 5, label, tcls || 'xs-t'); }
+      else if (X(b) + 6 + width <= VW) { txt(svg, X(b) + 6, y + 4, label, tcls || 'xs-t', 'start'); }
+      else { txt(svg, X(a) - 6, y + 4, label, tcls || 'xs-t', 'end'); }
+    }
+    dim(0, road, oy + 30, 'vejbredde ' + m(road));
+    if (gl > 0) { dim(0, pos - w / 2, oy + 47, m(gl)); }
+    if (gr > 0) { dim(pos + w / 2, road, oy + 47, m(gr)); }
+    if (B > 0) { dim(pos - w / 2 - B, pos - w / 2, oy + 62, 'B'); dim(pos + w / 2, pos + w / 2 + B, oy + 62, 'B'); }
+    dim(pos - w / 2, pos + w / 2, G + (DEPTH + SOIL) * s + 16, 'rende ' + m(w));
+    var kerb = right ? road : 0;
+    if (free > 0) { dim(start, kerb, G - 38, 'fri ' + m(free), flag ? 'xs-bad' : 'xs-ok', flag ? 'xs-tbad' : 'xs-tok'); }
+    var okEnd = right ? Math.min(needEnd, road) : Math.max(needEnd, 0);
+    if ((right && okEnd > start) || (!right && okEnd < start)) { el('line', { x1: X(start), y1: G - 22, x2: X(okEnd), y2: G - 22, 'class': 'xs-need' }, svg); }
+    if (flag) {
+      var from = right ? Math.max(kerb, start) : Math.min(kerb, start);
+      el('line', { x1: X(from), y1: G - 22, x2: X(needEnd), y2: G - 22, 'class': 'xs-short' }, svg);
+      // Anchored at the end of the missing width, on the side it points to, so it stays inside the drawing
+      if (right) { txt(svg, Math.min(VW - 4, X(needEnd)), G - 8, 'mangler ' + m(NEED - free), 'xs-tbad', 'end'); }
+      else { txt(svg, Math.max(4, X(needEnd)), G - 8, 'mangler ' + m(NEED - free), 'xs-tbad', 'start'); }
+    } else {
+      txt(svg, (X(start) + X(needEnd)) / 2, G - 8, m(NEED) + ' krævet', 'xs-ts');
+    }
+  }
+
+  // ---- selection and the info card ----
+  // The cross-section goes to the clicked spot when there is one; picked from the list, a narrow road opens at its
+  // narrowest station and any other finding at its station
+  function select(it, zoom, spot) {
+    selected = it; selLer = null;
+    if (it && it.alignment && PA[it.alignment]) {
+      var a = PA[it.alignment];
+      sel = spot && spot.al === it.alignment ? spot : { al: it.alignment, i: it.narrowIdx !== undefined ? it.narrowIdx : sampleIndex(a, it.from) };
+    } else { sel = null; }
+    var info = document.getElementById('info');
+    if (!it) { info.hidden = true; } else { renderInfo(it); if (zoom) { var b = it.bbox; fitBox([b[0] - 25, b[1] - 25, b[2] + 25, b[3] + 25], 0.2); } }
+    document.querySelectorAll('.item').forEach(function (r) {
+      var on = it && r._item === it; r.classList.toggle('sel', on);
+      if (on && !zoom) { r.scrollIntoView({ block: 'nearest' }); }
+    });
+    updateB(); draw();
+  }
+  function renderInfo(it) {
+    var info = document.getElementById('info'), ms = it.ms, mark;
+    info.hidden = false;
+    if (ms && ms.state !== 'tjek') {
+      mark = '<span class="state">Markeret som ikke-problem ' + esc(ms.mark.time) + (ms.mark.note ? ': ' + esc(ms.mark.note) : '') +
+        (ms.state === 'arvet' ? '<br>Arvet fra ' + esc(ms.mark.id) + ' (markeret før B blev ændret)' : '') + '</span>' +
+        '<button class="sbtn" id="nUnmark" type="button">Fjern markering</button>';
+    } else {
+      mark = (ms ? '<span class="state check">Tjek igen: ' + esc(ms.mark.id) + ' er markeret' + (ms.mark.note ? ' (' + esc(ms.mark.note) + ')' : '') + ', men dækker kun en del af denne strækning.</span>' : '') +
+        '<input id="nNote" type="text" placeholder="Begrundelse (valgfri), fx cykelsti" maxlength="200"><button class="sbtn primary" id="nMark" type="button">Marker som ikke-problem</button>';
+    }
+    info.innerHTML = '<div class="top"><span class="id">' + esc(it.id) + '</span><button class="x" type="button" aria-label="Luk">×</button></div>' +
+      '<div class="kind"><span class="sw" style="background:' + it.kind.color + '"></span>' + esc(it.kind.name) + '</div>' +
+      '<dl>' + it.rows.map(function (r) { return '<dt>' + esc(r[0]) + '</dt><dd>' + esc(r[1]) + '</dd>'; }).join('') + '</dl>' +
+      '<div class="mark">' + mark + '</div>';
+    info.querySelector('.x').onclick = function () { select(null); };
+    if (ms && ms.state !== 'tjek') { info.querySelector('#nUnmark').onclick = function () { removeMark(ms.key); }; }
+    else {
+      var note = info.querySelector('#nNote');
+      info.querySelector('#nMark').onclick = function () { setMark(it, note.value.trim()); };
+      note.onkeydown = function (e) { if (e.key === 'Enter') { setMark(it, note.value.trim()); } };
+    }
+  }
+
+  // ---- lists ----
+  function buildNon() {
+    var box = document.getElementById('nList'), keys = Object.keys(setup.marks).sort(function (a, b) { return byName(setup.marks[a].id, setup.marks[b].id); });
+    document.getElementById('nCount').textContent = keys.length;
+    box.innerHTML = keys.length ? '' : '<div class="nrow"><div class="k">Ingen markeringer endnu. Klik et fund og vælg "Marker som ikke-problem".</div></div>';
+    keys.forEach(function (key) {
+      var mk = setup.marks[key], hits = items.filter(function (it) { return it.ms && it.ms.key === key; });
+      var exact = hits.filter(function (it) { return it.ms.state === 'mark'; })[0], inherit = hits.filter(function (it) { return it.ms.state === 'arvet'; }), check = hits.filter(function (it) { return it.ms.state === 'tjek'; });
+      var state = exact ? '' : inherit.length ? '<div class="k">Gælder nu ' + esc(inherit.map(function (it) { return it.id; }).join(', ')) + '</div>' : '';
+      if (check.length) { state += '<div class="warn">Tjek igen: ' + esc(check.map(function (it) { return it.id; }).join(', ')) + '</div>'; }
+      if (!hits.length) { state = '<div class="k">Findes ikke med den valgte B / i denne kørsel</div>'; }
+      var row = document.createElement('div'); row.className = 'nrow';
+      row.innerHTML = '<div><span class="id">' + esc(mk.id) + '</span> <span class="k">' + esc(mk.kindName) + '</span>' +
+        (mk.note ? '<div class="note">' + esc(mk.note) + '</div>' : '') + state + '</div>' +
+        '<button type="button" title="Fjern markering" aria-label="Fjern markering">×</button>';
+      var target = exact || inherit[0] || check[0];
+      row.onclick = function () { if (target) { select(target, true); } };
+      row.querySelector('button').onclick = function (e) { e.stopPropagation(); removeMark(key); };
+      box.appendChild(row);
+    });
+  }
+  document.getElementById('nHide').onchange = function (e) { hideNon = e.target.checked; buildList(); draw(); };
+  function buildKinds() {
+    var box = document.getElementById('kinds'); box.innerHTML = '';
+    kindList.forEach(function (k) {
+      var row = document.createElement('label'); row.className = 'row';
+      row.innerHTML = '<input type="checkbox"' + (k.on ? ' checked' : '') + '><span class="sw" style="background:' + k.color + '"></span><span>' + esc(k.name) + '</span><span class="cnt">' + k.count + '</span>';
+      row.querySelector('input').onchange = function (e) { k.on = e.target.checked; buildList(); draw(); };
+      box.appendChild(row);
+    });
+  }
+  function buildLayers() {
+    var box = document.getElementById('layers'); box.innerHTML = '';
+    Object.keys(groups).sort(function (a, b) { return a === 'AUTOAMKB' ? -1 : b === 'AUTOAMKB' ? 1 : a.localeCompare(b, 'da'); }).forEach(function (g) {
+      var ls = groups[g].sort(function (a, b) { return a.label.localeCompare(b.label, 'da'); });
+      var wrap = document.createElement('div'); wrap.className = 'grp';
+      var head = document.createElement('div'); head.className = 'row';
+      var allOn = ls.every(function (l) { return l.on; }), anyOn = ls.some(function (l) { return l.on; });
+      head.innerHTML = '<span class="caret">▸</span><input type="checkbox"' + (allOn ? ' checked' : '') + '><span>' + esc(g) + '</span><span class="cnt">' + ls.length + '</span>';
+      var cb = head.querySelector('input'); cb.indeterminate = anyOn && !allOn;
+      cb.onclick = function (e) { e.stopPropagation(); ls.forEach(function (l) { l.on = cb.checked; }); buildLayers(); draw(); };
+      head.onclick = function () { wrap.classList.toggle('open'); head.querySelector('.caret').textContent = wrap.classList.contains('open') ? '▾' : '▸'; };
+      var kids = document.createElement('div'); kids.className = 'kids';
+      ls.forEach(function (l) {
+        var row = document.createElement('label'); row.className = 'row';
+        row.innerHTML = '<input type="checkbox"' + (l.on ? ' checked' : '') + '><span class="sw" style="background:' + l.rgb + '"></span><span>' + esc(l.label) + '</span>';
+        row.querySelector('input').onchange = function (e) { l.on = e.target.checked; var open = wrap.classList.contains('open'); buildLayers(); if (open) { reopen(g); } draw(); };
+        kids.appendChild(row);
+      });
+      wrap.appendChild(head); wrap.appendChild(kids); wrap.dataset.group = g; box.appendChild(wrap);
+    });
+  }
+  function reopen(g) {
+    document.querySelectorAll('.grp').forEach(function (w) { if (w.dataset.group === g) { w.classList.add('open'); w.querySelector('.caret').textContent = '▾'; } });
+  }
+  function buildList() {
+    var box = document.getElementById('list'); box.innerHTML = '';
+    var shown = items.filter(visible);
+    document.getElementById('count').textContent = shown.length + ' af ' + items.length;
+    shown.forEach(function (it) {
+      var n = isNon(it), c = needsCheck(it);
+      var row = document.createElement('div'); row.className = 'item' + (it === selected ? ' sel' : '') + (n ? ' non' : ''); row._item = it; row.tabIndex = 0;
+      row.innerHTML = '<span class="dot" style="background:' + (n ? '#7d878d' : it.kind.color) + '"></span><div><div><span class="id">' + esc(it.id) + '</span> <span class="k">' + esc(it.kind.name) + '</span>' +
+        (n ? '<span class="tag">ikke-problem</span>' : '') + (c ? '<span class="tag check">tjek igen</span>' : '') + '</div><div class="d">' + esc(it.text) + '</div></div>';
+      row.onclick = function () { select(it, true); };
+      row.onkeydown = function (e) { if (e.key === 'Enter') { select(it, true); } };
+      box.appendChild(row);
+    });
+  }
+
+  // ---- saving: the state lives in this file; unsaved changes are kept in the browser as a draft ----
+  var DRAFT_KEY = 'amkb-kort:' + D.project + ':' + D.etape;
+  var fileHandle = null;
+  var MAP_NAME = decodeURIComponent((location.pathname || '').split('/').pop() || 'kortet');
+  // The map's folder as Windows writes it. A file picker cannot be opened at a path, so the first pick offers it for pasting
+  var MAP_DIR = (function () {
+    var p = decodeURIComponent(location.pathname || ''), dir = p.slice(0, p.lastIndexOf('/'));
+    return location.host ? '\\\\' + location.host + dir.replace(/\//g, '\\') : dir.replace(/^\/([A-Za-z]:)/, '$1').replace(/\//g, '\\');
+  })();
+
+  // The chosen map file is remembered in this browser, so later saves ask only for permission, not for the file
+  var HANDLE_KEY = D.project + '|' + D.etape + '|' + MAP_NAME;
+  function handleStore(mode, use) {
+    return new Promise(function (resolve) {
+      var open;
+      try { open = indexedDB.open('amkb-kort', 1); } catch (e) { resolve(null); return; }
+      open.onupgradeneeded = function () { open.result.createObjectStore('handles'); };
+      open.onerror = function () { resolve(null); };
+      open.onsuccess = function () {
+        var db = open.result, tx = db.transaction('handles', mode), req = use(tx.objectStore('handles'));
+        tx.oncomplete = function () { db.close(); resolve(req.result === undefined ? null : req.result); };
+        tx.onerror = function () { db.close(); resolve(null); };
+      };
+    });
+  }
+  function rememberedHandle() { return handleStore('readonly', function (s) { return s.get(HANDLE_KEY); }); }
+  function rememberHandle(h) { return handleStore('readwrite', function (s) { return s.put(h, HANDLE_KEY); }); }
+  function forgetHandle() { fileHandle = null; return handleStore('readwrite', function (s) { return s.delete(HANDLE_KEY); }); }
+  function dirty() { return setupJson() !== savedJson; }
+  function status(text, bad) { var s = document.getElementById('status'); s.textContent = text; s.className = bad ? 'bad' : ''; }
+  function showSaveState() {
+    var el2 = document.getElementById('saveState'), d = dirty();
+    el2.className = d ? 'dirty' : '';
+    el2.textContent = d ? 'Ikke gemt' : savedAt ? 'Gemt ' + savedAt : 'Intet gemt endnu';
+  }
+  function changed() {
+    try {
+      if (dirty()) { localStorage.setItem(DRAFT_KEY, JSON.stringify({ runId: D.runId, time: nowText(), setup: setup, standardB: pendingStandard ? standardB : STD_B })); }
+      else { localStorage.removeItem(DRAFT_KEY); }
+    } catch (e) { /* storage blocked: the draft lasts until the page closes */ }
+    showSaveState();
+  }
+  window.addEventListener('beforeunload', function (e) { if (dirty()) { e.preventDefault(); e.returnValue = ''; } });
+
+  function stateJson() {
+    var st = { version: 1, runId: D.runId, savedAt: nowText(), standardB: pendingStandard ? standardB : STD_B, overrides: setup.overrides, marks: setup.marks };
+    if (setup.globalB !== null) { st.globalB = setup.globalB; }
+    // A note can hold any text; escaping < keeps it from closing the script element it is saved in
+    return { state: st, json: JSON.stringify(st).replace(/</g, '\\u003c') };
+  }
+  var STATE_RE = new RegExp('(<script type="application/json" id="st' + 'ate">)([\\s\\S]*?)(</scr' + 'ipt>)');
+  function withState(html, json) { return STATE_RE.test(html) ? html.replace(STATE_RE, function (all, a, b, c) { return a + json + c; }) : null; }
+  function afterSave(st) {
+    savedAt = st.savedAt; savedJson = setupJson();
+    try { localStorage.removeItem(DRAFT_KEY); } catch (e) { /* ignore */ }
+    showSaveState();
+  }
+  // This session's file, else the one remembered from an earlier session, else ask for it
+  function getHandle() {
+    return (fileHandle ? Promise.resolve(fileHandle) : rememberedHandle()).then(function (h) {
+      if (!h) { return pickMap(); }
+      return h.requestPermission({ mode: 'readwrite' }).then(function (p) {
+        if (p !== 'granted') { throw new Error('Ingen tilladelse til at skrive i kortet.'); }
+        fileHandle = h;
+        return h;
+      });
+    });
+  }
+  function pickMap() {
+    if (navigator.clipboard && MAP_DIR) { navigator.clipboard.writeText(MAP_DIR).catch(function () { /* the folder is in the status line */ }); }
+    status('Vælg denne kort-fil: ' + MAP_NAME + '. Mappen er kopieret; sæt den ind i stifeltet (Ctrl+V, Enter): ' + MAP_DIR);
+    return window.showOpenFilePicker({ id: 'amkb-kort', types: [{ description: 'AUTOAMKB-kort', accept: { 'text/html': ['.html'] } }] })
+      .then(function (hs) {
+        var h = hs[0];
+        return h.requestPermission({ mode: 'readwrite' }).then(function (p) {
+          if (p !== 'granted') { throw new Error('Ingen tilladelse til at skrive i kortet.'); }
+          fileHandle = h;
+          return h;
+        });
+      });
+  }
+  // Saving writes the state into the file on disk, after checking it is this very run of the map
+  function save() {
+    var s = stateJson();
+    if (!window.showOpenFilePicker) {
+      var out = withState(PRISTINE, s.json);
+      download(new Blob([out], { type: 'text/html' }), MAP_NAME);
+      afterSave(s.state);
+      status('Gemt som download. Erstat ' + MAP_NAME + ' med den (Edge og Chrome kan gemme direkte i filen).');
+      return Promise.resolve(true);
+    }
+    return getHandle().then(function (h) {
+      return h.getFile().catch(function (e) {
+        if (e && e.name === 'NotFoundError') { forgetHandle(); throw new Error('Kortet ligger ikke længere, hvor det blev gemt sidst. Klik Gem igen og vælg det.'); }
+        throw e;
+      }).then(function (f) { return f.text(); }).then(function (text) {
+        var run = text.match(/"runId":"([0-9a-f]+)"/), when = text.match(/"runTime":"([^"]*)"/);
+        if (!run) { forgetHandle(); throw new Error('Den valgte fil er ikke et AUTOAMKB-kort.'); }
+        if (run[1] !== D.runId) {
+          forgetHandle();
+          throw new Error('Filen er en anden kørsel af kortet' + (when ? ' (kørt ' + when[1] + ')' : '') + '. Åbn den version; dine ændringer ligger som kladde i browseren.');
+        }
+        var out = withState(text, s.json);
+        if (out === null) { throw new Error('Kortet mangler sin opsætningsblok og kan ikke gemmes.'); }
+        return h.createWritable().then(function (w) { return w.write(out).then(function () { return w.close(); }); }).then(function () { rememberHandle(h); });
+      });
+    }).then(function () { afterSave(s.state); status('Gemt i ' + fileHandle.name + '.'); return true; });
+  }
+  function download(blob, name) {
+    var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+  }
+  function failed(e, what) {
+    if (e && e.name === 'AbortError') { status(what + ' annulleret.'); return; }
+    // The browser allows a file dialog only right after a click; a permission prompt first can use that up
+    if (e && e.name === 'SecurityError') { status('Klik ' + what + ' igen for at vælge filen.'); return; }
+    var locked = e && (e.name === 'NoModificationAllowedError' || e.name === 'InvalidStateError' || /lock|used by another/i.test(e.message || ''));
+    status(locked ? 'Filen kunne ikke skrives. Er den åben i et andet program? Luk den og prøv igen.' : what + ' mislykkedes: ' + (e && e.message ? e.message : e), true);
+  }
+  document.getElementById('save').onclick = function () { status(''); save().catch(function (e) { failed(e, 'Gem'); }); };
+
+  // ---- notices on opening: an unsaved draft, and a changed standard B ----
+  function notice(id, html, buttons) {
+    var old = document.getElementById(id);
+    if (old) { old.remove(); }
+    var n = document.createElement('div'); n.className = 'notice'; n.id = id;
+    n.innerHTML = '<div>' + html + '</div><div class="btns"></div>';
+    buttons.forEach(function (b, i) {
+      var btn = document.createElement('button'); btn.type = 'button'; btn.className = 'sbtn' + (i === 0 ? ' primary' : ''); btn.textContent = b[0];
+      btn.onclick = function () { n.remove(); b[1](); };
+      n.querySelector('.btns').appendChild(btn);
+    });
+    document.getElementById('notices').appendChild(n);
+  }
+  function overridesText() {
+    var names = Object.keys(setup.overrides).sort(byName);
+    return names.length ? ' Afvigelser for ' + esc(names.map(function (al) { return al + ' (' + fmt(setup.overrides[al], 2) + ' m)'; }).join(', ')) + ' bevares.' : '';
+  }
+  function askStandard() {
+    if (!pendingStandard) { return; }
+    var old = standardB;
+    function done(globalValue) { pendingStandard = false; standardB = STD_B; setup.globalB = globalValue; changed(); applyB(allAlignments()); }
+    if (setup.globalB === null) {
+      notice('nStandard', 'Standard for montagehul B i AutoAmkB.csv er ændret fra ' + esc(m(old)) + ' til ' + esc(m(STD_B)) + '. Opdatér kortet?' + overridesText(),
+        [['Opdatér til ' + fmt(STD_B, 2), function () { done(null); }], ['Behold ' + fmt(old, 2), function () { done(old); }]]);
+    } else {
+      var used = setup.globalB;
+      notice('nStandard', 'Standard for montagehul B er ændret fra ' + esc(m(old)) + ' til ' + esc(m(STD_B)) + '. Projektet bruger ' + esc(m(used)) + '.' + overridesText(),
+        [['Behold ' + fmt(used, 2), function () { done(used); }], ['Brug ' + fmt(STD_B, 2), function () { done(null); }]]);
+    }
+  }
+  function askDraft() {
+    var draft = null;
+    try { draft = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); } catch (e) { draft = null; }
+    if (!draft || draft.runId !== D.runId) { return; }
+    notice('nDraft', 'Der er ikke-gemte ændringer fra ' + esc(draft.time) + '.', [
+      ['Gendan', function () {
+        loadSetup(draft.setup);
+        if (typeof draft.standardB === 'number') { standardB = draft.standardB; pendingStandard = Math.abs(standardB - STD_B) > 1e-9; }
+        changed(); applyB(allAlignments()); askStandard();
+      }],
+      ['Kassér', function () { try { localStorage.removeItem(DRAFT_KEY); } catch (e) { /* ignore */ } }]
+    ]);
+  }
+
+  // ---- the final Excel file: the same sheets AUTOAMKB wrote, from what is shown here, with marked findings on Fravalgt ----
+  var HEADER_ROW = 13, FIRST_ROW = 14, SOURCE_COL = 17;
+  var LOGBOOK_HEADERS = ['ID Nr.', 'Emne', 'Arbejdsmiljøudfordring (fritekst)', 'Særligt Farligt Arbejde, hovedkategori', 'Særligt Farligt Arbejde, underkategori',
+    'Iboende sandsynlighed', 'Iboende konsekvens', 'Risikovurdering', 'Løsning og tiltag (fritekst)', 'Endelig sandsynlighed', 'Endelig konsekvens', 'Risikovurdering',
+    'Koordinering/Kommunikation (fritekst)', 'Ansvarlig'];
+  var JOURNAL_HEADERS = ['Stationering', 'Driftselementer, hovedkategori', 'Driftselementer, underkategori', 'Arb.miljøudfordringer', 'Uddybning af arbejdsmiljøudfordring (fritekst)',
+    'Iboende sandsynlighed', 'Iboende konsekvens', 'Risikovurdering', 'Løsning og tiltag (fritekst)', 'Endelig sandsynlighed', 'Endelig konsekvens', 'Risikovurdering',
+    'Koordinering/Kommunikation (fritekst)', 'Ansvarlig'];
+  var TEMPLATE_WIDTHS = [[1, 3], [2, 14], [3, 34], [4, 52], [5, 44], [6, 40], [17, 10], [18, 11], [19, 11], [20, 26], [21, 34], [22, 8], [23, 30], [24, 24], [25, 18]];
+  function fill(template, values) {
+    var lower = {};
+    Object.keys(values || {}).forEach(function (k) { lower[k.toLowerCase()] = values[k]; });
+    return String(template || '').replace(/\{([^{}]+)\}/g, function (all, key) { return own(lower, key.toLowerCase()) ? lower[key.toLowerCase()] : all; });
+  }
+  function joinDistinct(texts, sep) {
+    var seen = {}, out = [];
+    texts.forEach(function (t) { var k = String(t).toUpperCase(); if (t !== '' && !seen[k]) { seen[k] = 1; out.push(t); } });
+    return out.join(sep);
+  }
+  function round(v, d) { var f = Math.pow(10, d); return Math.round(v * f) / f; }
+  function Sheet(name, widths) { this.name = name; this.widths = widths; this.cells = []; }
+  Sheet.prototype.put = function (row, col, value) { this.cells.push([row, col, value]); };
+  Sheet.prototype.row = function (row, col, values) { var self = this; values.forEach(function (v, i) { self.put(row, col + i, v); }); };
+  function copyHint(n) { return n === 0 ? 'Ingen fund.' : 'Kopiér B' + FIRST_ROW + ':F' + (FIRST_ROW + n - 1) + ' og indsæt som værdier i skabelonens celle B' + FIRST_ROW + '. Kolonne Q og frem er kildedata.'; }
+  function intro(sh, title, hint) {
+    sh.put(1, 2, title); sh.put(2, 2, hint);
+    sh.put(3, 2, 'Projekt ' + D.project + ', etape ' + D.etape + ', kørt ' + D.runTime + '. Se fanen Kørselsinfo.');
+  }
+  function hitFields(it) {
+    var h = it.hit;
+    return { alignment: h.alignment, from: round(h.from, 2), to: round(h.to, 2), kind: it.kind.name, detail: h.detail, count: h.count, owner: h.owner, source: h.source, handle: h.handle, x: round(h.tx, 3), y: round(h.ty, 3) };
+  }
+  function orderHits(list) {
+    return list.slice().sort(function (a, b) {
+      return byName(a.alignment, b.alignment) || (a.from - b.from) || (KIND_ORDER.indexOf(a.kind.key) - KIND_ORDER.indexOf(b.kind.key));
+    });
+  }
+  function buildSheets() {
+    var hits = orderHits(items.filter(function (it) { return !it.valve; }));
+    var kept = hits.filter(function (it) { return !isNon(it); });
+    var valves = items.filter(function (it) { return it.valve; });
+    // As AUTOAMKB orders them: by alignment, then station; a valve without either goes last
+    var keptValves = valves.filter(function (it) { return !isNon(it); }).sort(function (a, b) {
+      var sa = a.v.sta.length ? a.v.sta[0] : Infinity, sb = b.v.sta.length ? b.v.sta[0] : Infinity;
+      return byName(a.alignment || '~', b.alignment || '~') || (sa < sb ? -1 : sa > sb ? 1 : 0);
+    });
+    var dropped = items.filter(isNon);
+    var sheets = [];
+
+    var sh = new Sheet('Logbog pr. fund', TEMPLATE_WIDTHS);
+    intro(sh, 'AUTOAMKB – logbog, én række pr. fund', copyHint(kept.length));
+    sh.row(HEADER_ROW, 2, LOGBOOK_HEADERS);
+    sh.row(HEADER_ROW, SOURCE_COL, ['Alignment', 'Station fra', 'Station til', 'Kriterie', 'Detalje', 'Antal', 'Ejer', 'Kildefil', 'Handle', 'X', 'Y']);
+    kept.forEach(function (it, n) {
+      var t = KIND_TEXT[it.kind.key], f = hitFields(it), r = FIRST_ROW + n;
+      sh.row(r, 2, [it.id, fill(t.topic, it.hit.values), fill(t.description, it.hit.values), t.main, t.sub]);
+      sh.row(r, SOURCE_COL, [f.alignment, f.from, f.to, f.kind, f.detail, f.count, f.owner, f.source, f.handle, f.x, f.y]);
+    });
+    sheets.push(sh);
+
+    var byKind = KIND_ORDER.filter(function (k) { return k !== 'VENTIL'; }).map(function (k) { return { key: k, hits: kept.filter(function (it) { return it.kind.key === k; }) }; })
+      .filter(function (g) { return g.hits.length; });
+    sh = new Sheet('Logbog pr. kriterie', TEMPLATE_WIDTHS);
+    intro(sh, 'AUTOAMKB – logbog, én række pr. kriterie', copyHint(byKind.length));
+    sh.row(HEADER_ROW, 2, LOGBOOK_HEADERS);
+    sh.row(HEADER_ROW, SOURCE_COL, ['Kriterie', 'Antal fund']);
+    byKind.forEach(function (g, n) {
+      var t = KIND_TEXT[g.key], values = { antal: String(g.hits.length), stationer: stationList(g.hits) }, r = FIRST_ROW + n;
+      sh.row(r, 2, ['', fill(t.criterionTopic, values), fill(t.criterionDescription, values), t.main, t.sub]);
+      sh.row(r, SOURCE_COL, [t.name, g.hits.length]);
+    });
+    sheets.push(sh);
+
+    var J = D.excel.journal;
+    sh = new Sheet('Journal', TEMPLATE_WIDTHS);
+    intro(sh, 'AUTOAMKB – journal, ventiler', copyHint(keptValves.length * J.subs.length));
+    sh.row(HEADER_ROW, 2, JOURNAL_HEADERS);
+    sh.row(HEADER_ROW, SOURCE_COL, ['Alignment', 'Station', 'Antal ventiler', 'Komponenttype', 'Blok', 'Handle', 'X', 'Y']);
+    var r = FIRST_ROW;
+    keptValves.forEach(function (it) {
+      var v = it.v, description = fill(J.description, v.values);
+      J.subs.forEach(function (sub) {
+        sh.row(r, 2, [v.id, J.main, sub, '', description]);
+        sh.row(r, SOURCE_COL, [v.alignment, v.sta.length ? v.sta[0] : '', v.count, v.types, v.blocks, v.handles, v.fx, v.fy]);
+        r++;
+      });
+    });
+    sheets.push(sh);
+
+    sh = new Sheet('Fravalgt', [[1, 18], [2, 26], [3, 11], [4, 11], [5, 11], [6, 52], [7, 40], [8, 17], [9, 30]]);
+    sh.row(1, 1, ['ID', 'Kriterie', 'Alignment', 'Station fra', 'Station til', 'Detalje', 'Begrundelse', 'Markeret', 'Markering']);
+    dropped.sort(function (a, b) { return byName(a.id, b.id); }).forEach(function (it, n) {
+      var mk = it.ms.mark;
+      sh.row(2 + n, 1, [it.id, it.kind.name, it.alignment || '', it.valve ? (it.v.sta.length ? it.v.sta[0] : '') : round(it.from, 2), it.valve ? '' : round(it.to, 2),
+        it.text, mk.note || '', mk.time || '', it.ms.state === 'arvet' ? 'Arvet fra ' + mk.id : '']);
+    });
+    sheets.push(sh);
+
+    sheets.push(infoSheet(kept, keptValves, dropped));
+    return sheets;
+  }
+  // "001:316, 001:328; 002:010": stations on one alignment joined by commas, alignments by semicolons
+  function stationList(hits) {
+    var groupsBy = {};
+    hits.forEach(function (it) { (groupsBy[upper(it.alignment)] = groupsBy[upper(it.alignment)] || []).push(it); });
+    return Object.keys(groupsBy).sort().map(function (k) {
+      return groupsBy[k].slice().sort(function (a, b) { return a.from - b.from; }).map(function (it) { return it.id; }).join(', ');
+    }).join('; ');
+  }
+  function infoSheet(kept, keptValves, dropped) {
+    var I = D.excel.info, sh = new Sheet('Kørselsinfo', [[1, 30], [2, 110], [3, 60]]), row = 1;
+    function line() { var a = arguments; for (var i = 0; i < a.length; i++) { sh.put(row, i + 1, a[i]); } row++; }
+    line('AUTOAMKB – kørselsinfo'); row++;
+    line('Projekt', D.project); line('Etape', D.etape); line('Tegning', I.drawingPath); line('Kørt', D.runTime); line('Eksporteret', nowText());
+    line('Bruger', I.user); line('Konfiguration', I.configuration); line('Regler', I.rulesSource);
+    row++; line('Ikke vurderet'); I.notEvaluated.forEach(function (t) { line('', t); });
+    row++; line('Montagehul B');
+    line('', 'Standard i AutoAmkB.csv: ' + m(STD_B));
+    line('', 'Global: ' + m(globalB()) + (setup.globalB !== null ? ' (ændret i kortet)' : ' (standard)'));
+    Object.keys(setup.overrides).sort(byName).forEach(function (al) { line('', 'Alignment ' + al + ': ' + m(setup.overrides[al])); });
+    row++; line('Antal');
+    KIND_ORDER.filter(function (k) { return k !== 'VENTIL'; }).forEach(function (k) {
+      line(KIND_TEXT[k].name, String(kept.filter(function (it) { return it.kind.key === k; }).length));
+    });
+    line('Ventilplaceringer', String(keptValves.length));
+    line('Fravalgt', String(dropped.length) + (dropped.length ? ' (se fanen Fravalgt)' : ''));
+    row++; line('Datafiler'); I.files.forEach(function (f) { line(f[0], f[1], f[2]); });
+    row++; line('Advarsler'); if (!I.warnings.length) { line('', 'Ingen'); } I.warnings.forEach(function (w) { line('', w); });
+    row++; line('Regler i brug', 'Værdi', 'Note'); I.rules.forEach(function (e) { line(e[0], e[1], e[2]); });
+    return sh;
+  }
+  function colName(n) { var s = ''; while (n > 0) { var r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); } return s; }
+  function xmlText(s) {
+    return String(s).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
+      .replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c]; });
+  }
+  function sheetXml(sh) {
+    var rows = {}, out = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'];
+    sh.cells.forEach(function (c) { (rows[c[0]] = rows[c[0]] || []).push(c); });
+    if (sh.widths.length) {
+      out.push('<cols>');
+      sh.widths.forEach(function (w) { out.push('<col min="' + w[0] + '" max="' + w[0] + '" width="' + w[1] + '" customWidth="1"/>'); });
+      out.push('</cols>');
+    }
+    out.push('<sheetData>');
+    Object.keys(rows).map(Number).sort(function (a, b) { return a - b; }).forEach(function (r) {
+      out.push('<row r="' + r + '">');
+      rows[r].sort(function (a, b) { return a[1] - b[1]; }).forEach(function (c) {
+        var ref = colName(c[1]) + r, v = c[2];
+        if (typeof v === 'number') { if (isFinite(v)) { out.push('<c r="' + ref + '"><v>' + v + '</v></c>'); } }
+        else if (v !== null && v !== undefined && String(v) !== '') { out.push('<c r="' + ref + '" t="inlineStr"><is><t xml:space="preserve">' + xmlText(v) + '</t></is></c>'); }
+      });
+      out.push('</row>');
+    });
+    out.push('</sheetData></worksheet>');
+    return out.join('');
+  }
+  function workbookFiles(sheets) {
+    var ct = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+      '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>' +
+      '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>';
+    var wb = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>';
+    var rels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">';
+    var files = [];
+    sheets.forEach(function (sh, i) {
+      var n = i + 1;
+      ct += '<Override PartName="/xl/worksheets/sheet' + n + '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>';
+      wb += '<sheet name="' + xmlText(sh.name) + '" sheetId="' + n + '" r:id="rId' + n + '"/>';
+      rels += '<Relationship Id="rId' + n + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet' + n + '.xml"/>';
+      files.push({ name: 'xl/worksheets/sheet' + n + '.xml', text: sheetXml(sh) });
+    });
+    return [
+      { name: '[Content_Types].xml', text: ct + '</Types>' },
+      { name: '_rels/.rels', text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>' },
+      { name: 'xl/workbook.xml', text: wb + '</sheets></workbook>' },
+      { name: 'xl/_rels/workbook.xml.rels', text: rels + '</Relationships>' }
+    ].concat(files);
+  }
+  // ---- zip, with the browser's own deflate ----
+  var CRC_TABLE = (function () { var t = new Uint32Array(256); for (var n = 0; n < 256; n++) { var c = n; for (var k = 0; k < 8; k++) { c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; } t[n] = c >>> 0; } return t; })();
+  function crc32(b) { var c = 0xFFFFFFFF; for (var i = 0; i < b.length; i++) { c = CRC_TABLE[(c ^ b[i]) & 0xFF] ^ (c >>> 8); } return (c ^ 0xFFFFFFFF) >>> 0; }
+  function deflate(bytes) { return new Response(new Blob([bytes]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer().then(function (b) { return new Uint8Array(b); }); }
+  function zip(files) {
+    var now = new Date(), time = (now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1);
+    var date = ((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate(), enc = new TextEncoder();
+    return Promise.all(files.map(function (f) {
+      var raw = enc.encode(f.text);
+      return deflate(raw).then(function (c) { return { name: f.name, method: 8, time: time, date: date, crc: crc32(raw), csize: c.length, usize: raw.length, data: c }; });
+    })).then(zipWrite);
+  }
+  function zipWrite(entries) {
+    var parts = [], central = [], offset = 0, enc = new TextEncoder();
+    entries.forEach(function (e) {
+      var name = enc.encode(e.name), h = new DataView(new ArrayBuffer(30)), c = new DataView(new ArrayBuffer(46));
+      h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(8, e.method, true); h.setUint16(10, e.time, true); h.setUint16(12, e.date, true);
+      h.setUint32(14, e.crc, true); h.setUint32(18, e.csize, true); h.setUint32(22, e.usize, true); h.setUint16(26, name.length, true);
+      parts.push(new Uint8Array(h.buffer), name, e.data);
+      c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(10, e.method, true); c.setUint16(12, e.time, true);
+      c.setUint16(14, e.date, true); c.setUint32(16, e.crc, true); c.setUint32(20, e.csize, true); c.setUint32(24, e.usize, true);
+      c.setUint16(28, name.length, true); c.setUint32(42, offset, true);
+      central.push(new Uint8Array(c.buffer), name);
+      offset += 30 + name.length + e.data.length;
+    });
+    var cdSize = central.reduce(function (s, p) { return s + p.length; }, 0), end = new DataView(new ArrayBuffer(22));
+    end.setUint32(0, 0x06054b50, true); end.setUint16(8, entries.length, true); end.setUint16(10, entries.length, true);
+    end.setUint32(12, cdSize, true); end.setUint32(16, offset, true);
+    return new Blob(parts.concat(central, [new Uint8Array(end.buffer)]), { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  }
+  function excelName() {
+    var safe = function (s) { return String(s).trim().replace(/[\\/:*?"<>|]/g, '_'); };
+    return 'AUTOAMKB_' + safe(D.project) + '_' + safe(D.etape) + '_' + nowText().slice(0, 10) + '.xlsx';
+  }
+  // Export saves first, so the Excel file and the saved map always describe the same state
+  document.getElementById('export').onclick = function () {
+    var saved = false;
+    status('');
+    save().then(function () {
+      saved = true;
+      status('Skriver Excel …');
+      return zip(workbookFiles(buildSheets())).then(function (blob) {
+        if (!window.showSaveFilePicker) { download(blob, excelName()); status('Excel gemt som download: ' + excelName()); return; }
+        var opts = { suggestedName: excelName(), types: [{ description: 'Excel', accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] } }] };
+        if (fileHandle) { opts.startIn = fileHandle; }
+        return window.showSaveFilePicker(opts).then(function (h) {
+          return h.createWritable().then(function (w) { return w.write(blob).then(function () { return w.close(); }); }).then(function () { status('Kortet er gemt, og Excel er skrevet: ' + h.name); });
+        });
+      });
+    }).catch(function (e) {
+      // The browser allows one file dialog per click; the first export may already have used it to find the map
+      if (saved && e && (e.name === 'SecurityError' || e.name === 'NotAllowedError')) { status('Kortet er gemt. Klik "Eksportér Excel" igen for at vælge, hvor Excel-filen skal ligge.'); return; }
+      failed(e, 'Eksport');
+    });
+  };
+
+  // ---- the Montagehul window: bottom right, resized from its top-left corner (double-click the corner to reset).
+  // The size is a per-browser convenience; the info and marks column keeps clear of it ----
+  var bPanel = document.getElementById('bPanel'), rightCol = document.getElementById('right'), grip = document.getElementById('bGrip');
+  var SIZE_KEY = 'amkb-kort-montagehul-vindue', resizing = null;
+  try {
+    var size = JSON.parse(localStorage.getItem(SIZE_KEY) || 'null');
+    if (size) { bPanel.style.width = size.w + 'px'; bPanel.style.height = size.h + 'px'; }
+  } catch (e) { /* no stored size: the default one */ }
+  function fitRight() { rightCol.style.bottom = (bPanel.offsetHeight + 24) + 'px'; }
+  grip.addEventListener('pointerdown', function (e) {
+    e.preventDefault(); grip.setPointerCapture(e.pointerId);
+    var r = bPanel.getBoundingClientRect();
+    resizing = { x: e.clientX, y: e.clientY, w: r.width, h: r.height };
+  });
+  grip.addEventListener('pointermove', function (e) {
+    if (!resizing) { return; }
+    bPanel.style.width = Math.max(300, resizing.w + resizing.x - e.clientX) + 'px';
+    bPanel.style.height = Math.max(120, resizing.h + resizing.y - e.clientY) + 'px';
+  });
+  grip.addEventListener('pointerup', function () {
+    if (!resizing) { return; }
+    resizing = null;
+    var r = bPanel.getBoundingClientRect();
+    try { localStorage.setItem(SIZE_KEY, JSON.stringify({ w: Math.round(r.width), h: Math.round(r.height) })); } catch (e) { /* not remembered */ }
+  });
+  grip.addEventListener('dblclick', function () {
+    bPanel.style.width = ''; bPanel.style.height = '';
+    try { localStorage.removeItem(SIZE_KEY); } catch (e) { /* nothing stored */ }
+  });
+  var sectionQueued = false;
+  if (window.ResizeObserver) {
+    new ResizeObserver(function () {
+      fitRight();
+      if (!sectionQueued) { sectionQueued = true; requestAnimationFrame(function () { sectionQueued = false; updateSection(); }); }
+    }).observe(bPanel);
+  }
+
+  // ---- buttons, pan / zoom / click ----
+  document.getElementById('kOn').onclick = function () { kindList.forEach(function (k) { k.on = true; }); buildKinds(); buildList(); draw(); };
+  document.getElementById('kOff').onclick = function () { kindList.forEach(function (k) { k.on = false; }); buildKinds(); buildList(); draw(); };
+  document.getElementById('lOn').onclick = function () { layers.concat([STATION_LAYER, PASSAGE_LAYER]).forEach(function (l) { l.on = true; }); buildLayers(); draw(); };
+  document.getElementById('lOff').onclick = function () { layers.forEach(function (l) { l.on = false; }); buildLayers(); draw(); };
+  document.getElementById('zin').onclick = function () { view.s *= 1.6; draw(); };
+  document.getElementById('zout').onclick = function () { view.s /= 1.6; draw(); };
+  document.getElementById('zall').onclick = function () { fitBox(allBox(), 0.05); draw(); };
+  var down = null;
+  canvas.addEventListener('pointerdown', function (e) { canvas.setPointerCapture(e.pointerId); down = { x: e.offsetX, y: e.offsetY, cx: view.cx, cy: view.cy, moved: false }; });
+  canvas.addEventListener('pointermove', function (e) {
+    if (!down) {
+      if (meas.on) { meas.hover = [wx(e.offsetX), wy(e.offsetY)]; updateRead(); draw(); }
+      else { canvas.style.cursor = pick(e.offsetX, e.offsetY) || pickLer(e.offsetX, e.offsetY) ? 'pointer' : ''; }
+      return;
+    }
+    var dx = e.offsetX - down.x, dy = e.offsetY - down.y;
+    if (Math.abs(dx) + Math.abs(dy) > 3) { down.moved = true; canvas.classList.add('drag'); }
+    if (down.moved) { view.cx = down.cx - dx / view.s; view.cy = down.cy + dy / view.s; draw(); }
+  });
+  canvas.addEventListener('pointerup', function (e) {
+    if (down && !down.moved) {
+      if (meas.on) {
+        if (meas.done) { meas.pts = []; meas.done = false; }
+        meas.pts.push([wx(e.offsetX), wy(e.offsetY)]); updateRead(); draw();
+      } else {
+        // A finding first, then a LER line; either way the cross-section moves to where the click was
+        var it = pick(e.offsetX, e.offsetY), lr = it ? null : pickLer(e.offsetX, e.offsetY);
+        var spot = spotAt(e.offsetX, e.offsetY, it && it.alignment && PA[it.alignment] ? it.alignment : null);
+        if (it) { select(it, false, spot); }
+        else if (lr) { selectLer(lr); if (spot) { sel = spot; updateB(); draw(); } }
+        else if (spot) { select(null); sel = spot; updateB(); draw(); }
+        else { select(null); }
+      }
+    }
+    down = null; canvas.classList.remove('drag');
+  });
+  canvas.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    var f = Math.exp(-e.deltaY * 0.0015), mx = e.offsetX, my = e.offsetY, bx = wx(mx), by = wy(my);
+    view.s = Math.min(400, Math.max(0.02, view.s * f));
+    view.cx = bx - (mx - W / 2) / view.s; view.cy = by + (my - H / 2) / view.s; draw();
+  }, { passive: false });
+  window.addEventListener('resize', function () { resize(); draw(); });
+
+  document.title = 'AUTOAMKB kort ' + D.project + ' ' + D.etape;
+  document.getElementById('meta').textContent = D.project + ' · ' + D.etape + ' · ' + D.runTime;
+  resize(); fitBox(allBox(), 0.05);
+  redoNarrow(allAlignments()); allAlignments().forEach(buildBands); rebuildItems();
+  buildKinds(); buildLayers(); buildList(); buildNon(); updateB(); showSaveState(); fitRight();
+  askStandard(); askDraft();
+  draw();
+})();
+</script>
+</body>
+</html>

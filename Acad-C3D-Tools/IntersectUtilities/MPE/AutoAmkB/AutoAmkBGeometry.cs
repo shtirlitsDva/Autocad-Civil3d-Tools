@@ -44,6 +44,10 @@ internal static class AlignmentSampler
         return samples;
     }
 
+    /// <summary>The sample at one station, or none where the alignment cannot place it.</summary>
+    public static Option<StationSample> SampleAt(Alignment alignment, double station) =>
+        Boundary.TryOption(() => At(alignment, station));
+
     // Civil 3D offsets are positive to the right of the alignment direction, so a 1 m offset point
     // gives the right-hand normal without any tangent arithmetic.
     private static StationSample At(Alignment alignment, double station)

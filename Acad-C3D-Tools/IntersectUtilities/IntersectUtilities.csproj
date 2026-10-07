@@ -198,6 +198,9 @@
 	  <EmbeddedResource Include="MPE\PipePlan\Views\DarkTheme.xaml">
 	    <LogicalName>IntersectUtilities.MPE.PipePlan.DarkTheme.xaml</LogicalName>
 	  </EmbeddedResource>
+	  <EmbeddedResource Include="MPE\AutoAmkB\AutoAmkBKort.html">
+	    <LogicalName>IntersectUtilities.MPE.AutoAmkB.AutoAmkBKort.html</LogicalName>
+	  </EmbeddedResource>
 	  <EmbeddedResource Include="MPE\PipePlanDE\Views\RegelGrabenprofil.png">
 	    <LogicalName>IntersectUtilities.MPE.PipePlanDE.RegelGrabenprofil.png</LogicalName>
 	  </EmbeddedResource>
