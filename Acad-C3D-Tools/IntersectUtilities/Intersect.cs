@@ -91,6 +91,7 @@ namespace IntersectUtilities
             SafeReset("MatchBBR palette", IntersectUtilities.MPE.MatchBBR.MatchBbrRuntime.Reset);
             SafeReset("MapConnections palette", IntersectUtilities.MPE.MapConnections.MapConnectionsRuntime.Reset);
             SafeReset("Alignment direction overlay", ResetAlignmentDirectionOverlay);
+            SafeReset("LERPROBE windows", IntersectUtilities.LerProbe.LerProbeSession.Reset);
             SafeReset("Properties palette", Dreambuild.AutoCAD.Gui.ResetPropertyPalette);
         }
 
