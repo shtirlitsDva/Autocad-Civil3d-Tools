@@ -68,11 +68,22 @@ internal sealed class LerProbeWindow : Form
         var close = new Button { Text = "Close", AutoSize = true, DialogResult = DialogResult.Cancel, Margin = new Padding(0, 8, 0, 0) };
         footer.Controls.Add(close, 1, 0);
         CancelButton = close;
+        close.Click += (_, _) => Close();
         layout.Controls.Add(footer, 0, 3);
         Controls.Add(layout);
         search.TextChanged += (_, _) => Filter(search.Text);
         Shown += (_, _) => search.Focus();
         Filter(string.Empty);
+    }
+
+    protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+    {
+        if (keyData == Keys.Escape)
+        {
+            Close();
+            return true;
+        }
+        return base.ProcessCmdKey(ref msg, keyData);
     }
 
     private void AddColumn(string title, string property, float weight) => grid.Columns.Add(

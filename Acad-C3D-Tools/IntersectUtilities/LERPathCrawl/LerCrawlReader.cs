@@ -55,7 +55,7 @@ internal static class LerCrawlReader
             error => LerCrawlResult<LerCrawlSource>.Fault(error));
     }
 
-    private static bool Contains(Transaction tr, BlockReference block, ObjectId owner)
+    internal static bool Contains(Transaction tr, BlockReference block, ObjectId owner)
     {
         if (block.BlockTableRecord == owner)
             return true;

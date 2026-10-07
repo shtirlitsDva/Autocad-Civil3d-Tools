@@ -1,6 +1,7 @@
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Runtime;
+using IntersectUtilities.LerPathCrawl;
 using IntersectUtilities.LerProbe;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 
@@ -11,7 +12,8 @@ public partial class Intersect
     /// <command>LERPROBE</command>
     /// <summary>
     /// Select a polyline inside an xref and inspect its attached AEC property
-    /// sets in a searchable, read-only table. Reads directly from the loaded source drawing.
+    /// sets in a searchable, read-only modeless table. Draws the complete selected polyline
+    /// in bright red (blue for a red pipe) while the window is open. Pan/zoom remain available.
     /// </summary>
     /// <category>LER</category>
     [CommandMethod("LERPROBE", CommandFlags.Modal)]
@@ -25,16 +27,24 @@ public partial class Intersect
             if (pick.Status != PromptStatus.OK)
                 return;
 
-            LerPathCrawl.LerCrawlResult<LerProbeSnapshot> result;
+            LerCrawlResult<LerProbeSnapshot> result;
+            LerCrawlResult<LerProbeGraphic> graphic;
             using (var hostRead = document.Database.TransactionManager.StartTransaction())
+            {
                 result = LerProbeReader.Read(hostRead, pick.ObjectId, pick.GetContainers());
+                graphic = result.Match(
+                    _ => LerProbeHighlight.Resolve(hostRead, pick.ObjectId, pick.GetContainers()).Match(
+                        path => LerProbeGraphicBuilder.Read(hostRead, document.Database, path, pick.Transform),
+                        error => LerCrawlResult<LerProbeGraphic>.Fault(error)),
+                    error => LerCrawlResult<LerProbeGraphic>.Fault(error));
+            }
 
-            // The dialog holds only strings and values; all native reads have ended.
+            // The window owns detached preview geometry and data, with no open
+            // transaction or document lock after this command returns.
             result.Match(
                 snapshot =>
                 {
-                    using var window = new LerProbeWindow(snapshot);
-                    Application.ShowModalDialog(window);
+                    LerProbeSession.Open(document, snapshot, graphic);
                     return true;
                 },
                 error => { ed.WriteMessage($"\n{error}"); return false; });
