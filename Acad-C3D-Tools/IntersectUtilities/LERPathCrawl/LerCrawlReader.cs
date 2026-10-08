@@ -15,8 +15,23 @@ internal static class LerCrawlReader
         if (tr.GetObject(selectedId, OpenMode.ForRead) is not Polyline selected)
             return LerCrawlResult<LerCrawlSource>.Fault("Select a lightweight LER polyline inside an xref.");
 
-        var containers = containerIds
-            .Select(id => (BlockReference)tr.GetObject(id, OpenMode.ForRead)).ToList();
+        var containers = new List<BlockReference>();
+        bool hasLerReference = false;
+        foreach (ObjectId id in containerIds)
+        {
+            if (tr.GetObject(id, OpenMode.ForRead) is not BlockReference block)
+                return LerCrawlResult<LerCrawlSource>.Fault("Unable to resolve the selected xref instance.");
+            containers.Add(block);
+            var record = (BlockTableRecord)tr.GetObject(block.BlockTableRecord, OpenMode.ForRead);
+            if ((record.IsFromExternalReference || record.IsFromOverlayReference) &&
+                LerCrawlReferenceIdentity.IsLer(record.Name, record.PathName))
+                hasLerReference = true;
+        }
+        // Reject before resolving source databases or walking their entities.
+        // A base-map layer can otherwise become a very large route graph.
+        if (!hasLerReference)
+            return LerCrawlResult<LerCrawlSource>.Fault(
+                "The selected polyline is not in a LER xref. Select a polyline in a reference named LER, 2DLER or 3DLER (or with a LER drawing filename).");
         // Reconstruct containment by OwnerId rather than depending on array order.
         var hierarchy = new List<BlockReference>();
         ObjectId owner = selected.OwnerId;
@@ -35,7 +50,8 @@ internal static class LerCrawlReader
         for (int index = 0; index < hierarchy.Count; index++)
         {
             var record = (BlockTableRecord)tr.GetObject(hierarchy[index].BlockTableRecord, OpenMode.ForRead);
-            if (record.IsFromExternalReference || record.IsFromOverlayReference)
+            if ((record.IsFromExternalReference || record.IsFromOverlayReference) &&
+                LerCrawlReferenceIdentity.IsLer(record.Name, record.PathName))
                 root = index;
         }
         if (root < 0)

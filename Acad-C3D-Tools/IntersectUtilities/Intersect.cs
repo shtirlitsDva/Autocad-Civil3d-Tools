@@ -4628,6 +4628,7 @@ namespace IntersectUtilities
         /// og grupperer dem efter (system–type–DN) til én samlet linje pr. kategori.
         /// ENKELT-rør kan behandles som dobbelt længde, hvis de er tegnet som én polyline.
         /// Twin-rør tælles automatisk dobbelt i volumenberegningen.
+        /// Grøftelængden er lig rørlængden for Twin og halvdelen af rørlængden for ENKELT.
         /// Output sorteres efter system (STÅL først), derefter DN faldende og til sidst type (ENKELT før Twin).
         /// Anvendes til hurtig mængdeudtræk af rørlængder og volumen direkte fra tegningen.
         /// Komandoen tager ikke højde for komponenter.
@@ -4675,10 +4676,11 @@ namespace IntersectUtilities
 
             // We'll aggregate data into a dictionary keyed by (system, type, DN).
             // If the type is FREM or RETUR, we'll recode it as "ENKELT".
-            Dictionary<(string system, string type, int dn), (double totalLength, double totalVolume)> summary =
-                new Dictionary<(string, string, int), (double, double)>();
+            Dictionary<(string system, string type, int dn), (double totalLength, double totalTrenchLength, double totalVolume)> summary =
+                new Dictionary<(string, string, int), (double, double, double)>();
 
             double overallLength = 0.0;
+            double overallTrenchLength = 0.0;
             double overallVolume = 0.0;
 
             foreach (Polyline pl in polylines)
@@ -4720,6 +4722,10 @@ namespace IntersectUtilities
                 if (finalType.Equals("ENKELT", StringComparison.OrdinalIgnoreCase) && singleAsOne)
                     length *= 2.0;
 
+                double trenchLength = finalType.Equals("ENKELT", StringComparison.OrdinalIgnoreCase)
+                    ? length / 2.0
+                    : length;
+
                 double volume = area * length; // m³
 
                 if (finalType.Equals("Twin", StringComparison.OrdinalIgnoreCase))
@@ -4729,14 +4735,16 @@ namespace IntersectUtilities
                 if (summary.ContainsKey(key))
                 {
                     var current = summary[key];
-                    summary[key] = (current.totalLength + length, current.totalVolume + volume);
+                    summary[key] = (current.totalLength + length,
+                        current.totalTrenchLength + trenchLength, current.totalVolume + volume);
                 }
                 else
                 {
-                    summary.Add(key, (length, volume));
+                    summary.Add(key, (length, trenchLength, volume));
                 }
 
                 overallLength += length;
+                overallTrenchLength += trenchLength;
                 overallVolume += volume;
             }
 
@@ -4760,8 +4768,8 @@ namespace IntersectUtilities
             // Print header with increased spacing.
             ed.WriteMessage("\nPipe Volume Summary (PipeScheduleV2):");
             ed.WriteMessage("\n--------------------------------------");
-            string header = string.Format("{0,-30}{1,19}{2,14}",
-                "Pipe (System-Type-DN)", "Pipe Length (m)", "Volume (m³)");
+            string header = string.Format("{0,-30}{1,19}{2,19}{3,14}",
+                "Pipe (System-Type-DN)", "Pipe Length (m)", "Trench Length (m)", "Volume (m³)");
             ed.WriteMessage("\n" + header);
 
             // Print each sorted entry (one aggregated line per unique key, no extra blank lines)
@@ -4769,17 +4777,19 @@ namespace IntersectUtilities
             {
                 string label = $"{entry.Key.system}-{entry.Key.type}-DN{entry.Key.dn}";
                 double len = Math.Round(entry.Value.totalLength, 1);
+                double trenchLen = Math.Round(entry.Value.totalTrenchLength, 1);
                 double vol = Math.Round(entry.Value.totalVolume, 3);
-                string line = string.Format("{0,-30}{1,19:0.0}{2,14:0.000}",
-                    label, len, vol);
+                string line = string.Format("{0,-30}{1,19:0.0}{2,19:0.0}{3,14:0.000}",
+                    label, len, trenchLen, vol);
                 ed.WriteMessage("\n" + line);
             }
 
             // Print total line.
             double totLen = Math.Round(overallLength, 1);
+            double totTrenchLen = Math.Round(overallTrenchLength, 1);
             double totVol = Math.Round(overallVolume, 3);
-            string totalLine = string.Format("{0,-30}{1,19:0.0}{2,14:0.000}",
-                "TOTAL", totLen, totVol);
+            string totalLine = string.Format("{0,-30}{1,19:0.0}{2,19:0.0}{3,14:0.000}",
+                "TOTAL", totLen, totTrenchLen, totVol);
             ed.WriteMessage("\n" + totalLine);
         }
 
