@@ -137,14 +137,14 @@ namespace IntersectUtilities.NSTBL
         }
 
         /// <param name="inheritWeldSerie">
-        /// Welds without a Serie inherit it from the pipe or component they join (TBLEXPORTCWOV2).
+        /// Welds without a Serie inherit it from the pipe or component they join (TBLEXPORTV2).
         /// The older exports keep the blank Serie so their output stays unchanged.
         /// </param>
         /// <param name="bendAngleInName">
-        /// Bends with a free angle get the drawn angle in their name instead of 90° (TBLEXPORTCWOV2).
+        /// Bends with a free angle get the drawn angle in their name instead of 90° (TBLEXPORTV2).
         /// </param>
         /// <param name="fixComponentData">
-        /// Component rows are made usable for the tilbudsliste (TBLEXPORTCWOV2): blocks with no row
+        /// Component rows are made usable for the tilbudsliste (TBLEXPORTV2): blocks with no row
         /// in FJV Dynamiske Komponenter.csv are left out and listed, Materialeskift gets its plastic
         /// system and steel-side serie, plastic components get their pipe's serie and their own
         /// system's name prefix, and steel components without a serie get one. See FixComponentData.
@@ -416,7 +416,7 @@ namespace IntersectUtilities.NSTBL
             { PipeSystemEnum.PertPIPE, "PRTPIPE" },
         };
         /// <summary>
-        /// TBLEXPORTCWOV2 only. Fills in what FJV Dynamiske Komponenter.csv cannot give a component row:
+        /// TBLEXPORTV2 only. Fills in what FJV Dynamiske Komponenter.csv cannot give a component row:
         /// - Materialeskift: the CSV leaves "{M1}x{M2}" in the name and the system Ukendt. The block's
         ///   Type (e.g. ALUPEX63xDN50) holds both sides; M1 is the DN1 side, M2 the side it changes
         ///   to. The name drops the placeholders, the system becomes M2's, and the serie is that of
@@ -617,7 +617,7 @@ namespace IntersectUtilities.NSTBL
             if (vinkel.IsNoE()) return navn;
             return navn.Replace("90°", vinkel + "°");
         }
-        internal HashSet<IntersectResult> processintersectdataCWOV2()
+        internal HashSet<IntersectResult> processintersectdataV2()
         {
             var results = gatherintersectdata(true, true, true);
             if (results == null)
@@ -800,10 +800,10 @@ namespace IntersectUtilities.NSTBL
             #endregion
         }
 
-        /// <command>TBLEXPORTCWOV2</command>
+        /// <command>TBLEXPORTV2</command>
         /// <summary>
         /// Computes intersections between tender areas (layer "0-OMRÅDER-OK") and FJV objects, then
-        /// exports a CSV whose rows paste straight into the CWO tilbudsliste sheet:
+        /// exports a CSV whose rows paste straight into the tilbudsliste sheet:
         /// Egne noter;Vejklasse;Belægningstype;Komponent;Standardlængde;Materiale;DN;DN;Rørsystem;Serie;Antal.
         /// Egne noter is left empty for the etape to be written in the sheet. Pipes are summed by
         /// length (Antal in kanalmeter: enkelt frem + retur is halved) and split by standard delivery
@@ -816,10 +816,10 @@ namespace IntersectUtilities.NSTBL
         /// Output is written to C:\Temp\IntersectResult.csv.
         /// </summary>
         /// <category>Tilbudsliste</category>
-        [CommandMethod("TBLEXPORTCWOV2")]
-        public void tblexportcwov2()
+        [CommandMethod("TBLEXPORTV2")]
+        public void tblexportv2()
         {
-            var results = processintersectdataCWOV2();
+            var results = processintersectdataV2();
             if (results == null)
             {
                 prdDbg("Received null instead of results. Aborting.");
@@ -829,7 +829,7 @@ namespace IntersectUtilities.NSTBL
             #region Export Intersection Results
             StringBuilder sb = new StringBuilder();
             foreach (IntersectResult ir in results.OrderBy(x => x.IntersectType))
-                sb.AppendLine(ir.ToCwoV2Row());
+                sb.AppendLine(ir.ToV2Row());
 
             File.WriteAllText(@"C:\Temp\IntersectResult.csv", sb.ToString(), Encoding.UTF8);
             prdDbg("BEMÆRK: Twin svejsninger bliver IKKE ganget med 2!");
