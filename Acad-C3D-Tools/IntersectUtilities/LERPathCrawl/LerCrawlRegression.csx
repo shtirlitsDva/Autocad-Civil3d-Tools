@@ -1,4 +1,4 @@
-// Run in ACD-MCP after loading the five LerCrawl core files as script declarations
+// Run in ACD-MCP after loading the six LerCrawl core files as script declarations
 // (remove file-scoped namespaces and put using directives first). All fixtures use
 // disposable databases/transient curves; the user's drawing is never modified.
 var lerCrawlTests = new List<object>();
@@ -69,6 +69,18 @@ LerTest("tilted polylines reject elliptical projection",()=>{
 });
 LerTest("qualified layer names are exact leaf names",()=>LerCrawlReader.LocalLayer("root|nested|Vandledning_L2")=="Vandledning_L2" &&
     LerCrawlReader.LocalLayer("root|Vandledning_L20")!="Vandledning_L2");
+LerTest("LER reference identity supports project naming conventions",()=>
+    new[]{"LER_2D_7.24.9","LER-2D","project_2DLER","project_3DLER","LER2D","LER3D","ler_fixture"}
+        .All(name=>LerCrawlReferenceIdentity.IsLer(name,"")));
+LerTest("renamed LER references are recognized by drawing filename",()=>
+    LerCrawlReferenceIdentity.IsLer("Utilities",@"X:\Project\LER_2D_7.24.9.dwg") &&
+    LerCrawlReferenceIdentity.IsLer("Utilities","../project/7.24.9_2DLER.dwg"));
+LerTest("LER folder and parent names do not identify a base-map drawing",()=>
+    !LerCrawlReferenceIdentity.IsLer("LER_parent|BASE_MAP",@"X:\LER\BASE_MAP.dwg") &&
+    !LerCrawlReferenceIdentity.IsLer("LER_parent|BASE_MAP","../LER/BASE_MAP.dwg"));
+LerTest("LER is a token rather than part of an unrelated name",()=>
+    !LerCrawlReferenceIdentity.IsLer("Boiler","Boiler.dwg") &&
+    !LerCrawlReferenceIdentity.IsLer("LERPLAN","LERPLAN.dwg"));
 
 // Real DWG/xref fixture: includes a nested ordinary block and two similarly named
 // utility layers. It is created in the workspace, never in the user's drawing.
@@ -101,6 +113,96 @@ LerTest("real xref filters layer, reads nested blocks and scales width",()=>{
     return LerCrawlReader.ReadRecord(hostTr,xref,transform,"Vandledning_L2").Match(r=>
         r.Items.Count==2 && LerPointNear(r.Items[0].Start,100,200) && LerNear(r.Items[0].StartWidth,1.2) &&
         LerNear(r.Items[1].StartWidth,2.4),_=>false);
+});
+bool LerGuardFixture(string referenceName, bool lerFilename, bool faultExpected)
+{
+    string path=lerFilename ? lerFixturePath : Path.Combine(lerFixtureFolder,"BASE_MAP.dwg");
+    if(!lerFilename)File.Copy(lerFixturePath,path,true);
+    try
+    {
+        using var hostDb=new Database(true,true);
+        var xref=hostDb.AttachXref(path,referenceName);hostDb.ResolveXrefs(false,false);
+        using var tr=hostDb.TransactionManager.StartTransaction();
+        var bt=(BlockTable)tr.GetObject(hostDb.BlockTableId,OpenMode.ForRead);
+        var model=(BlockTableRecord)tr.GetObject(bt[BlockTableRecord.ModelSpace],OpenMode.ForWrite);
+        using var instance=new BlockReference(Point3d.Origin,xref);instance.SetDatabaseDefaults(hostDb);
+        var instanceId=model.AppendEntity(instance);tr.AddNewlyCreatedDBObject(instance,true);
+        var record=(BlockTableRecord)tr.GetObject(xref,OpenMode.ForRead);
+        ObjectId selected=record.Cast<ObjectId>().First(id=>tr.GetObject(id,OpenMode.ForRead) is Polyline);
+        // Make every run unreadable: the non-LER rejection must happen before
+        // geometry traversal, not after building or attempting a route graph.
+        if(faultExpected)
+        {
+            instance.TransformBy(Matrix3d.Rotation(0.5,Vector3d.XAxis,Point3d.Origin));
+        }
+        return LerCrawlReader.ReadSelection(tr,selected,new[]{instanceId},Point3d.Origin,Matrix3d.Identity).Match(
+            source=>!faultExpected && source.Segments.Count==2,
+            error=>faultExpected && error.StartsWith("The selected polyline is not in a LER xref.",StringComparison.Ordinal));
+    }
+    finally
+    {
+        if(!lerFilename)File.Delete(path);
+    }
+}
+LerTest("non-LER xref rejects before reading even a utility-named layer",()=>LerGuardFixture("BASE_MAP",false,true));
+LerTest("renamed xref retains LER identity from its filename",()=>LerGuardFixture("Utilities",true,false));
+LerTest("LER xref name identifies a drawing without LER in its filename",()=>LerGuardFixture("LER_2D",false,false));
+LerTest("ordinary block named LER is not accepted as an xref",()=>{
+    using var db=new Database(true,true);using var tr=db.TransactionManager.StartTransaction();
+    var blocks=(BlockTable)tr.GetObject(db.BlockTableId,OpenMode.ForWrite);
+    using var record=new BlockTableRecord{Name="LER_2D"};var blockId=blocks.Add(record);tr.AddNewlyCreatedDBObject(record,true);
+    using var pipe=LerSeg(0,0,10,0).CreateCurve();pipe.SetDatabaseDefaults(db);
+    var pipeId=record.AppendEntity(pipe);tr.AddNewlyCreatedDBObject(pipe,true);
+    var model=(BlockTableRecord)tr.GetObject(blocks[BlockTableRecord.ModelSpace],OpenMode.ForWrite);
+    using var instance=new BlockReference(Point3d.Origin,blockId);instance.SetDatabaseDefaults(db);
+    var instanceId=model.AppendEntity(instance);tr.AddNewlyCreatedDBObject(instance,true);
+    return LerCrawlReader.ReadSelection(tr,pipeId,new[]{instanceId},Point3d.Origin,Matrix3d.Identity).Match(_=>false,_=>true);
+});
+LerTest("host polyline is rejected without building a graph",()=>{
+    using var db=new Database(true,true);using var tr=db.TransactionManager.StartTransaction();
+    var blocks=(BlockTable)tr.GetObject(db.BlockTableId,OpenMode.ForRead);
+    var model=(BlockTableRecord)tr.GetObject(blocks[BlockTableRecord.ModelSpace],OpenMode.ForWrite);
+    using var pipe=LerSeg(0,0,10,0).CreateCurve();pipe.SetDatabaseDefaults(db);
+    var id=model.AppendEntity(pipe);tr.AddNewlyCreatedDBObject(pipe,true);
+    return LerCrawlReader.ReadSelection(tr,id,Array.Empty<ObjectId>(),Point3d.Origin,Matrix3d.Identity).Match(_=>false,_=>true);
+});
+LerTest("LER nested in a non-LER wrapper reads only the LER and retains both transforms",()=>{
+    string path=Path.Combine(lerFixtureFolder,"BASE_WRAPPER.dwg");
+    using(var wrapper=new Database(true,true))
+    {
+        ObjectId ler=wrapper.AttachXref(lerFixturePath,"LER_inner");wrapper.ResolveXrefs(false,false);
+        using(var setup=wrapper.TransactionManager.StartTransaction())
+        {
+            var blocks=(BlockTable)setup.GetObject(wrapper.BlockTableId,OpenMode.ForRead);
+            var model=(BlockTableRecord)setup.GetObject(blocks[BlockTableRecord.ModelSpace],OpenMode.ForWrite);
+            using var child=new BlockReference(new Point3d(100,200,0),ler);child.SetDatabaseDefaults(wrapper);
+            model.AppendEntity(child);setup.AddNewlyCreatedDBObject(child,true);
+            var layers=(LayerTable)setup.GetObject(wrapper.LayerTableId,OpenMode.ForWrite);
+            using var layer=new LayerTableRecord{Name="Vandledning_L2"};layers.Add(layer);setup.AddNewlyCreatedDBObject(layer,true);
+            using var unrelated=LerSeg(0,0,999,0).CreateCurve();unrelated.SetDatabaseDefaults(wrapper);unrelated.Layer=layer.Name;
+            model.AppendEntity(unrelated);setup.AddNewlyCreatedDBObject(unrelated,true);
+            setup.Commit();
+        }
+        wrapper.SaveAs(path,DwgVersion.Current);
+    }
+    try
+    {
+        using var host=new Database(true,true);
+        ObjectId outer=host.AttachXref(path,"BASE_WRAPPER");host.ResolveXrefs(false,false);
+        using var read=host.TransactionManager.StartTransaction();
+        var blocks=(BlockTable)read.GetObject(host.BlockTableId,OpenMode.ForRead);
+        var model=(BlockTableRecord)read.GetObject(blocks[BlockTableRecord.ModelSpace],OpenMode.ForWrite);
+        using var instance=new BlockReference(new Point3d(10,20,0),outer);instance.SetDatabaseDefaults(host);
+        ObjectId instanceId=model.AppendEntity(instance);read.AddNewlyCreatedDBObject(instance,true);
+        var outerRecord=(BlockTableRecord)read.GetObject(outer,OpenMode.ForRead);
+        ObjectId childId=outerRecord.Cast<ObjectId>().First(id=>read.GetObject(id,OpenMode.ForRead) is BlockReference);
+        var child=(BlockReference)read.GetObject(childId,OpenMode.ForRead);
+        var lerRecord=(BlockTableRecord)read.GetObject(child.BlockTableRecord,OpenMode.ForRead);
+        ObjectId selected=lerRecord.Cast<ObjectId>().First(id=>read.GetObject(id,OpenMode.ForRead) is Polyline);
+        return LerCrawlReader.ReadSelection(read,selected,new[]{instanceId,childId},Point3d.Origin,Matrix3d.Identity).Match(
+            source=>source.Segments.Count==2 && LerPointNear(source.Segments[0].Start,110,220),_=>false);
+    }
+    finally{File.Delete(path);}
 });
 bool LerFixturePick(bool nestedPick, bool rotatedUcs, bool mirrored, Func<LerCrawlSource,bool> check)
 {
