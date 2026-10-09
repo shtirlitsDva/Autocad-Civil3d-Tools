@@ -1,6 +1,9 @@
 using Autodesk.Aec.PropertyData.DatabaseServices;
 using Autodesk.AutoCAD.DatabaseServices;
+using System;
+using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Text.RegularExpressions;
 
 namespace IntersectUtilities.LerHatchLayers;
@@ -171,10 +174,16 @@ internal static class LerHatchLayerMapper
 internal static class LerHatchLayerService
 {
     internal static LerHatchLayerResult<LerHatchLayerPlan> BuildPlan(Database database, Transaction tx)
+        => BuildPlan(database, tx, Array.Empty<string>(), _ => true);
+
+    internal static LerHatchLayerResult<LerHatchLayerPlan> BuildPlan(
+        Database database, Transaction tx, IReadOnlyCollection<string> availableLayerNames,
+        Func<Hatch, bool> includeHatch)
     {
         LayerTable layerTable = (LayerTable)tx.GetObject(database.LayerTableId, OpenMode.ForRead);
         string[] layers = layerTable.Cast<ObjectId>()
-            .Select(id => ((LayerTableRecord)tx.GetObject(id, OpenMode.ForRead)).Name).ToArray();
+            .Select(id => ((LayerTableRecord)tx.GetObject(id, OpenMode.ForRead)).Name)
+            .Concat(availableLayerNames).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         BlockTableRecord modelSpace = (BlockTableRecord)tx.GetObject(
             SymbolUtilityServices.GetBlockModelSpaceId(database), OpenMode.ForRead);
         List<LerHatchLayerLine> lines = new();
@@ -183,7 +192,7 @@ internal static class LerHatchLayerService
         foreach (ObjectId id in modelSpace)
         {
             DBObject entity = tx.GetObject(id, OpenMode.ForRead);
-            if (entity is Hatch hatch && hatch.Layer == "0") hatches.Add(hatch);
+            if (entity is Hatch hatch && hatch.Layer == "0" && includeHatch(hatch)) hatches.Add(hatch);
             if (entity is Polyline || entity is Polyline3d)
             {
                 Entity line = (Entity)entity;
@@ -215,8 +224,9 @@ internal static class LerHatchLayerService
             mapping.Match(
                 layer =>
                 {
-                    LayerTableRecord target = (LayerTableRecord)tx.GetObject(layerTable[layer], OpenMode.ForRead);
-                    if (target.IsLocked || ((LayerTableRecord)tx.GetObject(hatch.LayerId, OpenMode.ForRead)).IsLocked)
+                    bool targetLocked = layerTable.Has(layer)
+                        && ((LayerTableRecord)tx.GetObject(layerTable[layer], OpenMode.ForRead)).IsLocked;
+                    if (targetLocked || ((LayerTableRecord)tx.GetObject(hatch.LayerId, OpenMode.ForRead)).IsLocked)
                         skipped.Add(new(hatch.Handle.ToString(), "Source or target layer is locked: " + layer));
                     else assignments.Add(new(hatch.ObjectId, hatch.Handle.ToString(), layer));
                     return true;
@@ -231,6 +241,14 @@ internal static class LerHatchLayerService
         foreach (LerHatchLayerAssignment assignment in plan.Assignments)
         {
             Hatch hatch = (Hatch)tx.GetObject(assignment.Id, OpenMode.ForWrite);
+            LayerTable layerTable = (LayerTable)tx.GetObject(hatch.Database.LayerTableId, OpenMode.ForRead);
+            if (!layerTable.Has(assignment.LayerName))
+            {
+                if (!layerTable.IsWriteEnabled) layerTable.UpgradeOpen();
+                LayerTableRecord layer = new() { Name = assignment.LayerName };
+                layerTable.Add(layer);
+                tx.AddNewlyCreatedDBObject(layer, true);
+            }
             hatch.Layer = assignment.LayerName;
             hatch.ColorIndex = 256;
         }

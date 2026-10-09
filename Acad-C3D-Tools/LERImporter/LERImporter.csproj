@@ -75,6 +75,10 @@
 		</Reference>
 	</ItemGroup>
 	<ItemGroup>
+		<!-- Share the mapping with LERHATCHLAYERS without an IntersectUtilities DLL dependency. -->
+		<Compile Include="..\IntersectUtilities\LerHatchLayers\LerHatchLayers.cs">
+			<Link>LerHatchLayers\LerHatchLayers.cs</Link>
+		</Compile>
 		<Compile Include="..\IntersectUtilities\MoreLinq\DistinctBy.cs">
 			<Link>DistinctBy.cs</Link>
 		</Compile>

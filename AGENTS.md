@@ -94,3 +94,7 @@ The five canonical triage roles, each label string equal to its name: `needs-tri
 ### Domain docs
 
 Single-context: `CONTEXT.md` and `docs/adr/` at the repo root. Neither exists yet — `/domain-modeling` creates them lazily. See `docs/agents/domain.md`.
+
+## Default destination for custom Civil 3D tools
+
+Unless the user explicitly requests another destination, add new custom Civil 3D tools to the existing `Acad-C3D-Tools/IntersectUtilities` project. Use its existing command registration and `Intersect.Terminate()` cleanup; do not create or load a separate command assembly for a feature.

@@ -5,6 +5,7 @@ using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
 
 using IntersectUtilities;
+using IntersectUtilities.LerHatchLayers;
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.DataManager.CsvData;
 
@@ -309,6 +310,7 @@ namespace LERImporter
             //List of all (new) layers of new entities
             HashSet<string> layerNames2d = new HashSet<string>();
             HashSet<string> layerNames3d = new HashSet<string>();
+            HashSet<Oid> componentHatchIds2d = new HashSet<Oid>();
 
             foreach (LedningType ledning in ledninger)
             {
@@ -448,7 +450,19 @@ namespace LERImporter
                             ent, psName, "GmlBemærkning", komponent.Bemærkning);
                     PropertySetManager.WriteNonDefinedPropertySetString(
                         ent, psName, "LerNummer", komponent.LerNummer);
+                    if (ent is Hatch) componentHatchIds2d.Add(entityId);
                 }
+
+                AssignComponentHatchLayers(Db2d, componentHatchIds2d, layerNames2d, lagLer.AllLayers().ToArray()).Match(
+                    plan =>
+                    {
+                        Log.log($"LER component hatches: {plan.Assignments.Count} assigned; {plan.Skipped.Count} skipped.");
+                        foreach (var group in plan.Skipped.GroupBy(skip => skip.Reason))
+                            Log.log($"Skipped {group.Count()} component hatches: {group.Key}. Handles: "
+                                + string.Join(", ", group.Select(skip => skip.Handle)));
+                        return true;
+                    },
+                    reason => { Log.log("WARNING: Component hatch layers could not be assigned: " + reason); return false; });
 
                 if (addEnerginetWarningText)
                 {
@@ -677,6 +691,27 @@ namespace LERImporter
                 }
             }
             #endregion
+        }
+
+        internal static LerHatchLayerResult<LerHatchLayerPlan> AssignComponentHatchLayers(
+            Database database, IReadOnlyCollection<Oid> componentIds,
+            ISet<string> layerNames, IReadOnlyCollection<string> availableLayerNames)
+        {
+            if (componentIds.Count == 0)
+                return LerHatchLayerResult<LerHatchLayerPlan>.Success(new(
+                    Array.Empty<LerHatchLayerAssignment>(), Array.Empty<LerHatchLayerSkip>()));
+
+            Transaction tx = database.TransactionManager.TopTransaction;
+            return LerHatchLayerService.BuildPlan(database, tx, availableLayerNames,
+                hatch => componentIds.Contains(hatch.ObjectId)).Match(
+                plan =>
+                {
+                    LerHatchLayerService.Apply(tx, plan);
+                    foreach (LerHatchLayerAssignment assignment in plan.Assignments)
+                        layerNames.Add(assignment.LayerName);
+                    return LerHatchLayerResult<LerHatchLayerPlan>.Success(plan);
+                },
+                LerHatchLayerResult<LerHatchLayerPlan>.Failure);
         }
 
         private static PropertySetDefinition CreatePropertySetDefinition(Database db, Type type)
