@@ -72,6 +72,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GraphViewV3.Core.Tests", "G
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GraphViewV3.Plugin", "GraphViewV3\GraphViewV3.Plugin\GraphViewV3.Plugin.csproj", "{8E6214D8-93EA-4729-99D1-C9D22FB2A29B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LERImporter.Tests", "LERImporter.Tests\LERImporter.Tests.csproj", "{F4505841-E484-4964-AE53-C33C4889A6F8}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -178,6 +180,10 @@ Global
 		{8E6214D8-93EA-4729-99D1-C9D22FB2A29B}.Debug|x64.Build.0 = Debug|x64
 		{8E6214D8-93EA-4729-99D1-C9D22FB2A29B}.Release|x64.ActiveCfg = Release|x64
 		{8E6214D8-93EA-4729-99D1-C9D22FB2A29B}.Release|x64.Build.0 = Release|x64
+		{F4505841-E484-4964-AE53-C33C4889A6F8}.Debug|x64.ActiveCfg = Debug|x64
+		{F4505841-E484-4964-AE53-C33C4889A6F8}.Debug|x64.Build.0 = Debug|x64
+		{F4505841-E484-4964-AE53-C33C4889A6F8}.Release|x64.ActiveCfg = Release|x64
+		{F4505841-E484-4964-AE53-C33C4889A6F8}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -1,0 +1,426 @@
+SPtr DBD
+SPtr DBD
+I32 1
+Bool True
+Bool False
+I16 80
+Bool True
+Bool True
+I16 1001
+I16 80
+Str 
+I16 80
+Str 
+Bool False
+Byte 0
+I16 80
+HPtr DB7
+HPtr DAB
+I16 80
+Str 
+I16 80
+I32 25
+Bool True
+Bool True
+I16 1006
+I16 80
+Str 
+I16 80
+I32 0
+I16 3
+I16 11
+Bool False
+Bool False
+I16 80
+Str 
+I16 80
+I32 0
+I16 0
+Bool True
+Bool True
+I16 1006
+I16 80
+Str 
+I16 80
+I32 1
+I16 2
+I16 8
+Str value 1
+Bool False
+I16 80
+Str 
+I16 80
+I32 0
+I16 0
+Bool True
+Bool True
+I16 1006
+I16 80
+Str 
+I16 80
+I32 2
+I16 2
+I16 8
+Str value 2
+Bool False
+I16 80
+Str 
+I16 80
+I32 0
+I16 0
+Bool True
+Bool True
+I16 1006
+I16 80
+Str 
+I16 80
+I32 3
+I16 2
+I16 8
+Str value 3
+Bool False
+I16 80
+Str 
+I16 80
+I32 0
+I16 0
+Bool True
+Bool True
+I16 1006
+I16 80
+Str 
+I16 80
+I32 4
+I16 1
+I16 5
+Dbl 0
+Bool False
+I16 80
+Str 
+I16 80
+I32 0
+I16 0
+Bool True
+Bool True
+I16 1006
+I16 80
+Str 
+I16 80
+I32 5
+I16 1
+I16 5
+Dbl 0
+Bool False
+I16 80
+Str 
+I16 80
+I32 0
+I16 0
+Bool True
+Bool True
+I16 1006
+I16 80
+Str 
+I16 80
+I32 6
+I16 2
+I16 8
+Str value 4
+Bool False
+I16 80
+Str 
+I16 80
+I32 0
+I16 0
+Bool True
+Bool True
+I16 1006
+I16 80
+Str 
+I16 80
+I32 7
+I16 2
+I16 8
+Str value 5
+Bool False
+I16 80
+Str 
+I16 80
+I32 0
+I16 0
+Bool True
+Bool True
+I16 1006
+I16 80
+Str 
+I16 80
+I32 8
+I16 2
+I16 8
+Str value 6
+Bool False
+I16 80
+Str 
+I16 80
+I32 0
+I16 0
+Bool True
+Bool True
+I16 1006
+I16 80
+Str 
+I16 80
+I32 9
+I16 2
+I16 8
+Str value 7
+Bool False
+I16 80
+Str 
+I16 80
+I32 0
+I16 0
+Bool True
+Bool True
+I16 1006
+I16 80
+Str 
+I16 80
+I32 10
+I16 1
+I16 5
+Dbl 160
+Bool False
+I16 80
+Str 
+I16 80
+I32 0
+I16 0
+Bool True
+Bool True
+I16 1006
+I16 80
+Str 
+I16 80
+I32 11
+I16 2
+I16 8
+Str value 8
+Bool False
+I16 80
+Str 
+I16 80
+I32 0
+I16 0
+Bool True
+Bool True
+I16 1006
+I16 80
+Str 
+I16 80
+I32 12
+I16 2
+I16 8
+Str 
+Bool False
+I16 80
+Str 
+I16 80
+I32 0
+I16 0
+Bool True
+Bool True
+I16 1006
+I16 80
+Str 
+I16 80
+I32 13
+I16 2
+I16 8
+Str value 9
+Bool False
+I16 80
+Str 
+I16 80
+I32 0
+I16 0
+Bool True
+Bool True
+I16 1006
+I16 80
+Str 
+I16 80
+I32 14
+I16 2
+I16 8
+Str value 10
+Bool False
+I16 80
+Str 
+I16 80
+I32 0
+I16 0
+Bool True
+Bool True
+I16 1006
+I16 80
+Str 
+I16 80
+I32 15
+I16 2
+I16 8
+Str value 11
+Bool False
+I16 80
+Str 
+I16 80
+I32 0
+I16 0
+Bool True
+Bool True
+I16 1006
+I16 80
+Str 
+I16 80
+I32 16
+I16 2
+I16 8
+Str value 12
+Bool False
+I16 80
+Str 
+I16 80
+I32 0
+I16 0
+Bool True
+Bool True
+I16 1006
+I16 80
+Str 
+I16 80
+I32 17
+I16 2
+I16 8
+Str value 13
+Bool False
+I16 80
+Str 
+I16 80
+I32 0
+I16 0
+Bool True
+Bool True
+I16 1006
+I16 80
+Str 
+I16 80
+I32 18
+I16 2
+I16 8
+Str 
+Bool False
+I16 80
+Str 
+I16 80
+I32 0
+I16 0
+Bool True
+Bool True
+I16 1006
+I16 80
+Str 
+I16 80
+I32 19
+I16 2
+I16 8
+Str value 14
+Bool False
+I16 80
+Str 
+I16 80
+I32 0
+I16 0
+Bool True
+Bool True
+I16 1006
+I16 80
+Str 
+I16 80
+I32 20
+I16 2
+I16 8
+Str value 15
+Bool False
+I16 80
+Str 
+I16 80
+I32 0
+I16 0
+Bool True
+Bool True
+I16 1006
+I16 80
+Str 
+I16 80
+I32 21
+I16 2
+I16 8
+Str value 16
+Bool False
+I16 80
+Str 
+I16 80
+I32 0
+I16 0
+Bool True
+Bool True
+I16 1006
+I16 80
+Str 
+I16 80
+I32 22
+I16 2
+I16 8
+Str 
+Bool False
+I16 80
+Str 
+I16 80
+I32 0
+I16 0
+Bool True
+Bool True
+I16 1006
+I16 80
+Str 
+I16 80
+I32 23
+I16 1
+I16 5
+Dbl 0
+Bool False
+I16 80
+Str 
+I16 80
+I32 0
+I16 0
+Bool True
+Bool True
+I16 1006
+I16 80
+Str 
+I16 80
+I32 24
+I16 2
+I16 8
+Str value 17
+Bool False
+I16 80
+Str 
+I16 80
+I32 0
+I16 0
+Bool False
+I16 80
+I16 80
+I16 0

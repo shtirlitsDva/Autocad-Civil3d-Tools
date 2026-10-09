@@ -1,5 +1,9 @@
+#if BRICSCAD
+using Teigha.DatabaseServices;
+#else
 using Autodesk.Aec.PropertyData.DatabaseServices;
 using Autodesk.AutoCAD.DatabaseServices;
+#endif
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -173,12 +177,17 @@ internal static class LerHatchLayerMapper
 
 internal static class LerHatchLayerService
 {
+#if !BRICSCAD
     internal static LerHatchLayerResult<LerHatchLayerPlan> BuildPlan(Database database, Transaction tx)
-        => BuildPlan(database, tx, Array.Empty<string>(), _ => true);
+        => BuildPlan(database, tx, Array.Empty<string>(), _ => true, ReadSets);
 
+#endif
+    /// <param name="readSets">Reads an entity's LER property sets: the AEC API on Civil
+    /// (<c>ReadSets</c>), LERImporter's own stream reader on BricsCAD.</param>
     internal static LerHatchLayerResult<LerHatchLayerPlan> BuildPlan(
         Database database, Transaction tx, IReadOnlyCollection<string> availableLayerNames,
-        Func<Hatch, bool> includeHatch)
+        Func<Hatch, bool> includeHatch,
+        Func<Entity, Transaction, LerHatchLayerResult<IReadOnlyList<LerHatchLayerSet>>> readSets)
     {
         LayerTable layerTable = (LayerTable)tx.GetObject(database.LayerTableId, OpenMode.ForRead);
         string[] layers = layerTable.Cast<ObjectId>()
@@ -196,7 +205,7 @@ internal static class LerHatchLayerService
             if (entity is Polyline || entity is Polyline3d)
             {
                 Entity line = (Entity)entity;
-                ReadSets(line, tx).Match(
+                readSets(line, tx).Match(
                     sets =>
                     {
                         foreach (LerHatchLayerSet set in sets)
@@ -218,7 +227,7 @@ internal static class LerHatchLayerService
         List<LerHatchLayerSkip> skipped = new();
         foreach (Hatch hatch in hatches)
         {
-            LerHatchLayerResult<string> mapping = ReadSets(hatch, tx).Match(
+            LerHatchLayerResult<string> mapping = readSets(hatch, tx).Match(
                 sets => LerHatchLayerMapper.Resolve(sets, layers, lines),
                 LerHatchLayerResult<string>.Failure);
             mapping.Match(
@@ -254,7 +263,8 @@ internal static class LerHatchLayerService
         }
     }
 
-    private static LerHatchLayerResult<IReadOnlyList<LerHatchLayerSet>> ReadSets(Entity entity, Transaction tx)
+#if !BRICSCAD
+    internal static LerHatchLayerResult<IReadOnlyList<LerHatchLayerSet>> ReadSets(Entity entity, Transaction tx)
     {
         try
         {
@@ -282,4 +292,5 @@ internal static class LerHatchLayerService
             return LerHatchLayerResult<IReadOnlyList<LerHatchLayerSet>>.Failure("Cannot read property sets: " + ex.Message);
         }
     }
+#endif
 }
