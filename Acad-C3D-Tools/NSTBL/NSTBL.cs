@@ -429,6 +429,8 @@ namespace IntersectUtilities.NSTBL
         ///   on the command line, as are those still without a serie.
         /// - Steel components whose CSV serie is a fixed value (e.g. SH LIGE S3) on pipes of another
         ///   serie: the pipe's serie (SerieFromPipesOverCsv), listed on the command line.
+        /// - Afgreningsstuds, whose CSV System is fixed Twin: twin or enkelt from the main pipe under the
+        ///   stud (SystemFromMainPipe), listed on the command line when it changes.
         /// </summary>
         private static void FixComponentData(
             BlockReference br,
@@ -456,6 +458,7 @@ namespace IntersectUtilities.NSTBL
 
             if (system == PipeSystemEnum.Stål)
             {
+                SystemFromMainPipe(br, irp, pipes, notes);
                 if (!irp.Serie.IsNoE())
                 {
                     string atPorts = SerieFromPipesOverCsv(br, pipes, irp.SystemType);
@@ -483,6 +486,50 @@ namespace IntersectUtilities.NSTBL
                         irp.Navn = ownPrefix + irp.Navn.Substring(other.Length);
             string pipeSerie = SerieAtPorts(br, pipes, componentPorts.Value, system, irp.DN1);
             if (!pipeSerie.IsNoE()) irp.Serie = pipeSerie;
+        }
+        /// <summary>
+        /// One afgreningsstuds block (AFGRSTUDS) serves twin and enkelt mains alike, but its CSV row fixes
+        /// System to Twin, so a stud on an enkelt main was exported as twin. The steel pipe of the main DN
+        /// under the stud's seat on the main (its ports that are not the branch port) decides instead.
+        /// A System the CSV leaves to a block parameter ("$System") is the drafter's and is kept.
+        /// </summary>
+        private static void SystemFromMainPipe(
+            BlockReference br, IntersectResultComponent irp,
+            (Polyline Pipe, Extents3d Ext)[] pipes, List<string> notes)
+        {
+            if (br.ReadDynamicCsvProperty(DynamicProperty.Type, false) != "Afgreningsstuds") return;
+            string csvSystem = br.ReadDynamicCsvProperty(DynamicProperty.System, false);
+            if (csvSystem.IsNoE() || csvSystem.StartsWith("$")) return;
+
+            const double tol = componentPortTolerance;
+            foreach (ComponentPort port in ComponentPorts.Read(br, br.GetTopTx()))
+            {
+                if (port.Role == ComponentPortRole.Branch) continue;
+                Point3d pt = port.Position;
+                foreach (var (pipe, ext) in pipes)
+                {
+                    if (pt.X < ext.MinPoint.X - tol || pt.X > ext.MaxPoint.X + tol ||
+                        pt.Y < ext.MinPoint.Y - tol || pt.Y > ext.MaxPoint.Y + tol) continue;
+                    if (GetPipeSystem(pipe) != PipeSystemEnum.Stål) continue;
+                    if (GetPipeDN(pipe).ToString() != irp.DN1) continue;
+                    if (pipe.GetClosestPointTo(pt, false).DistanceHorizontalTo(pt) > tol) continue;
+
+                    string mainSystem = GetPipeType(pipe, true) switch
+                    {
+                        PipeTypeEnum.Twin => "Twin",
+                        PipeTypeEnum.Enkelt => "Enkelt",
+                        _ => "",
+                    };
+                    if (mainSystem.IsNoE()) continue;
+                    if (mainSystem != irp.System)
+                    {
+                        notes.Add($"{br.RealName()} {br.Handle}: System {irp.System} fra CSV erstattet af {mainSystem} fra hovedrøret.");
+                        irp.System = mainSystem;
+                    }
+                    return;
+                }
+            }
+            notes.Add($"{br.RealName()} {br.Handle}: intet stålrør DN{irp.DN1} under studsen, System {irp.System} fra CSV beholdt.");
         }
         /// <summary>The block's own dynamic Serie parameter, or "" if it has none.</summary>
         private static string OwnSerie(BlockReference br)
