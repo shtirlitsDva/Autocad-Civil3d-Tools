@@ -82,12 +82,6 @@
 		<Compile Include="..\IntersectUtilities\MoreLinq\DistinctBy.cs">
 			<Link>DistinctBy.cs</Link>
 		</Compile>
-		<Compile Include="..\IntersectUtilities\MoreLinq\MoreLinq.cs">
-			<Link>MoreLinq.cs</Link>
-		</Compile>
-		<Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeScheduleV2.cs">
-			<Link>PipeScheduleV2\PipeScheduleV2.cs</Link>
-		</Compile>
 	</ItemGroup>
 	<ItemGroup>
 		<None Update="Schema\1.0_annotations.xsd">
@@ -119,6 +113,7 @@
 		<PackageReference Include="System.Text.Json" Version="8.0.5" />
 		<PackageReference Include="System.Configuration.ConfigurationManager" Version="8.0.0" />
 	</ItemGroup>
+	<Import Project="..\IntersectUtilitiesCOMMON\IntersectUtilitiesCOMMON.projitems" Label="Shared" />
 	<Import Project="..\UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems" Label="Shared" />
 	<Import Project="..\FormsSHARED\FormsSHARED.projitems" Label="Shared" />
 </Project>

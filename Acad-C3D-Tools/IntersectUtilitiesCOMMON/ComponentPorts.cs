@@ -1,6 +1,12 @@
+#if BRICSCAD
+using Teigha.DatabaseServices;
+using Teigha.Geometry;
+using Teigha.Runtime;
+#else
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
+#endif
 
 using System;
 using System.Collections.Generic;

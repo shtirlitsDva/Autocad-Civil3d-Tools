@@ -85,7 +85,7 @@ namespace IntersectUtilities.MPE.MatchBBR
 
                 PsDataType dataType =
                     propertyByName.TryGetValue(name, out PSetDefs.Property? property)
-                        ? property.DataType
+                        ? property.AecDataType
                         : PsDataType.Text;
 
                 values[name] = Shape(raw, dataType);

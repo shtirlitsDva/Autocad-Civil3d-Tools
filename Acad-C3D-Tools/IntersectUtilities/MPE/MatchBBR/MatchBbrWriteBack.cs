@@ -109,7 +109,7 @@ namespace IntersectUtilities.MPE.MatchBBR
                     continue;
                 }
 
-                if (!TryConvert(rule, row, property.DataType, out object? value, out string problem))
+                if (!TryConvert(rule, row, property.AecDataType, out object? value, out string problem))
                 {
                     problems.Add($"{Describe(row)}: {problem}");
                     skipped++;

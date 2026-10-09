@@ -1,18 +1,21 @@
-﻿using System;
+﻿#if BRICSCAD
+using Teigha.DatabaseServices;
+using Teigha.Geometry;
+#else
+using Autodesk.AutoCAD.DatabaseServices;
+using Autodesk.AutoCAD.Geometry;
+#endif
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 
-using Autodesk.AutoCAD.DatabaseServices;
-
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.Enums;
 using static IntersectUtilities.UtilsCommon.Utils;
 using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
-
-using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
-using Autodesk.AutoCAD.Geometry;
 
 namespace IntersectUtilities.Collections
 {
@@ -24,17 +27,19 @@ namespace IntersectUtilities.Collections
             @"(?<OwnEndType>\d):(?<ConEndType>\d):(?<Handle>\w*)");
         private List<Entity> _L = new List<Entity>();
         private Dictionary<Handle, HashSet<Handle>> _C = new();
-        private PropertySetHelper psh;
+        private readonly PropertySetHelper psh;
         public IEnumerable<Handle> ExternalHandles
         {
             get => _L.SelectMany(x => GetOtherHandles(ReadConnection(x)))
                 .Where(x => _L.All(y => y.Handle != x)).Distinct();
         }
-        public EntityCollection() { }
-        public EntityCollection(IEnumerable<Entity> ents)
+        public EntityCollection(PropertySetHelper psh)
         {
-            if (psh == null) psh = new PropertySetHelper(
-                ents.First().Database);
+            this.psh = psh;
+        }
+        public EntityCollection(IEnumerable<Entity> ents, PropertySetHelper psh)
+        {
+            this.psh = psh;
 
             _L.AddRange(ents);
             foreach (var ent in ents)
@@ -42,9 +47,6 @@ namespace IntersectUtilities.Collections
         }
         public void Add(Entity item)
         {
-            if (psh == null) psh =
-                    new PropertySetHelper(item.Database);
-
             _L.Add(item);
             _C.Add(item.Handle, [.. GetOtherHandles(ReadConnection(item))]);
         }
@@ -211,11 +213,11 @@ namespace IntersectUtilities.Collections
     public static class EntityCollectionExtensions
     {
         public static void Partition(
-            this IEnumerable<Entity> source, Func<Entity, bool> predicate,
+            this IEnumerable<Entity> source, Func<Entity, bool> predicate, PropertySetHelper psh,
             out EntityCollection trueEnts, out EntityCollection falseEnts)
         {
-            trueEnts = new EntityCollection();
-            falseEnts = new EntityCollection();
+            trueEnts = new EntityCollection(psh);
+            falseEnts = new EntityCollection(psh);
             foreach (var ent in source)
                 if (predicate(ent)) trueEnts.Add(ent);
                 else falseEnts.Add(ent);

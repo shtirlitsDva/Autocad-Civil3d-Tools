@@ -405,7 +405,7 @@ namespace IntersectUtilities
 
                 //Choose what pipeline to print
                 var alNames = allEnts
-                    .Select(pshFjv.Pipeline.BelongsToAlignment)
+                    .Select(pshFjv.BelongsToAlignment)
                     .Distinct()
                     .Where(x => als.Any(al => al.Name == x))
                     .Order();
@@ -418,7 +418,7 @@ namespace IntersectUtilities
                 }
 
                 var al = als.First(x => x.Name == choice);
-                var ents = allEnts.Where(x => pshFjv.Pipeline.BelongsToAlignment(x) == choice);
+                var ents = allEnts.Where(x => pshFjv.BelongsToAlignment(x) == choice);
 
                 IPipelineV2 pipeline = PipelineV2Factory.Create(ents, al);
                 if (pipeline == null)

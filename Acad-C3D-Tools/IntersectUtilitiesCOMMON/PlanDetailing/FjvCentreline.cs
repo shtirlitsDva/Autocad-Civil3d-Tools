@@ -1,5 +1,11 @@
+#if BRICSCAD
+using Teigha.DatabaseServices;
+using Teigha.Geometry;
+#else
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
+#endif
+
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.DataManager.CsvData;
 using IntersectUtilities.UtilsCommon.Enums;
@@ -948,7 +954,7 @@ internal static class FjvCentreline
         Vector3d v = he % 2 == 0
             ? g.GetFirstDerivative(g.StartPoint)
             : g.GetFirstDerivative(g.EndPoint).Negate();
-        return v.Length < Autodesk.AutoCAD.Geometry.Tolerance.Global.EqualPoint
+        return v.Length < Tolerance.Global.EqualPoint
             ? v
             : v.GetNormal();
     }

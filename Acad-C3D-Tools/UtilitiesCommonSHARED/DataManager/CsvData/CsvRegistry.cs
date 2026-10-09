@@ -14,12 +14,8 @@ namespace IntersectUtilities.UtilsCommon.DataManager.CsvData
     /// <summary>
     /// Registry that discovers CSV configurations and manages file paths.
     /// </summary>
-    public static class CsvRegistry
+    public static partial class CsvRegistry
     {
-        /// <summary>
-        /// The base path where CSV files are located.
-        /// </summary>
-        public const string ConfPath = @"X:\AutoCAD DRI - 01 Civil 3D\Conf";
 
         /// <summary>
         /// The name of the register file that lists additional CSV files.
@@ -238,16 +234,6 @@ namespace IntersectUtilities.UtilsCommon.DataManager.CsvData
             {
                 prdDbg($"Warning: Failed to load CSV register file: {ex.Message}");
             }
-        }
-
-        /// <summary>
-        /// Gets the file path for a non-versioned CSV file.
-        /// </summary>
-        /// <param name="fileName">The CSV file name (e.g., "Distances.csv")</param>
-        /// <returns>The full path to the file.</returns>
-        public static string GetFilePath(string fileName)
-        {
-            return Path.Combine(ConfPath, fileName);
         }
 
         /// <summary>
