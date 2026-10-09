@@ -41,6 +41,10 @@ namespace NSLOAD.Native
         // have changed since.
         private GroupState _state = GroupState.NotLoaded;
 
+        // The drawings the last unload closed (BricsCAD only), waiting for the
+        // next successful load to open them again. A failed load keeps them.
+        private DrawingCycle _reopenAfterLoad = DrawingCycle.None;
+
         // The manifest as last read for the palette, re-read only when the file
         // changes: the palette asks every few seconds, on AutoCAD's main thread.
         private (DateTime WriteTime, NativeGroupManifest Manifest)? _manifestCache;
@@ -79,6 +83,10 @@ namespace NSLOAD.Native
             RequireHeldImagesReusable(manifest, say);
 
             string version = RequireConsistentVersion(manifest);
+
+            // Before anything loads: BricsCAD's late conversion of stand-ins marks
+            // the drawings it touches as modified.
+            var savedBeforeLoad = DrawingCycle.SavedDrawings();
 
             foreach (string pin in manifest.PreloadNative)
                 OarxCompanionHost.PinNative(pin, say);
@@ -119,11 +127,23 @@ namespace NSLOAD.Native
                     }
                 }
                 _state = StateAfterRollback(manifest, leftBehind, say);
+                if (_reopenAfterLoad.Closed.Count > 0)
+                    say($"{_name}: {string.Join(", ", _reopenAfterLoad.Closed)} stay closed " +
+                        $"until {_name} loads.");
                 throw;
             }
 
             _state = GroupState.Loaded(manifest, new WholeRelease(version));
             say($"{_name} loaded (v{version}).");
+
+            // The drawings the last unload closed come back once the modules
+            // their objects need are in again.
+            var reopen = _reopenAfterLoad;
+            _reopenAfterLoad = DrawingCycle.None;
+            reopen.Reopen(say);
+
+            // And the drawings read before the modules were in at all.
+            DrawingCycle.ReopenStandInHolders(_name, savedBeforeLoad, say);
         }
 
         public void Unload(Action<string> say)
@@ -131,17 +151,35 @@ namespace NSLOAD.Native
             var tracked = _state.TrackedModules;
             if (tracked.Count == 0) return;
 
-            // Reverse of load order: the arx that uses the dbx's classes goes first.
-            // A refusal stops here and leaves the group loaded, so Unload can be
-            // retried; the modules already gone are skipped next time.
-            foreach (string module in tracked.Reverse())
-                OarxModuleHost.Unload(Path.GetFileName(module));
+            // BricsCAD keeps a module while an open drawing holds its objects, so
+            // the drawings close first (or the unload is refused before anything
+            // happens); they reopen after the next load. Nothing on AutoCAD.
+            var drawings = DrawingCycle.Close(say);
+            try
+            {
+                // Reverse of load order: the arx that uses the dbx's classes goes
+                // first. A refusal stops here and leaves the group loaded, so Unload
+                // can be retried; the modules already gone are skipped next time.
+                foreach (string module in tracked.Reverse())
+                    OarxModuleHost.Unload(Path.GetFileName(module));
+            }
+            catch (Exception)
+            {
+                // The module stayed, and with it everything the drawings hold:
+                // give them back as they were.
+                drawings.Reopen(say);
+                throw;
+            }
 
             var stillMapped = StillMapped(tracked);
             _state = _state.AfterRelease(imageStayed: stillMapped.Count > 0);
+            _reopenAfterLoad = drawings;
 
             if (!WarnIfHeld(stillMapped, say))
                 say($"{_name} unloaded. Load it again once NSLOADMGR shows the new version.");
+            if (drawings.Closed.Count > 0)
+                say($"{_name}: {string.Join(", ", drawings.Closed)} closed for the unload; " +
+                    $"they reopen when {_name} loads again.");
         }
 
         // AutoCAD tears native modules down itself at exit. Unloading them here
@@ -220,9 +258,9 @@ namespace NSLOAD.Native
         private bool WarnIfHeld(List<(string FileName, string MappedPath)> stillMapped, Action<string> say)
         {
             if (stillMapped.Count == 0) return false;
-            say($"{_name}: WARNING - AutoCAD released {string.Join(", ", stillMapped.Select(h => h.FileName))} " +
+            say($"{_name}: WARNING - {HostInfo.AppName} released {string.Join(", ", stillMapped.Select(h => h.FileName))} " +
                 "but it is still held in memory, so its file stays locked and OneDrive " +
-                "cannot update it. Restart Civil to get the new version.");
+                $"cannot update it. Restart {HostInfo.RestartName} to get the new version.");
             return true;
         }
 
@@ -268,7 +306,7 @@ namespace NSLOAD.Native
                     throw new OarxModuleException(
                         $"{Path.GetFileName(module)} from {Path.GetDirectoryName(mapped)} is still " +
                         $"held in memory, so {_name} cannot load its own copy beside it. " +
-                        $"Restart Civil, then load {_name}.");
+                        $"Restart {HostInfo.RestartName}, then load {_name}.");
             }
 
             string heldNames = string.Join(", ", held.Select(h => Path.GetFileName(h.Module)));
@@ -281,10 +319,10 @@ namespace NSLOAD.Native
                 throw new OarxModuleException(
                     $"{heldNames} never left memory after the last unload, so " +
                     $"{inMemory.Describe()} is still running, and OneDrive has delivered " +
-                    DescribeFiles(onDisk) + $". Restart Civil to load the new version of {_name}.");
+                    DescribeFiles(onDisk) + $". Restart {HostInfo.RestartName} to load the new version of {_name}.");
 
             say($"{_name}: WARNING - {heldNames} never left memory after the last unload, " +
-                $"so {inMemory.Describe()} is used again. Restart Civil to get a new version.");
+                $"so {inMemory.Describe()} is used again. Restart {HostInfo.RestartName} to get a new version.");
         }
 
         private static string DescribeFiles(IEnumerable<(string File, string? Version)> files) =>

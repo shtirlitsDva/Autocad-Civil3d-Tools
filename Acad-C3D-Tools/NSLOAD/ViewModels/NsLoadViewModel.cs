@@ -12,6 +12,12 @@ using CommunityToolkit.Mvvm.Input;
 
 using Microsoft.Win32;
 
+#if BRICSCAD
+using CadApplication = Bricscad.ApplicationServices.Application;
+#else
+using CadApplication = Autodesk.AutoCAD.ApplicationServices.Application;
+#endif
+
 namespace NSLOAD.ViewModels
 {
     public partial class NsLoadViewModel : ObservableObject
@@ -196,7 +202,7 @@ namespace NSLOAD.ViewModels
                 PluginManager.GetRegisteredPluginNames().Any(n => n.Equals(name, StringComparison.OrdinalIgnoreCase));
             if (taken)
             {
-                Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument?
+                CadApplication.DocumentManager.MdiActiveDocument?
                     .Editor.WriteMessage($"\n{name} is already the name of a plugin. Choose another name.");
                 return;
             }

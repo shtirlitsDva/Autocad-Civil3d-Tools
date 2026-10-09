@@ -9,7 +9,7 @@ namespace NSLOAD.Native
 {
     /// <summary>
     /// The companions a native group carries besides its modules: pinned native
-    /// DLLs and managed assemblies loaded through AutoCAD's extension loader.
+    /// DLLs and managed assemblies loaded the way NETLOAD loads them.
     /// Everything here is load-only — companions are never unloaded, which is
     /// precisely why they are separate from the module lifecycle in
     /// <see cref="OarxModuleHost"/>.
@@ -68,7 +68,7 @@ namespace NSLOAD.Native
                 {
                     say($"WARNING: {baseName} is already mapped from a NON-canonical path: " +
                         $"{mapped} (canonical: {fullPath}). Process-wide state in it is " +
-                        "split; restart AutoCAD to bind everything to one copy.");
+                        $"split; restart {HostInfo.AppName} to bind everything to one copy.");
                 }
                 return;
             }
@@ -83,7 +83,7 @@ namespace NSLOAD.Native
         }
 
         /// <summary>
-        /// Load one managed assembly through AutoCAD's extension loader — the
+        /// Load one managed assembly through the host's extension loader — the
         /// NETLOAD-equivalent path, so IExtensionApplication.Initialize runs and
         /// [CommandMethod]s register. Default ALC, never unloaded, so this is
         /// idempotent by assembly simple name. When the assembly already came
@@ -102,7 +102,7 @@ namespace NSLOAD.Native
                 // then no file to compare, and nothing to say.
                 if (!string.IsNullOrEmpty(existing.Location) && !FileIdentity.Same(existing.Location, fullPath))
                     say($"WARNING: {simpleName} is already loaded from {existing.Location}, so that " +
-                        $"copy stays in use instead of {fullPath}. Restart AutoCAD to use this one.");
+                        $"copy stays in use instead of {fullPath}. Restart {HostInfo.AppName} to use this one.");
                 return;
             }
 
@@ -114,7 +114,7 @@ namespace NSLOAD.Native
 
             try
             {
-                Autodesk.AutoCAD.Runtime.ExtensionLoader.Load(fullPath);
+                CompanionLoader.Load(fullPath);
             }
             catch (Exception ex)
             {
