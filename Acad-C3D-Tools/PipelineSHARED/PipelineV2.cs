@@ -890,6 +890,20 @@ namespace IntersectUtilities.PipelineNetworkSystem
 
             Polyline topology = new Polyline();
 
+            //A point equal to the previous vertex would make a zero-length segment, on which
+            //GetFirstDerivative throws eInvalidInput (CWDV2). A svanehals adds its insertion point
+            //and then its MAIN port, which is the same point. The later bulge is kept.
+            void AddVertex(Point2d pt, double bulge)
+            {
+                int n = topology.NumberOfVertices;
+                if (n > 0 && topology.GetPoint2dAt(n - 1).GetDistanceTo(pt) < 1e-6)
+                {
+                    topology.SetBulgeAt(n - 1, bulge);
+                    return;
+                }
+                topology.AddVertexAt(n, pt, bulge, 0, 0);
+            }
+
             HashSet<Ent> visited = new HashSet<Ent>();
             while (stack.Count > 0)
             {
@@ -899,20 +913,8 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 switch (current.Entity)
                 {
                     case BlockReference br:
-                        topology.AddVertexAt(
-                            topology.NumberOfVertices,
-                            startingPoint.To2d(),
-                            0,
-                            0,
-                            0
-                        );
-                        topology.AddVertexAt(
-                            topology.NumberOfVertices,
-                            br.Position.To2d(),
-                            0,
-                            0,
-                            0
-                        );
+                        AddVertex(startingPoint.To2d(), 0);
+                        AddVertex(br.Position.To2d(), 0);
                         //Determine the next connection point
                         //Case 1: all ents are visited
                         //And so we cannot decisively determine the next connection point
@@ -933,13 +935,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                                     x.DistanceHorizontalTo(startingPoint) > 0.001
                                 );
                                 if (pquery.Any())
-                                    topology.AddVertexAt(
-                                        topology.NumberOfVertices,
-                                        pquery.First().To2d(),
-                                        0,
-                                        0,
-                                        0
-                                    );
+                                    AddVertex(pquery.First().To2d(), 0);
                                 else
                                     throw new Exception(
                                         $"Could not determine next connection point for {br.Handle}!"
@@ -979,16 +975,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                             //Add the polyline to the topology
                             //But skip the last point as it will be added by the next entity
                             for (int i = 0; i < pl.NumberOfVertices - 1; i++)
-                            {
-                                Point2d pt = pl.GetPoint2dAt(i);
-                                topology.AddVertexAt(
-                                    topology.NumberOfVertices,
-                                    pt,
-                                    pl.GetBulgeAt(i),
-                                    0,
-                                    0
-                                );
-                            }
+                                AddVertex(pl.GetPoint2dAt(i), pl.GetBulgeAt(i));
                             //Feed the starting point for the next entity to the next loop
                             startingPoint = pl.EndPoint;
 
@@ -1003,13 +990,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                             {
                                 //In this case we are looking at last element
                                 //And so we need to add the last point
-                                topology.AddVertexAt(
-                                    topology.NumberOfVertices,
-                                    startingPoint.To2d(),
-                                    0,
-                                    0,
-                                    0
-                                );
+                                AddVertex(startingPoint.To2d(), 0);
                                 //the loop will exit now because we don't push next entity to the stack
                             }
                             else

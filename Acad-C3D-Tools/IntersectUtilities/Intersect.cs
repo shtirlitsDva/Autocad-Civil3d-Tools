@@ -275,8 +275,18 @@ namespace IntersectUtilities
                         Handle hn = new Handle(ln);
                         // And attempt to get an ObjectId for the Handle
                         Oid id = localDb.GetObjectId(false, hn, 0);
-                        // Finally let's open the object and erase it
                         editor.SetImpliedSelection(new[] { id });
+
+                        // Bounds is null for entities without geometry; non-entities (layers etc.) are only selected.
+                        if (tx.GetObject(id, OpenMode.ForRead) is Entity ent && ent.Bounds is Extents3d ext)
+                        {
+                            double dx = ext.MaxPoint.X - ext.MinPoint.X;
+                            double dy = ext.MaxPoint.Y - ext.MinPoint.Y;
+                            double pad = Math.Max(Math.Max(dx, dy), 1.0) * 0.3;
+                            editor.Zoom(new Extents3d(
+                                new Point3d(ext.MinPoint.X - pad, ext.MinPoint.Y - pad, 0),
+                                new Point3d(ext.MaxPoint.X + pad, ext.MaxPoint.Y + pad, 0)));
+                        }
                     }
                 }
                 catch (System.Exception ex)
