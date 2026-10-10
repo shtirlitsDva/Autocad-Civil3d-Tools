@@ -229,84 +229,8 @@ namespace IntersectUtilities
         /// </summary>
         /// <category>LER2</category>
         [CommandMethod("FLATTENPL3D", CommandFlags.UsePickSet)]
-        public void flattenpl3d()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor ed = Application.DocumentManager.MdiActiveDocument.Editor;
-
-            PromptSelectionResult acSSPrompt;
-            acSSPrompt = ed.SelectImplied();
-            SelectionSet acSSet;
-
-            if (acSSPrompt.Status == PromptStatus.OK)
-            {
-                using (Transaction tx = localDb.TransactionManager.StartTransaction())
-                {
-                    try
-                    {
-                        #region Polylines 3d
-                        acSSet = acSSPrompt.Value;
-                        foreach (Oid id in acSSet.GetObjectIds())
-                        {
-                            Polyline3d p3d = id.Go<Polyline3d>(tx, OpenMode.ForWrite);
-                            if (p3d == null) continue;
-
-                            PolylineVertex3d[] vertices = p3d.GetVertices(tx);
-
-                            for (int i = 0; i < vertices.Length; i++)
-                            {
-                                vertices[i].CheckOrOpenForWrite();
-                                vertices[i].Position = new Point3d(
-                                    vertices[i].Position.X, vertices[i].Position.Y, -99);
-                            }
-                        }
-                        #endregion
-                    }
-                    catch (System.Exception ex)
-                    {
-                        tx.Abort();
-                        prdDbg(ex);
-                        return;
-                    }
-                    tx.Commit();
-                }
-            }
-            else
-            {
-                while (true)
-                {
-                    var id = Interaction.GetEntity("Select Plyline3d to flatten: (husk! kan også preselecte mange)", typeof(Polyline3d));
-                    if (id == Oid.Null) return;
-
-                    using (Transaction tx = localDb.TransactionManager.StartTransaction())
-                    {
-                        try
-                        {
-                            #region Polylines 3d
-                            Polyline3d p3d = id.Go<Polyline3d>(tx, OpenMode.ForWrite);
-
-                            PolylineVertex3d[] vertices = p3d.GetVertices(tx);
-
-                            for (int i = 0; i < vertices.Length; i++)
-                            {
-                                vertices[i].CheckOrOpenForWrite();
-                                vertices[i].Position = new Point3d(
-                                    vertices[i].Position.X, vertices[i].Position.Y, -99);
-                            }
-                            #endregion
-                        }
-                        catch (System.Exception ex)
-                        {
-                            tx.Abort();
-                            prdDbg(ex);
-                            return;
-                        }
-                        tx.Commit();
-                    }
-                }
-            }
-        }
+        public void flattenpl3d() =>
+            Ler2Elevations.Flatten(Application.DocumentManager.MdiActiveDocument);
 
         /// <command>LER2ADJUSTSTIK, LER2ASTIK</command>
         /// <summary>

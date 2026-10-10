@@ -21,7 +21,8 @@ namespace IntersectUtilities.LER2
 {
     /// <summary>
     /// The bodies of LER2DCI, LER2IBI and LER2ASTIK, which give the -99 vertices of LER
-    /// 3D polylines an elevation; shared by every head that registers them
+    /// 3D polylines an elevation, and of FLATTENPL3D, which puts them back at -99; shared
+    /// by every head that registers them
     /// (IntersectUtilities, NorsynDrawingToolsManaged). No command attribute here: this
     /// file compiles into every project that imports IntersectUtilitiesCOMMON.
     /// </summary>
@@ -198,6 +199,88 @@ namespace IntersectUtilities.LER2
                     return;
                 }
                 tx.Commit();
+            }
+        }
+
+        /// <summary>
+        /// Flattens selected or user-picked 3D polylines by setting all vertex elevations to a fixed value (-99).
+        /// </summary>
+        public static void Flatten(Document doc)
+        {
+            Database localDb = doc.Database;
+            Editor ed = doc.Editor;
+
+            PromptSelectionResult acSSPrompt;
+            acSSPrompt = ed.SelectImplied();
+            SelectionSet acSSet;
+
+            if (acSSPrompt.Status == PromptStatus.OK)
+            {
+                using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                {
+                    try
+                    {
+                        #region Polylines 3d
+                        acSSet = acSSPrompt.Value;
+                        foreach (ObjectId id in acSSet.GetObjectIds())
+                        {
+                            Polyline3d? p3d = id.Go<Polyline3d>(tx, OpenMode.ForWrite);
+                            if (p3d == null) continue;
+
+                            PolylineVertex3d[] vertices = p3d.GetVertices(tx);
+
+                            for (int i = 0; i < vertices.Length; i++)
+                            {
+                                vertices[i].CheckOrOpenForWrite();
+                                vertices[i].Position = new Point3d(
+                                    vertices[i].Position.X, vertices[i].Position.Y, -99);
+                            }
+                        }
+                        #endregion
+                    }
+                    catch (System.Exception ex)
+                    {
+                        tx.Abort();
+                        prdDbg(ex);
+                        return;
+                    }
+                    tx.Commit();
+                }
+            }
+            else
+            {
+                while (true)
+                {
+                    var id = GetEntity(ed, "Select Plyline3d to flatten: (husk! kan også preselecte mange)", typeof(Polyline3d));
+                    if (id == ObjectId.Null) return;
+
+                    using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                    {
+                        try
+                        {
+                            #region Polylines 3d
+                            Polyline3d? p3d = id.Go<Polyline3d>(tx, OpenMode.ForWrite);
+                            if (p3d == null) { tx.Abort(); continue; }
+
+                            PolylineVertex3d[] vertices = p3d.GetVertices(tx);
+
+                            for (int i = 0; i < vertices.Length; i++)
+                            {
+                                vertices[i].CheckOrOpenForWrite();
+                                vertices[i].Position = new Point3d(
+                                    vertices[i].Position.X, vertices[i].Position.Y, -99);
+                            }
+                            #endregion
+                        }
+                        catch (System.Exception ex)
+                        {
+                            tx.Abort();
+                            prdDbg(ex);
+                            return;
+                        }
+                        tx.Commit();
+                    }
+                }
             }
         }
 
@@ -419,6 +502,28 @@ namespace IntersectUtilities.LER2
             var res = ed.GetDouble(new PromptDoubleOptions(message) { AllowNone = true });
             if (res.Status == PromptStatus.OK) return res.Value;
             return double.NaN;
+        }
+
+        /// <summary>
+        /// An entity of the allowed type from the drafter, asked again until one is picked,
+        /// or ObjectId.Null on cancel (Dreambuild's Interaction.GetEntity, which FLATTENPL3D
+        /// called before its body moved here).
+        /// </summary>
+        private static ObjectId GetEntity(Editor ed, string message, System.Type allowedType)
+        {
+            var opt = new PromptEntityOptions(message);
+            opt.SetRejectMessage("Allowed type: " + allowedType.Name); // Must call this first
+            opt.AddAllowedClass(allowedType, true);
+
+            while (true)
+            {
+                var res = ed.GetEntity(opt);
+                if (res.Status == PromptStatus.OK)
+                {
+                    return res.ObjectId;
+                }
+                else if (res.Status == PromptStatus.Cancel) return ObjectId.Null;
+            }
         }
     }
 }
