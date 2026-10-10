@@ -76,6 +76,15 @@ namespace IntersectUtilities
         public void ler2split() =>
             Ler2Split.Split(Application.DocumentManager.MdiActiveDocument, new CivilPropertySetCopier());
 
+        /// <command>LER2JOIN</command>
+        /// <summary>
+        /// Joins two 3D polylines that meet end to end into the one whose property sets are kept.
+        /// </summary>
+        /// <category>LER2</category>
+        [CommandMethod("LER2JOIN")]
+        public void ler2join() =>
+            Ler2Join.Join(Application.DocumentManager.MdiActiveDocument);
+
         /// <command>CHECK3DELEVATIONS</command>
         /// <summary>
         /// Validates 3D polyline intersection elevations by comparing intersection points calculated from alignments and 3D polylines against a referenced surface using CSV layer and depth data.
