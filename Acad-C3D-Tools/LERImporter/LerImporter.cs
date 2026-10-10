@@ -6,12 +6,14 @@ using Bricscad.EditorInput;
 using Teigha.DatabaseServices;
 using Teigha.Runtime;
 using Application = Bricscad.ApplicationServices.Application;
+using MPolygonModule = LERImporter.Host.Brx.MPolygonModule;
 #else
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Runtime;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
+using MPolygonModule = LERImporter.Host.Acad.MPolygonModule;
 #endif
 using LERImporter.Enhancer;
 using LERImporter.Schema;
@@ -43,11 +45,7 @@ namespace LERImporter
             doc.Editor.WriteMessage("\n┗(•ˇ_ˇ•)―→ LER Import Application indlæst! ←(•ˇ_ˇ•)┛");
             doc.Editor.WriteMessage("\nKommando til LER 2.0 -> IGMLBATCH.");
 
-#if !BRICSCAD
-            // BricsCAD has no MPolygon API: the graveforespørgsel boundary is a polyline there.
-            SystemObjects.DynamicLinker.LoadModule(
-                "AcMPolygonObj" + Application.Version.Major + ".dbx", false, false);
-#endif
+            MPolygonModule.Load();
         }
 
         public void Terminate()

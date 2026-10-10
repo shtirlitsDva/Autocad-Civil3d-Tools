@@ -33,8 +33,10 @@ DevReload (BricsCAD): plugin `LERImporter`, prefix `LER`, `msbuildProperties`
   Both build their definition from `LerSetDef.FromType`: every `[PsInclude]` property, then
   GmlBemærkning and LerNummer.
   Only manual Integer / Real / Text / True-False properties exist.
-- **Graveforespørgsel polygon.** Civil draws an `MPolygon` on `GraveforespPolygon`; BricsCAD has
-  no MPolygon, so it draws a closed `Polyline` with the same vertices.
+- **Graveforespørgsel polygon.** Both hosts draw an `MPolygon` on `GraveforespPolygon`. Civil
+  loads the `AcMPolygonObj` object enabler first (`Host\Acad\MPolygonModule`); BricsCAD has the
+  class built in (`Teigha.DatabaseServices.MPolygon` in `TD_Mgd.dll`). Drawings imported on
+  BricsCAD before 2026-10-10 hold a closed `Polyline` there instead.
 - **Layer colour.** A layer with no colour in the config gets ACI 0 on Civil and ACI 7 on
   BricsCAD, which refuses ByBlock on a layer (`ConsolidatedCreator.NoLayerColor`).
 - **Hatches** are created with `Associative = false` on both hosts (BricsCAD defaults to true).

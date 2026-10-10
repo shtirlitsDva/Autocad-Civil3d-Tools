@@ -259,16 +259,10 @@ namespace LERImporter
                         polyline.AddVertexAt(polyline.NumberOfVertices, point, 0, 0, 0);
                     polyline.Closed = true;
 
-#if BRICSCAD
-                    // BricsCAD has no MPolygon API: the boundary itself goes in.
-                    polyline.AddEntityToDbModelSpace(Db3d);
-                    polyline.Layer = layerNameGFP;
-#else
                     MPolygon mpg = new MPolygon();
                     mpg.AppendLoopFromBoundary(polyline, true, Tolerance.Global.EqualPoint);
                     Oid mpId = mpg.AddEntityToDbModelSpace(Db3d);
                     mpg.Layer = layerNameGFP;
-#endif
                 }
             }
             #endregion
