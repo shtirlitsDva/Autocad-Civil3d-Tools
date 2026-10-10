@@ -60,8 +60,8 @@ Both NEW, under Acad-C3D-Tools/. Edit via H:, register devreload via X: (same tr
 2. GraphViewV3  (Acad-C3D-Tools/GraphViewV3/GraphViewV3.csproj)
    net8.0-windows8.0, x64, references AutoCAD/Civil3D + NetworkGraphCore + WpfSHARED/
    theme. Reload-safe plugin.
-   - GraphViewV3Plugin : IExtensionApplication (NoCommands marker; static cleanup
-     fields; Terminate disposes palette + events).
+   - GraphViewV3Plugin : IExtensionApplication (static cleanup fields; Terminate
+     disposes palette + events).
    - Command GRAPHVIEWV3 (registered via DevReload's Utils.AddCommand path).
    - GraphViewPaletteSet : PaletteSet (AddVisual of the WPF root; tabs Graph/Stats).
    - SnapshotReader: on main thread, read FJV ents -> DTOs fast, release.
@@ -72,7 +72,6 @@ Both NEW, under Acad-C3D-Tools/. Edit via H:, register devreload via X: (same tr
 </projects>
 
 <reload-safe-shape>
-- [assembly: CommandClass(typeof(GraphViewV3.NoCommands))] + empty NoCommands class.
 - All cleanup state in STATIC fields (Initialize and Terminate run on different
   instances).
 - Terminate: palette.Close()+Dispose()+null; Events.Dispose() (AcadEventManager

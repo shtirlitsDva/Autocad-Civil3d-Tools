@@ -8,8 +8,6 @@ using AcadOverrules.VertexCircles.UI;
 using System;
 using System.Collections.Generic;
 
-[assembly: CommandClass(typeof(AcadOverrules.NoCommands))]
-
 namespace AcadOverrules
 {
     public class Commands : IExtensionApplication
@@ -224,6 +222,4 @@ namespace AcadOverrules
             }
         }
     }
-
-    public class NoCommands { }
 }

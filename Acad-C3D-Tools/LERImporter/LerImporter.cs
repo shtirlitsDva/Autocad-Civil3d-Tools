@@ -31,8 +31,6 @@ using static IntersectUtilities.UtilsCommon.Utils;
 
 using Log = LERImporter.SimpleLogger;
 
-[assembly: CommandClass(typeof(LERImporter.NoCommands))]
-
 namespace LERImporter
 {
     public class LerImporter : IExtensionApplication
@@ -250,6 +248,4 @@ namespace LERImporter
             if (EchoToEditor) prdDbg(msg);
         }
     }
-
-    public class NoCommands { }
 }

@@ -58,8 +58,6 @@ using Schema.Datafordeler;
 using Microsoft.Win32;
 using Microsoft.VisualBasic.FileIO;
 
-[assembly: CommandClass(typeof(IntersectUtilities.Dimensionering.NoCommands))]
-
 namespace IntersectUtilities.Dimensionering
 {
     /// <summary>
@@ -5111,6 +5109,4 @@ namespace IntersectUtilities.Dimensionering
             }
         }
     }
-
-    public class NoCommands { }
 }

@@ -8,9 +8,9 @@ using Bricscad.ApplicationServices;
 namespace NSLOAD
 {
     /// <summary>
-    /// Stops BricsCAD from processing the assemblies NSLOAD loads, so plugins do
-    /// not have to carry a <c>NoCommands</c> marker class. BricsCAD counterpart of
-    /// the AutoCAD file of the same name.
+    /// Stops BricsCAD from processing the assemblies NSLOAD loads, so NSLOAD owns
+    /// their commands and their Initialize. BricsCAD counterpart of the AutoCAD
+    /// file of the same name.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -61,8 +61,7 @@ namespace NSLOAD
         /// <summary>
         /// True once the scan is suppressed. While this is false BricsCAD still
         /// registers commands and calls Initialize on its own instance, so
-        /// plugins need the NoCommands marker and NSLOAD must not call
-        /// Initialize a second time.
+        /// NSLOAD must not call Initialize a second time.
         /// </summary>
         internal static bool IsActive => _installed != null;
 

@@ -16,13 +16,10 @@ using Autodesk.AutoCAD.Runtime;
 
 using NSLOAD.Views;
 
-[assembly: CommandClass(typeof(NSLOAD.NoCommands))]
 [assembly: ExtensionApplication(typeof(NSLOAD.NsLoader))]
 
 namespace NSLOAD
 {
-    public class NoCommands { }
-
     public class NsLoader : IExtensionApplication
     {
         private static NsLoadConfig _config = new();
@@ -55,12 +52,13 @@ namespace NSLOAD
             }
             catch (System.Exception ex)
             {
-                // Loud, not silent: without suppression every plugin needs the
-                // NoCommands marker, and PluginManager must not call Initialize.
+                // Loud, not silent: without suppression the host registers every
+                // plugin's commands permanently, and PluginManager must not call
+                // Initialize.
                 ed?.WriteMessage(
                     $"\nNSLOAD: WARNING - could not suppress {HostInfo.AppName}'s assembly scan " +
-                    $"({ex.Message}) Plugins on this {HostInfo.AppName} version still need the " +
-                    "NoCommands marker class.");
+                    $"({ex.Message}) On this {HostInfo.AppName} version the commands of the " +
+                    "plugins NSLOAD loads are registered permanently and survive an unload.");
             }
 
             string csvPath = HostInfo.RegisterCsvPath;
