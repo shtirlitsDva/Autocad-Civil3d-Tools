@@ -242,6 +242,15 @@ namespace IntersectUtilities
         public void flattenpl3d() =>
             Ler2Elevations.Flatten(Application.DocumentManager.MdiActiveDocument);
 
+        /// <command>FLATTENVERTEX</command>
+        /// <summary>
+        /// Sets the elevation of picked vertices of a 3D polyline to -99, keeping X and Y: select the 3D polyline, then pick its vertices one at a time.
+        /// </summary>
+        /// <category>LER2</category>
+        [CommandMethod("FLATTENVERTEX")]
+        public void flattenvertex() =>
+            Ler2Elevations.FlattenVertices(Application.DocumentManager.MdiActiveDocument);
+
         /// <command>LER2ADJUSTSTIK, LER2ASTIK</command>
         /// <summary>
         /// Adjusts the elevations along selected 3D polylines based on a user-provided slope, aligning the vertices with a connected main pipe endpoint.
