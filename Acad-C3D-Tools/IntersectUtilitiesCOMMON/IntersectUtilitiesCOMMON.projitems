@@ -14,6 +14,7 @@
     project that imports UtilitiesCommonSHARED or PipelineSHARED imports this.
   -->
   <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)BlockInserter.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\EntityCollection.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ComponentPorts.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ComponentSchedule.cs" />

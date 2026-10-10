@@ -329,6 +329,7 @@ namespace IntersectUtilities.UtilsCommon
 
         /// <summary>
         /// Remember to check for existence of BlockTableRecord!
+        /// One insert: for many of the same block, make one <see cref="BlockInserter"/>.
         /// </summary>
         /// <param name="scale">The block's uniform scale, set before its attributes are placed.</param>
         public static BlockReference CreateBlockWithAttributes(
@@ -337,42 +338,7 @@ namespace IntersectUtilities.UtilsCommon
             Point3d position,
             double rotation = 0,
             double scale = 1.0
-        )
-        {
-            Transaction tx = db.TransactionManager.TopTransaction;
-            BlockTableRecord modelSpace = db.GetModelspaceForWrite();
-            BlockTable bt = tx.GetObject(db.BlockTableId, OpenMode.ForRead) as BlockTable;
-            Oid btrId = bt[blockName];
-            BlockTableRecord btr = btrId.Go<BlockTableRecord>(tx);
-
-            var br = new BlockReference(position, btrId);
-            br.ScaleFactors = new Scale3d(scale);
-
-            modelSpace.CheckOrOpenForWrite();
-            modelSpace.AppendEntity(br);
-            tx.AddNewlyCreatedDBObject(br, true);
-            br.Rotation = rotation;
-
-            foreach (Oid arOid in btr)
-            {
-                if (arOid.IsDerivedFrom<AttributeDefinition>())
-                {
-                    AttributeDefinition at = arOid.Go<AttributeDefinition>(tx);
-                    if (!at.Constant)
-                    {
-                        using (AttributeReference atRef = new AttributeReference())
-                        {
-                            atRef.SetAttributeFromBlock(at, br.BlockTransform);
-                            atRef.Position = at.Position.TransformBy(br.BlockTransform);
-                            atRef.TextString = at.getTextWithFieldCodes();
-                            br.AttributeCollection.AppendAttribute(atRef);
-                            tx.AddNewlyCreatedDBObject(atRef, true);
-                        }
-                    }
-                }
-            }
-            return br;
-        }
+        ) => new BlockInserter(db, blockName).Insert(position, rotation, scale);
 
         public static void CheckOrOpenForWrite(this DBObject dbObject)
         {
