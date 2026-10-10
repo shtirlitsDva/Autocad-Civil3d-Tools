@@ -284,7 +284,7 @@ namespace IntersectUtilities.LER2
                             #endregion
 
                             p3d.CheckOrOpenForWrite();
-                            if (!atStart) vertices = vertices.Reverse().ToArray();
+                            if (!atStart) vertices = Enumerable.Reverse(vertices).ToArray();
 
                             double currentElevation = vertices[0].Position.Z;
                             for (int i = 1; i < vertices.Length; i++)
@@ -378,7 +378,7 @@ namespace IntersectUtilities.LER2
                             #endregion
 
                             p3d.CheckOrOpenForWrite();
-                            if (!atStart) vertices = vertices.Reverse().ToArray();
+                            if (!atStart) vertices = Enumerable.Reverse(vertices).ToArray();
 
                             double currentElevation = vertices[0].Position.Z;
                             for (int i = 1; i < vertices.Length; i++)
