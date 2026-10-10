@@ -28,7 +28,8 @@ DevReload (BricsCAD): plugin `LERImporter`, prefix `LER`, `msbuildProperties`
 
 - **Property sets.** `ConsolidatedCreator` calls `LerPropertySets.Define` / `Attach` /
   `ReadHatchLayerSets`, aliased to `Host\Acad` (AEC API) or `Host\Brx` (writes the AEC objects
-  through `DwgIn`, codec in `AecStream.cs`). Both build their definition from
+  through `DwgIn`, with the shared `..\AecPropertySetsSHARED`: codec `AecStream.cs`, object
+  layer `AecObjects.cs`; NorsynDrawingTools' property set browser uses the same project). Both build their definition from
   `LerSetDef.FromType`: every `[PsInclude]` property, then GmlBemærkning and LerNummer.
   Only manual Integer / Real / Text / True-False properties exist.
 - **Graveforespørgsel polygon.** Civil draws an `MPolygon` on `GraveforespPolygon`; BricsCAD has

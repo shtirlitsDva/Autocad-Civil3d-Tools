@@ -10,7 +10,7 @@ using IntersectUtilities;
 
 using LERImporter.PropertySets;
 
-// LerDataType switches name every member and have no discard arm (see LerPropertySetSchema.cs).
+// AecDataType switches name every member and have no discard arm (see AecValues.cs).
 #pragma warning disable CS8524
 
 namespace LERImporter.Host.Acad;
@@ -68,7 +68,7 @@ internal static class LerPropertySets
         foreach (string className in LerSetDef.AppliesTo) appliedTo.Add(className);
         propSetDef.SetAppliesToFilter(appliedTo, false);
 
-        foreach (LerPropertyDef property in def.Properties)
+        foreach (AecPropertyDef property in def.Properties)
         {
             var propDef = new PropertyDefinition();
             propDef.SetToStandard(db);
@@ -77,12 +77,12 @@ internal static class LerPropertySets
             propDef.Description = property.Description;
             propDef.DataType = property.Type switch
             {
-                LerDataType.Integer => Autodesk.Aec.PropertyData.DataType.Integer,
-                LerDataType.Real => Autodesk.Aec.PropertyData.DataType.Real,
-                LerDataType.Text => Autodesk.Aec.PropertyData.DataType.Text,
-                LerDataType.TrueFalse => Autodesk.Aec.PropertyData.DataType.TrueFalse,
+                AecDataType.Integer => Autodesk.Aec.PropertyData.DataType.Integer,
+                AecDataType.Real => Autodesk.Aec.PropertyData.DataType.Real,
+                AecDataType.Text => Autodesk.Aec.PropertyData.DataType.Text,
+                AecDataType.TrueFalse => Autodesk.Aec.PropertyData.DataType.TrueFalse,
             };
-            propDef.DefaultData = LerValue.Default(property.Type).Match<object>(
+            propDef.DefaultData = AecValue.Default(property.Type).Match<object>(
                 integer: i => i, real: d => d, text: s => s, trueFalse: b => b);
             propSetDef.Definitions.Add(propDef);
         }

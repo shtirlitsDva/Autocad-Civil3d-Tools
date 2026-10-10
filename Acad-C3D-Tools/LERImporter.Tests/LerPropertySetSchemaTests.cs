@@ -15,13 +15,13 @@ public class LerPropertySetSchemaTests
         Assert.Equal(
             new[]
             {
-                ("Ejer", LerDataType.Text),
-                ("Dybde", LerDataType.Real),
-                ("Antal", LerDataType.Integer),
-                ("Farlig", LerDataType.TrueFalse),
-                ("Dato", LerDataType.Text),
-                ("GmlBemærkning", LerDataType.Text),
-                ("LerNummer", LerDataType.Text),
+                ("Ejer", AecDataType.Text),
+                ("Dybde", AecDataType.Real),
+                ("Antal", AecDataType.Integer),
+                ("Farlig", AecDataType.TrueFalse),
+                ("Dato", AecDataType.Text),
+                ("GmlBemærkning", AecDataType.Text),
+                ("LerNummer", AecDataType.Text),
             },
             def.Properties.Select(p => (p.Name, p.Type)));
         Assert.Equal(Option<int>.Of(1), def.IdOf("Dybde"));
@@ -37,7 +37,7 @@ public class LerPropertySetSchemaTests
     [InlineData((short)2, "")]
     [InlineData((short)3, false)]
     public void A_missing_value_is_the_type_default(short type, object expected) =>
-        Assert.Equal(expected, Raw(AecStreamTests.Ok(LerValue.From((LerDataType)type, null, "P"))));
+        Assert.Equal(expected, Raw(AecStreamTests.Ok(AecValue.From((AecDataType)type, null, "P"))));
 
     [Theory]
     [InlineData((short)2, "pvc", "pvc")]
@@ -50,7 +50,7 @@ public class LerPropertySetSchemaTests
     [InlineData((short)0, (short)7, 7)]
     [InlineData((short)3, false, false)]
     public void A_value_is_converted_as_AEC_converts_it(short type, object value, object expected) =>
-        Assert.Equal(expected, Raw(AecStreamTests.Ok(LerValue.From((LerDataType)type, value, "P"))));
+        Assert.Equal(expected, Raw(AecStreamTests.Ok(AecValue.From((AecDataType)type, value, "P"))));
 
     [Theory]
     [InlineData((short)3, "Sand")]
@@ -58,8 +58,8 @@ public class LerPropertySetSchemaTests
     [InlineData((short)0, 2.5)]
     [InlineData((short)0, "42")]
     public void A_value_AEC_would_refuse_is_a_fault_naming_the_property(short type, object value) =>
-        Assert.Contains("Property Dybde", AecStreamTests.Fault(LerValue.From((LerDataType)type, value, "Dybde")));
+        Assert.Contains("Property Dybde", AecStreamTests.Fault(AecValue.From((AecDataType)type, value, "Dybde")));
 
-    private static object Raw(LerValue value) =>
+    private static object Raw(AecValue value) =>
         value.Match<object>(integer: i => i, real: d => d, text: s => s, trueFalse: b => b);
 }

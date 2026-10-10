@@ -162,6 +162,9 @@
 		</Compile>
 	</ItemGroup>
 	<Import Project="..\FormsSHARED\FormsSHARED.projitems" Label="Shared" />
+	<!-- AEC property sets without the AEC API (the codec on every lane, its BricsCAD
+	     object layer on the BricsCAD lane only), shared with NorsynDrawingTools. -->
+	<Import Project="..\AecPropertySetsSHARED\AecPropertySetsSHARED.projitems" Label="Shared" />
 
 	<Target Name="RequireKnownHost" BeforeTargets="CollectPackageReferences;ResolveAssemblyReferences">
 		<Error Condition="'$(NorsynHost)' != 'AutoCAD' And '$(NorsynHost)' != 'BricsCAD'"

@@ -1,6 +1,6 @@
 using System.Globalization;
 
-using LERImporter.Host.Brx;
+using Norsyn.AecPropertySets;
 
 namespace LERImporter.Tests;
 

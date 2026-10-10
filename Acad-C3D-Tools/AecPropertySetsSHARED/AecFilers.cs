@@ -5,9 +5,9 @@ using Teigha.DatabaseServices;
 using Teigha.Geometry;
 using Teigha.Runtime;
 
-namespace LERImporter.Host.Brx;
+namespace Norsyn.AecPropertySets;
 
-// The two DwgFilers LERImporter hands BricsCAD's AEC objects. Both say they are file filers:
+// The two DwgFilers handed to BricsCAD's AEC objects. Both say they are file filers:
 // MEASURED (V26.2, 2026-10-10) a copy filer's stream carries raw memory addresses
 // (WriteAddress) and cannot be replayed, while a file filer's carries only values and ids.
 // A filer must never throw into the host, so a call the stream does not hold is noted and

@@ -1,12 +1,12 @@
 using System;
 
-namespace LERImporter;
+namespace Norsyn.AecPropertySets;
 
-// LERImporter's vocabulary for "there may be none" and "this can fail" (AGENTS.md,
-// null-and-exceptions). LERImporter is C# 12, so the closed unions of GDALService
-// are spelled as abstract records with a private constructor, as PipePlan does:
-// the cases are nested, nothing outside can add one, and every case answers Match
-// itself, so a new case breaks the build wherever it is not handled yet.
+// The vocabulary for "there may be none" and "this can fail" (AGENTS.md,
+// null-and-exceptions). The consumers are C# 12, so the closed unions of GDALService
+// are spelled as abstract records with a private constructor: the cases are nested,
+// nothing outside can add one, and every case answers Match itself, so a new case
+// breaks the build wherever it is not handled yet.
 
 internal abstract record Option<T>
 {
@@ -69,11 +69,4 @@ internal static class UnionExtensions
 
     public static Result<T> OrFault<T>(this Option<T> option, string message) =>
         option.Match(Result<T>.Success, () => Result<T>.Failure(message));
-
-    /// <summary>
-    /// Hands a fault to ConsolidatedCreator's older code, whose failures are exceptions that
-    /// the command catches and logs. Used only at that seam.
-    /// </summary>
-    public static T OrThrowToLegacy<T>(this Result<T> result) =>
-        result.Match(value => value, message => throw new System.Exception(message));
 }
