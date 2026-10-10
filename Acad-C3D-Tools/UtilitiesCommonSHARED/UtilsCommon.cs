@@ -74,18 +74,6 @@ namespace IntersectUtilities.UtilsCommon
 
     public static partial class Utils
     {
-        public static bool atZero(this double value) => value > -0.0001 && value < 0.0001;
-
-        public static bool at99(this double value) => value < -98.0;
-
-        public static bool is3D(this double value) => !atZero(value) && !at99(value);
-
-        public static bool is3D(this Point3d p) => p.Z.is3D();
-
-        public static bool is3D(this PolylineVertex3d v) => v.Position.is3D();
-
-        public static bool is2D(this double value) => atZero(value) || at99(value);
-
         /// <summary>
         /// Order of returned coordinates explained here:
         /// https://macwright.com/lonlat/
@@ -2688,19 +2676,6 @@ namespace IntersectUtilities.UtilsCommon
             foreach (Oid oid in psIds)
                 pss.Add(oid.Go<PropertySet>(ent.GetTopTx()));
             return pss;
-        }
-
-        public static PolylineVertex3d[] GetVertices(this Polyline3d poly3d, Transaction tr)
-        {
-            List<PolylineVertex3d> vertices = new List<PolylineVertex3d>();
-            foreach (ObjectId id in poly3d)
-            {
-                var vertex = (PolylineVertex3d)tr.GetObject(id, OpenMode.ForRead);
-                if (vertex.VertexType != Vertex3dType.ControlVertex)
-                    vertices.Add(vertex);
-            }
-
-            return vertices.ToArray();
         }
 
         public static Point3d To3d(this Point2d p2d, double Z = 0.0) =>

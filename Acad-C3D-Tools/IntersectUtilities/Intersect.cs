@@ -2111,115 +2111,9 @@ namespace IntersectUtilities
         /// </summary>
         /// <category>Dimensioning</category>
         [CommandMethod("PIPELAYERSCOLOURSET")]
-        public void pipelayerscolourset()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    LayerTable lt = localDb.LayerTableId.Go<LayerTable>(tx);
-                    List<LayerTableRecord> pipeLtrs = new List<LayerTableRecord>();
-                    foreach (var ltrid in lt)
-                    {
-                        LayerTableRecord ltr = ltrid.Go<LayerTableRecord>(tx);
-                        if (GetPipeDN(ltr.Name) != 0) pipeLtrs.Add(ltr);
-                    }
-                    pipeLtrs = pipeLtrs
-                        .OrderBy(x => GetSystemString(x.Name))
-                        .ThenBy(x => GetPipeType(x.Name))
-                        .ThenBy(x => GetPipeDN(x.Name))
-                        .ToList();
-                    prdDbg($"Number of pipe layers in drawing: {pipeLtrs.Count}");
-                    //List<Color> colors = new List<Color>();
-                    #region HSL H stepping method, produces many similar-looking colors
-                    //Random random = new Random();
-                    //for (int h = 0; h < 360; h += 360 / pipeLtrs.Count)
-                    //{
-                    //    double hue = h;
-                    //    double saturation = (90.0 + random.Next(0, 11)) / 100.0;
-                    //    //double saturation = random.NextDouble();
-                    //    //double lightness = random.NextDouble();
-                    //    double lightness = (25.0 + random.Next(0, 36)) / 100.0;
-                    //    prdDbg($"HSL: {hue}, {saturation}, {lightness}");
-                    //    System.Drawing.Color color = ColorUtils.SimpleColorTransforms.HsLtoRgb(hue, saturation, lightness);
-                    //    prdDbg(color.ToString());
-                    //    colors.Add(Color.FromRgb(color.R, color.G, color.B));
-                    //} 
-                    #endregion
-                    //Old method to assign colors
-                    //if (pipeLtrs.Count > ColorUtils.StaticColorList.StaticColors.Count)
-                    //    throw new System.Exception($"There are {pipeLtrs.Count} layers and only " +
-                    //        $"{ColorUtils.StaticColorList.StaticColors.Count} colours!");
-                    //for (int j = 0; j < pipeLtrs.Count; j++)
-                    //{
-                    //    string colorString = ColorUtils.StaticColorList.StaticColors[j];
-                    //    System.Drawing.Color color = System.Drawing.ColorTranslator.FromHtml(colorString);
-                    //    colors.Add(Color.FromRgb(color.R, color.G, color.B));
-                    //}
-                    //var zip = pipeLtrs.Zip(colors, (x, y) => new { layer = x, color = y });
-                    #region Determine upper right corner of all polylines: Point3d UpperRightCorner
-                    //To place legend find bbox of all plines and place legend at the top right corner
-                    HashSet<Polyline> allPlines = localDb.HashSetOfType<Polyline>(tx)
-                        .Where(x => GetPipeDN(x) != 0).ToHashSet();
-                    //Determine maximum points
-                    HashSet<double> Xs = new HashSet<double>();
-                    HashSet<double> Ys = new HashSet<double>();
-                    foreach (var pl in allPlines)
-                    {
-                        Extents3d bbox = pl.GeometricExtents;
-                        Xs.Add(bbox.MaxPoint.X);
-                        Xs.Add(bbox.MinPoint.X);
-                        Ys.Add(bbox.MaxPoint.Y);
-                        Ys.Add(bbox.MinPoint.Y);
-                    }
-                    double maxX = Xs.Max();
-                    double maxY = Ys.Max();
-                    Point3d upperRightCorner = new Point3d(maxX, maxY, 0);
-                    #endregion
-                    //Assign colors and create legend
-                    int i = 0;
-                    foreach (var layer in pipeLtrs)
-                    {
-                        //Determine color
-                        Color color = Color.FromColorIndex(ColorMethod.ByAci,
-                            GetColorForDim(layer.Name));
-                        layer.CheckOrOpenForWrite();
-                        layer.Color = color;
-                        //Create legend
-                        double vDist = 10;
-                        Point3d p1 = new Point3d(upperRightCorner.X, upperRightCorner.Y + vDist * i, 0.0);
-                        Point3d p2 = new Point3d(upperRightCorner.X + 50.0, upperRightCorner.Y + vDist * i, 0.0);
-                        Line line = new Line(p1, p2);
-                        line.AddEntityToDbModelSpace(localDb);
-                        line.SetDatabaseDefaults();
-                        line.Layer = "0";
-                        line.Color = color;
-                        DBText text = new DBText();
-                        text.AddEntityToDbModelSpace(localDb);
-                        text.SetDatabaseDefaults();
-                        text.Position = new Point3d(p2.X + 10.0, p2.Y, 0.0);
-                        text.Height = 5;
-                        text.Color = color;
-                        text.TextString =
-                            $"{GetSystemString(layer.Name)}{GetPipeDN(layer.Name)}-" +
-                            $"{GetPipeType(layer.Name)}";
-                        i--;
-                    }
-                }
-                catch (System.Exception ex)
-                {
-                    tx.Abort();
-                    editor.WriteMessage("\n" + ex.ToString());
-                    return;
-                }
-                tx.Commit();
-            }
-        }
+        public void pipelayerscolourset() =>
+            Dimensioning.PipeLayerColours.Set(Application.DocumentManager.MdiActiveDocument.Database);
+
         /// <command>PIPELAYERSCOLOURRESET</command>
         /// <summary>
         /// Resets the color of pipe layers.
@@ -2227,43 +2121,8 @@ namespace IntersectUtilities
         /// </summary>
         /// <category>Dimensioning</category>
         [CommandMethod("PIPELAYERSCOLOURRESET")]
-        public void pipelayerscolourreset()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    LayerTable lt = localDb.LayerTableId.Go<LayerTable>(tx);
-                    List<LayerTableRecord> pipeLtrs = new List<LayerTableRecord>();
-                    foreach (var ltrid in lt)
-                    {
-                        LayerTableRecord ltr = ltrid.Go<LayerTableRecord>(tx);
-                        if (GetPipeDN(ltr.Name) != 0) pipeLtrs.Add(ltr);
-                    }
-                    pipeLtrs = pipeLtrs.OrderBy(x => x.Name).ToList();
-                    prdDbg($"Number of pipe layers in drawing: {pipeLtrs.Count}");
-                    //Assign colors and create legend
-                    foreach (var ltr in pipeLtrs)
-                    {
-                        ltr.CheckOrOpenForWrite();
-                        ltr.Color = Color.FromColorIndex(ColorMethod.ByAci,
-                            GetLayerColor(GetPipeSystem(ltr.Name), GetPipeType(ltr.Name)));
-                    }
-                }
-                catch (System.Exception ex)
-                {
-                    tx.Abort();
-                    editor.WriteMessage("\n" + ex.ToString());
-                    return;
-                }
-                tx.Commit();
-            }
-        }
+        public void pipelayerscolourreset() =>
+            Dimensioning.PipeLayerColours.Reset(Application.DocumentManager.MdiActiveDocument.Database);
         /// <command>FIXLERLAYERS</command>
         /// <summary>
         /// Assigns correct linetypes and colors to Ler polylines(3d).

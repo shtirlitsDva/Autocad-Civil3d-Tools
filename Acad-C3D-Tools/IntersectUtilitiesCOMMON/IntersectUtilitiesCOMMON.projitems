@@ -23,6 +23,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)DataManager\CsvData\FjvDynamicComponents.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)DataManager\CsvData\PipeRadiusCsv.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)DataManager\CsvData\PipeScheduleCsv.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Dimensioning\PipeLayerColours.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)DynamicBlockPropertyReader.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Enums.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)GraphWrite\GraphPopulation.cs" />
@@ -34,6 +35,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Graphs\POI.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Graphs\Styling\IDotStyler.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)GroupByCluster.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)LER2\Ler2Sort.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)MoreLinq\MoreLinq.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)PipeScheduleV2\PipeScheduleV2.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)PipelineNetwork\PipelineGraphBuilder.cs" />

@@ -563,6 +563,31 @@ namespace IntersectUtilities.UtilsCommon
             return oid.ObjectClass.IsDerivedFrom(RXObject.GetClass(typeof(T)));
         }
 
+        public static bool atZero(this double value) => value > -0.0001 && value < 0.0001;
+
+        public static bool at99(this double value) => value < -98.0;
+
+        public static bool is3D(this double value) => !atZero(value) && !at99(value);
+
+        public static bool is3D(this Point3d p) => p.Z.is3D();
+
+        public static bool is3D(this PolylineVertex3d v) => v.Position.is3D();
+
+        public static bool is2D(this double value) => atZero(value) || at99(value);
+
+        public static PolylineVertex3d[] GetVertices(this Polyline3d poly3d, Transaction tr)
+        {
+            List<PolylineVertex3d> vertices = new List<PolylineVertex3d>();
+            foreach (ObjectId id in poly3d)
+            {
+                var vertex = (PolylineVertex3d)tr.GetObject(id, OpenMode.ForRead);
+                if (vertex.VertexType != Vertex3dType.ControlVertex)
+                    vertices.Add(vertex);
+            }
+
+            return vertices.ToArray();
+        }
+
         public static List<T> ListOfType<T>(
             this Database database,
             Transaction tr,
