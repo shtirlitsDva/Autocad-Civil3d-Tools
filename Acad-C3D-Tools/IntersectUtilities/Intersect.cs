@@ -116,87 +116,8 @@ namespace IntersectUtilities
         /// </summary>
         /// <category>LER</category>
         [CommandMethod("LISTINTLAYCHECKALL")]
-        public void listintlaycheck()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database db = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-            using (Transaction tx = db.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    #region Gather layer names
-
-                    HashSet<Line> lines = db.HashSetOfType<Line>(tx);
-                    HashSet<Spline> splines = db.HashSetOfType<Spline>(tx);
-                    HashSet<Polyline> plines = db.HashSetOfType<Polyline>(tx);
-                    HashSet<Polyline3d> plines3d = db.HashSetOfType<Polyline3d>(tx);
-                    HashSet<Arc> arcs = db.HashSetOfType<Arc>(tx);
-                    editor.WriteMessage($"\nNr. of lines: {lines.Count}");
-                    editor.WriteMessage($"\nNr. of splines: {splines.Count}");
-                    editor.WriteMessage($"\nNr. of plines: {plines.Count}");
-                    editor.WriteMessage($"\nNr. of plines3d: {plines3d.Count}");
-                    editor.WriteMessage($"\nNr. of arcs: {arcs.Count}");
-                    HashSet<string> layNames = new HashSet<string>();
-                    //Local function to avoid duplicate code
-                    HashSet<string> LocalListNames<T>(HashSet<string> list, HashSet<T> ents)
-                    {
-                        foreach (Entity ent in ents.Cast<Entity>())
-                        {
-                            list.Add(ent.Layer);
-                        }
-                        return list;
-                    }
-                    layNames = LocalListNames(layNames, lines);
-                    layNames = LocalListNames(layNames, splines);
-                    layNames = LocalListNames(layNames, plines);
-                    layNames = LocalListNames(layNames, plines3d);
-                    layNames = LocalListNames(layNames, arcs);
-                    #endregion
-
-                    #region Read Csv Data for Layers and Depth
-                    var krydsninger = Csv.Krydsninger;
-                    var dybde = Csv.Dybde;
-                    #endregion
-
-                    foreach (string name in layNames)
-                    {
-                        string? nameInFile = krydsninger.Navn(name);
-                        if (nameInFile.IsNoE())
-                        {
-                            editor.WriteMessage($"\nDefinition af ledningslag '{name}' mangler i Krydsninger.csv!");
-                        }
-                        else
-                        {
-                            string? typeInFile = krydsninger.Type(name);
-                            if (typeInFile == "IGNORE")
-                            {
-                                editor.WriteMessage($"\nAdvarsel: Ledningslag" +
-                                        $" '{name}' er sat til 'IGNORE' og dermed ignoreres.");
-                            }
-                            else
-                            {
-                                string? layerInFile = krydsninger.Layer(name);
-                                if (layerInFile.IsNoE())
-                                    editor.WriteMessage($"\nFejl: Definition af kolonne \"Layer\" for ledningslag" +
-                                        $" '{name}' mangler i Krydsninger.csv!");
-                                if (typeInFile.IsNoE())
-                                    editor.WriteMessage($"\nFejl: Definition af kolonne \"Type\" for ledningslag" +
-                                        $" '{name}' mangler i Krydsninger.csv!");
-                            }
-                        }
-                    }
-                }
-                catch (System.Exception ex)
-                {
-                    editor.WriteMessage("\n" + ex.Message);
-                    return;
-                }
-                tx.Commit();
-            }
-        }
+        public void listintlaycheck() =>
+            LER.LerLayers.CheckAll(Application.DocumentManager.MdiActiveDocument.Database);
 
         /// <command>CONVERTLINESTOPOLIES</command>
         /// <summary>

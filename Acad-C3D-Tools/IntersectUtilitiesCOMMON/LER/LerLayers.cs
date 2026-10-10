@@ -12,18 +12,96 @@ using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.DataManager.CsvData;
 
 using System.Collections.Generic;
+using System.Linq;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 
 namespace IntersectUtilities.LER
 {
     /// <summary>
-    /// FIXLERLAYERS' body, shared by every head that registers the command
-    /// (IntersectUtilities, NorsynDrawingToolsManaged). No command attribute here:
-    /// this file compiles into every project that imports IntersectUtilitiesCOMMON.
+    /// The bodies of FIXLERLAYERS and LISTINTLAYCHECKALL, shared by every head that
+    /// registers them (IntersectUtilities, NorsynDrawingToolsManaged). No command attribute
+    /// here: this file compiles into every project that imports IntersectUtilitiesCOMMON.
     /// </summary>
     public static class LerLayers
     {
+        /// <summary>
+        /// Checks if all layers of Polyline3d exist in the Krydsninger.csv file.
+        /// </summary>
+        public static void CheckAll(Database db)
+        {
+            using (Transaction tx = db.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Gather layer names
+
+                    List<Line> lines = db.ListOfType<Line>(tx);
+                    List<Spline> splines = db.ListOfType<Spline>(tx);
+                    List<Polyline> plines = db.ListOfType<Polyline>(tx);
+                    List<Polyline3d> plines3d = db.ListOfType<Polyline3d>(tx);
+                    List<Arc> arcs = db.ListOfType<Arc>(tx);
+                    prdDbg($"Nr. of lines: {lines.Count}");
+                    prdDbg($"Nr. of splines: {splines.Count}");
+                    prdDbg($"Nr. of plines: {plines.Count}");
+                    prdDbg($"Nr. of plines3d: {plines3d.Count}");
+                    prdDbg($"Nr. of arcs: {arcs.Count}");
+                    HashSet<string> layNames = new HashSet<string>();
+                    //Local function to avoid duplicate code
+                    HashSet<string> LocalListNames<T>(HashSet<string> list, List<T> ents)
+                    {
+                        foreach (Entity ent in ents.Cast<Entity>())
+                        {
+                            list.Add(ent.Layer);
+                        }
+                        return list;
+                    }
+                    layNames = LocalListNames(layNames, lines);
+                    layNames = LocalListNames(layNames, splines);
+                    layNames = LocalListNames(layNames, plines);
+                    layNames = LocalListNames(layNames, plines3d);
+                    layNames = LocalListNames(layNames, arcs);
+                    #endregion
+
+                    var krydsninger = Csv.Krydsninger;
+
+                    foreach (string name in layNames)
+                    {
+                        string? nameInFile = krydsninger.Navn(name);
+                        if (nameInFile.IsNoE())
+                        {
+                            prdDbg($"Definition af ledningslag '{name}' mangler i Krydsninger.csv!");
+                        }
+                        else
+                        {
+                            string? typeInFile = krydsninger.Type(name);
+                            if (typeInFile == "IGNORE")
+                            {
+                                prdDbg($"Advarsel: Ledningslag" +
+                                        $" '{name}' er sat til 'IGNORE' og dermed ignoreres.");
+                            }
+                            else
+                            {
+                                string? layerInFile = krydsninger.Layer(name);
+                                if (layerInFile.IsNoE())
+                                    prdDbg($"Fejl: Definition af kolonne \"Layer\" for ledningslag" +
+                                        $" '{name}' mangler i Krydsninger.csv!");
+                                if (typeInFile.IsNoE())
+                                    prdDbg($"Fejl: Definition af kolonne \"Type\" for ledningslag" +
+                                        $" '{name}' mangler i Krydsninger.csv!");
+                            }
+                        }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         /// <summary>
         /// Assigns correct linetypes and colors to Ler polylines(3d).
         /// </summary>
