@@ -275,6 +275,105 @@ namespace IntersectUtilities.UtilsCommon
         public static bool HorizontalEqualz(this Point3d a, Point3d b, double tol = 0.01) =>
             null != a && null != b && a.X.Equalz(b.X, tol) && a.Y.Equalz(b.Y, tol);
 
+        /// <summary>
+        /// Requires active transaction!
+        /// </summary>
+        /// <param name="cloning">How records the block brings along (layers, nested blocks)
+        /// meet ones of the same name in <paramref name="db"/>. Ignore keeps the drawing's own.</param>
+        public static void CheckOrImportBlockRecord(
+            this Database db,
+            string pathToLibrary,
+            string blockName,
+            DuplicateRecordCloning cloning = DuplicateRecordCloning.Replace
+        )
+        {
+            Transaction tx = db.TransactionManager.TopTransaction;
+            if (tx == null)
+                throw new System.Exception("CheckOrImportBlockRecord requires active Transaction!");
+            BlockTable bt = tx.GetObject(db.BlockTableId, OpenMode.ForRead) as BlockTable;
+
+            if (!bt.Has(blockName))
+            {
+                ObjectIdCollection idsToClone = new ObjectIdCollection();
+
+                Database blockDb = new Database(false, true);
+                blockDb.ReadDwgFile(
+                    pathToLibrary,
+                    FileOpenMode.OpenForReadAndAllShare,
+                    false,
+                    null
+                );
+                Transaction blockTx = blockDb.TransactionManager.StartTransaction();
+
+                Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(db);
+
+                BlockTable sourceBt =
+                    blockTx.GetObject(blockDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+
+                prdDbg($"Importing block {blockName}.");
+                idsToClone.Add(sourceBt[blockName]);
+
+                IdMapping mapping = new IdMapping();
+                blockDb.WblockCloneObjects(
+                    idsToClone,
+                    destDbMsId,
+                    mapping,
+                    cloning,
+                    false
+                );
+                blockTx.Commit();
+                blockTx.Dispose();
+                blockDb.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Remember to check for existence of BlockTableRecord!
+        /// </summary>
+        /// <param name="scale">The block's uniform scale, set before its attributes are placed.</param>
+        public static BlockReference CreateBlockWithAttributes(
+            this Database db,
+            string blockName,
+            Point3d position,
+            double rotation = 0,
+            double scale = 1.0
+        )
+        {
+            Transaction tx = db.TransactionManager.TopTransaction;
+            BlockTableRecord modelSpace = db.GetModelspaceForWrite();
+            BlockTable bt = tx.GetObject(db.BlockTableId, OpenMode.ForRead) as BlockTable;
+            Oid btrId = bt[blockName];
+            BlockTableRecord btr = btrId.Go<BlockTableRecord>(tx);
+
+            var br = new BlockReference(position, btrId);
+            br.ScaleFactors = new Scale3d(scale);
+
+            modelSpace.CheckOrOpenForWrite();
+            modelSpace.AppendEntity(br);
+            tx.AddNewlyCreatedDBObject(br, true);
+            br.Rotation = rotation;
+
+            foreach (Oid arOid in btr)
+            {
+                if (arOid.IsDerivedFrom<AttributeDefinition>())
+                {
+                    AttributeDefinition at = arOid.Go<AttributeDefinition>(tx);
+                    if (!at.Constant)
+                    {
+                        using (AttributeReference atRef = new AttributeReference())
+                        {
+                            atRef.SetAttributeFromBlock(at, br.BlockTransform);
+                            atRef.Position = at.Position.TransformBy(br.BlockTransform);
+                            atRef.TextString = at.getTextWithFieldCodes();
+                            br.AttributeCollection.AppendAttribute(atRef);
+                            tx.AddNewlyCreatedDBObject(atRef, true);
+                        }
+                    }
+                }
+            }
+            return br;
+        }
+
         public static void CheckOrOpenForWrite(this DBObject dbObject)
         {
             if (dbObject.IsWriteEnabled == false)

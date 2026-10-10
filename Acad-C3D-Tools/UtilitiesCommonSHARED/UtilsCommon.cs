@@ -1967,57 +1967,6 @@ namespace IntersectUtilities.UtilsCommon
                 return true;
         }
 
-        /// <summary>
-        /// Requires active transaction!
-        /// </summary>
-        public static void CheckOrImportBlockRecord(
-            this Database db,
-            string pathToLibrary,
-            string blockName
-        )
-        {
-            bool localTransaction = false;
-            Transaction tx = db.TransactionManager.TopTransaction;
-            if (tx == null)
-                throw new System.Exception("CheckOrImportBlockRecord requires active Transaction!");
-            BlockTable bt = tx.GetObject(db.BlockTableId, OpenMode.ForRead) as BlockTable;
-
-            if (!bt.Has(blockName))
-            {
-                ObjectIdCollection idsToClone = new ObjectIdCollection();
-
-                Database blockDb = new Database(false, true);
-                blockDb.ReadDwgFile(
-                    pathToLibrary,
-                    FileOpenMode.OpenForReadAndAllShare,
-                    false,
-                    null
-                );
-                Transaction blockTx = blockDb.TransactionManager.StartTransaction();
-
-                Oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(blockDb);
-                Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(db);
-
-                BlockTable sourceBt =
-                    blockTx.GetObject(blockDb.BlockTableId, OpenMode.ForRead) as BlockTable;
-
-                prdDbg($"Importing block {blockName}.");
-                idsToClone.Add(sourceBt[blockName]);
-
-                IdMapping mapping = new IdMapping();
-                blockDb.WblockCloneObjects(
-                    idsToClone,
-                    destDbMsId,
-                    mapping,
-                    DuplicateRecordCloning.Replace,
-                    false
-                );
-                blockTx.Commit();
-                blockTx.Dispose();
-                blockDb.Dispose();
-            }
-        }
-
         public static BlockTableRecord GetBlockTableRecordByName(this Database db, string blockName)
         {
             BlockTable bt = db.BlockTableId.Go<BlockTable>(db.TransactionManager.TopTransaction);
@@ -2025,50 +1974,6 @@ namespace IntersectUtilities.UtilsCommon
                 return bt[blockName].Go<BlockTableRecord>(db.TransactionManager.TopTransaction);
             else
                 return null;
-        }
-
-        /// <summary>
-        /// Remember to check for existence of BlockTableRecord!
-        /// </summary>
-        public static BlockReference CreateBlockWithAttributes(
-            this Database db,
-            string blockName,
-            Point3d position,
-            double rotation = 0
-        )
-        {
-            Transaction tx = db.TransactionManager.TopTransaction;
-            BlockTableRecord modelSpace = db.GetModelspaceForWrite();
-            BlockTable bt = tx.GetObject(db.BlockTableId, OpenMode.ForRead) as BlockTable;
-            Oid btrId = bt[blockName];
-            BlockTableRecord btr = btrId.Go<BlockTableRecord>(tx);
-
-            var br = new BlockReference(position, btrId);
-
-            modelSpace.CheckOrOpenForWrite();
-            modelSpace.AppendEntity(br);
-            tx.AddNewlyCreatedDBObject(br, true);
-            br.Rotation = rotation;
-
-            foreach (Oid arOid in btr)
-            {
-                if (arOid.IsDerivedFrom<AttributeDefinition>())
-                {
-                    AttributeDefinition at = arOid.Go<AttributeDefinition>(tx);
-                    if (!at.Constant)
-                    {
-                        using (AttributeReference atRef = new AttributeReference())
-                        {
-                            atRef.SetAttributeFromBlock(at, br.BlockTransform);
-                            atRef.Position = at.Position.TransformBy(br.BlockTransform);
-                            atRef.TextString = at.getTextWithFieldCodes();
-                            br.AttributeCollection.AppendAttribute(atRef);
-                            tx.AddNewlyCreatedDBObject(atRef, true);
-                        }
-                    }
-                }
-            }
-            return br;
         }
 
         public static void AttSync(this BlockReference br)
