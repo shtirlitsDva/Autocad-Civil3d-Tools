@@ -65,10 +65,9 @@ internal static class AecObjects
     }
 
     /// <summary>
-    /// Hands a database-resident object, open for write, its stream: its own owner and
-    /// reactors, then the body. Then records it again, and the object must file exactly the
-    /// body it was given. A new object is filled this way; an existing one is rewritten
-    /// (the transaction's undo keeps what it filed before).
+    /// Hands a new, database-resident object its stream: its own owner and reactors, then
+    /// the body. Then records it again, and the object must file exactly the body it was
+    /// given. On a fault the caller aborts the transaction.
     /// </summary>
     public static Result<Unit> Fill(DBObject obj, IReadOnlyList<AecToken> body, IReadOnlyList<ObjectId> bodyIds) =>
         Boundary($"write {obj.GetRXClass().Name}", () =>

@@ -44,14 +44,19 @@ internal sealed class AecSets
 
     /// <summary>
     /// Stores the value for one property of an attached set, as a manual value of the
-    /// property's data type. The set is read again first, so the edit lands on what the
-    /// drawing holds now.
+    /// property's data type, and returns the set's new id. The set is read again first, so
+    /// the edit lands on what the drawing holds now.
+    /// The set is REPLACED: a new set object is filled with the edited stream under the
+    /// old one's key, and the old one is erased. DwgIn into the existing object would skip
+    /// the write-enable that records undo (assertWriteEnabled); erase and add are ordinary,
+    /// undoable database changes, and the fill is the one LERImporter's sets are made with.
+    /// On a fault the caller aborts the transaction.
     /// </summary>
-    public Result<Unit> Write(ObjectId setId, int propertyId, AecValue value) =>
+    public Result<ObjectId> Write(ObjectId setId, int propertyId, AecValue value) =>
         AecObjects.Boundary($"write property {propertyId}", () =>
         {
-            DBObject obj = _tx.GetObject(setId, OpenMode.ForWrite);
-            return AecObjects.Record(obj).Bind(recorded =>
+            DBObject old = _tx.GetObject(setId, OpenMode.ForRead);
+            return AecObjects.Record(old).Bind(recorded =>
                 AecStream.ReadSet(recorded.Body).Bind(set =>
                     DefinitionOf(set, recorded).Bind(def =>
                         def.Definition.Definition.ById(propertyId)
@@ -60,7 +65,20 @@ internal sealed class AecSets
                                 ? Result<Unit>.Success(Unit.Value)
                                 : Result<Unit>.Failure($"{property.Name} is a {type} property, not {value.Type}")))
                             .Bind(_ => AecStream.WithValue(recorded.Body, set, propertyId, value))
-                            .Bind(body => AecObjects.Fill(obj, body, recorded.Ids)))));
+                            .Bind(body => Replace(old, body, recorded.Ids)))));
+        });
+
+    private Result<ObjectId> Replace(DBObject old, IReadOnlyList<AecToken> body, IReadOnlyList<ObjectId> ids) =>
+        AecObjects.KeyInOwner(_tx, old).Bind(key =>
+        {
+            var owner = (DBDictionary)_tx.GetObject(old.OwnerId, OpenMode.ForWrite);
+            owner.Remove(old.ObjectId);
+            old.UpgradeOpen();
+            old.Erase();
+            DBObject fresh = AecObjects.Create(AecObjects.SetClass);
+            owner.SetAt(key, fresh);
+            _tx.AddNewlyCreatedDBObject(fresh, true);
+            return AecObjects.Fill(fresh, body, ids).Map(_ => fresh.ObjectId);
         });
 
     private Result<AecAttachedSet> Set(string key, ObjectId setId) =>
