@@ -6,11 +6,16 @@ using CommunityToolkit.Mvvm.Input;
 
 using IntersectUtilities.UtilsCommon.DataManager.CsvData;
 
-namespace IntersectUtilities.CmdUI.UI
+namespace IntersectUtilities.UtilsCommon.DataManager.ConfigurationSelection
 {
     /// <summary>
-    /// ViewModel for the Configuration tab.
+    /// Chooses the active CSV configuration. Shown by the NSCMD palette's Configuration
+    /// tab (IntersectUtilities) and by the NSCONF window (NorsynDrawingToolsManaged).
     /// </summary>
+    /// <remarks>
+    /// Not in UtilitiesCommonSHARED.projitems, because it needs CommunityToolkit.Mvvm:
+    /// the projects that show it link this file themselves.
+    /// </remarks>
     public partial class ConfigurationViewModel : ObservableObject
     {
         /// <summary>

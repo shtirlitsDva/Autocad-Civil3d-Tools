@@ -221,6 +221,11 @@
 	  <EmbeddedResource Include="DataScience\MergeReportStyles.css" />
 	</ItemGroup>
 	<ItemGroup>
+	  <!-- Shared with NorsynDrawingToolsManaged's NSCONF; needs CommunityToolkit.Mvvm,
+	       so it is not part of UtilitiesCommonSHARED.projitems. -->
+	  <Compile Include="..\UtilitiesCommonSHARED\DataManager\ConfigurationSelection\ConfigurationViewModel.cs" Link="CmdUI\UI\ConfigurationViewModel.cs" />
+	</ItemGroup>
+	<ItemGroup>
 	  <Using Remove="System.Drawing" />
 	  <Using Remove="System.Windows.Forms" />
 	</ItemGroup>
