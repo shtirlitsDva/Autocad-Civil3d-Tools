@@ -53,6 +53,19 @@ namespace IntersectUtilities
         public void ler2sort2dfrom3d() =>
             Ler2Sort.Sort2dFrom3d(Application.DocumentManager.MdiActiveDocument.Database);
 
+        /// <command>LER2MANHOLEQA</command>
+        /// <summary>
+        /// Finds the LER points whose property sets say manhole (words to look for, then the
+        /// values to match, checked in a tree), checks each against the manhole and gully
+        /// blocks already in the base map (Grundkort) and this drawing, and after a review
+        /// inserts a 0_BRØNDDÆKSEL_DAMGAARD block at each manhole that is missing, into the
+        /// base map's file or into this drawing.
+        /// </summary>
+        /// <category>LER2</category>
+        [CommandMethod("LER2MANHOLEQA")]
+        public void ler2manholeqa() =>
+            Norsyn.DrawingTools.Ler.Manholes.ManholeCheckWindowHost.Show(() => new CivilPropertySetScanner());
+
         /// <command>CHECK3DELEVATIONS</command>
         /// <summary>
         /// Validates 3D polyline intersection elevations by comparing intersection points calculated from alignments and 3D polylines against a referenced surface using CSV layer and depth data.

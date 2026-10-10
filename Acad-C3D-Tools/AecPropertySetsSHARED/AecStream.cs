@@ -188,6 +188,7 @@ internal static class AecStream
         return t;
     }
 
+    /// <param name="description">The definition's description.</param>
     /// <param name="properties">The properties; each one's id is its index.</param>
     /// <param name="appliesTo">The DXF class names the definition applies to.</param>
     /// <param name="formatSlot">The slot of the format every property points at.</param>
@@ -224,6 +225,8 @@ internal static class AecStream
         return t;
     }
 
+    /// <param name="entitySlot">The slot of the entity the set is attached to.</param>
+    /// <param name="definitionSlot">The slot of the set's definition.</param>
     /// <param name="values">One value per property of the definition, in id order.</param>
     public static IReadOnlyList<AecToken> Set(int entitySlot, int definitionSlot, IReadOnlyList<AecValue> values)
     {
