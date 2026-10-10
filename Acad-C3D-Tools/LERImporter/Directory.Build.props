@@ -1,0 +1,21 @@
+<Project>
+	<!-- LERImporter is built for one host at a time, as NSLOAD is:
+	       msbuild LERImporter.csproj                          (AutoCAD / Civil 3D 2025)
+	       msbuild LERImporter.csproj -p:NorsynHost=BricsCAD   (BricsCAD V26)
+	     This file runs before the SDK props, the only place the intermediate
+	     folder can still be chosen: each host restores and compiles into its own
+	     obj folder, so neither lane overwrites the other's state. -->
+	<PropertyGroup>
+		<NorsynHost Condition="'$(NorsynHost)' == ''">AutoCAD</NorsynHost>
+
+		<!-- The BricsCAD install the BricsCAD lane compiles against. Override on the
+		     command line (-p:BricsCADPath=...) or with an environment variable. A
+		     machine without BricsCAD falls back to the reference copies in the BRX SDK. -->
+		<BricsCADPath Condition="'$(BricsCADPath)' == ''">C:\Program Files\Bricsys\BricsCAD V26 en_US</BricsCADPath>
+		<BricsCADPath Condition="!Exists('$(BricsCADPath)\BrxMgd.dll') And Exists('C:\BRXSDK\BRX26.2.03.0\extra\dotnet\ref\BrxMgd.dll')">C:\BRXSDK\BRX26.2.03.0\extra\dotnet\ref</BricsCADPath>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(NorsynHost)' == 'BricsCAD'">
+		<BaseIntermediateOutputPath>obj\BricsCAD\</BaseIntermediateOutputPath>
+	</PropertyGroup>
+</Project>

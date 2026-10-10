@@ -1,0 +1,364 @@
+SPtr DAA
+SPtr DAA
+I32 1
+Bool True
+Bool False
+I16 80
+Bool True
+Bool True
+I16 1002
+I16 80
+Str LERImporter.Schema.LedningstraceType
+I16 80
+Str 
+Bool False
+Byte 0
+I16 80
+I32 15
+I16 80
+Str 
+I16 80
+I32 15
+Bool True
+Bool True
+I16 1007
+I16 80
+Str Bredde
+I16 80
+I32 0
+Str Bredde
+I16 1
+Bool False
+HPtr DA9
+I16 5
+Dbl 0
+Bool False
+I16 80
+Str 
+I16 80
+I32 0
+I16 0
+Str 
+Byte 2
+I32 0
+Bool True
+Bool True
+I16 1007
+I16 80
+Str BreddeUnits
+I16 80
+I32 1
+Str BreddeUnits
+I16 2
+Bool False
+HPtr DA9
+I16 8
+Str 
+Bool False
+I16 80
+Str 
+I16 80
+I32 0
+I16 0
+Str 
+Byte 2
+I32 0
+Bool True
+Bool True
+I16 1007
+I16 80
+Str Forsyningsart
+I16 80
+I32 2
+Str Forsyningsart
+I16 2
+Bool False
+HPtr DA9
+I16 8
+Str 
+Bool False
+I16 80
+Str 
+I16 80
+I32 0
+I16 0
+Str 
+Byte 2
+I32 0
+Bool True
+Bool True
+I16 1007
+I16 80
+Str IndeholdtLedning
+I16 80
+I32 3
+Str IndeholdtLedning
+I16 2
+Bool False
+HPtr DA9
+I16 8
+Str 
+Bool False
+I16 80
+Str 
+I16 80
+I32 0
+I16 0
+Str 
+Byte 2
+I32 0
+Bool True
+Bool True
+I16 1007
+I16 80
+Str Driftsstatus
+I16 80
+I32 4
+Str Driftsstatus
+I16 2
+Bool False
+HPtr DA9
+I16 8
+Str 
+Bool False
+I16 80
+Str 
+I16 80
+I32 0
+I16 0
+Str 
+Byte 2
+I32 0
+Bool True
+Bool True
+I16 1007
+I16 80
+Str EtableringsTidspunkt
+I16 80
+I32 5
+Str EtableringsTidspunkt
+I16 2
+Bool False
+HPtr DA9
+I16 8
+Str 
+Bool False
+I16 80
+Str 
+I16 80
+I32 0
+I16 0
+Str 
+Byte 2
+I32 0
+Bool True
+Bool True
+I16 1007
+I16 80
+Str Fareklasse
+I16 80
+I32 6
+Str Fareklasse
+I16 2
+Bool False
+HPtr DA9
+I16 8
+Str 
+Bool False
+I16 80
+Str 
+I16 80
+I32 0
+I16 0
+Str 
+Byte 2
+I32 0
+Bool True
+Bool True
+I16 1007
+I16 80
+Str GmlId
+I16 80
+I32 7
+Str GmlId
+I16 2
+Bool False
+HPtr DA9
+I16 8
+Str 
+Bool False
+I16 80
+Str 
+I16 80
+I32 0
+I16 0
+Str 
+Byte 2
+I32 0
+Bool True
+Bool True
+I16 1007
+I16 80
+Str LerId
+I16 80
+I32 8
+Str LerId
+I16 2
+Bool False
+HPtr DA9
+I16 8
+Str 
+Bool False
+I16 80
+Str 
+I16 80
+I32 0
+I16 0
+Str 
+Byte 2
+I32 0
+Bool True
+Bool True
+I16 1007
+I16 80
+Str IndtegningsMetode
+I16 80
+I32 9
+Str IndtegningsMetode
+I16 2
+Bool False
+HPtr DA9
+I16 8
+Str 
+Bool False
+I16 80
+Str 
+I16 80
+I32 0
+I16 0
+Str 
+Byte 2
+I32 0
+Bool True
+Bool True
+I16 1007
+I16 80
+Str Nøjagtighedsklasse
+I16 80
+I32 10
+Str Nøjagtighedsklasse
+I16 2
+Bool False
+HPtr DA9
+I16 8
+Str 
+Bool False
+I16 80
+Str 
+I16 80
+I32 0
+I16 0
+Str 
+Byte 2
+I32 0
+Bool True
+Bool True
+I16 1007
+I16 80
+Str RegistreringFra
+I16 80
+I32 11
+Str RegistreringFra
+I16 2
+Bool False
+HPtr DA9
+I16 8
+Str 
+Bool False
+I16 80
+Str 
+I16 80
+I32 0
+I16 0
+Str 
+Byte 2
+I32 0
+Bool True
+Bool True
+I16 1007
+I16 80
+Str Sikkerhedshensyn
+I16 80
+I32 12
+Str Sikkerhedshensyn
+I16 2
+Bool False
+HPtr DA9
+I16 8
+Str 
+Bool False
+I16 80
+Str 
+I16 80
+I32 0
+I16 0
+Str 
+Byte 2
+I32 0
+Bool True
+Bool True
+I16 1007
+I16 80
+Str VejledendeDybde
+I16 80
+I32 13
+Str VejledendeDybde
+I16 1
+Bool False
+HPtr DA9
+I16 5
+Dbl 0
+Bool False
+I16 80
+Str 
+I16 80
+I32 0
+I16 0
+Str 
+Byte 2
+I32 0
+Bool True
+Bool True
+I16 1007
+I16 80
+Str LedningsEjersNavn
+I16 80
+I32 14
+Str LedningsEjersNavn
+I16 2
+Bool False
+HPtr DA9
+I16 8
+Str 
+Bool False
+I16 80
+Str 
+I16 80
+I32 0
+I16 0
+Str 
+Byte 2
+I32 0
+I16 4
+Str AcDbPolyline
+Str AcDb3dPolyline
+Str AcDbPoint
+Str AcDbHatch
+I16 3
+Bool False
+Bool False
+Byte 0
+Bool False
+I16 80
+I16 80
+I16 0

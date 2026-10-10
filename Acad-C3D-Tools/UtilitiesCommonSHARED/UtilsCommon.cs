@@ -257,66 +257,6 @@ namespace IntersectUtilities.UtilsCommon
             return Regex.Replace(str, regex, "", RegexOptions.Compiled);
         }
 
-        /// <param name="name">byblock, red, yellow, green, cyan, blue, magenta, white, grey, bylayer</param>
-        public static Color ColorByName(string name) => AutocadStdColors[name];
-
-        public static Dictionary<string, Color> AutocadStdColors = new Dictionary<string, Color>()
-        {
-            { "byblock", Color.FromColorIndex(ColorMethod.ByAci, 0) },
-            { "red", Color.FromColorIndex(ColorMethod.ByAci, 1) },
-            { "yellow", Color.FromColorIndex(ColorMethod.ByAci, 2) },
-            { "green", Color.FromColorIndex(ColorMethod.ByAci, 3) },
-            { "cyan", Color.FromColorIndex(ColorMethod.ByAci, 4) },
-            { "blue", Color.FromColorIndex(ColorMethod.ByAci, 5) },
-            { "magenta", Color.FromColorIndex(ColorMethod.ByAci, 6) },
-            { "white", Color.FromColorIndex(ColorMethod.ByAci, 7) },
-            { "grey", Color.FromColorIndex(ColorMethod.ByAci, 8) },
-            { "bylayer", Color.FromColorIndex(ColorMethod.ByAci, 256) },
-        };
-
-        /// <summary>
-        /// Parses one of the following patterns to an Autocad Color:
-        /// Index Color: ddd
-        /// RGB Color: ddd*ddd*ddd
-        /// Color name: [a-zA-Z]+
-        /// </summary>
-        /// <param name="colorString"></param>
-        /// <returns>Autocad Color, null on fail.</returns>
-        public static Color ParseColorString(string? colorString)
-        {
-            if (colorString == null || colorString.IsNoE()) return Color.FromColorIndex(ColorMethod.ByAci, 0);
-
-            Regex indexColorRegex = new Regex(@"^\d{1,3}$");
-            Regex rgbRegex = new Regex(@"^(?<R>\d+)\*(?<G>\d+)\*(?<B>\d+)$");
-            Regex nameRegex = new Regex(@"^[a-zA-Z]+$");
-
-            if (indexColorRegex.IsMatch(colorString))
-            {
-                if (colorString == "0")
-                    return Color.FromColorIndex(ColorMethod.ByAci, 0);
-                short index = -1;
-                short.TryParse(colorString, out index);
-                if (index == 0)
-                    return null;
-                return Color.FromColorIndex(ColorMethod.ByAci, index);
-            }
-            if (rgbRegex.IsMatch(colorString))
-            {
-                Match match = rgbRegex.Match(colorString);
-                byte R = Convert.ToByte(int.Parse(match.Groups["R"].Value));
-                byte G = Convert.ToByte(int.Parse(match.Groups["G"].Value));
-                byte B = Convert.ToByte(int.Parse(match.Groups["B"].Value));
-                Color color = Color.FromRgb(R, G, B);
-                return color;
-            }
-            if (nameRegex.IsMatch(colorString))
-            {
-                return AutocadStdColors[colorString];
-            }
-            prdDbg($"Parsing of color string {colorString} failed!");
-            return null;
-        }
-
         public static double GetRotation(Vector3d vector, Vector3d normal)
         {
             var plane = new Plane();
@@ -2967,38 +2907,6 @@ namespace IntersectUtilities.UtilsCommon
                 default:
                     return 0.0;
             }
-        }
-
-        public static T[] ConcatAr<T>(this T[] x, T[] y)
-        {
-            if (x == null)
-                throw new ArgumentNullException("x");
-            if (y == null)
-                throw new ArgumentNullException("y");
-            int oldLen = x.Length;
-            Array.Resize<T>(ref x, x.Length + y.Length);
-            Array.Copy(y, 0, x, oldLen, y.Length);
-            return x;
-        }
-
-        public static string GetXmlEnumAttributeValueFromEnum<TEnum>(this TEnum value)
-            where TEnum : struct, IConvertible
-        {
-            var enumType = typeof(TEnum);
-            if (!enumType.IsEnum)
-                return string.Empty; //or string.Empty, or throw exception
-
-            var member = enumType.GetMember(value.ToString()).FirstOrDefault();
-            if (member == null)
-                return string.Empty; //or string.Empty, or throw exception
-
-            var attribute = member
-                .GetCustomAttributes(false)
-                .OfType<XmlEnumAttribute>()
-                .FirstOrDefault();
-            if (attribute == null)
-                return value.ToString(); //or string.Empty, or throw exception
-            return attribute.Name;
         }
 
         public static IOrderedEnumerable<T> OrderByAlphaNumeric<T>(

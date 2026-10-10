@@ -3,16 +3,9 @@ using Autodesk.AutoCAD.Runtime;
 
 using EventManager;
 
-// Suppress AutoCAD's own command scan so DevReload can register/unregister our
-// commands through its removable path (reload-safe). DevReload still discovers the
-// [CommandMethod] methods by reflecting our exported types.
-[assembly: CommandClass(typeof(GraphViewV3.NoCommands))]
 [assembly: ExtensionApplication(typeof(GraphViewV3.GraphViewV3Plugin))]
 
 namespace GraphViewV3;
-
-/// <summary>Empty marker — see the assembly CommandClass attribute above.</summary>
-public class NoCommands { }
 
 /// <summary>
 /// Plugin lifecycle. All cleanup state is STATIC because DevReload calls Terminate()

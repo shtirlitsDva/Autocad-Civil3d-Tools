@@ -1,14 +1,25 @@
-using Autodesk.Aec.PropertyData.DatabaseServices;
+#if BRICSCAD
+using Teigha.Colors;
+using Teigha.DatabaseServices;
+using Teigha.Geometry;
+using Teigha.Runtime;
+using LerPropertySets = LERImporter.Host.Brx.LerPropertySets;
+using Oid = Teigha.DatabaseServices.ObjectId;
+#else
 using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
+using LerPropertySets = LERImporter.Host.Acad.LerPropertySets;
+using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
+#endif
 
 using IntersectUtilities;
 using IntersectUtilities.LerHatchLayers;
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.DataManager.CsvData;
 
+using LERImporter.PropertySets;
 using LERImporter.Schema;
 
 using System;
@@ -22,12 +33,19 @@ using System.Text;
 using static IntersectUtilities.UtilsCommon.Utils;
 
 using Log = LERImporter.SimpleLogger;
-using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 
 namespace LERImporter
 {
     internal class ConsolidatedCreator
     {
+        // The colour of a LER layer whose colour is unknown. Civil takes ByBlock (0);
+        // BricsCAD refuses ByBlock on a layer (eInvalidInput), so it gets white.
+#if BRICSCAD
+        private const short NoLayerColor = 7;
+#else
+        private const short NoLayerColor = 0;
+#endif
+
         public static void CreateLerData(Database? Db2d, Database? Db3d, FeatureCollection fc)
         {
             var lagLer = Csv.LagLer;
@@ -207,6 +225,8 @@ namespace LERImporter
                     }
 
                     Hatch hatch = new Hatch();
+                    // BricsCAD defaults a new hatch to associative; these have no boundary objects.
+                    hatch.Associative = false;
                     hatch.Normal = new Vector3d(0.0, 0.0, 1.0);
                     hatch.Elevation = 0.0;
                     hatch.PatternScale = 1.0;
@@ -239,10 +259,16 @@ namespace LERImporter
                         polyline.AddVertexAt(polyline.NumberOfVertices, point, 0, 0, 0);
                     polyline.Closed = true;
 
+#if BRICSCAD
+                    // BricsCAD has no MPolygon API: the boundary itself goes in.
+                    polyline.AddEntityToDbModelSpace(Db3d);
+                    polyline.Layer = layerNameGFP;
+#else
                     MPolygon mpg = new MPolygon();
                     mpg.AppendLoopFromBoundary(polyline, true, Tolerance.Global.EqualPoint);
                     Oid mpId = mpg.AddEntityToDbModelSpace(Db3d);
                     mpg.Layer = layerNameGFP;
+#endif
                 }
             }
             #endregion
@@ -292,16 +318,9 @@ namespace LERImporter
                     string psName = type.Name.Replace("Type", "");
                     psDict.Add(type.Name, psName);
 
-                    if (Db2d != null)
-                    {
-                        PropertySetDefinition propSetDef = CreatePropertySetDefinition(Db2d, type);
-                        AddPropertySetDefinitionToDb(Db2d, propSetDef, psName);
-                    }
-                    if (Db3d != null)
-                    {
-                        PropertySetDefinition propSetDef = CreatePropertySetDefinition(Db3d, type);
-                        AddPropertySetDefinitionToDb(Db3d, propSetDef, psName);
-                    }
+                    LerSetDef setDef = LerSetDef.FromType(type);
+                    if (Db2d != null) LerPropertySets.Define(Db2d, setDef).OrThrowToLegacy();
+                    if (Db3d != null) LerPropertySets.Define(Db3d, setDef).OrThrowToLegacy();
                 }
             }
             #endregion
@@ -331,16 +350,9 @@ namespace LERImporter
 
                         if (ent is Polyline pl) pl.Plinegen = true;
 
-                        //Attach the property set
-                        PropertySetManager.AttachNonDefinedPropertySet(Db2d, ent, psName);
-
-                        //Populate the property set
-                        var psData = GmlToPropertySet.TranslateGmlToPs(ledning);
-                        PropertySetManager.PopulateNonDefinedPropertySet(Db2d, ent, psName, psData);
-                        PropertySetManager.WriteNonDefinedPropertySetString(
-                            ent, psName, "GmlBemærkning", ledning.Bemærkning);
-                        PropertySetManager.WriteNonDefinedPropertySetString(
-                            ent, psName, "LerNummer", ledning.LerNummer);
+                        //Attach and populate the property set
+                        LerPropertySets.Attach(Db2d, ent, psName, GmlToPropertySet.TranslateGmlToPs(ledning),
+                            ledning.Bemærkning, ledning.LerNummer).OrThrowToLegacy();
                     }
                     catch (System.Exception)
                     {
@@ -357,16 +369,9 @@ namespace LERImporter
                     Entity ent = entityId.Go<Entity>(Db3d.TransactionManager.TopTransaction, OpenMode.ForWrite);
                     layerNames3d.Add(ent.Layer);
 
-                    //Attach the property set
-                    PropertySetManager.AttachNonDefinedPropertySet(Db3d, ent, psName);
-                    string gmlid = ledning.GmlId;
-                    //Populate the property set
-                    var psData = GmlToPropertySet.TranslateGmlToPs(ledning);
-                    PropertySetManager.PopulateNonDefinedPropertySet(Db3d, ent, psName, psData);
-                    PropertySetManager.WriteNonDefinedPropertySetString(
-                            ent, psName, "GmlBemærkning", ledning.Bemærkning);
-                    PropertySetManager.WriteNonDefinedPropertySetString(
-                        ent, psName, "LerNummer", ledning.LerNummer);
+                    //Attach and populate the property set
+                    LerPropertySets.Attach(Db3d, ent, psName, GmlToPropertySet.TranslateGmlToPs(ledning),
+                        ledning.Bemærkning, ledning.LerNummer).OrThrowToLegacy();
                 }
             }
             foreach (LedningstraceType trace in ledningstrace)
@@ -386,16 +391,9 @@ namespace LERImporter
 
                     if (ent is Polyline pl) pl.Plinegen = true;
 
-                    //Attach the property set
-                    PropertySetManager.AttachNonDefinedPropertySet(Db2d, ent, psName);
-
-                    //Populate the property set
-                    var psData = GmlToPropertySet.TranslateGmlToPs(trace);
-                    PropertySetManager.PopulateNonDefinedPropertySet(Db2d, ent, psName, psData);
-                    PropertySetManager.WriteNonDefinedPropertySetString(
-                            ent, psName, "GmlBemærkning", trace.Bemærkning);
-                    PropertySetManager.WriteNonDefinedPropertySetString(
-                        ent, psName, "LerNummer", trace.LerNummer);
+                    //Attach and populate the property set
+                    LerPropertySets.Attach(Db2d, ent, psName, GmlToPropertySet.TranslateGmlToPs(trace),
+                        trace.Bemærkning, trace.LerNummer).OrThrowToLegacy();
                 }
 
                 //Draw 3d
@@ -406,16 +404,9 @@ namespace LERImporter
                     Entity ent = entityId.Go<Entity>(Db3d.TransactionManager.TopTransaction, OpenMode.ForWrite);
                     layerNames3d.Add(ent.Layer);
 
-                    //Attach the property set
-                    PropertySetManager.AttachNonDefinedPropertySet(Db3d, ent, psName);
-
-                    //Populate the property set
-                    var psData = GmlToPropertySet.TranslateGmlToPs(trace);
-                    PropertySetManager.PopulateNonDefinedPropertySet(Db3d, ent, psName, psData);
-                    PropertySetManager.WriteNonDefinedPropertySetString(
-                            ent, psName, "GmlBemærkning", trace.Bemærkning);
-                    PropertySetManager.WriteNonDefinedPropertySetString(
-                        ent, psName, "LerNummer", trace.LerNummer);
+                    //Attach and populate the property set
+                    LerPropertySets.Attach(Db3d, ent, psName, GmlToPropertySet.TranslateGmlToPs(trace),
+                        trace.Bemærkning, trace.LerNummer).OrThrowToLegacy();
                 }
             }
             //Create components in 2D
@@ -440,16 +431,9 @@ namespace LERImporter
                     }
                     Entity ent = entityId.Go<Entity>(Db2d.TransactionManager.TopTransaction, OpenMode.ForWrite);
 
-                    //Attach the property set
-                    PropertySetManager.AttachNonDefinedPropertySet(Db2d, ent, psName);
-
-                    //Populate the property set
-                    var psData = GmlToPropertySet.TranslateGmlToPs(komponent);
-                    PropertySetManager.PopulateNonDefinedPropertySet(Db2d, ent, psName, psData);
-                    PropertySetManager.WriteNonDefinedPropertySetString(
-                            ent, psName, "GmlBemærkning", komponent.Bemærkning);
-                    PropertySetManager.WriteNonDefinedPropertySetString(
-                        ent, psName, "LerNummer", komponent.LerNummer);
+                    //Attach and populate the property set
+                    LerPropertySets.Attach(Db2d, ent, psName, GmlToPropertySet.TranslateGmlToPs(komponent),
+                        komponent.Bemærkning, komponent.LerNummer).OrThrowToLegacy();
                     if (ent is Hatch) componentHatchIds2d.Add(entityId);
                 }
 
@@ -555,7 +539,7 @@ namespace LERImporter
                     if (colorString.IsNoE())
                     {
                         Log.log($"Ledning with layer name {layerName} could not get a color!");
-                        color = Color.FromColorIndex(ColorMethod.ByAci, 0);
+                        color = Color.FromColorIndex(ColorMethod.ByAci, NoLayerColor);
                     }
                     else
                     {
@@ -563,7 +547,7 @@ namespace LERImporter
                         if (color == null)
                         {
                             Log.log($"Ledning layer name {layerName} could not parse colorString {colorString}!");
-                            color = Color.FromColorIndex(ColorMethod.ByAci, 0);
+                            color = Color.FromColorIndex(ColorMethod.ByAci, NoLayerColor);
                         }
                     }
 
@@ -593,7 +577,7 @@ namespace LERImporter
                     if (colorString.IsNoE())
                     {
                         Log.log($"Ledning with layer name {tempLayerName} could not get a color!");
-                        color = Color.FromColorIndex(ColorMethod.ByAci, 0);
+                        color = Color.FromColorIndex(ColorMethod.ByAci, NoLayerColor);
                     }
                     else
                     {
@@ -601,7 +585,7 @@ namespace LERImporter
                         if (color == null)
                         {
                             Log.log($"Ledning layer name {tempLayerName} could not parse colorString {colorString}!");
-                            color = Color.FromColorIndex(ColorMethod.ByAci, 0);
+                            color = Color.FromColorIndex(ColorMethod.ByAci, NoLayerColor);
                         }
                     }
 
@@ -703,7 +687,7 @@ namespace LERImporter
 
             Transaction tx = database.TransactionManager.TopTransaction;
             return LerHatchLayerService.BuildPlan(database, tx, availableLayerNames,
-                hatch => componentIds.Contains(hatch.ObjectId)).Match(
+                hatch => componentIds.Contains(hatch.ObjectId), LerPropertySets.ReadHatchLayerSets).Match(
                 plan =>
                 {
                     LerHatchLayerService.Apply(tx, plan);
@@ -712,104 +696,6 @@ namespace LERImporter
                     return LerHatchLayerResult<LerHatchLayerPlan>.Success(plan);
                 },
                 LerHatchLayerResult<LerHatchLayerPlan>.Failure);
-        }
-
-        private static PropertySetDefinition CreatePropertySetDefinition(Database db, Type type)
-        {
-            PropertySetDefinition propSetDef;
-
-            propSetDef = new PropertySetDefinition();
-            propSetDef.SetToStandard(db);
-            propSetDef.SubSetDatabaseDefaults(db);
-            propSetDef.Description = type.FullName;
-            bool isStyle = false;
-            var appliedTo = new StringCollection()
-            {
-                RXClass.GetClass(typeof(Polyline)).Name,
-                RXClass.GetClass(typeof(Polyline3d)).Name,
-                RXClass.GetClass(typeof(DBPoint)).Name,
-                RXClass.GetClass(typeof(Hatch)).Name,
-            };
-            propSetDef.SetAppliesToFilter(appliedTo, isStyle);
-
-            var properties = type.GetProperties();
-
-            foreach (PropertyInfo prop in properties)
-            {
-                bool include = prop.CustomAttributes.Any(x => x.AttributeType == typeof(Schema.PsInclude));
-                if (include)
-                {
-                    var propDefManual = new PropertyDefinition();
-                    propDefManual.SetToStandard(db);
-                    propDefManual.SubSetDatabaseDefaults(db);
-                    propDefManual.Name = prop.Name;
-                    propDefManual.Description = prop.Name;
-                    switch (prop.PropertyType.Name)
-                    {
-                        case nameof(String):
-                            propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Text;
-                            propDefManual.DefaultData = "";
-                            break;
-                        case nameof(System.Boolean):
-                            propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.TrueFalse;
-                            propDefManual.DefaultData = false;
-                            break;
-                        case nameof(Double):
-                            propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Real;
-                            propDefManual.DefaultData = 0.0;
-                            break;
-                        case nameof(Int32):
-                            propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Integer;
-                            propDefManual.DefaultData = 0;
-                            break;
-                        default:
-                            propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Text;
-                            propDefManual.DefaultData = "";
-                            break;
-                    }
-                    propSetDef.Definitions.Add(propDefManual);
-                }
-            }
-
-            //Add property for gml bemærkning
-            var propDefGmlName = new PropertyDefinition();
-            propDefGmlName.SetToStandard(db);
-            propDefGmlName.SubSetDatabaseDefaults(db);
-            propDefGmlName.Name = "GmlBemærkning";
-            propDefGmlName.Description = "The bemærkning for graverforespørgsel.";
-            propDefGmlName.DataType = Autodesk.Aec.PropertyData.DataType.Text;
-            propDefGmlName.DefaultData = "";
-            propSetDef.Definitions.Add(propDefGmlName);
-
-            //Add property for ler nummer
-            var propDefLerNummer = new PropertyDefinition();
-            propDefLerNummer.SetToStandard(db);
-            propDefLerNummer.SubSetDatabaseDefaults(db);
-            propDefLerNummer.Name = "LerNummer";
-            propDefLerNummer.Description = "Ler nummer.";
-            propDefLerNummer.DataType = Autodesk.Aec.PropertyData.DataType.Text;
-            propDefLerNummer.DefaultData = "";
-            propSetDef.Definitions.Add(propDefLerNummer);
-
-            return propSetDef;
-        }
-        private static void AddPropertySetDefinitionToDb(
-            Database db, PropertySetDefinition propSetDef, string psName)
-        {
-            using (Transaction tx = db.TransactionManager.StartTransaction())
-            {
-                //check if prop set already exists
-                DictionaryPropertySetDefinitions dictPropSetDef =
-                    new DictionaryPropertySetDefinitions(db);
-                if (dictPropSetDef.Has(psName, tx))
-                {
-                    tx.Abort();
-                    return;
-                }
-                dictPropSetDef.AddNewRecord(psName, propSetDef);
-                tx.AddNewlyCreatedDBObject(propSetDef, true);
-                tx.Commit();
-            }
         }
 
         internal static void TestLerData(FeatureCollection gf)

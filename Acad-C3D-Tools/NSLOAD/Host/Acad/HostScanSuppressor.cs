@@ -7,8 +7,8 @@ using Autodesk.AutoCAD.Runtime;
 namespace NSLOAD
 {
     /// <summary>
-    /// Stops AutoCAD from processing the assemblies NSLOAD loads, so plugins do
-    /// not have to carry a <c>NoCommands</c> marker class.
+    /// Stops AutoCAD from processing the assemblies NSLOAD loads, so NSLOAD owns
+    /// their commands and their Initialize.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -70,8 +70,7 @@ namespace NSLOAD
         /// <summary>
         /// True once the scan is suppressed. While this is false AutoCAD still
         /// registers commands and calls Initialize on its own instance, so
-        /// plugins need the NoCommands marker and NSLOAD must not call
-        /// Initialize a second time.
+        /// NSLOAD must not call Initialize a second time.
         /// </summary>
         internal static bool IsActive => _installed != null;
 

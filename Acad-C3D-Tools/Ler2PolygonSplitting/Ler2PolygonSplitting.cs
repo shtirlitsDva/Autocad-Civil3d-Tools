@@ -23,8 +23,6 @@ using Autodesk.AutoCAD.Colors;
 using static Ler2PolygonSplitting.Utils;
 using IntersectUtilities;
 
-[assembly: CommandClass(typeof(Ler2PolygonSplitting.NoCommands))]
-
 namespace Ler2PolygonSplitting
 {
     public partial class Ler2PolygonSplitting : IExtensionApplication
@@ -629,6 +627,4 @@ namespace Ler2PolygonSplitting
             }
         }
     }
-
-    public class NoCommands { }
 }

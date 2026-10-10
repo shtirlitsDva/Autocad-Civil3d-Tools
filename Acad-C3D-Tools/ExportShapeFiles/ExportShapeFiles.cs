@@ -26,8 +26,6 @@ using IntersectUtilities.UtilsCommon.DataManager.CsvData;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Log = ExportShapeFiles.ExportShapeFiles.SimpleLogger;
 
-[assembly: CommandClass(typeof(ExportShapeFiles.NoCommands))]
-
 namespace ExportShapeFiles
 {
     public class ExportShapeFiles : IExtensionApplication
@@ -920,6 +918,4 @@ namespace ExportShapeFiles
             }
         }
     }
-
-    public class NoCommands { }
 }
