@@ -14,7 +14,16 @@ namespace IntersectUtilities.UtilsCommon.DataManager.CsvData
     {
         private static readonly object _lock = new();
         private static string? _activeConfiguration;
-        private static bool _isInitialized = false;
+
+        // Every plugin that compiles this file has its own copy of this class, and they share
+        // one config file: NSCONF (NorsynDrawingToolsManaged) writes it, LERImporter reads it.
+        // So a copy re-reads the file when its write time moves, at most once per
+        // RecheckIntervalMs, because the getter is called inside data loops and AppData can
+        // sit on a network share.
+        private const long RecheckIntervalMs = 1000;
+        // The file's write time when it was last read; null before the first read.
+        private static DateTime? _readStamp;
+        private static long _checkedAtMs;
 
         /// <summary>
         /// The path to the configuration file in AppData.
@@ -35,8 +44,21 @@ namespace IntersectUtilities.UtilsCommon.DataManager.CsvData
         {
             get
             {
-                EnsureInitialized();
-                return _activeConfiguration;
+                bool changedOnDisk;
+                string? active;
+                lock (_lock)
+                {
+                    changedOnDisk = ReloadIfFileChanged();
+                    active = _activeConfiguration;
+                }
+
+                // Outside the lock: subscribers read ActiveConfiguration and take locks of their own.
+                if (changedOnDisk)
+                {
+                    prdDbg($"ConfigurationManager: Configuration changed on disk to '{active}'");
+                    ConfigurationChanged?.Invoke(null, EventArgs.Empty);
+                }
+                return active;
             }
             set
             {
@@ -53,6 +75,11 @@ namespace IntersectUtilities.UtilsCommon.DataManager.CsvData
                         _activeConfiguration = value;
                         PersistConfiguration(value);
                     }
+
+                    // What is on disk now is what this copy holds: its own write must not read
+                    // back as a change, and a "(None)" must hold until another copy writes.
+                    _readStamp = FileStamp();
+                    _checkedAtMs = Environment.TickCount64;
 
                     // Notify subscribers
                     int subscriberCount = ConfigurationChanged?.GetInvocationList()?.Length ?? 0;
@@ -114,8 +141,8 @@ namespace IntersectUtilities.UtilsCommon.DataManager.CsvData
 ║   ┌─────────────────────────────────────────────────────────────────────────┐     ║
 ║   │  HOW TO FIX:                                                            │     ║
 ║   │                                                                         │     ║
-║   │  1. Run NSCMD                                                           │     ║
-║   │  2. Select DKv1, DKv2 or DEv1 from the dropdown                         │     ║
+║   │  1. Run NSCONF (or NSCMD in Civil 3D)                                   │     ║
+║   │  2. Select a configuration (e.g. DKv1, DKv2, DEv1) from the dropdown    │     ║
 ║   │  3. Run this command again                                              │     ║
 ║   │                                                                         │     ║
 ║   │  Your selection will be saved for future sessions.                      │     ║
@@ -125,16 +152,41 @@ namespace IntersectUtilities.UtilsCommon.DataManager.CsvData
 ";
         }
 
-        private static void EnsureInitialized()
+        /// <summary>
+        /// Reads the file on the first call, and again when its write time has moved. Called
+        /// under the lock. True when a re-read changed the configuration this copy held.
+        /// </summary>
+        private static bool ReloadIfFileChanged()
         {
-            if (_isInitialized) return;
+            long now = Environment.TickCount64;
+            if (_readStamp != null && now - _checkedAtMs < RecheckIntervalMs) return false;
+            _checkedAtMs = now;
 
-            lock (_lock)
+            DateTime stamp = FileStamp();
+            if (_readStamp == stamp) return false;
+
+            bool firstRead = _readStamp == null;
+            _readStamp = stamp;
+            string? persisted = LoadPersistedConfiguration();
+            bool changed = !firstRead && !string.Equals(persisted, _activeConfiguration, StringComparison.Ordinal);
+            _activeConfiguration = persisted;
+            return changed;
+        }
+
+        /// <summary>
+        /// The config file's last write time (UTC). A missing file gives 1601-01-01, which is a
+        /// stamp like any other; an unreadable one keeps the last stamp, so nothing is re-read.
+        /// </summary>
+        private static DateTime FileStamp()
+        {
+            try
             {
-                if (_isInitialized) return;
-
-                _activeConfiguration = LoadPersistedConfiguration();
-                _isInitialized = true;
+                return File.GetLastWriteTimeUtc(ConfigFilePath);
+            }
+            catch (Exception ex)
+            {
+                prdDbg($"Warning: Failed to read the CSV configuration file's write time: {ex.Message}");
+                return _readStamp ?? DateTime.MinValue;
             }
         }
 
