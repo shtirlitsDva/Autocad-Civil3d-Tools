@@ -356,6 +356,25 @@ namespace IntersectUtilities.UtilsCommon
             }
         }
 
+        public static void CheckOrOpenForRead(
+            this DBObject dbObject,
+            bool DowngradeIfWriteEnabled = false
+        )
+        {
+            if (dbObject.IsReadEnabled == false)
+            {
+                if (dbObject.IsWriteEnabled == true)
+                {
+                    if (DowngradeIfWriteEnabled)
+                    {
+                        dbObject.DowngradeOpen();
+                    }
+                    return;
+                }
+                dbObject.UpgradeOpen();
+            }
+        }
+
         public static double DistanceHorizontalTo(this Point3d sourceP3d, Point3d targetP3d)
         {
             double X1 = sourceP3d.X;
@@ -363,6 +382,32 @@ namespace IntersectUtilities.UtilsCommon
             double X2 = targetP3d.X;
             double Y2 = targetP3d.Y;
             return Math.Sqrt(Math.Pow((X2 - X1), 2) + Math.Pow((Y2 - Y1), 2));
+        }
+
+        public static double DistanceHorizontalTo(this PolylineVertex3d v1, PolylineVertex3d v2) =>
+            v1.Position.DistanceHorizontalTo(v2.Position);
+
+        public static double GetHorizontalLengthBetweenIdxs(
+            this Polyline3d poly3d,
+            int startIdx,
+            int endIdx
+        )
+        {
+            Transaction tx = poly3d.Database.TransactionManager.TopTransaction;
+            poly3d.CheckOrOpenForRead();
+            var vertices = poly3d.GetVertices(tx);
+            double totalLength = 0;
+            for (int i = startIdx; i < endIdx; i++)
+            {
+                totalLength += vertices[i].Position.DistanceHorizontalTo(vertices[i + 1].Position);
+            }
+            return totalLength;
+        }
+
+        public static bool IsOn(this PolylineVertex3d vert, Polyline3d pl3d, double tol)
+        {
+            var dist = vert.Position.DistanceTo(pl3d.GetClosestPointTo(vert.Position, false));
+            return dist <= tol;
         }
 
         public static BlockTableRecord GetModelspaceForWrite(this Database db) =>

@@ -1552,25 +1552,6 @@ namespace IntersectUtilities.UtilsCommon
             double tol = 0.01
         ) => null != a && null != b && HorizontalEqualz(a.Position, b.Position, tol);
 
-        public static void CheckOrOpenForRead(
-            this DBObject dbObject,
-            bool DowngradeIfWriteEnabled = false
-        )
-        {
-            if (dbObject.IsReadEnabled == false)
-            {
-                if (dbObject.IsWriteEnabled == true)
-                {
-                    if (DowngradeIfWriteEnabled)
-                    {
-                        dbObject.DowngradeOpen();
-                    }
-                    return;
-                }
-                dbObject.UpgradeOpen();
-            }
-        }
-
         public static double GetHorizontalLength(this Polyline3d poly3d, Transaction tx)
         {
             poly3d.CheckOrOpenForRead();
@@ -1585,23 +1566,6 @@ namespace IntersectUtilities.UtilsCommon
 
         public static double GetHorizontalLength(this Line line) =>
             line.StartPoint.DistanceHorizontalTo(line.EndPoint);
-
-        public static double GetHorizontalLengthBetweenIdxs(
-            this Polyline3d poly3d,
-            int startIdx,
-            int endIdx
-        )
-        {
-            Transaction tx = poly3d.Database.TransactionManager.TopTransaction;
-            poly3d.CheckOrOpenForRead();
-            var vertices = poly3d.GetVertices(tx);
-            double totalLength = 0;
-            for (int i = startIdx; i < endIdx; i++)
-            {
-                totalLength += vertices[i].Position.DistanceHorizontalTo(vertices[i + 1].Position);
-            }
-            return totalLength;
-        }
 
         /// <summary>
         /// Finds the index of vertice coincident with given point3d.
@@ -1628,9 +1592,6 @@ namespace IntersectUtilities.UtilsCommon
                 return idx;
             #endregion
         }
-
-        public static double DistanceHorizontalTo(this PolylineVertex3d v1, PolylineVertex3d v2) =>
-            v1.Position.DistanceHorizontalTo(v2.Position);
 
         public static double Pow(this double value, double exponent)
         {
@@ -2940,12 +2901,6 @@ namespace IntersectUtilities.UtilsCommon
         {
             Oid id = al.GetPolyline();
             return id.Go<Polyline>(al.Database.TransactionManager.TopTransaction);
-        }
-
-        public static bool IsOn(this PolylineVertex3d vert, Polyline3d pl3d, double tol)
-        {
-            var dist = vert.Position.DistanceTo(pl3d.GetClosestPointTo(vert.Position, false));
-            return dist <= tol;
         }
 
         public static void UpdateElevationZ(this PolylineVertex3d vert, double newElevation)

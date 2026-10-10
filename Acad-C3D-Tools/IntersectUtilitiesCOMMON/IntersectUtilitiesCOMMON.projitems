@@ -47,6 +47,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Graphs\Styling\IDotStyler.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)GroupByCluster.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)LER\LerLayers.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)LER2\Ler2Elevations.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)LER2\Ler2Sort.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)MoreLinq\MoreLinq.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)PipeScheduleV2\PipeScheduleV2.cs" />
