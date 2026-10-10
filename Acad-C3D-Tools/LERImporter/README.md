@@ -38,6 +38,9 @@ DevReload (BricsCAD): plugin `LERImporter`, prefix `LER`, `msbuildProperties`
 - **Hatches** are created with `Associative = false` on both hosts (BricsCAD defaults to true).
 - **Folder prompt.** With `FILEDIA` 0, `IGMLBATCH` asks for the folder on the command line;
   otherwise it shows the folder dialog. Used for unattended runs on both hosts.
+- **CSV configuration.** Set with NSCMD (IntersectUtilities) on Civil 3D and with NSCONF
+  (NorsynDrawingToolsManaged, in NorsynDrawingTools) on BricsCAD. Both write the same local
+  file, and LERImporter re-reads it when it changes, so no restart is needed.
 - `LerHatchLayers.BuildPlan` takes the set reader as a parameter, so IntersectUtilities keeps
   using the AEC API and LERImporter passes the host's reader.
 
