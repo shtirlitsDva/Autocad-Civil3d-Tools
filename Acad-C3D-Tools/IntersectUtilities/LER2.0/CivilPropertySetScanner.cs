@@ -16,7 +16,7 @@ namespace IntersectUtilities.LER2;
 
 /// <summary>
 /// Civil 3D's side of the property set scanner seam (<see cref="IPropertySetScanner"/>,
-/// NorsynDrawingTools' NorsynPropertySetsSHARED): the active drawing's property sets read
+/// NorsynDrawingTools' NorsynApplicationsSHARED): the active drawing's property sets read
 /// through the AEC API, never the filer stream. BricsCAD's twin is NorsynDrawingToolsManaged's
 /// AecPropertySetSource. LER2MANHOLEQA's shared window reads the drawing through it.
 /// </summary>

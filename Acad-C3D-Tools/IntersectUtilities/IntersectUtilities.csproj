@@ -159,18 +159,18 @@
 		<Error Text="Could not locate NorsynOnDemandLoadingSHARED.projitems. Set the MSBuild property NorsynDrawingToolsRoot to the NorsynDrawingTools repo root, or restore the old X:\GitHub\DamgaardRI\NorsynDrawingTools path." />
 	</Target>
 
-	<!-- LER2MANHOLEQA: the window, its analysis and the property set tree are NorsynDrawingTools'
-	     shared code, the same that BricsCAD runs in NorsynDrawingToolsManaged. This project
-	     adds only the Civil 3D head and scanner (LER2.0\CivilPropertySetScanner.cs, over the AEC
-	     API). The shared code needs AecPropertySetsSHARED's codec and unions (its BricsCAD object
-	     layer stays out: NorsynHost is not BricsCAD here), the Norsyn WPF theme, and
+	<!-- NorsynApplicationsSHARED: the application layer NorsynDrawingTools' managed plugin and
+	     this project share (windows, view models, the property set tree, LER2MANHOLEQA), the
+	     same code BricsCAD runs. This project adds only the Civil 3D side of its seams and the
+	     heads (LER2.0\CivilPropertySetScanner.cs over the AEC API, LER2MANHOLEQA in
+	     LER2.0\LER2.0.cs). It needs AecPropertySetsSHARED's codec and unions (its BricsCAD
+	     object layer stays out: NorsynHost is not BricsCAD here), the Norsyn WPF theme, and
 	     NorsynDrawingToolsManaged's progress port, linked file by file. -->
 	<PropertyGroup>
 		<NorsynManagedRoot>$(NorsynDrawingToolsRoot)\managed\</NorsynManagedRoot>
 	</PropertyGroup>
 	<Import Project="..\AecPropertySetsSHARED\AecPropertySetsSHARED.projitems" Label="Shared" />
-	<Import Project="$(NorsynManagedRoot)NorsynPropertySetsSHARED\NorsynPropertySetsSHARED.projitems" Label="Shared" Condition="Exists('$(NorsynManagedRoot)NorsynPropertySetsSHARED\NorsynPropertySetsSHARED.projitems')" />
-	<Import Project="$(NorsynManagedRoot)NorsynLerManholesSHARED\NorsynLerManholesSHARED.projitems" Label="Shared" Condition="Exists('$(NorsynManagedRoot)NorsynLerManholesSHARED\NorsynLerManholesSHARED.projitems')" />
+	<Import Project="$(NorsynManagedRoot)NorsynApplicationsSHARED\NorsynApplicationsSHARED.projitems" Label="Shared" Condition="Exists('$(NorsynManagedRoot)NorsynApplicationsSHARED\NorsynApplicationsSHARED.projitems')" />
 	<Import Project="$(NorsynManagedRoot)NorsynUserInterfaceTheme\NorsynUserInterfaceTheme.projitems" Label="Shared" Condition="Exists('$(NorsynManagedRoot)NorsynUserInterfaceTheme\NorsynUserInterfaceTheme.projitems')" />
 	<ItemGroup>
 		<Compile Include="$(NorsynManagedRoot)NorsynDrawingToolsManaged\Progress\*.cs">
@@ -179,8 +179,8 @@
 		<Compile Include="$(NorsynManagedRoot)NorsynDrawingToolsManaged\Host\Acad\HostLibraries.cs" Link="Progress\Host\HostLibraries.cs" />
 		<Compile Include="$(NorsynManagedRoot)NorsynDrawingToolsManaged\Host\Acad\StatusBarRepaint.cs" Link="Progress\Host\StatusBarRepaint.cs" />
 	</ItemGroup>
-	<Target Name="EnsureNorsynLerManholesSharedExists" BeforeTargets="PrepareForBuild" Condition="!Exists('$(NorsynManagedRoot)NorsynLerManholesSHARED\NorsynLerManholesSHARED.projitems')">
-		<Error Text="Could not locate NorsynLerManholesSHARED.projitems under $(NorsynManagedRoot). LER2MANHOLEQA compiles NorsynDrawingTools' shared code: point NorsynDrawingToolsRoot at a NorsynDrawingTools tree that has it (its dev branch)." />
+	<Target Name="EnsureNorsynApplicationsSharedExists" BeforeTargets="PrepareForBuild" Condition="!Exists('$(NorsynManagedRoot)NorsynApplicationsSHARED\NorsynApplicationsSHARED.projitems')">
+		<Error Text="Could not locate NorsynApplicationsSHARED.projitems under $(NorsynManagedRoot). This project compiles NorsynDrawingTools' shared application code: point NorsynDrawingToolsRoot at a NorsynDrawingTools tree that has it (its dev branch)." />
 	</Target>
 	<ItemGroup>
 		<Content Include="DebugCommandLineAttribute.txt" />
