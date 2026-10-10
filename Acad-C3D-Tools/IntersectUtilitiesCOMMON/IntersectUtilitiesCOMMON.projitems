@@ -49,12 +49,14 @@
     <Compile Include="$(MSBuildThisFileDirectory)LER\LerLayers.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)LER2\Ler2Elevations.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)LER2\Ler2Sort.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)LER2\Ler2Split.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)MoreLinq\MoreLinq.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)PipeScheduleV2\PipeScheduleV2.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)PipelineNetwork\PipelineGraphBuilder.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)PipelineNetwork\PipelineSizeArray\PipelineSizeArrayV2.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)PipelineNetwork\PipelineV2.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)PlanDetailing\FjvCentreline.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)PropertySets\IPropertySetCopier.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)PropertySets\PSetDefs.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)PropertySets\PropertySetAccess.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)UtilsCommon.cs" />

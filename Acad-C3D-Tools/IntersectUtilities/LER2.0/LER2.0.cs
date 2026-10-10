@@ -66,6 +66,16 @@ namespace IntersectUtilities
         public void ler2manholeqa() =>
             Norsyn.DrawingTools.Ler.Manholes.ManholeCheckWindowHost.Show(() => new CivilPropertySetScanner());
 
+        /// <command>LER2SPLIT</command>
+        /// <summary>
+        /// Splits a polyline or 3D polyline at a picked point into two, each keeping the
+        /// source's layer, look and property sets.
+        /// </summary>
+        /// <category>LER2</category>
+        [CommandMethod("LER2SPLIT")]
+        public void ler2split() =>
+            Ler2Split.Split(Application.DocumentManager.MdiActiveDocument, new CivilPropertySetCopier());
+
         /// <command>CHECK3DELEVATIONS</command>
         /// <summary>
         /// Validates 3D polyline intersection elevations by comparing intersection points calculated from alignments and 3D polylines against a referenced surface using CSV layer and depth data.
