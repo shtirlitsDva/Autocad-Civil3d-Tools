@@ -21,8 +21,8 @@ namespace IntersectUtilities.LER2
 {
     /// <summary>
     /// The bodies of LER2DCI, LER2IBI and LER2ASTIK, which give the -99 vertices of LER
-    /// 3D polylines an elevation, and of FLATTENPL3D, which puts them back at -99; shared
-    /// by every head that registers them
+    /// 3D polylines an elevation, and of FLATTENPL3D and FLATTENVERTEX, which put them
+    /// back at -99; shared by every head that registers them
     /// (IntersectUtilities, NorsynDrawingToolsManaged). No command attribute here: this
     /// file compiles into every project that imports IntersectUtilitiesCOMMON.
     /// </summary>
@@ -199,6 +199,61 @@ namespace IntersectUtilities.LER2
                     return;
                 }
                 tx.Commit();
+            }
+        }
+
+        /// <summary>
+        /// Asks for a 3D polyline, then for its vertices one at a time by their points, and
+        /// sets each picked vertex's elevation to -99, keeping X and Y. Each vertex is its own
+        /// undoable change; Enter or Esc ends the loop.
+        /// </summary>
+        /// <param name="doc">The drawing the drafter works in.</param>
+        public static void FlattenVertices(Document doc)
+        {
+            const double tol = 0.001;
+            Database localDb = doc.Database;
+            Editor ed = doc.Editor;
+
+            var opt = new PromptEntityOptions("\nSelect the 3D polyline: ");
+            opt.SetRejectMessage("\nSelect a 3D polyline!");
+            opt.AddAllowedClass(typeof(Polyline3d), true);
+            PromptEntityResult chosen = ed.GetEntity(opt);
+            if (chosen.Status != PromptStatus.OK) return;
+
+            var ppo = new PromptPointOptions("\nPick a vertex to flatten to -99 [Enter to finish]: ");
+            ppo.AllowNone = true;
+            while (true)
+            {
+                PromptPointResult picked = ed.GetPoint(ppo);
+                if (picked.Status != PromptStatus.OK) return;
+                Point3d at = picked.Value.TransformBy(ed.CurrentUserCoordinateSystem);
+
+                using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                {
+                    try
+                    {
+                        var p3d = (Polyline3d)tx.GetObject(chosen.ObjectId, OpenMode.ForRead);
+                        PolylineVertex3d? vertex = p3d.GetVertices(tx)
+                            .Where(v => v.Position.DistanceHorizontalTo(at) <= tol)
+                            .OrderBy(v => v.Position.DistanceHorizontalTo(at))
+                            .FirstOrDefault();
+                        if (vertex == null)
+                        {
+                            prdDbg($"No vertex of 3D polyline {p3d.Handle} at that point: snap to the vertex.");
+                            continue;
+                        }
+
+                        vertex.CheckOrOpenForWrite();
+                        vertex.Position = new Point3d(vertex.Position.X, vertex.Position.Y, -99);
+                    }
+                    catch (System.Exception ex)
+                    {
+                        tx.Abort();
+                        prdDbg(ex);
+                        return;
+                    }
+                    tx.Commit();
+                }
             }
         }
 
