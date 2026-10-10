@@ -48,6 +48,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)GroupByCluster.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)LER\LerLayers.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)LER2\Ler2Elevations.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)LER2\Ler2Join.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)LER2\Ler2Sort.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)LER2\Ler2Split.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)MoreLinq\MoreLinq.cs" />
