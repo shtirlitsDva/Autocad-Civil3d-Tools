@@ -6,6 +6,8 @@ using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 #endif
 
+using System.Collections.Generic;
+
 namespace IntersectUtilities.UtilsCommon
 {
     /// <summary>

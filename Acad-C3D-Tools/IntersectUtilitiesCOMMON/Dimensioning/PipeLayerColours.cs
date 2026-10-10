@@ -2,10 +2,12 @@
 using Teigha.Colors;
 using Teigha.DatabaseServices;
 using Teigha.Geometry;
+using Color = Teigha.Colors.Color;
 #else
 using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
+using Color = Autodesk.AutoCAD.Colors.Color;
 #endif
 
 using IntersectUtilities.UtilsCommon;
