@@ -28,7 +28,7 @@ using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 
 namespace AcadOverrules
 {
-    public class FjvPolylineLabel : Gi.DrawableOverrule
+    public class FjvPolylineLabel : HostDrawableOverrule
     {
         #region Settings
         private const double labelDist = 25;
@@ -374,7 +374,9 @@ namespace AcadOverrules
         private Gi.TextStyle style = OverruleTextStyle.Arial(labelHeight);
         #endregion
 
-        public FjvPolylineLabel()
+        //Main thread only: the draw queries the pipe schedule's repository (radii, bends),
+        //shares one TextStyle between draws and writes failures to the command line.
+        public FjvPolylineLabel() : base(drawsOnAnyThread: false, drawsNested: false)
         {
             base.SetCustomFilter();
         }

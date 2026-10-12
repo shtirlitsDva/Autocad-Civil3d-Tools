@@ -49,7 +49,7 @@ namespace AcadOverrules
     /// The cost is that a linetype pattern restarts at every class change instead of running
     /// continuously along the polyline.
     /// </summary>
-    public class PolylineVertexCircles : Gi.DrawableOverrule
+    public class PolylineVertexCircles : HostDrawableOverrule
     {
         /// <summary>
         /// What a vertex sits between. Determined by the incoming and outgoing segment, so it
@@ -142,7 +142,10 @@ namespace AcadOverrules
         private static VertexCirclesSettings Settings =>
             VertexCirclesSettingsService.Instance.Current;
 
-        public PolylineVertexCircles()
+        //Main thread only: the draw opens transactions (layer colour, linetype ids), reads the
+        //settings the window edits live, and draws overridden segments as nested drawables
+        //(PolylineRun).
+        public PolylineVertexCircles() : base(drawsOnAnyThread: false, drawsNested: true)
         {
             base.SetCustomFilter();
         }

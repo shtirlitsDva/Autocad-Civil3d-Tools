@@ -32,7 +32,7 @@ namespace AcadOverrules
     /// - A line-line junction that is not collinear is labelled with the
     ///   deviation angle in degrees (4 decimals).
     /// </summary>
-    public class PolylineArcHighlight : Gi.DrawableOverrule
+    public class PolylineArcHighlight : HostDrawableOverrule
     {
         // Cyan color (ACI index 4)
         private const short CyanColor = 4;
@@ -60,7 +60,9 @@ namespace AcadOverrules
 
         private static readonly Gi.TextStyle AngleTextStyle = OverruleTextStyle.Arial(LabelHeight);
 
-        public PolylineArcHighlight()
+        //Main thread only: every draw shares one TextStyle and builds the arc overlay as a
+        //nested drawable (PolylineRun).
+        public PolylineArcHighlight() : base(drawsOnAnyThread: false, drawsNested: true)
         {
             base.SetCustomFilter();
         }

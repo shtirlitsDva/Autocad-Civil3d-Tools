@@ -21,9 +21,11 @@ using static IntersectUtilities.UtilsCommon.Utils;
 
 namespace AcadOverrules
 {
-    public class PolylineDirFjv : Gi.DrawableOverrule
+    public class PolylineDirFjv : HostDrawableOverrule
     {
-        public PolylineDirFjv()
+        //Reads the polyline's geometry and parses its layer name against static, read-only
+        //tables (PipeScheduleV2.GetPipeSystem), which is safe from any thread.
+        public PolylineDirFjv() : base(drawsOnAnyThread: true, drawsNested: false)
         {
             base.SetCustomFilter();
         }

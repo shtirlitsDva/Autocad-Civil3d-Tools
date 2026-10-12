@@ -18,7 +18,7 @@ namespace AcadOverrules
     /// Overrule that draws small circles at each vertex of polylines
     /// that are on layer '0-FJV-PROFILE-DRAFT' and have red color (ACI 1).
     /// </summary>
-    public class DraftPolylineVerticeMark : Gi.DrawableOverrule
+    public class DraftPolylineVerticeMark : HostDrawableOverrule
     {
         // White/Black color (ACI index 7) - displays as white on dark background, black on light
         private const short WhiteBlackColor = 7;
@@ -32,7 +32,8 @@ namespace AcadOverrules
         // Circle diameter
         private const double CircleDiameter = 0.05;
 
-        public DraftPolylineVerticeMark()
+        //Reads only the polyline's own geometry, layer name and colour.
+        public DraftPolylineVerticeMark() : base(drawsOnAnyThread: true, drawsNested: false)
         {
             base.SetCustomFilter();
         }

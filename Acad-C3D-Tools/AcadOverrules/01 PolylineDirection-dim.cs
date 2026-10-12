@@ -16,9 +16,10 @@ using System;
 
 namespace AcadOverrules
 {
-    public class PolylineDirection : Gi.DrawableOverrule
+    public class PolylineDirection : HostDrawableOverrule
     {
-        public PolylineDirection()
+        //Reads only the polyline's own geometry.
+        public PolylineDirection() : base(drawsOnAnyThread: true, drawsNested: false)
         {
             base.SetCustomFilter();
         }
