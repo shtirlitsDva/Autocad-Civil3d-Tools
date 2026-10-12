@@ -104,7 +104,7 @@ namespace AcadOverrules
 
                 // Draw the arc segment on top with cyan color
                 // Using Polyline method which respects the polyline's width
-                wd.Geometry.Polyline(pline, i, 1);
+                PolylineRun.Draw(wd, pline, i, 1);
             }
 
             DrawTangencyWarnings(pline, wd);

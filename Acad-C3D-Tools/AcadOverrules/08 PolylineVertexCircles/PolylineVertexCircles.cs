@@ -303,7 +303,7 @@ namespace AcadOverrules
             else
                 entry.Restore(wd.SubEntityTraits);
 
-            wd.Geometry.Polyline(pline, fromIndex, count);
+            PolylineRun.Draw(wd, pline, fromIndex, count);
         }
 
         /// <summary>
