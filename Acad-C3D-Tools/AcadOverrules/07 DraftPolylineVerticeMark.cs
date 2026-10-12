@@ -33,7 +33,7 @@ namespace AcadOverrules
         private const double CircleDiameter = 0.05;
 
         //Reads only the polyline's own geometry, layer name and colour.
-        public DraftPolylineVerticeMark() : base(drawsOnAnyThread: true, drawsNested: false)
+        public DraftPolylineVerticeMark() : base(drawsOnAnyThread: true)
         {
             base.SetCustomFilter();
         }

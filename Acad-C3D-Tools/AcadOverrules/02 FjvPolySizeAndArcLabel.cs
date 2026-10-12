@@ -376,7 +376,7 @@ namespace AcadOverrules
 
         //Main thread only: the draw queries the pipe schedule's repository (radii, bends),
         //shares one TextStyle between draws and writes failures to the command line.
-        public FjvPolylineLabel() : base(drawsOnAnyThread: false, drawsNested: false)
+        public FjvPolylineLabel() : base(drawsOnAnyThread: false)
         {
             base.SetCustomFilter();
         }

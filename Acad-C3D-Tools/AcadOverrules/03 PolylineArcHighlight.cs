@@ -60,9 +60,8 @@ namespace AcadOverrules
 
         private static readonly Gi.TextStyle AngleTextStyle = OverruleTextStyle.Arial(LabelHeight);
 
-        //Main thread only: every draw shares one TextStyle and builds the arc overlay as a
-        //nested drawable (PolylineRun).
-        public PolylineArcHighlight() : base(drawsOnAnyThread: false, drawsNested: true)
+        //Main thread only: every draw shares one TextStyle.
+        public PolylineArcHighlight() : base(drawsOnAnyThread: false)
         {
             base.SetCustomFilter();
         }

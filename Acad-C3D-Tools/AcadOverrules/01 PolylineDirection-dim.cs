@@ -19,7 +19,7 @@ namespace AcadOverrules
     public class PolylineDirection : HostDrawableOverrule
     {
         //Reads only the polyline's own geometry.
-        public PolylineDirection() : base(drawsOnAnyThread: true, drawsNested: false)
+        public PolylineDirection() : base(drawsOnAnyThread: true)
         {
             base.SetCustomFilter();
         }

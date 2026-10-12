@@ -13,29 +13,17 @@ namespace AcadOverrules
     /// <c>drawsOnAnyThread: false</c> and answers <see cref="AdvancedSupportFlags.None"/>, so
     /// BricsCAD draws the entities it overrules on the main thread only, as Bricsys's sample
     /// ForceSingleThreadedDrawOverrule does.
-    ///
-    /// An overrule that draws a nested drawable (<see cref="PolylineRun"/>) passes
-    /// <c>drawsNested: true</c> and adds <see cref="AttributesFlags.DrawableUsesNesting"/>,
-    /// as Bricsys's sample PointReadableElevDrawOverrule does for its nested entities.
     /// </summary>
     public abstract class HostDrawableOverrule : DrawableOverrule
     {
         private readonly bool _drawsOnAnyThread;
-        private readonly bool _drawsNested;
 
-        protected HostDrawableOverrule(bool drawsOnAnyThread, bool drawsNested)
+        protected HostDrawableOverrule(bool drawsOnAnyThread)
         {
             _drawsOnAnyThread = drawsOnAnyThread;
-            _drawsNested = drawsNested;
         }
 
         public override AdvancedSupportFlags RegenSupportFlags(Drawable drawable) =>
             _drawsOnAnyThread ? base.RegenSupportFlags(drawable) : AdvancedSupportFlags.None;
-
-        public override int SetAttributes(Drawable drawable, DrawableTraits traits)
-        {
-            int flags = base.SetAttributes(drawable, traits);
-            return _drawsNested ? flags | (int)AttributesFlags.DrawableUsesNesting : flags;
-        }
     }
 }

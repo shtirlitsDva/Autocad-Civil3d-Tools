@@ -142,10 +142,9 @@ namespace AcadOverrules
         private static VertexCirclesSettings Settings =>
             VertexCirclesSettingsService.Instance.Current;
 
-        //Main thread only: the draw opens transactions (layer colour, linetype ids), reads the
-        //settings the window edits live, and draws overridden segments as nested drawables
-        //(PolylineRun).
-        public PolylineVertexCircles() : base(drawsOnAnyThread: false, drawsNested: true)
+        //Main thread only: the draw opens transactions (layer colour, linetype ids) and reads
+        //the settings the window edits live.
+        public PolylineVertexCircles() : base(drawsOnAnyThread: false)
         {
             base.SetCustomFilter();
         }

@@ -1,4 +1,7 @@
-using Teigha.Colors;
+using System;
+
+using Teigha.DatabaseServices;
+using Teigha.Geometry;
 using Teigha.GraphicsInterface;
 
 using Polyline = Teigha.DatabaseServices.Polyline;
@@ -11,13 +14,16 @@ namespace AcadOverrules
     /// does (Host\Acad).
     ///
     /// BricsCAD's managed <c>WorldGeometry.Polyline(Polyline, int, int)</c> is a stub that
-    /// returns false and draws nothing (TD_Mgd V26.2), so the run is copied into a temporary
-    /// polyline and drawn as a nested drawable. The copy is not in the drawing, so no overrule
-    /// applies to it: every overrule here refuses a polyline whose <c>ObjectId</c> is null.
-    /// Never test <c>Database == null</c> for that: on ODA a non-resident entity can answer a
-    /// database, the overrule then took its own copy and recursed until the stack overflowed
-    /// (2026-10-12). A nested drawable
-    /// sets its own traits when it is drawn, so the current traits are put on the copy.
+    /// returns false and draws nothing (TD_Mgd V26.2). The run is drawn from primitives
+    /// instead: each stretch of consecutive straight segments as one point polyline (so a
+    /// linetype pattern runs on across its vertices) and each arc segment as a true arc
+    /// through its start, middle and end.
+    ///
+    /// Primitives, never a stand-in entity: a temporary Polyline drawn as a nested drawable
+    /// recursed into the overrule and carried its own segment numbering (2026-10-12).
+    /// Each segment carries the selection marker the polyline itself gives it, its index
+    /// plus one, so a pick or an object snap on the drawn graphics names the polyline's
+    /// own segment. Segment widths are not drawn; colour, lineweight and linetype are.
     /// </summary>
     internal static class PolylineRun
     {
@@ -26,32 +32,60 @@ namespace AcadOverrules
             int vertexCount = pline.NumberOfVertices;
             if (count <= 0 || vertexCount < 2) return;
 
-            using var run = new Polyline(count + 1);
-            run.Normal = pline.Normal;
-            run.Elevation = pline.Elevation;
+            Vector3d normal = pline.Normal;
+            var straight = new Point3dCollection();
+            int straightFrom = fromIndex;
 
-            //A run never wraps, but the closing segment of a closed polyline ends at vertex 0.
-            for (int k = 0; k <= count; k++)
+            for (int k = 0; k < count; k++)
             {
-                int vertex = (fromIndex + k) % vertexCount;
-                bool endVertex = k == count;
-                run.AddVertexAt(k, pline.GetPoint2dAt(vertex),
-                    endVertex ? 0.0 : pline.GetBulgeAt(vertex),
-                    endVertex ? 0.0 : pline.GetStartWidthAt(vertex),
-                    endVertex ? 0.0 : pline.GetEndWidthAt(vertex));
+                int segment = fromIndex + k;
+
+                //A run never wraps, but the closing segment of a closed polyline ends at vertex 0.
+                Point3d start = pline.GetPoint3dAt(segment % vertexCount);
+                Point3d end = pline.GetPoint3dAt((segment + 1) % vertexCount);
+
+                if (pline.GetSegmentType(segment) == SegmentType.Arc)
+                {
+                    DrawStraight(wd, straight, normal, straightFrom);
+
+                    //A polyline's parameter runs linearly in angle along an arc segment, so
+                    //half way through the segment's parameter range is the arc's midpoint.
+                    Point3d middle = pline.GetPointAtParameter(segment + 0.5);
+                    wd.SubEntityTraits.SetSelectionMarker(Marker(segment));
+                    wd.Geometry.CircularArc(start, middle, end, ArcType.ArcSimple);
+                    continue;
+                }
+
+                if (straight.Count == 0)
+                {
+                    straight.Add(start);
+                    straightFrom = segment;
+                }
+                straight.Add(end);
             }
 
-            run.Plinegen = pline.Plinegen;
-            run.LinetypeScale = pline.LinetypeScale;
-
-            SubEntityTraits traits = wd.SubEntityTraits;
-            run.LayerId = pline.LayerId;
-            run.Color = Color.FromEntityColor(traits.TrueColor);
-            run.LineWeight = traits.LineWeight;
-            if (!traits.LineType.IsNull) run.LinetypeId = traits.LineType;
-            run.Transparency = traits.Transparency;
-
-            wd.Geometry.Draw(run);
+            DrawStraight(wd, straight, normal, straightFrom);
         }
+
+        /// <summary>
+        /// Draws the pending straight stretch, if any, and empties it. The stretch's first
+        /// segment is <paramref name="firstSegment"/>; the call numbers the following
+        /// segments on from its marker.
+        /// </summary>
+        private static void DrawStraight(
+            WorldDraw wd, Point3dCollection points, Vector3d normal, int firstSegment)
+        {
+            if (points.Count >= 2)
+            {
+                IntPtr marker = Marker(firstSegment);
+                wd.SubEntityTraits.SetSelectionMarker(marker);
+                wd.Geometry.Polyline(points, normal, marker);
+            }
+
+            points.Clear();
+        }
+
+        /// <summary>The selection marker of a polyline segment: its index plus one.</summary>
+        private static IntPtr Marker(int segment) => new IntPtr(segment + 1);
     }
 }

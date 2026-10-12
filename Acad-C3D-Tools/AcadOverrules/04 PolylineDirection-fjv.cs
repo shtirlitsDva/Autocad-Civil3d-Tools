@@ -25,7 +25,7 @@ namespace AcadOverrules
     {
         //Reads the polyline's geometry and parses its layer name against static, read-only
         //tables (PipeScheduleV2.GetPipeSystem), which is safe from any thread.
-        public PolylineDirFjv() : base(drawsOnAnyThread: true, drawsNested: false)
+        public PolylineDirFjv() : base(drawsOnAnyThread: true)
         {
             base.SetCustomFilter();
         }
