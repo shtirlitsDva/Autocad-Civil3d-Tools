@@ -12,8 +12,11 @@ namespace AcadOverrules
     ///
     /// BricsCAD's managed <c>WorldGeometry.Polyline(Polyline, int, int)</c> is a stub that
     /// returns false and draws nothing (TD_Mgd V26.2), so the run is copied into a temporary
-    /// polyline and drawn as a nested drawable. The copy is not in a database, so no overrule
-    /// applies to it (every overrule here requires <c>pline.Database</c>). A nested drawable
+    /// polyline and drawn as a nested drawable. The copy is not in the drawing, so no overrule
+    /// applies to it: every overrule here refuses a polyline whose <c>ObjectId</c> is null.
+    /// Never test <c>Database == null</c> for that: on ODA a non-resident entity can answer a
+    /// database, the overrule then took its own copy and recursed until the stack overflowed
+    /// (2026-10-12). A nested drawable
     /// sets its own traits when it is drawn, so the current traits are put on the copy.
     /// </summary>
     internal static class PolylineRun

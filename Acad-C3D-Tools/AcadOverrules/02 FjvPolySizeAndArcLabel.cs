@@ -393,7 +393,7 @@ namespace AcadOverrules
         {
             if (overruledSubject is Polyline pline)
             {
-                if (pline.Database == null) return false;
+                if (pline.ObjectId.IsNull) return false; //Only polylines in the drawing, see PolylineRun.
 
                 if (GetPipeSystem(pline) != PipeSystemEnum.Ukendt) return true;
             }

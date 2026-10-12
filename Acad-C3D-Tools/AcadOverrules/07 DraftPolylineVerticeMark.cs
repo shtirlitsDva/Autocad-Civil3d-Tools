@@ -43,7 +43,7 @@ namespace AcadOverrules
             if (overruledSubject == null) return false;
             if (overruledSubject is Polyline pline)
             {
-                if (pline.Database == null) return false;
+                if (pline.ObjectId.IsNull) return false; //Only polylines in the drawing, see PolylineRun.
                 if (pline.NumberOfVertices < 1) return false;
 
                 // Check layer first
