@@ -1,11 +1,19 @@
+#if BRICSCAD
+using Teigha.DatabaseServices;
+
+using AcApp = Bricscad.ApplicationServices;
+#else
+using Autodesk.AutoCAD.DatabaseServices;
+
+using AcApp = Autodesk.AutoCAD.ApplicationServices;
+#endif
+
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows;
 using System.Windows.Threading;
-
-using Autodesk.AutoCAD.DatabaseServices;
 
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -306,8 +314,7 @@ namespace AcadOverrules.VertexCircles.UI
         {
             var names = new List<string>();
 
-            Autodesk.AutoCAD.ApplicationServices.Document? doc =
-                Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
+            AcApp.Document? doc = AcApp.Application.DocumentManager.MdiActiveDocument;
             if (doc == null) return names;
 
             using (Transaction tx = doc.Database.TransactionManager.StartOpenCloseTransaction())

@@ -1,50 +1,34 @@
-﻿using Autodesk.AutoCAD.ApplicationServices;
+﻿#if BRICSCAD
+using Bricscad.ApplicationServices;
+using Teigha.Colors;
+using Teigha.DatabaseServices;
+using Teigha.Geometry;
+using Teigha.Runtime;
+
+using Application = Bricscad.ApplicationServices.Application;
+using Gi = Teigha.GraphicsInterface;
+#else
+using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.DatabaseServices;
-using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
-using Autodesk.Civil;
-using Autodesk.Civil.ApplicationServices;
-using Autodesk.Civil.DatabaseServices;
-using Autodesk.Civil.DatabaseServices.Styles;
-using Autodesk.Aec.PropertyData;
-using Autodesk.Aec.PropertyData.DatabaseServices;
-//using Autodesk.AutoCAD.GraphicsInterface;
+
+using Application = Autodesk.AutoCAD.ApplicationServices.Application;
+using Gi = Autodesk.AutoCAD.GraphicsInterface;
+#endif
+
 using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Collections.Specialized;
-using System.Globalization;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Data;
+
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.Enums;
 
 using static IntersectUtilities.UtilsCommon.Utils;
-using static IntersectUtilities.UtilsCommon.UtilsDataTables;
-using static IntersectUtilities.UtilsCommon.UtilsODData;
 using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
-
-using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
-using CivSurface = Autodesk.Civil.DatabaseServices.Surface;
-using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
-using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
-using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
-using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
-using Application = Autodesk.AutoCAD.ApplicationServices.Application;
-using Label = Autodesk.Civil.DatabaseServices.Label;
-using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
-using IntersectUtilities;
-using Autodesk.AutoCAD.DatabaseServices.Filters;
-using System.Reflection;
 
 namespace AcadOverrules
 {
-    public class FjvPolylineLabel : Autodesk.AutoCAD.GraphicsInterface.DrawableOverrule
+    public class FjvPolylineLabel : Gi.DrawableOverrule
     {
         #region Settings
         private const double labelDist = 25;
@@ -104,7 +88,7 @@ namespace AcadOverrules
             return new Point3dCollection(points);
         }
         private void drawTangencyViolatedPolygonAndLabel(
-            Autodesk.AutoCAD.GraphicsInterface.WorldDraw wd,
+            Gi.WorldDraw wd,
             double plineWidth,
             Point3d vertPos,
             Vector3d dir)
@@ -139,10 +123,10 @@ namespace AcadOverrules
 
             //outlineTypes
             //Input the outline type for each polygon type, one outlineType per polygon*index.
-            Autodesk.AutoCAD.GraphicsInterface.LinetypeCollection outlineTypes =
-                new Autodesk.AutoCAD.GraphicsInterface.LinetypeCollection()
+            Gi.LinetypeCollection outlineTypes =
+                new Gi.LinetypeCollection()
                     {
-                        Autodesk.AutoCAD.GraphicsInterface.Linetype.Solid
+                        Gi.Linetype.Solid
                     };
 
             //fillColors
@@ -205,7 +189,7 @@ namespace AcadOverrules
             return new Point3dCollection(points);
         }
         private void drawCoincidentEmptyPointPolygon(
-            Autodesk.AutoCAD.GraphicsInterface.WorldDraw wd,
+            Gi.WorldDraw wd,
             Point3d vertPos, Vector3d dir
             )
         {
@@ -239,10 +223,10 @@ namespace AcadOverrules
 
             //outlineTypes
             //Input the outline type for each polygon type, one outlineType per polygon*index.
-            Autodesk.AutoCAD.GraphicsInterface.LinetypeCollection outlineTypes =
-                new Autodesk.AutoCAD.GraphicsInterface.LinetypeCollection()
+            Gi.LinetypeCollection outlineTypes =
+                new Gi.LinetypeCollection()
                     {
-                        Autodesk.AutoCAD.GraphicsInterface.Linetype.Solid
+                        Gi.Linetype.Solid
                     };
 
             //fillColors
@@ -264,7 +248,7 @@ namespace AcadOverrules
                 polygonPoints, outlineColors, outlineTypes, fillColors, fillOpacities);
         }
         private void drawAngleLabel(
-            Autodesk.AutoCAD.GraphicsInterface.WorldDraw wd,
+            Gi.WorldDraw wd,
             Point3d vertPos, double angleDeg, double plineWidth, Vector3d dir)
         {
             Vector3d labelDir = -dir.GetPerpendicularVector();
@@ -278,7 +262,7 @@ namespace AcadOverrules
 
         #region Impossible radius cross
         private void drawImpossibleRadiusPolyPolygon(
-            Autodesk.AutoCAD.GraphicsInterface.WorldDraw wd,
+            Gi.WorldDraw wd,
             uint numberOfRepetitions,
             Point3dCollection polygonPositions,
             Vector3dCollection dirs
@@ -325,13 +309,13 @@ namespace AcadOverrules
 
             //outlineTypes
             //Input the outline type for each polygon type, one outlineType per polygon*index.
-            Autodesk.AutoCAD.GraphicsInterface.LinetypeCollection outlineTypes =
-                new Autodesk.AutoCAD.GraphicsInterface.LinetypeCollection();
+            Gi.LinetypeCollection outlineTypes =
+                new Gi.LinetypeCollection();
             for (int i = 0; i < numberOfRepetitions; i++)
-                outlineTypes.Add(Autodesk.AutoCAD.GraphicsInterface.Linetype.Solid);
+                outlineTypes.Add(Gi.Linetype.Solid);
             //{
-            //    Autodesk.AutoCAD.GraphicsInterface.Linetype.Solid,
-            //    Autodesk.AutoCAD.GraphicsInterface.Linetype.Solid,
+            //    Gi.Linetype.Solid,
+            //    Gi.Linetype.Solid,
             //};
 
             //fillColors
@@ -387,23 +371,7 @@ namespace AcadOverrules
         #endregion
 
         #region Text style
-        private Autodesk.AutoCAD.GraphicsInterface.TextStyle style =
-            new Autodesk.AutoCAD.GraphicsInterface.TextStyle
-            (
-                "Arial",
-                "Arial",
-                labelHeight,
-                0.0,
-                0.0,
-                0.0,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-                "MyStd"
-                );
+        private Gi.TextStyle style = OverruleTextStyle.Arial(labelHeight);
         #endregion
 
         public FjvPolylineLabel()
@@ -430,8 +398,8 @@ namespace AcadOverrules
             return false;
         }
         public override bool WorldDraw(
-            Autodesk.AutoCAD.GraphicsInterface.Drawable drawable,
-            Autodesk.AutoCAD.GraphicsInterface.WorldDraw wd)
+            Gi.Drawable drawable,
+            Gi.WorldDraw wd)
         {
             base.WorldDraw(drawable, wd);
             Polyline pline = (Polyline)drawable;
@@ -468,10 +436,10 @@ namespace AcadOverrules
                             pt - deriv * extents.MaxPoint.X / 2 + perp * labelOffset,
                             Vector3d.ZAxis, deriv, label, true, style);
                     }
-                    catch (System.Exception ex)
+                    catch (System.Exception)
                     {
-                        Document doc = Application.DocumentManager.MdiActiveDocument;
-                        doc.Editor.WriteMessage($"Polyline handle {pline.Handle} fails!");
+                        Document? doc = Application.DocumentManager.MdiActiveDocument;
+                        doc?.Editor.WriteMessage($"Polyline handle {pline.Handle} fails!");
                         //throw;
                     }
                     //pt + perp * labelOffset, Vector3d.ZAxis, deriv, labelHeight, 1.0, 0.0, label);
@@ -661,11 +629,11 @@ namespace AcadOverrules
 
                                 //outlineTypes
                                 //Input the outline type for each polygon type, one outlineType per polygon*index.
-                                Autodesk.AutoCAD.GraphicsInterface.LinetypeCollection outlineTypes =
-                                    new Autodesk.AutoCAD.GraphicsInterface.LinetypeCollection()
+                                Gi.LinetypeCollection outlineTypes =
+                                    new Gi.LinetypeCollection()
                                         {
-                                        Autodesk.AutoCAD.GraphicsInterface.Linetype.Solid,
-                                        Autodesk.AutoCAD.GraphicsInterface.Linetype.Solid
+                                        Gi.Linetype.Solid,
+                                        Gi.Linetype.Solid
                                         };
 
                                 //fillColors

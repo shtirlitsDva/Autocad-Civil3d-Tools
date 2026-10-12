@@ -1,15 +1,22 @@
+#if BRICSCAD
+using Bricscad.ApplicationServices;
+using Teigha.DatabaseServices;
+
+using Application = Bricscad.ApplicationServices.Application;
+#else
+using Autodesk.AutoCAD.ApplicationServices;
+using Autodesk.AutoCAD.DatabaseServices;
+
+using Application = Autodesk.AutoCAD.ApplicationServices.Application;
+#endif
+
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 
-using Autodesk.AutoCAD.ApplicationServices;
-using Autodesk.AutoCAD.DatabaseServices;
-
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-
-using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 
 namespace AcadOverrules.VertexCircles.UI
 {
@@ -93,7 +100,7 @@ namespace AcadOverrules.VertexCircles.UI
             {
                 var layerTable = (LayerTable)tx.GetObject(doc.Database.LayerTableId, OpenMode.ForRead);
 
-                foreach (Autodesk.AutoCAD.DatabaseServices.ObjectId id in layerTable)
+                foreach (ObjectId id in layerTable)
                 {
                     var layer = (LayerTableRecord)tx.GetObject(id, OpenMode.ForRead);
                     names.Add(layer.Name);

@@ -1,7 +1,18 @@
+#if BRICSCAD
+using Teigha.Colors;
+using Teigha.DatabaseServices;
+using Teigha.Geometry;
+using Teigha.Runtime;
+
+using Gi = Teigha.GraphicsInterface;
+#else
 using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
+
+using Gi = Autodesk.AutoCAD.GraphicsInterface;
+#endif
 
 using System;
 using System.Linq;
@@ -38,7 +49,7 @@ namespace AcadOverrules
     /// The cost is that a linetype pattern restarts at every class change instead of running
     /// continuously along the polyline.
     /// </summary>
-    public class PolylineVertexCircles : Autodesk.AutoCAD.GraphicsInterface.DrawableOverrule
+    public class PolylineVertexCircles : Gi.DrawableOverrule
     {
         /// <summary>
         /// What a vertex sits between. Determined by the incoming and outgoing segment, so it
@@ -73,7 +84,7 @@ namespace AcadOverrules
         /// </summary>
         private readonly struct EntryTraits
         {
-            public EntryTraits(Autodesk.AutoCAD.GraphicsInterface.SubEntityTraits traits)
+            public EntryTraits(Gi.SubEntityTraits traits)
             {
                 TrueColor = traits.TrueColor;
                 LineWeight = traits.LineWeight;
@@ -84,7 +95,7 @@ namespace AcadOverrules
             public LineWeight LineWeight { get; }
             public ObjectId LineType { get; }
 
-            public void Restore(Autodesk.AutoCAD.GraphicsInterface.SubEntityTraits traits)
+            public void Restore(Gi.SubEntityTraits traits)
             {
                 traits.TrueColor = TrueColor;
                 traits.LineWeight = LineWeight;
@@ -149,8 +160,8 @@ namespace AcadOverrules
         }
 
         public override bool WorldDraw(
-            Autodesk.AutoCAD.GraphicsInterface.Drawable drawable,
-            Autodesk.AutoCAD.GraphicsInterface.WorldDraw wd)
+            Gi.Drawable drawable,
+            Gi.WorldDraw wd)
         {
             Polyline pline = (Polyline)drawable;
             VertexCirclesSettings settings = Settings;
@@ -245,7 +256,7 @@ namespace AcadOverrules
         /// contiguous index range.
         /// </summary>
         private static void DrawSegments(
-            Autodesk.AutoCAD.GraphicsInterface.WorldDraw wd,
+            Gi.WorldDraw wd,
             Polyline pline,
             VertexCirclesSettings settings,
             int segmentCount,
@@ -274,7 +285,7 @@ namespace AcadOverrules
                 : SegmentClass.Straight;
 
         private static void DrawRun(
-            Autodesk.AutoCAD.GraphicsInterface.WorldDraw wd,
+            Gi.WorldDraw wd,
             Polyline pline,
             VertexCirclesSettings settings,
             int fromIndex,
@@ -302,7 +313,7 @@ namespace AcadOverrules
         /// them - ByLayer stays ByLayer, it is not resolved and re-applied.
         /// </summary>
         private static void ApplySegmentTraits(
-            Autodesk.AutoCAD.GraphicsInterface.SubEntityTraits traits,
+            Gi.SubEntityTraits traits,
             Polyline pline,
             SegmentStyle style,
             EntryTraits entry,
@@ -349,7 +360,7 @@ namespace AcadOverrules
         /// paying for the arc style's linetype lookup on every regen.
         /// </summary>
         private static void DrawClass(
-            Autodesk.AutoCAD.GraphicsInterface.WorldDraw wd,
+            Gi.WorldDraw wd,
             Polyline pline,
             VertexClass[] classes,
             VertexClass wanted,
@@ -423,7 +434,7 @@ namespace AcadOverrules
         /// up empty does it fall back to <see cref="FallbackColorIndex"/>.
         /// </summary>
         private static System.Drawing.Color EffectiveRgb(
-            Polyline pline, Autodesk.AutoCAD.GraphicsInterface.SubEntityTraits traits)
+            Polyline pline, Gi.SubEntityTraits traits)
         {
             EntityColor fromTraits = traits.TrueColor;
 
@@ -435,7 +446,7 @@ namespace AcadOverrules
                 IsConcreteAci(fromTraits.ColorIndex))
                 return AciRgb(fromTraits.ColorIndex);
 
-            Autodesk.AutoCAD.Colors.Color entityColor = pline.Color;
+            Color entityColor = pline.Color;
             if (!entityColor.IsByLayer && !entityColor.IsByBlock)
                 return entityColor.ColorValue;
 
@@ -464,7 +475,7 @@ namespace AcadOverrules
                     if (tr.GetObject(layerId, OpenMode.ForRead) is not LayerTableRecord layer)
                         return null;
 
-                    Autodesk.AutoCAD.Colors.Color color = layer.Color;
+                    Color color = layer.Color;
                     if (color.IsByLayer || color.IsByBlock) return null;
 
                     return color.ColorValue;
@@ -483,7 +494,7 @@ namespace AcadOverrules
         {
             if (!IsConcreteAci(aci)) aci = FallbackColorIndex;
 
-            return Autodesk.AutoCAD.Colors.Color
+            return Color
                 .FromColorIndex(ColorMethod.ByAci, aci).ColorValue;
         }
 

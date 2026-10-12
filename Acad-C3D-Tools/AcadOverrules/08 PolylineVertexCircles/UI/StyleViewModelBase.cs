@@ -1,3 +1,11 @@
+#if BRICSCAD
+using AcadColor = Teigha.Colors.Color;
+using ColorDialog = Bricscad.Windows.ColorDialog;
+#else
+using AcadColor = Autodesk.AutoCAD.Colors.Color;
+using ColorDialog = Autodesk.AutoCAD.Windows.ColorDialog;
+#endif
+
 using System.Windows.Media;
 
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -60,7 +68,7 @@ namespace AcadOverrules.VertexCircles.UI
         [RelayCommand]
         private void PickFixedColor()
         {
-            var dialog = new Autodesk.AutoCAD.Windows.ColorDialog();
+            var dialog = new ColorDialog();
             dialog.Color = ToAcadColor(FixedColor);
 
             if (dialog.ShowDialog() != System.Windows.Forms.DialogResult.OK) return;
@@ -90,10 +98,10 @@ namespace AcadOverrules.VertexCircles.UI
         partial void OnFixedColorChanged(string value) =>
             OnPropertyChanged(nameof(FixedColorBrush));
 
-        private static Autodesk.AutoCAD.Colors.Color ToAcadColor(string html)
+        private static AcadColor ToAcadColor(string html)
         {
             System.Drawing.Color rgb = HtmlColor.Parse(html);
-            return Autodesk.AutoCAD.Colors.Color.FromRgb(rgb.R, rgb.G, rgb.B);
+            return AcadColor.FromRgb(rgb.R, rgb.G, rgb.B);
         }
     }
 }

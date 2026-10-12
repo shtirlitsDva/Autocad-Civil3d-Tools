@@ -1,3 +1,9 @@
+#if BRICSCAD
+using AcInternal = Bricscad.Internal;
+#else
+using AcInternal = Autodesk.AutoCAD.Internal;
+#endif
+
 using System.Collections.Generic;
 
 namespace AcadOverrules.VertexCircles
@@ -23,7 +29,7 @@ namespace AcadOverrules.VertexCircles
                 string filter = filters[i];
                 if (string.IsNullOrWhiteSpace(filter)) continue;
 
-                if (Autodesk.AutoCAD.Internal.Utils.WcMatchEx(layerName, filter.Trim(), true))
+                if (AcInternal.Utils.WcMatchEx(layerName, filter.Trim(), true))
                     return true;
             }
 

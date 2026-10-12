@@ -537,6 +537,105 @@ namespace IntersectUtilities.UtilsCommon
             return groups;
         }
 
+        public static double Pow(this double value, double exponent)
+        {
+            return Math.Pow(value, exponent);
+        }
+
+        public static bool IsZero(this double d, double tol) => d > -tol && d < tol;
+
+        public static bool IsZero(this double d) =>
+            d > -Tolerance.Global.EqualPoint && d < Tolerance.Global.EqualPoint;
+
+        public static Point3d To3d(this Point2d p2d, double Z = 0.0) =>
+            new Point3d(p2d.X, p2d.Y, Z);
+
+        public static Vector3d To3D(this Vector2d vec) => new Vector3d(vec.X, vec.Y, 0.0);
+
+        public static double ConstantWidthSafe(this Polyline pline)
+        {
+            double plineWidth;
+            try
+            {
+                plineWidth = pline.ConstantWidth;
+            }
+            catch (System.Exception)
+            {
+                plineWidth = 0.0;
+            }
+            return plineWidth;
+        }
+
+        /// <summary>
+        /// Uses backward lookup, index is the forward segment compared with index - 1 backward segment.
+        /// </summary>
+        public static (Vector3d dir1, Vector3d dir2) DirectionsAt(this Polyline pline, int index)
+        {
+            int numberOfVertices = pline.NumberOfVertices;
+            if (index == 0 || index == numberOfVertices - 1)
+                return default;
+            if (numberOfVertices < 3)
+                return default;
+
+            SegmentType st1 = pline.GetSegmentType(index - 1);
+            SegmentType st2 = pline.GetSegmentType(index);
+
+            Vector3d dir1;
+            Vector3d dir2;
+
+            if (st1 == SegmentType.Line)
+                dir1 = pline.GetLineSegmentAt(index - 1).Direction;
+            else if (st1 == SegmentType.Arc)
+            {
+                CircularArc3d ca3d = pline.GetArcSegmentAt(index - 1);
+                dir1 = ca3d.GetTangent(ca3d.EndPoint).Direction;
+            }
+            else
+                dir1 = default;
+
+            if (st2 == SegmentType.Line)
+                dir2 = pline.GetLineSegmentAt(index).Direction;
+            else if (st2 == SegmentType.Arc)
+            {
+                CircularArc3d ca3d = pline.GetArcSegmentAt(index);
+                dir2 = ca3d.GetTangent(ca3d.StartPoint).Direction;
+            }
+            else
+                dir2 = default;
+
+            //Detect if vectors are opposite directions
+            if (dir1.DotProduct(dir2) < 0)
+                dir2 = -dir2;
+
+            return (dir1, dir2);
+        }
+
+        public static double GetLengthOfSegmentAt(this Polyline pl, int index)
+        {
+            int nVerts = pl.NumberOfVertices;
+            if (index >= nVerts || index < 0)
+                return 0.0;
+
+            SegmentType sType = pl.GetSegmentType(index);
+
+            switch (sType)
+            {
+                case SegmentType.Line:
+                    var line = pl.GetLineSegment2dAt(index);
+                    return line.Length;
+                case SegmentType.Arc:
+                    var arc = pl.GetArcSegment2dAt(index);
+                    return arc.GetLength(
+                        arc.GetParameterOf(arc.StartPoint),
+                        arc.GetParameterOf(arc.EndPoint)
+                    );
+                case SegmentType.Coincident:
+                case SegmentType.Point:
+                case SegmentType.Empty:
+                default:
+                    return 0.0;
+            }
+        }
     }
 }
 namespace IntersectUtilities.UtilsCommon

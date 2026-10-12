@@ -1,6 +1,17 @@
-﻿using Autodesk.AutoCAD.DatabaseServices;
+﻿#if BRICSCAD
+using Teigha.DatabaseServices;
+using Teigha.Geometry;
+using Teigha.Runtime;
+
+using Gi = Teigha.GraphicsInterface;
+#else
+using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
+
+using Gi = Autodesk.AutoCAD.GraphicsInterface;
+#endif
+
 using System;
 
 using IntersectUtilities.UtilsCommon.Enums;
@@ -10,7 +21,7 @@ using static IntersectUtilities.UtilsCommon.Utils;
 
 namespace AcadOverrules
 {
-    public class PolylineDirFjv : Autodesk.AutoCAD.GraphicsInterface.DrawableOverrule
+    public class PolylineDirFjv : Gi.DrawableOverrule
     {
         public PolylineDirFjv()
         {
@@ -37,8 +48,8 @@ namespace AcadOverrules
         }
 
         public override bool WorldDraw(
-            Autodesk.AutoCAD.GraphicsInterface.Drawable drawable,
-            Autodesk.AutoCAD.GraphicsInterface.WorldDraw wd)
+            Gi.Drawable drawable,
+            Gi.WorldDraw wd)
         {
             base.WorldDraw(drawable, wd);
 
@@ -102,7 +113,7 @@ namespace AcadOverrules
                 points.Add(pC);
             }
 
-            //wd.SubEntityTraits.FillType = Autodesk.AutoCAD.GraphicsInterface.FillType.FillAlways;
+            //wd.SubEntityTraits.FillType = Gi.FillType.FillAlways;
             wd.Geometry.Polygon(points);
             #endregion
 

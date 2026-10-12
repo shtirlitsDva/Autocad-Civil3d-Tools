@@ -1,4 +1,8 @@
+#if BRICSCAD
+using Teigha.DatabaseServices;
+#else
 using Autodesk.AutoCAD.DatabaseServices;
+#endif
 
 namespace AcadOverrules.VertexCircles
 {
