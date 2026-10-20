@@ -13,6 +13,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\IntersectUtilities\Geometry\TangentArcGeometry.cs" Link="TangentArcGeometry.cs" />
+    <Compile Include="..\IntersectUtilities\LER2.0\AttachStik\StikAttachmentGeometry.cs" Link="StikAttachmentGeometry.cs" />
     <Compile Include="..\IntersectUtilities\LerCompare\Core.cs" Link="LerCompare\Core.cs" />
     <Compile Include="..\IntersectUtilities\LerCompare\CompareOption.cs" Link="LerCompare\CompareOption.cs" />
     <Using Include="Xunit" />

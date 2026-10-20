@@ -3606,10 +3606,16 @@ namespace IntersectUtilities
                                                 tos = TypeOfSegment.ElasticArc;
 
                                             //Acquire start and end stations
-                                            location = al.GetClosestPointTo(
-                                                pline.GetPoint3dAt(i),
+                                            //location = al.GetClosestPointTo(
+                                            //    pline.GetPoint3dAt(i),
+                                            //    false
+                                            //);
+
+                                            location = alPlDict[al].GetClosestPointTo(
+                                                pline.GetPoint3dAt(i + 1),
                                                 false
                                             );
+
                                             double curveStartStation = 0;
                                             double offset = 0;
                                             al.StationOffset(
