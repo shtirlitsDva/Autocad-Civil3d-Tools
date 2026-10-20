@@ -69,7 +69,7 @@ namespace AcadOverrules.VertexCircles.UI
 
             AvailableLinetypes = BuildLinetypeChoices();
             AvailableSegmentLinetypes =
-                new[] { SegmentStyleViewModel.PolylineLinetypeChoice }
+                new[] { LineStyleViewModel.PolylineLinetypeChoice }
                     .Concat(AvailableLinetypes)
                     .ToList();
 
@@ -94,9 +94,9 @@ namespace AcadOverrules.VertexCircles.UI
         public IReadOnlyList<string> AvailableLinetypes { get; }
 
         /// <summary>
-        /// The same list for the segment tabs, with "same as the polyline" in front: a
-        /// segment override can keep the linetype of the polyline, a circle has no polyline
-        /// linetype to keep.
+        /// The same list for the line styles (segments, tangent lines), with "same as the
+        /// polyline" in front: a line can keep the linetype of the polyline, a circle has no
+        /// polyline linetype to keep.
         /// </summary>
         public IReadOnlyList<string> AvailableSegmentLinetypes { get; }
 
@@ -249,7 +249,7 @@ namespace AcadOverrules.VertexCircles.UI
         {
             //Apply first, so the overrule starts up with what is on screen.
             _service.SetConfig(BuildConfig());
-            Commands.SetOverruleActive<PolylineVertexCircles>(value);
+            Commands.SetPolyVerticesActive(value);
         }
 
         /// <summary>
@@ -277,17 +277,17 @@ namespace AcadOverrules.VertexCircles.UI
         /// way the drawing spells it: the ComboBox matches items with Equals, so a stored
         /// "DASHED" would not select a table entry named "Dashed". A name the drawing does not
         /// have is kept as it stands, because the profile travels between drawings.
-        /// A segment style showing the "same as the polyline" placeholder is not a table
+        /// A line style showing the "same as the polyline" placeholder is not a table
         /// entry and is left alone.
         /// </summary>
         private static void SnapToDrawingSpelling(StyleViewModelBase style, SortedSet<string> names)
         {
             string stored = (style.Linetype ?? string.Empty).Trim();
 
-            if (style is SegmentStyleViewModel &&
-                SegmentStyleViewModel.IsPolylineLinetypeChoice(stored))
+            if (style is LineStyleViewModel &&
+                LineStyleViewModel.IsPolylineLinetypeChoice(stored))
             {
-                style.Linetype = SegmentStyleViewModel.PolylineLinetypeChoice;
+                style.Linetype = LineStyleViewModel.PolylineLinetypeChoice;
                 return;
             }
 

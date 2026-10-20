@@ -27,7 +27,7 @@ namespace AcadOverrules
     /// hard coded - they come from the active profile in
     /// <see cref="VertexCirclesSettingsService"/>, edited with TOGGLEPOLYVERTICESSETTINGS.
     ///
-    /// Two things are drawn:
+    /// Three things are drawn:
     ///
     /// Vertex circles. A vertex is classified by the segments touching it and each class gets
     /// its own style, so a bend can be told from a plain corner at a glance - see
@@ -48,6 +48,11 @@ namespace AcadOverrules
     /// <see cref="PolylineArcHighlight"/>, which lets the polyline draw and paints arcs on top.
     /// The cost is that a linetype pattern restarts at every class change instead of running
     /// continuously along the polyline.
+    ///
+    /// Tangent intersections. Optionally the corner of every arc segment - where its start
+    /// and end tangents meet - with a line from each arc end to it and a circle on it, see
+    /// <see cref="TangentIntersectionStyle"/>. The corner is snappable through the companion
+    /// <see cref="PolylineTangentIntersectionSnap"/>, which is switched together with this.
     /// </summary>
     public class PolylineVertexCircles : HostDrawableOverrule
     {
@@ -192,7 +197,48 @@ namespace AcadOverrules
             DrawClass(wd, pline, classes, VertexClass.Arc, arcCount,
                 settings.ArcVertex, polylineRgb, entry.LineWeight);
 
+            if (settings.TangentIntersections.Show && segmentCount > 0)
+                DrawTangentIntersections(
+                    wd, pline, settings.TangentIntersections, entry, polylineRgb);
+
             return true;
+        }
+
+        /// <summary>
+        /// Draws the corner of every arc segment: arc start to corner to arc end as one
+        /// three point polyline, so a linetype pattern runs on through the corner, then a
+        /// circle at the corner. Traits are set once for all lines and once for all circles.
+        /// </summary>
+        private static void DrawTangentIntersections(
+            Gi.WorldDraw wd,
+            Polyline pline,
+            TangentIntersectionStyle style,
+            EntryTraits entry,
+            System.Drawing.Color polylineRgb)
+        {
+            var corners = TangentIntersections.Find(pline);
+            if (corners.Count == 0) return;
+
+            Vector3d normal = pline.Normal;
+
+            ApplySegmentTraits(wd.SubEntityTraits, pline, style.Lines, entry, polylineRgb);
+
+            foreach (ArcCorner corner in corners)
+            {
+                var points = new Point3dCollection
+                {
+                    corner.ArcStart, corner.Corner, corner.ArcEnd,
+                };
+                wd.Geometry.Polyline(points, normal, IntPtr.Zero);
+            }
+
+            double radius = style.Point.Radius;
+            if (radius <= 0.0) return;
+
+            ApplyMarkerTraits(wd.SubEntityTraits, pline, style.Point, polylineRgb, entry.LineWeight);
+
+            foreach (ArcCorner corner in corners)
+                wd.Geometry.Circle(corner.Corner, radius, normal);
         }
 
         private static int SegmentCount(Polyline pline) =>
@@ -317,7 +363,7 @@ namespace AcadOverrules
         private static void ApplySegmentTraits(
             Gi.SubEntityTraits traits,
             Polyline pline,
-            SegmentStyle style,
+            LineStyle style,
             EntryTraits entry,
             System.Drawing.Color polylineRgb)
         {
@@ -341,7 +387,7 @@ namespace AcadOverrules
         private static bool IsUnity(double factor) => Math.Abs(factor - 1.0) < 1e-9;
 
         private static EntityColor SegmentColor(
-            SegmentStyle style, EntryTraits entry, System.Drawing.Color polylineRgb)
+            LineStyle style, EntryTraits entry, System.Drawing.Color polylineRgb)
         {
             switch (style.ColorMode)
             {
@@ -376,12 +422,7 @@ namespace AcadOverrules
             double radius = style.Radius;
             if (radius <= 0.0) return;
 
-            wd.SubEntityTraits.TrueColor = MarkerColor(style, polylineRgb);
-            wd.SubEntityTraits.LineWeight =
-                ScaledLineWeight(polylineLineWeight, style.LineWeightFactor);
-
-            ObjectId linetypeId = LinetypeResolver.Resolve(pline.Database, style.Linetype);
-            if (!linetypeId.IsNull) wd.SubEntityTraits.LineType = linetypeId;
+            ApplyMarkerTraits(wd.SubEntityTraits, pline, style, polylineRgb, polylineLineWeight);
 
             for (int i = 0; i < classes.Length; i++)
             {
@@ -389,6 +430,21 @@ namespace AcadOverrules
 
                 wd.Geometry.Circle(pline.GetPoint3dAt(i), radius, Vector3d.ZAxis);
             }
+        }
+
+        /// <summary>Sets colour, lineweight and linetype for a circle of <paramref name="style"/>.</summary>
+        private static void ApplyMarkerTraits(
+            Gi.SubEntityTraits traits,
+            Polyline pline,
+            MarkerStyle style,
+            System.Drawing.Color polylineRgb,
+            LineWeight polylineLineWeight)
+        {
+            traits.TrueColor = MarkerColor(style, polylineRgb);
+            traits.LineWeight = ScaledLineWeight(polylineLineWeight, style.LineWeightFactor);
+
+            ObjectId linetypeId = LinetypeResolver.Resolve(pline.Database, style.Linetype);
+            if (!linetypeId.IsNull) traits.LineType = linetypeId;
         }
 
         /// <summary>

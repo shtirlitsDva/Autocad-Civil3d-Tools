@@ -14,7 +14,7 @@ namespace AcadOverrules.VertexCircles.UI
     /// The editable state of one profile. This is the source of truth while the window is
     /// open - <see cref="ToModel"/> projects it back to a serialisable
     /// <see cref="VertexCirclesProfile"/> whenever the settings need to be applied or saved.
-    /// Any edit anywhere in the profile, including inside the four styles and the layer
+    /// Any edit anywhere in the profile, including inside the six styles and the layer
     /// filter rows, surfaces as <see cref="Changed"/> so the owner can push a live preview.
     /// </summary>
     public partial class VertexCirclesProfileViewModel : ObservableObject
@@ -33,6 +33,10 @@ namespace AcadOverrules.VertexCircles.UI
         [ObservableProperty]
         private bool arcVertexAtArcEnd;
 
+        /// <summary>The tangent intersection of every arc segment is drawn.</summary>
+        [ObservableProperty]
+        private bool showTangentIntersections;
+
         public ObservableCollection<LayerFilterViewModel> LayerFilters { get; } = new();
 
         /// <summary>The circle drawn at a straight vertex.</summary>
@@ -47,7 +51,13 @@ namespace AcadOverrules.VertexCircles.UI
         /// <summary>How arc segments are drawn, when overridden.</summary>
         public SegmentStyleViewModel ArcSegment { get; }
 
-        /// <summary>All four styles, for the operations that apply to the profile as a whole.</summary>
+        /// <summary>The lines from each arc end to its tangent intersection.</summary>
+        public LineStyleViewModel TangentLines { get; }
+
+        /// <summary>The circle at the tangent intersection.</summary>
+        public MarkerStyleViewModel TangentPoint { get; }
+
+        /// <summary>All six styles, for the operations that apply to the profile as a whole.</summary>
         public IReadOnlyList<StyleViewModelBase> Styles { get; }
 
         public VertexCirclesProfileViewModel(VertexCirclesProfile profile)
@@ -63,7 +73,15 @@ namespace AcadOverrules.VertexCircles.UI
             Arc = new MarkerStyleViewModel(settings.ArcVertex);
             StraightSegment = new SegmentStyleViewModel(settings.StraightSegment);
             ArcSegment = new SegmentStyleViewModel(settings.ArcSegment);
-            Styles = new StyleViewModelBase[] { Straight, Arc, StraightSegment, ArcSegment };
+
+            showTangentIntersections = settings.TangentIntersections.Show;
+            TangentLines = new LineStyleViewModel(settings.TangentIntersections.Lines);
+            TangentPoint = new MarkerStyleViewModel(settings.TangentIntersections.Point);
+
+            Styles = new StyleViewModelBase[]
+            {
+                Straight, Arc, StraightSegment, ArcSegment, TangentLines, TangentPoint,
+            };
 
             foreach (StyleViewModelBase style in Styles)
                 style.PropertyChanged += OnStyleChanged;
@@ -101,6 +119,12 @@ namespace AcadOverrules.VertexCircles.UI
                     ArcVertexAtArcEnd = ArcVertexAtArcEnd,
                     StraightSegment = StraightSegment.ToModel(),
                     ArcSegment = ArcSegment.ToModel(),
+                    TangentIntersections = new TangentIntersectionStyle
+                    {
+                        Show = ShowTangentIntersections,
+                        Lines = TangentLines.ToModel(),
+                        Point = TangentPoint.ToModel(),
+                    },
                     LayerFilters = LayerFilters
                         .Select(f => f.Pattern.Trim())
                         .Where(p => !string.IsNullOrWhiteSpace(p))
@@ -146,6 +170,15 @@ namespace AcadOverrules.VertexCircles.UI
 
         partial void OnArcVertexAtArcEndChanged(bool value) =>
             OnPropertyChanged(nameof(MarksNoArcVertices));
+
+        /// <summary>
+        /// Switching the tangent intersections on loads their linetype into the drawing, so
+        /// the dashed default does not silently draw solid, see <see cref="LinetypeLoader"/>.
+        /// </summary>
+        partial void OnShowTangentIntersectionsChanged(bool value)
+        {
+            if (value) LinetypeLoader.EnsureLoaded(TangentLines.LinetypeToStore());
+        }
 
         /// <summary>
         /// An edit in any style can flip the validity of the whole profile, which drives
