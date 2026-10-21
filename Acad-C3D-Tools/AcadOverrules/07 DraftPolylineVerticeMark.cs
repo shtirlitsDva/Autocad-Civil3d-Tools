@@ -1,6 +1,16 @@
+#if BRICSCAD
+using Teigha.DatabaseServices;
+using Teigha.Geometry;
+using Teigha.Runtime;
+
+using Gi = Teigha.GraphicsInterface;
+#else
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
+
+using Gi = Autodesk.AutoCAD.GraphicsInterface;
+#endif
 
 namespace AcadOverrules
 {
@@ -8,7 +18,7 @@ namespace AcadOverrules
     /// Overrule that draws small circles at each vertex of polylines
     /// that are on layer '0-FJV-PROFILE-DRAFT' and have red color (ACI 1).
     /// </summary>
-    public class DraftPolylineVerticeMark : Autodesk.AutoCAD.GraphicsInterface.DrawableOverrule
+    public class DraftPolylineVerticeMark : HostDrawableOverrule
     {
         // White/Black color (ACI index 7) - displays as white on dark background, black on light
         private const short WhiteBlackColor = 7;
@@ -22,7 +32,8 @@ namespace AcadOverrules
         // Circle diameter
         private const double CircleDiameter = 0.05;
 
-        public DraftPolylineVerticeMark()
+        //Reads only the polyline's own geometry, layer name and colour.
+        public DraftPolylineVerticeMark() : base(drawsOnAnyThread: true)
         {
             base.SetCustomFilter();
         }
@@ -32,7 +43,7 @@ namespace AcadOverrules
             if (overruledSubject == null) return false;
             if (overruledSubject is Polyline pline)
             {
-                if (pline.Database == null) return false;
+                if (pline.ObjectId.IsNull) return false; //Only polylines in the drawing, see PolylineRun.
                 if (pline.NumberOfVertices < 1) return false;
 
                 // Check layer first
@@ -47,8 +58,8 @@ namespace AcadOverrules
         }
 
         public override bool WorldDraw(
-            Autodesk.AutoCAD.GraphicsInterface.Drawable drawable,
-            Autodesk.AutoCAD.GraphicsInterface.WorldDraw wd)
+            Gi.Drawable drawable,
+            Gi.WorldDraw wd)
         {
             // First, draw the original polyline
             base.WorldDraw(drawable, wd);

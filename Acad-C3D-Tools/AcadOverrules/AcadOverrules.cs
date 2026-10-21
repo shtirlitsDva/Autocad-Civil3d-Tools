@@ -1,14 +1,21 @@
+#if BRICSCAD
+using Bricscad.ApplicationServices;
+using Teigha.DatabaseServices;
+using Teigha.Runtime;
+
+using Application = Bricscad.ApplicationServices.Application;
+#else
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Runtime;
 
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
+#endif
 
+using AcadOverrules.VertexCircles;
 using AcadOverrules.VertexCircles.UI;
 using System;
 using System.Collections.Generic;
-
-[assembly: CommandClass(typeof(AcadOverrules.NoCommands))]
 
 namespace AcadOverrules
 {
@@ -114,17 +121,43 @@ namespace AcadOverrules
         /// radius, colour, lineweight factor and linetype. Optionally replaces the polyline's
         /// own graphics for straight and/or arc segments with a chosen colour, lineweight
         /// factor and linetype, so a segment class can be told apart along its whole length.
+        /// Optionally shows the tangent intersection of every arc segment - the corner the two
+        /// straight segments would have made without the arc - as two tangent lines and a
+        /// circle, with the corner snappable by Center and Node object snap.
         /// </summary>
         /// <category>Overrules</category>
         [CommandMethod("TOGGLEPOLYVERTICES")]
-        public static void togglepolyvertices() => Toggle<PolylineVertexCircles>();
+        public static void togglepolyvertices() =>
+            SetPolyVerticesActive(!IsOverruleActive<PolylineVertexCircles>());
+
+        /// <summary>
+        /// Switches the TOGGLEPOLYVERTICES pair together: the draw overrule and the object
+        /// snap overrule that makes its tangent intersections snappable. Turning on also loads
+        /// the tangent line linetype when the active profile shows tangent intersections.
+        /// </summary>
+        internal static void SetPolyVerticesActive(bool active)
+        {
+            if (active)
+            {
+                TangentIntersectionStyle tangents =
+                    VertexCirclesSettingsService.Instance.Current.TangentIntersections;
+
+                if (tangents.Show) LinetypeLoader.EnsureLoaded(tangents.Lines.Linetype);
+            }
+
+            if (active != OverruleRegistry.IsActive<PolylineTangentIntersectionSnap>())
+                OverruleRegistry.Toggle<PolylineTangentIntersectionSnap>(typeof(Polyline));
+
+            SetOverruleActive<PolylineVertexCircles>(active);
+        }
 
         /// <command>TOGGLEPOLYVERTICESSETTINGS</command>
         /// <summary>
         /// Opens the settings window for TOGGLEPOLYVERTICES: which layers the overrule applies
         /// to (layer names and AutoCAD wildcard masks), the circle style per vertex class,
         /// which arc vertices (start, end) count as arc vertices, and the optional segment
-        /// overrides for straight and arc segments. Settings are grouped in named profiles;
+        /// overrides for straight and arc segments, and whether and how the tangent
+        /// intersections of arc segments are shown. Settings are grouped in named profiles;
         /// the active profile is saved when the window closes. Edits preview live in the
         /// drawing.
         /// </summary>
@@ -224,6 +257,4 @@ namespace AcadOverrules
             }
         }
     }
-
-    public class NoCommands { }
 }

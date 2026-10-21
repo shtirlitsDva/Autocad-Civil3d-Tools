@@ -33,7 +33,7 @@ namespace IntersectUtilities.UtilsCommon.Graphs
         private PSetDefs.DriPipelineData _ppl = new();
         public GraphEntity(
             Entity entity,
-            PropertySetManager psm)
+            IPropertySetAccess psm)
         {
             Owner = entity;
             OwnerHandle = Owner.Handle;

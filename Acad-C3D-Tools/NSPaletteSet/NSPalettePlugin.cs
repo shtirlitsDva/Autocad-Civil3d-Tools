@@ -1,7 +1,6 @@
 using Autodesk.AutoCAD.Runtime;
 
 [assembly: ExtensionApplication(typeof(NSPaletteSet.NSPalettePlugin))]
-[assembly: CommandClass(typeof(NSPaletteSet.NoCommands))]
 
 namespace NSPaletteSet
 {
@@ -33,6 +32,4 @@ namespace NSPaletteSet
             _palette.Visible = true;
         }
     }
-
-    public class NoCommands { }
 }

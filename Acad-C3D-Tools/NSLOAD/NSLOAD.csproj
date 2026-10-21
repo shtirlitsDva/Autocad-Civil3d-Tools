@@ -1,4 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
+	<!-- One project, two hosts: NorsynHost=AutoCAD (default) or BricsCAD, set in
+	     Directory.Build.props. API names differ only in the using blocks at the top
+	     of a file (#if BRICSCAD); where the hosts BEHAVE differently, the file has
+	     one copy per host under Host\Acad and Host\Brx, and only the host's own
+	     folder is compiled. The assembly is NSLOAD on both. -->
 	<PropertyGroup>
 		<TargetFramework>net8.0-windows</TargetFramework>
 		<OutputType>Library</OutputType>
@@ -11,20 +16,39 @@
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 		<AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+		<!-- Each host has its own obj folder (Directory.Build.props), so the other
+		     host's generated sources must never be globbed into this build. -->
+		<DefaultItemExcludes>$(DefaultItemExcludes);obj\**</DefaultItemExcludes>
 	</PropertyGroup>
-	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+	<PropertyGroup Condition="'$(NorsynHost)' == 'AutoCAD'">
+		<HostFolder>Acad</HostFolder>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(NorsynHost)' == 'BricsCAD'">
+		<HostFolder>Brx</HostFolder>
+		<DefineConstants>$(DefineConstants);BRICSCAD</DefineConstants>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(NorsynHost)|$(Configuration)|$(Platform)' == 'AutoCAD|Debug|x64'">
 		<OutputPath>bin\x64\Debug\</OutputPath>
 		<DebugType>full</DebugType>
 	</PropertyGroup>
-	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+	<PropertyGroup Condition="'$(NorsynHost)|$(Configuration)|$(Platform)' == 'AutoCAD|Release|x64'">
 		<OutputPath>bin\x64\Release\</OutputPath>
 		<DebugType>full</DebugType>
 	</PropertyGroup>
-	<PropertyGroup>
+	<PropertyGroup Condition="'$(NorsynHost)|$(Platform)' == 'BricsCAD|x64'">
+		<OutputPath>bin\x64\BricsCAD\$(Configuration)\</OutputPath>
+		<DebugType>full</DebugType>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(NorsynHost)' == 'AutoCAD'">
 		<BundleDir>$(MSBuildProjectDirectory)\..\..\Deploy\NSLOAD.bundle</BundleDir>
 		<BundleContentsDir>$(BundleDir)\Contents\Win64</BundleContentsDir>
 	</PropertyGroup>
-	<ItemGroup>
+	<PropertyGroup Condition="'$(NorsynHost)' == 'BricsCAD'">
+		<!-- Named as installed: %APPDATA%\Bricsys\ApplicationPlugins\NSLOAD.bundle -->
+		<BundleDir>$(MSBuildProjectDirectory)\..\..\Deploy\BricsCAD\NSLOAD.bundle</BundleDir>
+		<BundleContentsDir>$(BundleDir)\Contents\Win64</BundleContentsDir>
+	</PropertyGroup>
+	<ItemGroup Condition="'$(NorsynHost)' == 'AutoCAD'">
 		<Reference Include="accoremgd">
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\accoremgd.dll</HintPath>
 			<Private>False</Private>
@@ -42,6 +66,24 @@
 			<Private>False</Private>
 		</Reference>
 	</ItemGroup>
+	<ItemGroup Condition="'$(NorsynHost)' == 'BricsCAD'">
+		<Reference Include="BrxMgd">
+			<HintPath>$(BricsCADPath)\BrxMgd.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="TD_Mgd">
+			<HintPath>$(BricsCADPath)\TD_Mgd.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+	</ItemGroup>
+	<ItemGroup>
+		<!-- Only this host's alternates. -->
+		<Compile Remove="Host\**" />
+		<Compile Include="Host\$(HostFolder)\**\*.cs" />
+		<!-- The manager's colours: one palette per host, compiled as Views\Palette.xaml. -->
+		<Page Remove="Views\Palette.*.xaml" />
+		<Page Include="Views\Palette.$(NorsynHost).xaml" Link="Views\Palette.xaml" />
+	</ItemGroup>
 	<ItemGroup>
 		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
 		<PackageReference Include="Microsoft.VisualBasic" Version="10.3.0" />
@@ -49,8 +91,16 @@
 	</ItemGroup>
 	<ItemGroup>
 		<None Include="PackageContents.xml" CopyToOutputDirectory="Never" />
+		<None Include="PackageContents.BricsCAD.xml" CopyToOutputDirectory="Never" />
 	</ItemGroup>
 	<Import Project="..\FormsSHARED\FormsSHARED.projitems" Label="Shared" />
+
+	<Target Name="RequireKnownHost" BeforeTargets="CollectPackageReferences;ResolveAssemblyReferences">
+		<Error Condition="'$(NorsynHost)' != 'AutoCAD' And '$(NorsynHost)' != 'BricsCAD'"
+		       Text="NorsynHost must be AutoCAD or BricsCAD, not '$(NorsynHost)'." />
+		<Error Condition="'$(NorsynHost)' == 'BricsCAD' And !Exists('$(BricsCADPath)\BrxMgd.dll')"
+		       Text="BrxMgd.dll not found in '$(BricsCADPath)'. Pass -p:BricsCADPath=&lt;BricsCAD V26 install folder&gt;." />
+	</Target>
 
 	<Target Name="CreateBundle" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
 		<MakeDir Directories="$(BundleContentsDir)" />
@@ -60,13 +110,20 @@
 				Exclude="$(TargetDir)accoremgd.dll;
 				         $(TargetDir)acdbmgd.dll;
 				         $(TargetDir)acmgd.dll;
-				         $(TargetDir)AdWindows.dll" />
+				         $(TargetDir)AdWindows.dll;
+				         $(TargetDir)BrxMgd.dll;
+				         $(TargetDir)TD_Mgd.dll" />
+			<BundleManifest Include="$(MSBuildProjectDirectory)\PackageContents.xml"
+			                Condition="'$(NorsynHost)' == 'AutoCAD'" />
+			<BundleManifest Include="$(MSBuildProjectDirectory)\PackageContents.BricsCAD.xml"
+			                Condition="'$(NorsynHost)' == 'BricsCAD'" />
 		</ItemGroup>
 
 		<Copy SourceFiles="@(BundleDlls)" DestinationFolder="$(BundleContentsDir)"
 		      SkipUnchangedFiles="true" />
-		<Copy SourceFiles="$(MSBuildProjectDirectory)\PackageContents.xml"
-		      DestinationFolder="$(BundleDir)" SkipUnchangedFiles="true" />
+		<!-- Installed as PackageContents.xml on both hosts. -->
+		<Copy SourceFiles="@(BundleManifest)"
+		      DestinationFiles="$(BundleDir)\PackageContents.xml" SkipUnchangedFiles="true" />
 
 		<Message Importance="high" Text="Bundle created at $(BundleDir)" />
 	</Target>

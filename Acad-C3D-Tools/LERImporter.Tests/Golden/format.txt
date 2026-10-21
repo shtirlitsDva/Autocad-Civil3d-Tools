@@ -1,0 +1,47 @@
+SPtr DA8
+SPtr DA8
+I32 1
+Bool True
+Bool False
+I16 80
+Bool True
+Bool True
+I16 1003
+I16 80
+Str 
+I16 80
+Str 
+Bool False
+Byte 0
+I16 80
+Str 
+Str 
+I16 0
+I16 2
+I16 2
+I16 0
+I16 2
+Bool True
+Bool True
+Bool False
+Bool False
+Dbl 0
+I16 0
+Str ?
+Str False
+Str True
+I16 3
+I16 0
+Dbl 1
+Str NA
+I16 80
+Str 
+I16 80
+I32 0
+I16 0
+Str 
+I32 0
+Bool False
+I16 80
+I16 80
+I16 0

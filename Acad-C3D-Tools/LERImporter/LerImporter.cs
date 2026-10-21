@@ -1,8 +1,20 @@
-using Autodesk.AutoCAD.ApplicationServices;
-using Autodesk.AutoCAD.DatabaseServices;
-using Autodesk.AutoCAD.Runtime;
 //using MoreLinq;
 //using GroupByCluster;
+#if BRICSCAD
+using Bricscad.ApplicationServices;
+using Bricscad.EditorInput;
+using Teigha.DatabaseServices;
+using Teigha.Runtime;
+using Application = Bricscad.ApplicationServices.Application;
+using MPolygonModule = LERImporter.Host.Brx.MPolygonModule;
+#else
+using Autodesk.AutoCAD.ApplicationServices;
+using Autodesk.AutoCAD.EditorInput;
+using Autodesk.AutoCAD.DatabaseServices;
+using Autodesk.AutoCAD.Runtime;
+using Application = Autodesk.AutoCAD.ApplicationServices.Application;
+using MPolygonModule = LERImporter.Host.Acad.MPolygonModule;
+#endif
 using LERImporter.Enhancer;
 using LERImporter.Schema;
 
@@ -19,10 +31,7 @@ using static IntersectUtilities.UtilsCommon.Utils;
 //using static IntersectUtilities.Utils;
 //using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 
-using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Log = LERImporter.SimpleLogger;
-
-[assembly: CommandClass(typeof(LERImporter.NoCommands))]
 
 namespace LERImporter
 {
@@ -32,14 +41,11 @@ namespace LERImporter
         public void Initialize()
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
+            if (doc == null) return;
             doc.Editor.WriteMessage("\n┗(•ˇ_ˇ•)―→ LER Import Application indlæst! ←(•ˇ_ˇ•)┛");
             doc.Editor.WriteMessage("\nKommando til LER 2.0 -> IGMLBATCH.");
 
-            if (doc != null)
-            {
-                SystemObjects.DynamicLinker.LoadModule(
-                    "AcMPolygonObj" + Application.Version.Major + ".dbx", false, false);
-            }
+            MPolygonModule.Load();
         }
 
         public void Terminate()
@@ -68,15 +74,32 @@ namespace LERImporter
             {
                 #region Get file and folder of gml
                 string pathToTopFolder = string.Empty;
-                var folderDialog = new Microsoft.Win32.OpenFolderDialog()
+                if (Convert.ToInt32(Application.GetSystemVariable("FILEDIA")) == 0)
                 {
-                    Title = "Choose folder where gml files are stored: ",
-                };
-                if (folderDialog.ShowDialog() == true)
-                {
-                    pathToTopFolder = folderDialog.FolderName;
+                    // FILEDIA 0: the folder comes from the command line, so a script can run the import.
+                    var editor = Application.DocumentManager.MdiActiveDocument.Editor;
+                    var answer = editor.GetString(new PromptStringOptions(
+                        "\nFolder where gml files are stored: ") { AllowSpaces = true });
+                    if (answer.Status != PromptStatus.OK) return;
+                    pathToTopFolder = answer.StringResult.Trim().Trim('"');
+                    if (!Directory.Exists(pathToTopFolder))
+                    {
+                        prdDbg($"Folder not found: {pathToTopFolder}");
+                        return;
+                    }
                 }
-                else return;
+                else
+                {
+                    var folderDialog = new Microsoft.Win32.OpenFolderDialog()
+                    {
+                        Title = "Choose folder where gml files are stored: ",
+                    };
+                    if (folderDialog.ShowDialog() == true)
+                    {
+                        pathToTopFolder = folderDialog.FolderName;
+                    }
+                    else return;
+                }
 
                 #region Unzip zip files
                 ZipExtractor.UnzipFilesInDirectory(pathToTopFolder);
@@ -223,6 +246,4 @@ namespace LERImporter
             if (EchoToEditor) prdDbg(msg);
         }
     }
-
-    public class NoCommands { }
 }

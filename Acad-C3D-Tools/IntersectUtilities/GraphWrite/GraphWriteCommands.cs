@@ -63,8 +63,7 @@ namespace IntersectUtilities
                             if (br.RealName() == "STIKTEE") return false;
                         return true;
                     }).ToHashSet();
-                    PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriGraph);
-                    var graph = new GraphWrite.Graph(localDb, psm, komponenter);
+                    var graph = new GraphWrite.Graph(localDb, new PropertySetHelper(localDb), komponenter);
                     foreach (Entity entity in allEnts)
                     {
                         graph.AddEntityToGraphEntities(entity);

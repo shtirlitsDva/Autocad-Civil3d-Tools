@@ -15,8 +15,8 @@
     <Compile Include="$(MSBuildThisFileDirectory)PipelineSegmentV2\PipelineSegmentV2.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)PipelineSegmentV2\PipelineTransitionV2.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)PipelineSegmentV2\PipelineSegmentBaseV2.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)PipelineSizeArray\PipelineSizeArrayV2.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)PipelineV2.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)PipelineSizeArray\PipelineSizeArrayV2.ProfileView.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)PipelineV2Alignment.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)PipeSettings.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)PipeSettingsForm.cs">
       <SubType>Form</SubType>

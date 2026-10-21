@@ -4,9 +4,16 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Loader;
+
+#if BRICSCAD
+using Bricscad.ApplicationServices;
+using Bricscad.EditorInput;
+using Teigha.Runtime;
+#else
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Runtime;
+#endif
 
 namespace NSLOAD
 {
@@ -99,12 +106,12 @@ namespace NSLOAD
 
             var plugin = _host.Load(_dllPath, sharedNames);
 
-            // Before the commands, matching the order AutoCAD's own scan used:
+            // Before the commands, matching the order the host's own scan used:
             // it initialized the plugin during LoadFromStream, and NSLOAD
             // registered commands afterwards. Guarded, because when suppression
             // is off the host has already called this and a second call would
             // initialize the plugin twice.
-            if (AutoCadScanSuppressor.IsActive)
+            if (HostScanSuppressor.IsActive)
                 plugin.Initialize();
 
             if (_registrar != null)

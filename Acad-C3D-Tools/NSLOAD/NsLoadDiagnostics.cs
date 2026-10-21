@@ -1,5 +1,10 @@
 using System;
+
+#if BRICSCAD
+using Bricscad.ApplicationServices;
+#else
 using Autodesk.AutoCAD.ApplicationServices;
+#endif
 
 namespace NSLOAD
 {

@@ -1,22 +1,38 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Xml.Serialization;
+﻿#if BRICSCAD
+using Bricscad.ApplicationServices;
+using Teigha.Colors;
+using Teigha.DatabaseServices;
+using Bricscad.EditorInput;
+using Teigha.Geometry;
+using Teigha.Runtime;
+using BlockReference = Teigha.DatabaseServices.BlockReference;
+using Entity = Teigha.DatabaseServices.Entity;
+using ObjectIdCollection = Teigha.DatabaseServices.ObjectIdCollection;
+using Oid = Teigha.DatabaseServices.ObjectId;
+using OpenMode = Teigha.DatabaseServices.OpenMode;
+using Application = Bricscad.ApplicationServices.Application;
+using DBObject = Teigha.DatabaseServices.DBObject;
+#else
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
-using Autodesk.Civil;
-using Autodesk.Civil.ApplicationServices;
-using Autodesk.Civil.DatabaseServices;
-using Autodesk.Civil.DatabaseServices.Styles;
-using Autodesk.Civil.DataShortcuts;
-using Autodesk.Aec.PropertyData;
-using Autodesk.Aec.PropertyData.DatabaseServices;
+using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
+using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
+using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
+using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
+using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
+using Application = Autodesk.AutoCAD.ApplicationServices.Application;
+using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
+#endif
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Xml.Serialization;
 using System.Collections;
 using System.Collections.Specialized;
 using System.Globalization;
@@ -35,18 +51,7 @@ using static IntersectUtilities.UtilsCommon.Utils;
 //using static IntersectUtilities.Utils;
 //using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 
-using static IntersectUtilities.UtilsCommon.UtilsDataTables;
 
-using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
-using CivSurface = Autodesk.Civil.DatabaseServices.Surface;
-using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
-using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
-using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
-using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
-using Application = Autodesk.AutoCAD.ApplicationServices.Application;
-using Label = Autodesk.Civil.DatabaseServices.Label;
-using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
-using PsDataType = Autodesk.Aec.PropertyData.DataType;
 using Log = LERImporter.SimpleLogger;
 
 namespace LERImporter.Schema

@@ -25,7 +25,7 @@ using PsDataType = Autodesk.Aec.PropertyData.DataType;
 
 namespace IntersectUtilities
 {
-    public class PropertySetManager
+    public class PropertySetManager : IPropertySetAccess
     {
         private Database Db { get; }
         private DictionaryPropertySetDefinitions DictionaryPropertySetDefinitions { get; set; }
@@ -1081,7 +1081,7 @@ namespace IntersectUtilities
                     }
 
                     // Add to result dictionary (will overwrite if duplicate property names exist)
-                    result[property.Name] = (propertyValue, property.DataType);
+                    result[property.Name] = (propertyValue, property.AecDataType);
                 }
             }
 
@@ -1236,26 +1236,8 @@ namespace IntersectUtilities
         public string BelongsToAlignment(Entity x) =>
             ReadPropertyString(x, def.BelongsToAlignment);
     }
-    public class PSetDefs
+    public partial class PSetDefs
     {
-        public enum DefinedSets
-        {
-            None,
-            DriPipelineData,
-            DriSourceReference,
-            DriCrossingData,
-            DriGasDimOgMat,
-            DriOmråder,
-            DriComponentsGisData,
-            DriGraph,
-            DriDimGraph,
-            FJV_fremtid,
-            FJV_område,
-            BBR,
-            NtrData,
-            Forsyningsområde,
-            Supplypoint,
-        }
 
         public class FJV_område : PSetDef
         {
@@ -1334,38 +1316,6 @@ namespace IntersectUtilities
                 new StringCollection() { RXClass.GetClass(typeof(BlockReference)).Name };
         }
 
-        public class DriPipelineData : PSetDef
-        {
-            public override DefinedSets SetName { get; } = DefinedSets.DriPipelineData;
-            public Property BelongsToAlignment { get; } =
-                new Property(
-                    "BelongsToAlignment",
-                    "Name of the alignment the component belongs to.",
-                    PsDataType.Text,
-                    ""
-                );
-            public Property BranchesOffToAlignment { get; } =
-                new Property(
-                    "BranchesOffToAlignment",
-                    "Name of the alignment the component branches off to.",
-                    PsDataType.Text,
-                    ""
-                );
-            public Property EtapeNavn { get; } =
-                new Property(
-                    "EtapeNavn",
-                    "Name of the area the pipe belongs to.",
-                    PsDataType.Text,
-                    ""
-                );
-            public override StringCollection AppliesTo { get; } =
-                new StringCollection()
-                {
-                    RXClass.GetClass(typeof(Polyline)).Name,
-                    RXClass.GetClass(typeof(BlockReference)).Name,
-                };
-        }
-
         public class DriGasDimOgMat : PSetDef
         {
             public override DefinedSets SetName { get; } = DefinedSets.DriGasDimOgMat;
@@ -1403,19 +1353,6 @@ namespace IntersectUtilities
                 new Property("Belægning", "Pavement type.", PsDataType.Text, "");
             public override StringCollection AppliesTo { get; } =
                 new StringCollection() { RXClass.GetClass(typeof(Polyline)).Name };
-        }
-
-        public class DriGraph : PSetDef
-        {
-            public override DefinedSets SetName { get; } = DefinedSets.DriGraph;
-            public Property ConnectedEntities { get; } =
-                new Property("ConnectedEntities", "Lists connected entities", PsDataType.Text, "");
-            public override StringCollection AppliesTo { get; } =
-                new StringCollection()
-                {
-                    RXClass.GetClass(typeof(Polyline)).Name,
-                    RXClass.GetClass(typeof(BlockReference)).Name,
-                };
         }
 
         public class DriDimGraph : PSetDef
@@ -1598,132 +1535,6 @@ namespace IntersectUtilities
                 new StringCollection() { RXClass.GetClass(typeof(BlockReference)).Name };
         }
 
-        public abstract class PSetDef
-        {
-            public abstract DefinedSets SetName { get; }
-            public abstract StringCollection AppliesTo { get; }
-
-            public List<Property> ListOfProperties()
-            {
-                var propDict = ToPropertyDictionary();
-                List<Property> list = new List<Property>();
-                foreach (var prop in propDict)
-                    if (prop.Value is Property)
-                        list.Add((Property)prop.Value);
-
-                return list;
-            }
-
-            //public Property GetPropertyByName(string propertyName)
-            public Dictionary<string, object> ToPropertyDictionary()
-            {
-                var dictionary = new Dictionary<string, object>();
-                foreach (var propertyInfo in this.GetType().GetProperties())
-                    dictionary[propertyInfo.Name] = propertyInfo.GetValue(this, null);
-                return dictionary;
-            }
-
-            public DefinedSets PSetName()
-            {
-                return SetName;
-            }
-
-            public StringCollection GetAppliesTo()
-            {
-                return AppliesTo;
-            }
-
-            public virtual PropertySetDefinition CreatePropertySetDefinition(
-                Database database,
-                DictionaryPropertySetDefinitions dictionaryPropertySetDefinitions
-            )
-            {
-                // Create the PropertySetDefinition and let each property add itself (polymorphism)
-                string setName = SetName.ToString();
-                PropertySetDefinition propSetDef = new PropertySetDefinition();
-                propSetDef.SetToStandard(database);
-                propSetDef.SubSetDatabaseDefaults(database);
-                propSetDef.Description = setName;
-                bool isStyle = false;
-
-                propSetDef.SetAppliesToFilter(GetAppliesTo(), isStyle);
-
-                foreach (PSetDefs.Property property in ListOfProperties())
-                    property.AddToDefinition(database, propSetDef);
-
-                using (Transaction defTx = database.TransactionManager.StartTransaction())
-                {
-                    dictionaryPropertySetDefinitions.AddNewRecord(setName, propSetDef);
-                    defTx.AddNewlyCreatedDBObject(propSetDef, true);
-                    defTx.Commit();
-                }
-
-                return propSetDef;
-            }
-
-            /// <summary>
-            /// Ensures this concrete PSetDef's PropertySetDefinition exists in the
-            /// drawing's extension dictionary. Returns the existing definition if
-            /// already present, otherwise creates it. Must be called within an
-            /// active transaction (the Has/GetAt lookups require a TopTransaction).
-            /// </summary>
-            /// <example>
-            /// <code>
-            /// new PSetDefs.Forsyningsområde().CheckOrCreatePropertySetDef(db);
-            /// </code>
-            /// </example>
-            public PropertySetDefinition CheckOrCreatePropertySetDef(Database database)
-            {
-                if (database == null)
-                    throw new System.Exception("Database is null!");
-                if (database.TransactionManager.TopTransaction == null)
-                    throw new System.Exception(
-                        "CheckOrCreatePropertySetDef: Must be called within a Transaction!");
-
-                var dict = new DictionaryPropertySetDefinitions(database);
-
-                if (PropertySetDefinitionExists(database, dict, SetName))
-                    return GetPropertySetDefinition(database, dict, SetName);
-
-                return CreatePropertySetDefinition(database, dict);
-            }
-        }
-
-        public class Property
-        {
-            public string Name { get; }
-            public string Description { get; }
-            public PsDataType DataType { get; }
-            public object DefaultValue { get; }
-
-            public Property(
-                string name,
-                string description,
-                PsDataType dataType,
-                object defaultValue
-            )
-            {
-                Name = name;
-                Description = description;
-                DataType = dataType;
-                DefaultValue = defaultValue;
-            }
-
-            public virtual void AddToDefinition(Database database, PropertySetDefinition propSetDef)
-            {
-                var propDefManual = new PropertyDefinition();
-                propDefManual.SetToStandard(database);
-                propDefManual.SubSetDatabaseDefaults(database);
-
-                propDefManual.Name = Name;
-                propDefManual.Description = Description;
-                propDefManual.DataType = DataType;
-                propDefManual.DefaultData = DefaultValue;
-
-                propSetDef.Definitions.Add(propDefManual);
-            }
-        }
-
         public class ListProperty : Property
         {
             public string ListName { get; }
@@ -1790,7 +1601,7 @@ namespace IntersectUtilities
 
                 propDefManual.Name = Name;
                 propDefManual.Description = Description;
-                propDefManual.DataType = PsDataType.List;
+                propDefManual.DataType = AecDataType;
                 propDefManual.ListDefinitionId = listDefId;
                 propDefManual.DefaultData = ListItems[0];
 
@@ -1908,24 +1719,19 @@ namespace IntersectUtilities
         public int GetHashCode(PropertySet obj) => obj.PropertySetDefinitionName.GetHashCode();
     }
 
-    public class PropertySetHelper
+    public partial class PropertySetHelper
     {
-        public PropertySetManager Graph;
-        public PSM_Pipeline Pipeline;
-        public PSetDefs.DriGraph GraphDef;
-        public PSetDefs.DriPipelineData PipelineDef;
-
         public PropertySetHelper(Database db)
+            : this(GraphSets(db), new PSM_Pipeline(db)) { }
+
+        private static PropertySetManager GraphSets(Database db)
         {
             if (db == null)
                 throw new System.Exception(
                     "Either ents collection, first element or its' database is null!"
                 );
 
-            Graph = new PropertySetManager(db, PSetDefs.DefinedSets.DriGraph);
-            GraphDef = new PSetDefs.DriGraph();
-            Pipeline = new PSM_Pipeline(db);
-            PipelineDef = new PSetDefs.DriPipelineData();
+            return new PropertySetManager(db, PSetDefs.DefinedSets.DriGraph);
         }
     }
 
@@ -2308,4 +2114,97 @@ namespace IntersectUtilities
         }
     }
 
+}
+namespace IntersectUtilities
+{
+    public partial class PSetDefs
+    {
+        public abstract partial class PSetDef
+        {
+
+            public virtual PropertySetDefinition CreatePropertySetDefinition(
+                Database database,
+                DictionaryPropertySetDefinitions dictionaryPropertySetDefinitions
+            )
+            {
+                // Create the PropertySetDefinition and let each property add itself (polymorphism)
+                string setName = SetName.ToString();
+                PropertySetDefinition propSetDef = new PropertySetDefinition();
+                propSetDef.SetToStandard(database);
+                propSetDef.SubSetDatabaseDefaults(database);
+                propSetDef.Description = setName;
+                bool isStyle = false;
+
+                propSetDef.SetAppliesToFilter(GetAppliesTo(), isStyle);
+
+                foreach (PSetDefs.Property property in ListOfProperties())
+                    property.AddToDefinition(database, propSetDef);
+
+                using (Transaction defTx = database.TransactionManager.StartTransaction())
+                {
+                    dictionaryPropertySetDefinitions.AddNewRecord(setName, propSetDef);
+                    defTx.AddNewlyCreatedDBObject(propSetDef, true);
+                    defTx.Commit();
+                }
+
+                return propSetDef;
+            }
+
+
+            /// <summary>
+            /// Ensures this concrete PSetDef's PropertySetDefinition exists in the
+            /// drawing's extension dictionary. Returns the existing definition if
+            /// already present, otherwise creates it. Must be called within an
+            /// active transaction (the Has/GetAt lookups require a TopTransaction).
+            /// </summary>
+            /// <example>
+            /// <code>
+            /// new PSetDefs.Forsyningsområde().CheckOrCreatePropertySetDef(db);
+            /// </code>
+            /// </example>
+            public PropertySetDefinition CheckOrCreatePropertySetDef(Database database)
+            {
+                if (database == null)
+                    throw new System.Exception("Database is null!");
+                if (database.TransactionManager.TopTransaction == null)
+                    throw new System.Exception(
+                        "CheckOrCreatePropertySetDef: Must be called within a Transaction!");
+
+                var dict = new DictionaryPropertySetDefinitions(database);
+
+                if (PropertySetDefinitionExists(database, dict, SetName))
+                    return GetPropertySetDefinition(database, dict, SetName);
+
+                return CreatePropertySetDefinition(database, dict);
+            }
+
+        }
+    }
+}
+namespace IntersectUtilities
+{
+    public partial class PSetDefs
+    {
+        public partial class Property
+        {
+            /// <summary>The data type as AEC spells it: PsDataType numbers it as AEC does.</summary>
+            public Autodesk.Aec.PropertyData.DataType AecDataType =>
+                (Autodesk.Aec.PropertyData.DataType)DataType;
+
+            public virtual void AddToDefinition(Database database, PropertySetDefinition propSetDef)
+            {
+                var propDefManual = new PropertyDefinition();
+                propDefManual.SetToStandard(database);
+                propDefManual.SubSetDatabaseDefaults(database);
+
+                propDefManual.Name = Name;
+                propDefManual.Description = Description;
+                propDefManual.DataType = AecDataType;
+                propDefManual.DefaultData = DefaultValue;
+
+                propSetDef.Definitions.Add(propDefManual);
+            }
+
+        }
+    }
 }

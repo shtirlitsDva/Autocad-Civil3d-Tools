@@ -2,17 +2,17 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:NSLOAD.ViewModels"
-             Background="#3B4453">
+             Background="{DynamicResource BgBrush}">
     <UserControl.Resources>
-        <Color x:Key="BgColor">#3B4453</Color>
-        <Color x:Key="SurfaceColor">#2D3442</Color>
-        <Color x:Key="AccentColor">#63B3ED</Color>
-        <Color x:Key="DangerColor">#E53E3E</Color>
-        <Color x:Key="SuccessColor">#48BB78</Color>
-        <Color x:Key="FgColor">#E2E8F0</Color>
-        <Color x:Key="MutedColor">#A0AEC0</Color>
+      <ResourceDictionary>
+        <!-- The colours are the host's: Palette.AutoCAD.xaml or
+             Palette.BricsCAD.xaml, whichever this build compiled (NSLOAD.csproj). -->
+        <ResourceDictionary.MergedDictionaries>
+            <ResourceDictionary Source="/NSLOAD;component/Views/Palette.xaml"/>
+        </ResourceDictionary.MergedDictionaries>
 
         <SolidColorBrush x:Key="BgBrush" Color="{StaticResource BgColor}"/>
+        <SolidColorBrush x:Key="LineBrush" Color="{StaticResource BorderColor}"/>
         <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource SurfaceColor}"/>
         <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}"/>
         <SolidColorBrush x:Key="DangerBrush" Color="{StaticResource DangerColor}"/>
@@ -74,7 +74,7 @@
         <Style TargetType="TextBox">
             <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
             <Setter Property="Foreground" Value="{StaticResource FgBrush}"/>
-            <Setter Property="BorderBrush" Value="#4A5568"/>
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="6,4"/>
             <Setter Property="CaretBrush" Value="{StaticResource FgBrush}"/>
@@ -197,6 +197,7 @@
                 </Grid>
             </Border>
         </DataTemplate>
+      </ResourceDictionary>
     </UserControl.Resources>
 
     <DockPanel>
@@ -256,7 +257,7 @@
                               ItemTemplate="{StaticResource AppItemTemplate}"
                               Visibility="{Binding HasPredefinedApps, Converter={StaticResource BoolToVis}}"/>
 
-                <Border Height="1" Background="#4A5568" Margin="0,8,0,8"
+                <Border Height="1" Background="{StaticResource LineBrush}" Margin="0,8,0,8"
                         Visibility="{Binding HasUserPlugins, Converter={StaticResource BoolToVis}}"/>
 
                 <TextBlock Text="User Plugins" FontSize="14" FontWeight="SemiBold"

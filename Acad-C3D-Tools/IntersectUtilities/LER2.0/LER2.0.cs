@@ -50,93 +50,40 @@ namespace IntersectUtilities
         /// </summary>
         /// <category>LER2</category>
         [CommandMethod("LER2SORT2DFROM3D")]
-        public void ler2sort2dfrom3d()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
+        public void ler2sort2dfrom3d() =>
+            Ler2Sort.Sort2dFrom3d(Application.DocumentManager.MdiActiveDocument.Database);
 
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    HashSet<Polyline3d> pls = localDb.HashSetOfType<Polyline3d>(tx, true);
-                    foreach (Polyline3d pl in pls)
-                    {
-                        PolylineVertex3d[] vertices = pl.GetVertices(tx);
-                        HashSet<double> elevs = new HashSet<double>();
-                        for (int i = 0; i < vertices.Length; i++) elevs.Add(vertices[i].Position.Z);
+        /// <command>LER2MANHOLEQA</command>
+        /// <summary>
+        /// Finds the LER points whose property sets say manhole (words to look for, then the
+        /// values to match, checked in a tree), checks each against the manhole and gully
+        /// blocks already in the base map (Grundkort) and this drawing, and after a review
+        /// inserts a 0_BRØNDDÆKSEL_DAMGAARD block at each manhole that is missing, into the
+        /// base map's file or into this drawing.
+        /// </summary>
+        /// <category>LER2</category>
+        [CommandMethod("LER2MANHOLEQA")]
+        public void ler2manholeqa() =>
+            Norsyn.DrawingTools.Ler.Manholes.ManholeCheckWindowHost.Show(() => new CivilPropertySetScanner());
 
-                        if (elevs.All(x => x.is2D()))
-                        {
-                            for (int i = 0; i < vertices.Length; i++)
-                            {
-                                PolylineVertex3d vert = vertices[i];
-                                vert.CheckOrOpenForWrite();
-                                vert.Position =
-                                    new Point3d(
-                                        vert.Position.X, vert.Position.Y, -99.0);
-                            }
+        /// <command>LER2SPLIT</command>
+        /// <summary>
+        /// Splits a polyline or 3D polyline at a picked point into two, each keeping the
+        /// source's layer, look and property sets.
+        /// </summary>
+        /// <category>LER2</category>
+        [CommandMethod("LER2SPLIT")]
+        public void ler2split() =>
+            Ler2Split.Split(Application.DocumentManager.MdiActiveDocument, new CivilPropertySetCopier());
 
-                            //Handle the layer name
-                            string currentLayerName = pl.Layer;
-                            if (currentLayerName.EndsWith("-3D"))
-                            {
-                                string newLayerName = currentLayerName.Replace("-3D", "-2D");
-                                localDb.CheckOrCreateLayer(newLayerName);
-
-                                pl.CheckOrOpenForWrite();
-                                pl.Layer = newLayerName;
-                            }
-                            else if (!currentLayerName.EndsWith("-2D"))
-                            {
-                                string newLayerName = currentLayerName + "-2D";
-                                localDb.CheckOrCreateLayer(newLayerName);
-
-                                pl.CheckOrOpenForWrite();
-                                pl.Layer = newLayerName;
-                            }
-                        }
-
-                        if (elevs.All(x => x.is3D()))
-                        {
-                            //Handle the layer name
-                            string currentLayerName = pl.Layer;
-                            if (!currentLayerName.EndsWith("-3D"))
-                            {
-                                string newLayerName;
-                                if (currentLayerName.EndsWith("-2D"))
-                                {
-                                    newLayerName = currentLayerName.Replace("-2D", "-3D");
-                                    localDb.CheckOrCreateLayer(newLayerName);
-
-                                    pl.CheckOrOpenForWrite();
-                                    pl.Layer = newLayerName;
-                                }
-                                else
-                                {
-                                    newLayerName = currentLayerName + "-3D";
-                                    localDb.CheckOrCreateLayer(newLayerName);
-
-                                    pl.CheckOrOpenForWrite();
-                                    pl.Layer = newLayerName;
-                                }
-
-                                pl.CheckOrOpenForWrite();
-                                pl.Layer = newLayerName;
-                            }
-                        }
-                    }
-                }
-                catch (System.Exception ex)
-                {
-                    tx.Abort();
-                    prdDbg(ex);
-                    return;
-                }
-                tx.Commit();
-            }
-        }
+        /// <command>LER2JOIN</command>
+        /// <summary>
+        /// Joins two 3D polylines that meet end to end into the one whose property sets are kept.
+        /// </summary>
+        /// <category>LER2</category>
+        [CommandMethod("LER2JOIN")]
+        public void ler2join() =>
+            Ler2Join.Join(Application.DocumentManager.MdiActiveDocument);
 
         /// <command>CHECK3DELEVATIONS</command>
         /// <summary>
@@ -301,299 +248,27 @@ namespace IntersectUtilities
         /// </summary>
         /// <category>LER2</category>
         [CommandMethod("FLATTENPL3D", CommandFlags.UsePickSet)]
-        public void flattenpl3d()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor ed = Application.DocumentManager.MdiActiveDocument.Editor;
+        public void flattenpl3d() =>
+            Ler2Elevations.Flatten(Application.DocumentManager.MdiActiveDocument);
 
-            PromptSelectionResult acSSPrompt;
-            acSSPrompt = ed.SelectImplied();
-            SelectionSet acSSet;
-
-            if (acSSPrompt.Status == PromptStatus.OK)
-            {
-                using (Transaction tx = localDb.TransactionManager.StartTransaction())
-                {
-                    try
-                    {
-                        #region Polylines 3d
-                        acSSet = acSSPrompt.Value;
-                        foreach (Oid id in acSSet.GetObjectIds())
-                        {
-                            Polyline3d p3d = id.Go<Polyline3d>(tx, OpenMode.ForWrite);
-                            if (p3d == null) continue;
-
-                            PolylineVertex3d[] vertices = p3d.GetVertices(tx);
-
-                            for (int i = 0; i < vertices.Length; i++)
-                            {
-                                vertices[i].CheckOrOpenForWrite();
-                                vertices[i].Position = new Point3d(
-                                    vertices[i].Position.X, vertices[i].Position.Y, -99);
-                            }
-                        }
-                        #endregion
-                    }
-                    catch (System.Exception ex)
-                    {
-                        tx.Abort();
-                        prdDbg(ex);
-                        return;
-                    }
-                    tx.Commit();
-                }
-            }
-            else
-            {
-                while (true)
-                {
-                    var id = Interaction.GetEntity("Select Plyline3d to flatten: (husk! kan også preselecte mange)", typeof(Polyline3d));
-                    if (id == Oid.Null) return;
-
-                    using (Transaction tx = localDb.TransactionManager.StartTransaction())
-                    {
-                        try
-                        {
-                            #region Polylines 3d
-                            Polyline3d p3d = id.Go<Polyline3d>(tx, OpenMode.ForWrite);
-
-                            PolylineVertex3d[] vertices = p3d.GetVertices(tx);
-
-                            for (int i = 0; i < vertices.Length; i++)
-                            {
-                                vertices[i].CheckOrOpenForWrite();
-                                vertices[i].Position = new Point3d(
-                                    vertices[i].Position.X, vertices[i].Position.Y, -99);
-                            }
-                            #endregion
-                        }
-                        catch (System.Exception ex)
-                        {
-                            tx.Abort();
-                            prdDbg(ex);
-                            return;
-                        }
-                        tx.Commit();
-                    }
-                }
-            }
-        }
+        /// <command>FLATTENVERTEX</command>
+        /// <summary>
+        /// Sets the elevation of picked vertices of a 3D polyline to -99, keeping X and Y: select the 3D polyline, then pick its vertices one at a time.
+        /// </summary>
+        /// <category>LER2</category>
+        [CommandMethod("FLATTENVERTEX")]
+        public void flattenvertex() =>
+            Ler2Elevations.FlattenVertices(Application.DocumentManager.MdiActiveDocument);
 
         /// <command>LER2ADJUSTSTIK, LER2ASTIK</command>
         /// <summary>
         /// Adjusts the elevations along selected 3D polylines based on a user-provided slope, aligning the vertices with a connected main pipe endpoint.
         /// </summary>
         /// <category>LER2</category>
-        private static double slope = 0;
         [CommandMethod("LER2ASTIK", CommandFlags.UsePickSet)]
         [CommandMethod("LER2ADJUSTSTIK", CommandFlags.UsePickSet)]
-        public void adjuststik()
-        {
-            prdDbg("FORUDSÆTNINGER:");
-            prdDbg("1. De valgte pl3d skal have en ende vertice liggende på et hovedrør.");
-
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor ed = Application.DocumentManager.MdiActiveDocument.Editor;
-
-            double tol = 0.001;
-
-            PromptSelectionResult acSSPrompt;
-            acSSPrompt = ed.SelectImplied();
-            SelectionSet acSSet;
-
-            if (acSSPrompt.Status == PromptStatus.OK)
-            {
-                using (Transaction tx = localDb.TransactionManager.StartTransaction())
-                {
-                    try
-                    {
-                        #region Polylines 3d
-                        acSSet = acSSPrompt.Value;
-                        var selectedPl3ds = acSSet.GetObjectIds().Select(x => x.Go<Polyline3d>(tx)).ToHashSet();
-
-                        HashSet<Polyline3d> allpls = localDb.HashSetOfType<Polyline3d>(tx, true);
-                        var notSelectedPl3ds = allpls.ExceptWhere(x => selectedPl3ds.Contains(x)).ToHashSet();
-
-                        #region Ask for slope
-                        PromptDoubleOptions pdo = new PromptDoubleOptions(
-                            $"\nEnter slope in promille: Current slope <{slope.ToString("0.##")}>");
-                        pdo.AllowNone = true;
-                        PromptDoubleResult result = ed.GetDouble("\nEnter slope in promille: ");
-                        if (result.Status == PromptStatus.None) { } //Empty clause because NONE is OK.
-                        else if (((PromptResult)result).Status != PromptStatus.OK)
-                        {
-                            tx.Abort();
-                            prdDbg("Slope entry failed!");
-                            return;
-                        }
-                        else if (result.Status == PromptStatus.OK)
-                        {
-                            slope = result.Value;
-                        }
-                        prdDbg($"Slope: {slope.ToString("0.##")}‰");
-                        #endregion
-
-                        foreach (var p3d in selectedPl3ds)
-                        {
-                            if (p3d == null) continue;
-
-                            PolylineVertex3d[] vertices = p3d.GetVertices(tx);
-
-                            bool found = false;
-                            bool atStart = false;
-
-                            #region Detect start or end
-                            PolylineVertex3d startVert = vertices[0];
-                            if (startVert.is3D() &&
-                                notSelectedPl3ds.Any(x => startVert.IsOn(x, tol)))
-                            {
-                                found = true;
-                                atStart = true;
-                            }
-                            PolylineVertex3d endVert = vertices.Last();
-                            if (endVert.is3D() &&
-                                notSelectedPl3ds.Any(x => endVert.IsOn(x, tol)))
-                            {
-                                found = true;
-                            }
-                            #endregion
-
-                            #region Check for found
-                            if (!found)
-                            {
-                                prdDbg($"Polyline {p3d.Handle} has no vertices on a main pipe!");
-                                continue;
-                            }
-                            #endregion
-
-                            p3d.CheckOrOpenForWrite();
-                            if (!atStart) vertices = vertices.Reverse().ToArray();
-
-                            double currentElevation = vertices[0].Position.Z;
-                            for (int i = 1; i < vertices.Length; i++)
-                            {
-                                vertices[i].CheckOrOpenForWrite();
-
-                                double elevationChange = slope / 1000 *
-                                    (vertices[i].DistanceHorizontalTo(vertices[i - 1]));
-
-                                prdDbg($"Current elevation: {currentElevation.ToString("0.##")}\n" +
-                                    $"Elevation change: {elevationChange.ToString("0.##")}");
-
-                                currentElevation += elevationChange;
-                                prdDbg($"New elevation: {currentElevation.ToString("0.##")}");
-
-                                vertices[i].Position = new Point3d(vertices[i].Position.X, vertices[i].Position.Y, currentElevation);
-                            }
-                        }
-                        #endregion
-                    }
-                    catch (System.Exception ex)
-                    {
-                        tx.Abort();
-                        prdDbg(ex);
-                        return;
-                    }
-                    tx.Commit();
-                }
-            }
-            else
-            {
-                string keyword = "Slope";
-                while (true)
-                {
-                    string message = $"Select Polyline3d > Current slope: {slope.ToString("0.##")}‰ [Slope]:";
-                    var opt = new PromptEntityOptions(message, keyword);
-                    opt.SetRejectMessage("Select Polyline3d!");
-                    opt.AddAllowedClass(typeof(Polyline3d), true);
-
-                    Oid oid = Oid.Null;
-                    var res = ed.GetEntity(opt);
-                    if (res.Status == PromptStatus.OK)
-                    {
-                        oid = res.ObjectId;
-                    }
-                    else if (res.Status == PromptStatus.Keyword)
-                    {
-                        slope = Interaction.GetValue("Enter slope in promille: ");
-                        continue;
-                    }
-                    else if (res.Status == PromptStatus.Cancel) { return; }
-                    if (Oid.Null == oid) return;
-
-                    using (Transaction tx = localDb.TransactionManager.StartTransaction())
-                    {
-                        try
-                        {
-                            #region Polylines 3d
-                            Polyline3d p3d = oid.Go<Polyline3d>(tx, OpenMode.ForWrite);
-                            if (p3d == null) { tx.Abort(); continue; }
-                            HashSet<Polyline3d> allpls = localDb.HashSetOfType<Polyline3d>(tx, true);
-                            var notSelectedPl3ds = allpls.ExceptWhere(x => x == p3d).ToHashSet();
-                            PolylineVertex3d[] vertices = p3d.GetVertices(tx);
-
-                            bool found = false;
-                            bool atStart = false;
-
-                            #region Detect start or end
-                            PolylineVertex3d startVert = vertices[0];
-                            if (startVert.is3D() &&
-                                notSelectedPl3ds.Any(x => startVert.IsOn(x, tol)))
-                            {
-                                found = true;
-                                atStart = true;
-                            }
-                            PolylineVertex3d endVert = vertices.Last();
-                            if (endVert.is3D() &&
-                                notSelectedPl3ds.Any(x => endVert.IsOn(x, tol)))
-                            {
-                                found = true;
-                            }
-                            #endregion
-
-                            #region Check for found
-                            if (!found)
-                            {
-                                prdDbg($"Polyline {p3d.Handle} has no vertices on a main pipe!");
-                                tx.Abort();
-                                continue;
-                            }
-                            #endregion
-
-                            p3d.CheckOrOpenForWrite();
-                            if (!atStart) vertices = vertices.Reverse().ToArray();
-
-                            double currentElevation = vertices[0].Position.Z;
-                            for (int i = 1; i < vertices.Length; i++)
-                            {
-                                vertices[i].CheckOrOpenForWrite();
-
-                                double elevationChange = slope / 1000 *
-                                    (vertices[i].DistanceHorizontalTo(vertices[i - 1]));
-
-                                prdDbg($"Elevation change: {elevationChange.ToString("0.##")}, " +
-                                    $"Current elevation: {currentElevation.ToString("0.##")}");
-
-                                currentElevation += elevationChange;
-
-                                vertices[i].Position = new Point3d(vertices[i].Position.X, vertices[i].Position.Y, currentElevation);
-                            }
-
-                            #endregion
-                        }
-                        catch (System.Exception ex)
-                        {
-                            tx.Abort();
-                            prdDbg(ex);
-                            return;
-                        }
-                        tx.Commit();
-                    }
-                }
-            }
-        }
+        public void adjuststik() =>
+            Ler2Elevations.AdjustStik(Application.DocumentManager.MdiActiveDocument);
 
         /// <command>LER2INTERPOLATEPL3DS</command>
         /// <summary>
@@ -831,122 +506,8 @@ namespace IntersectUtilities
         /// <category>LER2</category>
         [CommandMethod("LER2DCI")]
         [CommandMethod("LER2DETECTCOINCIDENTVERTICI")]
-        public void ler2detectcoincidentvertici()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-
-            //Process all lines and detect ends, that are coincident with another vertex
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    //The idea is to get all vertices which are located at -99.0
-                    //and then check if there is another vertex at the same location
-                    //but with a different elevation
-                    //This is specifically developed for afløb
-                    //where the stik have the elevation at their one point,
-                    //but corresponding vertici of the main pipes are at -99.0
-
-                    #region Load linework from local db
-                    HashSet<Polyline3d> localPlines3d =
-                        localDb.HashSetOfType<Polyline3d>(tx, true);
-                    prdDbg($"\nNr. of non-frozen 3D polies: {localPlines3d.Count}");
-
-                    var allEndpointsAt99 = new HashSet<(Point3d loc, Polyline3d host, int idx)>();
-                    var allVerticiAtElevation = new HashSet<(Point3d loc, Polyline3d host, int idx)>();
-
-                    foreach (Polyline3d pline3d in localPlines3d)
-                    {
-                        var vertices = pline3d.GetVertices(tx);
-                        int endIdx = vertices.Length - 1;
-
-                        double startElevation = vertices[0].Position.Z;
-                        double endElevation = vertices[endIdx].Position.Z;
-
-                        if (startElevation.is2D()) allEndpointsAt99.Add((vertices[0].Position, pline3d, 0));
-                        if (endElevation.is2D()) allEndpointsAt99.Add((vertices[endIdx].Position, pline3d, endIdx));
-
-                        //Iterate through all vertices and detect those at -99.0
-                        //skipping first and last because I don't want to catch pipes
-                        //That are continuos with the pipe
-
-                        for (int i = 1; i < endIdx; i++)
-                        {
-                            if (!vertices[i].Position.Z.is2D())
-                            {
-                                allVerticiAtElevation.Add((vertices[i].Position, pline3d, i));
-                            }
-                        }
-                    }
-
-                    //Analyze points
-                    foreach (var verticeAt99 in allEndpointsAt99)
-                    {
-                        //Detect the coincident 3d location
-                        var atElevation = allVerticiAtElevation.Where(
-                            x => verticeAt99.loc.HorizontalEqualz(x.loc, 0.001)).FirstOrDefault();
-
-                        if (atElevation == default) continue;
-
-                        var vert = verticeAt99.host.GetVertices(tx)[verticeAt99.idx];
-                        vert.CheckOrOpenForWrite();
-                        vert.Position = atElevation.loc;
-                    }
-
-                    #region Old code that I can't explain
-                    ////Gather all endpoints
-                    //var allEndpointsAtElevation = new HashSet<(Point3d loc, Polyline3d host, int idx)>();
-                    //var allVerticiAt99 = new HashSet<(Point3d loc, Polyline3d host, int idx)>();
-
-                    //foreach (Polyline3d pline3d in localPlines3d)
-                    //{
-                    //    var vertices = pline3d.GetVertices(tx);
-                    //    int endIdx = vertices.Length - 1;
-
-                    //    double startElevation = vertices[0].Position.Z;
-                    //    double endElevation = vertices[endIdx].Position.Z;
-
-                    //    if (!startElevation.is2D()) allEndpointsAtElevation.Add((vertices[0].Position, pline3d, 0));
-                    //    if (!endElevation.is2D()) allEndpointsAtElevation.Add((vertices[endIdx].Position, pline3d, endIdx));
-
-                    //    //Iterate through all vertices and detect those at -99.0
-                    //    //skipping first and last
-
-                    //    for (int i = 1; i < endIdx; i++)
-                    //    {
-                    //        if (vertices[i].Position.Z.is2D())
-                    //        {
-                    //            allVerticiAt99.Add((vertices[i].Position, pline3d, i));
-                    //        }
-                    //    }
-                    //}
-
-                    ////Analyze points
-                    //foreach (var verticeAt99 in allVerticiAt99)
-                    //{
-                    //    //Detect the coincident 3d location
-                    //    var atElevation = allEndpointsAtElevation.Where(
-                    //        x => verticeAt99.loc.HorizontalEqualz(x.loc, 0.01)).FirstOrDefault();
-
-                    //    if (atElevation == default) continue;
-
-                    //    var vert = verticeAt99.host.GetVertices(tx)[verticeAt99.idx];
-                    //    vert.CheckOrOpenForWrite();
-                    //    vert.Position = atElevation.loc;
-                    //} 
-                    #endregion
-                    #endregion
-                }
-                catch (System.Exception ex)
-                {
-                    tx.Abort();
-                    prdDbg(ex);
-                    return;
-                }
-                tx.Commit();
-            }
-        }
+        public void ler2detectcoincidentvertici() =>
+            Ler2Elevations.DetectCoincidentVertici(Application.DocumentManager.MdiActiveDocument.Database);
 
         /// <command>LER2INTERPOLATEBETWEENISLANDS, LER2IBI</command>
         /// <summary>
@@ -955,103 +516,8 @@ namespace IntersectUtilities
         /// <category>LER2</category>
         [CommandMethod("LER2IBI")]
         [CommandMethod("LER2INTERPOLATEBETWEENISLANDS")]
-        public void p3dinterpolatebetweenislands()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor ed = docCol.MdiActiveDocument.Editor;
-
-            //The idea is to interpolate between islands
-            //These islands are being created by the coincident vertices detection algorithm
-            //Some of the vertici are still at -99.0, while their neighbors are at elevation
-            //This algorithm will interpolate between these islands
-            //To get rid of the -99.0 vertices
-
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    HashSet<Polyline3d> localPlines3d =
-                        localDb.HashSetOfType<Polyline3d>(tx, true);
-                    prdDbg($"\nNr. of non-frozen 3D polies: {localPlines3d.Count}");
-
-                    foreach (Polyline3d pl3d in localPlines3d)
-                    {
-                        #region Process vertices
-                        PolylineVertex3d[] vertices = pl3d.GetVertices(tx);
-                        //Determine if the polyline has islands
-                        //This is determined by the fact that some vertices are at -99.0
-                        //and some are at elevation
-                        //Also, require start and end to be at elevation
-                        if (vertices.Any(x => x.Position.Z.is2D()) &&
-                            vertices.Any(x => x.Position.Z.is3D()) &&
-                            vertices[0].Position.Z.is3D() &&
-                            vertices.Last().Position.Z.is3D())
-                        {
-                            //Iterate vertici and detect islands
-                            //The detection goes as follows:
-                            //Check current vertex elevation
-                            //If it is at elevation, go to the next
-                            //If it is at -99.0, flag the previous as start of grave
-                            //Then iterate until the next vertex is at elevation
-                            //When the next vertex at elevation is detected, interpolate between the start and end
-                            //of the grave.
-                            //Keep track of where the iteration is
-                            //And continue after the grave to trying to detect another grave
-                            //Until the end of the polyline is reached
-
-                            for (int i = 1; i < vertices.Length - 1; i++)
-                            {
-                                if (vertices[i].Position.Z.is3D()) continue;
-
-                                //Start of grave
-                                int graveStart = i - 1;
-                                //Iterate until the next vertex is at elevation
-                                for (int j = i + 1; j < vertices.Length; j++)
-                                {
-                                    if (vertices[j].Position.Z.is3D())
-                                    {
-                                        //End of grave
-                                        int graveEnd = j;
-                                        //Interpolation
-                                        double startElevation = vertices[graveStart].Position.Z;
-                                        double endElevation = vertices[graveEnd].Position.Z;
-                                        double AB = pl3d.GetHorizontalLengthBetweenIdxs(graveStart, graveEnd);
-                                        prdDbg(AB.ToString());
-                                        double AAmark = startElevation - endElevation;
-                                        double PB = 0;
-                                        for (int k = graveStart; k < graveEnd + 1; k++)
-                                        {
-                                            //Skip first and last vertici
-                                            if (k == graveStart || k == graveEnd) continue;
-
-                                            PB += vertices[k - 1].Position.DistanceHorizontalTo(vertices[k].Position);
-
-                                            double newElevation = startElevation - PB * (AAmark / AB);
-                                            pl3d.CheckOrOpenForWrite();
-                                            vertices[k].CheckOrOpenForWrite();
-                                            vertices[k].Position = new Point3d(
-                                                vertices[k].Position.X, vertices[k].Position.Y, newElevation);
-                                        }
-                                        //Continue after the grave
-                                        i = j;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    #endregion
-                }
-                catch (System.Exception ex)
-                {
-                    tx.Abort();
-                    prdDbg(ex);
-                    return;
-                }
-                tx.Commit();
-            }
-        }
+        public void p3dinterpolatebetweenislands() =>
+            Ler2Elevations.InterpolateBetweenIslands(Application.DocumentManager.MdiActiveDocument.Database);
 
         /// <command>LER2DETECTCOINCIDENTENDS</command>
         /// <summary>

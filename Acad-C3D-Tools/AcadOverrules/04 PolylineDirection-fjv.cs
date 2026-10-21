@@ -1,6 +1,17 @@
-﻿using Autodesk.AutoCAD.DatabaseServices;
+﻿#if BRICSCAD
+using Teigha.DatabaseServices;
+using Teigha.Geometry;
+using Teigha.Runtime;
+
+using Gi = Teigha.GraphicsInterface;
+#else
+using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
+
+using Gi = Autodesk.AutoCAD.GraphicsInterface;
+#endif
+
 using System;
 
 using IntersectUtilities.UtilsCommon.Enums;
@@ -10,9 +21,11 @@ using static IntersectUtilities.UtilsCommon.Utils;
 
 namespace AcadOverrules
 {
-    public class PolylineDirFjv : Autodesk.AutoCAD.GraphicsInterface.DrawableOverrule
+    public class PolylineDirFjv : HostDrawableOverrule
     {
-        public PolylineDirFjv()
+        //Reads the polyline's geometry and parses its layer name against static, read-only
+        //tables (PipeScheduleV2.GetPipeSystem), which is safe from any thread.
+        public PolylineDirFjv() : base(drawsOnAnyThread: true)
         {
             base.SetCustomFilter();
         }
@@ -27,7 +40,7 @@ namespace AcadOverrules
             if (overruledSubject == null) return false;
             if (overruledSubject is Polyline pline)
             {
-                if (pline.Database == null) return false;
+                if (pline.ObjectId.IsNull) return false; //Only polylines in the drawing, see PolylineRun.
                 if (GetPipeSystem(pline) == PipeSystemEnum.Ukendt) return false;
                 if (pline.NumberOfVertices < 2) return false;
                 if (pline.Length < .1) return false;
@@ -37,8 +50,8 @@ namespace AcadOverrules
         }
 
         public override bool WorldDraw(
-            Autodesk.AutoCAD.GraphicsInterface.Drawable drawable,
-            Autodesk.AutoCAD.GraphicsInterface.WorldDraw wd)
+            Gi.Drawable drawable,
+            Gi.WorldDraw wd)
         {
             base.WorldDraw(drawable, wd);
 
@@ -102,7 +115,7 @@ namespace AcadOverrules
                 points.Add(pC);
             }
 
-            //wd.SubEntityTraits.FillType = Autodesk.AutoCAD.GraphicsInterface.FillType.FillAlways;
+            //wd.SubEntityTraits.FillType = Gi.FillType.FillAlways;
             wd.Geometry.Polygon(points);
             #endregion
 

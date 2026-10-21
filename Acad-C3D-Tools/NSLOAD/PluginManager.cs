@@ -2,8 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+
+#if BRICSCAD
+using Bricscad.ApplicationServices;
+using Bricscad.EditorInput;
+#else
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.EditorInput;
+#endif
 
 using Exception = System.Exception;
 
@@ -29,75 +35,73 @@ namespace NSLOAD
 
         public static void Load(string pluginName)
         {
-            var ed = GetEditor();
             try
             {
                 var reg = GetRegistration(pluginName);
 
                 if (reg.Plugin.IsLoaded)
                 {
-                    ed?.WriteMessage($"\n{pluginName} is already loaded.");
+                    Say($"{pluginName} is already loaded.");
                     return;
                 }
 
                 if (string.IsNullOrEmpty(reg.Path))
                 {
-                    ed?.WriteMessage($"\n{pluginName} has no path configured.");
+                    Say($"{pluginName} has no path configured.");
                     return;
                 }
 
                 if (!File.Exists(reg.Path))
                 {
-                    ed?.WriteMessage($"\n{pluginName} not found: {reg.Path}");
+                    Say($"{pluginName} not found: {reg.Path}");
                     return;
                 }
 
-                reg.Plugin.Load(line => ed?.WriteMessage($"\n{line}"));
+                reg.Plugin.Load(Say);
             }
             catch (Exception ex)
             {
-                ReportFailure(ed, $"{pluginName} load error", ex);
+                ReportFailure($"{pluginName} load error", ex);
             }
             finally
             {
-                Announce(ed, pluginName);
+                Announce(pluginName);
             }
         }
 
         public static void Unload(string pluginName)
         {
-            var ed = GetEditor();
             try
             {
                 var reg = GetRegistration(pluginName);
 
                 if (!reg.Plugin.IsLoaded)
                 {
-                    ed?.WriteMessage($"\n{pluginName} is not loaded.");
+                    Say($"{pluginName} is not loaded.");
                     return;
                 }
 
-                reg.Plugin.Unload(line => ed?.WriteMessage($"\n{line}"));
+                reg.Plugin.Unload(Say);
             }
             catch (Exception ex)
             {
-                ReportFailure(ed, $"{pluginName} unload error", ex);
+                ReportFailure($"{pluginName} unload error", ex);
             }
             finally
             {
-                Announce(ed, pluginName);
+                Announce(pluginName);
             }
         }
 
         // A listener that throws must not turn a good load into a failed one, so
         // its failure is reported where every other swallowed one is.
-        private static void Announce(Editor? ed, string pluginName)
+        private static void Announce(string pluginName)
         {
             try { PluginStateChanged?.Invoke(pluginName); }
-            catch (Exception ex) { ReportFailure(ed, $"{pluginName} state change", ex); }
+            catch (Exception ex) { ReportFailure($"{pluginName} state change", ex); }
         }
 
-        /// <summary>AutoCAD is shutting down: let every plugin do its exit work.</summary>
+        /// <summary>The host is shutting down: let every plugin do its exit work.</summary>
         public static void ShutdownAll()
         {
             foreach (var reg in _plugins.Values)
@@ -145,16 +149,16 @@ namespace NSLOAD
 
         // A refusal is written for the drafter and shown as it is; anything else
         // is unexpected and keeps its full detail for whoever has to fix it.
-        private static void ReportFailure(Editor? ed, string what, Exception ex)
+        private static void ReportFailure(string what, Exception ex)
         {
             if (ex is PluginRefusedException)
             {
                 string cause = ex.InnerException != null ? $" ({ex.InnerException.Message})" : "";
-                ed?.WriteMessage($"\n{what}: {ex.Message}{cause}");
+                Say($"{what}: {ex.Message}{cause}");
                 return;
             }
-            ed?.WriteMessage($"\n{what}: {ex.Message}");
-            ed?.WriteMessage($"\n{ex}");
+            Say($"{what}: {ex.Message}");
+            Say(ex.ToString());
         }
 
         private static PluginRegistration GetRegistration(string pluginName)
@@ -165,9 +169,13 @@ namespace NSLOAD
             return reg;
         }
 
-        private static Editor? GetEditor()
+        // One line on the command line of the drawing active NOW, never an editor
+        // captured earlier: on BricsCAD a native group's unload closes the drawing
+        // it started in, and its editor then throws eInvalidDrawing.
+        private static void Say(string line)
         {
-            return Application.DocumentManager.MdiActiveDocument?.Editor;
+            Editor? ed = Application.DocumentManager.MdiActiveDocument?.Editor;
+            ed?.WriteMessage($"\n{line}");
         }
 
         internal static void AddRegistration(PluginRegistration reg)

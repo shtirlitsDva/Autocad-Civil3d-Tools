@@ -55,7 +55,6 @@ using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using OpenFileDialog = Microsoft.Win32.OpenFileDialog;
 using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 
-[assembly: CommandClass(typeof(IntersectUtilities.NoCommands))]
 namespace IntersectUtilities
 {
     public partial class Intersect : IExtensionApplication
@@ -92,6 +91,7 @@ namespace IntersectUtilities
             SafeReset("MapConnections palette", IntersectUtilities.MPE.MapConnections.MapConnectionsRuntime.Reset);
             SafeReset("Alignment direction overlay", ResetAlignmentDirectionOverlay);
             SafeReset("LERPROBE windows", IntersectUtilities.LerProbe.LerProbeSession.Reset);
+            SafeReset("LER Compare palette", global::IntersectUtilities.LerCompare.LerCompareRuntime.Reset);
             SafeReset("Properties palette", Dreambuild.AutoCAD.Gui.ResetPropertyPalette);
         }
 
@@ -116,87 +116,8 @@ namespace IntersectUtilities
         /// </summary>
         /// <category>LER</category>
         [CommandMethod("LISTINTLAYCHECKALL")]
-        public void listintlaycheck()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database db = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-            using (Transaction tx = db.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    #region Gather layer names
-
-                    HashSet<Line> lines = db.HashSetOfType<Line>(tx);
-                    HashSet<Spline> splines = db.HashSetOfType<Spline>(tx);
-                    HashSet<Polyline> plines = db.HashSetOfType<Polyline>(tx);
-                    HashSet<Polyline3d> plines3d = db.HashSetOfType<Polyline3d>(tx);
-                    HashSet<Arc> arcs = db.HashSetOfType<Arc>(tx);
-                    editor.WriteMessage($"\nNr. of lines: {lines.Count}");
-                    editor.WriteMessage($"\nNr. of splines: {splines.Count}");
-                    editor.WriteMessage($"\nNr. of plines: {plines.Count}");
-                    editor.WriteMessage($"\nNr. of plines3d: {plines3d.Count}");
-                    editor.WriteMessage($"\nNr. of arcs: {arcs.Count}");
-                    HashSet<string> layNames = new HashSet<string>();
-                    //Local function to avoid duplicate code
-                    HashSet<string> LocalListNames<T>(HashSet<string> list, HashSet<T> ents)
-                    {
-                        foreach (Entity ent in ents.Cast<Entity>())
-                        {
-                            list.Add(ent.Layer);
-                        }
-                        return list;
-                    }
-                    layNames = LocalListNames(layNames, lines);
-                    layNames = LocalListNames(layNames, splines);
-                    layNames = LocalListNames(layNames, plines);
-                    layNames = LocalListNames(layNames, plines3d);
-                    layNames = LocalListNames(layNames, arcs);
-                    #endregion
-
-                    #region Read Csv Data for Layers and Depth
-                    var krydsninger = Csv.Krydsninger;
-                    var dybde = Csv.Dybde;
-                    #endregion
-
-                    foreach (string name in layNames)
-                    {
-                        string? nameInFile = krydsninger.Navn(name);
-                        if (nameInFile.IsNoE())
-                        {
-                            editor.WriteMessage($"\nDefinition af ledningslag '{name}' mangler i Krydsninger.csv!");
-                        }
-                        else
-                        {
-                            string? typeInFile = krydsninger.Type(name);
-                            if (typeInFile == "IGNORE")
-                            {
-                                editor.WriteMessage($"\nAdvarsel: Ledningslag" +
-                                        $" '{name}' er sat til 'IGNORE' og dermed ignoreres.");
-                            }
-                            else
-                            {
-                                string? layerInFile = krydsninger.Layer(name);
-                                if (layerInFile.IsNoE())
-                                    editor.WriteMessage($"\nFejl: Definition af kolonne \"Layer\" for ledningslag" +
-                                        $" '{name}' mangler i Krydsninger.csv!");
-                                if (typeInFile.IsNoE())
-                                    editor.WriteMessage($"\nFejl: Definition af kolonne \"Type\" for ledningslag" +
-                                        $" '{name}' mangler i Krydsninger.csv!");
-                            }
-                        }
-                    }
-                }
-                catch (System.Exception ex)
-                {
-                    editor.WriteMessage("\n" + ex.Message);
-                    return;
-                }
-                tx.Commit();
-            }
-        }
+        public void listintlaycheck() =>
+            LER.LerLayers.CheckAll(Application.DocumentManager.MdiActiveDocument.Database);
 
         /// <command>CONVERTLINESTOPOLIES</command>
         /// <summary>
@@ -2111,115 +2032,9 @@ namespace IntersectUtilities
         /// </summary>
         /// <category>Dimensioning</category>
         [CommandMethod("PIPELAYERSCOLOURSET")]
-        public void pipelayerscolourset()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    LayerTable lt = localDb.LayerTableId.Go<LayerTable>(tx);
-                    List<LayerTableRecord> pipeLtrs = new List<LayerTableRecord>();
-                    foreach (var ltrid in lt)
-                    {
-                        LayerTableRecord ltr = ltrid.Go<LayerTableRecord>(tx);
-                        if (GetPipeDN(ltr.Name) != 0) pipeLtrs.Add(ltr);
-                    }
-                    pipeLtrs = pipeLtrs
-                        .OrderBy(x => GetSystemString(x.Name))
-                        .ThenBy(x => GetPipeType(x.Name))
-                        .ThenBy(x => GetPipeDN(x.Name))
-                        .ToList();
-                    prdDbg($"Number of pipe layers in drawing: {pipeLtrs.Count}");
-                    //List<Color> colors = new List<Color>();
-                    #region HSL H stepping method, produces many similar-looking colors
-                    //Random random = new Random();
-                    //for (int h = 0; h < 360; h += 360 / pipeLtrs.Count)
-                    //{
-                    //    double hue = h;
-                    //    double saturation = (90.0 + random.Next(0, 11)) / 100.0;
-                    //    //double saturation = random.NextDouble();
-                    //    //double lightness = random.NextDouble();
-                    //    double lightness = (25.0 + random.Next(0, 36)) / 100.0;
-                    //    prdDbg($"HSL: {hue}, {saturation}, {lightness}");
-                    //    System.Drawing.Color color = ColorUtils.SimpleColorTransforms.HsLtoRgb(hue, saturation, lightness);
-                    //    prdDbg(color.ToString());
-                    //    colors.Add(Color.FromRgb(color.R, color.G, color.B));
-                    //} 
-                    #endregion
-                    //Old method to assign colors
-                    //if (pipeLtrs.Count > ColorUtils.StaticColorList.StaticColors.Count)
-                    //    throw new System.Exception($"There are {pipeLtrs.Count} layers and only " +
-                    //        $"{ColorUtils.StaticColorList.StaticColors.Count} colours!");
-                    //for (int j = 0; j < pipeLtrs.Count; j++)
-                    //{
-                    //    string colorString = ColorUtils.StaticColorList.StaticColors[j];
-                    //    System.Drawing.Color color = System.Drawing.ColorTranslator.FromHtml(colorString);
-                    //    colors.Add(Color.FromRgb(color.R, color.G, color.B));
-                    //}
-                    //var zip = pipeLtrs.Zip(colors, (x, y) => new { layer = x, color = y });
-                    #region Determine upper right corner of all polylines: Point3d UpperRightCorner
-                    //To place legend find bbox of all plines and place legend at the top right corner
-                    HashSet<Polyline> allPlines = localDb.HashSetOfType<Polyline>(tx)
-                        .Where(x => GetPipeDN(x) != 0).ToHashSet();
-                    //Determine maximum points
-                    HashSet<double> Xs = new HashSet<double>();
-                    HashSet<double> Ys = new HashSet<double>();
-                    foreach (var pl in allPlines)
-                    {
-                        Extents3d bbox = pl.GeometricExtents;
-                        Xs.Add(bbox.MaxPoint.X);
-                        Xs.Add(bbox.MinPoint.X);
-                        Ys.Add(bbox.MaxPoint.Y);
-                        Ys.Add(bbox.MinPoint.Y);
-                    }
-                    double maxX = Xs.Max();
-                    double maxY = Ys.Max();
-                    Point3d upperRightCorner = new Point3d(maxX, maxY, 0);
-                    #endregion
-                    //Assign colors and create legend
-                    int i = 0;
-                    foreach (var layer in pipeLtrs)
-                    {
-                        //Determine color
-                        Color color = Color.FromColorIndex(ColorMethod.ByAci,
-                            GetColorForDim(layer.Name));
-                        layer.CheckOrOpenForWrite();
-                        layer.Color = color;
-                        //Create legend
-                        double vDist = 10;
-                        Point3d p1 = new Point3d(upperRightCorner.X, upperRightCorner.Y + vDist * i, 0.0);
-                        Point3d p2 = new Point3d(upperRightCorner.X + 50.0, upperRightCorner.Y + vDist * i, 0.0);
-                        Line line = new Line(p1, p2);
-                        line.AddEntityToDbModelSpace(localDb);
-                        line.SetDatabaseDefaults();
-                        line.Layer = "0";
-                        line.Color = color;
-                        DBText text = new DBText();
-                        text.AddEntityToDbModelSpace(localDb);
-                        text.SetDatabaseDefaults();
-                        text.Position = new Point3d(p2.X + 10.0, p2.Y, 0.0);
-                        text.Height = 5;
-                        text.Color = color;
-                        text.TextString =
-                            $"{GetSystemString(layer.Name)}{GetPipeDN(layer.Name)}-" +
-                            $"{GetPipeType(layer.Name)}";
-                        i--;
-                    }
-                }
-                catch (System.Exception ex)
-                {
-                    tx.Abort();
-                    editor.WriteMessage("\n" + ex.ToString());
-                    return;
-                }
-                tx.Commit();
-            }
-        }
+        public void pipelayerscolourset() =>
+            Dimensioning.PipeLayerColours.Set(Application.DocumentManager.MdiActiveDocument.Database);
+
         /// <command>PIPELAYERSCOLOURRESET</command>
         /// <summary>
         /// Resets the color of pipe layers.
@@ -2227,183 +2042,16 @@ namespace IntersectUtilities
         /// </summary>
         /// <category>Dimensioning</category>
         [CommandMethod("PIPELAYERSCOLOURRESET")]
-        public void pipelayerscolourreset()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    LayerTable lt = localDb.LayerTableId.Go<LayerTable>(tx);
-                    List<LayerTableRecord> pipeLtrs = new List<LayerTableRecord>();
-                    foreach (var ltrid in lt)
-                    {
-                        LayerTableRecord ltr = ltrid.Go<LayerTableRecord>(tx);
-                        if (GetPipeDN(ltr.Name) != 0) pipeLtrs.Add(ltr);
-                    }
-                    pipeLtrs = pipeLtrs.OrderBy(x => x.Name).ToList();
-                    prdDbg($"Number of pipe layers in drawing: {pipeLtrs.Count}");
-                    //Assign colors and create legend
-                    foreach (var ltr in pipeLtrs)
-                    {
-                        ltr.CheckOrOpenForWrite();
-                        ltr.Color = Color.FromColorIndex(ColorMethod.ByAci,
-                            GetLayerColor(GetPipeSystem(ltr.Name), GetPipeType(ltr.Name)));
-                    }
-                }
-                catch (System.Exception ex)
-                {
-                    tx.Abort();
-                    editor.WriteMessage("\n" + ex.ToString());
-                    return;
-                }
-                tx.Commit();
-            }
-        }
+        public void pipelayerscolourreset() =>
+            Dimensioning.PipeLayerColours.Reset(Application.DocumentManager.MdiActiveDocument.Database);
         /// <command>FIXLERLAYERS</command>
         /// <summary>
         /// Assigns correct linetypes and colors to Ler polylines(3d).
         /// </summary>
         /// <category>LER</category>
         [CommandMethod("FIXLERLAYERS")]
-        public void fixlerlayers()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            fixlerlayersmethod(localDb);
-        }
-        public void fixlerlayersmethod(Database localDb)
-        {
-            var krydsninger = Csv.Krydsninger;
-            var lagLer = Csv.LagLer;
-
-            // Helper to strip -2D and -3D suffixes from layer names for LagLer lookup
-            static string StripSuffix(string? layerName)
-            {
-                if (string.IsNullOrEmpty(layerName)) return string.Empty;
-                if (layerName.EndsWith("-2D")) return layerName[..^3];
-                if (layerName.EndsWith("-3D")) return layerName[..^3];
-                return layerName;
-            }
-
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    LayerTable lt = localDb.LayerTableId.Go<LayerTable>(localDb.TransactionManager.TopTransaction);
-                    //Cache layers in memory
-                    HashSet<LayerTableRecord> layers = new HashSet<LayerTableRecord>();
-                    foreach (Oid lid in lt) layers.Add(lid.Go<LayerTableRecord>(tx));
-                    #region Prepare linetypes
-                    LinetypeTable ltt = (LinetypeTable)localDb.TransactionManager.TopTransaction
-                            .GetObject(localDb.LinetypeTableId, OpenMode.ForWrite);
-                    //Lookup linetype specification and link to layer name
-                    Dictionary<string, string> layerLineTypeMap = new Dictionary<string, string>();
-                    foreach (var layer in layers)
-                    {
-                        string lookupKey = StripSuffix(layer.Name);
-                        string? lineTypeName = lagLer.LineType(lookupKey);
-                        if (lineTypeName.IsNoE()) prdDbg($"LineTypeName is missing for {layer.Name}!");
-                        layerLineTypeMap.Add(layer.Name, lineTypeName ?? string.Empty);
-                    }
-                    //Check if all line types are present
-                    HashSet<string> missingLineTypes = new HashSet<string>();
-                    foreach (var layer in layers)
-                    {
-                        string lineTypeName = layerLineTypeMap[layer.Name];
-                        if (lineTypeName.IsNoE()) continue;
-                        if (!ltt.Has(lineTypeName)) missingLineTypes.Add(lineTypeName);
-                    }
-                    if (missingLineTypes.Count > 0)
-                    {
-                        Database ltDb = new Database(false, true);
-                        ltDb.ReadDwgFile("X:\\AutoCAD DRI - 01 Civil 3D\\Projection_styles.dwg",
-                            FileOpenMode.OpenForReadAndAllShare, false, null);
-                        Transaction ltTx = ltDb.TransactionManager.StartTransaction();
-                        Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
-                        LinetypeTable sourceLtt = (LinetypeTable)ltDb.TransactionManager.TopTransaction
-                            .GetObject(ltDb.LinetypeTableId, OpenMode.ForRead);
-                        ObjectIdCollection idsToClone = new ObjectIdCollection();
-                        foreach (string missingName in missingLineTypes)
-                        {
-                            if (sourceLtt.Has(missingName)) idsToClone.Add(sourceLtt[missingName]);
-                            else prdDbg($"Missing linetype {missingName} not found in Projection_styles.dwg!");
-                        }
-                        IdMapping mapping = new IdMapping();
-                        ltDb.WblockCloneObjects(idsToClone, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
-                        ltTx.Commit();
-                        ltTx.Dispose();
-                        ltDb.Dispose();
-                    }
-                    #endregion
-                    foreach (LayerTableRecord ltr in layers)
-                    {
-                        string layerName = ltr.Name;
-                        if (!krydsninger.HasNavn(layerName))
-                        {
-                            prdDbg($"UNKNOWN LAYER: {ltr.Name}");
-                            continue;
-                        }
-                        string? type = krydsninger.Type(layerName);
-                        if (type == "IGNORE") { prdDbg($"Layer {layerName} IGNORED!"); continue; }
-
-                        string lookupKey = StripSuffix(layerName);
-                        if (!lagLer.HasLayer(lookupKey))
-                        {
-                            prdDbg($"Ler layer {layerName} (lookup: {lookupKey}) not found in LagLer! Tilføj laget i LagLer.csv.");
-                            continue;
-                        }
-                        string? farveString = lagLer.Farve(lookupKey);
-                        Color color = UtilsCommon.Utils.ParseColorString(farveString);
-                        if (color == null)
-                        {
-                            prdDbg($"Failed to read color for layer name {layerName} with colorstring {farveString}. Skipping!");
-                            continue;
-                        }
-                        ltr.CheckOrOpenForWrite();
-                        ltr.Color = color;
-                        #region Read and assign layer's linetype
-                        Oid lineTypeId;
-                        string lineTypeName = layerLineTypeMap[layerName];
-                        if (lineTypeName.IsNoE())
-                        {
-                            prdDbg($"WARNING! Layer name {layerName} does not have a line type specified!.");
-                            //If linetype string is NoE -> CONTINUOUS linetype must be used
-                            lineTypeId = ltt["Continuous"];
-                        }
-                        else
-                        {
-                            //the presence of the linetype is assured in previous section.
-                            lineTypeId = ltt[lineTypeName];
-                        }
-                        ltr.LinetypeObjectId = lineTypeId;
-                        #endregion
-                    }
-                    #region Set objects to byLayer
-                    var list = localDb.ListOfType<Entity>(tx);
-                    foreach (Entity item in list)
-                    {
-                        if (item is Polyline || item is Polyline3d)
-                        {
-                            item.CheckOrOpenForWrite();
-                            item.Color = Color.FromColorIndex(ColorMethod.ByAci, 256);
-                            item.Linetype = "ByLayer";
-                        }
-                    }
-                    #endregion
-                }
-                catch (System.Exception ex)
-                {
-                    prdDbg(ex);
-                    return;
-                }
-                tx.Commit();
-            }
-        }
+        public void fixlerlayers() =>
+            LER.LerLayers.Fix(Application.DocumentManager.MdiActiveDocument.Database);
         /// <command>EXPORTBLOCKSPSDATATOCSV</command>
         /// <summary>
         /// Exports BBR block property set data to a CSV file. BBR.csv placed in the same folder as the drawing.
@@ -5962,6 +5610,4 @@ namespace IntersectUtilities
         }
 
     }
-
-    public class NoCommands { }
 }

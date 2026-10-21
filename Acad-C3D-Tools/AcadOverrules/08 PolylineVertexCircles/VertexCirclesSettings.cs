@@ -96,21 +96,12 @@ namespace AcadOverrules.VertexCircles
     }
 
     /// <summary>
-    /// How one class of segment (straight or arc) is drawn when the profile overrides it.
-    /// Unlike a vertex circle, which is extra geometry on top of the polyline, an overridden
-    /// segment replaces the polyline's own graphics for that segment: the overrule draws the
-    /// segment itself with these traits instead of letting the polyline draw it.
-    /// Every property defaults to "same as the polyline", so a freshly enabled override
-    /// changes nothing until the user picks something.
+    /// The traits of a line drawn in relation to the polyline: colour, lineweight and
+    /// linetype, each with a "same as the polyline" value. Every property defaults to that
+    /// value, so a fresh style looks exactly like the polyline.
     /// </summary>
-    public sealed class SegmentStyle
+    public class LineStyle
     {
-        /// <summary>
-        /// Off: the polyline draws this class of segment as it always has. On: the overrule
-        /// draws it with the traits below.
-        /// </summary>
-        public bool Override { get; set; } = false;
-
         public SegmentColorMode ColorMode { get; set; } = SegmentColorMode.Polyline;
 
         /// <summary>
@@ -120,13 +111,13 @@ namespace AcadOverrules.VertexCircles
         public string FixedColor { get; set; } = DefaultFixedColor;
 
         /// <summary>
-        /// Segment lineweight relative to the lineweight of the polyline. Exactly 1 keeps the
+        /// Lineweight relative to the lineweight of the polyline. Exactly 1 keeps the
         /// polyline's lineweight trait as it is, ByLayer included.
         /// </summary>
         public double LineWeightFactor { get; set; } = DefaultLineWeightFactor;
 
         /// <summary>
-        /// Name of the linetype the segment is drawn with. Empty means the polyline's own
+        /// Name of the linetype the line is drawn with. Empty means the polyline's own
         /// linetype. A name that is not loaded in the drawing on screen resolves to Continuous,
         /// see <see cref="LinetypeResolver"/>.
         /// </summary>
@@ -142,14 +133,99 @@ namespace AcadOverrules.VertexCircles
         [System.Text.Json.Serialization.JsonIgnore]
         public bool UsesPolylineLinetype => string.IsNullOrWhiteSpace(Linetype);
 
-        public SegmentStyle Clone() =>
-            new SegmentStyle
+        public LineStyle Clone() => CopyTo(new LineStyle());
+
+        protected T CopyTo<T>(T target) where T : LineStyle
+        {
+            target.ColorMode = ColorMode;
+            target.FixedColor = FixedColor;
+            target.LineWeightFactor = LineWeightFactor;
+            target.Linetype = Linetype;
+            return target;
+        }
+    }
+
+    /// <summary>
+    /// How one class of segment (straight or arc) is drawn when the profile overrides it.
+    /// Unlike a vertex circle, which is extra geometry on top of the polyline, an overridden
+    /// segment replaces the polyline's own graphics for that segment: the overrule draws the
+    /// segment itself with these traits instead of letting the polyline draw it.
+    /// Every property defaults to "same as the polyline", so a freshly enabled override
+    /// changes nothing until the user picks something.
+    /// </summary>
+    public sealed class SegmentStyle : LineStyle
+    {
+        /// <summary>
+        /// Off: the polyline draws this class of segment as it always has. On: the overrule
+        /// draws it with the traits of the <see cref="LineStyle"/>.
+        /// </summary>
+        public bool Override { get; set; } = false;
+
+        public new SegmentStyle Clone()
+        {
+            SegmentStyle copy = CopyTo(new SegmentStyle());
+            copy.Override = Override;
+            return copy;
+        }
+    }
+
+    /// <summary>
+    /// The tangent intersection of an arc segment: the point where the tangents at the
+    /// arc's start and end meet - the corner the two straight segments would have made if
+    /// the arc were not there (the PI of a road or pipe bend). When shown, each arc gets two
+    /// lines, arc start to corner and corner to arc end, and a circle at the corner. The
+    /// corner is also an object snap point (Center and Node), see
+    /// <see cref="PolylineTangentIntersectionSnap"/>.
+    ///
+    /// Arcs of about 177 degrees and more are skipped: at 180 the tangents are parallel and
+    /// beyond it the corner lies behind the arc.
+    /// </summary>
+    public sealed class TangentIntersectionStyle
+    {
+        /// <summary>Off by default, so existing profiles draw exactly as before.</summary>
+        public bool Show { get; set; } = false;
+
+        /// <summary>The two tangent lines. Default: thin and dashed, in the polyline's colour.</summary>
+        public LineStyle Lines { get; set; } = DefaultLines();
+
+        /// <summary>The circle at the corner.</summary>
+        public MarkerStyle Point { get; set; } = DefaultPoint();
+
+        /// <summary>
+        /// Loaded into the drawing when the feature is switched on, see
+        /// <see cref="LinetypeLoader"/>, because a drawing does not have it by default.
+        /// </summary>
+        public const string DefaultLinetype = "DASHED";
+
+        /// <summary>Half the polyline's lineweight: a construction line, not a pipe.</summary>
+        public const double DefaultLineWeightFactor = 0.5;
+
+        /// <summary>
+        /// Bigger than the arc vertex circle (<see cref="MarkerStyle.DefaultArcRadius"/>) so
+        /// the corner is not mistaken for a vertex.
+        /// </summary>
+        public const double DefaultPointRadius = 0.15;
+
+        public static LineStyle DefaultLines() =>
+            new LineStyle
             {
-                Override = Override,
-                ColorMode = ColorMode,
-                FixedColor = FixedColor,
-                LineWeightFactor = LineWeightFactor,
-                Linetype = Linetype,
+                LineWeightFactor = DefaultLineWeightFactor,
+                Linetype = DefaultLinetype,
+            };
+
+        public static MarkerStyle DefaultPoint() =>
+            new MarkerStyle
+            {
+                Radius = DefaultPointRadius,
+                LineWeightFactor = DefaultLineWeightFactor,
+            };
+
+        public TangentIntersectionStyle Clone() =>
+            new TangentIntersectionStyle
+            {
+                Show = Show,
+                Lines = Lines.Clone(),
+                Point = Point.Clone(),
             };
     }
 
@@ -166,6 +242,9 @@ namespace AcadOverrules.VertexCircles
     ///
     /// Segments: each class of segment can have its own <see cref="SegmentStyle"/> that
     /// replaces the polyline's own graphics for that class.
+    ///
+    /// Tangent intersections: optionally the corner of every arc segment is drawn, see
+    /// <see cref="TangentIntersectionStyle"/>.
     /// </summary>
     public sealed class VertexCirclesSettings
     {
@@ -196,6 +275,9 @@ namespace AcadOverrules.VertexCircles
         /// <summary>How arc segments are drawn, when overridden.</summary>
         public SegmentStyle ArcSegment { get; set; } = new SegmentStyle();
 
+        /// <summary>The corner of every arc segment, see <see cref="TangentIntersectionStyle"/>.</summary>
+        public TangentIntersectionStyle TangentIntersections { get; set; } = new TangentIntersectionStyle();
+
         /// <summary>
         /// Layer names and layer name masks the overrule applies to. AutoCAD wildcards are
         /// supported, so <c>0-FJV-*</c> works the same way it does in the layer manager.
@@ -216,6 +298,7 @@ namespace AcadOverrules.VertexCircles
                 ArcVertexAtArcEnd = ArcVertexAtArcEnd,
                 StraightSegment = StraightSegment.Clone(),
                 ArcSegment = ArcSegment.Clone(),
+                TangentIntersections = TangentIntersections.Clone(),
                 LayerFilters = LayerFilters.ToList(),
             };
     }

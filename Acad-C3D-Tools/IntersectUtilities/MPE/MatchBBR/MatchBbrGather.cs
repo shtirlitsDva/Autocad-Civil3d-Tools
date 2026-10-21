@@ -348,7 +348,7 @@ namespace IntersectUtilities.MPE.MatchBBR
         {
             try
             {
-                switch (property.DataType)
+                switch (property.AecDataType)
                 {
                     case PsDataType.Real:
                     {
@@ -361,7 +361,7 @@ namespace IntersectUtilities.MPE.MatchBBR
                         return new BbrPropertyValue(
                             value.ToString("0.##", System.Globalization.CultureInfo.CurrentCulture),
                             value,
-                            property.DataType);
+                            property.AecDataType);
                     }
 
                     case PsDataType.Integer:
@@ -370,19 +370,19 @@ namespace IntersectUtilities.MPE.MatchBBR
                         return new BbrPropertyValue(
                             value.ToString(System.Globalization.CultureInfo.CurrentCulture),
                             value,
-                            property.DataType);
+                            property.AecDataType);
                     }
 
                     case PsDataType.TrueFalse:
                     {
                         bool value = psm.ReadPropertyBool(entity, property);
-                        return new BbrPropertyValue(value.ToString(), null, property.DataType);
+                        return new BbrPropertyValue(value.ToString(), null, property.AecDataType);
                     }
 
                     default:
                     {
                         string value = psm.ReadPropertyString(entity, property) ?? string.Empty;
-                        return new BbrPropertyValue(value, null, property.DataType);
+                        return new BbrPropertyValue(value, null, property.AecDataType);
                     }
                 }
             }

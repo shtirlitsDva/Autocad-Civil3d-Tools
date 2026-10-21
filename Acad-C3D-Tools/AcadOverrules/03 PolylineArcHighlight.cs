@@ -1,7 +1,18 @@
+#if BRICSCAD
+using Teigha.Colors;
+using Teigha.DatabaseServices;
+using Teigha.Geometry;
+using Teigha.Runtime;
+
+using Gi = Teigha.GraphicsInterface;
+#else
 using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
+
+using Gi = Autodesk.AutoCAD.GraphicsInterface;
+#endif
 
 using System;
 
@@ -21,7 +32,7 @@ namespace AcadOverrules
     /// - A line-line junction that is not collinear is labelled with the
     ///   deviation angle in degrees (4 decimals).
     /// </summary>
-    public class PolylineArcHighlight : Autodesk.AutoCAD.GraphicsInterface.DrawableOverrule
+    public class PolylineArcHighlight : HostDrawableOverrule
     {
         // Cyan color (ACI index 4)
         private const short CyanColor = 4;
@@ -47,12 +58,10 @@ namespace AcadOverrules
         // unfilled (transparent) so it does not obscure the geometry underneath.
         private static readonly EntityColor WarningColor = new EntityColor((byte)255, (byte)128, (byte)0);
 
-        private static readonly Autodesk.AutoCAD.GraphicsInterface.TextStyle AngleTextStyle =
-            new Autodesk.AutoCAD.GraphicsInterface.TextStyle(
-                "Arial", "Arial", LabelHeight, 0.0, 0.0, 0.0,
-                false, false, false, false, false, false, "MyStd");
+        private static readonly Gi.TextStyle AngleTextStyle = OverruleTextStyle.Arial(LabelHeight);
 
-        public PolylineArcHighlight()
+        //Main thread only: every draw shares one TextStyle.
+        public PolylineArcHighlight() : base(drawsOnAnyThread: false)
         {
             base.SetCustomFilter();
         }
@@ -62,7 +71,7 @@ namespace AcadOverrules
             if (overruledSubject == null) return false;
             if (overruledSubject is Polyline pline)
             {
-                if (pline.Database == null) return false;
+                if (pline.ObjectId.IsNull) return false; //Only polylines in the drawing, see PolylineRun.
                 if (pline.NumberOfVertices < 2) return false;
                 if (pline.Length < 0.1) return false;
                 // Only apply to polylines that have arc segments
@@ -73,8 +82,8 @@ namespace AcadOverrules
         }
 
         public override bool WorldDraw(
-            Autodesk.AutoCAD.GraphicsInterface.Drawable drawable,
-            Autodesk.AutoCAD.GraphicsInterface.WorldDraw wd)
+            Gi.Drawable drawable,
+            Gi.WorldDraw wd)
         {
             // First, draw the original polyline
             base.WorldDraw(drawable, wd);
@@ -96,7 +105,7 @@ namespace AcadOverrules
 
                 // Draw the arc segment on top with cyan color
                 // Using Polyline method which respects the polyline's width
-                wd.Geometry.Polyline(pline, i, 1);
+                PolylineRun.Draw(wd, pline, i, 1);
             }
 
             DrawTangencyWarnings(pline, wd);
@@ -110,7 +119,7 @@ namespace AcadOverrules
         /// line-line junction with its deviation angle.
         /// </summary>
         private static void DrawTangencyWarnings(
-            Polyline pline, Autodesk.AutoCAD.GraphicsInterface.WorldDraw wd)
+            Polyline pline, Gi.WorldDraw wd)
         {
             try
             {
@@ -208,7 +217,7 @@ namespace AcadOverrules
         /// <paramref name="size"/> is the triangle's base half-width.
         /// </summary>
         private static void DrawWarningSign(
-            Autodesk.AutoCAD.GraphicsInterface.WorldDraw wd, Point3d pos, double size)
+            Gi.WorldDraw wd, Point3d pos, double size)
         {
             // Upward-pointing triangle (offsets around the anchor point).
             // Outline only - the fill is fully transparent (alpha 0).
@@ -248,7 +257,7 @@ namespace AcadOverrules
         /// opacity (0 = transparent / outline only, 255 = opaque).
         /// </summary>
         private static void DrawFilledPolygon(
-            Autodesk.AutoCAD.GraphicsInterface.WorldDraw wd,
+            Gi.WorldDraw wd,
             Point3d position,
             Point3dCollection points,
             EntityColor fill,
@@ -259,10 +268,10 @@ namespace AcadOverrules
             Point3dCollection polygonPositions = new Point3dCollection { position };
             UInt32Collection numPolygonPoints = new UInt32Collection(1) { (uint)points.Count };
             EntityColorCollection outlineColors = new EntityColorCollection(1) { outline };
-            Autodesk.AutoCAD.GraphicsInterface.LinetypeCollection outlineTypes =
-                new Autodesk.AutoCAD.GraphicsInterface.LinetypeCollection
+            Gi.LinetypeCollection outlineTypes =
+                new Gi.LinetypeCollection
                 {
-                    Autodesk.AutoCAD.GraphicsInterface.Linetype.Solid
+                    Gi.Linetype.Solid
                 };
             EntityColorCollection fillColors = new EntityColorCollection(1) { fill };
             TransparencyCollection fillOpacities =
@@ -280,7 +289,7 @@ namespace AcadOverrules
         /// never touches or crosses the polyline.
         /// </summary>
         private static void DrawAngleLabel(
-            Autodesk.AutoCAD.GraphicsInterface.WorldDraw wd,
+            Gi.WorldDraw wd,
             Point3d vertPos, Vector3d incoming, Vector3d outgoing)
         {
             double deviationDeg = incoming.GetAngleTo(outgoing).ToDeg();

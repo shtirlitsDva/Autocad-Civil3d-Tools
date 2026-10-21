@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <HasSharedItems>true</HasSharedItems>
+    <SharedGUID>6d3f2a8e-4b1c-4f0e-9a57-2c8e1d4b7a90</SharedGUID>
+  </PropertyGroup>
+  <!-- AEC property sets without the AEC API: the DWG filer stream of AecDbPropertySet,
+       AecDbPropertySetDef and AecDbScheduleDataFormat, read and written through DwgOut /
+       DwgIn with our own filers. Manual Integer / Real / Text / True-False properties.
+
+       Consumers: LERImporter (writes the LER sets on BricsCAD) and NorsynDrawingToolsManaged
+       in NorsynDrawingTools (the property set browser on BricsCAD).
+
+       AecStream, AecValues and Unions are pure and compile on every lane (the tests link
+       them). AecFilers, AecObjects and AecSets use BricsCAD's API and compile on the BricsCAD
+       lane only (NorsynHost=BricsCAD, the host axis both repos build on): a managed file
+       filer handed to Autodesk's AEC objects takes Civil 3D down (NorsynDrawingTools
+       docs/rnd/ler-property-sets-native.md <risks>). On Civil, use the AEC API. -->
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)Unions.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)AecValues.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)AecStream.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(NorsynHost)' == 'BricsCAD'">
+    <Compile Include="$(MSBuildThisFileDirectory)AecFilers.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)AecObjects.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)AecSets.cs" />
+  </ItemGroup>
+</Project>

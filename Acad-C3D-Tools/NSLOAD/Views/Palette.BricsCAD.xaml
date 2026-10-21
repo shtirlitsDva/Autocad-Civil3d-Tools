@@ -1,0 +1,16 @@
+<!-- The manager's colours on BricsCAD, from the company's BricsCAD palette
+     (X:\...\00 Bricscad porting\ui-panels.md, theming): neutrals with a slight
+     blue bias, never pure greys. Compiled as Views\Palette.xaml by the BricsCAD
+     build only (NSLOAD.csproj). Palette.AutoCAD.xaml must define exactly the
+     same keys. -->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Color x:Key="BgColor">#25292E</Color>
+    <Color x:Key="SurfaceColor">#1F2633</Color>
+    <Color x:Key="BorderColor">#3E4047</Color>
+    <Color x:Key="AccentColor">#3D78C5</Color>
+    <Color x:Key="DangerColor">#E53E3E</Color>
+    <Color x:Key="SuccessColor">#48BB78</Color>
+    <Color x:Key="FgColor">#E7EBF2</Color>
+    <Color x:Key="MutedColor">#9096A2</Color>
+</ResourceDictionary>

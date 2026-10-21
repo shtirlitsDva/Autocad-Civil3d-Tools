@@ -4,7 +4,11 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 
+#if BRICSCAD
+using Teigha.Runtime;
+#else
 using Autodesk.AutoCAD.Runtime;
+#endif
 
 using Exception = System.Exception;
 
@@ -21,7 +25,7 @@ namespace NSLOAD.Native
     }
 
     /// <summary>
-    /// The only place in NSLOAD that touches AutoCAD's dynamic linker.
+    /// The only place in NSLOAD that touches the host's dynamic linker.
     /// </summary>
     /// <remarks>
     /// COPIED from DevReload's <c>DevReload.Oarx.OarxModuleHost</c> (DevReload
@@ -105,9 +109,9 @@ namespace NSLOAD.Native
             catch (Exception ex)
             {
                 throw new OarxModuleException(
-                    $"AutoCAD refused to load '{Path.GetFileName(fullPath)}'. " +
+                    $"{HostInfo.AppName} refused to load '{Path.GetFileName(fullPath)}'. " +
                     "The usual causes are a missing dependency next to the module, " +
-                    "a module built against a different ObjectARX/AutoCAD version, " +
+                    $"a module built against a different {HostInfo.NativeSdk} version, " +
                     $"or a mismatched platform. Dependencies were searched in: {dir}", ex);
             }
             finally
@@ -139,7 +143,7 @@ namespace NSLOAD.Native
             catch (Exception ex)
             {
                 throw new OarxModuleException(
-                    $"AutoCAD refused to unload '{moduleFileName}'. " +
+                    $"{HostInfo.AppName} refused to unload '{moduleFileName}'. " +
                     "The module is locked (its entry point never called " +
                     "unlockApplication) or something still depends on it.", ex);
             }
@@ -147,7 +151,7 @@ namespace NSLOAD.Native
             if (IsLoaded(moduleFileName))
                 throw new OarxModuleException(
                     $"'{moduleFileName}' reported no error but is still registered " +
-                    "with the dynamic linker.");
+                    "with the dynamic linker." + HostInfo.StillLoadedHint);
         }
 
         /// <summary>

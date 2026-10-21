@@ -36,8 +36,6 @@ using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using Microsoft.Win32;
 
-[assembly: CommandClass(typeof(SheetCreationAutomation.NoCommands))]
-
 namespace SheetCreationAutomation
 {
     public class Commands : IExtensionApplication
@@ -310,6 +308,4 @@ namespace SheetCreationAutomation
             }
         }
     }
-
-    public class NoCommands { }
 }

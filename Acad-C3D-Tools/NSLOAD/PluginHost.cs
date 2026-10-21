@@ -3,6 +3,12 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 
+#if BRICSCAD
+using ExtensionApplicationAttribute = Teigha.Runtime.ExtensionApplicationAttribute;
+#else
+using ExtensionApplicationAttribute = Autodesk.AutoCAD.Runtime.ExtensionApplicationAttribute;
+#endif
+
 namespace NSLOAD
 {
     public class PluginHost<TPlugin> where TPlugin : class
@@ -51,13 +57,13 @@ namespace NSLOAD
                 exportedTypes = ex.Types.Where(t => t != null).ToArray()!;
             }
 
-            // Same two branches AutoCAD's own loader takes: the assembly-level
+            // Same two branches the host's own loader takes: the assembly-level
             // [ExtensionApplication] names the type outright, and only without
             // one does the first non-abstract exported implementation win. An
             // assembly can export several implementations, so scanning where the
-            // author declared a type would pick a different one than AutoCAD did.
+            // author declared a type would pick a different one than the host did.
             Type? declared = pluginAssembly
-                .GetCustomAttributes<Autodesk.AutoCAD.Runtime.ExtensionApplicationAttribute>()
+                .GetCustomAttributes<ExtensionApplicationAttribute>()
                 .FirstOrDefault()?.Type;
 
             if (declared != null)

@@ -1,5 +1,7 @@
 using System.Windows.Controls;
 
+using IntersectUtilities.UtilsCommon.DataManager.ConfigurationSelection;
+
 namespace IntersectUtilities.CmdUI.UI
 {
     /// <summary>

@@ -74,18 +74,6 @@ namespace IntersectUtilities.UtilsCommon
 
     public static partial class Utils
     {
-        public static bool atZero(this double value) => value > -0.0001 && value < 0.0001;
-
-        public static bool at99(this double value) => value < -98.0;
-
-        public static bool is3D(this double value) => !atZero(value) && !at99(value);
-
-        public static bool is3D(this Point3d p) => p.Z.is3D();
-
-        public static bool is3D(this PolylineVertex3d v) => v.Position.is3D();
-
-        public static bool is2D(this double value) => atZero(value) || at99(value);
-
         /// <summary>
         /// Order of returned coordinates explained here:
         /// https://macwright.com/lonlat/
@@ -169,71 +157,6 @@ namespace IntersectUtilities.UtilsCommon
                 return ToUtm32NFromWGS84(coords[0], coords[1]);
             else
                 return ToUtm32NFromWGS84(coords[1], coords[0]);
-        }
-
-        /// <summary>
-        /// Print to the command line, if there is one.
-        /// </summary>
-        /// <remarks>
-        /// MdiActiveDocument is null whenever no drawing is current — during
-        /// IExtensionApplication.Initialize, and any time the AutoCAD Start tab
-        /// holds focus. Dereferencing it there threw a NullReferenceException that
-        /// took the whole plugin load down, from a debug printer. There is nowhere
-        /// to print in that state, so the text goes to the debug output instead of
-        /// disappearing entirely.
-        /// </remarks>
-        public static void prdDbg(string msg = "")
-        {
-            var ed = Application.DocumentManager.MdiActiveDocument?.Editor;
-            if (ed != null) ed.WriteMessage("\n" + msg);
-            else System.Diagnostics.Debug.WriteLine("[prdDbg] " + msg);
-        }
-
-        public static void prdDbg(object obj)
-        {
-            if (obj is SystemException ex1)
-                prdDbg(obj.ToString().WrapThis(70));
-            else if (obj is System.Exception ex2)
-                prdDbg(obj.ToString().WrapThis(70));
-            else
-                prdDbg(obj.ToString());
-        }
-
-        /// <summary>
-        /// Returns a list of strings no larger than the max length sent in.
-        /// </summary>
-        /// <remarks>useful function used to wrap string text for reporting.</remarks>
-        /// <param name="text">Text to be wrapped into of List of Strings</param>
-        /// <param name="maxLength">Max length you want each line to be.</param>
-        /// <returns>List of Strings</returns>
-        public static string WrapThis(this string s, int maxLength)
-        {
-            if (string.IsNullOrEmpty(s))
-            {
-                return s;
-            }
-
-            var lines = s.Split(new[] { '\r', '\n' }, StringSplitOptions.None);
-            var wrappedLines = new List<string>();
-
-            foreach (var line in lines)
-            {
-                if (line.Length <= maxLength)
-                {
-                    wrappedLines.Add(line);
-                }
-                else
-                {
-                    int start = 0;
-                    while (start < line.Length)
-                    {
-                        int length = Math.Min(maxLength, line.Length - start);
-                        wrappedLines.Add(line.Substring(start, length));
-                        start += length;
-                    }
-                }
-            }
-            return string.Join("\n", wrappedLines);
         }
 
         public static void PrintTable(string[] headers, IEnumerable<IEnumerable<object>> rows)
@@ -320,66 +243,6 @@ namespace IntersectUtilities.UtilsCommon
         public static string RemoveSpecialCharacters(string str, string regex)
         {
             return Regex.Replace(str, regex, "", RegexOptions.Compiled);
-        }
-
-        /// <param name="name">byblock, red, yellow, green, cyan, blue, magenta, white, grey, bylayer</param>
-        public static Color ColorByName(string name) => AutocadStdColors[name];
-
-        public static Dictionary<string, Color> AutocadStdColors = new Dictionary<string, Color>()
-        {
-            { "byblock", Color.FromColorIndex(ColorMethod.ByAci, 0) },
-            { "red", Color.FromColorIndex(ColorMethod.ByAci, 1) },
-            { "yellow", Color.FromColorIndex(ColorMethod.ByAci, 2) },
-            { "green", Color.FromColorIndex(ColorMethod.ByAci, 3) },
-            { "cyan", Color.FromColorIndex(ColorMethod.ByAci, 4) },
-            { "blue", Color.FromColorIndex(ColorMethod.ByAci, 5) },
-            { "magenta", Color.FromColorIndex(ColorMethod.ByAci, 6) },
-            { "white", Color.FromColorIndex(ColorMethod.ByAci, 7) },
-            { "grey", Color.FromColorIndex(ColorMethod.ByAci, 8) },
-            { "bylayer", Color.FromColorIndex(ColorMethod.ByAci, 256) },
-        };
-
-        /// <summary>
-        /// Parses one of the following patterns to an Autocad Color:
-        /// Index Color: ddd
-        /// RGB Color: ddd*ddd*ddd
-        /// Color name: [a-zA-Z]+
-        /// </summary>
-        /// <param name="colorString"></param>
-        /// <returns>Autocad Color, null on fail.</returns>
-        public static Color ParseColorString(string? colorString)
-        {
-            if (colorString == null || colorString.IsNoE()) return Color.FromColorIndex(ColorMethod.ByAci, 0);
-
-            Regex indexColorRegex = new Regex(@"^\d{1,3}$");
-            Regex rgbRegex = new Regex(@"^(?<R>\d+)\*(?<G>\d+)\*(?<B>\d+)$");
-            Regex nameRegex = new Regex(@"^[a-zA-Z]+$");
-
-            if (indexColorRegex.IsMatch(colorString))
-            {
-                if (colorString == "0")
-                    return Color.FromColorIndex(ColorMethod.ByAci, 0);
-                short index = -1;
-                short.TryParse(colorString, out index);
-                if (index == 0)
-                    return null;
-                return Color.FromColorIndex(ColorMethod.ByAci, index);
-            }
-            if (rgbRegex.IsMatch(colorString))
-            {
-                Match match = rgbRegex.Match(colorString);
-                byte R = Convert.ToByte(int.Parse(match.Groups["R"].Value));
-                byte G = Convert.ToByte(int.Parse(match.Groups["G"].Value));
-                byte B = Convert.ToByte(int.Parse(match.Groups["B"].Value));
-                Color color = Color.FromRgb(R, G, B);
-                return color;
-            }
-            if (nameRegex.IsMatch(colorString))
-            {
-                return AutocadStdColors[colorString];
-            }
-            prdDbg($"Parsing of color string {colorString} failed!");
-            return null;
         }
 
         public static double GetRotation(Vector3d vector, Vector3d normal)
@@ -632,44 +495,6 @@ namespace IntersectUtilities.UtilsCommon
                 dbText.AddEntityToDbModelSpace(db);
             }
         }
-
-        public static Dictionary<string, PipelineElementType> PipelineElementTypeDict =
-        new Dictionary<string, PipelineElementType>()
-        {
-                { "Pipe", PipelineElementType.Pipe },
-                { "Afgrening med spring", PipelineElementType.AfgreningMedSpring },
-                { "Afgrening, parallel", PipelineElementType.AfgreningParallel },
-                { "Afgreningsstuds", PipelineElementType.Afgreningsstuds },
-                { "Endebund", PipelineElementType.Endebund },
-                { "Engangsventil", PipelineElementType.Engangsventil },
-                { "F-Model", PipelineElementType.F_Model },
-                { "Kedelrørsbøjning", PipelineElementType.Kedelrørsbøjning },
-                { "Kedelrørsbøjning, vertikal", PipelineElementType.Kedelrørsbøjning },
-                { "Lige afgrening", PipelineElementType.LigeAfgrening },
-                { "Parallelafgrening", PipelineElementType.AfgreningParallel },
-                { "Præisoleret bøjning, 90gr", PipelineElementType.PræisoleretBøjning90gr },
-                { "Præisoleret bøjning, 45gr", PipelineElementType.PræisoleretBøjning45gr },
-                { "Bøjning, 45gr", PipelineElementType.Bøjning45gr },
-                { "Bøjning, 30gr", PipelineElementType.Bøjning30gr },
-                { "Bøjning, 15gr", PipelineElementType.Bøjning15gr },
-                { "$Præisoleret bøjning, L {$L1}x{$L2} m, V {$V}°", PipelineElementType.PræisoleretBøjningVariabel },
-                { "$Præisoleret bøjning, 90gr, L {$L1}x{$L2} m", PipelineElementType.PræisoleretBøjningVariabel },
-                { "Præisoleret bøjning, L {$L1}x{$L2} m, V {$V}°", PipelineElementType.PræisoleretBøjningVariabel },
-                { "Præisoleret ventil", PipelineElementType.PræisoleretVentil },
-                { "Præventil med udluftning", PipelineElementType.PræventilMedUdluftning },
-                { "Reduktion", PipelineElementType.Reduktion },
-                { "Svanehals", PipelineElementType.Svanehals },
-                { "Svejsetee", PipelineElementType.Svejsetee },
-                { "Svejsning", PipelineElementType.Svejsning },
-                { "Y-Model", PipelineElementType.Y_Model },
-                { "H-Model", PipelineElementType.H_Model },
-                { "$Buerør V{$Vinkel}° R{$R} L{$L}", PipelineElementType.Buerør },
-                { "Buerør V{$Vinkel}° R{$R} L{$L}", PipelineElementType.Buerør },
-                { "Stikafgrening", PipelineElementType.Stikafgrening },
-                { "Muffetee", PipelineElementType.Muffetee },
-                { "Preskobling tee", PipelineElementType.Muffetee },
-                { "Materialeskift {#M1}{#DN1}x{#M2}{#DN2}", PipelineElementType.Materialeskift },
-        };
     }
 
     public static class UtilsDataTables
@@ -1705,13 +1530,8 @@ namespace IntersectUtilities.UtilsCommon
         #endregion
     }
 
-    public static class Extensions
+    public static partial class Extensions
     {
-        public static bool IsNoE(this string s) => string.IsNullOrEmpty(s);
-
-        public static bool IsNotNoE(this string s) => !string.IsNullOrEmpty(s);
-
-        public static bool Equalz(this double a, double b, double tol) => Math.Abs(a - b) <= tol;
 
         public static bool Equalz(this Point3d a, Point3d b, double tol = 0.01) =>
             null != a
@@ -1726,49 +1546,11 @@ namespace IntersectUtilities.UtilsCommon
         public static bool IsEqualTo(this PolylineVertex3d a, PolylineVertex3d b, Tolerance tol) =>
             null != a && null != b && a.Position.IsEqualTo(b.Position, tol);
 
-        public static bool HorizontalEqualz(this Point3d a, Point3d b, double tol = 0.01) =>
-            null != a && null != b && a.X.Equalz(b.X, tol) && a.Y.Equalz(b.Y, tol);
-
         public static bool HorizontalEqualz(
             this PolylineVertex3d a,
             PolylineVertex3d b,
             double tol = 0.01
         ) => null != a && null != b && HorizontalEqualz(a.Position, b.Position, tol);
-
-        public static void CheckOrOpenForWrite(this DBObject dbObject)
-        {
-            if (dbObject.IsWriteEnabled == false)
-            {
-                if (dbObject.IsReadEnabled == true)
-                {
-                    dbObject.UpgradeOpen();
-                }
-                else if (dbObject.IsReadEnabled == false)
-                {
-                    dbObject.UpgradeOpen();
-                    dbObject.UpgradeOpen();
-                }
-            }
-        }
-
-        public static void CheckOrOpenForRead(
-            this DBObject dbObject,
-            bool DowngradeIfWriteEnabled = false
-        )
-        {
-            if (dbObject.IsReadEnabled == false)
-            {
-                if (dbObject.IsWriteEnabled == true)
-                {
-                    if (DowngradeIfWriteEnabled)
-                    {
-                        dbObject.DowngradeOpen();
-                    }
-                    return;
-                }
-                dbObject.UpgradeOpen();
-            }
-        }
 
         public static double GetHorizontalLength(this Polyline3d poly3d, Transaction tx)
         {
@@ -1784,23 +1566,6 @@ namespace IntersectUtilities.UtilsCommon
 
         public static double GetHorizontalLength(this Line line) =>
             line.StartPoint.DistanceHorizontalTo(line.EndPoint);
-
-        public static double GetHorizontalLengthBetweenIdxs(
-            this Polyline3d poly3d,
-            int startIdx,
-            int endIdx
-        )
-        {
-            Transaction tx = poly3d.Database.TransactionManager.TopTransaction;
-            poly3d.CheckOrOpenForRead();
-            var vertices = poly3d.GetVertices(tx);
-            double totalLength = 0;
-            for (int i = startIdx; i < endIdx; i++)
-            {
-                totalLength += vertices[i].Position.DistanceHorizontalTo(vertices[i + 1].Position);
-            }
-            return totalLength;
-        }
 
         /// <summary>
         /// Finds the index of vertice coincident with given point3d.
@@ -1828,22 +1593,6 @@ namespace IntersectUtilities.UtilsCommon
             #endregion
         }
 
-        public static double DistanceHorizontalTo(this Point3d sourceP3d, Point3d targetP3d)
-        {
-            double X1 = sourceP3d.X;
-            double Y1 = sourceP3d.Y;
-            double X2 = targetP3d.X;
-            double Y2 = targetP3d.Y;
-            return Math.Sqrt(Math.Pow((X2 - X1), 2) + Math.Pow((Y2 - Y1), 2));
-        }
-
-        public static double DistanceHorizontalTo(this PolylineVertex3d v1, PolylineVertex3d v2) =>
-            v1.Position.DistanceHorizontalTo(v2.Position);
-
-        public static double Pow(this double value, double exponent)
-        {
-            return Math.Pow(value, exponent);
-        }
 
         public static double TruncateToDecimalPlaces(double value, int decimalPlaces)
         {
@@ -2058,23 +1807,6 @@ namespace IntersectUtilities.UtilsCommon
             }
             return null;
         }
-
-        public static BlockTableRecord GetModelspaceForWrite(this Database db) =>
-            db
-                .BlockTableId.Go<BlockTable>(db.TransactionManager.TopTransaction)[
-                    BlockTableRecord.ModelSpace
-                ]
-                .Go<BlockTableRecord>(db.TransactionManager.TopTransaction, OpenMode.ForWrite);
-
-        public static string RealName(this BlockReference br)
-        {
-            Transaction tx = br.Database.TransactionManager.TopTransaction;
-            return br.IsDynamicBlock
-                ? (
-                    (BlockTableRecord)tx.GetObject(br.DynamicBlockTableRecord, OpenMode.ForRead)
-                ).Name
-                : br.Name;
-        }
         #region XrecFilter
         //public static bool XrecFilter(this Autodesk.AutoCAD.DatabaseServices.DBObject obj,
         //    string xRecordName, string[] filterValues)
@@ -2132,42 +1864,6 @@ namespace IntersectUtilities.UtilsCommon
                     ar.TextString = value;
                 }
             }
-        }
-
-        public static string GetAttributeStringValue(this BlockReference br, string attributeName)
-        {
-            Database db = br.Database;
-            Transaction tx = db.TransactionManager.TopTransaction;
-            foreach (Oid oid in br.AttributeCollection)
-            {
-                AttributeReference ar = oid.Go<AttributeReference>(tx);
-                if (string.Equals(ar.Tag, attributeName, StringComparison.OrdinalIgnoreCase))
-                {
-                    return ar.TextString;
-                }
-            }
-
-            BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
-            foreach (Oid oid in btr)
-            {
-                if (oid.IsDerivedFrom<AttributeDefinition>())
-                {
-                    AttributeDefinition attDef = oid.Go<AttributeDefinition>(tx);
-                    if (
-                        attDef.Constant
-                        && string.Equals(
-                            attDef.Tag,
-                            attributeName,
-                            StringComparison.OrdinalIgnoreCase
-                        )
-                    )
-                    {
-                        return attDef.TextString;
-                    }
-                }
-            }
-
-            return "";
         }
 
         public static bool CheckIfBlockIsLatestVersion(this BlockReference br)
@@ -2228,57 +1924,6 @@ namespace IntersectUtilities.UtilsCommon
                 return true;
         }
 
-        /// <summary>
-        /// Requires active transaction!
-        /// </summary>
-        public static void CheckOrImportBlockRecord(
-            this Database db,
-            string pathToLibrary,
-            string blockName
-        )
-        {
-            bool localTransaction = false;
-            Transaction tx = db.TransactionManager.TopTransaction;
-            if (tx == null)
-                throw new System.Exception("CheckOrImportBlockRecord requires active Transaction!");
-            BlockTable bt = tx.GetObject(db.BlockTableId, OpenMode.ForRead) as BlockTable;
-
-            if (!bt.Has(blockName))
-            {
-                ObjectIdCollection idsToClone = new ObjectIdCollection();
-
-                Database blockDb = new Database(false, true);
-                blockDb.ReadDwgFile(
-                    pathToLibrary,
-                    FileOpenMode.OpenForReadAndAllShare,
-                    false,
-                    null
-                );
-                Transaction blockTx = blockDb.TransactionManager.StartTransaction();
-
-                Oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(blockDb);
-                Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(db);
-
-                BlockTable sourceBt =
-                    blockTx.GetObject(blockDb.BlockTableId, OpenMode.ForRead) as BlockTable;
-
-                prdDbg($"Importing block {blockName}.");
-                idsToClone.Add(sourceBt[blockName]);
-
-                IdMapping mapping = new IdMapping();
-                blockDb.WblockCloneObjects(
-                    idsToClone,
-                    destDbMsId,
-                    mapping,
-                    DuplicateRecordCloning.Replace,
-                    false
-                );
-                blockTx.Commit();
-                blockTx.Dispose();
-                blockDb.Dispose();
-            }
-        }
-
         public static BlockTableRecord GetBlockTableRecordByName(this Database db, string blockName)
         {
             BlockTable bt = db.BlockTableId.Go<BlockTable>(db.TransactionManager.TopTransaction);
@@ -2286,50 +1931,6 @@ namespace IntersectUtilities.UtilsCommon
                 return bt[blockName].Go<BlockTableRecord>(db.TransactionManager.TopTransaction);
             else
                 return null;
-        }
-
-        /// <summary>
-        /// Remember to check for existence of BlockTableRecord!
-        /// </summary>
-        public static BlockReference CreateBlockWithAttributes(
-            this Database db,
-            string blockName,
-            Point3d position,
-            double rotation = 0
-        )
-        {
-            Transaction tx = db.TransactionManager.TopTransaction;
-            BlockTableRecord modelSpace = db.GetModelspaceForWrite();
-            BlockTable bt = tx.GetObject(db.BlockTableId, OpenMode.ForRead) as BlockTable;
-            Oid btrId = bt[blockName];
-            BlockTableRecord btr = btrId.Go<BlockTableRecord>(tx);
-
-            var br = new BlockReference(position, btrId);
-
-            modelSpace.CheckOrOpenForWrite();
-            modelSpace.AppendEntity(br);
-            tx.AddNewlyCreatedDBObject(br, true);
-            br.Rotation = rotation;
-
-            foreach (Oid arOid in btr)
-            {
-                if (arOid.IsDerivedFrom<AttributeDefinition>())
-                {
-                    AttributeDefinition at = arOid.Go<AttributeDefinition>(tx);
-                    if (!at.Constant)
-                    {
-                        using (AttributeReference atRef = new AttributeReference())
-                        {
-                            atRef.SetAttributeFromBlock(at, br.BlockTransform);
-                            atRef.Position = at.Position.TransformBy(br.BlockTransform);
-                            atRef.TextString = at.getTextWithFieldCodes();
-                            br.AttributeCollection.AppendAttribute(atRef);
-                            tx.AddNewlyCreatedDBObject(atRef, true);
-                        }
-                    }
-                }
-            }
-            return br;
         }
 
         public static void AttSync(this BlockReference br)
@@ -2869,67 +2470,6 @@ namespace IntersectUtilities.UtilsCommon
             return new Extents3d(newMin, newMax);
         }
 
-        public static double ConstantWidthSafe(this Polyline pline)
-        {
-            double plineWidth;
-            try
-            {
-                plineWidth = pline.ConstantWidth;
-            }
-            catch (System.Exception)
-            {
-                plineWidth = 0.0;
-            }
-            return plineWidth;
-        }
-
-        /// <summary>
-        /// Uses backward lookup, index is the forward segment compared with index - 1 backward segment.
-        /// </summary>
-        public static (Vector3d dir1, Vector3d dir2) DirectionsAt(this Polyline pline, int index)
-        {
-            int numberOfVertices = pline.NumberOfVertices;
-            if (index == 0 || index == numberOfVertices - 1)
-                return default;
-            if (numberOfVertices < 3)
-                return default;
-
-            SegmentType st1 = pline.GetSegmentType(index - 1);
-            SegmentType st2 = pline.GetSegmentType(index);
-
-            Vector3d dir1;
-            Vector3d dir2;
-
-            if (st1 == SegmentType.Line)
-                dir1 = pline.GetLineSegmentAt(index - 1).Direction;
-            else if (st1 == SegmentType.Arc)
-            {
-                CircularArc3d ca3d = pline.GetArcSegmentAt(index - 1);
-                dir1 = ca3d.GetTangent(ca3d.EndPoint).Direction;
-            }
-            else
-                dir1 = default;
-
-            if (st2 == SegmentType.Line)
-                dir2 = pline.GetLineSegmentAt(index).Direction;
-            else if (st2 == SegmentType.Arc)
-            {
-                CircularArc3d ca3d = pline.GetArcSegmentAt(index);
-                dir2 = ca3d.GetTangent(ca3d.StartPoint).Direction;
-            }
-            else
-                dir2 = default;
-
-            //Detect if vectors are opposite directions
-            if (dir1.DotProduct(dir2) < 0)
-                dir2 = -dir2;
-
-            return (dir1, dir2);
-        }
-
-        public static Transaction GetTopTx(this Entity ent) =>
-            ent.Database.TransactionManager.TopTransaction;
-
         public static Transaction StartTx(this Entity ent) =>
             ent.Database.TransactionManager.StartTransaction();
 
@@ -2941,22 +2481,6 @@ namespace IntersectUtilities.UtilsCommon
                 pss.Add(oid.Go<PropertySet>(ent.GetTopTx()));
             return pss;
         }
-
-        public static PolylineVertex3d[] GetVertices(this Polyline3d poly3d, Transaction tr)
-        {
-            List<PolylineVertex3d> vertices = new List<PolylineVertex3d>();
-            foreach (ObjectId id in poly3d)
-            {
-                var vertex = (PolylineVertex3d)tr.GetObject(id, OpenMode.ForRead);
-                if (vertex.VertexType != Vertex3dType.ControlVertex)
-                    vertices.Add(vertex);
-            }
-
-            return vertices.ToArray();
-        }
-
-        public static Point3d To3d(this Point2d p2d, double Z = 0.0) =>
-            new Point3d(p2d.X, p2d.Y, Z);
 
         public static Point2d MidPoint(this Point2d p1, Point2d p2) =>
             new Point2d((p1.X + p2.X) / 2, (p1.Y + p2.Y) / 2);
@@ -2973,8 +2497,6 @@ namespace IntersectUtilities.UtilsCommon
         /// <param name="precision">Precision to which truncate the double. Default 1000.0 gives millimeter precision.</param>
         public static (long, long) Get2DKey(this Point3d p3d, double precision = 1000.0) =>
             ((long)(p3d.X * precision), (long)(p3d.Y * precision));
-
-        public static Point2d To2d(this Point3d p3d) => new Point2d(p3d.X, p3d.Y);
 
         /// <summary>
         /// Order of returned coordinates explained here:
@@ -3136,85 +2658,6 @@ namespace IntersectUtilities.UtilsCommon
             return false;
         }
 
-        public static double GetLengthOfSegmentAt(this Polyline pl, int index)
-        {
-            int nVerts = pl.NumberOfVertices;
-            if (index >= nVerts || index < 0)
-                return 0.0;
-
-            SegmentType sType = pl.GetSegmentType(index);
-
-            switch (sType)
-            {
-                case SegmentType.Line:
-                    var line = pl.GetLineSegment2dAt(index);
-                    return line.Length;
-                case SegmentType.Arc:
-                    var arc = pl.GetArcSegment2dAt(index);
-                    return arc.GetLength(
-                        arc.GetParameterOf(arc.StartPoint),
-                        arc.GetParameterOf(arc.EndPoint)
-                    );
-                case SegmentType.Coincident:
-                case SegmentType.Point:
-                case SegmentType.Empty:
-                default:
-                    return 0.0;
-            }
-        }
-
-        public static HashSet<Point3d> GetAllEndPoints(this BlockReference br)
-        {
-            return ComponentPorts.Read(br, GetTopTx(br)).Select(p => p.Position).ToHashSet();
-        }
-
-        public static HashSet<Point3d> GetAllEndPoints(this Entity ent)
-        {
-            switch (ent)
-            {
-                case Polyline pl:
-                    return new HashSet<Point3d> { pl.StartPoint, pl.EndPoint };
-                case BlockReference br:
-                    return br.GetAllEndPoints();
-                default:
-                    throw new System.Exception(
-                        $"Entity is not a Polyline or BlockReference! {ent.GetType()}"
-                    );
-            }
-        }
-
-        public static T[] ConcatAr<T>(this T[] x, T[] y)
-        {
-            if (x == null)
-                throw new ArgumentNullException("x");
-            if (y == null)
-                throw new ArgumentNullException("y");
-            int oldLen = x.Length;
-            Array.Resize<T>(ref x, x.Length + y.Length);
-            Array.Copy(y, 0, x, oldLen, y.Length);
-            return x;
-        }
-
-        public static string GetXmlEnumAttributeValueFromEnum<TEnum>(this TEnum value)
-            where TEnum : struct, IConvertible
-        {
-            var enumType = typeof(TEnum);
-            if (!enumType.IsEnum)
-                return string.Empty; //or string.Empty, or throw exception
-
-            var member = enumType.GetMember(value.ToString()).FirstOrDefault();
-            if (member == null)
-                return string.Empty; //or string.Empty, or throw exception
-
-            var attribute = member
-                .GetCustomAttributes(false)
-                .OfType<XmlEnumAttribute>()
-                .FirstOrDefault();
-            if (attribute == null)
-                return value.ToString(); //or string.Empty, or throw exception
-            return attribute.Name;
-        }
-
         public static IOrderedEnumerable<T> OrderByAlphaNumeric<T>(
             this IEnumerable<T> source,
             Func<T, string> selector
@@ -3368,12 +2811,6 @@ namespace IntersectUtilities.UtilsCommon
             return id.Go<Polyline>(al.Database.TransactionManager.TopTransaction);
         }
 
-        public static bool IsOn(this PolylineVertex3d vert, Polyline3d pl3d, double tol)
-        {
-            var dist = vert.Position.DistanceTo(pl3d.GetClosestPointTo(vert.Position, false));
-            return dist <= tol;
-        }
-
         public static void UpdateElevationZ(this PolylineVertex3d vert, double newElevation)
         {
             if (!vert.Position.Z.Equalz(newElevation, Tolerance.Global.EqualPoint))
@@ -3411,13 +2848,6 @@ namespace IntersectUtilities.UtilsCommon
             pline.Closed = p3d.Closed;
             return pline;
         }
-
-        public static bool IsZero(this double d, double tol) => d > -tol && d < tol;
-
-        public static bool IsZero(this double d) =>
-            d > -Tolerance.Global.EqualPoint && d < Tolerance.Global.EqualPoint;
-
-        public static Vector3d To3D(this Vector2d vec) => new Vector3d(vec.X, vec.Y, 0.0);
 
         public static List<Point3d> IntersectWithValidation(this Entity entity, Entity other)
         {
@@ -3792,81 +3222,10 @@ namespace IntersectUtilities.UtilsCommon
 
             return profile.NumberOfVertices - 1;
         }
-
-        /// <summary>
-        /// Remember that the grouped objects need to have Equals and GetHashCode implemented
-        /// </summary>
-        /// <returns>List of lists, hvere each list contains connected objects</returns>
-        public static List<List<T>> GroupConnected<T>(
-            this IEnumerable<T> itemsToGroup,
-            Func<T, T, bool> predicateIsConnected
-        )
-        {
-            var visited = new HashSet<T>();
-            var groups = new List<List<T>>();
-
-            foreach (var item in itemsToGroup)
-            {
-                if (!visited.Contains(item))
-                {
-                    var group = new List<T>();
-                    Stack<T> stack = new Stack<T>();
-                    stack.Push(item);
-
-                    while (stack.Count > 0)
-                    {
-                        var current = stack.Pop();
-
-                        if (!visited.Contains(current))
-                        {
-                            visited.Add(current);
-                            group.Add(current);
-
-                            foreach (var neighbor in itemsToGroup)
-                            {
-                                if (
-                                    !visited.Contains(neighbor)
-                                    && predicateIsConnected(current, neighbor)
-                                )
-                                {
-                                    stack.Push(neighbor);
-                                }
-                            }
-                        }
-                    }
-
-                    groups.Add(group);
-                }
-            }
-
-            return groups;
-        }
     }
 
-    public static class ExtensionMethods
+    public static partial class ExtensionMethods
     {
-        public static T? Go<T>(
-            this Oid oid,
-            Transaction tx,
-            Autodesk.AutoCAD.DatabaseServices.OpenMode openMode =
-                Autodesk.AutoCAD.DatabaseServices.OpenMode.ForRead
-        )
-            where T : Autodesk.AutoCAD.DatabaseServices.DBObject
-        {
-            var obj = tx.GetObject(oid, openMode, false);
-            return obj as T;
-        }
-
-        public static T? Go<T>(this Handle handle, Database database)
-            where T : Autodesk.AutoCAD.DatabaseServices.DBObject
-        {
-            Oid id = database.GetObjectId(false, handle, 0);
-            if (database.TransactionManager.TopTransaction == null)
-                throw new System.Exception(
-                    "Handle.Go<DBObject> -> no top transaction found! Call inside transaction."
-                );
-            return id.Go<T>(database.TransactionManager.TopTransaction);
-        }
 
         public static T? Go<T>(this Database db, string handle)
             where T : Autodesk.AutoCAD.DatabaseServices.DBObject
@@ -3896,40 +3255,6 @@ namespace IntersectUtilities.UtilsCommon
             }
         }
 
-        public static Oid AddEntityToDbModelSpace<T>(this T entity, Database db)
-            where T : Autodesk.AutoCAD.DatabaseServices.Entity
-        {
-            if (db.TransactionManager.TopTransaction == null)
-            {
-                using (Transaction tx = db.TransactionManager.StartTransaction())
-                {
-                    try
-                    {
-                        BlockTableRecord modelSpace = db.GetModelspaceForWrite();
-                        Oid id = modelSpace.AppendEntity(entity);
-                        tx.AddNewlyCreatedDBObject(entity, true);
-                        tx.Commit();
-                        return id;
-                    }
-                    catch (System.Exception)
-                    {
-                        prdDbg("Adding element to database failed!");
-                        tx.Abort();
-                        return Oid.Null;
-                    }
-                }
-            }
-            else
-            {
-                Transaction tx = db.TransactionManager.TopTransaction;
-
-                BlockTableRecord modelSpace = db.GetModelspaceForWrite();
-                Oid id = modelSpace.AppendEntity(entity);
-                tx.AddNewlyCreatedDBObject(entity, true);
-                return id;
-            }
-        }
-
         public static bool CheckOrCreateLayer(
             this Database db,
             string layerName,
@@ -3938,74 +3263,6 @@ namespace IntersectUtilities.UtilsCommon
         )
         {
             return CheckOrCreateLayer(db, layerName, color.ColorIndex, isPlottable);
-        }
-
-        public static bool CheckOrCreateLayer(
-            this Database db,
-            string layerName,
-            short colorIdx = -1,
-            bool isPlottable = true
-        )
-        {
-            bool newTx = false;
-            if (db.TransactionManager.TopTransaction == null)
-                newTx = true;
-
-            Transaction txLag;
-            if (newTx)
-                txLag = db.TransactionManager.StartTransaction();
-            else
-                txLag = db.TransactionManager.TopTransaction;
-            try
-            {
-                LayerTable lt = txLag.GetObject(db.LayerTableId, OpenMode.ForRead) as LayerTable;
-                if (!lt.Has(layerName))
-                {
-                    LayerTableRecord ltr = new LayerTableRecord();
-                    ltr.Name = layerName;
-                    ltr.IsPlottable = isPlottable;
-                    if (colorIdx != -1)
-                    {
-                        ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, colorIdx);
-                    }
-
-                    //Make layertable writable
-                    lt.CheckOrOpenForWrite();
-
-                    //Add the new layer to layer table
-                    Oid ltId = lt.Add(ltr);
-                    txLag.AddNewlyCreatedDBObject(ltr, true);
-                    if (newTx)
-                    {
-                        txLag.Commit();
-                        txLag.Dispose();
-                    }
-                    return true;
-                }
-                else
-                {
-                    if (colorIdx == -1)
-                        return true;
-                    LayerTableRecord ltr = lt[layerName]
-                        .Go<LayerTableRecord>(txLag, OpenMode.ForWrite);
-                    if (ltr.Color.ColorIndex != colorIdx)
-                        ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, colorIdx);
-                    if (newTx)
-                    {
-                        txLag.Commit();
-                        txLag.Dispose();
-                    }
-                    return true;
-                }
-            }
-            catch (System.Exception ex)
-            {
-                prdDbg(ex);
-                txLag.Abort();
-                if (newTx)
-                    txLag.Dispose();
-                throw;
-            }
         }
 
         public static string Layer(this Oid oid)
@@ -4019,11 +3276,6 @@ namespace IntersectUtilities.UtilsCommon
             if (!oid.ObjectClass.IsDerivedFrom(RXClass.GetClass(typeof(Entity))))
                 return "";
             return oid.Go<Entity>(tx).Layer;
-        }
-
-        public static bool IsDerivedFrom<T>(this Oid oid)
-        {
-            return oid.ObjectClass.IsDerivedFrom(RXObject.GetClass(typeof(T)));
         }
 
         public static void ForEach<T>(this Database database, Action<T> action, Transaction tr)
@@ -4164,46 +3416,6 @@ namespace IntersectUtilities.UtilsCommon
             return objs;
         }
 
-        public static List<T> ListOfType<T>(
-            this Database database,
-            Transaction tr,
-            bool discardFrozen = false
-        )
-            where T : Autodesk.AutoCAD.DatabaseServices.Entity
-        {
-            //Init the list of the objects
-            List<T> objs = new List<T>();
-
-            // Get the block table for the current database
-            var blockTable = (BlockTable)tr.GetObject(database.BlockTableId, OpenMode.ForRead);
-
-            // Get the model space block table record
-            var modelSpace = (BlockTableRecord)
-                tr.GetObject(blockTable[BlockTableRecord.ModelSpace], OpenMode.ForRead);
-
-            RXClass theClass = RXObject.GetClass(typeof(T));
-
-            // Loop through the entities in model space
-            foreach (Oid oid in modelSpace)
-            {
-                // Look for entities of the correct type
-                if (oid.ObjectClass.IsDerivedFrom(theClass))
-                {
-                    var entity = (T)tr.GetObject(oid, OpenMode.ForRead);
-                    if (discardFrozen)
-                    {
-                        LayerTableRecord layer = (LayerTableRecord)
-                            tr.GetObject(entity.LayerId, OpenMode.ForRead);
-                        if (layer.IsFrozen)
-                            continue;
-                    }
-
-                    objs.Add(entity);
-                }
-            }
-            return objs;
-        }
-
         public static HashSet<T> HashSetOfType<T>(
             this Database db,
             Transaction tr,
@@ -4286,98 +3498,6 @@ namespace IntersectUtilities.UtilsCommon
                 x => PropertySetManager.IsPropertySetAttached(x, ps)).ToHashSet();
         }
 
-        public static HashSet<Entity> GetFjvEntities(
-            this Database db,
-            Transaction tr,
-            bool discardWelds = true,
-            bool discardStikBlocks = true,
-            bool discardFrozen = false
-        )
-        {
-            var fk = DataManager.CsvData.Csv.FjvDynamicComponents;
-
-            HashSet<Entity> entities = new HashSet<Entity>();
-
-            var rawPlines = db.ListOfType<Polyline>(tr, discardFrozen);
-            var plineQuery = rawPlines.Where(pline =>
-                GetPipeSystem(pline) != PipeSystemEnum.Ukendt
-            );
-
-            var rawBrefs = db.ListOfType<BlockReference>(tr, discardFrozen);
-            var brQuery = rawBrefs.Where(x => fk.HasNavn(x.RealName()));
-
-            HashSet<string> weldingBlocks = new HashSet<string>()
-            {
-                "SVEJSEPUNKT",
-                "SVEJSEPUNKT-NOTXT",
-                "SVEJSEPUNKT-V2",
-            };
-
-            HashSet<string> stikBlocks = new HashSet<string>() { "STIKAFGRENING", "STIKTEE" };
-
-            if (discardWelds)
-                brQuery = brQuery.Where(x => !weldingBlocks.Contains(x.RealName()));
-            if (discardStikBlocks)
-                brQuery = brQuery.Where(x => !stikBlocks.Contains(x.RealName()));
-
-            //prdDbg($"FJV Entities > Polyline(s): {plineQuery.Count()}, BlockReference(s): {brQuery.Count()}");
-
-            entities.UnionWith(brQuery);
-            entities.UnionWith(plineQuery);
-            return entities;
-        }
-
-        public static HashSet<BlockReference> GetFjvBlocks(
-            this Database db,
-            Transaction tr,
-            bool discardWelds = true,
-            bool discardStikBlocks = true,
-            bool discardFrozen = false
-        )
-        {
-            var fk = DataManager.CsvData.Csv.FjvDynamicComponents;
-
-            HashSet<BlockReference> entities = new HashSet<BlockReference>();
-
-            var rawBrefs = db.ListOfType<BlockReference>(tr, discardFrozen);
-            var brQuery = rawBrefs.Where(x => fk.HasNavn(x.RealName()));
-
-            HashSet<string> weldingBlocks = new HashSet<string>()
-            {
-                "SVEJSEPUNKT",
-                "SVEJSEPUNKT-NOTXT",
-                "SVEJSEPUNKT-V2"
-            };
-
-            HashSet<string> stikBlocks = new HashSet<string>() { "STIKAFGRENING", "STIKTEE" };
-
-            if (discardWelds)
-                brQuery = brQuery.Where(x => !weldingBlocks.Contains(x.RealName()));
-            if (discardStikBlocks)
-                brQuery = brQuery.Where(x => !stikBlocks.Contains(x.RealName()));
-
-            entities.UnionWith(brQuery);
-            return entities;
-        }
-
-        public static HashSet<Polyline> GetFjvPipes(
-            this Database db,
-            Transaction tr,
-            bool discardFrozen = false
-        )
-        {
-            HashSet<Polyline> entities = new HashSet<Polyline>();
-
-            var rawPlines = db.ListOfType<Polyline>(tr, discardFrozen);
-            entities = rawPlines
-                .Where(pline =>
-                    PipeScheduleV2.PipeScheduleV2.GetPipeSystem(pline) != PipeSystemEnum.Ukendt
-                )
-                .ToHashSet();
-
-            return entities;
-        }
-
         // Searches the drawing for a block with the specified name.
         // Returns either the block, or null - check accordingly.
         public static HashSet<Autodesk.AutoCAD.DatabaseServices.BlockReference> GetBlockReferenceByName(
@@ -4428,8 +3548,6 @@ namespace IntersectUtilities.UtilsCommon
             }
             return set;
         }
-
-        public static double ToDeg(this double radians) => (180 / Math.PI) * radians;
 
         public static double ToRad(this double degrees) => (Math.PI / 180) * degrees;
 
@@ -4483,27 +3601,6 @@ namespace IntersectUtilities.UtilsCommon
 
         public int GetHashCode(DBPoint a) =>
             Tuple.Create(Math.Round(a.Position.X, 3), Math.Round(a.Position.Y, 3)).GetHashCode();
-    }
-
-    public class Point3dHorizontalComparer : IEqualityComparer<Point3d>
-    {
-        private readonly int _scale;
-
-        public Point3dHorizontalComparer(int scale = 1000)
-        {
-            _scale = scale;
-        }
-
-        public bool Equals(Point3d p1, Point3d p2) =>
-            (int)(p1.X * _scale) == (int)(p2.X * _scale)
-            && (int)(p1.Y * _scale) == (int)(p2.Y * _scale);
-
-        public int GetHashCode(Point3d a)
-        {
-            int xHash = ((int)(a.X * _scale)).GetHashCode();
-            int yHash = ((int)(a.Y * _scale)).GetHashCode();
-            return xHash ^ yHash;
-        }
     }
 
     public class Point2dEqualityComparer : IEqualityComparer<Point2d>
@@ -4660,61 +3757,6 @@ namespace IntersectUtilities.UtilsCommon
         }
     }
 
-    public class Result
-    {
-        private ResultStatus _status = ResultStatus.OK;
-        internal ResultStatus Status { get { return _status; } set { if (_status != ResultStatus.FatalError) _status = value; } }
-        private List<string> _errorMsg = new List<string>();
-        internal void AddMsg(string msg)
-        {
-            if (msg.IsNotNoE()) _errorMsg.Add(msg);
-        }
-        internal List<string> GetMsg() { return _errorMsg; }
-        internal string ErrorMsg
-        {
-            get
-            {
-
-                return string.Join("\n", _errorMsg);
-            }
-            set { if (value.IsNotNoE()) _errorMsg.Add(value); }
-        }
-        internal Result() { }
-        internal Result(ResultStatus status, string errorMsg)
-        {
-            Status = status;
-            AddMsg(errorMsg);
-        }
-        internal void Combine(Result input)
-        {
-            if (input._status > this._status) this._status = input._status;
-            this.GetMsg().AddRange(input.GetMsg());
-        }
-        public override string ToString()
-        {
-            switch (this._status)
-            {
-                case ResultStatus.OK:
-                    if (this._errorMsg.Count == 0) return "Operation completed OK";
-                    else return "Operation completed OK with message: \n" + string.Join("\n", this._errorMsg);
-                case ResultStatus.SoftError:
-                    if (this._errorMsg.Count == 0) return "Operation completed with unknown Warnings.";
-                    else return "Operation completed with Warnings: \n" + string.Join("\n", this._errorMsg);
-                case ResultStatus.FatalError:
-                    if (this._errorMsg.Count == 0) return "Operation aborted with Fatal Error!.";
-                    else return "Operation aborted with Fatal Error! \n" + string.Join("\n", this._errorMsg);
-                default:
-                    throw new NotImplementedException($"ResultStatus {this._status} is not implemented!");
-            }
-        }
-    }
-    internal enum ResultStatus
-    {
-        OK,
-        SoftError, //Exection may continue, changes to current drawing aborted
-        FatalError, //Execution of processing must stop
-    }
-
     public class WeldPointData2
     {
         public Point3d WeldPoint { get; set; }
@@ -4730,21 +3772,6 @@ namespace IntersectUtilities.UtilsCommon
         public bool IsPolylineWeld { get; set; } = false;
         public WeldPointData2(Point3d wp, string alName, Oid id, double rotation, int dn, PipeTypeEnum pt, PipeSystemEnum ps)
         { WeldPoint = wp; AlignmentName = alName; SourceId = id; Rotation = rotation; DN = dn; PipeType = pt; PipeSystem = ps; }
-    }
-
-    public class DebugEntityException : System.Exception
-    {
-        public List<Entity> DebugEntities { get; }
-
-        public DebugEntityException(string message, List<Entity>? debugEntities = null)
-            : base(message)
-        {
-            DebugEntities = debugEntities ?? new List<Entity>();
-            if (DebugEntities.Count > 0)
-            {
-                this.Data[nameof(DebugEntities)] = DebugEntities;
-            }
-        }
     }
     public class DebugPointException : System.Exception
     {

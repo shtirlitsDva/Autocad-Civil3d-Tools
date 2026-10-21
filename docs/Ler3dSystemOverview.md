@@ -73,7 +73,7 @@ The 2D DWG is a separate, flattened projection of the same source, for the plan-
 </the-artifact-contract>
 
 <the-krydsninger-hub>
-`Krydsninger.v2.csv` is the configuration hub. One row per layer (`Navn`), semicolon-delimited, accessed via the static facade `Csv.Krydsninger` (`UtilitiesCommonSHARED/DataManager/CsvData/Krydsninger.cs`). Columns: `Navn;Layer;Type;Distance;Block;Description;Diameter;Material;System;Status;Kommentar;Temperatur;Tryk;Label`.
+`Krydsninger.v2.csv` is the configuration hub. One row per layer (`Navn`), semicolon-delimited, accessed via the static facade `Csv.Krydsninger` (`IntersectUtilitiesCOMMON/DataManager/CsvData/Krydsninger.cs`). Columns: `Navn;Layer;Type;Distance;Block;Description;Diameter;Material;System;Status;Kommentar;Temperatur;Tryk;Label`.
 
 The columns actually consumed by the cross-section path, and what each fans out to:
 
@@ -108,7 +108,7 @@ The `ILer3dManager` contract (`Ler3dManager.cs:22-42`) is the seam between artif
 </runtime-consumer-chain>
 
 <loading-glue>
-- **`Stier.csv`** (`UtilitiesCommonSHARED/DataManager/CsvData/Stier.cs`) maps `(PrjId, Etape)` → file paths. Columns: `PrjId;Etape;Ler;Surface;Alignments;Fremtid;Længdeprofiler`. The **`Ler`** column points at either a single 3D DWG or a directory of `*_3DLER.dwg` tiles.
+- **`Stier.csv`** (`IntersectUtilitiesCOMMON/DataManager/CsvData/Stier.cs`) maps `(PrjId, Etape)` → file paths. Columns: `PrjId;Etape;Ler;Surface;Alignments;Fremtid;Længdeprofiler`. The **`Ler`** column points at either a single 3D DWG or a directory of `*_3DLER.dwg` tiles.
 - **`DataManager`** (`UtilitiesCommonSHARED/DataManager/DataManager.cs`) resolves those paths and opens each DWG **read-only, shared** (`new Database(false, true)` + `ReadDwgFile(..., OpenForReadAndAllShare, ...)`). `Ler()` returns the database list that `Ler3dManagerFactory` consumes. No coordinate transform is applied here.
 </loading-glue>
 
@@ -122,8 +122,8 @@ Today the artifacts are produced by **`LERImporter`** (`Acad-C3D-Tools/LERImport
 | Runtime manager (artifact↔runtime seam) | `IntersectUtilities/LongitudinalProfiles/Ler3dManager/Ler3dManager.cs` |
 | Crossing creation + elevation + PS read | `IntersectUtilities/LongitudinalProfiles/LongitudinalProfileTools.cs` |
 | Relocability / LerType from Krydsninger | `IntersectUtilities/LongitudinalProfiles/Relocability/LerTypeResolution.cs` |
-| Krydsninger CSV access | `UtilitiesCommonSHARED/DataManager/CsvData/Krydsninger.cs` |
-| Path resolution per project/etape | `UtilitiesCommonSHARED/DataManager/CsvData/Stier.cs`, `DataManager/DataManager.cs` |
+| Krydsninger CSV access | `IntersectUtilitiesCOMMON/DataManager/CsvData/Krydsninger.cs` |
+| Path resolution per project/etape | `IntersectUtilitiesCOMMON/DataManager/CsvData/Stier.cs`, `DataManager/DataManager.cs` |
 | PS read/write + definitions | `UtilitiesCommonSHARED/PropertySets/PropertySetManager.cs` |
 | Description/diameter token parsing | `IntersectUtilities/Utils.cs` (`ProcessDescription`, `ConstructStringFromPSByRecipe`, `FindPropertySetParts`) |
 | Reference producer | `Acad-C3D-Tools/LERImporter/` |

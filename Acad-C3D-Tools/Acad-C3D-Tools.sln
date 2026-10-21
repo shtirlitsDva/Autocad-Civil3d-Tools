@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.14.37628.2
+VisualStudioVersion = 17.14.37806.7 d17.14
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IntersectUtilities", "IntersectUtilities\IntersectUtilities.csproj", "{3DBCDE07-D2C7-45A3-9BD6-5B7873A85166}"
 EndProject
@@ -71,6 +71,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GraphViewV3.Core.Tests", "GraphViewV3\GraphViewV3.Core.Tests\GraphViewV3.Core.Tests.csproj", "{E3F68E71-AD2D-4460-B1F5-BC8F81B10501}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GraphViewV3.Plugin", "GraphViewV3\GraphViewV3.Plugin\GraphViewV3.Plugin.csproj", "{8E6214D8-93EA-4729-99D1-C9D22FB2A29B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LERImporter.Tests", "LERImporter.Tests\LERImporter.Tests.csproj", "{F4505841-E484-4964-AE53-C33C4889A6F8}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -178,6 +180,10 @@ Global
 		{8E6214D8-93EA-4729-99D1-C9D22FB2A29B}.Debug|x64.Build.0 = Debug|x64
 		{8E6214D8-93EA-4729-99D1-C9D22FB2A29B}.Release|x64.ActiveCfg = Release|x64
 		{8E6214D8-93EA-4729-99D1-C9D22FB2A29B}.Release|x64.Build.0 = Release|x64
+		{F4505841-E484-4964-AE53-C33C4889A6F8}.Debug|x64.ActiveCfg = Debug|x64
+		{F4505841-E484-4964-AE53-C33C4889A6F8}.Debug|x64.Build.0 = Debug|x64
+		{F4505841-E484-4964-AE53-C33C4889A6F8}.Release|x64.ActiveCfg = Release|x64
+		{F4505841-E484-4964-AE53-C33C4889A6F8}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -193,45 +199,57 @@ Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
 		AutoCADCommandsSHARED\AutoCADCommandsSHARED.projitems*{0f92c1bb-fadb-4df2-8ff8-f28391c1ed3c}*SharedItemsImports = 5
 		FormsSHARED\FormsSHARED.projitems*{0f92c1bb-fadb-4df2-8ff8-f28391c1ed3c}*SharedItemsImports = 5
+		IntersectUtilitiesCOMMON\IntersectUtilitiesCOMMON.projitems*{0f92c1bb-fadb-4df2-8ff8-f28391c1ed3c}*SharedItemsImports = 5
 		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{0f92c1bb-fadb-4df2-8ff8-f28391c1ed3c}*SharedItemsImports = 5
 		FormsSHARED\FormsSHARED.projitems*{30b69123-15b9-4243-946e-ee2b2953244d}*SharedItemsImports = 13
 		FormsSHARED\FormsSHARED.projitems*{322e89dd-d28e-48c9-8807-3c3a593d9892}*SharedItemsImports = 5
+		..\..\..\DamgaardRI\NorsynDrawingTools\managed\NorsynApplicationsSHARED\NorsynApplicationsSHARED.projitems*{3dbcde07-d2c7-45a3-9bd6-5b7873a85166}*SharedItemsImports = 5
 		..\..\..\DamgaardRI\NorsynDrawingTools\managed\NorsynOnDemandLoadingSHARED\NorsynOnDemandLoadingSHARED.projitems*{3dbcde07-d2c7-45a3-9bd6-5b7873a85166}*SharedItemsImports = 5
+		..\..\..\DamgaardRI\NorsynDrawingTools\managed\NorsynUserInterfaceTheme\NorsynUserInterfaceTheme.projitems*{3dbcde07-d2c7-45a3-9bd6-5b7873a85166}*SharedItemsImports = 5
+		AecPropertySetsSHARED\AecPropertySetsSHARED.projitems*{3dbcde07-d2c7-45a3-9bd6-5b7873a85166}*SharedItemsImports = 5
 		AutoCADCommandsSHARED\AutoCADCommandsSHARED.projitems*{3dbcde07-d2c7-45a3-9bd6-5b7873a85166}*SharedItemsImports = 5
 		FormsSHARED\FormsSHARED.projitems*{3dbcde07-d2c7-45a3-9bd6-5b7873a85166}*SharedItemsImports = 5
+		IntersectUtilitiesCOMMON\IntersectUtilitiesCOMMON.projitems*{3dbcde07-d2c7-45a3-9bd6-5b7873a85166}*SharedItemsImports = 5
 		PipelineSHARED\PipelineSHARED.projitems*{3dbcde07-d2c7-45a3-9bd6-5b7873a85166}*SharedItemsImports = 5
 		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{3dbcde07-d2c7-45a3-9bd6-5b7873a85166}*SharedItemsImports = 5
 		FormsSHARED\FormsSHARED.projitems*{48b5495f-32d5-45f9-b9f8-2e133d33653f}*SharedItemsImports = 5
 		AutoCADCommandsSHARED\AutoCADCommandsSHARED.projitems*{59efb8f9-2016-4915-a115-d5f902e60ef3}*SharedItemsImports = 5
 		FormsSHARED\FormsSHARED.projitems*{59efb8f9-2016-4915-a115-d5f902e60ef3}*SharedItemsImports = 5
+		IntersectUtilitiesCOMMON\IntersectUtilitiesCOMMON.projitems*{59efb8f9-2016-4915-a115-d5f902e60ef3}*SharedItemsImports = 5
 		PipelineSHARED\PipelineSHARED.projitems*{59efb8f9-2016-4915-a115-d5f902e60ef3}*SharedItemsImports = 5
 		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{59efb8f9-2016-4915-a115-d5f902e60ef3}*SharedItemsImports = 5
 		AutoCADCommandsSHARED\AutoCADCommandsSHARED.projitems*{774d8c82-954d-40a1-993a-62c9385fdf12}*SharedItemsImports = 5
 		FormsSHARED\FormsSHARED.projitems*{774d8c82-954d-40a1-993a-62c9385fdf12}*SharedItemsImports = 5
+		IntersectUtilitiesCOMMON\IntersectUtilitiesCOMMON.projitems*{774d8c82-954d-40a1-993a-62c9385fdf12}*SharedItemsImports = 5
 		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{774d8c82-954d-40a1-993a-62c9385fdf12}*SharedItemsImports = 5
 		PipelineSHARED\PipelineSHARED.projitems*{7d7bf915-003d-4e69-b122-69dfd068e729}*SharedItemsImports = 13
 		AutoCADCommandsSHARED\AutoCADCommandsSHARED.projitems*{7f1b2c3d-4e5f-46a7-b8c9-0d1e2f3a4b5c}*SharedItemsImports = 5
 		AutoCADCommandsSHARED\AutoCADCommandsSHARED.projitems*{8bee2986-b102-498f-a115-3d8b80e3a93c}*SharedItemsImports = 13
 		AutoCADCommandsSHARED\AutoCADCommandsSHARED.projitems*{8e289862-d2b1-46b9-99cf-f13925f2d562}*SharedItemsImports = 5
 		FormsSHARED\FormsSHARED.projitems*{8e289862-d2b1-46b9-99cf-f13925f2d562}*SharedItemsImports = 5
+		IntersectUtilitiesCOMMON\IntersectUtilitiesCOMMON.projitems*{8e289862-d2b1-46b9-99cf-f13925f2d562}*SharedItemsImports = 5
 		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{8e289862-d2b1-46b9-99cf-f13925f2d562}*SharedItemsImports = 5
 		EventManager\EventManager.projitems*{8e6214d8-93ea-4729-99d1-c9d22fb2a29b}*SharedItemsImports = 5
 		FormsSHARED\FormsSHARED.projitems*{8e6214d8-93ea-4729-99d1-c9d22fb2a29b}*SharedItemsImports = 5
+		IntersectUtilitiesCOMMON\IntersectUtilitiesCOMMON.projitems*{8e6214d8-93ea-4729-99d1-c9d22fb2a29b}*SharedItemsImports = 5
 		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{8e6214d8-93ea-4729-99d1-c9d22fb2a29b}*SharedItemsImports = 5
 		FormsSHARED\FormsSHARED.projitems*{96ae4f77-001b-4c48-8ed9-590009510de5}*SharedItemsImports = 5
+		IntersectUtilitiesCOMMON\IntersectUtilitiesCOMMON.projitems*{96ae4f77-001b-4c48-8ed9-590009510de5}*SharedItemsImports = 5
 		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{96ae4f77-001b-4c48-8ed9-590009510de5}*SharedItemsImports = 5
 		WpfSHARED\WpfSHARED.projitems*{a1b2c3d4-e5f6-7890-abcd-ef1234567890}*SharedItemsImports = 13
 		EventManager\EventManager.projitems*{b2c3d4e5-f6a7-8901-bcde-f23456789012}*SharedItemsImports = 13
-		AutoCADCommandsSHARED\AutoCADCommandsSHARED.projitems*{bb421b54-812e-4c32-868b-41fa76569772}*SharedItemsImports = 5
 		FormsSHARED\FormsSHARED.projitems*{bb421b54-812e-4c32-868b-41fa76569772}*SharedItemsImports = 5
-		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{bb421b54-812e-4c32-868b-41fa76569772}*SharedItemsImports = 5
+		IntersectUtilitiesCOMMON\IntersectUtilitiesCOMMON.projitems*{bb421b54-812e-4c32-868b-41fa76569772}*SharedItemsImports = 5
 		FormsSHARED\FormsSHARED.projitems*{c128e226-003b-4e66-8d49-b7f6cf8d7901}*SharedItemsImports = 5
 		AutoCADCommandsSHARED\AutoCADCommandsSHARED.projitems*{c578718c-90f5-4546-adac-6c9d91e02a95}*SharedItemsImports = 5
 		FormsSHARED\FormsSHARED.projitems*{c578718c-90f5-4546-adac-6c9d91e02a95}*SharedItemsImports = 5
+		IntersectUtilitiesCOMMON\IntersectUtilitiesCOMMON.projitems*{c578718c-90f5-4546-adac-6c9d91e02a95}*SharedItemsImports = 5
 		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{c578718c-90f5-4546-adac-6c9d91e02a95}*SharedItemsImports = 5
 		AutoCADCommandsSHARED\AutoCADCommandsSHARED.projitems*{c5f6c326-952b-43e8-9830-311f190bab11}*SharedItemsImports = 5
 		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{db2cde26-a283-45d0-a170-7645cf29c507}*SharedItemsImports = 13
+		AecPropertySetsSHARED\AecPropertySetsSHARED.projitems*{fbee18fe-055a-4901-9d67-dc0a18588f7d}*SharedItemsImports = 5
 		FormsSHARED\FormsSHARED.projitems*{fbee18fe-055a-4901-9d67-dc0a18588f7d}*SharedItemsImports = 5
+		IntersectUtilitiesCOMMON\IntersectUtilitiesCOMMON.projitems*{fbee18fe-055a-4901-9d67-dc0a18588f7d}*SharedItemsImports = 5
 		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{fbee18fe-055a-4901-9d67-dc0a18588f7d}*SharedItemsImports = 5
 	EndGlobalSection
 EndGlobal

@@ -2,8 +2,16 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+
+#if BRICSCAD
+using Bricscad.ApplicationServices;
+using Bricscad.Internal;
+using Teigha.Runtime;
+#else
+using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.Internal;
 using Autodesk.AutoCAD.Runtime;
+#endif
 
 namespace NSLOAD
 {
@@ -72,8 +80,7 @@ namespace NSLOAD
             var inner = ex is TargetInvocationException tie ? tie.InnerException ?? ex : ex;
             try
             {
-                var doc = Autodesk.AutoCAD.ApplicationServices.Application
-                    .DocumentManager.MdiActiveDocument;
+                var doc = Application.DocumentManager.MdiActiveDocument;
                 doc?.Editor.WriteMessage("\n" + inner.ToString() + "\n");
             }
             catch { }
