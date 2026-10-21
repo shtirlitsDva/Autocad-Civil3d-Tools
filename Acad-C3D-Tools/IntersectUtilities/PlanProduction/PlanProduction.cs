@@ -60,6 +60,7 @@ using IntersectUtilities.LongitudinalProfiles;
 using NetTopologySuite.Algorithm;
 using SharpKml.Base;
 using IntersectUtilities.UtilsCommon.DataManager;
+using IntersectUtilities.PlanProduction;
 
 namespace IntersectUtilities
 {
@@ -98,11 +99,6 @@ namespace IntersectUtilities
 
         private bool finalizesheetscore(DataReferencesOptions dro)
         {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor ed = docCol.MdiActiveDocument.Editor;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-
             // DK vs DE finalization differs only in: the profile-view style
             // (DK "1:250:100" = 2.5x / DE "1:200:50 DE" = 4x exaggeration), the elevation-description prefix
             // ("K:" / "Hö:", assigned in createlerdatapssmethod2), and a DE-only pass at the
@@ -111,9 +107,37 @@ namespace IntersectUtilities
             bool german = ConfigurationManager.ActiveConfiguration?.StartsWith(
                 "DE", StringComparison.OrdinalIgnoreCase) == true;
 
+            var report = new FinalizeSheetsReport(FinalizeStep.Sequence(german));
+            try
+            {
+                bool finished = finalizesheetssteps(dro, german, report);
+                if (finished) report.Finished();
+                else report.Stopped();
+                report.Print();
+                return finished;
+            }
+            catch (System.Exception ex)
+            {
+                // Last-resort guard, for the report only: the exception propagates exactly as before.
+                report.Crashed(ex);
+                report.Print();
+                throw;
+            }
+        }
+
+        private bool finalizesheetssteps(DataReferencesOptions dro, bool german, FinalizeSheetsReport report)
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor ed = docCol.MdiActiveDocument.Editor;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            report.Begin(FinalizeStep.ResetProfileViews);
             resetprofileviews();
+            report.Begin(FinalizeStep.ImportCivilStyles);
             importcivilstyles();
 
+            report.Begin(FinalizeStep.PrepareProfileViewStyle);
             #region Fix wrong PV style at start
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
@@ -154,6 +178,7 @@ namespace IntersectUtilities
             }
             #endregion
 
+            report.Begin(FinalizeStep.LoadSurface);
             DataManager dm = new DataManager(dro);
             using var surfaceDb = dm.Surface();
             using var stx = surfaceDb.TransactionManager.StartTransaction();
@@ -164,9 +189,12 @@ namespace IntersectUtilities
                 return false;
             }
 
+            report.Begin(FinalizeStep.CreateLerData);
             createlerdatapssmethod2(dro, surface);
+            report.Begin(FinalizeStep.PopulateProfiles);
             populateprofilesmethod(dro);
 
+            report.Begin(FinalizeStep.StyleProfileViews);
             using var profs = dm.Længdeprofiler();
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
@@ -540,11 +568,15 @@ namespace IntersectUtilities
                 var profiles = localDb.HashSetOfType<Profile>(tx);
                 if (profiles.Any(x => x.Name.Contains("MIDT"))) hasMidt = true;
             }
+            report.Begin(FinalizeStep.CreateDetailing, hasMidt ? "MIDT profile found: full" : "no MIDT profile: preliminary");
             if (hasMidt) createdetailingmethod(dro, localDb);
             else createdetailingpreliminarymethod(dro, localDb);
 
+            report.Begin(FinalizeStep.StaggerLabels);
             staggerlabelsall();
+            report.Begin(FinalizeStep.ViewportRectangles);
             drawviewportrectangles();
+            report.Begin(FinalizeStep.ColorizeLerLayers);
             colorizealllerlayersmethod();
 
             // DE only: replace the (now styled, colored, staggered) Civil projection labels
@@ -555,6 +587,7 @@ namespace IntersectUtilities
             // duplicate conversion code.
             if (german)
             {
+                report.Begin(FinalizeStep.GermanProjectionLabels);
                 Norsyn.OnDemandLoading.NorsynProjectionProfileLabelLoader.EnsureLoaded();
                 NpplRun(eraseOriginals: true, limit: 0, dro);
             }
