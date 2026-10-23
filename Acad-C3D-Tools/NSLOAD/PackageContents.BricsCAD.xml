@@ -8,7 +8,7 @@
 <ApplicationPackage
     SchemaVersion="1.0"
     Name="NSLOAD"
-    AppVersion="1.8.2"
+    AppVersion="1.9.0"
     Description="NS Plugin Loader for BricsCAD V27"
     Author="shtirlitsDva"
     ProductCode="{5164C97C-A0C6-4555-91AD-A5E41FA12C0C}">
