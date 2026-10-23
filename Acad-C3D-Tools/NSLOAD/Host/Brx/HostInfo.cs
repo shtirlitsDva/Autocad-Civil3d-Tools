@@ -26,11 +26,11 @@ namespace NSLOAD
 
         /// <summary>The shared register of company plugins built for this host.</summary>
         public const string RegisterCsvPath =
-            @"X:\AutoCAD DRI - 01 Civil 3D\NetloadV2\Register-BricsCAD-26.csv";
+            @"X:\AutoCAD DRI - 01 Civil 3D\NetloadV2\Register-BricsCAD-27.csv";
 
         /// <summary>The per-user config under %APPDATA%\NSLOAD. One file per host:
         /// a plugin binary is built against one host's API, so the plugin paths a
         /// drafter stores are this host's only.</summary>
-        public const string ConfigFileName = "config-BricsCAD-26.json";
+        public const string ConfigFileName = "config-BricsCAD-27.json";
     }
 }

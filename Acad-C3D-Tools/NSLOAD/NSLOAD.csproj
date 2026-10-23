@@ -99,7 +99,7 @@
 		<Error Condition="'$(NorsynHost)' != 'AutoCAD' And '$(NorsynHost)' != 'BricsCAD'"
 		       Text="NorsynHost must be AutoCAD or BricsCAD, not '$(NorsynHost)'." />
 		<Error Condition="'$(NorsynHost)' == 'BricsCAD' And !Exists('$(BricsCADPath)\BrxMgd.dll')"
-		       Text="BrxMgd.dll not found in '$(BricsCADPath)'. Pass -p:BricsCADPath=&lt;BricsCAD V26 install folder&gt;." />
+		       Text="BrxMgd.dll not found in '$(BricsCADPath)'. Pass -p:BricsCADPath=&lt;BricsCAD V27 install folder&gt;." />
 	</Target>
 
 	<Target Name="CreateBundle" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
