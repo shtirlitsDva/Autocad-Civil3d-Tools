@@ -429,6 +429,8 @@ namespace IntersectUtilities.NSTBL
         ///   serie: the pipe's serie (SerieFromPipesOverCsv), listed on the command line.
         /// - Afgreningsstuds, whose CSV System is fixed Twin: twin or enkelt from the main pipe under the
         ///   stud (SystemFromMainPipe), listed on the command line when it changes.
+        /// - Endebund: system, DN and material from the pipe it closes (EndebundFromPipe), before
+        ///   the serie is settled, so a plastic endebund takes the plastic route below.
         /// </summary>
         private static void FixComponentData(
             BlockReference br,
@@ -451,6 +453,8 @@ namespace IntersectUtilities.NSTBL
                 else notes.Add($"{br.RealName()} {br.Handle}: intet {from} ved portene, Serie {irp.Serie} fra CSV beholdt.");
                 return;
             }
+
+            EndebundFromPipe(br, irp, pipes, notes);
 
             if (!Enum.TryParse(irp.SystemType, out PipeSystemEnum system)) return;
 
@@ -528,6 +532,68 @@ namespace IntersectUtilities.NSTBL
                 }
             }
             notes.Add($"{br.RealName()} {br.Handle}: intet stålrør DN{irp.DN1} under studsen, System {irp.System} fra CSV beholdt.");
+        }
+        /// <summary>
+        /// One endebund block (ENDEBUND) closes every pipe end, but its System and DN are block
+        /// parameters the drafter sets by hand (System is often left at Twin on enkelt pipes), and its
+        /// CSV row says Stål although it is also placed on plastic pipes. The pipe at its port decides
+        /// all three instead: System, DN1 and SysNavn, listed on the command line when they change,
+        /// and its serie too.
+        /// </summary>
+        private static void EndebundFromPipe(
+            BlockReference br, IntersectResultComponent irp,
+            (Polyline Pipe, Extents3d Ext)[] pipes, List<string> notes)
+        {
+            if (br.ReadDynamicCsvProperty(DynamicProperty.Type, false) != "Endebund") return;
+
+            const double tol = componentPortTolerance;
+            foreach (Point3d port in br.GetAllEndPoints())
+            {
+                //The pipe the endebund closes ends at the port; a pipe merely passing it is a fallback.
+                var touching = pipes
+                    .Where(x => port.X >= x.Ext.MinPoint.X - tol && port.X <= x.Ext.MaxPoint.X + tol &&
+                                port.Y >= x.Ext.MinPoint.Y - tol && port.Y <= x.Ext.MaxPoint.Y + tol)
+                    .Select(x => x.Pipe)
+                    .Where(p => p.GetClosestPointTo(port, false).DistanceHorizontalTo(port) <= tol)
+                    .OrderBy(p => p.StartPoint.DistanceHorizontalTo(port) <= tol ||
+                                  p.EndPoint.DistanceHorizontalTo(port) <= tol ? 0 : 1);
+                foreach (Polyline pipe in touching)
+                {
+                    string pipeSystem = GetPipeType(pipe, true) switch
+                    {
+                        PipeTypeEnum.Twin => "Twin",
+                        PipeTypeEnum.Enkelt => "Enkelt",
+                        _ => "",
+                    };
+                    PipeSystemEnum material = GetPipeSystem(pipe);
+                    if (pipeSystem.IsNoE() || material == PipeSystemEnum.Ukendt) continue;
+
+                    var changes = new List<string>();
+                    if (pipeSystem != irp.System)
+                    {
+                        changes.Add($"System {irp.System} -> {pipeSystem}");
+                        irp.System = pipeSystem;
+                    }
+                    string pipeDn = GetPipeDN(pipe).ToString();
+                    if (pipeDn != irp.DN1)
+                    {
+                        changes.Add($"DN {irp.DN1} -> {pipeDn}");
+                        irp.DN1 = pipeDn;
+                    }
+                    if (material.ToString() != irp.SystemType)
+                    {
+                        changes.Add($"SysNavn {irp.SystemType} -> {material}");
+                        irp.SystemType = material.ToString();
+                    }
+                    //A stale Serie parameter on the block must not win over the pipe either.
+                    var series = GetPipeSeriesV2(pipe);
+                    if (series != PipeSeriesEnum.Undefined) irp.Serie = series.ToString();
+                    if (changes.Count > 0)
+                        notes.Add($"{br.RealName()} {br.Handle}: {string.Join(", ", changes)} fra røret.");
+                    return;
+                }
+            }
+            notes.Add($"{br.RealName()} {br.Handle}: intet rør ved porten, System {irp.System} DN{irp.DN1} {irp.SystemType} fra blokken beholdt.");
         }
         /// <summary>The block's own dynamic Serie parameter, or "" if it has none.</summary>
         private static string OwnSerie(BlockReference br)
