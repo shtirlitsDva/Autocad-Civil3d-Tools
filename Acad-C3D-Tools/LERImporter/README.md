@@ -4,7 +4,7 @@ Imports LER 2.0 packages (Ledningspakke zips, GML) into a 2D drawing (`2DLER.dwg
 3D drawing per package, with an AEC property set on every entity. Command: `IGMLBATCH` (alias
 `IMPORTCONSOLIDATEDGMLBATCH`), which imports every zip in a folder.
 
-Runs on Civil 3D 2025 and BricsCAD V26. General BricsCAD porting facts, including how the
+Runs on Civil 3D 2025 and BricsCAD V27. General BricsCAD porting facts, including how the
 property sets are written without the AEC API, are in
 `X:\AutoCAD DRI - 01 Civil 3D\Dev\00 Bricscad porting\bricscad-porting.md`
 (`<aec-property-sets>`). This file keeps only what is specific to LERImporter.

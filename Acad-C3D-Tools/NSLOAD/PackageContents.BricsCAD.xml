@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- BricsCAD V26 autoloader. The Release build of the BricsCAD lane
+<!-- BricsCAD V27 autoloader. The Release build of the BricsCAD lane
      (-p:NorsynHost=BricsCAD) copies this as PackageContents.xml into
      Deploy\BricsCAD\NSLOAD.bundle; install that folder as
      %APPDATA%\Bricsys\ApplicationPlugins\NSLOAD.bundle. BricsCAD's series is the
-     bare major: "26". "V26" or "R25.0" never match, and the bundle is then skipped
+     bare major: "27". "V27" or "R25.0" never match, and the bundle is then skipped
      without a word. Keep AppVersion in step with PackageContents.xml. -->
 <ApplicationPackage
     SchemaVersion="1.0"
     Name="NSLOAD"
-    AppVersion="1.8.2"
-    Description="NS Plugin Loader for BricsCAD V26"
+    AppVersion="1.9.0"
+    Description="NS Plugin Loader for BricsCAD V27"
     Author="shtirlitsDva"
     ProductCode="{5164C97C-A0C6-4555-91AD-A5E41FA12C0C}">
 
@@ -20,7 +20,7 @@
         AppDescription="NS Plugin Loader"
         AppType=".Net"
         LoadOnAutoCADStartup="True">
-      <RuntimeRequirements OS="Win64" SeriesMin="26" SeriesMax="26" />
+      <RuntimeRequirements OS="Win64" SeriesMin="27" SeriesMax="27" />
     </ComponentEntry>
   </Components>
 </ApplicationPackage>
