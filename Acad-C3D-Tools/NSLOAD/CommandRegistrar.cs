@@ -20,7 +20,7 @@ namespace NSLOAD
         private readonly List<RegisteredCommand> _commands = new();
 
         private record RegisteredCommand(
-            string Group, string GlobalName, CommandInvoker Invoker);
+            string Group, string GlobalName, CommandCallback Callback, CommandInvoker Invoker);
 
         // What the CAD program calls for one command. After RemoveCommand,
         // BricsCAD keeps one removed callback per command group alive for good,
@@ -82,8 +82,9 @@ namespace NSLOAD
                         }
 
                         var invoker = new CommandInvoker(invoke);
-                        Utils.AddCommand(group, globalName, localName, flags, invoker.Run);
-                        _commands.Add(new RegisteredCommand(group, globalName, invoker));
+                        CommandCallback callback = invoker.Run;
+                        Utils.AddCommand(group, globalName, localName, flags, callback);
+                        _commands.Add(new RegisteredCommand(group, globalName, callback, invoker));
                     }
                 }
             }
