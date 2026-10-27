@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
+using CSharpFunctionalExtensions;
+
 // AecDataType / AecTokenKind switches name every member and have no discard arm.
 #pragma warning disable CS8524
 
@@ -92,24 +94,14 @@ internal readonly record struct AecToken(AecTokenKind Kind, long Integer, double
 /// not a manual Integer / Real / Text / True-False one (automatic, another data type): it is
 /// shown, never edited.
 /// </summary>
-internal sealed record AecDefinedProperty(int Id, string Name, string Description, Result<AecDataType> Type);
+internal sealed record AecDefinedProperty(int Id, string Name, string Description, Result<AecDataType, AecError> Type);
 
 /// <summary>A decoded definition: its description and its properties in filed order.</summary>
 internal sealed record AecDefinition(string Description, IReadOnlyList<AecDefinedProperty> Properties)
 {
-    public Option<AecDefinedProperty> ById(int id)
-    {
-        foreach (AecDefinedProperty p in Properties)
-            if (p.Id == id) return Option<AecDefinedProperty>.Of(p);
-        return Option<AecDefinedProperty>.Nothing;
-    }
+    public Maybe<AecDefinedProperty> ById(int id) => Properties.TryFirst(p => p.Id == id);
 
-    public Option<AecDefinedProperty> ByName(string name)
-    {
-        foreach (AecDefinedProperty p in Properties)
-            if (p.Name == name) return Option<AecDefinedProperty>.Of(p);
-        return Option<AecDefinedProperty>.Nothing;
-    }
+    public Maybe<AecDefinedProperty> ByName(string name) => Properties.TryFirst(p => p.Name == name);
 }
 
 /// <summary>One 1006 record of a set: what it stores for one property. At is its tag's token.</summary>
@@ -146,12 +138,7 @@ internal abstract record AecItem(int Id, int At)
 /// </summary>
 internal sealed record AecSet(IReadOnlyList<int> HeaderPointers, IReadOnlyList<AecItem> Items, int CountAt)
 {
-    public Option<AecItem> ById(int id)
-    {
-        foreach (AecItem item in Items)
-            if (item.Id == id) return Option<AecItem>.Of(item);
-        return Option<AecItem>.Nothing;
-    }
+    public Maybe<AecItem> ById(int id) => Items.TryFirst(item => item.Id == id);
 }
 
 internal static class AecStream
@@ -281,142 +268,142 @@ internal static class AecStream
 
     // ---------------------------------------------------------------- decoding
 
-    public static Result<AecDefinition> ReadDefinition(IReadOnlyList<AecToken> tokens) =>
+    public static Result<AecDefinition, AecError> ReadDefinition(IReadOnlyList<AecToken> tokens) =>
         Records(tokens, TagDefinition, TagProperty, DefinitionCountOffset, "definition").Bind(records =>
-        {
-            string description = Is(tokens, records.Header + 2, AecTokenKind.String) ? tokens[records.Header + 2].Text : "";
-            var properties = new List<AecDefinedProperty>();
-            foreach (int at in records.Items)
+            records.Items.Traverse(at => PropertyAt(tokens, at)).Bind(properties =>
             {
-                Result<AecDefinedProperty> property = PropertyAt(tokens, at);
-                string fault = property.Match(p => { properties.Add(p); return ""; }, message => message);
-                if (fault.Length > 0) return Result<AecDefinition>.Failure(fault);
-            }
-            var duplicate = properties.GroupBy(p => p.Id).FirstOrDefault(g => g.Count() > 1);
-            if (duplicate is not null)
-                return Result<AecDefinition>.Failure($"definition: property id {duplicate.Key} is defined twice");
-            return Result<AecDefinition>.Success(new AecDefinition(description, properties));
-        });
+                string description = Is(tokens, records.Header + 2, AecTokenKind.String) ? tokens[records.Header + 2].Text : "";
+                return properties.GroupBy(p => p.Id).Where(g => g.Count() > 1).Select(g => g.Key).TryFirst().Match(
+                    id => Fault<AecDefinition>($"definition: property id {id} is defined twice"),
+                    () => Result.Success<AecDefinition, AecError>(new AecDefinition(description, properties)));
+            }));
 
-    public static Result<AecSet> ReadSet(IReadOnlyList<AecToken> tokens) =>
+    public static Result<AecSet, AecError> ReadSet(IReadOnlyList<AecToken> tokens) =>
         Records(tokens, TagSet, TagItem, SetCountOffset, "property set").Bind(records =>
         {
             int headerEnd = records.Items.Count > 0 ? records.Items[0] - 2 : tokens.Count;
             var pointers = new List<int>();
             for (int i = records.Header; i < headerEnd; i++)
                 if (tokens[i].Kind == AecTokenKind.HardPointer) pointers.Add((int)tokens[i].Integer);
-
-            var items = new List<AecItem>();
-            foreach (int at in records.Items)
-            {
-                if (!Kinds(tokens, at, (2, AecTokenKind.String), (4, AecTokenKind.Int32),
-                        (5, AecTokenKind.Int16), (6, AecTokenKind.Int16)))
-                    return Result<AecSet>.Failure($"property set: the value record at token {at} is not laid out as AEC lays it");
-                int id = (int)tokens[at + 4].Integer;
-                items.Add(DataTypeOf(tokens[at + 5].Integer).Match(
-                    type => ValueAt(tokens, at + 6, type).Match(
-                        value => value.Match<AecItem>(
-                            v => new AecItem.Stored(id, at, v),
-                            () => new AecItem.Empty(id, at, type)),
-                        reason => new AecItem.Unreadable(id, at, reason)),
-                    reason => new AecItem.Unreadable(id, at, reason)));
-            }
-            return Result<AecSet>.Success(new AecSet(pointers, items, records.Header + SetCountOffset));
+            return records.Items.Traverse(at => ItemAt(tokens, at))
+                .Map(items => new AecSet(pointers, items, records.Header + SetCountOffset));
         });
 
     private sealed record Found(int Header, IReadOnlyList<int> Items);
 
     // The header record and every property record, after checking each tag, each filing
     // marker and the header's record count. A record opens Bool, Bool, I16 tag, I16 80.
-    private static Result<Found> Records(
+    private static Result<Found, AecError> Records(
         IReadOnlyList<AecToken> tokens, short headerTag, short itemTag, int countOffset, string what)
     {
         if (!EndsAsAecEnds(tokens))
-            return Result<Found>.Failure($"{what}: the stream does not end as an AEC object ends (truncated, or tokens after the object)");
+            return Fault<Found>($"{what}: the stream does not end as an AEC object ends (truncated, or tokens after the object)");
         var records = new List<int>();
         for (int i = 2; i + 1 < tokens.Count; i++)
             if (tokens[i - 2].Kind == AecTokenKind.Bool && tokens[i - 1].Kind == AecTokenKind.Bool
                 && tokens[i].Kind == AecTokenKind.Int16 && tokens[i + 1].Kind == AecTokenKind.Int16)
                 records.Add(i);
-        if (records.Count == 0) return Result<Found>.Failure($"{what}: the stream holds no AEC record");
+        if (records.Count == 0) return Fault<Found>($"{what}: the stream holds no AEC record");
 
         int header = records[0];
         if (tokens[header].Integer != headerTag)
-            return Result<Found>.Failure($"{what}: the object opens with record tag {tokens[header].Integer}, expected {headerTag}");
+            return Fault<Found>($"{what}: the object opens with record tag {tokens[header].Integer}, expected {headerTag}");
         if (header < 3 || !Marker(tokens, header - 3) || !Marker(tokens, header + 1))
-            return Result<Found>.Failure($"{what}: the header's filing marker is not {Version}");
+            return Fault<Found>($"{what}: the header's filing marker is not {Version}");
 
         var items = new List<int>();
         foreach (int at in records.Skip(1))
         {
             if (tokens[at].Integer != itemTag)
-                return Result<Found>.Failure($"{what}: record tag {tokens[at].Integer} at token {at}, expected {itemTag}");
+                return Fault<Found>($"{what}: record tag {tokens[at].Integer} at token {at}, expected {itemTag}");
             if (!Marker(tokens, at + 1) || !Marker(tokens, at + 3))
-                return Result<Found>.Failure($"{what}: the record at token {at} has a filing marker other than {Version}");
+                return Fault<Found>($"{what}: the record at token {at} has a filing marker other than {Version}");
             items.Add(at);
         }
 
         int countAt = header + countOffset;
         if (!Is(tokens, countAt, AecTokenKind.Int32))
-            return Result<Found>.Failure($"{what}: no record count at token {countAt}");
+            return Fault<Found>($"{what}: no record count at token {countAt}");
         if (tokens[countAt].Integer != items.Count)
-            return Result<Found>.Failure($"{what}: the header counts {tokens[countAt].Integer} records, the stream holds {items.Count}");
-        return Result<Found>.Success(new Found(header, items));
+            return Fault<Found>($"{what}: the header counts {tokens[countAt].Integer} records, the stream holds {items.Count}");
+        return Result.Success<Found, AecError>(new Found(header, items));
     }
 
     // One 1007 record. Its layout must hold; a property that is not a manual one of the
     // four data types is kept, with the reason it is not supported.
-    private static Result<AecDefinedProperty> PropertyAt(IReadOnlyList<AecToken> tokens, int at)
+    private static Result<AecDefinedProperty, AecError> PropertyAt(IReadOnlyList<AecToken> tokens, int at)
     {
         if (!Kinds(tokens, at, (2, AecTokenKind.String), (4, AecTokenKind.Int32), (5, AecTokenKind.String),
                 (6, AecTokenKind.Int16), (7, AecTokenKind.Bool), (9, AecTokenKind.Int16)))
-            return Result<AecDefinedProperty>.Failure($"definition: the property record at token {at} is not laid out as AEC lays it");
+            return Fault<AecDefinedProperty>($"definition: the property record at token {at} is not laid out as AEC lays it");
         int id = (int)tokens[at + 4].Integer;
         string name = tokens[at + 5].Text;           // tokens[at + 2] is the DESCRIPTION
         string description = tokens[at + 2].Text;
-        Result<AecDataType> type = tokens[at + 7].Integer != 0
-            ? Result<AecDataType>.Failure("an automatic property: its value is computed, not stored")
+        Result<AecDataType, AecError> type = tokens[at + 7].Integer != 0
+            ? Result.Failure<AecDataType, AecError>(
+                AecError.Unsupported("an automatic property: its value is computed, not stored"))
             : DataTypeOf(tokens[at + 6].Integer).Bind(t =>
                 // The default is not used, but its VARIANT must be one of the property's type.
-                ValueAt(tokens, at + 9, t).Map(_ => t));
-        return Result<AecDefinedProperty>.Success(new AecDefinedProperty(id, name, description, type));
+                ValueAt(tokens, at + 9, t).Bind(_ => Result.Success<AecDataType, AecError>(t)));
+        return Result.Success<AecDefinedProperty, AecError>(new AecDefinedProperty(id, name, description, type));
     }
 
-    private static Result<AecDataType> DataTypeOf(long filed) => filed is >= 0 and <= 3
-        ? Result<AecDataType>.Success((AecDataType)filed)
-        : Result<AecDataType>.Failure($"data type {filed} is not Integer, Real, Text or TrueFalse");
+    // One 1006 record. Its layout must hold; a value it cannot read is kept, with the reason.
+    private static Result<AecItem, AecError> ItemAt(IReadOnlyList<AecToken> tokens, int at)
+    {
+        if (!Kinds(tokens, at, (2, AecTokenKind.String), (4, AecTokenKind.Int32),
+                (5, AecTokenKind.Int16), (6, AecTokenKind.Int16)))
+            return Fault<AecItem>($"property set: the value record at token {at} is not laid out as AEC lays it");
+        int id = (int)tokens[at + 4].Integer;
+        return Result.Success<AecItem, AecError>(DataTypeOf(tokens[at + 5].Integer).Match(
+            type => ValueAt(tokens, at + 6, type).Match(
+                value => value.Match<AecItem, AecValue>(
+                    v => new AecItem.Stored(id, at, v),
+                    () => new AecItem.Empty(id, at, type)),
+                error => new AecItem.Unreadable(id, at, error.Message)),
+            error => new AecItem.Unreadable(id, at, error.Message)));
+    }
+
+    private static Result<AecDataType, AecError> DataTypeOf(long filed) => filed is >= 0 and <= 3
+        ? Result.Success<AecDataType, AecError>((AecDataType)filed)
+        : Result.Failure<AecDataType, AecError>(
+            AecError.Unsupported($"data type {filed} is not Integer, Real, Text or TrueFalse"));
 
     // The VARIANT type at `at` and the value after it, which must belong to `type`. An empty
     // VARIANT fits every type and files no value.
-    private static Result<Option<AecValue>> ValueAt(IReadOnlyList<AecToken> tokens, int at, AecDataType type)
+    private static Result<Maybe<AecValue>, AecError> ValueAt(IReadOnlyList<AecToken> tokens, int at, AecDataType type)
     {
         long vt = tokens[at].Integer;
-        if (vt is 0 or 1) return Result<Option<AecValue>>.Success(Option<AecValue>.Nothing);
-        (AecDataType Family, AecTokenKind Kind)? known = vt switch
+        if (vt is 0 or 1) return Result.Success<Maybe<AecValue>, AecError>(Maybe<AecValue>.None);
+        Maybe<(AecDataType Family, AecTokenKind Kind)> known = vt switch
         {
-            2 => (AecDataType.Integer, AecTokenKind.Int16),
-            3 => (AecDataType.Integer, AecTokenKind.Int32),
-            5 => (AecDataType.Real, AecTokenKind.Double),
-            8 => (AecDataType.Text, AecTokenKind.String),
-            11 => (AecDataType.TrueFalse, AecTokenKind.Bool),
-            _ => null,
+            2 => Maybe.From((AecDataType.Integer, AecTokenKind.Int16)),
+            3 => Maybe.From((AecDataType.Integer, AecTokenKind.Int32)),
+            5 => Maybe.From((AecDataType.Real, AecTokenKind.Double)),
+            8 => Maybe.From((AecDataType.Text, AecTokenKind.String)),
+            11 => Maybe.From((AecDataType.TrueFalse, AecTokenKind.Bool)),
+            _ => Maybe<(AecDataType, AecTokenKind)>.None,
         };
-        if (known is not { } k)
-            return Result<Option<AecValue>>.Failure($"VARIANT type {vt} is not one this reader knows");
-        if (k.Family != type)
-            return Result<Option<AecValue>>.Failure($"a {k.Family} value (VARIANT {vt}) in a {type} property");
-        if (!Is(tokens, at + 1, k.Kind))
-            return Result<Option<AecValue>>.Failure($"VARIANT type {vt} has no value of its kind at token {at + 1}");
-        AecToken v = tokens[at + 1];
-        AecValue value = type switch
+        return known.ToResult(AecError.Unsupported($"VARIANT type {vt} is not one this reader knows")).Bind(k =>
         {
-            AecDataType.Integer => new AecValue.Integer((int)v.Integer),
-            AecDataType.Real => new AecValue.Real(v.Real),
-            AecDataType.Text => new AecValue.Text(v.Text),
-            AecDataType.TrueFalse => new AecValue.TrueFalse(v.Integer != 0),
-        };
-        return Result<Option<AecValue>>.Success(Option<AecValue>.Of(value));
+            if (k.Family != type)
+                return Fault<Maybe<AecValue>>($"a {k.Family} value (VARIANT {vt}) in a {type} property");
+            if (!Is(tokens, at + 1, k.Kind))
+                return Fault<Maybe<AecValue>>($"VARIANT type {vt} has no value of its kind at token {at + 1}");
+            AecToken v = tokens[at + 1];
+            AecValue value = type switch
+            {
+                AecDataType.Integer => new AecValue.Integer((int)v.Integer),
+                AecDataType.Real => new AecValue.Real(v.Real),
+                AecDataType.Text => new AecValue.Text(v.Text),
+                AecDataType.TrueFalse => new AecValue.TrueFalse(v.Integer != 0),
+            };
+            return Result.Success<Maybe<AecValue>, AecError>(Maybe.From(value));
+        });
     }
+
+    private static Result<T, AecError> Fault<T>(string message) =>
+        Result.Failure<T, AecError>(AecError.Stream(message));
 
     private static bool EndsAsAecEnds(IReadOnlyList<AecToken> tokens)
     {
@@ -442,20 +429,20 @@ internal static class AecStream
     /// record for the property, a new record before End and the record count raised by one.
     /// Nothing else in the stream changes.
     /// </summary>
-    public static Result<IReadOnlyList<AecToken>> WithValue(
+    public static Result<IReadOnlyList<AecToken>, AecError> WithValue(
         IReadOnlyList<AecToken> tokens, AecSet set, int id, AecValue value)
     {
         IReadOnlyList<AecToken> filed = Value(value);
         return set.ById(id).Match(
             item => item.Match(
-                stored => Replace(tokens, stored.At, filed, value.Type),
-                empty => Replace(tokens, empty.At, filed, value.Type),
-                unreadable => Result<IReadOnlyList<AecToken>>.Failure(
-                    $"property {id} cannot be edited: {unreadable.Reason}")),
+                stored => Result.Success<IReadOnlyList<AecToken>, AecError>(Replace(tokens, stored.At, filed, value.Type)),
+                empty => Result.Success<IReadOnlyList<AecToken>, AecError>(Replace(tokens, empty.At, filed, value.Type)),
+                unreadable => Result.Failure<IReadOnlyList<AecToken>, AecError>(AecError.Unsupported(
+                    $"property {id} cannot be edited: {unreadable.Reason}"))),
             () => Insert(tokens, set, id, value));
     }
 
-    private static Result<IReadOnlyList<AecToken>> Replace(
+    private static IReadOnlyList<AecToken> Replace(
         IReadOnlyList<AecToken> tokens, int at, IReadOnlyList<AecToken> filed, AecDataType type)
     {
         int from = at + 5;                                       // the data type
@@ -465,22 +452,22 @@ internal static class AecStream
         t.Add(AecToken.Int16((short)type));
         t.AddRange(filed);
         t.AddRange(tokens.Skip(to));
-        return Result<IReadOnlyList<AecToken>>.Success(t);
+        return t;
     }
 
-    private static Result<IReadOnlyList<AecToken>> Insert(IReadOnlyList<AecToken> tokens, AecSet set, int id, AecValue value)
+    private static Result<IReadOnlyList<AecToken>, AecError> Insert(IReadOnlyList<AecToken> tokens, AecSet set, int id, AecValue value)
     {
         IReadOnlyList<AecToken> end = End();
         int tail = tokens.Count - end.Count;
         if (!EndsAsAecEnds(tokens))
-            return Result<IReadOnlyList<AecToken>>.Failure("the set does not end as AEC ends one; a record cannot be added");
+            return Fault<IReadOnlyList<AecToken>>("the set does not end as AEC ends one; a record cannot be added");
         if (!Is(tokens, set.CountAt, AecTokenKind.Int32))
-            return Result<IReadOnlyList<AecToken>>.Failure("the set's record count is not where it should be");
+            return Fault<IReadOnlyList<AecToken>>("the set's record count is not where it should be");
         var t = new List<AecToken>(tokens.Count + 16);
         t.AddRange(tokens.Take(tail));
         t[set.CountAt] = AecToken.Int32((int)tokens[set.CountAt].Integer + 1);
         t.AddRange(Item(id, value));
         t.AddRange(end);
-        return Result<IReadOnlyList<AecToken>>.Success(t);
+        return Result.Success<IReadOnlyList<AecToken>, AecError>(t);
     }
 }

@@ -191,6 +191,7 @@
 	</PropertyGroup>
 	<ItemGroup>
 		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+		<PackageReference Include="CSharpFunctionalExtensions" Version="3.7.0" />
 		<PackageReference Include="Fluid.Core" Version="2.11.1" />
 		<PackageReference Include="Google.OrTools" Version="9.15.6755" />
 

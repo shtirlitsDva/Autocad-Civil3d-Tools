@@ -1,6 +1,13 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
+
+using CSharpFunctionalExtensions;
 
 using Teigha.DatabaseServices;
+
+// CSharpFunctionalExtensions has an Entity too (a DDD base class).
+using Entity = Teigha.DatabaseServices.Entity;
 
 namespace Norsyn.AecPropertySets;
 
@@ -17,29 +24,34 @@ internal sealed record AecAttachedSet(
 internal sealed class AecSets
 {
     private readonly Transaction _tx;
-    private readonly Dictionary<ObjectId, Result<(string Name, AecDefinition Definition)>> _definitions = new();
+    private readonly Dictionary<ObjectId, Result<(string Name, AecDefinition Definition), AecError>> _definitions = new();
 
     public AecSets(Transaction tx) => _tx = tx;
+
+    private sealed record SetEntry(string Key, ObjectId Id);
 
     /// <summary>
     /// Every set on the entity, in dictionary order. A set that cannot be read is a fault
     /// in its place, naming the set; the others still read.
     /// </summary>
-    public IReadOnlyList<Result<AecAttachedSet>> SetsOf(Entity entity)
+    public IReadOnlyList<Result<AecAttachedSet, AecError>> SetsOf(Entity entity) =>
+        SetEntriesOf(entity).Match(
+            entries => entries.Select(entry => Set(entry.Key, entry.Id)).ToList(),
+            error => new List<Result<AecAttachedSet, AecError>> { Result.Failure<AecAttachedSet, AecError>(error) });
+
+    private Result<IReadOnlyList<SetEntry>, AecError> SetEntriesOf(Entity entity)
     {
-        var sets = new List<Result<AecAttachedSet>>();
-        Result<Unit> listed = AecObjects.Boundary($"list the sets of {entity.Handle}", () =>
-        {
-            if (entity.ExtensionDictionary.IsNull) return Result<Unit>.Success(Unit.Value);
-            var xdict = (DBDictionary)_tx.GetObject(entity.ExtensionDictionary, OpenMode.ForRead);
-            if (!xdict.Contains(AecObjects.SetDictionary)) return Result<Unit>.Success(Unit.Value);
-            var setDict = (DBDictionary)_tx.GetObject(xdict.GetAt(AecObjects.SetDictionary), OpenMode.ForRead);
-            foreach (DBDictionaryEntry entry in setDict)
-                sets.Add(Set(entry.Key, entry.Value));
-            return Result<Unit>.Success(Unit.Value);
-        });
-        listed.Match(_ => Unit.Value, fault => { sets.Add(Result<AecAttachedSet>.Failure(fault)); return Unit.Value; });
-        return sets;
+        IReadOnlyList<SetEntry> none = Array.Empty<SetEntry>();
+        if (entity.ExtensionDictionary.IsNull) return Result.Success<IReadOnlyList<SetEntry>, AecError>(none);
+        return AecObjects.Open<DBDictionary>(_tx, entity.ExtensionDictionary, OpenMode.ForRead,
+                $"the extension dictionary of {entity.Handle}")
+            .Bind(xdict => xdict.Contains(AecObjects.SetDictionary)
+                ? AecObjects.Entry<DBDictionary>(_tx, xdict, AecObjects.SetDictionary, OpenMode.ForRead)
+                    .Bind(setDict => AecObjects.Host($"list the sets of {entity.Handle}", () =>
+                        (IReadOnlyList<SetEntry>)setDict.Cast<DBDictionaryEntry>()
+                            .Select(entry => new SetEntry(entry.Key, entry.Value))
+                            .ToList()))
+                : Result.Success<IReadOnlyList<SetEntry>, AecError>(none));
     }
 
     /// <summary>
@@ -52,72 +64,69 @@ internal sealed class AecSets
     /// undoable database changes, and the fill is the one LERImporter's sets are made with.
     /// On a fault the caller aborts the transaction.
     /// </summary>
-    public Result<ObjectId> Write(ObjectId setId, int propertyId, AecValue value) =>
-        AecObjects.Boundary($"write property {propertyId}", () =>
-        {
-            DBObject old = _tx.GetObject(setId, OpenMode.ForRead);
-            return AecObjects.Record(old).Bind(recorded =>
+    public Result<ObjectId, AecError> Write(ObjectId setId, int propertyId, AecValue value) =>
+        AecObjects.Open<DBObject>(_tx, setId, OpenMode.ForRead, $"set {setId.Handle}").Bind(old =>
+            AecObjects.Record(old).Bind(recorded =>
                 AecStream.ReadSet(recorded.Body).Bind(set =>
                     DefinitionOf(set, recorded).Bind(def =>
                         def.Definition.Definition.ById(propertyId)
-                            .OrFault($"{def.Definition.Name} has no property with id {propertyId}")
+                            .ToResult(AecError.Drawing($"{def.Definition.Name} has no property with id {propertyId}"))
                             .Bind(property => property.Type.Bind(type => type == value.Type
-                                ? Result<Unit>.Success(Unit.Value)
-                                : Result<Unit>.Failure($"{property.Name} is a {type} property, not {value.Type}")))
-                            .Bind(_ => AecStream.WithValue(recorded.Body, set, propertyId, value))
-                            .Bind(body => Replace(old, body, recorded.Ids)))));
-        });
+                                ? UnitResult.Success<AecError>()
+                                : UnitResult.Failure(AecError.Value($"{property.Name} is a {type} property, not {value.Type}"))))
+                            .Bind(() => AecStream.WithValue(recorded.Body, set, propertyId, value))
+                            .Bind(body => Replace(old, body, recorded.Ids))))));
 
-    private Result<ObjectId> Replace(DBObject old, IReadOnlyList<AecToken> body, IReadOnlyList<ObjectId> ids) =>
+    private Result<ObjectId, AecError> Replace(DBObject old, IReadOnlyList<AecToken> body, IReadOnlyList<ObjectId> ids) =>
         AecObjects.KeyInOwner(_tx, old).Bind(key =>
-        {
-            var owner = (DBDictionary)_tx.GetObject(old.OwnerId, OpenMode.ForWrite);
-            owner.Remove(old.ObjectId);
-            old.UpgradeOpen();
-            old.Erase();
-            DBObject fresh = AecObjects.Create(AecObjects.SetClass);
-            owner.SetAt(key, fresh);
-            _tx.AddNewlyCreatedDBObject(fresh, true);
-            return AecObjects.Fill(fresh, body, ids).Map(_ => fresh.ObjectId);
-        });
+            AecObjects.Open<DBDictionary>(_tx, old.OwnerId, OpenMode.ForWrite, $"the owner of set {key}").Bind(owner =>
+                AecObjects.Host($"erase set {key}", () =>
+                    {
+                        owner.Remove(old.ObjectId);
+                        old.UpgradeOpen();
+                        old.Erase();
+                    })
+                    .Bind(() => AecObjects.Create(AecObjects.SetClass))
+                    .Bind(fresh => AecObjects.Host($"add set {key}", () =>
+                        {
+                            owner.SetAt(key, fresh);
+                            _tx.AddNewlyCreatedDBObject(fresh, true);
+                        })
+                        .Bind(() => AecObjects.Fill(fresh, body, ids))
+                        .Map(() => fresh.ObjectId))));
 
-    private Result<AecAttachedSet> Set(string key, ObjectId setId) =>
-        AecObjects.Boundary($"read set {key}", () =>
-            AecObjects.Record(_tx.GetObject(setId, OpenMode.ForRead)).Bind(recorded =>
-                AecStream.ReadSet(recorded.Body).Bind(set =>
-                    DefinitionOf(set, recorded).Map(def => new AecAttachedSet(
-                        setId, key, def.Id, def.Definition.Name, def.Definition.Definition, set)))))
-        .Match(Result<AecAttachedSet>.Success, fault => Result<AecAttachedSet>.Failure($"set {key}: {fault}"));
+    private Result<AecAttachedSet, AecError> Set(string key, ObjectId setId) =>
+        AecObjects.Open<DBObject>(_tx, setId, OpenMode.ForRead, $"set {key}")
+            .Bind(setObject => AecObjects.Record(setObject))
+            .Bind(recorded => AecStream.ReadSet(recorded.Body).Bind(set =>
+                DefinitionOf(set, recorded).Map(def => new AecAttachedSet(
+                    setId, key, def.Id, def.Definition.Name, def.Definition.Definition, set))))
+            .MapError(error => error.In($"set {key}"));
 
     // The set's header files the entity and the definition as hard pointers; the
     // definition is the one of the definition class.
-    private Result<(ObjectId Id, (string Name, AecDefinition Definition) Definition)> DefinitionOf(
-        AecSet set, AecObjects.Recorded recorded)
-    {
-        foreach (int slot in set.HeaderPointers)
-        {
-            if (slot < 0 || slot >= recorded.Ids.Count) continue;
-            ObjectId id = recorded.Ids[slot];
-            if (id.IsNull || id.IsErased) continue;
-            DBObject candidate = _tx.GetObject(id, OpenMode.ForRead);
-            if (candidate.GetRXClass().Name != AecObjects.DefinitionClass) continue;
-            return Definition(id).Map(def => (id, def));
-        }
-        return Result<(ObjectId, (string, AecDefinition))>.Failure("the set points at no property set definition");
-    }
+    private Result<(ObjectId Id, (string Name, AecDefinition Definition) Definition), AecError> DefinitionOf(
+        AecSet set, AecObjects.Recorded recorded) =>
+        AecObjects.Host("find the set's definition", () => set.HeaderPointers
+                .Where(slot => slot >= 0 && slot < recorded.Ids.Count)
+                .Select(slot => recorded.Ids[slot])
+                .Where(id => !id.IsNull && !id.IsErased)
+                .TryFirst(id => _tx.GetObject(id, OpenMode.ForRead).GetRXClass().Name == AecObjects.DefinitionClass))
+            .Bind(found => found.ToResult(AecError.Drawing("the set points at no property set definition")))
+            .Bind(id => Definition(id).Map(def => (id, def)));
 
     /// <summary>A definition, decoded once per instance, with the name it has in the drawing.</summary>
-    public Result<(string Name, AecDefinition Definition)> Definition(ObjectId defId)
-    {
-        if (_definitions.TryGetValue(defId, out var known)) return known;
-        Result<(string Name, AecDefinition Definition)> decoded = AecObjects.Boundary("read a definition", () =>
-        {
-            DBObject def = _tx.GetObject(defId, OpenMode.ForRead);
-            return AecObjects.KeyInOwner(_tx, def).Bind(name =>
-                AecObjects.Record(def).Bind(recorded =>
-                    AecStream.ReadDefinition(recorded.Body).Map(d => (name, d))));
-        });
-        _definitions[defId] = decoded;
-        return decoded;
-    }
+    public Result<(string Name, AecDefinition Definition), AecError> Definition(ObjectId defId) =>
+        _definitions.TryFind(defId).Match(
+            known => known,
+            () =>
+            {
+                Result<(string Name, AecDefinition Definition), AecError> decoded =
+                    AecObjects.Open<DBObject>(_tx, defId, OpenMode.ForRead, "a definition").Bind(def =>
+                        AecObjects.KeyInOwner(_tx, def).Bind(name =>
+                            AecObjects.Record(def).Bind(recorded =>
+                                AecStream.ReadDefinition(recorded.Body).Map(d => (name, d)))));
+                _definitions[defId] = decoded;
+                return decoded;
+            });
 }

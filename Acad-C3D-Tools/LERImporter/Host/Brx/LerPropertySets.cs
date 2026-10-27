@@ -4,11 +4,16 @@ using System.Globalization;
 using System.Linq;
 using System.Runtime.CompilerServices;
 
+using CSharpFunctionalExtensions;
+
 using IntersectUtilities.LerHatchLayers;
 
 using LERImporter.PropertySets;
 
 using Teigha.DatabaseServices;
+
+// CSharpFunctionalExtensions has an Entity too (a DDD base class).
+using Entity = Teigha.DatabaseServices.Entity;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 
@@ -30,99 +35,101 @@ internal static class LerPropertySets
         Definitions.GetValue(db, _ => new Dictionary<string, (ObjectId, LerSetDef)>());
 
     /// <summary>Adds the definition to the database unless one of that name is there.</summary>
-    public static Result<Unit> Define(Database db, LerSetDef def) =>
-        AecObjects.EnsureClasses().Bind(_ => AecObjects.Boundary($"define {def.Name}", () =>
-        {
-            Transaction tx = db.TransactionManager.TopTransaction;
-            DBDictionary nod = (DBDictionary)tx.GetObject(db.NamedObjectsDictionaryId, OpenMode.ForRead);
-            DBDictionary defs = AecObjects.Subdictionary(tx, nod, AecObjects.DefinitionDictionary, hard: false);
-            if (defs.Contains(def.Name))
-                return Known(db, tx, def.Name, defs.GetAt(def.Name)).Map(_ => Unit.Value);
-
-            return Format(tx, nod).Bind(formatId =>
-            {
-                DBObject definition = AecObjects.Create(AecObjects.DefinitionClass);
-                if (!defs.IsWriteEnabled) defs.UpgradeOpen();
-                defs.SetAt(def.Name, definition);
-                tx.AddNewlyCreatedDBObject(definition, true);
-                IReadOnlyList<AecToken> body =
-                    AecStream.Definition(def.Description, def.Properties, LerSetDef.AppliesTo, formatSlot: 0);
-                return AecObjects.Fill(definition, body, new[] { formatId }).Map(_ =>
-                {
-                    DefinitionsOf(db)[def.Name] = (definition.ObjectId, def);
-                    return Unit.Value;
-                });
-            });
-        }));
+    public static UnitResult<AecError> Define(Database db, LerSetDef def)
+    {
+        Transaction tx = db.TransactionManager.TopTransaction;
+        return AecObjects.EnsureClasses()
+            .Bind(() => AecObjects.Open<DBDictionary>(tx, db.NamedObjectsDictionaryId, OpenMode.ForRead, "the named objects dictionary"))
+            .Bind(nod => AecObjects.Subdictionary(tx, nod, AecObjects.DefinitionDictionary, hard: false).Bind(defs =>
+                defs.Contains(def.Name)
+                    ? AecObjects.Host($"find {def.Name}", () => defs.GetAt(def.Name))
+                        .Bind(defId => Known(db, tx, def.Name, defId))
+                        .Bind(_ => UnitResult.Success<AecError>())
+                    : Format(tx, nod).Bind(formatId => AecObjects.Create(AecObjects.DefinitionClass).Bind(definition =>
+                        AecObjects.Host($"define {def.Name}", () =>
+                            {
+                                if (!defs.IsWriteEnabled) defs.UpgradeOpen();
+                                defs.SetAt(def.Name, definition);
+                                tx.AddNewlyCreatedDBObject(definition, true);
+                            })
+                            .Bind(() => AecObjects.Fill(definition,
+                                AecStream.Definition(def.Description, def.Properties, LerSetDef.AppliesTo, formatSlot: 0),
+                                new[] { formatId }))
+                            .Bind(() =>
+                            {
+                                DefinitionsOf(db)[def.Name] = (definition.ObjectId, def);
+                                return UnitResult.Success<AecError>();
+                            })))));
+    }
 
     /// <summary>
     /// Attaches the set of a defined definition to the entity, with the GML values, the
     /// graveforespørgsel's bemærkning and its LER number. A value for a property the
     /// definition does not have is reported and skipped, as on Civil.
     /// </summary>
-    public static Result<Unit> Attach(
+    public static UnitResult<AecError> Attach(
         Database db, Entity ent, string setName, IReadOnlyDictionary<string, object> psData,
-        string? bemaerkning, string? lerNummer) =>
-        AecObjects.Boundary($"attach {setName} to {ent.Handle}", () =>
-        {
-            Transaction tx = db.TransactionManager.TopTransaction;
-            if (!DefinitionsOf(db).TryGetValue(setName, out var known))
-                return Result<Unit>.Failure($"No property set named {setName} was found!");
-            LerSetDef def = known.Def;
-            string entityClass = ent.GetRXClass().Name;
-            if (!LerSetDef.AppliesTo.Contains(entityClass))
-                return Result<Unit>.Failure($"Property set {setName} does not apply to a {entityClass}.");
-
-            var given = new Dictionary<string, object>(psData);
-            given["GmlBemærkning"] = bemaerkning ?? "";
-            given["LerNummer"] = lerNummer ?? "";
-            AecValue[] values = def.Properties.Select(p => AecValue.Default(p.Type)).ToArray();
-            foreach (var pair in given)
+        string? bemaerkning, string? lerNummer)
+    {
+        Transaction tx = db.TransactionManager.TopTransaction;
+        return DefinitionsOf(db).TryFind(setName)
+            .ToResult(AecError.Drawing($"No property set named {setName} was found!"))
+            .Bind(known =>
             {
-                Option<int> id = def.IdOf(pair.Key);
-                Result<Unit> stored = id.Match(
-                    i => AecValue.From(def.Properties[i].Type, pair.Value, pair.Key).Map(v =>
-                    {
-                        values[i] = v;
-                        return Unit.Value;
-                    }),
-                    () =>
-                    {
-                        prdDbg($"For propertyset {setName} property {pair.Key} not found!");
-                        return Result<Unit>.Success(Unit.Value);
-                    });
-                if (stored.Match(_ => false, _ => true)) return stored;
-            }
+                LerSetDef def = known.Def;
+                string entityClass = ent.GetRXClass().Name;
+                if (!LerSetDef.AppliesTo.Contains(entityClass))
+                    return UnitResult.Failure(AecError.Drawing($"Property set {setName} does not apply to a {entityClass}."));
 
-            if (!ent.IsWriteEnabled) ent.UpgradeOpen();
-            if (ent.ExtensionDictionary.IsNull) ent.CreateExtensionDictionary();
-            DBDictionary xdict = (DBDictionary)tx.GetObject(ent.ExtensionDictionary, OpenMode.ForWrite);
-            xdict.TreatElementsAsHard = true;
-            DBDictionary sets = AecObjects.Subdictionary(tx, xdict, AecObjects.SetDictionary, hard: true);
-
-            DBObject set = AecObjects.Create(AecObjects.SetClass);
-            if (!sets.IsWriteEnabled) sets.UpgradeOpen();
-            sets.SetAt("*A", set);
-            tx.AddNewlyCreatedDBObject(set, true);
-            return AecObjects.Fill(set, AecStream.Set(entitySlot: 0, definitionSlot: 1, values),
-                new[] { ent.ObjectId, known.Id });
-        });
+                // The GML reader hands null for a graveforespørgsel without them.
+                var given = new Dictionary<string, object>(psData)
+                {
+                    ["GmlBemærkning"] = bemaerkning ?? "",
+                    ["LerNummer"] = lerNummer ?? "",
+                };
+                AecValue[] values = def.Properties.Select(p => AecValue.Default(p.Type)).ToArray();
+                return given.Each(pair => def.IdOf(pair.Key).Match(
+                        i => AecValue.From(def.Properties[i].Type, pair.Value, pair.Key).Bind(v =>
+                        {
+                            values[i] = v;
+                            return UnitResult.Success<AecError>();
+                        }),
+                        () =>
+                        {
+                            prdDbg($"For propertyset {setName} property {pair.Key} not found!");
+                            return UnitResult.Success<AecError>();
+                        }))
+                    .Bind(() => AecObjects.Host($"make the extension dictionary of {ent.Handle}", () =>
+                    {
+                        if (!ent.IsWriteEnabled) ent.UpgradeOpen();
+                        if (ent.ExtensionDictionary.IsNull) ent.CreateExtensionDictionary();
+                        return ent.ExtensionDictionary;
+                    }))
+                    .Bind(xdictId => AecObjects.Open<DBDictionary>(tx, xdictId, OpenMode.ForWrite,
+                        $"the extension dictionary of {ent.Handle}"))
+                    .Bind(xdict => AecObjects.Host($"harden the extension dictionary of {ent.Handle}",
+                            () => { xdict.TreatElementsAsHard = true; })
+                        .Bind(() => AecObjects.Subdictionary(tx, xdict, AecObjects.SetDictionary, hard: true)))
+                    .Bind(sets => AecObjects.Create(AecObjects.SetClass).Bind(set =>
+                        AecObjects.Host($"attach {setName} to {ent.Handle}", () =>
+                            {
+                                if (!sets.IsWriteEnabled) sets.UpgradeOpen();
+                                sets.SetAt("*A", set);
+                                tx.AddNewlyCreatedDBObject(set, true);
+                            })
+                            .Bind(() => AecObjects.Fill(set, AecStream.Set(entitySlot: 0, definitionSlot: 1, values),
+                                new[] { ent.ObjectId, known.Id }))));
+            });
+    }
 
     /// <summary>
     /// The LER sets on an entity with the values LERHATCHLAYERS reads, decoded from the
     /// stored stream (the counterpart of LerHatchLayerService.ReadSets on Civil).
     /// </summary>
-    public static LerHatchLayerResult<IReadOnlyList<LerHatchLayerSet>> ReadHatchLayerSets(Entity entity, Transaction tx)
-    {
-        var sets = new List<LerHatchLayerSet>();
-        foreach (Result<AecAttachedSet> read in new AecSets(tx).SetsOf(entity))
-        {
-            string fault = read.Match(set => { sets.Add(HatchLayerSet(set)); return ""; }, message => message);
-            if (fault.Length > 0)
-                return LerHatchLayerResult<IReadOnlyList<LerHatchLayerSet>>.Failure("Cannot read property sets: " + fault);
-        }
-        return LerHatchLayerResult<IReadOnlyList<LerHatchLayerSet>>.Success(sets);
-    }
+    public static LerHatchLayerResult<IReadOnlyList<LerHatchLayerSet>> ReadHatchLayerSets(Entity entity, Transaction tx) =>
+        new AecSets(tx).SetsOf(entity).Traverse(read => read.Map(set => HatchLayerSet(set))).Match(
+            sets => LerHatchLayerResult<IReadOnlyList<LerHatchLayerSet>>.Success(sets),
+            error => LerHatchLayerResult<IReadOnlyList<LerHatchLayerSet>>.Failure("Cannot read property sets: " + error.Message));
 
     // ------------------------------------------------------------------ internals
 
@@ -134,19 +141,18 @@ internal static class LerPropertySets
         var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (AecItem item in set.Set.Items)
         {
-            Option<string> property = set.Definition.ById(item.Id).Match(
-                p => HatchLayerFields.Contains(p.Name) ? Option<string>.Of(p.Name) : Option<string>.Nothing,
-                () => Option<string>.Nothing);
-            Option<string> value = item.Match(
-                stored => Option<string>.Of(stored.Value.Match(
+            Maybe<string> property = set.Definition.ById(item.Id)
+                .Bind(p => HatchLayerFields.Contains(p.Name) ? Maybe.From(p.Name) : Maybe<string>.None);
+            Maybe<string> value = item.Match(
+                stored => Maybe.From(stored.Value.Match(
                     i => i.ToString(CultureInfo.InvariantCulture),
                     d => d.ToString(CultureInfo.InvariantCulture),
                     s => s,
                     b => b.ToString(CultureInfo.InvariantCulture))),
-                empty => Option<string>.Nothing,
-                unreadable => Option<string>.Nothing);
-            property.Match(name => value.Match(v => { values[name] = v; return Unit.Value; }, () => Unit.Value),
-                () => Unit.Value);
+                empty => Maybe<string>.None,
+                unreadable => Maybe<string>.None);
+            property.Bind(name => value.Map(v => (Name: name, Value: v)))
+                .Match(pair => { values[pair.Name] = pair.Value; }, () => { });
         }
         return new LerHatchLayerSet(set.Name, values);
     }
@@ -155,38 +161,35 @@ internal static class LerPropertySets
     /// A definition already in the drawing, decoded once. LERImporter writes into it, so it
     /// must be one LERImporter could have made: ids 0..n-1 in order, every property manual.
     /// </summary>
-    private static Result<(ObjectId Id, LerSetDef Def)> Known(Database db, Transaction tx, string name, ObjectId defId)
-    {
-        if (DefinitionsOf(db).TryGetValue(name, out var known)) return Result<(ObjectId, LerSetDef)>.Success(known);
-        return new AecSets(tx).Definition(defId).Bind(decoded =>
-        {
-            var properties = new List<AecPropertyDef>();
-            for (int i = 0; i < decoded.Definition.Properties.Count; i++)
-            {
-                AecDefinedProperty p = decoded.Definition.Properties[i];
-                if (p.Id != i)
-                    return Result<(ObjectId, LerSetDef)>.Failure(
-                        $"Property set {name}: property {p.Name} has id {p.Id}, expected {i}");
-                string fault = p.Type.Match(
-                    type => { properties.Add(new AecPropertyDef(p.Name, p.Description, type)); return ""; },
-                    message => message);
-                if (fault.Length > 0)
-                    return Result<(ObjectId, LerSetDef)>.Failure($"Property set {name}: property {p.Name}: {fault}");
-            }
-            var entry = (defId, new LerSetDef(name, decoded.Definition.Description, properties));
-            DefinitionsOf(db)[name] = entry;
-            return Result<(ObjectId, LerSetDef)>.Success(entry);
-        });
-    }
+    private static Result<(ObjectId Id, LerSetDef Def), AecError> Known(Database db, Transaction tx, string name, ObjectId defId) =>
+        DefinitionsOf(db).TryFind(name).Match(
+            known => Result.Success<(ObjectId Id, LerSetDef Def), AecError>(known),
+            () => new AecSets(tx).Definition(defId).Bind(decoded =>
+                decoded.Definition.Properties.Select((p, i) => (Property: p, Index: i))
+                    .Traverse(x => x.Property.Id != x.Index
+                        ? Result.Failure<AecPropertyDef, AecError>(AecError.Drawing(
+                            $"Property set {name}: property {x.Property.Name} has id {x.Property.Id}, expected {x.Index}"))
+                        : x.Property.Type
+                            .Map(type => new AecPropertyDef(x.Property.Name, x.Property.Description, type))
+                            .MapError(error => error.In($"Property set {name}: property {x.Property.Name}")))
+                    .Map(properties =>
+                    {
+                        (ObjectId Id, LerSetDef Def) entry = (defId, new LerSetDef(name, decoded.Definition.Description, properties));
+                        DefinitionsOf(db)[name] = entry;
+                        return entry;
+                    })));
 
-    private static Result<ObjectId> Format(Transaction tx, DBDictionary nod)
-    {
-        DBDictionary formats = AecObjects.Subdictionary(tx, nod, AecObjects.FormatDictionary, hard: false);
-        if (formats.Contains(AecObjects.FormatName)) return Result<ObjectId>.Success(formats.GetAt(AecObjects.FormatName));
-        DBObject format = AecObjects.Create(AecObjects.FormatClass);
-        if (!formats.IsWriteEnabled) formats.UpgradeOpen();
-        formats.SetAt(AecObjects.FormatName, format);
-        tx.AddNewlyCreatedDBObject(format, true);
-        return AecObjects.Fill(format, AecStream.FormatStandard(), Array.Empty<ObjectId>()).Map(_ => format.ObjectId);
-    }
+    private static Result<ObjectId, AecError> Format(Transaction tx, DBDictionary nod) =>
+        AecObjects.Subdictionary(tx, nod, AecObjects.FormatDictionary, hard: false).Bind(formats =>
+            formats.Contains(AecObjects.FormatName)
+                ? AecObjects.Host($"find the {AecObjects.FormatName} format", () => formats.GetAt(AecObjects.FormatName))
+                : AecObjects.Create(AecObjects.FormatClass).Bind(format =>
+                    AecObjects.Host($"add the {AecObjects.FormatName} format", () =>
+                        {
+                            if (!formats.IsWriteEnabled) formats.UpgradeOpen();
+                            formats.SetAt(AecObjects.FormatName, format);
+                            tx.AddNewlyCreatedDBObject(format, true);
+                        })
+                        .Bind(() => AecObjects.Fill(format, AecStream.FormatStandard(), Array.Empty<ObjectId>()))
+                        .Map(() => format.ObjectId)));
 }

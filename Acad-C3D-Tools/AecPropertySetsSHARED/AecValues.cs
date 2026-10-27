@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 
+using CSharpFunctionalExtensions;
+
 // AecDataType switches name every member and have no discard arm, so a new member
 // fails to compile where it is not handled; CS8524 only asks for unnamed values.
 #pragma warning disable CS8524
@@ -54,28 +56,28 @@ internal abstract record AecValue
     /// A CLR value for a property of the given type, converted as AEC's PropertySet.SetAt
     /// converts it. A value AEC refuses is a fault.
     /// </summary>
-    public static Result<AecValue> From(AecDataType type, object? value, string propertyName)
+    public static Result<AecValue, AecError> From(AecDataType type, object? value, string propertyName)
     {
-        if (value is null) return Result<AecValue>.Success(Default(type));
+        if (value is null) return Result.Success<AecValue, AecError>(Default(type));
         return type switch
         {
-            AecDataType.Text => Result<AecValue>.Success(
+            AecDataType.Text => Result.Success<AecValue, AecError>(
                 new Text(Convert.ToString(value, CultureInfo.InvariantCulture) ?? "")),
             AecDataType.TrueFalse => value is bool b
-                ? Result<AecValue>.Success(new TrueFalse(b))
+                ? Result.Success<AecValue, AecError>(new TrueFalse(b))
                 : Refused(type, value, propertyName),
             AecDataType.Real => value switch
             {
-                double d => Result<AecValue>.Success(new Real(d)),
-                float f => Result<AecValue>.Success(new Real(f)),
-                int i => Result<AecValue>.Success(new Real(i)),
-                long l => Result<AecValue>.Success(new Real(l)),
+                double d => Result.Success<AecValue, AecError>(new Real(d)),
+                float f => Result.Success<AecValue, AecError>(new Real(f)),
+                int i => Result.Success<AecValue, AecError>(new Real(i)),
+                long l => Result.Success<AecValue, AecError>(new Real(l)),
                 _ => Refused(type, value, propertyName),
             },
             AecDataType.Integer => value switch
             {
-                int i => Result<AecValue>.Success(new Integer(i)),
-                short s => Result<AecValue>.Success(new Integer(s)),
+                int i => Result.Success<AecValue, AecError>(new Integer(i)),
+                short s => Result.Success<AecValue, AecError>(new Integer(s)),
                 _ => Refused(type, value, propertyName),
             },
         };
@@ -85,31 +87,31 @@ internal abstract record AecValue
     /// What a drafter typed, as a value of the given type. A decimal comma and a decimal
     /// point both read as the decimal separator; True/False as AEC spells them.
     /// </summary>
-    public static Result<AecValue> Parse(AecDataType type, string text, string propertyName)
+    public static Result<AecValue, AecError> Parse(AecDataType type, string text, string propertyName)
     {
         string trimmed = text.Trim();
         return type switch
         {
-            AecDataType.Text => Result<AecValue>.Success(new Text(text)),
+            AecDataType.Text => Result.Success<AecValue, AecError>(new Text(text)),
             AecDataType.Integer => int.TryParse(trimmed, NumberStyles.Integer, CultureInfo.InvariantCulture, out int i)
-                ? Result<AecValue>.Success(new Integer(i))
-                : Result<AecValue>.Failure($"{propertyName}: '{text}' is not a whole number."),
+                ? Result.Success<AecValue, AecError>(new Integer(i))
+                : Result.Failure<AecValue, AecError>(AecError.Value($"{propertyName}: '{text}' is not a whole number.")),
             AecDataType.Real => double.TryParse(trimmed.Replace(',', '.'), NumberStyles.Float,
                     CultureInfo.InvariantCulture, out double d) && double.IsFinite(d)
-                ? Result<AecValue>.Success(new Real(d))
-                : Result<AecValue>.Failure($"{propertyName}: '{text}' is not a number."),
+                ? Result.Success<AecValue, AecError>(new Real(d))
+                : Result.Failure<AecValue, AecError>(AecError.Value($"{propertyName}: '{text}' is not a number.")),
             AecDataType.TrueFalse => trimmed.ToUpperInvariant() switch
             {
-                "TRUE" => Result<AecValue>.Success(new TrueFalse(true)),
-                "FALSE" => Result<AecValue>.Success(new TrueFalse(false)),
-                _ => Result<AecValue>.Failure($"{propertyName}: '{text}' is not True or False."),
+                "TRUE" => Result.Success<AecValue, AecError>(new TrueFalse(true)),
+                "FALSE" => Result.Success<AecValue, AecError>(new TrueFalse(false)),
+                _ => Result.Failure<AecValue, AecError>(AecError.Value($"{propertyName}: '{text}' is not True or False.")),
             },
         };
     }
 
-    private static Result<AecValue> Refused(AecDataType type, object value, string propertyName) =>
-        Result<AecValue>.Failure(
-            $"Property {propertyName}: a {value.GetType().Name} '{value}' is not a {type} value.");
+    private static Result<AecValue, AecError> Refused(AecDataType type, object value, string propertyName) =>
+        Result.Failure<AecValue, AecError>(AecError.Value(
+            $"Property {propertyName}: a {value.GetType().Name} '{value}' is not a {type} value."));
 
     internal sealed record Integer(int Value) : AecValue
     {
