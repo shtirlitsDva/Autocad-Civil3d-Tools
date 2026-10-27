@@ -89,7 +89,11 @@ internal static class AecObjects
             tokens.AddRange(body.Select(t => t.IsPointer ? t with { Integer = t.Integer + offset } : t));
 
             if (!obj.IsWriteEnabled) obj.UpgradeOpen();
-            var replay = new ReplayFiler(tokens, ids);
+            // Disposed, always: each filer's native half holds a strong handle to it until the
+            // filer is disposed, so one never disposed stays in memory for good, and with it the
+            // code it belongs to (READ, decompiled TD_Mgd 27.3; MEASURED, Norsyn Utility Tools
+            // export under NSLOAD, 2026-10-27: 65 of each filer held per export).
+            using var replay = new ReplayFiler(tokens, ids);
             obj.DwgIn(replay);
             if (replay.Error.Length > 0)
                 return Result<Unit>.Failure($"{obj.GetRXClass().Name} refused the stream: {replay.Error}");
@@ -115,7 +119,7 @@ internal static class AecObjects
     public static Result<Recorded> Record(DBObject obj) =>
         Boundary($"read {obj.GetRXClass().Name}", () =>
         {
-            var recorder = new RecordingFiler();
+            using var recorder = new RecordingFiler();
             obj.DwgOut(recorder);
             if (recorder.Error.Length > 0)
                 return Result<Recorded>.Failure($"{obj.GetRXClass().Name} filed {recorder.Error}");
