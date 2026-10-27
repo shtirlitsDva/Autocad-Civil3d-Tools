@@ -20,7 +20,28 @@ namespace NSLOAD
         private readonly List<RegisteredCommand> _commands = new();
 
         private record RegisteredCommand(
-            string Group, string GlobalName, CommandCallback Callback);
+            string Group, string GlobalName, CommandInvoker Invoker);
+
+        // What the CAD program calls for one command. After RemoveCommand,
+        // BricsCAD keeps one removed callback per command group alive for good,
+        // so the callback's target is this NSLOAD object and not a closure over
+        // the plugin's method: Release swaps the plugin's code for a no-op, and
+        // the callback BricsCAD keeps then holds nothing of the plugin's.
+        private sealed class CommandInvoker
+        {
+            private static readonly Action Released = () => { };
+            private Action _invoke;
+
+            public CommandInvoker(Action invoke) => _invoke = invoke;
+
+            public void Run()
+            {
+                try { _invoke(); }
+                catch (System.Exception ex) { ReportException(ex); }
+            }
+
+            public void Release() => _invoke = Released;
+        }
 
         public int CommandCount => _commands.Count;
 
@@ -43,33 +64,26 @@ namespace NSLOAD
                         string localName = attr.LocalizedNameId ?? globalName;
                         CommandFlags flags = attr.Flags;
 
-                        CommandCallback callback;
+                        Action invoke;
                         if (method.IsStatic)
                         {
                             var m = method;
-                            callback = () =>
-                            {
-                                try { m.Invoke(null, null); }
-                                catch (System.Exception ex) { ReportException(ex); }
-                            };
+                            invoke = () => m.Invoke(null, null);
                         }
                         else
                         {
                             var t = type;
                             var m = method;
-                            callback = () =>
+                            invoke = () =>
                             {
-                                try
-                                {
-                                    var instance = Activator.CreateInstance(t);
-                                    m.Invoke(instance, null);
-                                }
-                                catch (System.Exception ex) { ReportException(ex); }
+                                var instance = Activator.CreateInstance(t);
+                                m.Invoke(instance, null);
                             };
                         }
 
-                        Utils.AddCommand(group, globalName, localName, flags, callback);
-                        _commands.Add(new RegisteredCommand(group, globalName, callback));
+                        var invoker = new CommandInvoker(invoke);
+                        Utils.AddCommand(group, globalName, localName, flags, invoker.Run);
+                        _commands.Add(new RegisteredCommand(group, globalName, invoker));
                     }
                 }
             }
@@ -89,7 +103,10 @@ namespace NSLOAD
         public void UnregisterAll()
         {
             foreach (var cmd in _commands)
+            {
                 Utils.RemoveCommand(cmd.Group, cmd.GlobalName);
+                cmd.Invoker.Release();
+            }
             _commands.Clear();
         }
     }
