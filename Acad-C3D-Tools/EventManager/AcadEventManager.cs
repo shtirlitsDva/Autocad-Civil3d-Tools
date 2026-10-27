@@ -3,9 +3,8 @@
 using System;
 using System.Collections.Generic;
 
-using Autodesk.AutoCAD.ApplicationServices;
-
-using DbServices = Autodesk.AutoCAD.DatabaseServices;
+// No host namespace here: this file builds for AutoCAD and for BricsCAD. It names the host's types through
+// EventHostApp and EventHostDb, which the host part (Acad\ or Brx\AcadEventManager.Host.cs) declares.
 
 namespace EventManager
 {
@@ -28,13 +27,13 @@ namespace EventManager
     /// Not thread safe. Every member is expected to be used on the AutoCAD main thread.
     /// </para>
     /// </remarks>
-    public class AcadEventManager : IDisposable
+    public partial class AcadEventManager : IDisposable
     {
         /// <summary>
         /// Unsubscribe callbacks parked by a plugin against a document, released together when
         /// that document is destroyed.
         /// </summary>
-        private readonly SubscriptionLedger<Document> _subscriptions;
+        private readonly SubscriptionLedger<EventHostApp.Document> _subscriptions;
 
         /// <summary>
         /// Every slot created so far, in creation order, so <see cref="Dispose"/> can release the
@@ -55,25 +54,25 @@ namespace EventManager
         public AcadEventManager(Action<string, Exception?>? log = null)
         {
             _trace = new EventManagerTrace(log);
-            _subscriptions = new SubscriptionLedger<Document>(_trace);
-            _idleDrain = new IdleDrain(() => Idle += OnIdleTick, () => Idle -= OnIdleTick, _trace);
-            _dbBinding = new BoundHook<DbServices.Database>(
+            _subscriptions = new SubscriptionLedger<EventHostApp.Document>(_trace);
+            _idleDrain = new IdleDrain(ArmIdle, DisarmIdle, _trace);
+            _dbBinding = new BoundHook<EventHostDb.Database>(
                 AttachToDatabase, DetachFromDatabase, _trace);
             _dbHook = new SharedHook(
                 InstallDbHook, UninstallDbHook, DbHookStillNeeded, _trace);
 
-            Application.DocumentManager.DocumentToBeDestroyed += OnDocToBeDestroyed;
+            EventHostApp.Application.DocumentManager.DocumentToBeDestroyed += OnDocToBeDestroyed;
         }
 
-        public void Track(Document doc, Action unsubscribe)
+        public void Track(EventHostApp.Document doc, Action unsubscribe)
             => _subscriptions.Track(doc, unsubscribe);
 
-        public IReadOnlyDictionary<Document, int> GetSubscriptions()
+        public IReadOnlyDictionary<EventHostApp.Document, int> GetSubscriptions()
             => _subscriptions.Counts();
 
-        public bool HasSubscriptions(Document doc) => _subscriptions.Has(doc);
+        public bool HasSubscriptions(EventHostApp.Document doc) => _subscriptions.Has(doc);
 
-        public int GetSubscriptionCount(Document doc) => _subscriptions.CountFor(doc);
+        public int GetSubscriptionCount(EventHostApp.Document doc) => _subscriptions.CountFor(doc);
 
         /// <summary>
         /// How many underlying AutoCAD hooks this manager is holding installed right now:
@@ -125,8 +124,8 @@ namespace EventManager
         #region One-Shot Idle
 
         /// <summary>
-        /// The queue and its arm/disarm bookkeeping. Assigned in the constructor, where it is
-        /// closed over this manager's own <see cref="Idle"/> event.
+        /// The queue and its arm/disarm bookkeeping. Assigned in the constructor. The host part arms it:
+        /// AutoCAD's through this manager's own <see cref="Idle"/> event, BricsCAD's through a timer.
         /// </summary>
         private readonly IdleDrain _idleDrain;
 
@@ -184,140 +183,69 @@ namespace EventManager
             _idleDrain.Enqueue(action);
         }
 
-        private void OnIdleTick(object? sender, EventArgs e) => _idleDrain.Tick();
 
         #endregion
 
         #region Application Events
 
-        private HookSlot<EventHandler>? _beginCustomizationMode;
-        public event EventHandler BeginCustomizationMode
-        {
-            add => Slot(
-                ref _beginCustomizationMode,
-                () => Application.BeginCustomizationMode += FwdBeginCustomizationMode,
-                () => Application.BeginCustomizationMode -= FwdBeginCustomizationMode).Add(value);
-            remove => _beginCustomizationMode?.Remove(value);
-        }
-        private void FwdBeginCustomizationMode(object? s, EventArgs e) => _beginCustomizationMode?.Handlers?.Invoke(s, e);
 
-        private HookSlot<EventHandler<BeginDoubleClickEventArgs>>? _beginDoubleClick;
-        public event EventHandler<BeginDoubleClickEventArgs> BeginDoubleClick
+        private HookSlot<EventHandler<EventHostApp.BeginDoubleClickEventArgs>>? _beginDoubleClick;
+        public event EventHandler<EventHostApp.BeginDoubleClickEventArgs> BeginDoubleClick
         {
             add => Slot(
                 ref _beginDoubleClick,
-                () => Application.BeginDoubleClick += FwdBeginDoubleClick,
-                () => Application.BeginDoubleClick -= FwdBeginDoubleClick).Add(value);
+                () => EventHostApp.Application.BeginDoubleClick += FwdBeginDoubleClick,
+                () => EventHostApp.Application.BeginDoubleClick -= FwdBeginDoubleClick).Add(value);
             remove => _beginDoubleClick?.Remove(value);
         }
-        private void FwdBeginDoubleClick(object? s, BeginDoubleClickEventArgs e) => _beginDoubleClick?.Handlers?.Invoke(s, e);
+        private void FwdBeginDoubleClick(object? s, EventHostApp.BeginDoubleClickEventArgs e) => _beginDoubleClick?.Handlers?.Invoke(s, e);
 
         private HookSlot<EventHandler>? _beginQuit;
         public event EventHandler BeginQuit
         {
             add => Slot(
                 ref _beginQuit,
-                () => Application.BeginQuit += FwdBeginQuit,
-                () => Application.BeginQuit -= FwdBeginQuit).Add(value);
+                () => EventHostApp.Application.BeginQuit += FwdBeginQuit,
+                () => EventHostApp.Application.BeginQuit -= FwdBeginQuit).Add(value);
             remove => _beginQuit?.Remove(value);
         }
         private void FwdBeginQuit(object? s, EventArgs e) => _beginQuit?.Handlers?.Invoke(s, e);
 
-        private HookSlot<EventHandler<TabbedDialogEventArgs>>? _displayingCustomizeDialog;
-        public event EventHandler<TabbedDialogEventArgs> DisplayingCustomizeDialog
-        {
-            add => Slot(
-                ref _displayingCustomizeDialog,
-                () => Application.DisplayingCustomizeDialog += FwdDisplayingCustomizeDialog,
-                () => Application.DisplayingCustomizeDialog -= FwdDisplayingCustomizeDialog).Add(value);
-            remove => _displayingCustomizeDialog?.Remove(value);
-        }
-        private void FwdDisplayingCustomizeDialog(object? s, TabbedDialogEventArgs e) => _displayingCustomizeDialog?.Handlers?.Invoke(s, e);
 
-        private HookSlot<EventHandler<TabbedDialogEventArgs>>? _displayingDraftingSettingsDialog;
-        public event EventHandler<TabbedDialogEventArgs> DisplayingDraftingSettingsDialog
-        {
-            add => Slot(
-                ref _displayingDraftingSettingsDialog,
-                () => Application.DisplayingDraftingSettingsDialog += FwdDisplayingDraftingSettingsDialog,
-                () => Application.DisplayingDraftingSettingsDialog -= FwdDisplayingDraftingSettingsDialog).Add(value);
-            remove => _displayingDraftingSettingsDialog?.Remove(value);
-        }
-        private void FwdDisplayingDraftingSettingsDialog(object? s, TabbedDialogEventArgs e) => _displayingDraftingSettingsDialog?.Handlers?.Invoke(s, e);
 
-        private HookSlot<EventHandler<TabbedDialogEventArgs>>? _displayingOptionDialog;
-        public event EventHandler<TabbedDialogEventArgs> DisplayingOptionDialog
-        {
-            add => Slot(
-                ref _displayingOptionDialog,
-                () => Application.DisplayingOptionDialog += FwdDisplayingOptionDialog,
-                () => Application.DisplayingOptionDialog -= FwdDisplayingOptionDialog).Add(value);
-            remove => _displayingOptionDialog?.Remove(value);
-        }
-        private void FwdDisplayingOptionDialog(object? s, TabbedDialogEventArgs e) => _displayingOptionDialog?.Handlers?.Invoke(s, e);
 
-        private HookSlot<EventHandler>? _endCustomizationMode;
-        public event EventHandler EndCustomizationMode
-        {
-            add => Slot(
-                ref _endCustomizationMode,
-                () => Application.EndCustomizationMode += FwdEndCustomizationMode,
-                () => Application.EndCustomizationMode -= FwdEndCustomizationMode).Add(value);
-            remove => _endCustomizationMode?.Remove(value);
-        }
-        private void FwdEndCustomizationMode(object? s, EventArgs e) => _endCustomizationMode?.Handlers?.Invoke(s, e);
 
-        private HookSlot<EventHandler>? _enterModal;
-        public event EventHandler EnterModal
-        {
-            add => Slot(
-                ref _enterModal,
-                () => Application.EnterModal += FwdEnterModal,
-                () => Application.EnterModal -= FwdEnterModal).Add(value);
-            remove => _enterModal?.Remove(value);
-        }
-        private void FwdEnterModal(object? s, EventArgs e) => _enterModal?.Handlers?.Invoke(s, e);
 
         private HookSlot<EventHandler>? _idle;
         public event EventHandler Idle
         {
             add => Slot(
                 ref _idle,
-                () => Application.Idle += FwdIdle,
-                () => Application.Idle -= FwdIdle).Add(value);
+                () => EventHostApp.Application.Idle += FwdIdle,
+                () => EventHostApp.Application.Idle -= FwdIdle).Add(value);
             remove => _idle?.Remove(value);
         }
         private void FwdIdle(object? s, EventArgs e) => _idle?.Handlers?.Invoke(s, e);
 
-        private HookSlot<EventHandler>? _leaveModal;
-        public event EventHandler LeaveModal
-        {
-            add => Slot(
-                ref _leaveModal,
-                () => Application.LeaveModal += FwdLeaveModal,
-                () => Application.LeaveModal -= FwdLeaveModal).Add(value);
-            remove => _leaveModal?.Remove(value);
-        }
-        private void FwdLeaveModal(object? s, EventArgs e) => _leaveModal?.Handlers?.Invoke(s, e);
 
-        private HookSlot<EventHandler<PreTranslateMessageEventArgs>>? _preTranslateMessage;
-        public event EventHandler<PreTranslateMessageEventArgs> PreTranslateMessage
+        private HookSlot<EventHandler<EventHostApp.PreTranslateMessageEventArgs>>? _preTranslateMessage;
+        public event EventHandler<EventHostApp.PreTranslateMessageEventArgs> PreTranslateMessage
         {
             add => Slot(
                 ref _preTranslateMessage,
-                () => Application.PreTranslateMessage += FwdPreTranslateMessage,
-                () => Application.PreTranslateMessage -= FwdPreTranslateMessage).Add(value);
+                () => EventHostApp.Application.PreTranslateMessage += FwdPreTranslateMessage,
+                () => EventHostApp.Application.PreTranslateMessage -= FwdPreTranslateMessage).Add(value);
             remove => _preTranslateMessage?.Remove(value);
         }
-        private void FwdPreTranslateMessage(object? s, PreTranslateMessageEventArgs e) => _preTranslateMessage?.Handlers?.Invoke(s, e);
+        private void FwdPreTranslateMessage(object? s, EventHostApp.PreTranslateMessageEventArgs e) => _preTranslateMessage?.Handlers?.Invoke(s, e);
 
         private HookSlot<EventHandler>? _quitAborted;
         public event EventHandler QuitAborted
         {
             add => Slot(
                 ref _quitAborted,
-                () => Application.QuitAborted += FwdQuitAborted,
-                () => Application.QuitAborted -= FwdQuitAborted).Add(value);
+                () => EventHostApp.Application.QuitAborted += FwdQuitAborted,
+                () => EventHostApp.Application.QuitAborted -= FwdQuitAborted).Add(value);
             remove => _quitAborted?.Remove(value);
         }
         private void FwdQuitAborted(object? s, EventArgs e) => _quitAborted?.Handlers?.Invoke(s, e);
@@ -327,180 +255,180 @@ namespace EventManager
         {
             add => Slot(
                 ref _quitWillStart,
-                () => Application.QuitWillStart += FwdQuitWillStart,
-                () => Application.QuitWillStart -= FwdQuitWillStart).Add(value);
+                () => EventHostApp.Application.QuitWillStart += FwdQuitWillStart,
+                () => EventHostApp.Application.QuitWillStart -= FwdQuitWillStart).Add(value);
             remove => _quitWillStart?.Remove(value);
         }
         private void FwdQuitWillStart(object? s, EventArgs e) => _quitWillStart?.Handlers?.Invoke(s, e);
 
-        private HookSlot<EventHandler<SystemVariableChangedEventArgs>>? _systemVariableChanged;
-        public event EventHandler<SystemVariableChangedEventArgs> SystemVariableChanged
+        private HookSlot<EventHandler<EventHostApp.SystemVariableChangedEventArgs>>? _systemVariableChanged;
+        public event EventHandler<EventHostApp.SystemVariableChangedEventArgs> SystemVariableChanged
         {
             add => Slot(
                 ref _systemVariableChanged,
-                () => Application.SystemVariableChanged += FwdSystemVariableChanged,
-                () => Application.SystemVariableChanged -= FwdSystemVariableChanged).Add(value);
+                () => EventHostApp.Application.SystemVariableChanged += FwdSystemVariableChanged,
+                () => EventHostApp.Application.SystemVariableChanged -= FwdSystemVariableChanged).Add(value);
             remove => _systemVariableChanged?.Remove(value);
         }
-        private void FwdSystemVariableChanged(object? s, SystemVariableChangedEventArgs e) => _systemVariableChanged?.Handlers?.Invoke(s, e);
+        private void FwdSystemVariableChanged(object? s, EventHostApp.SystemVariableChangedEventArgs e) => _systemVariableChanged?.Handlers?.Invoke(s, e);
 
-        private HookSlot<EventHandler<SystemVariableChangingEventArgs>>? _systemVariableChanging;
-        public event EventHandler<SystemVariableChangingEventArgs> SystemVariableChanging
+        private HookSlot<EventHandler<EventHostApp.SystemVariableChangingEventArgs>>? _systemVariableChanging;
+        public event EventHandler<EventHostApp.SystemVariableChangingEventArgs> SystemVariableChanging
         {
             add => Slot(
                 ref _systemVariableChanging,
-                () => Application.SystemVariableChanging += FwdSystemVariableChanging,
-                () => Application.SystemVariableChanging -= FwdSystemVariableChanging).Add(value);
+                () => EventHostApp.Application.SystemVariableChanging += FwdSystemVariableChanging,
+                () => EventHostApp.Application.SystemVariableChanging -= FwdSystemVariableChanging).Add(value);
             remove => _systemVariableChanging?.Remove(value);
         }
-        private void FwdSystemVariableChanging(object? s, SystemVariableChangingEventArgs e) => _systemVariableChanging?.Handlers?.Invoke(s, e);
+        private void FwdSystemVariableChanging(object? s, EventHostApp.SystemVariableChangingEventArgs e) => _systemVariableChanging?.Handlers?.Invoke(s, e);
 
         #endregion
 
         #region DocumentCollection Events
 
-        private HookSlot<EventHandler<DocumentCollectionEventArgs>>? _documentActivated;
-        public event EventHandler<DocumentCollectionEventArgs> DocumentActivated
+        private HookSlot<EventHandler<EventHostApp.DocumentCollectionEventArgs>>? _documentActivated;
+        public event EventHandler<EventHostApp.DocumentCollectionEventArgs> DocumentActivated
         {
             add => Slot(
                 ref _documentActivated,
-                () => Application.DocumentManager.DocumentActivated += FwdDocumentActivated,
-                () => Application.DocumentManager.DocumentActivated -= FwdDocumentActivated).Add(value);
+                () => EventHostApp.Application.DocumentManager.DocumentActivated += FwdDocumentActivated,
+                () => EventHostApp.Application.DocumentManager.DocumentActivated -= FwdDocumentActivated).Add(value);
             remove => _documentActivated?.Remove(value);
         }
-        private void FwdDocumentActivated(object? s, DocumentCollectionEventArgs e) => _documentActivated?.Handlers?.Invoke(s, e);
+        private void FwdDocumentActivated(object? s, EventHostApp.DocumentCollectionEventArgs e) => _documentActivated?.Handlers?.Invoke(s, e);
 
-        private HookSlot<DocumentActivationChangedEventHandler>? _documentActivationChanged;
-        public event DocumentActivationChangedEventHandler DocumentActivationChanged
+        private HookSlot<EventHostApp.DocumentActivationChangedEventHandler>? _documentActivationChanged;
+        public event EventHostApp.DocumentActivationChangedEventHandler DocumentActivationChanged
         {
             add => Slot(
                 ref _documentActivationChanged,
-                () => Application.DocumentManager.DocumentActivationChanged += FwdDocumentActivationChanged,
-                () => Application.DocumentManager.DocumentActivationChanged -= FwdDocumentActivationChanged).Add(value);
+                () => EventHostApp.Application.DocumentManager.DocumentActivationChanged += FwdDocumentActivationChanged,
+                () => EventHostApp.Application.DocumentManager.DocumentActivationChanged -= FwdDocumentActivationChanged).Add(value);
             remove => _documentActivationChanged?.Remove(value);
         }
-        private void FwdDocumentActivationChanged(object? s, DocumentActivationChangedEventArgs e) => _documentActivationChanged?.Handlers?.Invoke(s, e);
+        private void FwdDocumentActivationChanged(object? s, EventHostApp.DocumentActivationChangedEventArgs e) => _documentActivationChanged?.Handlers?.Invoke(s, e);
 
-        private HookSlot<EventHandler<DocumentCollectionEventArgs>>? _documentBecameCurrent;
-        public event EventHandler<DocumentCollectionEventArgs> DocumentBecameCurrent
+        private HookSlot<EventHandler<EventHostApp.DocumentCollectionEventArgs>>? _documentBecameCurrent;
+        public event EventHandler<EventHostApp.DocumentCollectionEventArgs> DocumentBecameCurrent
         {
             add => Slot(
                 ref _documentBecameCurrent,
-                () => Application.DocumentManager.DocumentBecameCurrent += FwdDocumentBecameCurrent,
-                () => Application.DocumentManager.DocumentBecameCurrent -= FwdDocumentBecameCurrent).Add(value);
+                () => EventHostApp.Application.DocumentManager.DocumentBecameCurrent += FwdDocumentBecameCurrent,
+                () => EventHostApp.Application.DocumentManager.DocumentBecameCurrent -= FwdDocumentBecameCurrent).Add(value);
             remove => _documentBecameCurrent?.Remove(value);
         }
-        private void FwdDocumentBecameCurrent(object? s, DocumentCollectionEventArgs e) => _documentBecameCurrent?.Handlers?.Invoke(s, e);
+        private void FwdDocumentBecameCurrent(object? s, EventHostApp.DocumentCollectionEventArgs e) => _documentBecameCurrent?.Handlers?.Invoke(s, e);
 
-        private HookSlot<EventHandler<DocumentCollectionEventArgs>>? _documentCreated;
-        public event EventHandler<DocumentCollectionEventArgs> DocumentCreated
+        private HookSlot<EventHandler<EventHostApp.DocumentCollectionEventArgs>>? _documentCreated;
+        public event EventHandler<EventHostApp.DocumentCollectionEventArgs> DocumentCreated
         {
             add => Slot(
                 ref _documentCreated,
-                () => Application.DocumentManager.DocumentCreated += FwdDocumentCreated,
-                () => Application.DocumentManager.DocumentCreated -= FwdDocumentCreated).Add(value);
+                () => EventHostApp.Application.DocumentManager.DocumentCreated += FwdDocumentCreated,
+                () => EventHostApp.Application.DocumentManager.DocumentCreated -= FwdDocumentCreated).Add(value);
             remove => _documentCreated?.Remove(value);
         }
-        private void FwdDocumentCreated(object? s, DocumentCollectionEventArgs e) => _documentCreated?.Handlers?.Invoke(s, e);
+        private void FwdDocumentCreated(object? s, EventHostApp.DocumentCollectionEventArgs e) => _documentCreated?.Handlers?.Invoke(s, e);
 
-        private HookSlot<EventHandler<DocumentCollectionEventArgs>>? _documentCreateStarted;
-        public event EventHandler<DocumentCollectionEventArgs> DocumentCreateStarted
+        private HookSlot<EventHandler<EventHostApp.DocumentCollectionEventArgs>>? _documentCreateStarted;
+        public event EventHandler<EventHostApp.DocumentCollectionEventArgs> DocumentCreateStarted
         {
             add => Slot(
                 ref _documentCreateStarted,
-                () => Application.DocumentManager.DocumentCreateStarted += FwdDocumentCreateStarted,
-                () => Application.DocumentManager.DocumentCreateStarted -= FwdDocumentCreateStarted).Add(value);
+                () => EventHostApp.Application.DocumentManager.DocumentCreateStarted += FwdDocumentCreateStarted,
+                () => EventHostApp.Application.DocumentManager.DocumentCreateStarted -= FwdDocumentCreateStarted).Add(value);
             remove => _documentCreateStarted?.Remove(value);
         }
-        private void FwdDocumentCreateStarted(object? s, DocumentCollectionEventArgs e) => _documentCreateStarted?.Handlers?.Invoke(s, e);
+        private void FwdDocumentCreateStarted(object? s, EventHostApp.DocumentCollectionEventArgs e) => _documentCreateStarted?.Handlers?.Invoke(s, e);
 
-        private HookSlot<EventHandler<DocumentCollectionEventArgs>>? _documentCreationCanceled;
-        public event EventHandler<DocumentCollectionEventArgs> DocumentCreationCanceled
+        private HookSlot<EventHandler<EventHostApp.DocumentCollectionEventArgs>>? _documentCreationCanceled;
+        public event EventHandler<EventHostApp.DocumentCollectionEventArgs> DocumentCreationCanceled
         {
             add => Slot(
                 ref _documentCreationCanceled,
-                () => Application.DocumentManager.DocumentCreationCanceled += FwdDocumentCreationCanceled,
-                () => Application.DocumentManager.DocumentCreationCanceled -= FwdDocumentCreationCanceled).Add(value);
+                () => EventHostApp.Application.DocumentManager.DocumentCreationCanceled += FwdDocumentCreationCanceled,
+                () => EventHostApp.Application.DocumentManager.DocumentCreationCanceled -= FwdDocumentCreationCanceled).Add(value);
             remove => _documentCreationCanceled?.Remove(value);
         }
-        private void FwdDocumentCreationCanceled(object? s, DocumentCollectionEventArgs e) => _documentCreationCanceled?.Handlers?.Invoke(s, e);
+        private void FwdDocumentCreationCanceled(object? s, EventHostApp.DocumentCollectionEventArgs e) => _documentCreationCanceled?.Handlers?.Invoke(s, e);
 
-        private HookSlot<EventHandler<DocumentDestroyedEventArgs>>? _documentDestroyed;
-        public event EventHandler<DocumentDestroyedEventArgs> DocumentDestroyed
+        private HookSlot<EventHandler<EventHostApp.DocumentDestroyedEventArgs>>? _documentDestroyed;
+        public event EventHandler<EventHostApp.DocumentDestroyedEventArgs> DocumentDestroyed
         {
             add => Slot(
                 ref _documentDestroyed,
-                () => Application.DocumentManager.DocumentDestroyed += FwdDocumentDestroyed,
-                () => Application.DocumentManager.DocumentDestroyed -= FwdDocumentDestroyed).Add(value);
+                () => EventHostApp.Application.DocumentManager.DocumentDestroyed += FwdDocumentDestroyed,
+                () => EventHostApp.Application.DocumentManager.DocumentDestroyed -= FwdDocumentDestroyed).Add(value);
             remove => _documentDestroyed?.Remove(value);
         }
-        private void FwdDocumentDestroyed(object? s, DocumentDestroyedEventArgs e) => _documentDestroyed?.Handlers?.Invoke(s, e);
+        private void FwdDocumentDestroyed(object? s, EventHostApp.DocumentDestroyedEventArgs e) => _documentDestroyed?.Handlers?.Invoke(s, e);
 
-        private HookSlot<EventHandler<DocumentLockModeChangedEventArgs>>? _documentLockModeChanged;
-        public event EventHandler<DocumentLockModeChangedEventArgs> DocumentLockModeChanged
+        private HookSlot<EventHandler<EventHostApp.DocumentLockModeChangedEventArgs>>? _documentLockModeChanged;
+        public event EventHandler<EventHostApp.DocumentLockModeChangedEventArgs> DocumentLockModeChanged
         {
             add => Slot(
                 ref _documentLockModeChanged,
-                () => Application.DocumentManager.DocumentLockModeChanged += FwdDocumentLockModeChanged,
-                () => Application.DocumentManager.DocumentLockModeChanged -= FwdDocumentLockModeChanged).Add(value);
+                () => EventHostApp.Application.DocumentManager.DocumentLockModeChanged += FwdDocumentLockModeChanged,
+                () => EventHostApp.Application.DocumentManager.DocumentLockModeChanged -= FwdDocumentLockModeChanged).Add(value);
             remove => _documentLockModeChanged?.Remove(value);
         }
-        private void FwdDocumentLockModeChanged(object? s, DocumentLockModeChangedEventArgs e) => _documentLockModeChanged?.Handlers?.Invoke(s, e);
+        private void FwdDocumentLockModeChanged(object? s, EventHostApp.DocumentLockModeChangedEventArgs e) => _documentLockModeChanged?.Handlers?.Invoke(s, e);
 
-        private HookSlot<EventHandler<DocumentLockModeChangeVetoedEventArgs>>? _documentLockModeChangeVetoed;
-        public event EventHandler<DocumentLockModeChangeVetoedEventArgs> DocumentLockModeChangeVetoed
+        private HookSlot<EventHandler<EventHostApp.DocumentLockModeChangeVetoedEventArgs>>? _documentLockModeChangeVetoed;
+        public event EventHandler<EventHostApp.DocumentLockModeChangeVetoedEventArgs> DocumentLockModeChangeVetoed
         {
             add => Slot(
                 ref _documentLockModeChangeVetoed,
-                () => Application.DocumentManager.DocumentLockModeChangeVetoed += FwdDocumentLockModeChangeVetoed,
-                () => Application.DocumentManager.DocumentLockModeChangeVetoed -= FwdDocumentLockModeChangeVetoed).Add(value);
+                () => EventHostApp.Application.DocumentManager.DocumentLockModeChangeVetoed += FwdDocumentLockModeChangeVetoed,
+                () => EventHostApp.Application.DocumentManager.DocumentLockModeChangeVetoed -= FwdDocumentLockModeChangeVetoed).Add(value);
             remove => _documentLockModeChangeVetoed?.Remove(value);
         }
-        private void FwdDocumentLockModeChangeVetoed(object? s, DocumentLockModeChangeVetoedEventArgs e) => _documentLockModeChangeVetoed?.Handlers?.Invoke(s, e);
+        private void FwdDocumentLockModeChangeVetoed(object? s, EventHostApp.DocumentLockModeChangeVetoedEventArgs e) => _documentLockModeChangeVetoed?.Handlers?.Invoke(s, e);
 
-        private HookSlot<EventHandler<DocumentLockModeWillChangeEventArgs>>? _documentLockModeWillChange;
-        public event EventHandler<DocumentLockModeWillChangeEventArgs> DocumentLockModeWillChange
+        private HookSlot<EventHandler<EventHostApp.DocumentLockModeWillChangeEventArgs>>? _documentLockModeWillChange;
+        public event EventHandler<EventHostApp.DocumentLockModeWillChangeEventArgs> DocumentLockModeWillChange
         {
             add => Slot(
                 ref _documentLockModeWillChange,
-                () => Application.DocumentManager.DocumentLockModeWillChange += FwdDocumentLockModeWillChange,
-                () => Application.DocumentManager.DocumentLockModeWillChange -= FwdDocumentLockModeWillChange).Add(value);
+                () => EventHostApp.Application.DocumentManager.DocumentLockModeWillChange += FwdDocumentLockModeWillChange,
+                () => EventHostApp.Application.DocumentManager.DocumentLockModeWillChange -= FwdDocumentLockModeWillChange).Add(value);
             remove => _documentLockModeWillChange?.Remove(value);
         }
-        private void FwdDocumentLockModeWillChange(object? s, DocumentLockModeWillChangeEventArgs e) => _documentLockModeWillChange?.Handlers?.Invoke(s, e);
+        private void FwdDocumentLockModeWillChange(object? s, EventHostApp.DocumentLockModeWillChangeEventArgs e) => _documentLockModeWillChange?.Handlers?.Invoke(s, e);
 
-        private HookSlot<EventHandler<DocumentCollectionEventArgs>>? _documentToBeActivated;
-        public event EventHandler<DocumentCollectionEventArgs> DocumentToBeActivated
+        private HookSlot<EventHandler<EventHostApp.DocumentCollectionEventArgs>>? _documentToBeActivated;
+        public event EventHandler<EventHostApp.DocumentCollectionEventArgs> DocumentToBeActivated
         {
             add => Slot(
                 ref _documentToBeActivated,
-                () => Application.DocumentManager.DocumentToBeActivated += FwdDocumentToBeActivated,
-                () => Application.DocumentManager.DocumentToBeActivated -= FwdDocumentToBeActivated).Add(value);
+                () => EventHostApp.Application.DocumentManager.DocumentToBeActivated += FwdDocumentToBeActivated,
+                () => EventHostApp.Application.DocumentManager.DocumentToBeActivated -= FwdDocumentToBeActivated).Add(value);
             remove => _documentToBeActivated?.Remove(value);
         }
-        private void FwdDocumentToBeActivated(object? s, DocumentCollectionEventArgs e) => _documentToBeActivated?.Handlers?.Invoke(s, e);
+        private void FwdDocumentToBeActivated(object? s, EventHostApp.DocumentCollectionEventArgs e) => _documentToBeActivated?.Handlers?.Invoke(s, e);
 
-        private HookSlot<EventHandler<DocumentCollectionEventArgs>>? _documentToBeDeactivated;
-        public event EventHandler<DocumentCollectionEventArgs> DocumentToBeDeactivated
+        private HookSlot<EventHandler<EventHostApp.DocumentCollectionEventArgs>>? _documentToBeDeactivated;
+        public event EventHandler<EventHostApp.DocumentCollectionEventArgs> DocumentToBeDeactivated
         {
             add => Slot(
                 ref _documentToBeDeactivated,
-                () => Application.DocumentManager.DocumentToBeDeactivated += FwdDocumentToBeDeactivated,
-                () => Application.DocumentManager.DocumentToBeDeactivated -= FwdDocumentToBeDeactivated).Add(value);
+                () => EventHostApp.Application.DocumentManager.DocumentToBeDeactivated += FwdDocumentToBeDeactivated,
+                () => EventHostApp.Application.DocumentManager.DocumentToBeDeactivated -= FwdDocumentToBeDeactivated).Add(value);
             remove => _documentToBeDeactivated?.Remove(value);
         }
-        private void FwdDocumentToBeDeactivated(object? s, DocumentCollectionEventArgs e) => _documentToBeDeactivated?.Handlers?.Invoke(s, e);
+        private void FwdDocumentToBeDeactivated(object? s, EventHostApp.DocumentCollectionEventArgs e) => _documentToBeDeactivated?.Handlers?.Invoke(s, e);
 
-        private HookSlot<EventHandler<DocumentCollectionEventArgs>>? _documentToBeDestroyed;
-        public event EventHandler<DocumentCollectionEventArgs> DocumentToBeDestroyed
+        private HookSlot<EventHandler<EventHostApp.DocumentCollectionEventArgs>>? _documentToBeDestroyed;
+        public event EventHandler<EventHostApp.DocumentCollectionEventArgs> DocumentToBeDestroyed
         {
             add => Slot(
                 ref _documentToBeDestroyed,
-                () => Application.DocumentManager.DocumentToBeDestroyed += FwdDocumentToBeDestroyed,
-                () => Application.DocumentManager.DocumentToBeDestroyed -= FwdDocumentToBeDestroyed).Add(value);
+                () => EventHostApp.Application.DocumentManager.DocumentToBeDestroyed += FwdDocumentToBeDestroyed,
+                () => EventHostApp.Application.DocumentManager.DocumentToBeDestroyed -= FwdDocumentToBeDestroyed).Add(value);
             remove => _documentToBeDestroyed?.Remove(value);
         }
-        private void FwdDocumentToBeDestroyed(object? s, DocumentCollectionEventArgs e) => _documentToBeDestroyed?.Handlers?.Invoke(s, e);
+        private void FwdDocumentToBeDestroyed(object? s, EventHostApp.DocumentCollectionEventArgs e) => _documentToBeDestroyed?.Handlers?.Invoke(s, e);
 
         #endregion
 
@@ -518,24 +446,24 @@ namespace EventManager
         /// <summary>
         /// The active document's database and the three object-event handlers attached to it.
         /// </summary>
-        private readonly BoundHook<DbServices.Database> _dbBinding;
+        private readonly BoundHook<EventHostDb.Database> _dbBinding;
 
-        private HookSlot<DbServices.ObjectEventHandler>? _activeObjectAppended;
-        public event DbServices.ObjectEventHandler ActiveObjectAppended
+        private HookSlot<EventHostDb.ObjectEventHandler>? _activeObjectAppended;
+        public event EventHostDb.ObjectEventHandler ActiveObjectAppended
         {
             add => Slot(ref _activeObjectAppended, EnsureDbHook, ReleaseDbHook).Add(value);
             remove => _activeObjectAppended?.Remove(value);
         }
 
-        private HookSlot<DbServices.ObjectEventHandler>? _activeObjectModified;
-        public event DbServices.ObjectEventHandler ActiveObjectModified
+        private HookSlot<EventHostDb.ObjectEventHandler>? _activeObjectModified;
+        public event EventHostDb.ObjectEventHandler ActiveObjectModified
         {
             add => Slot(ref _activeObjectModified, EnsureDbHook, ReleaseDbHook).Add(value);
             remove => _activeObjectModified?.Remove(value);
         }
 
-        private HookSlot<DbServices.ObjectErasedEventHandler>? _activeObjectErased;
-        public event DbServices.ObjectErasedEventHandler ActiveObjectErased
+        private HookSlot<EventHostDb.ObjectErasedEventHandler>? _activeObjectErased;
+        public event EventHostDb.ObjectErasedEventHandler ActiveObjectErased
         {
             add => Slot(ref _activeObjectErased, EnsureDbHook, ReleaseDbHook).Add(value);
             remove => _activeObjectErased?.Remove(value);
@@ -604,7 +532,7 @@ namespace EventManager
         /// while documents are part way through teardown, so the read itself can throw -- and it
         /// must not escape, because the caller is AutoCAD's own dispatch.
         /// </summary>
-        private DbServices.Database? DatabaseOf(Document? doc, string what)
+        private EventHostDb.Database? DatabaseOf(EventHostApp.Document? doc, string what)
         {
             try
             {
@@ -617,12 +545,12 @@ namespace EventManager
             }
         }
 
-        private DbServices.Database? ActiveDatabase()
+        private EventHostDb.Database? ActiveDatabase()
         {
-            Document? active;
+            EventHostApp.Document? active;
             try
             {
-                active = Application.DocumentManager.MdiActiveDocument;
+                active = EventHostApp.Application.DocumentManager.MdiActiveDocument;
             }
             catch (Exception ex)
             {
@@ -633,11 +561,11 @@ namespace EventManager
             return DatabaseOf(active, "failed to read the active document's database");
         }
 
-        private void OnActiveDocChanged(object? s, DocumentCollectionEventArgs e)
+        private void OnActiveDocChanged(object? s, EventHostApp.DocumentCollectionEventArgs e)
             => BindDatabase(DatabaseOf(
                 e.Document, "failed to read the database of the document being activated"));
 
-        private void OnActiveDocDeactivated(object? s, DocumentCollectionEventArgs e)
+        private void OnActiveDocDeactivated(object? s, EventHostApp.DocumentCollectionEventArgs e)
             => BindDatabase(null);
 
         /// <summary>
@@ -645,7 +573,7 @@ namespace EventManager
         /// deactivate precedes the destroy and nothing else would release the binding. Let go of
         /// the database here, while unsubscribing from it is still safe.
         /// </summary>
-        private void OnActiveDocToBeDestroyed(object? s, DocumentCollectionEventArgs e)
+        private void OnActiveDocToBeDestroyed(object? s, EventHostApp.DocumentCollectionEventArgs e)
         {
             var dying = DatabaseOf(
                 e.Document, "failed to read the database of a document being destroyed");
@@ -664,39 +592,39 @@ namespace EventManager
         /// database if a destroy ever arrives without either a preceding deactivate or a
         /// resolvable document.
         /// </summary>
-        private void OnActiveDocDestroyed(object? s, DocumentDestroyedEventArgs e)
+        private void OnActiveDocDestroyed(object? s, EventHostApp.DocumentDestroyedEventArgs e)
             => BindDatabase(ActiveDatabase());
 
         /// <summary>
         /// Follows the active document's database. Never throws, and never ends up claiming a
         /// database it is only partly attached to -- see <see cref="BoundHook{TTarget}"/>.
         /// </summary>
-        private void BindDatabase(DbServices.Database? db) => _dbBinding.BindTo(db);
+        private void BindDatabase(EventHostDb.Database? db) => _dbBinding.BindTo(db);
 
-        private void AttachToDatabase(DbServices.Database db)
+        private void AttachToDatabase(EventHostDb.Database db)
         {
             db.ObjectAppended += FwdObjectAppended;
             db.ObjectModified += FwdObjectModified;
             db.ObjectErased += FwdObjectErased;
         }
 
-        private void DetachFromDatabase(DbServices.Database db)
+        private void DetachFromDatabase(EventHostDb.Database db)
         {
             db.ObjectAppended -= FwdObjectAppended;
             db.ObjectModified -= FwdObjectModified;
             db.ObjectErased -= FwdObjectErased;
         }
 
-        private void FwdObjectAppended(object? s, DbServices.ObjectEventArgs e)
+        private void FwdObjectAppended(object? s, EventHostDb.ObjectEventArgs e)
             => _activeObjectAppended?.Handlers?.Invoke(s, e);
-        private void FwdObjectModified(object? s, DbServices.ObjectEventArgs e)
+        private void FwdObjectModified(object? s, EventHostDb.ObjectEventArgs e)
             => _activeObjectModified?.Handlers?.Invoke(s, e);
-        private void FwdObjectErased(object? s, DbServices.ObjectErasedEventArgs e)
+        private void FwdObjectErased(object? s, EventHostDb.ObjectErasedEventArgs e)
             => _activeObjectErased?.Handlers?.Invoke(s, e);
 
         #endregion
 
-        private void OnDocToBeDestroyed(object? sender, DocumentCollectionEventArgs e)
+        private void OnDocToBeDestroyed(object? sender, EventHostApp.DocumentCollectionEventArgs e)
             => _subscriptions.Release(e.Document);
 
         /// <summary>
@@ -729,7 +657,7 @@ namespace EventManager
 
             _trace.Guard(
                 "failed to detach the document-destroy hook",
-                () => Application.DocumentManager.DocumentToBeDestroyed -= OnDocToBeDestroyed);
+                () => EventHostApp.Application.DocumentManager.DocumentToBeDestroyed -= OnDocToBeDestroyed);
         }
     }
 }

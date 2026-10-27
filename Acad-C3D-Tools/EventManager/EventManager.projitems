@@ -17,4 +17,16 @@
     <Compile Include="$(MSBuildThisFileDirectory)SharedHook.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)SubscriptionLedger.cs" />
   </ItemGroup>
+  <!-- The host part: NorsynHost = AutoCAD (also when the consumer does not set it) or BricsCAD. Each declares
+       the host namespaces AcadEventManager.cs uses (EventHostApp, EventHostDb) and the idle source. BricsCAD's
+       idle source is a WPF DispatcherTimer, so that lane needs WPF even in a project that has no UI. -->
+  <ItemGroup Condition="'$(NorsynHost)' != 'BricsCAD'">
+    <Compile Include="$(MSBuildThisFileDirectory)Acad\AcadEventManager.Host.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(NorsynHost)' == 'BricsCAD'">
+    <Compile Include="$(MSBuildThisFileDirectory)Brx\AcadEventManager.Host.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(NorsynHost)' == 'BricsCAD' And '$(UseWPF)' != 'true'">
+    <FrameworkReference Include="Microsoft.WindowsDesktop.App.WPF" />
+  </ItemGroup>
 </Project>
