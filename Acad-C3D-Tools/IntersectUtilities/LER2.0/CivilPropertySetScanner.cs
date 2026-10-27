@@ -40,7 +40,7 @@ internal sealed class CivilPropertySetScanner : IPropertySetScanner
     public string DrawingName => Active().Match(doc => System.IO.Path.GetFileName(doc.Name), () => "");
 
     public Result<IReadOnlyList<EntitySets>, AecError> ScanModelSpace(IProgressSink progress) =>
-        Active().Match(
+        LastResort("scan model space", () => Active().Match(
             doc =>
             {
                 using DocumentLock _ = doc.LockDocument();
@@ -49,9 +49,23 @@ internal sealed class CivilPropertySetScanner : IPropertySetScanner
                 tx.Commit();
                 return result;
             },
-            () => Result.Failure<IReadOnlyList<EntitySets>, AecError>(AecError.Drawing("No drawing is open.")));
+            () => Result.Failure<IReadOnlyList<EntitySets>, AecError>(AecError.Drawing("No drawing is open."))));
 
-    // The stop of a scan (OperationStoppedException) passes through: the caller catches it.
+    // The scan's one last-resort guard. LER2MANHOLEQA's window runs it from a button, so a
+    // throw that is a bug becomes a fault the window shows, not a crash of Civil 3D. The
+    // stop of a scan (OperationStoppedException) passes through: the caller catches it.
+    private static Result<T, AecError> LastResort<T>(string what, Func<Result<T, AecError>> body)
+    {
+        try
+        {
+            return body();
+        }
+        catch (System.Exception ex) when (ex is not OperationStoppedException)
+        {
+            return Result.Failure<T, AecError>(AecError.Host(what, ex));
+        }
+    }
+
     private static Result<IReadOnlyList<EntitySets>, AecError> Scan(Database db, Transaction tx, IProgressSink progress) =>
         Host("list model space", () =>
             {
