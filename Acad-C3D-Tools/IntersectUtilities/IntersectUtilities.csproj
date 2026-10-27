@@ -163,7 +163,7 @@
 	     this project share (windows, view models, the property set tree, LER2MANHOLEQA), the
 	     same code BricsCAD runs. This project adds only the Civil 3D side of its seams and the
 	     heads (LER2.0\CivilPropertySetScanner.cs over the AEC API, LER2MANHOLEQA in
-	     LER2.0\LER2.0.cs). It needs AecPropertySetsSHARED's codec and unions (its BricsCAD
+	     LER2.0\LER2.0.cs). It needs AecPropertySetsSHARED's codec and AecError (its BricsCAD
 	     object layer stays out: NorsynHost is not BricsCAD here), the Norsyn WPF theme, and
 	     NorsynDrawingToolsManaged's progress port, linked file by file. -->
 	<PropertyGroup>
