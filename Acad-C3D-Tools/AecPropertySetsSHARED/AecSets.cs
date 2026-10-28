@@ -6,10 +6,11 @@ using CSharpFunctionalExtensions;
 
 using Teigha.DatabaseServices;
 
-// CSharpFunctionalExtensions has an Entity too (a DDD base class).
-using Entity = Teigha.DatabaseServices.Entity;
-
 namespace Norsyn.AecPropertySets;
+
+// CSharpFunctionalExtensions has an Entity too (a DDD base class). Inside the namespace, so a project that already has
+// a global alias of that name (NorsynUtilityTools) gets no duplicate (CS1537): this one shadows it.
+using Entity = Teigha.DatabaseServices.Entity;
 
 /// <summary>A property set attached to an entity, decoded with its definition.</summary>
 /// <param name="Key">The set's key in the entity's AEC_PROPERTY_SETS dictionary (*A1 ...).</param>
