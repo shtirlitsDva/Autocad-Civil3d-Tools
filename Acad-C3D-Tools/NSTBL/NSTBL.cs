@@ -54,7 +54,7 @@ using IntersectUtilities.UtilsCommon.DataManager;
 
 namespace IntersectUtilities.NSTBL
 {
-    public class DimensioneringExtension : IExtensionApplication
+    public partial class DimensioneringExtension : IExtensionApplication
     {
         #region IExtensionApplication members
         public void Initialize()
@@ -152,6 +152,10 @@ namespace IntersectUtilities.NSTBL
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
+
+            //Stretches on 0-TBL-STRÆK or 0-TBL-STRÆK-* (TBLCRAWL) replace the area polygons: see TblLineMode.cs.
+            if (TblLineMode.HasLines(localDb))
+                return gatherlinemodedata(localDb, inheritWeldSerie, bendAngleInName, fixComponentData);
 
             var dro = DataReferencesOptions.Create();
             if (dro == null) return null;

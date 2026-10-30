@@ -60,6 +60,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)PropertySets\IPropertySetCopier.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)PropertySets\PSetDefs.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)PropertySets\PropertySetAccess.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Tbl\TblBelægninger.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)UtilsCommon.cs" />
   </ItemGroup>
 </Project>
