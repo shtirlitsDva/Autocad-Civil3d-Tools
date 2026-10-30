@@ -16,9 +16,9 @@ namespace IntersectUtilities.Tbl
     /// The one table of Belægninger, shared by TBLINIT and TBLCRAWL (IntersectUtilities) and NSTBL's line
     /// mode. A stretch is drawn on its Belægning's layer, but the layer only shows it: the DriOmråder
     /// Belægning is what the export counts by.
-    /// Overkørsel and Belægningssten were proposed as 5 and 6, the FJV retur and twin pipe colours; they got
-    /// the nearest hue that is no FJV pipe colour of PipeScheduleV2 and at least 30° from the pipe colours of
-    /// a Fremtid (1, 5, 6, 190): 140 and 230.
+    /// Overkørsel was proposed as 5, the FJV retur pipe colour, and got the nearest hue that is no FJV pipe
+    /// colour of PipeScheduleV2 and at least 30° from the pipe colours of a Fremtid (1, 5, 6, 190): 140.
+    /// Belægningssten is blue (160) by the user's choice.
     /// </summary>
     public static class TblBelægninger
     {
@@ -29,7 +29,7 @@ namespace IntersectUtilities.Tbl
         {
             new TblBelægning("Vejbane", "Vejbane", "0-TBL-STRÆK-VEJBANE", 30),
             new TblBelægning("Cykelsti", "Cykelsti", "0-TBL-STRÆK-CYKELSTI", 4),
-            new TblBelægning("Belægningssten", "Belægningssten", "0-TBL-STRÆK-BELÆGNINGSSTEN", 230),
+            new TblBelægning("Belægningssten", "Belægningssten", "0-TBL-STRÆK-BELÆGNINGSSTEN", 160),
             new TblBelægning("Flisebelægning", "Flisebelægning", "0-TBL-STRÆK-FLISEBELÆGNING", 2),
             new TblBelægning("Fortov", "FOrtov", "0-TBL-STRÆK-FORTOV", 3),
             new TblBelægning("Overkørsel", "Overkørsel", "0-TBL-STRÆK-OVERKØRSEL", 140),

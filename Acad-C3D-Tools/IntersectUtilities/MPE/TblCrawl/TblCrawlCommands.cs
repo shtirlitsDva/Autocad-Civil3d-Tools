@@ -33,9 +33,9 @@ public partial class Intersect
     /// <command>TBLINIT</command>
     /// <summary>
     /// Prepares a drawing for TBL stretches: creates a layer per Belægning (0-TBL-STRÆK-VEJBANE and so on,
-    /// each with its own colour) and the DriOmråder property set definition when they are missing, and
-    /// checks that an FJV Fremtid xref is attached. Running it again changes nothing; a layer that exists
-    /// keeps the colour it has.
+    /// each with its own colour and lineweight 0.35) and the DriOmråder property set definition when they
+    /// are missing, and checks that an FJV Fremtid xref is attached. Running it again changes nothing; a
+    /// layer that exists keeps the colour and lineweight it has.
     /// </summary>
     /// <category>Tilbudsliste</category>
     [CommandMethod("TBLINIT")]
@@ -105,6 +105,7 @@ public partial class Intersect
             {
                 Name = belægning.Layer,
                 Color = CadColor.FromColorIndex(ColorMethod.ByAci, belægning.ColorIndex),
+                LineWeight = LineWeight.LineWeight035,
             };
             layers.Add(layer);
             tx.AddNewlyCreatedDBObject(layer, true);
