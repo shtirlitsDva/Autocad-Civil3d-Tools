@@ -1,7 +1,7 @@
 using System.Windows;
 using System.Windows.Input;
 
-using DimensioneringV2.UI;
+using IntersectUtilities.UI;
 
 namespace AcadOverrules.VertexCircles.UI
 {

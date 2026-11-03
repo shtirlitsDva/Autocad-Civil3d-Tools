@@ -1,6 +1,6 @@
 using System.Windows;
 using System.Windows.Data;
-using DimensioneringV2.UI;
+using IntersectUtilities.UI;
 using IntersectUtilities.BatchProcessing.BPUIv2.Sequences;
 using static IntersectUtilities.UtilsCommon.Utils;
 
