@@ -153,6 +153,10 @@ namespace IntersectUtilities.NSTBL
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
 
+            //Run in the Fremtid file itself, the stretches or the område polygons come through an xref: see TblXrefSource.cs.
+            if (trygatherxrefdata(localDb, inheritWeldSerie, bendAngleInName, fixComponentData, out HashSet<IntersectResult> xrefRows))
+                return xrefRows;
+
             //Stretches on 0-TBL-STRÆK or 0-TBL-STRÆK-* (TBLCRAWL) replace the area polygons: see TblLineMode.cs.
             if (TblLineMode.HasLines(localDb))
                 return gatherlinemodedata(localDb, inheritWeldSerie, bendAngleInName, fixComponentData);
@@ -191,25 +195,7 @@ namespace IntersectUtilities.NSTBL
                     PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriOmråder);
                     PSetDefs.DriOmråder psDef = new PSetDefs.DriOmråder();
 
-                    #region Serie fallback for welds
-                    //Welds carry no Serie in FJV Dynamiske Komponenter.csv, so they export a blank
-                    //Serie and fall through the staging grid. They inherit it from whatever they
-                    //join: the pipe they sit on, or - for a weld between two components - the port
-                    //of the neighbouring component. Extents are cached up front so the per-weld
-                    //pipe lookup can reject most pipes without paying for a closest-point call.
-                    var pipesWithExtents = pipes
-                        .Where(p => p.Bounds.HasValue)
-                        .Select(p => (Pipe: p, Ext: p.Bounds.Value))
-                        .ToArray();
-                    //Reading ports costs an ARX call per component, and most welds are resolved by
-                    //the pipe lookup alone, so this is only built if a weld actually needs it.
-                    var componentPorts = new Lazy<(Point3d Port, string Serie, string SysNavn, Oid Owner)[]>(
-                        () => ReadComponentPortSeries(comps, pipesWithExtents));
-                    var weldSerieCache = new Dictionary<Oid, string>();
-                    #endregion
-
-                    var skippedBlocks = new Dictionary<string, int>();
-                    var componentNotes = new List<string>();
+                    AreaCounter counter = new AreaCounter(pipes, comps, inheritWeldSerie, bendAngleInName, fixComponentData);
 
                     #region Collect Intersection Results
                     for (int i = 0; i < cplines.Count; i++)
@@ -218,76 +204,14 @@ namespace IntersectUtilities.NSTBL
                         if (!polygonPline.Closed)
                             throw new System.Exception($"Polyline {polygonPline.Handle} is not closed!");
                         Polygon pgon = NTSConversion.ConvertClosedPlineToNTSPolygon(polygonPline);
-
-                        foreach (Polyline pipe in pipes)
-                        {
-                            LineString pipeLineString = NTSConversion.ConvertPlineToNTSLineString(pipe);
-                            if (!pgon.Intersects(pipeLineString)) continue;
-                            Geometry intersect = pgon.Intersection(pipeLineString);
-
-                            IntersectResultPipe irp = new IntersectResultPipe();
-                            irp.Vejnavn = psm.ReadPropertyString(polygonPline, psDef.Vejnavn);
-                            irp.Vejklasse = psm.ReadPropertyString(polygonPline, psDef.Vejklasse);
-                            irp.Belægning = psm.ReadPropertyString(polygonPline, psDef.Belægning);
-                            irp.DN1 = GetPipeDN(pipe).ToString();
-                            irp.System = GetPipeType(pipe, true).ToString();
-                            irp.Serie = GetPipeSeriesV2(pipe, true).ToString();
-                            irp.Length = intersect.Length;
-                            irp.SystemType = GetPipeSystem(pipe).ToString();
-
-                            //Standard delivery length from the pipe schedule (DefaultL).
-                            //0 means the system has no standard length defined (e.g. FibreFlex),
-                            //in which case the field must stay empty so it drops out of the key.
-                            double stdLength = GetPipeStdLength(pipe);
-                            irp.StdLength = stdLength > 0
-                                ? stdLength.ToString("0.##", CultureInfo.InvariantCulture)
-                                : "";
-
-                            allResults.Add(irp);
-                        }
-
-                        foreach (BlockReference br in comps)
-                        {
-                            Point compPoint = NTSConversion.ConvertBrToNTSPoint(br);
-                            if (!pgon.Intersects(compPoint)) continue;
-
-                            IntersectResultComponent irp = new IntersectResultComponent();
-                            irp.Vejnavn = psm.ReadPropertyString(polygonPline, psDef.Vejnavn);
-                            irp.Vejklasse = psm.ReadPropertyString(polygonPline, psDef.Vejklasse);
-                            irp.Belægning = psm.ReadPropertyString(polygonPline, psDef.Belægning);
-                            irp.Navn = br.ReadDynamicCsvProperty(DynamicProperty.TBLNavn, true);
-                            //Every CSV row has a TBLNavn, so an empty one means the block has no
-                            //row at all (detailing blocks and the like): nothing to count.
-                            if (fixComponentData && irp.Navn.IsNoE())
-                            {
-                                string blockName = br.RealName();
-                                skippedBlocks[blockName] = skippedBlocks.GetValueOrDefault(blockName) + 1;
-                                continue;
-                            }
-                            if (bendAngleInName) irp.Navn = NameWithBendAngle(br, irp.Navn);
-                            irp.DN1 = br.ReadDynamicCsvProperty(DynamicProperty.DN1, true);
-                            irp.DN2 = br.ReadDynamicCsvProperty(DynamicProperty.DN2, true);
-                            irp.System = br.ReadDynamicCsvProperty(DynamicProperty.System, true);
-                            irp.Serie = br.ReadDynamicCsvProperty(DynamicProperty.Serie, true);
-                            irp.SystemType = br.ReadDynamicCsvProperty(DynamicProperty.SysNavn, true);
-
-                            bool isWeld = br.ReadDynamicCsvProperty(DynamicProperty.Type, false) == "Svejsning";
-                            if (inheritWeldSerie && irp.Serie.IsNoE() && isWeld)
-                                irp.Serie = GetSerieFromNeighbour(
-                                    br, pipesWithExtents, componentPorts, weldSerieCache);
-                            if (fixComponentData && !isWeld)
-                                FixComponentData(br, irp, pipesWithExtents, componentPorts, componentNotes);
-
-                            if (irp.System == "Frem" || irp.System == "Retur") irp.System = "Enkelt";
-
-                            allResults.Add(irp);
-                        }
+                        counter.Count(pgon, () => (psm.ReadPropertyString(polygonPline, psDef.Vejnavn),
+                            psm.ReadPropertyString(polygonPline, psDef.Vejklasse),
+                            psm.ReadPropertyString(polygonPline, psDef.Belægning)));
                     }
                     #endregion
 
-                    foreach (var (blockName, count) in skippedBlocks)
-                        prdDbg($"Udeladt, ingen række i FJV Dynamiske Komponenter.csv: {blockName} ({count} stk.)");
-                    foreach (string note in componentNotes) prdDbg(note);
+                    counter.Report();
+                    allResults = counter.Results;
                 }
                 catch (System.Exception ex)
                 {
@@ -303,6 +227,126 @@ namespace IntersectUtilities.NSTBL
                 fremTx.Dispose();
                 fremDb.Dispose();
                 return allResults;
+            }
+        }
+        /// <summary>
+        /// Polygon mode's counting, shared by the drawing's own areas (gatherintersectdata) and those of an xreffed
+        /// område drawing (TblXrefSource): per area, the length of every pipe inside it and every block whose insertion
+        /// point is in it, with the area's tags. The tags are asked for at the first hit, once per area.
+        /// </summary>
+        private sealed class AreaCounter
+        {
+            private readonly HashSet<Polyline> pipes;
+            private readonly HashSet<BlockReference> comps;
+            private readonly bool inheritWeldSerie;
+            private readonly bool bendAngleInName;
+            private readonly bool fixComponentData;
+            private readonly (Polyline Pipe, Extents3d Ext)[] pipesWithExtents;
+            private readonly Lazy<(Point3d Port, string Serie, string SysNavn, Oid Owner)[]> componentPorts;
+            private readonly Dictionary<Oid, string> weldSerieCache = new Dictionary<Oid, string>();
+            private readonly Dictionary<string, int> skippedBlocks = new Dictionary<string, int>();
+            private readonly List<string> componentNotes = new List<string>();
+
+            public HashSet<IntersectResult> Results { get; } = new HashSet<IntersectResult>();
+
+            public AreaCounter(HashSet<Polyline> pipes, HashSet<BlockReference> comps,
+                bool inheritWeldSerie, bool bendAngleInName, bool fixComponentData)
+            {
+                this.pipes = pipes;
+                this.comps = comps;
+                this.inheritWeldSerie = inheritWeldSerie;
+                this.bendAngleInName = bendAngleInName;
+                this.fixComponentData = fixComponentData;
+
+                #region Serie fallback for welds
+                //Welds carry no Serie in FJV Dynamiske Komponenter.csv, so they export a blank
+                //Serie and fall through the staging grid. They inherit it from whatever they
+                //join: the pipe they sit on, or - for a weld between two components - the port
+                //of the neighbouring component. Extents are cached up front so the per-weld
+                //pipe lookup can reject most pipes without paying for a closest-point call.
+                pipesWithExtents = pipes
+                    .Where(p => p.Bounds.HasValue)
+                    .Select(p => (Pipe: p, Ext: p.Bounds.Value))
+                    .ToArray();
+                //Reading ports costs an ARX call per component, and most welds are resolved by
+                //the pipe lookup alone, so this is only built if a weld actually needs it.
+                var withExtents = pipesWithExtents;
+                componentPorts = new Lazy<(Point3d Port, string Serie, string SysNavn, Oid Owner)[]>(
+                    () => ReadComponentPortSeries(comps, withExtents));
+                #endregion
+            }
+
+            public void Count(Polygon pgon, Func<(string Vejnavn, string Vejklasse, string Belægning)> readTags)
+            {
+                (string Vejnavn, string Vejklasse, string Belægning)? read = null;
+                (string Vejnavn, string Vejklasse, string Belægning) Tags() => read ??= readTags();
+
+                foreach (Polyline pipe in pipes)
+                {
+                    LineString pipeLineString = NTSConversion.ConvertPlineToNTSLineString(pipe);
+                    if (!pgon.Intersects(pipeLineString)) continue;
+                    Geometry intersect = pgon.Intersection(pipeLineString);
+
+                    IntersectResultPipe irp = new IntersectResultPipe();
+                    (irp.Vejnavn, irp.Vejklasse, irp.Belægning) = Tags();
+                    irp.DN1 = GetPipeDN(pipe).ToString();
+                    irp.System = GetPipeType(pipe, true).ToString();
+                    irp.Serie = GetPipeSeriesV2(pipe, true).ToString();
+                    irp.Length = intersect.Length;
+                    irp.SystemType = GetPipeSystem(pipe).ToString();
+
+                    //Standard delivery length from the pipe schedule (DefaultL).
+                    //0 means the system has no standard length defined (e.g. FibreFlex),
+                    //in which case the field must stay empty so it drops out of the key.
+                    double stdLength = GetPipeStdLength(pipe);
+                    irp.StdLength = stdLength > 0
+                        ? stdLength.ToString("0.##", CultureInfo.InvariantCulture)
+                        : "";
+
+                    Results.Add(irp);
+                }
+
+                foreach (BlockReference br in comps)
+                {
+                    Point compPoint = NTSConversion.ConvertBrToNTSPoint(br);
+                    if (!pgon.Intersects(compPoint)) continue;
+
+                    IntersectResultComponent irp = new IntersectResultComponent();
+                    (irp.Vejnavn, irp.Vejklasse, irp.Belægning) = Tags();
+                    irp.Navn = br.ReadDynamicCsvProperty(DynamicProperty.TBLNavn, true);
+                    //Every CSV row has a TBLNavn, so an empty one means the block has no
+                    //row at all (detailing blocks and the like): nothing to count.
+                    if (fixComponentData && irp.Navn.IsNoE())
+                    {
+                        string blockName = br.RealName();
+                        skippedBlocks[blockName] = skippedBlocks.GetValueOrDefault(blockName) + 1;
+                        continue;
+                    }
+                    if (bendAngleInName) irp.Navn = NameWithBendAngle(br, irp.Navn);
+                    irp.DN1 = br.ReadDynamicCsvProperty(DynamicProperty.DN1, true);
+                    irp.DN2 = br.ReadDynamicCsvProperty(DynamicProperty.DN2, true);
+                    irp.System = br.ReadDynamicCsvProperty(DynamicProperty.System, true);
+                    irp.Serie = br.ReadDynamicCsvProperty(DynamicProperty.Serie, true);
+                    irp.SystemType = br.ReadDynamicCsvProperty(DynamicProperty.SysNavn, true);
+
+                    bool isWeld = br.ReadDynamicCsvProperty(DynamicProperty.Type, false) == "Svejsning";
+                    if (inheritWeldSerie && irp.Serie.IsNoE() && isWeld)
+                        irp.Serie = GetSerieFromNeighbour(
+                            br, pipesWithExtents, componentPorts, weldSerieCache);
+                    if (fixComponentData && !isWeld)
+                        FixComponentData(br, irp, pipesWithExtents, componentPorts, componentNotes);
+
+                    if (irp.System == "Frem" || irp.System == "Retur") irp.System = "Enkelt";
+
+                    Results.Add(irp);
+                }
+            }
+
+            public void Report()
+            {
+                foreach (var (blockName, count) in skippedBlocks)
+                    prdDbg($"Udeladt, ingen række i FJV Dynamiske Komponenter.csv: {blockName} ({count} stk.)");
+                foreach (string note in componentNotes) prdDbg(note);
             }
         }
         /// <summary>

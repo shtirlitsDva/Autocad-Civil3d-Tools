@@ -148,6 +148,8 @@ namespace IntersectUtilities.NSTBL
     /// replace the 0-OMRÅDER-OK polygons. Their DriOmråder Belægning is what is counted, whatever the layer.
     /// - Fremtid is read from the xref the stretches were drawn on, not from Stier.csv; a Stier.csv Fremtid
     ///   in the xref's folder that is another file is warned about.
+    /// - Run in the Fremtid file itself, the stretches come the other way, through the xreffed VEJKLASSE
+    ///   drawing, and are counted on this drawing (TblXrefSource). The counting is the same.
     /// - Pipe: every part of an FJV pipe within 25 mm of a stretch that lies along it (see Along: a pipe that
     ///   only crosses a stretch is not on it), counted once: per pipe the stretches take their part in a fixed
     ///   order (by handle) from what earlier stretches left.
@@ -254,19 +256,54 @@ namespace IntersectUtilities.NSTBL
         {
             PropertySetManager psm = new PropertySetManager(db, PSetDefs.DefinedSets.DriOmråder);
             PSetDefs.DriOmråder def = new PSetDefs.DriOmråder();
-            return db.ListOfType<Polyline>(tx)
-                .Where(p => TblBelægninger.IsStretchLayer(p.Layer))
+            return ToLines(db.ListOfType<Polyline>(tx), toXref, p =>
+                (psm.ReadPropertyString(p, def.Vejnavn), psm.ReadPropertyString(p, def.Vejklasse),
+                    psm.ReadPropertyString(p, def.Belægning)));
+        }
+
+        /// <summary>
+        /// The stretches of an xref's database (TblXrefSource) in this drawing's coordinates, in the same fixed order.
+        /// The tags are read without attaching a set, so the xref is not written.
+        /// </summary>
+        public static List<TblLine> ReadXrefLines(Database xdb, Transaction xtx, Matrix3d toHost)
+        {
+            PSetDefs.DriOmråder def = new PSetDefs.DriOmråder();
+            return ToLines(xdb.ListOfType<Polyline>(xtx), toHost, p =>
+                (TblXrefSource.ReadTag(p, xtx, def.Vejnavn), TblXrefSource.ReadTag(p, xtx, def.Vejklasse),
+                    TblXrefSource.ReadTag(p, xtx, def.Belægning)));
+        }
+
+        private static List<TblLine> ToLines(
+            IEnumerable<Polyline> polylines, Matrix3d transform, Func<Polyline, (string Vejnavn, string Vejklasse, string Belægning)> tags) =>
+            polylines
+                .Where(p => TblBelægninger.IsStretchLayer(LocalLayer(p.Layer)))
                 .OrderBy(p => p.Handle.Value)
                 .Select((p, i) =>
                 {
-                    LineString line = TblLineGeometry.ToLineString(p, toXref);
-                    return new TblLine(i, p.Handle.ToString(), p.Layer,
-                        psm.ReadPropertyString(p, def.Vejnavn), psm.ReadPropertyString(p, def.Vejklasse),
-                        psm.ReadPropertyString(p, def.Belægning),
+                    LineString line = TblLineGeometry.ToLineString(p, transform);
+                    var (vejnavn, vejklasse, belægning) = tags(p);
+                    return new TblLine(i, p.Handle.ToString(), LocalLayer(p.Layer), vejnavn, vejklasse, belægning,
                         line, TblLineGeometry.Corridor(line, Tolerance), TblLineGeometry.Corridor(line, CoincidenceTolerance),
                         line.StartPoint.Coordinate, line.EndPoint.Coordinate);
                 })
                 .ToList();
+
+        /// <summary>
+        /// A layer as its drawing names it: a loaded xref's database names its layers "XREF|LAYER". A drawing's own layer
+        /// cannot hold '|', so it is returned as it is.
+        /// </summary>
+        public static string LocalLayer(string layer) => layer.Substring(layer.LastIndexOf('|') + 1);
+
+        /// <summary>The stretches per layer for the command line, e.g. "0-TBL-STRÆK-FORTOV 1, 0-TBL-STRÆK-VEJBANE 19".</summary>
+        public static string PerLayer(IEnumerable<TblLine> lines) =>
+            string.Join(", ", lines.GroupBy(l => l.Layer, StringComparer.OrdinalIgnoreCase)
+                .OrderBy(g => g.Key, StringComparer.Ordinal).Select(g => $"{g.Key} {g.Count()}"));
+
+        public static void WarnLayerMismatch(IEnumerable<TblLine> lines)
+        {
+            foreach (TblLine line in lines.Where(l => l.LayerMismatch))
+                prdDbg($"ADVARSEL: stræk {line.Handle} ligger på {line.Layer}, men PS Belægning er \"{line.Belægning}\". " +
+                    "Eksporten tæller efter PS.");
         }
 
         /// <summary>
@@ -445,15 +482,12 @@ namespace IntersectUtilities.NSTBL
                 {
                     using Database fremDb = source.FremDb;
                     List<TblLine> lines = TblLineMode.ReadLines(localDb, tx, source.Xref.BlockTransform.Inverse());
-                    string perLayer = string.Join(", ", lines.GroupBy(l => l.Layer, StringComparer.OrdinalIgnoreCase)
-                        .OrderBy(g => g.Key, StringComparer.Ordinal).Select(g => $"{g.Key} {g.Count()}"));
-                    prdDbg($"Linjetilstand: {lines.Count} stræk ({perLayer}); Fremtid fra xref'en {source.Path}.");
-                    foreach (TblLine line in lines.Where(l => l.LayerMismatch))
-                        prdDbg($"ADVARSEL: stræk {line.Handle} ligger på {line.Layer}, men PS Belægning er \"{line.Belægning}\". " +
-                            "Eksporten tæller efter PS.");
+                    prdDbg($"Linjetilstand: {lines.Count} stræk ({TblLineMode.PerLayer(lines)}); Fremtid fra xref'en {source.Path}.");
+                    TblLineMode.WarnLayerMismatch(lines);
                     prdDbg(TblLineMode.StierCheck(source.Path));
                     using Transaction fremTx = fremDb.TransactionManager.StartTransaction();
-                    HashSet<IntersectResult> rows = CountOnLines(lines, fremDb, fremTx, inheritWeldSerie, bendAngleInName, fixComponentData);
+                    HashSet<IntersectResult> rows = CountOnLines(lines, fremDb, fremTx, fremDb.HashSetOfType<BlockReference>(fremTx),
+                        inheritWeldSerie, bendAngleInName, fixComponentData);
                     fremTx.Abort();
                     return rows;
                 });
@@ -483,12 +517,11 @@ namespace IntersectUtilities.NSTBL
         }
 
         private static HashSet<IntersectResult> CountOnLines(
-            List<TblLine> lines, Database fremDb, Transaction fremTx,
+            List<TblLine> lines, Database fremDb, Transaction fremTx, HashSet<BlockReference> comps,
             bool inheritWeldSerie, bool bendAngleInName, bool fixComponentData)
         {
             HashSet<IntersectResult> allResults = new HashSet<IntersectResult>();
             HashSet<Polyline> pipes = fremDb.GetFjvPipes(fremTx);
-            HashSet<BlockReference> comps = fremDb.HashSetOfType<BlockReference>(fremTx);
 
             //The same serie fallbacks as polygon mode (gatherintersectdata).
             var pipesWithExtents = pipes
