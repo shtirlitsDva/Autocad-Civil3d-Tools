@@ -66,9 +66,6 @@ namespace IntersectUtilities.LineTypes
     /// </summary>
     public static class LinetypeRecords
     {
-        /// <summary>The text scale the old commands measured at.</summary>
-        public const double PresetTextScale = 0.9;
-
         // ------------------------------------------------------------------ reading
 
         /// <summary>The linetype records' names, the drawing's own (ByLayer, ByBlock, Continuous) left out.</summary>

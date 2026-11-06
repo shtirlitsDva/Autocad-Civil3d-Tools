@@ -43,8 +43,9 @@ namespace IntersectUtilities.LineTypes
             {
                 try
                 {
-                    Func<string, double> width = LinetypeRecords.TextWidths(db, tx, style, LinetypeRecords.PresetTextScale);
-                    LinetypeDefinition definition = preset.Build(name, text, style, width);
+                    const double size = LinetypePreset.DefaultTextSize;
+                    Func<string, double> width = LinetypeRecords.TextWidths(db, tx, style, size);
+                    LinetypeDefinition definition = preset.Build(name, text, style, size, width);
                     LinetypeRecords.Write(db, tx, definition, flags);
                     tx.Commit();
                 }
