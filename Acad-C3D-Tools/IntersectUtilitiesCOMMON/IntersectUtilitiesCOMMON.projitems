@@ -51,6 +51,12 @@
     <Compile Include="$(MSBuildThisFileDirectory)LER2\Ler2Join.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)LER2\Ler2Sort.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)LER2\Ler2Split.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)LineTypes\LinetypeCommands.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)LineTypes\LinetypeDefinition.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)LineTypes\LinetypePresets.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)LineTypes\LinetypeRecords.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)LineTypes\LinFormat.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)LineTypes\ShxShapes.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)MoreLinq\MoreLinq.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)PipeScheduleV2\PipeScheduleV2.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)PipelineNetwork\PipelineGraphBuilder.cs" />
