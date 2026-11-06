@@ -127,7 +127,7 @@ namespace IntersectUtilities.LineTypes
             if (text.Length > 0) return new TextInclusion(text, style.Name, placement);
 
             int number = record.ShapeNumberAt(index);
-            string name = ShapeNames(record.Database, style.FileName).TryGetValue(number, out string found) ? found : "";
+            string name = ShapeNames(record.Database, style.FileName).GetValueOrDefault(number, "");
             return new ShapeInclusion(number, name, Path.GetFileName(style.FileName), placement);
         }
 
