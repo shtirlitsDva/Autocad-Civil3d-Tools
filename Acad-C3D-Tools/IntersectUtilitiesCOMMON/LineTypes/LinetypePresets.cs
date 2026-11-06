@@ -7,11 +7,13 @@ namespace IntersectUtilities.LineTypes
     /// <summary>
     /// The four text linetypes the old commands made (CCL, CCLS, CCLX, CCLXS), as
     /// definitions: a line with a text that reads both ways along it, with or without an
-    /// X between, the text cut into pieces or whole. The arithmetic is the old commands':
+    /// X between, the text cut into pieces or whole. The lengths are the old commands':
     /// at their text size, S=0.9, a 5 unit line between, 0.05 of room each side of a text,
     /// the text measured in its style at 0.9 (<c>width</c>). At another text size every
-    /// length keeps its proportion to the text, so the old commands' linetypes come out
-    /// unchanged and a smaller text keeps the same look.
+    /// length keeps its proportion to the text, so a smaller text keeps the same look.
+    /// Each text sits in the middle of its gap, the same room before as after (owner,
+    /// 2026-11-06: the gap hugs the text). The old commands put it one room's width
+    /// off the middle, and CCLXS ran its upright text that far into the line.
     /// </summary>
     public sealed class LinetypePreset
     {
@@ -116,6 +118,21 @@ namespace IntersectUtilities.LineTypes
         private static TextInclusion Text(string text, string style, Proportions p, double rotation, double x, double y) =>
             new(text, style, new InclusionPlacement(p.TextSize, rotation, RotationKind.Relative, x, y));
 
+        /// <summary>
+        /// A gap of length <paramref name="gap"/> carrying <paramref name="text"/> (width
+        /// <paramref name="t"/>) with <paramref name="lead"/> of room before it along the line.
+        /// X= counts from the gap's end; a text that reads along the line starts at its
+        /// origin, one turned over ends there.
+        /// </summary>
+        private static LinetypeElement Carrying(double gap, double lead, double t, string text, string style, Proportions p, bool turned) =>
+            new(-gap, turned
+                ? Text(text, style, p, Math.PI, lead + t - gap, p.TextDrop)
+                : Text(text, style, p, 0, lead - gap, -p.TextDrop));
+
+        /// <summary>A gap of length <paramref name="gap"/> with <paramref name="text"/> in its middle.</summary>
+        private static LinetypeElement Centred(double gap, double t, string text, string style, Proportions p, bool turned) =>
+            Carrying(gap, (gap - t) / 2, t, text, style, p, turned);
+
         /// <summary>The line on each side of an X: (5 - the X's room) / 2.</summary>
         private static double HalfLine(Proportions p, Func<string, double> width) =>
             Math.Max(0.0, p.LineLength - Math.Abs(XDash(p, width))) / 2.0;
@@ -124,7 +141,7 @@ namespace IntersectUtilities.LineTypes
         private static double XDash(Proportions p, Func<string, double> width) => -(Math.Max(0.0, width(XText)) + 2 * p.TextBuffer);
 
         private static LinetypeElement X(string style, Proportions p, Func<string, double> width) =>
-            new(XDash(p, width), Text(XText, style, p, 0, -(width(XText) + p.TextBuffer), -p.TextDrop));
+            Centred(-XDash(p, width), Math.Max(0.0, width(XText)), XText, style, p, turned: false);
 
         /// <summary>Cuts the text into near-equal pieces, the longer ones first.</summary>
         private static List<string> Pieces(string text, int count)
@@ -156,21 +173,23 @@ namespace IntersectUtilities.LineTypes
             List<string> reversed = forward.Select(piece => new string(piece.Reverse().ToArray())).ToList();
             double line = Math.Max(0.0, (p.LineLength - Math.Abs(XDash(p, width))) / 2.0);
 
+            // Each piece has its pad split before and after it, so the letters stand evenly
+            // apart, and the run has the room each side.
             var elements = new List<LinetypeElement> { LinetypeElement.Plain(line) };
             for (int i = 0; i < n; i++)
             {
-                double w = width(forward[i]) + p.TextPad;
+                double t = width(forward[i]);
                 double left = i == 0 ? p.TextBuffer : 0;
                 double right = i == n - 1 ? p.TextBuffer : 0;
-                elements.Add(new LinetypeElement(-(w + left + right), Text(forward[i], style, p, 0, -(w - right), -p.TextDrop)));
+                elements.Add(Carrying(t + p.TextPad + left + right, left + p.TextPad / 2, t, forward[i], style, p, turned: false));
             }
             elements.Add(LinetypeElement.Plain(2 * line));
             for (int i = 0; i < n; i++)
             {
-                double w = width(reversed[i]) + p.TextPad;
+                double t = width(reversed[i]);
                 double left = i == 0 ? p.TextBuffer : inner;
                 double right = i == n - 1 ? p.TextBuffer : inner;
-                elements.Add(new LinetypeElement(-(w + left + right), Text(reversed[i], style, p, Math.PI, -p.TextBuffer, p.TextDrop)));
+                elements.Add(Carrying(t + p.TextPad + left + right, left + p.TextPad / 2, t, reversed[i], style, p, turned: true));
             }
             elements.Add(LinetypeElement.Plain(line));
             return elements;
@@ -179,13 +198,14 @@ namespace IntersectUtilities.LineTypes
         private static IReadOnlyList<LinetypeElement> TextBothWaysWholeElements(string text, string style, Proportions p, Func<string, double> width)
         {
             double line = Math.Max(0.0, (p.LineLength - Math.Abs(XDash(p, width))) / 2.0);
-            double w = width(text) + p.TextPad;
+            double t = width(text);
+            double gap = t + p.TextPad + 2 * p.TextBuffer;
             return new[]
             {
                 LinetypeElement.Plain(line),
-                new LinetypeElement(-(w + 2 * p.TextBuffer), Text(text, style, p, 0, -(w - p.TextBuffer), -p.TextDrop)),
+                Centred(gap, t, text, style, p, turned: false),
                 LinetypeElement.Plain(2 * line),
-                new LinetypeElement(-(w + 2 * p.TextBuffer), Text(text, style, p, Math.PI, -p.TextBuffer, p.TextDrop)),
+                Centred(gap, t, text, style, p, turned: true),
                 LinetypeElement.Plain(line),
             };
         }
@@ -204,20 +224,20 @@ namespace IntersectUtilities.LineTypes
             var elements = new List<LinetypeElement> { LinetypeElement.Plain(half) };
             for (int i = 0; i < n; i++)
             {
-                double w = width(forward[i]);
+                double t = width(forward[i]);
                 double left = i == 0 ? p.TextBuffer : inner;
                 double right = i == n - 1 ? p.TextBuffer : inner;
-                elements.Add(new LinetypeElement(-(w + left + right), Text(forward[i], style, p, 0, -(w - right), -p.TextDrop)));
+                elements.Add(Carrying(t + left + right, left, t, forward[i], style, p, turned: false));
             }
             elements.Add(LinetypeElement.Plain(half));
             elements.Add(X(style, p, width));
             elements.Add(LinetypeElement.Plain(half));
             for (int i = 0; i < n; i++)
             {
-                double w = width(reversed[i]);
+                double t = width(reversed[i]);
                 double left = i == 0 ? p.TextBuffer : inner;
                 double right = i == n - 1 ? p.TextBuffer : inner;
-                elements.Add(new LinetypeElement(-(w + left + right), Text(reversed[i], style, p, Math.PI, 0, p.TextDrop)));
+                elements.Add(Carrying(t + left + right, left, t, reversed[i], style, p, turned: true));
             }
             elements.Add(LinetypeElement.Plain(half));
             elements.Add(X(style, p, width));
@@ -227,15 +247,16 @@ namespace IntersectUtilities.LineTypes
         private static IReadOnlyList<LinetypeElement> TextWithXWholeElements(string text, string style, Proportions p, Func<string, double> width)
         {
             double half = HalfLine(p, width);
-            double w = width(text);
+            double t = width(text);
+            double gap = t + 2 * p.TextBuffer;
             return new[]
             {
                 LinetypeElement.Plain(half),
-                new LinetypeElement(-(w + 2 * p.TextBuffer), Text(text, style, p, 0, -(w - p.TextBuffer), -p.TextDrop)),
+                Centred(gap, t, text, style, p, turned: false),
                 LinetypeElement.Plain(half),
                 X(style, p, width),
                 LinetypeElement.Plain(half),
-                new LinetypeElement(-(w + 2 * p.TextBuffer), Text(text, style, p, Math.PI, 0, p.TextDrop)),
+                Centred(gap, t, text, style, p, turned: true),
                 LinetypeElement.Plain(half),
                 X(style, p, width),
             };

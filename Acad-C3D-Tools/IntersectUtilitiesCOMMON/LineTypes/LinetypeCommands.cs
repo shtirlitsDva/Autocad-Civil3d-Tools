@@ -165,7 +165,7 @@ namespace IntersectUtilities.LineTypes
         }
 
         /// <summary>
-        /// CREATEALLLINETYPESLAYERS: a layer 00LT-name per linetype, set to it, with a
+        /// CREATEALLLINETYPESLAYERS: a layer 00LT-name per linetype (ByLayer and ByBlock left out), set to it, with a
         /// 100 unit line on it and the name beside, one row per linetype down from the origin.
         /// Returns how many rows it drew.
         /// </summary>
@@ -178,9 +178,14 @@ namespace IntersectUtilities.LineTypes
                 {
                     var linetypes = (LinetypeTable)tx.GetObject(db.LinetypeTableId, OpenMode.ForRead);
                     var layers = (LayerTable)tx.GetObject(db.LayerTableId, OpenMode.ForRead);
+                    // ByLayer and ByBlock are no pattern a layer can be set to: a sample of them
+                    // was a Continuous line on a layer named after them.
                     var byName = new Dictionary<string, ObjectId>();
                     foreach (ObjectId id in linetypes)
+                    {
+                        if (id == db.ByLayerLinetype || id == db.ByBlockLinetype) continue;
                         byName.Add(((LinetypeTableRecord)tx.GetObject(id, OpenMode.ForRead)).Name, id);
+                    }
 
                     const double startX = 0, endX = 100, step = 5;
                     double y = 0;

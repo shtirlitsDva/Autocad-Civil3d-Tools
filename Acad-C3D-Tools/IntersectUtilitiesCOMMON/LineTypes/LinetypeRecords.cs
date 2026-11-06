@@ -373,11 +373,31 @@ namespace IntersectUtilities.LineTypes
             var table = (TextStyleTable)tx.GetObject(db.TextStyleTableId, OpenMode.ForRead);
             if (!table.Has(style)) throw new LinetypeRefusal($"The text style {style} is not in the drawing.");
             ObjectId id = table[style];
-            return text => TextWidth(id, text, size);
+            return text => TextWidth(db, id, text, size);
         }
 
-        private static double TextWidth(ObjectId style, string text, double size)
+        /// <summary>
+        /// The width of <paramref name="text"/>'s box, from its origin to its advance: the same
+        /// figure on both hosts (a DBText's extents are not: BricsCAD gives the ink).
+        /// </summary>
+        /// <remarks>
+        /// Civil 3D keeps a style's previous font for a GiTextStyle after the style's font
+        /// changes: after -STYLE Standard → arial.ttf it measured with txt.shx until a text in
+        /// the style was drawn (Fast Hands round 55, C6), and LoadStyleRec does not cure it once
+        /// a stale measure was taken (round 57). Measuring a DBText in the style does, so one is
+        /// measured first and thrown away.
+        /// </remarks>
+        private static double TextWidth(Database db, ObjectId style, string text, double size)
         {
+            if (!string.IsNullOrWhiteSpace(text))
+            {
+                using var refresh = new DBText();
+                refresh.SetDatabaseDefaults(db);
+                refresh.TextStyleId = style;
+                refresh.Height = size;
+                refresh.TextString = text;
+                _ = refresh.GeometricExtents;
+            }
             using var measure = new GiTextStyle();
             measure.FromTextStyleTableRecord(style);
             measure.TextSize = size;
