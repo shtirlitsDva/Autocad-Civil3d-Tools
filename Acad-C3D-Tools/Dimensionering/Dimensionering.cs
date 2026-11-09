@@ -4546,8 +4546,9 @@ namespace IntersectUtilities.Dimensionering
                             string lineTypeName = "LT-" + lineTypeText;
 
                             if (!ltt.Has(lineTypeName))
-                                PlanDetailing.LineTypes.LineTypes.createltmethod(
-                                    lineTypeName, lineTypeText, "Standard", dimDb);
+                                LineTypes.LinetypeCommands.Create(
+                                    dimDb, LineTypes.LinetypePreset.TextBothWays,
+                                    lineTypeName, lineTypeText, "Standard", LineTypes.NoUprightFlags.Instance);
 
                             newPipe.LinetypeId = ltt[lineTypeName];
                             newPipe.Plinegen = true;
@@ -4595,8 +4596,9 @@ namespace IntersectUtilities.Dimensionering
                                     string lineTypeName = "LT-" + lineTypeText;
 
                                     if (!ltt.Has(lineTypeName))
-                                        PlanDetailing.LineTypes.LineTypes.createltmethod(
-                                            lineTypeName, lineTypeText, "Standard", dimDb);
+                                        LineTypes.LinetypeCommands.Create(
+                                            dimDb, LineTypes.LinetypePreset.TextBothWays,
+                                            lineTypeName, lineTypeText, "Standard", LineTypes.NoUprightFlags.Instance);
 
                                     newPipe.LinetypeId = ltt[lineTypeName];
                                     newPipe.Plinegen = true;
