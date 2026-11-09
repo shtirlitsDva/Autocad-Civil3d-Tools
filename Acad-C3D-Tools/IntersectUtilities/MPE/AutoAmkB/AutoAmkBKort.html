@@ -626,10 +626,11 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
           if (Math.round(st) % every !== 0) { continue; }
           var L = 6 / view.s;
           ctx.beginPath(); ctx.moveTo(sx(x - nx * L), sy(y - ny * L)); ctx.lineTo(sx(x + nx * L), sy(y + ny * L)); ctx.stroke();
-          if (Math.round(st) % (every * (view.s > 4 ? 5 : 1)) === 0) { ctx.fillText(pad3(st), sx(x + nx * 9 / view.s), sy(y + ny * 9 / view.s)); }
+          if (Math.round(st) % (every * (view.s > 4 ? 5 : 1)) === 0) { ctx.fillText(a.name + ':' + pad3(st), sx(x + nx * 9 / view.s), sy(y + ny * 9 / view.s)); }
         }
       }
-      if (view.s > 0.35) {
+      // Once the station labels carry the alignment name, the name at the start would sit on top of "AAA:000"
+      if (view.s > 0.35 && !every) {
         ctx.save(); ctx.fillStyle = '#ffffff'; ctx.font = '700 13px ' + FONT;
         ctx.fillText(a.name, sx(a.pts[0]) + 6, sy(a.pts[1]) - 6); ctx.restore();
       }
