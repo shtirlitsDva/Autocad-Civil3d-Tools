@@ -350,7 +350,7 @@ namespace IntersectUtilities.MPE.AutoAmkB
                 foreach (string warning in warnings.Take(WarningsShown)) summary.Append($"\n  - {warning}");
                 if (warnings.Count > WarningsShown)
                 {
-                    summary.Append($"\n  ... og {warnings.Count - WarningsShown} flere (fanen Kørselsinfo i Excel-filen fra kortet).");
+                    summary.Append($"\n  ... og {warnings.Count - WarningsShown} flere (den skjulte fane Kørselsinfo i Excel-filen fra kortet).");
                 }
             }
 

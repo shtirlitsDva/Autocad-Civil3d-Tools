@@ -1216,7 +1216,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
   var JOURNAL_HEADERS = ['Stationering', 'Driftselementer, hovedkategori', 'Driftselementer, underkategori', 'Arb.miljøudfordringer', 'Uddybning af arbejdsmiljøudfordring (fritekst)',
     'Iboende sandsynlighed', 'Iboende konsekvens', 'Risikovurdering', 'Løsning og tiltag (fritekst)', 'Endelig sandsynlighed', 'Endelig konsekvens', 'Risikovurdering',
     'Koordinering/Kommunikation (fritekst)', 'Ansvarlig'];
-  var TEMPLATE_WIDTHS = [[1, 3], [2, 14], [3, 34], [4, 52], [5, 44], [6, 40], [17, 10], [18, 11], [19, 11], [20, 26], [21, 34], [22, 8], [23, 30], [24, 24], [25, 18]];
+  var TEMPLATE_WIDTHS = [[1, 3], [2, 14], [3, 34], [4, 52], [5, 44], [6, 40], [17, 10], [18, 11], [19, 11], [20, 26], [21, 34], [22, 8], [23, 30], [24, 24], [25, 18], [26, 11], [27, 11]];
   function fill(template, values) {
     var lower = {};
     Object.keys(values || {}).forEach(function (k) { lower[k.toLowerCase()] = values[k]; });
@@ -1228,13 +1228,17 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     return out.join(sep);
   }
   function round(v, d) { var f = Math.pow(10, d); return Math.round(v * f) / f; }
-  function Sheet(name, widths) { this.name = name; this.widths = widths; this.cells = []; }
+  // hidden: the sheet is hidden in Excel (Vis it again from the sheet tabs); hideFrom: the columns from this one on are
+  // hidden, with their data still in them
+  function Sheet(name, widths, hidden) { this.name = name; this.widths = widths; this.hidden = !!hidden; this.hideFrom = 0; this.cells = []; }
+  // A sheet to paste from into an AMK template: its source data from column Q on is there for checking a row, so it is hidden
+  function templateSheet(name) { var sh = new Sheet(name, TEMPLATE_WIDTHS, false); sh.hideFrom = SOURCE_COL; return sh; }
   Sheet.prototype.put = function (row, col, value) { this.cells.push([row, col, value]); };
   Sheet.prototype.row = function (row, col, values) { var self = this; values.forEach(function (v, i) { self.put(row, col + i, v); }); };
-  function copyHint(n) { return n === 0 ? 'Ingen fund.' : 'Kopiér B' + FIRST_ROW + ':F' + (FIRST_ROW + n - 1) + ' og indsæt som værdier i skabelonens celle B' + FIRST_ROW + '. Kolonne Q og frem er kildedata.'; }
+  function copyHint(n) { return n === 0 ? 'Ingen fund.' : 'Kopiér B' + FIRST_ROW + ':F' + (FIRST_ROW + n - 1) + ' og indsæt som værdier i skabelonens celle B' + FIRST_ROW + '. Kolonne Q og frem er skjulte kildedata.'; }
   function intro(sh, title, hint) {
     sh.put(1, 2, title); sh.put(2, 2, hint);
-    sh.put(3, 2, 'Projekt ' + D.project + ', etape ' + D.etape + ', kørt ' + D.runTime + '. Se fanen Kørselsinfo.');
+    sh.put(3, 2, 'Projekt ' + D.project + ', etape ' + D.etape + ', kørt ' + D.runTime + '. Se den skjulte fane Kørselsinfo.');
   }
   function hitFields(it) {
     var h = it.hit;
@@ -1257,7 +1261,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     var dropped = items.filter(isNon);
     var sheets = [];
 
-    var sh = new Sheet('Logbog pr. fund', TEMPLATE_WIDTHS);
+    var sh = templateSheet('Logbog pr. fund');
     intro(sh, 'AUTOAMKB – logbog, én række pr. fund', copyHint(kept.length));
     sh.row(HEADER_ROW, 2, LOGBOOK_HEADERS);
     sh.row(HEADER_ROW, SOURCE_COL, ['Alignment', 'Station fra', 'Station til', 'Kriterie', 'Detalje', 'Antal', 'Ejer', 'Kildefil', 'Handle', 'X', 'Y']);
@@ -1270,7 +1274,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
 
     var byKind = KIND_ORDER.filter(function (k) { return k !== 'VENTIL'; }).map(function (k) { return { key: k, hits: kept.filter(function (it) { return it.kind.key === k; }) }; })
       .filter(function (g) { return g.hits.length; });
-    sh = new Sheet('Logbog pr. kriterie', TEMPLATE_WIDTHS);
+    sh = templateSheet('Logbog pr. kriterie');
     intro(sh, 'AUTOAMKB – logbog, én række pr. kriterie', copyHint(byKind.length));
     sh.row(HEADER_ROW, 2, LOGBOOK_HEADERS);
     sh.row(HEADER_ROW, SOURCE_COL, ['Kriterie', 'Antal fund']);
@@ -1282,7 +1286,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     sheets.push(sh);
 
     var J = D.excel.journal;
-    sh = new Sheet('Journal', TEMPLATE_WIDTHS);
+    sh = templateSheet('Journal');
     intro(sh, 'AUTOAMKB – journal, ventiler', copyHint(keptValves.length * J.subs.length));
     sh.row(HEADER_ROW, 2, JOURNAL_HEADERS);
     sh.row(HEADER_ROW, SOURCE_COL, ['Alignment', 'Station', 'Antal ventiler', 'Komponenttype', 'Blok', 'Handle', 'X', 'Y']);
@@ -1297,7 +1301,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     });
     sheets.push(sh);
 
-    sh = new Sheet('Fravalgt', [[1, 18], [2, 26], [3, 11], [4, 11], [5, 11], [6, 52], [7, 40], [8, 17], [9, 30]]);
+    sh = new Sheet('Fravalgt', [[1, 18], [2, 26], [3, 11], [4, 11], [5, 11], [6, 52], [7, 40], [8, 17], [9, 30]], true);
     sh.row(1, 1, ['ID', 'Kriterie', 'Alignment', 'Station fra', 'Station til', 'Detalje', 'Begrundelse', 'Markeret', 'Markering']);
     dropped.sort(function (a, b) { return byName(a.id, b.id); }).forEach(function (it, n) {
       var mk = it.ms.mark;
@@ -1318,7 +1322,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     }).join('; ');
   }
   function infoSheet(kept, keptValves, dropped) {
-    var I = D.excel.info, sh = new Sheet('Kørselsinfo', [[1, 30], [2, 110], [3, 60]]), row = 1;
+    var I = D.excel.info, sh = new Sheet('Kørselsinfo', [[1, 30], [2, 110], [3, 60]], true), row = 1;
     function line() { var a = arguments; for (var i = 0; i < a.length; i++) { sh.put(row, i + 1, a[i]); } row++; }
     line('AUTOAMKB – kørselsinfo'); row++;
     line('Projekt', D.project); line('Etape', D.etape); line('Tegning', I.drawingPath); line('Kørt', D.runTime); line('Eksporteret', nowText());
@@ -1349,7 +1353,9 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     sh.cells.forEach(function (c) { (rows[c[0]] = rows[c[0]] || []).push(c); });
     if (sh.widths.length) {
       out.push('<cols>');
-      sh.widths.forEach(function (w) { out.push('<col min="' + w[0] + '" max="' + w[0] + '" width="' + w[1] + '" customWidth="1"/>'); });
+      sh.widths.forEach(function (w) {
+        out.push('<col min="' + w[0] + '" max="' + w[0] + '" width="' + w[1] + '" customWidth="1"' + (sh.hideFrom && w[0] >= sh.hideFrom ? ' hidden="1"' : '') + '/>');
+      });
       out.push('</cols>');
     }
     out.push('<sheetData>');
@@ -1375,7 +1381,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     sheets.forEach(function (sh, i) {
       var n = i + 1;
       ct += '<Override PartName="/xl/worksheets/sheet' + n + '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>';
-      wb += '<sheet name="' + xmlText(sh.name) + '" sheetId="' + n + '" r:id="rId' + n + '"/>';
+      wb += '<sheet name="' + xmlText(sh.name) + '" sheetId="' + n + '"' + (sh.hidden ? ' state="hidden"' : '') + ' r:id="rId' + n + '"/>';
       rels += '<Relationship Id="rId' + n + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet' + n + '.xml"/>';
       files.push({ name: 'xl/worksheets/sheet' + n + '.xml', text: sheetXml(sh) });
     });
