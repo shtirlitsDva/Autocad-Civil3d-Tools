@@ -1053,8 +1053,10 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     return location.host ? '\\\\' + location.host + dir.replace(/\//g, '\\') : dir.replace(/^\/([A-Za-z]:)/, '$1').replace(/\//g, '\\');
   })();
 
-  // The chosen map file is remembered in this browser, so later saves ask only for permission, not for the file
-  var HANDLE_KEY = D.project + '|' + D.etape + '|' + MAP_NAME;
+  // The chosen map file is remembered in this browser, so later saves ask only for permission, not for the file. It is
+  // remembered by this page's own path: a copy of the map in another folder has the same name and run, so with the name
+  // alone its Gem would write into the original
+  var HANDLE_KEY = D.project + '|' + D.etape + '|' + (MAP_DIR + '\\' + MAP_NAME).toLowerCase();
   function handleStore(mode, use) {
     return new Promise(function (resolve) {
       var open;
